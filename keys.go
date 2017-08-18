@@ -1,6 +1,7 @@
 package main
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/dedis/drand/pbc"
@@ -13,7 +14,7 @@ var pairing = pbc.NewPairingFp382_1()
 // Private key is a wrapper around a random scalar  and the corresponding public
 // key in G2
 type Private struct {
-	Key    kyber.Point
+	Key    kyber.Scalar
 	Public *Public
 }
 
@@ -22,36 +23,76 @@ type Public struct {
 	Address string
 }
 
+// NewKeyPair returns a freshly created private / public key pair.
 func NewKeyPair(address string) *Private {
 	g := pairing.G2()
 	key := g.Scalar().Pick(random.Stream)
+	pubKey := g.Point().Mul(key, nil)
+	pub := &Public{
+		Key:     pubKey,
+		Address: address,
+	}
+	return &Private{
+		Key:    key,
+		Public: pub,
+	}
 }
 
 func (p *Public) Equal(p2 *Public) bool {
 	return p.Key.Equal(p2.Key) && p.Address == p2.Address
 }
 
-type Publics []*Public
+type ByKey []*Public
 
-func (p *Publics) Len() int {
-	return len(*p)
+func (b ByKey) Len() int {
+	return len(b)
 }
 
-func (p *Publics) Swap(i, j int) {
-	(*p)[i], (*p)[j] = (*p)[j], (*p)[i]
+func (b ByKey) Swap(i, j int) {
+	(b)[i], (b)[j] = (b)[j], (b)[i]
 }
 
-func (p *Publics) Less(i, j int) bool {
-	is := (*p)[i].Key.String()
-	js := (*p)[j].Key.String()
+func (b ByKey) Less(i, j int) bool {
+	is := (b)[i].Key.String()
+	js := (b)[j].Key.String()
 	return strings.Compare(is, js) < 0
 }
 
-func (p *Publics) Contains(pub *Public) bool {
-	for _, pu := range *p {
+// IndexedList returns an indexed list of publics sorted by the alphabetical
+// hexadecimal representation of the individual public keys.
+func Sort(list []*Public) IndexedList {
+	sort.Sort(ByKey(list))
+	il := make(IndexedList, len(list))
+	for i, p := range list {
+		il[i] = &IndexedPublic{
+			Public: p,
+			Index:  i,
+		}
+	}
+	return il
+}
+
+type IndexedPublic struct {
+	*Public
+	Index int
+}
+
+type IndexedList []*IndexedPublic
+
+func (i *IndexedList) Contains(pub *Public) bool {
+	for _, pu := range *i {
 		if pu.Equal(pub) {
 			return true
 		}
 	}
 	return false
+}
+
+func (i *IndexedList) Index(pub *Public) (int, bool) {
+	for _, pu := range *i {
+		if pu.Equal(pub) {
+			return pu.Index, true
+		}
+	}
+	return 0, false
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -16,6 +17,9 @@ import (
 // a connection will return an io.EOF after readTimeout if nothing has been
 // sent.
 var readTimeout = 1 * time.Minute
+
+// how much time do a router have to wait for an incoming connection
+var maxIncomingWaitTime = 10 * time.Second
 
 // Conn is a wrapper around the native golang connection that provides a
 // automatic encoding and decoding of protobuf encoded messages.
@@ -82,18 +86,23 @@ func (c *Conn) Receive() ([]byte, error) {
 // public identity.
 type Router struct {
 	priv     *Private
-	list     Publics
+	list     IndexedList
 	index    int
 	addr     string
 	pubGroup kyber.Group
 
+	// key are ID of the public key
 	conns   map[string]Conn
 	connMut sync.Mutex
 
 	messages chan messageWrapper
 }
 
-func NewRouter(priv *Private, list Publics, idx int, pubGroup kyber.Group) *Router {
+func NewRouter(priv *Private, list IndexedList, pubGroup kyber.Group) *Router {
+	idx, ok := list.Index(priv.Public)
+	if !ok {
+		panic("public key not found in the list")
+	}
 	return &Router{
 		priv:     priv,
 		index:    idx,
@@ -119,9 +128,79 @@ func (r *Router) Listen() {
 	}
 }
 
+// Receive returns the next enqueued message coming from any active connections
 func (r *Router) Receive() (*Public, []byte) {
 	wrap := <-r.messages
 	return wrap.Pub, wrap.Message
+}
+
+// Send checks if a connections exists and if so, marshals the packet and sends
+// it through. If the connection does not exists, the router checks whether it
+// must initiates the connection or wait for the destination to make the
+// connection. It does so by looking at the index of the destination in the list
+// of public keys. If the index of the router is higher than the one of the
+// destination, the router waits for  destination to trigger the connection. If
+// the index of the router is lower, then it initiates the connection.
+func (r *Router) Send(pub *Public, d *Drand) error {
+	r.connMut.Lock()
+	c, ok := r.conns[pub.Key.String()]
+	if ok {
+		// already connected to it
+		err := c.Send(d)
+		r.connMut.Unlock()
+		return err
+	}
+	r.connMut.Unlock()
+	// check action to take according to index
+	ridx, ok := r.list.Index(pub)
+	if !ok {
+		return errors.New("router: does not know the public key")
+	}
+	var c Conn
+	if ridx > r.index {
+		cc, err := r.connect(pub)
+		if err != nil {
+			return err
+		}
+		c = cc
+	} else if ridx < r.index {
+		// wait for incoming conn
+		cc, err := r.waitIncoming(pub)
+		if err != nil {
+			return err
+		}
+		c = cc
+	} else {
+		return errors.New("router: don't send to ourself")
+	}
+	return c.Send(d)
+}
+
+func (r *Router) waitIncoming(pub *Public) (Conn, error) {
+
+}
+
+// connect actively tries to connect to the address given in the Public and
+// registers that connection to the router.
+func (r *Router) connect(p *Public) (Conn, error) {
+	c, err := net.Dial("tcp", addr)
+	if err != nil {
+		return Conn{}, err
+	}
+	return r.registerConn(p, c), nil
+}
+
+// registerConn simply puts the connection in the global map
+func (r *Router) registerConn(pub *Public, c net.Conn) Conn {
+	r.connMut.Lock()
+	defer r.connMut.Unlock()
+	if _, ok := r.conns[pub.Key.String()]; ok {
+		slog.Debug("router: already connected to ", pub.Address)
+		return
+	}
+	cc := Conn{c}
+	r.conns[p.Key.String()] = cc
+	return cc
 }
 
 // handleIncoming expects to receive the public identity of the remote party
@@ -151,16 +230,7 @@ func (r *Router) handleIncoming(c Conn) {
 		return
 	}
 
-	r.connMut.Lock()
-	if _, ok := r.conns[pub.Address]; ok {
-		slog.Debug("router: already connected to ", pub.Address)
-		r.connMut.Unlock()
-		return
-	}
-
-	r.conns[pub.Address] = c
-	r.connMut.Unlock()
-	r.handleConnection(pub, c)
+	r.handleConnection(pub, r.registerConn(pub, c.Conn))
 }
 
 func (r *Router) handleConnection(p *Public, c Conn) {

@@ -10,7 +10,6 @@ import (
 	"github.com/dfinity/go-dfinity-crypto/bls"
 
 	"gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/group/internal/marshalling"
 )
 
 type scalar struct {
@@ -109,7 +108,7 @@ func (s *scalar) MarshalBinary() (buff []byte, err error) {
 }
 
 func (s *scalar) MarshalTo(w io.Writer) (int, error) {
-	return marshalling.ScalarMarshalTo(s, w)
+	return ScalarMarshalTo(s, w)
 }
 
 func (s *scalar) UnmarshalBinary(buff []byte) error {
@@ -117,7 +116,7 @@ func (s *scalar) UnmarshalBinary(buff []byte) error {
 }
 
 func (s *scalar) UnmarshalFrom(r io.Reader) (int, error) {
-	return marshalling.ScalarUnmarshalFrom(s, r)
+	return ScalarUnmarshalFrom(s, r)
 }
 
 func (s *scalar) MarshalSize() int {
