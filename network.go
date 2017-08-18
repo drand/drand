@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"net"
-	"reflect"
+	"sync"
 	"time"
 
 	kyber "gopkg.in/dedis/kyber.v1"
@@ -74,6 +74,9 @@ type Router struct {
 	index    int
 	addr     string
 	pubGroup kyber.Group
+
+	conns   map[string]Conn
+	connMut sync.Mutex
 }
 
 func NewRouter(priv *Private, list Publics, idx int, pubGroup kyber.Group) *Router {
@@ -82,6 +85,7 @@ func NewRouter(priv *Private, list Publics, idx int, pubGroup kyber.Group) *Rout
 		index: idx,
 		list:  list,
 		addr:  list[idx].Address,
+		conns: make(map[string]Conn),
 	}
 }
 
@@ -102,20 +106,48 @@ func (r *Router) Listen() {
 
 // handleIncoming expects to receive the public identity of the remote party
 // first, then handle the connection normally as in handleConn.
-func (r *Router) handleIncoming(c net.Conn) {
+func (r *Router) handleIncoming(c Conn) {
+	buff, err := c.Receive()
+	if err != nil {
+		slog.Debug("router: error receiving from ", c.RemoteAddr())
+		return
+	}
+
+	drand, err := unmarshal(r.pubGroup, buff)
+	if err != nil {
+		slog.Debug("router: error unmarshalling pub key from", c.RemoteAddr())
+		return
+	}
+
+	if drand.Hello == nil {
+		slog.Debug("router: no hello message from", c.RemoteAddr())
+		return
+	}
+	pub := drand.Hello
+	// chekc that we know this public key. Not a security measure but merely to
+	// only deal with keys this router knows
+	if !r.list.Contains(pub) {
+		slog.Debug("router: unknown public key from ", c.RemoteAddr())
+		return
+	}
+
+	r.connMut.Lock()
+	if _, ok := r.conns[pub.Address]; ok {
+		slog.Debug("router: already connected to ", pub.Address)
+		r.connMut.Unlock()
+		return
+	}
+
+	c.conns[pub.Address] = c
+	r.connMut.Unlock()
+	r.handleConnection(pub, c)
+}
+
+func (r *Router) handleConnection(p *Public, c Conn) {
 
 }
 
 func host(c net.Conn) string {
 	host, _, _ := net.SplitHostPort(c.RemoteAddr().Network())
 	return host
-}
-
-func constructors(g kyber.Group) protobuf.Constructors {
-	cons := make(protobuf.Constructors)
-	var s kyber.Scalar
-	var p kyber.Point
-	cons[reflect.TypeOf(&s).Elem()] = func() interface{} { return g.Scalar() }
-	cons[reflect.TypeOf(&p).Elem()] = func() interface{} { return g.Point() }
-	return cons
 }
