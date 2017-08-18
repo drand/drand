@@ -1,8 +1,17 @@
 package main
 
-import kyber "gopkg.in/dedis/kyber.v1"
-import "strings"
+import (
+	"strings"
 
+	"github.com/dedis/drand/pbc"
+	kyber "gopkg.in/dedis/kyber.v1"
+	"gopkg.in/dedis/kyber.v1/util/random"
+)
+
+var pairing = pbc.NewPairingFp382_1()
+
+// Private key is a wrapper around a random scalar  and the corresponding public
+// key in G2
 type Private struct {
 	Key    kyber.Point
 	Public *Public
@@ -11,6 +20,11 @@ type Private struct {
 type Public struct {
 	Key     kyber.Point
 	Address string
+}
+
+func NewKeyPair(address string) *Private {
+	g := pairing.G2()
+	key := g.Scalar().Pick(random.Stream)
 }
 
 func (p *Public) Equal(p2 *Public) bool {
