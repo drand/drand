@@ -32,3 +32,12 @@ func (p *Publics) Less(i, j int) bool {
 	js := (*p)[j].Key.String()
 	return strings.Compare(is, js) < 0
 }
+
+func (p *Publics) Contains(pub *Public) bool {
+	for _, pu := range *p {
+		if pu.Equal(pub) {
+			return true
+		}
+	}
+	return false
+}

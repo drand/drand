@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"net"
 	"reflect"
 	"time"
@@ -18,16 +17,6 @@ import (
 // a connection will return an io.EOF after readTimeout if nothing has been
 // sent.
 var readTimeout = 1 * time.Minute
-
-// Router holds all incoming and outgoing alive connections, permits application
-// layer above to send and receive messages with each connections mapped to a
-// public identity.
-type Router struct {
-	priv  *Private
-	index int
-	list  Publics
-	addr  string
-}
 
 // Conn is a wrapper around the native golang connection that provides a
 // automatic encoding and decoding of protobuf encoded messages.
@@ -47,7 +36,7 @@ func (c *Conn) Send(d *Drand) error {
 	return err
 }
 
-func (c *Conn) Receive(g kyber.Group) (*Drand, error) {
+func (c *Conn) Receive() ([]byte, error) {
 	c.conn.SetReadDeadline(time.Now().Add(readTimeout))
 	// First read the size
 	var total Size
@@ -73,26 +62,27 @@ func (c *Conn) Receive(g kyber.Group) (*Drand, error) {
 		read += Size(n)
 		b = b[n:]
 	}
-
+	return b
 }
 
-func NewRouter(priv *Private, list Publics) (*Router, error) {
-	var idx = -1
-	for i, p := range list {
-		if !priv.Public.Equal(p) {
-			continue
-		}
-		idx = i
-	}
-	if idx == -1 {
-		return nil, errors.New("public identity not found in the list")
-	}
+// Router holds all incoming and outgoing alive connections, permits application
+// layer above to send and receive messages with each connections mapped to a
+// public identity.
+type Router struct {
+	priv     *Private
+	list     Publics
+	index    int
+	addr     string
+	pubGroup kyber.Group
+}
+
+func NewRouter(priv *Private, list Publics, idx int, pubGroup kyber.Group) *Router {
 	return &Router{
 		priv:  priv,
 		index: idx,
 		list:  list,
-		addr:  list[index].Address,
-	}, nil
+		addr:  list[idx].Address,
+	}
 }
 
 func (r *Router) Listen() {

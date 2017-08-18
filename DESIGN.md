@@ -19,3 +19,12 @@ distributed randomness protocol.
 
 After the DKG has been running correctly, the threshold BLS signature protocol
 is started by the initiator automatically at a fixed interval.
+
+# Specifications
+
+## Network
+
+- Each protobuf encoded message is prepended by its size readable as a uint16
+- Each incoming connection must provide its public identity as a first message
+
+

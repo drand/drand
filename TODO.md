@@ -1,0 +1,1 @@
+- self signatures (BLS) on Public struct
