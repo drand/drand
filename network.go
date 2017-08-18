@@ -9,7 +9,6 @@ import (
 
 	kyber "gopkg.in/dedis/kyber.v1"
 
-	"github.com/dedis/onet/log"
 	"github.com/dedis/protobuf"
 	"github.com/nikkolasg/slog"
 )
@@ -27,42 +26,55 @@ type Conn struct {
 // Send marshals the given Drand packet and write it on the underlying
 // connection.
 func (c *Conn) Send(d *Drand) error {
-	buff, err := protobuf.Encode(d)
+	b, err := protobuf.Encode(d)
 	if err != nil {
 		return err
 	}
 
-	_, err := c.Conn.Write(buff)
-	return err
+	packetSize := uint16(len(b))
+	if err := binary.Write(c.Conn, binary.LittleEndian, packetSize); err != nil {
+		return err
+	}
+	// then send everything through the connection
+	// Send chunk by chunk
+	var sent uint16
+	for sent < packetSize {
+		n, err := c.Conn.Write(b[sent:])
+		if err != nil {
+			return err
+		}
+		sent += uint16(n)
+	}
+	return nil
 }
 
 func (c *Conn) Receive() ([]byte, error) {
-	c.conn.SetReadDeadline(time.Now().Add(readTimeout))
+	c.Conn.SetReadDeadline(time.Now().Add(readTimeout))
 	// First read the size
-	var total Size
-	if err := binary.Read(c.conn, globalOrder, &total); err != nil {
-		return nil, handleError(err)
+	var total uint16
+	if err := binary.Read(c.Conn, binary.LittleEndian, &total); err != nil {
+		return nil, err
 	}
 
 	b := make([]byte, total)
-	var read Size
+	var read uint16
 	var buffer bytes.Buffer
 	for read < total {
 		// Read the size of the next packet.
-		c.conn.SetReadDeadline(time.Now().Add(readTimeout))
-		n, err := c.conn.Read(b)
+		c.Conn.SetReadDeadline(time.Now().Add(readTimeout))
+		n, err := c.Conn.Read(b)
 		// Quit if there is an error.
 		if err != nil {
-			return nil, handleError(err)
+			return nil, err
 		}
 		// Append the read bytes into the buffer.
 		if _, err := buffer.Write(b[:n]); err != nil {
-			log.Error("Couldn't write to buffer:", err)
+			slog.Debug("Couldn't write to buffer:", err)
 		}
-		read += Size(n)
+		read += uint16(n)
 		b = b[n:]
 	}
-	return b
+	return b, nil
 }
 
 // Router holds all incoming and outgoing alive connections, permits application
@@ -77,15 +89,18 @@ type Router struct {
 
 	conns   map[string]Conn
 	connMut sync.Mutex
+
+	messages chan messageWrapper
 }
 
 func NewRouter(priv *Private, list Publics, idx int, pubGroup kyber.Group) *Router {
 	return &Router{
-		priv:  priv,
-		index: idx,
-		list:  list,
-		addr:  list[idx].Address,
-		conns: make(map[string]Conn),
+		priv:     priv,
+		index:    idx,
+		list:     list,
+		addr:     list[idx].Address,
+		conns:    make(map[string]Conn),
+		messages: make(chan messageWrapper),
 	}
 }
 
@@ -100,8 +115,13 @@ func (r *Router) Listen() {
 		if err != nil {
 			slog.Info("error with listening: ", err)
 		}
-		go r.handleIncoming(c)
+		go r.handleIncoming(Conn{c})
 	}
+}
+
+func (r *Router) Receive() (*Public, []byte) {
+	wrap := <-r.messages
+	return wrap.Pub, wrap.Message
 }
 
 // handleIncoming expects to receive the public identity of the remote party
@@ -138,13 +158,25 @@ func (r *Router) handleIncoming(c Conn) {
 		return
 	}
 
-	c.conns[pub.Address] = c
+	r.conns[pub.Address] = c
 	r.connMut.Unlock()
 	r.handleConnection(pub, c)
 }
 
 func (r *Router) handleConnection(p *Public, c Conn) {
+	for {
+		buff, err := c.Receive()
+		if err != nil {
+			slog.Info("router: conn. error from ", p.Address)
+			return
+		}
+		r.messages <- messageWrapper{Pub: p, Message: buff}
+	}
+}
 
+type messageWrapper struct {
+	Pub     *Public
+	Message []byte
 }
 
 func host(c net.Conn) string {
