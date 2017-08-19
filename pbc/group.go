@@ -3,8 +3,9 @@ package pbc
 import (
 	"crypto/cipher"
 	"crypto/sha256"
-	"github.com/dfinity/go-dfinity-crypto/bls"
 	"hash"
+
+	"github.com/dfinity/go-dfinity-crypto/bls"
 
 	"gopkg.in/dedis/kyber.v1"
 	"gopkg.in/dedis/kyber.v1/cipher/sha3"

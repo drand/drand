@@ -77,8 +77,11 @@ type IndexedPublic struct {
 	Index int
 }
 
+// IndexedList is a list of IndexedPublic providing helper methods to search and
+// get public keys from a list.
 type IndexedList []*IndexedPublic
 
+// Contains returns true if the public key is contained in the list or not.
 func (i *IndexedList) Contains(pub *Public) bool {
 	for _, pu := range *i {
 		if pu.Equal(pub) {
@@ -88,6 +91,8 @@ func (i *IndexedList) Contains(pub *Public) bool {
 	return false
 }
 
+// Index returns the index of the given public key with a boolean indicating
+// whether the public has been found or not.
 func (i *IndexedList) Index(pub *Public) (int, bool) {
 	for _, pu := range *i {
 		if pu.Equal(pub) {
@@ -95,4 +100,13 @@ func (i *IndexedList) Index(pub *Public) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+// Points returns itself under the form of a list of kyber.Point
+func (i *IndexedList) Points() []kyber.Point {
+	pts := make([]kyber.Point, len(*i))
+	for _, pu := range *i {
+		pts[pu.Index] = pu.Key
+	}
+	return pts
 }

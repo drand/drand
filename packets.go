@@ -6,16 +6,19 @@ import (
 
 	"github.com/dedis/protobuf"
 	kyber "gopkg.in/dedis/kyber.v1"
+	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
 )
 
 type Drand struct {
 	Hello *Public
-	Dkg   *DKG
+	Dkg   *DKGPacket
 	Tbls  *TBLS
 }
 
-type DKG struct {
-	Public kyber.Point
+type DKGPacket struct {
+	Deal          *dkg.Deal
+	Response      *dkg.Response
+	Justification *dkg.Justification
 }
 
 type TBLS struct {
