@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +41,7 @@ func (c *Conn) Send(d *Drand) error {
 	if err := binary.Write(c.Conn, binary.LittleEndian, packetSize); err != nil {
 		return err
 	}
+
 	// then send everything through the connection
 	// Send chunk by chunk
 	var sent uint16
@@ -78,7 +81,7 @@ func (c *Conn) Receive() ([]byte, error) {
 		read += uint16(n)
 		b = b[n:]
 	}
-	return b, nil
+	return buffer.Bytes(), nil
 }
 
 // Router holds all incoming and outgoing alive connections, permits application
@@ -92,10 +95,13 @@ type Router struct {
 	pubGroup kyber.Group
 
 	// key are ID of the public key
-	conns   map[string]Conn
-	connMut sync.Mutex
+	conns map[string]Conn
+	cond  *sync.Cond
 
 	messages chan messageWrapper
+
+	listener net.Listener
+	listMut  sync.Mutex
 }
 
 func NewRouter(priv *Private, list IndexedList, pubGroup kyber.Group) *Router {
@@ -109,7 +115,8 @@ func NewRouter(priv *Private, list IndexedList, pubGroup kyber.Group) *Router {
 		list:     list,
 		addr:     list[idx].Address,
 		conns:    make(map[string]Conn),
-		messages: make(chan messageWrapper),
+		messages: make(chan messageWrapper, 100),
+		cond:     sync.NewCond(&sync.Mutex{}),
 	}
 }
 
@@ -118,11 +125,16 @@ func (r *Router) Listen() {
 	if err != nil {
 		panic("can't listen on addresse: " + err.Error())
 	}
-
+	r.listMut.Lock()
+	r.listener = listener
+	r.listMut.Unlock()
 	for {
 		c, err := listener.Accept()
 		if err != nil {
 			slog.Info("error with listening: ", err)
+			if strings.Contains(err.Error(), "closed") {
+				return
+			}
 		}
 		go r.handleIncoming(Conn{c})
 	}
@@ -142,21 +154,22 @@ func (r *Router) Receive() (*Public, []byte) {
 // destination, the router waits for  destination to trigger the connection. If
 // the index of the router is lower, then it initiates the connection.
 func (r *Router) Send(pub *Public, d *Drand) error {
-	r.connMut.Lock()
+	r.cond.L.Lock()
+	slog.Debug(r.addr, "searching for conn to ", pub.Address)
 	c, ok := r.conns[pub.Key.String()]
+	r.cond.L.Unlock()
 	if ok {
 		// already connected to it
+		slog.Debug(c.LocalAddr(), "sent to ", c.RemoteAddr())
 		err := c.Send(d)
-		r.connMut.Unlock()
 		return err
 	}
-	r.connMut.Unlock()
+	slog.Debug(r.addr, "no connection to ", pub.Address)
 	// check action to take according to index
 	ridx, ok := r.list.Index(pub)
 	if !ok {
 		return errors.New("router: does not know the public key")
 	}
-	var c Conn
 	if ridx > r.index {
 		cc, err := r.connect(pub)
 		if err != nil {
@@ -176,15 +189,73 @@ func (r *Router) Send(pub *Public, d *Drand) error {
 	return c.Send(d)
 }
 
-func (r *Router) waitIncoming(pub *Public) (Conn, error) {
+func (r *Router) Stop() {
+	r.listMut.Lock()
+	r.listener.Close()
+	r.listMut.Unlock()
 
+	r.cond.L.Lock()
+	for _, c := range r.conns {
+		c.Close()
+	}
+	r.cond.L.Unlock()
+}
+
+// waitIncoming
+func (r *Router) waitIncoming(pub *Public) (Conn, error) {
+	id := pub.Key.String()
+	var c *Conn
+	// condition is that the connection is registered
+	condition := func() bool {
+		ci, ok := r.conns[id]
+		if ok {
+			c = &ci
+			return true
+		}
+		return false
+	}
+	var timeout bool
+	var timeLock sync.Mutex
+	// trigger the lock after the maximum time out
+	go func() {
+		time.Sleep(maxIncomingWaitTime)
+		timeLock.Lock()
+		timeout = true
+		timeLock.Unlock()
+		r.cond.Broadcast()
+	}()
+
+	r.cond.L.Lock()
+	for !condition() {
+		fmt.Println(r.addr, "wait wait ...")
+		r.cond.Wait()
+		fmt.Println(r.addr, "checking timeout")
+		timeLock.Lock()
+		defer timeLock.Unlock()
+		if timeout {
+			fmt.Println(r.addr, " timeout !")
+			break
+		}
+
+	}
+	r.cond.L.Unlock()
+	if c == nil {
+		return Conn{}, errors.New("router: time out waiting on incoming connection")
+	}
+	return *c, nil
 }
 
 // connect actively tries to connect to the address given in the Public and
 // registers that connection to the router.
 func (r *Router) connect(p *Public) (Conn, error) {
-	c, err := net.Dial("tcp", addr)
+	c, err := net.Dial("tcp", p.Address)
 	if err != nil {
+		return Conn{}, err
+	}
+	cc := Conn{c}
+	hello := &Drand{Hello: r.priv.Public}
+	slog.Debugf("router(Addr: %s / conn: %s): sending Hello message to %s", r.addr, c.LocalAddr(), c.RemoteAddr())
+	if err := cc.Send(hello); err != nil {
 		return Conn{}, err
 	}
 	return r.registerConn(p, c), nil
@@ -192,14 +263,15 @@ func (r *Router) connect(p *Public) (Conn, error) {
 
 // registerConn simply puts the connection in the global map
 func (r *Router) registerConn(pub *Public, c net.Conn) Conn {
-	r.connMut.Lock()
-	defer r.connMut.Unlock()
-	if _, ok := r.conns[pub.Key.String()]; ok {
+	r.cond.L.Lock()
+	defer r.cond.L.Unlock()
+	if ci, ok := r.conns[pub.Key.String()]; ok {
 		slog.Debug("router: already connected to ", pub.Address)
-		return
+		return ci
 	}
 	cc := Conn{c}
-	r.conns[p.Key.String()] = cc
+	r.conns[pub.Key.String()] = cc
+	r.cond.Broadcast()
 	return cc
 }
 
@@ -217,9 +289,8 @@ func (r *Router) handleIncoming(c Conn) {
 		slog.Debug("router: error unmarshalling pub key from", c.RemoteAddr())
 		return
 	}
-
 	if drand.Hello == nil {
-		slog.Debug("router: no hello message from", c.RemoteAddr())
+		slog.Debugf("router(%s): no hello message from %s", c.LocalAddr(), c.RemoteAddr())
 		return
 	}
 	pub := drand.Hello
@@ -234,6 +305,7 @@ func (r *Router) handleIncoming(c Conn) {
 }
 
 func (r *Router) handleConnection(p *Public, c Conn) {
+	fmt.Println("handlingConnection from ", c.LocalAddr(), " <- ", c.RemoteAddr())
 	for {
 		buff, err := c.Receive()
 		if err != nil {

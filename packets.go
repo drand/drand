@@ -34,6 +34,6 @@ func constructors(g kyber.Group) protobuf.Constructors {
 // unmarshal reads the protobuf encoded buffer into a Drand struct
 func unmarshal(g kyber.Group, buff []byte) (*Drand, error) {
 	cons := constructors(g)
-	var drand Drand
-	return &drand, protobuf.DecodeWithConstructors(buff, &drand, cons)
+	var drand = new(Drand)
+	return drand, protobuf.DecodeWithConstructors(buff, drand, cons)
 }
