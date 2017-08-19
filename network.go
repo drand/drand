@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -117,6 +116,7 @@ func NewRouter(priv *Private, list IndexedList, pubGroup kyber.Group) *Router {
 		conns:    make(map[string]Conn),
 		messages: make(chan messageWrapper, 100),
 		cond:     sync.NewCond(&sync.Mutex{}),
+		pubGroup: pubGroup,
 	}
 }
 
@@ -227,13 +227,10 @@ func (r *Router) waitIncoming(pub *Public) (Conn, error) {
 
 	r.cond.L.Lock()
 	for !condition() {
-		fmt.Println(r.addr, "wait wait ...")
 		r.cond.Wait()
-		fmt.Println(r.addr, "checking timeout")
 		timeLock.Lock()
 		defer timeLock.Unlock()
 		if timeout {
-			fmt.Println(r.addr, " timeout !")
 			break
 		}
 
@@ -305,7 +302,6 @@ func (r *Router) handleIncoming(c Conn) {
 }
 
 func (r *Router) handleConnection(p *Public, c Conn) {
-	fmt.Println("handlingConnection from ", c.LocalAddr(), " <- ", c.RemoteAddr())
 	for {
 		buff, err := c.Receive()
 		if err != nil {

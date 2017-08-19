@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 
 	"github.com/dedis/protobuf"
@@ -21,19 +22,14 @@ type TBLS struct {
 	Message []byte
 }
 
-// constructors returns a protobuf.Constructor instantiated with the right group
-func constructors(g kyber.Group) protobuf.Constructors {
+// unmarshal reads the protobuf encoded buffer into a Drand struct
+func unmarshal(g kyber.Group, buff []byte) (*Drand, error) {
 	cons := make(protobuf.Constructors)
 	var s kyber.Scalar
 	var p kyber.Point
 	cons[reflect.TypeOf(&s).Elem()] = func() interface{} { return g.Scalar() }
 	cons[reflect.TypeOf(&p).Elem()] = func() interface{} { return g.Point() }
-	return cons
-}
-
-// unmarshal reads the protobuf encoded buffer into a Drand struct
-func unmarshal(g kyber.Group, buff []byte) (*Drand, error) {
-	cons := constructors(g)
+	fmt.Printf("#1 --> %v --> %v\n", cons, g)
 	var drand = new(Drand)
 	return drand, protobuf.DecodeWithConstructors(buff, drand, cons)
 }
