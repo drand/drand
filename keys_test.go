@@ -1,19 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestKeysSaveLoad(t *testing.T) {
-	ps, _ := BatchIdentities(3)
+	ps, group := BatchIdentities(3)
 	p := ps[0]
-	fmt.Println(pwd())
 	path := defaultPrivateFile()
 	defer func() {
-		//os.Remove(path)
+		os.Remove(path)
 	}()
 	require.Nil(t, p.Save(path))
 
@@ -21,4 +20,17 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Nil(t, p2.Load(path))
 	require.Equal(t, p.Key.String(), p2.Key.String())
 	require.True(t, p.Public.Equal(p2.Public))
+
+	groupPath := defaultGroupFile()
+	defer func() {
+		os.Remove(groupPath)
+	}()
+	require.Nil(t, group.Save(groupPath))
+	g2 := new(Group)
+	require.Nil(t, g2.Load(groupPath))
+
+	require.Equal(t, group.T, g2.T)
+	for i, p := range group.List {
+		require.True(t, p.Equal(g2.List[i].Public))
+	}
 }

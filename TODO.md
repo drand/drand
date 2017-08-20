@@ -1,2 +1,3 @@
 - self signatures (BLS) on Public struct
 - not infinite loop in Drand
+- not test with files inside the repo

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -62,7 +61,6 @@ func (p *Private) Save(file string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("private -> ", fd.Name())
 	defer fd.Close()
 	if err := toml.NewEncoder(fd).Encode(&PrivateTOML{hexKey}); err != nil {
 		return err
@@ -220,7 +218,18 @@ func (g *Group) Load(file string) error {
 }
 
 func (g *Group) Save(file string) error {
-	return nil
+	gtoml := &GroupTOML{T: g.T}
+	gtoml.List = make([]*PublicTOML, g.Len())
+	for i, p := range g.List {
+		key := pointToString(p.Key)
+		gtoml.List[i] = &PublicTOML{Key: key, Address: p.Address}
+	}
+	fd, err := os.Create(file)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	return toml.NewEncoder(fd).Encode(gtoml)
 }
 
 // returns an indexed list from a list of public keys. Functionality needed in
