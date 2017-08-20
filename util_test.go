@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func BatchIdentities(n int) ([]*Private, IndexedList) {
+func BatchIdentities(n int) ([]*Private, Group) {
 	startPort := 8000
 	startAddr := "127.0.0.1:"
 	privs := make([]*Private, n)

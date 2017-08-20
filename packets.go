@@ -9,7 +9,7 @@ import (
 	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
 )
 
-type Drand struct {
+type DrandPacket struct {
 	Hello *Public
 	Dkg   *DKGPacket
 	Tbls  *TBLS
@@ -26,13 +26,13 @@ type TBLS struct {
 }
 
 // unmarshal reads the protobuf encoded buffer into a Drand struct
-func unmarshal(g kyber.Group, buff []byte) (*Drand, error) {
+func unmarshal(g kyber.Group, buff []byte) (*DrandPacket, error) {
 	cons := make(protobuf.Constructors)
 	var s kyber.Scalar
 	var p kyber.Point
 	cons[reflect.TypeOf(&s).Elem()] = func() interface{} { return g.Scalar() }
 	cons[reflect.TypeOf(&p).Elem()] = func() interface{} { return g.Point() }
 	fmt.Printf("#1 --> %v --> %v\n", cons, g)
-	var drand = new(Drand)
+	var drand = new(DrandPacket)
 	return drand, protobuf.DecodeWithConstructors(buff, drand, cons)
 }

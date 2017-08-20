@@ -1,1 +1,2 @@
 - self signatures (BLS) on Public struct
+- not infinite loop in Drand

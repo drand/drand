@@ -17,7 +17,7 @@ func TestRouterBasic(t *testing.T) {
 
 	for i, r1 := range routers {
 		for _, r2 := range routers[i+1:] {
-			err := r1.Send(r2.priv.Public, &Drand{})
+			err := r1.Send(r2.priv.Public, &DrandPacket{})
 			require.NoError(t, err)
 		}
 	}
@@ -37,10 +37,10 @@ func TestRouterInverse(t *testing.T) {
 	last := routers[n-1]
 
 	// first is not actively sending connection
-	require.Error(t, last.Send(first.priv.Public, &Drand{}))
+	require.Error(t, last.Send(first.priv.Public, &DrandPacket{}))
 	fmt.Println(" -------------- ")
 	// first connecting
-	require.NoError(t, first.Send(last.priv.Public, &Drand{}))
+	require.NoError(t, first.Send(last.priv.Public, &DrandPacket{}))
 	fmt.Println("test: waiting receive()")
 	_, _ = last.Receive()
 	fmt.Println("test: waiting receive() DONE")
@@ -50,7 +50,7 @@ func TestRouterInverse(t *testing.T) {
 	last.cond.L.Unlock()
 	require.True(t, ok)
 	fmt.Println("#1")
-	require.NoError(t, last.Send(first.priv.Public, &Drand{}))
+	require.NoError(t, last.Send(first.priv.Public, &DrandPacket{}))
 	fmt.Println("#2")
 
 }
@@ -58,7 +58,7 @@ func TestRouterInverse(t *testing.T) {
 func TestNetworkConn(t *testing.T) {
 	addr := "127.0.0.1:6789"
 	priv := NewKeyPair(addr)
-	hello := &Drand{Hello: priv.Public}
+	hello := &DrandPacket{Hello: priv.Public}
 	g2 := pairing.G2()
 
 	l, err := net.Listen("tcp", addr)

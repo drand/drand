@@ -2,22 +2,30 @@ package main
 
 import (
 	"os"
+	"strings"
 )
 
-const privateFileName = "private.toml"
-const publicFileName = "public.toml"
-const groupFileName = "group.toml"
+const defaultKeyFile = "drand_id"
+const privateExtension = ".private"
+const publicExtension = ".public"
+const defaultGroupFile_ = "drand_group.toml"
+const defaultShareFile_ = "drand_share.secret"
 
-func privateFile() string {
-	return pwd() + privateFileName
+func defaultPrivateFile() string {
+	return pwd() + defaultKeyFile + privateExtension
 }
 
-func publicFile() string {
-	return pwd() + publicFileName
+func publicFile(privateFile string) string {
+	ss := strings.Split(privateFile, privateExtension)
+	return ss[0] + publicExtension
 }
 
-func groupFile() string {
-	return pwd() + groupFileName
+func defaultGroupFile() string {
+	return pwd() + defaultGroupFile_
+}
+
+func defaultShareFile() string {
+	return pwd() + defaultShareFile
 }
 
 func pwd() string {

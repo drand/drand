@@ -18,17 +18,11 @@ func main() {
 
 	privFlag := cli.StringFlag{
 		Name:  "private, p",
-		Value: privateFile(),
+		Value: defaultPrivateFile(),
 		Usage: "private key file path",
 	}
 
-	groupFlag := cli.StringFlag{
-		Name:  "public, P",
-		Value: publicFile(),
-		Usage: "public key file path",
-	}
-
-	allFlags := []cli.Flag{privFlag, groupFlag}
+	allFlags := []cli.Flag{privFlag}
 
 	app.Commands = []cli.Command{
 		cli.Command{

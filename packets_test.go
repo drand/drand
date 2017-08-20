@@ -9,7 +9,7 @@ import (
 
 func TestPacketsMarshalling(t *testing.T) {
 	priv := NewKeyPair("127.0.0.1:6789")
-	hello := &Drand{Hello: priv.Public}
+	hello := &DrandPacket{Hello: priv.Public}
 
 	buff, err := protobuf.Encode(hello)
 	require.NoError(t, err)

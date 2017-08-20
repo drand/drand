@@ -30,7 +30,7 @@ type Conn struct {
 
 // Send marshals the given Drand packet and write it on the underlying
 // connection.
-func (c *Conn) Send(d *Drand) error {
+func (c *Conn) Send(d *DrandPacket) error {
 	b, err := protobuf.Encode(d)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func (c *Conn) Receive() ([]byte, error) {
 // public identity.
 type Router struct {
 	priv     *Private
-	list     IndexedList
+	list     Group
 	index    int
 	addr     string
 	pubGroup kyber.Group
@@ -103,7 +103,7 @@ type Router struct {
 	listMut  sync.Mutex
 }
 
-func NewRouter(priv *Private, list IndexedList, pubGroup kyber.Group) *Router {
+func NewRouter(priv *Private, list Group, pubGroup kyber.Group) *Router {
 	idx, ok := list.Index(priv.Public)
 	if !ok {
 		panic("public key not found in the list")
@@ -153,7 +153,7 @@ func (r *Router) Receive() (*Public, []byte) {
 // of public keys. If the index of the router is higher than the one of the
 // destination, the router waits for  destination to trigger the connection. If
 // the index of the router is lower, then it initiates the connection.
-func (r *Router) Send(pub *Public, d *Drand) error {
+func (r *Router) Send(pub *Public, d *DrandPacket) error {
 	r.cond.L.Lock()
 	slog.Debug(r.addr, "searching for conn to ", pub.Address)
 	c, ok := r.conns[pub.Key.String()]
@@ -250,7 +250,7 @@ func (r *Router) connect(p *Public) (Conn, error) {
 		return Conn{}, err
 	}
 	cc := Conn{c}
-	hello := &Drand{Hello: r.priv.Public}
+	hello := &DrandPacket{Hello: r.priv.Public}
 	slog.Debugf("router(Addr: %s / conn: %s): sending Hello message to %s", r.addr, c.LocalAddr(), c.RemoteAddr())
 	if err := cc.Send(hello); err != nil {
 		return Conn{}, err
