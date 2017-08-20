@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -60,6 +62,7 @@ func (p *Private) Save(file string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("private -> ", fd.Name())
 	defer fd.Close()
 	if err := toml.NewEncoder(fd).Encode(&PrivateTOML{hexKey}); err != nil {
 		return err
@@ -96,7 +99,7 @@ func (p *Public) Load(file string) error {
 		return err
 	}
 	pub, err := ptoml.Public()
-	p = pub
+	(*p) = (*pub)
 	return err
 }
 
@@ -208,6 +211,15 @@ func (g *Group) Load(file string) error {
 		}
 	}
 	g.List = toIndexedList(list)
+	if g.T == 0 {
+		return errors.New("group file have threshold 0!")
+	} else if g.T > g.Len() {
+		return errors.New("group file have threshold superior to number of participants!")
+	}
+	return nil
+}
+
+func (g *Group) Save(file string) error {
 	return nil
 }
 

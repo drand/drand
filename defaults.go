@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ func defaultThreshold(n int) int {
 }
 
 func defaultPrivateFile() string {
-	return pwd() + defaultKeyFile + privateExtension
+	return path.Join(pwd(), defaultKeyFile+privateExtension)
 }
 
 func publicFile(privateFile string) string {
@@ -26,11 +27,11 @@ func publicFile(privateFile string) string {
 }
 
 func defaultGroupFile() string {
-	return pwd() + defaultGroupFile_
+	return path.Join(pwd(), defaultGroupFile_)
 }
 
 func defaultShareFile() string {
-	return pwd() + defaultShareFile_
+	return path.Join(pwd(), defaultShareFile_)
 }
 
 func pwd() string {
