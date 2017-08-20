@@ -17,7 +17,7 @@ type Drand struct {
 	group *Group
 	r     *Router
 
-	dkg *dkg.DistKeyGenerator
+	dkg *DKG
 
 	dks     *dkg.DistKeyShare // dkg private share. can be nil if dkg not executed.
 	dkgDone bool
@@ -38,13 +38,16 @@ func NewDrand(privateFile, groupFile string) (*Drand, error) {
 	if err := group.Load(groupFile); err != nil {
 		return nil, err
 	}
+	router := NewRouter(priv, group)
+	dkg, err := NewDKG(priv, group, router)
 	return &Drand{
 		priv:      priv,
 		group:     group,
-		router:    NewRouter(priv, group, g2),
+		r:         router,
 		privFile:  privateFile,
 		groupFile: groupFile,
-	}, nil
+		dkg:       dkg,
+	}, err
 }
 
 // LoadDrand intiliazes a drand with a distributed share already established.
@@ -63,27 +66,37 @@ func LoadDrand(privateFile, groupFile, shareFile string) (*Drand, error) {
 // protocol to every other node in the group. It returns nil if the DKG protocol
 // finished successfully or an error otherwise.
 func (d *Drand) StartDKG(shareFile string) error {
-
+	var err error
+	d.dks, err = d.dkg.Start()
+	if err != nil {
+		return err
+	}
+	d.setDKGDone()
+	return nil
 }
 
 // RunDKG runs the DKG protocol and saves the share to the given path.
 // It returns nil if the DKG protocol finished successfully or an
 // error otherwise.
 func (d *Drand) RunDKG(shareFile string) error {
-	panic("not implemented yet")
+	var err error
+	d.dks, err = d.dkg.Run()
+	if err != nil {
+		return err
+	}
+	d.setDKGDone()
+	return nil
 }
 
 // RandomBeacon starts periodically the TBLS protocol. The seed is the first
 // message signed. The signature is used as an input to the second run of the
 // TBLS protocol.
 func (d *Drand) RandomBeacon(seed []byte, period time.Duration) error {
-
 	panic("not implemented yet")
 }
 
 // Loop waits infinitely and waits for incoming TBLS requests
 func (d *Drand) Loop() error {
-
 	panic("not implemented yet")
 }
 
@@ -102,9 +115,9 @@ func (d *Drand) processMessages() {
 		}
 
 		if d.isDKGDone() && drand.Tbls != nil {
-			d.processTBLS(pub, drand)
+			d.processTBLS(pub, drand.Tbls)
 		} else if drand.Dkg != nil {
-			d.processDKG(pub, drand)
+			d.processDKG(pub, drand.Dkg)
 		} else {
 			slog.Debugf("%s: received weird message from %s", d.r.addr, pub.Address)
 		}
@@ -125,4 +138,12 @@ func (d *Drand) isDKGDone() bool {
 	d.state.Lock()
 	defer d.state.Unlock()
 	return d.dkgDone
+}
+
+// setDKGDone marks the end of the "DKG" phase. After this call, Drand will only
+// process TBLS packets.
+func (d *Drand) setDKGDone() {
+	d.state.Lock()
+	defer d.state.Unlock()
+	d.dkgDone = true
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func BatchIdentities(n int) ([]*Private, Group) {
+func BatchIdentities(n int) ([]*Private, *Group) {
 	startPort := 8000
 	startAddr := "127.0.0.1:"
 	privs := make([]*Private, n)
@@ -17,15 +17,18 @@ func BatchIdentities(n int) ([]*Private, Group) {
 		privs[i] = NewKeyPair(addr)
 		pubs[i] = privs[i].Public
 	}
-	return privs, Sort(pubs)
+	group := &Group{
+		T:    defaultThreshold(n),
+		List: toIndexedList(pubs),
+	}
+	return privs, group
 }
 
 func BatchRouters(n int) ([]*Private, []*Router) {
-	privs, list := BatchIdentities(n)
-	g := pairing.G2()
+	privs, group := BatchIdentities(n)
 	routers := make([]*Router, n)
 	for i := 0; i < n; i++ {
-		routers[i] = NewRouter(privs[i], list, g)
+		routers[i] = NewRouter(privs[i], group)
 		go routers[i].Listen()
 	}
 	sort.Sort(ByIndex(routers))

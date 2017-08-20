@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	kyber "gopkg.in/dedis/kyber.v1"
-
 	"github.com/dedis/protobuf"
 	"github.com/nikkolasg/slog"
 )
@@ -87,11 +85,10 @@ func (c *Conn) Receive() ([]byte, error) {
 // layer above to send and receive messages with each connections mapped to a
 // public identity.
 type Router struct {
-	priv     *Private
-	list     Group
-	index    int
-	addr     string
-	pubGroup kyber.Group
+	priv  *Private
+	list  *Group
+	index int
+	addr  string
 
 	// key are ID of the public key
 	conns map[string]Conn
@@ -103,7 +100,7 @@ type Router struct {
 	listMut  sync.Mutex
 }
 
-func NewRouter(priv *Private, list Group, pubGroup kyber.Group) *Router {
+func NewRouter(priv *Private, list *Group) *Router {
 	idx, ok := list.Index(priv.Public)
 	if !ok {
 		panic("public key not found in the list")
@@ -112,14 +109,14 @@ func NewRouter(priv *Private, list Group, pubGroup kyber.Group) *Router {
 		priv:     priv,
 		index:    idx,
 		list:     list,
-		addr:     list[idx].Address,
+		addr:     priv.Public.Address,
 		conns:    make(map[string]Conn),
 		messages: make(chan messageWrapper, 100),
 		cond:     sync.NewCond(&sync.Mutex{}),
-		pubGroup: pubGroup,
 	}
 }
 
+// Listens opens a tcp port on the address taken in the public key
 func (r *Router) Listen() {
 	listener, err := net.Listen("tcp", r.addr)
 	if err != nil {
@@ -281,7 +278,7 @@ func (r *Router) handleIncoming(c Conn) {
 		return
 	}
 
-	drand, err := unmarshal(r.pubGroup, buff)
+	drand, err := unmarshal(g2, buff)
 	if err != nil {
 		slog.Debug("router: error unmarshalling pub key from", c.RemoteAddr())
 		return

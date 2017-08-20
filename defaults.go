@@ -11,6 +11,11 @@ const publicExtension = ".public"
 const defaultGroupFile_ = "drand_group.toml"
 const defaultShareFile_ = "drand_share.secret"
 
+// default threshold for the distributed key generation protocol & TBLS.
+func defaultThreshold(n int) int {
+	return n * 2 / 3
+}
+
 func defaultPrivateFile() string {
 	return pwd() + defaultKeyFile + privateExtension
 }
@@ -25,7 +30,7 @@ func defaultGroupFile() string {
 }
 
 func defaultShareFile() string {
-	return pwd() + defaultShareFile
+	return pwd() + defaultShareFile_
 }
 
 func pwd() string {

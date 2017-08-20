@@ -13,7 +13,7 @@ import (
 // DKG is the structure responsible for running the DKG protocol.
 type DKG struct {
 	priv    *Private
-	list    Group
+	list    *Group
 	n       int
 	t       int
 	idx     int
@@ -25,14 +25,14 @@ type DKG struct {
 	sync.Mutex
 }
 
-func NewDKG(priv *Private, list Group, r *Router) (*DKG, error) {
+func NewDKG(priv *Private, list *Group, r *Router) (*DKG, error) {
 	d := &DKG{
 		priv:   priv,
 		list:   list,
 		router: r,
-		n:      len(list),
+		n:      list.Len(),
 		// default threshold
-		t:     len(list)/2 + 1,
+		t:     list.T,
 		group: pairing.G2(),
 	}
 	d.idx, _ = list.Index(priv.Public)

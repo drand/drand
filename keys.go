@@ -55,15 +55,12 @@ type PublicTOML struct {
 }
 
 func (p *Private) Save(file string) error {
-	buff, _ := p.Key.MarshalBinary()
-	hexKey := hex.EncodeToString(buff)
-	fd, err := os.Create(file)
+	hexKey := scalarToString(p.Key)
+	fd, err := createSecureFile(file)
 	if err != nil {
 		return err
 	}
-	if err := fd.Chmod(0644); err != nil {
-		return err
-	}
+	defer fd.Close()
 	if err := toml.NewEncoder(fd).Encode(&PrivateTOML{hexKey}); err != nil {
 		return err
 	}
@@ -88,33 +85,42 @@ func (p *Private) Load(file string) error {
 	return p.Public.Load(publicFile(file))
 }
 
+func (p *Public) Equal(p2 *Public) bool {
+	return p.Key.Equal(p2.Key) && p.Address == p2.Address
+}
+
+// Load reads the TOML description of the public key written in the given file.
 func (p *Public) Load(file string) error {
 	ptoml := &PublicTOML{}
 	if _, err := toml.DecodeFile(file, ptoml); err != nil {
 		return err
 	}
-	buff, err := hex.DecodeString(ptoml.Key)
-	if err != nil {
-		return err
-	}
-	p.Address = ptoml.Address
-	p.Key = g2.Point()
-	return p.Key.UnmarshalBinary(buff)
-
+	pub, err := ptoml.Public()
+	p = pub
+	return err
 }
 
+// Save saves a public key into the given file
 func (p *Public) Save(prefix string) error {
-	hex := p.Key.String()
+	hex := pointToString(p.Key)
 	fd, err := os.Create(publicFile(prefix))
 	if err != nil {
 		return err
 	}
+	defer fd.Close()
 	return toml.NewEncoder(fd).Encode(&PublicTOML{p.Address, hex})
-
 }
 
-func (p *Public) Equal(p2 *Public) bool {
-	return p.Key.Equal(p2.Key) && p.Address == p2.Address
+// Public returns the Public struct from the TOML representation.
+func (p *PublicTOML) Public() (*Public, error) {
+	buff, err := hex.DecodeString(p.Key)
+	if err != nil {
+		return nil, err
+	}
+	pub := &Public{}
+	pub.Address = p.Address
+	pub.Key = g2.Point()
+	return pub, pub.Key.UnmarshalBinary(buff)
 }
 
 type ByKey []*Public
@@ -135,7 +141,10 @@ func (b ByKey) Less(i, j int) bool {
 
 // Group is a list of IndexedPublic providing helper methods to search and
 // get public keys from a list.
-type Group []*IndexedPublic
+type Group struct {
+	List []*IndexedPublic
+	T    int
+}
 
 // IndexedPublic wraps a Public with its index relative to the group
 type IndexedPublic struct {
@@ -143,43 +152,9 @@ type IndexedPublic struct {
 	Index int
 }
 
-// IntoGroup returns an indexed list of publics sorted by the alphabetical
-// hexadecimal representation of the individual public keys.
-func IntoGroup(list []*Public) Group {
-	sort.Sort(ByKey(list))
-	il := make(Group, len(list))
-	for i, p := range list {
-		il[i] = &IndexedPublic{
-			Public: p,
-			Index:  i,
-		}
-	}
-	return il
-}
-
-// Load decodes the group pointed by the filename given in arguments
-func (g *Group) Load(file string) error {
-	var list []*Public
-	if _, err := toml.DecodeFile(file, list); err != nil {
-		return err
-	}
-	gg := IntoGroup(list)
-	g = &gg
-	return nil
-}
-
-// Save stores the group into the given file name.
-func (g *Group) Save(file string) error {
-	fd, err := os.Create(file)
-	if err != nil {
-		return err
-	}
-	return toml.NewEncoder(fd).Encode(g)
-}
-
 // Contains returns true if the public key is contained in the list or not.
-func (i *Group) Contains(pub *Public) bool {
-	for _, pu := range *i {
+func (g *Group) Contains(pub *Public) bool {
+	for _, pu := range g.List {
 		if pu.Equal(pub) {
 			return true
 		}
@@ -189,8 +164,8 @@ func (i *Group) Contains(pub *Public) bool {
 
 // Index returns the index of the given public key with a boolean indicating
 // whether the public has been found or not.
-func (i *Group) Index(pub *Public) (int, bool) {
-	for _, pu := range *i {
+func (g *Group) Index(pub *Public) (int, bool) {
+	for _, pu := range g.List {
 		if pu.Equal(pub) {
 			return pu.Index, true
 		}
@@ -199,18 +174,98 @@ func (i *Group) Index(pub *Public) (int, bool) {
 }
 
 // Points returns itself under the form of a list of kyber.Point
-func (i *Group) Points() []kyber.Point {
-	pts := make([]kyber.Point, len(*i))
-	for _, pu := range *i {
+func (g *Group) Points() []kyber.Point {
+	pts := make([]kyber.Point, g.Len())
+	for _, pu := range g.List {
 		pts[pu.Index] = pu.Key
 	}
 	return pts
 }
 
-func SaveShare(d *dkg.DistKeyShare) error {
+// Len returns the number of participants in the group
+func (g *Group) Len() int {
+	return len(g.List)
+}
 
+// GroupTOML is the representation of a Group TOML compatible
+type GroupTOML struct {
+	List []*PublicTOML
+	T    int
+}
+
+// Load decodes the group pointed by the filename given in arguments
+func (g *Group) Load(file string) error {
+	gt := &GroupTOML{}
+	if _, err := toml.DecodeFile(file, gt); err != nil {
+		return err
+	}
+	g.T = gt.T
+	list := make([]*Public, len(gt.List))
+	var err error
+	for i, ptoml := range gt.List {
+		if list[i], err = ptoml.Public(); err != nil {
+			return err
+		}
+	}
+	g.List = toIndexedList(list)
+	return nil
+}
+
+// returns an indexed list from a list of public keys. Functionality needed in
+// tests where one does not necessary load a group from a file.
+func toIndexedList(list []*Public) []*IndexedPublic {
+	sort.Sort(ByKey(list))
+	ilist := make([]*IndexedPublic, len(list))
+	for i, p := range list {
+		ilist[i] = &IndexedPublic{
+			Public: p,
+			Index:  i,
+		}
+	}
+	return ilist
+}
+
+// DKSToml is the TOML representation of a dkg.DistKeyShare
+type DKSToml struct {
+	Commits []string
+	Share   string
+	Index   int
+}
+
+func SaveShare(d *dkg.DistKeyShare, file string) error {
+	dtoml := &DKSToml{}
+	dtoml.Commits = make([]string, len(d.Commits))
+	for i, c := range d.Commits {
+		dtoml.Commits[i] = pointToString(c)
+	}
+	dtoml.Share = scalarToString(d.Share.V)
+	dtoml.Index = d.Share.I
+	fd, err := createSecureFile(file)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+	return toml.NewEncoder(fd).Encode(dtoml)
 }
 
 func LoadShare(file string) (*dkg.DistKeyShare, error) {
+	return nil, nil
+}
 
+func pointToString(p kyber.Point) string {
+	buff, _ := p.MarshalBinary()
+	return hex.EncodeToString(buff)
+}
+
+func scalarToString(s kyber.Scalar) string {
+	buff, _ := s.MarshalBinary()
+	return hex.EncodeToString(buff)
+}
+
+func createSecureFile(file string) (*os.File, error) {
+	fd, err := os.Create(file)
+	if err != nil {
+		return nil, err
+	}
+	return fd, fd.Chmod(0644)
 }
