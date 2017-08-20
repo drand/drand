@@ -13,6 +13,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	path := defaultPrivateFile()
 	defer func() {
 		os.Remove(path)
+		os.Remove(publicFile(path))
 	}()
 	require.Nil(t, p.Save(path))
 
@@ -29,7 +30,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	g2 := new(Group)
 	require.Nil(t, g2.Load(groupPath))
 
-	require.Equal(t, group.T, g2.T)
+	require.Equal(t, group.Threshold, g2.Threshold)
 	for i, p := range group.List {
 		require.True(t, p.Equal(g2.List[i].Public))
 	}

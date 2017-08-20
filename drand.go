@@ -27,9 +27,7 @@ type Drand struct {
 	shareFile           string
 }
 
-// NewDrandr initializes a fresh drandr. It loads the private / public identity
-// and the group toml, and starts the router.
-func NewDrand(privateFile, groupFile string) (*Drand, error) {
+func NewDrandFromFile(privateFile, groupFile string) (*Drand, error) {
 	priv := new(Private)
 	if err := priv.Load(privateFile); err != nil {
 		return nil, err
@@ -38,21 +36,26 @@ func NewDrand(privateFile, groupFile string) (*Drand, error) {
 	if err := group.Load(groupFile); err != nil {
 		return nil, err
 	}
+	return NewDrand(priv, group)
+}
+
+// NewDrandr initializes a fresh drandr. It loads the private / public identity
+// and the group toml, and starts the router.
+func NewDrand(priv *Private, group *Group) (*Drand, error) {
 	router := NewRouter(priv, group)
+	go router.Listen()
 	dkg, err := NewDKG(priv, group, router)
 	return &Drand{
-		priv:      priv,
-		group:     group,
-		r:         router,
-		privFile:  privateFile,
-		groupFile: groupFile,
-		dkg:       dkg,
+		priv:  priv,
+		group: group,
+		r:     router,
+		dkg:   dkg,
 	}, err
 }
 
 // LoadDrand intiliazes a drand with a distributed share already established.
 func LoadDrand(privateFile, groupFile, shareFile string) (*Drand, error) {
-	d, err := NewDrand(privateFile, groupFile)
+	d, err := NewDrandFromFile(privateFile, groupFile)
 	if err != nil {
 		return nil, err
 	}
@@ -117,15 +120,11 @@ func (d *Drand) processMessages() {
 		if d.isDKGDone() && drand.Tbls != nil {
 			d.processTBLS(pub, drand.Tbls)
 		} else if drand.Dkg != nil {
-			d.processDKG(pub, drand.Dkg)
+			d.dkg.process(pub, drand.Dkg)
 		} else {
 			slog.Debugf("%s: received weird message from %s", d.r.addr, pub.Address)
 		}
 	}
-}
-
-func (d *Drand) processDKG(pub *Public, msg *DKGPacket) {
-
 }
 
 func (d *Drand) processTBLS(pub *Public, msg *TBLS) {

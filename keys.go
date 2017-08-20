@@ -143,8 +143,8 @@ func (b ByKey) Less(i, j int) bool {
 // Group is a list of IndexedPublic providing helper methods to search and
 // get public keys from a list.
 type Group struct {
-	List []*IndexedPublic
-	T    int
+	List      []*IndexedPublic
+	Threshold int
 }
 
 // IndexedPublic wraps a Public with its index relative to the group
@@ -174,6 +174,13 @@ func (g *Group) Index(pub *Public) (int, bool) {
 	return 0, false
 }
 
+func (g *Group) Public(i int) *Public {
+	if i >= g.Len() {
+		panic("out of bounds access for Group")
+	}
+	return g.List[i].Public
+}
+
 // Points returns itself under the form of a list of kyber.Point
 func (g *Group) Points() []kyber.Point {
 	pts := make([]kyber.Point, g.Len())
@@ -200,7 +207,7 @@ func (g *Group) Load(file string) error {
 	if _, err := toml.DecodeFile(file, gt); err != nil {
 		return err
 	}
-	g.T = gt.T
+	g.Threshold = gt.T
 	list := make([]*Public, len(gt.List))
 	var err error
 	for i, ptoml := range gt.List {
@@ -209,16 +216,16 @@ func (g *Group) Load(file string) error {
 		}
 	}
 	g.List = toIndexedList(list)
-	if g.T == 0 {
+	if g.Threshold == 0 {
 		return errors.New("group file have threshold 0!")
-	} else if g.T > g.Len() {
+	} else if g.Threshold > g.Len() {
 		return errors.New("group file have threshold superior to number of participants!")
 	}
 	return nil
 }
 
 func (g *Group) Save(file string) error {
-	gtoml := &GroupTOML{T: g.T}
+	gtoml := &GroupTOML{T: g.Threshold}
 	gtoml.List = make([]*PublicTOML, g.Len())
 	for i, p := range g.List {
 		key := pointToString(p.Key)

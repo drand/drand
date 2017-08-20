@@ -18,10 +18,23 @@ func BatchIdentities(n int) ([]*Private, *Group) {
 		pubs[i] = privs[i].Public
 	}
 	group := &Group{
-		T:    defaultThreshold(n),
-		List: toIndexedList(pubs),
+		Threshold: defaultThreshold(n),
+		List:      toIndexedList(pubs),
 	}
 	return privs, group
+}
+
+func BatchDrands(n int) (*Group, []*Drand) {
+	ids, group := BatchIdentities(n)
+	drands := make([]*Drand, n)
+	var err error
+	for i := range ids {
+		drands[i], err = NewDrand(ids[i], group)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return group, drands
 }
 
 func BatchRouters(n int) ([]*Private, []*Router) {
@@ -36,7 +49,13 @@ func BatchRouters(n int) ([]*Private, []*Router) {
 	return privs, routers
 }
 
-func CloseAll(routers []*Router) {
+func CloseAllDrands(drands []*Drand) {
+	for _, d := range drands {
+		d.r.Stop()
+	}
+}
+
+func CloseAllRouters(routers []*Router) {
 	for _, r := range routers {
 		r.Stop()
 	}

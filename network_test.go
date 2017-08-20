@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 func TestRouterBasic(t *testing.T) {
 	n := 4
 	_, routers := BatchRouters(n)
-	defer CloseAll(routers)
+	defer CloseAllRouters(routers)
 
 	for i, r1 := range routers {
 		for _, r2 := range routers[i+1:] {
@@ -27,7 +26,7 @@ func TestRouterInverse(t *testing.T) {
 	slog.Level = slog.LevelDebug
 	n := 4
 	_, routers := BatchRouters(n)
-	defer CloseAll(routers)
+	defer CloseAllRouters(routers)
 
 	oldValue := maxIncomingWaitTime
 	maxIncomingWaitTime = 100 * time.Millisecond
@@ -35,24 +34,27 @@ func TestRouterInverse(t *testing.T) {
 
 	first := routers[0]
 	last := routers[n-1]
+	blast := routers[n-2]
 
 	// first is not actively sending connection
 	require.Error(t, last.Send(first.priv.Public, &DrandPacket{}))
-	fmt.Println(" -------------- ")
 	// first connecting
 	require.NoError(t, first.Send(last.priv.Public, &DrandPacket{}))
-	fmt.Println("test: waiting receive()")
 	_, _ = last.Receive()
-	fmt.Println("test: waiting receive() DONE")
 
 	last.cond.L.Lock()
 	_, ok := last.conns[first.priv.Public.Key.String()]
 	last.cond.L.Unlock()
 	require.True(t, ok)
-	fmt.Println("#1")
 	require.NoError(t, last.Send(first.priv.Public, &DrandPacket{}))
-	fmt.Println("#2")
 
+	// force connection
+	require.Nil(t, first.SendForce(blast.priv.Public, &DrandPacket{}))
+	time.Sleep(5 * time.Millisecond)
+	blast.cond.L.Lock()
+	_, ok = blast.conns[first.priv.Public.Key.String()]
+	blast.cond.L.Unlock()
+	require.True(t, ok)
 }
 
 func TestNetworkConn(t *testing.T) {

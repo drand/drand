@@ -186,6 +186,25 @@ func (r *Router) Send(pub *Public, d *DrandPacket) error {
 	return c.Send(d)
 }
 
+// SendForce sends the packet to the given destination. The difference with
+// Send() is if the connection is non-existant at that time, the router
+// initiates the connection to the destination, regardless of the relative index
+// of the destination. This method must be used by the initiator.
+func (r *Router) SendForce(pub *Public, d *DrandPacket) error {
+	r.cond.L.Lock()
+	slog.Debug(r.addr, "searching for conn to ", pub.Address)
+	c, ok := r.conns[pub.Key.String()]
+	r.cond.L.Unlock()
+	if !ok {
+		var err error
+		c, err = r.connect(pub)
+		if err != nil {
+			return err
+		}
+	}
+	return c.Send(d)
+}
+
 func (r *Router) Stop() {
 	r.listMut.Lock()
 	r.listener.Close()
