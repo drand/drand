@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -73,7 +74,7 @@ func (c *Conn) Receive() ([]byte, error) {
 		}
 		// Append the read bytes into the buffer.
 		if _, err := buffer.Write(b[:n]); err != nil {
-			slog.Debug("Couldn't write to buffer:", err)
+			slog.Debugf("%s: couldn't write to buffer: %s", c.RemoteAddr(), err)
 		}
 		read += uint16(n)
 		b = b[n:]
@@ -128,7 +129,7 @@ func (r *Router) Listen() {
 	for {
 		c, err := listener.Accept()
 		if err != nil {
-			slog.Info("error with listening: ", err)
+			slog.Infof("%s error with listening: ", r.addr, err)
 			if strings.Contains(err.Error(), "closed") {
 				return
 			}
@@ -152,16 +153,16 @@ func (r *Router) Receive() (*Public, []byte) {
 // the index of the router is lower, then it initiates the connection.
 func (r *Router) Send(pub *Public, d *DrandPacket) error {
 	r.cond.L.Lock()
-	slog.Debug(r.addr, "searching for conn to ", pub.Address)
+	//slog.Debug(r.addr, "searching for conn to ", pub.Address)
 	c, ok := r.conns[pub.Key.String()]
 	r.cond.L.Unlock()
 	if ok {
 		// already connected to it
-		slog.Debug(c.LocalAddr(), "sent to ", c.RemoteAddr())
+		//slog.Debug(c.LocalAddr(), "sent to ", c.RemoteAddr())
 		err := c.Send(d)
 		return err
 	}
-	slog.Debug(r.addr, "no connection to ", pub.Address)
+	//slog.Debug(r.addr, "no connection to ", pub.Address)
 	// check action to take according to index
 	ridx, ok := r.list.Index(pub)
 	if !ok {
@@ -180,7 +181,9 @@ func (r *Router) Send(pub *Public, d *DrandPacket) error {
 			return err
 		}
 		c = cc
+		//fmt.Printf("Send->Wait() router[%d] got conn from router[%d]: %p\n", r.index, ridx, c.Conn)
 	} else {
+		panic(fmt.Sprintf("router %s: ridx %d vs r.index %d", r.addr, ridx, r.index))
 		return errors.New("router: don't send to ourself")
 	}
 	return c.Send(d)
@@ -192,7 +195,7 @@ func (r *Router) Send(pub *Public, d *DrandPacket) error {
 // of the destination. This method must be used by the initiator.
 func (r *Router) SendForce(pub *Public, d *DrandPacket) error {
 	r.cond.L.Lock()
-	slog.Debug(r.addr, "searching for conn to ", pub.Address)
+	//slog.Debug(r.addr, "searching for conn to ", pub.Address)
 	c, ok := r.conns[pub.Key.String()]
 	r.cond.L.Unlock()
 	if !ok {
@@ -219,6 +222,7 @@ func (r *Router) Stop() {
 
 // waitIncoming
 func (r *Router) waitIncoming(pub *Public) (Conn, error) {
+	//ridx, _ := r.list.Index(pub)
 	id := pub.Key.String()
 	var c *Conn
 	// condition is that the connection is registered
@@ -236,25 +240,37 @@ func (r *Router) waitIncoming(pub *Public) (Conn, error) {
 	go func() {
 		time.Sleep(maxIncomingWaitTime)
 		timeLock.Lock()
+		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> TIMELOCK LOCK\n", r.index, ridx)
 		timeout = true
 		timeLock.Unlock()
+		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> TIMELOCK UNLOCKED\n", r.index, ridx)
 		r.cond.Broadcast()
 	}()
 
+	slog.Debugf("%s: waitIncoming START", r.addr)
+	//fmt.Printf("%s: waitIncoming START\n", r.addr)
+	//fmt.Printf("waitIncoming: router[%d] waits from router[%d]\n", r.index, ridx)
 	r.cond.L.Lock()
 	for !condition() {
 		r.cond.Wait()
+		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> OUT OF WAIT\n", r.index, ridx)
 		timeLock.Lock()
-		defer timeLock.Unlock()
+		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> AFTER TIMELOCK (timeout = %v)\n", r.index, ridx, timeout)
 		if timeout {
+			timeLock.Unlock()
 			break
 		}
-
+		timeLock.Unlock()
 	}
 	r.cond.L.Unlock()
+	slog.Debugf("%s: waitIncoming FINISH", r.addr)
+	//fmt.Printf("%s: waitIncoming FINISH\n", r.addr)
+	//	fmt.Printf("waitIncoming: router[%d] waits from router[%d] DONE\n", r.index, ridx)
 	if c == nil {
+		//fmt.Println("AAAAAAAAAAAAAAAAAAAA")
 		return Conn{}, errors.New("router: time out waiting on incoming connection")
 	}
+	//fmt.Printf("waitIncoming: router[%d] got connection from router[%d]: %p\n", r.index, ridx, (*c).Conn)
 	return *c, nil
 }
 
@@ -267,10 +283,11 @@ func (r *Router) connect(p *Public) (Conn, error) {
 	}
 	cc := Conn{c}
 	hello := &DrandPacket{Hello: r.priv.Public}
-	slog.Debugf("router(Addr: %s / conn: %s): sending Hello message to %s", r.addr, c.LocalAddr(), c.RemoteAddr())
 	if err := cc.Send(hello); err != nil {
 		return Conn{}, err
 	}
+	//slog.Debugf("router(Addr: %s / conn: %s): sending Hello message to %s", r.addr, c.LocalAddr(), c.RemoteAddr())
+	go r.handleConnection(p, cc)
 	return r.registerConn(p, c), nil
 }
 
@@ -321,7 +338,7 @@ func (r *Router) handleConnection(p *Public, c Conn) {
 	for {
 		buff, err := c.Receive()
 		if err != nil {
-			slog.Info("router: conn. error from ", p.Address)
+			slog.Infof("router(%s): conn. error from %s: %s", r.addr, p.Address, err)
 			return
 		}
 		r.messages <- messageWrapper{Pub: p, Message: buff}

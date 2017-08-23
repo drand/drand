@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -14,7 +15,7 @@ import (
 	"gopkg.in/dedis/kyber.v1/util/random"
 )
 
-var pairing = pbc.NewPairingFp382_1()
+var pairing = pbc.NewPairingFp254BNb()
 var g1 = pairing.G1()
 var g2 = pairing.G2()
 
@@ -249,6 +250,7 @@ func toIndexedList(list []*Public) []*IndexedPublic {
 			Public: p,
 			Index:  i,
 		}
+		fmt.Printf("Public index %d -> %s -> %s\n", i, p.Address, p.Key.String()[:15])
 	}
 	return ilist
 }

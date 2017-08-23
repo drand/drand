@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 	"time"
@@ -33,6 +34,7 @@ func BatchDrands(n int) (*Group, []*Drand) {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Printf("drand[%d] => %s\n", i, ids[i].Public.Address)
 	}
 	return group, drands
 }

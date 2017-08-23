@@ -6,6 +6,7 @@ import (
 
 	"github.com/nikkolasg/slog"
 
+	kyber "gopkg.in/dedis/kyber.v1"
 	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
 )
 
@@ -45,12 +46,17 @@ func NewDrand(priv *Private, group *Group) (*Drand, error) {
 	router := NewRouter(priv, group)
 	go router.Listen()
 	dkg, err := NewDKG(priv, group, router)
-	return &Drand{
+	if err != nil {
+		return nil, err
+	}
+	dr := &Drand{
 		priv:  priv,
 		group: group,
 		r:     router,
 		dkg:   dkg,
-	}, err
+	}
+	go dr.processMessages()
+	return dr, nil
 }
 
 // LoadDrand intiliazes a drand with a distributed share already established.
@@ -111,13 +117,18 @@ func (d *Drand) processMessages() {
 		pub, buff := d.r.Receive()
 		// if the dkg has not been finished yet, unmarshal with g2, otherwise
 		// with g1.
-		drand, err := unmarshal(g1, buff)
+		var g kyber.Group
+		if d.isDKGDone() {
+			g = g1
+		} else {
+			g = g2
+		}
+		drand, err := unmarshal(g, buff)
 		if err != nil {
-			slog.Debugf("%s: unmarshallable message from %s", d.r.addr, pub.Address)
+			slog.Debugf("%s: unmarshallable message from %s: %s", d.r.addr, pub.Address, err)
 			continue
 		}
-
-		if d.isDKGDone() && drand.Tbls != nil {
+		if drand.Tbls != nil {
 			d.processTBLS(pub, drand.Tbls)
 		} else if drand.Dkg != nil {
 			d.dkg.process(pub, drand.Dkg)

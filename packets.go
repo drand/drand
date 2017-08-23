@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/dedis/protobuf"
@@ -32,7 +31,6 @@ func unmarshal(g kyber.Group, buff []byte) (*DrandPacket, error) {
 	var p kyber.Point
 	cons[reflect.TypeOf(&s).Elem()] = func() interface{} { return g.Scalar() }
 	cons[reflect.TypeOf(&p).Elem()] = func() interface{} { return g.Point() }
-	fmt.Printf("#1 --> %v --> %v\n", cons, g)
 	var drand = new(DrandPacket)
 	return drand, protobuf.DecodeWithConstructors(buff, drand, cons)
 }

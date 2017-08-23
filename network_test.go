@@ -1,7 +1,9 @@
 package main
 
 import (
+	"math/rand"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -55,6 +57,36 @@ func TestRouterInverse(t *testing.T) {
 	_, ok = blast.conns[first.priv.Public.Key.String()]
 	blast.cond.L.Unlock()
 	require.True(t, ok)
+}
+
+// test sending one message to every other node from each node
+func TestRouterSquare(t *testing.T) {
+	old := maxIncomingWaitTime
+	defer func() { maxIncomingWaitTime = old }()
+	maxIncomingWaitTime = 500 * time.Millisecond
+	n := 6
+	_, routers := BatchRouters(n)
+	message := &DrandPacket{}
+	var wg sync.WaitGroup
+	for i := range rand.Perm(n) {
+		sender := routers[i]
+		for j := range rand.Perm(n) {
+			if i == j {
+				continue
+			}
+			receiver := routers[j]
+			wg.Add(1)
+			//fmt.Printf("router[%d] send to router[%d]\n", sender.index, receiver.index)
+			go func(s, r *Router) {
+				require.Nil(t, s.Send(r.priv.Public, message))
+				//fmt.Printf("router[%d] send to router[%d] SENT\n", s.index, r.index)
+				_, _ = r.Receive()
+				//fmt.Printf("router[%d] send to router[%d] RECEIVED\n", s.index, r.index)
+				wg.Done()
+			}(sender, receiver)
+		}
+	}
+	wg.Wait()
 }
 
 func TestNetworkConn(t *testing.T) {

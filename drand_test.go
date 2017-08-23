@@ -1,16 +1,17 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"testing"
 
+	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDrandDKG(t *testing.T) {
-	n := 5
+	slog.Level = slog.LevelDebug
+	n := 4
 	_, drands := BatchDrands(n)
 	defer CloseAllDrands(drands)
 
@@ -29,6 +30,5 @@ func TestDrandDKG(t *testing.T) {
 	root := drands[0]
 	err := root.StartDKG(shareFile)
 	require.Nil(t, err)
-	fmt.Println("HhhhhhhhhhhhhhhhhhH")
 	wg.Wait()
 }

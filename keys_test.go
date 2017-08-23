@@ -35,3 +35,13 @@ func TestKeysSaveLoad(t *testing.T) {
 		require.True(t, p.Equal(g2.List[i].Public))
 	}
 }
+
+func TestKeysGroupPoint(t *testing.T) {
+	n := 5
+	_, group := BatchIdentities(n)
+	points := group.Points()
+	for i, p := range points {
+		k := group.Public(i).Key
+		require.Equal(t, p.String(), k.String())
+	}
+}
