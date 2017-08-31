@@ -34,6 +34,8 @@ type PairingSuite interface {
 	G1() kyber.Group
 	G2() kyber.Group
 	GT() PairingGroup
+	kyber.HashFactory
+	kyber.CipherFactory
 }
 
 type g1group struct {

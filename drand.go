@@ -20,12 +20,17 @@ type Drand struct {
 
 	dkg *DKG
 
-	dks     *dkg.DistKeyShare // dkg private share. can be nil if dkg not executed.
-	dkgDone bool
-	state   sync.Mutex
+	dks       *dkg.DistKeyShare // dkg private share. can be nil if dkg not executed.
+	dkgDone   bool
+	state     sync.Mutex
+	shareFile string
 
-	privFile, groupFile string
-	shareFile           string
+	// the timestamp of the latest in-progress tbls signature
+	currSig int64
+	// whether the drand is actually expecting tbls message
+	// or is waiting for the next period
+	signing  bool
+	sigState sync.Mutex // the mutex to hold the signing state
 }
 
 func NewDrandFromFile(privateFile, groupFile string) (*Drand, error) {
@@ -98,15 +103,22 @@ func (d *Drand) RunDKG(shareFile string) error {
 }
 
 // RandomBeacon starts periodically the TBLS protocol. The seed is the first
-// message signed. The signature is used as an input to the second run of the
-// TBLS protocol.
+// message signed alongside with the current timestamp. All subsequent
+// signatures are chained:
+// s_i+1 = SIG(s_i || timestamp)
+// For the moment, each resulting signature is stored in a file named
+// beacons/<timestamp>.sig.
 func (d *Drand) RandomBeacon(seed []byte, period time.Duration) error {
-	panic("not implemented yet")
+	return nil
 }
 
 // Loop waits infinitely and waits for incoming TBLS requests
 func (d *Drand) Loop() error {
 	panic("not implemented yet")
+}
+
+func (d *Drand) processTBLS(pub *Public, msg *BeaconPacket) {
+
 }
 
 // processMessages runs in an infinite loop receiving message from the network
@@ -128,18 +140,14 @@ func (d *Drand) processMessages() {
 			slog.Debugf("%s: unmarshallable message from %s: %s", d.r.addr, pub.Address, err)
 			continue
 		}
-		if drand.Tbls != nil {
-			d.processTBLS(pub, drand.Tbls)
+		if drand.Beacon != nil {
+			d.processTBLS(pub, drand.Beacon)
 		} else if drand.Dkg != nil {
 			d.dkg.process(pub, drand.Dkg)
 		} else {
 			slog.Debugf("%s: received weird message from %s", d.r.addr, pub.Address)
 		}
 	}
-}
-
-func (d *Drand) processTBLS(pub *Public, msg *TBLS) {
-
 }
 
 // isDKGDone returns true if the DKG protocol has already been executed. That

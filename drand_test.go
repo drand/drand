@@ -11,7 +11,7 @@ import (
 
 func TestDrandDKG(t *testing.T) {
 	slog.Level = slog.LevelDebug
-	n := 4
+	n := 5
 	_, drands := BatchDrands(n)
 	defer CloseAllDrands(drands)
 
