@@ -208,6 +208,19 @@ func (r *Router) SendForce(pub *Public, d *DrandPacket) error {
 	return c.Send(d)
 }
 
+func (r *Router) Broadcast(g *Group, d *DrandPacket) error {
+	var gerr string
+	for _, p := range g.List {
+		if err := r.Send(p.Public, d); err != nil {
+			gerr += err.Error()
+		}
+	}
+	if gerr != "" {
+		return fmt.Errorf("%s", gerr)
+	}
+	return nil
+}
+
 func (r *Router) Stop() {
 	r.listMut.Lock()
 	r.listener.Close()

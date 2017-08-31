@@ -291,11 +291,3 @@ func scalarToString(s kyber.Scalar) string {
 	buff, _ := s.MarshalBinary()
 	return hex.EncodeToString(buff)
 }
-
-func createSecureFile(file string) (*os.File, error) {
-	fd, err := os.Create(file)
-	if err != nil {
-		return nil, err
-	}
-	return fd, fd.Chmod(0644)
-}

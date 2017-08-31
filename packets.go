@@ -27,8 +27,8 @@ type DKGPacket struct {
 // BeaconPacket holds the different structures needed by a round of a TBLS
 // protocol.
 type BeaconPacket struct {
-	Request   *BeaconRequest
-	Signature *bls.ThresholdSig
+	Request *BeaconRequest
+	Reply   *BeaconReply
 }
 
 // BeaconRequest contains all information needed by a signer to:
@@ -36,9 +36,15 @@ type BeaconPacket struct {
 //    and form the "chain", be able to store it in files etc.
 // 2) create its partial signature to send back to the leader
 type BeaconRequest struct {
-	PreviousTS  int64  // timestamp used in the previous round
 	PreviousSig []byte // resulting signature of the previous round
 	Timestamp   int64  // timestamp to concatenate with PreviousSig = message to sign
+}
+
+// BeaconReply contains the request and an associated threshold partial
+// signature
+type BeaconReply struct {
+	Request   *BeaconRequest
+	Signature *bls.ThresholdSig
 }
 
 // unmarshal reads the protobuf encoded buffer into a Drand struct
