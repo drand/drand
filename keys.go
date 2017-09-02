@@ -1,16 +1,16 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/pbc"
 	kyber "gopkg.in/dedis/kyber.v1"
+	"gopkg.in/dedis/kyber.v1/share"
 	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
 	"gopkg.in/dedis/kyber.v1/util/random"
 )
@@ -51,28 +51,21 @@ func NewKeyPair(address string) *Private {
 type PrivateTOML struct {
 	Key string
 }
+
 type PublicTOML struct {
 	Address string
 	Key     string
 }
 
-func (p *Private) Save(file string) error {
+func (p *Private) TOML() interface{} {
 	hexKey := scalarToString(p.Key)
-	fd, err := createSecureFile(file)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-	if err := toml.NewEncoder(fd).Encode(&PrivateTOML{hexKey}); err != nil {
-		return err
-	}
-	return p.Public.Save(file)
+	return &PrivateTOML{hexKey}
 }
 
-func (p *Private) Load(file string) error {
-	ptoml := &PrivateTOML{}
-	if _, err := toml.DecodeFile(file, ptoml); err != nil {
-		return err
+func (p *Private) FromTOML(i interface{}) error {
+	ptoml, ok := i.(*PrivateTOML)
+	if !ok {
+		return errors.New("private can't decode toml from non PrivateTOML struct")
 	}
 
 	buff, err := hex.DecodeString(ptoml.Key)
@@ -84,45 +77,40 @@ func (p *Private) Load(file string) error {
 		return err
 	}
 	p.Public = new(Public)
-	return p.Public.Load(publicFile(file))
+	return nil
+}
+
+func (p *Private) TOMLValue() interface{} {
+	return &PrivateTOML{}
 }
 
 func (p *Public) Equal(p2 *Public) bool {
 	return p.Key.Equal(p2.Key) && p.Address == p2.Address
 }
 
-// Load reads the TOML description of the public key written in the given file.
-func (p *Public) Load(file string) error {
-	ptoml := &PublicTOML{}
-	if _, err := toml.DecodeFile(file, ptoml); err != nil {
+// loads reads the TOML description of the public key
+func (p *Public) FromTOML(i interface{}) error {
+	ptoml, ok := i.(*PublicTOML)
+	if !ok {
+		return errors.New("Public can't decode from non PublicTOML struct")
+	}
+	buff, err := hex.DecodeString(ptoml.Key)
+	if err != nil {
 		return err
 	}
-	pub, err := ptoml.Public()
-	(*p) = (*pub)
-	return err
+	p.Address = ptoml.Address
+	p.Key = g2.Point()
+	return p.Key.UnmarshalBinary(buff)
 }
 
 // Save saves a public key into the given file
-func (p *Public) Save(prefix string) error {
+func (p *Public) TOML() interface{} {
 	hex := pointToString(p.Key)
-	fd, err := os.Create(publicFile(prefix))
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-	return toml.NewEncoder(fd).Encode(&PublicTOML{p.Address, hex})
+	return &PublicTOML{p.Address, hex}
 }
 
-// Public returns the Public struct from the TOML representation.
-func (p *PublicTOML) Public() (*Public, error) {
-	buff, err := hex.DecodeString(p.Key)
-	if err != nil {
-		return nil, err
-	}
-	pub := &Public{}
-	pub.Address = p.Address
-	pub.Key = g2.Point()
-	return pub, pub.Key.UnmarshalBinary(buff)
+func (p *Public) TOMLValue() interface{} {
+	return &PublicTOML{}
 }
 
 type ByKey []*Public
@@ -202,17 +190,17 @@ type GroupTOML struct {
 	T    int
 }
 
-// Load decodes the group pointed by the filename given in arguments
-func (g *Group) Load(file string) error {
-	gt := &GroupTOML{}
-	if _, err := toml.DecodeFile(file, gt); err != nil {
-		return err
+// Load decodes the group from the toml struct
+func (g *Group) FromTOML(i interface{}) error {
+	gt, ok := i.(*GroupTOML)
+	if !ok {
+		return fmt.Errorf("grouptoml unknown")
 	}
 	g.Threshold = gt.T
 	list := make([]*Public, len(gt.List))
-	var err error
 	for i, ptoml := range gt.List {
-		if list[i], err = ptoml.Public(); err != nil {
+		list[i] = new(Public)
+		if err := list[i].FromTOML(ptoml); err != nil {
 			return err
 		}
 	}
@@ -225,19 +213,18 @@ func (g *Group) Load(file string) error {
 	return nil
 }
 
-func (g *Group) Save(file string) error {
+func (g *Group) TOML() interface{} {
 	gtoml := &GroupTOML{T: g.Threshold}
 	gtoml.List = make([]*PublicTOML, g.Len())
 	for i, p := range g.List {
 		key := pointToString(p.Key)
 		gtoml.List[i] = &PublicTOML{Key: key, Address: p.Address}
 	}
-	fd, err := os.Create(file)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-	return toml.NewEncoder(fd).Encode(gtoml)
+	return gtoml
+}
+
+func (g *Group) TOMLValue() interface{} {
+	return &GroupTOML{}
 }
 
 // returns an indexed list from a list of public keys. Functionality needed in
@@ -255,31 +242,91 @@ func toIndexedList(list []*Public) []*IndexedPublic {
 	return ilist
 }
 
-// DKSToml is the TOML representation of a dkg.DistKeyShare
-type DKSToml struct {
+type Share dkg.DistKeyShare
+
+func (s *Share) TOML() interface{} {
+	dtoml := &ShareTOML{}
+	dtoml.Commits = make([]string, len(s.Commits))
+	for i, c := range s.Commits {
+		dtoml.Commits[i] = pointToString(c)
+	}
+	dtoml.Share = scalarToString(s.Share.V)
+	dtoml.Index = s.Share.I
+	return dtoml
+}
+
+func (s *Share) FromTOML(i interface{}) error {
+	t, ok := i.(*ShareTOML)
+	if !ok {
+		return errors.New("invalid struct received for share")
+	}
+	s.Commits = make([]kyber.Point, len(t.Commits))
+	for i, c := range t.Commits {
+		p, err := stringToPoint(g2, c)
+		if err != nil {
+			return fmt.Errorf("share.Commit[%d] corruputed: %s", i, err)
+		}
+		s.Commits[i] = p
+	}
+	sshare, err := stringToScalar(g2, t.Share)
+	if err != nil {
+		return fmt.Errorf("share.Share corrupted: %s", err)
+	}
+	s.Share = &share.PriShare{V: sshare, I: t.Index}
+	return nil
+}
+
+func (s *Share) TOMLValue() interface{} {
+	return &ShareTOML{}
+}
+
+// ShareTOML is the TOML representation of a dkg.DistKeyShare
+type ShareTOML struct {
 	Commits []string
 	Share   string
 	Index   int
 }
 
-func SaveShare(d *dkg.DistKeyShare, file string) error {
-	dtoml := &DKSToml{}
-	dtoml.Commits = make([]string, len(d.Commits))
-	for i, c := range d.Commits {
-		dtoml.Commits[i] = pointToString(c)
-	}
-	dtoml.Share = scalarToString(d.Share.V)
-	dtoml.Index = d.Share.I
-	fd, err := createSecureFile(file)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-	return toml.NewEncoder(fd).Encode(dtoml)
+// BeaconSignature is the final reconstructed BLS signature that is saved in the
+// filesystem.
+type BeaconSignature struct {
+	Request   *BeaconRequest
+	Signature string
 }
 
-func LoadShare(file string) (*dkg.DistKeyShare, error) {
-	return nil, nil
+func NewBeaconSignature(req *BeaconRequest, signature []byte) *BeaconSignature {
+	b64sig := base64.StdEncoding.EncodeToString(signature)
+	return &BeaconSignature{
+		Request:   req,
+		Signature: b64sig,
+	}
+}
+
+// Save stores the beacon signature into the given filename overwriting any
+// previous files if existing.
+func (b *BeaconSignature) TOML() interface{} {
+	return b
+}
+
+func (b *BeaconSignature) FromTOML(i interface{}) error {
+	bb, ok := i.(*BeaconSignature)
+	if !ok {
+		return errors.New("beacon signature can't decode: wrong type")
+	}
+	*b = *bb
+	return nil
+}
+
+func (b *BeaconSignature) TOMLValue() interface{} {
+	return &BeaconSignature{}
+}
+
+func (b *BeaconSignature) RawSig() []byte {
+	s, err := base64.StdEncoding.DecodeString(b.Signature)
+	if err != nil {
+		panic("beacon signature have invalid base64 encoded ! File corrupted ? Attack ? God ? Pesto ?")
+	}
+	return s
 }
 
 func pointToString(p kyber.Point) string {
@@ -290,4 +337,22 @@ func pointToString(p kyber.Point) string {
 func scalarToString(s kyber.Scalar) string {
 	buff, _ := s.MarshalBinary()
 	return hex.EncodeToString(buff)
+}
+
+func stringToPoint(g kyber.Group, s string) (kyber.Point, error) {
+	buff, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	p := g.Point()
+	return p, p.UnmarshalBinary(buff)
+}
+
+func stringToScalar(g kyber.Group, s string) (kyber.Scalar, error) {
+	buff, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	sc := g.Scalar()
+	return sc, sc.UnmarshalBinary(buff)
 }

@@ -12,10 +12,12 @@ import (
 func TestDrandDKG(t *testing.T) {
 	slog.Level = slog.LevelDebug
 	n := 5
-	_, drands := BatchDrands(n)
+	config, dir := TempConfig()
+	defer os.RemoveAll(dir)
+	_, drands := BatchDrands(n, config)
 	defer CloseAllDrands(drands)
 
-	shareFile := defaultShareFile()
+	shareFile := shareFile(defaultGroupFile())
 	defer os.Remove(shareFile)
 
 	var wg sync.WaitGroup

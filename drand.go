@@ -7,50 +7,55 @@ import (
 	"github.com/nikkolasg/slog"
 
 	kyber "gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
 // can start the DKG, read/write shars to files and can initiate/respond to TBlS
 // signature requests.
 type Drand struct {
-	priv  *Private
-	group *Group
-	r     *Router
+	priv   *Private
+	group  *Group
+	r      *Router
+	store  Store
+	dkg    *DKG
+	beacon *Beacon
 
-	dkg *DKG
+	share   *Share // dkg private share. can be nil if dkg not executed.
+	dkgDone bool
 
-	dks       *dkg.DistKeyShare // dkg private share. can be nil if dkg not executed.
-	dkgDone   bool
-	state     sync.Mutex
-	shareFile string
-
-	// the timestamp of the latest in-progress tbls signature
-	currSig int64
-	// whether the drand is actually expecting tbls message
-	// or is waiting for the next period
-	signing  bool
-	sigState sync.Mutex // the mutex to hold the signing state
+	state sync.Mutex
+	done  chan bool
 }
 
-func NewDrandFromFile(privateFile, groupFile string) (*Drand, error) {
-	priv := new(Private)
-	if err := priv.Load(privateFile); err != nil {
+// NewDrandFromConfig reads all the avaiable information from the config. It
+// determines if the dkg is done or not.
+func LoadDrand(s Store) (*Drand, error) {
+	priv, err := s.LoadKey()
+	if err != nil {
 		return nil, err
 	}
-	group := new(Group)
-	if err := group.Load(groupFile); err != nil {
+	group, err := s.LoadGroup()
+	if err != nil {
 		return nil, err
 	}
-	return NewDrand(priv, group)
+	d, err := NewDrand(priv, group, s)
+	if err != nil {
+		return nil, err
+	}
+	share, err := s.LoadShare()
+	if err != nil {
+		return d, nil
+	}
+	d.share = share
+	return d, nil
 }
 
-// NewDrandr initializes a fresh drandr. It loads the private / public identity
-// and the group toml, and starts the router.
-func NewDrand(priv *Private, group *Group) (*Drand, error) {
+// XXX NewDrand is mostly used for testing purposes
+func NewDrand(priv *Private, group *Group, s Store) (*Drand, error) {
+	slog.Info("NewDrand deprecated method: use LoadDrand")
 	router := NewRouter(priv, group)
 	go router.Listen()
-	dkg, err := NewDKG(priv, group, router)
+	dkg, err := NewDKG(priv, group, router, s)
 	if err != nil {
 		return nil, err
 	}
@@ -59,21 +64,10 @@ func NewDrand(priv *Private, group *Group) (*Drand, error) {
 		group: group,
 		r:     router,
 		dkg:   dkg,
+		done:  make(chan bool),
 	}
 	go dr.processMessages()
 	return dr, nil
-}
-
-// LoadDrand intiliazes a drand with a distributed share already established.
-func LoadDrand(privateFile, groupFile, shareFile string) (*Drand, error) {
-	d, err := NewDrandFromFile(privateFile, groupFile)
-	if err != nil {
-		return nil, err
-	}
-	d.dks, err = LoadShare(shareFile)
-	d.shareFile = shareFile
-	d.dkgDone = true
-	return d, err
 }
 
 // StartDKG starts the DKG protocol by sending the first packet of the DKG
@@ -81,7 +75,7 @@ func LoadDrand(privateFile, groupFile, shareFile string) (*Drand, error) {
 // finished successfully or an error otherwise.
 func (d *Drand) StartDKG(shareFile string) error {
 	var err error
-	d.dks, err = d.dkg.Start()
+	d.share, err = d.dkg.Start()
 	if err != nil {
 		return err
 	}
@@ -94,7 +88,7 @@ func (d *Drand) StartDKG(shareFile string) error {
 // error otherwise.
 func (d *Drand) RunDKG(shareFile string) error {
 	var err error
-	d.dks, err = d.dkg.Run()
+	d.share, err = d.dkg.Run()
 	if err != nil {
 		return err
 	}
@@ -108,17 +102,27 @@ func (d *Drand) RunDKG(shareFile string) error {
 // s_i+1 = SIG(s_i || timestamp)
 // For the moment, each resulting signature is stored in a file named
 // beacons/<timestamp>.sig.
-func (d *Drand) RandomBeacon(seed []byte, period time.Duration) error {
-	return nil
+func (d *Drand) RandomBeacon(seed []byte, period time.Duration) {
+	d.newBeacon().Start(seed, period)
 }
 
 // Loop waits infinitely and waits for incoming TBLS requests
-func (d *Drand) Loop() error {
-	panic("not implemented yet")
+func (d *Drand) Loop() {
+	d.newBeacon()
+	<-d.done
 }
 
-func (d *Drand) processTBLS(pub *Public, msg *BeaconPacket) {
+func (d *Drand) newBeacon() *Beacon {
+	d.state.Lock()
+	defer d.state.Unlock()
+	d.beacon = newBlsBeacon(d.share, d.group, d.r, d.store)
+	return d.beacon
+}
 
+func (d *Drand) getBeacon() *Beacon {
+	d.state.Lock()
+	defer d.state.Unlock()
+	return d.beacon
 }
 
 // processMessages runs in an infinite loop receiving message from the network
@@ -141,7 +145,12 @@ func (d *Drand) processMessages() {
 			continue
 		}
 		if drand.Beacon != nil {
-			d.processTBLS(pub, drand.Beacon)
+			beac := d.getBeacon()
+			if beac == nil {
+				slog.Info("beacon not setup yet although receiving messages")
+				continue
+			}
+			beac.processBeaconPacket(pub, drand.Beacon)
 		} else if drand.Dkg != nil {
 			d.dkg.process(pub, drand.Dkg)
 		} else {

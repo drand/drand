@@ -2,18 +2,12 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/binary"
-	"fmt"
-	"os"
-	"path"
 	"sync"
 	"time"
 
 	"gopkg.in/dedis/kyber.v1/share"
-	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
 
-	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/bls"
 	"github.com/nikkolasg/slog"
 )
@@ -21,42 +15,72 @@ import (
 // How much time can a signature timestamp differ from our local time
 var maxTimestampDelta = 10 * time.Second
 
-// BeaconSignature is the final reconstructed BLS signature that is saved in the
-// filesystem.
-type BeaconSignature struct {
-	Request   *BeaconRequest
-	Signature string
-}
-
-// blsBeacon holds the logic to initiate, and react to the TBLS protocol, as
-// well as being able to holds the list of full signatures in the filesystem.
-type blsBeacon struct {
+// Beacon holds the logic to initiate, and react to the TBLS protocol. Each time
+// a full signature can be recosntructed, it saves it to the given Store.
+type Beacon struct {
 	r         *Router
-	dks       *dkg.DistKeyShare
+	share     *Share
 	group     *Group
 	pub       *share.PubPoly
+	store     Store
 	threshold int
 	sync.Mutex
 
 	pendingSigs map[string][]*bls.ThresholdSig
 
-	sigFolder string
+	ticker *time.Ticker
 }
 
-func newBlsBeacon(dks *dkg.DistKeyShare, r *Router, group *Group, sigFolder string) *blsBeacon {
-	return &blsBeacon{
+// newBlsBeacon
+func newBlsBeacon(sh *Share, group *Group, r *Router, s Store) *Beacon {
+	return &Beacon{
 		r:         r,
 		group:     group,
-		sigFolder: sigFolder,
-		dks:       dks,
-		pub:       share.NewPubPoly(g2, g2.Point().Base(), dks.Commitments()),
-		threshold: len(dks.Commitments()),
+		share:     sh,
+		pub:       share.NewPubPoly(g2, g2.Point().Base(), sh.Commits),
+		threshold: len(sh.Commits),
+		store:     s,
+	}
+}
+
+// RandomBeacon starts periodically the TBLS protocol. The seed is the first
+// message signed alongside with the current timestamp. All subsequent
+// signatures are chained:
+// s_i+1 = SIG(s_i || timestamp)
+// For the moment, each resulting signature is stored in a file named
+// beacons/<timestamp>.sig (because of FileStore).
+func (b *Beacon) Start(seed []byte, period time.Duration) {
+	b.Lock()
+	b.ticker = time.NewTicker(period)
+	b.Unlock()
+
+	var msg = seed
+	var counter uint64 = 1
+	var failed uint64
+	for _ = range b.ticker.C {
+		now := time.Now().Unix()
+		b.genPartialSignature(msg, now)
+		packet := &DrandPacket{
+			Beacon: &BeaconPacket{
+				Request: &BeaconRequest{
+					PreviousSig: msg,
+					Timestamp:   now,
+				},
+			},
+		}
+		if err := b.r.Broadcast(b.group, packet); err != nil {
+			failed++
+			slog.Infof("beacon: start round %d failed (%d total failed)", counter, failed)
+			continue
+		}
+		counter++
+		slog.Infof("beacon: start round %d correct", counter)
 	}
 }
 
 // processBeaconPacket looks if the packet is a signature request or a signature
 // reply and acts accordingly.
-func (b *blsBeacon) processBeaconPacket(pub *Public, msg *BeaconPacket) {
+func (b *Beacon) processBeaconPacket(pub *Public, msg *BeaconPacket) {
 	switch {
 	case msg.Request != nil:
 		b.processBeaconRequest(pub, msg.Request)
@@ -72,7 +96,7 @@ func (b *blsBeacon) processBeaconPacket(pub *Public, msg *BeaconPacket) {
 // 2- generates and saves a new threshold partial signature for
 //    the new message m_i = H(sig_i-1 || timestamp)
 // 3- broadcast that partial signature to the whole group
-func (b *blsBeacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
+func (b *Beacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
 	// 1
 	now := time.Now()
 	leaderTime := time.Unix(msg.Timestamp, 0)
@@ -81,24 +105,21 @@ func (b *blsBeacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
 		return
 	}
 	// 2-
-	newMessage := message(msg.PreviousSig, leaderTime.Unix())
-	thresholdSign := bls.ThresholdSign(pairing, b.dks.PriShare(), newMessage)
-	b.Lock()
-	defer b.Unlock()
-	digestM := digest(newMessage)
-	b.pendingSigs[digestM] = append(b.pendingSigs[digestM], thresholdSign)
+	sig := b.genPartialSignature(msg.PreviousSig, msg.Timestamp)
 	packet := &DrandPacket{
 		Beacon: &BeaconPacket{
 			Reply: &BeaconReply{
 				Request:   msg,
-				Signature: thresholdSign,
+				Signature: sig,
 			},
 		},
 	}
 	// 3-
-	if err := b.r.Broadcast(b.group, packet); err != nil {
-		slog.Info("blsBeacon error broadcast partial signature: ", err)
-	}
+	go func() {
+		if err := b.r.Broadcast(b.group, packet); err != nil {
+			slog.Info("blsBeacon error broadcast partial signature: ", err)
+		}
+	}()
 }
 
 // processBeaconSignature does the following:
@@ -107,7 +128,7 @@ func (b *blsBeacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
 // signature folder)
 // 3- Saves it in memory and if there is enough threshold partial signatures for
 // the message, it reconstructs the full bls signature and saves it to a file.
-func (b *blsBeacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
+func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	b.Lock()
 	defer b.Unlock()
 	// 1-
@@ -118,8 +139,7 @@ func (b *blsBeacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	}
 
 	// 2-
-	fname := b.toFilename(sig.Request.Timestamp)
-	if fileExists(b.sigFolder, fname) {
+	if b.store.SignatureExists(sig.Request.Timestamp) {
 		slog.Infof("blsBeacon already reconstructed signature %d", sig.Request.Timestamp)
 		return
 	}
@@ -147,44 +167,27 @@ func (b *blsBeacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	}
 	delete(b.pendingSigs, d)
 
-	if err := NewBeaconSignature(sig.Request, fullSig).Save(fname); err != nil {
-		slog.Infof("blsBeacon: error saving signature %s: %s", fname, err)
+	if b.store.SaveSignature(NewBeaconSignature(sig.Request, fullSig)); err != nil {
+		slog.Infof("blsBeacon: error saving signature: %s", err)
 		return
 	}
-	slog.Print("blsBeacon: reconstructed and save full signature to %s", fname)
+	slog.Print("blsBeacon: reconstructed and save full signature")
 }
 
-// toFilename returns the filename where a signature having the given timestamp
-// is stored.
-func (b *blsBeacon) toFilename(ts int64) string {
-	return path.Join(b.sigFolder, fmt.Sprintf("%s.sig", ts))
+func (b *Beacon) Stop() {
+	b.Lock()
+	defer b.Unlock()
+	b.ticker.Stop()
 }
 
-func NewBeaconSignature(req *BeaconRequest, signature []byte) *BeaconSignature {
-	b64sig := base64.StdEncoding.EncodeToString(signature)
-	return &BeaconSignature{
-		Request:   req,
-		Signature: b64sig,
-	}
-}
-
-// Save stores the beacon signature into the given filename overwriting any
-// previous files if existing.
-func (b *BeaconSignature) Save(file string) error {
-	fd, err := os.Create(file)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-	return toml.NewEncoder(fd).Encode(b)
-}
-
-func (b *BeaconSignature) RawSig() []byte {
-	s, err := base64.StdEncoding.DecodeString(b.Signature)
-	if err != nil {
-		panic("beacon signature have invalid base64 encoded ! File corrupted ? Attack ? God ? Pesto ?")
-	}
-	return s
+func (b *Beacon) genPartialSignature(oldSig []byte, time int64) *bls.ThresholdSig {
+	newMessage := message(oldSig, time)
+	thresholdSign := bls.ThresholdSign(pairing, b.share.Share, newMessage)
+	b.Lock()
+	defer b.Unlock()
+	digestM := digest(newMessage)
+	b.pendingSigs[digestM] = append(b.pendingSigs[digestM], thresholdSign)
+	return thresholdSign
 }
 
 // message returns the message out of the signature and the timestamp as what
