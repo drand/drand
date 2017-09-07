@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/nikkolasg/slog"
@@ -86,14 +87,16 @@ func (d *DKG) process(pub *Public, dkg *DKGPacket) {
 
 func (d *DKG) processDeal(pub *Public, deal *dkg.Deal) {
 	d.Lock()
-	defer d.Unlock()
 	d.dealProcessed++
 	slog.Debugf("%s: processDeal(%d) from %s", d.addr, d.dealProcessed, pub.Address)
 	resp, err := d.dkg.ProcessDeal(deal)
+	defer d.processTmpResponses(deal)
+	defer d.Unlock()
 	if err != nil {
 		slog.Infof("%s error processing deal: %s", d.addr, err)
 		return
 	}
+
 	if !d.sentDeals {
 		d.sendDeals(false)
 		d.sentDeals = true
@@ -108,13 +111,36 @@ func (d *DKG) processDeal(pub *Public, deal *dkg.Deal) {
 	slog.Debugf("%s: broadcasted Response !")
 }
 
+func (d *DKG) processTmpResponses(deal *dkg.Deal) {
+	d.Lock()
+	defer d.checkCertified()
+	defer d.Unlock()
+	resps, ok := d.tmpResponses[deal.Index]
+	if !ok {
+		return
+	}
+	slog.Debug(d.router.addr, "processing ", len(resps), " TEMP responses for dealer", deal.Index)
+	delete(d.tmpResponses, deal.Index)
+	for _, r := range resps {
+		_, err := d.dkg.ProcessResponse(r)
+		if err != nil {
+			slog.Debugf(d.router.addr, ": err process temp response: ", err)
+		}
+	}
+}
 func (d *DKG) processResponse(pub *Public, resp *dkg.Response) {
 	d.Lock()
+	defer d.checkCertified()
 	defer d.Unlock()
 	d.respProcessed++
 	j, err := d.dkg.ProcessResponse(resp)
 	slog.Debugf("%s: processResponse(%d) from %s", d.addr, d.respProcessed, pub.Address)
 	if err != nil {
+		if strings.Contains(err.Error(), "no deal for it") {
+			d.tmpResponses[resp.Index] = append(d.tmpResponses[resp.Index], resp)
+			slog.Debug(d.router.addr, "storing future response for unknown deal ", resp.Index)
+			return
+		}
 		panic(err)
 		slog.Infof("%s error process response: %s", d.addr, err)
 		return
@@ -129,22 +155,27 @@ func (d *DKG) processResponse(pub *Public, resp *dkg.Response) {
 		go d.broadcast(packet)
 	}
 	slog.Debugf("%s: processResponse(%d) from %s --> Certified() ? %v --> done ? %v", d.addr, d.respProcessed, pub.Address, d.dkg.Certified(), d.done)
-	if d.dkg.Certified() && !d.done {
-		//slog.Debugf("%s: processResponse(%d) from %s #3", d.addr, d.respProcessed, pub.Address)
-		d.done = true
-		slog.Infof("%s: dkg certified !", d.addr)
-		dks, err := d.dkg.DistKeyShare()
-		if err != nil {
-			return
-		}
-		share := Share(*dks)
-		//slog.Debugf("%s: processResponse(%d) from %s #4", d.addr, d.respProcessed, pub.Address)
-		d.shareCh <- share
-		//slog.Debugf("%s: processResponse(%d) from %s #5", d.addr, d.respProcessed, pub.Address)
-		// save the file
-		d.store.SaveShare(&share)
+}
+
+func (d *DKG) checkCertified() {
+	d.Lock()
+	defer d.Unlock()
+	if !d.dkg.Certified() || d.done {
+		return
 	}
-	//slog.Debugf("%s: processResponse(%d) from %s #6", d.addr, d.respProcessed, pub.Address)
+	//slog.Debugf("%s: processResponse(%d) from %s #3", d.addr, d.respProcessed, pub.Address)
+	d.done = true
+	slog.Infof("%s: dkg certified !", d.addr)
+	dks, err := d.dkg.DistKeyShare()
+	if err != nil {
+		return
+	}
+	share := Share(*dks)
+	//slog.Debugf("%s: processResponse(%d) from %s #4", d.addr, d.respProcessed, pub.Address)
+	d.shareCh <- share
+	//slog.Debugf("%s: processResponse(%d) from %s #5", d.addr, d.respProcessed, pub.Address)
+	// save the file
+	d.store.SaveShare(&share)
 }
 
 // sendDeals tries to send the deals to each of the nodes. force indicates if
