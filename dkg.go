@@ -22,10 +22,11 @@ type DKG struct {
 	idx           int
 	router        *Router
 	dkg           *dkg.DistKeyGenerator
+	tmpResponses  map[uint32][]*dkg.Response
 	sentDeals     bool
 	dealProcessed int
 	respProcessed int
-	shareCh       chan *Share
+	shareCh       chan Share
 	done          bool
 	sync.Mutex
 }
@@ -36,10 +37,11 @@ func NewDKG(priv *Private, group *Group, r *Router, s Store) (*DKG, error) {
 		group:  group,
 		router: r,
 		// default threshold
-		t:       group.Threshold,
-		addr:    priv.Public.Address,
-		shareCh: make(chan *Share, group.Len()),
-		store:   s,
+		t:            group.Threshold,
+		addr:         priv.Public.Address,
+		shareCh:      make(chan Share, group.Len()),
+		store:        s,
+		tmpResponses: make(map[uint32][]*dkg.Response),
 	}
 	d.idx, _ = group.Index(priv.Public)
 	var err error
@@ -59,7 +61,7 @@ func (d *DKG) Start() (*Share, error) {
 	}
 	slog.Debugf("%s: ROOT wait dks", d.addr)
 	share := <-d.shareCh
-	return share, nil
+	return &share, nil
 }
 
 // Run listens for any incoming DKG packet from an initiator. Once such a packet
@@ -68,7 +70,7 @@ func (d *DKG) Start() (*Share, error) {
 func (d *DKG) Run() (*Share, error) {
 	share := <-d.shareCh
 	slog.Debugf("%s: DKG.Run() Finished !", d.addr)
-	return share, nil
+	return &share, nil
 }
 
 func (d *DKG) process(pub *Public, dkg *DKGPacket) {
@@ -83,6 +85,8 @@ func (d *DKG) process(pub *Public, dkg *DKGPacket) {
 }
 
 func (d *DKG) processDeal(pub *Public, deal *dkg.Deal) {
+	d.Lock()
+	defer d.Unlock()
 	d.dealProcessed++
 	slog.Debugf("%s: processDeal(%d) from %s", d.addr, d.dealProcessed, pub.Address)
 	resp, err := d.dkg.ProcessDeal(deal)
@@ -105,11 +109,15 @@ func (d *DKG) processDeal(pub *Public, deal *dkg.Deal) {
 }
 
 func (d *DKG) processResponse(pub *Public, resp *dkg.Response) {
+	d.Lock()
+	defer d.Unlock()
 	d.respProcessed++
 	j, err := d.dkg.ProcessResponse(resp)
-	slog.Debugf("%s: processResponse(%d) from %s. len(QUAL) = %d", d.addr, d.respProcessed, pub.Address, len(d.dkg.QUAL()))
+	slog.Debugf("%s: processResponse(%d) from %s", d.addr, d.respProcessed, pub.Address)
 	if err != nil {
+		panic(err)
 		slog.Infof("%s error process response: %s", d.addr, err)
+		return
 	}
 	if j != nil {
 		slog.Debugf("%s: broadcasting Justification ", d.addr)
@@ -118,19 +126,25 @@ func (d *DKG) processResponse(pub *Public, resp *dkg.Response) {
 				Justification: j,
 			},
 		}
-		d.broadcast(packet)
+		go d.broadcast(packet)
 	}
-	if d.dkg.Certified() {
+	slog.Debugf("%s: processResponse(%d) from %s --> Certified() ? %v --> done ? %v", d.addr, d.respProcessed, pub.Address, d.dkg.Certified(), d.done)
+	if d.dkg.Certified() && !d.done {
+		//slog.Debugf("%s: processResponse(%d) from %s #3", d.addr, d.respProcessed, pub.Address)
+		d.done = true
 		slog.Infof("%s: dkg certified !", d.addr)
 		dks, err := d.dkg.DistKeyShare()
 		if err != nil {
 			return
 		}
 		share := Share(*dks)
-		d.shareCh <- &share
+		//slog.Debugf("%s: processResponse(%d) from %s #4", d.addr, d.respProcessed, pub.Address)
+		d.shareCh <- share
+		//slog.Debugf("%s: processResponse(%d) from %s #5", d.addr, d.respProcessed, pub.Address)
 		// save the file
 		d.store.SaveShare(&share)
 	}
+	//slog.Debugf("%s: processResponse(%d) from %s #6", d.addr, d.respProcessed, pub.Address)
 }
 
 // sendDeals tries to send the deals to each of the nodes. force indicates if

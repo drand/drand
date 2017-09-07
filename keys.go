@@ -237,7 +237,6 @@ func toIndexedList(list []*Public) []*IndexedPublic {
 			Public: p,
 			Index:  i,
 		}
-		fmt.Printf("Public index %d -> %s -> %s\n", i, p.Address, p.Key.String()[:15])
 	}
 	return ilist
 }

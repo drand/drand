@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -11,6 +12,9 @@ import (
 	"github.com/nikkolasg/slog"
 )
 
+// Store abstracts the loading and saving of any configuration/cryptographic
+// material to be used by drand. For the moment, only a file based store is
+// implemented.
 type Store interface {
 	SaveKey(p *Private) error
 	LoadKey() (*Private, error)
@@ -21,6 +25,9 @@ type Store interface {
 	LoadSignature(timestamp int64) (*BeaconSignature, error)
 	SignatureExists(timestamp int64) bool
 }
+
+var ErrStoreFile = errors.New("store file issues")
+var ErrAbsent = errors.New("store can't find requested object")
 
 const defaultKeyFile = "drand_id"
 const privateExtension = ".private"
@@ -63,6 +70,8 @@ func DefaultFileStore() *FileStore {
 // KeyValue is a store that returns a value under a key. It must returns a
 // default value in case the key is not defined. Keys are defined above as
 // XXXFlagName.
+// Initially, cli.Context only fulfills this role but it's easy to imagine other
+// implementations in the future (change of cli-framework or else).
 type KeyValue interface {
 	String(key string) string
 }
@@ -110,6 +119,7 @@ func (f *FileStore) LoadShare() (*Share, error) {
 }
 
 func (f *FileStore) SaveSignature(b *BeaconSignature) error {
+	os.MkdirAll(f.SigFolder, os.ModePerm)
 	return f.Save(f.beaconFilename(b), b, true)
 }
 

@@ -61,6 +61,7 @@ func NewDrand(priv *Private, group *Group, s Store) (*Drand, error) {
 	}
 	dr := &Drand{
 		priv:  priv,
+		store: s,
 		group: group,
 		r:     router,
 		dkg:   dkg,
@@ -73,12 +74,13 @@ func NewDrand(priv *Private, group *Group, s Store) (*Drand, error) {
 // StartDKG starts the DKG protocol by sending the first packet of the DKG
 // protocol to every other node in the group. It returns nil if the DKG protocol
 // finished successfully or an error otherwise.
-func (d *Drand) StartDKG(shareFile string) error {
+func (d *Drand) StartDKG() error {
 	var err error
 	d.share, err = d.dkg.Start()
 	if err != nil {
 		return err
 	}
+	d.store.SaveShare(d.share)
 	d.setDKGDone()
 	return nil
 }
@@ -86,12 +88,13 @@ func (d *Drand) StartDKG(shareFile string) error {
 // RunDKG runs the DKG protocol and saves the share to the given path.
 // It returns nil if the DKG protocol finished successfully or an
 // error otherwise.
-func (d *Drand) RunDKG(shareFile string) error {
+func (d *Drand) RunDKG() error {
 	var err error
 	d.share, err = d.dkg.Run()
 	if err != nil {
 		return err
 	}
+	d.store.SaveShare(d.share)
 	d.setDKGDone()
 	return nil
 }
@@ -110,6 +113,12 @@ func (d *Drand) RandomBeacon(seed []byte, period time.Duration) {
 func (d *Drand) Loop() {
 	d.newBeacon()
 	<-d.done
+}
+
+func (d *Drand) Stop() {
+	d.r.Stop()
+	d.beacon.Stop()
+	close(d.done)
 }
 
 func (d *Drand) newBeacon() *Beacon {
@@ -131,6 +140,11 @@ func (d *Drand) getBeacon() *Beacon {
 func (d *Drand) processMessages() {
 	for {
 		pub, buff := d.r.Receive()
+		if pub == nil {
+			slog.Debugf("drand %s leaving processing message", d.r.addr)
+			return
+		}
+		slog.Debugf("drand %s: call router Receive() after from %s <>\n", d.r.addr, pub.Address)
 		// if the dkg has not been finished yet, unmarshal with g2, otherwise
 		// with g1.
 		var g kyber.Group
@@ -147,7 +161,7 @@ func (d *Drand) processMessages() {
 		if drand.Beacon != nil {
 			beac := d.getBeacon()
 			if beac == nil {
-				slog.Info("beacon not setup yet although receiving messages")
+				slog.Debug("beacon not setup yet although receiving messages")
 				continue
 			}
 			beac.processBeaconPacket(pub, drand.Beacon)

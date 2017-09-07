@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"sync"
 	"time"
 
+	kyber "gopkg.in/dedis/kyber.v1"
 	"gopkg.in/dedis/kyber.v1/share"
 
 	"github.com/dedis/drand/bls"
@@ -28,18 +30,20 @@ type Beacon struct {
 
 	pendingSigs map[string][]*bls.ThresholdSig
 
+	newSig chan []byte
 	ticker *time.Ticker
 }
 
 // newBlsBeacon
 func newBlsBeacon(sh *Share, group *Group, r *Router, s Store) *Beacon {
 	return &Beacon{
-		r:         r,
-		group:     group,
-		share:     sh,
-		pub:       share.NewPubPoly(g2, g2.Point().Base(), sh.Commits),
-		threshold: len(sh.Commits),
-		store:     s,
+		r:           r,
+		group:       group,
+		share:       sh,
+		pub:         share.NewPubPoly(g2, g2.Point().Base(), sh.Commits),
+		threshold:   len(sh.Commits),
+		pendingSigs: make(map[string][]*bls.ThresholdSig),
+		store:       s,
 	}
 }
 
@@ -51,21 +55,26 @@ func newBlsBeacon(sh *Share, group *Group, r *Router, s Store) *Beacon {
 // beacons/<timestamp>.sig (because of FileStore).
 func (b *Beacon) Start(seed []byte, period time.Duration) {
 	b.Lock()
+	b.newSig = make(chan []byte, 1)
 	b.ticker = time.NewTicker(period)
 	b.Unlock()
 
-	var msg = seed
 	var counter uint64 = 1
 	var failed uint64
-	for _ = range b.ticker.C {
+	b.newSig <- seed
+	for wt := range b.ticker.C {
+		oldSig := <-b.newSig
+		t := wt.Unix()
+		slog.Debugf("beacon: (round %d) BIP time %d", counter, t)
 		now := time.Now().Unix()
-		b.genPartialSignature(msg, now)
+		partial := b.genPartialSignature(oldSig, now)
+		request := &BeaconRequest{
+			PreviousSig: oldSig,
+			Timestamp:   now,
+		}
 		packet := &DrandPacket{
 			Beacon: &BeaconPacket{
-				Request: &BeaconRequest{
-					PreviousSig: msg,
-					Timestamp:   now,
-				},
+				Request: request,
 			},
 		}
 		if err := b.r.Broadcast(b.group, packet); err != nil {
@@ -73,9 +82,23 @@ func (b *Beacon) Start(seed []byte, period time.Duration) {
 			slog.Infof("beacon: start round %d failed (%d total failed)", counter, failed)
 			continue
 		}
+
+		// send our own contribution
+		packet = &DrandPacket{
+			Beacon: &BeaconPacket{
+				Reply: &BeaconReply{
+					Request:   request,
+					Signature: partial,
+				},
+			},
+		}
+		if err := b.r.Broadcast(b.group, packet); err != nil {
+			slog.Infof("beacon: round %d failed to send own contribution: %s", counter, err)
+		}
+		slog.Infof("beacon: (round %d) %d launched", counter, t)
 		counter++
-		slog.Infof("beacon: start round %d correct", counter)
 	}
+	fmt.Println(" << beacon ticker OUT >>")
 }
 
 // processBeaconPacket looks if the packet is a signature request or a signature
@@ -106,6 +129,9 @@ func (b *Beacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
 	}
 	// 2-
 	sig := b.genPartialSignature(msg.PreviousSig, msg.Timestamp)
+	if !bls.ThresholdVerify(pairing, b.pub, message(msg.PreviousSig, msg.Timestamp), sig) {
+		panic("aie")
+	}
 	packet := &DrandPacket{
 		Beacon: &BeaconPacket{
 			Reply: &BeaconReply{
@@ -116,6 +142,7 @@ func (b *Beacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
 	}
 	// 3-
 	go func() {
+		slog.Debugf("beacon %s: sending REPLY to from %s", b.r.addr, pub.Address)
 		if err := b.r.Broadcast(b.group, packet); err != nil {
 			slog.Info("blsBeacon error broadcast partial signature: ", err)
 		}
@@ -134,7 +161,7 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	// 1-
 	msg := message(sig.Request.PreviousSig, sig.Request.Timestamp)
 	if !bls.ThresholdVerify(pairing, b.pub, msg, sig.Signature) {
-		slog.Info("blsBeacon received invalid partial signature")
+		slog.Info("blsBeacon ", b.share.Share.I, "received invalid partial signature from", pub.Address)
 		return
 	}
 
@@ -159,25 +186,34 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 		return
 	}
 
-	slog.Debug("blsBeacon: full signature recovery")
+	slog.Debugf("blsBeacon: full signature recovery for sig: %d", sig.Request.Timestamp)
 	fullSig, err := bls.AggregateSignatures(pairing, b.pub, msg, b.pendingSigs[d], len(b.group.List), b.threshold)
 	if err != nil {
 		slog.Info("blsBeacon: full signature recovery failed for ts %d: %s", sig.Request.Timestamp, err)
 		return
 	}
+	// dispatch to the beacon controller
+	if b.newSig != nil {
+		b.newSig <- fullSig
+	}
+
 	delete(b.pendingSigs, d)
 
 	if b.store.SaveSignature(NewBeaconSignature(sig.Request, fullSig)); err != nil {
 		slog.Infof("blsBeacon: error saving signature: %s", err)
 		return
 	}
-	slog.Print("blsBeacon: reconstructed and save full signature")
+	slog.Print("blsBeacon: reconstructed and save full signature for ", sig.Request.Timestamp)
 }
 
 func (b *Beacon) Stop() {
 	b.Lock()
 	defer b.Unlock()
+	if b.ticker == nil {
+		return
+	}
 	b.ticker.Stop()
+	slog.Info("root beacon STOP.")
 }
 
 func (b *Beacon) genPartialSignature(oldSig []byte, time int64) *bls.ThresholdSig {
@@ -188,6 +224,12 @@ func (b *Beacon) genPartialSignature(oldSig []byte, time int64) *bls.ThresholdSi
 	digestM := digest(newMessage)
 	b.pendingSigs[digestM] = append(b.pendingSigs[digestM], thresholdSign)
 	return thresholdSign
+}
+
+// XXX use with precautions XXX
+func toBytes(p kyber.Point) []byte {
+	buff, _ := p.MarshalBinary()
+	return buff
 }
 
 // message returns the message out of the signature and the timestamp as what

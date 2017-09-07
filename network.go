@@ -139,8 +139,12 @@ func (r *Router) Listen() {
 }
 
 // Receive returns the next enqueued message coming from any active connections
+// it may return nil,nil if the router is closed
 func (r *Router) Receive() (*Public, []byte) {
 	wrap := <-r.messages
+	if wrap.Pub == nil {
+		return nil, nil
+	}
 	return wrap.Pub, wrap.Message
 }
 
@@ -181,11 +185,11 @@ func (r *Router) Send(pub *Public, d *DrandPacket) error {
 			return err
 		}
 		c = cc
-		//fmt.Printf("Send->Wait() router[%d] got conn from router[%d]: %p\n", r.index, ridx, c.Conn)
 	} else {
 		panic(fmt.Sprintf("router %s: ridx %d vs r.index %d", r.addr, ridx, r.index))
 		return errors.New("router: don't send to ourself")
 	}
+	slog.Debug("router", r.addr, " -> SEND TO ", pub.Address)
 	return c.Send(d)
 }
 
@@ -205,14 +209,18 @@ func (r *Router) SendForce(pub *Public, d *DrandPacket) error {
 			return err
 		}
 	}
+	slog.Debugf("router %s -> SEND FORCE TO %s: %+v\n", r.addr, pub.Address, d.Beacon)
 	return c.Send(d)
 }
 
 func (r *Router) Broadcast(g *Group, d *DrandPacket) error {
 	var gerr string
 	for _, p := range g.List {
-		if err := r.Send(p.Public, d); err != nil {
-			gerr += err.Error()
+		if p.Key.String() == r.priv.Public.Key.String() {
+			continue
+		}
+		if err := r.SendForce(p.Public, d); err != nil {
+			gerr += err.Error() + " -- "
 		}
 	}
 	if gerr != "" {
@@ -231,6 +239,8 @@ func (r *Router) Stop() {
 		c.Close()
 	}
 	r.cond.L.Unlock()
+	slog.Debug("router ", r.addr, " closing.")
+	close(r.messages)
 }
 
 // waitIncoming
@@ -277,13 +287,9 @@ func (r *Router) waitIncoming(pub *Public) (Conn, error) {
 	}
 	r.cond.L.Unlock()
 	slog.Debugf("%s: waitIncoming FINISH", r.addr)
-	//fmt.Printf("%s: waitIncoming FINISH\n", r.addr)
-	//	fmt.Printf("waitIncoming: router[%d] waits from router[%d] DONE\n", r.index, ridx)
 	if c == nil {
-		//fmt.Println("AAAAAAAAAAAAAAAAAAAA")
 		return Conn{}, errors.New("router: time out waiting on incoming connection")
 	}
-	//fmt.Printf("waitIncoming: router[%d] got connection from router[%d]: %p\n", r.index, ridx, (*c).Conn)
 	return *c, nil
 }
 
@@ -354,6 +360,7 @@ func (r *Router) handleConnection(p *Public, c Conn) {
 			slog.Infof("router(%s): conn. error from %s: %s", r.addr, p.Address, err)
 			return
 		}
+		slog.Debug("router ", r.addr, ": received from ", p.Address)
 		r.messages <- messageWrapper{Pub: p, Message: buff}
 	}
 }

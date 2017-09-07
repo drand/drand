@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"sort"
@@ -27,16 +26,22 @@ func BatchIdentities(n int) ([]*Private, *Group) {
 	return privs, group
 }
 
-func BatchDrands(n int, config *Config) (*Group, []*Drand) {
+func BatchDrands(n int) (*Group, []*Drand) {
 	ids, group := BatchIdentities(n)
 	drands := make([]*Drand, n)
 	var err error
 	for i := range ids {
-		drands[i], err = NewDrand(ids[i], group, config)
+		store := &TestStore{
+			Private:    ids[i],
+			Public:     ids[i].Public,
+			Group:      group,
+			Signatures: make(map[int64]*BeaconSignature),
+		}
+
+		drands[i], err = NewDrand(ids[i], group, store)
 		if err != nil {
 			panic(err)
 		}
-		fmt.Printf("drand[%d] => %s\n", i, ids[i].Public.Address)
 	}
 	return group, drands
 }
@@ -63,6 +68,54 @@ func CloseAllRouters(routers []*Router) {
 	for _, r := range routers {
 		r.Stop()
 	}
+}
+
+type TestStore struct {
+	Private    *Private
+	Public     *Public
+	Group      *Group
+	Share      *Share
+	Signatures map[int64]*BeaconSignature
+}
+
+func (t *TestStore) SaveKey(p *Private) error {
+	t.Private = p
+	return nil
+}
+
+func (t *TestStore) LoadKey() (*Private, error) {
+	return t.Private, nil
+}
+
+func (t *TestStore) LoadGroup() (*Group, error) {
+	return t.Group, nil
+}
+
+func (t *TestStore) SaveShare(s *Share) error {
+	t.Share = s
+	return nil
+}
+
+func (t *TestStore) LoadShare() (*Share, error) {
+	return t.Share, nil
+}
+
+func (t *TestStore) SaveSignature(b *BeaconSignature) error {
+	t.Signatures[b.Request.Timestamp] = b
+	return nil
+}
+
+func (t *TestStore) LoadSignature(ts int64) (*BeaconSignature, error) {
+	sig, ok := t.Signatures[ts]
+	if !ok {
+		return nil, ErrAbsent
+	}
+	return sig, nil
+}
+
+func (t *TestStore) SignatureExists(ts int64) bool {
+	_, ok := t.Signatures[ts]
+	return ok
 }
 
 type ByIndex []*Router
@@ -102,11 +155,4 @@ func (b *basicKV) String(key string) string {
 	default:
 		panic("he")
 	}
-}
-
-// TempConfig returns a config that stores everything in a temp folder, returns
-// it and the tmp folder.
-func TempConfig() (*Config, string) {
-	dir := tempDir()
-	return NewConfigFromContext(&basicKV{dir}), dir
 }
