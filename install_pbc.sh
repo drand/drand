@@ -33,7 +33,7 @@ fi
 LINK="https://s3-us-west-2.amazonaws.com/dfinity/crypto/bn/latest/bn-latest-amd64-linux-ubuntu16.04.tar.gz"
 TAR_NAME="bn-latest-amd64-linux-ubuntu16.04.tar.gz"
 TAR_LIB_PATH="bn-r20170708-2-amd64-linux-ubuntu16.04/lib/libbls384.so"
-SYS_LIB_PATH="/lib/libbls384.so"
+SYS_LIB_PATH="/lib/x86_64-linux-gnu/libbls384.so"
 
 extract() {
     echo "[+] Extracting the library."
