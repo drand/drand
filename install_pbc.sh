@@ -77,7 +77,7 @@ extract
 make_link
 sudo ldconfig
 echo " ==== ls /lib/"
-sudo ls /lib/*so
+sudo ls $SYS_LIB_PATH
 echo " == ldconfigs ALL"
 sudo ldconfig -v
 echo " == ldconfig BLS"
