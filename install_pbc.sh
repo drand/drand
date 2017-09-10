@@ -7,9 +7,6 @@ printh() {
 }
 
 printh "PBC prescript installer"
-if [[ $EUID -e 0 ]]; then
-    apt-get install -y sudo 
-fi
 sudo apt-get update
 #printh " -> copying library"
 #sudo cp "libbls384.so" "/usr/lib/"
