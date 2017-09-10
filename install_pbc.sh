@@ -1,5 +1,7 @@
 #!/bin/bash 
 
+set -x
+
 printh() {
     echo "$(hostname)\t: $1"
 }
@@ -52,7 +54,7 @@ if [ -f "$SYS_LIB_PATH" ]; then
 fi
 
 # check if library is not extracted yet
-if [ -f "$TAR_NAME" ] && [ ! -f "$tAR_LIB_PATH"]; then
+if [ -f "$TAR_NAME" ] && [ ! -f "$TAR_LIB_PATH"]; then
     echo "[+] Library not extracted yet"
     extract
     make_link
