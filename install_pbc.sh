@@ -76,5 +76,9 @@ wget "$LINK"
 extract
 make_link
 sudo ldconfig
+echo " == ldconfigs ALL"
+sudo ldconfig -v
+echo " == ldconfig BLS"
+ldconfig -v | grep -i bls
 echo "[+] Bye !"
 exit 0
