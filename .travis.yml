@@ -3,3 +3,6 @@ sudo: required
 language: go
 go:
     - tip
+
+before_install:
+    - ./install_pbc.sh      
