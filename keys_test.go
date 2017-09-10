@@ -31,7 +31,7 @@ func (t *TmpKeyValue) String(key string) string {
 }
 
 func TestKeysSaveLoad(t *testing.T) {
-	ps, group := BatchIdentities(1)
+	ps, group := BatchIdentities(4)
 	tmp := os.TempDir()
 	defer os.RemoveAll(tmp)
 	kv := NewTmpKeyValue(tmp)
@@ -41,7 +41,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Nil(t, store.SaveKey(ps[0]))
 	loadedKey, err := store.LoadKey()
 	require.Nil(t, err)
-	require.Equal(t, loadedKey.Key.String(), ps[0])
+	require.Equal(t, loadedKey.Key.String(), ps[0].Key.String())
 	require.Equal(t, loadedKey.Public.Key.String(), ps[0].Public.Key.String())
 	require.True(t, fileExists(tmp, defaultKeyFile+privateExtension))
 	require.True(t, fileExists(tmp, defaultKeyFile+publicExtension))

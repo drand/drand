@@ -240,7 +240,7 @@ func (r *Router) Stop() {
 	}
 	r.cond.L.Unlock()
 	slog.Debug("router ", r.addr, " closing.")
-	close(r.messages)
+	//close(r.messages)
 }
 
 // waitIncoming
