@@ -23,7 +23,7 @@ sudo apt-get -y install libssl-dev
 sudo apt-get -y install libgmp-dev
 ### doing symlinks for openssl weirdness ??
 OLD="$(pwd)"
-if [ ! -f "/usr/lib/x86_64-linux-gnu/libcrypto.so.1.1" ]; then
+if [ ! -f "/lib/x86_64-linux-gnu/libcrypto.so.1.1" ]; then
     printh " -> linking libcrypto.so.1.1"
     cd "/usr/lib/x86_64-linux-gnu"
     sudo ln -s libcrypto.so libcrypto.so.1.1
@@ -33,7 +33,7 @@ fi
 LINK="https://s3-us-west-2.amazonaws.com/dfinity/crypto/bn/latest/bn-latest-amd64-linux-ubuntu16.04.tar.gz"
 TAR_NAME="bn-latest-amd64-linux-ubuntu16.04.tar.gz"
 TAR_LIB_PATH="bn-r20170708-2-amd64-linux-ubuntu16.04/lib/libbls384.so"
-SYS_LIB_PATH="/usr/local/lib/libbls384.so"
+SYS_LIB_PATH="/lib/libbls384.so"
 
 extract() {
     echo "[+] Extracting the library."
@@ -79,6 +79,6 @@ sudo ldconfig
 echo " == ldconfigs ALL"
 sudo ldconfig -v
 echo " == ldconfig BLS"
-ldconfig -v | grep -i bls
+sudo ldconfig -v | grep -i bls
 echo "[+] Bye !"
 exit 0
