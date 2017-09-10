@@ -7,6 +7,10 @@ printh() {
 }
 
 printh "PBC prescript installer"
+if [[ $EUID -e 0 ]]; then
+    apt-get install -y sudo 
+fi
+sudo apt-get update
 #printh " -> copying library"
 #sudo cp "libbls384.so" "/usr/lib/"
 
@@ -32,7 +36,7 @@ fi
 LINK="https://s3-us-west-2.amazonaws.com/dfinity/crypto/bn/latest/bn-latest-amd64-linux-ubuntu16.04.tar.gz"
 TAR_NAME="bn-latest-amd64-linux-ubuntu16.04.tar.gz"
 TAR_LIB_PATH="bn-r20170708-2-amd64-linux-ubuntu16.04/lib/libbls384.so"
-SYS_LIB_PATH="/usr/lib/libbls384.so"
+SYS_LIB_PATH="/usr/local/lib/libbls384.so"
 
 extract() {
     echo "[+] Extracting the library."
