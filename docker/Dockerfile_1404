@@ -1,0 +1,30 @@
+FROM ubuntu:trusty
+
+RUN apt-get update
+RUN apt-get install -y wget \
+                   git \
+                   libssl-dev \
+                   libgmp-dev \
+                   golang \
+                   make \
+                   software-properties-common
+
+RUN mkdir -p /go/src/
+ENV GOPATH=/go
+RUN go get -d github.com/dfinity/go-dfinity-crypto/bls
+
+RUN git clone https://github.com/dfinity/bn
+RUN wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add - 
+RUN echo "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main" >> /etc/apt/sources.list
+RUN apt-get update
+RUN apt-get -y install llvm-3.8 clang-3.8 g++
+ENV CXX=clang++-3.8
+ENV PATH=$PATH:/usr/lib/llvm-3.8/bin/
+ENV LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib
+WORKDIR /bn
+RUN make
+RUN make install
+
+
+
+
