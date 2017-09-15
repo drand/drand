@@ -11,7 +11,8 @@ sudo apt-get update
 sudo apt-get -y install libssl-dev \
                         libgmp-dev \
                         git \
-                        make \
+                        make
+
 sudo git clone https://github.com/dfinity/bn /bn
 sudo wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add - 
 echo "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main" | sudo tee /etc/apt/sources.list
