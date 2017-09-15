@@ -124,7 +124,18 @@ func (f *FileStore) LoadShare() (*Share, error) {
 
 func (f *FileStore) SaveSignature(b *BeaconSignature) error {
 	os.MkdirAll(f.SigFolder, os.ModePerm)
-	return f.Save(f.beaconFilename(b), b, true)
+	return f.Save(f.beaconFilename(b.Request.Timestamp), b, true)
+}
+
+func (f *FileStore) LoadSignature(ts int64) (*BeaconSignature, error) {
+	fname := f.beaconFilename(ts)
+	sig := new(BeaconSignature)
+	return sig, f.Load(fname, sig)
+}
+
+func (f *FileStore) SignatureExists(ts int64) bool {
+	ok, _ := exists(f.beaconFilename(ts))
+	return ok
 }
 
 func (f *FileStore) Save(path string, t Tomler, secure bool) error {
@@ -153,8 +164,8 @@ func (f *FileStore) Load(path string, t Tomler) error {
 
 // toFilename returns the filename where a signature having the given timestamp
 // is stored.
-func (f *FileStore) beaconFilename(b *BeaconSignature) string {
-	return path.Join(f.SigFolder, fmt.Sprintf("%s.sig", b.Request.Timestamp))
+func (f *FileStore) beaconFilename(ts int64) string {
+	return path.Join(f.SigFolder, fmt.Sprintf("%s.sig", ts))
 }
 
 // default threshold for the distributed key generation protocol & TBLS.
@@ -186,6 +197,7 @@ func defaultSigFolder() string {
 	return path.Join(appData(), defaultSigFolder_)
 }
 
+// appData returns the directory where drand stores all its information.
 func appData() string {
 	u, err := user.Current()
 	if err != nil {
@@ -194,10 +206,23 @@ func appData() string {
 	return path.Join(u.HomeDir, defaultDataFolder)
 }
 
+// pwd returns the current directory. Useless for now.
 func pwd() string {
 	s, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 	return s
+}
+
+// exists returns whether the given file or directory exists or not
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
 }
