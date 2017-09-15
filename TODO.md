@@ -2,3 +2,6 @@
 - not infinite loop in Drand
 - not test with files inside the repo
 - make DKG handle responses before deals
+- store config in /etc/drand 
+        data (signatures) in /var/lib/drand
+        keys in ~/.drand/

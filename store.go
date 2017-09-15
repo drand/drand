@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path"
 	"reflect"
 	"strings"
@@ -29,6 +30,9 @@ type Store interface {
 var ErrStoreFile = errors.New("store file issues")
 var ErrAbsent = errors.New("store can't find requested object")
 
+// defaultDataFolder is the default place where the secret keys, and signatures
+// will be stored.
+const defaultDataFolder = "drand"
 const defaultKeyFile = "drand_id"
 const privateExtension = ".private"
 const publicExtension = ".public"
@@ -159,7 +163,7 @@ func defaultThreshold(n int) int {
 }
 
 func defaultPrivateFile() string {
-	return path.Join(pwd(), defaultKeyFile+privateExtension)
+	return path.Join(appData(), defaultKeyFile+privateExtension)
 }
 
 // XXX quick hack, probably a thousand ways to abuse this...
@@ -169,7 +173,7 @@ func publicFile(privateFile string) string {
 }
 
 func defaultGroupFile() string {
-	return path.Join(pwd(), defaultGroupFile_) + groupExtension
+	return path.Join(appData(), defaultGroupFile_) + groupExtension
 }
 
 // XXX quick hack, probably a thousand ways to abuse this...
@@ -179,7 +183,15 @@ func shareFile(groupFile string) string {
 }
 
 func defaultSigFolder() string {
-	return path.Join(pwd(), defaultSigFolder_)
+	return path.Join(appData(), defaultSigFolder_)
+}
+
+func appData() string {
+	u, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+	return path.Join(u.HomeDir, defaultDataFolder)
 }
 
 func pwd() string {

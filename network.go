@@ -374,3 +374,7 @@ func host(c net.Conn) string {
 	host, _, _ := net.SplitHostPort(c.RemoteAddr().Network())
 	return host
 }
+
+func isValidIP(addr string) bool {
+	return net.ParseIP(addr) != nil
+}
