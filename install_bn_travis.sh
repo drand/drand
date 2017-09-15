@@ -7,6 +7,7 @@ printh() {
 }
 
 printh "PBC prescript installer"
+sudo cat /etc/os-release
 sudo apt-get update
 sudo apt-get -y install libssl-dev \
                         libgmp-dev \
