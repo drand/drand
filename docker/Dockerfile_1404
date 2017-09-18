@@ -25,6 +25,5 @@ WORKDIR /bn
 RUN make
 RUN make install
 
-
-
-
+ENV PATH=$PATH:$GOPATH/bin
+RUN go get github.com/dedis/drand
