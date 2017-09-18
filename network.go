@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -376,5 +377,15 @@ func host(c net.Conn) string {
 }
 
 func isValidIP(addr string) bool {
-	return net.ParseIP(addr) != nil
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	p, err := strconv.Atoi(port)
+	if err != nil || p < 1000 || p > 65535 {
+		return false
+	}
+	goodIP := net.ParseIP(host) != nil
+	fmt.Println("isValidIP => goodIP = ", goodIP, " , splithost: ", err)
+	return goodIP
 }

@@ -32,7 +32,7 @@ var ErrAbsent = errors.New("store can't find requested object")
 
 // defaultDataFolder is the default place where the secret keys, and signatures
 // will be stored.
-const defaultDataFolder = "drand"
+const defaultDataFolder = ".drand"
 const defaultKeyFile = "drand_id"
 const privateExtension = ".private"
 const publicExtension = ".public"
@@ -198,12 +198,19 @@ func defaultSigFolder() string {
 }
 
 // appData returns the directory where drand stores all its information.
+// It creates the path if it not existent yet.
 func appData() string {
 	u, err := user.Current()
 	if err != nil {
 		panic(err)
 	}
-	return path.Join(u.HomeDir, defaultDataFolder)
+	path := path.Join(u.HomeDir, defaultDataFolder)
+	if exists, _ := exists(path); !exists {
+		if err := os.MkdirAll(path, 0740); err != nil {
+			panic(err)
+		}
+	}
+	return path
 }
 
 // pwd returns the current directory. Useless for now.
@@ -225,4 +232,8 @@ func exists(path string) (bool, error) {
 		return false, nil
 	}
 	return true, err
+}
+
+func flagNameStruct(name string) string {
+	return name + " ," + string(name[0])
 }

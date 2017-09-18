@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/nikkolasg/slog"
@@ -28,22 +29,22 @@ func main() {
 	app.Version = version
 	// global flags re-used in many commands
 	privFlag := cli.StringFlag{
-		Name:  "private, p",
+		Name:  flagNameStruct(keyFileFlagName),
 		Value: defaultPrivateFile(),
 		Usage: "private key file path",
 	}
 	groupFlag := cli.StringFlag{
-		Name:  "group, g",
+		Name:  flagNameStruct(groupFileFlagName),
 		Value: defaultGroupFile(),
 		Usage: "group file listing identities of participants",
 	}
 	shareFlag := cli.StringFlag{
-		Name:  "share, s",
+		Name:  flagNameStruct(shareFile(defaultGroupFile())),
 		Value: shareFile(defaultGroupFile()),
 		Usage: "private share file path of the group",
 	}
 	sigFlag := cli.StringFlag{
-		Name:  "beacon, b",
+		Name:  flagNameStruct(sigFolderFlagName),
 		Value: defaultSigFolder(),
 		Usage: "folder where beacon stores the signatures",
 	}
@@ -105,23 +106,29 @@ func main() {
 			},
 		},
 	}
+	app.Run(os.Args)
 }
 
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
+	fmt.Println("1")
 	if !args.Present() {
+		fmt.Println("2")
 		return errors.New("no address present as argument")
 	}
 	if !isValidIP(args.First()) {
+		fmt.Println("3", args.First(), " - ", args.Get(0))
 		return errors.New("address given is not a valid ip address")
 	}
+
 	priv := NewKeyPair(args.First())
 	fs := NewFileStore(c)
 	if err := fs.SaveKey(priv); err != nil {
+		fmt.Println("4")
 		return err
 	}
-	slog.Info("Generated private key at ", fs.KeyFile)
-	slog.Info("Generated public key at ", fs.PublicFile)
+	slog.Print("Generated private key at ", fs.KeyFile)
+	slog.Print("Generated public key at ", fs.PublicFile)
 	return nil
 }
 
