@@ -31,7 +31,7 @@ func main() {
 	privFlag := cli.StringFlag{
 		Name:  flagNameStruct(keyFileFlagName),
 		Value: defaultPrivateFile(),
-		Usage: "private key file path",
+		Usage: "private key file path. Public key MUST be in the same folder with the .public extension",
 	}
 	groupFlag := cli.StringFlag{
 		Name:  flagNameStruct(groupFileFlagName),
