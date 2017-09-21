@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -18,8 +17,8 @@ const defaultPeriod = 30 * time.Minute
 
 func banner() {
 	fmt.Printf("drand v%s by nikkolasg @ DEDIS, EPFL\n", version)
-	s := "WARNING: this software has NOT received a full audit and therefore\n" +
-		"WARNING: must be used with caution and NOT in a production environment.\n"
+	s := "WARNING: this software has NOT received a full audit and must be \n" +
+		"used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)
 }
 
@@ -65,10 +64,11 @@ func main() {
 
 	app.Commands = []cli.Command{
 		cli.Command{
-			Name:    "keygen",
-			Aliases: []string{"k"},
-			Flags:   toArray(privFlag),
-			Usage:   "keygen <address to listen>. Generates longterm private key pair",
+			Name:      "keygen",
+			Aliases:   []string{"k"},
+			Flags:     toArray(privFlag),
+			Usage:     "keygen <address to listen>. Generates longterm private key pair",
+			ArgsUsage: "ADDRESS must be a valid TCP ip address to listen on",
 			Action: func(c *cli.Context) error {
 				return keygenCmd(c)
 			},
@@ -111,21 +111,18 @@ func main() {
 
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
-	fmt.Println("1")
 	if !args.Present() {
-		fmt.Println("2")
-		return errors.New("no address present as argument")
+		slog.Fatal("Missing ip address argument")
 	}
 	if !isValidIP(args.First()) {
-		fmt.Println("3", args.First(), " - ", args.Get(0))
-		return errors.New("address given is not a valid ip address")
+		slog.Print("IP address must be of the form <address>:<port> with port > 1000")
+		slog.Fatal("Address given is not a valid ip address")
 	}
 
 	priv := NewKeyPair(args.First())
 	fs := NewFileStore(c)
 	if err := fs.SaveKey(priv); err != nil {
-		fmt.Println("4")
-		return err
+		slog.Fatal("could not save key: ", err)
 	}
 	slog.Print("Generated private key at ", fs.KeyFile)
 	slog.Print("Generated public key at ", fs.PublicFile)
@@ -136,7 +133,7 @@ func dkgCmd(c *cli.Context) error {
 	fs := NewFileStore(c)
 	drand, err := LoadDrand(fs)
 	if err != nil {
-		return err
+		slog.Fatal("could not load drand: ", err)
 	}
 	if c.Bool("leader") {
 		return drand.StartDKG()
@@ -149,7 +146,7 @@ func beaconCmd(c *cli.Context) error {
 	fs := NewFileStore(c)
 	drand, err := LoadDrand(fs)
 	if err != nil {
-		return err
+		slog.Fatal("could not load drand: ", err)
 	}
 	if c.Bool("leader") {
 		drand.RandomBeacon([]byte(c.String("seed")), c.Duration("period"))
@@ -160,10 +157,9 @@ func beaconCmd(c *cli.Context) error {
 }
 
 func runCmd(c *cli.Context) error {
-	if err := dkgCmd(c); err != nil {
-		return err
-	}
-	return beaconCmd(c)
+	dkgCmd(c)
+	beaconCmd(c)
+	return nil
 }
 
 func toArray(flags ...cli.Flag) []cli.Flag {

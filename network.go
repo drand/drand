@@ -386,6 +386,5 @@ func isValidIP(addr string) bool {
 		return false
 	}
 	goodIP := net.ParseIP(host) != nil
-	fmt.Println("isValidIP => goodIP = ", goodIP, " , splithost: ", err)
 	return goodIP
 }
