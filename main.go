@@ -28,9 +28,9 @@ func main() {
 	app.Version = version
 	// global flags re-used in many commands
 	privFlag := cli.StringFlag{
-		Name:  flagNameStruct(keyFileFlagName),
-		Value: defaultPrivateFile(),
-		Usage: "private key file path. Public key MUST be in the same folder with the .public extension",
+		Name:  flagNameStruct(keyFolderFlagName),
+		Value: appData(),
+		Usage: "Key folder path.Private key must be in the folder under the name drand_id.private, public identity under the name drand_id.public",
 	}
 	groupFlag := cli.StringFlag{
 		Name:  flagNameStruct(groupFileFlagName),

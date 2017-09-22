@@ -146,7 +146,7 @@ type basicKV struct {
 
 func (b *basicKV) String(key string) string {
 	switch key {
-	case keyFileFlagName:
+	case keyFolderFlagName:
 		return path.Join(b.path, defaultKeyFile)
 	case groupFileFlagName:
 		return path.Join(b.path, groupFileFlagName)

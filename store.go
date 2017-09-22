@@ -41,7 +41,7 @@ const groupExtension = ".toml"
 const shareExtension = ".secret"
 const defaultSigFolder_ = "beacons"
 
-const keyFileFlagName = "key"
+const keyFolderFlagName = "keys"
 const groupFileFlagName = "group"
 const sigFolderFlagName = "beacons"
 
@@ -81,13 +81,14 @@ type KeyValue interface {
 }
 
 func NewFileStore(k KeyValue) *FileStore {
-	return &FileStore{
-		KeyFile:    k.String(keyFileFlagName),
-		PublicFile: publicFile(k.String(keyFileFlagName)),
-		GroupFile:  k.String(groupFileFlagName),
-		ShareFile:  shareFile(k.String(groupFileFlagName)),
-		SigFolder:  k.String(sigFolderFlagName),
+	fs := &FileStore{
+		KeyFile:   path.Join(k.String(keyFolderFlagName), defaultKeyFile+privateExtension),
+		GroupFile: k.String(groupFileFlagName),
+		ShareFile: shareFile(k.String(groupFileFlagName)),
+		SigFolder: k.String(sigFolderFlagName),
 	}
+	fs.PublicFile = publicFile(fs.KeyFile)
+	return fs
 }
 
 // SaveKey first saves the private key in a file with tight permissions and then

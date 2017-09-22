@@ -15,7 +15,7 @@ type TmpKeyValue struct {
 func NewTmpKeyValue(folder string) KeyValue {
 	return &TmpKeyValue{
 		values: map[string]string{
-			keyFileFlagName:   path.Join(folder, defaultKeyFile+privateExtension),
+			keyFolderFlagName: folder,
 			groupFileFlagName: path.Join(folder, defaultGroupFile_+groupExtension),
 			sigFolderFlagName: path.Join(folder, defaultSigFolder_),
 		},
