@@ -21,7 +21,7 @@ func BatchIdentities(n int) ([]*Private, *Group) {
 	}
 	group := &Group{
 		Threshold: defaultThreshold(n),
-		List:      toIndexedList(pubs),
+		Nodes:     toIndexedList(pubs),
 	}
 	return privs, group
 }

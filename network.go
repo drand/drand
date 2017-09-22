@@ -216,7 +216,7 @@ func (r *Router) SendForce(pub *Public, d *DrandPacket) error {
 
 func (r *Router) Broadcast(g *Group, d *DrandPacket) error {
 	var gerr string
-	for _, p := range g.List {
+	for _, p := range g.Nodes {
 		if p.Key.String() == r.priv.Public.Key.String() {
 			continue
 		}

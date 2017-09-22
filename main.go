@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -16,7 +18,7 @@ const defaultSeed = "Expose yourself to your deepest fear; after that," +
 const defaultPeriod = 30 * time.Minute
 
 func banner() {
-	fmt.Printf("drand v%s by nikkolasg @ DEDIS, EPFL\n", version)
+	fmt.Printf("drand v%s-test by nikkolasg @ DEDIS, EPFL\n", version)
 	s := "WARNING: this software has NOT received a full audit and must be \n" +
 		"used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)
@@ -74,13 +76,28 @@ func main() {
 			},
 		},
 		cli.Command{
+			Name:      "group",
+			Aliases:   []string{"g"},
+			Usage:     "Create the group toml from individual public keys",
+			ArgsUsage: "<id1 id2 id3...> must be the identities of the group to create",
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:  "threshold, t",
+					Usage: "threshold to apply for the group. Default is n/2 + 1.",
+				},
+				groupFlag,
+			},
+			Action: func(c *cli.Context) error {
+				return groupCmd(c)
+			},
+		},
+		cli.Command{
 			Name:    "dkg",
 			Aliases: []string{"d"},
 			Usage:   "Run the DKG protocol",
 			Flags:   toArray(privFlag, groupFlag, shareFlag, leaderFlag),
 			Action: func(c *cli.Context) error {
-				fmt.Println("-> dkg")
-				return nil
+				return dkgCmd(c)
 			},
 		},
 		cli.Command{
@@ -90,8 +107,7 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
-				fmt.Println("-> tbls")
-				return nil
+				return beaconCmd(c)
 			},
 		},
 		cli.Command{
@@ -101,8 +117,7 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
-				fmt.Println(" -> daemon")
-				return nil
+				return runCmd(c)
 			},
 		},
 	}
@@ -126,6 +141,66 @@ func keygenCmd(c *cli.Context) error {
 	}
 	slog.Print("Generated private key at ", fs.KeyFile)
 	slog.Print("Generated public key at ", fs.PublicFile)
+	slog.Print("You can copy paste the following snippet to a common group.toml file:")
+	var buff bytes.Buffer
+	buff.WriteString("[[nodes]]\n")
+	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
+		panic(err)
+	}
+	buff.WriteString("\n")
+	slog.Print(buff.String())
+	return nil
+}
+
+// groupCmd reads the identity, check the threshold and outputs the group.toml
+// file
+func groupCmd(c *cli.Context) error {
+	args := c.Args()
+	if !args.Present() {
+		slog.Fatal("missing identity file to create the group.toml")
+	}
+	if c.NArg() < 3 {
+		slog.Fatal("not enough identities to create a group toml. At least 3!")
+	}
+	var threshold = defaultThreshold(c.NArg())
+	if c.IsSet("threshold") {
+		if c.Int("threshold") < threshold {
+			slog.Print("WARNING: You are using a threshold which is TOO LOW.")
+			slog.Print("		 It should be at least ", threshold)
+		}
+		threshold = c.Int("threshold")
+	}
+
+	publics := make([]*Public, c.NArg())
+	for i, str := range args {
+		ptoml := &PublicTOML{}
+		_, err := toml.DecodeFile(str, ptoml)
+		if err != nil {
+			slog.Fatal("arg: ", str, " error: ", err)
+		}
+		pub := new(Public)
+		if err := pub.FromTOML(ptoml); err != nil {
+			slog.Fatal("arg: ", str, " error: ", err)
+		}
+		publics[i] = pub
+	}
+	indexed := toIndexedList(publics)
+	group := Group{
+		Threshold: threshold,
+		Nodes:     indexed,
+	}
+	groupName := defaultGroupFile()
+	if c.IsSet(groupFileFlagName) {
+		groupName = c.String(groupFileFlagName)
+	}
+	fd, err := os.Create(groupName)
+	if err != nil {
+		slog.Fatal("error creating group file: ", err)
+	}
+	if err := toml.NewEncoder(fd).Encode(group.TOML()); err != nil {
+		slog.Fatal("error writing to the group file:", err)
+	}
+	slog.Print("Group file has been written successfully to ", groupName)
 	return nil
 }
 

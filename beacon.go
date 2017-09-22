@@ -187,7 +187,7 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	}
 
 	slog.Debugf("blsBeacon: full signature recovery for sig: %d", sig.Request.Timestamp)
-	fullSig, err := bls.AggregateSignatures(pairing, b.pub, msg, b.pendingSigs[d], len(b.group.List), b.threshold)
+	fullSig, err := bls.AggregateSignatures(pairing, b.pub, msg, b.pendingSigs[d], len(b.group.Nodes), b.threshold)
 	if err != nil {
 		slog.Info("blsBeacon: full signature recovery failed for ts %d: %s", sig.Request.Timestamp, err)
 		return

@@ -132,7 +132,7 @@ func (b ByKey) Less(i, j int) bool {
 // Group is a list of IndexedPublic providing helper methods to search and
 // get public keys from a list.
 type Group struct {
-	List      []*IndexedPublic
+	Nodes     []*IndexedPublic
 	Threshold int
 }
 
@@ -144,7 +144,7 @@ type IndexedPublic struct {
 
 // Contains returns true if the public key is contained in the list or not.
 func (g *Group) Contains(pub *Public) bool {
-	for _, pu := range g.List {
+	for _, pu := range g.Nodes {
 		if pu.Equal(pub) {
 			return true
 		}
@@ -155,7 +155,7 @@ func (g *Group) Contains(pub *Public) bool {
 // Index returns the index of the given public key with a boolean indicating
 // whether the public has been found or not.
 func (g *Group) Index(pub *Public) (int, bool) {
-	for _, pu := range g.List {
+	for _, pu := range g.Nodes {
 		if pu.Equal(pub) {
 			return pu.Index, true
 		}
@@ -167,13 +167,13 @@ func (g *Group) Public(i int) *Public {
 	if i >= g.Len() {
 		panic("out of bounds access for Group")
 	}
-	return g.List[i].Public
+	return g.Nodes[i].Public
 }
 
 // Points returns itself under the form of a list of kyber.Point
 func (g *Group) Points() []kyber.Point {
 	pts := make([]kyber.Point, g.Len())
-	for _, pu := range g.List {
+	for _, pu := range g.Nodes {
 		pts[pu.Index] = pu.Key
 	}
 	return pts
@@ -181,13 +181,13 @@ func (g *Group) Points() []kyber.Point {
 
 // Len returns the number of participants in the group
 func (g *Group) Len() int {
-	return len(g.List)
+	return len(g.Nodes)
 }
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	List []*PublicTOML
-	T    int
+	Nodes []*PublicTOML
+	T     int
 }
 
 // Load decodes the group from the toml struct
@@ -197,14 +197,14 @@ func (g *Group) FromTOML(i interface{}) error {
 		return fmt.Errorf("grouptoml unknown")
 	}
 	g.Threshold = gt.T
-	list := make([]*Public, len(gt.List))
-	for i, ptoml := range gt.List {
+	list := make([]*Public, len(gt.Nodes))
+	for i, ptoml := range gt.Nodes {
 		list[i] = new(Public)
 		if err := list[i].FromTOML(ptoml); err != nil {
 			return err
 		}
 	}
-	g.List = toIndexedList(list)
+	g.Nodes = toIndexedList(list)
 	if g.Threshold == 0 {
 		return errors.New("group file have threshold 0!")
 	} else if g.Threshold > g.Len() {
@@ -215,10 +215,10 @@ func (g *Group) FromTOML(i interface{}) error {
 
 func (g *Group) TOML() interface{} {
 	gtoml := &GroupTOML{T: g.Threshold}
-	gtoml.List = make([]*PublicTOML, g.Len())
-	for i, p := range g.List {
+	gtoml.Nodes = make([]*PublicTOML, g.Len())
+	for i, p := range g.Nodes {
 		key := pointToString(p.Key)
-		gtoml.List[i] = &PublicTOML{Key: key, Address: p.Address}
+		gtoml.Nodes[i] = &PublicTOML{Key: key, Address: p.Address}
 	}
 	return gtoml
 }

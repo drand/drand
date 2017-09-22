@@ -239,7 +239,7 @@ func (d *DKG) expectDeal(buff []byte) (*dkg.Deal, error) {
 
 func (d *DKG) broadcast(packet *DrandPacket) {
 	slog.Debugf("%s: broadcast INIT", d.addr)
-	for _, ip := range d.group.List {
+	for _, ip := range d.group.Nodes {
 		if ip.Index == d.idx {
 			continue
 		}
