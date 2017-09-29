@@ -15,5 +15,11 @@ before_install:
     - docker build -t dedis/drand:latest .
 
 script:
-    - go test -v
+    - go test 
     - ./docker_test.sh
+
+after_success:
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    docker push dedis/drand:latest;
+    fi
