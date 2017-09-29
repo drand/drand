@@ -1,0 +1,36 @@
+dist: trusty
+install:
+# LLVM 3.8.
+- sudo rm -r /usr/local/clang-3.5.0
+- wget -O - http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+- sudo apt-add-repository "deb http://apt.llvm.org/trusty/ llvm-toolchain-trusty-3.8 main"
+- sudo apt-get update
+- sudo apt-get install llvm-3.8 llvm-3.8-dev clang-3.8 clang-3.8-dev libc++-dev
+- sudo ln -sf /usr/bin/clang-3.8 /usr/bin/clang
+- sudo ln -sf /usr/bin/llc-3.8 /usr/bin/llc
+- sudo ln -sf /usr/bin/opt-3.8 /usr/bin/opt
+# Barreto-Naehrig curves.
+- git clone https://github.com/dfinity/bn
+- pushd bn
+- make
+- sudo cp mcl/lib/libmcl.a /usr/local/lib
+- sudo cp bls/libbls384.so /usr/local/lib
+- sudo cp -R mcl/include/* /usr/local/include
+- sudo cp -R bls/include/* /usr/local/include
+- popd
+- rm -rf bn
+# Go 1.8.
+- rm -r /home/travis/.gimme/versions/go1.7.4.linux.amd64
+- wget https://storage.googleapis.com/golang/go1.8.linux-amd64.tar.gz
+- tar -xf go1.8.linux-amd64.tar.gz
+- sudo mv go /usr/local
+- mkdir -p $HOME/go/src
+- export GOROOT=/usr/local/go
+- export PATH=$PATH:$GOROOT/bin
+- export GOPATH=$HOME/go
+- export LD_LIBRARY_PATH=/usr/local/lib
+script:
+- cd bls
+- go version
+- go build
+- go test
