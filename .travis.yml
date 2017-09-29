@@ -1,8 +1,19 @@
 dist: trusty
+
 sudo: required
+
+services:
+    - docker
+
 language: go
+
 go:
     - tip
 
 before_install:
     - ./install_bn_travis.sh
+    - docker build -t dedis/drand:latest .
+
+script:
+    - go test -v
+    - ./docker_test.sh

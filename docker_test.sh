@@ -6,7 +6,7 @@
 N=6
 TMP=$(mktemp -d)
 GROUPFILE="$TMP/group.toml"
-IMG="drand_travis"
+IMG="dedis/drand:latest"
 DRAND_PATH="src/github.com/dedis/drand"
 DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
 NET="drand"
@@ -14,27 +14,27 @@ SUBNET="192.168.0."
 PORT="800"
 
 # install latest binary, & generate dockerfile dynamically to get the right path
-echo "Generating dockerfile"
-cd $GOPATH/$DRAND_PATH
-echo $GOPATH/$DRAND_PATH
-go get ./...
-go install
-rm -f $DOCKERFILE
-docker rm -f $(docker ps -a -q) 2> /dev/null 
-cat >> $DOCKERFILE << EOF
-FROM dedis/drand:bn
+#echo "Generating dockerfile"
+#cd $GOPATH/$DRAND_PATH
+#echo $GOPATH/$DRAND_PATH
+#go get ./...
+#go install
+#rm -f $DOCKERFILE
+#docker rm -f $(docker ps -a -q) 2> /dev/null 
+#cat >> $DOCKERFILE << EOF
+#FROM dedis/drand:bn
 
-RUN mkdir -p /go/src/github.com/dedis/drand
-COPY . "/go/src/github.com/dedis/drand"
-WORKDIR "/go/src/github.com/dedis/drand"
-RUN go install
+#RUN mkdir -p /go/src/github.com/dedis/drand
+#COPY . "/go/src/github.com/dedis/drand"
+#WORKDIR "/go/src/github.com/dedis/drand"
+#RUN go install
 
-ENTRYPOINT ["drand"]
-EOF
+#ENTRYPOINT ["drand"]
+#EOF
 
-# build the test travis image
-echo "Building the $IMG image"
-docker build -t "$IMG" -f "$DOCKERFILE" .
+## build the test travis image
+#echo "Building the $IMG image"
+#docker build -t "$IMG" -f "$DOCKERFILE" .
 
 echo "Create network $NET with subnet ${SUBNET}0/24"
 docker network create "$NET" --subnet "${SUBNET}0/24"
