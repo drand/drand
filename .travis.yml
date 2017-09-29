@@ -12,7 +12,7 @@ go:
 
 before_install:
     - ./install_bn_travis.sh
-    - docker build -t dedis/drand:latest .
+    - docker build -t dedis/drand .
 
 script:
     - go test 

@@ -6,7 +6,7 @@
 N=6
 TMP=$(mktemp -d)
 GROUPFILE="$TMP/group.toml"
-IMG="dedis/drand:latest"
+IMG="dedis/drand"
 DRAND_PATH="src/github.com/dedis/drand"
 DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
 NET="drand"
