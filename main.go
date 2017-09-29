@@ -25,6 +25,7 @@ func banner() {
 }
 
 func main() {
+	slog.Level = slog.LevelDebug
 	banner()
 	app := cli.NewApp()
 	app.Version = version
@@ -70,7 +71,7 @@ func main() {
 			Aliases:   []string{"k"},
 			Flags:     toArray(privFlag),
 			Usage:     "keygen <address to listen>. Generates longterm private key pair",
-			ArgsUsage: "ADDRESS must be a valid TCP ip address to listen on",
+			ArgsUsage: "ADDRESS must be of the form <host>:<port> ",
 			Action: func(c *cli.Context) error {
 				return keygenCmd(c)
 			},
@@ -97,7 +98,7 @@ func main() {
 			Usage:   "Run the DKG protocol",
 			Flags:   toArray(privFlag, groupFlag, shareFlag, leaderFlag),
 			Action: func(c *cli.Context) error {
-				return dkgCmd(c)
+				return dkgCmd(c, getDrand(c))
 			},
 		},
 		cli.Command{
@@ -107,7 +108,7 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
-				return beaconCmd(c)
+				return beaconCmd(c, getDrand(c))
 			},
 		},
 		cli.Command{
@@ -129,9 +130,8 @@ func keygenCmd(c *cli.Context) error {
 	if !args.Present() {
 		slog.Fatal("Missing ip address argument")
 	}
-	if !isValidIP(args.First()) {
-		slog.Print("IP address must be of the form <address>:<port> with port > 1000")
-		slog.Fatal("Address given is not a valid ip address")
+	if !isValidAdress(args.First()) {
+		slog.Print("Address must be of the form <address>:<port> with port > 1000")
 	}
 
 	priv := NewKeyPair(args.First())
@@ -160,7 +160,7 @@ func groupCmd(c *cli.Context) error {
 		slog.Fatal("missing identity file to create the group.toml")
 	}
 	if c.NArg() < 3 {
-		slog.Fatal("not enough identities to create a group toml. At least 3!")
+		slog.Fatal("not enough identities (", c.NArg(), ") to create a group toml. At least 3!")
 	}
 	var threshold = defaultThreshold(c.NArg())
 	if c.IsSet("threshold") {
@@ -204,12 +204,7 @@ func groupCmd(c *cli.Context) error {
 	return nil
 }
 
-func dkgCmd(c *cli.Context) error {
-	fs := NewFileStore(c)
-	drand, err := LoadDrand(fs)
-	if err != nil {
-		slog.Fatal("could not load drand: ", err)
-	}
+func dkgCmd(c *cli.Context, drand *Drand) error {
 	if c.Bool("leader") {
 		return drand.StartDKG()
 	} else {
@@ -217,12 +212,7 @@ func dkgCmd(c *cli.Context) error {
 	}
 }
 
-func beaconCmd(c *cli.Context) error {
-	fs := NewFileStore(c)
-	drand, err := LoadDrand(fs)
-	if err != nil {
-		slog.Fatal("could not load drand: ", err)
-	}
+func beaconCmd(c *cli.Context, drand *Drand) error {
 	if c.Bool("leader") {
 		drand.RandomBeacon([]byte(c.String("seed")), c.Duration("period"))
 	} else {
@@ -232,9 +222,19 @@ func beaconCmd(c *cli.Context) error {
 }
 
 func runCmd(c *cli.Context) error {
-	dkgCmd(c)
-	beaconCmd(c)
+	drand := getDrand(c)
+	dkgCmd(c, drand)
+	beaconCmd(c, drand)
 	return nil
+}
+
+func getDrand(c *cli.Context) *Drand {
+	fs := NewFileStore(c)
+	drand, err := LoadDrand(fs)
+	if err != nil {
+		slog.Fatal("could not load drand: ", err)
+	}
+	return drand
 }
 
 func toArray(flags ...cli.Flag) []cli.Flag {

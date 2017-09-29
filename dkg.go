@@ -209,7 +209,7 @@ func (d *DKG) sendDeals(force bool) error {
 		}
 		//fmt.Printf("%s sending deal to %s\n", d.addr, pub.Address)
 		if err := send(pub, packet); err != nil {
-			slog.Debugf(d.priv.Public.Address, " failed to send deal to ", pub.Address)
+			slog.Debugf("%s failed to send deal to %s: %s", d.priv.Public.Address, pub.Address, err)
 		} else {
 			good++
 		}

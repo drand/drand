@@ -91,6 +91,7 @@ type Router struct {
 	list  *Group
 	index int
 	addr  string
+	port  string
 
 	// key are ID of the public key
 	conns map[string]Conn
@@ -107,10 +108,15 @@ func NewRouter(priv *Private, list *Group) *Router {
 	if !ok {
 		panic("public key not found in the list")
 	}
+	_, port, err := net.SplitHostPort(priv.Public.Address)
+	if err != nil {
+		panic("address is not correct")
+	}
 	return &Router{
 		priv:     priv,
 		index:    idx,
 		list:     list,
+		port:     port,
 		addr:     priv.Public.Address,
 		conns:    make(map[string]Conn),
 		messages: make(chan messageWrapper, 100),
@@ -120,13 +126,14 @@ func NewRouter(priv *Private, list *Group) *Router {
 
 // Listens opens a tcp port on the address taken in the public key
 func (r *Router) Listen() {
-	listener, err := net.Listen("tcp", r.addr)
+	listener, err := net.Listen("tcp", "0.0.0.0:"+r.port)
 	if err != nil {
 		panic("can't listen on addresse: " + err.Error())
 	}
 	r.listMut.Lock()
 	r.listener = listener
 	r.listMut.Unlock()
+	slog.Print("router listening on", r.addr)
 	for {
 		c, err := listener.Accept()
 		if err != nil {
@@ -376,8 +383,8 @@ func host(c net.Conn) string {
 	return host
 }
 
-func isValidIP(addr string) bool {
-	host, port, err := net.SplitHostPort(addr)
+func isValidAdress(addr string) bool {
+	_, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return false
 	}
@@ -385,6 +392,5 @@ func isValidIP(addr string) bool {
 	if err != nil || p < 1000 || p > 65535 {
 		return false
 	}
-	goodIP := net.ParseIP(host) != nil
-	return goodIP
+	return true
 }

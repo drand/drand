@@ -52,7 +52,6 @@ func LoadDrand(s Store) (*Drand, error) {
 
 // XXX NewDrand is mostly used for testing purposes
 func NewDrand(priv *Private, group *Group, s Store) (*Drand, error) {
-	slog.Info("NewDrand deprecated method: use LoadDrand")
 	router := NewRouter(priv, group)
 	go router.Listen()
 	dkg, err := NewDKG(priv, group, router, s)

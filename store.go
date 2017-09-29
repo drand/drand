@@ -166,7 +166,7 @@ func (f *FileStore) Load(path string, t Tomler) error {
 // toFilename returns the filename where a signature having the given timestamp
 // is stored.
 func (f *FileStore) beaconFilename(ts int64) string {
-	return path.Join(f.SigFolder, fmt.Sprintf("%s.sig", ts))
+	return path.Join(f.SigFolder, fmt.Sprintf("%d.sig", ts))
 }
 
 // default threshold for the distributed key generation protocol & TBLS.
