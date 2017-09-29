@@ -1,7 +1,9 @@
 FROM alpine
 
+MAINTAINER Nicolas Gailly <nicolas.gailly@epfl.ch>
+
 RUN apk update 
-RUN apk add bash \
+RUN apk add --no-cache bash \
             git \
             make \
             clang \
@@ -17,11 +19,8 @@ RUN apk add bash \
 
 RUN git clone https://github.com/dfinity/bn /bn
 WORKDIR /bn
-RUN make install
-RUN make 
+RUN make install && make
 WORKDIR /
-RUN rm -rf /bn
-
-RUN mkdir -p /go/src
+RUN rm -rf /bn && mkdir -p /go/src
 ENV GOPATH=/go
 ENV PATH=$PATH:$GOPATH/bin

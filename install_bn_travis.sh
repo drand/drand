@@ -1,6 +1,6 @@
 #!/bin/bash 
 
-set -x
+# This script installs the bn library on the Travis running machine
 
 printh() {
     echo "$(hostname)\t: $1"
