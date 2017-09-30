@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/binary"
 	"reflect"
 
 	"github.com/dedis/drand/bls"
@@ -38,6 +40,16 @@ type BeaconPacket struct {
 type BeaconRequest struct {
 	PreviousSig []byte // resulting signature of the previous round
 	Timestamp   int64  // timestamp to concatenate with PreviousSig = message to sign
+}
+
+// Message returns the raw message that is expected to be signed in order to
+// produce a BeaconReply. This message is what can be verified by external end
+// users.
+func (b BeaconRequest) Message() []byte {
+	var buff bytes.Buffer
+	binary.Write(&buff, binary.LittleEndian, b.Timestamp)
+	buff.Write(b.PreviousSig)
+	return buff.Bytes()
 }
 
 // BeaconReply contains the request and an associated threshold partial

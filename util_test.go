@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path"
 	"sort"
@@ -105,12 +106,8 @@ func (t *TestStore) SaveSignature(b *BeaconSignature) error {
 	return nil
 }
 
-func (t *TestStore) LoadSignature(ts int64) (*BeaconSignature, error) {
-	sig, ok := t.Signatures[ts]
-	if !ok {
-		return nil, ErrAbsent
-	}
-	return sig, nil
+func (t *TestStore) LoadSignature(path string) (*BeaconSignature, error) {
+	return nil, errors.New("not implemented now")
 }
 
 func (t *TestStore) SignatureExists(ts int64) bool {

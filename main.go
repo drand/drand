@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dedis/drand/bls"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -41,9 +44,14 @@ func main() {
 		Usage: "group file listing identities of participants",
 	}
 	shareFlag := cli.StringFlag{
-		Name:  flagNameStruct(shareFile(defaultGroupFile())),
-		Value: shareFile(defaultGroupFile()),
-		Usage: "private share file path of the group",
+		Name:  flagNameStruct(shareFileFlagName),
+		Value: defaultShareFile(),
+		Usage: "private share of the group",
+	}
+	distKeyFlag := cli.StringFlag{
+		Name:  flagNameStruct(distKeyFlagName),
+		Value: defaultDistKeyFile(),
+		Usage: "Distributed public key generated after a DKG run.",
 	}
 	sigFlag := cli.StringFlag{
 		Name:  flagNameStruct(sigFolderFlagName),
@@ -119,6 +127,16 @@ func main() {
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
 				return runCmd(c)
+			},
+		},
+		cli.Command{
+			Name:      "verify",
+			Aliases:   []string{"v"},
+			Usage:     "Verify the given SIGNATURE with the distributed public key",
+			ArgsUsage: "<sig1 sig2 .. sigN> are the (beacon) signatures to verify",
+			Flags:     toArray(distKeyFlag),
+			Action: func(c *cli.Context) error {
+				return verifyCmd(c)
 			},
 		},
 	}
@@ -225,6 +243,37 @@ func runCmd(c *cli.Context) error {
 	drand := getDrand(c)
 	dkgCmd(c, drand)
 	beaconCmd(c, drand)
+	return nil
+}
+
+func verifyCmd(c *cli.Context) error {
+	fs := NewFileStore(c)
+	if c.NArg() < 1 {
+		slog.Fatal("verify command takes a number of signatures to verify as arguments")
+	}
+
+	public, err := fs.LoadDistPublic()
+	if err != nil {
+		slog.Fatal("can't load distributed public key: ", err)
+	}
+
+	var invalid bool
+	for i, f := range c.Args() {
+		bs, err := fs.LoadSignature(f)
+		if err != nil {
+			slog.Fatal("Signature", i, " could not be loaded: ", err)
+		}
+		err = bls.Verify(pairing, public.Key, bs.Request.Message(), bs.RawSig())
+		prefix := fmt.Sprintf("-> signature %d: %s is ", i, path.Base(f))
+		if err != nil {
+			slog.Print(prefix, "INVALID")
+			invalid = true
+		}
+		slog.Print("VALID")
+	}
+	if invalid {
+		return errors.New("invalid signatures")
+	}
 	return nil
 }
 

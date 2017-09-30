@@ -20,10 +20,12 @@ type Store interface {
 	SaveKey(p *Private) error
 	LoadKey() (*Private, error)
 	LoadGroup() (*Group, error)
+	// SaveShare also saves the DistPublic
 	SaveShare(share *Share) error
 	LoadShare() (*Share, error)
+	LoadDistPublic() (*DistPublic, error)
 	SaveSignature(b *BeaconSignature) error
-	LoadSignature(timestamp int64) (*BeaconSignature, error)
+	LoadSignature(path string) (*BeaconSignature, error)
 	SignatureExists(timestamp int64) bool
 }
 
@@ -36,13 +38,15 @@ const defaultDataFolder = ".drand"
 const defaultKeyFile = "drand_id"
 const privateExtension = ".private"
 const publicExtension = ".public"
-const defaultGroupFile_ = "drand_group"
-const groupExtension = ".toml"
-const shareExtension = ".secret"
+const defaultGroupFile_ = "drand_group.toml"
+const defaultShareFile_ = "share.secret"
+const defaultDistKeyFile_ = "dist_key.public"
 const defaultSigFolder_ = "beacons"
 
 const keyFolderFlagName = "keys"
 const groupFileFlagName = "group"
+const shareFileFlagName = "share"
+const distKeyFlagName = "dist-key"
 const sigFolderFlagName = "beacons"
 
 // Tomler represents any struct that can be (un)marshalled into/from toml format
@@ -54,20 +58,22 @@ type Tomler interface {
 
 // FileStore is a FileStore using filesystem to store informations
 type FileStore struct {
-	KeyFile    string
-	PublicFile string
-	GroupFile  string
-	ShareFile  string
-	SigFolder  string
+	KeyFile     string
+	PublicFile  string
+	GroupFile   string
+	ShareFile   string
+	DistKeyFile string
+	SigFolder   string
 }
 
 func DefaultFileStore() *FileStore {
 	return &FileStore{
-		KeyFile:    defaultPrivateFile(),
-		PublicFile: publicFile(defaultPrivateFile()),
-		GroupFile:  defaultGroupFile(),
-		ShareFile:  shareFile(defaultGroupFile()),
-		SigFolder:  defaultSigFolder(),
+		KeyFile:     defaultPrivateFile(),
+		PublicFile:  publicFile(defaultPrivateFile()),
+		GroupFile:   defaultGroupFile(),
+		ShareFile:   defaultShareFile(),
+		DistKeyFile: defaultDistKeyFile(),
+		SigFolder:   defaultSigFolder(),
 	}
 }
 
@@ -82,10 +88,11 @@ type KeyValue interface {
 
 func NewFileStore(k KeyValue) *FileStore {
 	fs := &FileStore{
-		KeyFile:   path.Join(k.String(keyFolderFlagName), defaultKeyFile+privateExtension),
-		GroupFile: k.String(groupFileFlagName),
-		ShareFile: shareFile(k.String(groupFileFlagName)),
-		SigFolder: k.String(sigFolderFlagName),
+		KeyFile:     path.Join(k.String(keyFolderFlagName), defaultKeyFile+privateExtension),
+		GroupFile:   k.String(groupFileFlagName),
+		ShareFile:   k.String(groupFileFlagName),
+		DistKeyFile: k.String(distKeyFlagName),
+		SigFolder:   k.String(sigFolderFlagName),
 	}
 	fs.PublicFile = publicFile(fs.KeyFile)
 	return fs
@@ -123,15 +130,20 @@ func (f *FileStore) LoadShare() (*Share, error) {
 	return s, f.Load(f.ShareFile, s)
 }
 
+// LoadDistPublic
+func (f *FileStore) LoadDistPublic() (*DistPublic, error) {
+	d := new(DistPublic)
+	return d, f.Load(f.DistKeyFile, d)
+}
+
 func (f *FileStore) SaveSignature(b *BeaconSignature) error {
 	os.MkdirAll(f.SigFolder, os.ModePerm)
 	return f.Save(f.beaconFilename(b.Request.Timestamp), b, true)
 }
 
-func (f *FileStore) LoadSignature(ts int64) (*BeaconSignature, error) {
-	fname := f.beaconFilename(ts)
+func (f *FileStore) LoadSignature(path string) (*BeaconSignature, error) {
 	sig := new(BeaconSignature)
-	return sig, f.Load(fname, sig)
+	return sig, f.Load(path, sig)
 }
 
 func (f *FileStore) SignatureExists(ts int64) bool {
@@ -185,13 +197,16 @@ func publicFile(privateFile string) string {
 }
 
 func defaultGroupFile() string {
-	return path.Join(appData(), defaultGroupFile_) + groupExtension
+	return path.Join(appData(), defaultGroupFile_)
 }
 
 // XXX quick hack, probably a thousand ways to abuse this...
-func shareFile(groupFile string) string {
-	ss := strings.Split(groupFile, groupExtension)
-	return ss[0] + shareExtension
+func defaultShareFile() string {
+	return path.Join(appData(), defaultShareFile_)
+}
+
+func defaultDistKeyFile() string {
+	return path.Join(appData(), defaultDistKeyFile_)
 }
 
 func defaultSigFolder() string {

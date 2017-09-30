@@ -241,7 +241,13 @@ func toIndexedList(list []*Public) []*IndexedPublic {
 	return ilist
 }
 
+// Share represents the private information that a node holds after a successful
+// DKG. This information MUST stay private !
 type Share dkg.DistKeyShare
+
+func (s *Share) Public() *DistPublic {
+	return &DistPublic{s.Commits[0]}
+}
 
 func (s *Share) TOML() interface{} {
 	dtoml := &ShareTOML{}
@@ -284,6 +290,37 @@ type ShareTOML struct {
 	Commits []string
 	Share   string
 	Index   int
+}
+
+// DistPublic represents the distributed public key generated during a DKG. This
+// is the information that can be safely exported to end users verifying a
+// drand signature.
+// The public key belongs in the same group as the individual public key,i.e. G2
+type DistPublic struct {
+	Key kyber.Point
+}
+
+type DistPublicTOML struct {
+	Key string
+}
+
+func (d *DistPublic) TOML() interface{} {
+	str := pointToString(d.Key)
+	return &DistPublicTOML{str}
+}
+
+func (d *DistPublic) FromTOML(i interface{}) error {
+	dtoml, ok := i.(*DistPublicTOML)
+	if !ok {
+		return errors.New("wrong interface: expected DistPublicTOML")
+	}
+	var err error
+	d.Key, err = stringToPoint(g2, dtoml.Key)
+	return err
+}
+
+func (d *DistPublic) TOMLValue() interface{} {
+	return &DistPublicTOML{}
 }
 
 // BeaconSignature is the final reconstructed BLS signature that is saved in the
