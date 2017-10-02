@@ -128,13 +128,6 @@ func (f *FileStore) SaveShare(share *Share) error {
 }
 
 func (f *FileStore) LoadShare() (*Share, error) {
-	defer func() {
-		if err := recover(); err != nil {
-			fmt.Println(" ---> PANIC LoadShare <---")
-			fmt.Println("path = ", f.ShareFile)
-			panic(err)
-		}
-	}()
 	s := new(Share)
 	return s, f.Load(f.ShareFile, s)
 }

@@ -230,15 +230,6 @@ func toBytes(p kyber.Point) []byte {
 	return buff
 }
 
-/*// message returns the message out of the signature and the timestamp as what*/
-//// gets signed during a round of the TBLS protocol.
-//func message(previousSig []byte, ts int64) []byte {
-//var buff bytes.Buffer
-//binary.Write(&buff, binary.LittleEndian, ts)
-//buff.Write(previousSig)
-//return buff.Bytes()
-//}
-
 // digest returns a compact representation of the given message
 func digest(msg []byte) string {
 	return string(pairing.Hash().Sum(msg))
