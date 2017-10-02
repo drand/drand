@@ -16,7 +16,9 @@ func NewTmpKeyValue(folder string) KeyValue {
 	return &TmpKeyValue{
 		values: map[string]string{
 			keyFolderFlagName: folder,
-			groupFileFlagName: path.Join(folder, defaultGroupFile_+groupExtension),
+			groupFileFlagName: path.Join(folder, defaultGroupFile_),
+			shareFileFlagName: path.Join(folder, defaultShareFile_),
+			distKeyFlagName:   path.Join(folder, defaultDistKeyFile_),
 			sigFolderFlagName: path.Join(folder, defaultSigFolder_),
 		},
 	}
@@ -28,6 +30,11 @@ func (t *TmpKeyValue) String(key string) string {
 		panic("wrong testing man")
 	}
 	return s
+}
+
+func (t *TmpKeyValue) IsSet(key string) bool {
+	_, ok := t.values[key]
+	return ok
 }
 
 func TestKeysSaveLoad(t *testing.T) {
@@ -47,7 +54,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.True(t, fileExists(tmp, defaultKeyFile+publicExtension))
 
 	// test group
-	groupPath := path.Join(tmp, defaultGroupFile_+groupExtension)
+	groupPath := path.Join(tmp, defaultGroupFile_)
 	require.Nil(t, store.Save(groupPath, group, false))
 
 	_, err = store.LoadGroup()

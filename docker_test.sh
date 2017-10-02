@@ -13,6 +13,8 @@ NET="drand"
 SUBNET="192.168.0."
 PORT="800"
 
+#umask 0000
+
 # install latest binary, & generate dockerfile dynamically to get the right path
 #echo "Generating dockerfile"
 #cd $GOPATH/$DRAND_PATH
@@ -34,7 +36,7 @@ PORT="800"
 
 ## build the test travis image
 #echo "Building the $IMG image"
-#docker build -t "$IMG" -f "$DOCKERFILE" .
+docker build -t "$IMG" -f "$DOCKERFILE" .
 
 echo "Create network $NET with subnet ${SUBNET}0/24"
 docker network create "$NET" --subnet "${SUBNET}0/24"
@@ -58,7 +60,7 @@ done
 ## generate group toml
 echo $allKeys
 drand group --group "$GROUPFILE" ${allKeys[@]}
-echo "GROUP FILE !:"
+echo "GROUP FILE:"
 cat $GROUPFILE
 
 for i in $sequence; do
@@ -77,18 +79,41 @@ for i in $sequence; do
     sleep 0.1
 done
 
+function cleanup() {
+    echo "removing containers ..." 
+    docker rm -f $(docker ps -a -q)
+}
+
+function checkSuccess() {
+    if [ "$1" -eq 0 ]; then
+        return
+    else
+        echo "TEST <$2>: FAILURE"
+        cleanup
+        exit 1
+    fi
+}
+
 # wait for the node to actually do the DKG and run at least one beacon
 sleep 3
-rootFolder="$TMP/node1/beacons/"
+docker logs node1
+rootFolder="$TMP/node1"
 ret=0
-ls $rootFolder | grep -q "sig"
-sucess=$?
-if [ "$sucess" -eq 0 ]; then
-    echo "TEST OK"
-else
-    echo "TEST FAILURE"
-    ret=1
-fi
+# check if there are any signatures
+ls "$rootFolder/beacons"| grep "sig" 
+checkSuccess $? "any signature produced?"
 
-echo "removing containers ..." 
-docker rm -f $(docker ps -a -q)
+# tail returns 0 in both cases...
+sigFile=$(ls "$rootFolder/beacons"| grep "sig" | tail -n 1)
+
+# check if there is the dist public key
+distPublic="$rootFolder/dist_key.public"
+ls "$rootFolder/dist_key.public"
+checkSuccess $? "distributed public key file?"
+
+# try to verify with it
+drand verify --distkey "$distPublic" "$rootFolder/beacons/$sigFile"
+checkSuccess $? "verify signature?"
+
+echo "TESTS OK"
+cleanup

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -29,7 +28,6 @@ func banner() {
 
 func main() {
 	slog.Level = slog.LevelDebug
-	banner()
 	app := cli.NewApp()
 	app.Version = version
 	// global flags re-used in many commands
@@ -49,7 +47,7 @@ func main() {
 		Usage: "private share of the group",
 	}
 	distKeyFlag := cli.StringFlag{
-		Name:  flagNameStruct(distKeyFlagName),
+		Name:  distKeyFlagName,
 		Value: defaultDistKeyFile(),
 		Usage: "Distributed public key generated after a DKG run.",
 	}
@@ -81,6 +79,7 @@ func main() {
 			Usage:     "keygen <address to listen>. Generates longterm private key pair",
 			ArgsUsage: "ADDRESS must be of the form <host>:<port> ",
 			Action: func(c *cli.Context) error {
+				banner()
 				return keygenCmd(c)
 			},
 		},
@@ -97,6 +96,7 @@ func main() {
 				groupFlag,
 			},
 			Action: func(c *cli.Context) error {
+				banner()
 				return groupCmd(c)
 			},
 		},
@@ -106,6 +106,7 @@ func main() {
 			Usage:   "Run the DKG protocol",
 			Flags:   toArray(privFlag, groupFlag, shareFlag, leaderFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return dkgCmd(c, getDrand(c))
 			},
 		},
@@ -116,16 +117,19 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return beaconCmd(c, getDrand(c))
 			},
 		},
 		cli.Command{
 			Name:    "run",
 			Aliases: []string{"r"},
-			Usage:   "Run the daemon, first do the dkg then run the beacon",
+			Usage:   "Run the daemon, first do the dkg if needed then run the beacon",
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
+				banner()
+				fmt.Println(c.String(distKeyFlagName))
 				return runCmd(c)
 			},
 		},
@@ -136,6 +140,7 @@ func main() {
 			ArgsUsage: "<sig1 sig2 .. sigN> are the (beacon) signatures to verify",
 			Flags:     toArray(distKeyFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return verifyCmd(c)
 			},
 		},
@@ -269,10 +274,10 @@ func verifyCmd(c *cli.Context) error {
 			slog.Print(prefix, "INVALID")
 			invalid = true
 		}
-		slog.Print("VALID")
+		slog.Print(prefix, "VALID")
 	}
 	if invalid {
-		return errors.New("invalid signatures")
+		slog.Fatal()
 	}
 	return nil
 }

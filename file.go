@@ -10,7 +10,11 @@ func createSecureFile(file string) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fd, fd.Chmod(0644)
+	fd.Close()
+	if err := os.Chmod(file, 0600); err != nil {
+		return nil, nil
+	}
+	return os.OpenFile(file, os.O_RDWR, 0600)
 }
 
 // files returns the list of file names included in the given path or error if

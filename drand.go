@@ -38,7 +38,7 @@ func LoadDrand(s Store) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	d, err := NewDrand(priv, group, s)
+	d, err := newDrand(priv, group, s)
 	if err != nil {
 		return nil, err
 	}
@@ -50,8 +50,8 @@ func LoadDrand(s Store) (*Drand, error) {
 	return d, nil
 }
 
-// XXX NewDrand is mostly used for testing purposes
-func NewDrand(priv *Private, group *Group, s Store) (*Drand, error) {
+// XXX newDrand is mostly used for testing purposes
+func newDrand(priv *Private, group *Group, s Store) (*Drand, error) {
 	router := NewRouter(priv, group)
 	go router.Listen()
 	dkg, err := NewDKG(priv, group, router, s)
@@ -80,6 +80,7 @@ func (d *Drand) StartDKG() error {
 		return err
 	}
 	d.store.SaveShare(d.share)
+	d.store.SaveDistPublic(d.share.Public())
 	d.setDKGDone()
 	return nil
 }
@@ -94,6 +95,7 @@ func (d *Drand) RunDKG() error {
 		return err
 	}
 	d.store.SaveShare(d.share)
+	d.store.SaveDistPublic(d.share.Public())
 	d.setDKGDone()
 	return nil
 }

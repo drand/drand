@@ -39,7 +39,7 @@ func BatchDrands(n int) (*Group, []*Drand) {
 			Signatures: make(map[int64]*BeaconSignature),
 		}
 
-		drands[i], err = NewDrand(ids[i], group, store)
+		drands[i], err = newDrand(ids[i], group, store)
 		if err != nil {
 			panic(err)
 		}
@@ -76,6 +76,7 @@ type TestStore struct {
 	Public     *Public
 	Group      *Group
 	Share      *Share
+	DistPublic *DistPublic
 	Signatures map[int64]*BeaconSignature
 }
 
@@ -99,6 +100,15 @@ func (t *TestStore) SaveShare(s *Share) error {
 
 func (t *TestStore) LoadShare() (*Share, error) {
 	return t.Share, nil
+}
+
+func (t *TestStore) SaveDistPublic(d *DistPublic) error {
+	t.DistPublic = d
+	return nil
+}
+
+func (t *TestStore) LoadDistPublic() (*DistPublic, error) {
+	return t.DistPublic, nil
 }
 
 func (t *TestStore) SaveSignature(b *BeaconSignature) error {

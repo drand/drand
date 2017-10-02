@@ -30,6 +30,12 @@ func TestDrandDKG(t *testing.T) {
 	err := root.StartDKG()
 	require.Nil(t, err)
 	wg.Wait()
+
+	// check if share + dist public files are saved
+	_, err = root.store.LoadDistPublic()
+	require.Nil(t, err)
+	_, err = root.store.LoadShare()
+	require.Nil(t, err)
 }
 
 func TestDrandTBLS(t *testing.T) {
@@ -54,9 +60,8 @@ func TestDrandTBLS(t *testing.T) {
 	require.Nil(t, err)
 	fmt.Println("DKG WAIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 	wg.Wait()
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	fmt.Println("DKG DONE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-
 	// do a round of tbls
 	wg = sync.WaitGroup{}
 	wg.Add(n - 1)
@@ -87,11 +92,13 @@ func TestDrandTBLS(t *testing.T) {
 	wg.Wait()
 	testStore := root.store.(*TestStore)
 	require.True(t, len(testStore.Signatures) >= 1)
-	public, err := root.store.LoadShare()
+	_, err = root.store.LoadShare()
+	require.Nil(t, err)
+	public, err := root.store.LoadDistPublic()
 	require.Nil(t, err)
 	for _, bs := range testStore.Signatures {
-		msg := message(bs.Request.PreviousSig, bs.Request.Timestamp)
-		require.Nil(t, bls.Verify(pairing, public.Commits[0], msg, bs.RawSig()))
+		msg := bs.Request.Message()
+		require.Nil(t, bls.Verify(pairing, public.Key, msg, bs.RawSig()))
 	}
 
 }
