@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
@@ -129,7 +127,7 @@ func (b *Beacon) processBeaconRequest(pub *Public, msg *BeaconRequest) {
 	}
 	// 2-
 	sig := b.genPartialSignature(msg.PreviousSig, msg.Timestamp)
-	if !bls.ThresholdVerify(pairing, b.pub, message(msg.PreviousSig, msg.Timestamp), sig) {
+	if !bls.ThresholdVerify(pairing, b.pub, msg.Message(), sig) {
 		panic("aie")
 	}
 	packet := &DrandPacket{
@@ -159,7 +157,7 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	b.Lock()
 	defer b.Unlock()
 	// 1-
-	msg := message(sig.Request.PreviousSig, sig.Request.Timestamp)
+	msg := sig.Request.Message()
 	if !bls.ThresholdVerify(pairing, b.pub, msg, sig.Signature) {
 		slog.Info("blsBeacon ", b.share.Share.I, "received invalid partial signature from", pub.Address)
 		return
@@ -217,7 +215,7 @@ func (b *Beacon) Stop() {
 }
 
 func (b *Beacon) genPartialSignature(oldSig []byte, time int64) *bls.ThresholdSig {
-	newMessage := message(oldSig, time)
+	newMessage := BeaconRequest{oldSig, time}.Message()
 	thresholdSign := bls.ThresholdSign(pairing, b.share.Share, newMessage)
 	b.Lock()
 	defer b.Unlock()
@@ -230,15 +228,6 @@ func (b *Beacon) genPartialSignature(oldSig []byte, time int64) *bls.ThresholdSi
 func toBytes(p kyber.Point) []byte {
 	buff, _ := p.MarshalBinary()
 	return buff
-}
-
-// message returns the message out of the signature and the timestamp as what
-// gets signed during a round of the TBLS protocol.
-func message(previousSig []byte, ts int64) []byte {
-	var buff bytes.Buffer
-	binary.Write(&buff, binary.LittleEndian, ts)
-	buff.Write(previousSig)
-	return buff.Bytes()
 }
 
 // digest returns a compact representation of the given message

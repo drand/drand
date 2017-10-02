@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dedis/drand/bls"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -26,7 +28,6 @@ func banner() {
 
 func main() {
 	slog.Level = slog.LevelDebug
-	banner()
 	app := cli.NewApp()
 	app.Version = version
 	// global flags re-used in many commands
@@ -41,9 +42,14 @@ func main() {
 		Usage: "group file listing identities of participants",
 	}
 	shareFlag := cli.StringFlag{
-		Name:  flagNameStruct(shareFile(defaultGroupFile())),
-		Value: shareFile(defaultGroupFile()),
-		Usage: "private share file path of the group",
+		Name:  flagNameStruct(shareFileFlagName),
+		Value: defaultShareFile(),
+		Usage: "private share of the group",
+	}
+	distKeyFlag := cli.StringFlag{
+		Name:  distKeyFlagName,
+		Value: defaultDistKeyFile(),
+		Usage: "Distributed public key generated after a DKG run.",
 	}
 	sigFlag := cli.StringFlag{
 		Name:  flagNameStruct(sigFolderFlagName),
@@ -73,6 +79,7 @@ func main() {
 			Usage:     "keygen <address to listen>. Generates longterm private key pair",
 			ArgsUsage: "ADDRESS must be of the form <host>:<port> ",
 			Action: func(c *cli.Context) error {
+				banner()
 				return keygenCmd(c)
 			},
 		},
@@ -89,6 +96,7 @@ func main() {
 				groupFlag,
 			},
 			Action: func(c *cli.Context) error {
+				banner()
 				return groupCmd(c)
 			},
 		},
@@ -98,6 +106,7 @@ func main() {
 			Usage:   "Run the DKG protocol",
 			Flags:   toArray(privFlag, groupFlag, shareFlag, leaderFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return dkgCmd(c, getDrand(c))
 			},
 		},
@@ -108,17 +117,31 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return beaconCmd(c, getDrand(c))
 			},
 		},
 		cli.Command{
 			Name:    "run",
 			Aliases: []string{"r"},
-			Usage:   "Run the daemon, first do the dkg then run the beacon",
+			Usage:   "Run the daemon, first do the dkg if needed then run the beacon",
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
+				banner()
+				fmt.Println(c.String(distKeyFlagName))
 				return runCmd(c)
+			},
+		},
+		cli.Command{
+			Name:      "verify",
+			Aliases:   []string{"v"},
+			Usage:     "Verify the given SIGNATURE with the distributed public key",
+			ArgsUsage: "<sig1 sig2 .. sigN> are the (beacon) signatures to verify",
+			Flags:     toArray(distKeyFlag),
+			Action: func(c *cli.Context) error {
+				banner()
+				return verifyCmd(c)
 			},
 		},
 	}
@@ -225,6 +248,37 @@ func runCmd(c *cli.Context) error {
 	drand := getDrand(c)
 	dkgCmd(c, drand)
 	beaconCmd(c, drand)
+	return nil
+}
+
+func verifyCmd(c *cli.Context) error {
+	fs := NewFileStore(c)
+	if c.NArg() < 1 {
+		slog.Fatal("verify command takes a number of signatures to verify as arguments")
+	}
+
+	public, err := fs.LoadDistPublic()
+	if err != nil {
+		slog.Fatal("can't load distributed public key: ", err)
+	}
+
+	var invalid bool
+	for i, f := range c.Args() {
+		bs, err := fs.LoadSignature(f)
+		if err != nil {
+			slog.Fatal("Signature", i, " could not be loaded: ", err)
+		}
+		err = bls.Verify(pairing, public.Key, bs.Request.Message(), bs.RawSig())
+		prefix := fmt.Sprintf("-> signature %d: %s is ", i, path.Base(f))
+		if err != nil {
+			slog.Print(prefix, "INVALID")
+			invalid = true
+		}
+		slog.Print(prefix, "VALID")
+	}
+	if invalid {
+		slog.Fatal()
+	}
 	return nil
 }
 

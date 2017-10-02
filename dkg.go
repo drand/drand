@@ -171,11 +171,7 @@ func (d *DKG) checkCertified() {
 		return
 	}
 	share := Share(*dks)
-	//slog.Debugf("%s: processResponse(%d) from %s #4", d.addr, d.respProcessed, pub.Address)
 	d.shareCh <- share
-	//slog.Debugf("%s: processResponse(%d) from %s #5", d.addr, d.respProcessed, pub.Address)
-	// save the file
-	d.store.SaveShare(&share)
 }
 
 // sendDeals tries to send the deals to each of the nodes. force indicates if
