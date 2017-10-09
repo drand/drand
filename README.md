@@ -20,9 +20,6 @@ distributed private key. After that, a special node called the leader starts a
 beacon round at a fixed interval to produce a random value from a threshold of
 online nodes. 
 
-For more information about the cryptographic protocol, see PROTOCOL.md. For more
-information about the design of drand, see DESIGN.md.
-
 ## Installation 
 
 Two different ways of running drand are possible: either by installing via
