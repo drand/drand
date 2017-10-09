@@ -144,3 +144,4 @@ information.
 ## Contribution
 
 Thanks to Philipp Jovanovic for the long discussions and design decisions about drand.
+Thanks to [@herumi](https://github.com/herumi) for support with his crypto library.
