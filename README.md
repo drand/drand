@@ -138,7 +138,7 @@ uses an optimized implementation of the [Barreto-Naehrig curves](https://github.
 
 ## What's next
 
-see the [TODO](https://github.com/dedis/drand/master/blob/TODO.md) file for more
+see the [TODO](https://github.com/dedis/drand/blob/master/TODO.md) file for more
 information.
 
 ## Contribution
