@@ -5,5 +5,5 @@
 - store config in /etc/drand 
         data (signatures) in /var/lib/drand
         keys in ~/.drand/
-
 - catch sigkill & stuff -> use it in systemd after !
+- more, much more unit tests
