@@ -22,25 +22,34 @@ beacon round at a fixed interval to produce a random value from a threshold of
 online nodes. 
 
 Each beacon value is a compact BLS signature that can be efficiently verified
-against the distributed public key of the group.
+against the distributed public key of the group. This signature can be used as a
+secure source of randomness.
 
 ## Installation 
 
 Two different ways of running drand are possible: either by installing via
-Golang or using it in a Docker image. For the quickest setup, use the Docker
+Golang or using drand as a Docker container. For the quickest setup, use the Docker
 way.
 
 ### Installation via Docker
 
 You need to have Docker installed on your system in order to continue.
 Docker will download the image automatically the first time you launch the
-image. For any drand command,  launch it as following:
+image. 
+Fist, you need to create folder where drand can save its material and config.
 ```
-docker run --rm --name drand -p <port>:<port> dedis/drand <command>
+mkdir ~/.drand
 ```
 
-<port> is the port you want your container to expose in order to communicate
+Then, for any drand command, launch it as following:
+```
+docker run --rm --name drand -p <port>:<port> -v ~/.drand/:/root/.drand/ dedis/drand <command>
+```
+
+**<port>** is the port you want your container to expose in order to communicate
  with the other participants.
+ **~/.drand/** is the folder you want to save drand's key pair, distributed key
+ pair and beacons.
 
 ### Installation via Golang
 
@@ -121,28 +130,34 @@ needs two things:
 ## What's this crypto magic ?
 
 drand relies on well known protocol and concepts. 
-+ drand uses pairing based cryptography for all its protocols. Drand
-uses an optimized implementation of the [Barreto-Naehrig curves](https://github.com/dfinity/bn).
-+ drand uses a distributed key generation (DKG) protocol to generate a distributed key
-  where no node individual node can recover the private key but the public key
-  is known. Only a threshold of nodes can actually recover the private key if
-  they collude together. drand currently uses an implementation of the basic
-  Pedersen which is currently being revised due to some implementation issues.
-  The next goal would be to try with the Distributed Key Generation in the Wild
-  algorithm from Aniket & Goldberg (SOURCE) allowing for more realistic
-  network assumptions.
++ drand uses pairing based cryptography for all its protocols. Drand uses an
+  optimized implementation of the [Barreto-Naehrig
+  curves](https://github.com/dfinity/bn).
++ drand uses a distributed key generation (DKG) protocol to generate a
+  distributed key where no node individual node can recover the private key but
+  the public key is known. Only a threshold of nodes can actually recover the
+  private key if they collude together. drand currently uses an implementation
+  of the basic Pedersen which is currently being revised due to some
+  implementation issues.  The next goal would be to try the [Distributed Key
+  Generation in the Wild](https://eprint.iacr.org/2012/377.pdf) protocol from
+  Aniket & Goldberg allowing for more realistic network assumptions.
 + drand uses the BLS signature scheme but in the threshold setting. Instead of
   signing with a private key, each node signs with a private share of the
   distributed private key. A node collects at most a threshold of these partial
   signatures to reconstruct (using Lagrange interpolation) the BLS signature
-  that can be verified under the distributed public key. For more info, see XXX.
+  that can be verified under the distributed public key. For more info, see the
+  [paper](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf).
 
 ## What's next
 
-see the [TODO](https://github.com/dedis/drand/blob/master/TODO.md) file for more
+Drand is at its early stage, so there's a lot to be done and its evolution is
+dependent of the public's interest. Feel free to requests features in issues, or
+even better, to submit pull requests ;) 
+See the [TODO](https://github.com/dedis/drand/blob/master/TODO.md) file for more
 information.
 
-## Contribution
+## Acknowledgments
 
-Thanks to Philipp Jovanovic for the long discussions and design decisions about drand.
-Thanks to [@herumi](https://github.com/herumi) for support with his crypto library.
+Thanks to [@Daeinar](https://github.com/Daeinar) for the long discussions and
+design decisions about drand.  Thanks to [@herumi](https://github.com/herumi)
+for support with his optimized pairing based cryptographic library.

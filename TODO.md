@@ -1,3 +1,4 @@
+- dealing with node failures from the leader during DKG and during TBLS
 - self signatures (BLS) on Public struct
 - not infinite loop in Drand
 - not test with files inside the repo
