@@ -5,10 +5,11 @@
 Drand is a distributed randomness beacon written in Go. Drand emits a publicly
 verifiable, unbiasable and unpredictable random value at a fixed interval. Having
 a good random source is important in many protocols such as lottery, generating
-random keys (SAY MORE).
+random keys, generating signatures, etc.
 
-**DISCLAIMER**: This software has NOT received a full audit and therefore should
-NOT be put into production stage at this point. You have been warned.
+**DISCLAIMER**: This software is at its early days, has NOT received a full
+audit and therefore should NOT be put into production stage at this point. You
+have been warned.
 
 ## In a nutshell
 
@@ -20,8 +21,8 @@ distributed private key. After that, a special node called the leader starts a
 beacon round at a fixed interval to produce a random value from a threshold of
 online nodes. 
 
-For more information about the cryptographic protocol, see PROTOCOL.md. For more
-information about the design of drand, see DESIGN.md.
+Each beacon value is a compact BLS signature that can be efficiently verified
+against the distributed public key of the group.
 
 ## Installation 
 
