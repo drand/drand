@@ -1,3 +1,5 @@
+// drand is a distributed randomness beacon. It provides periodically an
+// unpredictable, bias-resistant, and verifiable random value.
 package main
 
 import (
