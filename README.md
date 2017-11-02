@@ -1,63 +1,69 @@
 [![Build Status](https://travis-ci.org/dedis/drand.svg?branch=master)](https://travis-ci.org/dedis/drand)
 
-# Drand 
+# Drand - A Distributed Randomness Beacon Daemon
 
-Drand is a distributed randomness beacon written in Go. Drand emits a publicly
-verifiable, unbiasable and unpredictable random value at a fixed interval. Having
-a good random source is important in many protocols such as lottery, generating
-random keys, generating signatures, etc.
+Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
+in [Golang](https://golang.org/). Servers that run drand can be linked with each
+other to produce collective, publicly verifiable, unbiasable, unpredictable
+random values at fixed intervals using pairing-based threshold cryptography.
 
-**DISCLAIMER**: This software is at its early days, has NOT received a full
-audit and therefore should NOT be put into production stage at this point. You
-have been warned.
+### Disclaimer
 
-## In a nutshell
+**This software is considered experimental and has NOT received a
+full audit yet. Therefore, DO NOT USE it in production at this point. You have
+been warned.**
 
-Each participating node generates its own private key pair. A group file
-describing all public keys of the participants is then created and distributed.
-At that point, all nodes can run the distributed key generation part of drand to
-generate a completely distributed keypair where each node have a share of the
-distributed private key. After that, a special node called the leader starts a
-beacon round at a fixed interval to produce a random value from a threshold of
-online nodes. 
+## Drand in a Nutshell
 
-Each beacon value is a compact BLS signature that can be efficiently verified
-against the distributed public key of the group. This signature can be used as a
-secure source of randomness.
+A drand beacon comprises several nodes, each of which has its own long-term
+public/private key pair. A *group file* contains all the participants' public
+keys together with some further metadata required to operate the beacon. Drand
+has two phases:
+
+- **Setup:** After the group file has been distributed, all participants run a
+    *distributed key generation* (DKG) protocol to compute the collective public
+    key and one private key share per node. The participants NEVER see/use the
+    actual private key explicitly but instead utilize their respective private
+    key shares for drand's cryptographic operations.
+
+- **Generation:** After the setup, the participating nodes switch to the
+    randomness generation mode. Any of the nodes can then function as a leader
+    which runs beacon rounds at fixed intervals to produce collective random
+    values together with a threshold of available nodes. Each beacon value is a
+    compact *Boneh-Lynn-Shacham* (BLS) signature that can be efficiently
+    verified against the collective public key computed during setup. Due to the
+    properties of BLS signatures, they can be used as a source for public
+    randomness.
 
 ## Installation 
 
-Two different ways of running drand are possible: either by installing via
-Golang or using drand as a Docker container. For the quickest setup, use the Docker
-way.
+Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
 
-### Installation via Docker
+### Via Docker
 
-You need to have Docker installed on your system in order to continue.
-Docker will download the image automatically the first time you launch the
-image. 
-Fist, you need to create folder where drand can save its material and config.
+1. Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/). 
+2. Create drand's main folder where the daemon stores its long-term key pair,
+the group file, the collective public key, etc., via:
 ```
-mkdir ~/.drand
+mkdir ~/.drand/
 ```
-
-Then, for any drand command, launch it as following:
+3. A given drand command can be launched as follows:
 ```
 docker run --rm --name drand -p <port>:<port> -v ~/.drand/:/root/.drand/ dedis/drand <command>
 ```
+This in particular downloads the [drand image](https://hub.docker.com/r/dedis/drand/) 
+from Docker Hub and installs it. Moreover, `<port>` is the port that your
+container uses to communicate with the other participants and `~/.drand/` is the
+folder with drand's configuration and output files.
 
-**<port>** is the port you want your container to expose in order to communicate
- with the other participants.
- **~/.drand/** is the folder you want to save drand's key pair, distributed key
- pair and beacons.
+### Via Golang
 
-### Installation via Golang
-
-You need to have Goland installed and setup you GOPATH. After that, a simple
+1. Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
+2. **TODO: install the DFINITY crypto library?**
+3. Install drand via:
 ```
 go get github.com/dedis/drand
 ```
-is enough to get you started.
 
 ## Usage
 
@@ -127,7 +133,7 @@ needs two things:
 
  The command outputs if the signature is valid or not, and returns 0 if the signature is valid, 1 otherwise. 
 
-## What's this crypto magic ?
+## What's this crypto magic?
 
 drand relies on well known protocol and concepts. 
 + drand uses pairing based cryptography for all its protocols. Drand uses an
