@@ -79,7 +79,7 @@ where `<command>` has to be substituted by the respective drand commands below.
 ### Setup
 
 First we need to setup the drand daemon by generating its long-term key pair and
-setting up the group configuration file.
+assemble the group configuration file.
 
 #### Long-Term Key
 
@@ -92,7 +92,7 @@ where `<ip>:<port>` is the address from which your drand daemon is reachable.
 
 #### Group Configuration
 
-To generate the group configuration file `drand_group.toml`, run:
+To generate the group configuration file `drand_group.toml`, run
 ```
 drand group <pk1> <pk2> ... <pkn>
 ```
