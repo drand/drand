@@ -176,4 +176,4 @@ For more details on the open issues see our [TODO](https://github.com/dedis/dran
 ## Acknowledgments
 
 Thanks to [@herumi](https://github.com/herumi) for providing support for his
-optimized pairing based cryptographic library.
+optimized pairing-based cryptographic library.
