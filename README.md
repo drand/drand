@@ -15,7 +15,7 @@ been warned.**
 
 ## Drand in a Nutshell
 
-A drand distributed randomness beacon is created with a set of nodes and has two phases:
+A drand distributed randomness beacon involves a set of nodes and has two phases:
 
 - **Setup:** Each node first generates a *long-term public/private key
     pair*. Afterwards, a *group file* is created which gathers all the
@@ -42,7 +42,7 @@ A drand distributed randomness beacon is created with a set of nodes and has two
 ## Installation 
 
 Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
-As a first step create drand's application folder where the configuration files
+As a first step, create drand's application folder where the configuration files
 such as the long-term key pair, the group file, and the collective public key
 are stored:
 ```
@@ -60,7 +60,7 @@ docker pull dedis/drand
 ### Via Golang
 
 1. Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
-2. Install the [pairing-based crypto library](https://github.com/dfinity/bn). **TODO**
+2. Install the [pairing-based crypto library](https://github.com/dfinity/bn). **TODO: more details needed?**
 3. Install drand via:
 ```
 go get github.com/dedis/drand
@@ -83,9 +83,9 @@ commands below.
 
 ### Setup
 
-First we need to setup the drand daemon by generating its long-term key pair,
-assemble the group configuration file, and run the distributed key generation
-protocol.
+To setup the drand beacon, each participant generates its long-term key pair
+from which we can then assemble the group configuration file, and finally all
+participants run the distributed key generation protocol.
 
 #### Long-Term Key
 
@@ -116,16 +116,16 @@ drand run
 ```
 
 One of the nodes has to function as the leader which finalizes the setup and
-later also initiates regular randomness generation rounds.
-To start the drand daemon in leader mode, execute:
+later also initiates regular randomness generation rounds. To start the drand
+daemon in leader mode, execute:
 ```
 drand run --leader
 ```
 
-Once running, the leader initiates (as the final part of the setup) the
-distributed key generation protocol to compute the distributed public key
-(`dist_key.public`) and the private key shares (`dist_key.private`) together
-with the participants specified in `drand_group.toml`.
+Once running, the leader initiates the distributed key generation protocol to
+compute the distributed public key (`dist_key.public`) and the private key
+shares (`dist_key.private`) together with the participants specified in
+`drand_group.toml`.
 
 ### Randomness Generation
 
