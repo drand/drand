@@ -79,7 +79,7 @@ where `<command>` has to be substituted by the respective drand commands below.
 ### Setup
 
 First we need to setup the drand daemon by generating its long-term key pair and
-setting up the group configuration file `group.toml`.
+setting up the group configuration file.
 
 #### Long-Term Key
 
