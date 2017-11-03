@@ -15,16 +15,17 @@ been warned.**
 
 ## Drand in a Nutshell
 
-A drand beacon comprises several nodes, each of which has its own long-term
-public/private key pair. A *group file* contains all the participants' public
-keys together with some further metadata required to operate the beacon. Drand
-has two phases:
+A drand beacon is created from a list of nodes and has two two phases:
 
-- **Setup:** After the group file has been distributed, all participants run a
-    *distributed key generation* (DKG) protocol to compute the collective public
-    key and one private key share per node. The participants NEVER see/use the
-    actual private key explicitly but instead utilize their respective private
-    key shares for drand's cryptographic operations.
+- **Setup:** Each node first generates a *long-term public/private key
+    pair*. Afterwards, a *group file* is created which gathers all the
+    participants' public keys together with some further metadata required to
+    operate the beacon. After the group file has been distributed, all
+    participants run a *distributed key generation* (DKG) protocol to create
+    the collective public key and one private key share per node. The
+    participants NEVER see/use the actual private key explicitly but instead
+    utilize their respective private key shares for drand's cryptographic
+    operations.
 
 - **Generation:** After the setup, the participating nodes switch to the
     randomness generation mode. Any of the nodes can then function as a leader
@@ -38,23 +39,20 @@ has two phases:
 ## Installation 
 
 Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
+As a first step create drand's application folder where configuration files
+such as the long-term key pair, the group file, and the collective public key
+are stored:
+```
+mkdir ~/.drand/
+```
 
 ### Via Docker
 
 1. Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/). 
-2. Create drand's main folder where the daemon stores its long-term key pair,
-the group file, the collective public key, etc., via:
+2. Pull the latest [drand image](https://hub.docker.com/r/dedis/drand/) from Docker Hub: 
 ```
-mkdir ~/.drand/
+docker pull dedis/drand
 ```
-3. A given drand command can be launched as follows:
-```
-docker run --rm --name drand -p <port>:<port> -v ~/.drand/:/root/.drand/ dedis/drand <command>
-```
-This in particular downloads the [drand image](https://hub.docker.com/r/dedis/drand/) 
-from Docker Hub and installs it. Moreover, `<port>` is the port that your
-container uses to communicate with the other participants and `~/.drand/` is the
-folder with drand's configuration and output files.
 
 ### Via Golang
 
@@ -67,6 +65,47 @@ go get github.com/dedis/drand
 
 ## Usage
 
+**NOTE:** If you run drand in Docker, always use the following template
+```
+docker run \ 
+    --rm \ 
+    --name drand 
+    --port <port>:<port> \ 
+    --volume $HOME/drand/:/root/.drand/ \ 
+    dedis/<command>
+```
+where `<command>` has to be substituted by the respective drand commands below.
+
+### Setup
+
+First we need to setup the drand daemon by generating its long-term key pair and
+setting up the group configuration file `group.toml`.
+
+#### Long-Term Key
+
+To generate the long-term key pair `drand_id.{secret,public}` of the drand daemon, execute
+```
+drand keygen <ip>:<port>
+```
+where `<ip>:<port>` is the address from which your drand daemon is reachable.
+
+
+#### Group Configuration
+
+To generate the group configuration file `drand_group.toml`, run:
+```
+drand group <pk1> <pk2> ... <pkn>
+```
+where `<pki>` is the public key file `drand_id.public` of the i-th participant.
+
+**NOTE:** This group file MUST be distributed to all participants.
+
+
+### Generation
+
+
+
+
 There are different stages that need to run in order to have a fully functional
 drand beacon.
 
@@ -74,7 +113,7 @@ drand beacon.
 
 Each node generates their keypair using
 ```
-drand keygen <address>
+drand keygen <ip>:<port>
 ```
 where address is in the form <ip>:<port>. The address is attached to the public
 key so each node must be reachable at the address they specified.
