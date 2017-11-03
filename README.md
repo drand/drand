@@ -15,7 +15,7 @@ been warned.**
 
 ## Drand in a Nutshell
 
-A drand distributed randomness beacon is created with a set of nodes over two phases:
+A drand distributed randomness beacon is created with a set of nodes and has two phases:
 
 - **Setup:** Each node first generates a *long-term public/private key
     pair*. Afterwards, a *group file* is created which gathers all the
