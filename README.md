@@ -78,13 +78,14 @@ docker run \
     dedis/<command>
 ```
 where `<port>` specifies the port through which your drand daemon is reachable
-and `<command>` has to be substituted by the one of the respective drand
+and `<command>` has to be substituted by one of the respective drand
 commands below.
 
 ### Setup
 
-First we need to setup the drand daemon by generating its long-term key pair and
-assemble the group configuration file.
+First we need to setup the drand daemon by generating its long-term key pair,
+assemble the group configuration file, and run the distributed key generation
+protocol.
 
 #### Long-Term Key
 
