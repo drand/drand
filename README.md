@@ -116,13 +116,13 @@ drand run
 ```
 
 One of the nodes has to function as the leader which finalizes the setup and
-later initiates regular randomness generation rounds.
+later also initiates regular randomness generation rounds.
 To start the drand daemon in leader mode, execute:
 ```
 drand run --leader
 ```
 
-Once running, the leader first initiates (as the final part of the setup) the
+Once running, the leader initiates (as the final part of the setup) the
 distributed key generation protocol to compute the distributed public key
 (`dist_key.public`) and the private key shares (`dist_key.private`) together
 with the participants specified in `drand_group.toml`.
