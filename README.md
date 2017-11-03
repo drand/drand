@@ -72,7 +72,7 @@ go get github.com/dedis/drand
 ```
 docker run \ 
     --rm \ 
-    --name drand 
+    --name drand \
     --port <port>:<port> \ 
     --volume $HOME/.drand/:/root/.drand/ \ 
     dedis/<command>
