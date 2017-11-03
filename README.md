@@ -153,9 +153,8 @@ Drand relies on the following cryptographic constructions:
 - All drand protocols rely on [pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) using
   an optimized implementation of the [Barreto-Naehrig curves](https://github.com/dfinity/bn).
 - For the setup of the distributed key, drand uses an implementation of
-  [Pedersen's distributed key generation](https://link.springer.com/article/10.1007/s00145-006-0347-3) 
-  (DKG) protocol. There are more [advanced DKG protocols](https://eprint.iacr.org/2012/377.pdf) 
-  which we plan to implement in the future.
+  [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3).
+  There are more [advanced DKG protocols](https://eprint.iacr.org/2012/377.pdf) which we plan to implement in the future.
 - For the randomness generation, drand uses an implementation of threshold 
   [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf).
 - For a more general overview on generation of public randomness, see the
