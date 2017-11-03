@@ -1,6 +1,7 @@
 #!/bin/bash 
 
-# This script installs the bn library on the Travis running machine
+# This script installs the bn library on the Travis virtual machine.
+# This is needed to test drand.
 
 printh() {
     echo "$(hostname)\t: $1"
