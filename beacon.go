@@ -201,7 +201,7 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 		slog.Infof("blsBeacon: error saving signature: %s", err)
 		return
 	}
-	slog.Print("blsBeacon: reconstructed and save full signature for ", sig.Request.Timestamp)
+	slog.Print("blsBeacon: Saved reconstructed signature ", sig.Request.Timestamp)
 }
 
 func (b *Beacon) Stop() {

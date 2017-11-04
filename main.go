@@ -29,7 +29,7 @@ func banner() {
 }
 
 func main() {
-	slog.Level = slog.LevelDebug
+	//slog.Level = slog.LevelDebug
 	app := cli.NewApp()
 	app.Version = version
 	// global flags re-used in many commands
