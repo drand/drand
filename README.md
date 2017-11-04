@@ -147,7 +147,15 @@ drand verify --distkey dist_key.public <timestamp>.sig
 ```
 The command returns 0 if the signature is valid and 1 otherwise.
 
-## How Can I Learn More About The Crypto Magic Behind Drand?
+## I Want Randomness Now!
+
+Sure thing, the script `run_local.sh` is made for you. This script setup 6 drand docker nodes on your machine and runs them in order to fresh produce local randomness every two seconds. First, make sure you have **Docker installed**. Then launch the script with:
+```bash
+./run_local.sh
+```
+and follow the instructions as to where to retrieve the randomness. You can pass an argument to the script specifying how many containers do you wish to spawn; it is an optional argument whose default is 6.
+
+## Learn More About The Crypto Magic Behind Drand
 
 Drand relies on the following cryptographic constructions:
 - All drand protocols rely on [pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) using
