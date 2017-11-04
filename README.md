@@ -42,11 +42,10 @@ A drand distributed randomness beacon involves a set of nodes and has two phases
 ## Installation 
 
 Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
-As a first step, create drand's application folder where the configuration files
-such as the long-term key pair, the group file, and the collective public key
-are stored:
+By default, drand saves the configuration files such as the long-term key pair, the group file, 
+and the collective public key in:
 ```
-mkdir $HOME/.drand/
+$HOME/.drand/
 ```
 
 ### Via Docker
