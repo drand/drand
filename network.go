@@ -22,6 +22,15 @@ var readTimeout = 1 * time.Minute
 // how much time do a router have to wait for an incoming connection
 var maxIncomingWaitTime = 10 * time.Second
 
+// how many time do we try to connect to a given node
+var maxRetryConnect = 10
+
+// drand retries to connect with exponential back off time with the base time
+// being baseRetryTime. In total, the worst case wait time is
+// baseRetryTime * 2^(maxRetryConnect)
+// = 500 * 2^10 / 1000 / 60 =  8.5m
+var baseRetryTime = 500 * time.Millisecond
+
 // Conn is a wrapper around the native golang connection that provides a
 // automatic encoding and decoding of protobuf encoded messages.
 type Conn struct {
@@ -304,8 +313,22 @@ func (r *Router) waitIncoming(pub *Public) (Conn, error) {
 // connect actively tries to connect to the address given in the Public and
 // registers that connection to the router.
 func (r *Router) connect(p *Public) (Conn, error) {
-	c, err := net.Dial("tcp", p.Address)
+	var nTries = 1
+	var waitTime = baseRetryTime
+	var c net.Conn
+	var err error
+	for nTries <= maxRetryConnect {
+		c, err = net.Dial("tcp", p.Address)
+		if err == nil {
+			break
+		}
+		waitTime = waitTime * time.Duration(nTries)
+		time.Sleep(waitTime)
+		nTries++
+	}
+	//c, err := net.Dial("tcp", p.Address)
 	if err != nil {
+		//slog.Info("router: failed to connect to ", p.Address, " after ", nTries, " times")
 		return Conn{}, err
 	}
 	cc := Conn{c}

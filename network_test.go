@@ -3,6 +3,7 @@ package main
 import (
 	"math/rand"
 	"net"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +22,49 @@ func TestRouterBasic(t *testing.T) {
 			err := r1.Send(r2.priv.Public, &DrandPacket{})
 			require.NoError(t, err)
 		}
+	}
+}
+
+func TestRouterReconnection(T *testing.T) {
+	n := 2
+	privs, group := BatchIdentities(n)
+	routers := make([]*Router, n)
+	for i := 0; i < n; i++ {
+		routers[i] = NewRouter(privs[i], group)
+		//go routers[i].Listen()
+	}
+	sort.Sort(ByIndex(routers))
+	defer CloseAllRouters(routers)
+	go routers[0].Listen()
+	// active only after a certain timeout
+	oldMax := maxRetryConnect
+	maxRetryConnect = 5
+	defer func() { maxRetryConnect = oldMax }()
+	oldTime := baseRetryTime
+	baseRetryTime = 50 * time.Millisecond
+	defer func() { baseRetryTime = oldTime }()
+	timeout := baseRetryTime * 8 // 2^3
+	listening := make(chan bool, 1)
+	sent := make(chan error, 1)
+	go func() {
+		<-time.After(timeout)
+		go routers[1].Listen()
+		listening <- true
+	}()
+	go func() {
+		err := routers[0].Send(routers[1].priv.Public, &DrandPacket{})
+		sent <- err
+	}()
+	maxTimeout := baseRetryTime * 32 // 2^5
+	select {
+	case <-listening:
+		err := <-sent
+		if err != nil {
+			T.Fail()
+		}
+	case <-time.After(time.Duration(maxTimeout) * time.Millisecond):
+		T.Fail()
+
 	}
 }
 
