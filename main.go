@@ -19,7 +19,7 @@ const version = "0.1"
 const defaultSeed = "Expose yourself to your deepest fear; after that," +
 	" fear has no power, and the fear of freedom shrinks and vanishes. " +
 	" You are free. Morrisson"
-const defaultPeriod = 30 * time.Minute
+const defaultPeriod = 1 * time.Minute
 
 func banner() {
 	fmt.Printf("drand v%s-test by nikkolasg @ DEDIS, EPFL\n", version)
