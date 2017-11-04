@@ -149,7 +149,7 @@ The command returns 0 if the signature is valid and 1 otherwise.
 
 ## I Want Randomness Now!
 
-Sure thing, the script `run_local.sh` is made for you. This script setup 6 drand docker nodes on your machine and runs them in order to fresh produce local randomness every two seconds. First, make sure you have **Docker installed**. Then launch the script with:
+Sure thing, the script `run_local.sh` is made for you. This script setups 6 drand docker nodes on your machine and runs them in order to produce fresh local randomness every two seconds. First, make sure you have **Docker installed**. Then launch the script with:
 ```bash
 ./run_local.sh
 ```
