@@ -29,13 +29,13 @@ func TestRouterReconnection(T *testing.T) {
 	n := 2
 	privs, group := BatchIdentities(n)
 	routers := make([]*Router, n)
-	for i := 0; i < n-1; i++ {
+	for i := 0; i < n; i++ {
 		routers[i] = NewRouter(privs[i], group)
-		go routers[i].Listen()
+		//go routers[i].Listen()
 	}
-	routers[n-1] = NewRouter(privs[n-1], group)
-	defer CloseAllRouters(routers)
 	sort.Sort(ByIndex(routers))
+	defer CloseAllRouters(routers)
+	go routers[0].Listen()
 	// active only after a certain timeout
 	oldMax := maxRetryConnect
 	maxRetryConnect = 5
@@ -48,11 +48,11 @@ func TestRouterReconnection(T *testing.T) {
 	sent := make(chan error, 1)
 	go func() {
 		<-time.After(timeout)
-		go routers[n-1].Listen()
+		go routers[1].Listen()
 		listening <- true
 	}()
 	go func() {
-		err := routers[0].Send(privs[n-1].Public, &DrandPacket{})
+		err := routers[0].Send(routers[1].priv.Public, &DrandPacket{})
 		sent <- err
 	}()
 	maxTimeout := baseRetryTime * 32 // 2^5
