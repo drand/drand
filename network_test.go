@@ -34,6 +34,7 @@ func TestRouterReconnection(T *testing.T) {
 		go routers[i].Listen()
 	}
 	routers[n-1] = NewRouter(privs[n-1], group)
+	defer CloseAllRouters(routers)
 	sort.Sort(ByIndex(routers))
 	// active only after a certain timeout
 	oldMax := maxRetryConnect
