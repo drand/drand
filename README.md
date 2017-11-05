@@ -13,6 +13,21 @@ random values at fixed intervals using pairing-based threshold cryptography.
 full audit yet. Therefore, DO NOT USE it in production at this point. You have
 been warned.**
 
+## I Want Randomness Now!
+
+Sure thing, here you go:
+
+1. Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/). 
+2. Then run:
+```bash
+./run_local.sh
+```
+
+The script spins up 6 local drand nodes and produces fresh randomness every two
+seconds. To retrieve and verify the randomness, follow the instructions printed
+by the script. If you want to run a different number of nodes, simply pass it as
+an argument to the script.
+
 ## Drand in a Nutshell
 
 A drand distributed randomness beacon involves a set of nodes and has two phases:
@@ -146,13 +161,6 @@ drand verify --distkey dist_key.public <timestamp>.sig
 ```
 The command returns 0 if the signature is valid and 1 otherwise.
 
-## I Want Randomness Now!
-
-Sure thing, the script `run_local.sh` is made for you. This script setups 6 drand docker nodes on your machine and runs them in order to produce fresh local randomness every two seconds. First, make sure you have **Docker installed**. Then launch the script with:
-```bash
-./run_local.sh
-```
-and follow the instructions as to where to retrieve the randomness. You can pass an argument to the script specifying how many containers do you wish to spawn; it is an optional argument whose default is 6.
 
 ## Learn More About The Crypto Magic Behind Drand
 
