@@ -39,7 +39,7 @@ const defaultKeyFile = "drand_id"
 const privateExtension = ".private"
 const publicExtension = ".public"
 const defaultGroupFile_ = "drand_group.toml"
-const defaultShareFile_ = "share.secret"
+const defaultShareFile_ = "dist_key.private"
 const defaultDistKeyFile_ = "dist_key.public"
 const defaultSigFolder_ = "beacons"
 

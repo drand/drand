@@ -3,7 +3,7 @@
 # Drand - A Distributed Randomness Beacon Daemon
 
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
-in [Golang](https://golang.org/). Servers that run drand can be linked with each
+in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
 random values at fixed intervals using pairing-based threshold cryptography.
 
@@ -13,9 +13,24 @@ random values at fixed intervals using pairing-based threshold cryptography.
 full audit yet. Therefore, DO NOT USE it in production at this point. You have
 been warned.**
 
+## I Want Randomness Now!
+
+Sure thing, here you go:
+
+1. Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/). 
+2. Then run:
+```bash
+./run_local.sh
+```
+
+The script spins up 6 local drand nodes and produces fresh randomness every two
+seconds. To retrieve and verify the randomness, follow the instructions printed
+by the script. If you want to run a different number of nodes, simply pass it as
+an argument to the script.
+
 ## Drand in a Nutshell
 
-A drand beacon is created from a list of nodes and has two two phases:
+A drand distributed randomness beacon involves a set of nodes and has two phases:
 
 - **Setup:** Each node first generates a *long-term public/private key
     pair*. Afterwards, a *group file* is created which gathers all the
@@ -29,21 +44,23 @@ A drand beacon is created from a list of nodes and has two two phases:
 
 - **Generation:** After the setup, the participating nodes switch to the
     randomness generation mode. Any of the nodes can then function as a leader
-    which runs beacon rounds at fixed intervals to produce collective random
-    values together with a threshold of available nodes. Each beacon value is a
-    compact *Boneh-Lynn-Shacham* (BLS) signature that can be efficiently
-    verified against the collective public key computed during setup. Due to the
-    properties of BLS signatures, they can be used as a source for public
-    randomness.
+    to initiate a randomness generation round. Therefore, a given leader broadcasts
+    a message (in this case, a timestamp) which is then signed by all
+    participants using a threshold version of the *Boneh-Lynn-Shacham* (BLS)
+    signature scheme and their respective private key shares. Once any node (or
+    third-party observer) has gathered a threshold of partial signatures, it can
+    reconstruct the full BLS signature (using Lagrange interpolation) which
+    corresponds to the collective random value. This random beacon / full BLS
+    signature can be verified against the distributed public key that was
+    computed with the DKG.
 
 ## Installation 
 
 Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
-As a first step create drand's application folder where configuration files
-such as the long-term key pair, the group file, and the collective public key
-are stored:
+By default, drand saves the configuration files such as the long-term key pair, the group file, 
+and the collective public key in:
 ```
-mkdir ~/.drand/
+$HOME/.drand/
 ```
 
 ### Via Docker
@@ -57,7 +74,7 @@ docker pull dedis/drand
 ### Via Golang
 
 1. Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
-2. **TODO: install the DFINITY crypto library?**
+2. Install the [pairing-based crypto library](https://github.com/dfinity/bn). **TODO: more details needed?**
 3. Install drand via:
 ```
 go get github.com/dedis/drand
@@ -69,17 +86,20 @@ go get github.com/dedis/drand
 ```
 docker run \ 
     --rm \ 
-    --name drand 
+    --name drand \
     --port <port>:<port> \ 
-    --volume $HOME/drand/:/root/.drand/ \ 
+    --volume $HOME/.drand/:/root/.drand/ \ 
     dedis/<command>
 ```
-where `<command>` has to be substituted by the respective drand commands below.
+where `<port>` specifies the port through which your drand daemon is reachable
+and `<command>` has to be substituted by one of the respective drand
+commands below.
 
 ### Setup
 
-First we need to setup the drand daemon by generating its long-term key pair and
-assemble the group configuration file.
+To setup the drand beacon, each participant generates its long-term key pair
+from which we can then assemble the group configuration file, and finally all
+participants run the distributed key generation protocol.
 
 #### Long-Term Key
 
@@ -89,6 +109,7 @@ drand keygen <ip>:<port>
 ```
 where `<ip>:<port>` is the address from which your drand daemon is reachable.
 
+**NOTE:** If you use Docker, make sure to use the same `<port>` value consistently.
 
 #### Group Configuration
 
@@ -98,111 +119,76 @@ drand group <pk1> <pk2> ... <pkn>
 ```
 where `<pki>` is the public key file `drand_id.public` of the i-th participant.
 
-**NOTE:** This group file MUST be distributed to all participants.
+**NOTE:** This group file MUST be distributed to all participants and MUST be
+stored in the respective application folder (e.g., `$HOME/.drand`).
 
+#### Distributed Key Generation
 
-### Generation
-
-
-
-
-There are different stages that need to run in order to have a fully functional
-drand beacon.
-
-### Key generation
-
-Each node generates their keypair using
-```
-drand keygen <ip>:<port>
-```
-where address is in the form <ip>:<port>. The address is attached to the public
-key so each node must be reachable at the address they specified.
-By default, your keys are saved under `$HOME/.drand/drand_id.{secret,public}`.
-
-### Group generation
-
-To generate the group file listing all public keys, simply run:
-```
-drand group <pk1> <pk2> ... <pkn>
-```
-where <pkn> is the public key file of the n-th participant.
-The group file is generated by default under `$HOME/.drand/drand_group.toml`.
-That group file MUST be distributed to each of the node; it's best if the group
-file is saved at the same place so there is no need for specifying the location
-to drand.
-
-### Beacon 
-
-At the point, there needs to be a designated special node called the leader that
-starts the protocol at a fixed interval. 
-For the leader, run:
-```
-drand run --leader
-```
-or
+After receiving the `drand_group.toml` file, participants can start drand via:
 ```
 drand run
 ```
-for all other nodes.
 
-The dealer can choose the period to wait between two runs with the `--period
-DURATION` flag. DURATION can be for example `1mn` or `30s` (in fact, everything
-understood by Golang's [duration
-parsing](https://golang.org/pkg/time/#ParseDuration).
+One of the nodes has to function as the leader which finalizes the setup and
+later also initiates regular randomness generation rounds. To start the drand
+daemon in leader mode, execute:
+```
+drand run --leader
+```
 
-This command first runs first the Distributed Key Generation protocol, saves
-the private share and the distributed public key in
-`~/.drand/drand_id.{secret,public}`.
-All signatures are by default saved under `~/.drand/beacons/<timestamp>.sig`.
+Once running, the leader initiates the distributed key generation protocol to
+compute the distributed public key (`dist_key.public`) and the private key
+shares (`dist_key.private`) together with the participants specified in
+`drand_group.toml`.
 
-**The distributed public key is generated under `~/.drand/drand_id.public`**.
+### Randomness Generation
 
-### Verify a beacon
+The leader initiates a new randomness generation round automatically as per the
+specified time interval (default interval: `1m`). All beacon values are stored
+as `$HOME/.drand/beacons/<timestamp>.sig`.
 
-In order to verify that a beacon has been generated correctly, the verifier
-needs two things:
- + the distributed public key generated during the DKG step. Default place is
-   `~/.drand/drand_id.public`
- + the beacon signature, one in the default place `~/.drand/beacons/`.
+To change the [duration](https://golang.org/pkg/time/#ParseDuration) of the
+randomness generation interval, e.g., to `30s`, start drand via
+```
+drand run --leader --period 30s
+```
 
- Simply run:
- ```
- drand verify --distkey <distkey_file> <beacon_file>
- ```
+### Randomness Verification
 
- The command outputs if the signature is valid or not, and returns 0 if the signature is valid, 1 otherwise. 
+To verify a beacon `<timestamp>.sig` using `dist_key.public` simply run:
+```
+drand verify --distkey dist_key.public <timestamp>.sig
+```
+The command returns 0 if the signature is valid and 1 otherwise.
 
-## What's this crypto magic?
 
-drand relies on well known protocol and concepts. 
-+ drand uses pairing based cryptography for all its protocols. Drand uses an
-  optimized implementation of the [Barreto-Naehrig
-  curves](https://github.com/dfinity/bn).
-+ drand uses a distributed key generation (DKG) protocol to generate a
-  distributed key where no node individual node can recover the private key but
-  the public key is known. Only a threshold of nodes can actually recover the
-  private key if they collude together. drand currently uses an implementation
-  of the basic Pedersen which is currently being revised due to some
-  implementation issues.  The next goal would be to try the [Distributed Key
-  Generation in the Wild](https://eprint.iacr.org/2012/377.pdf) protocol from
-  Aniket & Goldberg allowing for more realistic network assumptions.
-+ drand uses the BLS signature scheme but in the threshold setting. Instead of
-  signing with a private key, each node signs with a private share of the
-  distributed private key. A node collects at most a threshold of these partial
-  signatures to reconstruct (using Lagrange interpolation) the BLS signature
-  that can be verified under the distributed public key. For more info, see the
-  [paper](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf).
+## Learn More About The Crypto Magic Behind Drand
 
-## What's next
+Drand relies on the following cryptographic constructions:
+- All drand protocols rely on [pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) using
+  an optimized implementation of the [Barreto-Naehrig curves](https://github.com/dfinity/bn).
+- For the setup of the distributed key, drand uses an implementation of
+  [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3).
+  There are more [advanced DKG protocols](https://eprint.iacr.org/2012/377.pdf) which we plan to implement in the future.
+- For the randomness generation, drand uses an implementation of threshold 
+  [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf).
+- For a more general overview on generation of public randomness, see the
+  paper [Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf)
 
-Drand is at its early stage, so there's a lot to be done and its evolution is
-dependent of the public's interest. Feel free to requests features in issues, or
-even better, to submit pull requests ;) 
-See the [TODO](https://github.com/dedis/drand/blob/master/TODO.md) file for more
-information.
+## What's Next?
+
+Although being already functional, drand is still at an early stage of
+development, so there's a lot left to be done. Feel free to submit feature or,
+even better, pull requests. ;)
+
+For more details on the open issues see our [TODO](https://github.com/dedis/drand/blob/master/TODO.md) list.
+
+## Designers and Contributors
+
+- Nicolas Gailly ([@nikkolasg1](https://twitter.com/nikkolasg1))
+- Philipp Jovanovic ([@daeinar](https://twitter.com/daeinar))
 
 ## Acknowledgments
 
-Thanks to [@Daeinar](https://github.com/Daeinar) for the long discussions and
-design decisions about drand.  Thanks to [@herumi](https://github.com/herumi)
-for support with his optimized pairing based cryptographic library.
+Thanks to [@herumi](https://github.com/herumi) for providing support for his
+optimized pairing-based cryptographic library.
