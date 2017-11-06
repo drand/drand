@@ -6,20 +6,7 @@ set -x
 # docker-compose had a "port being already taken" problem that I did not
 # resolved...
 
-## number of nodes
-N=6
-TMP=$(mktemp -d)
-GROUPFILE="$TMP/group.toml"
-IMG="dedis/drand"
-DRAND_PATH="src/github.com/dedis/drand"
-DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
-NET="drand"
-SUBNET="192.168.0."
-PORT="800"
-
-## build the test travis image
-#echo "Building the $IMG image"
-#docker build -t "$IMG" -f "$DOCKERFILE" .
+source run_local.sh
 
 echo "Create network $NET with subnet ${SUBNET}0/24"
 docker network create "$NET" --subnet "${SUBNET}0/24"
