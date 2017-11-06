@@ -6,20 +6,6 @@ set -x
 # docker-compose had a "port being already taken" problem that I did not
 # resolved...
 
-<<<<<<< HEAD
-=======
-## number of nodes
-N=6
-TMP=$(mktemp -d)
-GROUPFILE="$TMP/group.toml"
-IMG="dedis/drand"
-DRAND_PATH="src/github.com/dedis/drand"
-DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
-NET="drand"
-SUBNET="192.168.0."
-PORT="800"
-
->>>>>>> 7a78934b66f08647a1bb3e443eb1e96068452353
 source run_local.sh
 
 build
