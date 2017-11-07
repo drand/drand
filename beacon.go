@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	kyber "gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/share"
+	kyber "github.com/dedis/kyber"
+	"github.com/dedis/kyber/share"
 
 	"github.com/dedis/drand/bls"
 	"github.com/nikkolasg/slog"

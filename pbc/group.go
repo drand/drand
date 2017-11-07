@@ -7,8 +7,8 @@ import (
 
 	"github.com/dfinity/go-dfinity-crypto/bls"
 
-	"gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/cipher/sha3"
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/cipher/sha3"
 )
 
 // Group interface extension to create pairing-capable points.
