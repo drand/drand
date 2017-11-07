@@ -1,3 +1,4 @@
+- Making drand running under normal user in docker container ( vs root currently ).
 - dealing with node failures from the leader during DKG and during TBLS
 - self signatures (BLS) on Public struct
 - not infinite loop in Drand
