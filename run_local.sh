@@ -20,7 +20,11 @@ fi
 unameOut="$(uname -s)"
 case "${unameOut}" in
     Linux*)     TMP=$(mktemp -p "$BASE" -d);;
-    Darwin*)    TMP=$BASE;;
+    Darwin*)    
+        A=$(mktemp -d -t "drand")
+        mv $A "/tmp/$(basename $A)"
+        TMP="/tmp/$(basename $A)"
+    ;;
 esac
 GROUPFILE="$TMP/group.toml"
 IMG="dedis/drand"
