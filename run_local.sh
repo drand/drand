@@ -17,7 +17,11 @@ BASE="/tmp/drand"
 if [ ! -d "$BASE" ]; then
     mkdir $BASE
 fi
-TMP=$(mktemp -p "$BASE" -d)
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    Linux*)     TMP=$(mktemp -p "$BASE" -d);;
+    Darwin*)    TMP=$(mktemp -t "$BASE" -d);;
+esac
 GROUPFILE="$TMP/group.toml"
 IMG="dedis/drand"
 DRAND_PATH="src/github.com/dedis/drand"
