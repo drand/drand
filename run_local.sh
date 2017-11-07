@@ -132,5 +132,5 @@ fi
 
 ## RUN LOCALLY SCRIPT
 trap cleanup SIGINT
-build
+#build
 run true
