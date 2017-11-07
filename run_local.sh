@@ -8,7 +8,7 @@
 #
 # NOTE: Using docker compose should give a higher degree of flexibility and
 # composability. However I had trouble with spawning the containers too fast and
-# having weird binding errors: port already in use. I rolledback to simple
+# having weird binding errors: port already in use. I rolled back to simple
 # docker scripting. One of these, one should try to do it in docker-compose.
 ## number of nodes
 
@@ -20,7 +20,7 @@ fi
 unameOut="$(uname -s)"
 case "${unameOut}" in
     Linux*)     TMP=$(mktemp -p "$BASE" -d);;
-    Darwin*)    TMP=$(mktemp -t "$BASE" -d);;
+    Darwin*)    TMP=$BASE;;
 esac
 GROUPFILE="$TMP/group.toml"
 IMG="dedis/drand"
@@ -71,6 +71,13 @@ function run() {
         # gen key and append to group
         data="$TMP/node$i/"
         addr="${SUBNET}2$i:$PORT$i"
+
+        # cleaning up already existing containers, if necessary
+        container=$(docker ps -aq --filter name="node$i")
+        if [ ! -z $container ]; then
+            docker rm -f $container
+        fi
+
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
         public="drand_id.public"
