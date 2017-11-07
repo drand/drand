@@ -72,11 +72,14 @@ func main() {
 		Value: defaultPeriod,
 		Usage: "runs the beacon every `PERIOD` seconds",
 	}
+	verboseFlag := cli.BoolFlag{
+		Name:  "debug, d",
+		Usage: "Use -d to log debug output",
+	}
 
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "keygen",
-			Aliases:   []string{"k"},
 			Flags:     toArray(privFlag),
 			Usage:     "keygen <address to listen>. Generates longterm private key pair",
 			ArgsUsage: "ADDRESS must be of the form <host>:<port> ",
@@ -87,7 +90,6 @@ func main() {
 		},
 		cli.Command{
 			Name:      "group",
-			Aliases:   []string{"g"},
 			Usage:     "Create the group toml from individual public keys",
 			ArgsUsage: "<id1 id2 id3...> must be the identities of the group to create",
 			Flags: []cli.Flag{
@@ -103,19 +105,17 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:    "dkg",
-			Aliases: []string{"d"},
-			Usage:   "Run the DKG protocol",
-			Flags:   toArray(privFlag, groupFlag, shareFlag, leaderFlag),
+			Name:  "dkg",
+			Usage: "Run the DKG protocol",
+			Flags: toArray(privFlag, groupFlag, shareFlag, leaderFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return dkgCmd(c, getDrand(c))
 			},
 		},
 		cli.Command{
-			Name:    "beacon",
-			Aliases: []string{"b"},
-			Usage:   "Run the beacon protocol",
+			Name:  "beacon",
+			Usage: "Run the beacon protocol",
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
@@ -124,9 +124,8 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:    "run",
-			Aliases: []string{"r"},
-			Usage:   "Run the daemon, first do the dkg if needed then run the beacon",
+			Name:  "run",
+			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
@@ -137,7 +136,6 @@ func main() {
 		},
 		cli.Command{
 			Name:      "verify",
-			Aliases:   []string{"v"},
 			Usage:     "Verify the given SIGNATURE with the distributed public key",
 			ArgsUsage: "<sig1 sig2 .. sigN> are the (beacon) signatures to verify",
 			Flags:     toArray(distKeyFlag),
@@ -146,6 +144,13 @@ func main() {
 				return verifyCmd(c)
 			},
 		},
+	}
+	app.Flags = toArray(verboseFlag)
+	app.Before = func(c *cli.Context) error {
+		if c.GlobalIsSet("debug") {
+			slog.Level = slog.LevelDebug
+		}
+		return nil
 	}
 	app.Run(os.Args)
 }
@@ -156,7 +161,7 @@ func keygenCmd(c *cli.Context) error {
 		slog.Fatal("Missing ip address argument")
 	}
 	if !isValidAdress(args.First()) {
-		slog.Print("Address must be of the form <address>:<port> with port > 1000")
+		slog.Fatal("Address must be of the form <address>:<port> with port > 1000")
 	}
 
 	priv := NewKeyPair(args.First())
