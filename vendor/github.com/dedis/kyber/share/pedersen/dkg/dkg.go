@@ -5,7 +5,6 @@ package dkg
 import (
 	"crypto/cipher"
 	"errors"
-	"fmt"
 
 	"github.com/dedis/kyber"
 
@@ -176,7 +175,7 @@ func (d *DistKeyGenerator) ProcessDeal(dd *Deal) (*Response, error) {
 	}
 
 	if _, ok := d.verifiers[dd.Index]; ok {
-		fmt.Println("Already received Deal from same index. Check your protocol!")
+		return nil, errors.New("dkg: already received dist deal from same index")
 	}
 
 	// verifier receiving the dealer's deal
@@ -190,7 +189,6 @@ func (d *DistKeyGenerator) ProcessDeal(dd *Deal) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return &Response{
 		Index:    dd.Index,
 		Response: resp,
@@ -248,7 +246,7 @@ func (d *DistKeyGenerator) ProcessJustification(j *Justification) error {
 // vss.Verifier.DealCertified()). If the distribution is certified, the protocol
 // can continue using d.SecretCommits().
 func (d *DistKeyGenerator) Certified() bool {
-	return len(d.QUAL()) >= d.t
+	return len(d.QUAL()) >= len(d.participants)
 }
 
 // QUAL returns the index in the list of participants that forms the QUALIFIED

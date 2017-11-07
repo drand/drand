@@ -280,22 +280,16 @@ func (r *Router) waitIncoming(pub *Public) (Conn, error) {
 	go func() {
 		time.Sleep(maxIncomingWaitTime)
 		timeLock.Lock()
-		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> TIMELOCK LOCK\n", r.index, ridx)
 		timeout = true
 		timeLock.Unlock()
-		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> TIMELOCK UNLOCKED\n", r.index, ridx)
 		r.cond.Broadcast()
 	}()
 
 	slog.Debugf("%s: waitIncoming START", r.addr)
-	//fmt.Printf("%s: waitIncoming START\n", r.addr)
-	//fmt.Printf("waitIncoming: router[%d] waits from router[%d]\n", r.index, ridx)
 	r.cond.L.Lock()
 	for !condition() {
 		r.cond.Wait()
-		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> OUT OF WAIT\n", r.index, ridx)
 		timeLock.Lock()
-		//fmt.Printf("waitIncoming: router[%d] waits from router[%d] -> AFTER TIMELOCK (timeout = %v)\n", r.index, ridx, timeout)
 		if timeout {
 			timeLock.Unlock()
 			break

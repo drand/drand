@@ -26,7 +26,7 @@
   version = "0.3.0"
 
 [[constraint]]
-  branch = "master"
+  branch = "portFixesFromv1"
   name = "github.com/dedis/kyber"
 
 [[constraint]]

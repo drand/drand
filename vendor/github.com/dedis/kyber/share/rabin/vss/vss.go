@@ -629,6 +629,10 @@ func (a *aggregator) EnoughApprovals() bool {
 // DealCertified returns true if there has been less than t complaints, all
 // Justifications were correct and if EnoughApprovals() returns true.
 func (a *aggregator) DealCertified() bool {
+	// a can be nil if we're calling it before receiving a deal
+	if a == nil {
+		return false
+	}
 	var comps int
 	for _, r := range a.responses {
 		if !r.Approved {

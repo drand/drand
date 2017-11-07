@@ -402,11 +402,16 @@ func (v *Verifier) decryptDeal(e *EncryptedDeal) (*Deal, error) {
 	return deal, err
 }
 
+var ErrNoDealBeforeResponse = errors.New("verfier: need to receive deal before response")
+
 // ProcessResponse analyzes the given response. If it's a valid complaint, the
 // verifier should expect to see a Justification from the Dealer. It returns an
 // error if it's not a valid response.
 // Call `v.DealCertified()` to check if the whole protocol is finished.
 func (v *Verifier) ProcessResponse(resp *Response) error {
+	if v.aggregator == nil {
+		return ErrNoDealBeforeResponse
+	}
 	return v.aggregator.verifyResponse(resp)
 }
 
@@ -594,6 +599,11 @@ func (a *aggregator) EnoughApprovals() bool {
 // Justifications were correct and if EnoughApprovals() returns true.
 func (a *aggregator) DealCertified() bool {
 	var comps int
+	// XXX currently it can still happen that an aggregator has not been set,
+	// because it did not receive any deals yet or responses.
+	if a == nil {
+		return false
+	}
 	for _, r := range a.responses {
 		if r.Status == StatusComplaint {
 			comps++

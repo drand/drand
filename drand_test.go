@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -80,17 +79,14 @@ func TestDrandTBLS(t *testing.T) {
 		go func(d *Drand) {
 			err := d.RunDKG()
 			require.Nil(t, err)
-			fmt.Println(" !!!!!!!!!!!!!!! dkg", d.r.addr, " FINISHED")
 			wg.Done()
 		}(drand)
 	}
 	root := drands[0]
 	err := root.StartDKG()
 	require.Nil(t, err)
-	fmt.Println("DKG WAIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 	wg.Wait()
 	time.Sleep(50 * time.Millisecond)
-	fmt.Println("DKG DONE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 	// do a round of tbls
 	wg = sync.WaitGroup{}
 	wg.Add(n - 1)
@@ -141,9 +137,7 @@ func TestDrandTBLSReverse(t *testing.T) {
 	root := drands[0]
 	sigs := make(chan *BeaconSignature, 1)
 	root.store.(*TestStore).CbSignatures = func(b *BeaconSignature) {
-		fmt.Println("CallBACK SIGANTURE <- sig")
 		sigs <- b
-		fmt.Println("CallBACK SIGANTURE <- sig DONE")
 	}
 	// do the dkg
 	var wg sync.WaitGroup
@@ -161,10 +155,10 @@ func TestDrandTBLSReverse(t *testing.T) {
 			wg.Done()
 		}(i, drands[i])
 	}
-	fmt.Println("DKG WAIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+	//fmt.Println("DKG WAIT <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 	wg.Wait()
 	time.Sleep(50 * time.Millisecond)
-	fmt.Println("DKG DONE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+	//fmt.Println("DKG DONE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
 	// start beacon rounds
 	// and waits for them to finish with wg
@@ -181,9 +175,7 @@ func TestDrandTBLSReverse(t *testing.T) {
 		}(drand)
 	}
 	// wait that everyone is alive
-	fmt.Println("wait.Wait() ....")
 	wait.Wait()
-	fmt.Println("wait.Wait() ... DONE.")
 
 	var err error
 	seed := []byte("beaconing is so good")
@@ -193,19 +185,13 @@ func TestDrandTBLSReverse(t *testing.T) {
 	// XXX
 	// can't stop a ticker so can't stop this function
 	go root.RandomBeacon(seed, period)
-	fmt.Println("<-sig ....")
 	<-sigs
-	fmt.Println("<-sig ....DONE.")
 	// finish everyone
 	for _, drand := range drands {
 		drand.Stop()
 	}
-	fmt.Println("wg.Wait()....")
 	wg.Wait()
-	fmt.Println("wg.Wait()....DONE")
 	testStore := root.store.(*TestStore)
-	fmt.Printf("%+v\n: -> pointer %p\n", testStore, testStore)
-	fmt.Printf("%+v\n", testStore.Signatures)
 	require.True(t, len(testStore.Signatures) >= 1)
 	_, err = root.store.LoadShare()
 	require.Nil(t, err)

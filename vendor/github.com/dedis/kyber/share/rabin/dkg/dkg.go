@@ -278,10 +278,14 @@ func (d *DistKeyGenerator) ProcessDeal(dd *Deal) (*Response, error) {
 
 	d.verifiers[dd.Index] = ver
 	resp, err := ver.ProcessEncryptedDeal(dd.Deal)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Response{
 		Index:    dd.Index,
 		Response: resp,
-	}, err
+	}, nil
 }
 
 // ProcessResponse takes a response from every other peer.  If the response
