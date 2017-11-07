@@ -15,7 +15,9 @@
 N=6
 TMP="/tmp/drand"
 if [ -d "$TMP" ]; then
-    rm -rf $TMP
+    echo "[+] /tmp/drand already exists. Need sudo to remove it because drand
+    runs on root inside the container:"
+    sudo rm -rf $TMP
     mkdir $TMP
 fi
 GROUPFILE="$TMP/group.toml"
@@ -57,9 +59,10 @@ function build() {
 # If foreground is false, then all docker nodes run in the background.
 function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
-    docker network create "$NET" --subnet "${SUBNET}0/24"
+    docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
     sequence=$(seq $N -1 1)
+    #sequence=$(seq $N -1 1)
     # creating the keys and compose part for each node
     echo "[+] Generating the private keys..." 
     for i in $sequence; do
@@ -97,6 +100,7 @@ function run() {
         drandCmd=("run")
         detached="-d"
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i --volume ${allVolumes[$i]} -d)
+        #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
             drandCmd+=("--leader" "--period" "2s")
             if [ "$1" = true ]; then
@@ -132,4 +136,3 @@ fi
 trap cleanup SIGINT
 #build
 run true
-

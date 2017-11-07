@@ -47,6 +47,7 @@ func LoadDrand(s Store) (*Drand, error) {
 		return d, nil
 	}
 	d.share = share
+	slog.Debugf("drand %s loaded", priv.Public.Address)
 	return d, nil
 }
 
