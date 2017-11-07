@@ -22,7 +22,7 @@ case "${unameOut}" in
     Linux*)     TMP=$(mktemp -p "$BASE" -d);;
     Darwin*)    
         A=$(mktemp -d -t "drand")
-        ln $A "/tmp/$(basename $A)"
+        mv $A "/tmp/$(basename $A)"
         TMP="/tmp/$(basename $A)"
     ;;
 esac
