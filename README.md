@@ -23,7 +23,7 @@ Sure thing, here you go:
 ./run_local.sh
 ```
 
-The script spins up 6 local drand nodes and produces fresh randomness every two
+The script spins up six local drand nodes and produces fresh randomness every two
 seconds. To retrieve and verify the randomness, follow the instructions printed
 by the script. If you want to run a different number of nodes, simply pass it as
 an argument to the script.
@@ -58,10 +58,7 @@ A drand distributed randomness beacon involves a set of nodes and has two phases
 
 Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
 By default, drand saves the configuration files such as the long-term key pair, the group file, 
-and the collective public key in:
-```
-$HOME/.drand/
-```
+and the collective public key in `$HOME/.drand/`.
 
 ### Via Docker
 
