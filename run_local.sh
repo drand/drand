@@ -13,13 +13,11 @@
 ## number of nodes
 
 N=6
-TMP="/tmp/drand"
-if [ -d "$TMP" ]; then
-    echo "[+] /tmp/drand already exists. Need sudo to remove it because drand
-    runs on root inside the container:"
-    sudo rm -rf $TMP
-    mkdir $TMP
+BASE="/tmp/drand"
+if [ ! -d "$BASE" ]; then
+    mkdir $BASE
 fi
+TMP=$(mktemp -p "$BASE" -d)
 GROUPFILE="$TMP/group.toml"
 IMG="dedis/drand"
 DRAND_PATH="src/github.com/dedis/drand"
@@ -77,6 +75,7 @@ function run() {
         docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
             #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
+        ## all keys from docker point of view
         allKeys[$i]=/tmp/node$i.public
     done
 
