@@ -45,7 +45,7 @@ func TestDrandDKGReverse(t *testing.T) {
 	defer CloseAllDrands(drands)
 
 	var wg sync.WaitGroup
-	wg.Add(n - 1)
+	wg.Add(n)
 	for i := n - 1; i >= 0; i-- {
 		go func(j int, d *Drand) {
 			var err error
