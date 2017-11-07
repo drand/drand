@@ -15,7 +15,9 @@
 N=6
 TMP="/tmp/drand"
 if [ -d "$TMP" ]; then
-    rm -rf $TMP
+    echo "[+] /tmp/drand already exists. Need sudo to remove it because drand
+    runs on root inside the container:"
+    sudo rm -rf $TMP
     mkdir $TMP
 fi
 GROUPFILE="$TMP/group.toml"
