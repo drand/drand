@@ -318,7 +318,9 @@ func (r *Router) connect(p *Public) (Conn, error) {
 	var c net.Conn
 	var err error
 	for nTries <= maxRetryConnect {
+		slog.Debug("Router", r.addr, ": trying to connect to", p.Address)
 		c, err = net.Dial("tcp", p.Address)
+		slog.Debug("Router", r.addr, ": trying to connect to", p.Address, ":", err)
 		if err == nil {
 			break
 		}
@@ -331,6 +333,7 @@ func (r *Router) connect(p *Public) (Conn, error) {
 		//slog.Info("router: failed to connect to ", p.Address, " after ", nTries, " times")
 		return Conn{}, err
 	}
+	fmt.Println("Router connected to ", p.Address)
 	cc := Conn{c}
 	hello := &DrandPacket{Hello: r.priv.Public}
 	if err := cc.Send(hello); err != nil {
@@ -380,7 +383,7 @@ func (r *Router) handleIncoming(c Conn) {
 		slog.Debug("router: unknown public key from ", c.RemoteAddr())
 		return
 	}
-
+	slog.Infof("router %s: new incoming connection from %s", r.addr, c.RemoteAddr())
 	r.handleConnection(pub, r.registerConn(pub, c.Conn))
 }
 

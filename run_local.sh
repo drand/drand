@@ -59,8 +59,8 @@ function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    #sequence=$(seq 1 1 $N)
     sequence=$(seq $N -1 1)
+    #sequence=$(seq $N -1 1)
     # creating the keys and compose part for each node
     echo "[+] Generating the private keys..." 
     for i in $sequence; do
@@ -95,9 +95,10 @@ function run() {
         # gen key and append to group
         data="$TMP/node$i/"
         cp $GROUPFILE "$data"drand_group.toml
-        drandCmd=("-d" "run")
+        drandCmd=("run")
         detached="-d"
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i --volume ${allVolumes[$i]} -d)
+        #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
             drandCmd+=("--leader" "--period" "2s")
             if [ "$1" = true ]; then
@@ -107,7 +108,7 @@ function run() {
             echo "[+] Starting the leader"
             docker ${args[@]} "$IMG" "${drandCmd[@]}"
         else
-            docker ${args[@]} "$IMG" "${drandCmd[@]}" 
+            docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
         fi
         #drandCmd+=(>
         #echo "[+] Starting node$i at ${SUBNET}2$i with ${allVolumes[$i]}..."
@@ -133,4 +134,3 @@ fi
 trap cleanup SIGINT
 build
 run true
-

@@ -55,12 +55,12 @@ func NewDKG(priv *Private, group *Group, r *Router, s Store) (*DKG, error) {
 // as an initiator. It returns the share generated if the protocol proceeded
 // correctly.
 func (d *DKG) Start() (*Share, error) {
-	slog.Debugf("%s: is ROOT dkg", d.addr)
+	slog.Debugf("%s: Starting dkg as leader", d.addr)
 	d.sentDeals = true
 	if err := d.sendDeals(true); err != nil {
 		return nil, err
 	}
-	slog.Debugf("%s: ROOT wait dks", d.addr)
+	slog.Debugf("%s: Waiting DKG shares as leader", d.addr)
 	share := <-d.shareCh
 	return &share, nil
 }
@@ -165,7 +165,7 @@ func (d *DKG) checkCertified() {
 	}
 	//slog.Debugf("%s: processResponse(%d) from %s #3", d.addr, d.respProcessed, pub.Address)
 	d.done = true
-	slog.Infof("%s: dkg certified !", d.addr)
+	slog.Infof("%s: dkg certified ", d.addr)
 	dks, err := d.dkg.DistKeyShare()
 	if err != nil {
 		return
