@@ -71,13 +71,6 @@ function run() {
         # gen key and append to group
         data="$TMP/node$i/"
         addr="${SUBNET}2$i:$PORT$i"
-
-        # cleaning up already existing containers, if necessary
-        container=$(docker ps -aq --filter name="node$i")
-        if [ ! -z $container ]; then
-            docker rm -f $container
-        fi
-
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
         public="drand_id.public"
