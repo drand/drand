@@ -8,8 +8,9 @@ import (
 
 	"github.com/nikkolasg/slog"
 
-	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
-	"gopkg.in/dedis/kyber.v1/util/random"
+	"github.com/dedis/kyber/share/pedersen/dkg"
+	"github.com/dedis/kyber/share/pedersen/vss"
+	"github.com/dedis/kyber/util/random"
 )
 
 // DKG is the structure responsible for running the DKG protocol.
@@ -136,7 +137,7 @@ func (d *DKG) processResponse(pub *Public, resp *dkg.Response) {
 	j, err := d.dkg.ProcessResponse(resp)
 	slog.Debugf("%s: processResponse(%d) from %s", d.addr, d.respProcessed, pub.Address)
 	if err != nil {
-		if strings.Contains(err.Error(), "no deal for it") {
+		if err == vss.ErrNoDealBeforeResponse || strings.Contains(err.Error(), "no deal for it") {
 			d.tmpResponses[resp.Index] = append(d.tmpResponses[resp.Index], resp)
 			slog.Debug(d.router.addr, "storing future response for unknown deal ", resp.Index)
 			return

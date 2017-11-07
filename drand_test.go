@@ -12,7 +12,7 @@ import (
 )
 
 func TestDrandDKG(t *testing.T) {
-	slog.Level = slog.LevelDebug
+	//slog.Level = slog.LevelDebug
 	n := 5
 	_, drands := BatchDrands(n)
 	defer CloseAllDrands(drands)
@@ -39,7 +39,7 @@ func TestDrandDKG(t *testing.T) {
 }
 
 func TestDrandDKGReverse(t *testing.T) {
-	slog.Level = slog.LevelDebug
+	//slog.Level = slog.LevelDebug
 	n := 5
 	_, drands := BatchDrands(n)
 	defer CloseAllDrands(drands)
@@ -71,7 +71,7 @@ func TestDrandTBLS(t *testing.T) {
 	n := 5
 	_, drands := BatchDrands(n)
 	//defer CloseAllDrands(drands)
-	slog.Level = slog.LevelDebug
+	//slog.Level = slog.LevelDebug
 
 	// do the dkg
 	var wg sync.WaitGroup
@@ -138,8 +138,16 @@ func TestDrandTBLSReverse(t *testing.T) {
 	//defer CloseAllDrands(drands)
 	slog.Level = slog.LevelDebug
 
+	root := drands[0]
+	sigs := make(chan *BeaconSignature, 1)
+	root.store.(*TestStore).CbSignatures = func(b *BeaconSignature) {
+		fmt.Println("CallBACK SIGANTURE <- sig")
+		sigs <- b
+		fmt.Println("CallBACK SIGANTURE <- sig DONE")
+	}
 	// do the dkg
 	var wg sync.WaitGroup
+	// wait for all of them to finish
 	wg.Add(n)
 	for i := n - 1; i >= 0; i-- {
 		go func(j int, d *Drand) {
@@ -157,9 +165,12 @@ func TestDrandTBLSReverse(t *testing.T) {
 	wg.Wait()
 	time.Sleep(50 * time.Millisecond)
 	fmt.Println("DKG DONE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-	// do a round of tbls
+
+	// start beacon rounds
+	// and waits for them to finish with wg
 	wg = sync.WaitGroup{}
 	wg.Add(n - 1)
+	// wait the start of the n-1 nodes
 	var wait sync.WaitGroup
 	wait.Add(n - 1)
 	for _, drand := range drands[1:] {
@@ -169,25 +180,32 @@ func TestDrandTBLSReverse(t *testing.T) {
 			wg.Done()
 		}(drand)
 	}
+	// wait that everyone is alive
+	fmt.Println("wait.Wait() ....")
 	wait.Wait()
+	fmt.Println("wait.Wait() ... DONE.")
 
 	var err error
-	root := drands[0]
 	seed := []byte("beaconing is so good")
 	period := 80 * time.Millisecond
+
 	// launch the beacon
 	// XXX
 	// can't stop a ticker so can't stop this function
 	go root.RandomBeacon(seed, period)
-
-	// sleep a while
-	time.Sleep(3 * period)
+	fmt.Println("<-sig ....")
+	<-sigs
+	fmt.Println("<-sig ....DONE.")
 	// finish everyone
 	for _, drand := range drands {
 		drand.Stop()
 	}
+	fmt.Println("wg.Wait()....")
 	wg.Wait()
+	fmt.Println("wg.Wait()....DONE")
 	testStore := root.store.(*TestStore)
+	fmt.Printf("%+v\n: -> pointer %p\n", testStore, testStore)
+	fmt.Printf("%+v\n", testStore.Signatures)
 	require.True(t, len(testStore.Signatures) >= 1)
 	_, err = root.store.LoadShare()
 	require.Nil(t, err)

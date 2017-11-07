@@ -25,7 +25,6 @@ type Store interface {
 	SaveDistPublic(d *DistPublic) error
 	LoadDistPublic() (*DistPublic, error)
 	SaveSignature(b *BeaconSignature) error
-	LoadSignature(path string) (*BeaconSignature, error)
 	SignatureExists(timestamp int64) bool
 }
 

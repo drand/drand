@@ -15,6 +15,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/dedis/kyber"
+  packages = [".","cipher","cipher/sha3","share","share/pedersen/dkg","share/pedersen/vss","sign/schnorr","util/bytes","util/ints","util/random","util/subtle","util/test"]
+  revision = "c425ffbb2dee5edf81549a1b82f3b45c2dd678ad"
+
+[[projects]]
+  branch = "master"
   name = "github.com/dedis/protobuf"
   packages = ["."]
   revision = "62507025d3f800bf4cbbe9e2428b09e2d291d33a"
@@ -53,17 +59,11 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["hkdf"]
-  revision = "76eec36fa14229c4b25bb894c2d0e591527af429"
-
-[[projects]]
-  branch = "v1"
-  name = "gopkg.in/dedis/kyber.v1"
-  packages = [".","cipher","cipher/sha3","share","share/pedersen/dkg","share/pedersen/vss","sign/schnorr","util/bytes","util/ints","util/random","util/subtle","util/test"]
-  revision = "5ded11f751442e0ce5f583d65c7051b0a2b56a7a"
+  revision = "687d4b818545e443c8ba223cbef20b1721afd4db"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dcd7af5ba34d5e729540f29dd2498f4413b7169371dcfcd8aa0d86bffb56e197"
+  inputs-digest = "507c0b09ac6fccd7919ac2507abe40366056c24dd3b7a9925a3757ecc87de840"
   solver-name = "gps-cdcl"
   solver-version = 1
