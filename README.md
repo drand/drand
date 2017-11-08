@@ -180,6 +180,10 @@ even better, pull requests. ;)
 
 For more details on the open issues see our [TODO](https://github.com/dedis/drand/blob/master/TODO.md) list.
 
+## License
+The drand source code is released under MIT license, see the file
+[LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for the full text.
+
 ## Designers and Contributors
 
 - Nicolas Gailly ([@nikkolasg1](https://twitter.com/nikkolasg1))
@@ -189,3 +193,4 @@ For more details on the open issues see our [TODO](https://github.com/dedis/dran
 
 Thanks to [@herumi](https://github.com/herumi) for providing support for his
 optimized pairing-based cryptographic library.
+
