@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"sync"
 	"time"
@@ -201,8 +203,8 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 		slog.Infof("%s error saving signature: %s", b.String(), err)
 		return
 	}
-	slog.Printf("%s Saved reconstructed signature (%d): %s", b.String(), sig.Request.Timestamp, sig.Signature.Sig.String())
-	slog.Printf("%s STORE: %p \n", b.String(), b.store)
+	sigStr := sha256.Sum256([]byte(sig.Signature.Sig.String()))
+	slog.Printf("%s Saved reconstructed signature with timestamp %d: %s", b.String(), sig.Request.Timestamp, base64.StdEncoding.EncodeToString(sigStr[:]))
 }
 
 func (b *Beacon) Stop() {
