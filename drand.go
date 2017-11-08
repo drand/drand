@@ -6,7 +6,7 @@ import (
 
 	"github.com/nikkolasg/slog"
 
-	kyber "gopkg.in/dedis/kyber.v1"
+	kyber "github.com/dedis/kyber"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it

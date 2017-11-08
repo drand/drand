@@ -5,9 +5,9 @@ import (
 
 	"github.com/dedis/drand/pbc"
 
-	"gopkg.in/dedis/kyber.v1"
+	"github.com/dedis/kyber"
 
-	"gopkg.in/dedis/kyber.v1/share"
+	"github.com/dedis/kyber/share"
 )
 
 type DistKeyShare interface {

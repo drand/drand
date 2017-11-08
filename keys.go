@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/dedis/drand/pbc"
-	kyber "gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/share"
-	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
-	"gopkg.in/dedis/kyber.v1/util/random"
+	kyber "github.com/dedis/kyber"
+	"github.com/dedis/kyber/share"
+	"github.com/dedis/kyber/share/pedersen/dkg"
+	"github.com/dedis/kyber/util/random"
 )
 
 var pairing = pbc.NewPairingFp254BNb()

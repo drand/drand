@@ -8,8 +8,8 @@ import (
 
 	"github.com/nikkolasg/slog"
 
-	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
-	"gopkg.in/dedis/kyber.v1/util/random"
+	"github.com/dedis/kyber/share/pedersen/dkg"
+	"github.com/dedis/kyber/util/random"
 )
 
 // DKG is the structure responsible for running the DKG protocol.
