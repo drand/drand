@@ -86,7 +86,7 @@ docker run \
     --name drand \
     --port <port>:<port> \ 
     --volume $HOME/.drand/:/root/.drand/ \ 
-    dedis/<command>
+    dedis/drand <command>
 ```
 where `<port>` specifies the port through which your drand daemon is reachable
 and `<command>` has to be substituted by one of the respective drand
