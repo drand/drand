@@ -8,7 +8,7 @@
 #
 # NOTE: Using docker compose should give a higher degree of flexibility and
 # composability. However I had trouble with spawning the containers too fast and
-# having weird binding errors: port already in use. I rolledback to simple
+# having weird binding errors: port already in use. I rolled back to simple
 # docker scripting. One of these, one should try to do it in docker-compose.
 ## number of nodes
 
@@ -17,7 +17,15 @@ BASE="/tmp/drand"
 if [ ! -d "$BASE" ]; then
     mkdir $BASE
 fi
-TMP=$(mktemp -p "$BASE" -d)
+unameOut="$(uname -s)"
+case "${unameOut}" in
+    Linux*)     TMP=$(mktemp -p "$BASE" -d);;
+    Darwin*)    
+        A=$(mktemp -d -t "drand")
+        mv $A "/tmp/$(basename $A)"
+        TMP="/tmp/$(basename $A)"
+    ;;
+esac
 GROUPFILE="$TMP/group.toml"
 IMG="dedis/drand"
 DRAND_PATH="src/github.com/dedis/drand"
@@ -133,5 +141,5 @@ fi
 
 ## RUN LOCALLY SCRIPT
 trap cleanup SIGINT
-#build
+build
 run true

@@ -71,7 +71,7 @@ docker pull dedis/drand
 ### Via Golang
 
 1. Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
-2. Install the [pairing-based crypto library](https://github.com/dfinity/bn). **TODO: more details needed?**
+2. Install the [pairing-based crypto library](https://github.com/dfinity/bn). 
 3. Install drand via:
 ```
 go get github.com/dedis/drand

@@ -8,8 +8,8 @@ import (
 
 	"github.com/dfinity/go-dfinity-crypto/bls"
 
-	"gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/util/random"
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/util/random"
 )
 
 type pointG1 struct {

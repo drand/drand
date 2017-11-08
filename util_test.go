@@ -2,10 +2,12 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -32,13 +34,7 @@ func BatchDrands(n int) (*Group, []*Drand) {
 	drands := make([]*Drand, n)
 	var err error
 	for i := range ids {
-		store := &TestStore{
-			Private:    ids[i],
-			Public:     ids[i].Public,
-			Group:      group,
-			Signatures: make(map[int64]*BeaconSignature),
-		}
-
+		store := NewTestStore(ids[i], group, nil)
 		drands[i], err = newDrand(ids[i], group, store)
 		if err != nil {
 			panic(err)
@@ -72,55 +68,94 @@ func CloseAllRouters(routers []*Router) {
 }
 
 type TestStore struct {
-	Private    *Private
-	Public     *Public
-	Group      *Group
-	Share      *Share
-	DistPublic *DistPublic
-	Signatures map[int64]*BeaconSignature
+	*sync.Mutex
+	Private      *Private
+	Public       *Public
+	Group        *Group
+	Share        *Share
+	DistPublic   *DistPublic
+	Signatures   map[int64]*BeaconSignature
+	CbSignatures func(*BeaconSignature)
+}
+
+// cb can be nil
+func NewTestStore(private *Private, g *Group, cb func(*BeaconSignature)) Store {
+	fmt.Println("NewTestSTore for ", private.Public.Address)
+	return &TestStore{
+		Private:      private,
+		Public:       private.Public,
+		Group:        g,
+		Signatures:   make(map[int64]*BeaconSignature),
+		Mutex:        new(sync.Mutex),
+		CbSignatures: cb,
+	}
 }
 
 func (t *TestStore) SaveKey(p *Private) error {
+	t.Lock()
+	defer t.Unlock()
 	t.Private = p
 	return nil
 }
 
 func (t *TestStore) LoadKey() (*Private, error) {
+	t.Lock()
+	defer t.Unlock()
 	return t.Private, nil
 }
 
 func (t *TestStore) LoadGroup() (*Group, error) {
+	t.Lock()
+	defer t.Unlock()
 	return t.Group, nil
 }
 
 func (t *TestStore) SaveShare(s *Share) error {
+	t.Lock()
+	defer t.Unlock()
 	t.Share = s
 	return nil
 }
 
 func (t *TestStore) LoadShare() (*Share, error) {
+	t.Lock()
+	defer t.Unlock()
 	return t.Share, nil
 }
 
 func (t *TestStore) SaveDistPublic(d *DistPublic) error {
+	t.Lock()
+	defer t.Unlock()
 	t.DistPublic = d
 	return nil
 }
 
 func (t *TestStore) LoadDistPublic() (*DistPublic, error) {
+	t.Lock()
+	defer t.Unlock()
 	return t.DistPublic, nil
 }
 
 func (t *TestStore) SaveSignature(b *BeaconSignature) error {
+	t.Lock()
+	defer t.Unlock()
 	t.Signatures[b.Request.Timestamp] = b
+	fmt.Printf("%p: Save Signatures ! callback ? %p\n", t, t.CbSignatures)
+	if t.CbSignatures != nil {
+		t.CbSignatures(b)
+	}
 	return nil
 }
 
 func (t *TestStore) LoadSignature(path string) (*BeaconSignature, error) {
+	t.Lock()
+	defer t.Unlock()
 	return nil, errors.New("not implemented now")
 }
 
 func (t *TestStore) SignatureExists(ts int64) bool {
+	t.Lock()
+	defer t.Unlock()
 	_, ok := t.Signatures[ts]
 	return ok
 }

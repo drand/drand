@@ -27,6 +27,10 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/dedis/kyber"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/dedis/protobuf"
 
 [[constraint]]
@@ -44,7 +48,3 @@
 [[constraint]]
   name = "github.com/urfave/cli"
   version = "1.20.0"
-
-[[constraint]]
-  branch = "v1"
-  name = "gopkg.in/dedis/kyber.v1"

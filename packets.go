@@ -7,8 +7,8 @@ import (
 
 	"github.com/dedis/drand/bls"
 	"github.com/dedis/protobuf"
-	kyber "gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/share/pedersen/dkg"
+	kyber "github.com/dedis/kyber"
+	"github.com/dedis/kyber/share/pedersen/dkg"
 )
 
 // DrandPacket is the global wrapper of all protocol packets

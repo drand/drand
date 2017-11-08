@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"sync"
 	"time"
 
-	kyber "gopkg.in/dedis/kyber.v1"
-	"gopkg.in/dedis/kyber.v1/share"
+	kyber "github.com/dedis/kyber"
+	"github.com/dedis/kyber/share"
 
 	"github.com/dedis/drand/bls"
 	"github.com/nikkolasg/slog"
@@ -159,7 +161,7 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	// 1-
 	msg := sig.Request.Message()
 	if !bls.ThresholdVerify(pairing, b.pub, msg, sig.Signature) {
-		slog.Info("blsBeacon ", b.share.Share.I, "received invalid partial signature from", pub.Address)
+		slog.Infof("%s (idx: %d) received invalid partial signature from %s", b.String(), b.share.Share.I, pub.Address)
 		return
 	}
 
@@ -172,7 +174,7 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	d := digest(msg)
 	for _, s := range b.pendingSigs[d] {
 		if s.Index == sig.Signature.Index {
-			slog.Debug("blsbeacon already received partial signature for same message")
+			slog.Debugf("%s already received partial signature for same message", b.String())
 			return
 		}
 	}
@@ -180,14 +182,14 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 
 	// 3-
 	if len(b.pendingSigs[d]) < b.threshold {
-		slog.Debugf("blsBeacon: not enough partial signature yet %d/%d", len(b.pendingSigs[d]), b.threshold)
+		slog.Debugf("%s not enough partial signature yet %d/%d", b.String(), len(b.pendingSigs[d]), b.threshold)
 		return
 	}
 
-	slog.Debugf("blsBeacon: full signature recovery for sig: %d", sig.Request.Timestamp)
+	slog.Debugf("%s full signature recovery for sig: %d", b.String(), sig.Request.Timestamp)
 	fullSig, err := bls.AggregateSignatures(pairing, b.pub, msg, b.pendingSigs[d], len(b.group.Nodes), b.threshold)
 	if err != nil {
-		slog.Info("blsBeacon: full signature recovery failed for ts %d: %s", sig.Request.Timestamp, err)
+		slog.Info("%s full signature recovery failed for ts %d: %s", b.String(), sig.Request.Timestamp, err)
 		return
 	}
 	// dispatch to the beacon controller
@@ -198,10 +200,11 @@ func (b *Beacon) processBeaconSignature(pub *Public, sig *BeaconReply) {
 	delete(b.pendingSigs, d)
 
 	if b.store.SaveSignature(NewBeaconSignature(sig.Request, fullSig)); err != nil {
-		slog.Infof("blsBeacon: error saving signature: %s", err)
+		slog.Infof("%s error saving signature: %s", b.String(), err)
 		return
 	}
-	slog.Print("blsBeacon: Saved reconstructed signature ", sig.Request.Timestamp)
+	sigStr := sha256.Sum256([]byte(sig.Signature.Sig.String()))
+	slog.Printf("%s Saved reconstructed signature with timestamp %d: %s", b.String(), sig.Request.Timestamp, base64.StdEncoding.EncodeToString(sigStr[:]))
 }
 
 func (b *Beacon) Stop() {
@@ -212,6 +215,10 @@ func (b *Beacon) Stop() {
 	}
 	b.ticker.Stop()
 	slog.Info("root beacon STOP.")
+}
+
+func (b *Beacon) String() string {
+	return fmt.Sprintf("beacon %s:", b.r.addr)
 }
 
 func (b *Beacon) genPartialSignature(oldSig []byte, time int64) *bls.ThresholdSig {
