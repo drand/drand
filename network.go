@@ -348,9 +348,9 @@ func (r *Router) connect(p *Public) (Conn, error) {
 func (r *Router) registerConn(pub *Public, c net.Conn) Conn {
 	r.cond.L.Lock()
 	defer r.cond.L.Unlock()
-	if ci, ok := r.conns[pub.Key.String()]; ok {
+	if _, ok := r.conns[pub.Key.String()]; ok {
 		slog.Debug("router: already connected to ", pub.Address)
-		return ci
+		return Conn{c}
 	}
 	cc := Conn{c}
 	r.conns[pub.Key.String()] = cc
