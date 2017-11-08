@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gopkg.in/dedis/kyber.v1/util/test"
+	"github.com/dedis/kyber/util/test"
 
 	"github.com/stretchr/testify/require"
 )

@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/dedis/drand/pbc"
-	"gopkg.in/dedis/kyber.v1"
+	"github.com/dedis/kyber"
 )
 
 func NewKeyPair(s pbc.PairingSuite, r cipher.Stream) (kyber.Scalar, kyber.Point) {

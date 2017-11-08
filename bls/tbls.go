@@ -5,9 +5,9 @@ import (
 
 	"github.com/dedis/drand/pbc"
 
-	"gopkg.in/dedis/kyber.v1"
+	"github.com/dedis/kyber"
 
-	"gopkg.in/dedis/kyber.v1/share"
+	"github.com/dedis/kyber/share"
 )
 
 type DistKeyShare interface {
@@ -48,6 +48,9 @@ func ThresholdVerify(s pbc.PairingSuite, public *share.PubPoly, msg []byte, sig 
 	return eXHM.Equal(exiG)
 }
 
+// AggregateSignatures takes a list of threshold signatures, verifies them
+// against the message and the given public polynomial. If there are enough
+// valid threshold signatures, the final BLS signature is generated.
 func AggregateSignatures(s pbc.PairingSuite, public *share.PubPoly, msg []byte, sigs []*ThresholdSig, n, t int) ([]byte, error) {
 	pubShares := make([]*share.PubShare, 0, n)
 	for _, sig := range sigs {

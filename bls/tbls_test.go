@@ -3,12 +3,12 @@ package bls
 import (
 	"testing"
 
-	"gopkg.in/dedis/kyber.v1/share"
-	"gopkg.in/dedis/kyber.v1/util/random"
+	"github.com/dedis/kyber/share"
+	"github.com/dedis/kyber/util/random"
 
 	"github.com/dedis/drand/pbc"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/dedis/kyber.v1"
+	"github.com/dedis/kyber"
 )
 
 var pairing = pbc.NewPairingFp254BNb()

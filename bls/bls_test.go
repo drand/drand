@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"gopkg.in/dedis/kyber.v1/util/random"
+	"github.com/dedis/kyber/util/random"
 )
 
 func TestBLSSig(t *testing.T) {
