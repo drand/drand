@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -109,7 +108,6 @@ func (d *Drand) RunDKG() error {
 // For the moment, each resulting signature is stored in a file named
 // beacons/<timestamp>.sig.
 func (d *Drand) RandomBeacon(seed []byte, period time.Duration) {
-	fmt.Printf("drand: test store %p \n", d.store)
 	d.newBeacon().Start(seed, period)
 }
 
