@@ -3,9 +3,9 @@ package share
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/dedis/kyber/group/edwards25519"
 	"github.com/dedis/kyber/util/random"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSecretRecovery(test *testing.T) {

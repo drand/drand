@@ -14,10 +14,10 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "portFixesFromv1"
+  branch = "master"
   name = "github.com/dedis/kyber"
   packages = [".","cipher","cipher/sha3","share","share/pedersen/dkg","share/pedersen/vss","sign/schnorr","util/bytes","util/ints","util/random","util/subtle","util/test"]
-  revision = "800ede687ffea0f2ca1280be7811f08ee5aecdfc"
+  revision = "17d4ad13f455805a4e08fcc797e2a1c762f06112"
 
 [[projects]]
   branch = "master"
@@ -64,6 +64,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1fc60eb84039b6da2867ee9eca6cb5a9adcfad6637c64887b015832bbad3b27f"
+  inputs-digest = "07dc7783ec5ab68c5c7a1d86ffa47aba77eaee245c3312c9bb0760f572c87a48"
   solver-name = "gps-cdcl"
   solver-version = 1
