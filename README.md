@@ -81,11 +81,11 @@ go get github.com/dedis/drand
 
 **NOTE:** If you run drand in Docker, always use the following template
 ```
-docker run \ 
-    --rm \ 
+docker run \
+    --rm \
     --name drand \
-    --port <port>:<port> \ 
-    --volume $HOME/.drand/:/root/.drand/ \ 
+    -p <port>:<port> \
+    --volume $HOME/.drand/:/root/.drand/ \
     dedis/drand <command>
 ```
 where `<port>` specifies the port through which your drand daemon is reachable
