@@ -62,11 +62,7 @@ and the collective public key in `$HOME/.drand/`.
 
 ### Via Docker
 
-1. Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/). 
-2. Pull the latest [drand image](https://hub.docker.com/r/dedis/drand/) from Docker Hub: 
-```
-docker pull dedis/drand
-```
+Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/). 
 
 ### Via Golang
 
@@ -91,6 +87,15 @@ docker run \
 where `<port>` specifies the port through which your drand daemon is reachable
 and `<command>` has to be substituted by one of the respective drand
 commands below.
+
+**ISSUE with Docker**: We currently have an [issue](https://github.com/dfinity/bn/issues/12) with running drand on docker natively on some platforms. If running drand this way does not work as such, you might want to compile the docker image yourself. For this, make sure you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set. To have a working drand container, execute the following steps:
+
+```
+go get github.com/dedis/drand
+cd $GOPATH/src/github.com/dedis/drand
+docker build -t dedis/drand .
+```
+The docker drand image should now be functional on your platform. You are encouraged to fill up an issue if you encounter any problems with the installation process, and we'll do our best to help you fix it.
 
 ### Setup
 
