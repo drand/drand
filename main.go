@@ -109,7 +109,6 @@ func main() {
 			Usage: "Run the DKG protocol",
 			Flags: toArray(privFlag, groupFlag, shareFlag, leaderFlag),
 			Action: func(c *cli.Context) error {
-				banner()
 				return dkgCmd(c, getDrand(c))
 			},
 		},
@@ -119,7 +118,6 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
-				banner()
 				return beaconCmd(c, getDrand(c))
 			},
 		},
@@ -129,7 +127,6 @@ func main() {
 			Flags: toArray(privFlag, groupFlag, shareFlag, sigFlag,
 				leaderFlag, periodFlag, seedFlag),
 			Action: func(c *cli.Context) error {
-				banner()
 				fmt.Println(c.String(distKeyFlagName))
 				return runCmd(c)
 			},
@@ -140,13 +137,13 @@ func main() {
 			ArgsUsage: "<sig1 sig2 .. sigN> are the (beacon) signatures to verify",
 			Flags:     toArray(distKeyFlag),
 			Action: func(c *cli.Context) error {
-				banner()
 				return verifyCmd(c)
 			},
 		},
 	}
 	app.Flags = toArray(verboseFlag)
 	app.Before = func(c *cli.Context) error {
+		banner()
 		if c.GlobalIsSet("debug") {
 			slog.Level = slog.LevelDebug
 		}
@@ -237,9 +234,8 @@ func groupCmd(c *cli.Context) error {
 func dkgCmd(c *cli.Context, drand *Drand) error {
 	if c.Bool("leader") {
 		return drand.StartDKG()
-	} else {
-		return drand.RunDKG()
 	}
+	return drand.RunDKG()
 }
 
 func beaconCmd(c *cli.Context, drand *Drand) error {
