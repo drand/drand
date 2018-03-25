@@ -1,4 +1,4 @@
-package main
+package keys
 
 import (
 	"strconv"
@@ -21,7 +21,7 @@ func BatchIdentities(n int) ([]*Private, *Group) {
 	startPort := 8000
 	startAddr := "127.0.0.1:"
 	privs := make([]*Private, n)
-	pubs := make([]*Public, n)
+	pubs := make([]*Identity, n)
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port

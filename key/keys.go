@@ -1,4 +1,4 @@
-package main
+package keys
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"github.com/dedis/kyber/util/random"
 )
 
-var pairing = bn256.NewSuiteBN256()
+var pairing = bn256.NewSuite()
 var g1 = pairing.G1()
 var g2 = pairing.G2()
 
@@ -23,13 +23,13 @@ var g2 = pairing.G2()
 // key in G2
 type Private struct {
 	Key    kyber.Scalar
-	Public *Public
+	Public *Identity
 }
 
-// Public holds the corresponding public key of a Private. It also includes a
+// Identity holds the corresponding public key of a Private. It also includes a
 // valid internet facing ipv4 address where to this reach the node holding the
 // public / private key pair.
-type Public struct {
+type Identity struct {
 	Key     kyber.Point
 	Address string
 }
@@ -38,7 +38,7 @@ type Public struct {
 func NewKeyPair(address string) *Private {
 	key := g2.Scalar().Pick(random.New())
 	pubKey := g2.Point().Mul(key, nil)
-	pub := &Public{
+	pub := &Identity{
 		Key:     pubKey,
 		Address: address,
 	}
@@ -80,7 +80,7 @@ func (p *Private) FromTOML(i interface{}) error {
 	if err := p.Key.UnmarshalBinary(buff); err != nil {
 		return err
 	}
-	p.Public = new(Public)
+	p.Public = new(Identity)
 	return nil
 }
 
@@ -90,12 +90,12 @@ func (p *Private) TOMLValue() interface{} {
 }
 
 // Equal returns true if the cryptographic public key of p equals p2's
-func (p *Public) Equal(p2 *Public) bool {
+func (p *Identity) Equal(p2 *Identity) bool {
 	return p.Key.Equal(p2.Key)
 }
 
 // FromTOML loads reads the TOML description of the public key
-func (p *Public) FromTOML(i interface{}) error {
+func (p *Identity) FromTOML(i interface{}) error {
 	ptoml, ok := i.(*PublicTOML)
 	if !ok {
 		return errors.New("Public can't decode from non PublicTOML struct")
@@ -110,18 +110,18 @@ func (p *Public) FromTOML(i interface{}) error {
 }
 
 // TOML returns a empty TOML-compatible version of the public key
-func (p *Public) TOML() interface{} {
+func (p *Identity) TOML() interface{} {
 	hex := pointToString(p.Key)
 	return &PublicTOML{p.Address, hex}
 }
 
 // TOMLValue returns a TOML-compatible interface value
-func (p *Public) TOMLValue() interface{} {
+func (p *Identity) TOMLValue() interface{} {
 	return &PublicTOML{}
 }
 
 // ByKey is simply an interface to sort lexig
-type ByKey []*Public
+type ByKey []*Identity
 
 func (b ByKey) Len() int {
 	return len(b)
@@ -146,12 +146,12 @@ type Group struct {
 
 // IndexedPublic wraps a Public with its index relative to the group
 type IndexedPublic struct {
-	*Public
+	*Identity
 	Index int
 }
 
 // Contains returns true if the public key is contained in the list or not.
-func (g *Group) Contains(pub *Public) bool {
+func (g *Group) Contains(pub *Identity) bool {
 	for _, pu := range g.Nodes {
 		if pu.Equal(pub) {
 			return true
@@ -162,7 +162,7 @@ func (g *Group) Contains(pub *Public) bool {
 
 // Index returns the index of the given public key with a boolean indicating
 // whether the public has been found or not.
-func (g *Group) Index(pub *Public) (int, bool) {
+func (g *Group) Index(pub *Identity) (int, bool) {
 	for _, pu := range g.Nodes {
 		if pu.Equal(pub) {
 			return pu.Index, true
@@ -173,11 +173,11 @@ func (g *Group) Index(pub *Public) (int, bool) {
 
 // Public returns the public associated to that index
 // or panic otherwise. XXX Change that to return error
-func (g *Group) Public(i int) *Public {
+func (g *Group) Public(i int) *Identity {
 	if i >= g.Len() {
 		panic("out of bounds access for Group")
 	}
-	return g.Nodes[i].Public
+	return g.Nodes[i].Identity
 }
 
 // Points returns itself under the form of a list of kyber.Point
@@ -207,9 +207,9 @@ func (g *Group) FromTOML(i interface{}) error {
 		return fmt.Errorf("grouptoml unknown")
 	}
 	g.Threshold = gt.T
-	list := make([]*Public, len(gt.Nodes))
+	list := make([]*Identity, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
-		list[i] = new(Public)
+		list[i] = new(Identity)
 		if err := list[i].FromTOML(ptoml); err != nil {
 			return err
 		}
@@ -241,13 +241,13 @@ func (g *Group) TOMLValue() interface{} {
 
 // returns an indexed list from a list of public keys. Functionality needed in
 // tests where one does not necessary load a group from a file.
-func toIndexedList(list []*Public) []*IndexedPublic {
+func toIndexedList(list []*Identity) []*IndexedPublic {
 	sort.Sort(ByKey(list))
 	ilist := make([]*IndexedPublic, len(list))
 	for i, p := range list {
 		ilist[i] = &IndexedPublic{
-			Public: p,
-			Index:  i,
+			Identity: p,
+			Index:    i,
 		}
 	}
 	return ilist
