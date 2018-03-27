@@ -3,16 +3,18 @@
  */
 syntax = "proto3";
 
-import "crypto/crypto.proto";
+import "crypto/element.proto";
 import "crypto/share/share.proto";
 
 package vss;
+
+option go_package = "github.com/dedis/drand/protobuf/crypto/share/vss";
 
 // EncryptedDeal holds a share encrypted towards the share holder's longterm
 // public key..
 message EncryptedDeal {
     // ephemereal diffie hellman key
-    crypto.Point dhkey = 1;
+    element.Point dhkey = 1;
     // schnorr signature over the dhkey by the longterm key of the dealer
     bytes signature = 2;
     // nonce used in the generation of the ephemereal key
@@ -35,7 +37,7 @@ message Deal {
     // threshold of the secret sharing protocol run
     uint32 threshold = 3;
     // commitments of the polynomial used to derive the share
-    repeated crypto.Point commitments = 4;
+    repeated element.Point commitments = 4;
 }
 
 /*

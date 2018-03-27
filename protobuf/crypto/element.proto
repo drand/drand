@@ -3,15 +3,17 @@
  * primitives such as Point and Scalar
  */
 
- syntax = "proto3";
+syntax = "proto3";
 
- package crypto;
+package element;
+
+option go_package = "github.com/dedis/drand/protobuf/crypto";
 
 /*
  * GroupID is an enumeration holding all possible groups that can be marshalled
  * / unmarshalled, supported by the kyber library 
  */
- enum GroupID {
+enum GroupID {
     EDWARDS25519 = 0;
     BN256_G1 = 11;
     BN256_G2 = 12;

@@ -4,9 +4,10 @@
  */ 
 syntax = "proto3";
 
-import "crypto/share/dkg/dkg.proto";
-
 package beacon;
+
+option go_package = "github.com/dedis/drand/protobuf/beacon";
+import "crypto/share/dkg/dkg.proto";
 
 // BeaconAPI holds the relevant calls to create a distributed key with the
 // participants and to create new publicly verifiable randomness.

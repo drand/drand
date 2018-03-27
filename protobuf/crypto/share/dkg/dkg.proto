@@ -9,6 +9,8 @@ import "crypto/share/vss/vss.proto";
 
 package dkg;
 
+option go_package = "github.com/dedis/drand/protobuf/crypto/share/dkg";
+
 // Deal contains a share for a participant.
 message Deal {
     // index of the dealer, the issuer of the share
