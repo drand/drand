@@ -1,0 +1,71 @@
+/* 
+ * This protobuf files contains the definition of the VSS structures.
+ */
+syntax = "proto3";
+
+import "crypto/crypto.proto";
+import "crypto/share/share.proto";
+
+package vss;
+
+// EncryptedDeal holds a share encrypted towards the share holder's longterm
+// public key..
+message EncryptedDeal {
+    // ephemereal diffie hellman key
+    crypto.Point dhkey = 1;
+    // schnorr signature over the dhkey by the longterm key of the dealer
+    bytes signature = 2;
+    // nonce used in the generation of the ephemereal key
+    bytes nonce = 3;
+    // ciphertext of the deal marshalled by protobuf2. TODO: marshal in a
+    // more explicit and easier way.
+    bytes ciphertext = 4;
+}
+
+/* 
+ * Deal holds the share created by a dealer for a round of a vss or dkg protocol
+ * It is always meant to be encrypted when on transit because it contains
+ * private information (the share).
+ */
+message Deal {
+    // session id of the current protocol run
+    bytes session_id = 1;
+    // private share of the deal
+    share.PrivateShare share = 2;
+    // threshold of the secret sharing protocol run
+    uint32 threshold = 3;
+    // commitments of the polynomial used to derive the share
+    repeated crypto.Point commitments = 4;
+}
+
+/*
+ * Response is the response of a participant after having received an encrypted
+ * deal. It is meant to be broadcasted to every participants.
+ */
+message Response {
+    // session id of the 
+    bytes session_id = 1;
+    // index of the verifier issuing the response
+    uint32 index = 2;
+    // status of the response. false = complaint, true = approval
+    bool status = 3;
+    // signature over the packet using the longterm's key of the participant at
+    // the given index
+    bytes signature = 4;
+}
+
+/*
+ * Justification enables a dealer to justify that it did not cheat in case some
+ * nodes complain about their received deal. It is NOT YET in production use
+ * though.
+ */
+message Justification {
+    // session id of the current run
+    bytes session_id = 1;
+    // index of the issuer of this justification    
+    uint32 index = 2;
+    // plaintext deal that the complaint response points to
+    Deal deal = 3;
+    // signature over the whole packet
+    bytes signature = 4;
+}

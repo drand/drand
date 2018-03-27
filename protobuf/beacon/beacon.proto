@@ -1,0 +1,45 @@
+/*
+ * This protobuf file contains the definitions of all the calls and messages
+ * used by drand nodes themselves to create the distributed randomness beacon.
+ */ 
+syntax = "proto3";
+
+import "crypto/share/dkg/dkg.proto";
+
+package beacon;
+
+// BeaconAPI holds the relevant calls to create a distributed key with the
+// participants and to create new publicly verifiable randomness.
+service BeaconAPI {
+
+   rpc SetupDKG(DKGPacket) returns (DKGResponse);
+
+   rpc NewBeacon(BeaconPacket) returns (BeaconResponse);
+
+}
+
+// DKGPacket is used by the nodes to run the dkg protocol before being able to
+// generate randomness beacons.
+message DKGPacket {    
+    oneof packet {
+        dkg.Deal deal = 1;
+        dkg.Response response = 2;
+        dkg.Justification justification = 3;
+    }
+}
+
+message DKGResponse {
+}
+
+// BeaconPacket  holds a link to a previous signature, a timestamp and the
+// partial signature for this beacon. All participants send and collects many of
+// theses partial beacon packets to recreate locally one beacon
+message BeaconPacket {
+    bytes previous_sig = 1;
+    uint64 timestamp = 2;
+    bytes partial_sig = 3;
+}
+
+message BeaconResponse {
+
+}

@@ -1,0 +1,36 @@
+/*
+ * This protobuf files contains the definitions of the messages transmitted
+ * during a DKG setup, using the Pedersen DKG from kyber/share/dkg/pedersen.
+ */
+
+syntax = "proto3";
+
+import "crypto/share/vss/vss.proto";
+
+package dkg;
+
+// Deal contains a share for a participant.
+message Deal {
+    // index of the dealer, the issuer of the share
+    uint32 index = 1;
+    // encrypted version of the deal
+    vss.EncryptedDeal deal = 2;
+}
+
+// Response holds the response that a participant broadcast after having
+// received a deal.
+message Response {
+    // index of the dealer for which this response is for
+    uint32 index = 1;
+    // response from the participant which received a deal
+    vss.Response response = 2;
+}
+
+// Justification holds the justification from a dealer after a participant
+// issued a complaint response because of a supposedly invalid deal.
+message Justification {
+    // index of the dealer who is issuing this justification
+    uint32 index = 1;
+    // justification from the dealer
+    vss.Justification justification = 2;
+}

@@ -1,0 +1,31 @@
+/*
+ * This protobuf file contains the definition of the public API endpoints as
+ * well as messages. All client implementations should use this reference
+ * protobuf to implement a compatible drand client.
+ */
+syntax = "proto3";
+
+package public;
+
+service RandomnessService {
+    rpc GetPublicRandomness(PublicRandRequest) returns (PublicRandResponse) {}
+}
+
+
+// PublicRandRequest requests a public random value that has been generated in a
+// unbiasable way and verifiable.
+message PublicRandRequest {
+    // timestamp identifies the requested randomness. If it is equals to 0, the
+    // response should return the latest public randomness avaiable.
+    uint64 timestamp = 1;
+}
+
+// PublicRandResponse holds a signature which is the random value. It can be
+// verified thanks to the distributed public key of the nodes that have ran the
+// DKG protocol and is unbiasable. The message to the signature verification
+// routine is "previous_sig  || timestamp".
+message PublicRandResponse {
+    bytes previous_sig = 1;
+    uint64 timestamp = 2;
+    bytes signature = 3;
+}
