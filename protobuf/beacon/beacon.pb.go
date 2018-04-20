@@ -8,8 +8,6 @@ It is generated from these files:
 	beacon/beacon.proto
 
 It has these top-level messages:
-	DKGPacket
-	DKGResponse
 	BeaconPacket
 	BeaconResponse
 */
@@ -18,7 +16,6 @@ package beacon
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import dkg "github.com/dedis/drand/protobuf/crypto/share/dkg"
 
 import (
 	context "golang.org/x/net/context"
@@ -36,168 +33,6 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-// DKGPacket is used by the nodes to run the dkg protocol before being able to
-// generate randomness beacons.
-type DKGPacket struct {
-	// Types that are valid to be assigned to Packet:
-	//	*DKGPacket_Deal
-	//	*DKGPacket_Response
-	//	*DKGPacket_Justification
-	Packet isDKGPacket_Packet `protobuf_oneof:"packet"`
-}
-
-func (m *DKGPacket) Reset()                    { *m = DKGPacket{} }
-func (m *DKGPacket) String() string            { return proto.CompactTextString(m) }
-func (*DKGPacket) ProtoMessage()               {}
-func (*DKGPacket) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
-
-type isDKGPacket_Packet interface {
-	isDKGPacket_Packet()
-}
-
-type DKGPacket_Deal struct {
-	Deal *dkg.Deal `protobuf:"bytes,1,opt,name=deal,oneof"`
-}
-type DKGPacket_Response struct {
-	Response *dkg.Response `protobuf:"bytes,2,opt,name=response,oneof"`
-}
-type DKGPacket_Justification struct {
-	Justification *dkg.Justification `protobuf:"bytes,3,opt,name=justification,oneof"`
-}
-
-func (*DKGPacket_Deal) isDKGPacket_Packet()          {}
-func (*DKGPacket_Response) isDKGPacket_Packet()      {}
-func (*DKGPacket_Justification) isDKGPacket_Packet() {}
-
-func (m *DKGPacket) GetPacket() isDKGPacket_Packet {
-	if m != nil {
-		return m.Packet
-	}
-	return nil
-}
-
-func (m *DKGPacket) GetDeal() *dkg.Deal {
-	if x, ok := m.GetPacket().(*DKGPacket_Deal); ok {
-		return x.Deal
-	}
-	return nil
-}
-
-func (m *DKGPacket) GetResponse() *dkg.Response {
-	if x, ok := m.GetPacket().(*DKGPacket_Response); ok {
-		return x.Response
-	}
-	return nil
-}
-
-func (m *DKGPacket) GetJustification() *dkg.Justification {
-	if x, ok := m.GetPacket().(*DKGPacket_Justification); ok {
-		return x.Justification
-	}
-	return nil
-}
-
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*DKGPacket) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _DKGPacket_OneofMarshaler, _DKGPacket_OneofUnmarshaler, _DKGPacket_OneofSizer, []interface{}{
-		(*DKGPacket_Deal)(nil),
-		(*DKGPacket_Response)(nil),
-		(*DKGPacket_Justification)(nil),
-	}
-}
-
-func _DKGPacket_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*DKGPacket)
-	// packet
-	switch x := m.Packet.(type) {
-	case *DKGPacket_Deal:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Deal); err != nil {
-			return err
-		}
-	case *DKGPacket_Response:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Response); err != nil {
-			return err
-		}
-	case *DKGPacket_Justification:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.Justification); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("DKGPacket.Packet has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _DKGPacket_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*DKGPacket)
-	switch tag {
-	case 1: // packet.deal
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(dkg.Deal)
-		err := b.DecodeMessage(msg)
-		m.Packet = &DKGPacket_Deal{msg}
-		return true, err
-	case 2: // packet.response
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(dkg.Response)
-		err := b.DecodeMessage(msg)
-		m.Packet = &DKGPacket_Response{msg}
-		return true, err
-	case 3: // packet.justification
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(dkg.Justification)
-		err := b.DecodeMessage(msg)
-		m.Packet = &DKGPacket_Justification{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _DKGPacket_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*DKGPacket)
-	// packet
-	switch x := m.Packet.(type) {
-	case *DKGPacket_Deal:
-		s := proto.Size(x.Deal)
-		n += proto.SizeVarint(1<<3 | proto.WireBytes)
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *DKGPacket_Response:
-		s := proto.Size(x.Response)
-		n += proto.SizeVarint(2<<3 | proto.WireBytes)
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *DKGPacket_Justification:
-		s := proto.Size(x.Justification)
-		n += proto.SizeVarint(3<<3 | proto.WireBytes)
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
-}
-
-type DKGResponse struct {
-}
-
-func (m *DKGResponse) Reset()                    { *m = DKGResponse{} }
-func (m *DKGResponse) String() string            { return proto.CompactTextString(m) }
-func (*DKGResponse) ProtoMessage()               {}
-func (*DKGResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
-
 // BeaconPacket  holds a link to a previous signature, a timestamp and the
 // partial signature for this beacon. All participants send and collects many of
 // theses partial beacon packets to recreate locally one beacon
@@ -210,7 +45,7 @@ type BeaconPacket struct {
 func (m *BeaconPacket) Reset()                    { *m = BeaconPacket{} }
 func (m *BeaconPacket) String() string            { return proto.CompactTextString(m) }
 func (*BeaconPacket) ProtoMessage()               {}
-func (*BeaconPacket) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*BeaconPacket) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
 func (m *BeaconPacket) GetPreviousSig() []byte {
 	if m != nil {
@@ -239,11 +74,9 @@ type BeaconResponse struct {
 func (m *BeaconResponse) Reset()                    { *m = BeaconResponse{} }
 func (m *BeaconResponse) String() string            { return proto.CompactTextString(m) }
 func (*BeaconResponse) ProtoMessage()               {}
-func (*BeaconResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*BeaconResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func init() {
-	proto.RegisterType((*DKGPacket)(nil), "beacon.DKGPacket")
-	proto.RegisterType((*DKGResponse)(nil), "beacon.DKGResponse")
 	proto.RegisterType((*BeaconPacket)(nil), "beacon.BeaconPacket")
 	proto.RegisterType((*BeaconResponse)(nil), "beacon.BeaconResponse")
 }
@@ -256,97 +89,64 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// Client API for BeaconAPI service
+// Client API for Beacon service
 
-type BeaconAPIClient interface {
-	SetupDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*DKGResponse, error)
+type BeaconClient interface {
 	NewBeacon(ctx context.Context, in *BeaconPacket, opts ...grpc.CallOption) (*BeaconResponse, error)
 }
 
-type beaconAPIClient struct {
+type beaconClient struct {
 	cc *grpc.ClientConn
 }
 
-func NewBeaconAPIClient(cc *grpc.ClientConn) BeaconAPIClient {
-	return &beaconAPIClient{cc}
+func NewBeaconClient(cc *grpc.ClientConn) BeaconClient {
+	return &beaconClient{cc}
 }
 
-func (c *beaconAPIClient) SetupDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*DKGResponse, error) {
-	out := new(DKGResponse)
-	err := grpc.Invoke(ctx, "/beacon.BeaconAPI/SetupDKG", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *beaconAPIClient) NewBeacon(ctx context.Context, in *BeaconPacket, opts ...grpc.CallOption) (*BeaconResponse, error) {
+func (c *beaconClient) NewBeacon(ctx context.Context, in *BeaconPacket, opts ...grpc.CallOption) (*BeaconResponse, error) {
 	out := new(BeaconResponse)
-	err := grpc.Invoke(ctx, "/beacon.BeaconAPI/NewBeacon", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/beacon.Beacon/NewBeacon", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// Server API for BeaconAPI service
+// Server API for Beacon service
 
-type BeaconAPIServer interface {
-	SetupDKG(context.Context, *DKGPacket) (*DKGResponse, error)
+type BeaconServer interface {
 	NewBeacon(context.Context, *BeaconPacket) (*BeaconResponse, error)
 }
 
-func RegisterBeaconAPIServer(s *grpc.Server, srv BeaconAPIServer) {
-	s.RegisterService(&_BeaconAPI_serviceDesc, srv)
+func RegisterBeaconServer(s *grpc.Server, srv BeaconServer) {
+	s.RegisterService(&_Beacon_serviceDesc, srv)
 }
 
-func _BeaconAPI_SetupDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DKGPacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BeaconAPIServer).SetupDKG(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/beacon.BeaconAPI/SetupDKG",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BeaconAPIServer).SetupDKG(ctx, req.(*DKGPacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BeaconAPI_NewBeacon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Beacon_NewBeacon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BeaconPacket)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BeaconAPIServer).NewBeacon(ctx, in)
+		return srv.(BeaconServer).NewBeacon(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/beacon.BeaconAPI/NewBeacon",
+		FullMethod: "/beacon.Beacon/NewBeacon",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BeaconAPIServer).NewBeacon(ctx, req.(*BeaconPacket))
+		return srv.(BeaconServer).NewBeacon(ctx, req.(*BeaconPacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _BeaconAPI_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "beacon.BeaconAPI",
-	HandlerType: (*BeaconAPIServer)(nil),
+var _Beacon_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "beacon.Beacon",
+	HandlerType: (*BeaconServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SetupDKG",
-			Handler:    _BeaconAPI_SetupDKG_Handler,
-		},
-		{
 			MethodName: "NewBeacon",
-			Handler:    _BeaconAPI_NewBeacon_Handler,
+			Handler:    _Beacon_NewBeacon_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -356,27 +156,19 @@ var _BeaconAPI_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("beacon/beacon.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 344 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x92, 0x41, 0x4b, 0xc3, 0x40,
-	0x10, 0x85, 0x5b, 0x5b, 0x4a, 0x33, 0x69, 0x45, 0xb7, 0x22, 0x25, 0x08, 0xd5, 0x1c, 0xa4, 0x20,
-	0x24, 0x50, 0x4f, 0x7a, 0xb3, 0x04, 0x5a, 0x2d, 0x48, 0x49, 0x6f, 0x5e, 0x64, 0x93, 0x6c, 0xd3,
-	0xb5, 0x6d, 0x76, 0xd9, 0xdd, 0x28, 0xfa, 0x67, 0xfc, 0xab, 0xd2, 0x49, 0x52, 0xdb, 0x43, 0x08,
-	0xf9, 0xf6, 0xbd, 0x99, 0x37, 0x99, 0x85, 0x5e, 0xc4, 0x68, 0x2c, 0x32, 0xbf, 0x78, 0x79, 0x52,
-	0x09, 0x23, 0x48, 0xab, 0xf8, 0x72, 0x9c, 0x58, 0x7d, 0x4b, 0x23, 0x7c, 0xbd, 0xa2, 0x8a, 0xf9,
-	0xc9, 0x3a, 0xdd, 0x3d, 0x85, 0xc6, 0xfd, 0xad, 0x83, 0x15, 0xcc, 0x26, 0x73, 0x1a, 0xaf, 0x99,
-	0x21, 0x03, 0x68, 0x26, 0x8c, 0x6e, 0xfa, 0xf5, 0xeb, 0xfa, 0xd0, 0x1e, 0x59, 0xde, 0x4e, 0x17,
-	0x30, 0xba, 0x99, 0xd6, 0x42, 0x3c, 0x20, 0x77, 0xd0, 0x56, 0x4c, 0x4b, 0x91, 0x69, 0xd6, 0x3f,
-	0x41, 0x51, 0x17, 0x45, 0x61, 0x09, 0xa7, 0xb5, 0x70, 0x2f, 0x20, 0x8f, 0xd0, 0xfd, 0xc8, 0xb5,
-	0xe1, 0x4b, 0x1e, 0x53, 0xc3, 0x45, 0xd6, 0x6f, 0xa0, 0x83, 0xa0, 0xe3, 0xe5, 0xf0, 0x64, 0x5a,
-	0x0b, 0x8f, 0xa5, 0xe3, 0x36, 0xb4, 0x24, 0x66, 0x72, 0xbb, 0x60, 0x07, 0xb3, 0x49, 0xd5, 0xc0,
-	0x95, 0xd0, 0x19, 0xe3, 0x58, 0x65, 0xe4, 0x1b, 0xe8, 0x48, 0xc5, 0x3e, 0xb9, 0xc8, 0xf5, 0xbb,
-	0xe6, 0x29, 0x46, 0xef, 0x84, 0x76, 0xc5, 0x16, 0x3c, 0x25, 0x57, 0x60, 0x19, 0xbe, 0x65, 0xda,
-	0xd0, 0xad, 0xc4, 0xd4, 0xcd, 0xf0, 0x1f, 0x90, 0x01, 0xd8, 0x92, 0x2a, 0xc3, 0xe9, 0x06, 0xfd,
-	0x0d, 0xf4, 0x43, 0x89, 0x16, 0x3c, 0x75, 0xcf, 0xe0, 0xb4, 0xe8, 0x58, 0x65, 0x18, 0xfd, 0x80,
-	0x55, 0x90, 0xa7, 0xf9, 0x33, 0x19, 0x41, 0x7b, 0xc1, 0x4c, 0x2e, 0x83, 0xd9, 0x84, 0x9c, 0x7b,
-	0xe5, 0x02, 0xf6, 0xbf, 0xd4, 0xe9, 0x1d, 0xa0, 0xaa, 0x00, 0x79, 0x00, 0xeb, 0x95, 0x7d, 0x15,
-	0x35, 0xc8, 0x45, 0xa5, 0x38, 0x9c, 0xcb, 0xb9, 0x3c, 0xa6, 0x95, 0x75, 0x3c, 0x7c, 0xbb, 0x4d,
-	0xb9, 0x59, 0xe5, 0x91, 0x17, 0x8b, 0xad, 0x9f, 0xb0, 0x84, 0x6b, 0x3f, 0x51, 0x34, 0x4b, 0x7c,
-	0x5c, 0x68, 0x94, 0x2f, 0xcb, 0x4b, 0x10, 0xb5, 0x10, 0xdc, 0xff, 0x05, 0x00, 0x00, 0xff, 0xff,
-	0x9a, 0x4f, 0x68, 0x37, 0x1c, 0x02, 0x00, 0x00,
+	// 211 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x54, 0x90, 0x41, 0x4b, 0xc4, 0x30,
+	0x10, 0x85, 0xa9, 0x4a, 0x61, 0x67, 0x8b, 0x48, 0x14, 0x59, 0x44, 0x70, 0xed, 0x41, 0x7a, 0x6a,
+	0x40, 0x4f, 0x5e, 0xeb, 0x5d, 0xa4, 0xbd, 0x79, 0x91, 0xa4, 0x19, 0xe3, 0xa0, 0x6d, 0x42, 0x92,
+	0xea, 0xdf, 0x17, 0x92, 0x14, 0xdd, 0xd3, 0xcc, 0xfb, 0xe0, 0xcd, 0xbc, 0x19, 0x38, 0x97, 0x28,
+	0x46, 0x33, 0xf3, 0x54, 0x5a, 0xeb, 0x4c, 0x30, 0xac, 0x4c, 0xaa, 0xb6, 0x50, 0x75, 0xb1, 0x7b,
+	0x11, 0xe3, 0x27, 0x06, 0x76, 0x0b, 0x95, 0x75, 0xf8, 0x4d, 0x66, 0xf1, 0x6f, 0x9e, 0xf4, 0xae,
+	0xd8, 0x17, 0x4d, 0xd5, 0x6f, 0x57, 0x36, 0x90, 0x66, 0xd7, 0xb0, 0x09, 0x34, 0xa1, 0x0f, 0x62,
+	0xb2, 0xbb, 0xa3, 0x7d, 0xd1, 0x9c, 0xf4, 0x7f, 0x80, 0xdd, 0xc0, 0xd6, 0x0a, 0x17, 0x48, 0x7c,
+	0x45, 0xff, 0x71, 0xf4, 0x43, 0x46, 0x03, 0xe9, 0xfa, 0x0c, 0x4e, 0xd3, 0xc6, 0x1e, 0xbd, 0x35,
+	0xb3, 0xc7, 0xfb, 0x27, 0x28, 0x13, 0x61, 0x8f, 0xb0, 0x79, 0xc6, 0x9f, 0x2c, 0x2e, 0xda, 0x9c,
+	0xf8, 0x7f, 0xc0, 0xab, 0xcb, 0x43, 0xba, 0x0e, 0xe9, 0x9a, 0xd7, 0x3b, 0x4d, 0xe1, 0x63, 0x91,
+	0xed, 0x68, 0x26, 0xae, 0x50, 0x91, 0xe7, 0xca, 0x89, 0x59, 0xf1, 0x78, 0xb0, 0x5c, 0xde, 0xf3,
+	0x03, 0x64, 0x19, 0xc1, 0xc3, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x9a, 0x6c, 0xf8, 0x0a, 0x18,
+	0x01, 0x00, 0x00,
 }

@@ -5,10 +5,12 @@
  */
 syntax = "proto3";
 
-package public;
+package external;
 
-service RandomnessService {
-    rpc GetPublicRandomness(PublicRandRequest) returns (PublicRandResponse) {}
+option go_package = "github.com/dedis/drand/protobuf/external";
+
+service Randomness {
+    rpc Public(PublicRandRequest) returns (PublicRandResponse) {}
 }
 
 

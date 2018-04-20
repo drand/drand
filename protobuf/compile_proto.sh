@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# fail automatically as soon as an error is detected
+set -e
+
 curr=$(pwd)
 echo "Compilation of protobufs definitions to go files"
 echo
