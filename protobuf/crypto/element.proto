@@ -14,10 +14,10 @@ option go_package = "github.com/dedis/drand/protobuf/crypto";
  * / unmarshalled, supported by the kyber library 
  */
 enum GroupID {
-    EDWARDS25519 = 0;
-    BN256_G1 = 11;
-    BN256_G2 = 12;
-    BN256_GT = 13;
+    Ed25519 = 0;
+    BN256_G1 = 21;
+    BN256_G2 = 22;
+    BN256_GT = 23;
  }
 
 /*
