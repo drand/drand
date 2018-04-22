@@ -42,31 +42,45 @@ type Peer interface {
 // Gateway is the main interface to communicate to the external world. It
 // acts as a listener to receive incoming requests and acts a client connecting
 // to external particpants.
-// The gateway fixes all functionalities offered by drand at a point in time.
+// The gateway fixes all external functionalities offered by drand.
 type Gateway struct {
 	Listener
 	Client
 }
 
-// Service represents all the functionalities that a drand daemon must fullfill
-// to participate
+// Service holds all functionalities that a drand node should implement
 type Service interface {
 	external.RandomnessServer
 	beacon.BeaconServer
 	dkg.DkgServer
 }
 
-// Client represents all methods that are callable to drand nodes
+// Client represents all methods that are callable on drand nodes
 type Client interface {
 	Public(p Peer, in *external.PublicRandRequest) (*external.PublicRandResponse, error)
 	Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error)
 	NewBeacon(p Peer, in *beacon.BeaconPacket) (*beacon.BeaconResponse, error)
 }
 
-// grpcClient implements the Client functionalities using grpc connections
+// Listener is the active listener for incoming requests.
+type Listener interface {
+	Start()
+	Stop()
+	RegisterDrandService(Service)
+}
+
+// grpcClient implements the Client functionalities using gRPC as its underlying
+// mechanism
 type grpcClient struct {
 	sync.Mutex
 	conns map[string]*grpc.ClientConn
+}
+
+// NewGrpcClient returns a Client using gRPC connections
+func NewGrpcClient(opts ...grpc.DialOption) Client {
+	return &grpcClient{
+		conns: make(map[string]*grpc.ClientConn),
+	}
 }
 
 func (g *grpcClient) Public(p Peer, in *external.PublicRandRequest) (*external.PublicRandResponse, error) {
@@ -75,7 +89,7 @@ func (g *grpcClient) Public(p Peer, in *external.PublicRandRequest) (*external.P
 		return nil, err
 	}
 	client := external.NewRandomnessClient(c)
-	return client.Public(context.Background(), in, nil)
+	return client.Public(context.Background(), in)
 }
 
 func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
@@ -84,7 +98,7 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 		return nil, err
 	}
 	client := dkg.NewDkgClient(c)
-	return client.Setup(context.Background(), in, nil)
+	return client.Setup(context.Background(), in)
 }
 
 func (g *grpcClient) NewBeacon(p Peer, in *beacon.BeaconPacket) (*beacon.BeaconResponse, error) {
@@ -93,9 +107,10 @@ func (g *grpcClient) NewBeacon(p Peer, in *beacon.BeaconPacket) (*beacon.BeaconR
 		return nil, err
 	}
 	client := beacon.NewBeaconClient(c)
-	return client.NewBeacon(context.Background(), in, nil)
+	return client.NewBeacon(context.Background(), in)
 }
 
+// conn retrieve an already existing conn to the given peer or create a new one
 func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	g.Lock()
 	defer g.Unlock()
@@ -112,25 +127,26 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	return c, err
 }
 
-type Listener interface {
-	Start()
-	Stop()
-	RegisterDrandService(Service)
-}
-
+// grpcListener implements Listener using gRPC connections
 type grpcListener struct {
 	service Service
 	server  *grpc.Server
 	lis     net.Listener
 }
 
-func NewGrpcListener(l net.Listener) Listener {
+// NewGrpcListener returns a new Listener from the given network Listener and
+// some options that may be necessary to gRPC. The caller should preferable use
+// NewTCPGrpcListener or NewTLSgRPCListener.
+func NewGrpcListener(l net.Listener, opts ...grpc.ServerOption) Listener {
 	return &grpcListener{
-		server: grpc.NewServer(),
+		server: grpc.NewServer(opts...),
 		lis:    l,
 	}
 }
 
+// NewTCPGrpcListener returns a gRPC listener using plain TCP connections
+// without TLS. The listener will bind to the given address:port
+// tuple.
 func NewTCPGrpcListener(addr string) Listener {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
@@ -140,6 +156,7 @@ func NewTCPGrpcListener(addr string) Listener {
 }
 
 func (g *grpcListener) RegisterDrandService(s Service) {
+	g.service = s
 	external.RegisterRandomnessServer(g.server, g.service)
 	beacon.RegisterBeaconServer(g.server, g.service)
 	dkg.RegisterDkgServer(g.server, g.service)
