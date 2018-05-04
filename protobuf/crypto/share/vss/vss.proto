@@ -14,7 +14,7 @@ option go_package = "github.com/dedis/drand/protobuf/crypto/share/vss";
 // public key..
 message EncryptedDeal {
     // ephemereal diffie hellman key
-    element.Point dhkey = 1;
+    bytes dhkey = 1;
     // schnorr signature over the dhkey by the longterm key of the dealer
     bytes signature = 2;
     // nonce used in the generation of the ephemereal key

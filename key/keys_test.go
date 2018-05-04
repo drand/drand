@@ -1,4 +1,4 @@
-package keys
+package key
 
 import (
 	"strconv"

@@ -1,4 +1,4 @@
-package keys
+package key
 
 import (
 	"bytes"
@@ -30,17 +30,31 @@ type Private struct {
 // valid internet facing ipv4 address where to this reach the node holding the
 // public / private key pair.
 type Identity struct {
-	Key     kyber.Point
-	Address string
+	Group string
+	Key   kyber.Point
+	Addr  string
 }
 
-// NewKeyPair returns a freshly created private / public key pair.
+// Address implements the net.Peer interface
+func (i *Identity) Address() string {
+	return i.Addr
+}
+
+// TLS implements the net.Peer interface
+func (i *Identity) TLS() bool {
+	return false
+}
+
+// NewKeyPair returns a freshly created private / public key pair. The group is
+// decided by the group variable by default. Currently, drand only supports
+// bn256.
 func NewKeyPair(address string) *Private {
 	key := g2.Scalar().Pick(random.New())
 	pubKey := g2.Point().Mul(key, nil)
 	pub := &Identity{
-		Key:     pubKey,
-		Address: address,
+		Key:   pubKey,
+		Group: g2.String(),
+		Addr:  address,
 	}
 	return &Private{
 		Key:    key,
@@ -104,7 +118,7 @@ func (p *Identity) FromTOML(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	p.Address = ptoml.Address
+	p.Addr = ptoml.Address
 	p.Key = g2.Point()
 	return p.Key.UnmarshalBinary(buff)
 }
@@ -112,7 +126,7 @@ func (p *Identity) FromTOML(i interface{}) error {
 // TOML returns a empty TOML-compatible version of the public key
 func (p *Identity) TOML() interface{} {
 	hex := pointToString(p.Key)
-	return &PublicTOML{p.Address, hex}
+	return &PublicTOML{p.Addr, hex}
 }
 
 // TOMLValue returns a TOML-compatible interface value
@@ -229,7 +243,7 @@ func (g *Group) TOML() interface{} {
 	gtoml.Nodes = make([]*PublicTOML, g.Len())
 	for i, p := range g.Nodes {
 		key := pointToString(p.Key)
-		gtoml.Nodes[i] = &PublicTOML{Key: key, Address: p.Address}
+		gtoml.Nodes[i] = &PublicTOML{Key: key, Address: p.Addr}
 	}
 	return gtoml
 }

@@ -7,9 +7,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/dedis/drand/protobuf/beacon"
 	"github.com/dedis/drand/protobuf/dkg"
-	"github.com/dedis/drand/protobuf/external"
+	"github.com/dedis/drand/protobuf/drand"
 )
 
 // ADDRESSES and TLS
@@ -39,10 +38,10 @@ type Peer interface {
 	TLS() bool
 }
 
-// Gateway is the main interface to communicate to the external world. It
+// Gateway is the main interface to communicate to the drand world. It
 // acts as a listener to receive incoming requests and acts a client connecting
-// to external particpants.
-// The gateway fixes all external functionalities offered by drand.
+// to drand particpants.
+// The gateway fixes all drand functionalities offered by drand.
 type Gateway struct {
 	Listener
 	Client
@@ -50,22 +49,24 @@ type Gateway struct {
 
 // Service holds all functionalities that a drand node should implement
 type Service interface {
-	external.RandomnessServer
-	beacon.BeaconServer
+	drand.RandomnessServer
+	drand.BeaconServer
 	dkg.DkgServer
 }
 
 // Client represents all methods that are callable on drand nodes
 type Client interface {
-	Public(p Peer, in *external.PublicRandRequest) (*external.PublicRandResponse, error)
+	Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
+	NewBeacon(p Peer, in *drand.BeaconPacket) (*drand.BeaconResponse, error)
 	Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error)
-	NewBeacon(p Peer, in *beacon.BeaconPacket) (*beacon.BeaconResponse, error)
 }
 
 // Listener is the active listener for incoming requests.
 type Listener interface {
 	Start()
 	Stop()
+	// RegisterDrandService stores the given Service implementation and will
+	// dispatch any incoming calls to this Service.
 	RegisterDrandService(Service)
 }
 
@@ -83,12 +84,12 @@ func NewGrpcClient(opts ...grpc.DialOption) Client {
 	}
 }
 
-func (g *grpcClient) Public(p Peer, in *external.PublicRandRequest) (*external.PublicRandResponse, error) {
+func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
-	client := external.NewRandomnessClient(c)
+	client := drand.NewRandomnessClient(c)
 	return client.Public(context.Background(), in)
 }
 
@@ -101,12 +102,12 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 	return client.Setup(context.Background(), in)
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *beacon.BeaconPacket) (*beacon.BeaconResponse, error) {
+func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconPacket) (*drand.BeaconResponse, error) {
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
-	client := beacon.NewBeaconClient(c)
+	client := drand.NewBeaconClient(c)
 	return client.NewBeacon(context.Background(), in)
 }
 
@@ -155,10 +156,11 @@ func NewTCPGrpcListener(addr string) Listener {
 	return NewGrpcListener(lis)
 }
 
+// RegisterDrandService implements the Listener interface.
 func (g *grpcListener) RegisterDrandService(s Service) {
 	g.service = s
-	external.RegisterRandomnessServer(g.server, g.service)
-	beacon.RegisterBeaconServer(g.server, g.service)
+	drand.RegisterRandomnessServer(g.server, g.service)
+	drand.RegisterBeaconServer(g.server, g.service)
 	dkg.RegisterDkgServer(g.server, g.service)
 }
 

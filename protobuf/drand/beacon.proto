@@ -4,16 +4,14 @@
  */ 
 syntax = "proto3";
 
-package beacon;
+package drand;
 
-option go_package = "github.com/dedis/drand/protobuf/beacon";
+option go_package = "github.com/dedis/drand/protobuf/drand";
 
 // BeaconAPI holds the relevant calls to create a distributed key with the
 // participants and to create new publicly verifiable randomness.
 service Beacon {
-
    rpc NewBeacon(BeaconPacket) returns (BeaconResponse);
-
 }
 
 // BeaconPacket  holds a link to a previous signature, a timestamp and the

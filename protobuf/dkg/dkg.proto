@@ -19,11 +19,9 @@ service Dkg {
 // DKGPacket is used by the nodes to run the dkg protocol before being able to
 // generate randomness beacons.
 message DKGPacket {    
-    oneof packet {
-        dkg.Deal deal = 1;
-        dkg.Response response = 2;
-        dkg.Justification justification = 3;
-    }
+    dkg.Deal deal = 1;
+    dkg.Response response = 2;
+    dkg.Justification justification = 3;
 }
 
 message DKGResponse {
