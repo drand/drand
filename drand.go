@@ -30,6 +30,7 @@ type Drand struct {
 // NewDrandFromConfig reads all the avaiable information from the config. It
 // determines if the dkg is done or not.
 func LoadDrand(s Store) (*Drand, error) {
+	// test change
 	priv, err := s.LoadKey()
 	if err != nil {
 		return nil, err
