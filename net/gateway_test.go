@@ -39,9 +39,8 @@ func (t *testService) NewBeacon(c context.Context, in *drand.BeaconPacket) (*dra
 func TestGatewa(t *testing.T) {
 	addr1 := "127.0.0.1:4000"
 	//addr2 := "127.0.0.1:4001"
-	lis1 := NewTCPGrpcListener(addr1)
 	service1 := &testService{42}
-	lis1.RegisterDrandService(service1)
+	lis1 := NewTCPGrpcListener(addr1, service1)
 	go lis1.Start()
 	defer lis1.Stop()
 	time.Sleep(100 * time.Millisecond)

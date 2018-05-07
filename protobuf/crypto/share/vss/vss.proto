@@ -19,9 +19,9 @@ message EncryptedDeal {
     bytes signature = 2;
     // nonce used in the generation of the ephemereal key
     bytes nonce = 3;
-    // ciphertext of the deal marshalled by protobuf2. TODO: marshal in a
+    // cipher of the deal marshalled by protobuf2. TODO: marshal in a
     // more explicit and easier way.
-    bytes ciphertext = 4;
+    bytes cipher = 4;
 }
 
 /* 

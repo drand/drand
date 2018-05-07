@@ -65,9 +65,7 @@ type Client interface {
 type Listener interface {
 	Start()
 	Stop()
-	// RegisterDrandService stores the given Service implementation and will
-	// dispatch any incoming calls to this Service.
-	RegisterDrandService(Service)
+	Service
 }
 
 // grpcClient implements the Client functionalities using gRPC as its underlying
@@ -130,38 +128,35 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 
 // grpcListener implements Listener using gRPC connections
 type grpcListener struct {
-	service Service
-	server  *grpc.Server
-	lis     net.Listener
+	Service
+	server *grpc.Server
+	lis    net.Listener
 }
 
 // NewGrpcListener returns a new Listener from the given network Listener and
 // some options that may be necessary to gRPC. The caller should preferable use
 // NewTCPGrpcListener or NewTLSgRPCListener.
-func NewGrpcListener(l net.Listener, opts ...grpc.ServerOption) Listener {
-	return &grpcListener{
-		server: grpc.NewServer(opts...),
-		lis:    l,
+func NewGrpcListener(l net.Listener, s Service, opts ...grpc.ServerOption) Listener {
+	g := &grpcListener{
+		Service: s,
+		server:  grpc.NewServer(opts...),
+		lis:     l,
 	}
+	drand.RegisterRandomnessServer(g.server, g.Service)
+	drand.RegisterBeaconServer(g.server, g.Service)
+	dkg.RegisterDkgServer(g.server, g.Service)
+	return g
 }
 
 // NewTCPGrpcListener returns a gRPC listener using plain TCP connections
 // without TLS. The listener will bind to the given address:port
 // tuple.
-func NewTCPGrpcListener(addr string) Listener {
+func NewTCPGrpcListener(addr string, s Service) Listener {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		panic("tcp listener: " + err.Error())
 	}
-	return NewGrpcListener(lis)
-}
-
-// RegisterDrandService implements the Listener interface.
-func (g *grpcListener) RegisterDrandService(s Service) {
-	g.service = s
-	drand.RegisterRandomnessServer(g.server, g.service)
-	drand.RegisterBeaconServer(g.server, g.service)
-	dkg.RegisterDkgServer(g.server, g.service)
+	return NewGrpcListener(lis, s)
 }
 
 func (g *grpcListener) Start() {
@@ -169,5 +164,5 @@ func (g *grpcListener) Start() {
 }
 
 func (g *grpcListener) Stop() {
-	g.server.GracefulStop()
+	g.server.Stop()
 }

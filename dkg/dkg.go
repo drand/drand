@@ -10,11 +10,12 @@ import (
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
-	dkg_crypto "github.com/dedis/drand/protobuf/crypto/share/dkg"
-	"github.com/dedis/drand/protobuf/crypto/share/vss"
+	vss_proto "github.com/dedis/drand/protobuf/crypto/share/vss"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/share/dkg/pedersen"
+	"github.com/dedis/kyber/share/vss/pedersen"
+	"github.com/dedis/kyber/util/random"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc/peer"
 )
@@ -37,6 +38,7 @@ type Share = dkg.DistKeyShare
 type Handler struct {
 	net           Network                    // network to send data out
 	conf          *Config                    // configuration given at init time
+	private       *key.Private               // private key
 	idx           int                        // the index of the private/public key pair in the list
 	state         *dkg.DistKeyGenerator      // dkg stateful struct
 	n             int                        // number of participants
@@ -71,12 +73,14 @@ func NewHandler(priv *key.Private, conf *Config, n Network) (*Handler, error) {
 	if myIdx == -1 {
 		return nil, errors.New("dkg: no nublic key corresponding in the given list")
 	}
-	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t)
+	randomSecret := conf.Suite.Scalar().Pick(random.New())
+	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t, randomSecret)
 	if err != nil {
 		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
 	}
 	return &Handler{
 		conf:         conf,
+		private:      priv,
 		state:        state,
 		net:          n,
 		tmpResponses: make(map[uint32][]*dkg.Response),
@@ -88,9 +92,8 @@ func NewHandler(priv *key.Private, conf *Config, n Network) (*Handler, error) {
 }
 
 // Process process an incoming message from the network.
-func (h *Handler) Process(c context.Context, packet *Packet) {
+func (h *Handler) Process(c context.Context, packet *dkg_proto.DKGPacket) {
 	peer, _ := peer.FromContext(c)
-
 	switch {
 	case packet.Deal != nil:
 		h.processDeal(peer, packet.Deal)
@@ -103,7 +106,6 @@ func (h *Handler) Process(c context.Context, packet *Packet) {
 
 // Start sends the first message to run the protocol
 func (h *Handler) Start() {
-	// XXX catch the error
 	h.sentDeals = true
 	if err := h.sendDeals(); err != nil {
 		h.errCh <- err
@@ -123,13 +125,22 @@ func (h *Handler) WaitError() chan error {
 	return h.errCh
 }
 
-func (h *Handler) processDeal(p *peer.Peer, deal *dkg.Deal) {
+func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	h.Lock()
 	h.dealProcessed++
-	slog.Debugf("dkg: processing deal from %s (%d processed)", p.Addr, h.dealProcessed)
-	resp, err := h.state.ProcessDeal(deal)
+	deal := &dkg.Deal{
+		Index: pdeal.Index,
+		Deal: &vss.EncryptedDeal{
+			DHKey:     pdeal.Deal.Dhkey,
+			Signature: pdeal.Deal.Signature,
+			Nonce:     pdeal.Deal.Nonce,
+			Cipher:    pdeal.Deal.Cipher,
+		},
+	}
 	defer h.processTmpResponses(deal)
 	defer h.Unlock()
+	slog.Debugf("dkg: %s processing deal from %s (%d processed)", h.addr(), h.raddr(deal.Index), h.dealProcessed)
+	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
 		slog.Infof("dkg: error processing deal: %s", err)
 		return
@@ -140,8 +151,16 @@ func (h *Handler) processDeal(p *peer.Peer, deal *dkg.Deal) {
 		h.sentDeals = true
 		slog.Debugf("dkg: sent all deals")
 	}
-	out := &Packet{
-		Response: resp,
+	out := &dkg_proto.DKGPacket{
+		Response: &dkg_proto.Response{
+			Index: resp.Index,
+			Response: &vss_proto.Response{
+				SessionId: resp.Response.SessionID,
+				Index:     resp.Response.Index,
+				Status:    resp.Response.Status,
+				Signature: resp.Response.Signature,
+			},
+		},
 	}
 	h.broadcast(out)
 	slog.Debugf("dkg: broadcasted response")
@@ -165,28 +184,46 @@ func (h *Handler) processTmpResponses(deal *dkg.Deal) {
 	}
 }
 
-func (h *Handler) processResponse(p *peer.Peer, resp *dkg.Response) {
+func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 	h.Lock()
 	defer h.checkCertified()
 	defer h.Unlock()
 	h.respProcessed++
+	resp := &dkg.Response{
+		Index: presp.Index,
+		Response: &vss.Response{
+			SessionID: presp.Response.SessionId,
+			Index:     presp.Response.Index,
+			Status:    presp.Response.Status,
+			Signature: presp.Response.Signature,
+		},
+	}
 	j, err := h.state.ProcessResponse(resp)
 	slog.Debugf("dkg: processing response(%d so far) from %s", h.respProcessed, p.Addr)
 	if err != nil {
 		if strings.Contains(err.Error(), "no deal for it") {
 			h.tmpResponses[resp.Index] = append(h.tmpResponses[resp.Index], resp)
-			slog.Debug("dkg: storing future response for unknown deal ", resp.Index)
+			slog.Debugf("dkg: %s storing future response for unknown deal (from %s) %d", h.addr(), p.Addr, resp.Index)
 			return
 		}
 		slog.Infof("dkg: error process response: %s", err)
 		return
 	}
 	if j != nil {
+		// XXX TODO
 		slog.Debugf("dkg: broadcasting justification")
-		packet := &Packet{
-			Justification: j,
-		}
-		go h.broadcast(packet)
+		/*packet := &dkg_proto.Packet{*/
+		//Justification: &dkg_proto.Justification{
+		//Index: j.Index,
+		//Justification: &vss.Justification{
+		//SessionID: j.Justification.Index,
+		//Index: j.Justification.Index,
+		//Signature: j.Justification.Signature,
+
+		//}
+		//},
+		//}
+		/*go h.broadcast(packet)*/
 	}
 	slog.Debugf("dkg: processResponse(%d/%d) from %s --> Certified() ? %v --> done ? %v", h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified(), h.done)
 }
@@ -226,23 +263,24 @@ func (h *Handler) sendDeals() error {
 		}
 		id := h.conf.List[i]
 		packet := &dkg_proto.DKGPacket{
-			Packet: &dkg_crypto.Deal{
+			Deal: &dkg_proto.Deal{
 				Index: deal.Index,
-				Deal: &vss.EncryptedDeal{
-					DhKey:      deal.Deal.DHKey,
-					Signature:  deal.Deal.Signature,
-					Nonce:      deal.Deal.Nonce,
-					Ciphertext: deal.Deal.Cipher,
+				Deal: &vss_proto.EncryptedDeal{
+					Dhkey:     deal.Deal.DHKey,
+					Signature: deal.Deal.Signature,
+					Nonce:     deal.Deal.Nonce,
+					Cipher:    deal.Deal.Cipher,
 				},
 			},
 		}
 
-		//fmt.Printf("%s sending deal to %s\n", d.addr, pub.Address)
+		slog.Printf("dkg: %s sending deal to %s", h.addr(), id.Address())
 		if err := h.net.Send(id, packet); err != nil {
-			slog.Debugf("dkg: failed to send deal to %s: %s", pub.Address, err)
+			slog.Printf("dkg: failed to send deal to %s: %s", id.Address(), err)
 		} else {
 			good++
 		}
+		slog.Printf("dkg: %s sending deal to %s STOOOPPPPPPP\n", h.addr(), id.Address())
 	}
 	if good < h.conf.Threshold {
 		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Threshold)
@@ -251,21 +289,30 @@ func (h *Handler) sendDeals() error {
 	return nil
 }
 
-func (h *Handler) broadcast(p *Packet) {
+func (h *Handler) broadcast(p *dkg_proto.DKGPacket) {
 	var good int
 	for i, id := range h.conf.List {
 		if i == h.idx {
 			continue
 		}
 		if err := h.net.Send(id, p); err != nil {
-			slog.Debugf("dkg: error sending packet to %s: %s", id.Address, err)
+			slog.Debugf("dkg: error sending packet to %s: %s", id.Address(), err)
 		}
+		slog.Debugf("dkg: %s broadcast: sent packet to %s", h.addr(), id.Address())
 		good++
 	}
 	if good < h.conf.Threshold {
 		h.errCh <- errors.New("dkg: broadcast not successful")
 	}
 	slog.Debugf("dkg: broadcast done")
+}
+
+func (h *Handler) addr() string {
+	return h.private.Public.Address()
+}
+
+func (h *Handler) raddr(i uint32) string {
+	return h.conf.List[int(i)].Address()
 }
 
 // Network is used by the Handler to send a DKG protocol packet over the network.

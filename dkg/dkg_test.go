@@ -1,104 +1,92 @@
 package dkg
 
 import (
-	"sync"
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
-	"github.com/nikkolasg/dsign/key"
-	"github.com/nikkolasg/dsign/net"
-	"github.com/nikkolasg/dsign/test"
+	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/dkg"
+	"github.com/dedis/drand/protobuf/drand"
+	"github.com/dedis/drand/test"
+	sdkg "github.com/dedis/kyber/share/dkg/pedersen"
+	"github.com/nikkolasg/slog"
+	"github.com/stretchr/testify/require"
 )
 
-var encoder = net.NewSingleProtoEncoder(&Packet{})
-
-type network struct {
-	gw  net.Gateway
-	dkg *Handler
-	cb  func()
+// testService implements a barebone service to be plugged in a net.Gateway
+type testService struct {
+	h *Handler
 }
 
-func newDkgNetwork(gw net.Gateway, priv *key.Private, conf *Config, cb func()) *network {
-	n := &network{
-		gw: gw,
-	}
-	//fmt.Printf("Starting gateway %p\n", &gw)
-	gw.Start(n.Process)
-	n.dkg = NewHandler(priv, conf, n)
-	go func() {
-		select {
-		case <-n.dkg.WaitShare():
-			//fmt.Printf("waitshare DONE for gateway %p\n", &gw)
-			cb()
-		case e := <-n.dkg.WaitError():
-			panic(e)
-		}
-	}()
-	return n
+func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	return &drand.PublicRandResponse{}, nil
+}
+func (t *testService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
+	go t.h.Process(c, in)
+	return &dkg.DKGResponse{}, nil
 }
 
-func (n *network) Send(id *key.Identity, p *Packet) error {
-	buff, err := encoder.Marshal(p)
-	if err != nil {
-		return err
-	}
-	return n.gw.Send(id, buff)
+func (t *testService) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.BeaconResponse, error) {
+	return &drand.BeaconResponse{}, nil
 }
 
-func (n *network) Process(from *key.Identity, msg []byte) {
-	packet, err := encoder.Unmarshal(msg)
-	if err != nil {
-		return
-	}
-	dkgPacket := packet.(*Packet)
-	n.dkg.Process(from, dkgPacket)
+// testNet implements the network interface that the dkg Handler expects
+type testNet struct {
+	net.Client
 }
 
-func networks(keys []*key.Private, gws []net.Gateway, threshold int, cb func(), timeout time.Duration) []*network {
-	list := test.ListFromPrivates(keys)
-	nets := make([]*network, len(list), len(list))
-	for i := range keys {
-		conf := &Config{
-			List:      list,
-			Threshold: threshold,
-			Timeout:   timeout,
-		}
-		nets[i] = newDkgNetwork(gws[i], keys[i], conf, cb)
+func (t *testNet) Send(p net.Peer, d *dkg.DKGPacket) error {
+	_, err := t.Client.Setup(p, d)
+	return err
+}
+
+func testNets(n int) []*testNet {
+	nets := make([]*testNet, n, n)
+	for i := 0; i < n; i++ {
+		nets[i] = &testNet{net.NewGrpcClient()}
 	}
 	return nets
 }
 
-func stopnetworks(nets []*network) {
-	for i := range nets {
-		//fmt.Printf("Stopping gateway %p\n", &nets[i].gw)
-		if err := nets[i].gw.Stop(); err != nil {
-			panic(err)
-		}
-	}
-}
-
 func TestDKG(t *testing.T) {
+	slog.Level = slog.LevelDebug
+
 	n := 5
 	thr := n/2 + 1
-	privs, gws := test.Gateways(n)
-	//slog.Level = slog.LevelDebug
-	//defer func() { slog.Level = slog.LevelPrint }()
-
-	// waits for receiving n shares
-	var wg sync.WaitGroup
-	wg.Add(n)
-	//var i = 1
-	callback := func() {
-		//fmt.Printf("callback called %d times...\n", i)
-		wg.Done()
-		//i++
+	privs := test.GenerateIDs(n)
+	pubs := test.ListFromPrivates(privs)
+	nets := testNets(n)
+	conf := &Config{
+		Suite:     key.G2.(sdkg.Suite),
+		List:      pubs,
+		Threshold: thr,
 	}
-	nets := networks(privs, gws, thr, callback, 100*time.Millisecond)
-	defer stopnetworks(nets)
-
-	nets[0].dkg.Start()
-	//fmt.Println("wg.Wait()...")
-	wg.Wait()
-	//fmt.Println("wg.Wait()... DONE")
-
+	handlers := make([]*Handler, n, n)
+	listeners := make([]net.Listener, n, n)
+	var err error
+	for i := 0; i < n; i++ {
+		handlers[i], err = NewHandler(privs[i], conf, nets[i])
+		require.NoError(t, err)
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
+		go listeners[i].Start()
+	}
+	defer func() {
+		fmt.Println("defer")
+		for i := 0; i < n; i++ {
+			listeners[i].Stop()
+		}
+	}()
+	go handlers[0].Start()
+	select {
+	case <-handlers[0].WaitShare():
+		return
+	case err := <-handlers[0].WaitError():
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		fmt.Println("timeout")
+		t.Fatal("not finished in time")
+	}
 }
