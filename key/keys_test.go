@@ -29,13 +29,8 @@ func BatchIdentities(n int) ([]*Private, *Group) {
 		pubs[i] = privs[i].Public
 	}
 	group := &Group{
-		Threshold: defaultThreshold(n),
+		Threshold: DefaultThreshold(n),
 		Nodes:     toIndexedList(pubs),
 	}
 	return privs, group
-}
-
-// default threshold for the distributed key generation protocol & TBLS.
-func defaultThreshold(n int) int {
-	return n * 2 / 3
 }

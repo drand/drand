@@ -254,6 +254,15 @@ func (g *Group) TOMLValue() interface{} {
 	return &GroupTOML{}
 }
 
+// NewGroup returns a list of identities as a Group. The threshold is set to a
+// the default returned by DefaultThreshod.
+func NewGroup(list []*Identity) *Group {
+	return &Group{
+		Nodes:     toIndexedList(list),
+		Threshold: DefaultThreshold(len(list)),
+	}
+}
+
 // returns an indexed list from a list of public keys. Functionality needed in
 // tests where one does not necessary load a group from a file.
 func toIndexedList(list []*Identity) []*IndexedPublic {
@@ -436,4 +445,8 @@ func stringToScalar(g kyber.Group, s string) (kyber.Scalar, error) {
 	}
 	sc := g.Scalar()
 	return sc, sc.UnmarshalBinary(buff)
+}
+
+func DefaultThreshold(n int) int {
+	return (n*2)/3 + 1
 }

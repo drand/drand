@@ -147,7 +147,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	}
 
 	if !h.sentDeals {
-		h.sendDeals()
+		go h.sendDeals()
 		h.sentDeals = true
 		slog.Debugf("dkg: sent all deals")
 	}
@@ -162,7 +162,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 			},
 		},
 	}
-	h.broadcast(out)
+	go h.broadcast(out)
 	slog.Debugf("dkg: broadcasted response")
 }
 

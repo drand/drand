@@ -25,7 +25,7 @@ func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.
 	return &drand.PublicRandResponse{}, nil
 }
 func (t *testService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
-	go t.h.Process(c, in)
+	t.h.Process(c, in)
 	return &dkg.DKGResponse{}, nil
 }
 
