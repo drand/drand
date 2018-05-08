@@ -39,9 +39,9 @@ func TestKeysSaveLoad(t *testing.T) {
 	n := 4
 	ps, group := BatchIdentities(n)
 	tmp := os.TempDir()
-	//os.RemoveAll(tmp)
-	//defer os.RemoveAll(tmp)
 	tmp = path.Join(tmp, "drand")
+	os.RemoveAll(tmp)
+	defer os.RemoveAll(tmp)
 	kv := NewTmpKeyValue(tmp)
 	store := NewFileStore(kv).(*fileStore)
 	require.Equal(t, tmp, store.baseFolder)

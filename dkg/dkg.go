@@ -12,7 +12,6 @@ import (
 	"github.com/dedis/drand/net"
 	vss_proto "github.com/dedis/drand/protobuf/crypto/share/vss"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
-	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/share/dkg/pedersen"
 	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/dedis/kyber/util/random"
@@ -20,12 +19,15 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+type Suite = dkg.Suite
+
+const DefaultTimeout = time.Duration(1) * time.Minute
+
 // Config is given to a DKG handler and contains all needed parameters to
 // successfully run the DKG protocol.
 type Config struct {
-	Suite     dkg.Suite       // which crypto group to use for this DKG run
-	List      []*key.Identity // the list of participants
-	Threshold int             // the threshold of active participants needed
+	Suite dkg.Suite // which crypto group to use for this DKG run
+	Group *key.Group
 	// XXX Currently not in use / tested
 	Timeout time.Duration // after timeout, protocol is finished in any cases.
 }
@@ -58,19 +60,10 @@ func NewHandler(priv *key.Private, conf *Config, n Network) (*Handler, error) {
 	if err := validateConf(conf); err != nil {
 		return nil, err
 	}
-	list := conf.List
-	t := conf.Threshold
-	points := make([]kyber.Point, len(list), len(list))
-	myIdx := -1
-	myPoint := priv.Public.Key
-	for i := range list {
-		point := list[i].Key
-		points[i] = point
-		if point.Equal(myPoint) {
-			myIdx = i
-		}
-	}
-	if myIdx == -1 {
+	t := conf.Group.Threshold
+	points := conf.Group.Points()
+	myIdx, ok := conf.Group.Index(priv.Public)
+	if !ok {
 		return nil, errors.New("dkg: no nublic key corresponding in the given list")
 	}
 	randomSecret := conf.Suite.Scalar().Pick(random.New())
@@ -85,7 +78,7 @@ func NewHandler(priv *key.Private, conf *Config, n Network) (*Handler, error) {
 		net:          n,
 		tmpResponses: make(map[uint32][]*dkg.Response),
 		idx:          myIdx,
-		n:            len(list),
+		n:            conf.Group.Len(),
 		shareCh:      make(chan Share, 1),
 		errCh:        make(chan error, 1),
 	}, nil
@@ -261,7 +254,7 @@ func (h *Handler) sendDeals() error {
 		if i == h.idx {
 			panic("end of the universe")
 		}
-		id := h.conf.List[i]
+		id := h.conf.Group.Public(i)
 		packet := &dkg_proto.DKGPacket{
 			Deal: &dkg_proto.Deal{
 				Index: deal.Index,
@@ -282,8 +275,8 @@ func (h *Handler) sendDeals() error {
 		}
 		slog.Printf("dkg: %s sending deal to %s STOOOPPPPPPP\n", h.addr(), id.Address())
 	}
-	if good < h.conf.Threshold {
-		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Threshold)
+	if good < h.conf.Group.Threshold {
+		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Group.Threshold)
 	}
 	slog.Infof("dkg: sent deals successfully to %d nodes", good-1)
 	return nil
@@ -291,7 +284,7 @@ func (h *Handler) sendDeals() error {
 
 func (h *Handler) broadcast(p *dkg_proto.DKGPacket) {
 	var good int
-	for i, id := range h.conf.List {
+	for i, id := range h.conf.Group.Nodes {
 		if i == h.idx {
 			continue
 		}
@@ -301,7 +294,7 @@ func (h *Handler) broadcast(p *dkg_proto.DKGPacket) {
 		slog.Debugf("dkg: %s broadcast: sent packet to %s", h.addr(), id.Address())
 		good++
 	}
-	if good < h.conf.Threshold {
+	if good < h.conf.Group.Threshold {
 		h.errCh <- errors.New("dkg: broadcast not successful")
 	}
 	slog.Debugf("dkg: broadcast done")
@@ -312,7 +305,7 @@ func (h *Handler) addr() string {
 }
 
 func (h *Handler) raddr(i uint32) string {
-	return h.conf.List[int(i)].Address()
+	return h.conf.Group.Public(int(i)).Address()
 }
 
 // Network is used by the Handler to send a DKG protocol packet over the network.

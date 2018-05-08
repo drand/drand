@@ -60,10 +60,10 @@ func TestDKG(t *testing.T) {
 	pubs := test.ListFromPrivates(privs)
 	nets := testNets(n)
 	conf := &Config{
-		Suite:     key.G2.(sdkg.Suite),
-		List:      pubs,
-		Threshold: thr,
+		Suite: key.G2.(sdkg.Suite),
+		Group: key.NewGroup(pubs),
 	}
+	conf.Group.Threshold = thr
 	handlers := make([]*Handler, n, n)
 	listeners := make([]net.Listener, n, n)
 	var err error

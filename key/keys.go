@@ -16,8 +16,7 @@ import (
 )
 
 var pairing = bn256.NewSuite()
-var g1 = pairing.G1()
-var g2 = pairing.G2()
+var G1 = pairing.G1()
 var G2 = pairing.G2()
 
 // Private is a wrapper around a random scalar  and the corresponding public
@@ -50,11 +49,11 @@ func (i *Identity) TLS() bool {
 // decided by the group variable by default. Currently, drand only supports
 // bn256.
 func NewKeyPair(address string) *Private {
-	key := g2.Scalar().Pick(random.New())
-	pubKey := g2.Point().Mul(key, nil)
+	key := G2.Scalar().Pick(random.New())
+	pubKey := G2.Point().Mul(key, nil)
 	pub := &Identity{
 		Key:   pubKey,
-		Group: g2.String(),
+		Group: G2.String(),
 		Addr:  address,
 	}
 	return &Private{
@@ -91,7 +90,7 @@ func (p *Private) FromTOML(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	p.Key = g2.Scalar()
+	p.Key = G2.Scalar()
 	if err := p.Key.UnmarshalBinary(buff); err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func (p *Identity) FromTOML(i interface{}) error {
 		return err
 	}
 	p.Addr = ptoml.Address
-	p.Key = g2.Point()
+	p.Key = G2.Point()
 	return p.Key.UnmarshalBinary(buff)
 }
 
@@ -204,9 +203,28 @@ func (g *Group) Points() []kyber.Point {
 	return pts
 }
 
+func (g *Group) Identities() []*Identity {
+	ids := make([]*Identity, g.Len(), g.Len())
+	for i := range g.Nodes {
+		ids[i] = g.Nodes[i].Identity
+	}
+	return ids
+}
+
 // Len returns the number of participants in the group
 func (g *Group) Len() int {
 	return len(g.Nodes)
+}
+
+func (g *Group) Filter(indexes []int) *Group {
+	var filtered []*IndexedPublic
+	for idx := range indexes {
+		filtered = append(filtered, &IndexedPublic{Identity: g.Public(idx), Index: idx})
+	}
+	return &Group{
+		Threshold: g.Threshold,
+		Nodes:     filtered,
+	}
 }
 
 // GroupTOML is the representation of a Group TOML compatible
@@ -307,13 +325,13 @@ func (s *Share) FromTOML(i interface{}) error {
 	}
 	s.Commits = make([]kyber.Point, len(t.Commits))
 	for i, c := range t.Commits {
-		p, err := stringToPoint(g2, c)
+		p, err := stringToPoint(G2, c)
 		if err != nil {
 			return fmt.Errorf("share.Commit[%d] corruputed: %s", i, err)
 		}
 		s.Commits[i] = p
 	}
-	sshare, err := stringToScalar(g2, t.Share)
+	sshare, err := stringToScalar(G2, t.Share)
 	if err != nil {
 		return fmt.Errorf("share.Share corrupted: %s", err)
 	}
@@ -359,7 +377,7 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 		return errors.New("wrong interface: expected DistPublicTOML")
 	}
 	var err error
-	d.Key, err = stringToPoint(g2, dtoml.Key)
+	d.Key, err = stringToPoint(G2, dtoml.Key)
 	return err
 }
 
