@@ -15,9 +15,9 @@ import (
 	"github.com/dedis/kyber/util/random"
 )
 
-var pairing = bn256.NewSuite()
-var G1 = pairing.G1()
-var G2 = pairing.G2()
+var Pairing = bn256.NewSuite()
+var G1 = Pairing.G1()
+var G2 = Pairing.G2()
 
 // Private is a wrapper around a random scalar  and the corresponding public
 // key in G2

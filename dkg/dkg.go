@@ -118,6 +118,15 @@ func (h *Handler) WaitError() chan error {
 	return h.errCh
 }
 
+// QualifiedGroup returns the group of qualified participants,i.e. the list of
+// participants that successfully finished the DKG round without any blaming
+// from any other participants. This group must be saved to be re-used later on
+// in case of a renewal for the share.
+func (h *Handler) QualifiedGroup() *key.Group {
+	quals := h.state.QUAL()
+	return h.conf.Group.Filter(quals)
+}
+
 func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	h.Lock()
 	h.dealProcessed++

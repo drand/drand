@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 )
@@ -57,7 +58,7 @@ type Service interface {
 // Client represents all methods that are callable on drand nodes
 type Client interface {
 	Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
-	NewBeacon(p Peer, in *drand.BeaconPacket) (*drand.BeaconResponse, error)
+	NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error)
 	Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error)
 }
 
@@ -66,6 +67,13 @@ type Listener interface {
 	Start()
 	Stop()
 	Service
+}
+
+func NewGrpcGateway(priv *key.Private, s Service, opts ...grpc.DialOption) Gateway {
+	return Gateway{
+		Client:   NewGrpcClient(opts...),
+		Listener: NewTCPGrpcListener(priv.Public.Address(), s),
+	}
 }
 
 // grpcClient implements the Client functionalities using gRPC as its underlying
@@ -100,7 +108,7 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 	return client.Setup(context.Background(), in)
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconPacket) (*drand.BeaconResponse, error) {
+func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
