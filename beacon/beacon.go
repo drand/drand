@@ -8,6 +8,7 @@ import (
 
 	proto "github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber/share"
+	"github.com/dedis/kyber/sign/bls"
 	"github.com/dedis/kyber/sign/tbls"
 
 	"github.com/dedis/drand/key"
@@ -33,18 +34,26 @@ type Handler struct {
 	pub *share.PubPoly
 	sync.Mutex
 
+	index int
+
 	ticker *time.Ticker
 	close  chan bool
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.Client, sh *key.Share, group *key.Group, s Store) *Handler {
+func NewHandler(c net.Client, priv *key.Private, sh *key.Share, group *key.Group, s Store) *Handler {
+	idx, exists := group.Index(priv.Public)
+	if !exists {
+		// XXX
+		panic("that's just plain wrong and I should be an error")
+	}
 	return &Handler{
 		client: c,
 		group:  group,
 		share:  sh,
 		pub:    share.NewPubPoly(key.G2, key.G2.Point().Base(), sh.Commits),
+		index:  idx,
 		store:  s,
 		close:  make(chan bool),
 	}
@@ -56,7 +65,7 @@ func NewHandler(c net.Client, sh *key.Share, group *key.Group, s Store) *Handler
 // 1- the time for the request is not than a certain time in the past
 // 2- the partial signature in the embedded response is valid. This proves that
 // the requests comes from a qualified node from the DKG phase.
-func (b *Handler) ProcessBeacon(c context.Context, p proto.BeaconRequest) (*proto.BeaconResponse, error) {
+func (b *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*proto.BeaconResponse, error) {
 	// 1
 	now := time.Now()
 	leaderTime := time.Unix(int64(p.Timestamp), 0)
@@ -76,7 +85,6 @@ func (b *Handler) ProcessBeacon(c context.Context, p proto.BeaconRequest) (*prot
 	if err != nil {
 		return nil, err
 	}
-
 	resp := &proto.BeaconResponse{
 		PartialSig: signature,
 	}
@@ -91,7 +99,7 @@ func (b *Handler) Loop(seed []byte, period time.Duration) {
 	b.Lock()
 	b.ticker = time.NewTicker(period)
 	b.Unlock()
-	var counter uint64 = 1
+	var counter uint64 = 0
 	var failed uint64
 	// to protect the prevSig mutation
 	var mut sync.Mutex
@@ -117,10 +125,13 @@ func (b *Handler) Loop(seed []byte, period time.Duration) {
 		respCh := make(chan *proto.BeaconResponse, b.group.Len())
 		// send all requests in parallel
 		for _, id := range b.group.Nodes {
+			if b.index == id.Index {
+				continue
+			}
 			// this go routine sends the packet to one node. It will always
 			// return assuming there's a timeout on the connection
 			go func(i *key.Identity) {
-				resp, err := b.client.NewBeacon(id, request)
+				resp, err := b.client.NewBeacon(i, request)
 				if err != nil {
 					slog.Debugf("beacon: err receiving beacon response: %s", err)
 					return
@@ -154,6 +165,10 @@ func (b *Handler) Loop(seed []byte, period time.Duration) {
 			slog.Infof("beacon: could not reconstruct final beacon: %s", err)
 			return
 		}
+		if err := bls.Verify(key.Pairing, b.pub.Commit(), msg, finalSig); err != nil {
+			slog.Print("beacon: invalid reconstructed beacon signature ? That's BAD")
+			return
+		}
 
 		beacon := &Beacon{
 			PreviousSig: prevSig,
@@ -177,9 +192,9 @@ func (b *Handler) Loop(seed []byte, period time.Duration) {
 			counter++
 			// close the previous operations if still running
 			close(closingCh)
-			closeCh := make(chan bool)
+			closingCh = make(chan bool)
 			// start the new one
-			go fn(counter, closeCh)
+			go fn(counter, closingCh)
 		case <-b.close:
 			return
 		}

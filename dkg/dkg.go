@@ -318,6 +318,7 @@ func (h *Handler) raddr(i uint32) string {
 }
 
 // Network is used by the Handler to send a DKG protocol packet over the network.
+// XXX Not really needed, should use the net/protobuf interface instead
 type Network interface {
 	Send(net.Peer, *dkg_proto.DKGPacket) error
 }

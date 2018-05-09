@@ -111,10 +111,30 @@ func (b *boltStore) Last() (*Beacon, error) {
 		if err := json.Unmarshal(v, b); err != nil {
 			return err
 		}
-		(*beacon) = *b
+		beacon = b
 		return nil
 	})
 	return beacon, err
+}
+
+type cbStore struct {
+	Store
+	cb func(*Beacon)
+}
+
+// NewCallbackStore returns a Store that calls the given callback each time a
+// new Beacon is saved into the given store. It does not call the callback if
+// there has been any errors while saving the beacon.
+func NewCallbackStore(s Store, cb func(*Beacon)) Store {
+	return &cbStore{Store: s, cb: cb}
+}
+
+func (c *cbStore) Put(b *Beacon) error {
+	if err := c.Store.Put(b); err != nil {
+		return err
+	}
+	c.cb(b)
+	return nil
 }
 
 func timestampToBytes(t uint64) []byte {

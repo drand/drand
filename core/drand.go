@@ -107,6 +107,8 @@ func (d *Drand) WaitDKG() error {
 	}
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
+	// XXX See if needed to change to qualified group
+	d.store.SaveGroup(d.group)
 	d.setDKGDone()
 	return nil
 }
@@ -146,7 +148,7 @@ func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DK
 	return &dkg_proto.DKGResponse{}, nil
 }
 
-func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.BeaconResponse, error) {
+func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	/* if drand.Beacon != nil {*/
 	//beac := d.getBeacon()
 	//if beac == nil {
