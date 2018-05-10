@@ -2,12 +2,12 @@ package key
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dedis/drand/fs"
 	"github.com/nikkolasg/slog"
 )
 
@@ -31,8 +31,6 @@ type Store interface {
 
 var ErrStoreFile = errors.New("store file issues")
 var ErrAbsent = errors.New("store can't find requested object")
-
-const defaultConfigFolder = ".drand"
 
 // ConfigFolderFlag holds the name of the flag to set using the CLI to change
 // the default configuration folder of drand. It mimicks the gpg flag option.
@@ -65,38 +63,17 @@ type fileStore struct {
 }
 
 // NewDefaultFileStore
-func NewDefaultFileStore() Store {
-	createSecureFolder(defaultConfigFolder)
-	return newFileStore(defaultConfigFolder)
-}
-
-// NewFileStore
-func NewFileStore(k KeyValue) Store {
-	c := &context{k}
-	baseFolder := c.String(ConfigFolderFlag, defaultConfigFolder)
-	return newFileStore(baseFolder)
-}
-
-func newFileStore(baseFolder string) Store {
-	fs := &fileStore{baseFolder: baseFolder}
-	keyFolder := createSecureFolder(path.Join(baseFolder, keyFolderName))
-	groupFolder := createSecureFolder(path.Join(baseFolder, groupFolderName))
-	fs.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
-	fs.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
-	fs.groupFile = path.Join(groupFolder, groupFileName)
-	fs.shareFile = path.Join(groupFolder, shareFileName)
-	fs.distKeyFile = path.Join(groupFolder, distKeyFileName)
-	return fs
-}
-
-// KeyValue is a store that returns a value under a key. It must returns a
-// default value in case the key is not defined. Keys are defined above as
-// XXXFlagName.
-// Initially, cli.Context only fulfills this role but it's easy to imagine other
-// implementations in the future (change of cli-framework or else).
-type KeyValue interface {
-	String(key string) string
-	IsSet(key string) bool
+func NewFileStore(baseFolder string) Store {
+	fs.CreateSecureFolder(baseFolder)
+	store := &fileStore{baseFolder: baseFolder}
+	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, keyFolderName))
+	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, groupFolderName))
+	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
+	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
+	store.groupFile = path.Join(groupFolder, groupFileName)
+	store.shareFile = path.Join(groupFolder, shareFileName)
+	store.distKeyFile = path.Join(groupFolder, distKeyFileName)
+	return store
 }
 
 // SaveKey first saves the private key in a file with tight permissions and then
@@ -150,7 +127,7 @@ func Save(path string, t Tomler, secure bool) error {
 	var fd *os.File
 	var err error
 	if secure {
-		fd, err = createSecureFile(path)
+		fd, err = fs.CreateSecureFile(path)
 	} else {
 		fd, err = os.Create(path)
 	}
@@ -169,90 +146,4 @@ func Load(path string, t Tomler) error {
 		return err
 	}
 	return t.FromTOML(tomlValue)
-}
-
-func createSecureFolder(folder string) string {
-	if exists, _ := exists(folder); !exists {
-		if err := os.MkdirAll(folder, 0740); err != nil {
-			panic(err)
-		}
-	}
-	return folder
-}
-
-// pwd returns the current directory. Useless for now.
-func pwd() string {
-	s, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
-// exists returns whether the given file or directory exists or not
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return true, err
-}
-
-type context struct {
-	KeyValue
-}
-
-func (c *context) String(key, def string) string {
-	if c.KeyValue.IsSet(key) {
-		return c.KeyValue.String(key)
-	}
-	return def
-}
-
-func createSecureFile(file string) (*os.File, error) {
-	fd, err := os.Create(file)
-	if err != nil {
-		return nil, err
-	}
-	fd.Close()
-	if err := os.Chmod(file, 0600); err != nil {
-		return nil, nil
-	}
-	return os.OpenFile(file, os.O_RDWR, 0600)
-}
-
-// files returns the list of file names included in the given path or error if
-// any.
-func files(path string) ([]string, error) {
-	fi, err := ioutil.ReadDir(path)
-	if err != nil {
-		return nil, err
-	}
-	var files []string
-	for _, f := range fi {
-		if !f.IsDir() {
-			files = append(files, f.Name())
-		}
-	}
-	return files, nil
-}
-
-// exists returns true if the given name is a file in the given path. name must
-// be the "basename" of the file.
-func fileExists(path string, name string) bool {
-	list, err := files(path)
-	if err != nil {
-		return false
-	}
-
-	for _, l := range list {
-		if l == name {
-			return true
-		}
-	}
-
-	return false
 }

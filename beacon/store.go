@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"path"
 	"sync"
 
 	bolt "github.com/coreos/bbolt"
@@ -57,9 +58,12 @@ type boltStore struct {
 
 var bucketName = []byte("beacons")
 
+const BoltFileName = "drand.db"
+
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
-func NewBoltStore(path string, opts *bolt.Options) (Store, error) {
-	db, err := bolt.Open(path, 0660, opts)
+func NewBoltStore(folder string, opts *bolt.Options) (Store, error) {
+	dbPath := path.Join(folder, BoltFileName)
+	db, err := bolt.Open(dbPath, 0660, opts)
 	if err != nil {
 		return nil, err
 	}

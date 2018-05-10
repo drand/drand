@@ -5,35 +5,11 @@ import (
 	"path"
 	"testing"
 
+	"github.com/dedis/drand/fs"
 	kyber "github.com/dedis/kyber"
 	"github.com/dedis/kyber/share"
 	"github.com/stretchr/testify/require"
 )
-
-type TmpKeyValue struct {
-	values map[string]string
-}
-
-func NewTmpKeyValue(folder string) KeyValue {
-	return &TmpKeyValue{
-		values: map[string]string{
-			ConfigFolderFlag: folder,
-		},
-	}
-}
-
-func (t *TmpKeyValue) String(key string) string {
-	s, ok := t.values[key]
-	if !ok {
-		panic("wrong testing man")
-	}
-	return s
-}
-
-func (t *TmpKeyValue) IsSet(key string) bool {
-	_, ok := t.values[key]
-	return ok
-}
 
 func TestKeysSaveLoad(t *testing.T) {
 	n := 4
@@ -42,8 +18,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	tmp = path.Join(tmp, "drand")
 	os.RemoveAll(tmp)
 	defer os.RemoveAll(tmp)
-	kv := NewTmpKeyValue(tmp)
-	store := NewFileStore(kv).(*fileStore)
+	store := NewFileStore(tmp).(*fileStore)
 	require.Equal(t, tmp, store.baseFolder)
 
 	// test loading saving private public key
@@ -54,8 +29,8 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Equal(t, loadedKey.Key.String(), ps[0].Key.String())
 	require.Equal(t, loadedKey.Public.Key.String(), ps[0].Public.Key.String())
 	require.Equal(t, loadedKey.Public.Address(), ps[0].Public.Address())
-	require.True(t, fileExists(path.Join(tmp, keyFolderName), keyFileName+privateExtension))
-	require.True(t, fileExists(path.Join(tmp, keyFolderName), keyFileName+publicExtension))
+	require.True(t, fs.FileExists(path.Join(tmp, keyFolderName), keyFileName+privateExtension))
+	require.True(t, fs.FileExists(path.Join(tmp, keyFolderName), keyFileName+publicExtension))
 
 	// test group
 	require.Nil(t, store.SaveGroup(group))

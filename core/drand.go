@@ -5,11 +5,14 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
+	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
+	"github.com/nikkolasg/slog"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -22,21 +25,23 @@ type Drand struct {
 	store   key.Store
 	gateway net.Gateway
 
-	dkg *dkg.Handler
-	//beacon *Beacon
-
-	share   *key.Share // dkg private share. can be nil if dkg not executed.
+	dkg         *dkg.Handler
+	beacon      *beacon.Handler
+	beaconStore beacon.Store
+	// dkg private share. can be nil if dkg not finished yet.
+	share *key.Share
+	// dkg public key. Can be nil if dkg not finished yet.
+	pub     *key.DistPublic
 	dkgDone bool
 
 	state sync.Mutex
-	done  chan bool
 }
 
 // NewDrand returns an drand struct that is ready to start the DKG protocol with
 // the given group and then to serve randomness. It assumes the private key pair
 // has been generated already.
 func NewDrand(s key.Store, g *key.Group, opts ...DrandOptions) (*Drand, error) {
-	d, err := initDrand(s, g, opts...)
+	d, err := initDrand(s, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,43 +51,48 @@ func NewDrand(s key.Store, g *key.Group, opts ...DrandOptions) (*Drand, error) {
 		Timeout: d.opts.dkgTimeout,
 	}
 	d.dkg, err = dkg.NewHandler(d.priv, dkgConf, d.dkgNetwork())
+	d.group = g
 	return d, err
 }
 
 // initDrand inits the drand struct by loading the private key, and by creating the
 // gateway with the correct options.
-func initDrand(s key.Store, g *key.Group, opts ...DrandOptions) (*Drand, error) {
+func initDrand(s key.Store, opts ...DrandOptions) (*Drand, error) {
 	d := &Drand{store: s, opts: newDrandOpts(opts...)}
 	var err error
 	d.priv, err = s.LoadPrivate()
 	if err != nil {
 		return nil, err
 	}
-	d.group = g
 	d.gateway = net.NewGrpcGateway(d.priv, d, d.opts.grpcOpts...)
 	go d.gateway.Start()
-	d.done = make(chan bool, 1)
 	return d, nil
 }
 
-/*// LoadDrand restores a drand instance as it was running after a DKG instance*/
-//func LoadDrand(s key.Store) (*Drand, error) {
-//group, err := s.LoadGroup()
-//if err != nil {
-//return nil, err
-//}
-//d, err := newDrand(priv, group, s)
-//if err != nil {
-//return nil, err
-//}
-//share, err := s.LoadShare()
-//if err != nil {
-//return d, nil
-//}
-//d.share = share
-//slog.Debugf("drand %s loaded", priv.Public.Address)
-//return d, nil
-//}
+// LoadDrand restores a drand instance as it was running after a DKG instance
+func LoadDrand(s key.Store, opts ...DrandOptions) (*Drand, error) {
+	d, err := initDrand(s, opts...)
+	if err != nil {
+		return nil, err
+	}
+	d.group, err = s.LoadGroup()
+	if err != nil {
+		return nil, err
+	}
+	d.share, err = s.LoadShare()
+	if err != nil {
+		return nil, err
+	}
+	d.pub, err = s.LoadDistPublic()
+	if err != nil {
+		return nil, err
+	}
+	if err := d.initBeacon(); err != nil {
+		return nil, err
+	}
+	slog.Debugf("drand: loaded & running at %s", d.priv.Public.Address())
+	return d, nil
+}
 
 // StartDKG starts the DKG protocol by sending the first packet of the DKG
 // protocol to every other node in the group. It returns nil if the DKG protocol
@@ -109,32 +119,21 @@ func (d *Drand) WaitDKG() error {
 	d.store.SaveDistPublic(d.share.Public())
 	// XXX See if needed to change to qualified group
 	d.store.SaveGroup(d.group)
-	d.setDKGDone()
+	d.initBeacon()
 	return nil
 }
 
-// RandomBeacon starts periodically the TBLS protocol. The seed is the first
+var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
+
+// BeaconLoop starts periodically the TBLS protocol. The seed is the first
 // message signed alongside with the current timestamp. All subsequent
 // signatures are chained:
 // s_i+1 = SIG(s_i || timestamp)
 // For the moment, each resulting signature is stored in a file named
 // beacons/<timestamp>.sig.
-/*func (d *Drand) RandomBeacon(seed []byte, period time.Duration) {*/
-//d.newBeacon().Start(seed, period)
-//}
-
-//func (d *Drand) newBeacon() *Beacon {
-//d.state.Lock()
-//defer d.state.Unlock()
-//d.beacon = newBlsBeacon(d.share, d.group, d.r, d.store)
-//return d.beacon
-//}
-
-//func (d *Drand) getBeacon() *Beacon {
-//d.state.Lock()
-//defer d.state.Unlock()
-//return d.beacon
-//}
+func (d *Drand) BeaconLoop() {
+	d.beacon.Loop(DefaultSeed, d.opts.beaconPeriod)
+}
 
 func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return nil, errors.New("not implemented yet")
@@ -142,34 +141,29 @@ func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.Public
 
 func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
 	if d.isDKGDone() {
-		return nil, errors.New("dkg finished already")
+		return nil, errors.New("drand: dkg finished already")
 	}
 	d.dkg.Process(c, in)
 	return &dkg_proto.DKGResponse{}, nil
 }
 
 func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	/* if drand.Beacon != nil {*/
-	//beac := d.getBeacon()
-	//if beac == nil {
-	//slog.Debug("beacon not setup yet although receiving messages")
-	//continue
-	//}
-	//beac.processBeaconPacket(pub, drand.Beacon)
-
-	return nil, errors.New("not implemented yet")
-}
-
-// Loop waits infinitely and waits for incoming TBLS requests
-func (d *Drand) Loop() {
-	//d.newBeacon()
-	<-d.done
+	if !d.isDKGDone() {
+		return nil, errors.New("drand: dkg not finished")
+	}
+	if d.beacon == nil {
+		panic("that's not ever should happen so I'm panicking right now")
+	}
+	return d.beacon.ProcessBeacon(c, in)
 }
 
 func (d *Drand) Stop() {
+	d.state.Lock()
+	defer d.state.Unlock()
 	d.gateway.Stop()
-	//d.beacon.Stop()
-	close(d.done)
+	if d.beacon != nil {
+		d.beacon.Stop()
+	}
 }
 
 // isDKGDone returns true if the DKG protocol has already been executed. That
@@ -180,12 +174,19 @@ func (d *Drand) isDKGDone() bool {
 	return d.dkgDone
 }
 
-// setDKGDone marks the end of the "DKG" phase. After this call, Drand will only
-// process TBLS packets.
-func (d *Drand) setDKGDone() {
+func (d *Drand) initBeacon() error {
 	d.state.Lock()
 	defer d.state.Unlock()
 	d.dkgDone = true
+	fs.CreateSecureFolder(d.opts.dbFolder)
+	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
+	d.beacon = beacon.NewHandler(d.gateway.Client, d.priv, d.share, d.group, d.beaconStore)
+	return err
+}
+
+func (d *Drand) beaconCallback(b *beacon.Beacon) {
+	d.opts.callbacks(b)
 }
 
 // little trick to be able to capture when drand is using the DKG methods,
