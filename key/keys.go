@@ -40,11 +40,6 @@ func (i *Identity) Address() string {
 	return i.Addr
 }
 
-// TLS implements the net.Peer interface
-func (i *Identity) TLS() bool {
-	return false
-}
-
 // NewKeyPair returns a freshly created private / public key pair. The group is
 // decided by the group variable by default. Currently, drand only supports
 // bn256.
@@ -274,10 +269,10 @@ func (g *Group) TOMLValue() interface{} {
 
 // NewGroup returns a list of identities as a Group. The threshold is set to a
 // the default returned by DefaultThreshod.
-func NewGroup(list []*Identity) *Group {
+func NewGroup(list []*Identity, threshold int) *Group {
 	return &Group{
 		Nodes:     toIndexedList(list),
-		Threshold: DefaultThreshold(len(list)),
+		Threshold: threshold,
 	}
 }
 

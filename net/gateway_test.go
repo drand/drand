@@ -32,7 +32,7 @@ func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.
 func (t *testService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
 	return &dkg.DKGResponse{}, nil
 }
-func (t *testService) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.BeaconResponse, error) {
+func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	return &drand.BeaconResponse{}, nil
 }
 

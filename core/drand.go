@@ -19,7 +19,7 @@ import (
 // can start the DKG, read/write shars to files and can initiate/respond to TBlS
 // signature requests.
 type Drand struct {
-	opts    *drandOpts
+	opts    *Config
 	priv    *key.Private
 	group   *key.Group
 	store   key.Store
@@ -40,8 +40,8 @@ type Drand struct {
 // NewDrand returns an drand struct that is ready to start the DKG protocol with
 // the given group and then to serve randomness. It assumes the private key pair
 // has been generated already.
-func NewDrand(s key.Store, g *key.Group, opts ...DrandOptions) (*Drand, error) {
-	d, err := initDrand(s, opts...)
+func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
+	d, err := initDrand(s, c)
 	if err != nil {
 		return nil, err
 	}
@@ -57,21 +57,28 @@ func NewDrand(s key.Store, g *key.Group, opts ...DrandOptions) (*Drand, error) {
 
 // initDrand inits the drand struct by loading the private key, and by creating the
 // gateway with the correct options.
-func initDrand(s key.Store, opts ...DrandOptions) (*Drand, error) {
-	d := &Drand{store: s, opts: newDrandOpts(opts...)}
-	var err error
-	d.priv, err = s.LoadPrivate()
+func initDrand(s key.Store, c *Config) (*Drand, error) {
+	priv, err := s.LoadPrivate()
 	if err != nil {
 		return nil, err
 	}
-	d.gateway = net.NewGrpcGateway(d.priv, d, d.opts.grpcOpts...)
+	// trick to always set the listening address by default based on the
+	// identity. If there is an option to set the address, it will override the
+	// default set here..
+	d := &Drand{
+		store: s,
+		priv:  priv,
+		opts:  c,
+	}
+	a := c.ListenAddress(priv.Public.Address())
+	d.gateway = net.NewGrpcGateway(a, d, d.opts.grpcOpts...)
 	go d.gateway.Start()
 	return d, nil
 }
 
 // LoadDrand restores a drand instance as it was running after a DKG instance
-func LoadDrand(s key.Store, opts ...DrandOptions) (*Drand, error) {
-	d, err := initDrand(s, opts...)
+func LoadDrand(s key.Store, c *Config) (*Drand, error) {
+	d, err := initDrand(s, c)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +143,15 @@ func (d *Drand) BeaconLoop() {
 }
 
 func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	return nil, errors.New("not implemented yet")
+	beacon, err := d.beaconStore.Last()
+	if err != nil {
+		return nil, errors.New("can't retrieve beacon")
+	}
+	return &drand.PublicRandResponse{
+		PreviousSig: beacon.PreviousSig,
+		Timestamp:   beacon.Timestamp,
+		Signature:   beacon.Signature,
+	}, nil
 }
 
 func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {

@@ -61,7 +61,7 @@ func TestDKG(t *testing.T) {
 	nets := testNets(n)
 	conf := &Config{
 		Suite: key.G2.(sdkg.Suite),
-		Group: key.NewGroup(pubs),
+		Group: key.NewGroup(pubs, thr),
 	}
 	conf.Group.Threshold = thr
 	handlers := make([]*Handler, n, n)

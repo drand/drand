@@ -48,7 +48,7 @@ func GenerateIDs(n int) []*key.Private {
 
 func BatchIdentities(n int) ([]*key.Private, *key.Group) {
 	privs := GenerateIDs(n)
-	group := key.NewGroup(ListFromPrivates(privs))
+	group := key.NewGroup(ListFromPrivates(privs), key.DefaultThreshold(n))
 	return privs, group
 }
 

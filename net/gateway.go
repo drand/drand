@@ -7,37 +7,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 )
-
-// ADDRESSES and TLS
-// https://github.com/denji/golang-tls
-// How do we manage plain tcp and TLS connection with self-signed certificates
-// or CA-signed certificates:
-// (A) For non tls servers, when initiating connection just call with
-// grpc.WithInsecure(). Same for listening ( see Golang gRPC API).
-// (B) TLS communication using certificates
-// How to differentiate (A) and (B) ?
-// 	=> simple set of rules ? (xxx:443 | https | tls) == (B), rest is (A)
-//
-// For (B):
-// Certificates is signed by a CA, so no options needed, simply
-// 		crendentials.FromTLSCOnfig(&tls.Config{}) when connecting, or
-// 		credentials.FromTLSConfig{&tls.Config{cert,private...}} for listening
-// Certificates are given as a command line option "-cert xxx.crt" == (2) , otherwise (1)
-// Since gRPC golang library does not allow us to access internal connections,
-// every pair of communicating nodes is gonna have two active connections at the
-// same time, one outgoing from each party.
-
-// Peer is a simple interface that allows retrieving the address of a
-// destination. It might further e enhanced with certificates properties and
-// all.
-type Peer interface {
-	Address() string
-	TLS() bool
-}
 
 // Gateway is the main interface to communicate to the drand world. It
 // acts as a listener to receive incoming requests and acts a client connecting
@@ -69,10 +41,10 @@ type Listener interface {
 	Service
 }
 
-func NewGrpcGateway(priv *key.Private, s Service, opts ...grpc.DialOption) Gateway {
+func NewGrpcGateway(listen string, s Service, opts ...grpc.DialOption) Gateway {
 	return Gateway{
 		Client:   NewGrpcClient(opts...),
-		Listener: NewTCPGrpcListener(priv.Public.Address(), s),
+		Listener: NewTCPGrpcListener(listen, s),
 	}
 }
 
@@ -124,11 +96,12 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	var err error
 	c, ok := g.conns[p.Address()]
 	if !ok {
-		if !p.TLS() {
+		if !IsTLS(p.Address()) {
 			c, err = grpc.Dial(p.Address(), grpc.WithInsecure())
 			g.conns[p.Address()] = c
 		} else {
-			// TODO implement pool self signed certificates
+			c, err = grpc.Dial(p.Address())
+			g.conns[p.Address()] = c
 		}
 	}
 	return c, err

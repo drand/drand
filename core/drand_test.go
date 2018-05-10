@@ -61,6 +61,10 @@ func TestDrandDKG(t *testing.T) {
 	case <-time.After(1000 * time.Millisecond):
 		t.Fatal("fail")
 	}
+	client := NewClient(root.opts, public.Key, root.priv.Public.Address())
+	resp, err := client.Last()
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
 /*func TestDrandDKGReverse(t *testing.T) {*/
@@ -230,7 +234,7 @@ func TestDrandDKG(t *testing.T) {
 
 /*}*/
 
-func BatchNewDrand(n int, opts ...DrandOptions) []*Drand {
+func BatchNewDrand(n int, opts ...ConfigOption) []*Drand {
 	privs, group := test.BatchIdentities(n)
 	var err error
 	drands := make([]*Drand, n, n)
@@ -240,7 +244,7 @@ func BatchNewDrand(n int, opts ...DrandOptions) []*Drand {
 		s.SavePrivate(privs[i])
 		// give each one their own private folder
 		dbFolder := path.Join(tmp, fmt.Sprintf("db-%d", i))
-		drands[i], err = NewDrand(s, group, append([]DrandOptions{WithDbFolder(dbFolder)}, opts...)...)
+		drands[i], err = NewDrand(s, group, NewConfig(append([]ConfigOption{WithDbFolder(dbFolder)}, opts...)...))
 		if err != nil {
 			panic(err)
 		}

@@ -29,8 +29,8 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Equal(t, loadedKey.Key.String(), ps[0].Key.String())
 	require.Equal(t, loadedKey.Public.Key.String(), ps[0].Public.Key.String())
 	require.Equal(t, loadedKey.Public.Address(), ps[0].Public.Address())
-	require.True(t, fs.FileExists(path.Join(tmp, keyFolderName), keyFileName+privateExtension))
-	require.True(t, fs.FileExists(path.Join(tmp, keyFolderName), keyFileName+publicExtension))
+	require.True(t, fs.FileExists(path.Join(tmp, KeyFolderName), keyFileName+privateExtension))
+	require.True(t, fs.FileExists(path.Join(tmp, KeyFolderName), keyFileName+publicExtension))
 
 	// test group
 	require.Nil(t, store.SaveGroup(group))

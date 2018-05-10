@@ -7,18 +7,29 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
+	"github.com/dedis/drand/fs"
 	"google.golang.org/grpc"
 )
 
-const defaultConfigFolder = ".drand"
-const defaultDbFolder = "db"
-const defaultBeaconPeriod time.Duration = 1 * time.Minute
+// DefaultConfigFolder is the name of the folder containing all key materials
+// (and the beacons db file by default). It is relative to the user's home
+// directory.
+const DefaultConfigFolder = ".drand"
 
-type DrandOptions func(*drandOpts)
+// DefaultDbFolder is the name of the folder in which the db file is saved. By
+// default it is relative to the DefaultConfigFolder path.
+const DefaultDbFolder = "db"
 
-type drandOpts struct {
+// DefaultBeaconPeriod is the period in which the beacon logic creates new
+// random beacon.
+const DefaultBeaconPeriod time.Duration = 1 * time.Minute
+
+type ConfigOption func(*Config)
+
+type Config struct {
 	configFolder string
 	dbFolder     string
+	listenAddr   string
 	grpcOpts     []grpc.DialOption
 	dkgTimeout   time.Duration
 	boltOpts     *bolt.Options
@@ -26,13 +37,15 @@ type drandOpts struct {
 	beaconCbs    []func(*beacon.Beacon)
 }
 
-func newDrandOpts(opts ...DrandOptions) *drandOpts {
-	d := &drandOpts{
-		configFolder: defaultConfigFolder,
+// NewConfig returns the config to pass to drand with the default options set
+// and the updated values given by the options.
+func NewConfig(opts ...ConfigOption) *Config {
+	d := &Config{
+		configFolder: fs.CreateHomeConfigFolder(DefaultConfigFolder),
 		grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
 		dkgTimeout:   dkg.DefaultTimeout,
-		dbFolder:     path.Join(defaultConfigFolder, defaultDbFolder),
-		beaconPeriod: defaultBeaconPeriod,
+		dbFolder:     path.Join(DefaultConfigFolder, DefaultDbFolder),
+		beaconPeriod: DefaultBeaconPeriod,
 	}
 	for i := range opts {
 		opts[i](d)
@@ -40,52 +53,75 @@ func newDrandOpts(opts ...DrandOptions) *drandOpts {
 	return d
 }
 
-func (d *drandOpts) callbacks(b *beacon.Beacon) {
+func (d *Config) ConfigFolder() string {
+	return d.configFolder
+}
+
+func (d *Config) DBFolder() string {
+	return d.dbFolder
+}
+
+// ListenAddress returns the given default address or the listen address stored
+// in the config thanks to WithListenAddress
+func (d *Config) ListenAddress(defaultAddr string) string {
+	if d.listenAddr != "" {
+		return d.listenAddr
+	}
+	return defaultAddr
+}
+
+func (d *Config) callbacks(b *beacon.Beacon) {
 	for _, fn := range d.beaconCbs {
 		fn(b)
 	}
 }
 
-func WithGrpcOptions(opts ...grpc.DialOption) DrandOptions {
-	return func(d *drandOpts) {
+func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
+	return func(d *Config) {
 		d.grpcOpts = opts
 	}
 }
 
-func WithDkgTimeout(t time.Duration) DrandOptions {
-	return func(d *drandOpts) {
+func WithDkgTimeout(t time.Duration) ConfigOption {
+	return func(d *Config) {
 		d.dkgTimeout = t
 	}
 }
 
-func WithBoltOptions(opts *bolt.Options) DrandOptions {
-	return func(d *drandOpts) {
+func WithBoltOptions(opts *bolt.Options) ConfigOption {
+	return func(d *Config) {
 		d.boltOpts = opts
 	}
 }
 
 // WithDbFolder sets the path folder for the db file. This path is NOT relative
 // to the DrandFolder path if set.
-func WithDbFolder(folder string) DrandOptions {
-	return func(d *drandOpts) {
+func WithDbFolder(folder string) ConfigOption {
+	return func(d *Config) {
 		d.dbFolder = folder
 	}
 }
 
-func WithConfigFolder(folder string) DrandOptions {
-	return func(d *drandOpts) {
+func WithConfigFolder(folder string) ConfigOption {
+	return func(d *Config) {
 		d.configFolder = folder
 	}
 }
 
-func WithBeaconPeriod(period time.Duration) DrandOptions {
-	return func(d *drandOpts) {
+func WithBeaconPeriod(period time.Duration) ConfigOption {
+	return func(d *Config) {
 		d.beaconPeriod = period
 	}
 }
 
-func WithBeaconCallback(fn func(*beacon.Beacon)) DrandOptions {
-	return func(d *drandOpts) {
+func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
+	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
+	}
+}
+
+func WithListenAddress(addr string) ConfigOption {
+	return func(d *Config) {
+		d.listenAddr = addr
 	}
 }

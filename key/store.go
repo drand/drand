@@ -36,8 +36,8 @@ var ErrAbsent = errors.New("store can't find requested object")
 // the default configuration folder of drand. It mimicks the gpg flag option.
 const ConfigFolderFlag = "homedir"
 
-const keyFolderName = "key"
-const groupFolderName = "groups"
+const KeyFolderName = "key"
+const GroupFolderName = "groups"
 const keyFileName = "drand_id"
 const privateExtension = ".private"
 const publicExtension = ".public"
@@ -66,8 +66,8 @@ type fileStore struct {
 func NewFileStore(baseFolder string) Store {
 	fs.CreateSecureFolder(baseFolder)
 	store := &fileStore{baseFolder: baseFolder}
-	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, keyFolderName))
-	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, groupFolderName))
+	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))
+	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, GroupFolderName))
 	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
 	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
 	store.groupFile = path.Join(groupFolder, groupFileName)
