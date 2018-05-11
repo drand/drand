@@ -196,7 +196,7 @@ func groupCmd(c *cli.Context) error {
 	if err := toml.NewEncoder(fd).Encode(group.TOML()); err != nil {
 		slog.Fatalf("can't write to %s: %s", gname, err)
 	}
-	slog.Printf("group file written in %s. Distribute it to all the participants to start the DKG")
+	slog.Printf("group file written in %s. Distribute it to all the participants to start the DKG", gname)
 	return nil
 }
 
@@ -211,14 +211,32 @@ func dkgCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatal(err)
 	}
-	return runDkg(c, drand)
+	return runDkg(c, drand, fs)
 }
 
-func runDkg(c *cli.Context, d *core.Drand) error {
+func runDkg(c *cli.Context, d *core.Drand, fs key.Store) error {
+	var err error
 	if c.Bool("leader") {
-		return d.StartDKG()
+		err = d.StartDKG()
+	} else {
+		err = d.WaitDKG()
 	}
-	return d.WaitDKG()
+	if err != nil {
+		slog.Fatal(err)
+	}
+
+	public, err := fs.LoadDistPublic()
+	if err != nil {
+		slog.Fatal(err)
+	}
+	dir, err := os.Getwd()
+	if err != nil {
+		slog.Fatal(err)
+	}
+	p := path.Join(dir, "group_key.public")
+	key.Save(p, public, false)
+	slog.Print("distributed public key saved at ", p)
+	return nil
 }
 
 func beaconCmd(c *cli.Context) error {
@@ -245,7 +263,7 @@ func runCmd(c *cli.Context) error {
 			slog.Fatal(err)
 		}
 		slog.Print("Starting the dkg first.")
-		runDkg(c, drand)
+		runDkg(c, drand, fs)
 	} else {
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {

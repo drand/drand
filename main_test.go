@@ -8,82 +8,74 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/BurntSushi/toml"
+	"github.com/dedis/drand/core"
+	"github.com/dedis/drand/key"
 	"github.com/stretchr/testify/require"
 )
 
 func TestKeyGen(t *testing.T) {
-
-	fs := DefaultFileStore()
-	defer os.RemoveAll(fs.KeyFile)
-	defer os.RemoveAll(fs.PublicFile)
-
-	// valid address
-	os.Args = []string{"drand", "keygen", "127.0.0.1:8080"}
-	main()
-	priv, err := fs.LoadKey()
-	require.Nil(t, err)
-	require.NotNil(t, priv.Public)
-
-	// custom file
 	tmp := path.Join(os.TempDir(), "drand")
-	os.MkdirAll(tmp, 0777)
-	fs.KeyFile = path.Join(tmp, defaultKeyFile+privateExtension)
-	fs.PublicFile = publicFile(fs.KeyFile)
-	//defer os.RemoveAll(fs.KeyFile)
-	//defer os.RemoveAll(fs.PublicFile)
-	os.Args = []string{"drand", "keygen", "--" + keyFolderFlagName, tmp, "127.0.0.1:8080"}
+	defer os.RemoveAll(tmp)
+	// valid address
+	os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1:8081"}
 	main()
-	priv, err = fs.LoadKey()
+	config := core.NewConfig(core.WithConfigFolder(tmp))
+	fs := key.NewFileStore(config.ConfigFolder())
+
+	priv, err := fs.LoadPrivate()
 	require.Nil(t, err)
 	require.NotNil(t, priv.Public)
 }
 
 // https://stackoverflow.com/questions/26225513/how-to-test-os-exit-scenarios-in-go
 func TestKeyGenInvalid(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
 	varEnv := "CRASHCRASH"
 	if os.Getenv(varEnv) == "1" {
-		os.Args = []string{"drand", "keygen"}
+		os.Args = []string{"drand", "--config", tmp, "keygen"}
 		fmt.Println("bri")
 		main()
 		return
 	}
+
+	defer os.Remove(tmp)
 	cmd := exec.Command(os.Args[0], "-test.run=TestKeyGenInvalid")
 	cmd.Env = append(os.Environ(), varEnv+"=1")
 	err := cmd.Run()
 	if e, ok := err.(*exec.ExitError); ok && e.Success() {
 		t.Fatalf("KeyGenInvalid should have failed")
 	}
-	fs := DefaultFileStore()
-	defer os.RemoveAll(fs.KeyFile)
-	defer os.RemoveAll(fs.PublicFile)
-	// no address
-	_, err = fs.LoadKey()
-	require.Error(t, err)
 
+	config := core.NewConfig(core.WithConfigFolder(tmp))
+	fs := key.NewFileStore(config.ConfigFolder())
+	priv, err := fs.LoadPrivate()
+	//fmt.Println(priv.Public.Addr)
+	require.Error(t, err)
+	require.Nil(t, priv)
 }
 
 func TestGroupGen(t *testing.T) {
 	n := 5
-	base := "private"
-	tmpPath := os.TempDir() + "/drand"
-	os.MkdirAll(tmpPath, 0777)
+	thr := 4
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
 	defer os.RemoveAll(tmpPath)
 
-	names := make([]string, n)
+	names := make([]string, n, n)
+	privs := make([]*key.Private, n, n)
 	for i := 0; i < n; i++ {
-		names[i] = path.Join(tmpPath, base+strconv.Itoa(i))
-		file, err := os.Create(names[i])
-		require.Nil(t, err)
-		priv := NewKeyPair("127.0.0.1")
-		require.Nil(t, toml.NewEncoder(file).Encode(priv.Public.TOML()))
+		names[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.private", i))
+		privs[i] = key.NewKeyPair("127.0.0.1")
+		require.Nil(t, key.Save(names[i], privs[i].Public, false))
 	}
-	groupName := path.Join(tmpPath, "group.toml")
-	os.Args = []string{"drand", "group", "--" + groupFileFlagName, groupName}
+	os.Args = []string{"drand", "group", "--threshold", strconv.Itoa(thr)}
 	os.Args = append(os.Args, names...)
 	main()
 
-	ptoml := &PublicTOML{}
-	_, err := toml.DecodeFile(groupName, ptoml)
-	require.Nil(t, err)
+	group := new(key.Group)
+	require.NoError(t, key.Load(gname, group))
+	require.Equal(t, thr, group.Threshold)
+	for i := 0; i < n; i++ {
+		require.True(t, group.Contains(privs[i].Public))
+	}
 }

@@ -30,9 +30,8 @@ type Private struct {
 // valid internet facing ipv4 address where to this reach the node holding the
 // public / private key pair.
 type Identity struct {
-	Group string
-	Key   kyber.Point
-	Addr  string
+	Key  kyber.Point
+	Addr string
 }
 
 // Address implements the net.Peer interface
@@ -47,9 +46,8 @@ func NewKeyPair(address string) *Private {
 	key := G2.Scalar().Pick(random.New())
 	pubKey := G2.Point().Mul(key, nil)
 	pub := &Identity{
-		Key:   pubKey,
-		Group: G2.String(),
-		Addr:  address,
+		Key:  pubKey,
+		Addr: address,
 	}
 	return &Private{
 		Key:    key,
@@ -121,7 +119,10 @@ func (p *Identity) FromTOML(i interface{}) error {
 // TOML returns a empty TOML-compatible version of the public key
 func (p *Identity) TOML() interface{} {
 	hex := pointToString(p.Key)
-	return &PublicTOML{p.Addr, hex}
+	return &PublicTOML{
+		Address: p.Addr,
+		Key:     hex,
+	}
 }
 
 // TOMLValue returns a TOML-compatible interface value

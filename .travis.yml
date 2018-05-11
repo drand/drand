@@ -11,11 +11,10 @@ go:
     - tip
 
 before_install:
-    - ./install_bn_travis.sh
     - docker build -t dedis/drand .
 
 script:
-    - go test 
+    - go test ./...
     - ./docker_test.sh
 
 after_success:
