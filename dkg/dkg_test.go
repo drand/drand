@@ -12,7 +12,6 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	sdkg "github.com/dedis/kyber/share/dkg/pedersen"
-	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,10 +51,10 @@ func testNets(n int) []*testNet {
 }
 
 func TestDKG(t *testing.T) {
-	slog.Level = slog.LevelDebug
+	//slog.Level = slog.LevelDebug
 
 	n := 5
-	thr := n/2 + 1
+	thr := key.DefaultThreshold(n)
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
 	nets := testNets(n)
@@ -74,19 +73,33 @@ func TestDKG(t *testing.T) {
 		go listeners[i].Start()
 	}
 	defer func() {
-		fmt.Println("defer")
 		for i := 0; i < n; i++ {
 			listeners[i].Stop()
 		}
 	}()
-	go handlers[0].Start()
-	select {
-	case <-handlers[0].WaitShare():
-		return
-	case err := <-handlers[0].WaitError():
-		require.NoError(t, err)
-	case <-time.After(3 * time.Second):
-		fmt.Println("timeout")
-		t.Fatal("not finished in time")
+
+	finished := make(chan int, n)
+	goDkg := func(idx int) {
+		if idx == 0 {
+			go handlers[idx].Start()
+		}
+		shareCh := handlers[idx].WaitShare()
+		errCh := handlers[idx].WaitError()
+		select {
+		case <-shareCh:
+			finished <- idx
+		case err := <-errCh:
+			require.NoError(t, err)
+		case <-time.After(3 * time.Second):
+			fmt.Println("timeout")
+			t.Fatal("not finished in time")
+		}
+	}
+
+	for i := 0; i < n; i++ {
+		go goDkg(i)
+	}
+	for i := 0; i < n; i++ {
+		<-finished
 	}
 }

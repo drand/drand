@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/dedis/drand/beacon"
@@ -145,7 +146,7 @@ func (d *Drand) BeaconLoop() {
 func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	beacon, err := d.beaconStore.Last()
 	if err != nil {
-		return nil, errors.New("can't retrieve beacon")
+		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
 	return &drand.PublicRandResponse{
 		PreviousSig: beacon.PreviousSig,
@@ -193,7 +194,7 @@ func (d *Drand) initBeacon() error {
 	d.state.Lock()
 	defer d.state.Unlock()
 	d.dkgDone = true
-	fs.CreateSecureFolder(d.opts.dbFolder)
+	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
 	d.beacon = beacon.NewHandler(d.gateway.Client, d.priv, d.share, d.group, d.beaconStore)

@@ -7,7 +7,6 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
-	"github.com/dedis/drand/fs"
 	"google.golang.org/grpc"
 )
 
@@ -41,12 +40,12 @@ type Config struct {
 // and the updated values given by the options.
 func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
-		configFolder: fs.CreateHomeConfigFolder(DefaultConfigFolder),
+		configFolder: DefaultConfigFolder,
 		grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
 		dkgTimeout:   dkg.DefaultTimeout,
-		dbFolder:     path.Join(DefaultConfigFolder, DefaultDbFolder),
 		beaconPeriod: DefaultBeaconPeriod,
 	}
+	d.dbFolder = path.Join(DefaultConfigFolder, DefaultDbFolder)
 	for i := range opts {
 		opts[i](d)
 	}

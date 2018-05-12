@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"path"
 	"sync"
 
@@ -70,7 +71,7 @@ func NewBoltStore(folder string, opts *bolt.Options) (Store, error) {
 
 	// create the bucket already
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket(bucketName)
+		_, err := tx.CreateBucketIfNotExists(bucketName)
 		return err
 	})
 
@@ -111,6 +112,9 @@ func (b *boltStore) Last() (*Beacon, error) {
 		bucket := tx.Bucket(bucketName)
 		cursor := bucket.Cursor()
 		_, v := cursor.Last()
+		if v == nil {
+			return errors.New("no beacon saved yet")
+		}
 		b := &Beacon{}
 		if err := json.Unmarshal(v, b); err != nil {
 			return err

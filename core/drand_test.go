@@ -61,7 +61,7 @@ func TestDrandDKG(t *testing.T) {
 	case <-time.After(1000 * time.Millisecond):
 		t.Fatal("fail")
 	}
-	client := NewClient(root.opts, public.Key, root.priv.Public.Address())
+	client := NewClient(root.opts, public, root.priv.Public.Address())
 	resp, err := client.Last()
 	require.NoError(t, err)
 	require.NotNil(t, resp)

@@ -225,8 +225,8 @@ func (g *Group) Filter(indexes []int) *Group {
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	Nodes []*PublicTOML
-	T     int
+	Nodes     []*PublicTOML
+	Threshold int
 }
 
 // FromTOML decodes the group from the toml struct
@@ -235,7 +235,7 @@ func (g *Group) FromTOML(i interface{}) error {
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")
 	}
-	g.Threshold = gt.T
+	g.Threshold = gt.Threshold
 	list := make([]*Identity, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
 		list[i] = new(Identity)
@@ -254,7 +254,7 @@ func (g *Group) FromTOML(i interface{}) error {
 
 // TOML returns a TOML-encodable version of the Group
 func (g *Group) TOML() interface{} {
-	gtoml := &GroupTOML{T: g.Threshold}
+	gtoml := &GroupTOML{Threshold: g.Threshold}
 	gtoml.Nodes = make([]*PublicTOML, g.Len())
 	for i, p := range g.Nodes {
 		key := pointToString(p.Key)

@@ -276,13 +276,12 @@ func (h *Handler) sendDeals() error {
 			},
 		}
 
-		slog.Printf("dkg: %s sending deal to %s", h.addr(), id.Address())
+		slog.Debugf("dkg: %s sending deal to %s", h.addr(), id.Address())
 		if err := h.net.Send(id, packet); err != nil {
 			slog.Printf("dkg: failed to send deal to %s: %s", id.Address(), err)
 		} else {
 			good++
 		}
-		slog.Printf("dkg: %s sending deal to %s STOOOPPPPPPP\n", h.addr(), id.Address())
 	}
 	if good < h.conf.Group.Threshold {
 		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Group.Threshold)

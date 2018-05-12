@@ -133,7 +133,7 @@ func Save(path string, t Tomler, secure bool) error {
 	}
 	if err != nil {
 		slog.Infof("config: can't save %s to %s: %s", reflect.TypeOf(t).String(), path, err)
-		return nil
+		return err
 	}
 	defer fd.Close()
 	return toml.NewEncoder(fd).Encode(t.TOML())

@@ -145,5 +145,5 @@ func (g *grpcListener) Start() {
 }
 
 func (g *grpcListener) Stop() {
-	g.server.Stop()
+	g.server.GracefulStop()
 }

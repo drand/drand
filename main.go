@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/core"
+	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
@@ -18,6 +20,7 @@ import (
 
 const version = "0.2"
 const gname = "group.toml"
+const dpublic = "dist_key.public"
 
 func banner() {
 	fmt.Printf("drand v%s-test by nikkolasg @ DEDIS, EPFL\n", version)
@@ -37,7 +40,7 @@ func main() {
 	dbFlag := cli.StringFlag{
 		Name:  "db",
 		Value: path.Join(configFlag.Value, core.DefaultDbFolder),
-		Usage: "Folder in which to keep the database",
+		Usage: "Folder in which to keep the database (boltdb file)",
 	}
 	seedFlag := cli.StringFlag{
 		Name:  "seed",
@@ -69,6 +72,10 @@ func main() {
 		Name:  "threshold, t",
 		Usage: "threshold to apply for the group. Default is n/2 + 1.",
 	}
+	outFlag := cli.StringFlag{
+		Name:  "out, o",
+		Usage: "where to save either the group file or the distributed public key",
+	}
 
 	app.Commands = []cli.Command{
 		cli.Command{
@@ -84,7 +91,7 @@ func main() {
 			Name:      "group",
 			Usage:     "Create the group toml from individual public keys",
 			ArgsUsage: "<id1 id2 id3...> must be the identities of the group to create",
-			Flags:     toArray(thresholdFlag),
+			Flags:     toArray(thresholdFlag, outFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
@@ -96,6 +103,7 @@ func main() {
 			ArgsUsage: "GROUP.TOML the group file listing all participant's identities",
 			Flags:     toArray(leaderFlag, listenFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return dkgCmd(c)
 			},
 		},
@@ -104,6 +112,7 @@ func main() {
 			Usage: "Run the beacon protocol",
 			Flags: toArray(periodFlag, seedFlag, listenFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return beaconCmd(c)
 			},
 		},
@@ -112,6 +121,7 @@ func main() {
 			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
 			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag),
 			Action: func(c *cli.Context) error {
+				banner()
 				return runCmd(c)
 			},
 		},
@@ -127,7 +137,6 @@ func main() {
 	}
 	app.Flags = toArray(verboseFlag, configFlag, dbFlag)
 	app.Before = func(c *cli.Context) error {
-		banner()
 		if c.GlobalIsSet("debug") {
 			slog.Level = slog.LevelDebug
 		}
@@ -148,7 +157,9 @@ func keygenCmd(c *cli.Context) error {
 		slog.Fatal("could not save key: ", err)
 	}
 	fullpath := path.Join(config.ConfigFolder(), key.KeyFolderName)
-	slog.Print("Generated keys at ", fullpath)
+	absPath, err := filepath.Abs(fullpath)
+
+	slog.Print("Generated keys at ", absPath, err)
 	slog.Print("You can copy paste the following snippet to a common group.toml file:")
 	var buff bytes.Buffer
 	buff.WriteString("[[nodes]]\n")
@@ -182,21 +193,21 @@ func groupCmd(c *cli.Context) error {
 	publics := make([]*key.Identity, c.NArg())
 	for i, str := range args {
 		pub := &key.Identity{}
+		slog.Print("Reading public identity from ", str)
 		if err := key.Load(str, pub); err != nil {
 			slog.Fatal(err)
 		}
 		publics[i] = pub
 	}
 	group := key.NewGroup(publics, threshold)
-	fd, err := os.Create(gname)
-	defer fd.Close()
-	if err != nil {
-		slog.Fatalf("can't write to %s: %s", gname, err)
+	groupPath := path.Join(fs.Pwd(), gname)
+	if c.String("out") != "" {
+		groupPath = c.String("out")
 	}
-	if err := toml.NewEncoder(fd).Encode(group.TOML()); err != nil {
-		slog.Fatalf("can't write to %s: %s", gname, err)
+	if err := key.Save(groupPath, group, false); err != nil {
+		slog.Fatal(err)
 	}
-	slog.Printf("group file written in %s. Distribute it to all the participants to start the DKG", gname)
+	slog.Printf("Group file written in %s. Distribute it to all the participants to start the DKG", groupPath)
 	return nil
 }
 
@@ -214,7 +225,7 @@ func dkgCmd(c *cli.Context) error {
 	return runDkg(c, drand, fs)
 }
 
-func runDkg(c *cli.Context, d *core.Drand, fs key.Store) error {
+func runDkg(c *cli.Context, d *core.Drand, ks key.Store) error {
 	var err error
 	if c.Bool("leader") {
 		err = d.StartDKG()
@@ -224,16 +235,14 @@ func runDkg(c *cli.Context, d *core.Drand, fs key.Store) error {
 	if err != nil {
 		slog.Fatal(err)
 	}
+	slog.Print("DKG setup finished!")
 
-	public, err := fs.LoadDistPublic()
+	public, err := ks.LoadDistPublic()
 	if err != nil {
 		slog.Fatal(err)
 	}
-	dir, err := os.Getwd()
-	if err != nil {
-		slog.Fatal(err)
-	}
-	p := path.Join(dir, "group_key.public")
+	dir := fs.Pwd()
+	p := path.Join(dir, dpublic)
 	key.Save(p, public, false)
 	slog.Print("distributed public key saved at ", p)
 	return nil
@@ -265,12 +274,13 @@ func runCmd(c *cli.Context) error {
 		slog.Print("Starting the dkg first.")
 		runDkg(c, drand, fs)
 	} else {
+		slog.Print("No group file given, drand will try to run as beacon already.")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
 			slog.Fatal(err)
 		}
-		slog.Print("Running as randomness beacon.")
 	}
+	slog.Print("Running the randomness beacon...")
 	drand.BeaconLoop()
 	return nil
 }
@@ -290,11 +300,11 @@ func fetchCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatal("could not get verified randomness:", err)
 	}
-	buff, err := json.Marshal(resp)
+	buff, err := json.MarshalIndent(resp, "", "    ")
 	if err != nil {
 		slog.Fatal("could not JSON marshal:", err)
 	}
-	slog.Print(buff)
+	slog.Print(string(buff))
 	return nil
 }
 
@@ -311,11 +321,12 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	config := c.GlobalString("config")
 	opts = append(opts, core.WithConfigFolder(config))
-	db := c.String("db")
+	db := c.GlobalString("db")
 	opts = append(opts, core.WithDbFolder(db))
 	period := c.Duration("period")
 	opts = append(opts, core.WithBeaconPeriod(period))
-	return core.NewConfig(opts...)
+	conf := core.NewConfig(opts...)
+	return conf
 }
 
 func getGroup(c *cli.Context) *key.Group {

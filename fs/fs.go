@@ -2,6 +2,7 @@
 package fs
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
@@ -24,6 +25,7 @@ func CreateHomeConfigFolder(folder string) string {
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, 0740); err != nil {
+			fmt.Println("folder", folder, ",err", err)
 			panic(err)
 		}
 	}
