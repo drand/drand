@@ -30,6 +30,7 @@ type Service interface {
 // Client represents all methods that are callable on drand nodes
 type Client interface {
 	Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
+	Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 	NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error)
 	Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error)
 }
@@ -69,6 +70,16 @@ func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 	}
 	client := drand.NewRandomnessClient(c)
 	return client.Public(context.Background(), in)
+}
+
+func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewRandomnessClient(c)
+	return client.Private(context.Background(), in)
+
 }
 
 func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {

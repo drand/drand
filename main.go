@@ -66,7 +66,7 @@ func main() {
 	}
 	distKeyFlag := cli.StringFlag{
 		Name:  "public,p",
-		Usage: "the path of the distributed public key file",
+		Usage: "the path of the public key file",
 	}
 	thresholdFlag := cli.IntFlag{
 		Name:  "threshold, t",
@@ -125,13 +125,29 @@ func main() {
 				return runCmd(c)
 			},
 		},
-		cli.Command{
-			Name:      "fetch",
-			Usage:     "Fetch a random beacon and verifies it",
-			ArgsUsage: "<server address> address of the server to contact",
-			Flags:     toArray(distKeyFlag),
-			Action: func(c *cli.Context) error {
-				return fetchCmd(c)
+		{
+			Name:    "fetch",
+			Aliases: []string{"f"},
+			Usage:   "fetch some randomness",
+			Subcommands: []cli.Command{
+				{
+					Name:      "public",
+					Usage:     "Fetch a public verifiable and unbiasable randomness value",
+					ArgsUsage: "<server address> address of the server to contact",
+					Flags:     toArray(distKeyFlag),
+					Action: func(c *cli.Context) error {
+						return fetchPublicCmd(c)
+					},
+				},
+				{
+					Name:      "private",
+					Usage:     "Fetch a private randomness from a server. Public key must be the public key / identity of the server",
+					ArgsUsage: "<server address> address of the server to contact",
+					Flags:     toArray(distKeyFlag),
+					Action: func(c *cli.Context) error {
+						return fetchPrivateCmd(c)
+					},
+				},
 			},
 		},
 	}
@@ -285,7 +301,12 @@ func runCmd(c *cli.Context) error {
 	return nil
 }
 
-func fetchCmd(c *cli.Context) error {
+func fetchPrivateCmd(c *cli.Context) error {
+	return nil
+
+}
+
+func fetchPublicCmd(c *cli.Context) error {
 	if c.NArg() < 1 {
 		slog.Fatal("fetch command takes the address of a server to contact")
 	}
@@ -294,9 +315,8 @@ func fetchCmd(c *cli.Context) error {
 	if err := key.Load(c.String("public"), public); err != nil {
 		slog.Fatal(err)
 	}
-	conf := contextToConfig(c)
-	client := core.NewClient(conf, public, c.Args().First())
-	resp, err := client.Last()
+	client := core.NewClient()
+	resp, err := client.LastPublic(c.Args().First(), public)
 	if err != nil {
 		slog.Fatal("could not get verified randomness:", err)
 	}

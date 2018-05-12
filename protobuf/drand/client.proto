@@ -9,8 +9,11 @@ package drand;
 
 option go_package = "github.com/dedis/drand/protobuf/drand";
 
+import "crypto/element.proto";
+
 service Randomness {
     rpc Public(PublicRandRequest) returns (PublicRandResponse) {}
+    rpc Private(PrivateRandRequest) returns (PrivateRandResponse) {}
 }
 
 
@@ -30,4 +33,24 @@ message PublicRandResponse {
     bytes previous_sig = 1;
     uint64 timestamp = 2;
     bytes signature = 3;
+}
+
+// PrivateRandRequest is the message to send when requesting a private random
+// value.
+message PrivateRandRequest {
+    // Request must contains a public key towards which to encrypt the private
+    // randomness.
+    ECIESObject request = 1;
+}
+
+message PrivateRandResponse {
+    // Response contains the private randomness encrypted towards the client's
+    // request key.
+    ECIESObject response = 1;
+}
+
+message ECIESObject {
+    element.Point ephemeral = 1;
+    bytes ciphertext = 2;
+    bytes nonce = 3;
 }

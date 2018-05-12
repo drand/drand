@@ -107,7 +107,7 @@ function run() {
         #drandCmd=("--debug" "run")
         drandCmd=("run")
         detached="-d"
-        args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i -p 80:80 --volume ${allVolumes[$i]} -d)
+        args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i --volume ${allVolumes[$i]} -d)
         #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
             drandCmd+=("--leader" "--period" "2s")

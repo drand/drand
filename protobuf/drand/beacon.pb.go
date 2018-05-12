@@ -13,6 +13,9 @@ It has these top-level messages:
 	BeaconResponse
 	PublicRandRequest
 	PublicRandResponse
+	PrivateRandRequest
+	PrivateRandResponse
+	ECIESObject
 */
 package drand
 

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"sync"
@@ -11,8 +12,10 @@ import (
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
+	"github.com/dedis/kyber"
 	"github.com/nikkolasg/slog"
 )
 
@@ -153,6 +156,40 @@ func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.Public
 		Timestamp:   beacon.Timestamp,
 		Signature:   beacon.Signature,
 	}, nil
+}
+
+func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+	protoPoint := priv.GetRequest().GetEphemeral()
+	point, err := crypto.ProtoToKyberPoint(protoPoint)
+	if err != nil {
+		return nil, err
+	}
+	groupable, ok := point.(kyber.Groupable)
+	if !ok {
+		return nil, errors.New("point is not on a registered curve")
+	}
+	if groupable.Group().String() != key.G2.String() {
+		return nil, errors.New("point is not on the supported curve")
+	}
+	msg, err := Decrypt(key.G2, DefaultHash, d.priv.Key, priv.GetRequest())
+	if err != nil {
+		slog.Debugf("drand: received invalid ECIES private request:", err)
+		return nil, errors.New("invalid ECIES request")
+	}
+
+	clientKey := key.G2.Point()
+	if err := clientKey.UnmarshalBinary(msg); err != nil {
+		return nil, errors.New("invalid client key")
+	}
+	var randomness [32]byte
+	if n, err := rand.Read(randomness[:]); err != nil {
+		return nil, errors.New("error gathering randomness")
+	} else if n != 32 {
+		return nil, errors.New("error gathering randomness")
+	}
+
+	obj, err := Encrypt(key.G2, DefaultHash, clientKey, randomness[:])
+	return &drand.PrivateRandResponse{obj}, err
 }
 
 func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {

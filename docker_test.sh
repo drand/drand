@@ -35,7 +35,7 @@ checkSuccess $? "distributed public key file?"
 # try to verify with it
 drandPublic="/dist_public.toml"
 drandVol="$distPublic:$drandPublic"
-drandArgs=("--debug" "fetch" "--public" $drandPublic "${addresses[1]}")
+drandArgs=("--debug" "fetch" "public" "--public" $drandPublic "${addresses[1]}")
 docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}" 
 checkSuccess $? "verify signature?"
 

@@ -10,9 +10,10 @@ import (
 )
 
 func TestBoltStore(t *testing.T) {
-	tmp := os.TempDir()
-	path := path.Join(tmp, "drand.db")
-	defer os.RemoveAll(path)
+	tmp := path.Join(os.TempDir(), "drand")
+	require.NoError(t, os.MkdirAll(tmp, 0755))
+	path := tmp
+	defer os.RemoveAll(tmp)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}

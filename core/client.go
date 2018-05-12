@@ -5,38 +5,57 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
+	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/sign/bls"
+	"google.golang.org/grpc"
 )
 
+// Client is the endpoint logic, communicating with drand servers
 type Client struct {
-	conf   *Config
 	client net.Client
 	public *key.DistPublic
-	p      net.Peer
 }
 
-func NewClient(conf *Config, public *key.DistPublic, server string) *Client {
+func NewClient(opts ...grpc.DialOption) *Client {
 	return &Client{
-		conf:   conf,
-		client: net.NewGrpcClient(conf.grpcOpts...),
-		p:      &peerAddr{server},
-		public: public,
+		client: net.NewGrpcClient(opts...),
 	}
 }
 
-// Last returns the last randomness beacon from the server associated. It
+// LastPublic returns the last randomness beacon from the server associated. It
 // returns it if the randomness is valid.
-func (c *Client) Last() (*drand.PublicRandResponse, error) {
-	resp, err := c.client.Public(c.p, &drand.PublicRandRequest{})
+func (c *Client) LastPublic(addr string, pub *key.DistPublic) (*drand.PublicRandResponse, error) {
+	resp, err := c.client.Public(&peerAddr{addr}, &drand.PublicRandRequest{})
 	if err != nil {
 		return nil, err
 	}
-	return resp, c.verify(resp)
+	return resp, c.verify(pub.Key, resp)
 }
 
-func (c *Client) verify(resp *drand.PublicRandResponse) error {
+// Private retrieves a private random value from the server. It does that by
+// generating an ephemeral key pair, sends it encrypted to the remote server,
+// and decrypts the response, the randomness.
+func (c *Client) Private(addr string, publicKey kyber.Point) ([]byte, error) {
+	ephScalar := key.G2.Scalar()
+	ephPoint := key.G2.Point().Mul(ephScalar, nil)
+	ephBuff, err := ephPoint.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	obj, err := Encrypt(key.G2, DefaultHash, publicKey, ephBuff)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.client.Private(&peerAddr{addr}, &drand.PrivateRandRequest{obj})
+	if err != nil {
+		return nil, err
+	}
+	return Decrypt(key.G2, DefaultHash, ephScalar, resp.GetResponse())
+}
+
+func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
 	msg := beacon.Message(resp.PreviousSig, resp.Timestamp)
-	return bls.Verify(key.Pairing, c.public.Key, msg, resp.Signature)
+	return bls.Verify(key.Pairing, public, msg, resp.Signature)
 }
 
 type peerAddr struct {

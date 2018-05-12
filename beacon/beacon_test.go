@@ -30,6 +30,9 @@ type testService struct {
 func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{}, nil
 }
+func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+	return &drand.PrivateRandResponse{}, nil
+}
 func (t *testService) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
 	return &dkg_proto.DKGResponse{}, nil
 }
@@ -97,10 +100,11 @@ func TestBeacon(t *testing.T) {
 	n := 5
 	thr := 5/2 + 1
 
-	tmp := os.TempDir()
+	tmp := path.Join(os.TempDir(), "drand")
 	paths := make([]string, n, n)
 	for i := 0; i < n; i++ {
-		paths[i] = path.Join(tmp, fmt.Sprintf("drand-%d.db", i))
+		paths[i] = path.Join(tmp, fmt.Sprintf("drand-%d", i))
+		require.NoError(t, os.MkdirAll(paths[i], 0755))
 	}
 	defer func() {
 		for i := 0; i < n; i++ {
