@@ -27,10 +27,10 @@ Sure thing, here you go:
 
 The script spins up six local drand nodes and produces fresh randomness every two
 seconds. Drand is able to produce two kind of randomness:
-+ Drand main's function is to generate verifiable unbiasable randomness, this is
-  what we call *Public Randomness*. This kind of randomness is useful in many
++ Drand main's function is to generate verifiable unbiasable randomness that we
+  call **Public Randomness**. This kind of randomness is useful in many
   applications such as lottery, or sharding or even parameters generation.
-+ Drand can also generate *Private Randomness*. This randomness has been
++ Drand can also generate **Private Randomness**. This randomness has been
   generated locally by the remote server who sends it back in an encrypted form
   to the client. This is useful to gather different entropy sources to generate
   a high entropy randomness source.
@@ -224,6 +224,7 @@ development, so there's a lot left to be done. Feel free to submit feature or,
 even better, pull requests. ;)
 
 + integrate native TLS support, should be fairly easy since drand uses gRPC.
++ versioning mechanism
 + much more unit tests
 + systemd unit file
 
