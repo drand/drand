@@ -168,7 +168,7 @@ drand run --leader --period 30s
 
 ### Randomness Gathering
 
-+ *Public Randomness*: To get the latest public beacon, run the following:
++ **Public Randomness**: To get the latest public beacon, run the following:
 ```
 drand fetch public --distkey dist_key.public <address>
 ```
@@ -190,7 +190,7 @@ and the `timestamp` (uint64) field. If the signature is valid, that guarantees a
 threshold of drand nodes computed this signature without being able to bias the
 outcome.
 
-+ *Private Randomness*: To get a private random value, run the following:
++ **Private Randomness**: To get a private random value, run the following:
 ```
 drand fetch private <server_identity.toml>
 ```
@@ -241,6 +241,10 @@ The drand source code is released under MIT license, see the file
 
 Thanks to [@herumi](https://github.com/herumi) for providing support for his
 optimized pairing-based cryptographic library used in the first version.
+
+Thanks to Apostol Vassilev for its interest in drand and the long emails
+exchanged over the general drand design.
+
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native Golang
 bn256 implementation and for their help in the design of drand.
