@@ -35,18 +35,18 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic) (*drand.PublicRand
 // Private retrieves a private random value from the server. It does that by
 // generating an ephemeral key pair, sends it encrypted to the remote server,
 // and decrypts the response, the randomness.
-func (c *Client) Private(addr string, publicKey kyber.Point) ([]byte, error) {
+func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	ephScalar := key.G2.Scalar()
 	ephPoint := key.G2.Point().Mul(ephScalar, nil)
 	ephBuff, err := ephPoint.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	obj, err := Encrypt(key.G2, DefaultHash, publicKey, ephBuff)
+	obj, err := Encrypt(key.G2, DefaultHash, id.Key, ephBuff)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Private(&peerAddr{addr}, &drand.PrivateRandRequest{obj})
+	resp, err := c.client.Private(&peerAddr{id.Addr}, &drand.PrivateRandRequest{obj})
 	if err != nil {
 		return nil, err
 	}

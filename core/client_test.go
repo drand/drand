@@ -11,7 +11,7 @@ func TestClientPrivate(t *testing.T) {
 	defer CloseAllDrands(drands)
 
 	client := NewClient()
-	buff, err := client.Private(drands[0].priv.Public.Addr, drands[0].priv.Public.Key)
+	buff, err := client.Private(drands[0].priv.Public)
 	require.Nil(t, err)
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)

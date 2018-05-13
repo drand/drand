@@ -34,6 +34,16 @@ NET="drand"
 SUBNET="192.168.0."
 PORT="80"
 
+function checkSuccess() {
+    if [ "$1" -eq 0 ]; then
+        return
+    else
+        echo "TEST <$2>: FAILURE"
+        cleanup
+        exit 1
+    fi
+}
+
 
 function convert() {
     return printf -v int '%d\n' "$1" 2>/dev/null
@@ -146,4 +156,26 @@ fi
 ## RUN LOCALLY SCRIPT
 trap cleanup SIGINT
 build
-run true
+run false
+while true;
+do 
+    rootFolder="$TMP/node1"
+    distPublic="$rootFolder/groups/dist_key.public"
+    serverId="/key/drand_id.public"
+    drandVol="$rootFolder$serverId:$serverId"
+    drandArgs=("--debug" "fetch" "private" $serverId)
+    echo "---------------------------------------------"
+    echo "              Private Randomness             "
+    docker run --rm --net $NET --ip ${SUBNET}11 -v "$drandVol" $IMG "${drandArgs[@]}"
+    echo "---------------------------------------------"
+    checkSuccess $? "verify randomness encryption"
+    echo "---------------------------------------------"
+    echo "               Public Randomness             "
+    drandPublic="/dist_public.toml"
+    drandVol="$distPublic:$drandPublic"
+    drandArgs=("--debug" "fetch" "public" "--public" $drandPublic "${addresses[1]}")
+    docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}" 
+    checkSuccess $? "verify signature?"
+    echo "---------------------------------------------"
+    sleep 2
+done

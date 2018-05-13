@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -141,9 +142,8 @@ func main() {
 				},
 				{
 					Name:      "private",
-					Usage:     "Fetch a private randomness from a server. Public key must be the public key / identity of the server",
-					ArgsUsage: "<server address> address of the server to contact",
-					Flags:     toArray(distKeyFlag),
+					Usage:     "Fetch a private randomness from a server. Request and response are encrypted",
+					ArgsUsage: "<identity file> identity file of the remote server",
 					Action: func(c *cli.Context) error {
 						return fetchPrivateCmd(c)
 					},
@@ -302,8 +302,21 @@ func runCmd(c *cli.Context) error {
 }
 
 func fetchPrivateCmd(c *cli.Context) error {
-	return nil
+	if c.NArg() < 1 {
+		slog.Fatal("fetch private takes the identity file of a server to contact")
+	}
+	public := &key.Identity{}
+	if err := key.Load(c.Args().First(), public); err != nil {
+		slog.Fatal(err)
+	}
 
+	client := core.NewClient()
+	resp, err := client.Private(public)
+	if err != nil {
+		slog.Fatal(err)
+	}
+	slog.Print(base64.StdEncoding.EncodeToString(resp))
+	return nil
 }
 
 func fetchPublicCmd(c *cli.Context) error {
