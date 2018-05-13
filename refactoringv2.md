@@ -155,3 +155,74 @@ that since drand operators in the early stages are going to be very remote and
 there's high chances of having a high rate of bugfixes / functionalities added
 in the beginning
 
+
+
+# Encoding
+
+We have the following choices:
+
+### Using the Go structure at the core of the code, then derive protobuf message from it. 
+
+This is the current method of doing things in kyber/onet/cothority. The pros are
+evident: it's much easier and faster this way, since we code using the regular
+Golang way, that allows us to use interfaces in the structs, and then only when
+needed, we derive by hand or code the protobuf translation.
+
+However this process has its lot of drawbacks: 
+    + the golang structs can be desync'd from the protobuf messages. protobuf
+      definitions are only useful for other languages for interoperability. 
+    + we can't use any of the protobuf functionality such as oneof.
+    + With the current way of decoding, it forces all points and scalar to be
+      decoded using the same suite, regardless of the content of the packet.
+
+### Starting from protobuf messages and then derive Go structures from it
+
+Protobuf messages do not understand what a kyber.Point or scalar is and treats
+both as a slice of bytes directly. This methods provides us several benefits:
++ any implementation to directly take these definitions and start coding on top
+  of it, as the usual protobuf way of doing things. 
++ we can keep using the official tools with all the updates, etc. 
++ Starting from a protobuf point of view forces us to internalize the usage of
+  kyber.Point and scalar interface in our code. That makes our code much more
+  portable for future potential different encoding, or even different
+  application. A library written in this spirit for one application can keep
+  working with native JSON for another application and there's no change needed,
+  since the library will expect to receive a slice of bytes.
+
+Packet flow:
+    + protobuf decrypts incoming wire packet into a Go structure that contains
+      only slice of bytes instead of kyber.Point / Scalar
+    + the protobuf structure gets passed up to the application. Two cases here:
+
+
+
+### Chosen solution:
+
+Two majors points: 
+    + using protobuf from the start
+    + using DER encoding for scalar and points
+
+Packet flow for Marshalling:
+    + since anything that gets sent over the wire comes from protobuf files, we
+      simply convert any struct containing kyber.Point to its equivalent
+      protobuf out-type containing only slice of bytes. The encoding is done
+      through a DEREncoder that maps a point or scalar to its DER encoding.
+
+Packet flow for Unmarshalling:
+    + reads the wire packet as a protobuf Golang struct
+    + for any Point or Scalar, use a DEREncoder thats reads its DER encoded
+      format to its Point or Scalar value.
+        This translation for the moment will be done by hand. Next step is to
+        use a recursive algorithm using reflect that checks if the type is Point
+        or Scalar, reads its DER format from the protobuf packet and sets the
+        point value to the final struct. Both inccurs a copy of the struct, from
+        protobuf -> go-With-kyber struct.
+    TODO: let's do the reflect solution *now*.
+    Correction: NO, because of the following:
+        DKG => all bytes now
+        TBLS => can be made bytes
+        Public => can be made bytes
+        ==> No translation needed
+        So just a "DER <-> Point/Scalar" transformation is needed
+
+
