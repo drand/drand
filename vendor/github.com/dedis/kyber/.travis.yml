@@ -1,0 +1,11 @@
+language: go
+
+install:
+  - go get -t ./...
+  - go get github.com/dedis/Coding || true
+
+script:
+  - make test
+
+notifications:
+  email: false

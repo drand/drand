@@ -6,6 +6,8 @@ Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
 in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
 random values at fixed intervals using pairing-based threshold cryptography.
+drand nodes can also serve individual requests to produce locally-generated
+private randomness to a client.
 
 ### Disclaimer
 
@@ -24,11 +26,18 @@ Sure thing, here you go:
 ```
 
 The script spins up six local drand nodes and produces fresh randomness every two
-seconds. To retrieve and verify the randomness, follow the instructions printed
-by the script. If you want to run a different number of nodes, simply pass it as
-an argument to the script.
+seconds. Drand is able to produce two kind of randomness:
++ Drand main's function is to generate verifiable unbiasable randomness, this is
+  what we call *Public Randomness*. This kind of randomness is useful in many
+  applications such as lottery, or sharding or even parameters generation.
++ Drand can also generate *Private Randomness*. This randomness has been
+  generated locally by the remote server who sends it back in an encrypted form
+  to the client. This is useful to gather different entropy sources to generate
+  a high entropy randomness source.
 
 ## Drand in a Nutshell
+
+### Public Randomness
 
 A drand distributed randomness beacon involves a set of nodes and has two phases:
 
@@ -54,6 +63,14 @@ A drand distributed randomness beacon involves a set of nodes and has two phases
     signature can be verified against the distributed public key that was
     computed with the DKG.
 
+### Private Randomness
+
+In this mode, the client generates a private/public key pair and encrypts the
+public key towards the server's public key using the ECIES encryption scheme.
+Upon reception of the request, the server produces 32 random bytes locally
+(using Go's `crypto/rand` interface), and encrypts back the randomness to the
+client's public key.
+
 ## Installation 
 
 Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/). 
@@ -67,10 +84,9 @@ Make sure that you have a working [Docker installation](https://docs.docker.com/
 ### Via Golang
 
 1. Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
-2. Install the [pairing-based crypto library](https://github.com/dfinity/bn). 
 3. Install drand via:
 ```
-go get github.com/dedis/drand
+go get -u github.com/dedis/drand
 ```
 
 ## Usage
@@ -81,21 +97,12 @@ docker run \
     --rm \
     --name drand \
     -p <port>:<port> \
-    --volume $HOME/.drand/:/root/.drand/ \
+    --volume $HOME/.drand/:/.drand/ \
     dedis/drand <command>
 ```
 where `<port>` specifies the port through which your drand daemon is reachable
 and `<command>` has to be substituted by one of the respective drand
 commands below.
-
-**ISSUE with Docker**: We currently have an [issue](https://github.com/dfinity/bn/issues/12) with running drand on docker natively on some platforms. If running drand this way does not work as such, you might want to compile the docker image yourself. For this, make sure you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set. To have a working drand container, execute the following steps:
-
-```
-go get github.com/dedis/drand
-cd $GOPATH/src/github.com/dedis/drand
-docker build -t dedis/drand .
-```
-The docker drand image should now be functional on your platform. You are encouraged to fill up an issue if you encounter any problems with the installation process, and we'll do our best to help you fix it.
 
 ### Setup
 
@@ -107,11 +114,12 @@ participants run the distributed key generation protocol.
 
 To generate the long-term key pair `drand_id.{secret,public}` of the drand daemon, execute
 ```
-drand keygen <ip>:<port>
+drand keygen <address>
 ```
-where `<ip>:<port>` is the address from which your drand daemon is reachable.
-
-**NOTE:** If you use Docker, make sure to use the same `<port>` value consistently.
+where `<address>` is the address from which your drand daemon is reachable. It
+can be a HTTPS like address if you have setup a HTTPS proxy in front. Native TLS
+support in drand is not yet operational, but since drand uses gRPC, this
+functionality should be easy to implement.
 
 #### Group Configuration
 
@@ -120,22 +128,22 @@ To generate the group configuration file `drand_group.toml`, run
 drand group <pk1> <pk2> ... <pkn>
 ```
 where `<pki>` is the public key file `drand_id.public` of the i-th participant.
+The group file is generated in the current directory under `group.toml`.
 
-**NOTE:** This group file MUST be distributed to all participants and MUST be
-stored in the respective application folder (e.g., `$HOME/.drand`).
+**NOTE:** This group file MUST be distributed to all participants !
 
 #### Distributed Key Generation
 
 After receiving the `drand_group.toml` file, participants can start drand via:
 ```
-drand run
+drand run <group_file.toml>
 ```
 
 One of the nodes has to function as the leader which finalizes the setup and
 later also initiates regular randomness generation rounds. To start the drand
 daemon in leader mode, execute:
 ```
-drand run --leader
+drand run --leader <group_file.toml>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -143,11 +151,14 @@ compute the distributed public key (`dist_key.public`) and the private key
 shares (`dist_key.private`) together with the participants specified in
 `drand_group.toml`.
 
+Once the DKG phase is done, the distributed public key is saved in the local directoryas well as in the configuration folder (`$HOME/.drand` by default) under the file `groups/dist_key.public`.
+
 ### Randomness Generation
 
 The leader initiates a new randomness generation round automatically as per the
 specified time interval (default interval: `1m`). All beacon values are stored
-as `$HOME/.drand/beacons/<timestamp>.sig`.
+using [`BoltDB`](https://github.com/coreos/bbolt), a Go native fast key/value
+database engine.
 
 To change the [duration](https://golang.org/pkg/time/#ParseDuration) of the
 randomness generation interval, e.g., to `30s`, start drand via
@@ -155,13 +166,40 @@ randomness generation interval, e.g., to `30s`, start drand via
 drand run --leader --period 30s
 ```
 
-### Randomness Verification
+### Randomness Gathering
 
-To verify a beacon `<timestamp>.sig` using `dist_key.public` simply run:
++ *Public Randomness*: To get the latest public beacon, run the following:
 ```
-drand verify --distkey dist_key.public <timestamp>.sig
+drand fetch public --distkey dist_key.public <address>
 ```
-The command returns 0 if the signature is valid and 1 otherwise.
+`dist_key.public` is the distributed key generated once the DKG phase completed,
+and `<address>` is the address of one drand node.
+The output will have the following JSON format:
+```
+{
+    "previous_sig": "djjvzZGPapHnSaGMQWu/Dj6ss2Yu0WmeIO7qnGlYky0H4wIHElOE/nlAn4YD7o58
+cdZ8VX9Z5mDqmpX+p2Qgdg==",
+    "timestamp": 1526207983,
+    "signature": "CDEDW8AysZ8jSd3YkMgh9Q61HRSweaI0VQ/wmPj7Mi1Rqb7fcN36YtKZdGBvfPZyp2U
+Xbwne4tEzIZUAorCCiQ=="
+}
+```
+The public random value is the field `signature`, which is a valid BLS
+signature. The signature is made over the concatenation of the `previous_sig`
+and the `timestamp` (uint64) field. If the signature is valid, that guarantees a
+threshold of drand nodes computed this signature without being able to bias the
+outcome.
+
++ *Private Randomness*: To get a private random value, run the following:
+```
+drand fetch private <server_identity.toml>
+```
+`<server_identity.toml>` is the public identity file of one of the server. It is
+useful to be able to encrypt both the request and response between the client
+and the server.
+
+The command outputs a 32-byte base64-encoded random value coming from the local
+randomness engine of the contacted server.
 
 
 ## Learn More About The Crypto Magic Behind Drand
@@ -174,6 +212,8 @@ Drand relies on the following cryptographic constructions:
   There are more [advanced DKG protocols](https://eprint.iacr.org/2012/377.pdf) which we plan to implement in the future.
 - For the randomness generation, drand uses an implementation of threshold 
   [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf).
+- For the encryption used in the private randomness gathering, see the [ECIES
+  scheme](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme).
 - For a more general overview on generation of public randomness, see the
   paper [Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf)
 
@@ -183,7 +223,9 @@ Although being already functional, drand is still at an early stage of
 development, so there's a lot left to be done. Feel free to submit feature or,
 even better, pull requests. ;)
 
-For more details on the open issues see our [TODO](https://github.com/dedis/drand/blob/master/TODO.md) list.
++ integrate native TLS support, should be fairly easy since drand uses gRPC.
++ much more unit tests
++ systemd unit file
 
 ## License
 The drand source code is released under MIT license, see the file
@@ -197,5 +239,8 @@ The drand source code is released under MIT license, see the file
 ## Acknowledgments
 
 Thanks to [@herumi](https://github.com/herumi) for providing support for his
-optimized pairing-based cryptographic library.
+optimized pairing-based cryptographic library used in the first version.
+Thanks to [@Bren2010](https://github.com/Bren2010) and
+[@grittygrease](https://github.com/grittygrease) for providing the native Golang
+bn256 implementation and for their help in the design of drand.
 

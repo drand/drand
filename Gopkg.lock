@@ -8,28 +8,64 @@
   version = "v0.3.0"
 
 [[projects]]
+  name = "github.com/coreos/bbolt"
+  packages = ["."]
+  revision = "583e8937c61f1af6513608ccc75c97b6abdf4ff9"
+  version = "v1.3.0"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/dedis/kyber"
-  packages = [".","cipher","cipher/sha3","share","share/pedersen/dkg","share/pedersen/vss","sign/schnorr","util/bytes","util/ints","util/random","util/subtle","util/test"]
-  revision = "17d4ad13f455805a4e08fcc797e2a1c762f06112"
+  name = "github.com/dedis/fixbuf"
+  packages = ["."]
+  revision = "290118f838f79dd2f76edf7a98cccf989eaf3310"
+  version = "v1.0.2"
 
 [[projects]]
-  branch = "master"
+  branch = "group_info"
+  name = "github.com/dedis/kyber"
+  packages = [
+    ".",
+    "group/curve25519",
+    "group/edwards25519",
+    "group/internal/marshalling",
+    "group/mod",
+    "group/nist",
+    "pairing",
+    "pairing/bn256",
+    "share",
+    "share/dkg/pedersen",
+    "share/vss/pedersen",
+    "sign/bls",
+    "sign/schnorr",
+    "sign/tbls",
+    "suites",
+    "util/random",
+    "xof/blake2xb"
+  ]
+  revision = "df01452a97461400ebc686ea236e12521b6f87ca"
+
+[[projects]]
   name = "github.com/dedis/protobuf"
   packages = ["."]
-  revision = "62507025d3f800bf4cbbe9e2428b09e2d291d33a"
+  revision = "ed0d97d677d4dc2485814e88dcacaa1637c46c8e"
+  version = "v1.0.3"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/dfinity/go-dfinity-crypto"
-  packages = ["bls"]
-  revision = "1db358303499a9879dd640c71f831897e06e9ddf"
+  name = "github.com/golang/protobuf"
+  packages = [
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp"
+  ]
+  revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -45,9 +81,12 @@
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert","require"]
-  revision = "69483b4bd14f5845b5a1e55bca19e954e827f1d0"
-  version = "v1.1.4"
+  packages = [
+    "assert",
+    "require"
+  ]
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -58,12 +97,96 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["hkdf"]
-  revision = "687d4b818545e443c8ba223cbef20b1721afd4db"
+  packages = [
+    "blake2b",
+    "hkdf"
+  ]
+  revision = "2d027ae1dddd4694d54f7a8b6cbe78dca8720226"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "http/httpguts",
+    "http2",
+    "http2/hpack",
+    "idna",
+    "internal/timeseries",
+    "trace"
+  ]
+  revision = "2491c5de3490fced2f6cff376127c667efeed857"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "cpu",
+    "unix"
+  ]
+  revision = "d0faeb539838e250bd0a9db4182d48d4a1915181"
+
+[[projects]]
+  name = "golang.org/x/text"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable"
+  ]
+  revision = "f21a4dfb5e38f5895301dc265a8def02365cc3d0"
+  version = "v0.3.0"
+
+[[projects]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+  packages = ["googleapis/rpc/status"]
+  revision = "86e600f69ee4704c6efbf6a2a40a5c10700e76c2"
+
+[[projects]]
+  name = "google.golang.org/grpc"
+  packages = [
+    ".",
+    "balancer",
+    "balancer/base",
+    "balancer/roundrobin",
+    "channelz",
+    "codes",
+    "connectivity",
+    "credentials",
+    "encoding",
+    "encoding/proto",
+    "grpclb/grpc_lb_v1/messages",
+    "grpclog",
+    "internal",
+    "keepalive",
+    "metadata",
+    "naming",
+    "peer",
+    "resolver",
+    "resolver/dns",
+    "resolver/passthrough",
+    "stats",
+    "status",
+    "tap",
+    "transport"
+  ]
+  revision = "41344da2231b913fa3d983840a57a6b1b7b631a1"
+  version = "v1.12.0"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "07dc7783ec5ab68c5c7a1d86ffa47aba77eaee245c3312c9bb0760f572c87a48"
+  inputs-digest = "29d85eca84ec481f79113661c93a9a65e554f4b3c76f8aa4c718afea0d167683"
   solver-name = "gps-cdcl"
   solver-version = 1
