@@ -199,7 +199,8 @@ useful to be able to encrypt both the request and response between the client
 and the server.
 
 The command outputs a 32-byte base64-encoded random value coming from the local
-randomness engine of the contacted server.
+randomness engine of the contacted server. If the encryption is not correct, the 
+command outputs an error instead.
 
 
 ## Learn More About The Crypto Magic Behind Drand
