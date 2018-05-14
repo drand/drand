@@ -93,7 +93,7 @@ function run() {
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
         public="key/drand_id.public"
-        volume="$data:/.drand/"
+        volume="$data:/.drand/:z"
         allVolumes[$i]=$volume
         docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
             #allKeys[$i]=$data$public
@@ -105,7 +105,7 @@ function run() {
 
     ## generate group toml
     #echo $allKeys
-    docker run --rm -v $TMP:/tmp $IMG group --out /tmp/group.toml "${allKeys[@]}" > /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml "${allKeys[@]}" > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..." 
     for i in $sequence; do
