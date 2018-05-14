@@ -1,5 +1,4 @@
-dist: trusty
-
+#dist: trusty
 sudo: required
 
 services:
@@ -9,9 +8,6 @@ language: go
 
 go:
     - tip
-
-before_install:
-    #- docker build -t dedis/drand .
 
 #script:
     #- go test ./...
