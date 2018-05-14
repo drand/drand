@@ -291,7 +291,7 @@ func runCmd(c *cli.Context) error {
 		slog.Print("Starting the dkg first.")
 		runDkg(c, drand, fs)
 	} else {
-		slog.Print("No group file given, drand will try to run as beacon already.")
+		slog.Print("No group file given, drand will try to run as a beacon.")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
 			slog.Fatal(err)
