@@ -16,6 +16,7 @@ type Client struct {
 	public *key.DistPublic
 }
 
+// NewClient returns a Client able to talk to drand instances
 func NewClient(opts ...grpc.DialOption) *Client {
 	return &Client{
 		client: net.NewGrpcClient(opts...),

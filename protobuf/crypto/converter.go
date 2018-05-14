@@ -46,7 +46,7 @@ func KyberToProtoPoint(p kyber.Point) (*ProtobufPoint, error) {
 func ProtoToKyberScalar(p *ProtobufScalar) (kyber.Scalar, error) {
 	groupName, exists := GroupID_name[int32(p.GetGid())]
 	if !exists {
-		return nil, fmt.Errorf("oid %d unknown")
+		return nil, fmt.Errorf("oid %d unknown", p.GetGid())
 	}
 	group, err := suites.Find(groupName)
 	if err != nil {

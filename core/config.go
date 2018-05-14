@@ -119,6 +119,9 @@ func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
 	}
 }
 
+// WithListenAddress specifies the address the drand instance should bind to. It
+// is useful if you want to advertise a public proxy address and the drand
+// instance runs behind your network.
 func WithListenAddress(addr string) ConfigOption {
 	return func(d *Config) {
 		d.listenAddr = addr

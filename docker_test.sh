@@ -39,3 +39,4 @@ checkSuccess $? "verify randomness encryption"
 
 echo "TESTS OK"
 cleanup
+exit 0
