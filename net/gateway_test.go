@@ -29,6 +29,10 @@ type testService struct {
 func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{Timestamp: t.ts}, nil
 }
+
+func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+	return &drand.PrivateRandResponse{}, nil
+}
 func (t *testService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
 	return &dkg.DKGResponse{}, nil
 }
