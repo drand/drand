@@ -7,14 +7,14 @@ services:
 language: go
 
 go:
-    - tip
+    - "1.10.x"
 
-#script:
-    #- go test ./...
-    #- ./docker_test.sh
+script:
+    - go test ./...
+    - sudo ./docker_test.sh
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
-    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push dedis/drand;
+        sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+        sudo docker push dedis/drand;
     fi
