@@ -1,5 +1,5 @@
 #!/bin/bash 
-set -x
+# set -x
 # This script spins off N drand containers and tries to verify any randomness
 # produced.
 # It's avery ad-hoc testing and there are probably better ways to do it but
@@ -11,38 +11,31 @@ source run_local.sh
 build
 run false
 
-function checkSuccess() {
-    if [ "$1" -eq 0 ]; then
-        return
-    else
-        echo "TEST <$2>: FAILURE"
-        cleanup
-        exit 1
-    fi
-}
-
 # wait for the node to actually do the DKG and run at least one beacon
-sleep 3
+echo "[+] Waiting for beacon randomness protocol to generate a few beacons..."
+sleep 5
 #docker logs node1
 rootFolder="$TMP/node1"
-ret=0
-# check if there are any signatures
-ls "$rootFolder/beacons"| grep "sig" 
-checkSuccess $? "any signature produced?"
-
-# tail returns 0 in both cases...
-sigFile=$(ls "$rootFolder/beacons"| grep "sig" | tail -n 1)
 
 # check if there is the dist public key
-distPublic="$rootFolder/dist_key.public"
-ls "$rootFolder/dist_key.public"
+distPublic="$rootFolder/groups/dist_key.public"
+ls $distPublic > /dev/null 2> /dev/null
 checkSuccess $? "distributed public key file?"
 
 # try to verify with it
-#drand verify --distkey "$distPublic" "$rootFolder/beacons/$sigFile"
-docker run --rm -v $distPublic:/group.key -v $rootFolder/beacons/$sigFile:/beacon.sig  \
-        $IMG verify --distkey /group.key  /beacon.sig
+echo "[+] Verifying fetching public randomness"
+drandPublic="/dist_public.toml"
+drandVol="$distPublic:$drandPublic:z"
+drandArgs=("--debug" "fetch" "public" "--public" $drandPublic "${addresses[1]}")
+docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}" 
 checkSuccess $? "verify signature?"
+
+echo "[+] Verifying fetching private randomness"
+serverId="/key/drand_id.public"
+drandVol="$rootFolder$serverId:$serverId:z"
+drandArgs=("--debug" "fetch" "private" $serverId)
+docker run --rm --net $NET --ip ${SUBNET}11 -v "$drandVol" $IMG "${drandArgs[@]}"
+checkSuccess $? "verify randomness encryption"
 
 echo "TESTS OK"
 cleanup

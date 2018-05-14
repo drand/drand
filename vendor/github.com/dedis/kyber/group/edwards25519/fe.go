@@ -62,16 +62,14 @@ func feCMove(f, g *fieldElement, b int32) {
 }
 
 func load3(in []byte) int64 {
-	var r int64
-	r = int64(in[0])
+	r := int64(in[0])
 	r |= int64(in[1]) << 8
 	r |= int64(in[2]) << 16
 	return r
 }
 
 func load4(in []byte) int64 {
-	var r int64
-	r = int64(in[0])
+	r := int64(in[0])
 	r |= int64(in[1]) << 8
 	r |= int64(in[2]) << 16
 	r |= int64(in[3]) << 24

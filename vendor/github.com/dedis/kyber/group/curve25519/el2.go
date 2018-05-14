@@ -132,7 +132,7 @@ func (el *el2param) HideDecode(P point, rep []byte) {
 
 	// e = Chi(v^3+Av^2+Bv), where B=1 because of ed2mont equivalence
 	t1.Add(&v, &el.A).Mul(&t1, &v).Add(&t1, &ec.one).Mul(&t1, &v)
-	e := mod.Jacobi(&t1.V, t1.M)
+	e := big.Jacobi(&t1.V, t1.M)
 
 	// x = ev-(1-e)A/2
 	if e == 1 {
@@ -182,7 +182,7 @@ func (el *el2param) HideEncode(P point, rand cipher.Stream) []byte {
 	// condition 3: -ux(x+A) is a square
 	xpA.Add(&x, &el.A)
 	t1.Mul(&el.u, &x).Mul(&t1, &xpA).Neg(&t1)
-	if mod.Jacobi(&t1.V, t1.M) < 0 {
+	if big.Jacobi(&t1.V, t1.M) < 0 {
 		return nil // not a square, no representative
 	}
 

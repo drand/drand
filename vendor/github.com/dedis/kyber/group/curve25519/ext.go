@@ -5,11 +5,8 @@ package curve25519
 import (
 	"crypto/cipher"
 	"encoding/hex"
-	"errors"
 	"io"
 	"math/big"
-
-	"github.com/dedis/kyber/util/random"
 
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/group/internal/marshalling"
@@ -270,14 +267,6 @@ func (P *extPoint) Mul(s kyber.Scalar, G kyber.Point) kyber.Point {
 	return P
 }
 
-// SetVarTime returns an error if we require constant time operations.
-func (P *extPoint) SetVarTime(varTime bool) error {
-	if !varTime {
-		return errors.New("curve25519: constant time implementation not available")
-	}
-	return nil
-}
-
 // ExtendedCurve implements Twisted Edwards curves
 // using projective coordinate representation (X:Y:Z),
 // satisfying the identities x = X/Z, y = Y/Z.
@@ -304,14 +293,7 @@ type ExtendedCurve struct {
 	base  extPoint // Standard base point
 }
 
-func (p *ExtendedCurve) NewKey(rand cipher.Stream) kyber.Scalar {
-	if rand == nil {
-		rand = random.Stream
-	}
-	return p.Scalar().Pick(rand)
-}
-
-// Create a new Point on this curve.
+// Point creates a new Point on this curve.
 func (c *ExtendedCurve) Point() kyber.Point {
 	P := new(extPoint)
 	P.c = c

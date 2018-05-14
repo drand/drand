@@ -134,7 +134,10 @@ func (p *residuePoint) Mul(s kyber.Scalar, b kyber.Point) kyber.Point {
 	if b == nil {
 		return p.Base().Mul(s, p)
 	}
-	p.Int.Exp(&b.(*residuePoint).Int, &s.(*mod.Int).V, p.g.P)
+	// to protect against golang/go#22830
+	var tmp big.Int
+	tmp.Exp(&b.(*residuePoint).Int, &s.(*mod.Int).V, p.g.P)
+	p.Int = tmp
 	return p
 }
 
@@ -166,14 +169,6 @@ func (p *residuePoint) UnmarshalFrom(r io.Reader) (int, error) {
 	return marshalling.PointUnmarshalFrom(p, r)
 }
 
-// SetVarTime returns an error if we request constant-time operations.
-func (P *residuePoint) SetVarTime(varTime bool) error {
-	if !varTime {
-		return errors.New("nist: curve point do not provide constant time operations")
-	}
-	return nil
-}
-
 /*
 A ResidueGroup represents a DSA-style modular integer arithmetic group,
 defined by two primes P and Q and an integer R, such that P = Q*R+1.
@@ -193,8 +188,7 @@ which depend on Point.Mul() and homomorphic properties.
 However, residue groups with large R are less suitable for
 public-key cryptographic techniques that require choosing Points
 pseudo-randomly or to contain embedded data,
-as required by ElGamal encryption for example, or by Dissent's
-hash-generator construction for verifiable DC-nets.
+as required by ElGamal encryption for example.
 For such purposes quadratic residue groups are more suitable -
 representing the special case where R=2 and hence P=2Q+1.
 As a result, the Point.Pick() method should be expected to work efficiently
@@ -207,10 +201,6 @@ type ResidueGroup struct {
 
 func (g *ResidueGroup) String() string {
 	return fmt.Sprintf("Residue%d", g.P.BitLen())
-}
-
-func (g *ResidueGroup) PrimeOrder() bool {
-	return true
 }
 
 // Return the number of bytes in the encoding of a Scalar

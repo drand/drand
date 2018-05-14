@@ -3,8 +3,8 @@ Package schnorr implements the vanilla Schnorr signature scheme.
 See https://en.wikipedia.org/wiki/Schnorr_signature.
 
 The only difference regarding the vanilla reference is the computation of
-the response. This implementation adds the the random component with the
-challenge times private key while the wikipedia article substracts them.
+the response. This implementation adds the random component with the
+challenge times private key while the Wikipedia article substracts them.
 
 The resulting signature is compatible with EdDSA verification algorithm
 when using the edwards25519 group, and by extension the CoSi verification algorithm.
@@ -18,15 +18,21 @@ import (
 	"fmt"
 
 	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/util/random"
 )
+
+// Suite represents the set of functionalities needed by the package schnorr.
+type Suite interface {
+	kyber.Group
+	kyber.Random
+}
 
 // Sign creates a Sign signature from a msg and a private key. This
 // signature can be verified with VerifySchnorr. It's also a valid EdDSA
 // signature when using the edwards25519 Group.
-func Sign(g kyber.Group, private kyber.Scalar, msg []byte) ([]byte, error) {
+func Sign(s Suite, private kyber.Scalar, msg []byte) ([]byte, error) {
+	var g kyber.Group = s
 	// create random secret k and public point commitment R
-	k := g.Scalar().Pick(random.Stream)
+	k := g.Scalar().Pick(s.RandomStream())
 	R := g.Point().Mul(k, nil)
 
 	// create hash(public || R || message)
@@ -38,14 +44,14 @@ func Sign(g kyber.Group, private kyber.Scalar, msg []byte) ([]byte, error) {
 
 	// compute response s = k + x*h
 	xh := g.Scalar().Mul(private, h)
-	s := g.Scalar().Add(k, xh)
+	S := g.Scalar().Add(k, xh)
 
 	// return R || s
 	var b bytes.Buffer
 	if _, err := R.MarshalTo(&b); err != nil {
 		return nil, err
 	}
-	if _, err := s.MarshalTo(&b); err != nil {
+	if _, err := S.MarshalTo(&b); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil

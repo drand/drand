@@ -11,7 +11,7 @@ import (
 )
 
 func chi(r, v *mod.Int) {
-	r.Init64(int64(mod.Jacobi(&v.V, v.M)), v.M)
+	r.Init64(int64(big.Jacobi(&v.V, v.M)), v.M)
 }
 
 // Elligator 1 parameters
@@ -149,7 +149,7 @@ func (el *el1param) HideEncode(P point, rand cipher.Stream) []byte {
 	// condition 2: b = (1 + eta r)^2 - 1 is a square
 	etarp1.Add(&ec.one, &etar) // etarp1 = (1 + eta r)
 	b.Mul(&etarp1, &etarp1).Sub(&b, &ec.one)
-	if mod.Jacobi(&b.V, b.M) < 0 {
+	if big.Jacobi(&b.V, b.M) < 0 {
 		return nil // b not a square, no representative
 	}
 

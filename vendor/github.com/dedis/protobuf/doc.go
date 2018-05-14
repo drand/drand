@@ -134,9 +134,6 @@
 // Furthermore, if the instantiated types support the Encoding interface,
 // Encode() and Decode() will invoke the methods of that interface,
 // allowing objects to implement their own custom encoding/decoding methods.
-// The Dissent crypto library uses these facilities to support
-// encoding and decoding of Point and Secret objects given an appropriate
-// cryptographic suite, for example.
 //
 // This package does not try to support all possible protobuf formats.
 // It currently does not support nonzero default value declarations for enums,

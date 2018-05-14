@@ -15,19 +15,16 @@ import (
 // data. The keys are reflect.Type values denoting interface types. The
 // corresponding values are functions expected to instantiate, and initialize
 // as necessary, an appropriate concrete object type supporting that
-// interface.
-//
-// The Dissent crypto library uses this capability, for example, to support
-// dynamic instantiation of Point and Secret objects of the concrete type
-// appropriate for a given abstract.Suite.
-//
+// interface. A caller could use this capability to support
+// dynamic instantiation of objects of the concrete type
+// appropriate for a given abstract type.
 type Constructors map[reflect.Type]func() interface{}
 
 // String returns an easy way to visualize what you have in your constructors.
 func (c *Constructors) String() string {
 	var s string
-	for k, v := range *c {
-		s += k.String() + "=>" + fmt.Sprintf("%+v", v) + "\t"
+	for k := range *c {
+		s += k.String() + "=>" + "(func() interface {})" + "\t"
 	}
 	return s
 }
@@ -67,6 +64,9 @@ func DecodeWithConstructors(buf []byte, structPtr interface{}, cons Constructors
 // Decode a Protocol Buffers message into a Go struct.
 // The Kind of the passed value v must be Struct.
 func (de *decoder) message(buf []byte, sval reflect.Value) error {
+	if sval.Kind() != reflect.Struct {
+		return errors.New("not a struct")
+	}
 	// Decode all the fields
 	fields := ProtoFields(sval.Type())
 	fieldi := 0
@@ -105,7 +105,7 @@ func (de *decoder) message(buf []byte, sval reflect.Value) error {
 		rem, err := de.value(wiretype, buf, field)
 		if err != nil {
 			if fieldi < len(fields) && fields[fieldi] != nil {
-				return fmt.Errorf("Error while decding FieldName %s: %v", fields[fieldi].Name, err)
+				return fmt.Errorf("Error while decoding FieldName %s: %v", fields[fieldi].Name, err)
 			} else {
 				return err
 			}
@@ -161,7 +161,7 @@ func (de *decoder) value(wiretype int, buf []byte,
 			return nil, errors.New(
 				"bad protobuf length-delimited value")
 		}
-		vb = buf[n : n+int(v)]
+		vb = buf[n : n+int(v) : n+int(v)]
 		buf = buf[n+int(v):]
 
 	default:
@@ -201,7 +201,6 @@ func (de *decoder) putvalue(wiretype int, val reflect.Value,
 	if !val.CanSet() {
 		return nil
 	}
-
 	switch val.Kind() {
 	case reflect.Bool:
 		if wiretype != 0 {
@@ -215,6 +214,9 @@ func (de *decoder) putvalue(wiretype int, val reflect.Value,
 	// Signed integers may be encoded either zigzag-varint or fixed
 	// Note that protobufs don't support 8- or 16-bit ints.
 	case reflect.Int, reflect.Int32, reflect.Int64:
+		if val.Kind() == reflect.Int && val.Type().Size() < 8 {
+			return errors.New("detected a 32bit machine, please use either int64 or int32")
+		}
 		sv, err := de.decodeSignedInt(wiretype, v)
 		if err != nil {
 			fmt.Println("Error Reflect.Int for v=", v, "wiretype=", wiretype, "for Value=", val.Type().Name())
@@ -223,7 +225,10 @@ func (de *decoder) putvalue(wiretype int, val reflect.Value,
 		val.SetInt(sv)
 
 	// Varint-encoded 32-bit and 64-bit unsigned integers.
-	case reflect.Uint32, reflect.Uint64:
+	case reflect.Uint, reflect.Uint32, reflect.Uint64:
+		if val.Kind() == reflect.Uint && val.Type().Size() < 8 {
+			return errors.New("detected a 32bit machine, please use either uint64 or uint32")
+		}
 		if wiretype == 0 {
 			val.SetUint(v)
 		} else if wiretype == 5 { // ufixed32
@@ -344,7 +349,6 @@ var ufixed64type = reflect.TypeOf(Ufixed64(0))
 
 // Handle decoding of slices
 func (de *decoder) slice(slval reflect.Value, vb []byte) error {
-
 	// Find the element type, and create a temporary instance of it.
 	eltype := slval.Type().Elem()
 	val := reflect.New(eltype).Elem()
@@ -352,9 +356,13 @@ func (de *decoder) slice(slval reflect.Value, vb []byte) error {
 	// Decide on the wiretype to use for decoding.
 	var wiretype int
 	switch eltype.Kind() {
-	case reflect.Bool, reflect.Int32, reflect.Int64,
-		reflect.Uint32, reflect.Uint64:
+	case reflect.Bool, reflect.Int32, reflect.Int64, reflect.Int,
+		reflect.Uint32, reflect.Uint64, reflect.Uint:
+		if (eltype.Kind() == reflect.Int || eltype.Kind() == reflect.Uint) && eltype.Size() < 8 {
+			return errors.New("detected a 32bit machine, please either use (u)int64 or (u)int32")
+		}
 		switch eltype {
+
 		case sfixed32type:
 			wiretype = 5 // Packed 32-bit representation
 		case sfixed64type:
@@ -376,7 +384,7 @@ func (de *decoder) slice(slval reflect.Value, vb []byte) error {
 	case reflect.Uint8: // Unpacked byte-slice
 		if slval.Kind() == reflect.Array {
 			if slval.Len() != len(vb) {
-				panic("Array length != buffer length")
+				return errors.New("array length and buffer length differ")
 			}
 			for i := 0; i < slval.Len(); i++ {
 				// no SetByte method in reflect so has to pass down by uint64
@@ -391,6 +399,9 @@ func (de *decoder) slice(slval reflect.Value, vb []byte) error {
 		// Just unpack and append one value from vb.
 		if err := de.putvalue(2, val, 0, vb); err != nil {
 			return err
+		}
+		if slval.Kind() != reflect.Slice {
+			return errors.New("append to non-slice")
 		}
 		slval.Set(reflect.Append(slval, val))
 		return nil

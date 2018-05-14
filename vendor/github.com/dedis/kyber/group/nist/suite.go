@@ -12,9 +12,9 @@ import (
 	"github.com/dedis/fixbuf"
 
 	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/cipher/sha3"
 	"github.com/dedis/kyber/group/internal/marshalling"
 	"github.com/dedis/kyber/util/random"
+	"github.com/dedis/kyber/xof/blake2xb"
 )
 
 type Suite128 struct {
@@ -26,9 +26,12 @@ func (s *Suite128) Hash() hash.Hash {
 	return sha256.New()
 }
 
-// SHA3/SHAKE128 Sponge Cipher
-func (s *Suite128) Cipher(key []byte, options ...interface{}) kyber.Cipher {
-	return sha3.NewShakeCipher128(key, options...)
+func (s *Suite128) XOF(key []byte) kyber.XOF {
+	return blake2xb.New(key)
+}
+
+func (s *Suite128) RandomStream() cipher.Stream {
+	return random.New()
 }
 
 func (s *Suite128) Read(r io.Reader, objs ...interface{}) error {
@@ -43,15 +46,14 @@ func (s *Suite128) New(t reflect.Type) interface{} {
 	return marshalling.GroupNew(s, t)
 }
 
-func (s *Suite128) NewKey(rand cipher.Stream) kyber.Scalar {
-	if rand == nil {
-		rand = random.Stream
-	}
-	return s.Scalar().Pick(rand)
-}
-
-// Ciphersuite based on AES-128, SHA-256, and the NIST P-256 elliptic curve.
-func NewAES128SHA256P256() *Suite128 {
+// NewBlakeSHA256P256 returns a cipher suite based on package
+// github.com/dedis/kyber/xof/blake2xb, SHA-256, and the NIST P-256
+// elliptic curve. It returns random streams from Go's crypto/rand.
+//
+// The scalars created by this group implement kyber.Scalar's SetBytes
+// method, interpreting the bytes as a big-endian integer, so as to be
+// compatible with the Go standard library's big.Int type.
+func NewBlakeSHA256P256() *Suite128 {
 	suite := new(Suite128)
 	suite.p256.Init()
 	return suite

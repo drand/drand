@@ -4,14 +4,14 @@
 //
 // This code is based on Adam Langley's Go port of the public domain,
 // "ref10" implementation of the ed25519 signing scheme in C from SUPERCOP.
-// It was generalized and extended to support full kyber.group arithmetic
-// by the Yale Decentralized/Distributed Systems (DeDiS) encoding.
+// It was generalized and extended to support full kyber.Group arithmetic
+// by the DEDIS lab at Yale and EPFL.
 //
 // Due to the field element and group arithmetic optimizations
-// described in the Ed25519 paper, this implementation generally performs
-// extremely well, typically comparable to native C implementations.
-// The tradeoff is that this code is completely specialized to a single curve.
-//
+// described in the Ed25519 paper, this implementation generally
+// performs extremely well, typically comparable to native C
+// implementations.  The tradeoff is that this code is completely
+// specialized to a single curve.
 package edwards25519
 
 import (
@@ -27,6 +27,11 @@ import (
 type point struct {
 	ge      extendedGroupElement
 	varTime bool
+	curve   *Curve
+}
+
+func (P *point) Group() kyber.Group {
+	return P.curve
 }
 
 func (P *point) String() string {
@@ -221,10 +226,4 @@ func (P *point) Mul(s kyber.Scalar, A kyber.Point) kyber.Point {
 	}
 
 	return P
-}
-
-// SetVarTime allows for optimized, non-constant time implementation.
-func (P *point) SetVarTime(varTime bool) error {
-	P.varTime = varTime
-	return nil
 }

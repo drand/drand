@@ -10,7 +10,7 @@ Abstract Groups
 
 This toolkits public-key crypto API includes a kyber.Group interface
 supporting a broad class of group-based public-key primitives
-including DSA-style integer residue groups and elliptic curve groups.  Users of
+including DSA-style integer residue groups and elliptic curve groups. Users of
 this API can write higher-level crypto algorithms such as zero-knowledge
 proofs without knowing or caring exactly what kind of group, let alone which
 precise security parameters or elliptic curves, are being used. The kyber.Group
@@ -18,30 +18,29 @@ interface supports the standard algebraic operations on group elements and
 scalars that nontrivial public-key algorithms tend to rely on. The interface
 uses additive group terminology typical for elliptic curves, such that point
 addition is homomorphically equivalent to adding their (potentially secret)
-scalar multipliers.  But the API and its operations apply equally well to
+scalar multipliers. But the API and its operations apply equally well to
 DSA-style integer groups.
 
 As a trivial example, generating a public/private keypair is as simple as:
 
-    group := edwards25519.Curve{}			// Use the edwards25519-curve
-	a := group.Scalar().Pick(random.Stream) // Alice's private key
-	A := group.Point().Mul(nil, a)          // Alice's public key
+    suite := suites.MustFind("Ed25519")		// Use the edwards25519-curve
+	a := suite.Scalar().Pick(suite.RandomStream()) // Alice's private key
+	A := suite.Point().Mul(a, nil)          // Alice's public key
 
-The first statement picks a private key (Scalar) from a specified source of
+The first statement picks a private key (Scalar) from a the suites's source of
 cryptographic random or pseudo-random bits, while the second performs elliptic
 curve scalar multiplication of the curve's standard base point (indicated by the
 'nil' argument to Mul) by the scalar private key 'a'. Similarly, computing a
 Diffie-Hellman shared secret using Alice's private key 'a' and Bob's public key
 'B' can be done via:
 
-	S := group.Point().Mul(B, a)		// Shared Diffie-Hellman secret
+	S := suite.Point().Mul(a, B)		// Shared Diffie-Hellman secret
 
-Note that we use 'Mul' rather than 'Exp' here because the library
-uses the additive-group terminology common for elliptic curve crypto,
-rather than the multiplicative-group terminology of traditional integer groups -
-but the two are semantically equivalent and
-the interface itself works for both elliptic curve and integer groups.
-See below for more complete examples.
+Note that we use 'Mul' rather than 'Exp' here because the library uses
+the additive-group terminology common for elliptic curve crypto,
+rather than the multiplicative-group terminology of traditional
+integer groups - but the two are semantically equivalent and the
+interface itself works for both elliptic curve and integer groups.
 
 Higher-level Building Blocks
 
@@ -51,12 +50,11 @@ In particular, the 'group/mod' sub-package provides implementations
 of modular integer groups underlying conventional DSA-style algorithms.
 The `group/nist` package provides NIST-standardized elliptic curves built on
 the Go crypto library.
-The 'group/edwards25519' sub-package provides the kyber.group interface
+The 'group/edwards25519' sub-package provides the kyber.Group interface
 using the popular Ed25519 curve.
 
 Other sub-packages build more interesting high-level cryptographic tools
-atop these kyber.primitive interfaces,
-including:
+atop these primitive interfaces, including:
 
 - share: Polynomial commitment and verifiable Shamir secret splitting
 for implementing verifiable 't-of-n' threshold cryptographic schemes.
@@ -72,7 +70,7 @@ or I know the secret y associated with public key Y",
 without revealing anything about either secret
 or even which branch of the "or" clause is true.
 
-- sign: The sign folder contains many subfolder that implements different signature schemes.
+- sign: The sign directory contains different signature schemes.
 
 - sign/anon provides anonymous and pseudonymous public-key encryption and signing,
 where the sender of a signed message or the receiver of an encrypted message
@@ -102,15 +100,18 @@ security-critical applications. However, we intend to bring the library closer
 to stability and real-world usability as quickly as development resources
 permit, and as interest and application demand dictates.
 
-As should be obvious, this library is intended to be used by developers who are at
-least moderately knowledgeable about kyber.  If you want a crypto library that
-makes it easy to implement "basic crypto" functionality correctly - i.e., plain
-public-key encryption and signing - then the NaCl/Sodium pursues this worthy
-goal (http://doc.libsodium.org).  This toolkit's purpose is to make it possible
-- and preferably but not necessarily easy - to do slightly more interesting
-things that most current crypto libraries don't support effectively.  The one
-existing crypto library that this toolkit is probably most comparable to is the
-Charm rapid prototyping library for Python (http://charm-kyber.com/).
+As should be obvious, this library is intended to be used by
+developers who are at least moderately knowledgeable about
+cryptography. If you want a crypto library that makes it easy to
+implement "basic crypto" functionality correctly - i.e., plain
+public-key encryption and signing - then
+[NaCl secretbox](https://godoc.org/golang.org/x/crypto/nacl/secretbox)
+may be a better choice. This toolkit's purpose is to make it possible
+- and preferably easy - to do slightly more interesting things that
+most current crypto libraries don't support effectively. The one
+existing crypto library that this toolkit is probably most comparable
+to is the Charm rapid prototyping library for Python
+(https://charm-crypto.com/category/charm).
 
 This library incorporates and/or builds on existing code from a variety of
 sources, as documented in the relevant sub-packages.

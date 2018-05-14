@@ -3,12 +3,11 @@
 package nist
 
 import (
+	"crypto/cipher"
+	"crypto/elliptic"
 	"errors"
 	"io"
 	"math/big"
-	//"encoding/hex"
-	"crypto/cipher"
-	"crypto/elliptic"
 
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/group/internal/marshalling"
@@ -52,8 +51,6 @@ func (p *curvePoint) Base() kyber.Point {
 }
 
 func (p *curvePoint) Valid() bool {
-	// return p.c.IsOnCurve(p.x, p.y)
-
 	// The IsOnCurve function in Go's elliptic curve package
 	// doesn't consider the point-at-infinity to be "on the curve"
 	return p.c.IsOnCurve(p.x, p.y) ||
@@ -212,14 +209,6 @@ func (p *curvePoint) UnmarshalFrom(r io.Reader) (int, error) {
 	return marshalling.PointUnmarshalFrom(p, r)
 }
 
-// SetVarTime returns an error if we request constant-var operations.
-func (P *curvePoint) SetVarTime(varTime bool) error {
-	if !varTime {
-		return errors.New("nist: nist curve point do not provide constant time implementations")
-	}
-	return nil
-}
-
 // interface for curve-specifc mathematical functions
 type curveOps interface {
 	sqrt(y *big.Int) *big.Int
@@ -233,15 +222,13 @@ type curve struct {
 	p *elliptic.CurveParams
 }
 
-// All the NIST curves we support are prime-order.
-func (g *curve) PrimeOrder() bool {
-	return true
-}
-
 // Return the number of bytes in the encoding of a Scalar for this curve.
 func (c *curve) ScalarLen() int { return (c.p.N.BitLen() + 7) / 8 }
 
-// Create a Scalar associated with this curve.
+// Create a Scalar associated with this curve. The scalars created by
+// this package implement kyber.Scalar's SetBytes method, interpreting
+// the bytes as a big-endian integer, so as to be compatible with the
+// Go standard library's big.Int type.
 func (c *curve) Scalar() kyber.Scalar {
 	return mod.NewInt64(0, c.p.N)
 }

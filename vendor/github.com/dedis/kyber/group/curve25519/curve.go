@@ -3,15 +3,15 @@
 package curve25519
 
 import (
+	"crypto/cipher"
+	"crypto/sha512"
 	"errors"
 	"fmt"
 	"math/big"
-	//"encoding/hex"
-	"crypto/cipher"
 
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/group/mod"
-	"github.com/dedis/kyber/util/bytes"
+	"github.com/dedis/kyber/util/random"
 )
 
 var zero = big.NewInt(0)
@@ -51,7 +51,14 @@ type curve struct {
 	hide hiding // Uniform point encoding method
 }
 
-func (c *curve) PrimeOrder() bool {
+func (c *curve) String() string {
+	if c.full {
+		return c.Param.String() + "-full"
+	}
+	return c.Param.String()
+}
+
+func (c *curve) IsPrimeOrder() bool {
 	return !c.full
 }
 
@@ -70,6 +77,20 @@ func (c *curve) Scalar() kyber.Scalar {
 // and only the sign bit of the x-coordinate.
 func (c *curve) PointLen() int {
 	return (c.P.BitLen() + 7 + 1) / 8
+}
+
+// NewKey returns a formatted curve25519 key (avoiding subgroup attack by requiring
+// it to be a multiple of 8). NewKey implements the kyber/util/key.Generator interface.
+func (c *curve) NewKey(stream cipher.Stream) kyber.Scalar {
+	var buffer [32]byte
+	random.Bytes(buffer[:], stream)
+	scalar := sha512.Sum512(buffer[:])
+	scalar[0] &= 248
+	scalar[31] &= 127
+	scalar[31] |= 64
+
+	secret := c.Scalar().SetBytes(scalar[:32])
+	return secret
 }
 
 // Initialize a twisted Edwards curve with given parameters.
@@ -194,9 +215,7 @@ func (c *curve) encodePoint(x, y *mod.Int) []byte {
 	}
 
 	// Convert to little-endian
-	bytes.Reverse(b, b)
-	//fmt.Printf("encoding %s,%s:\n%s\n", x.String(), y.String(),
-	//		hex.Dump(b))
+	reverse(b, b)
 	return b
 }
 
@@ -215,7 +234,7 @@ func (c *curve) decodePoint(bb []byte, x, y *mod.Int) error {
 	// Convert from little-endian
 	//fmt.Printf("decoding:\n%s\n", hex.Dump(bb))
 	b := make([]byte, len(bb))
-	bytes.Reverse(b, bb)
+	reverse(b, bb)
 
 	// Extract the sign of the x-coordinate
 	xsign := uint(b[0] >> 7)
@@ -322,7 +341,7 @@ func (c *curve) embed(P point, data []byte, rand cipher.Stream) {
 			b[0] = byte(dl)       // Encode length in low 8 bits
 			copy(b[1:1+dl], data) // Copy in data to embed
 		}
-		bytes.Reverse(b, b) // Convert to big-endian form
+		reverse(b, b) // Convert to big-endian form
 
 		xsign := b[0] >> 7                    // save x-coordinate sign bit
 		b[0] &^= 0xff << uint(c.P.BitLen()&7) // clear high bits
@@ -384,4 +403,17 @@ func (c *curve) data(x, y *mod.Int) ([]byte, error) {
 		return nil, errors.New("invalid embedded data length")
 	}
 	return b[1 : 1+dl], nil
+}
+
+// reverse copies src into dst in byte-reversed order and returns dst,
+// such that src[0] goes into dst[len-1] and vice versa.
+// dst and src may be the same slice but otherwise must not overlap.
+func reverse(dst, src []byte) []byte {
+	l := len(dst)
+	for i, j := 0, l-1; i < (l+1)/2; {
+		dst[i], dst[j] = src[j], src[i]
+		i++
+		j--
+	}
+	return dst
 }

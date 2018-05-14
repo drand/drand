@@ -6,6 +6,8 @@ package edwards25519
 
 import (
 	"crypto/cipher"
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math/big"
@@ -13,9 +15,7 @@ import (
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/group/internal/marshalling"
 	"github.com/dedis/kyber/group/mod"
-	"github.com/dedis/kyber/util/bytes"
 	"github.com/dedis/kyber/util/random"
-	"github.com/dedis/kyber/util/subtle"
 )
 
 // This code is a port of the public domain, "ref10" implementation of ed25519
@@ -24,7 +24,12 @@ import (
 // The scalars are GF(2^252 + 27742317777372353535851937790883648493).
 
 type scalar struct {
-	v [32]byte
+	v     [32]byte
+	curve *Curve
+}
+
+func (s *scalar) Group() kyber.Group {
+	return s.curve
 }
 
 // Equality test for two Scalars derived from the same Group
@@ -114,7 +119,7 @@ func (s *scalar) Inv(a kyber.Scalar) kyber.Scalar {
 	ac := a.(*scalar)
 	// Modular inversion in a multiplicative group is a^(phi(m)-1) = a^-1 mod m
 	// Since m is prime, phi(m) = m - 1 => a^(m-2) = a^-1 mod m.
-	// The inverse is computed  using the exponentation-and-square algorithm.
+	// The inverse is computed using the exponentation-and-square algorithm.
 	// Implementation is constant time regarding the value a, it only depends on
 	// the modulo.
 	for i := 255; i >= 0; i-- {
@@ -136,34 +141,18 @@ func (s *scalar) Pick(rand cipher.Stream) kyber.Scalar {
 	return s.setInt(i)
 }
 
+// SetBytes s to b, interpreted as a little endian integer.
 func (s *scalar) SetBytes(b []byte) kyber.Scalar {
 	return s.setInt(mod.NewIntBytes(b, primeOrder, mod.LittleEndian))
 }
 
-// SetVarTime returns an error if we request constant-time operations.
-func (s *scalar) SetVarTime(varTime bool) error {
-	if varTime {
-		return errors.New("ed25519: no vartime scalar implementation available")
-	}
-	return nil
-}
-
-// Bytes returns a big-Endian representation of the scalar
-func (s *scalar) Bytes() []byte {
-	var buf = s.v
-	bytes.Reverse(buf[:], buf[:])
-	var i int
-	for i = 0; i < 32; i++ {
-		if buf[i] != 0 {
-			break
-		}
-	}
-	return buf[i:]
-}
-
-// String returns the string representation of this scalar.
+// String returns the string representation of this scalar (fixed length of 32 bytes, little endian).
 func (s *scalar) String() string {
-	return s.toInt().String()
+	b, _ := s.toInt().MarshalBinary()
+	for len(b) < 32 {
+		b = append(b, 0)
+	}
+	return hex.EncodeToString(b)
 }
 
 // Encoded length of this object in bytes.

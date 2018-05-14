@@ -51,7 +51,7 @@ func Encode(structPtr interface{}) (bytes []byte, err error) {
 	en := encoder{}
 	val := reflect.ValueOf(structPtr)
 	if val.Kind() != reflect.Ptr {
-		return nil, errors.New("Encode takes a pointer to struct")
+		return nil, errors.New("encode takes a pointer to struct")
 	}
 	en.message(val.Elem())
 	return en.Bytes(), nil
@@ -73,7 +73,7 @@ func (en *encoder) message(sval reflect.Value) {
 		field := sval.FieldByIndex(index.Index)
 		key := uint64(index.ID) << 3
 		//fmt.Printf("field %d: %s %v\n", 1+i,
-		//		sval.Type().Field(i).Name, field.CanSet())
+		//	sval.Type().Field(i).Name, field.CanSet())
 		if field.CanSet() { // Skip blank/padding fields
 			en.value(key, field, index.Prefix)
 		}
@@ -162,18 +162,6 @@ func (en *encoder) value(key uint64, val reflect.Value, prefix TagPrefix) {
 		b := []byte(v)
 		en.uvarint(uint64(len(b)))
 		en.Write(b)
-		return
-
-	case []byte:
-		if v == nil {
-			if prefix != TagOptional {
-				panic("passed nil []byte to required field")
-			}
-			return
-		}
-		en.uvarint(key | 2)
-		en.uvarint(uint64(len(v)))
-		en.Write(v)
 		return
 	}
 
@@ -394,9 +382,8 @@ func (en *encoder) handleMap(key uint64, mpval reflect.Value, prefix TagPrefix) 
 		}
 
 		packed := encoder{}
-		packed.value(key, mkey, prefix)
-		fieldId := uint64(key >> 3)
-		packed.value(uint64(fieldId+1)<<3, mval, prefix)
+		packed.value(1<<3, mkey, prefix)
+		packed.value(2<<3, mval, prefix)
 
 		en.uvarint(key | 2)
 		b := packed.Bytes()
@@ -467,7 +454,6 @@ func (en *encoder) sliceReflect(key uint64, slval reflect.Value) {
 				panic("protobuf: no support for 2-dimensional array except for [][]byte")
 			}
 		}
-
 		for i := 0; i < sllen; i++ {
 			en.value(key, slval.Index(i), TagNone)
 		}

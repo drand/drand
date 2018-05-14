@@ -1,0 +1,54 @@
+/*
+ * This protobuf file contains the definitions of all the calls and messages
+ * used by drand nodes themselves to create the distributed randomness beacon.
+ */ 
+syntax = "proto3";
+
+package dkg;
+
+option go_package = "github.com/dedis/drand/protobuf/dkg";
+import "crypto/share/vss/vss.proto";
+
+// BeaconAPI holds the relevant calls to create a distributed key with the
+// participants and to create new publicly verifiable randomness.
+service Dkg {
+   rpc Setup(DKGPacket) returns (DKGResponse);
+
+}
+
+// DKGPacket is used by the nodes to run the dkg protocol before being able to
+// generate randomness beacons.
+message DKGPacket {    
+    Deal deal = 1;
+    Response response = 2;
+    Justification justification = 3;
+}
+
+message DKGResponse {
+}
+
+// Deal contains a share for a participant.
+message Deal {
+    // index of the dealer, the issuer of the share
+    uint32 index = 1;
+    // encrypted version of the deal
+    vss.EncryptedDeal deal = 2;
+}
+
+// Response holds the response that a participant broadcast after having
+// received a deal.
+message Response {
+    // index of the dealer for which this response is for
+    uint32 index = 1;
+    // response from the participant which received a deal
+    vss.Response response = 2;
+}
+
+// Justification holds the justification from a dealer after a participant
+// issued a complaint response because of a supposedly invalid deal.
+message Justification {
+    // index of the dealer who is issuing this justification
+    uint32 index = 1;
+    // justification from the dealer
+    vss.Justification justification = 2;
+}

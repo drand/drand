@@ -4,7 +4,6 @@ package curve25519
 
 import (
 	"crypto/cipher"
-	"errors"
 	"io"
 	"math/big"
 
@@ -124,14 +123,6 @@ func (P *basicPoint) Data() ([]byte, error) {
 	return P.c.data(&P.x, &P.y)
 }
 
-// SetVarTime returns an error if we ask for constant-time implementation.
-func (P *basicPoint) SetVarTime(varTime bool) error {
-	if !varTime {
-		return errors.New("curve25519: no constant time implementation available")
-	}
-	return nil
-}
-
 // Add two points using the basic unified addition laws for Edwards curves:
 //
 //	x' = ((x1*y2 + x2*y1) / (1 + d*x1*x2*y1*y2))
@@ -225,10 +216,6 @@ func (c *BasicCurve) Point() kyber.Point {
 	P.c = c
 	P.Set(&c.null)
 	return P
-}
-
-func (c *BasicCurve) NewKey(r cipher.Stream) kyber.Scalar {
-	return c.Scalar().Pick(r)
 }
 
 // Initialize the curve with given parameters.

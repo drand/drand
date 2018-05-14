@@ -1,14 +1,14 @@
-[![Docs](https://img.shields.io/badge/docs-current-brightgreen.svg)](https://godoc.org/gopkg.in/dedis/kyber.v1)
-[![Build Status](https://travis-ci.org/dedis/kyber.svg?branch=v1)](https://travis-ci.org/dedis/kyber)
+[![Docs](https://img.shields.io/badge/docs-current-brightgreen.svg)](https://godoc.org/github.com/dedis/kyber)
+[![Build Status](https://travis-ci.org/dedis/kyber.svg?branch=master)](https://travis-ci.org/dedis/kyber)
 
-DeDiS Advanced Crypto Library for Go
+DEDIS Advanced Crypto Library for Go
 ====================================
 
 This package provides a toolbox of advanced cryptographic primitives for Go,
-targeting applications like [Dissent](http://dedis.cs.yale.edu/dissent/)
+targeting applications like [Cothority](https://github.com/dedis/cothority)
 that need more than straightforward signing and encryption.
 Please see the
-[GoDoc documentation for this package](http://godoc.org/gopkg.in/dedis/kyber.v1)
+[Godoc documentation for this package](http://godoc.org/github.com/dedis/kyber)
 for details on the library's purpose and API functionality.
 
 Versioning - Development
@@ -17,37 +17,38 @@ Versioning - Development
 With the new interface in the kyber-library we use the following development
 model:
 
-* kyber.v0 (crypto.v0) is the previous semi-stable version
-* master-branch of kyber is the development version
-* kyber.v1 will be a subset of the master-branch and be stable
+* crypto.v0 was the previous semi-stable version. See
+  [migration notes](https://github.com/dedis/kyber/wiki/Migration-from-gopkg.in-dedis-crypto.v0).
+* kyber.v1 never existed, in order to keep kyber, onet and cothorithy versions linked
+* kyber.v2 is the stable version
+* the master branch of kyber is the development version
 
-So if you depend on the master-branch, you can expect breakages from time
+So if you depend on the master branch, you can expect breakages from time
 to time. If you need something that doesn't change in a backward-compatible
-way, use kyber.v0.
+way you should do:
 
-This is the _development_ version of kyber. And it will break.
+```
+   import "gopkg.in/dedis/kyber.v2"
+```
 
 Installing
 ----------
 
-First make sure you have [Go](https://golang.org)
-version 1.7 or newer installed.
+First make sure you have [Go](https://golang.org) version 1.8 or newer installed.
 
 The basic crypto library requires only Go and a few
 third-party Go-language dependencies that can be installed automatically
 as follows:
 
 	go get github.com/dedis/kyber
-	cd $GOPATH/src/github.com/dedis/kyber
+	cd "$(go env GOPATH)/src/github.com/dedis/kyber"
 	go get -t ./... # install 3rd-party dependencies
 
 You should then be able to test its basic function as follows:
 
 	go test -v
 
-You can recursively test all the packages in the library as follows,
-keeping in mind that some sub-packages will only build
-if certain dependencies are satisfied as described below:
+You can recursively test all the packages in the library as follows:
 
 	go test -v ./...
 
@@ -55,8 +56,10 @@ Constant Time Implementation
 ----------------------------
 
 By default, this package builds groups that implements constant time arithmetic
-operations. The current v1 version only supports the edwards25519 group.  If you
-want to have access to variable time arithmetic groups such as P256 or
+operations. Currently, only the Edwards25519 group has a constant time implementation,
+and thus by default only the Edwards25519 group is compiled in.
+
+If you need to have access to variable time arithmetic groups such as P256 or
 Curve25519, you need to build the repository with the "vartime" tag:
 
     go build -tags vartime
@@ -65,52 +68,19 @@ And you can test the vartime packages with:
 
     go test -tags vartime ./...
 
+When a given implementation provides both constant time and variable time
+operations, the constant time operations are used in preference to the variable
+time ones, in order to reduce the risk of timing side-channel attack.
+See [AllowsVarTime](https://godoc.org/gopkg.in/dedis/kyber.v1#AllowsVarTime) for how
+to opt-in to variable time implementations when it is safe to do so.
 
-Migration from v0
------------------
+A note on deriving shared secrets
+---------------------------------
 
-The current master is essentially a large clean up of the v0 version, with only a few API
-changes, so only minor changes are required.  
-
-+ All references to `abstract.XXX` are now moved up to the top level
-  `kyber.XXX`. For example, v1 uses now `kyber.Group` instead of
-  `abstract.Group`.
-+ `kyber.Suite` do not exist anymore. Now each package should declare its own
-  top level package `Suite` interface declaring the functionalities needed by
-  the package. One example is the `share/vss` package:
-  ```go
-      // Suite defines the capabilities required by the vss package.
-      type Suite interface {
-          kyber.Group
-          kyber.CipherFactory
-          kyber.HashFactory
-      }
-  ```
-+ `Cipher(key []byte. opts ...interface{}) Cipher` is now `kyber.CipherFactory`.
-+ `Hash() hash.Hash` is now `kyber.HashFactory`.
-+ The order of arguments for `Point.Mul()` has changed. It now follows the
-  mathematical additive notation with the scalar in front:
-  `Mul(kyber.Scalar, kyber.Point) kyber.Point`
-
-+ Some packages, structs and methods have been renamed:
-    - `ed25519` to `group/edwards25519`
-    - `config/KeyPair` to `util/key/Pair`
-    - `proof/DLEQProof` -> `proof/dleq/Proof`
-
-+ Many utility functions have been moved to `util/`. For example, the `subtle`
-  package in now in `util/subtle/`.
-
-Please, read the CHANGELOG for an exhaustive list of changes.
-
-Issues
-------
-
-- Traditionally, ECDH (Elliptic curve Diffie-Hellman) derives the shared secret
+Traditionally, ECDH (Elliptic curve Diffie-Hellman) derives the shared secret
 from the x point only. In this framework, you can either manually retrieve the
 value or use the MarshalBinary method to take the combined (x, y) value as the
 shared secret. We recommend the latter process for new softare/protocols using
 this framework as it is cleaner and generalizes across different types of
 groups (e.g., both integer and elliptic curves), although it will likely be
-incompatible with other implementations of ECDH.
-http://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman
-
+incompatible with other implementations of ECDH. See [the Wikipedia page](http://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman) on ECDH.

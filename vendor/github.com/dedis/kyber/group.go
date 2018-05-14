@@ -15,13 +15,13 @@ type Scalar interface {
 	// Equality test for two Scalars derived from the same Group
 	Equal(s2 Scalar) bool
 
-	// Set equal to another Scalar a
+	// Set sets the receiver equal to another Scalar a
 	Set(a Scalar) Scalar
 
 	// Clone creates a new Scalar with same value
 	Clone() Scalar
 
-	// Set to a small integer value
+	// Set sets the receiver to a small integer value
 	SetInt64(v int64) Scalar
 
 	// Set to the additive identity (0)
@@ -51,55 +51,47 @@ type Scalar interface {
 	// Set to a fresh random or pseudo-random scalar
 	Pick(rand cipher.Stream) Scalar
 
-	// SetBytes sets the scalar from a big-endian byte-slice,
+	// SetBytes sets the scalar from a byte-slice,
 	// reducing if necessary to the appropriate modulus.
+	// The endianess of the byte-slice is determined by the
+	// implementation.
 	SetBytes([]byte) Scalar
-
-	// Bytes returns a big-Endian representation of the scalar
-	Bytes() []byte
-
-	// SetVarTime allows or disallows use of faster variable-time implementations
-	// of operations on this Point. It returns an error if the desired
-	// implementation is not available for the concrete implementation.
-	// This flag always defaults to false (constant-time only)
-	// in implementations that can provide constant-time operations.
-	SetVarTime(varTime bool) error
 }
 
 // A Point kyber.y represents an element of a public-key cryptographic Group.
 // For example,
 // this is a number modulo the prime P in a DSA-style Schnorr group,
-// or an x,y point on an elliptic curve.
-// A Point can contain a Diffie-Hellman public key,
-// an ElGamal ciphertext, etc.
+// or an (x, y) point on an elliptic curve.
+// A Point can contain a Diffie-Hellman public key, an ElGamal ciphertext, etc.
 type Point interface {
 	Marshaling
 
 	// Equality test for two Points derived from the same Group
 	Equal(s2 Point) bool
 
-	Null() Point // Set to neutral identity element
+	// Null sets the receiver to the neutral identity element.
+	Null() Point
 
-	// Set to this group's standard base point.
+	// Set sets the receiver to this group's standard base point.
 	Base() Point
 
-	// Pick set to a fresh random or pseudo-random Point.
+	// Pick sets the receiver to a fresh random or pseudo-random Point.
 	Pick(rand cipher.Stream) Point
 
-	// Set equal to another Point p.
+	// Set sets the receiver equal to another Point p.
 	Set(p Point) Point
 
 	// Clone clones the underlying point.
 	Clone() Point
 
-	// Maximum number of bytes that can be reliably embedded
-	// in a single group element via Pick().
+	// Maximum number of bytes that can be embedded in a single
+	// group element via Pick().
 	EmbedLen() int
 
-	// Embed encodes a limited amount of specified data in the Point.
-	// Implementations only embed the first EmbedLen bytes of the given data.
-	// Currently probabilistic approach requires to include some randomness
-	// given by the cipher.Stream.
+	// Embed encodes a limited amount of specified data in the
+	// Point, using r as a source of cryptographically secure
+	// random data.  Implementations only embed the first EmbedLen
+	// bytes of the given data.
 	Embed(data []byte, r cipher.Stream) Point
 
 	// Extract data embedded in a point chosen via Embed().
@@ -118,16 +110,24 @@ type Point interface {
 	// Multiply point p by the scalar s.
 	// If p == nil, multiply with the standard base point Base().
 	Mul(s Scalar, p Point) Point
-
-	// SetVarTime allows or disallows use of faster variable-time implementations
-	// of operations on this Point. It returns an error if the desired
-	// implementation is not available.
-	// This flag always defaults to false (constant-time only)
-	// in implementations that can provide constant-time operations.
-	SetVarTime(varTime bool) error
 }
 
-// Group interface represents a kyber.cryptographic group
+// AllowsVarTime allows callers to determine if a given kyber.Scalar
+// or kyber.Point supports opting-in to variable time operations. If
+// an object implements AllowsVarTime, then the caller can use
+// AllowVarTime(true) in order to allow variable time operations on
+// that object until AllowVarTime(false) is called. Variable time
+// operations may be faster, but also risk leaking information via a
+// timing side channel. Thus they are only safe to use on public
+// Scalars and Points, never on secret ones.
+//
+// To compile variable time suites into the library, you must give the
+// option "-tags vertime" to "go build" or "go test".
+type AllowsVarTime interface {
+	AllowVarTime(bool)
+}
+
+// Group interface represents a mathematical group
 // usable for Diffie-Hellman key exchange, ElGamal encryption,
 // and the related body of public-key cryptographic algorithms
 // and zero-knowledge proof methods.
@@ -165,8 +165,12 @@ type Group interface {
 
 	PointLen() int // Max length of point in bytes
 	Point() Point  // Create new point
+}
 
-	PrimeOrder() bool // Returns true if group is prime-order
-
-	NewKey(cipher.Stream) Scalar
+// Groupable is an interface that returns the group an element is using.
+// Points and Scalars can implement this interface that help build with automatic
+// /un/marshalling functionality
+type Groupable interface {
+	// Returns the group the interface is using
+	Group() Group
 }
