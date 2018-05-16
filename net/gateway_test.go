@@ -23,11 +23,11 @@ func (t *testPeer) TLS() bool {
 }
 
 type testService struct {
-	ts uint64
+	round uint64
 }
 
 func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	return &drand.PublicRandResponse{Timestamp: t.ts}, nil
+	return &drand.PublicRandResponse{Round: t.round}, nil
 }
 
 func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
@@ -51,6 +51,6 @@ func TestGatewa(t *testing.T) {
 	client := NewGrpcClient()
 	resp, err := client.Public(&testPeer{addr1}, &drand.PublicRandRequest{})
 	require.Nil(t, err)
-	expected := &drand.PublicRandResponse{Timestamp: service1.ts}
-	require.Equal(t, expected.GetTimestamp(), resp.GetTimestamp())
+	expected := &drand.PublicRandResponse{Round: service1.round}
+	require.Equal(t, expected.GetRound(), resp.GetRound())
 }

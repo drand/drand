@@ -10,7 +10,7 @@ import (
 )
 
 func TestBoltStore(t *testing.T) {
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := path.Join(os.TempDir(), "drandtest")
 	require.NoError(t, os.MkdirAll(tmp, 0755))
 	path := tmp
 	defer os.RemoveAll(tmp)
@@ -22,15 +22,15 @@ func TestBoltStore(t *testing.T) {
 	require.NoError(t, err)
 
 	b1 := &Beacon{
-		PreviousSig: sig1,
-		Timestamp:   145,
-		Signature:   sig2,
+		PreviousRand: sig1,
+		Round:        145,
+		Randomness:   sig2,
 	}
 
 	b2 := &Beacon{
-		PreviousSig: sig2,
-		Timestamp:   146,
-		Signature:   sig1,
+		PreviousRand: sig2,
+		Round:        146,
+		Randomness:   sig1,
 	}
 
 	require.NoError(t, store.Put(b1))

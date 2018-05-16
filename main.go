@@ -4,7 +4,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -316,7 +315,14 @@ func fetchPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatal(err)
 	}
-	slog.Print(base64.StdEncoding.EncodeToString(resp))
+	type private struct {
+		Randomness []byte `json="randomness"`
+	}
+	buff, err := json.MarshalIndent(&private{resp}, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
 	return nil
 }
 

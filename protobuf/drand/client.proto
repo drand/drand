@@ -20,19 +20,20 @@ service Randomness {
 // PublicRandRequest requests a public random value that has been generated in a
 // unbiasable way and verifiable.
 message PublicRandRequest {
-    // timestamp identifies the requested randomness. If it is equals to 0, the
-    // response should return the latest public randomness avaiable.
-    uint64 timestamp = 1;
+    // round uniquely identifies a beacon. If round == 0, then the response will
+    // contain the last.
+    // XXX better ways to do that...
+    uint64 round = 1;
 }
 
 // PublicRandResponse holds a signature which is the random value. It can be
 // verified thanks to the distributed public key of the nodes that have ran the
-// DKG protocol and is unbiasable. The message to the signature verification
-// routine is "previous_sig  || timestamp".
+// DKG protocol and is unbiasable. The randomness can be verified using the BLS
+// verification routine with the message "round || previous_rand".
 message PublicRandResponse {
-    bytes previous_sig = 1;
-    uint64 timestamp = 2;
-    bytes signature = 3;
+    uint64 round = 1;
+    bytes previous_rand = 2;
+    bytes randomness = 3;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random
