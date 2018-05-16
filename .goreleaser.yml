@@ -11,7 +11,7 @@ builds:
 # Archive customization
 archive:
   format: tar.gz
-    amd64: 64-bit
+    #amd64: 64-bit
   files:
     - LICENSE
     - README.md
