@@ -55,8 +55,8 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 }
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
-	msg := beacon.Message(resp.PreviousSig, resp.Timestamp)
-	return bls.Verify(key.Pairing, public, msg, resp.Signature)
+	msg := beacon.Message(resp.PreviousRand, resp.Round)
+	return bls.Verify(key.Pairing, public, msg, resp.Randomness)
 }
 
 type peerAddr struct {

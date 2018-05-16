@@ -56,7 +56,7 @@ func TestDrandDKG(t *testing.T) {
 	go root.BeaconLoop()
 	select {
 	case b := <-beaconCh:
-		err := bls.Verify(key.Pairing, public.Key, beacon.Message(b.PreviousSig, b.Timestamp), b.Signature)
+		err := bls.Verify(key.Pairing, public.Key, beacon.Message(b.PreviousRand, b.Round), b.Randomness)
 		require.NoError(t, err)
 	case <-time.After(1000 * time.Millisecond):
 		t.Fatal("fail")

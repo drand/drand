@@ -15,18 +15,22 @@ import (
 // stores and loads beacon signatures. At the moment of writing, it consists of
 // a boltdb key/value database store.
 
+// Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
-	PreviousSig []byte
-	Timestamp   uint64
-	Signature   []byte
+	// PreviousRand is the previous randomness generated
+	PreviousRand []byte
+	// Round is the round number this beacon is tied to
+	Round uint64
+	// Randomness is the tbls signature of Round || PreviousRand
+	Randomness []byte
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
-func Message(oldSig []byte, time uint64) []byte {
+func Message(prevRand []byte, round uint64) []byte {
 	var buff bytes.Buffer
-	buff.Write(timestampToBytes(time))
-	buff.Write(oldSig)
+	buff.Write(roundToBytes(round))
+	buff.Write(prevRand)
 	return buff.Bytes()
 }
 
@@ -36,6 +40,7 @@ type Store interface {
 	Len() int
 	Put(*Beacon) error
 	Last() (*Beacon, error)
+	Get(round uint64) (*Beacon, error)
 	//Cursor() (*Cursor,error)
 	// XXX Misses a delete function
 }
@@ -89,7 +94,7 @@ func (b *boltStore) Len() int {
 func (b *boltStore) Put(beacon *Beacon) error {
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
-		key := timestampToBytes(beacon.Timestamp)
+		key := roundToBytes(beacon.Round)
 		buff, err := json.Marshal(beacon)
 		if err != nil {
 			return err
@@ -125,6 +130,25 @@ func (b *boltStore) Last() (*Beacon, error) {
 	return beacon, err
 }
 
+// Get returns the beacon saved at this round
+func (b *boltStore) Get(round uint64) (*Beacon, error) {
+	var beacon *Beacon
+	err := b.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		v := bucket.Get(roundToBytes(round))
+		if v == nil {
+			return errors.New("no beacon saved for this round")
+		}
+		b := &Beacon{}
+		if err := json.Unmarshal(v, b); err != nil {
+			return err
+		}
+		beacon = b
+		return nil
+	})
+	return beacon, err
+}
+
 type cbStore struct {
 	Store
 	cb func(*Beacon)
@@ -145,8 +169,8 @@ func (c *cbStore) Put(b *Beacon) error {
 	return nil
 }
 
-func timestampToBytes(t uint64) []byte {
+func roundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
-	binary.Write(&buff, binary.LittleEndian, t)
+	binary.Write(&buff, binary.BigEndian, r)
 	return buff.Bytes()
 }

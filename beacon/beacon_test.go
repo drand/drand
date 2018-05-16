@@ -100,7 +100,7 @@ func TestBeacon(t *testing.T) {
 	n := 5
 	thr := 5/2 + 1
 
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := path.Join(os.TempDir(), "drandtest")
 	paths := make([]string, n, n)
 	for i := 0; i < n; i++ {
 		paths[i] = path.Join(tmp, fmt.Sprintf("drand-%d", i))
@@ -142,7 +142,7 @@ func TestBeacon(t *testing.T) {
 	defer handlers[0].Stop()
 	select {
 	case b := <-beaconCh:
-		err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Timestamp), b.Signature)
+		err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
 		require.NoError(t, err)
 	case <-time.After(1000 * time.Millisecond):
 		t.Fatal("fail")
