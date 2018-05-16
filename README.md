@@ -169,20 +169,19 @@ drand run --leader --period 30s
 ### Randomness Gathering
 
 + **Public Randomness**: To get the latest public beacon, run the following:
-```
+```bash
 drand fetch public --distkey dist_key.public <address>
 ```
 `dist_key.public` is the distributed key generated once the DKG phase completed,
 and `<address>` is the address of one drand node.
 The output will have the following JSON format:
-```
+```json
 {
-    "previous_sig": "djjvzZGPapHnSaGMQWu/Dj6ss2Yu0WmeIO7qnGlYky0H4wIHElOE/nlAn4YD7o58
-cdZ8VX9Z5mDqmpX+p2Qgdg==",
-    "timestamp": 1526207983,
-    "signature": "CDEDW8AysZ8jSd3YkMgh9Q61HRSweaI0VQ/wmPj7Mi1Rqb7fcN36YtKZdGBvfPZyp2U
-Xbwne4tEzIZUAorCCiQ=="
+    "round": 2,
+    "previous_rand": "jnbvQ3LSxg8kp8qwpPO1u2F4ietJCZmMjJUQ1KDo4u94P57hN1K2mJk7oeiWU2Czb5pNqWy4u6vQH2fkqdoNgA==",
+    "randomness": "QqcL2Pncns2pKrSdfJw0RK6YFosLpP/44FUBF6Udf38uz5rHyVsZ8/XgElTdDLCpUDIm/DWIzltIzmqArZTjlQ=="
 }
+
 ```
 The public random value is the field `signature`, which is a valid BLS
 signature. The signature is made over the concatenation of the `previous_sig`
@@ -191,8 +190,11 @@ threshold of drand nodes computed this signature without being able to bias the
 outcome.
 
 + **Private Randomness**: To get a private random value, run the following:
-```
+```bash
 drand fetch private <server_identity.toml>
+{
+    "Randomness": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
+}
 ```
 `<server_identity.toml>` is the public identity file of one of the server. It is
 useful to be able to encrypt both the request and response between the client

@@ -141,8 +141,8 @@ function run() {
 
 function cleanup() {
     echo "[+] Cleaning up the docker containers..." 
-    sudo docker stop $(sudo docker ps -a -q) > /dev/null 2>/dev/null
-    sudo docker rm -f $(sudo docker ps -a -q) > /dev/null 2>/dev/null
+    docker stop $(docker ps -a -q) > /dev/null 2>/dev/null
+    docker rm -f $(docker ps -a -q) > /dev/null 2>/dev/null
 }
 
 cleanup
