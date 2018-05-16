@@ -13,8 +13,21 @@ script:
     - go test ./...
     - sudo ./docker_test.sh
 
-after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
-        sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-        sudo docker push dedis/drand;
-    fi
+# old artefact from before goreleaser
+#after_success:
+  #- if [ "$TRAVIS_BRANCH" == "master" ]; then
+        #sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+        #sudo docker push dedis/drand;
+    #fi
+
+before_deploy:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+# calls goreleaser
+deploy:
+- provider: script
+  skip_cleanup: true
+  script: curl -sL https://git.io/goreleaser | bash
+  on:
+    tags: true
+    condition: $TRAVIS_OS_NAME = linux
