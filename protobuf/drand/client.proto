@@ -32,7 +32,7 @@ message PublicRandRequest {
 // verification routine with the message "round || previous_rand".
 message PublicRandResponse {
     uint64 round = 1;
-    bytes previous_rand = 2;
+    bytes previous = 2;
     bytes randomness = 3;
 }
 

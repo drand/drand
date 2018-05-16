@@ -321,7 +321,7 @@ func fetchPrivateCmd(c *cli.Context) error {
 		slog.Fatal(err)
 	}
 	type private struct {
-		Randomness []byte `json="randomness"`
+		Randomness []byte `json:"randomness"`
 	}
 	buff, err := json.MarshalIndent(&private{resp}, "", "    ")
 	if err != nil {
