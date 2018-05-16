@@ -18,12 +18,17 @@ import (
 	"github.com/urfave/cli"
 )
 
-const version = "0.2"
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 const gname = "group.toml"
 const dpublic = "dist_key.public"
 
 func banner() {
-	fmt.Printf("drand v%s-test by nikkolasg @ DEDIS, EPFL\n", version)
+	fmt.Printf("drand v%s-%s-%s by nikkolasg @ DEDIS\n", version, commit, date)
 	s := "WARNING: this software has NOT received a full audit and must be \n" +
 		"used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)

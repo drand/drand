@@ -1,0 +1,20 @@
+# .goreleaser.yml
+# Build customization
+builds:
+  - binary: drand
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+
+# Archive customization
+archive:
+  format: tar.gz
+    amd64: 64-bit
+  files:
+    - LICENSE
+    - README.md
+
+git:
+  short_hash: true
