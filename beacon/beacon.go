@@ -202,6 +202,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 	for {
 		select {
 		case <-h.ticker.C:
+			slog.Debugf("beacon: next tick for round %d", h.round)
 			// close the previous operations if still running
 			close(closingCh)
 			closingCh = make(chan bool)
