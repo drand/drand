@@ -30,7 +30,7 @@ deploy:
     on:
       tags: true
       condition: $TRAVIS_OS_NAME = linux
-  - provide: script
+  - provider: script
     script: docker push dedis/drand:$TRAVIS_TAG
     on:
         tags: true
