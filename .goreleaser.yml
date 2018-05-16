@@ -16,11 +16,5 @@ archive:
     - LICENSE
     - README.md
 
-dockers:
-  - image: dedis/drand
-    tag_templates:
-    - '{{ .Tag }}'
-    - 'latest'
-
 git:
   short_hash: true
