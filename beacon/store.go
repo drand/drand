@@ -154,9 +154,9 @@ type cbStore struct {
 	cb func(*Beacon)
 }
 
-// NewCallbackStore returns a Store that calls the given callback each time a
-// new Beacon is saved into the given store. It does not call the callback if
-// there has been any errors while saving the beacon.
+// NewCallbackStore returns a Store that calls the given callback in a goroutine
+// each time a new Beacon is saved into the given store. It does not call the
+// callback if there has been any errors while saving the beacon.
 func NewCallbackStore(s Store, cb func(*Beacon)) Store {
 	return &cbStore{Store: s, cb: cb}
 }
@@ -165,7 +165,7 @@ func (c *cbStore) Put(b *Beacon) error {
 	if err := c.Store.Put(b); err != nil {
 		return err
 	}
-	c.cb(b)
+	go c.cb(b)
 	return nil
 }
 

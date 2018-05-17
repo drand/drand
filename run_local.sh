@@ -1,4 +1,5 @@
 #!/bin/bash 
+
 # set -x 
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers 
@@ -67,7 +68,7 @@ function build() {
 
 # associative array in bash 4
 # https://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
-declare -A addresses
+addresses=()
 # run does the following:
 # - creates the docker network
 # - creates the individual keys under the temporary folder. Each node has its own
@@ -89,7 +90,7 @@ function run() {
         # gen key and append to group
         data="$TMP/node$i/"
         addr="${SUBNET}2$i:$PORT"
-        addresses[$i]=$addr
+        addresses+=($addr)
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
         public="key/drand_id.public"
@@ -115,7 +116,7 @@ function run() {
         cp $GROUPFILE $groupFile
         dockerGroupFile="/.drand/drand_group.toml"
         #drandCmd=("--debug" "run")
-        drandCmd=("run")
+        drandCmd=("--debug" "run" "--period" "2s")
         detached="-d"
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i --volume ${allVolumes[$i]} -d)
         #echo "--> starting drand node $i: ${SUBNET}2$i"
@@ -126,14 +127,12 @@ function run() {
                 echo "[+] Running in foreground!"
                 unset 'args[${#args[@]}-1]'
             fi
-            echo "[+] Starting the leader"
-            drandCmd+=($dockerGroupFile)
-            docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+            echo "[+] Starting the leader of the dkg"
         else
-            drandCmd+=($dockerGroupFile)
-            docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+            echo "[+] Starting node $i"
         fi
-
+        drandCmd+=($dockerGroupFile)
+        docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
         sleep 0.1
         detached="-d"
     done
@@ -157,6 +156,8 @@ fi
 trap cleanup SIGINT
 build
 run false
+echo "[+] Waiting 3s to get some beacons..."
+sleep 3
 while true;
 do 
     rootFolder="$TMP/node1"

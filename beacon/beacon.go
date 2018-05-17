@@ -40,11 +40,15 @@ type Handler struct {
 
 	// current round
 	round uint64
+	// previous signature generated at the previous round. Useful to generate
+	// the next signature on the next round.
+	previousRand []byte
 	// stores some recent signature to avoid recreating them
 	cache *signatureCache
 
 	ticker *time.Ticker
 	close  chan bool
+	addr   string
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -55,6 +59,7 @@ func NewHandler(c net.Client, priv *key.Private, sh *key.Share, group *key.Group
 		// XXX
 		panic("that's just plain wrong and I should be an error")
 	}
+	addr := group.Nodes[idx].Addr
 	return &Handler{
 		client: c,
 		group:  group,
@@ -64,6 +69,7 @@ func NewHandler(c net.Client, priv *key.Private, sh *key.Share, group *key.Group
 		store:  s,
 		close:  make(chan bool),
 		cache:  newSignatureCache(),
+		addr:   addr,
 	}
 }
 
@@ -90,18 +96,11 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	}
 
 	// check if we have it in the saved signatures
-	signature, ok := h.cache.Get(p.Round, msg)
-	if !ok {
-		signature, err = tbls.Sign(key.Pairing, h.share.Share, msg)
-		if err != nil {
-			return nil, err
-		}
-		h.cache.Put(p.Round, msg, signature)
-	}
+	signature, err := h.signature(p.Round, msg)
 	resp := &proto.BeaconResponse{
 		PartialRand: signature,
 	}
-	return resp, nil
+	return resp, err
 }
 
 // RandomBeacon starts periodically the TBLS protocol. The seed is the first
@@ -113,21 +112,20 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 	h.ticker = time.NewTicker(period)
 	h.Unlock()
 	var failed uint64
-	// to protect the prevRand mutation
-	var mut sync.Mutex
-	var prevRand []byte = seed
+	h.savePreviousSignature(seed)
 	//for wt := range b.ticker.C {
 	closingCh := make(chan bool)
 	fn := func(closeCh chan bool) {
 		round := h.nextRound()
-		slog.Debugf("beacon: round %d", round)
+		prevRand := h.getPreviousSignature()
+		slog.Debugf("beacon %s: next tick for round %d", h.addr, round)
 		msg := Message(prevRand, round)
-		signature, err := tbls.Sign(key.Pairing, h.share.Share, msg)
+		signature, err := h.signature(round, msg)
 		if err != nil {
-			slog.Debugf("beacon: err creating beacon: %s", err)
+			slog.Debugf("beacon: round %d err creating/caching signature %s", round, err)
 			return
 		}
-		h.cache.Put(round, msg, signature)
+
 		var sigs [][]byte
 		sigs = append(sigs, signature)
 		request := &proto.BeaconRequest{
@@ -146,21 +144,23 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 			go func(i *key.Identity) {
 				resp, err := h.client.NewBeacon(i, request)
 				if err != nil {
-					slog.Debugf("beacon: err receiving beacon response: %s", err)
+					//slog.Debugf("beacon: %s round %d err receiving response from %s: %s", h.addr, round, i.Address(), err)
 					return
 				}
 				if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialRand); err != nil {
 					slog.Debugf("beacon: invalid beacon response: %s", err)
 					return
 				}
+				//slog.Debugf("beacon: round %s received valid response from %s", h.addr, i.Address())
 				respCh <- resp
 			}(id.Identity)
 		}
 		// wait for a threshold of replies or if the timeout occured
-		for sigCount := 0; sigCount < h.group.Threshold; sigCount++ {
+		for len(sigs) < h.group.Threshold {
 			select {
 			case resp := <-respCh:
 				sigs = append(sigs, resp.PartialRand)
+				//slog.Debugf("beacon: %s round %d received %d/%d response", h.addr, round, len(sigs), h.group.Threshold)
 			case <-closeCh:
 				// it's already time to go to the next, there has been not
 				// enough time or nodes are too slow. In any case it's a
@@ -173,6 +173,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 				return
 			}
 		}
+		//slog.Debugf("beacon: %s round %d -> out of the waiting loop (%d sigs)", h.addr, round, len(sigs))
 		finalSig, err := tbls.Recover(key.Pairing, h.pub, msg, sigs, h.group.Threshold, h.group.Len())
 		if err != nil {
 			slog.Infof("beacon: could not reconstruct final beacon: %s", err)
@@ -188,21 +189,20 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 			PreviousRand: prevRand,
 			Randomness:   finalSig,
 		}
+		//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 		if err := h.store.Put(beacon); err != nil {
 			slog.Infof("beacon: error storing beacon randomness: %s", err)
 			return
 		}
-		mut.Lock()
-		prevRand = finalSig
-		mut.Unlock()
-		slog.Infof("beacon: round %d finished", round)
+		//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
+		h.savePreviousSignature(finalSig)
+		slog.Infof("beacon: round %d finished: %x", round, prevRand)
 	}
 
 	// run the loop !
 	for {
 		select {
 		case <-h.ticker.C:
-			slog.Debugf("beacon: next tick for round %d", h.round)
 			// close the previous operations if still running
 			close(closingCh)
 			closingCh = make(chan bool)
@@ -235,6 +235,31 @@ func (h *Handler) nextRound() uint64 {
 	return h.round
 }
 
+func (h *Handler) savePreviousSignature(sig []byte) {
+	h.Lock()
+	defer h.Unlock()
+	h.previousRand = sig
+}
+
+func (h *Handler) getPreviousSignature() []byte {
+	h.Lock()
+	defer h.Unlock()
+	return h.previousRand
+}
+
+func (h *Handler) signature(round uint64, msg []byte) ([]byte, error) {
+	var err error
+	signature, ok := h.cache.Get(round, msg)
+	if !ok {
+		signature, err = tbls.Sign(key.Pairing, h.share.Share, msg)
+		if err != nil {
+			return nil, err
+		}
+		h.cache.Put(round, msg, signature)
+	}
+	return signature, nil
+}
+
 type signatureCache struct {
 	sync.Mutex
 	cache map[uint64]*partialRand
@@ -265,7 +290,7 @@ func (s *signatureCache) Get(round uint64, msg []byte) ([]byte, bool) {
 		return nil, false
 	}
 	if !bytes.Equal(msg, rand.message) {
-		slog.Info("beacon: inconsistency between expected message and received. REPORT.")
+		slog.Infof("beacon: inconsistency for round %d: msg stored %x vs msg received %x", round, msg, rand.message)
 		return nil, false
 	}
 	return rand.partialRand, true

@@ -69,7 +69,7 @@ func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 		return nil, err
 	}
 	client := drand.NewRandomnessClient(c)
-	return client.Public(context.Background(), in)
+	return client.Public(context.Background(), in, grpc.FailFast(false))
 }
 
 func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
@@ -78,7 +78,7 @@ func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 		return nil, err
 	}
 	client := drand.NewRandomnessClient(c)
-	return client.Private(context.Background(), in)
+	return client.Private(context.Background(), in, grpc.FailFast(false))
 
 }
 
@@ -88,7 +88,7 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 		return nil, err
 	}
 	client := dkg.NewDkgClient(c)
-	return client.Setup(context.Background(), in)
+	return client.Setup(context.Background(), in, grpc.FailFast(false))
 }
 
 func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
@@ -97,7 +97,7 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconRe
 		return nil, err
 	}
 	client := drand.NewBeaconClient(c)
-	return client.NewBeacon(context.Background(), in)
+	return client.NewBeacon(context.Background(), in, grpc.FailFast(false))
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one
@@ -109,11 +109,10 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	if !ok {
 		if !IsTLS(p.Address()) {
 			c, err = grpc.Dial(p.Address(), grpc.WithInsecure())
-			g.conns[p.Address()] = c
 		} else {
 			c, err = grpc.Dial(p.Address())
-			g.conns[p.Address()] = c
 		}
+		g.conns[p.Address()] = c
 	}
 	return c, err
 }
