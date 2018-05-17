@@ -10,7 +10,7 @@ go:
     - "1.10.x"
 
 script:
-    - go test ./...
+    - go test -v ./...
     - sudo ./docker_test.sh
 
 after_success:
