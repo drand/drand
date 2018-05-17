@@ -189,14 +189,14 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 			PreviousRand: prevRand,
 			Randomness:   finalSig,
 		}
-		//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
+		//slog.Debugf("beacon: %s round %d -> SAVING beacon in store %x", h.addr, round)
 		if err := h.store.Put(beacon); err != nil {
 			slog.Infof("beacon: error storing beacon randomness: %s", err)
 			return
 		}
 		//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 		h.savePreviousSignature(finalSig)
-		slog.Infof("beacon: round %d finished: %x", round, prevRand)
+		slog.Infof("beacon: round %d finished: %x", round, finalSig)
 	}
 
 	// run the loop !
