@@ -86,7 +86,7 @@ func TestGroupGen(t *testing.T) {
 }
 
 func TestDKG(t *testing.T) {
-	/*n := 5*/
+	/* n := 5*/
 	//thr := 4
 	//tmpPath := path.Join(os.TempDir(), "drand")
 	//os.Mkdir(tmpPath, 0777)
@@ -194,7 +194,7 @@ func TestDKG(t *testing.T) {
 	//time.Sleep(2 * time.Second)
 	//fmt.Println("==> trying to contact with client")
 	//// try to fetch a beacon
-	//args := []string{"fetch", "--public", publicPath, addrs[0]}
+	//args := []string{"fetch", "public", "--public", publicPath, addrs[0]}
 	//cmd = exec.Command("./drand", args...)
 	//cmd.Env = append(cmd.Env, "GRPC_GO_LOG_SEVERITY_LEVEL=info")
 	//out, err := cmd.CombinedOutput()

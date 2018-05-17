@@ -193,7 +193,7 @@ outcome.
 ```bash
 drand fetch private <server_identity.toml>
 {
-    "Randomness": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
+    "randomness": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
 }
 ```
 `<server_identity.toml>` is the public identity file of one of the server. It is
@@ -227,8 +227,10 @@ development, so there's a lot left to be done. Feel free to submit feature or,
 even better, pull requests. ;)
 
 + integrate native TLS support, should be fairly easy since drand uses gRPC.
-+ versioning mechanism
-+ much more unit tests
++ dkg timeout
++ interoperable different groups
++ more unit tests
++ reduce Docker size by building first and copy in fresh container
 + systemd unit file
 
 ## License

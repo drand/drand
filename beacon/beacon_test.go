@@ -99,6 +99,8 @@ func TestBeacon(t *testing.T) {
 	slog.Level = slog.LevelDebug
 	n := 5
 	thr := 5/2 + 1
+	// how many generated beacons should we wait from each beacon handler
+	nbBeacons := 3
 
 	tmp := path.Join(os.TempDir(), "drandtest")
 	paths := make([]string, n, n)
@@ -114,37 +116,66 @@ func TestBeacon(t *testing.T) {
 
 	shares, public := dkgShares(n, thr)
 	privs, group := test.BatchIdentities(n)
-	handlers := make([]*Handler, n, n)
-	listeners := make([]net.Listener, n, n)
-	beaconCh := make(chan *Beacon, 1)
-	callback := func(b *Beacon) {
-		beaconCh <- b
-	}
-	for i := 0; i < n; i++ {
+
+	listeners := make([]net.Listener, n)
+	handlers := make([]*Handler, n)
+	receivedChan := make(chan int, nbBeacons*n)
+
+	seed := []byte("Sunshine in a bottle")
+	period := time.Duration(400) * time.Millisecond
+	// launchBeacon will launch the beacon at the given index. Each time a new
+	// beacon is ready from that node, it indicates it by sending the index on
+	// the receivedChan channel.
+	launchBeacon := func(i int) {
+		myCb := func(b *Beacon) {
+			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
+			require.NoError(t, err)
+			receivedChan <- i
+		}
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
-		store = NewCallbackStore(store, callback)
+		store = NewCallbackStore(store, myCb)
 		handlers[i] = NewHandler(net.NewGrpcClient(), privs[i], shares[i], group, store)
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
-		l := listeners[i]
-		go l.Start()
+		go listeners[i].Start()
+		go handlers[i].Loop(seed, period)
+	}
+
+	for i := 0; i < n; i++ {
+		launchBeacon(i)
 	}
 
 	defer func() {
 		for i := 0; i < n; i++ {
+			handlers[i].Stop()
 			listeners[i].Stop()
 		}
 	}()
 
-	seed := []byte("Sunshine in a bottle")
-	period := time.Duration(500) * time.Millisecond
-	go handlers[0].Loop(seed, period)
-	defer handlers[0].Stop()
+	expected := nbBeacons * n
+	done := make(chan bool)
+	// keep track of how many do we have
+	go func() {
+		receivedIdx := make(map[int]int)
+		for count := 0; count < expected; count++ {
+			receivedIdx[<-receivedChan]++
+		}
+		var correct = true
+		for _, count := range receivedIdx {
+			if count != nbBeacons {
+				correct = false
+				break
+			}
+		}
+		done <- correct
+	}()
+
 	select {
-	case b := <-beaconCh:
-		err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
-		require.NoError(t, err)
-	case <-time.After(1000 * time.Millisecond):
-		t.Fatal("fail")
+	case correct := <-done:
+		if !correct {
+			t.Fatal()
+		}
+	case <-time.After(period * time.Duration(nbBeacons*2)):
+		t.Fatal("not in time")
 	}
 }
