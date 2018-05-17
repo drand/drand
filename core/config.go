@@ -5,7 +5,7 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
-	"github.com/dedis/drand/beacon"
+	"github.com/dedis/drand/core/beacon"
 	"github.com/dedis/drand/dkg"
 	"google.golang.org/grpc"
 )

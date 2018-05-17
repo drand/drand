@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/drand/beacon"
+	"github.com/dedis/drand/core/beacon"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber/sign/bls"
