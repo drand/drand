@@ -11,6 +11,7 @@ go:
 
 script:
     - cd core && go test -v && cd beacon/ && go test -v && cd ../../
+    - cd core && go test -v ./... && cd ../
     - go test -v ./...
     - sudo ./docker_test.sh
 
