@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/dedis/drand/core/beacon"
+	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
