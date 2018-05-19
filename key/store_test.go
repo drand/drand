@@ -23,8 +23,8 @@ func TestKeysSaveLoad(t *testing.T) {
 
 	// test loading saving private public key
 
-	require.Nil(t, store.SavePrivate(ps[0]))
-	loadedKey, err := store.LoadPrivate()
+	require.Nil(t, store.SaveKeyPair(ps[0]))
+	loadedKey, err := store.LoadKeyPair()
 	require.Nil(t, err)
 	require.Equal(t, loadedKey.Key.String(), ps[0].Key.String())
 	require.Equal(t, loadedKey.Public.Key.String(), ps[0].Public.Key.String())

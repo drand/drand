@@ -19,9 +19,9 @@ var Pairing = bn256.NewSuite()
 var G1 = Pairing.G1()
 var G2 = Pairing.G2()
 
-// Private is a wrapper around a random scalar  and the corresponding public
+// Pair is a wrapper around a random scalar  and the corresponding public
 // key in G2
-type Private struct {
+type Pair struct {
 	Key    kyber.Scalar
 	Public *Identity
 }
@@ -42,21 +42,21 @@ func (i *Identity) Address() string {
 // NewKeyPair returns a freshly created private / public key pair. The group is
 // decided by the group variable by default. Currently, drand only supports
 // bn256.
-func NewKeyPair(address string) *Private {
+func NewKeyPair(address string) *Pair {
 	key := G2.Scalar().Pick(random.New())
 	pubKey := G2.Point().Mul(key, nil)
 	pub := &Identity{
 		Key:  pubKey,
 		Addr: address,
 	}
-	return &Private{
+	return &Pair{
 		Key:    key,
 		Public: pub,
 	}
 }
 
-// PrivateTOML is the TOML-able version of a private key
-type PrivateTOML struct {
+// PairTOML is the TOML-able version of a private key
+type PairTOML struct {
 	Key string
 }
 
@@ -67,16 +67,16 @@ type PublicTOML struct {
 }
 
 // TOML returns a struct that can be marshalled using a TOML-encoding library
-func (p *Private) TOML() interface{} {
+func (p *Pair) TOML() interface{} {
 	hexKey := scalarToString(p.Key)
-	return &PrivateTOML{hexKey}
+	return &PairTOML{hexKey}
 }
 
 // FromTOML constructs the private key from an unmarshalled structure from TOML
-func (p *Private) FromTOML(i interface{}) error {
-	ptoml, ok := i.(*PrivateTOML)
+func (p *Pair) FromTOML(i interface{}) error {
+	ptoml, ok := i.(*PairTOML)
 	if !ok {
-		return errors.New("private can't decode toml from non PrivateTOML struct")
+		return errors.New("private can't decode toml from non PairTOML struct")
 	}
 
 	buff, err := hex.DecodeString(ptoml.Key)
@@ -92,8 +92,8 @@ func (p *Private) FromTOML(i interface{}) error {
 }
 
 // TOMLValue returns an empty TOML-compatible interface value
-func (p *Private) TOMLValue() interface{} {
-	return &PrivateTOML{}
+func (p *Pair) TOMLValue() interface{} {
+	return &PairTOML{}
 }
 
 // Equal returns true if the cryptographic public key of p equals p2's

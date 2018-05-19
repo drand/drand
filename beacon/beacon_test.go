@@ -122,7 +122,7 @@ func TestBeacon(t *testing.T) {
 	receivedChan := make(chan int, nbBeacons*n)
 
 	seed := []byte("Sunshine in a bottle")
-	period := time.Duration(400) * time.Millisecond
+	period := time.Duration(600) * time.Millisecond
 	// launchBeacon will launch the beacon at the given index. Each time a new
 	// beacon is ready from that node, it indicates it by sending the index on
 	// the receivedChan channel.

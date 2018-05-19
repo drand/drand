@@ -174,7 +174,7 @@ func keygenCmd(c *cli.Context) error {
 	priv := key.NewKeyPair(args.First())
 	config := contextToConfig(c)
 	fs := key.NewFileStore(config.ConfigFolder())
-	if err := fs.SavePrivate(priv); err != nil {
+	if err := fs.SaveKeyPair(priv); err != nil {
 		slog.Fatal("could not save key: ", err)
 	}
 	fullpath := path.Join(config.ConfigFolder(), key.KeyFolderName)
