@@ -40,7 +40,7 @@ type Share = dkg.DistKeyShare
 type Handler struct {
 	net           Network                    // network to send data out
 	conf          *Config                    // configuration given at init time
-	private       *key.Private               // private key
+	private       *key.Pair                  // private key
 	idx           int                        // the index of the private/public key pair in the list
 	state         *dkg.DistKeyGenerator      // dkg stateful struct
 	n             int                        // number of participants
@@ -56,7 +56,7 @@ type Handler struct {
 }
 
 // NewHandler returns a fresh dkg handler using this private key.
-func NewHandler(priv *key.Private, conf *Config, n Network) (*Handler, error) {
+func NewHandler(priv *key.Pair, conf *Config, n Network) (*Handler, error) {
 	if err := validateConf(conf); err != nil {
 		return nil, err
 	}

@@ -23,7 +23,7 @@ func TestKeyGen(t *testing.T) {
 	config := core.NewConfig(core.WithConfigFolder(tmp))
 	fs := key.NewFileStore(config.ConfigFolder())
 
-	priv, err := fs.LoadPrivate()
+	priv, err := fs.LoadKeyPair()
 	require.Nil(t, err)
 	require.NotNil(t, priv.Public)
 }
@@ -49,7 +49,7 @@ func TestKeyGenInvalid(t *testing.T) {
 
 	config := core.NewConfig(core.WithConfigFolder(tmp))
 	fs := key.NewFileStore(config.ConfigFolder())
-	priv, err := fs.LoadPrivate()
+	priv, err := fs.LoadKeyPair()
 	//fmt.Println(priv.Public.Addr)
 	require.Error(t, err)
 	require.Nil(t, priv)
@@ -63,7 +63,7 @@ func TestGroupGen(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	names := make([]string, n, n)
-	privs := make([]*key.Private, n, n)
+	privs := make([]*key.Pair, n, n)
 	for i := 0; i < n; i++ {
 		names[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", i))
 		privs[i] = key.NewKeyPair("127.0.0.1")

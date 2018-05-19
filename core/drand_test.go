@@ -115,7 +115,7 @@ func BatchNewDrand(n int, opts ...ConfigOption) []*Drand {
 	tmp := os.TempDir()
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
-		s.SavePrivate(privs[i])
+		s.SaveKeyPair(privs[i])
 		// give each one their own private folder
 		dbFolder := path.Join(tmp, fmt.Sprintf("db-%d", i))
 		drands[i], err = NewDrand(s, group, NewConfig(append([]ConfigOption{WithDbFolder(dbFolder)}, opts...)...))

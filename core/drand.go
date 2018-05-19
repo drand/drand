@@ -24,7 +24,7 @@ import (
 // signature requests.
 type Drand struct {
 	opts    *Config
-	priv    *key.Private
+	priv    *key.Pair
 	group   *key.Group
 	store   key.Store
 	gateway net.Gateway
@@ -62,7 +62,7 @@ func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
 // initDrand inits the drand struct by loading the private key, and by creating the
 // gateway with the correct options.
 func initDrand(s key.Store, c *Config) (*Drand, error) {
-	priv, err := s.LoadPrivate()
+	priv, err := s.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	}

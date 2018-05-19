@@ -36,8 +36,8 @@ func FreePort() int {
 }
 
 // GenerateIDs returns n keys with random port localhost addresses
-func GenerateIDs(n int) []*key.Private {
-	keys := make([]*key.Private, n)
+func GenerateIDs(n int) []*key.Pair {
+	keys := make([]*key.Pair, n)
 	addrs := Addresses(n)
 	for i := range addrs {
 		priv := key.NewKeyPair(addrs[i])
@@ -46,14 +46,14 @@ func GenerateIDs(n int) []*key.Private {
 	return keys
 }
 
-func BatchIdentities(n int) ([]*key.Private, *key.Group) {
+func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
 	group := key.NewGroup(ListFromPrivates(privs), key.DefaultThreshold(n))
 	return privs, group
 }
 
-// ListFromPrivates returns a list of Identity from a list of Private keys.
-func ListFromPrivates(keys []*key.Private) []*key.Identity {
+// ListFromPrivates returns a list of Identity from a list of Pair keys.
+func ListFromPrivates(keys []*key.Pair) []*key.Identity {
 	n := len(keys)
 	list := make([]*key.Identity, n, n)
 	for i := range keys {
