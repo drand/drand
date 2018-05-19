@@ -1,9 +1,9 @@
 package core
 
 import (
-	"github.com/dedis/drand/beacon"
+	"github.com/dedis/drand/core/beacon"
+	"github.com/dedis/drand/core/net"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/sign/bls"

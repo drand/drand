@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/drand/beacon"
+	"github.com/dedis/drand/core/beacon"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber/sign/bls"
@@ -115,7 +115,7 @@ func BatchNewDrand(n int, opts ...ConfigOption) []*Drand {
 	tmp := os.TempDir()
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
-		s.SavePrivate(privs[i])
+		s.SaveKeyPair(privs[i])
 		// give each one their own private folder
 		dbFolder := path.Join(tmp, fmt.Sprintf("db-%d", i))
 		drands[i], err = NewDrand(s, group, NewConfig(append([]ConfigOption{WithDbFolder(dbFolder)}, opts...)...))

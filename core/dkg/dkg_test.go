@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dedis/drand/core/net"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"

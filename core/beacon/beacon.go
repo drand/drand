@@ -13,8 +13,8 @@ import (
 	"github.com/dedis/kyber/sign/bls"
 	"github.com/dedis/kyber/sign/tbls"
 
+	"github.com/dedis/drand/core/net"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
 	"github.com/nikkolasg/slog"
 )
 
@@ -53,7 +53,7 @@ type Handler struct {
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.Client, priv *key.Private, sh *key.Share, group *key.Group, s Store) *Handler {
+func NewHandler(c net.Client, priv *key.Pair, sh *key.Share, group *key.Group, s Store) *Handler {
 	idx, exists := group.Index(priv.Public)
 	if !exists {
 		// XXX

@@ -17,10 +17,10 @@ func TestKeysGroupPoint(t *testing.T) {
 	}
 }
 
-func BatchIdentities(n int) ([]*Private, *Group) {
+func BatchIdentities(n int) ([]*Pair, *Group) {
 	startPort := 8000
 	startAddr := "127.0.0.1:"
-	privs := make([]*Private, n)
+	privs := make([]*Pair, n)
 	pubs := make([]*Identity, n)
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
