@@ -169,7 +169,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 				// unlikely that the rounds are that short in practice...
 				failed++
 				slog.Infof("beacon: quitting prematurely round %d (%d failed).", round, failed)
-				slog.Infof("beacon: There might be a problem with the nodes")
+				slog.Infof("beacon: might be a problem with the nodes or the beacon period is too short")
 				return
 			}
 		}
@@ -196,7 +196,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 		}
 		//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 		h.savePreviousSignature(finalSig)
-		slog.Infof("beacon: round %d finished: %x", round, prevRand)
+		slog.Infof("beacon: round %d finished: %x", round, finalSig)
 	}
 
 	// run the loop !

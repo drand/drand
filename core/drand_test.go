@@ -22,7 +22,7 @@ func TestDrandDKG(t *testing.T) {
 	n := 5
 	nbBeacons := 3
 	//thr := key.DefaultThreshold(n)
-	period := 500 * time.Millisecond
+	period := 700 * time.Millisecond
 
 	drands := BatchNewDrand(n,
 		WithBeaconPeriod(period))
