@@ -42,7 +42,7 @@ type Drand struct {
 }
 
 // NewDrand returns an drand struct that is ready to start the DKG protocol with
-// the given group and then to serve randomness. It assumes the private key pair
+// the given group and then to serve randomness. It assumes the key pair
 // has been generated already.
 func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
 	d, err := initDrand(s, c)
