@@ -51,7 +51,7 @@ func TestDrandDKG(t *testing.T) {
 	require.Nil(t, err)
 
 	receivedChan := make(chan int, nbBeacons*n)
-	expected := nbBeacons * n
+	//expected := nbBeacons * n
 	// launchBeacon will launch the beacon at the given index. Each time a new
 	// beacon is ready from that node, it indicates it by sending the index on
 	// the receivedChan channel.
@@ -77,25 +77,26 @@ func TestDrandDKG(t *testing.T) {
 	// keep track of how many do we have
 	go func() {
 		receivedIdx := make(map[int]int)
-		for count := 0; count < expected; count++ {
+		for {
 			receivedIdx[<-receivedChan]++
-		}
-		var correct = true
-		for i, count := range receivedIdx {
-			if count != nbBeacons {
-				fmt.Printf(" -- Node %d has only generated %d/%d beacons", i, count, nbBeacons)
-				correct = false
-				break
+			var continueRcv = false
+			for i := 0; i < n; i++ {
+				rcvd := receivedIdx[i]
+				if rcvd < nbBeacons {
+					continueRcv = true
+					break
+				}
+			}
+			if !continueRcv {
+				done <- true
+				return
 			}
 		}
-		done <- correct
 	}()
 
 	select {
-	case correct := <-done:
-		if !correct {
-			t.Fatal()
-		}
+	case <-done:
+		fmt.Println("youpi")
 	case <-time.After(period * time.Duration(nbBeacons*2)):
 		t.Fatal("not in time")
 	}

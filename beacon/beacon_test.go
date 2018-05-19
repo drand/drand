@@ -152,29 +152,31 @@ func TestBeacon(t *testing.T) {
 		}
 	}()
 
-	expected := nbBeacons * n
+	//expected := nbBeacons * n
 	done := make(chan bool)
 	// keep track of how many do we have
 	go func() {
 		receivedIdx := make(map[int]int)
-		for count := 0; count < expected; count++ {
+		for {
 			receivedIdx[<-receivedChan]++
-		}
-		var correct = true
-		for _, count := range receivedIdx {
-			if count != nbBeacons {
-				correct = false
-				break
+			var continueRcv = false
+			for i := 0; i < n; i++ {
+				rcvd := receivedIdx[i]
+				if rcvd < nbBeacons {
+					continueRcv = true
+					break
+				}
+			}
+			if !continueRcv {
+				done <- true
+				return
 			}
 		}
-		done <- correct
 	}()
 
 	select {
-	case correct := <-done:
-		if !correct {
-			t.Fatal()
-		}
+	case <-done:
+		fmt.Println("youpui")
 	case <-time.After(period * time.Duration(nbBeacons*2)):
 		t.Fatal("not in time")
 	}
