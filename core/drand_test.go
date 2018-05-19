@@ -81,8 +81,9 @@ func TestDrandDKG(t *testing.T) {
 			receivedIdx[<-receivedChan]++
 		}
 		var correct = true
-		for _, count := range receivedIdx {
+		for i, count := range receivedIdx {
 			if count != nbBeacons {
+				fmt.Printf(" -- Node %d has only generated %d/%d beacons", i, count, nbBeacons)
 				correct = false
 				break
 			}

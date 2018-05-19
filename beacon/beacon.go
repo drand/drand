@@ -189,14 +189,14 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 			PreviousRand: prevRand,
 			Randomness:   finalSig,
 		}
-		//slog.Debugf("beacon: %s round %d -> SAVING beacon in store %x", h.addr, round)
+		//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 		if err := h.store.Put(beacon); err != nil {
 			slog.Infof("beacon: error storing beacon randomness: %s", err)
 			return
 		}
 		//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 		h.savePreviousSignature(finalSig)
-		slog.Infof("beacon: round %d finished: %x", round, finalSig)
+		slog.Infof("beacon: round %d finished: %x", round, prevRand)
 	}
 
 	// run the loop !
@@ -274,6 +274,7 @@ func newSignatureCache() *signatureCache {
 // Put saves the partial signature associated with the given round and
 // message for futur usage.
 func (s *signatureCache) Put(round uint64, msg, rand []byte) {
+	return
 	s.Lock()
 	defer s.Unlock()
 	s.cache[round] = &partialRand{message: msg, partialRand: rand}
@@ -283,6 +284,7 @@ func (s *signatureCache) Put(round uint64, msg, rand []byte) {
 // verifies if the message is consistent (it should not be).It returns false if
 // the signature is not present or the message is not consistent.
 func (s *signatureCache) Get(round uint64, msg []byte) ([]byte, bool) {
+	return nil, false
 	s.Lock()
 	defer s.Unlock()
 	rand, ok := s.cache[round]
