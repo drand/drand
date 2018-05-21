@@ -192,6 +192,9 @@ outcome.
 + **Private Randomness**: To get a private random value, run the following:
 ```bash
 drand fetch private <server_identity.toml>
+```
+will output
+```bash
 {
     "randomness": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
 }
