@@ -209,12 +209,13 @@ func TestBeacon(t *testing.T) {
 			//displayInfo()
 			l.Lock()
 			// let's check if they are all equal
-			for _, beacons := range genBeacons {
+			for round, beacons := range genBeacons {
 				original := beacons[0]
-				for _, beacon := range beacons[1:] {
+				for i, beacon := range beacons[1:] {
 					if !bytes.Equal(beacon.Randomness, original.Randomness) {
 						// randomness is not equal we return false
 						l.Unlock()
+						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Randomness, i+1, beacon.Randomness)
 						doneCh <- false
 						return
 					}
