@@ -82,9 +82,9 @@ func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 		return nil, err
 	}
 	client := drand.NewRandomnessClient(c)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	return client.Public(ctx, in, grpc.FailFast(false))
+	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	//defer cancel()
+	return client.Public(context.Background(), in, grpc.FailFast(false))
 }
 
 func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
@@ -93,9 +93,9 @@ func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 		return nil, err
 	}
 	client := drand.NewRandomnessClient(c)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	return client.Private(ctx, in, grpc.FailFast(false))
+	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	//defer cancel()
+	return client.Private(context.Background(), in, grpc.FailFast(false))
 
 }
 
@@ -105,9 +105,9 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 		return nil, err
 	}
 	client := dkg.NewDkgClient(c)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	return client.Setup(ctx, in, grpc.FailFast(false))
+	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	//defer cancel()
+	return client.Setup(context.Background(), in, grpc.FailFast(false))
 }
 
 func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
@@ -116,9 +116,10 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconRe
 		return nil, err
 	}
 	client := drand.NewBeaconClient(c)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	return client.NewBeacon(ctx, in, grpc.FailFast(false))
+	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	//defer cancel()
+	//return client.NewBeacon(ctx, in, grpc.FailFast(false))
+	return client.NewBeacon(context.Background(), in, grpc.FailFast(true))
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one

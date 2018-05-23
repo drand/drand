@@ -252,12 +252,11 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 func (h *Handler) Stop() {
 	h.Lock()
 	defer h.Unlock()
-	if h.ticker == nil {
-		return
+	if h.ticker != nil {
+		h.ticker.Stop()
 	}
-	h.ticker.Stop()
 	close(h.close)
-	slog.Info("beacon: shutting down")
+	h.store.Close()
 }
 
 // nextRound increase the round counter and evicts the cache from old entries.

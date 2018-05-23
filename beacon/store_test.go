@@ -42,6 +42,11 @@ func TestBoltStore(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, b2, received)
 
+	store.Close()
+	store, err = NewBoltStore(path, nil)
+	require.NoError(t, err)
+	require.NoError(t, store.Put(b1))
+
 	doneCh := make(chan bool)
 	callback := func(b *Beacon) {
 		require.Equal(t, b1, b)
