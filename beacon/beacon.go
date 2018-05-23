@@ -192,7 +192,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 			select {
 			case resp := <-respCh:
 				sigs = append(sigs, resp.PartialRand)
-				//slog.Debugf("beacon: %s round %d received %d/%d response", h.addr, round, len(sigs), h.group.Threshold)
+				slog.Debugf("beacon: %s round %d received %d/%d response", h.addr, round, len(sigs), h.group.Threshold)
 			case <-closeCh:
 				// it's already time to go to the next, there has been not
 				// enough time or nodes are too slow. In any case it's a
