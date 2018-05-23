@@ -4,12 +4,15 @@ import (
 	"context"
 	"net"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 )
+
+var DefaultTimeout = time.Duration(30) * time.Second
 
 // Gateway is the main interface to communicate to the drand world. It
 // acts as a listener to receive incoming requests and acts a client connecting
@@ -53,14 +56,24 @@ func NewGrpcGateway(listen string, s Service, opts ...grpc.DialOption) Gateway {
 // mechanism
 type grpcClient struct {
 	sync.Mutex
-	conns map[string]*grpc.ClientConn
+	conns   map[string]*grpc.ClientConn
+	opts    []grpc.DialOption
+	timeout time.Duration
 }
 
 // NewGrpcClient returns a Client using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) Client {
 	return &grpcClient{
-		conns: make(map[string]*grpc.ClientConn),
+		opts:    opts,
+		conns:   make(map[string]*grpc.ClientConn),
+		timeout: DefaultTimeout,
 	}
+}
+
+func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Client {
+	c := NewGrpcClient(opts...).(*grpcClient)
+	c.timeout = timeout
+	return c
 }
 
 func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
@@ -69,7 +82,9 @@ func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 		return nil, err
 	}
 	client := drand.NewRandomnessClient(c)
-	return client.Public(context.Background(), in, grpc.FailFast(false))
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	return client.Public(ctx, in, grpc.FailFast(false))
 }
 
 func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
@@ -78,7 +93,9 @@ func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 		return nil, err
 	}
 	client := drand.NewRandomnessClient(c)
-	return client.Private(context.Background(), in, grpc.FailFast(false))
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	return client.Private(ctx, in, grpc.FailFast(false))
 
 }
 
@@ -88,7 +105,9 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 		return nil, err
 	}
 	client := dkg.NewDkgClient(c)
-	return client.Setup(context.Background(), in, grpc.FailFast(false))
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	return client.Setup(ctx, in, grpc.FailFast(false))
 }
 
 func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
@@ -97,7 +116,9 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconRe
 		return nil, err
 	}
 	client := drand.NewBeaconClient(c)
-	return client.NewBeacon(context.Background(), in, grpc.FailFast(false))
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	return client.NewBeacon(ctx, in, grpc.FailFast(false))
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one
@@ -108,9 +129,9 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	c, ok := g.conns[p.Address()]
 	if !ok {
 		if !IsTLS(p.Address()) {
-			c, err = grpc.Dial(p.Address(), grpc.WithInsecure())
+			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 		} else {
-			c, err = grpc.Dial(p.Address())
+			c, err = grpc.Dial(p.Address(), g.opts...)
 		}
 		g.conns[p.Address()] = c
 	}

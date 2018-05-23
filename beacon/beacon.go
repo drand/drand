@@ -45,6 +45,11 @@ type Handler struct {
 	previousRand []byte
 	// stores some recent signature to avoid recreating them
 	cache *signatureCache
+	// signal if a beacon node is late, it waits for the next incoming request
+	// to start its own timer
+	catchup bool
+	// signal the beacon received from incoming request to the timer
+	catchupCh chan Beacon
 
 	ticker *time.Ticker
 	close  chan bool
@@ -61,15 +66,16 @@ func NewHandler(c net.Client, priv *key.Pair, sh *key.Share, group *key.Group, s
 	}
 	addr := group.Nodes[idx].Addr
 	return &Handler{
-		client: c,
-		group:  group,
-		share:  sh,
-		pub:    share.NewPubPoly(key.G2, key.G2.Point().Base(), sh.Commits),
-		index:  idx,
-		store:  s,
-		close:  make(chan bool),
-		cache:  newSignatureCache(),
-		addr:   addr,
+		client:    c,
+		group:     group,
+		share:     sh,
+		pub:       share.NewPubPoly(key.G2, key.G2.Point().Base(), sh.Commits),
+		index:     idx,
+		store:     s,
+		close:     make(chan bool),
+		cache:     newSignatureCache(),
+		addr:      addr,
+		catchupCh: make(chan Beacon, 1),
 	}
 }
 
@@ -83,12 +89,13 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	h.Lock()
 	defer h.Unlock()
 	var err error
-	// 1
-	if uint64(math.Abs(float64(p.Round-h.round))) > maxRoundDelta {
+	// 1 and only test if we are running, not if we just started and are trying
+	// to catch up
+	if !h.catchup && uint64(math.Abs(float64(p.Round-h.round))) > maxRoundDelta {
 		return nil, errors.New("beacon won't sign out-of-round beacon request")
 	}
 
-	// 2
+	// 2- we dont catch up at least with invalid signature
 	msg := Message(p.PreviousRand, p.Round)
 	if err := tbls.Verify(key.Pairing, h.pub, msg, p.PartialRand); err != nil {
 		slog.Debugf("beacon: received invalid signature request")
@@ -100,14 +107,38 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	resp := &proto.BeaconResponse{
 		PartialRand: signature,
 	}
+
+	// start our own internal timer
+	if h.catchup {
+		h.catchupCh <- Beacon{
+			PreviousRand: p.GetPreviousRand(),
+			Round:        p.GetRound(),
+		}
+		h.catchup = false
+	}
 	return resp, err
 }
 
 // RandomBeacon starts periodically the TBLS protocol. The seed is the first
-// message signed alongside with the current timestamp. All subsequent
-// signatures are chained:
-// s_i+1 = SIG(s_i || timestamp)
-func (h *Handler) Loop(seed []byte, period time.Duration) {
+// message signed alongside with the current round number. All subsequent
+// signatures are chained: s_i+1 = SIG(s_i || round)
+// The catchup parameter, if true, forces the beacon generator to wait until it
+// receives a RPC call from another node. At that point, the beacon generator
+// knows the current round it must execute. WARNING: It is not a bullet proof
+// solution, as a remote node could trick this beacon generator to start for an
+// outdated or far-in-the-future round. This is a starting point.
+func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
+	if catchup {
+		// signal that we are waiting on the next call
+		h.setCatchup(true)
+		b := <-h.catchupCh
+		seed = b.PreviousRand
+		// set the current round -1 so the next iteration starts correctly
+		h.setRound(b.Round - 1)
+		slog.Infof("beacon: catch up on request for round %d (previous %x)", b.Round, b.PreviousRand)
+		// catchup is set to false by the request directly
+
+	}
 	h.Lock()
 	h.ticker = time.NewTicker(period)
 	h.Unlock()
@@ -142,9 +173,10 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 			// this go routine sends the packet to one node. It will always
 			// return assuming there's a timeout on the connection
 			go func(i *key.Identity) {
+				//slog.Debugf("beacon: %s round %d: request new beacon to %s", h.addr, round, i.Address())
 				resp, err := h.client.NewBeacon(i, request)
 				if err != nil {
-					//slog.Debugf("beacon: %s round %d err receiving response from %s: %s", h.addr, round, i.Address(), err)
+					slog.Debugf("beacon: %s round %d err receiving response from %s: %s", h.addr, round, i.Address(), err)
 					return
 				}
 				if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialRand); err != nil {
@@ -201,13 +233,15 @@ func (h *Handler) Loop(seed []byte, period time.Duration) {
 
 	// run the loop !
 	for {
+		// close the previous operations if still running
+		close(closingCh)
+		closingCh = make(chan bool)
+		// start the new one
+		go fn(closingCh)
 		select {
+		// that way the execution starts directly, not after *one tick*
 		case <-h.ticker.C:
-			// close the previous operations if still running
-			close(closingCh)
-			closingCh = make(chan bool)
-			// start the new one
-			go fn(closingCh)
+			continue
 		case <-h.close:
 			return
 		}
@@ -235,6 +269,12 @@ func (h *Handler) nextRound() uint64 {
 	return h.round
 }
 
+func (h *Handler) setRound(r uint64) {
+	h.Lock()
+	defer h.Unlock()
+	h.round = r
+}
+
 func (h *Handler) savePreviousSignature(sig []byte) {
 	h.Lock()
 	defer h.Unlock()
@@ -258,6 +298,12 @@ func (h *Handler) signature(round uint64, msg []byte) ([]byte, error) {
 		h.cache.Put(round, msg, signature)
 	}
 	return signature, nil
+}
+
+func (h *Handler) setCatchup(catchup bool) {
+	h.Lock()
+	defer h.Unlock()
+	h.catchup = catchup
 }
 
 type signatureCache struct {
