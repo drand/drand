@@ -228,7 +228,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 		}
 		//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 		h.savePreviousSignature(finalSig)
-		slog.Infof("beacon: round %d finished: %x", h.addr, round, finalSig)
+		slog.Infof("beacon: round %d finished: %x", round, finalSig)
 		slog.Debugf("beacon: %s round %d finished: \n\tfinal: %x\n\tprev: %x\n", h.addr, round, finalSig, prevRand)
 	}
 
