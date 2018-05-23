@@ -156,7 +156,7 @@ func TestBeacon(t *testing.T) {
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
 		go listeners[i].Start()
 		go handlers[i].Loop(seed, period, catchup)
-		//fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())
+		fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())
 	}
 
 	for i := 0; i < n-1; i++ {
