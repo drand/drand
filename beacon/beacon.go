@@ -137,7 +137,6 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 		h.setRound(b.Round - 1)
 		slog.Infof("beacon: catch up on request for round %d (previous %x)", b.Round, b.PreviousRand)
 		// catchup is set to false by the request directly
-
 	}
 	h.Lock()
 	h.ticker = time.NewTicker(period)
@@ -183,7 +182,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 					slog.Debugf("beacon: invalid beacon response: %s", err)
 					return
 				}
-				slog.Debugf("beacon: %s round %s valid response from %s", h.addr, round, i.Address())
+				slog.Debugf("beacon: %s round %d valid response from %s", h.addr, round, i.Address())
 				respCh <- resp
 			}(id.Identity)
 		}

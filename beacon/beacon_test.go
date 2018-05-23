@@ -128,7 +128,7 @@ func TestBeacon(t *testing.T) {
 	}
 
 	seed := []byte("Sunshine in a bottle")
-	period := time.Duration(600) * time.Millisecond
+	period := time.Duration(1000) * time.Millisecond
 
 	// storing beacons from all nodes indexed per round
 	genBeacons := make(map[uint64][]*Beacon)
