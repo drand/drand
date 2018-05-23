@@ -183,7 +183,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 					slog.Debugf("beacon: invalid beacon response: %s", err)
 					return
 				}
-				slog.Debugf("beacon: %s round %s valid response from %s", h.addr, i.Address())
+				slog.Debugf("beacon: %s round %s valid response from %s", h.addr, round, i.Address())
 				respCh <- resp
 			}(id.Identity)
 		}
