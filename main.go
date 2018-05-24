@@ -39,8 +39,8 @@ func main() {
 	app.Version = version
 	configFlag := cli.StringFlag{
 		Name:  "config, c",
-		Value: core.DefaultConfigFolder,
-		Usage: "Folder to keep all drand cryptographic informations",
+		Value: core.DefaultConfigFolder(),
+		Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
 	}
 	dbFlag := cli.StringFlag{
 		Name:  "db",
@@ -169,7 +169,7 @@ func main() {
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {
-		slog.Fatal("Missing peer address in argument")
+		slog.Fatal("Missing drand address in argument (IPv4, dns)")
 	}
 	priv := key.NewKeyPair(args.First())
 	config := contextToConfig(c)
@@ -179,8 +179,10 @@ func keygenCmd(c *cli.Context) error {
 	}
 	fullpath := path.Join(config.ConfigFolder(), key.KeyFolderName)
 	absPath, err := filepath.Abs(fullpath)
-
-	slog.Print("Generated keys at ", absPath, err)
+	if err != nil {
+		slog.Fatal("err getting full path: ", err)
+	}
+	slog.Print("Generated keys at ", absPath)
 	slog.Print("You can copy paste the following snippet to a common group.toml file:")
 	var buff bytes.Buffer
 	buff.WriteString("[[nodes]]\n")
@@ -189,6 +191,7 @@ func keygenCmd(c *cli.Context) error {
 	}
 	buff.WriteString("\n")
 	slog.Print(buff.String())
+	slog.Print("Or just collect all public key files and use the group command!")
 	return nil
 }
 
