@@ -101,7 +101,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err := d.initBeacon(); err != nil {
 		return nil, err
 	}
-	slog.Debugf("drand: loaded & running at %s", d.priv.Public.Address())
+	slog.Debugf("drand: loaded and serving at %s", d.priv.Public.Address())
 	return d, nil
 }
 
@@ -130,8 +130,7 @@ func (d *Drand) WaitDKG() error {
 	d.store.SaveDistPublic(d.share.Public())
 	// XXX See if needed to change to qualified group
 	d.store.SaveGroup(d.group)
-	d.initBeacon()
-	return nil
+	return d.initBeacon()
 }
 
 var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
@@ -143,7 +142,27 @@ var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time,
 // For the moment, each resulting signature is stored in a file named
 // beacons/<timestamp>.sig.
 func (d *Drand) BeaconLoop() {
-	d.beacon.Loop(DefaultSeed, d.opts.beaconPeriod)
+	// heuristic: we catchup when we can retrieve a beacon from the db
+	// if there is an error we quit, if there is no beacon saved yet, we
+	// run the loop as usual.
+	var catchup = true
+	b, err := d.beaconStore.Last()
+	if err != nil {
+		if err == beacon.ErrNoBeaconSaved {
+			// we are starting the beacon generation
+			catchup = false
+		} else {
+			// there's a serious error
+			slog.Printf("drand: could not determine beacon state: %s", err)
+			return
+		}
+	}
+	if catchup {
+		slog.Infof("drand: starting beacon loop in catch-up mode", err, b)
+	} else {
+		slog.Infof("drand: starting beacon loop")
+	}
+	d.beacon.Loop(DefaultSeed, d.opts.beaconPeriod, catchup)
 }
 
 func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
@@ -233,9 +252,12 @@ func (d *Drand) initBeacon() error {
 	d.dkgDone = true
 	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+	if err != nil {
+		return err
+	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
 	d.beacon = beacon.NewHandler(d.gateway.Client, d.priv, d.share, d.group, d.beaconStore)
-	return err
+	return nil
 }
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {

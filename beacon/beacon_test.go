@@ -1,10 +1,12 @@
 package beacon
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,7 +102,8 @@ func TestBeacon(t *testing.T) {
 	n := 5
 	thr := 5/2 + 1
 	// how many generated beacons should we wait from each beacon handler
-	nbBeacons := 3
+	nbRound := 3
+	dialTimeout := time.Duration(200) * time.Millisecond
 
 	tmp := path.Join(os.TempDir(), "drandtest")
 	paths := make([]string, n, n)
@@ -119,65 +122,136 @@ func TestBeacon(t *testing.T) {
 
 	listeners := make([]net.Listener, n)
 	handlers := make([]*Handler, n)
-	receivedChan := make(chan int, nbBeacons*n)
+	type receiveStruct struct {
+		I int
+		B *Beacon
+	}
 
 	seed := []byte("Sunshine in a bottle")
 	period := time.Duration(600) * time.Millisecond
+
+	// storing beacons from all nodes indexed per round
+	genBeacons := make(map[uint64][]*Beacon)
+	var l sync.Mutex
+	// this is just to signal we received a new beacon
+	newBeacon := make(chan int, n*nbRound)
 	// launchBeacon will launch the beacon at the given index. Each time a new
-	// beacon is ready from that node, it indicates it by sending the index on
-	// the receivedChan channel.
-	launchBeacon := func(i int) {
+	// beacon is ready from that node, it saves the beacon and the node index
+	// into the map
+	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
 			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
 			require.NoError(t, err)
-			receivedChan <- i
+			l.Lock()
+			genBeacons[b.Round] = append(genBeacons[b.Round], b)
+			l.Unlock()
+			newBeacon <- i
 		}
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
-		handlers[i] = NewHandler(net.NewGrpcClient(), privs[i], shares[i], group, store)
+		//opts := []grpc.DialOption{grpc.WithTimeout(dialTimeout), grpc.WithBlock()}
+		//opts := []grpc.DialOption{grpc.FailOnNonTempDialError(true)}
+		handlers[i] = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), privs[i], shares[i], group, store)
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
 		go listeners[i].Start()
-		go handlers[i].Loop(seed, period)
+		go handlers[i].Loop(seed, period, catchup)
+		fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())
 	}
 
-	for i := 0; i < n; i++ {
-		launchBeacon(i)
+	for i := 0; i < n-1; i++ {
+		launchBeacon(i, false)
 	}
 
 	defer func() {
-		for i := 0; i < n; i++ {
+		for i := 0; i < n-1; i++ {
 			handlers[i].Stop()
 			listeners[i].Stop()
 		}
 	}()
 
-	//expected := nbBeacons * n
+	/* displayInfo := func() {*/
+	//l.Lock()
+	//defer l.Unlock()
+	//for round, beacons := range genBeacons {
+	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
+	//}
+	//fmt.Printf("\n")
+	/*}*/
+	//expected := nbRound * n
 	done := make(chan bool)
-	// keep track of how many do we have
-	go func() {
-		receivedIdx := make(map[int]int)
+	// test how many beacons are generated per each handler, except the last
+	// handler that will start later
+	countGenBeacons := func(rounds, beaconPerRound int, doneCh chan bool) {
 		for {
-			receivedIdx[<-receivedChan]++
-			var continueRcv = false
-			for i := 0; i < n; i++ {
-				rcvd := receivedIdx[i]
-				if rcvd < nbBeacons {
-					continueRcv = true
-					break
+			<-newBeacon
+			l.Lock()
+			// do we have enough rounds made
+			if len(genBeacons) < rounds {
+				l.Unlock()
+				continue
+			} else {
+				// do we have enough beacons for enough rounds
+				// we want at least <rounds> rounds with at least
+				// <beaconPerRound> beacons in each
+				fullRounds := 0
+				for _, beacons := range genBeacons {
+					if len(beacons) >= beaconPerRound {
+						fullRounds++
+					}
+				}
+				if fullRounds < rounds {
+					l.Unlock()
+					continue
 				}
 			}
-			if !continueRcv {
-				done <- true
-				return
+			l.Unlock()
+			//displayInfo()
+			l.Lock()
+			// let's check if they are all equal
+			for round, beacons := range genBeacons {
+				original := beacons[0]
+				for i, beacon := range beacons[1:] {
+					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+						// randomness is not equal we return false
+						l.Unlock()
+						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Randomness, i+1, beacon.Randomness)
+						doneCh <- false
+						return
+					}
+				}
 			}
+			l.Unlock()
+			doneCh <- true
+			return
 		}
-	}()
-
-	select {
-	case <-done:
-		fmt.Println("youpui")
-	case <-time.After(period * time.Duration(nbBeacons*2)):
-		t.Fatal("not in time")
 	}
+	go countGenBeacons(nbRound, n-1, done)
+
+	checkSuccess := func() {
+		select {
+		case success := <-done:
+			if !success {
+				t.Fatal("Not all equal")
+			}
+			// erase the map
+			l.Lock()
+			for i := range genBeacons {
+				delete(genBeacons, i)
+			}
+			l.Unlock()
+		case <-time.After(period * time.Duration(nbRound*4)):
+			t.Fatal("not in time")
+		}
+	}
+
+	checkSuccess()
+
+	// start the last node that needs to catchup
+	launchBeacon(n-1, true)
+	defer handlers[n-1].Stop()
+	defer listeners[n-1].Stop()
+
+	go countGenBeacons(nbRound, n, done)
+	checkSuccess()
 }

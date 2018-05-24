@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	bolt "github.com/coreos/bbolt"
+	"github.com/nikkolasg/slog"
 )
 
 // store contains all the definitions and implementation of the logic that
@@ -43,6 +44,7 @@ type Store interface {
 	Get(round uint64) (*Beacon, error)
 	//Cursor() (*Cursor,error)
 	// XXX Misses a delete function
+	Close()
 }
 
 // XXX To be implemented
@@ -89,6 +91,13 @@ func (b *boltStore) Len() int {
 	return b.len
 }
 
+func (b *boltStore) Close() {
+	if err := b.db.Close(); err != nil {
+		slog.Debugf("boltdb store: %s", err)
+	}
+	slog.Debugf("boltdb store: closing ...")
+}
+
 // Put implements the Store interface. WARNING: It does NOT verify that this
 // beacon is not already saved in the database or not.
 func (b *boltStore) Put(beacon *Beacon) error {
@@ -110,6 +119,8 @@ func (b *boltStore) Put(beacon *Beacon) error {
 	return nil
 }
 
+var ErrNoBeaconSaved = errors.New("no beacon saved in db")
+
 // Last returns the last beacon signature saved into the db
 func (b *boltStore) Last() (*Beacon, error) {
 	var beacon *Beacon
@@ -118,7 +129,7 @@ func (b *boltStore) Last() (*Beacon, error) {
 		cursor := bucket.Cursor()
 		_, v := cursor.Last()
 		if v == nil {
-			return errors.New("no beacon saved yet")
+			return ErrNoBeaconSaved
 		}
 		b := &Beacon{}
 		if err := json.Unmarshal(v, b); err != nil {
@@ -137,7 +148,7 @@ func (b *boltStore) Get(round uint64) (*Beacon, error) {
 		bucket := tx.Bucket(bucketName)
 		v := bucket.Get(roundToBytes(round))
 		if v == nil {
-			return errors.New("no beacon saved for this round")
+			return ErrNoBeaconSaved
 		}
 		b := &Beacon{}
 		if err := json.Unmarshal(v, b); err != nil {
