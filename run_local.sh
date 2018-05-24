@@ -94,7 +94,7 @@ function run() {
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
         public="key/drand_id.public"
-        volume="$data:/.drand/:z"
+        volume="$data:/root/.drand/:z"
         allVolumes[$i]=$volume
         docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
             #allKeys[$i]=$data$public
@@ -114,7 +114,7 @@ function run() {
         data="$TMP/node$i/"
         groupFile="$data""drand_group.toml"
         cp $GROUPFILE $groupFile
-        dockerGroupFile="/.drand/drand_group.toml"
+        dockerGroupFile="/root/.drand/drand_group.toml"
         #drandCmd=("--debug" "run")
         drandCmd=("--debug" "run" "--period" "2s")
         detached="-d"
