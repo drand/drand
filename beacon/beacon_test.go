@@ -103,7 +103,7 @@ func TestBeacon(t *testing.T) {
 	thr := 5/2 + 1
 	// how many generated beacons should we wait from each beacon handler
 	nbRound := 3
-	dialTimeout := time.Duration(300) * time.Millisecond
+	dialTimeout := time.Duration(200) * time.Millisecond
 
 	tmp := path.Join(os.TempDir(), "drandtest")
 	paths := make([]string, n, n)
@@ -128,7 +128,7 @@ func TestBeacon(t *testing.T) {
 	}
 
 	seed := []byte("Sunshine in a bottle")
-	period := time.Duration(1000) * time.Millisecond
+	period := time.Duration(600) * time.Millisecond
 
 	// storing beacons from all nodes indexed per round
 	genBeacons := make(map[uint64][]*Beacon)
@@ -240,7 +240,7 @@ func TestBeacon(t *testing.T) {
 				delete(genBeacons, i)
 			}
 			l.Unlock()
-		case <-time.After(period * time.Duration(nbRound*2)):
+		case <-time.After(period * time.Duration(nbRound*4)):
 			t.Fatal("not in time")
 		}
 	}
