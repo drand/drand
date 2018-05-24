@@ -7,13 +7,18 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
+	"github.com/dedis/drand/fs"
 	"google.golang.org/grpc"
 )
 
-// DefaultConfigFolder is the name of the folder containing all key materials
+// DefaultConfigFolderName is the name of the folder containing all key materials
 // (and the beacons db file by default). It is relative to the user's home
 // directory.
-const DefaultConfigFolder = ".drand"
+const DefaultConfigFolderName = ".drand"
+
+func DefaultConfigFolder() string {
+	return path.Join(fs.HomeFolder(), DefaultConfigFolderName)
+}
 
 // DefaultDbFolder is the name of the folder in which the db file is saved. By
 // default it is relative to the DefaultConfigFolder path.
@@ -40,12 +45,12 @@ type Config struct {
 // and the updated values given by the options.
 func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
-		configFolder: DefaultConfigFolder,
+		configFolder: DefaultConfigFolder(),
 		grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
 		dkgTimeout:   dkg.DefaultTimeout,
 		beaconPeriod: DefaultBeaconPeriod,
 	}
-	d.dbFolder = path.Join(DefaultConfigFolder, DefaultDbFolder)
+	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
 		opts[i](d)
 	}

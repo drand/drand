@@ -9,6 +9,14 @@ import (
 	"path"
 )
 
+func HomeFolder() string {
+	u, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+	return u.HomeDir
+}
+
 func CreateHomeConfigFolder(folder string) string {
 	u, err := user.Current()
 	if err != nil {
