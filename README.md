@@ -6,7 +6,7 @@ Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
 in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
 random values at fixed intervals using pairing-based threshold cryptography.
-drand nodes can also serve individual requests to produce locally-generated
+Nodes running drand can also serve individual requests to produce locally-generated
 private randomness to a client.
 
 ### Disclaimer
@@ -65,11 +65,21 @@ A drand distributed randomness beacon involves a set of nodes and has two phases
 
 ### Private Randomness
 
-In this mode, the client generates a private/public key pair and encrypts the
+The private randomness functionality can be used when one needs some high entropy randomness. 
+A client can contact many different drand nodes individually and retrieve a portion of their
+local randomness. This randomness can later be used to generate private key, nonces, etc. It 
+is particularly useful when the local randomness generator lacks external entropy, for example
+in embedded devices.
+
+In this mode, the client generates an ephemereal private/public key pair and encrypts the
 public key towards the server's public key using the ECIES encryption scheme.
 Upon reception of the request, the server produces 32 random bytes locally
 (using Go's `crypto/rand` interface), and encrypts back the randomness to the
-client's public key.
+client's public key. Of course, this is only a first version and much more thinking must be put
+into the chicken-and-egg problem: how to generate an ephemereal key pair to get randomness
+if we have bad randomness in the first place. We can later assume that the device is given an 
+initial key pair which uses it to gather randomness from drand nodes. This is not yet formally 
+decided nor implemented yet and any comments/ideas on this are most welcomed.
 
 ## Installation 
 
