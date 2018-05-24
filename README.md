@@ -6,7 +6,7 @@ Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
 in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
 random values at fixed intervals using pairing-based threshold cryptography.
-Nodes running drand can also serve individual requests to produce locally-generated
+Nodes running drand can also serve individual requests to serve locally-generated
 private randomness to a client.
 
 ### Disclaimer
