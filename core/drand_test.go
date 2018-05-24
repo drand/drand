@@ -25,9 +25,9 @@ func TestDrandDKG(t *testing.T) {
 	n := 5
 	nbRound := 3
 	//thr := key.DefaultThreshold(n)
-	period := 700 * time.Millisecond
+	period := 1000 * time.Millisecond
 	old := net.DefaultTimeout
-	net.DefaultTimeout = 200 * time.Millisecond
+	net.DefaultTimeout = 300 * time.Millisecond
 	defer func() { net.DefaultTimeout = old }()
 
 	drands, dir := BatchNewDrand(n,
