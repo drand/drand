@@ -116,10 +116,10 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconRe
 		return nil, err
 	}
 	client := drand.NewBeaconClient(c)
-	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	defer cancel()
-	return client.NewBeacon(ctx, in, grpc.FailFast(false))
-	//return client.NewBeacon(context.Background(), in, grpc.FailFast(true))
+	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	//defer cancel()
+	//return client.NewBeacon(ctx, in, grpc.FailFast(false))
+	return client.NewBeacon(context.Background(), in, grpc.FailFast(true))
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one
