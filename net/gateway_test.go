@@ -40,7 +40,7 @@ func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*dr
 	return &drand.BeaconResponse{}, nil
 }
 
-func TestGatewa(t *testing.T) {
+func TestListener(t *testing.T) {
 	addr1 := "127.0.0.1:4000"
 	//addr2 := "127.0.0.1:4001"
 	service1 := &testService{42}
@@ -48,9 +48,17 @@ func TestGatewa(t *testing.T) {
 	go lis1.Start()
 	defer lis1.Stop()
 	time.Sleep(100 * time.Millisecond)
+
 	client := NewGrpcClient()
 	resp, err := client.Public(&testPeer{addr1}, &drand.PublicRandRequest{})
 	require.Nil(t, err)
 	expected := &drand.PublicRandResponse{Round: service1.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
+
+	rest := NewRestClient()
+	resp, err = rest.Public(&testPeer{addr1}, &drand.PublicRandRequest{})
+	require.NoError(t, err)
+	expected = &drand.PublicRandResponse{Round: service1.round}
+	require.Equal(t, expected.GetRound(), resp.GetRound())
+
 }

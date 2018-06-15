@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/dedis/drand/api"
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
@@ -318,7 +319,7 @@ func fetchPrivateCmd(c *cli.Context) error {
 		slog.Fatal(err)
 	}
 
-	client := core.NewClient()
+	client := api.NewGrpcClient()
 	resp, err := client.Private(public)
 	if err != nil {
 		slog.Fatal(err)
@@ -343,7 +344,7 @@ func fetchPublicCmd(c *cli.Context) error {
 	if err := key.Load(c.String("public"), public); err != nil {
 		slog.Fatal(err)
 	}
-	client := core.NewClient()
+	client := api.NewGrpcClient()
 	resp, err := client.LastPublic(c.Args().First(), public)
 	if err != nil {
 		slog.Fatal("could not get verified randomness:", err)

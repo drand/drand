@@ -10,10 +10,23 @@ package drand;
 option go_package = "github.com/dedis/drand/protobuf/drand";
 
 import "crypto/element.proto";
+import "google/api/annotations.proto";
 
 service Randomness {
-    rpc Public(PublicRandRequest) returns (PublicRandResponse) {}
-    rpc Private(PrivateRandRequest) returns (PrivateRandResponse) {}
+    rpc Public(PublicRandRequest) returns (PublicRandResponse) {
+        option (google.api.http) = { 
+            get: "/public" 
+            additional_bindings {
+                get: "/public/{round}"
+            }
+        };
+    }
+    rpc Private(PrivateRandRequest) returns (PrivateRandResponse) {
+        option (google.api.http) = { 
+            post: "/private" 
+            body: "*"
+        };
+    }
 }
 
 
