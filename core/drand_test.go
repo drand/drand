@@ -13,6 +13,7 @@ import (
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber/sign/bls"
 	"github.com/nikkolasg/slog"
@@ -164,7 +165,7 @@ func TestDrandDKG(t *testing.T) {
 				delete(genBeacons, i)
 			}
 			l.Unlock()
-		case <-time.After(period * time.Duration(nbRound*4)):
+		case <-time.After(period * time.Duration(nbRound*10)):
 			t.Fatal("not in time")
 		}
 	}
@@ -189,9 +190,9 @@ func TestDrandDKG(t *testing.T) {
 	go countGenBeacons(nbRound, n, done)
 	checkSuccess()
 
-	client := NewClient(root.opts.grpcOpts...)
+	client := net.NewGrpcClient(root.opts.grpcOpts...)
 	//fmt.Printf("testing client functionality with public key %x\n", public.Key)
-	resp, err := client.LastPublic(root.priv.Public.Addr, public)
+	resp, err := client.Public(test.NewPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }

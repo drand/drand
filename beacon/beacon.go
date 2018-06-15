@@ -25,7 +25,7 @@ var maxRoundDelta uint64 = 2
 // a full signature can be recosntructed, it saves it to the given Store.
 type Handler struct {
 	// to communicate with other drand peers
-	client net.Client
+	client net.InternalClient
 	// where to store the new randomness beacon
 	store Store
 	// to sign beacons
@@ -58,7 +58,7 @@ type Handler struct {
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.Client, priv *key.Pair, sh *key.Share, group *key.Group, s Store) *Handler {
+func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.Group, s Store) *Handler {
 	idx, exists := group.Index(priv.Public)
 	if !exists {
 		// XXX

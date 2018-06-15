@@ -1,7 +1,8 @@
-package core
+package api
 
 import (
 	"github.com/dedis/drand/beacon"
+	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
@@ -12,14 +13,21 @@ import (
 
 // Client is the endpoint logic, communicating with drand servers
 type Client struct {
-	client net.Client
+	client net.ExternalClient
 	public *key.DistPublic
 }
 
-// NewClient returns a Client able to talk to drand instances
-func NewClient(opts ...grpc.DialOption) *Client {
+// NewGrpcClient returns a Client able to talk to drand instances using gRPC
+// communication method
+func NewGrpcClient(opts ...grpc.DialOption) *Client {
 	return &Client{
 		client: net.NewGrpcClient(opts...),
+	}
+}
+
+func NewRESTClient() *Client {
+	return &Client{
+		client: net.NewRestClient(),
 	}
 }
 
@@ -43,7 +51,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	obj, err := Encrypt(key.G2, DefaultHash, id.Key, ephBuff)
+	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, id.Key, ephBuff)
 	if err != nil {
 		return nil, err
 	}
@@ -51,11 +59,11 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Decrypt(key.G2, DefaultHash, ephScalar, resp.GetResponse())
+	return ecies.Decrypt(key.G2, ecies.DefaultHash, ephScalar, resp.GetResponse())
 }
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
-	msg := beacon.Message(resp.GetPreviousRand(), resp.GetRound())
+	msg := beacon.Message(resp.GetPrevious(), resp.GetRound())
 	return bls.Verify(key.Pairing, public, msg, resp.GetRandomness())
 }
 

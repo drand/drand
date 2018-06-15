@@ -7,7 +7,20 @@ import (
 	"strconv"
 
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/net"
 )
+
+type testPeer struct {
+	a string
+}
+
+func (t *testPeer) Address() string {
+	return t.a
+}
+
+func NewPeer(addr string) net.Peer {
+	return &testPeer{addr}
+}
 
 // Addresses returns a list of TCP localhost addresses starting from the given
 // port= start.

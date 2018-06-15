@@ -38,11 +38,11 @@ func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*dr
 
 // testNet implements the network interface that the dkg Handler expects
 type testNet struct {
-	net.Client
+	net.InternalClient
 }
 
 func (t *testNet) Send(p net.Peer, d *dkg.DKGPacket) error {
-	_, err := t.Client.Setup(p, d)
+	_, err := t.InternalClient.Setup(p, d)
 	return err
 }
 

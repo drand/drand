@@ -9,6 +9,7 @@ import (
 
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
+	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
@@ -171,9 +172,9 @@ func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.Public
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
 	return &drand.PublicRandResponse{
-		PreviousRand: beacon.PreviousRand,
-		Round:        beacon.Round,
-		Randomness:   beacon.Randomness,
+		Previous:   beacon.PreviousRand,
+		Round:      beacon.Round,
+		Randomness: beacon.Randomness,
 	}, nil
 }
 
@@ -190,7 +191,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	if groupable.Group().String() != key.G2.String() {
 		return nil, errors.New("point is not on the supported curve")
 	}
-	msg, err := Decrypt(key.G2, DefaultHash, d.priv.Key, priv.GetRequest())
+	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {
 		slog.Debugf("drand: received invalid ECIES private request:", err)
 		return nil, errors.New("invalid ECIES request")
@@ -207,7 +208,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 		return nil, errors.New("error gathering randomness")
 	}
 
-	obj, err := Encrypt(key.G2, DefaultHash, clientKey, randomness[:])
+	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, clientKey, randomness[:])
 	return &drand.PrivateRandResponse{obj}, err
 }
 
@@ -256,7 +257,7 @@ func (d *Drand) initBeacon() error {
 		return err
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-	d.beacon = beacon.NewHandler(d.gateway.Client, d.priv, d.share, d.group, d.beaconStore)
+	d.beacon = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
 	return nil
 }
 
@@ -268,7 +269,7 @@ func (d *Drand) beaconCallback(b *beacon.Beacon) {
 // instead of offloading that to an external struct without any vision of drand
 // internals, or implementing a big "Send" method directly on drand.
 func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.DKGPacket) error {
-	_, err := d.gateway.Client.Setup(p, pack)
+	_, err := d.gateway.InternalClient.Setup(p, pack)
 	return err
 }
 

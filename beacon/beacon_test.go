@@ -240,7 +240,7 @@ func TestBeacon(t *testing.T) {
 				delete(genBeacons, i)
 			}
 			l.Unlock()
-		case <-time.After(period * time.Duration(nbRound*4)):
+		case <-time.After(period * time.Duration(nbRound*10)):
 			t.Fatal("not in time")
 		}
 	}
