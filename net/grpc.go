@@ -21,7 +21,7 @@ type Service interface {
 	dkg.DkgServer
 }
 
-var defaultJSONMarshaller = &runtime.JSONPb{}
+var defaultJSONMarshaller = &runtime.JSONBuiltin{}
 
 // grpcListener implements Listener using gRPC connections and regular HTTP
 // connections for the JSON REST API.
@@ -54,7 +54,12 @@ func NewGrpcListener(l net.Listener, s Service, opts ...grpc.ServerOption) Liste
 		panic(err)
 	}
 	restRouter := http.NewServeMux()
-	restRouter.Handle("/", gwMux)
+	newHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		gwMux.ServeHTTP(w, r)
+	}
+
+	restRouter.Handle("/", http.HandlerFunc(newHandler))
 	restServer := &http.Server{
 		Handler: restRouter,
 	}
