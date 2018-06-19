@@ -114,6 +114,10 @@ in this mode, you need to give at least two options for most operations:
 These options must be appended to any operations connecting on the network:
 `run`, `run dkg` and `run beacon`.
 
+An easy and free way to get TLS certificates these days is to use the [Let's
+Encrypt](https://letsencrypt.org/) service, with the official [EFF
+tool](https://certbot.eff.org/).
+
 ### Without TLS
 
 Drand is able to run without TLS, mostly intended for testing purpose or for running drand inside a closed network. To run drand without TLS, you need to explicitly tell drand to do so with the `--insecure` flag:
@@ -136,7 +140,7 @@ where `<port>` specifies the port through which your drand daemon is reachable
 and `<command>` has to be substituted by one of the respective drand
 commands below.
 
-### Setup
+## Setup
 
 To setup the drand beacon, each participant generates its long-term key pair
 from which we can then assemble the group configuration file, and finally all
@@ -177,7 +181,7 @@ One of the nodes has to function as the leader which finalizes the setup and
 later also initiates regular randomness generation rounds. To start the drand
 daemon in leader mode, execute:
 ```
-drand run --leader --insecure <group_file.toml>
+drand run --leader --tls-cert <cert path> --tls-key <key path> <group_file.toml>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -197,7 +201,7 @@ database engine.
 To change the [duration](https://golang.org/pkg/time/#ParseDuration) of the
 randomness generation interval, e.g., to `30s`, start drand via
 ```
-drand run --leader --period 30s --insecure <group_file.toml>
+drand run --leader --period 30s --tls-cert <cert path> --tls-key <key path> <group_file.toml>
 ```
 
 ### Randomness Gathering
@@ -209,7 +213,9 @@ drand fetch public --distkey dist_key.public <address>
 `dist_key.public` is the distributed key generated once the DKG phase completed,
 and `<address>` is the address of one drand node. By default, drand contacts
 the remote node **over TLS**. If the remote node is not using encrypted
-communications, then you can pass the `--insecure` flag.
+communications, then you can pass the `--insecure` flag. If the remote node is
+using a self signed certificate for example, you can use the `--tls-cert` option
+to specify the custom certificate.
 
 The output will have the following JSON format:
 ```json
@@ -240,7 +246,9 @@ will output
 useful to be able to encrypt both the request and response between the client
 and the server.By default, drand contacts the remote node **over TLS**. If the
 remote node is not using encrypted communications, then you can pass the
-`--insecure` flag.
+`--insecure` flag. If the remote node is using a self signed certificate for
+example, you can use the `--tls-cert` option to specify the custom certificate.
+
 
 The command outputs a 32-byte base64-encoded random value coming from the local
 randomness engine of the contacted server. If the encryption is not correct, the 
