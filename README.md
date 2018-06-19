@@ -114,14 +114,14 @@ in this mode, you need to give at least two options for most operations:
 These options must be appended to any operations connecting on the network:
 `run`, `run dkg` and `run beacon`.
 
-## Without TLS
+### Without TLS
 
 Drand is able to run without TLS, mostly intended for testing purpose or for running drand inside a closed network. To run drand without TLS, you need to explicitly tell drand to do so with the `--insecure` flag:
 
 + `drand keygen --insecure`
 + `drand run --insecure`
 
-## With Docker
+### With Docker
 
 **NOTE:** If you run drand in Docker, always use the following template
 ```

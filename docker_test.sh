@@ -26,14 +26,14 @@ checkSuccess $? "distributed public key file?"
 echo "[+] Verifying fetching public randomness"
 drandPublic="/dist_public.toml"
 drandVol="$distPublic:$drandPublic:z"
-drandArgs=("--debug" "fetch" "public" "--public" $drandPublic "${addresses[1]}")
+drandArgs=("--debug" "fetch" "public" "--insecure" "--public" $drandPublic "${addresses[1]}")
 docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}" 
 checkSuccess $? "verify signature?"
 
 echo "[+] Verifying fetching private randomness"
 serverId="/key/drand_id.public"
 drandVol="$rootFolder$serverId:$serverId:z"
-drandArgs=("--debug" "fetch" "private" $serverId)
+drandArgs=("--debug" "fetch" "private" "--insecure" $serverId)
 docker run --rm --net $NET --ip ${SUBNET}11 -v "$drandVol" $IMG "${drandArgs[@]}"
 checkSuccess $? "verify randomness encryption"
 
