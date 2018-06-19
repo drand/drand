@@ -34,6 +34,7 @@ DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
 NET="drand"
 SUBNET="192.168.0."
 PORT="80"
+
 # go run $GOROOT/src/crypto/tls/generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,localhost --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 
 function checkSuccess() {
@@ -70,6 +71,7 @@ function build() {
 # associative array in bash 4
 # https://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
 addresses=()
+certs=()
 # run does the following:
 # - creates the docker network
 # - creates the individual keys under the temporary folder. Each node has its own
@@ -86,7 +88,7 @@ function run() {
     sequence=$(seq $N -1 1)
     #sequence=$(seq $N -1 1)
     # creating the keys and compose part for each node
-    echo "[+] Generating all the private key pairs..." 
+    echo "[+] Generating all private key pairs and certificates..." 
     for i in $sequence; do
         # gen key and append to group
         data="$TMP/node$i/"
@@ -97,7 +99,7 @@ function run() {
         public="key/drand_id.public"
         volume="$data:/root/.drand/:z"
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG keygen --insecure "$addr" > /dev/null
+        docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
             #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view

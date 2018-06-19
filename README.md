@@ -101,6 +101,28 @@ go get -u github.com/dedis/drand
 
 ## Usage
 
+There are two ways to run a drand node: using TLS or using plain old regular
+un-encrypted connections. Drand by default tries to use TLS connections.
+
+### With TLS
+
+Drand supports by default TLS-encrypted communications. In order to do run drand
+in this mode, you need to give at least two options for most operations:
++ `--tls-cert` must point to a valid PEM encoded certificate
++ `--tls-key` must point to a valid TLS private key
+
+These options must be appended to any operations connecting on the network:
+`run`, `run dkg` and `run beacon`.
+
+## Without TLS
+
+Drand is able to run without TLS, mostly intended for testing purpose or for running drand inside a closed network. To run drand without TLS, you need to explicitly tell drand to do so with the `--insecure` flag:
+
++ `drand keygen --insecure`
++ `drand run --insecure`
+
+## With Docker
+
 **NOTE:** If you run drand in Docker, always use the following template
 ```
 docker run \
@@ -126,10 +148,9 @@ To generate the long-term key pair `drand_id.{secret,public}` of the drand daemo
 ```
 drand keygen <address>
 ```
-where `<address>` is the address from which your drand daemon is reachable. It
-can be a HTTPS like address if you have setup a HTTPS proxy in front. Native TLS
-support in drand is not yet operational, but since drand uses gRPC, this
-functionality should be easy to implement.
+where `<address>` is the address from which your drand daemon is reachable. The
+address must be reachable over a TLS connection. In case you need non-secured
+channel, you can pass the `--insecure` flag.
 
 #### Group Configuration
 
@@ -146,14 +167,17 @@ The group file is generated in the current directory under `group.toml`.
 
 After receiving the `drand_group.toml` file, participants can start drand via:
 ```
-drand run <group_file.toml>
+drand run --tls-cert <cert path> --tls-key <key path> <group_file.toml>
 ```
+where `<cert path>` is the path of your TLS certificate and `<key path>` is the
+path of your TLS private key. If you need non-secured channel, you can use the
+`--insecure` option.
 
 One of the nodes has to function as the leader which finalizes the setup and
 later also initiates regular randomness generation rounds. To start the drand
 daemon in leader mode, execute:
 ```
-drand run --leader <group_file.toml>
+drand run --leader --insecure <group_file.toml>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -173,7 +197,7 @@ database engine.
 To change the [duration](https://golang.org/pkg/time/#ParseDuration) of the
 randomness generation interval, e.g., to `30s`, start drand via
 ```
-drand run --leader --period 30s
+drand run --leader --period 30s --insecure <group_file.toml>
 ```
 
 ### Randomness Gathering
@@ -183,7 +207,10 @@ drand run --leader --period 30s
 drand fetch public --distkey dist_key.public <address>
 ```
 `dist_key.public` is the distributed key generated once the DKG phase completed,
-and `<address>` is the address of one drand node.
+and `<address>` is the address of one drand node. By default, drand contacts
+the remote node **over TLS**. If the remote node is not using encrypted
+communications, then you can pass the `--insecure` flag.
+
 The output will have the following JSON format:
 ```json
 {
@@ -211,7 +238,9 @@ will output
 ```
 `<server_identity.toml>` is the public identity file of one of the server. It is
 useful to be able to encrypt both the request and response between the client
-and the server.
+and the server.By default, drand contacts the remote node **over TLS**. If the
+remote node is not using encrypted communications, then you can pass the
+`--insecure` flag.
 
 The command outputs a 32-byte base64-encoded random value coming from the local
 randomness engine of the contacted server. If the encryption is not correct, the 
@@ -239,7 +268,6 @@ Although being already functional, drand is still at an early stage of
 development, so there's a lot left to be done. Feel free to submit feature or,
 even better, pull requests. ;)
 
-+ integrate native TLS support, should be fairly easy since drand uses gRPC.
 + dkg timeout
 + interoperable different groups
 + more unit tests
