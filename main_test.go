@@ -11,6 +11,8 @@ import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/test"
+	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
 
@@ -85,120 +87,47 @@ func TestGroupGen(t *testing.T) {
 	}
 }
 
-func TestDKG(t *testing.T) {
-	/* n := 5*/
-	//thr := 4
-	//tmpPath := path.Join(os.TempDir(), "drand")
-	//os.Mkdir(tmpPath, 0777)
-	//defer os.RemoveAll(tmpPath)
+func TestClientTLS(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
 
-	//exec.Command("pkill", "beacon").Run()
-	//exec.Command("pkill", "dkg").Run()
+	pubPath := path.Join(tmpPath, "pub.key")
+	certPath := path.Join(tmpPath, "server.pem")
+	keyPath := path.Join(tmpPath, "key.pem")
 
-	//folders := make([]string, n, n)
-	//configs := make([]*core.Config, n, n)
-	//privs := make([]string, n, n)
-	//addrs := make([]string, n, n)
-	//for i := 0; i < n; i++ {
-	//// create folder and private key
-	//folders[i] = path.Join(tmpPath, fmt.Sprintf("p%d", i))
-	//defer os.RemoveAll(folders[i])
-	//os.Mkdir(folders[i], 0777)
-	//configs[i] = core.NewConfig(core.WithConfigFolder(folders[i]))
-	//addrs[i] = "127.0.0.1:" + fmt.Sprintf("%d", 8000+i)
-	//priv := key.NewKeyPair(addrs[i])
-	//require.Nil(t, key.NewFileStore(configs[i].ConfigFolder()).SavePrivate(priv))
-	//privs[i] = path.Join(tmpPath, fmt.Sprintf("public-%d", i))
-	//require.Nil(t, key.Save(privs[i], priv.Public, false))
-	//}
+	priv := key.NewTLSKeyPair("127.0.0.1:8080")
+	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
-	//// create the group file
-	//os.Args = []string{"drand", "group", "--threshold", strconv.Itoa(thr)}
-	//os.Args = append(os.Args, privs...)
-	//main()
-	//defer os.Remove(gname)
+	config := core.NewConfig(core.WithConfigFolder(tmpPath))
+	fs := key.NewFileStore(config.ConfigFolder())
+	fs.SaveKeyPair(priv)
 
-	//cmd := exec.Command("go", "build")
-	//require.NoError(t, cmd.Run())
+	if httpscerts.Check(certPath, keyPath) != nil {
+		fmt.Println("generating on the fly")
+		if err := httpscerts.Generate(certPath, keyPath, priv.Public.Address()); err != nil {
+			panic(err)
+		}
+	}
 
-	//doneCh := make(chan bool)
-	//// launch all nodes in DKG mode
-	//for i := 0; i < n; i++ {
-	//go func(idx int) {
-	//args := []string{"--config", folders[idx], "-d", "dkg", gname}
-	//if idx == n-1 {
-	//args = append(args, "--leader")
-	//}
-	//cmd := exec.Command("./drand", args...)
-	//cmd.Stdout = os.Stdout
-	//cmd.Stderr = os.Stderr
-	//err := cmd.Run()
-	//require.Nil(t, err)
-	//doneCh <- true
-	//}(i)
-	//}
+	// fake group
+	_, group := test.BatchTLSIdentities(5)
+	group.Nodes[0] = &key.IndexedPublic{
+		Identity: priv.Public,
+		Index:    0,
+	}
+	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	require.NoError(t, key.Save(groupPath, group, false))
 
-	//for count := 0; count < n; count++ {
-	//<-doneCh
-	//}
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-cert", certPath, "--tls-key", keyPath, groupPath}
+	go main()
 
-	//// check if dist public key and share are there
-	//for i := 0; i < n; i++ {
-	//store := key.NewFileStore(configs[i].ConfigFolder())
-	//_, err := store.LoadShare()
-	//require.NoError(t, err)
-	//_, err = store.LoadDistPublic()
-	//require.NoError(t, err)
-	//}
-	//publicPath := path.Join(fs.Pwd(), dpublic)
-	//if ok, _ := fs.Exists(publicPath); !ok {
-	//t.Fatal("dkg public does not exists")
-	//}
-	//defer os.Remove(publicPath)
-	//// launch beacon
-	////period := 1 * time.Second
-	//periodStr := "1s"
-	//quits := make([]chan bool, n)
-	//processes := make(chan *os.Process, n)
-	//fmt.Println("starting beacon...")
-	//for i := 0; i < n; i++ {
-	//quits[i] = make(chan bool, 1)
-	//go func(idx int) {
-	//var buff bytes.Buffer
-	//args := []string{"--config", folders[idx], "beacon", "--period", periodStr}
-	//cmd := exec.Command("./drand", args...)
-	//require.Nil(t, cmd.Start())
-	//cmd.Stdout = &buff
-	//cmd.Stderr = &buff
-	//time.Sleep(500 * time.Millisecond)
-	//fmt.Println(string(buff.Bytes()))
-	//processes <- cmd.Process
-	//cmd.Wait()
-	//fmt.Println(string(buff.Bytes()))
-	//<-quits[idx]
-	//cmd.Process.Kill()
-	//}(i)
-	//}
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
 
-	//toKill := make([]*os.Process, 0)
-	//for i := 0; i < n; i++ {
-	//toKill = append(toKill, <-processes)
-	//}
-	//defer func() {
-	//for i := 0; i < n; i++ {
-	//toKill[i].Kill()
-	//}
-	//}()
-
-	//fmt.Println("beacon all ran!")
-	//time.Sleep(2 * time.Second)
-	//fmt.Println("==> trying to contact with client")
-	//// try to fetch a beacon
-	//args := []string{"fetch", "public", "--public", publicPath, addrs[0]}
-	//cmd = exec.Command("./drand", args...)
-	//cmd.Env = append(cmd.Env, "GRPC_GO_LOG_SEVERITY_LEVEL=info")
-	//out, err := cmd.CombinedOutput()
-	//fmt.Println(string(out))
-	//require.Nil(t, err)
-	/*time.Sleep(1 * time.Second)*/
+	cmd := exec.Command("drand", "fetch", "private", "--tls-cert", certPath, pubPath)
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
 }

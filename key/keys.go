@@ -32,11 +32,16 @@ type Pair struct {
 type Identity struct {
 	Key  kyber.Point
 	Addr string
+	TLS  bool
 }
 
 // Address implements the net.Peer interface
 func (i *Identity) Address() string {
 	return i.Addr
+}
+
+func (i *Identity) IsTLS() bool {
+	return i.TLS
 }
 
 // NewKeyPair returns a freshly created private / public key pair. The group is
@@ -55,6 +60,12 @@ func NewKeyPair(address string) *Pair {
 	}
 }
 
+func NewTLSKeyPair(address string) *Pair {
+	kp := NewKeyPair(address)
+	kp.Public.TLS = true
+	return kp
+}
+
 // PairTOML is the TOML-able version of a private key
 type PairTOML struct {
 	Key string
@@ -64,6 +75,7 @@ type PairTOML struct {
 type PublicTOML struct {
 	Address string
 	Key     string
+	TLS     bool
 }
 
 // TOML returns a struct that can be marshalled using a TOML-encoding library
@@ -113,6 +125,7 @@ func (p *Identity) FromTOML(i interface{}) error {
 	}
 	p.Addr = ptoml.Address
 	p.Key = G2.Point()
+	p.TLS = ptoml.TLS
 	return p.Key.UnmarshalBinary(buff)
 }
 
@@ -122,6 +135,7 @@ func (p *Identity) TOML() interface{} {
 	return &PublicTOML{
 		Address: p.Addr,
 		Key:     hex,
+		TLS:     p.TLS,
 	}
 }
 

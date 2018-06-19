@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
-	"github.com/dedis/drand/api"
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/net"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -83,11 +83,29 @@ func main() {
 		Usage: "where to save either the group file or the distributed public key",
 	}
 
+	tlsCertFlag := cli.StringFlag{
+		Name:  "tls-cert",
+		Usage: "TLS certificate path to use",
+	}
+	tlsKeyFlag := cli.StringFlag{
+		Name:  "tls-key",
+		Usage: "TLS private key to use by the server",
+	}
+	certsDirFlag := cli.StringFlag{
+		Name:  "certs-dir",
+		Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
+	}
+	insecureFlag := cli.BoolFlag{
+		Name:  "insecure",
+		Usage: "indicates to use a non TLS server or connection",
+	}
+
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "keygen",
 			Usage:     "keygen <ADDRESS>. Generates longterm private key pair",
 			ArgsUsage: "ADDRESS is the public address for other nodes to contact",
+			Flags:     toArray(insecureFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return keygenCmd(c)
@@ -107,7 +125,7 @@ func main() {
 			Name:      "dkg",
 			Usage:     "Run the DKG protocol",
 			ArgsUsage: "GROUP.TOML the group file listing all participant's identities",
-			Flags:     toArray(leaderFlag, listenFlag),
+			Flags:     toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return dkgCmd(c)
@@ -116,7 +134,7 @@ func main() {
 		cli.Command{
 			Name:  "beacon",
 			Usage: "Run the beacon protocol",
-			Flags: toArray(periodFlag, seedFlag, listenFlag),
+			Flags: toArray(periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return beaconCmd(c)
@@ -126,7 +144,7 @@ func main() {
 			Name:      "run",
 			Usage:     "Run the daemon, first do the dkg if needed then run the beacon",
 			ArgsUsage: "<group file> is the group.toml generated with `group`. This argument is only needed if the DKG has NOT been run yet.",
-			Flags:     toArray(leaderFlag, periodFlag, seedFlag, listenFlag),
+			Flags:     toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return runCmd(c)
@@ -141,7 +159,7 @@ func main() {
 					Name:      "public",
 					Usage:     "Fetch a public verifiable and unbiasable randomness value",
 					ArgsUsage: "<server address> address of the server to contact",
-					Flags:     toArray(distKeyFlag),
+					Flags:     toArray(distKeyFlag, tlsCertFlag, insecureFlag, certsDirFlag),
 					Action: func(c *cli.Context) error {
 						return fetchPublicCmd(c)
 					},
@@ -150,6 +168,7 @@ func main() {
 					Name:      "private",
 					Usage:     "Fetch a private randomness from a server. Request and response are encrypted",
 					ArgsUsage: "<identity file> identity file of the remote server",
+					Flags:     toArray(tlsCertFlag, insecureFlag, certsDirFlag),
 					Action: func(c *cli.Context) error {
 						return fetchPrivateCmd(c)
 					},
@@ -172,9 +191,21 @@ func keygenCmd(c *cli.Context) error {
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
 	}
-	priv := key.NewKeyPair(args.First())
+	var priv *key.Pair
+	if c.Bool("insecure") {
+		slog.Info("Generating private / public key pair in INSECURE mode (no TLS).")
+		priv = key.NewKeyPair(args.First())
+	} else {
+		priv = key.NewTLSKeyPair(args.First())
+	}
+
 	config := contextToConfig(c)
 	fs := key.NewFileStore(config.ConfigFolder())
+
+	if _, err := fs.LoadKeyPair(); err == nil {
+		slog.Info("keypair already present. Remove them before generating new one")
+		return nil
+	}
 	if err := fs.SaveKeyPair(priv); err != nil {
 		slog.Fatal("could not save key: ", err)
 	}
@@ -318,9 +349,12 @@ func fetchPrivateCmd(c *cli.Context) error {
 	if err := key.Load(c.Args().First(), public); err != nil {
 		slog.Fatal(err)
 	}
-
-	client := api.NewGrpcClient()
-	resp, err := client.Private(public)
+	defaultManager := net.NewCertManager()
+	if c.IsSet("tls-cert") {
+		defaultManager.Add(c.String("tls-cert"))
+	}
+	client := core.NewGrpcClientFromCert(defaultManager)
+	resp, err := client.Private(public, !c.Bool("insecure"))
 	if err != nil {
 		slog.Fatal(err)
 	}
@@ -344,8 +378,12 @@ func fetchPublicCmd(c *cli.Context) error {
 	if err := key.Load(c.String("public"), public); err != nil {
 		slog.Fatal(err)
 	}
-	client := api.NewGrpcClient()
-	resp, err := client.LastPublic(c.Args().First(), public)
+	defaultManager := net.NewCertManager()
+	if c.IsSet("tls-cert") {
+		defaultManager.Add(c.String("tls-cert"))
+	}
+	client := core.NewGrpcClientFromCert(defaultManager)
+	resp, err := client.LastPublic(c.Args().First(), public, !c.Bool("insecure"))
 	if err != nil {
 		slog.Fatal("could not get verified randomness:", err)
 	}
@@ -374,6 +412,29 @@ func contextToConfig(c *cli.Context) *core.Config {
 	opts = append(opts, core.WithDbFolder(db))
 	period := c.Duration("period")
 	opts = append(opts, core.WithBeaconPeriod(period))
+
+	if c.Bool("insecure") {
+		opts = append(opts, core.WithInsecure())
+		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
+			panic("option 'insecure' used with 'tls-cert' or 'tls-key': combination is not valid")
+		}
+	} else {
+		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
+		opts = append(opts, core.WithTLS(certPath, keyPath))
+	}
+
+	if c.IsSet("certs-dir") {
+		paths, err := fs.Files(c.String("certs-dir"))
+		if err != nil {
+			panic(err)
+		}
+		opts = append(opts, core.WithTrustedCerts(paths...))
+	}
+
+	if c.IsSet("certs-dir") {
+		core.WithTrustedCerts(c.String("certs-dir"))
+	}
+
 	conf := core.NewConfig(opts...)
 	return conf
 }

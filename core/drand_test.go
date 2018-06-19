@@ -16,6 +16,7 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber/sign/bls"
+	"github.com/kabukky/httpscerts"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
@@ -31,9 +32,9 @@ func TestDrandDKG(t *testing.T) {
 	net.DefaultTimeout = 300 * time.Millisecond
 	defer func() { net.DefaultTimeout = old }()
 
-	drands, dir := BatchNewDrand(n,
+	drands, dir := BatchNewDrand(n, false,
 		WithBeaconPeriod(period))
-	defer CloseAllDrands(drands)
+	defer CloseAllDrands(drands[:n-1])
 	defer os.RemoveAll(dir)
 
 	var wg sync.WaitGroup
@@ -175,6 +176,7 @@ func TestDrandDKG(t *testing.T) {
 	lastDrand := drands[n-1]
 	drands[n-1], err = LoadDrand(lastDrand.store, lastDrand.opts)
 	require.NoError(t, err)
+	defer CloseAllDrands(drands[n-1:])
 	// trick the late drand into thinking it already has some beacon
 	// only need that trick for the test, it's easier
 	require.NoError(t, drands[n-1].beaconStore.Put(&beacon.Beacon{
@@ -190,15 +192,20 @@ func TestDrandDKG(t *testing.T) {
 	go countGenBeacons(nbRound, n, done)
 	checkSuccess()
 
-	client := net.NewGrpcClient(root.opts.grpcOpts...)
-	//fmt.Printf("testing client functionality with public key %x\n", public.Key)
-	resp, err := client.Public(test.NewPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
+	client := net.NewGrpcClientFromCertManager(root.opts.certmanager, root.opts.grpcOpts...)
+	resp, err := client.Public(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }
 
-func BatchNewDrand(n int, opts ...ConfigOption) ([]*Drand, string) {
-	privs, group := test.BatchIdentities(n)
+func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, string) {
+	var privs []*key.Pair
+	var group *key.Group
+	if insecure {
+		privs, group = test.BatchIdentities(n)
+	} else {
+		privs, group = test.BatchTLSIdentities(n)
+	}
 	var err error
 	drands := make([]*Drand, n, n)
 	tmp := os.TempDir()
@@ -206,12 +213,37 @@ func BatchNewDrand(n int, opts ...ConfigOption) ([]*Drand, string) {
 	if err != nil {
 		panic(err)
 	}
+
+	certPaths := make([]string, n)
+	keyPaths := make([]string, n)
+	if !insecure {
+		for i := 0; i < n; i++ {
+			certPath := path.Join(dir, fmt.Sprintf("server-%d.crt", i))
+			keyPath := path.Join(dir, fmt.Sprintf("server-%d.key", i))
+			if httpscerts.Check(certPath, keyPath) != nil {
+				fmt.Println("generating on the fly")
+				if httpscerts.Generate(certPath, keyPath, privs[i].Public.Address()) != nil {
+					panic(err)
+				}
+			}
+			certPaths[i] = certPath
+			keyPaths[i] = keyPath
+		}
+	}
+
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
 		s.SaveKeyPair(privs[i])
 		// give each one their own private folder
 		dbFolder := path.Join(dir, fmt.Sprintf("db-%d", i))
-		drands[i], err = NewDrand(s, group, NewConfig(append([]ConfigOption{WithDbFolder(dbFolder)}, opts...)...))
+		confOptions := append([]ConfigOption{WithDbFolder(dbFolder)}, opts...)
+		if !insecure {
+			confOptions = append(confOptions, WithTLS(certPaths[i], keyPaths[i]))
+			confOptions = append(confOptions, WithTrustedCerts(certPaths...))
+		} else {
+			confOptions = append(confOptions, WithInsecure())
+		}
+		drands[i], err = NewDrand(s, group, NewConfig(confOptions...))
 		if err != nil {
 			panic(err)
 		}

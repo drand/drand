@@ -2,6 +2,7 @@ package net
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,10 +14,20 @@ import (
 
 type restClient struct {
 	marshaller runtime.Marshaler
+	manager    *CertManager
 }
 
 func NewRestClient() ExternalClient {
-	return &restClient{defaultJSONMarshaller}
+	return &restClient{
+		marshaller: defaultJSONMarshaller,
+		manager:    NewCertManager(),
+	}
+}
+
+func NewRestClientFromCertManager(c *CertManager) ExternalClient {
+	client := NewRestClient().(*restClient)
+	client.manager = c
+	return client
 }
 
 func (r *restClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
@@ -37,7 +48,7 @@ func (r *restClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 	if err != nil {
 		return nil, err
 	}
-	respBody, err := r.doRequest(req)
+	respBody, err := r.doRequest(p, req)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +67,7 @@ func (r *restClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 	if err != nil {
 		return nil, err
 	}
-	respBody, err := r.doRequest(req)
+	respBody, err := r.doRequest(p, req)
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +76,18 @@ func (r *restClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 
 }
 
-func (r *restClient) doRequest(req *http.Request) ([]byte, error) {
+func (r *restClient) doRequest(remote Peer, req *http.Request) ([]byte, error) {
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
+
+	pool := r.manager.Pool()
+	if remote.IsTLS() {
+		conf := &tls.Config{
+			RootCAs:    pool,
+			ServerName: remote.Address(),
+		}
+		client.Transport = &http.Transport{TLSClientConfig: conf}
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -76,7 +96,7 @@ func (r *restClient) doRequest(req *http.Request) ([]byte, error) {
 }
 
 func restAddr(p Peer) string {
-	if IsTLS(p.Address()) {
+	if p.IsTLS() {
 		return "https://" + p.Address()
 	}
 	return "http://" + p.Address()

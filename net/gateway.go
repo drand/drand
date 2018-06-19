@@ -40,9 +40,25 @@ type Listener interface {
 	Stop()
 }
 
-func NewGrpcGateway(listen string, s Service, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayInsecure(listen string, s Service, opts ...grpc.DialOption) Gateway {
 	return Gateway{
 		InternalClient: NewGrpcClient(opts...),
 		Listener:       NewTCPGrpcListener(listen, s),
 	}
+}
+
+func NewGrpcGateway(listen string, certPath, keyPath string, s Service, opts ...grpc.DialOption) Gateway {
+	return NewGrpcGatewayFromCertManager(listen, certPath, keyPath, NewCertManager(), s, opts...)
+}
+
+func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) Gateway {
+	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s)
+	if err != nil {
+		panic(err)
+	}
+	return Gateway{
+		InternalClient: NewGrpcClientFromCertManager(certs, opts...),
+		Listener:       l,
+	}
+
 }

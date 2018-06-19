@@ -8,6 +8,7 @@ import (
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/fs"
+	"github.com/dedis/drand/net"
 	"google.golang.org/grpc"
 )
 
@@ -39,6 +40,10 @@ type Config struct {
 	boltOpts     *bolt.Options
 	beaconPeriod time.Duration
 	beaconCbs    []func(*beacon.Beacon)
+	insecure     bool
+	certPath     string
+	keyPath      string
+	certmanager  *net.CertManager
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -46,9 +51,10 @@ type Config struct {
 func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
-		grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
+		//grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
 		dkgTimeout:   dkg.DefaultTimeout,
 		beaconPeriod: DefaultBeaconPeriod,
+		certmanager:  net.NewCertManager(),
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -63,6 +69,10 @@ func (d *Config) ConfigFolder() string {
 
 func (d *Config) DBFolder() string {
 	return d.dbFolder
+}
+
+func (d *Config) Certs() *net.CertManager {
+	return d.certmanager
 }
 
 // ListenAddress returns the given default address or the listen address stored
@@ -121,6 +131,29 @@ func WithBeaconPeriod(period time.Duration) ConfigOption {
 func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
 	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
+	}
+}
+
+func WithInsecure() ConfigOption {
+	return func(d *Config) {
+		d.insecure = true
+	}
+}
+
+func WithTLS(certPath, keyPath string) ConfigOption {
+	return func(d *Config) {
+		d.certPath = certPath
+		d.keyPath = keyPath
+	}
+}
+
+func WithTrustedCerts(certPaths ...string) ConfigOption {
+	return func(d *Config) {
+		for _, p := range certPaths {
+			if err := d.certmanager.Add(p); err != nil {
+				panic(err)
+			}
+		}
 	}
 }
 

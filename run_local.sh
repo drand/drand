@@ -34,6 +34,7 @@ DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
 NET="drand"
 SUBNET="192.168.0."
 PORT="80"
+# go run $GOROOT/src/crypto/tls/generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,localhost --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 
 function checkSuccess() {
     if [ "$1" -eq 0 ]; then
@@ -96,7 +97,7 @@ function run() {
         public="key/drand_id.public"
         volume="$data:/root/.drand/:z"
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
+        docker run --rm --volume ${allVolumes[$i]} $IMG keygen --insecure "$addr" > /dev/null
             #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
@@ -116,8 +117,7 @@ function run() {
         cp $GROUPFILE $groupFile
         dockerGroupFile="/root/.drand/drand_group.toml"
         #drandCmd=("--debug" "run")
-        drandCmd=("--debug" "run" "--period" "2s")
-        detached="-d"
+        drandCmd=("--debug" "run" "--insecure" "--period" "2s")
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i --volume ${allVolumes[$i]} -d)
         #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
@@ -132,9 +132,8 @@ function run() {
             echo "[+] Starting node $i"
         fi
         drandCmd+=($dockerGroupFile)
-        docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+        docker ${args[@]} "$IMG" "${drandCmd[@]}" #> /dev/null
         sleep 0.1
-        detached="-d"
     done
 }
 
@@ -164,18 +163,18 @@ do
     distPublic="$rootFolder/groups/dist_key.public"
     serverId="/key/drand_id.public"
     drandVol="$rootFolder$serverId:$serverId"
-    drandArgs=("--debug" "fetch" "private" $serverId)
+    drandArgs=("--debug" "fetch" "private" "--insecure" $serverId)
     echo "---------------------------------------------"
     echo "              Private Randomness             "
-    docker run --rm --net $NET --ip ${SUBNET}11 -v "$drandVol" $IMG "${drandArgs[@]}"
+    docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" $IMG "${drandArgs[@]}"
     echo "---------------------------------------------"
     checkSuccess $? "verify randomness encryption"
     echo "---------------------------------------------"
     echo "               Public Randomness             "
     drandPublic="/dist_public.toml"
     drandVol="$distPublic:$drandPublic"
-    drandArgs=("--debug" "fetch" "public" "--public" $drandPublic "${addresses[1]}")
-    docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}" 
+    drandArgs=("--debug" "fetch" "public" "--insecure" "--public" $drandPublic "${addresses[1]}")
+    docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" $IMG "${drandArgs[@]}" 
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"
     sleep 2
