@@ -36,6 +36,7 @@ type Config struct {
 	dbFolder     string
 	listenAddr   string
 	grpcOpts     []grpc.DialOption
+	callOpts     []grpc.CallOption
 	dkgTimeout   time.Duration
 	boltOpts     *bolt.Options
 	beaconPeriod time.Duration
@@ -93,6 +94,12 @@ func (d *Config) callbacks(b *beacon.Beacon) {
 func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
 	return func(d *Config) {
 		d.grpcOpts = opts
+	}
+}
+
+func WithCallOption(opts ...grpc.CallOption) ConfigOption {
+	return func(d *Config) {
+		d.callOpts = opts
 	}
 }
 

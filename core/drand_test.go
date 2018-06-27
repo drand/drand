@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
@@ -33,7 +35,8 @@ func TestDrandDKG(t *testing.T) {
 	defer func() { net.DefaultTimeout = old }()
 
 	drands, dir := BatchNewDrand(n, false,
-		WithBeaconPeriod(period))
+		WithBeaconPeriod(period),
+		WithCallOption(grpc.FailFast(true)))
 	defer CloseAllDrands(drands[:n-1])
 	defer os.RemoveAll(dir)
 
