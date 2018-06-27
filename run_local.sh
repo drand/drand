@@ -1,6 +1,6 @@
 #!/bin/bash 
 
-# set -x 
+ #set -x 
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers 
 # The second part is triggered when this script is actually ran, and not
@@ -28,13 +28,15 @@ case "${unameOut}" in
     ;;
 esac
 GROUPFILE="$TMP/group.toml"
+CERTSDIR="$TMP/certs"
+LOGSDIR="$TMP/logs"
 IMG="dedis/drand:latest"
 DRAND_PATH="src/github.com/dedis/drand"
 DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
 NET="drand"
 SUBNET="192.168.0."
 PORT="80"
-
+GOROOT=$(go env GOROOT)
 # go run $GOROOT/src/crypto/tls/generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,localhost --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 
 function checkSuccess() {
@@ -72,6 +74,10 @@ function build() {
 # https://stackoverflow.com/questions/1494178/how-to-define-hash-tables-in-bash
 addresses=()
 certs=()
+tlskeys=()
+certFile="/server.pem" ## certificate path on every container
+keyFile="/key.pem" ## server private tls key path on every container
+
 # run does the following:
 # - creates the docker network
 # - creates the individual keys under the temporary folder. Each node has its own
@@ -85,11 +91,18 @@ function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    sequence=$(seq $N -1 1)
+    echo "[+] Create the certificate directory"
+    mkdir $CERTSDIR 
+    mkdir $LOGSDIR
+
+    seq=$(seq 1 $N)
+    rseq=$(seq $N -1 1)
+
+
     #sequence=$(seq $N -1 1)
     # creating the keys and compose part for each node
     echo "[+] Generating all private key pairs and certificates..." 
-    for i in $sequence; do
+    for i in $seq; do
         # gen key and append to group
         data="$TMP/node$i/"
         addr="${SUBNET}2$i:$PORT"
@@ -97,14 +110,21 @@ function run() {
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
         public="key/drand_id.public"
-        volume="$data:/root/.drand/:z"
+        volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
         docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
             #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
         allKeys[$i]=/tmp/node$i.public
-        echo "[+] Generated private/public key pair $i"
+
+        ## quicker generation with 1024 bits
+        cd $data
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $addr --rsa-bits 1024 &> /dev/null
+        certs+=("$(pwd)/cert.pem")
+        tlskeys+=("$(pwd)/key.pem")
+        cp cert.pem  $CERTSDIR/server-$i.cert
+        echo "[+] Generated private/public pair + certificate for $addr"
     done
 
     ## generate group toml
@@ -112,15 +132,24 @@ function run() {
     docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml "${allKeys[@]}" > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..." 
-    for i in $sequence; do
+    for i in $rseq; do
+        echo "[+] preparing for node $i"
+        idx=`expr $i - 1`
         # gen key and append to group
         data="$TMP/node$i/"
+        logFile="$LOGSDIR/node$i.log"
         groupFile="$data""drand_group.toml"
         cp $GROUPFILE $groupFile
         dockerGroupFile="/root/.drand/drand_group.toml"
-        #drandCmd=("--debug" "run")
-        drandCmd=("--debug" "run" "--insecure" "--period" "2s")
-        args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i --volume ${allVolumes[$i]} -d)
+    
+        
+        drandCmd=("--debug" "run" "--period" "2s" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+        args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i) ## ip
+        args+=("--volume" "${allVolumes[$i]}") ## config folder
+        args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
+        args+=("--volume" "${certs[$idx]}:$certFile") ## server cert
+        args+=("--volume" "${tlskeys[$idx]}:$keyFile") ## server priv key
+        args+=("-d") ## detached mode
         #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
             drandCmd+=("--leader" "--period" "2s")
@@ -129,12 +158,13 @@ function run() {
                 echo "[+] Running in foreground!"
                 unset 'args[${#args[@]}-1]'
             fi
-            echo "[+] Starting the leader of the dkg"
+            echo "[+] Starting the leader of the dkg ($i)"
         else
-            echo "[+] Starting node $i"
+            echo "[+] Starting node $i "
         fi
         drandCmd+=($dockerGroupFile)
-        docker ${args[@]} "$IMG" "${drandCmd[@]}" #> /dev/null
+        docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+        docker logs -f node$i > $logFile &
         sleep 0.1
     done
 }
@@ -143,6 +173,35 @@ function cleanup() {
     echo "[+] Cleaning up the docker containers..." 
     docker stop $(docker ps -a -q) > /dev/null 2>/dev/null
     docker rm -f $(docker ps -a -q) > /dev/null 2>/dev/null
+}
+
+function fetchTest() {
+    nindex=$1
+    rootFolder="$TMP/node$nindex"
+    distPublic="$rootFolder/groups/dist_key.public"
+    serverId="/key/drand_id.public"
+    drandVol="$rootFolder$serverId:$serverId"
+    serverCert="$CERTSDIR/server-$nindex.cert"
+    serverCertDocker="/server.cert"
+    serverCertVol="$serverCert:$serverCertDocker"
+    drandArgs=("fetch" "private")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "$serverId")
+    echo "---------------------------------------------"
+    echo "              Private Randomness             "
+    docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
+    echo "---------------------------------------------"
+    checkSuccess $? "verify randomness encryption"
+    echo "---------------------------------------------"
+    echo "               Public Randomness             "
+    drandPublic="/dist_public.toml"
+    drandVol="$distPublic:$drandPublic"
+    drandArgs=( "fetch" "public")
+    drandArgs+=("--tls-cert" "$serverCertDocker")
+    idx=`expr $nindex - 1`
+    drandArgs+=("--public" $drandPublic "${addresses[$idx]}")
+    docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}" 
+    checkSuccess $? "verify signature?"
+    echo "---------------------------------------------"
 }
 
 cleanup
@@ -160,24 +219,8 @@ run false
 echo "[+] Waiting 3s to get some beacons..."
 sleep 3
 while true;
+nindex=1
 do 
-    rootFolder="$TMP/node1"
-    distPublic="$rootFolder/groups/dist_key.public"
-    serverId="/key/drand_id.public"
-    drandVol="$rootFolder$serverId:$serverId"
-    drandArgs=("--debug" "fetch" "private" "--insecure" $serverId)
-    echo "---------------------------------------------"
-    echo "              Private Randomness             "
-    docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" $IMG "${drandArgs[@]}"
-    echo "---------------------------------------------"
-    checkSuccess $? "verify randomness encryption"
-    echo "---------------------------------------------"
-    echo "               Public Randomness             "
-    drandPublic="/dist_public.toml"
-    drandVol="$distPublic:$drandPublic"
-    drandArgs=("--debug" "fetch" "public" "--insecure" "--public" $drandPublic "${addresses[1]}")
-    docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" $IMG "${drandArgs[@]}" 
-    checkSuccess $? "verify signature?"
-    echo "---------------------------------------------"
+    fetchTest $nindex true
     sleep 2
 done

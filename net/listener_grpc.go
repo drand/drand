@@ -10,6 +10,7 @@ import (
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/nikkolasg/slog"
 	"github.com/soheilhy/cmux"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -153,12 +154,16 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 }
 
 func (g *grpcTLSListener) Start() {
-	g.server.Serve(g.l)
+	if err := g.server.Serve(g.l); err != nil {
+		slog.Debugf("grpc: tls listener start failed: %s", err)
+	}
 }
 
 func (g *grpcTLSListener) Stop() {
 	g.grpcServer.GracefulStop()
-	g.server.Shutdown(context.TODO())
+	if err := g.server.Shutdown(context.TODO()); err != nil {
+		slog.Debugf("grpc: tls listener shutdown failed: %s", err)
+	}
 }
 
 type drandProxy struct {

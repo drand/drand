@@ -33,7 +33,7 @@ func (p *CertManager) Add(certPath string) error {
 		return err
 	}
 	if !p.pool.AppendCertsFromPEM(b) {
-		return fmt.Errorf("peer cert: failed to append certificates")
+		return fmt.Errorf("peer cert: failed to append certificate %s", certPath)
 	}
 	slog.Info("peer cert: storing server certificate ", certPath)
 	return nil

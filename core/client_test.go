@@ -14,14 +14,13 @@ func TestClientPrivate(t *testing.T) {
 
 	pub := drands[0].priv.Public
 	client := NewGrpcClientFromCert(drands[0].opts.certmanager)
-	secureConnect := true
-	buff, err := client.Private(pub, secureConnect)
+	buff, err := client.Private(pub)
 	require.Nil(t, err)
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)
 
 	client = NewRESTClientFromCert(drands[0].opts.certmanager)
-	buff, err = client.Private(pub, secureConnect)
+	buff, err = client.Private(pub)
 	require.Nil(t, err)
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)

@@ -57,9 +57,9 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*dra
 
 // Private retrieves a private random value from the server. It does that by
 // generating an ephemeral key pair, sends it encrypted to the remote server,
-// and decrypts the response, the randomness. If secure is true, then the
-// request must be conducted over a TLS protected channel.
-func (c *Client) Private(id *key.Identity, secure bool) ([]byte, error) {
+// and decrypts the response, the randomness. Client will attempt a TLS
+// connection to the address in the identity if id.IsTLS() returns true
+func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	ephScalar := key.G2.Scalar()
 	ephPoint := key.G2.Point().Mul(ephScalar, nil)
 	ephBuff, err := ephPoint.MarshalBinary()
@@ -70,7 +70,7 @@ func (c *Client) Private(id *key.Identity, secure bool) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Private(&peerAddr{id.Addr, secure}, &drand.PrivateRandRequest{obj})
+	resp, err := c.client.Private(id, &drand.PrivateRandRequest{obj})
 	if err != nil {
 		return nil, err
 	}

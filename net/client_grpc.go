@@ -8,6 +8,7 @@ import (
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -82,7 +83,7 @@ func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 
 }
 
-func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
+func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error) {
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -90,10 +91,11 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error) 
 	client := dkg.NewDkgClient(c)
 	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
 	//defer cancel()
-	return client.Setup(context.Background(), in, grpc.FailFast(false))
+	//return client.Setup(context.Background(), in, grpc.FailFast(false))
+	return client.Setup(context.Background(), in, opts...)
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error) {
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -112,6 +114,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	var err error
 	c, ok := g.conns[p.Address()]
 	if !ok {
+		slog.Debugf("grpc-client: attempting connection to %s (TLS %v)", p.Address(), p.IsTLS())
 		if !p.IsTLS() {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 		} else {

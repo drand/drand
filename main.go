@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/core"
@@ -168,7 +169,7 @@ func main() {
 					Name:      "private",
 					Usage:     "Fetch a private randomness from a server. Request and response are encrypted",
 					ArgsUsage: "<identity file> identity file of the remote server",
-					Flags:     toArray(tlsCertFlag, insecureFlag, certsDirFlag),
+					Flags:     toArray(tlsCertFlag, certsDirFlag),
 					Action: func(c *cli.Context) error {
 						return fetchPrivateCmd(c)
 					},
@@ -196,6 +197,7 @@ func keygenCmd(c *cli.Context) error {
 		slog.Info("Generating private / public key pair in INSECURE mode (no TLS).")
 		priv = key.NewKeyPair(args.First())
 	} else {
+		slog.Info("Generating private / public key pair with TLS indication")
 		priv = key.NewTLSKeyPair(args.First())
 	}
 
@@ -349,12 +351,13 @@ func fetchPrivateCmd(c *cli.Context) error {
 	if err := key.Load(c.Args().First(), public); err != nil {
 		slog.Fatal(err)
 	}
+	slog.Info("contacting public drand node: ", public.Address())
 	defaultManager := net.NewCertManager()
 	if c.IsSet("tls-cert") {
 		defaultManager.Add(c.String("tls-cert"))
 	}
 	client := core.NewGrpcClientFromCert(defaultManager)
-	resp, err := client.Private(public, !c.Bool("insecure"))
+	resp, err := client.Private(public)
 	if err != nil {
 		slog.Fatal(err)
 	}
@@ -428,6 +431,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Println("certs-dirs files: ", strings.Join(paths, ","))
 		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
 
@@ -444,5 +448,6 @@ func getGroup(c *cli.Context) *key.Group {
 	if err := key.Load(c.Args().First(), g); err != nil {
 		slog.Fatal(err)
 	}
+	slog.Infof("group file loaded with %d participants", g.Len())
 	return g
 }

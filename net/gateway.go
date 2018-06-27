@@ -25,12 +25,14 @@ type ExternalClient interface {
 	Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 }
 
+type CallOption = grpc.CallOption
+
 // InternalClient represents all methods callable on drand nodes which are
 // internal to the system. See the folder api/ to get more info on the external
 // API drand nodes offer.
 type InternalClient interface {
-	NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error)
-	Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error)
+	NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error)
+	Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error)
 }
 
 // Listener is the active listener for incoming requests.
