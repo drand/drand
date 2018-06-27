@@ -162,7 +162,9 @@ func (b ByKey) Less(i, j int) bool {
 }
 
 // Group is a list of IndexedPublic providing helper methods to search and
-// get public keys from a list.
+// get public keys from a list. It orders public keys from their byte
+// lexicographical order
+// TODO remove that non-sense afterall it is useless (i believe)
 type Group struct {
 	Nodes     []*IndexedPublic
 	Threshold int
@@ -271,8 +273,7 @@ func (g *Group) TOML() interface{} {
 	gtoml := &GroupTOML{Threshold: g.Threshold}
 	gtoml.Nodes = make([]*PublicTOML, g.Len())
 	for i, p := range g.Nodes {
-		key := pointToString(p.Key)
-		gtoml.Nodes[i] = &PublicTOML{Key: key, Address: p.Addr}
+		gtoml.Nodes[i] = p.Identity.TOML().(*PublicTOML)
 	}
 	return gtoml
 }
