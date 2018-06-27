@@ -120,7 +120,7 @@ function run() {
 
         ## quicker generation with 1024 bits
         cd $data
-        go run $GOROOT/src/crypto/tls/generate_cert.go --host $addr --rsa-bits 1024 &> /dev/null
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $addr --rsa-bits 1024 
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
