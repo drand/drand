@@ -138,7 +138,8 @@ docker run \
 ```
 where `<port>` specifies the port through which your drand daemon is reachable
 and `<command>` has to be substituted by one of the respective drand
-commands below.
+commands below. You must add the corresponding volumes pointing to your TLS
+private key and certificate in case you are using TLS, which you should.
 
 ## Setup
 
@@ -215,7 +216,7 @@ and `<address>` is the address of one drand node. By default, drand contacts
 the remote node **over TLS**. If the remote node is not using encrypted
 communications, then you can pass the `--insecure` flag. If the remote node is
 using a self signed certificate for example, you can use the `--tls-cert` option
-to specify the custom certificate.
+to specify the certificate of the server you wish to contact.
 
 The output will have the following JSON format:
 ```json
@@ -244,10 +245,10 @@ will output
 ```
 `<server_identity.toml>` is the public identity file of one of the server. It is
 useful to be able to encrypt both the request and response between the client
-and the server.By default, drand contacts the remote node **over TLS**. If the
-remote node is not using encrypted communications, then you can pass the
-`--insecure` flag. If the remote node is using a self signed certificate for
-example, you can use the `--tls-cert` option to specify the custom certificate.
+and the server. Drand will contact the node over TLS if the identity file has
+the "TLS" variable set to `True`.  If the remote node is using a self signed
+certificate for example, you can use the `--tls-cert` option to specify the
+custom certificate.
 
 
 The command outputs a 32-byte base64-encoded random value coming from the local
