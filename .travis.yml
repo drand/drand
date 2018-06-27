@@ -12,7 +12,7 @@ go:
 script:
     #- cd core && go test -v && cd ../ && cd beacon/ && go test -v && cd ../
     - go test -v ./...
-    - ./docker_test.sh
+    - sudo - E env "PATH=$PATH" ./docker_test.sh
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
