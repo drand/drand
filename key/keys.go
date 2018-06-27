@@ -32,11 +32,16 @@ type Pair struct {
 type Identity struct {
 	Key  kyber.Point
 	Addr string
+	TLS  bool
 }
 
 // Address implements the net.Peer interface
 func (i *Identity) Address() string {
 	return i.Addr
+}
+
+func (i *Identity) IsTLS() bool {
+	return i.TLS
 }
 
 // NewKeyPair returns a freshly created private / public key pair. The group is
@@ -55,6 +60,12 @@ func NewKeyPair(address string) *Pair {
 	}
 }
 
+func NewTLSKeyPair(address string) *Pair {
+	kp := NewKeyPair(address)
+	kp.Public.TLS = true
+	return kp
+}
+
 // PairTOML is the TOML-able version of a private key
 type PairTOML struct {
 	Key string
@@ -64,6 +75,7 @@ type PairTOML struct {
 type PublicTOML struct {
 	Address string
 	Key     string
+	TLS     bool
 }
 
 // TOML returns a struct that can be marshalled using a TOML-encoding library
@@ -113,6 +125,7 @@ func (p *Identity) FromTOML(i interface{}) error {
 	}
 	p.Addr = ptoml.Address
 	p.Key = G2.Point()
+	p.TLS = ptoml.TLS
 	return p.Key.UnmarshalBinary(buff)
 }
 
@@ -122,6 +135,7 @@ func (p *Identity) TOML() interface{} {
 	return &PublicTOML{
 		Address: p.Addr,
 		Key:     hex,
+		TLS:     p.TLS,
 	}
 }
 
@@ -148,7 +162,9 @@ func (b ByKey) Less(i, j int) bool {
 }
 
 // Group is a list of IndexedPublic providing helper methods to search and
-// get public keys from a list.
+// get public keys from a list. It orders public keys from their byte
+// lexicographical order
+// TODO remove that non-sense afterall it is useless (i believe)
 type Group struct {
 	Nodes     []*IndexedPublic
 	Threshold int
@@ -257,8 +273,7 @@ func (g *Group) TOML() interface{} {
 	gtoml := &GroupTOML{Threshold: g.Threshold}
 	gtoml.Nodes = make([]*PublicTOML, g.Len())
 	for i, p := range g.Nodes {
-		key := pointToString(p.Key)
-		gtoml.Nodes[i] = &PublicTOML{Key: key, Address: p.Addr}
+		gtoml.Nodes[i] = p.Identity.TOML().(*PublicTOML)
 	}
 	return gtoml
 }

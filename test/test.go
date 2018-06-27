@@ -12,14 +12,23 @@ import (
 
 type testPeer struct {
 	a string
+	b bool
 }
 
 func (t *testPeer) Address() string {
 	return t.a
 }
 
+func (t *testPeer) IsTLS() bool {
+	return t.b
+}
+
 func NewPeer(addr string) net.Peer {
-	return &testPeer{addr}
+	return &testPeer{a: addr, b: false}
+}
+
+func NewTLSPeer(addr string) net.Peer {
+	return &testPeer{a: addr, b: true}
 }
 
 // Addresses returns a list of TCP localhost addresses starting from the given
@@ -63,6 +72,14 @@ func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
 	group := key.NewGroup(ListFromPrivates(privs), key.DefaultThreshold(n))
 	return privs, group
+}
+
+func BatchTLSIdentities(n int) ([]*key.Pair, *key.Group) {
+	pairs, group := BatchIdentities(n)
+	for i := 0; i < n; i++ {
+		pairs[i].Public.TLS = true
+	}
+	return pairs, group
 }
 
 // ListFromPrivates returns a list of Identity from a list of Pair keys.

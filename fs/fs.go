@@ -77,15 +77,15 @@ func CreateSecureFile(file string) (*os.File, error) {
 
 // Files returns the list of file names included in the given path or error if
 // any.
-func Files(path string) ([]string, error) {
-	fi, err := ioutil.ReadDir(path)
+func Files(folderPath string) ([]string, error) {
+	fi, err := ioutil.ReadDir(folderPath)
 	if err != nil {
 		return nil, err
 	}
 	var files []string
 	for _, f := range fi {
 		if !f.IsDir() {
-			files = append(files, f.Name())
+			files = append(files, path.Join(folderPath, f.Name()))
 		}
 	}
 	return files, nil

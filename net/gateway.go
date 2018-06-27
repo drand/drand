@@ -25,12 +25,14 @@ type ExternalClient interface {
 	Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 }
 
+type CallOption = grpc.CallOption
+
 // InternalClient represents all methods callable on drand nodes which are
 // internal to the system. See the folder api/ to get more info on the external
 // API drand nodes offer.
 type InternalClient interface {
-	NewBeacon(p Peer, in *drand.BeaconRequest) (*drand.BeaconResponse, error)
-	Setup(p Peer, in *dkg.DKGPacket) (*dkg.DKGResponse, error)
+	NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error)
+	Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error)
 }
 
 // Listener is the active listener for incoming requests.
@@ -40,9 +42,25 @@ type Listener interface {
 	Stop()
 }
 
-func NewGrpcGateway(listen string, s Service, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayInsecure(listen string, s Service, opts ...grpc.DialOption) Gateway {
 	return Gateway{
 		InternalClient: NewGrpcClient(opts...),
 		Listener:       NewTCPGrpcListener(listen, s),
 	}
+}
+
+func NewGrpcGateway(listen string, certPath, keyPath string, s Service, opts ...grpc.DialOption) Gateway {
+	return NewGrpcGatewayFromCertManager(listen, certPath, keyPath, NewCertManager(), s, opts...)
+}
+
+func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) Gateway {
+	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s)
+	if err != nil {
+		panic(err)
+	}
+	return Gateway{
+		InternalClient: NewGrpcClientFromCertManager(certs, opts...),
+		Listener:       l,
+	}
+
 }

@@ -1,7 +1,5 @@
 package net
 
-import "strings"
-
 // ADDRESSES and TLS
 // https://github.com/denji/golang-tls
 // How do we manage plain tcp and TLS connection with self-signed certificates
@@ -26,9 +24,5 @@ import "strings"
 // all.
 type Peer interface {
 	Address() string
-}
-
-// IsTLS returns true if the address starts with HTTPS
-func IsTLS(addr string) bool {
-	return strings.HasPrefix(addr, "https")
+	IsTLS() bool
 }

@@ -1,19 +1,46 @@
 package key
 
 import (
+	"bytes"
 	"strconv"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"github.com/stretchr/testify/require"
 )
 
-func TestKeysGroupPoint(t *testing.T) {
+func TestKeyPublic(t *testing.T) {
+	addr := "127.0.0.1:80"
+	kp := NewTLSKeyPair(addr)
+	ptoml := kp.Public.TOML().(*PublicTOML)
+	require.Equal(t, kp.Public.Addr, ptoml.Address)
+	require.Equal(t, kp.Public.TLS, ptoml.TLS)
+
+	var writer bytes.Buffer
+	enc := toml.NewEncoder(&writer)
+	require.NoError(t, enc.Encode(ptoml))
+
+	p2 := new(Identity)
+	p2toml := new(PublicTOML)
+	_, err := toml.DecodeReader(&writer, p2toml)
+	require.NoError(t, err)
+	require.NoError(t, p2.FromTOML(p2toml))
+
+	require.Equal(t, kp.Public.Addr, p2.Addr)
+	require.Equal(t, kp.Public.TLS, p2.TLS)
+	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
+}
+
+func TestKeyGroup(t *testing.T) {
 	n := 5
 	_, group := BatchIdentities(n)
-	points := group.Points()
-	for i, p := range points {
-		k := group.Public(i).Key
-		require.Equal(t, p.String(), k.String())
+	ids := group.Identities()
+	for _, p := range ids {
+		require.True(t, p.TLS)
+	}
+	gtoml := group.TOML().(*GroupTOML)
+	for _, p := range gtoml.Nodes {
+		require.True(t, p.TLS)
 	}
 }
 
@@ -25,7 +52,7 @@ func BatchIdentities(n int) ([]*Pair, *Group) {
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port
-		privs[i] = NewKeyPair(addr)
+		privs[i] = NewTLSKeyPair(addr)
 		pubs[i] = privs[i].Public
 	}
 	group := &Group{

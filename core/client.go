@@ -1,4 +1,4 @@
-package api
+package core
 
 import (
 	"github.com/dedis/drand/beacon"
@@ -25,16 +25,30 @@ func NewGrpcClient(opts ...grpc.DialOption) *Client {
 	}
 }
 
+// NewGrpcClientFromCert returns a client that contact its peer over TLS
+func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client {
+	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
+}
+
+// NewRestClient returns a client that uses the HTTP Rest API delivered by drand
+// nodes
 func NewRESTClient() *Client {
 	return &Client{
 		client: net.NewRestClient(),
 	}
 }
 
+// NewRestClient returns a client that uses the HTTP Rest API delivered by drand
+// nodes, using TLS connection for peers registered
+func NewRESTClientFromCert(c *net.CertManager) *Client {
+	return &Client{client: net.NewRestClientFromCertManager(c)}
+}
+
 // LastPublic returns the last randomness beacon from the server associated. It
-// returns it if the randomness is valid.
-func (c *Client) LastPublic(addr string, pub *key.DistPublic) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.Public(&peerAddr{addr}, &drand.PublicRandRequest{})
+// returns it if the randomness is valid. Secure indicates that the request
+// must be made over a TLS protected channel.
+func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*drand.PublicRandResponse, error) {
+	resp, err := c.client.Public(&peerAddr{addr, secure}, &drand.PublicRandRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +57,8 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic) (*drand.PublicRand
 
 // Private retrieves a private random value from the server. It does that by
 // generating an ephemeral key pair, sends it encrypted to the remote server,
-// and decrypts the response, the randomness.
+// and decrypts the response, the randomness. Client will attempt a TLS
+// connection to the address in the identity if id.IsTLS() returns true
 func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	ephScalar := key.G2.Scalar()
 	ephPoint := key.G2.Point().Mul(ephScalar, nil)
@@ -55,7 +70,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Private(&peerAddr{id.Addr}, &drand.PrivateRandRequest{obj})
+	resp, err := c.client.Private(id, &drand.PrivateRandRequest{obj})
 	if err != nil {
 		return nil, err
 	}
@@ -67,10 +82,19 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	return bls.Verify(key.Pairing, public, msg, resp.GetRandomness())
 }
 
+func (c *Client) peer(addr string) {
+
+}
+
 type peerAddr struct {
 	addr string
+	t    bool
 }
 
 func (p *peerAddr) Address() string {
 	return p.addr
+}
+
+func (p *peerAddr) IsTLS() bool {
+	return p.t
 }
