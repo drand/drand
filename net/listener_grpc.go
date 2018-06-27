@@ -29,10 +29,14 @@ type grpcInsecureListener struct {
 	lis        net.Listener
 }
 
-// NewGrpcListener returns a new Listener from the given network Listener and
-// some options that may be necessary to gRPC. The caller should preferable use
-// NewTCPGrpcListener or NewTLSgRPCListener.
-func NewGrpcListener(l net.Listener, s Service, opts ...grpc.ServerOption) Listener {
+// NewTCPGrpcListener returns a gRPC listener using plain TCP connections
+// without TLS. The listener will bind to the given address:port
+// tuple.
+func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Listener {
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		panic("tcp listener: " + err.Error())
+	}
 
 	mux := cmux.New(l)
 
@@ -70,17 +74,6 @@ func NewGrpcListener(l net.Listener, s Service, opts ...grpc.ServerOption) Liste
 	return g
 }
 
-// NewTCPGrpcListener returns a gRPC listener using plain TCP connections
-// without TLS. The listener will bind to the given address:port
-// tuple.
-func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Listener {
-	lis, err := net.Listen("tcp", addr)
-	if err != nil {
-		panic("tcp listener: " + err.Error())
-	}
-	return NewGrpcListener(lis, s, opts...)
-}
-
 func (g *grpcInsecureListener) Start() {
 	grpcL := g.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
 	restL := g.mux.Match(cmux.Any())
@@ -92,8 +85,8 @@ func (g *grpcInsecureListener) Start() {
 
 func (g *grpcInsecureListener) Stop() {
 	g.lis.Close()
-	g.grpcServer.Stop()
 	g.restServer.Shutdown(context.Background())
+	g.grpcServer.Stop()
 }
 
 type grpcTLSListener struct {
@@ -160,7 +153,8 @@ func (g *grpcTLSListener) Start() {
 }
 
 func (g *grpcTLSListener) Stop() {
-	g.grpcServer.GracefulStop()
+	// Graceful stop not supported with HTTP Server
+	// https://github.com/grpc/grpc-go/issues/1384
 	if err := g.server.Shutdown(context.TODO()); err != nil {
 		slog.Debugf("grpc: tls listener shutdown failed: %s", err)
 	}
