@@ -302,7 +302,8 @@ func (h *Handler) broadcast(p *dkg_proto.DKGPacket) {
 		slog.Debugf("dkg: %s broadcast: sent packet to %s", h.addr(), id.Address())
 		good++
 	}
-	if good < h.conf.Group.Threshold {
+	// -1 because this handler automatically "receives" its own dkg packet
+	if good < h.conf.Group.Threshold-1 {
 		h.errCh <- errors.New("dkg: broadcast not successful")
 	}
 	slog.Debugf("dkg: broadcast done")
