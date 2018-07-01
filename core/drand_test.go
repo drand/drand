@@ -169,7 +169,7 @@ func TestDrandDKG(t *testing.T) {
 				delete(genBeacons, i)
 			}
 			l.Unlock()
-		case <-time.After(period * time.Duration(nbRound*20)):
+		case <-time.After(period * time.Duration(nbRound*40)):
 			t.Fatal("not in time")
 		}
 	}
