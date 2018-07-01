@@ -119,7 +119,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 		} else {
 			pool := g.manager.Pool()
-			creds := credentials.NewClientTLSFromCert(pool, p.Address())
+			creds := credentials.NewClientTLSFromCert(pool, "")
 			opts := append(g.opts, grpc.WithTransportCredentials(creds))
 			c, err = grpc.Dial(p.Address(), opts...)
 		}

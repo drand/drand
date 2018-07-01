@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -82,9 +83,13 @@ func (r *restClient) doRequest(remote Peer, req *http.Request) ([]byte, error) {
 
 	pool := r.manager.Pool()
 	if remote.IsTLS() {
+		h, _, err := net.SplitHostPort(remote.Address())
+		if err != nil {
+			return nil, err
+		}
 		conf := &tls.Config{
 			RootCAs:    pool,
-			ServerName: remote.Address(),
+			ServerName: h,
 		}
 		client.Transport = &http.Transport{TLSClientConfig: conf}
 	}
