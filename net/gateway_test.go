@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"net"
 	"os"
 	"path"
 	"testing"
@@ -78,7 +79,9 @@ func TestListenerTLS(t *testing.T) {
 	certPath := path.Join(tmpDir, "server.crt")
 	keyPath := path.Join(tmpDir, "server.key")
 	if httpscerts.Check(certPath, keyPath) != nil {
-		require.NoError(t, httpscerts.Generate(certPath, keyPath, addr1))
+		h, _, _ := net.SplitHostPort(addr1)
+		require.NoError(t, httpscerts.Generate(certPath, keyPath, h))
+		//require.NoError(t, httpscerts.Generate(certPath, keyPath, addr1))
 	}
 
 	service1 := &testService{42}

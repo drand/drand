@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	gnet "net"
 	"os"
 	"os/exec"
 	"path"
@@ -105,7 +106,8 @@ func TestClientTLS(t *testing.T) {
 
 	if httpscerts.Check(certPath, keyPath) != nil {
 		fmt.Println("generating on the fly")
-		if err := httpscerts.Generate(certPath, keyPath, priv.Public.Address()); err != nil {
+		h, _, _ := gnet.SplitHostPort(priv.Public.Address())
+		if err := httpscerts.Generate(certPath, keyPath, h); err != nil {
 			panic(err)
 		}
 	}
