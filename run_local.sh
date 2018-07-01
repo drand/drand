@@ -105,7 +105,8 @@ function run() {
     for i in $seq; do
         # gen key and append to group
         data="$TMP/node$i/"
-        addr="${SUBNET}2$i:$PORT"
+        host="${SUBNET}2$i"
+        addr="$host:$PORT"
         addresses+=($addr)
         mkdir -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null 
@@ -120,7 +121,7 @@ function run() {
 
         ## quicker generation with 1024 bits
         cd $data
-        go run $GOROOT/src/crypto/tls/generate_cert.go --host $addr --rsa-bits 1024 
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
