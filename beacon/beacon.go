@@ -227,7 +227,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	respCh := make(chan *proto.BeaconResponse, h.group.Len())
 	// send all requests in parallel
 	for _, id := range h.group.Nodes {
-		if h.index == id.Index {
+		if h.addr == id.Addr {
 			continue
 		}
 		// this go routine sends the packet to one node. It will always
@@ -252,7 +252,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 		select {
 		case resp := <-respCh:
 			sigs = append(sigs, resp.PartialRand)
-			slog.Debugf("beacon: %s round %d received %d/%d response", h.addr, round, len(sigs), h.group.Threshold)
+			slog.Debugf("beacon: %s round %d received partial randomness %d/%d", h.addr, round, len(sigs), h.group.Threshold)
 		case <-closeCh:
 			// it's already time to go to the next, there has been not
 			// enough time or nodes are too slow. In any case it's a
@@ -269,7 +269,8 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 		return
 	}
 	if err := bls.Verify(key.Pairing, h.pub.Commit(), msg, finalSig); err != nil {
-		slog.Print("beacon: invalid reconstructed beacon signature ? That's BAD")
+		slog.Print(sigs)
+		slog.Print("beacon: invalid reconstructed beacon signature ? That's BAD, threshold ", h.group.Threshold)
 		return
 	}
 
