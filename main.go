@@ -411,7 +411,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	config := c.GlobalString("config")
 	opts = append(opts, core.WithConfigFolder(config))
-	db := c.GlobalString("db")
+	db := path.Join(config, c.GlobalString("db"))
 	opts = append(opts, core.WithDbFolder(db))
 	period := c.Duration("period")
 	opts = append(opts, core.WithBeaconPeriod(period))

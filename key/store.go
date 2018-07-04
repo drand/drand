@@ -104,7 +104,7 @@ func (f *fileStore) SaveGroup(g *Group) error {
 }
 
 func (f *fileStore) SaveShare(share *Share) error {
-	slog.Info("cryptostore: saving private share in ", f.shareFile)
+	slog.Info("crypto store: saving private share in ", f.shareFile)
 	return Save(f.shareFile, share, true)
 }
 
@@ -114,7 +114,7 @@ func (f *fileStore) LoadShare() (*Share, error) {
 }
 
 func (f *fileStore) SaveDistPublic(d *DistPublic) error {
-	slog.Info("fileStore saving public distributed key in ", f.distKeyFile)
+	slog.Info("crypto store: saving public distributed key in ", f.distKeyFile)
 	return Save(f.distKeyFile, d, false)
 }
 
