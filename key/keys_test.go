@@ -2,10 +2,14 @@ package key
 
 import (
 	"bytes"
+	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/BurntSushi/toml"
+	kyber "github.com/dedis/kyber"
+	"github.com/dedis/kyber/share"
+	"github.com/dedis/kyber/util/random"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,6 +46,23 @@ func TestKeyGroup(t *testing.T) {
 	for _, p := range gtoml.Nodes {
 		require.True(t, p.TLS)
 	}
+}
+
+func TestShare(t *testing.T) {
+	n := 5
+	s := new(Share)
+	s.Commits = make([]kyber.Point, n, n)
+	s.PrivatePoly = make([]kyber.Scalar, n, n)
+	for i := 0; i < n; i++ {
+		s.Commits[i] = G2.Point().Pick(random.New())
+		s.PrivatePoly[i] = G2.Scalar().Pick(random.New())
+	}
+	s.Share = &share.PriShare{V: G2.Scalar().Pick(random.New()), I: 0}
+
+	stoml := s.TOML()
+	s2 := new(Share)
+	require.NoError(t, s2.FromTOML(stoml))
+	require.True(t, reflect.DeepEqual(s, s2))
 }
 
 func BatchIdentities(n int) ([]*Pair, *Group) {
