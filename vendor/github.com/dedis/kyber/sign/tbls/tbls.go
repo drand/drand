@@ -100,5 +100,8 @@ func Recover(suite pairing.Suite, public *share.PubPoly, msg []byte, sigs [][]by
 	if err != nil {
 		return nil, err
 	}
+	if err := bls.Verify(suite, public.Commit(), msg, sig); err != nil {
+		return nil, err
+	}
 	return sig, nil
 }

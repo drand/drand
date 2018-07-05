@@ -36,6 +36,7 @@ type Dealer struct {
 	pub           kyber.Point
 	secret        kyber.Scalar
 	secretCommits []kyber.Point
+	secretPoly    *share.PriPoly
 	verifiers     []kyber.Point
 	hkdfContext   []byte
 	// threshold of shares that is needed to reconstruct the secret
@@ -154,6 +155,7 @@ func NewDealer(suite Suite, longterm, secret kyber.Scalar, verifiers []kyber.Poi
 		}
 	}
 	d.hkdfContext = context(suite, d.pub, verifiers)
+	d.secretPoly = f
 	return d, nil
 }
 
@@ -285,6 +287,14 @@ func (d *Dealer) SessionID() []byte {
 // so each DKG node can still compute its share if enough Deals are valid.
 func (d *Dealer) SetTimeout() {
 	d.aggregator.cleanVerifiers()
+}
+
+// PrivatePoly returns the private polynomial used to generate the deal. This
+// private polynomial can be saved and then later on used to generate new
+// shares.  This information SHOULD STAY PRIVATE and thus MUST never be given
+// to any third party.
+func (d *Dealer) PrivatePoly() *share.PriPoly {
+	return d.secretPoly
 }
 
 // Verifier receives a Deal from a Dealer, can reply with a Complaint, and can

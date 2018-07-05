@@ -47,7 +47,7 @@
     "util/random",
     "xof/blake2xb"
   ]
-  revision = "df01452a97461400ebc686ea236e12521b6f87ca"
+  revision = "b61c9ac1d4742c616ca74b0a25beb505edb188af"
 
 [[projects]]
   name = "github.com/dedis/protobuf"
@@ -79,6 +79,12 @@
   ]
   revision = "92583770e3f01b09a0d3e9bdf64321d8bebd48f2"
   version = "v1.4.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kabukky/httpscerts"
+  packages = ["."]
+  revision = "617593d7dcb39c9ed617bb62c5e2056244d02184"
 
 [[projects]]
   branch = "master"
@@ -209,6 +215,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "19c8ef20f0677332c33af609def1bc632ceb9bcb24b6fd5021108a0015a08009"
+  inputs-digest = "c56e809993a1ff7fd4a1198e216295f6891507d355dfc19fb2f81271a50cb06f"
   solver-name = "gps-cdcl"
   solver-version = 1
