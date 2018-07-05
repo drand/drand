@@ -59,6 +59,11 @@ func NewPriPoly(group kyber.Group, t int, s kyber.Scalar, rand cipher.Stream) *P
 	return &PriPoly{g: group, coeffs: coeffs}
 }
 
+// CoefficientsToPriPoly returns a PriPoly based on the given coefficients
+func CoefficientsToPriPoly(g kyber.Group, coeffs []kyber.Scalar) *PriPoly {
+	return &PriPoly{g: g, coeffs: coeffs}
+}
+
 // Threshold returns the secret sharing threshold.
 func (p *PriPoly) Threshold() int {
 	return len(p.coeffs)
@@ -155,6 +160,13 @@ func (p *PriPoly) Mul(q *PriPoly) *PriPoly {
 		}
 	}
 	return &PriPoly{p.g, coeffs}
+}
+
+// Coefficients return the list of coefficients representing p. This
+// information is generally PRIVATE and should not be revealed to a third party
+// lightly.
+func (p *PriPoly) Coefficients() []kyber.Scalar {
+	return p.coeffs
 }
 
 // RecoverSecret reconstructs the shared secret p(0) from a list of private
