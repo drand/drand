@@ -118,6 +118,7 @@ func TestDrandDKG(t *testing.T) {
 			<-newBeacon
 			l.Lock()
 			// do we have enough rounds made
+			fmt.Println("TEST: new beacon (len = ", len(genBeacons))
 			if len(genBeacons) < rounds {
 				l.Unlock()
 				continue
@@ -126,11 +127,13 @@ func TestDrandDKG(t *testing.T) {
 				// we want at least <rounds> rounds with at least
 				// <beaconPerRound> beacons in each
 				fullRounds := 0
-				for _, beacons := range genBeacons {
+				for i, beacons := range genBeacons {
 					if len(beacons) >= beaconPerRound {
 						fullRounds++
 					}
+					fmt.Println("TEST: not full round for ", i, " (", len(beacons), "/", beaconPerRound, ")")
 				}
+				fmt.Println("TEST: full rounds = ", fullRounds)
 				if fullRounds < rounds {
 					l.Unlock()
 					continue
@@ -144,6 +147,7 @@ func TestDrandDKG(t *testing.T) {
 				original := beacons[0]
 				for _, beacon := range beacons[1:] {
 					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+						fmt.Println("TEST: randomness NOT equal !")
 						// randomness is not equal we return false
 						l.Unlock()
 						doneCh <- false
