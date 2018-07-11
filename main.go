@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -28,6 +29,7 @@ var (
 
 const gname = "group.toml"
 const dpublic = "dist_key.public"
+const default_port = "8080"
 
 func banner() {
 	fmt.Printf("drand v%s by nikkolasg @ DEDIS\n", version)
@@ -192,13 +194,25 @@ func keygenCmd(c *cli.Context) error {
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
 	}
+
+	addr := args.First()
+	var validID = regexp.MustCompile(`[:][0-9]+$`)
+	if !validID.MatchString(addr) {
+		fmt.Println("No port given. Please, choose a port number (or ENTER for default port 8080): ")
+		var port string
+		fmt.Scanf("%s\n", &port)
+		if port == "" {
+			port = default_port
+		}
+		addr = addr + ":" + string(port)
+	}
 	var priv *key.Pair
 	if c.Bool("insecure") {
 		slog.Info("Generating private / public key pair in INSECURE mode (no TLS).")
-		priv = key.NewKeyPair(args.First())
+		priv = key.NewKeyPair(addr)
 	} else {
 		slog.Info("Generating private / public key pair with TLS indication")
-		priv = key.NewTLSKeyPair(args.First())
+		priv = key.NewTLSKeyPair(addr)
 	}
 
 	config := contextToConfig(c)

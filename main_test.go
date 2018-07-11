@@ -32,6 +32,34 @@ func TestKeyGen(t *testing.T) {
 	require.NotNil(t, priv.Public)
 }
 
+func TestKeyGenWithoutPortNumberUsersPort(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+	// address without port number
+	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
+	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
+	in, _ := cmd.StdinPipe()
+	in.Write([]byte("1234\n"))
+	in.Close()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+}
+
+func TestKeyGenWithoutPortNumberDefaultPort(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+	// address without port number
+	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
+	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
+	in, _ := cmd.StdinPipe()
+	in.Write([]byte("\n"))
+	in.Close()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+}
+
 // https://stackoverflow.com/questions/26225513/how-to-test-os-exit-scenarios-in-go
 func TestKeyGenInvalid(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
