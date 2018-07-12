@@ -76,7 +76,7 @@ func TestGroupGen(t *testing.T) {
 		}
 	}
 	groupPath := path.Join(tmpPath, gname)
-	os.Args = []string{"drand", "group", "--threshold", strconv.Itoa(thr), "--out", groupPath}
+	os.Args = []string{"drand", "group", "--threshold", strconv.Itoa(thr), "--out", "--group-init", groupPath}
 	os.Args = append(os.Args, names...)
 	main()
 
@@ -139,7 +139,7 @@ func TestClientTLS(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-cert", certPath, "--tls-key", keyPath, groupPath}
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-cert", certPath, "--tls-key", keyPath, "--group-init", groupPath}
 	go main()
 
 	installCmd := exec.Command("go", "install")

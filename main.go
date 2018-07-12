@@ -128,10 +128,10 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:      "dkg",
-			Usage:     "Run the DKG protocol",
-			ArgsUsage: "GROUP.TOML the group file listing all participant's identities",
-			Flags:     toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag),
+			Name:  "dkg",
+			Usage: "Run the DKG protocol",
+			//ArgsUsage: "GROUP.TOML the group file listing all participant's identities",
+			Flags: toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return dkgCmd(c)
@@ -276,7 +276,7 @@ func groupCmd(c *cli.Context) error {
 }
 
 func dkgCmd(c *cli.Context) error {
-	if c.NArg() < 1 {
+	if !c.IsSet("group-init") {
 		slog.Fatal("dkg requires a group.toml file")
 	}
 	group := getGroup(c)
