@@ -197,21 +197,7 @@ func keygenCmd(c *cli.Context) error {
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
 	}
-<<<<<<< HEAD
-=======
 
-	addr := args.First()
-	var validID = regexp.MustCompile(`[:][0-9]+$`)
-	if !validID.MatchString(addr) {
-		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
-		var port string
-		fmt.Scanf("%s\n", &port)
-		if port == "" {
-			port = default_port
-		}
-		addr = addr + ":" + port
-	}
->>>>>>> 69c7b15... added group flag
 	var priv *key.Pair
 	if c.Bool("insecure") {
 		slog.Info("Generating private / public key pair in INSECURE mode (no TLS).")
