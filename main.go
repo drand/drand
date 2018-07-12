@@ -198,7 +198,7 @@ func keygenCmd(c *cli.Context) error {
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
 	if !validID.MatchString(addr) {
-		fmt.Println("No port given. Please, choose a port number (or ENTER for default port 8080): ")
+		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
 		var port string
 		fmt.Scanf("%s\n", &port)
 		if port == "" {

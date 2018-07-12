@@ -121,49 +121,49 @@ func TestClientTLS(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		fmt.Println("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
-	} else {
-		tmpPath := path.Join(os.TempDir(), "drand")
-		os.Mkdir(tmpPath, 0777)
-		defer os.RemoveAll(tmpPath)
-
-		pubPath := path.Join(tmpPath, "pub.key")
-		certPath := path.Join(tmpPath, "server.pem")
-		keyPath := path.Join(tmpPath, "key.pem")
-
-		priv := key.NewTLSKeyPair("127.0.0.1:8080")
-		require.NoError(t, key.Save(pubPath, priv.Public, false))
-
-		config := core.NewConfig(core.WithConfigFolder(tmpPath))
-		fs := key.NewFileStore(config.ConfigFolder())
-		fs.SaveKeyPair(priv)
-
-		if httpscerts.Check(certPath, keyPath) != nil {
-			fmt.Println("generating on the fly")
-			h, _, _ := gnet.SplitHostPort(priv.Public.Address())
-			if err := httpscerts.Generate(certPath, keyPath, h); err != nil {
-				panic(err)
-			}
-		}
-
-		// fake group
-		_, group := test.BatchTLSIdentities(5)
-		group.Nodes[0] = &key.IndexedPublic{
-			Identity: priv.Public,
-			Index:    0,
-		}
-		groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
-		require.NoError(t, key.Save(groupPath, group, false))
-
-		os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-cert", certPath, "--tls-key", keyPath, groupPath}
-		go main()
-
-		installCmd := exec.Command("go", "install")
-		_, err := installCmd.Output()
-		require.NoError(t, err)
-
-		cmd := exec.Command("drand", "fetch", "private", "--tls-cert", certPath, pubPath)
-		out, err := cmd.CombinedOutput()
-		fmt.Println(string(out))
-		require.NoError(t, err)
 	}
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
+
+	pubPath := path.Join(tmpPath, "pub.key")
+	certPath := path.Join(tmpPath, "server.pem")
+	keyPath := path.Join(tmpPath, "key.pem")
+
+	priv := key.NewTLSKeyPair("127.0.0.1:8080")
+	require.NoError(t, key.Save(pubPath, priv.Public, false))
+
+	config := core.NewConfig(core.WithConfigFolder(tmpPath))
+	fs := key.NewFileStore(config.ConfigFolder())
+	fs.SaveKeyPair(priv)
+
+	if httpscerts.Check(certPath, keyPath) != nil {
+		fmt.Println("generating on the fly")
+		h, _, _ := gnet.SplitHostPort(priv.Public.Address())
+		if err := httpscerts.Generate(certPath, keyPath, h); err != nil {
+			panic(err)
+		}
+	}
+
+	// fake group
+	_, group := test.BatchTLSIdentities(5)
+	group.Nodes[0] = &key.IndexedPublic{
+		Identity: priv.Public,
+		Index:    0,
+	}
+	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	require.NoError(t, key.Save(groupPath, group, false))
+
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-cert", certPath, "--tls-key", keyPath, groupPath}
+	go main()
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
+	cmd := exec.Command("drand", "fetch", "private", "--tls-cert", certPath, pubPath)
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+
 }

@@ -11,7 +11,6 @@ import (
 // CertManager is used to managed certificates. It is most commonly used for
 // testing with self signed certificate. By default, it returns the bundled set
 // of certificates coming with the OS (Go's implementation).
-
 type CertManager struct {
 	pool *x509.CertPool
 }
