@@ -130,7 +130,6 @@ func main() {
 		cli.Command{
 			Name:  "dkg",
 			Usage: "Run the DKG protocol",
-			//ArgsUsage: "GROUP.TOML the group file listing all participant's identities",
 			Flags: toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()

@@ -100,10 +100,10 @@ func TestGroupGen(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	os.Args = []string{"drand", "run", "--group-init", groupPath}
-	os.Args = append(os.Args, names...)
-	main()
-	//TODO
+	cmd := exec.Command("drand", "run", "--group-init", groupPath)
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
 }*/
 
 func TestClientTLS(t *testing.T) {
