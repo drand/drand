@@ -76,7 +76,7 @@ func TestGroupGen(t *testing.T) {
 		}
 	}
 	groupPath := path.Join(tmpPath, gname)
-	os.Args = []string{"drand", "group", "--threshold", strconv.Itoa(thr), "--out", "--group-init", groupPath}
+	os.Args = []string{"drand", "group", "--threshold", strconv.Itoa(thr), "--out", groupPath}
 	os.Args = append(os.Args, names...)
 	main()
 
