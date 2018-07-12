@@ -103,6 +103,11 @@ func main() {
 		Usage: "indicates to use a non TLS server or connection",
 	}
 
+	groupFlag := cli.StringFlag{
+		Name:  "group-init",
+		Usage: "the group file to use",
+	}
+
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "keygen",
@@ -147,7 +152,7 @@ func main() {
 			Name:      "run",
 			Usage:     "Run the daemon, first do the dkg if needed then run the beacon",
 			ArgsUsage: "<group file> is the group.toml generated with `group`. This argument is only needed if the DKG has NOT been run yet.",
-			Flags:     toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag),
+			Flags:     toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return runCmd(c)
@@ -204,7 +209,7 @@ func keygenCmd(c *cli.Context) error {
 		if port == "" {
 			port = default_port
 		}
-		addr = addr + ":" + string(port)
+		addr = addr + ":" + port
 	}
 	var priv *key.Pair
 	if c.Bool("insecure") {
@@ -336,8 +341,7 @@ func runCmd(c *cli.Context) error {
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
 	var err error
-	if c.NArg() > 0 {
-		// we assume it is the group file
+	if c.IsSet("group-init") {
 		group := getGroup(c)
 		drand, err = core.NewDrand(fs, group, conf)
 		if err != nil {
@@ -459,7 +463,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 func getGroup(c *cli.Context) *key.Group {
 	g := &key.Group{}
-	if err := key.Load(c.Args().First(), g); err != nil {
+	if err := key.Load(c.String("group-init"), g); err != nil {
 		slog.Fatal(err)
 	}
 	slog.Infof("group file loaded with %d participants", g.Len())
