@@ -103,7 +103,7 @@ func main() {
 
 	groupFlag := cli.StringFlag{
 		Name:  "group-init",
-		Usage: "the group file to use",
+		Usage: "the group file to use during the DKG. If specified, drand erases any existing beacon database, as it supports only being part of one group at a time.",
 	}
 
 	app.Commands = []cli.Command{
@@ -280,6 +280,7 @@ func dkgCmd(c *cli.Context) error {
 	}
 	group := getGroup(c)
 	conf := contextToConfig(c)
+	resetBeaconDB(conf)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	drand, err := core.NewDrand(fs, group, conf)
 	if err != nil {
@@ -329,6 +330,7 @@ func runCmd(c *cli.Context) error {
 	var err error
 	if c.IsSet("group-init") {
 		group := getGroup(c)
+		resetBeaconDB(conf)
 		drand, err = core.NewDrand(fs, group, conf)
 		if err != nil {
 			slog.Fatal(err)
@@ -454,4 +456,13 @@ func getGroup(c *cli.Context) *key.Group {
 	}
 	slog.Infof("group file loaded with %d participants", g.Len())
 	return g
+}
+
+func resetBeaconDB(config *core.Config) {
+	if _, err := os.Stat(config.DBFolder()); err == nil {
+		if err := os.RemoveAll(config.DBFolder()); err != nil {
+			slog.Fatal(err)
+		}
+		slog.Print("Removed existing beacon database.")
+	}
 }
