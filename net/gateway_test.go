@@ -2,9 +2,11 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"path"
+	run "runtime"
 	"testing"
 	"time"
 
@@ -50,6 +52,7 @@ func TestListener(t *testing.T) {
 	peer1 := &testPeer{addr1, false}
 	//addr2 := "127.0.0.1:4001"
 	service1 := &testService{42}
+
 	lis1 := NewTCPGrpcListener(addr1, service1)
 	go lis1.Start()
 	defer lis1.Stop()
@@ -70,6 +73,10 @@ func TestListener(t *testing.T) {
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
 func TestListenerTLS(t *testing.T) {
+	if run.GOOS == "windows" {
+		fmt.Println("Skipping TestClientTLS as operating on Windows")
+		t.Skip("crypto/x509: system root pool is not available on Windows")
+	}
 	addr1 := "127.0.0.1:4000"
 	peer1 := &testPeer{addr1, true}
 
