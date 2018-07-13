@@ -110,13 +110,14 @@ func TestRunGroupInitBadPath(t *testing.T) {
 
 func TestRunGroupInit(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
 	varEnv := "CRASHCRASH"
 	n := 5
 	_, group := test.BatchIdentities(n)
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	defer os.Remove(tmpPath)
 	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", groupPath, "--insecure")
 	cmd.Env = append(os.Environ(), varEnv+"=1")
 	err := cmd.Run()
