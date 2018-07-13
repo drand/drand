@@ -35,6 +35,11 @@ func TestKeyGen(t *testing.T) {
 func TestKeyGenWithoutPortNumberUsersPort(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
 	// address without port number
 	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
 	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
@@ -49,6 +54,11 @@ func TestKeyGenWithoutPortNumberUsersPort(t *testing.T) {
 func TestKeyGenWithoutPortNumberDefaultPort(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
 	// address without port number
 	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
 	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
