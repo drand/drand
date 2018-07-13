@@ -163,7 +163,7 @@ function run() {
         else
             echo "[+] Starting node $i "
         fi
-        drandCmd+=($dockerGroupFile)
+        drandCmd+=("--group-init" $dockerGroupFile)
         docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
         docker logs -f node$i > $logFile &
         sleep 0.1
