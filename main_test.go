@@ -1,16 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	gnet "net"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
@@ -40,7 +37,7 @@ func TestKeyGenInvalid(t *testing.T) {
 	varEnv := "CRASHCRASH"
 	if os.Getenv(varEnv) == "1" {
 		os.Args = []string{"drand", "--config", tmp, "keygen"}
-		fmt.Println("bri")
+		fmt.Println("brilo")
 		main()
 		return
 	}
@@ -91,44 +88,6 @@ func TestGroupGen(t *testing.T) {
 	}
 }
 
-func TestRunGroupInit(t *testing.T) {
-	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
-	defer os.RemoveAll(tmpPath)
-
-	n := 5
-	_, group := test.BatchIdentities(n)
-	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
-	require.NoError(t, key.Save(groupPath, group, false))
-
-	done := make(chan bool)
-	os.Args = []string{"drand", "-c", tmpPath, "run", "--group-init", groupPath, "--insecure"}
-	main()
-
-	oldStdout := os.Stdout
-	readFile, writeFile, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stdout = writeFile
-	go func() {
-		scanner := bufio.NewScanner(readFile)
-		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.Contains(line, "group file loaded with") {
-				done <- true
-			}
-		}
-	}()
-	writeFile.Close()
-	os.Stdout = oldStdout
-
-	select {
-	case <-done:
-		t.Skip()
-	case <-time.After(time.Duration(1)):
-		t.Fatal("not in time")
-	}
-}
-
 func TestRunGroupInitBadPath(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0777)
@@ -137,14 +96,33 @@ func TestRunGroupInitBadPath(t *testing.T) {
 	//tests reaction to empty group path
 	emptyGroupPath := " "
 	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", emptyGroupPath, "--insecure")
-	_, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
 	require.Error(t, err)
 
 	//tests reaction to a bad group path
 	wrongGroupPath := "not_here"
 	cmd = exec.Command("drand", "-c", tmpPath, "run", "--group-init", wrongGroupPath, "--insecure")
-	_, err = cmd.CombinedOutput()
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
 	require.Error(t, err)
+}
+
+func TestRunGroupInit(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	varEnv := "CRASHCRASH"
+	n := 5
+	_, group := test.BatchIdentities(n)
+	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	require.NoError(t, key.Save(groupPath, group, false))
+
+	defer os.Remove(tmpPath)
+	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", groupPath, "--insecure")
+	cmd.Env = append(os.Environ(), varEnv+"=1")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && e.Success() {
+		t.Fatal(err)
+	}
 }
 
 func TestClientTLS(t *testing.T) {
