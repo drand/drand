@@ -468,7 +468,6 @@ func askPort() string {
 		var port string
 		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
 		fmt.Scanf("%s\n", &port)
-		slog.Print("Port scaned is" + port)
 		if port == "" {
 			return default_port
 		}
@@ -476,6 +475,6 @@ func askPort() string {
 		if len(port) > 2 && len(port) < 5 && err == nil {
 			return port
 		}
-		askPort()
+		return askPort()
 	}
 }
