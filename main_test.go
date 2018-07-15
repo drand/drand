@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
+	"log"
 	gnet "net"
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -19,6 +22,13 @@ import (
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
+
+func TestMain(m *testing.M) {
+	cmd := exec.Command("go", "install")
+	cmd.Run()
+	code := m.Run()
+	os.Exit(code)
+}
 
 func TestKeyGen(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
@@ -145,6 +155,83 @@ func TestRunGroupInitBadPath(t *testing.T) {
 	cmd = exec.Command("drand", "-c", tmpPath, "run", "--group-init", wrongGroupPath, "--insecure")
 	_, err = cmd.CombinedOutput()
 	require.Error(t, err)
+}
+
+func TestResetBeacon(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
+
+	config := core.NewConfig(core.WithConfigFolder(tmpPath))
+	// first create one set of key pair
+	cmd := exec.Command("drand", "--config", config.ConfigFolder(), "keygen", "127.0.0.1:8080")
+	require.NoError(t, cmd.Run())
+	// read id
+	store := key.NewFileStore(config.ConfigFolder())
+	kp, err := store.LoadKeyPair()
+	require.NoError(t, err)
+	group := key.NewGroup([]*key.Identity{kp.Public, kp.Public, kp.Public, kp.Public}, 3)
+
+	// create fake group
+	groupsPath := path.Join(config.ConfigFolder(), "groups")
+	groupPath := path.Join(groupsPath, "group.toml")
+	require.NoError(t, key.Save(groupPath, group, false))
+
+	// create fake database
+	require.NoError(t, os.MkdirAll(config.DBFolder(), 0777))
+	// create fake file as a way to determine whether it has been deleted or not
+	fakePath := path.Join(config.DBFolder(), "fake.data")
+	require.NoError(t, ioutil.WriteFile(fakePath, []byte("fakyfaky"), 0777))
+
+	// launch with a group init and we answer by no to the question if we want
+	// to delete the beacon and we expect the fake file to be there
+	args := []string{"--config", tmpPath, "run", "--group-init", groupPath, "--insecure"}
+	cmd = exec.Command("drand", args...)
+	cmd.Stdin = strings.NewReader("y\n")
+	cmdReader, err := cmd.StdoutPipe()
+	if err != nil {
+		log.Fatal(err)
+	}
+	scanner := bufio.NewScanner(cmdReader)
+
+	go func() {
+		if err := cmd.Start(); err != nil {
+			log.Fatal(err)
+		}
+		if err := cmd.Wait(); err != nil {
+			log.Fatal(err)
+		}
+
+	}()
+
+	question := regexp.MustCompile("Accept to delete database")
+	deleted := regexp.MustCompile("Removed existing beacon")
+	for scanner.Scan() {
+		line := scanner.Text()
+		//fmt.Println(line)
+		if question.MatchString(line) {
+			// if the question has been asked, then the database must have been
+			// deleted at the next line
+			if !deleted.MatchString(line) {
+				t.Fatal("not deleted")
+			} else {
+				cmd.Process.Kill()
+				return
+			}
+		}
+
+	}
+
+	/*err := cmd.CombinedOutput()*/
+	//if err != nil {
+	//fmt.Println("buffer: ", string(out))
+	//t.Fatal()
+	//}
+
+	// check if we still have the fake file
+	if _, err := os.Stat(fakePath); err == nil {
+		t.Fatal("database removed")
+	}
 }
 
 func TestClientTLS(t *testing.T) {

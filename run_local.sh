@@ -1,6 +1,6 @@
 #!/bin/bash 
 
- #set -x 
+# set -x 
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers 
 # The second part is triggered when this script is actually ran, and not

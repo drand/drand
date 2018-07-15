@@ -126,6 +126,7 @@ func WithDbFolder(folder string) ConfigOption {
 func WithConfigFolder(folder string) ConfigOption {
 	return func(d *Config) {
 		d.configFolder = folder
+		d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	}
 }
 

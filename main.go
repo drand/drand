@@ -44,11 +44,6 @@ func main() {
 		Value: core.DefaultConfigFolder(),
 		Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
 	}
-	dbFlag := cli.StringFlag{
-		Name:  "db",
-		Value: path.Join(configFlag.Value, core.DefaultDbFolder),
-		Usage: "Folder in which to keep the database (boltdb file)",
-	}
 	seedFlag := cli.StringFlag{
 		Name:  "seed",
 		Value: string(core.DefaultSeed),
@@ -181,7 +176,7 @@ func main() {
 			},
 		},
 	}
-	app.Flags = toArray(verboseFlag, configFlag, dbFlag)
+	app.Flags = toArray(verboseFlag, configFlag)
 	app.Before = func(c *cli.Context) error {
 		if c.GlobalIsSet("debug") {
 			slog.Level = slog.LevelDebug
@@ -417,8 +412,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	config := c.GlobalString("config")
 	opts = append(opts, core.WithConfigFolder(config))
-	db := path.Join(config, c.GlobalString("db"))
-	opts = append(opts, core.WithDbFolder(db))
 	period := c.Duration("period")
 	opts = append(opts, core.WithBeaconPeriod(period))
 
@@ -459,7 +452,21 @@ func getGroup(c *cli.Context) *key.Group {
 }
 
 func resetBeaconDB(config *core.Config) {
+	fmt.Println("reseat beacon db")
 	if _, err := os.Stat(config.DBFolder()); err == nil {
+		// using fmt so does not get the new line at the end.
+		// XXX allow slog for that behavior
+		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
+		var answer string
+		if _, err := fmt.Scanf("%s\n", &answer); err != nil {
+			slog.Fatal(err)
+		}
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		if answer != "y" {
+			slog.Print("Not deleting the database. Exiting drand.")
+			os.Exit(0)
+		}
+
 		if err := os.RemoveAll(config.DBFolder()); err != nil {
 			slog.Fatal(err)
 		}
