@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -275,7 +276,9 @@ func dkgCmd(c *cli.Context) error {
 	}
 	group := getGroup(c)
 	conf := contextToConfig(c)
-	resetBeaconDB(conf)
+	if exit := resetBeaconDB(conf); exit {
+		os.Exit(0)
+	}
 	fs := key.NewFileStore(conf.ConfigFolder())
 	drand, err := core.NewDrand(fs, group, conf)
 	if err != nil {
@@ -325,7 +328,9 @@ func runCmd(c *cli.Context) error {
 	var err error
 	if c.IsSet("group-init") {
 		group := getGroup(c)
-		resetBeaconDB(conf)
+		if exit := resetBeaconDB(conf); exit {
+			os.Exit(0)
+		}
 		drand, err = core.NewDrand(fs, group, conf)
 		if err != nil {
 			slog.Fatal(err)
@@ -451,20 +456,22 @@ func getGroup(c *cli.Context) *key.Group {
 	return g
 }
 
-func resetBeaconDB(config *core.Config) {
+func resetBeaconDB(config *core.Config) bool {
 	fmt.Println("reseat beacon db")
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		// using fmt so does not get the new line at the end.
 		// XXX allow slog for that behavior
 		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
-		var answer string
-		if _, err := fmt.Scanf("%s\n", &answer); err != nil {
-			slog.Fatal(err)
+		reader := bufio.NewReader(os.Stdin)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			slog.Fatal("error reading: ", err)
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
+		fmt.Println("answer =", answer)
 		if answer != "y" {
 			slog.Print("Not deleting the database. Exiting drand.")
-			os.Exit(0)
+			return true
 		}
 
 		if err := os.RemoveAll(config.DBFolder()); err != nil {
@@ -472,4 +479,5 @@ func resetBeaconDB(config *core.Config) {
 		}
 		slog.Print("Removed existing beacon database.")
 	}
+	return false
 }
