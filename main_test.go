@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -29,6 +30,64 @@ func TestKeyGen(t *testing.T) {
 	priv, err := fs.LoadKeyPair()
 	require.Nil(t, err)
 	require.NotNil(t, priv.Public)
+}
+
+func TestKeyGenWithoutPortNumberUsersPort(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
+	// address without port number
+	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
+	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
+	in, _ := cmd.StdinPipe()
+	in.Write([]byte("1234\n"))
+	in.Close()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+}
+
+func TestKeyGenWithoutPortNumberDefaultPort(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
+	// address without port number
+	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
+	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
+	in, _ := cmd.StdinPipe()
+	in.Write([]byte("\n"))
+	in.Close()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+}
+
+func TestKeyGenBadPortNumber(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
+	// address without port number
+	//os.Args = []string{"drand", "--config", tmp, "keygen", "127.0.0.1"}
+	cmd := exec.Command("drand", "--config", tmp, "keygen", "127.0.0.1")
+	in, _ := cmd.StdinPipe()
+	in.Write([]byte("0"))
+	in.Write([]byte("\n"))
+	in.Close()
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
 }
 
 // https://stackoverflow.com/questions/26225513/how-to-test-os-exit-scenarios-in-go
@@ -89,6 +148,10 @@ func TestGroupGen(t *testing.T) {
 }
 
 func TestClientTLS(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		fmt.Println("Skipping TestClientTLS as operating on Windows")
+		t.Skip("crypto/x509: system root pool is not available on Windows")
+	}
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0777)
 	defer os.RemoveAll(tmpPath)
@@ -132,4 +195,5 @@ func TestClientTLS(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.NoError(t, err)
+
 }
