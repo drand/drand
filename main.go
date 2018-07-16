@@ -145,10 +145,9 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:      "run",
-			Usage:     "Run the daemon, first do the dkg if needed then run the beacon",
-			ArgsUsage: "<group file> is the group.toml generated with `group`. This argument is only needed if the DKG has NOT been run yet.",
-			Flags:     toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag),
+			Name:  "run",
+			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
+			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return runCmd(c)
