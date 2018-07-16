@@ -10,6 +10,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -29,6 +31,7 @@ var (
 
 const gname = "group.toml"
 const dpublic = "dist_key.public"
+const default_port = "8080"
 
 func banner() {
 	fmt.Printf("drand v%s by nikkolasg @ DEDIS\n", version)
@@ -192,14 +195,20 @@ func keygenCmd(c *cli.Context) error {
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
 	}
-
+	addr := args.First()
+	var validID = regexp.MustCompile(`[:][0-9]+$`)
+	slog.Print("Testing port")
+	if !validID.MatchString(addr) {
+		slog.Print("port not ok")
+		addr = addr + ":" + askPort()
+	}
 	var priv *key.Pair
 	if c.Bool("insecure") {
 		slog.Info("Generating private / public key pair in INSECURE mode (no TLS).")
-		priv = key.NewKeyPair(args.First())
+		priv = key.NewKeyPair(addr)
 	} else {
 		slog.Info("Generating private / public key pair with TLS indication")
-		priv = key.NewTLSKeyPair(args.First())
+		priv = key.NewTLSKeyPair(addr)
 	}
 
 	config := contextToConfig(c)
@@ -457,7 +466,6 @@ func getGroup(c *cli.Context) *key.Group {
 }
 
 func resetBeaconDB(config *core.Config) bool {
-	fmt.Println("reseat beacon db")
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		// using fmt so does not get the new line at the end.
 		// XXX allow slog for that behavior
@@ -468,7 +476,6 @@ func resetBeaconDB(config *core.Config) bool {
 			slog.Fatal("error reading: ", err)
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
-		fmt.Println("answer =", answer)
 		if answer != "y" {
 			slog.Print("Not deleting the database. Exiting drand.")
 			return true
@@ -480,4 +487,21 @@ func resetBeaconDB(config *core.Config) bool {
 		slog.Print("Removed existing beacon database.")
 	}
 	return false
+}
+
+func askPort() string {
+	slog.Print("asking for port")
+	for {
+		var port string
+		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
+		fmt.Scanf("%s\n", &port)
+		if port == "" {
+			return default_port
+		}
+		_, err := strconv.Atoi(port)
+		if len(port) > 2 && len(port) < 5 && err == nil {
+			return port
+		}
+		return askPort()
+	}
 }

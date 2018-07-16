@@ -253,7 +253,7 @@ func TestClientTLS(t *testing.T) {
 	certPath := path.Join(tmpPath, "server.pem")
 	keyPath := path.Join(tmpPath, "key.pem")
 
-	priv := key.NewTLSKeyPair("127.0.0.1:8080")
+	priv := key.NewTLSKeyPair("127.0.0.1:8082")
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
