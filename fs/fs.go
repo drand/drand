@@ -17,6 +17,7 @@ func HomeFolder() string {
 	return u.HomeDir
 }
 
+// CreateHomeConfigFolder creates a folder into home
 func CreateHomeConfigFolder(folder string) string {
 	u, err := user.Current()
 	if err != nil {
@@ -30,11 +31,21 @@ func CreateHomeConfigFolder(folder string) string {
 	}
 	return path
 }
+
+// CreateSecureFolder checks if the folder exists and has the appropriate permission rights. If not it creates it.
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, 0740); err != nil {
 			fmt.Println("folder", folder, ",err", err)
 			panic(err)
+		}
+	} else {
+		//the folder exists already
+		info, err := os.Lstat(folder)
+		perm := int(info.Mode().Perm())
+		//given that the permission is incremental (owner then group then others), then can compare the value of the permission bytes
+		if err != nil || perm < int(0740) {
+			return ""
 		}
 	}
 	return folder

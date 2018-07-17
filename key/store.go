@@ -3,7 +3,6 @@ package key
 import (
 	"errors"
 	"os"
-	"path"
 	"reflect"
 
 	"github.com/BurntSushi/toml"
@@ -62,9 +61,14 @@ type fileStore struct {
 	groupFile      string
 }
 
-// NewDefaultFileStore
+// NewDefaultFileStore is used to create the config folder and all the subfolders.
+// If a folder alredy exists, we simply check the rights
 func NewFileStore(baseFolder string) Store {
-	fs.CreateSecureFolder(baseFolder)
+	//config folder
+	path := fs.CreateSecureFolder(baseFolder)
+	if path == "" {
+		slog.Fatal("Something went wrong with the config folder. Make sure that you have the appropriate rights.")
+	}
 	store := &fileStore{baseFolder: baseFolder}
 	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))
 	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, GroupFolderName))
