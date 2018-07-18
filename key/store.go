@@ -3,6 +3,7 @@ package key
 import (
 	"errors"
 	"os"
+	"path"
 	"reflect"
 
 	"github.com/BurntSushi/toml"
@@ -65,8 +66,7 @@ type fileStore struct {
 // If a folder alredy exists, we simply check the rights
 func NewFileStore(baseFolder string) Store {
 	//config folder
-	path := fs.CreateSecureFolder(baseFolder)
-	if path == "" {
+	if fs.CreateSecureFolder(baseFolder) == "" {
 		slog.Fatal("Something went wrong with the config folder. Make sure that you have the appropriate rights.")
 	}
 	store := &fileStore{baseFolder: baseFolder}
