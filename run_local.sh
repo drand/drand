@@ -1,6 +1,6 @@
 #!/bin/bash 
 
- #set -x 
+# set -x 
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers 
 # The second part is triggered when this script is actually ran, and not
@@ -163,7 +163,7 @@ function run() {
         else
             echo "[+] Starting node $i "
         fi
-        drandCmd+=($dockerGroupFile)
+        drandCmd+=("--group-init" $dockerGroupFile)
         docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
         docker logs -f node$i > $logFile &
         sleep 0.1

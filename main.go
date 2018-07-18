@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -46,11 +47,6 @@ func main() {
 		Name:  "config, c",
 		Value: core.DefaultConfigFolder(),
 		Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
-	}
-	dbFlag := cli.StringFlag{
-		Name:  "db",
-		Value: path.Join(configFlag.Value, core.DefaultDbFolder),
-		Usage: "Folder in which to keep the database (boltdb file)",
 	}
 	seedFlag := cli.StringFlag{
 		Name:  "seed",
@@ -104,6 +100,11 @@ func main() {
 		Usage: "indicates to use a non TLS server or connection",
 	}
 
+	groupFlag := cli.StringFlag{
+		Name:  "group-init",
+		Usage: "the group file to use during the DKG. If specified, drand erases any existing beacon database, as it supports only being part of one group at a time.",
+	}
+
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "keygen",
@@ -126,10 +127,9 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:      "dkg",
-			Usage:     "Run the DKG protocol",
-			ArgsUsage: "GROUP.TOML the group file listing all participant's identities",
-			Flags:     toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag),
+			Name:  "dkg",
+			Usage: "Run the DKG protocol",
+			Flags: toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return dkgCmd(c)
@@ -145,10 +145,9 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:      "run",
-			Usage:     "Run the daemon, first do the dkg if needed then run the beacon",
-			ArgsUsage: "<group file> is the group.toml generated with `group`. This argument is only needed if the DKG has NOT been run yet.",
-			Flags:     toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag),
+			Name:  "run",
+			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
+			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return runCmd(c)
@@ -180,7 +179,7 @@ func main() {
 			},
 		},
 	}
-	app.Flags = toArray(verboseFlag, configFlag, dbFlag)
+	app.Flags = toArray(verboseFlag, configFlag)
 	app.Before = func(c *cli.Context) error {
 		if c.GlobalIsSet("debug") {
 			slog.Level = slog.LevelDebug
@@ -280,11 +279,14 @@ func groupCmd(c *cli.Context) error {
 }
 
 func dkgCmd(c *cli.Context) error {
-	if c.NArg() < 1 {
+	if !c.IsSet("group-init") {
 		slog.Fatal("dkg requires a group.toml file")
 	}
 	group := getGroup(c)
 	conf := contextToConfig(c)
+	if exit := resetBeaconDB(conf); exit {
+		os.Exit(0)
+	}
 	fs := key.NewFileStore(conf.ConfigFolder())
 	drand, err := core.NewDrand(fs, group, conf)
 	if err != nil {
@@ -332,9 +334,11 @@ func runCmd(c *cli.Context) error {
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
 	var err error
-	if c.NArg() > 0 {
-		// we assume it is the group file
+	if c.IsSet("group-init") {
 		group := getGroup(c)
+		if exit := resetBeaconDB(conf); exit {
+			os.Exit(0)
+		}
 		drand, err = core.NewDrand(fs, group, conf)
 		if err != nil {
 			slog.Fatal(err)
@@ -421,8 +425,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	config := c.GlobalString("config")
 	opts = append(opts, core.WithConfigFolder(config))
-	db := path.Join(config, c.GlobalString("db"))
-	opts = append(opts, core.WithDbFolder(db))
 	period := c.Duration("period")
 	opts = append(opts, core.WithBeaconPeriod(period))
 
@@ -455,11 +457,35 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 func getGroup(c *cli.Context) *key.Group {
 	g := &key.Group{}
-	if err := key.Load(c.Args().First(), g); err != nil {
+	if err := key.Load(c.String("group-init"), g); err != nil {
 		slog.Fatal(err)
 	}
 	slog.Infof("group file loaded with %d participants", g.Len())
 	return g
+}
+
+func resetBeaconDB(config *core.Config) bool {
+	if _, err := os.Stat(config.DBFolder()); err == nil {
+		// using fmt so does not get the new line at the end.
+		// XXX allow slog for that behavior
+		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
+		reader := bufio.NewReader(os.Stdin)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			slog.Fatal("error reading: ", err)
+		}
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		if answer != "y" {
+			slog.Print("Not deleting the database. Exiting drand.")
+			return true
+		}
+
+		if err := os.RemoveAll(config.DBFolder()); err != nil {
+			slog.Fatal(err)
+		}
+		slog.Print("Removed existing beacon database.")
+	}
+	return false
 }
 
 func askPort() string {
