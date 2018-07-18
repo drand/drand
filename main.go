@@ -355,6 +355,12 @@ func runCmd(c *cli.Context) error {
 		slog.Print("Starting the dkg first.")
 		runDkg(c, drand, fs)
 	} else {
+		_, errG := fs.LoadGroup()
+		_, errS := fs.LoadShare()
+		_, errD := fs.LoadDistPublic()
+		if errG != nil || errS != nil || errD != nil {
+			slog.Fatalf("The DKG has not been run before, please provide a group file to do the setup.")
+		}
 		slog.Print("No group file given, drand will try to run as a beacon.")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {

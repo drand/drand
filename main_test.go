@@ -226,6 +226,20 @@ func TestResetBeacon(t *testing.T) {
 	/*}*/
 }
 
+// TestRunWhitoutGroupfileBeforeDKG tests the behavior of the run command whithout the flag --group-init
+// in a situation where the dkg was not ran before ()
+func TestRunWhitoutGroupfileBeforeDKG(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
+
+	//will try to run in beacon mode
+	cmd := exec.Command("drand", "-c", tmpPath, "run", "--insecure")
+	out, err := cmd.Output()
+	fmt.Println(string(out))
+	require.Error(t, err)
+}
+
 func TestRunGroupInit(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0777)
