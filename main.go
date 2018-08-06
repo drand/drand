@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -190,6 +191,10 @@ func main() {
 }
 
 func keygenCmd(c *cli.Context) error {
+	//x509 not available on windows: must run in insecure mode
+	if runtime.GOOS == "windows" && !c.Bool("insecure") {
+		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
+	}
 	args := c.Args()
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
@@ -330,6 +335,10 @@ func beaconCmd(c *cli.Context) error {
 }
 
 func runCmd(c *cli.Context) error {
+	//x509 not available on windows: must run in insecure mode
+	if runtime.GOOS == "windows" && !c.Bool("insecure") {
+		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
+	}
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
