@@ -69,7 +69,7 @@ message ECIESObject {
 }
 
 
-service DistributedKey {
+service Info {
   rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
     option (google.api.http) = {
       get: "/public"

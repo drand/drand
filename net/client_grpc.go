@@ -16,7 +16,7 @@ import (
 // Service holds all functionalities that a drand node should implement
 type Service interface {
 	drand.RandomnessServer
-	drand.DistributedKeyServer
+	drand.InfoServer
 	drand.BeaconServer
 	dkg.DkgServer
 }
@@ -89,7 +89,7 @@ func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyRe
 	if err != nil {
 		return nil, err
 	}
-	client := drand.NewDistributedKeyClient(c)
+	client := drand.NewInfoClient(c)
 	return client.DistKey(context.Background(), in)
 }
 

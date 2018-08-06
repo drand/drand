@@ -85,7 +85,7 @@ func request_Randomness_Private_0(ctx context.Context, marshaler runtime.Marshal
 
 }
 
-func request_DistributedKey_DistKey_0(ctx context.Context, marshaler runtime.Marshaler, client DistributedKeyClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Info_DistKey_0(ctx context.Context, marshaler runtime.Marshaler, client InfoClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq DistKeyRequest
 	var metadata runtime.ServerMetadata
 
@@ -94,7 +94,7 @@ func request_DistributedKey_DistKey_0(ctx context.Context, marshaler runtime.Mar
 
 }
 
-func request_DistributedKey_DistKey_1(ctx context.Context, marshaler runtime.Marshaler, client DistributedKeyClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+func request_Info_DistKey_1(ctx context.Context, marshaler runtime.Marshaler, client InfoClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq DistKeyRequest
 	var metadata runtime.ServerMetadata
 
@@ -247,9 +247,9 @@ var (
 	forward_Randomness_Private_0 = runtime.ForwardResponseMessage
 )
 
-// RegisterDistributedKeyHandlerFromEndpoint is same as RegisterDistributedKeyHandler but
+// RegisterInfoHandlerFromEndpoint is same as RegisterInfoHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
-func RegisterDistributedKeyHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
+func RegisterInfoHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
 	conn, err := grpc.Dial(endpoint, opts...)
 	if err != nil {
 		return err
@@ -269,23 +269,23 @@ func RegisterDistributedKeyHandlerFromEndpoint(ctx context.Context, mux *runtime
 		}()
 	}()
 
-	return RegisterDistributedKeyHandler(ctx, mux, conn)
+	return RegisterInfoHandler(ctx, mux, conn)
 }
 
-// RegisterDistributedKeyHandler registers the http handlers for service DistributedKey to "mux".
+// RegisterInfoHandler registers the http handlers for service Info to "mux".
 // The handlers forward requests to the grpc endpoint over "conn".
-func RegisterDistributedKeyHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
-	return RegisterDistributedKeyHandlerClient(ctx, mux, NewDistributedKeyClient(conn))
+func RegisterInfoHandler(ctx context.Context, mux *runtime.ServeMux, conn *grpc.ClientConn) error {
+	return RegisterInfoHandlerClient(ctx, mux, NewInfoClient(conn))
 }
 
-// RegisterDistributedKeyHandlerClient registers the http handlers for service DistributedKey
-// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "DistributedKeyClient".
-// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "DistributedKeyClient"
+// RegisterInfoHandlerClient registers the http handlers for service Info
+// to "mux". The handlers forward requests to the grpc endpoint over the given implementation of "InfoClient".
+// Note: the gRPC framework executes interceptors within the gRPC handler. If the passed in "InfoClient"
 // doesn't go through the normal gRPC flow (creating a gRPC client etc.) then it will be up to the passed in
-// "DistributedKeyClient" to call the correct interceptors.
-func RegisterDistributedKeyHandlerClient(ctx context.Context, mux *runtime.ServeMux, client DistributedKeyClient) error {
+// "InfoClient" to call the correct interceptors.
+func RegisterInfoHandlerClient(ctx context.Context, mux *runtime.ServeMux, client InfoClient) error {
 
-	mux.Handle("GET", pattern_DistributedKey_DistKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Info_DistKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -303,18 +303,18 @@ func RegisterDistributedKeyHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_DistributedKey_DistKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Info_DistKey_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_DistributedKey_DistKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Info_DistKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
-	mux.Handle("GET", pattern_DistributedKey_DistKey_1, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_Info_DistKey_1, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -332,14 +332,14 @@ func RegisterDistributedKeyHandlerClient(ctx context.Context, mux *runtime.Serve
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_DistributedKey_DistKey_1(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_Info_DistKey_1(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_DistributedKey_DistKey_1(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_Info_DistKey_1(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -347,13 +347,13 @@ func RegisterDistributedKeyHandlerClient(ctx context.Context, mux *runtime.Serve
 }
 
 var (
-	pattern_DistributedKey_DistKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"public"}, ""))
+	pattern_Info_DistKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"public"}, ""))
 
-	pattern_DistributedKey_DistKey_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"dist_key"}, ""))
+	pattern_Info_DistKey_1 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0}, []string{"dist_key"}, ""))
 )
 
 var (
-	forward_DistributedKey_DistKey_0 = runtime.ForwardResponseMessage
+	forward_Info_DistKey_0 = runtime.ForwardResponseMessage
 
-	forward_DistributedKey_DistKey_1 = runtime.ForwardResponseMessage
+	forward_Info_DistKey_1 = runtime.ForwardResponseMessage
 )
