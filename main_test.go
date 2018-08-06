@@ -253,7 +253,9 @@ func TestClientTLS(t *testing.T) {
 	certPath := path.Join(tmpPath, "server.pem")
 	keyPath := path.Join(tmpPath, "key.pem")
 
-	priv := key.NewTLSKeyPair("127.0.0.1:8082")
+	addr := "127.0.0.1:8082"
+
+	priv := key.NewTLSKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
@@ -286,6 +288,11 @@ func TestClientTLS(t *testing.T) {
 
 	cmd := exec.Command("drand", "fetch", "private", "--tls-cert", certPath, pubPath)
 	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "fetch", "dist_key", "--tls-cert", certPath, addr)
+	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.NoError(t, err)
 }

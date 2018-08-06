@@ -174,6 +174,16 @@ func (d *Drand) BeaconLoop() {
 	d.beacon.Loop(DefaultSeed, d.opts.beaconPeriod, catchup)
 }
 
+func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+	key, err := crypto.KyberToProtoPoint(d.pub.Key)
+	if err != nil {
+		slog.Fatal(err)
+	}
+	return &drand.DistKeyResponse{
+		Key: key,
+	}, nil
+}
+
 func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	beacon, err := d.beaconStore.Last()
 	if err != nil {
@@ -217,7 +227,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	}
 
 	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, clientKey, randomness[:])
-	return &drand.PrivateRandResponse{obj}, err
+	return &drand.PrivateRandResponse{Response: obj}, err
 }
 
 func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {

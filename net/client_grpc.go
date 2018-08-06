@@ -16,6 +16,7 @@ import (
 // Service holds all functionalities that a drand node should implement
 type Service interface {
 	drand.RandomnessServer
+	drand.DistributedKeyServer
 	drand.BeaconServer
 	dkg.DkgServer
 }
@@ -83,6 +84,15 @@ func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 
 }
 
+func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewDistributedKeyClient(c)
+	return client.DistKey(context.Background(), in)
+}
+
 func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error) {
 	c, err := g.conn(p)
 	if err != nil {
@@ -143,4 +153,7 @@ func (p *proxyClient) Public(c context.Context, in *drand.PublicRandRequest, opt
 }
 func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
 	return p.s.Private(c, in)
+}
+func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
+	return p.s.DistKey(c, in)
 }
