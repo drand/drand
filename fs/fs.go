@@ -28,7 +28,7 @@ func CreateSecureFolder(folder string) string {
 		//the folder exists already
 		info, err := os.Lstat(folder)
 		perm := int(info.Mode().Perm())
-		if err != nil || perm == int(0740) {
+		if err != nil || perm != int(0740) {
 			return ""
 		}
 	}

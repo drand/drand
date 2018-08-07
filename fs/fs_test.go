@@ -10,7 +10,7 @@ import (
 
 func TestSecureDirAlreadyHere(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "config")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 	path := CreateSecureFolder(tmpPath)
 	require.NotNil(t, path)

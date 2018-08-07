@@ -71,7 +71,7 @@ func TestGroupGen(t *testing.T) {
 	n := 5
 	thr := 4
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
 	names := make([]string, n, n)
@@ -99,7 +99,7 @@ func TestGroupGen(t *testing.T) {
 
 func TestRunGroupInitBadPath(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
 	//tests reaction to empty group path
@@ -119,13 +119,13 @@ func TestRunGroupInitBadPath(t *testing.T) {
 
 func TestResetBeacon(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	os.MkdirAll(config.DBFolder(), 0777)
+	os.MkdirAll(config.DBFolder(), 0740)
 	fakePath := path.Join(config.DBFolder(), "fake.data")
-	require.NoError(t, ioutil.WriteFile(fakePath, []byte("fakyfaky"), 0777))
+	require.NoError(t, ioutil.WriteFile(fakePath, []byte("fakyfaky"), 0740))
 	tmpStdin, _ := ioutil.TempFile(tmpPath, "stdin")
 	name := tmpStdin.Name()
 	defer os.RemoveAll(name)
@@ -171,10 +171,10 @@ func TestResetBeacon(t *testing.T) {
 	//require.NoError(t, key.Save(groupPath, group, false))
 
 	//// create fake database
-	//require.NoError(t, os.MkdirAll(config.DBFolder(), 0777))
+	//require.NoError(t, os.MkdirAll(config.DBFolder(), 0740))
 	//// create fake file as a way to determine whether it has been deleted or not
 	//fakePath := path.Join(config.DBFolder(), "fake.data")
-	//require.NoError(t, ioutil.WriteFile(fakePath, []byte("fakyfaky"), 0777))
+	//require.NoError(t, ioutil.WriteFile(fakePath, []byte("fakyfaky"), 0740))
 
 	//// launch with a group init and we answer by no to the question if we want
 	//// to delete the beacon and we expect the fake file to be there
@@ -245,7 +245,7 @@ func TestRunWhitoutGroupfileBeforeDKG(t *testing.T) {
 
 func TestRunGroupInit(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 	varEnv := "CRASHCRASH"
 	n := 5
@@ -263,7 +263,7 @@ func TestRunGroupInit(t *testing.T) {
 
 func TestClientTLS(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
 	pubPath := path.Join(tmpPath, "pub.key")
