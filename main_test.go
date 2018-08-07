@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/dedis/drand/core"
@@ -236,8 +237,10 @@ func TestRunWhitoutGroupfileBeforeDKG(t *testing.T) {
 	//will try to run in beacon mode
 	cmd := exec.Command("drand", "-c", tmpPath, "run", "--insecure")
 	out, err := cmd.Output()
-	fmt.Println(string(out))
+	expectedErr := "The DKG has not been run before, please provide a group file to do the setup."
+	output := string(out)
 	require.Error(t, err)
+	require.True(t, strings.Contains(output, expectedErr))
 }
 
 func TestRunGroupInit(t *testing.T) {
