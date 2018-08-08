@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -435,7 +436,10 @@ func fetchDistKey(c *cli.Context) error {
 		slog.Print(err.Error())
 		slog.Fatal("We could not fetch the distributed key from that server.")
 	}
-	slog.Print(key.String())
+	b, _ := key.MarshalBinary()
+	dst := make([]byte, hex.EncodedLen(len(b)))
+	hex.Encode(dst, b)
+	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
 	return nil
 }
 
