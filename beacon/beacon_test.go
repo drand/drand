@@ -35,10 +35,12 @@ func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.
 func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	return &drand.PrivateRandResponse{}, nil
 }
+func (t *testService) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+	return &drand.DistKeyResponse{}, nil
+}
 func (t *testService) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
 	return &dkg_proto.DKGResponse{}, nil
 }
-
 func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	return t.Handler.ProcessBeacon(c, in)
 }
