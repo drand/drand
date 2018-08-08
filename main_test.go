@@ -231,7 +231,7 @@ func TestResetBeacon(t *testing.T) {
 // in a situation where the dkg was not ran before
 func TestRunWhitoutGroupfileBeforeDKG(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
 	//will try to run in beacon mode
