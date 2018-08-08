@@ -17,7 +17,8 @@ func HomeFolder() string {
 	return u.HomeDir
 }
 
-// CreateSecureFolder checks if the folder exists and has the appropriate permission rights. If not it creates it.
+// CreateSecureFolder checks if the folder exists and has the appropriate permission rights. If the folder doesn't exist it creates it,
+// and in case of an error (bad permission rights) the empty string is returned.
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, 0740); err != nil {
