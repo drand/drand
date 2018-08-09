@@ -12,7 +12,6 @@ import (
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
-	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber"
@@ -24,25 +23,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// testService implements a barebone service to be plugged in a net.Gateway
-type testService struct {
-	*Handler
+// testBeaconServer implements a barebone service to be plugged in a net.DefaultService
+type testBeaconServer struct {
+	h *Handler
 }
 
-func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	return &drand.PublicRandResponse{}, nil
-}
-func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	return &drand.PrivateRandResponse{}, nil
-}
-func (t *testService) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	return &drand.DistKeyResponse{}, nil
-}
-func (t *testService) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
-	return &dkg_proto.DKGResponse{}, nil
-}
-func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	return t.Handler.ProcessBeacon(c, in)
+func (t *testBeaconServer) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+	return t.h.ProcessBeacon(c, in)
 }
 
 func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
@@ -157,7 +144,8 @@ func TestBeacon(t *testing.T) {
 		//opts := []grpc.DialOption{grpc.WithTimeout(dialTimeout), grpc.WithBlock()}
 		//opts := []grpc.DialOption{grpc.FailOnNonTempDialError(true)}
 		handlers[i] = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), privs[i], shares[i], group, store)
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
+		beaconServer := testBeaconServer{h: handlers[i]}
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
 		go listeners[i].Start()
 		go handlers[i].Loop(seed, period, catchup)
 		fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())
@@ -318,7 +306,8 @@ func TestBeaconNEqualT(t *testing.T) {
 		//opts := []grpc.DialOption{grpc.WithTimeout(dialTimeout), grpc.WithBlock()}
 		//opts := []grpc.DialOption{grpc.FailOnNonTempDialError(true)}
 		handlers[i] = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), privs[i], shares[i], group, store)
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
+		beaconServer := testBeaconServer{h: handlers[i]}
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
 		go listeners[i].Start()
 		go handlers[i].Loop(seed, period, catchup)
 		fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())

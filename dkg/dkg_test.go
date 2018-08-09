@@ -9,33 +9,19 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/dkg"
-	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	sdkg "github.com/dedis/kyber/share/dkg/pedersen"
 	"github.com/stretchr/testify/require"
 )
 
-// testService implements a barebone service to be plugged in a net.Gateway
-type testService struct {
+// testDKGServer implements a barebone service to be plugged in a net.DefaultService
+type testDKGServer struct {
 	h *Handler
 }
 
-func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	return &drand.PublicRandResponse{}, nil
-}
-func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	return &drand.PrivateRandResponse{}, nil
-}
-func (t *testService) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	return &drand.DistKeyResponse{}, nil
-}
-func (t *testService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
+func (t *testDKGServer) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
 	t.h.Process(c, in)
 	return &dkg.DKGResponse{}, nil
-}
-
-func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	return &drand.BeaconResponse{}, nil
 }
 
 // testNet implements the network interface that the dkg Handler expects
@@ -75,7 +61,8 @@ func TestDKG(t *testing.T) {
 	for i := 0; i < n; i++ {
 		handlers[i], err = NewHandler(privs[i], conf, nets[i])
 		require.NoError(t, err)
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &testService{handlers[i]})
+		dkgServer := testDKGServer{h: handlers[i]}
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
 		go listeners[i].Start()
 	}
 	defer func() {

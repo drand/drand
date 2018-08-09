@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
@@ -29,33 +28,24 @@ func (t *testPeer) IsTLS() bool {
 	return t.t
 }
 
-type testService struct {
+type testRandomnessServer struct {
 	round uint64
 }
 
-func (t *testService) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (t *testRandomnessServer) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{Round: t.round}, nil
 }
-func (t *testService) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+func (t *testRandomnessServer) Private(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	return &drand.PrivateRandResponse{}, nil
-}
-func (t *testService) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	return &drand.DistKeyResponse{}, nil
-}
-func (t *testService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
-	return &dkg.DKGResponse{}, nil
-}
-func (t *testService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	return &drand.BeaconResponse{}, nil
 }
 
 func TestListener(t *testing.T) {
 	addr1 := "127.0.0.1:4000"
 	peer1 := &testPeer{addr1, false}
 	//addr2 := "127.0.0.1:4001"
-	service1 := &testService{42}
+	randServer := &testRandomnessServer{42}
 
-	lis1 := NewTCPGrpcListener(addr1, service1)
+	lis1 := NewTCPGrpcListener(addr1, &DefaultService{R: randServer})
 	go lis1.Start()
 	defer lis1.Stop()
 	time.Sleep(100 * time.Millisecond)
@@ -63,13 +53,13 @@ func TestListener(t *testing.T) {
 	client := NewGrpcClient()
 	resp, err := client.Public(peer1, &drand.PublicRandRequest{})
 	require.Nil(t, err)
-	expected := &drand.PublicRandResponse{Round: service1.round}
+	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 
 	rest := NewRestClient()
 	resp, err = rest.Public(peer1, &drand.PublicRandRequest{})
 	require.NoError(t, err)
-	expected = &drand.PublicRandResponse{Round: service1.round}
+	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }
 
@@ -93,9 +83,9 @@ func TestListenerTLS(t *testing.T) {
 		//require.NoError(t, httpscerts.Generate(certPath, keyPath, addr1))
 	}
 
-	service1 := &testService{42}
+	randServer := &testRandomnessServer{42}
 
-	lis1, err := NewTLSGrpcListener(addr1, certPath, keyPath, service1)
+	lis1, err := NewTLSGrpcListener(addr1, certPath, keyPath, &DefaultService{R: randServer})
 	require.NoError(t, err)
 	go lis1.Start()
 	defer lis1.Stop()
@@ -108,12 +98,12 @@ func TestListenerTLS(t *testing.T) {
 	client := NewGrpcClientFromCertManager(certManager)
 	resp, err := client.Public(peer1, &drand.PublicRandRequest{})
 	require.Nil(t, err)
-	expected := &drand.PublicRandResponse{Round: service1.round}
+	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 
 	rest := NewRestClientFromCertManager(certManager)
 	resp, err = rest.Public(peer1, &drand.PublicRandRequest{})
 	require.NoError(t, err)
-	expected = &drand.PublicRandResponse{Round: service1.round}
+	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }

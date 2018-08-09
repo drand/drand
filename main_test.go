@@ -230,6 +230,22 @@ func TestResetBeacon(t *testing.T) {
 	/*}*/
 }
 
+// TestRunWhitoutGroupfileBeforeDKG tests the behavior of the run command whithout the flag --group-init
+// in a situation where the dkg was not ran before ()
+func TestRunWhitoutGroupfileBeforeDKG(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
+
+	//will try to run in beacon mode
+	cmd := exec.Command("drand", "-c", tmpPath, "run", "--insecure")
+	out, err := cmd.Output()
+	expectedErr := "The DKG has not been run before, please provide a group file to do the setup."
+	output := string(out)
+	require.Error(t, err)
+	require.True(t, strings.Contains(output, expectedErr))
+}
+
 func TestRunGroupInit(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0777)
@@ -300,12 +316,10 @@ func TestClientTLS(t *testing.T) {
 
 	cmd := exec.Command("drand", "fetch", "private", "--tls-cert", certPath, pubPath)
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
 	require.NoError(t, err)
 
 	cmd = exec.Command("drand", "fetch", "dist_key", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
-	fmt.Println(string(out))
 	require.True(t, strings.Contains(string(out), keyStr))
 	require.NoError(t, err)
 }

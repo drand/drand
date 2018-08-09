@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -200,6 +201,10 @@ func main() {
 }
 
 func keygenCmd(c *cli.Context) error {
+	//x509 not available on windows: must run in insecure mode
+	if runtime.GOOS == "windows" && !c.Bool("insecure") {
+		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
+	}
 	args := c.Args()
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
@@ -340,6 +345,10 @@ func beaconCmd(c *cli.Context) error {
 }
 
 func runCmd(c *cli.Context) error {
+	//x509 not available on windows: must run in insecure mode
+	if runtime.GOOS == "windows" && !c.Bool("insecure") {
+		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
+	}
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
@@ -356,6 +365,12 @@ func runCmd(c *cli.Context) error {
 		slog.Print("Starting the dkg first.")
 		runDkg(c, drand, fs)
 	} else {
+		_, errG := fs.LoadGroup()
+		_, errS := fs.LoadShare()
+		_, errD := fs.LoadDistPublic()
+		if errG != nil || errS != nil || errD != nil {
+			slog.Fatalf("The DKG has not been run before, please provide a group file to do the setup.")
+		}
 		slog.Print("No group file given, drand will try to run as a beacon.")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
