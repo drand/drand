@@ -192,10 +192,22 @@ shares (`dist_key.private`) together with the participants specified in
 
 Once the DKG phase is done, the distributed public key is saved in the local directoryas well as in the configuration folder (`$HOME/.drand` by default) under the file `groups/dist_key.public`.
 
+#### Downloading the distributed public key
+
+To get the distributed public key of a drand protocol run, execute :
+```
+drand fetch dist_key <address>
+```
+`<address>` being the address the drand node to contact.
+Please note that a drand node can currently only being part of one "drand network" and thus handle only one distributed key. To get several networks, different instances of drand need to be ran.
+By default, drand uses TLS, but if do not want to, you can pass the `--insecure` flag. If the remote node is
+using a self signed certificate for example, you can use the `--tls-cert` option
+to specify the certificate of the server you wish to contact.
+
 ### Randomness Generation
 
 We now assume that the setup is done and we can switch to randomness generation.
-Note : if a group file is given at this point, the existing beacon database will be erased. 
+Note : if a group file is given at this point, the existing beacon database will be erased.
 
 The leader initiates a new randomness generation round automatically as per the
 specified time interval (default interval: `1m`). All beacon values are stored
