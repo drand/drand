@@ -72,10 +72,7 @@ message ECIESObject {
 service Info {
   rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
     option (google.api.http) = {
-      get: "/public"
-      additional_bindings {
-          get: "/dist_key"
-      }
+      get: "/info/dist_key"
     };
   }
 }
