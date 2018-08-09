@@ -77,6 +77,26 @@ func (r *restClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 
 }
 
+func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+	base := restAddr(p)
+	buff, err := r.marshaller.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	url := base + "/distkey"
+	req, err := http.NewRequest("GET", url, bytes.NewBuffer(buff))
+	if err != nil {
+		return nil, err
+	}
+	respBody, err := r.doRequest(p, req)
+	if err != nil {
+		return nil, err
+	}
+	drandResponse := new(drand.DistKeyResponse)
+	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
+
+}
+
 func (r *restClient) doRequest(remote Peer, req *http.Request) ([]byte, error) {
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}

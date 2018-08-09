@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -175,6 +176,15 @@ func main() {
 					Flags:     toArray(tlsCertFlag, certsDirFlag),
 					Action: func(c *cli.Context) error {
 						return fetchPrivateCmd(c)
+					},
+				},
+				{
+					Name:      "dist_key",
+					Usage:     "Fetch the distributed public key from a server.",
+					ArgsUsage: "<server address> address of the server to contact",
+					Flags:     toArray(tlsCertFlag, certsDirFlag, insecureFlag),
+					Action: func(c *cli.Context) error {
+						return fetchDistKey(c)
 					},
 				},
 			},
@@ -427,6 +437,26 @@ func fetchPublicCmd(c *cli.Context) error {
 	return nil
 }
 
+func fetchDistKey(c *cli.Context) error {
+	if c.NArg() < 1 {
+		slog.Fatal("fetch dist_key command takes the address of a server to contact")
+	}
+	defaultManager := net.NewCertManager()
+	if c.IsSet("tls-cert") {
+		defaultManager.Add(c.String("tls-cert"))
+	}
+	client := core.NewGrpcClientFromCert(defaultManager)
+	key, err := client.DistKey(c.Args().First(), !c.Bool("insecure"))
+	if err != nil {
+		slog.Fatal("could not fetch the distributed key from that server:", err)
+	}
+	b, _ := key.MarshalBinary()
+	dst := make([]byte, hex.EncodedLen(len(b)))
+	hex.Encode(dst, b)
+	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
+	return nil
+}
+
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
@@ -504,7 +534,7 @@ func resetBeaconDB(config *core.Config) bool {
 }
 
 func askPort() string {
-	slog.Print("asking for port")
+	//slog.Print("asking for port")
 	for {
 		var port string
 		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")

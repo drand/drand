@@ -14,21 +14,20 @@ import "google/api/annotations.proto";
 
 service Randomness {
     rpc Public(PublicRandRequest) returns (PublicRandResponse) {
-        option (google.api.http) = { 
-            get: "/public" 
+        option (google.api.http) = {
+            get: "/public"
             additional_bindings {
                 get: "/public/{round}"
             }
         };
     }
     rpc Private(PrivateRandRequest) returns (PrivateRandResponse) {
-        option (google.api.http) = { 
-            post: "/private" 
+        option (google.api.http) = {
+            post: "/private"
             body: "*"
         };
     }
 }
-
 
 // PublicRandRequest requests a public random value that has been generated in a
 // unbiasable way and verifiable.
@@ -67,4 +66,21 @@ message ECIESObject {
     element.Point ephemeral = 1;
     bytes ciphertext = 2;
     bytes nonce = 3;
+}
+
+
+service Info {
+  rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
+    option (google.api.http) = {
+      get: "/info/dist_key"
+    };
+  }
+}
+
+// DistKeyRequest requests the distributed public key used during the randomness generation process
+message DistKeyRequest {
+}
+
+message DistKeyResponse {
+  element.Point key = 1;
 }

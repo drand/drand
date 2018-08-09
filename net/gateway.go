@@ -23,6 +23,7 @@ type Gateway struct {
 type ExternalClient interface {
 	Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
+	DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
 }
 
 type CallOption = grpc.CallOption

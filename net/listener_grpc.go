@@ -115,12 +115,17 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	serverOpts := append(opts, grpc.Creds(grpcCreds))
 	grpcServer := grpc.NewServer(serverOpts...)
 	drand.RegisterRandomnessServer(grpcServer, s)
+	drand.RegisterInfoServer(grpcServer, s)
 	drand.RegisterBeaconServer(grpcServer, s)
 	dkg.RegisterDkgServer(grpcServer, s)
 
 	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("application/json", defaultJSONMarshaller))
-	proxy := &drandProxy{s}
+	proxy := &drandProxy{s, s}
 	err = drand.RegisterRandomnessHandlerClient(context.Background(), gwMux, proxy)
+	if err != nil {
+		return nil, err
+	}
+	err = drand.RegisterInfoHandlerClient(context.Background(), gwMux, proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +167,7 @@ func (g *grpcTLSListener) Stop() {
 
 type drandProxy struct {
 	r drand.RandomnessServer
+	d drand.InfoServer
 }
 
 func (d *drandProxy) Public(c context.Context, r *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
@@ -169,6 +175,10 @@ func (d *drandProxy) Public(c context.Context, r *drand.PublicRandRequest, opts 
 }
 func (d *drandProxy) Private(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
 	return d.r.Private(c, r)
+}
+
+func (d *drandProxy) DistKey(c context.Context, r *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
+	return d.d.DistKey(c, r)
 }
 
 // grpcHandlerFunc returns an http.Handler that delegates to grpcServer on incoming gRPC

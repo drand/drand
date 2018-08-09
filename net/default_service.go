@@ -14,6 +14,7 @@ import (
 type DefaultService struct {
 	B drand.BeaconServer
 	R drand.RandomnessServer
+	I drand.InfoServer
 	D dkg.DkgServer
 }
 
@@ -29,6 +30,13 @@ func (s *DefaultService) Private(c context.Context, in *drand.PrivateRandRequest
 		return &drand.PrivateRandResponse{}, nil
 	} else {
 		return s.R.Private(c, in)
+	}
+}
+func (s *DefaultService) DistKey(c context.Context, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+	if s.I == nil {
+		return &drand.DistKeyResponse{}, nil
+	} else {
+		return s.I.DistKey(c, in)
 	}
 }
 func (s *DefaultService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {

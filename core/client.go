@@ -5,16 +5,17 @@ import (
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/sign/bls"
+	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 )
 
 // Client is the endpoint logic, communicating with drand servers
 type Client struct {
 	client net.ExternalClient
-	public *key.DistPublic
 }
 
 // NewGrpcClient returns a Client able to talk to drand instances using gRPC
@@ -70,11 +71,23 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Private(id, &drand.PrivateRandRequest{obj})
+	resp, err := c.client.Private(id, &drand.PrivateRandRequest{Request: obj})
 	if err != nil {
 		return nil, err
 	}
 	return ecies.Decrypt(key.G2, ecies.DefaultHash, ephScalar, resp.GetResponse())
+}
+
+func (c *Client) DistKey(addr string, secure bool) (kyber.Point, error) {
+	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
+	if err != nil {
+		return nil, err
+	}
+	key, err := crypto.ProtoToKyberPoint(resp.GetKey())
+	if err != nil {
+		slog.Fatal(err)
+	}
+	return key, nil
 }
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {

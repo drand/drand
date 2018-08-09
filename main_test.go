@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	gnet "net"
@@ -15,6 +16,8 @@ import (
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/test"
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/pairing/bn256"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -270,7 +273,9 @@ func TestClientTLS(t *testing.T) {
 	certPath := path.Join(tmpPath, "server.pem")
 	keyPath := path.Join(tmpPath, "key.pem")
 
-	priv := key.NewTLSKeyPair("127.0.0.1:8082")
+	addr := "127.0.0.1:8082"
+
+	priv := key.NewTLSKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
@@ -291,8 +296,16 @@ func TestClientTLS(t *testing.T) {
 		Identity: priv.Public,
 		Index:    0,
 	}
-	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	groupPath := path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
+
+	// fake dkg outuput
+	pairing := bn256.NewSuite()
+	G2 := pairing.G2()
+	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+	fakeKey, _ := stringToPoint(G2, keyStr)
+	distKey := &key.DistPublic{Key: fakeKey}
+	require.NoError(t, fs.SaveDistPublic(distKey))
 
 	os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-cert", certPath, "--tls-key", keyPath, "--group-init", groupPath}
 	go main()
@@ -303,6 +316,19 @@ func TestClientTLS(t *testing.T) {
 
 	cmd := exec.Command("drand", "fetch", "private", "--tls-cert", certPath, pubPath)
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
 	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "fetch", "dist_key", "--tls-cert", certPath, addr)
+	out, err = cmd.CombinedOutput()
+	require.True(t, strings.Contains(string(out), keyStr))
+	require.NoError(t, err)
+}
+
+func stringToPoint(g kyber.Group, s string) (kyber.Point, error) {
+	buff, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	p := g.Point()
+	return p, p.UnmarshalBinary(buff)
 }
