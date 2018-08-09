@@ -177,7 +177,7 @@ func (d *Drand) BeaconLoop() {
 func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	pt, err := d.store.LoadDistPublic()
 	if err != nil {
-		return nil, errors.New("We could not load the distributed key")
+		return nil, errors.New("drand: could not load dist. key")
 	}
 	key, err := crypto.KyberToProtoPoint(pt.Key)
 	if err != nil {

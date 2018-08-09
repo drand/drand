@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/dedis/drand/core"
@@ -285,7 +286,8 @@ func TestClientTLS(t *testing.T) {
 	// fake dkg outuput
 	pairing := bn256.NewSuite()
 	G2 := pairing.G2()
-	fakeKey, _ := stringToPoint(G2, "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de")
+	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+	fakeKey, _ := stringToPoint(G2, keyStr)
 	distKey := &key.DistPublic{Key: fakeKey}
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
@@ -304,6 +306,7 @@ func TestClientTLS(t *testing.T) {
 	cmd = exec.Command("drand", "fetch", "dist_key", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
+	require.True(t, strings.Contains(string(out), keyStr))
 	require.NoError(t, err)
 }
 

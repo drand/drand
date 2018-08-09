@@ -78,8 +78,8 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	return ecies.Decrypt(key.G2, ecies.DefaultHash, ephScalar, resp.GetResponse())
 }
 
-func (c *Client) DistKey(addr string) (kyber.Point, error) {
-	resp, err := c.client.DistKey(&peerAddr{addr, true}, &drand.DistKeyRequest{})
+func (c *Client) DistKey(addr string, secure bool) (kyber.Point, error) {
+	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
 	if err != nil {
 		return nil, err
 	}

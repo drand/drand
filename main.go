@@ -181,7 +181,7 @@ func main() {
 					Name:      "dist_key",
 					Usage:     "Fetch the distributed public key from a server.",
 					ArgsUsage: "<server address> address of the server to contact",
-					Flags:     toArray(tlsCertFlag, certsDirFlag),
+					Flags:     toArray(tlsCertFlag, certsDirFlag, insecureFlag),
 					Action: func(c *cli.Context) error {
 						return fetchDistKey(c)
 					},
@@ -431,10 +431,9 @@ func fetchDistKey(c *cli.Context) error {
 		defaultManager.Add(c.String("tls-cert"))
 	}
 	client := core.NewGrpcClientFromCert(defaultManager)
-	key, err := client.DistKey(c.Args().First())
+	key, err := client.DistKey(c.Args().First(), !c.Bool("insecure"))
 	if err != nil {
-		slog.Print(err.Error())
-		slog.Fatal("We could not fetch the distributed key from that server.")
+		slog.Fatal("could not fetch the distributed key from that server:", err)
 	}
 	b, _ := key.MarshalBinary()
 	dst := make([]byte, hex.EncodedLen(len(b)))
