@@ -198,7 +198,9 @@ To get the distributed public key of a drand protocol run, execute :
 ```
 drand fetch dist_key <address>
 ```
-`<address>` being the address the drand node to contact. By default, drand uses TLS, but if do not want to, you can pass the `--insecure` flag. If the remote node is
+`<address>` being the address the drand node to contact.
+Please note that a drand node can currently only being part of one "drand network" and thus handle only one distributed key. To get several networks, different instances of drand need to be ran.
+By default, drand uses TLS, but if do not want to, you can pass the `--insecure` flag. If the remote node is
 using a self signed certificate for example, you can use the `--tls-cert` option
 to specify the certificate of the server you wish to contact.
 
