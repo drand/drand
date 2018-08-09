@@ -7,6 +7,11 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 )
 
+/* DefaultService can be used to implement the interface Service (see client_grpc).
+The functions bellow are default and avoid having to define all of them as soon as we need a service.
+To use : depending on which server you want to test, define a struct that implemants BeaconServer, RandomnessServer or DkgServer
+and instanciate defaultService with &DefaultService{<your struct>}.
+*/
 type DefaultService struct {
 	B drand.BeaconServer
 	R drand.RandomnessServer
