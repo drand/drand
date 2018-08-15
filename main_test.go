@@ -15,7 +15,6 @@ import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/pairing/bn256"
@@ -340,20 +339,15 @@ func TestShare(t *testing.T) {
 	share := &key.Share{Share: s}
 	require.NoError(t, fs.SaveShare(share))
 
-	//Load drand
-	d := core.NewControlDrand(fs)
-	go d.NewControlServer()
-	net.RequestShare()
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
 
-	/*
-		installCmd := exec.Command("go", "install")
-		_, err := installCmd.Output()
-		require.NoError(t, err)
-
-		cmd = exec.Command("drand", "control", "share")
-		out, err = cmd.CombinedOutput()
-		require.True(t, strings.Contains(string(out), keyStr))
-		require.NoError(t, err)*/
+	cmd := exec.Command("drand", "--config", tmpPath, "control", "share", "--insecure")
+	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.True(t, strings.Contains(string(out), scalarOne.String()))
+	require.NoError(t, err)
 }
 
 func stringToPoint(s string) (kyber.Point, error) {

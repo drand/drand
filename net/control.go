@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/dedis/drand/protobuf/control"
@@ -24,7 +23,8 @@ func RequestShare() {
 	if err != nil {
 		log.Fatalf("Error when calling Share: %s", err)
 	}
-	log.Printf("Response: %s", response.Share)
+	share, err := crypto.ProtoToKyberScalar(response.Share)
+	log.Printf("\n{\n\tprivate share: %s\n}", share.String())
 }
 
 type Server struct {
@@ -36,6 +36,5 @@ func (s *Server) Share(ctx context.Context, in *control.ShareRequest, opts ...gr
 	if err != nil {
 		slog.Fatal("drand: could not load the private share")
 	}
-	fmt.Printf("Received request for share and returned the share : %s", share)
 	return &control.ShareResponse{Share: share}, nil
 }
