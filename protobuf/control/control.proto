@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package control;
+
+option go_package = "github.com/dedis/drand/protobuf/control";
+
+import "crypto/element.proto";
+
+service Control {
+  rpc Share(ShareRequest) returns (ShareResponse) { }
+}
+
+message ShareRequest {
+}
+
+message ShareResponse {
+  element.Scalar share = 1;
+}

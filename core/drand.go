@@ -5,6 +5,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"log"
+	gonet "net"
 	"sync"
 
 	"github.com/dedis/drand/beacon"
@@ -13,11 +15,13 @@ import (
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber"
 	"github.com/nikkolasg/slog"
+	"google.golang.org/grpc"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -305,4 +309,31 @@ type dkgNetwork struct {
 
 func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
 	return d.send(p, pack)
+}
+
+// TODO: return error ?
+func NewControlDrand(fs key.Store) *Drand {
+	return &Drand{
+		store: fs}
+}
+
+func (d *Drand) NewControlServer() {
+	lis, err := gonet.Listen("tcp", fmt.Sprintf("%s:%d", "localhost", 8080))
+	if err != nil {
+		slog.Fatal("Failed to listen")
+	}
+	// create a server instance
+	share, err := d.store.LoadShare()
+	if err != nil {
+		slog.Fatal("drand: could not load the share")
+	}
+	s := net.Server{S: share.Share.V}
+	// create a gRPC server object
+	grpcServer := grpc.NewServer()
+	// attach the Ping service to the server
+	control.RegisterControlServer(grpcServer, &s)
+	// start the server
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %s", err)
+	}
 }

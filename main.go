@@ -189,6 +189,19 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:  "control",
+			Usage: "doing secret stuff locally",
+			Subcommands: []cli.Command{
+				{
+					Name:  "share",
+					Usage: "Returns the private share of a node.",
+					Action: func(c *cli.Context) error {
+						return controlShare(c)
+					},
+				},
+			},
+		},
 	}
 	app.Flags = toArray(verboseFlag, configFlag)
 	app.Before = func(c *cli.Context) error {
@@ -454,6 +467,11 @@ func fetchDistKey(c *cli.Context) error {
 	dst := make([]byte, hex.EncodedLen(len(b)))
 	hex.Encode(dst, b)
 	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
+	return nil
+}
+
+func controlShare(c *cli.Context) error {
+	// TODO:
 	return nil
 }
 

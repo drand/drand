@@ -15,9 +15,12 @@ import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/pairing/bn256"
+
+	"github.com/dedis/kyber/share"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -300,10 +303,8 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, key.Save(groupPath, group, false))
 
 	// fake dkg outuput
-	pairing := bn256.NewSuite()
-	G2 := pairing.G2()
 	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
-	fakeKey, _ := stringToPoint(G2, keyStr)
+	fakeKey, _ := stringToPoint(keyStr)
 	distKey := &key.DistPublic{Key: fakeKey}
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
@@ -324,7 +325,40 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func stringToPoint(g kyber.Group, s string) (kyber.Point, error) {
+func TestShare(t *testing.T) {
+	//prepare drand instance
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0777)
+	defer os.RemoveAll(tmpPath)
+	config := core.NewConfig(core.WithConfigFolder(tmpPath), core.WithInsecure())
+	fs := key.NewFileStore(config.ConfigFolder())
+
+	//fake share
+	pairing := bn256.NewSuite()
+	scalarOne := pairing.G2().Scalar().One()
+	s := &share.PriShare{V: scalarOne}
+	share := &key.Share{Share: s}
+	require.NoError(t, fs.SaveShare(share))
+
+	//Load drand
+	d := core.NewControlDrand(fs)
+	go d.NewControlServer()
+	net.RequestShare()
+
+	/*
+		installCmd := exec.Command("go", "install")
+		_, err := installCmd.Output()
+		require.NoError(t, err)
+
+		cmd = exec.Command("drand", "control", "share")
+		out, err = cmd.CombinedOutput()
+		require.True(t, strings.Contains(string(out), keyStr))
+		require.NoError(t, err)*/
+}
+
+func stringToPoint(s string) (kyber.Point, error) {
+	pairing := bn256.NewSuite()
+	g := pairing.G2()
 	buff, err := hex.DecodeString(s)
 	if err != nil {
 		return nil, err
