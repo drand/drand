@@ -2,9 +2,12 @@ package net
 
 import (
 	"context"
+	"log"
 	"sync"
 	"time"
 
+	"github.com/dedis/drand/protobuf/control"
+	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -156,4 +159,25 @@ func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, o
 }
 func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
 	return p.s.DistKey(c, in)
+}
+
+// TODO: maybe go with an intermediate struct like
+// func NewControlClient() ControlClient{}
+// func (c ControlClient) Share() {}
+
+//RequestShare creates a client for control Service, and send a request
+func RequestShare() {
+	var conn *grpc.ClientConn
+	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %s", err)
+	}
+	defer conn.Close()
+	c := control.NewControlClient(conn)
+	response, err := c.Share(context.Background(), &control.ShareRequest{})
+	if err != nil {
+		log.Fatalf("Error when calling Share: %s", err)
+	}
+	share, err := crypto.ProtoToKyberScalar(response.Share)
+	log.Printf("\n{\n\tprivate share: %s\n}", share.String())
 }

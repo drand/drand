@@ -5,8 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"log"
-	gonet "net"
 	"sync"
 
 	"github.com/dedis/drand/beacon"
@@ -85,11 +83,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 
 	a := c.ListenAddress(priv.Public.Address())
 	if c.insecure {
-		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayInsecure(a, d, d, d.opts.grpcOpts...)
 	} else {
 		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
 	}
-	go d.gateway.Start()
+	go d.gateway.StartAll()
 	return d, nil
 }
 
@@ -259,7 +257,7 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.Be
 func (d *Drand) Stop() {
 	d.state.Lock()
 	defer d.state.Unlock()
-	d.gateway.Stop()
+	d.gateway.StopAll()
 	if d.beacon != nil {
 		d.beacon.Stop()
 	}
@@ -311,29 +309,14 @@ func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
 	return d.send(p, pack)
 }
 
-// TODO: return error ?
-func NewControlDrand(fs key.Store) *Drand {
-	return &Drand{
-		store: fs}
-}
-
-func (d *Drand) NewControlServer() {
-	lis, err := gonet.Listen("tcp", fmt.Sprintf("%s:%d", "localhost", 8080))
-	if err != nil {
-		slog.Fatal("Failed to listen")
-	}
-	// create a server instance
+func (d *Drand) Share(ctx context.Context, in *control.ShareRequest, opts ...grpc.CallOption) (*control.ShareResponse, error) {
 	share, err := d.store.LoadShare()
 	if err != nil {
 		slog.Fatal("drand: could not load the share")
 	}
-	s := net.Server{S: share.Share.V}
-	// create a gRPC server object
-	grpcServer := grpc.NewServer()
-	// attach the Ping service to the server
-	control.RegisterControlServer(grpcServer, &s)
-	// start the server
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %s", err)
+	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
+	if err != nil {
+		slog.Fatal("drand: could not load the private share")
 	}
+	return &control.ShareResponse{Share: protoShare}, nil
 }

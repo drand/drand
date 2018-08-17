@@ -477,8 +477,10 @@ func controlShare(c *cli.Context) error {
 	}
 	config := contextToConfig(c)
 	fs := key.NewFileStore(config.ConfigFolder())
-	d := core.NewControlDrand(fs)
-	go d.NewControlServer()
+	_, err := core.LoadDrand(fs, config)
+	if err != nil {
+		slog.Fatal("drand: could not load")
+	}
 	net.RequestShare()
 	return nil
 }

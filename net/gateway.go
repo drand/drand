@@ -7,6 +7,7 @@ import (
 
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
+		"github.com/dedis/drand/protobuf/control"
 )
 
 var DefaultTimeout = time.Duration(30) * time.Second
@@ -18,6 +19,7 @@ var DefaultTimeout = time.Duration(30) * time.Second
 type Gateway struct {
 	Listener
 	InternalClient
+	ControlListener
 }
 
 type ExternalClient interface {
@@ -43,10 +45,11 @@ type Listener interface {
 	Stop()
 }
 
-func NewGrpcGatewayInsecure(listen string, s Service, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayInsecure(listen string, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
 	return Gateway{
 		InternalClient: NewGrpcClient(opts...),
 		Listener:       NewTCPGrpcListener(listen, s),
+		ControlListener: NewTCPGrpcControlListener(cs),
 	}
 }
 
@@ -63,5 +66,14 @@ func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, cert
 		InternalClient: NewGrpcClientFromCertManager(certs, opts...),
 		Listener:       l,
 	}
+}
 
+func (g Gateway) StartAll() {
+	g.Listener.Start()
+	g.ControlListener.Start()
+}
+
+func (g Gateway) StopAll() {
+	g.Listener.Stop()
+	g.ControlListener.Stop()
 }

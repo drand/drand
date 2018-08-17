@@ -3,10 +3,13 @@ package net
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
 
+	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -196,4 +199,31 @@ func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Ha
 			otherHandler.ServeHTTP(w, r)
 		}
 	})
+}
+
+type ControlListener struct {
+	conns *grpc.Server
+	lis   net.Listener
+}
+
+func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", "localhost", 8080))
+	if err != nil {
+		slog.Fatal("Failed to listen")
+		return ControlListener{}
+	}
+	grpcServer := grpc.NewServer()
+	control.RegisterControlServer(grpcServer, s)
+	return ControlListener{conns: grpcServer, lis: lis}
+}
+
+func (g *ControlListener) Start() {
+	if err := g.conns.Serve(g.lis); err != nil {
+		log.Fatalf("failed to serve: %s", err)
+	}
+}
+
+func (g *ControlListener) Stop() {
+	g.lis.Close()
+	g.conns.Stop()
 }
