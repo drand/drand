@@ -7,7 +7,7 @@ import (
 
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-		"github.com/dedis/drand/protobuf/control"
+	"github.com/dedis/drand/protobuf/control"
 )
 
 var DefaultTimeout = time.Duration(30) * time.Second
@@ -69,8 +69,8 @@ func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, cert
 }
 
 func (g Gateway) StartAll() {
-	g.Listener.Start()
 	g.ControlListener.Start()
+	g.Listener.Start()
 }
 
 func (g Gateway) StopAll() {

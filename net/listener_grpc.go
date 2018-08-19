@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -207,7 +206,7 @@ type ControlListener struct {
 }
 
 func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", "localhost", 8080))
+	lis, err := net.Listen("tcp", "localhost:8080")
 	if err != nil {
 		slog.Fatal("Failed to listen")
 		return ControlListener{}
@@ -218,6 +217,10 @@ func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
 }
 
 func (g *ControlListener) Start() {
+	if g == nil || g.lis == nil || g.conns == nil {
+		//we suppose that it is because we are in Tls
+		return
+	}
 	if err := g.conns.Serve(g.lis); err != nil {
 		log.Fatalf("failed to serve: %s", err)
 	}

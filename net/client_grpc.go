@@ -10,6 +10,7 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
+	"github.com/dedis/kyber"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
@@ -165,19 +166,27 @@ func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts 
 // func NewControlClient() ControlClient{}
 // func (c ControlClient) Share() {}
 
-//RequestShare creates a client for control Service, and send a request
-func RequestShare() {
+type ControlClient struct {
+	conn   *grpc.ClientConn
+	client control.ControlClient
+}
+
+func NewControlClient() ControlClient {
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
-	defer conn.Close()
 	c := control.NewControlClient(conn)
-	response, err := c.Share(context.Background(), &control.ShareRequest{})
+	return ControlClient{conn: conn, client: c}
+}
+
+func (c ControlClient) Share() (kyber.Scalar, error) {
+	defer c.conn.Close()
+	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
 	if err != nil {
 		log.Fatalf("Error when calling Share: %s", err)
 	}
 	share, err := crypto.ProtoToKyberScalar(response.Share)
-	log.Printf("\n{\n\tprivate share: %s\n}", share.String())
+	return share, err
 }

@@ -361,7 +361,6 @@ func TestShare(t *testing.T) {
 
 	cmd := exec.Command("drand", "--config", tmpPath, "control", "share", "--insecure")
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
 	require.True(t, strings.Contains(string(out), scalarOne.String()))
 	require.NoError(t, err)
 }

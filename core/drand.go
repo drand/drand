@@ -65,6 +65,7 @@ func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
 // initDrand inits the drand struct by loading the private key, and by creating the
 // gateway with the correct options.
 func initDrand(s key.Store, c *Config) (*Drand, error) {
+
 	if c.insecure == false && (c.certPath == "" || c.keyPath == "") {
 		return nil, errors.New("config: need to set WithInsecure if no certificate and private key path given")
 	}

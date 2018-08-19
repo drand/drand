@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -481,7 +482,12 @@ func controlShare(c *cli.Context) error {
 	if err != nil {
 		slog.Fatal("drand: could not load")
 	}
-	net.RequestShare()
+	client := net.NewControlClient()
+	share, err := client.Share()
+	if err != nil {
+		slog.Fatal(err)
+	}
+	log.Printf("\n{\n\tprivate share: %s\n}", share.String())
 	return nil
 }
 
