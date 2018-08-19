@@ -229,6 +229,10 @@ func (g *ControlListener) Start() {
 }
 
 func (g *ControlListener) Stop() {
+	if g == nil || g.lis == nil || g.conns == nil {
+		//we suppose that it is because we are in Tls
+		return
+	}
 	g.lis.Close()
 	g.conns.Stop()
 }
