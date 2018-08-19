@@ -19,7 +19,6 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber"
 	"github.com/nikkolasg/slog"
-	"google.golang.org/grpc"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -310,7 +309,8 @@ func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
 	return d.send(p, pack)
 }
 
-func (d *Drand) Share(ctx context.Context, in *control.ShareRequest, opts ...grpc.CallOption) (*control.ShareResponse, error) {
+// Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
+func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	share, err := d.store.LoadShare()
 	if err != nil {
 		slog.Fatal("drand: could not load the share")

@@ -24,6 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+// Sharerequest requests the private share of a drand node
 type ShareRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -34,7 +35,7 @@ func (m *ShareRequest) Reset()         { *m = ShareRequest{} }
 func (m *ShareRequest) String() string { return proto.CompactTextString(m) }
 func (*ShareRequest) ProtoMessage()    {}
 func (*ShareRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_c6f11734d9ff11f2, []int{0}
+	return fileDescriptor_control_b2c6bb2e7fed22f8, []int{0}
 }
 func (m *ShareRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShareRequest.Unmarshal(m, b)
@@ -54,6 +55,7 @@ func (m *ShareRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ShareRequest proto.InternalMessageInfo
 
+// ShareResponse holds the private share of a srand node
 type ShareResponse struct {
 	Share                *crypto.Scalar `protobuf:"bytes,1,opt,name=share,proto3" json:"share,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
@@ -65,7 +67,7 @@ func (m *ShareResponse) Reset()         { *m = ShareResponse{} }
 func (m *ShareResponse) String() string { return proto.CompactTextString(m) }
 func (*ShareResponse) ProtoMessage()    {}
 func (*ShareResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_c6f11734d9ff11f2, []int{1}
+	return fileDescriptor_control_b2c6bb2e7fed22f8, []int{1}
 }
 func (m *ShareResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShareResponse.Unmarshal(m, b)
@@ -131,7 +133,7 @@ func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grp
 
 // ControlServer is the server API for Control service.
 type ControlServer interface {
-	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
+	Share(context.Context, *ShareRequest) (*ShareResponse, error)
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
@@ -169,9 +171,9 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 	Metadata: "control/control.proto",
 }
 
-func init() { proto.RegisterFile("control/control.proto", fileDescriptor_control_c6f11734d9ff11f2) }
+func init() { proto.RegisterFile("control/control.proto", fileDescriptor_control_b2c6bb2e7fed22f8) }
 
-var fileDescriptor_control_c6f11734d9ff11f2 = []byte{
+var fileDescriptor_control_b2c6bb2e7fed22f8 = []byte{
 	// 186 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4d, 0xce, 0xcf, 0x2b,
 	0x29, 0xca, 0xcf, 0xd1, 0x87, 0xd2, 0x7a, 0x05, 0x45, 0xf9, 0x25, 0xf9, 0x42, 0xec, 0x50, 0xae,

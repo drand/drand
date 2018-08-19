@@ -54,6 +54,7 @@ func (s *DefaultService) NewBeacon(c context.Context, in *drand.BeaconRequest) (
 	}
 }
 
+//DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
 type DefaultControlServer struct {
 	C control.ControlServer
 }

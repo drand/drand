@@ -162,10 +162,8 @@ func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts 
 	return p.s.DistKey(c, in)
 }
 
-// TODO: maybe go with an intermediate struct like
-// func NewControlClient() ControlClient{}
-// func (c ControlClient) Share() {}
-
+//ControlClient is a struct that implement control.ControlClient and is used to request
+//a Share to a ControlListener on a specific port
 type ControlClient struct {
 	conn   *grpc.ClientConn
 	client control.ControlClient
@@ -176,6 +174,7 @@ func NewControlClient() ControlClient {
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
+		return ControlClient{}
 	}
 	c := control.NewControlClient(conn)
 	return ControlClient{conn: conn, client: c}

@@ -200,11 +200,13 @@ func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Ha
 	})
 }
 
+//ControlListener is used to keep state of the connections of our drand instance
 type ControlListener struct {
 	conns *grpc.Server
 	lis   net.Listener
 }
 
+//NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
 func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
 	lis, err := net.Listen("tcp", "localhost:8080")
 	if err != nil {

@@ -1,3 +1,7 @@
+/*
+ * This protobuf file contains the definition of the requests and responses
+ * used by a drand node to locally run some commands.
+ */
 syntax = "proto3";
 
 package control;
@@ -10,9 +14,11 @@ service Control {
   rpc Share(ShareRequest) returns (ShareResponse) { }
 }
 
+// Sharerequest requests the private share of a drand node
 message ShareRequest {
 }
 
+// ShareResponse holds the private share of a srand node
 message ShareResponse {
   element.Scalar share = 1;
 }
