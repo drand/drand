@@ -272,11 +272,11 @@ command outputs an error instead.
 
 ### Control
 
-Some functionalities are private/secure, so we do not want to use gRPC which goes on internet, here simple TCP on localhost does the trick.
+Unlike the randomness generation or its output, some actions or data must have restricted access. Thus the control functionalities define a set of commands that communicate on localhost to allow privacy and security. They allow the owner of a drand node to modify the running drand instance and to access their private information.
 
 #### Share
 
-To get your private share run the command :
+To get your private key share generated during the DKG phase, run the command :
 ```bash
 drand control share --insecure
 ```
