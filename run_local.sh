@@ -1,8 +1,8 @@
-#!/bin/bash 
+#!/bin/bash
 
-# set -x 
+# set -x
 # This script contains two parts.
-# The first part is meant as a library, declaring the variables and functions to spins off drand containers 
+# The first part is meant as a library, declaring the variables and functions to spins off drand containers
 # The second part is triggered when this script is actually ran, and not
 # sourced. This part calls the function to setup the drand containers and run
 # them. It produces produce randomness in a temporary folder..
@@ -16,12 +16,12 @@
 N=6
 BASE="/tmp/drand"
 if [ ! -d "$BASE" ]; then
-    mkdir $BASE
+    mkdir -m 740 $BASE
 fi
 unameOut="$(uname -s)"
 case "${unameOut}" in
     Linux*)     TMP=$(mktemp -p "$BASE" -d);;
-    Darwin*)    
+    Darwin*)
         A=$(mktemp -d -t "drand")
         mv $A "/tmp/$(basename $A)"
         TMP="/tmp/$(basename $A)"
@@ -65,7 +65,7 @@ if [ "$#" -gt 0 ]; then
 fi
 
 ## build the test travis image
-function build() { 
+function build() {
     echo "[+] Building the docker image $IMG"
     docker build -t "$IMG" .  > /dev/null
 }
@@ -92,8 +92,8 @@ function run() {
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
     echo "[+] Create the certificate directory"
-    mkdir $CERTSDIR 
-    mkdir $LOGSDIR
+    mkdir -m 740 $CERTSDIR
+    mkdir -m 740 $LOGSDIR
 
     seq=$(seq 1 $N)
     rseq=$(seq $N -1 1)
@@ -101,15 +101,15 @@ function run() {
 
     #sequence=$(seq $N -1 1)
     # creating the keys and compose part for each node
-    echo "[+] Generating all private key pairs and certificates..." 
+    echo "[+] Generating all private key pairs and certificates..."
     for i in $seq; do
         # gen key and append to group
         data="$TMP/node$i/"
         host="${SUBNET}2$i"
         addr="$host:$PORT"
         addresses+=($addr)
-        mkdir -p "$data"
-        #drand keygen --keys "$data" "$addr" > /dev/null 
+        mkdir -m 740 -p "$data"
+        #drand keygen --keys "$data" "$addr" > /dev/null
         public="key/drand_id.public"
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
@@ -121,7 +121,7 @@ function run() {
 
         ## quicker generation with 1024 bits
         cd $data
-        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
@@ -132,7 +132,7 @@ function run() {
     #echo $allKeys
     docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml "${allKeys[@]}" > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
-    echo "[+] Starting all drand nodes sequentially..." 
+    echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
         echo "[+] preparing for node $i"
         idx=`expr $i - 1`
@@ -142,8 +142,8 @@ function run() {
         groupFile="$data""drand_group.toml"
         cp $GROUPFILE $groupFile
         dockerGroupFile="/root/.drand/drand_group.toml"
-    
-        
+
+
         drandCmd=("--debug" "run" "--period" "2s" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
@@ -171,7 +171,7 @@ function run() {
 }
 
 function cleanup() {
-    echo "[+] Cleaning up the docker containers..." 
+    echo "[+] Cleaning up the docker containers..."
     docker stop $(docker ps -a -q) > /dev/null 2>/dev/null
     docker rm -f $(docker ps -a -q) > /dev/null 2>/dev/null
 }
@@ -200,14 +200,14 @@ function fetchTest() {
     drandArgs+=("--tls-cert" "$serverCertDocker")
     idx=`expr $nindex - 1`
     drandArgs+=("--public" $drandPublic "${addresses[$idx]}")
-    docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}" 
+    docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"
 }
 
 cleanup
 
-## END OF LIBRARY 
+## END OF LIBRARY
 if [ "${#BASH_SOURCE[@]}" -gt "1" ]; then
     echo "[+] run_local.sh used as library -> not running"
     return 0;
@@ -221,7 +221,7 @@ echo "[+] Waiting 3s to get some beacons..."
 sleep 3
 while true;
 nindex=1
-do 
+do
     fetchTest $nindex true
     sleep 2
 done

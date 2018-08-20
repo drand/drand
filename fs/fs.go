@@ -17,24 +17,20 @@ func HomeFolder() string {
 	return u.HomeDir
 }
 
-func CreateHomeConfigFolder(folder string) string {
-	u, err := user.Current()
-	if err != nil {
-		panic(err)
-	}
-	path := path.Join(u.HomeDir, folder)
-	if exists, _ := Exists(path); !exists {
-		if err := os.MkdirAll(path, 0740); err != nil {
-			panic(err)
-		}
-	}
-	return path
-}
+// CreateSecureFolder checks if the folder exists and has the appropriate permission rights. In case of bad permission rights)
+// the empty string is returned.If the folder doesn't exist it creates it.
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, 0740); err != nil {
 			fmt.Println("folder", folder, ",err", err)
 			panic(err)
+		}
+	} else {
+		//the folder exists already
+		info, err := os.Lstat(folder)
+		perm := int(info.Mode().Perm())
+		if err != nil || perm != int(0740) {
+			return ""
 		}
 	}
 	return folder
