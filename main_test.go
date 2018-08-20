@@ -353,14 +353,17 @@ func TestShare(t *testing.T) {
 	scalarOne := pairing.G2().Scalar().One()
 	s := &share.PriShare{V: scalarOne}
 	share := &key.Share{Share: s}
-	require.NoError(t, fs.SaveShare(share))
+	fs.SaveShare(share)
 
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
+	fmt.Println("Setup was done, running the command")
 
 	cmd := exec.Command("drand", "--config", tmpPath, "control", "share", "--insecure")
 	out, err := cmd.CombinedOutput()
+	fmt.Println(string(out))
+	fmt.Println(err.Error())
 	require.True(t, strings.Contains(string(out), scalarOne.String()))
 	require.NoError(t, err)
 }
