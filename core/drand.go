@@ -317,7 +317,7 @@ func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.S
 	}
 	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
 	if err != nil {
-		slog.Fatal("drand: could not load the private share")
+		slog.Fatal("drand: there is something wrong with the share")
 	}
 	return &control.ShareResponse{Share: protoShare}, nil
 }

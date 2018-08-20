@@ -325,7 +325,9 @@ func TestClientTLS(t *testing.T) {
 }
 
 func TestShare(t *testing.T) {
+
 	//prepare drand instance
+
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0777)
 	defer os.RemoveAll(tmpPath)
@@ -347,7 +349,6 @@ func TestShare(t *testing.T) {
 	fakeKey, _ := stringToPoint(keyStr)
 	distKey := &key.DistPublic{Key: fakeKey}
 	fs.SaveDistPublic(distKey)
-
 	//fake share
 	pairing := bn256.NewSuite()
 	scalarOne := pairing.G2().Scalar().One()
@@ -355,15 +356,16 @@ func TestShare(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
+	//test command
+
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
 	cmd := exec.Command("drand", "--config", tmpPath, "control", "share", "--insecure")
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
 	if err != nil {
-		fmt.Println(err.Error())
+		t.Fatalf("could not run the command : %s", err.Error())
 	}
 	require.True(t, strings.Contains(string(out), scalarOne.String()))
 	require.NoError(t, err)

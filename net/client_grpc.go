@@ -168,6 +168,7 @@ type ControlClient struct {
 	client control.ControlClient
 }
 
+// NewControlClient creates a client connection to the given target (localhost:8080)
 func NewControlClient() ControlClient {
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
@@ -179,8 +180,9 @@ func NewControlClient() ControlClient {
 	return ControlClient{conn: conn, client: c}
 }
 
+// Share requestsa nd returns the private share
 func (c ControlClient) Share() (kyber.Scalar, error) {
-	defer c.conn.Close()
+	defer c.conn.Close() //XXX: does that line make sense here ?
 	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
 	if err != nil {
 		slog.Fatalf("Error when calling Share: %s", err)

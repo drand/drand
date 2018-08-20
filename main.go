@@ -485,9 +485,9 @@ func controlShare(c *cli.Context) error {
 	client := net.NewControlClient()
 	share, err := client.Share()
 	if err != nil {
-		slog.Fatalf("drand: could not request a share: %s", err)
+		slog.Fatalf("drand: could not request the share: %s", err)
 	}
-	log.Printf("\n{\n\tprivate share: %s\n}", share.String())
+	log.Printf("\n{\n\tprivate share, %s\n}", share.String())
 	return nil
 }
 
