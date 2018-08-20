@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -207,7 +208,7 @@ type ControlListener struct {
 
 //NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
 func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
-	lis, err := net.Listen("tcp", "localhost:8080")
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", "localhost", ControlPort))
 	if err != nil {
 		slog.Fatal("Failed to listen")
 		return ControlListener{}

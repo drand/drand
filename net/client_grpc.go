@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -168,10 +169,10 @@ type ControlClient struct {
 	client control.ControlClient
 }
 
-// NewControlClient creates a client connection to the given target (localhost:8080)
+// NewControlClient creates a client connection to the given target (localhost:8888)
 func NewControlClient() ControlClient {
 	var conn *grpc.ClientConn
-	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "localhost", ControlPort), grpc.WithInsecure())
 	if err != nil {
 		slog.Fatalf("control: did not connect: %s", err)
 		return ControlClient{}
@@ -182,7 +183,6 @@ func NewControlClient() ControlClient {
 
 // Share requestsa nd returns the private share
 func (c ControlClient) Share() (kyber.Scalar, error) {
-	defer c.conn.Close() //XXX: does that line make sense here ?
 	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
 	if err != nil {
 		slog.Fatalf("Error when calling Share: %s", err)
