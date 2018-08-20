@@ -329,7 +329,7 @@ func TestShare(t *testing.T) {
 	//prepare drand instance
 
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0777)
+	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 	config := core.NewConfig(core.WithConfigFolder(tmpPath), core.WithInsecure())
 	fs := key.NewFileStore(config.ConfigFolder())
