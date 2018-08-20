@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 	"crypto/tls"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -224,7 +223,7 @@ func (g *ControlListener) Start() {
 		return
 	}
 	if err := g.conns.Serve(g.lis); err != nil {
-		log.Fatalf("failed to serve: %s", err)
+		slog.Fatalf("failed to serve: %s", err)
 	}
 }
 

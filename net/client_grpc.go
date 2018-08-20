@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"log"
 	"sync"
 	"time"
 
@@ -173,7 +172,7 @@ func NewControlClient() ControlClient {
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("did not connect: %s", err)
+		slog.Fatalf("control: did not connect: %s", err)
 		return ControlClient{}
 	}
 	c := control.NewControlClient(conn)
@@ -184,8 +183,11 @@ func (c ControlClient) Share() (kyber.Scalar, error) {
 	defer c.conn.Close()
 	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
 	if err != nil {
-		log.Fatalf("Error when calling Share: %s", err)
+		slog.Fatalf("Error when calling Share: %s", err)
 	}
 	share, err := crypto.ProtoToKyberScalar(response.Share)
+	if err != nil {
+		slog.Fatalf("Error when converting proto to scalar: %s", err)
+	}
 	return share, err
 }

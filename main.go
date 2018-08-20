@@ -480,12 +480,12 @@ func controlShare(c *cli.Context) error {
 	fs := key.NewFileStore(config.ConfigFolder())
 	_, err := core.LoadDrand(fs, config)
 	if err != nil {
-		slog.Fatal("drand: could not load")
+		slog.Fatalf("drand: could not load, %s", err)
 	}
 	client := net.NewControlClient()
 	share, err := client.Share()
 	if err != nil {
-		slog.Fatal(err)
+		slog.Fatalf("drand: could not request a share: %s", err)
 	}
 	log.Printf("\n{\n\tprivate share: %s\n}", share.String())
 	return nil
