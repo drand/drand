@@ -332,7 +332,7 @@ func TestShare(t *testing.T) {
 	config := core.NewConfig(core.WithConfigFolder(tmpPath), core.WithInsecure())
 	fs := key.NewFileStore(config.ConfigFolder())
 	//keypair
-	addr := "127.0.0.1:8082"
+	addr := "127.0.0.1:8081"
 	priv := key.NewTLSKeyPair(addr)
 	fs.SaveKeyPair(priv)
 	//group
@@ -358,7 +358,6 @@ func TestShare(t *testing.T) {
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
-	fmt.Println("Setup was done, running the command")
 
 	cmd := exec.Command("drand", "--config", tmpPath, "control", "share", "--insecure")
 	out, err := cmd.CombinedOutput()
