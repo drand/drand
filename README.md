@@ -270,11 +270,11 @@ The command outputs a 32-byte base64-encoded random value coming from the local
 randomness engine of the contacted server. If the encryption is not correct, the
 command outputs an error instead.
 
-### Control
+### Control Port
 
-Unlike the randomness generation or its output, some actions or data must have restricted access. Thus the control functionalities define a set of commands that communicate on localhost to allow privacy and security. They allow the owner of a drand node to modify the running drand instance and to access their private information.
+Unlike the randomness generation or its output, some actions or data must have restricted access. Thus the control functionalities define a set of administrator-level commands, only accessible from localhost. They allow the owner of a drand node to modify the running drand instance (such as adding a new member to the group, ...) and to access their private information.
 
-#### Share
+#### Private Share
 
 To get your private key share generated during the DKG phase, run the command :
 ```bash

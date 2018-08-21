@@ -344,6 +344,7 @@ func TestShare(t *testing.T) {
 		Index:    0,
 	}
 	fs.SaveGroup(group)
+	groupPath := path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
 	//dist public
 	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
 	fakeKey, _ := stringToPoint(keyStr)
@@ -357,12 +358,14 @@ func TestShare(t *testing.T) {
 	fs.SaveShare(share)
 
 	//test command
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--insecure", "--group-init", groupPath}
+	go main()
 
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
-	cmd := exec.Command("drand", "--config", tmpPath, "control", "share", "--insecure")
+	cmd := exec.Command("drand", "--config", tmpPath, "control", "share")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("could not run the command : %s", err.Error())

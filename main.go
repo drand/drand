@@ -197,7 +197,6 @@ func main() {
 				{
 					Name:  "share",
 					Usage: "Returns the private share of a node.",
-					Flags: toArray(insecureFlag),
 					Action: func(c *cli.Context) error {
 						return controlShare(c)
 					},
@@ -473,15 +472,6 @@ func fetchDistKey(c *cli.Context) error {
 }
 
 func controlShare(c *cli.Context) error {
-	if !c.Bool("insecure") {
-		slog.Fatal("control functionality must be used in insecure mode")
-	}
-	config := contextToConfig(c)
-	fs := key.NewFileStore(config.ConfigFolder())
-	_, err := core.LoadDrand(fs, config)
-	if err != nil {
-		slog.Fatalf("drand: could not load, %s", err)
-	}
 	client := net.NewControlClient()
 	share, err := client.Share()
 	if err != nil {
