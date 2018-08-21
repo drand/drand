@@ -53,11 +53,7 @@ func NewGrpcGatewayInsecure(listen string, s Service, cs control.ControlServer, 
 	}
 }
 
-func NewGrpcGateway(listen string, certPath, keyPath string, s Service, opts ...grpc.DialOption) Gateway {
-	return NewGrpcGatewayFromCertManager(listen, certPath, keyPath, NewCertManager(), s, opts...)
-}
-
-func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
 	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s)
 	if err != nil {
 		panic(err)
