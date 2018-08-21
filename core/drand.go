@@ -87,7 +87,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	} else {
 		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d, d.opts.grpcOpts...)
 	}
-	go d.gateway.StartAll()
+	d.gateway.StartAll()
 	return d, nil
 }
 

@@ -149,7 +149,6 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 		grpcServer: grpcServer,
 		l:          tlsListener,
 	}
-
 	return g, nil
 }
 
@@ -219,20 +218,12 @@ func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
 }
 
 func (g *ControlListener) Start() {
-	if g == nil || g.lis == nil || g.conns == nil {
-		//we suppose that it is because we are in Tls
-		return
-	}
 	if err := g.conns.Serve(g.lis); err != nil {
 		slog.Fatalf("failed to serve: %s", err)
 	}
 }
 
 func (g *ControlListener) Stop() {
-	if g == nil || g.lis == nil || g.conns == nil {
-		//we suppose that it is because we are in Tls
-		return
-	}
 	g.lis.Close()
 	g.conns.Stop()
 }

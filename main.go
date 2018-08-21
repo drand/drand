@@ -225,7 +225,6 @@ func keygenCmd(c *cli.Context) error {
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
-	slog.Print("Testing port")
 	if !validID.MatchString(addr) {
 		slog.Print("port not ok")
 		addr = addr + ":" + askPort()

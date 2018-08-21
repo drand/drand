@@ -61,12 +61,13 @@ func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, cert
 	return Gateway{
 		InternalClient: NewGrpcClientFromCertManager(certs, opts...),
 		Listener:       l,
+		ControlListener: NewTCPGrpcControlListener(cs),
 	}
 }
 
 func (g Gateway) StartAll() {
-	g.ControlListener.Start()
-	g.Listener.Start()
+	go g.ControlListener.Start()
+	go g.Listener.Start()
 }
 
 func (g Gateway) StopAll() {
