@@ -210,6 +210,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, string
 	} else {
 		privs, group = test.BatchTLSIdentities(n)
 	}
+	ports := test.Ports(n)
 	var err error
 	drands := make([]*Drand, n, n)
 	tmp := os.TempDir()
@@ -251,6 +252,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, string
 		} else {
 			confOptions = append(confOptions, WithInsecure())
 		}
+		confOptions = append(confOptions, WithListenPort(ports[i]))
 		drands[i], err = NewDrand(s, group, NewConfig(confOptions...))
 		if err != nil {
 			panic(err)

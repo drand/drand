@@ -2,7 +2,7 @@ package net
 
 import (
 	"time"
-
+	
 	"google.golang.org/grpc"
 
 	"github.com/dedis/drand/protobuf/dkg"
@@ -45,15 +45,15 @@ type Listener interface {
 	Stop()
 }
 
-func NewGrpcGatewayInsecure(listen string, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayInsecure(listen string, port string, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
 	return Gateway{
 		InternalClient: NewGrpcClient(opts...),
 		Listener:       NewTCPGrpcListener(listen, s),
-		ControlListener: NewTCPGrpcControlListener(cs),
+		ControlListener: NewTCPGrpcControlListener(cs, port),
 	}
 }
 
-func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayFromCertManager(listen string, port string, certPath, keyPath string, certs *CertManager, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
 	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s)
 	if err != nil {
 		panic(err)
@@ -61,7 +61,7 @@ func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, cert
 	return Gateway{
 		InternalClient: NewGrpcClientFromCertManager(certs, opts...),
 		Listener:       l,
-		ControlListener: NewTCPGrpcControlListener(cs),
+		ControlListener: NewTCPGrpcControlListener(cs, port),
 	}
 }
 

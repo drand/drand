@@ -35,6 +35,7 @@ type Config struct {
 	configFolder string
 	dbFolder     string
 	listenAddr   string
+	listenPort   string
 	grpcOpts     []grpc.DialOption
 	callOpts     []grpc.CallOption
 	dkgTimeout   time.Duration
@@ -83,6 +84,15 @@ func (d *Config) ListenAddress(defaultAddr string) string {
 		return d.listenAddr
 	}
 	return defaultAddr
+}
+
+// ListenPort returns the given default port or the listen port stored
+// in the config thanks to WithListenPort
+func (d *Config) ListenPort(defaultPort string) string {
+	if d.listenPort != "" {
+		return d.listenPort
+	}
+	return defaultPort
 }
 
 func (d *Config) callbacks(b *beacon.Beacon) {
@@ -171,5 +181,12 @@ func WithTrustedCerts(certPaths ...string) ConfigOption {
 func WithListenAddress(addr string) ConfigOption {
 	return func(d *Config) {
 		d.listenAddr = addr
+	}
+}
+
+// WithListenPort specifies the address localhost:port the drand instance should bind to.
+func WithListenPort(port string) ConfigOption {
+	return func(d *Config) {
+		d.listenPort = port
 	}
 }

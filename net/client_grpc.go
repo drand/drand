@@ -170,9 +170,9 @@ type ControlClient struct {
 }
 
 // NewControlClient creates a client connection to the given target (localhost:8888)
-func NewControlClient() ControlClient {
+func NewControlClient(port string) ControlClient {
 	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(fmt.Sprintf("%s:%d", "localhost", ControlPort), grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", "localhost", port), grpc.WithInsecure())
 	if err != nil {
 		slog.Fatalf("control: did not connect: %s", err)
 		return ControlClient{}

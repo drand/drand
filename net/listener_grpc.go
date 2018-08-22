@@ -206,8 +206,8 @@ type ControlListener struct {
 }
 
 //NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
-func NewTCPGrpcControlListener(s control.ControlServer) ControlListener {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", "localhost", ControlPort))
+func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", "localhost", port))
 	if err != nil {
 		slog.Fatal("Failed to listen")
 		return ControlListener{}
@@ -224,6 +224,6 @@ func (g *ControlListener) Start() {
 }
 
 func (g *ControlListener) Stop() {
-	g.lis.Close()
 	g.conns.Stop()
+	g.lis.Close()
 }

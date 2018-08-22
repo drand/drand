@@ -41,6 +41,16 @@ func Addresses(n int) []string {
 	return addrs
 }
 
+// Ports returns a list of ports starting from the given
+// port= start.
+func Ports(n int) []string {
+	ports := make([]string, n, n)
+	for i := 0; i < n; i++ {
+		ports[i] = strconv.Itoa(FreePort())
+	}
+	return ports
+}
+
 // GetFreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
 func FreePort() int {

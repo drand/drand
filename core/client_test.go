@@ -24,5 +24,4 @@ func TestClientPrivate(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)
-
 }
