@@ -25,14 +25,14 @@ func CreateSecureFolder(folder string) string {
 			fmt.Println("folder", folder, ",err", err)
 			panic(err)
 		}
-	} /*else {
+	} else {
 		//the folder exists already
 		info, err := os.Lstat(folder)
 		perm := int(info.Mode().Perm())
 		if err != nil || perm != int(0740) {
 			return ""
 		}
-	}*/
+	}
 	return folder
 }
 
