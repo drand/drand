@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -480,11 +479,15 @@ func controlShare(c *cli.Context) error {
 		port = net.DefaultControlPort
 	}
 	client := net.NewControlClient(port)
-	share, err := client.Share()
+	resp, err := client.Share()
 	if err != nil {
 		slog.Fatalf("drand: could not request the share: %s", err)
 	}
-	log.Printf("\n{\n\tprivate share, %s\n}", share.String())
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
 	return nil
 }
 

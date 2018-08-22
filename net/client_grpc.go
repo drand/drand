@@ -10,7 +10,6 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
@@ -182,7 +181,7 @@ func NewControlClient(port string) ControlClient {
 }
 
 // Share requestsa nd returns the private share
-func (c ControlClient) Share() (kyber.Scalar, error) {
+func (c ControlClient) Share() (map[string]string, error) {
 	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
 	if err != nil {
 		slog.Fatalf("Error when calling Share: %s", err)
@@ -191,5 +190,9 @@ func (c ControlClient) Share() (kyber.Scalar, error) {
 	if err != nil {
 		slog.Fatalf("Error when converting proto to scalar: %s", err)
 	}
-	return share, err
+	data := map[string]string{
+		"private share": share.String(),
+	}
+
+	return data, nil
 }
