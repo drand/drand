@@ -82,7 +82,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
-	p := c.ListenPort(net.DefaultControlPort)
+	p := c.ControlPort()
 	if c.insecure {
 		d.gateway = net.NewGrpcGatewayInsecure(a, p, d, d, d.opts.grpcOpts...)
 	} else {

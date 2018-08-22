@@ -500,7 +500,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	}
 	port := c.String("port")
 	if port != "" {
-		opts = append(opts, core.WithListenPort(port))
+		opts = append(opts, core.WithControlPort(port))
 	}
 
 	config := c.GlobalString("config")
