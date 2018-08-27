@@ -335,7 +335,8 @@ func TestClientTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not run the command : %s", err.Error())
 	}
-	require.True(t, strings.Contains(string(out), scalarOne.String()))
+	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 }
 func TestSharePort(t *testing.T) {
@@ -380,7 +381,8 @@ func TestSharePort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not run the command : %s", err.Error())
 	}
-	require.True(t, strings.Contains(string(out), scalarOne.String()))
+	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 }
 

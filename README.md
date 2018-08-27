@@ -280,6 +280,16 @@ To get your private key share generated during the DKG phase, run the command :
 ```bash
 drand control share --insecure
 ```
+The output will have the following JSON format :
+```json
+{
+  "Index" : 0,
+  "Share" : {
+    "gid": 22,
+    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+  }
+}
+```
 
 ## Learn More About The Crypto Magic Behind Drand
 

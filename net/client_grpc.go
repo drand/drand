@@ -180,19 +180,16 @@ func NewControlClient(port string) ControlClient {
 	return ControlClient{conn: conn, client: c}
 }
 
+type PrivateShare struct {
+	Index uint32
+	Share *crypto.Scalar
+}
+
 // Share requestsa nd returns the private share
-func (c ControlClient) Share() (map[string]string, error) {
+func (c ControlClient) Share() (*PrivateShare, error) {
 	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
 	if err != nil {
 		slog.Fatalf("Error when calling Share: %s", err)
 	}
-	share, err := crypto.ProtoToKyberScalar(response.Share)
-	if err != nil {
-		slog.Fatalf("Error when converting proto to scalar: %s", err)
-	}
-	data := map[string]string{
-		"private share": share.String(),
-	}
-
-	return data, nil
+	return &PrivateShare{Index: response.GetIndex(), Share: response.GetShare()}, nil
 }

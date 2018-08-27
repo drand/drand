@@ -20,5 +20,6 @@ message ShareRequest {
 
 // ShareResponse holds the private share of a srand node
 message ShareResponse {
-  element.Scalar share = 1;
+  uint32 index = 1;
+  element.Scalar share = 2;
 }

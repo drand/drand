@@ -316,9 +316,10 @@ func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.S
 	if err != nil {
 		slog.Fatal("drand: could not load the share")
 	}
+	id := uint32(share.Share.I)
 	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
 	if err != nil {
 		slog.Fatal("drand: there is something wrong with the share")
 	}
-	return &control.ShareResponse{Share: protoShare}, nil
+	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }
