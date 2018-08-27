@@ -13,6 +13,7 @@ import (
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
@@ -63,6 +64,7 @@ func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
 // initDrand inits the drand struct by loading the private key, and by creating the
 // gateway with the correct options.
 func initDrand(s key.Store, c *Config) (*Drand, error) {
+
 	if c.insecure == false && (c.certPath == "" || c.keyPath == "") {
 		return nil, errors.New("config: need to set WithInsecure if no certificate and private key path given")
 	}
@@ -80,12 +82,13 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
+	p := c.ControlPort()
 	if c.insecure {
-		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayInsecure(a, p, d, d, d.opts.grpcOpts...)
 	} else {
-		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayFromCertManager(a, p, c.certPath, c.keyPath, c.certmanager, d, d, d.opts.grpcOpts...)
 	}
-	go d.gateway.Start()
+	d.gateway.StartAll()
 	return d, nil
 }
 
@@ -255,7 +258,7 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.Be
 func (d *Drand) Stop() {
 	d.state.Lock()
 	defer d.state.Unlock()
-	d.gateway.Stop()
+	d.gateway.StopAll()
 	if d.beacon != nil {
 		d.beacon.Stop()
 	}
@@ -305,4 +308,18 @@ type dkgNetwork struct {
 
 func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
 	return d.send(p, pack)
+}
+
+// Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
+func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
+	share, err := d.store.LoadShare()
+	if err != nil {
+		slog.Fatal("drand: could not load the share")
+	}
+	id := uint32(share.Share.I)
+	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with the share")
+	}
+	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }

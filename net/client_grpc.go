@@ -2,9 +2,11 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -156,4 +158,27 @@ func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, o
 }
 func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
 	return p.s.DistKey(c, in)
+}
+
+//ControlClient is a struct that implement control.ControlClient and is used to request
+//a Share to a ControlListener on a specific port
+type ControlClient struct {
+	conn   *grpc.ClientConn
+	client control.ControlClient
+}
+
+// NewControlClient creates a client connection to the given target (localhost:8888)
+func NewControlClient(port string) ControlClient {
+	var conn *grpc.ClientConn
+	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", "localhost", port), grpc.WithInsecure())
+	if err != nil {
+		slog.Fatalf("control: did not connect: %s", err)
+		return ControlClient{}
+	}
+	c := control.NewControlClient(conn)
+	return ControlClient{conn: conn, client: c}
+}
+
+func (c ControlClient) Share() (*control.ShareResponse, error) {
+	return c.client.Share(context.Background(), &control.ShareRequest{})
 }

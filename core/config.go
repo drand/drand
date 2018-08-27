@@ -29,12 +29,16 @@ const DefaultDbFolder = "db"
 // random beacon.
 const DefaultBeaconPeriod time.Duration = 1 * time.Minute
 
+// DefaultControlPort is the default port the functionnality control port communicate on.
+const DefaultControlPort = "8888"
+
 type ConfigOption func(*Config)
 
 type Config struct {
 	configFolder string
 	dbFolder     string
 	listenAddr   string
+	controlPort  string
 	grpcOpts     []grpc.DialOption
 	callOpts     []grpc.CallOption
 	dkgTimeout   time.Duration
@@ -56,6 +60,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		dkgTimeout:   dkg.DefaultTimeout,
 		beaconPeriod: DefaultBeaconPeriod,
 		certmanager:  net.NewCertManager(),
+		controlPort:  DefaultControlPort,
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -83,6 +88,12 @@ func (d *Config) ListenAddress(defaultAddr string) string {
 		return d.listenAddr
 	}
 	return defaultAddr
+}
+
+// ControlPort returns the port used for control port communications
+// which can be the default one or the port setup thanks to WithControlPort
+func (d *Config) ControlPort() string {
+	return d.controlPort
 }
 
 func (d *Config) callbacks(b *beacon.Beacon) {
@@ -171,5 +182,12 @@ func WithTrustedCerts(certPaths ...string) ConfigOption {
 func WithListenAddress(addr string) ConfigOption {
 	return func(d *Config) {
 		d.listenAddr = addr
+	}
+}
+
+// WithControlPort specifies which port on localhost the ListenerControl should bind to.
+func WithControlPort(port string) ConfigOption {
+	return func(d *Config) {
+		d.controlPort = port
 	}
 }

@@ -195,7 +195,7 @@ Once the DKG phase is done, the distributed public key is saved in the local dir
 #### Downloading the distributed public key
 
 To get the distributed public key of a drand protocol run, execute :
-```
+```bash
 drand fetch dist_key <address>
 ```
 `<address>` being the address the drand node to contact.
@@ -270,6 +270,26 @@ The command outputs a 32-byte base64-encoded random value coming from the local
 randomness engine of the contacted server. If the encryption is not correct, the
 command outputs an error instead.
 
+### Control Port
+
+Unlike the randomness generation or its output, some actions or data must have restricted access. Thus the control functionalities define a set of administrator-level commands, only accessible from localhost. They allow the owner of a drand node to modify the running drand instance (such as adding a new member to the group, ...) and to access their private information.
+
+#### Private Share
+
+To get your private key share generated during the DKG phase, run the command :
+```bash
+drand control share
+```
+The output will have the following JSON format :
+```json
+{
+  "index" : 1,
+  "share" : {
+    "gid": 22,
+    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+  }
+}
+```
 
 ## Learn More About The Crypto Magic Behind Drand
 

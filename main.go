@@ -101,10 +101,13 @@ func main() {
 		Name:  "insecure",
 		Usage: "indicates to use a non TLS server or connection",
 	}
-
 	groupFlag := cli.StringFlag{
 		Name:  "group-init",
 		Usage: "the group file to use during the DKG. If specified, drand erases any existing beacon database, as it supports only being part of one group at a time.",
+	}
+	portFlag := cli.StringFlag{
+		Name:  "port",
+		Usage: "the port you want to listen to for control port commands",
 	}
 
 	app.Commands = []cli.Command{
@@ -149,7 +152,7 @@ func main() {
 		cli.Command{
 			Name:  "run",
 			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
-			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag),
+			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag, portFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return runCmd(c)
@@ -189,6 +192,20 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:  "control",
+			Usage: "doing secret stuff locally",
+			Subcommands: []cli.Command{
+				{
+					Name:  "share",
+					Usage: "Returns the private share of a node.",
+					Flags: toArray(portFlag),
+					Action: func(c *cli.Context) error {
+						return controlShare(c)
+					},
+				},
+			},
+		},
 	}
 	app.Flags = toArray(verboseFlag, configFlag)
 	app.Before = func(c *cli.Context) error {
@@ -211,7 +228,6 @@ func keygenCmd(c *cli.Context) error {
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
-	slog.Print("Testing port")
 	if !validID.MatchString(addr) {
 		slog.Print("port not ok")
 		addr = addr + ":" + askPort()
@@ -457,6 +473,24 @@ func fetchDistKey(c *cli.Context) error {
 	return nil
 }
 
+func controlShare(c *cli.Context) error {
+	port := c.String("port")
+	if port == "" {
+		port = core.DefaultControlPort
+	}
+	client := net.NewControlClient(port)
+	resp, err := client.Share()
+	if err != nil {
+		slog.Fatalf("drand: could not request the share: %s", err)
+	}
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
+	return nil
+}
+
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
@@ -466,6 +500,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 	listen := c.String("listen")
 	if listen != "" {
 		opts = append(opts, core.WithListenAddress(listen))
+	}
+	port := c.String("port")
+	if port != "" {
+		opts = append(opts, core.WithControlPort(port))
 	}
 
 	config := c.GlobalString("config")

@@ -1,0 +1,25 @@
+/*
+ * This protobuf file contains the definition of the requests and responses
+ * used by a drand node to locally run some commands.
+ */
+syntax = "proto3";
+
+package control;
+
+option go_package = "github.com/dedis/drand/protobuf/control";
+
+import "crypto/element.proto";
+
+service Control {
+  rpc Share(ShareRequest) returns (ShareResponse) { }
+}
+
+// Sharerequest requests the private share of a drand node
+message ShareRequest {
+}
+
+// ShareResponse holds the private share of a srand node
+message ShareResponse {
+  uint32 index = 1;
+  element.Scalar share = 2;
+}

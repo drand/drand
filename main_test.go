@@ -18,6 +18,8 @@ import (
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/pairing/bn256"
+
+	"github.com/dedis/kyber/share"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -299,11 +301,16 @@ func TestClientTLS(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	// fake dkg outuput
+	//fake share
 	pairing := bn256.NewSuite()
-	G2 := pairing.G2()
+	scalarOne := pairing.G2().Scalar().One()
+	s := &share.PriShare{I: 2, V: scalarOne}
+	share := &key.Share{Share: s}
+	fs.SaveShare(share)
+
+	// fake dkg outuput
 	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
-	fakeKey, _ := stringToPoint(G2, keyStr)
+	fakeKey, _ := stringToPoint(keyStr)
 	distKey := &key.DistPublic{Key: fakeKey}
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
@@ -322,9 +329,66 @@ func TestClientTLS(t *testing.T) {
 	out, err = cmd.CombinedOutput()
 	require.True(t, strings.Contains(string(out), keyStr))
 	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "control", "share")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("could not run the command : %s", err.Error())
+	}
+	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
+	require.NoError(t, err)
+}
+func TestSharePort(t *testing.T) {
+	//prepare drand instance
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	defer os.RemoveAll(tmpPath)
+	config := core.NewConfig(core.WithConfigFolder(tmpPath), core.WithInsecure())
+	fs := key.NewFileStore(config.ConfigFolder())
+	//keypair
+	addr := "127.0.0.1:8087"
+	priv := key.NewTLSKeyPair(addr)
+	fs.SaveKeyPair(priv)
+	//group
+	_, group := test.BatchTLSIdentities(5)
+	group.Nodes[0] = &key.IndexedPublic{
+		Identity: priv.Public,
+		Index:    0,
+	}
+	fs.SaveGroup(group)
+	groupPath := path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
+	//dist public
+	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+	fakeKey, _ := stringToPoint(keyStr)
+	distKey := &key.DistPublic{Key: fakeKey}
+	fs.SaveDistPublic(distKey)
+	//fake share
+	pairing := bn256.NewSuite()
+	scalarOne := pairing.G2().Scalar().One()
+	s := &share.PriShare{V: scalarOne}
+	share := &key.Share{Share: s}
+	fs.SaveShare(share)
+	//test command
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--insecure", "--group-init", groupPath, "--port", "8181"}
+	go main()
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
+	cmd := exec.Command("drand", "control", "share", "--port", "8181")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("could not run the command : %s", err.Error())
+	}
+	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
+	require.NoError(t, err)
 }
 
-func stringToPoint(g kyber.Group, s string) (kyber.Point, error) {
+func stringToPoint(s string) (kyber.Point, error) {
+	pairing := bn256.NewSuite()
+	g := pairing.G2()
 	buff, err := hex.DecodeString(s)
 	if err != nil {
 		return nil, err
