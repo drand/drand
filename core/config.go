@@ -29,6 +29,9 @@ const DefaultDbFolder = "db"
 // random beacon.
 const DefaultBeaconPeriod time.Duration = 1 * time.Minute
 
+// DefaultControlPort is the default port the functionnality control port communicate on.
+const DefaultControlPort = "8888"
+
 type ConfigOption func(*Config)
 
 type Config struct {
@@ -57,6 +60,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		dkgTimeout:   dkg.DefaultTimeout,
 		beaconPeriod: DefaultBeaconPeriod,
 		certmanager:  net.NewCertManager(),
+		controlPort:  DefaultControlPort,
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -86,13 +90,10 @@ func (d *Config) ListenAddress(defaultAddr string) string {
 	return defaultAddr
 }
 
-// ControlPort returns the default port for control port communications (8888)
-// or the port stored in the config thanks to WithControlPort
+// ControlPort returns the port used for control port communications
+// which can be the default one or the port setup thanks to WithControlPort
 func (d *Config) ControlPort() string {
-	if d.controlPort != "" {
-		return d.controlPort
-	}
-	return net.DefaultControlPort
+	return d.controlPort
 }
 
 func (d *Config) callbacks(b *beacon.Beacon) {

@@ -476,7 +476,7 @@ func fetchDistKey(c *cli.Context) error {
 func controlShare(c *cli.Context) error {
 	port := c.String("port")
 	if port == "" {
-		port = net.DefaultControlPort
+		port = core.DefaultControlPort
 	}
 	client := net.NewControlClient(port)
 	resp, err := client.Share()
