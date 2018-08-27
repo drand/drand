@@ -332,7 +332,6 @@ func TestClientTLS(t *testing.T) {
 
 	cmd = exec.Command("drand", "control", "share")
 	out, err = cmd.CombinedOutput()
-	fmt.Println(string(out))
 	if err != nil {
 		t.Fatalf("could not run the command : %s", err.Error())
 	}
