@@ -278,13 +278,13 @@ Unlike the randomness generation or its output, some actions or data must have r
 
 To get your private key share generated during the DKG phase, run the command :
 ```bash
-drand control share --insecure
+drand control share
 ```
 The output will have the following JSON format :
 ```json
 {
-  "Index" : 0,
-  "Share" : {
+  "index" : 1,
+  "share" : {
     "gid": 22,
     "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
   }

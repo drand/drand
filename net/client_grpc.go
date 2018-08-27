@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/dedis/drand/protobuf/control"
-	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -180,16 +179,6 @@ func NewControlClient(port string) ControlClient {
 	return ControlClient{conn: conn, client: c}
 }
 
-type PrivateShare struct {
-	Index uint32
-	Share *crypto.Scalar
-}
-
-// Share requestsa nd returns the private share
-func (c ControlClient) Share() (*PrivateShare, error) {
-	response, err := c.client.Share(context.Background(), &control.ShareRequest{})
-	if err != nil {
-		slog.Fatalf("Error when calling Share: %s", err)
-	}
-	return &PrivateShare{Index: response.GetIndex(), Share: response.GetShare()}, nil
+func (c ControlClient) Share() (*control.ShareResponse, error) {
+	return c.client.Share(context.Background(), &control.ShareRequest{})
 }

@@ -304,7 +304,7 @@ func TestClientTLS(t *testing.T) {
 	//fake share
 	pairing := bn256.NewSuite()
 	scalarOne := pairing.G2().Scalar().One()
-	s := &share.PriShare{V: scalarOne}
+	s := &share.PriShare{I: 2, V: scalarOne}
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
@@ -332,6 +332,7 @@ func TestClientTLS(t *testing.T) {
 
 	cmd = exec.Command("drand", "control", "share")
 	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
 	if err != nil {
 		t.Fatalf("could not run the command : %s", err.Error())
 	}

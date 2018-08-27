@@ -225,5 +225,4 @@ func (g *ControlListener) Start() {
 
 func (g *ControlListener) Stop() {
 	g.conns.Stop()
-	g.lis.Close()
 }
