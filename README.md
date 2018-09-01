@@ -157,7 +157,7 @@ The setup process for a drand beacon consists of three steps:
 
 To generate the long-term key pair `drand_id.{secret,public}`, execute
 
-```
+```bash
 drand keygen <address>
 ```
 
@@ -169,7 +169,7 @@ will indicate that your node is (not) reachable through TLS.
 
 To generate the group configuration file `group.toml`, run
 
-```
+```bash
 drand group <pk1> <pk2> ... <pkn>
 ```
 
@@ -216,7 +216,7 @@ re-creates the public random value and stores it in its local instance of
 [BoltDB](https://github.com/coreos/bbolt).
 
 To change the default [interval length](https://golang.org/pkg/time/#ParseDuration) 
-from 1 minute, e.g., to `30s`, start drand via
+from 1 minute to 30 seconds, for example, start drand via
 
 ```bash
 drand run \
@@ -254,7 +254,7 @@ To get the latest public random value, run
 drand fetch public --distkey <dist_key.public> <address>
 ```
 
-where `dist_key.public` is the distributed public key generated during the setup
+where `<dist_key.public>` is the distributed public key generated during the setup
 and `<address>` is the address of the drand node to be contacted.
 
 The JSON-formatted output produced by drand is of the following form:
