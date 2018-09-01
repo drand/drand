@@ -114,8 +114,8 @@ corresponding private key you wish to use via:
 
 ```bash
 drand <command> \
-    --tls-cert </path/to/fullchain.pem> \
-    --tls-key </path/to/privkey.pem>
+    --tls-cert <fullchain.pem> \
+    --tls-key <privkey.pem>
 ```
 
 To get TLS certificates for free you can use, for example, [Let's
@@ -182,9 +182,9 @@ After receiving the `group.toml` file, participants can start drand via:
 
 ```bash
 drand run \
-    --tls-cert </path/to/fullchain.pem> \
-    --tls-key </path/to/privkey.pem> \
-    --group-init <path/to/group.toml>
+    --tls-cert <fullchain.pem> \
+    --tls-key <privkey.pem> \
+    --group-init <group.toml>
 ```
 
 One of the nodes has to function as the leader which finalizes the setup and
@@ -194,9 +194,9 @@ daemon in leader mode, execute:
 ```bash
 drand run \
     --leader \
-    --tls-cert </path/to/fullchain.pem> \
-    --tls-key </path/to/privkey.pem> \
-    --group-init <path/to/group.toml>
+    --tls-cert <fullchain.pem> \
+    --tls-key <privkey.pem> \
+    --group-init <group.toml>
 ```
 
 Once running, the leader initiates the distributed key generation protocol
@@ -222,8 +222,8 @@ from 1 minute, e.g., to `30s`, start drand via
 drand run \
     --leader \
     --period 30s \
-    --tls-cert </path/to/fullchain.pem> \
-    --tls-key </path/to/privkey.pem> \
+    --tls-cert <fullchain.pem> \
+    --tls-key <privkey.pem> \
 ```
 
 **Note:** If a group file is provided at this point, the existing beacon
@@ -251,7 +251,7 @@ where `<address>` is the address of a drand node.
 To get the latest public random value, run
 
 ```bash
-drand fetch public --distkey dist_key.public <address>
+drand fetch public --distkey <dist_key.public> <address>
 ```
 
 where `dist_key.public` is the distributed public key generated during the setup
