@@ -14,7 +14,7 @@ Drand nodes can also serve locally-generated private randomness to clients.
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 
-## Quickstart Tutorial
+## Quickstart
 
 To run drand locally make sure that you have a working 
 [Docker installation](https://docs.docker.com/engine/installation/). 
@@ -29,7 +29,7 @@ cd drand
 The script spins up six local drand nodes using Docker and produces fresh
 randomness every few seconds. 
 
-## Drand Overview
+## Overview
 
 ### Public Randomness
 
@@ -229,7 +229,7 @@ drand run \
 **Note:** If a group file is provided at this point, the existing beacon
 database will be erased.
 
-### Public Services
+### Client Interface
 
 A drand beacon provides several public services to clients. Communication is
 protected through TLS by default. If the contacted node is using a self-signed
@@ -294,7 +294,7 @@ Here `rnd` is the 32-byte base64-encoded private random value produced by the
 contacted drand node. If the encryption is not correct, the command outputs an
 error instead.
 
-### Private Control Port
+### Administrator Interface
 
 Drand provides an interface through which an administrator can interact with a
 running node, e.g., to update group details or retrieve secret information. This
