@@ -145,13 +145,16 @@ and `<command>` has to be substituted by one of the respective drand
 commands below. You must add the corresponding volumes pointing to your TLS
 private key and certificate in case you are using TLS (recommended).
 
-### Setup
+### Running and Administrating a Drand Node
 
 The setup process for a drand beacon consists of three steps:
 
 1. Generate the long-term key pair for each node
 2. Setup the group configuration file
 3. Run the distributed key generation (DKG)
+
+After the DKG has been finished successfully, drand switches automatically to
+the randomness generation mode.
 
 #### Long-Term Key Pair Generation
 
@@ -207,12 +210,12 @@ Once the DKG has finished, the keys are stored as
 `$HOME/.drand/groups/dist_key.{public,private}`. The distributed public key is
 additionally save in the currently active directory.
 
-### Randomness Generation
+#### Randomness Generation
 
-After a successful setup, drand switches to the randomness generation
-mode, where each node broadcasts randomness shares in regular intervals.
-Once a node has collected a threshold of shares in the current phase, it
-re-creates the public random value and stores it in its local instance of
+After a successful setup, drand switches automatically to the randomness
+generation mode, where each node broadcasts randomness shares in regular
+intervals. Once a node has collected a threshold of shares in the current phase,
+it re-creates the public random value and stores it in its local instance of
 [BoltDB](https://github.com/coreos/bbolt).
 
 To change the default [interval length](https://golang.org/pkg/time/#ParseDuration) 
@@ -229,7 +232,32 @@ drand run \
 **Note:** If a group file is provided at this point, the existing beacon
 database will be erased.
 
-### Client Interface
+#### Other Functionalities
+
+Drand's local administrator interface provides further functionality, e.g., to
+update group details or retrieve secret information.
+
+##### Retrieve Private Key Share
+
+To retrieve the private key share, as determined during the DKG, run the following command:
+
+```bash
+drand control share
+```
+
+The JSON-formatted output has the following form:
+
+```json
+{
+  "index" : 1,
+  "share" : {
+    "gid": 22,
+    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+  }
+}
+```
+
+### Using Drand
 
 A drand beacon provides several public services to clients. Communication is
 protected through TLS by default. If the contacted node is using a self-signed
@@ -277,10 +305,10 @@ sequence of all random values produced by this drand instance. Both `rnd` and
 To get a private random value, run
 
 ```bash
-drand fetch private <server-identity.toml>
+drand fetch private <drand_id.public>
 ```
 
-where `<server-identity.toml>` is the public identity file of a drand node.
+where `<drand_id.public>` is the public identity file of a drand node.
 
 The JSON-formatted output produced by drand is of the following form:
 
@@ -294,33 +322,8 @@ Here `rnd` is the 32-byte base64-encoded private random value produced by the
 contacted drand node. If the encryption is not correct, the command outputs an
 error instead.
 
-### Administrator Interface
 
-Drand provides an interface through which an administrator can interact with a
-running node, e.g., to update group details or retrieve secret information. This
-control port is only accessible via localhost.
-
-#### Retrieve Private Share
-
-To retrieve the private (DKG) key share run the following command:
-
-```bash
-drand control share
-```
-
-The JSON-formatted output has the following form:
-
-```json
-{
-  "index" : 1,
-  "share" : {
-    "gid": 22,
-    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
-  }
-}
-```
-
-## Cryptography used in Drand
+## Cryptography Background
 
 Drand relies on the following cryptographic constructions:
 
@@ -358,12 +361,12 @@ The drand source code is released under MIT license, see the file
 
 ## Acknowledgments
 
-Thanks to [@herumi](https://github.com/herumi) for providing support for his
+Thanks to [@herumi](https://github.com/herumi) for providing support on his
 optimized pairing-based cryptographic library used in the first version.
 
-Thanks to Apostol Vassilev for its interest in drand and the long emails
-exchanged over the general drand design.
+Thanks to Apostol Vassilev for its interest in drand and the extensive and
+helpful discussions on the drand design.
 
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native Golang
-bn256 implementation and for their help in the design of drand.
+bn256 implementation and for their help on drand design.
