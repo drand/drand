@@ -5,87 +5,91 @@
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
 in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
-random values at fixed intervals using pairing-based threshold cryptography.
-Nodes running drand can also serve individual requests to serve locally-generated
-private randomness to a client.
+random values at fixed intervals using bilinear pairings and threshold cryptography.
+Drand nodes can also serve locally-generated private randomness to clients.
 
 ### Disclaimer
 
-**This software is considered experimental and has NOT received a
-full audit yet. Therefore, DO NOT USE it in production at this point. You have
-been warned.**
+**This software is considered experimental and has NOT received a third-party
+audit yet. Therefore, DO NOT USE it in production or for anything security
+critical at this point.**
 
-## I Want Randomness Now!
+## Quickstart Tutorial
 
-Sure thing, here you go:
+To run drand locally make sure that you have a working 
+[Docker installation](https://docs.docker.com/engine/installation/). 
+Then execute:
 
-1. Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/).
-2. Then run:
 ```bash
+git clone https://github.com/dedis/drand
+cd drand
 ./run_local.sh
 ```
 
-The script spins up six local drand nodes and produces fresh randomness every two
-seconds. Drand is able to produce two kind of randomness:
-+ Drand main's function is to generate verifiable unbiasable randomness that we
-  call **Public Randomness**. This kind of randomness is useful in many
-  applications such as lottery, or sharding or even parameters generation.
-+ Drand can also generate **Private Randomness**. This randomness has been
-  generated locally by the remote server who sends it back in an encrypted form
-  to the client. This is useful to gather different entropy sources to generate
-  a high entropy randomness source.
+The script spins up six local drand nodes using Docker and produces fresh
+randomness every few seconds. 
 
-## Drand in a Nutshell
+## Drand Overview
 
 ### Public Randomness
 
-A drand distributed randomness beacon involves a set of nodes and has two phases:
+Generating public randomness is the primary functionality of drand. Public
+randomness is secret only up to a certain point in time after which it is
+publicly released. The challenge here is that no party involved in the
+randomness generation process should be able to predict or bias the final
+output. Additionally, the final result has to be third-party verifiable to make
+it actually useful for applications like lotteries, sharding, or parameter
+generation in security protocols.
 
-- **Setup:** Each node first generates a *long-term public/private key
-    pair*. Afterwards, a *group file* is created which gathers all the
-    participants' public keys together with some further metadata required to
-    operate the beacon. After the group file has been distributed, all
-    participants run a *distributed key generation* (DKG) protocol to create
-    the collective public key and one private key share per node. The
-    participants NEVER see/use the actual private key explicitly but instead
-    utilize their respective private key shares for drand's cryptographic
-    operations.
+A drand randomness beacon is composed of a distributed set of nodes and has two
+phases:
 
-- **Generation:** After the setup, the participating nodes switch to the
-    randomness generation mode. Any of the nodes can then function as a leader
-    to initiate a randomness generation round. Therefore, a given leader broadcasts
-    a message (in this case, a timestamp) which is then signed by all
-    participants using a threshold version of the *Boneh-Lynn-Shacham* (BLS)
-    signature scheme and their respective private key shares. Once any node (or
-    third-party observer) has gathered a threshold of partial signatures, it can
-    reconstruct the full BLS signature (using Lagrange interpolation) which
-    corresponds to the collective random value. This random beacon / full BLS
-    signature can be verified against the distributed public key that was
-    computed with the DKG.
+- **Setup:** Each node first generates a *long-term public/private key pair*.
+Then all of the public keys are written to a *group file* together with some
+further metadata required to operate the beacon. After this group file has
+been distributed, the nodes perform a *distributed key generation* (DKG) protocol
+to create the collective public key and one private key share per server. The
+participants NEVER see/use the actual (distributed) private key explicitly but
+instead utilize their respective private key shares for the generation of public
+randomness.
+- **Generation:** After the setup, the nodes switch to the randomness
+generation mode. Any of the nodes can initiate a randomness generation round
+by broadcasting a message which all the other participants sign using a t-of-n
+threshold version of the *Boneh-Lynn-Shacham* (BLS) signature scheme and their
+respective private key shares. Once any node (or third-party observer) has
+gathered t partial signatures, it can reconstruct the full BLS
+signature (using Lagrange interpolation) which corresponds to the collective
+random value. This random beacon / full BLS signature can be verified against
+the collective public key.
 
 ### Private Randomness
 
-The private randomness functionality can be used when one needs some high entropy randomness.
-A client can contact many different drand nodes individually and retrieve a portion of their
-local randomness. This randomness can later be used to generate private key, nonces, etc. It
-is particularly useful when the local randomness generator lacks external entropy, for example
+Private randomness generation is the secondary functionality of drand. Clients
+can request private randomness from some or all of the drand nodes which extract
+it locally from their entropy pools and send it back in encrypted form. This
+might be useful to gather randomness from different entropy sources, for example
 in embedded devices.
 
-In this mode, the client generates an ephemereal private/public key pair and encrypts the
-public key towards the server's public key using the ECIES encryption scheme.
-Upon reception of the request, the server produces 32 random bytes locally
-(using Go's `crypto/rand` interface), and encrypts back the randomness to the
-client's public key. Of course, this is only a first version and much more thinking must be put
-into the chicken-and-egg problem: how to generate an ephemereal key pair to get randomness
-if we have bad randomness in the first place. We can later assume that the device is given an
-initial key pair which uses it to gather randomness from drand nodes. This is not yet formally
-decided nor implemented yet and any comments/ideas on this are most welcomed.
+In this mode we assume that a client has a private/public key pair and
+encapsulates its public key towards the server's public key using the ECIES
+encryption scheme. After receiving a request, the drand node produces 32 random
+bytes locally (using Go's `crypto/rand` interface), encrypts them using the
+received public key and sends it back to the client.
+
+**Note:** Assuming that clients without good local entropy sources (such
+as embedded devices) use this process to gather high entropy randomness to
+bootstrap their local PRNGs, we emphasize that the initial client key pair has
+to be provided by a trusted source (such as the device manufacturer). Otherwise
+we run into the chicken-and-egg problem of how to produce on the client's side a
+secure ephemeral key pair for ECIES encryption without a good (local) source of
+randomness.
 
 ## Installation
 
-Drand can be installed via [Golang](https://golang.org/) or [Docker](https://www.docker.com/).
-By default, drand saves the configuration files such as the long-term key pair, the group file,
-and the collective public key in `$HOME/.drand/`.
+Drand can be installed via [Golang](https://golang.org/) or
+[Docker](https://www.docker.com/). By default, drand saves the configuration
+files such as the long-term key pair, the group file, and the collective public
+key in the directory `$HOME/.drand/`.
 
 ### Via Docker
 
@@ -93,42 +97,41 @@ Make sure that you have a working [Docker installation](https://docs.docker.com/
 
 ### Via Golang
 
-1. Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
-3. Install drand via:
-```
+Make sure that you have a working [Golang installation](https://golang.org/doc/install) and that your [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
+Then install drand via:
+
+```bash
 go get -u github.com/dedis/drand
 ```
 
 ## Usage
 
-There are two ways to run a drand node: using TLS or using plain old regular
-un-encrypted connections. Drand by default tries to use TLS connections.
+### TLS
 
-### With TLS
+Drand nodes attempt to communicate by default over TLS-protected connections.
+Therefore, you need to point your node to the TLS certificate chain and
+corresponding private key you wish to use via:
 
-Drand supports by default TLS-encrypted communications. In order to do run drand
-in this mode, you need to give at least two options for most operations:
-+ `--tls-cert` must point to a valid PEM encoded certificate
-+ `--tls-key` must point to a valid TLS private key
-
-These options must be appended to any operations connecting on the network:
-`run`, `run dkg` and `run beacon`.
-
-An easy and free way to get TLS certificates these days is to use the [Let's
-Encrypt](https://letsencrypt.org/) service, with the official [EFF
-tool](https://certbot.eff.org/).
-
-### Without TLS
-
-Drand is able to run without TLS, mostly intended for testing purpose or for running drand inside a closed network. To run drand without TLS, you need to explicitly tell drand to do so with the `--insecure` flag:
-
-+ `drand keygen --insecure`
-+ `drand run --insecure`
-
-### With Docker
-
-**NOTE:** If you run drand in Docker, always use the following template
+```bash
+drand <command> \
+    --tls-cert </path/to/fullchain.pem> \
+    --tls-key </path/to/privkey.pem>
 ```
+
+To get TLS certificates for free you can use, for example, [Let's
+Encrypt](https://letsencrypt.org/) and  [EFF's certbot](https://certbot.eff.org/).
+
+Although we **do not recommend** it, you can always disable TLS in drand via:
+
+```bash
+drand <command> --insecure
+```
+
+### Docker
+
+If you run drand in Docker, **always** use the following template
+
+```bash
 docker run \
     --rm \
     --name drand \
@@ -136,151 +139,177 @@ docker run \
     --volume $HOME/.drand/:/root/.drand/ \
     dedis/drand <command>
 ```
+
 where `<port>` specifies the port through which your drand daemon is reachable
 and `<command>` has to be substituted by one of the respective drand
 commands below. You must add the corresponding volumes pointing to your TLS
-private key and certificate in case you are using TLS, which you should.
+private key and certificate in case you are using TLS (recommended).
 
-## Setup
+### Setup
 
-To setup the drand beacon, each participant generates its long-term key pair
-from which we can then assemble the group configuration file, and finally all
-participants run the distributed key generation protocol.
+The setup process for a drand beacon consists of three steps:
 
-#### Long-Term Key
+1. Generate the long-term key pair for each node
+2. Setup the group configuration file
+3. Run the distributed key generation (DKG)
 
-To generate the long-term key pair `drand_id.{secret,public}` of the drand daemon, execute
+#### Long-Term Key Pair Generation
+
+To generate the long-term key pair `drand_id.{secret,public}`, execute
+
 ```
 drand keygen <address>
 ```
-where `<address>` is the address from which your drand daemon is reachable. The
-address must be reachable over a TLS connection. In case you need non-secured
-channel, you can pass the `--insecure` flag.
+
+where `<address>` is the address from which your drand daemon is reachable. If
+you specify the (no-) TLS flags, as mentioned above, the file `drand_id.public`
+will indicate that your node is (not) reachable through TLS.
 
 #### Group Configuration
 
-To generate the group configuration file `drand_group.toml`, run
+To generate the group configuration file `group.toml`, run
+
 ```
 drand group <pk1> <pk2> ... <pkn>
 ```
-where `<pki>` is the public key file `drand_id.public` of the i-th participant.
-The group file is generated in the current directory under `group.toml`.
 
-**NOTE:** This group file MUST be distributed to all participants !
+where `<pki>` is the public key file `drand_id.public` of the i-th participant.
+This group file **MUST** be distributed to all participants.
 
 #### Distributed Key Generation
 
-After receiving the `drand_group.toml` file, participants can start drand via:
+After receiving the `group.toml` file, participants can start drand via:
+
+```bash
+drand run \
+    --tls-cert </path/to/fullchain.pem> \
+    --tls-key </path/to/privkey.pem> \
+    --group-init <path/to/group.toml>
 ```
-drand run --tls-cert <cert path> --tls-key <key path> --group-init <group_file.toml>
-```
-where `<cert path>` is the path of your TLS certificate and `<key path>` is the
-path of your TLS private key. If you need non-secured channel, you can use the
-`--insecure` option.
 
 One of the nodes has to function as the leader which finalizes the setup and
-later also initiates regular randomness generation rounds. To start the drand
+later also initiates the randomness generation rounds. To start the drand
 daemon in leader mode, execute:
-```
-drand run --leader --tls-cert <cert path> --tls-key <key path> --group-init <group_file.toml>
-```
 
-Once running, the leader initiates the distributed key generation protocol to
-compute the distributed public key (`dist_key.public`) and the private key
-shares (`dist_key.private`) together with the participants specified in
-`drand_group.toml`.
-
-Once the DKG phase is done, the distributed public key is saved in the local directoryas well as in the configuration folder (`$HOME/.drand` by default) under the file `groups/dist_key.public`.
-
-#### Downloading the distributed public key
-
-To get the distributed public key of a drand protocol run, execute :
 ```bash
-drand fetch dist_key <address>
+drand run \
+    --leader \
+    --tls-cert </path/to/fullchain.pem> \
+    --tls-key </path/to/privkey.pem> \
+    --group-init <path/to/group.toml>
 ```
-`<address>` being the address the drand node to contact.
-Please note that a drand node can currently only being part of one "drand network" and thus handle only one distributed key. To get several networks, different instances of drand need to be ran.
-By default, drand uses TLS, but if do not want to, you can pass the `--insecure` flag. If the remote node is
-using a self signed certificate for example, you can use the `--tls-cert` option
-to specify the certificate of the server you wish to contact.
+
+Once running, the leader initiates the distributed key generation protocol
+where all nodes in `group.toml` collectively compute the distributed public key
+`dist_key.public` and their respective private key shares `dist_key.private`.
+
+Once the DKG has finished, the keys are stored as
+`$HOME/.drand/groups/dist_key.{public,private}`. The distributed public key is
+additionally save in the currently active directory.
 
 ### Randomness Generation
 
-We now assume that the setup is done and we can switch to randomness generation.
-Note : if a group file is given at this point, the existing beacon database will be erased.
+After a successful setup, drand switches to the randomness generation
+mode, where each node broadcasts randomness shares in regular intervals.
+Once a node has collected a threshold of shares in the current phase, it
+re-creates the public random value and stores it in its local instance of
+[BoltDB](https://github.com/coreos/bbolt).
 
-The leader initiates a new randomness generation round automatically as per the
-specified time interval (default interval: `1m`). All beacon values are stored
-using [`BoltDB`](https://github.com/coreos/bbolt), a Go native fast key/value
-database engine.
+To change the default [interval length](https://golang.org/pkg/time/#ParseDuration) 
+from 1 minute, e.g., to `30s`, start drand via
 
-To change the [duration](https://golang.org/pkg/time/#ParseDuration) of the
-randomness generation interval, e.g., to `30s`, start drand via
+```bash
+drand run \
+    --leader \
+    --period 30s \
+    --tls-cert </path/to/fullchain.pem> \
+    --tls-key </path/to/privkey.pem> \
 ```
-drand run --leader --period 30s --tls-cert <cert path> --tls-key <key path>
+
+**Note:** If a group file is provided at this point, the existing beacon
+database will be erased.
+
+### Public Services
+
+A drand beacon provides several public services to clients. Communication is
+protected through TLS by default. If the contacted node is using a self-signed
+certificate, the client can use the `--tls-cert` flag to specify the server's
+certificate.
+
+#### Fetching the Distributed Public Key 
+
+To retrieve the distributed public key of a drand beacon, execute
+
+```bash
+drand fetch dist_key <address>
 ```
 
-### Randomness Gathering
+where `<address>` is the address of a drand node.
 
-+ **Public Randomness**: To get the latest public beacon, run the following:
+#### Fetching Public Randomness
+
+To get the latest public random value, run
+
 ```bash
 drand fetch public --distkey dist_key.public <address>
 ```
-`dist_key.public` is the distributed key generated once the DKG phase completed,
-and `<address>` is the address of one drand node. By default, drand contacts
-the remote node **over TLS**. If the remote node is not using encrypted
-communications, then you can pass the `--insecure` flag. If the remote node is
-using a self signed certificate for example, you can use the `--tls-cert` option
-to specify the certificate of the server you wish to contact.
 
-The output will have the following JSON format:
+where `dist_key.public` is the distributed public key generated during the setup
+and `<address>` is the address of the drand node to be contacted.
+
+The JSON-formatted output produced by drand is of the following form:
+
 ```json
 {
-    "round": 2,
-    "previous_rand": "jnbvQ3LSxg8kp8qwpPO1u2F4ietJCZmMjJUQ1KDo4u94P57hN1K2mJk7oeiWU2Czb5pNqWy4u6vQH2fkqdoNgA==",
-    "randomness": "QqcL2Pncns2pKrSdfJw0RK6YFosLpP/44FUBF6Udf38uz5rHyVsZ8/XgElTdDLCpUDIm/DWIzltIzmqArZTjlQ=="
+    "idx": 2,
+    "prv": "jnbvQ3LSxg8kp8qwpPO1u2F4ietJCZmMjJUQ1KDo4u94P57hN1K2mJk7oeiWU2Czb5pNqWy4u6vQH2fkqdoNgA==",
+    "rnd": "QqcL2Pncns2pKrSdfJw0RK6YFosLpP/44FUBF6Udf38uz5rHyVsZ8/XgElTdDLCpUDIm/DWIzltIzmqArZTjlQ=="
 }
-
 ```
-The public random value is the field `signature`, which is a valid BLS
-signature. The signature is made over the concatenation of the `previous_sig`
-and the `timestamp` (uint64) field. If the signature is valid, that guarantees a
-threshold of drand nodes computed this signature without being able to bias the
-outcome.
 
-+ **Private Randomness**: To get a private random value, run the following:
+Here `rnd` is the latest random value, which is a threshold BLS signature on the
+previous random value `prv`. The field `idx` specifies the index of `rnd` in the
+sequence of all random values produced by this drand instance. Both `rnd` and
+`prv` are encoded in base64.
+
+#### Fetching Private Randomness
+
+To get a private random value, run
+
 ```bash
-drand fetch private <server_identity.toml>
+drand fetch private <server-identity.toml>
 ```
-will output
-```bash
+
+where `<server-identity.toml>` is the public identity file of a drand node.
+
+The JSON-formatted output produced by drand is of the following form:
+
+```json
 {
-    "randomness": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
+    "rnd": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
 }
 ```
-`<server_identity.toml>` is the public identity file of one of the server. It is
-useful to be able to encrypt both the request and response between the client
-and the server. Drand will contact the node over TLS if the identity file has
-the "TLS" variable set to `True`.  If the remote node is using a self signed
-certificate for example, you can use the `--tls-cert` option to specify the
-custom certificate.
 
+Here `rnd` is the 32-byte base64-encoded private random value produced by the
+contacted drand node. If the encryption is not correct, the command outputs an
+error instead.
 
-The command outputs a 32-byte base64-encoded random value coming from the local
-randomness engine of the contacted server. If the encryption is not correct, the
-command outputs an error instead.
+### Private Control Port
 
-### Control Port
+Drand provides an interface through which an administrator can interact with a
+running node, e.g., to update group details or retrieve secret information. This
+control port is only accessible via localhost.
 
-Unlike the randomness generation or its output, some actions or data must have restricted access. Thus the control functionalities define a set of administrator-level commands, only accessible from localhost. They allow the owner of a drand node to modify the running drand instance (such as adding a new member to the group, ...) and to access their private information.
+#### Retrieve Private Share
 
-#### Private Share
+To retrieve the private (DKG) key share run the following command:
 
-To get your private key share generated during the DKG phase, run the command :
 ```bash
 drand control share
 ```
-The output will have the following JSON format :
+
+The JSON-formatted output has the following form:
+
 ```json
 {
   "index" : 1,
@@ -291,34 +320,33 @@ The output will have the following JSON format :
 }
 ```
 
-## Learn More About The Crypto Magic Behind Drand
+## Cryptography used in Drand
 
 Drand relies on the following cryptographic constructions:
-- All drand protocols rely on [pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) using
-  an optimized implementation of the [Barreto-Naehrig curves](https://github.com/dfinity/bn).
-- For the setup of the distributed key, drand uses an implementation of
-  [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3).
-  There are more [advanced DKG protocols](https://eprint.iacr.org/2012/377.pdf) which we plan to implement in the future.
-- For the randomness generation, drand uses an implementation of threshold
-  [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf).
-- For the encryption used in the private randomness gathering, see the [ECIES
-  scheme](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme).
-- For a more general overview on generation of public randomness, see the
-  paper [Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf)
+
+- [Pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) and [Barreto-Naehrig curves](https://github.com/dfinity/bn).
+- [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3) for the setup.
+- Threshold [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf) for the generation of public randomness.
+- [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the encryption of private randomness.
+ 
+For a more general overview on generation of public randomness, see the paper 
+[Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf).
 
 ## What's Next?
 
-Although being already functional, drand is still at an early stage of
-development, so there's a lot left to be done. Feel free to submit feature or,
+Although being already functional, drand is still at an early development stage
+and there is a lot left to be done. Feel free to submit feature requests or,
 even better, pull requests. ;)
 
-+ dkg timeout
-+ interoperable different groups
-+ more unit tests
-+ reduce Docker size by building first and copy in fresh container
-+ systemd unit file
++ Support DKG timeouts
++ Add more unit tests
++ Reduce size of Docker
++ Add a systemd unit file
++ Support multiple drand instances within one node
++ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf)
 
 ## License
+
 The drand source code is released under MIT license, see the file
 [LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for the full text.
 
@@ -326,6 +354,7 @@ The drand source code is released under MIT license, see the file
 
 - Nicolas Gailly ([@nikkolasg1](https://twitter.com/nikkolasg1))
 - Philipp Jovanovic ([@daeinar](https://twitter.com/daeinar))
+- Mathilde Raynal
 
 ## Acknowledgments
 
