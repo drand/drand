@@ -109,14 +109,14 @@ func TestRunGroupInitBadPath(t *testing.T) {
 
 	//tests reaction to empty group path
 	emptyGroupPath := " "
-	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", emptyGroupPath, "--insecure")
+	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", emptyGroupPath, "--tls-disable")
 	out, err := cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.Error(t, err)
 
 	//tests reaction to a bad group path
 	wrongGroupPath := "not_here"
-	cmd = exec.Command("drand", "-c", tmpPath, "run", "--group-init", wrongGroupPath, "--insecure")
+	cmd = exec.Command("drand", "-c", tmpPath, "run", "--group-init", wrongGroupPath, "--tls-disable")
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.Error(t, err)
@@ -240,7 +240,7 @@ func TestRunWhitoutGroupfileBeforeDKG(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	//will try to run in beacon mode
-	cmd := exec.Command("drand", "-c", tmpPath, "run", "--insecure")
+	cmd := exec.Command("drand", "-c", tmpPath, "run", "--tls-disable")
 	out, err := cmd.Output()
 	expectedErr := "The DKG has not been run before, please provide a group file to do the setup."
 	output := string(out)
@@ -258,7 +258,7 @@ func TestRunGroupInit(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", groupPath, "--insecure")
+	cmd := exec.Command("drand", "-c", tmpPath, "run", "--group-init", groupPath, "--tls-disable")
 	cmd.Env = append(os.Environ(), varEnv+"=1")
 	err := cmd.Run()
 	if e, ok := err.(*exec.ExitError); ok && e.Success() {
@@ -370,7 +370,7 @@ func TestSharePort(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 	//test command
-	os.Args = []string{"drand", "--config", tmpPath, "run", "--insecure", "--group-init", groupPath, "--port", "8181"}
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--tls-disable", "--group-init", groupPath, "--port", "8181"}
 	go main()
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()

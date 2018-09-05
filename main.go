@@ -98,8 +98,8 @@ func main() {
 		Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
 	}
 	insecureFlag := cli.BoolFlag{
-		Name:  "insecure",
-		Usage: "indicates to use a non TLS server or connection",
+		Name:  "tls-disable, d",
+		Usage: "Disable TLS for all communications (not recommended).",
 	}
 	groupFlag := cli.StringFlag{
 		Name:  "group-init",
@@ -218,9 +218,9 @@ func main() {
 }
 
 func keygenCmd(c *cli.Context) error {
-	//x509 not available on windows: must run in insecure mode
-	if runtime.GOOS == "windows" && !c.Bool("insecure") {
-		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
+	//x509 not available on windows: must run without TLS
+	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
+		slog.Fatal("TLS is not available on Windows, please disable TLS")
 	}
 	args := c.Args()
 	if !args.Present() {
@@ -233,8 +233,8 @@ func keygenCmd(c *cli.Context) error {
 		addr = addr + ":" + askPort()
 	}
 	var priv *key.Pair
-	if c.Bool("insecure") {
-		slog.Info("Generating private / public key pair in INSECURE mode (no TLS).")
+	if c.Bool("tls-disable") {
+		slog.Info("Generating private / public key pair without TLS.")
 		priv = key.NewKeyPair(addr)
 	} else {
 		slog.Info("Generating private / public key pair with TLS indication")
@@ -361,9 +361,9 @@ func beaconCmd(c *cli.Context) error {
 }
 
 func runCmd(c *cli.Context) error {
-	//x509 not available on windows: must run in insecure mode
-	if runtime.GOOS == "windows" && !c.Bool("insecure") {
-		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
+	//x509 not available on windows: must run without TLS
+	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
+		slog.Fatal("TLS is not available on Windows, please disable TLS")
 	}
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
@@ -441,7 +441,7 @@ func fetchPublicCmd(c *cli.Context) error {
 		defaultManager.Add(c.String("tls-cert"))
 	}
 	client := core.NewGrpcClientFromCert(defaultManager)
-	resp, err := client.LastPublic(c.Args().First(), public, !c.Bool("insecure"))
+	resp, err := client.LastPublic(c.Args().First(), public, !c.Bool("tls-disable"))
 	if err != nil {
 		slog.Fatal("could not get verified randomness:", err)
 	}
@@ -462,7 +462,7 @@ func fetchDistKey(c *cli.Context) error {
 		defaultManager.Add(c.String("tls-cert"))
 	}
 	client := core.NewGrpcClientFromCert(defaultManager)
-	key, err := client.DistKey(c.Args().First(), !c.Bool("insecure"))
+	key, err := client.DistKey(c.Args().First(), !c.Bool("tls-disable"))
 	if err != nil {
 		slog.Fatal("could not fetch the distributed key from that server:", err)
 	}
@@ -511,10 +511,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 	period := c.Duration("period")
 	opts = append(opts, core.WithBeaconPeriod(period))
 
-	if c.Bool("insecure") {
+	if c.Bool("tls-disable") {
 		opts = append(opts, core.WithInsecure())
 		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
-			panic("option 'insecure' used with 'tls-cert' or 'tls-key': combination is not valid")
+			panic("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
 		}
 	} else {
 		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
