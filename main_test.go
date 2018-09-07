@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/test"
 
 	"github.com/stretchr/testify/require"
 )
@@ -29,4 +31,40 @@ func TestKeyGen(t *testing.T) {
 	priv, err := fs.LoadKeyPair()
 	require.Nil(t, err)
 	require.NotNil(t, priv.Public)
+}
+
+func TestStart(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	defer os.RemoveAll(tmpPath)
+	varEnv := "CRASHCRASH"
+	n := 5
+	_, group := test.BatchIdentities(n)
+	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	require.NoError(t, key.Save(groupPath, group, false))
+
+	cmd := exec.Command("drand", "--folder", tmpPath, "start", groupPath, "--tls-disable")
+	cmd.Env = append(os.Environ(), varEnv+"=1")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && e.Success() {
+		t.Fatal(err)
+	}
+}
+
+func TestStartBeacon(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	defer os.RemoveAll(tmpPath)
+	varEnv := "CRASHCRASH"
+	n := 5
+	_, group := test.BatchIdentities(n)
+	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	require.NoError(t, key.Save(groupPath, group, false))
+
+	cmd := exec.Command("drand", "--folder", tmpPath, "start", "--tls-disable")
+	cmd.Env = append(os.Environ(), varEnv+"=1")
+	err := cmd.Run()
+	if e, ok := err.(*exec.ExitError); ok && e.Success() {
+		t.Fatal(err)
+	}
 }

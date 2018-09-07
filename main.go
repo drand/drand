@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"os"
@@ -11,9 +12,11 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/core"
+	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
@@ -101,7 +104,7 @@ func main() {
 			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, verboseFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return XXX(c)
+				return startCmd(c)
 			},
 		},
 		cli.Command{
@@ -264,6 +267,41 @@ func testWindows(c *cli.Context) {
 	}
 }
 
+func startCmd(c *cli.Context) error {
+	testWindows(c)
+	conf := contextToConfig(c)
+	fs := key.NewFileStore(conf.ConfigFolder())
+	var drand *core.Drand
+	var err error
+	if c.Args().Present() {
+		group := getGroup(c)
+		if exit := resetBeaconDB(conf); exit {
+			os.Exit(0)
+		}
+		drand, err = core.NewDrand(fs, group, conf)
+		if err != nil {
+			slog.Fatal(err)
+		}
+		slog.Print("Starting the dkg first.")
+		runDkg(c, drand, fs)
+	} else {
+		_, errG := fs.LoadGroup()
+		_, errS := fs.LoadShare()
+		_, errD := fs.LoadDistPublic()
+		if errG != nil || errS != nil || errD != nil {
+			slog.Fatalf("The DKG has not been run before, please provide a group file to do the setup.")
+		}
+		slog.Print("No group file given, drand will try to run as a beacon.")
+		drand, err = core.LoadDrand(fs, conf)
+		if err != nil {
+			slog.Fatal(err)
+		}
+	}
+	slog.Print("Running the randomness beacon...")
+	drand.BeaconLoop()
+	return nil
+}
+
 func keygenCmd(c *cli.Context) error {
 	testWindows(c)
 	args := c.Args()
@@ -331,6 +369,59 @@ func askPort() string {
 		}
 		return askPort()
 	}
+}
+
+func getGroup(c *cli.Context) *key.Group {
+	g := &key.Group{}
+	if err := key.Load(c.Args().First(), g); err != nil {
+		slog.Fatal(err)
+	}
+	slog.Infof("group file loaded with %d participants", g.Len())
+	return g
+}
+
+func runDkg(c *cli.Context, d *core.Drand, ks key.Store) error {
+	var err error
+	if c.Bool("leader") {
+		err = d.StartDKG()
+	} else {
+		err = d.WaitDKG()
+	}
+	if err != nil {
+		slog.Fatal(err)
+	}
+	slog.Print("DKG setup finished!")
+	public, err := ks.LoadDistPublic()
+	if err != nil {
+		slog.Fatal(err)
+	}
+	dir := fs.Pwd()
+	p := path.Join(dir, dpublic)
+	key.Save(p, public, false)
+	slog.Print("distributed public key saved at ", p)
+	return nil
+}
+
+func resetBeaconDB(config *core.Config) bool {
+	if _, err := os.Stat(config.DBFolder()); err == nil {
+		// using fmt so does not get the new line at the end. XXX allow slog for that behavior
+		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
+		reader := bufio.NewReader(os.Stdin)
+		answer, err := reader.ReadString('\n')
+		if err != nil {
+			slog.Fatal("error reading: ", err)
+		}
+		answer = strings.ToLower(strings.TrimSpace(answer))
+		if answer != "y" {
+			slog.Print("Not deleting the database. Exiting drand.")
+			return true
+		}
+		if err := os.RemoveAll(config.DBFolder()); err != nil {
+			slog.Fatal(err)
+		}
+		slog.Print("Removed existing beacon database.")
+	}
+	return false
 }
 
 func contextToConfig(c *cli.Context) *core.Config {
