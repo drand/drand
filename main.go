@@ -3,10 +3,7 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -14,13 +11,10 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/core"
-	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -45,76 +39,83 @@ func banner() {
 func main() {
 	app := cli.NewApp()
 	app.Version = version
-	configFlag := cli.StringFlag{
-		Name:  "config, c",
+
+	// =====FLAGS=====
+
+	folderFlag := cli.StringFlag{
+		Name:  "folder, f",
 		Value: core.DefaultConfigFolder(),
 		Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
 	}
-	seedFlag := cli.StringFlag{
-		Name:  "seed",
-		Value: string(core.DefaultSeed),
-		Usage: "set the seed message of the first beacon produced",
-	}
-	periodFlag := cli.DurationFlag{
-		Name:  "period",
-		Value: core.DefaultBeaconPeriod,
-		Usage: "runs the beacon every `PERIOD`",
-	}
 	leaderFlag := cli.BoolFlag{
-		Name:  "leader",
-		Usage: "Leader is the first node to start the DKG protocol",
+		Name:  "leader, l",
+		Usage: "Set this node as the initator of the distributed key generation process.",
 	}
-	verboseFlag := cli.BoolFlag{
-		Name:  "debug, d",
-		Usage: "Use -d to log debug output",
+	verboseFlag := cli.IntFlag{
+		Name:  "verbose, V",
+		Value: 0,
+		Usage: "Set verbosity to the given level.",
 	}
-	listenFlag := cli.StringFlag{
-		Name:  "listen,l",
-		Usage: "listening (binding) address. Useful if you have some kind of proxy",
-	}
-	distKeyFlag := cli.StringFlag{
-		Name:  "public,p",
-		Usage: "the path of the public key file",
-	}
-	thresholdFlag := cli.IntFlag{
-		Name:  "threshold, t",
-		Usage: "threshold to apply for the group. Default is n/2 + 1.",
-	}
-	outFlag := cli.StringFlag{
-		Name:  "out, o",
-		Usage: "where to save either the group file or the distributed public key",
-	}
-
 	tlsCertFlag := cli.StringFlag{
-		Name:  "tls-cert",
-		Usage: "TLS certificate path to use",
+		Name: "tls-cert, c",
+		Usage: "Set the TLS certificate chain (in PEM format) for this drand node. " +
+			"The certificates have to be specified as a list of whitespace-separated file paths. " +
+			"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 	}
 	tlsKeyFlag := cli.StringFlag{
-		Name:  "tls-key",
-		Usage: "TLS private key to use by the server",
-	}
-	certsDirFlag := cli.StringFlag{
-		Name:  "certs-dir",
-		Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
+		Name: "tls-key, k",
+		Usage: "Set the TLS private key (in PEM format) for this drand node. " +
+			"The keys have to be specified as a list of whitespace-separated file paths. " +
+			"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 	}
 	insecureFlag := cli.BoolFlag{
 		Name:  "tls-disable, d",
 		Usage: "Disable TLS for all communications (not recommended).",
 	}
-	groupFlag := cli.StringFlag{
-		Name:  "group-init",
-		Usage: "the group file to use during the DKG. If specified, drand erases any existing beacon database, as it supports only being part of one group at a time.",
-	}
 	portFlag := cli.StringFlag{
 		Name:  "port",
-		Usage: "the port you want to listen to for control port commands",
+		Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
 	}
+	nodeFlag := cli.StringFlag{
+		Name:  "nodes, n",
+		Usage: "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
+	}
+	roundFlag := cli.IntFlag{
+		Name:  "round, r",
+		Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
+	}
+
+	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, certsDirFlag, listenFlag, distKeyFlag, thresholdFlag.
+
+	// =====Commands=====
 
 	app.Commands = []cli.Command{
 		cli.Command{
-			Name:      "keygen",
-			Usage:     "keygen <ADDRESS>. Generates longterm private key pair",
-			ArgsUsage: "ADDRESS is the public address for other nodes to contact",
+			Name: "start",
+			Usage: "Start the drand daemon.\nIf the distributed key generation has not been executed before," +
+				" the node waits to receive the signal from a leader to start the process of generating the collective public" +
+				" key drand.cokey and its private share drand.share together with the other nodes in group.toml.\nOtherwise, " +
+				"if there has been already a successful distributed key generation before, the node automatically switches to " +
+				"the public randomness generation mode after a potential state-syncing phase with the other nodes in group.toml.",
+			ArgsUsage: "<group.toml> the group file.",
+			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, verboseFlag),
+			Action: func(c *cli.Context) error {
+				banner()
+				return XXX(c)
+			},
+		},
+		cli.Command{
+			Name:  "stop",
+			Usage: "Stop the drand daemon.",
+			Action: func(c *cli.Context) error {
+				banner()
+				return XXX(c)
+			},
+		},
+		cli.Command{
+			Name:      "generate-keypair",
+			Usage:     "Generate the longterm keypair (drand.private, drand.public) for this node.",
+			ArgsUsage: "<address> is the public address for other nodes to contact",
 			Flags:     toArray(insecureFlag),
 			Action: func(c *cli.Context) error {
 				banner()
@@ -122,106 +123,149 @@ func main() {
 			},
 		},
 		cli.Command{
-			Name:      "group",
-			Usage:     "Create the group toml from individual public keys",
-			ArgsUsage: "<id1 id2 id3...> must be the identities of the group to create",
-			Flags:     toArray(thresholdFlag, outFlag),
+			Name: "group",
+			Usage: "Merge the given list of whitespace-separated drand.public keys into the group.toml " +
+				"file if one is provided, if not create a new group.toml file with the given identites.",
+			ArgsUsage: "<key1 key2 key3...> must be the identities of the group to create/to insert into the group",
 			Action: func(c *cli.Context) error {
 				banner()
-				return groupCmd(c)
+				return XXX(c)
 			},
 		},
 		cli.Command{
-			Name:  "dkg",
-			Usage: "Run the DKG protocol",
-			Flags: toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, groupFlag),
+			Name: "update",
+			Usage: "Reshare the distributed key from the original set of nodes (old-group.toml) towards " +
+				"a new set (new-group.toml).\nTo execute this resharing at least t-of-n nodes from the original group have " +
+				"to be present. The new configuration can deviate arbitrarily from the old one including a different " +
+				"number of nodes n' or recovery threshold t'.\nAfter the resharing has been finished successfully, all " +
+				"nodes in the new group switch to the public randomness generation mode while all nodes in the original " +
+				"group delete their outdated private key shares.",
+			ArgsUsage: "<ld-group.toml> <new-group.toml>",
+			Flags:     toArray(leaderFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return dkgCmd(c)
-			},
-		},
-		cli.Command{
-			Name:  "beacon",
-			Usage: "Run the beacon protocol",
-			Flags: toArray(periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag),
-			Action: func(c *cli.Context) error {
-				banner()
-				return beaconCmd(c)
-			},
-		},
-		cli.Command{
-			Name:  "run",
-			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
-			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag, portFlag),
-			Action: func(c *cli.Context) error {
-				banner()
-				return runCmd(c)
+				return XXX(c)
 			},
 		},
 		{
-			Name:    "fetch",
-			Aliases: []string{"f"},
-			Usage:   "fetch some randomness",
+			Name:  "get",
+			Usage: "Interactions with a remote drand node.",
 			Subcommands: []cli.Command{
 				{
-					Name:      "public",
-					Usage:     "Fetch a public verifiable and unbiasable randomness value",
-					ArgsUsage: "<server address> address of the server to contact",
-					Flags:     toArray(distKeyFlag, tlsCertFlag, insecureFlag, certsDirFlag),
+					Name: "private",
+					Usage: "Get private randomness from the drand beacon as specified in group.toml. " +
+						"Only one node is contacted by default. Requests are ECIES-encrypted towards the public " +
+						"key of the contacted node. This command attempts to connect to	the drand beacon via TLS " +
+						"and falls back to plaintext communication if the	contacted node has not activated TLS in " +
+						"which case it prints a warning.",
+					ArgsUsage: "<group.toml> provides the group informations of the node that we are trying to contact.",
+					Flags:     toArray(tlsCertFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return fetchPublicCmd(c)
+						return XXX(c)
 					},
 				},
 				{
-					Name:      "private",
-					Usage:     "Fetch a private randomness from a server. Request and response are encrypted",
-					ArgsUsage: "<identity file> identity file of the remote server",
-					Flags:     toArray(tlsCertFlag, certsDirFlag),
+					Name: "public",
+					Usage: "Get the latest public randomness from the drand beacon and verify it against the " +
+						"collective public key as specified in group.toml. Only one node is	contacted by default. This " +
+						"command attempts to connect to the drand beacon via TLS and falls back to plaintext communication " +
+						"if the contacted node has not activated TLS in which case it prints a warning.",
+					Flags: toArray(tlsCertFlag, insecureFlag, roundFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return fetchPrivateCmd(c)
+						return XXX(c)
 					},
 				},
 				{
-					Name:      "dist_key",
-					Usage:     "Fetch the distributed public key from a server.",
-					ArgsUsage: "<server address> address of the server to contact",
-					Flags:     toArray(tlsCertFlag, certsDirFlag, insecureFlag),
+					Name:      "cokey",
+					Usage:     "Get distributed key generated dring the DKG step.",
+					ArgsUsage: "<group.toml> provides the group informations of the node that we are trying to contact.",
+					Flags:     toArray(tlsCertFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return fetchDistKey(c)
+						return XXX(c)
 					},
 				},
 			},
 		},
 		{
-			Name:  "control",
-			Usage: "doing secret stuff locally",
+			Name: "show",
+			Usage: "Print the information about the collective public key (drand.cokey), the " +
+				"group details (group.toml), the long-term private key (drand.private), the long-term " +
+				"public key (drand.public), or the private key share (drand.share), respectively.",
+			Flags: toArray(portFlag),
 			Subcommands: []cli.Command{
 				{
-					Name:  "share",
-					Usage: "Returns the private share of a node.",
-					Flags: toArray(portFlag),
+					Name: "share",
 					Action: func(c *cli.Context) error {
-						return controlShare(c)
+						return XXX(c)
+					},
+				},
+				{
+					Name:  "group",
+					Usage: "Returns the gourp.toml.",
+					Action: func(c *cli.Context) error {
+						return XXX(c)
+					},
+				},
+				{
+					Name:  "cokey",
+					Usage: "Returns the collective key generated during DKG.",
+					Action: func(c *cli.Context) error {
+						return XXX(c)
+					},
+				},
+				{
+					Name:  "private",
+					Usage: "Returns the long-term private key of a node.",
+					Action: func(c *cli.Context) error {
+						return XXX(c)
+					},
+				},
+				{
+					Name:  "public",
+					Usage: "Returns the long-term public key of a node.",
+					Action: func(c *cli.Context) error {
+						return XXX(c)
 					},
 				},
 			},
 		},
 	}
-	app.Flags = toArray(verboseFlag, configFlag)
+	app.Flags = toArray(verboseFlag, folderFlag)
 	app.Before = func(c *cli.Context) error {
-		if c.GlobalIsSet("debug") {
-			slog.Level = slog.LevelDebug
+		if c.GlobalIsSet("verbose") {
+			if c.Int("verbose") == 1 {
+				slog.Level = slog.LevelInfo
+			}
+			if c.Int("verbose") == 2 {
+				slog.Level = slog.LevelPrint
+			}
+			if c.Int("verbose") == 3 {
+				slog.Level = slog.LevelDebug
+			}
 		}
 		return nil
 	}
 	app.Run(os.Args)
 }
 
-func keygenCmd(c *cli.Context) error {
+// XXX deleted commands : dkg, beacon
+
+// =====Functions=====
+
+func XXX(c *cli.Context) error {
+	slog.Print("not implemented yet")
+	return nil
+}
+
+func testWindows(c *cli.Context) {
 	//x509 not available on windows: must run without TLS
 	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
 		slog.Fatal("TLS is not available on Windows, please disable TLS")
 	}
+}
+
+func keygenCmd(c *cli.Context) error {
+	testWindows(c)
 	args := c.Args()
 	if !args.Present() {
 		slog.Fatal("Missing drand address in argument (IPv4, dns)")
@@ -269,310 +313,11 @@ func keygenCmd(c *cli.Context) error {
 	return nil
 }
 
-// groupCmd reads the identity, check the threshold and outputs the group.toml
-// file
-func groupCmd(c *cli.Context) error {
-	args := c.Args()
-	if !args.Present() {
-		slog.Fatal("missing identity file to create the group.toml")
-	}
-	if c.NArg() < 3 {
-		slog.Fatal("not enough identities (", c.NArg(), ") to create a group toml. At least 3!")
-	}
-	var threshold = key.DefaultThreshold(c.NArg())
-	if c.IsSet("threshold") {
-		if c.Int("threshold") < threshold {
-			slog.Print("WARNING: You are using a threshold which is TOO LOW.")
-			slog.Print("		 It should be at least ", threshold)
-		}
-		threshold = c.Int("threshold")
-	}
-
-	publics := make([]*key.Identity, c.NArg())
-	for i, str := range args {
-		pub := &key.Identity{}
-		slog.Print("Reading public identity from ", str)
-		if err := key.Load(str, pub); err != nil {
-			slog.Fatal(err)
-		}
-		publics[i] = pub
-	}
-	group := key.NewGroup(publics, threshold)
-	groupPath := path.Join(fs.Pwd(), gname)
-	if c.String("out") != "" {
-		groupPath = c.String("out")
-	}
-	if err := key.Save(groupPath, group, false); err != nil {
-		slog.Fatal(err)
-	}
-	slog.Printf("Group file written in %s. Distribute it to all the participants to start the DKG", groupPath)
-	return nil
-}
-
-func dkgCmd(c *cli.Context) error {
-	if !c.IsSet("group-init") {
-		slog.Fatal("dkg requires a group.toml file")
-	}
-	group := getGroup(c)
-	conf := contextToConfig(c)
-	if exit := resetBeaconDB(conf); exit {
-		os.Exit(0)
-	}
-	fs := key.NewFileStore(conf.ConfigFolder())
-	drand, err := core.NewDrand(fs, group, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	return runDkg(c, drand, fs)
-}
-
-func runDkg(c *cli.Context, d *core.Drand, ks key.Store) error {
-	var err error
-	if c.Bool("leader") {
-		err = d.StartDKG()
-	} else {
-		err = d.WaitDKG()
-	}
-	if err != nil {
-		slog.Fatal(err)
-	}
-	slog.Print("DKG setup finished!")
-
-	public, err := ks.LoadDistPublic()
-	if err != nil {
-		slog.Fatal(err)
-	}
-	dir := fs.Pwd()
-	p := path.Join(dir, dpublic)
-	key.Save(p, public, false)
-	slog.Print("distributed public key saved at ", p)
-	return nil
-}
-
-func beaconCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	drand, err := core.LoadDrand(fs, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	drand.BeaconLoop()
-	return nil
-}
-
-func runCmd(c *cli.Context) error {
-	//x509 not available on windows: must run without TLS
-	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
-		slog.Fatal("TLS is not available on Windows, please disable TLS")
-	}
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	var drand *core.Drand
-	var err error
-	if c.IsSet("group-init") {
-		group := getGroup(c)
-		if exit := resetBeaconDB(conf); exit {
-			os.Exit(0)
-		}
-		drand, err = core.NewDrand(fs, group, conf)
-		if err != nil {
-			slog.Fatal(err)
-		}
-		slog.Print("Starting the dkg first.")
-		runDkg(c, drand, fs)
-	} else {
-		_, errG := fs.LoadGroup()
-		_, errS := fs.LoadShare()
-		_, errD := fs.LoadDistPublic()
-		if errG != nil || errS != nil || errD != nil {
-			slog.Fatalf("The DKG has not been run before, please provide a group file to do the setup.")
-		}
-		slog.Print("No group file given, drand will try to run as a beacon.")
-		drand, err = core.LoadDrand(fs, conf)
-		if err != nil {
-			slog.Fatal(err)
-		}
-	}
-	slog.Print("Running the randomness beacon...")
-	drand.BeaconLoop()
-	return nil
-}
-
-func fetchPrivateCmd(c *cli.Context) error {
-	if c.NArg() < 1 {
-		slog.Fatal("fetch private takes the identity file of a server to contact")
-	}
-	public := &key.Identity{}
-	if err := key.Load(c.Args().First(), public); err != nil {
-		slog.Fatal(err)
-	}
-	slog.Info("contacting public drand node: ", public.Address())
-	defaultManager := net.NewCertManager()
-	if c.IsSet("tls-cert") {
-		defaultManager.Add(c.String("tls-cert"))
-	}
-	client := core.NewGrpcClientFromCert(defaultManager)
-	resp, err := client.Private(public)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	type private struct {
-		Randomness []byte `json:"randomness"`
-	}
-	buff, err := json.MarshalIndent(&private{resp}, "", "    ")
-	if err != nil {
-		slog.Fatal("could not JSON marshal:", err)
-	}
-	slog.Print(string(buff))
-	return nil
-}
-
-func fetchPublicCmd(c *cli.Context) error {
-	if c.NArg() < 1 {
-		slog.Fatal("fetch command takes the address of a server to contact")
-	}
-
-	public := &key.DistPublic{}
-	if err := key.Load(c.String("public"), public); err != nil {
-		slog.Fatal(err)
-	}
-	defaultManager := net.NewCertManager()
-	if c.IsSet("tls-cert") {
-		defaultManager.Add(c.String("tls-cert"))
-	}
-	client := core.NewGrpcClientFromCert(defaultManager)
-	resp, err := client.LastPublic(c.Args().First(), public, !c.Bool("tls-disable"))
-	if err != nil {
-		slog.Fatal("could not get verified randomness:", err)
-	}
-	buff, err := json.MarshalIndent(resp, "", "    ")
-	if err != nil {
-		slog.Fatal("could not JSON marshal:", err)
-	}
-	slog.Print(string(buff))
-	return nil
-}
-
-func fetchDistKey(c *cli.Context) error {
-	if c.NArg() < 1 {
-		slog.Fatal("fetch dist_key command takes the address of a server to contact")
-	}
-	defaultManager := net.NewCertManager()
-	if c.IsSet("tls-cert") {
-		defaultManager.Add(c.String("tls-cert"))
-	}
-	client := core.NewGrpcClientFromCert(defaultManager)
-	key, err := client.DistKey(c.Args().First(), !c.Bool("tls-disable"))
-	if err != nil {
-		slog.Fatal("could not fetch the distributed key from that server:", err)
-	}
-	b, _ := key.MarshalBinary()
-	dst := make([]byte, hex.EncodedLen(len(b)))
-	hex.Encode(dst, b)
-	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
-	return nil
-}
-
-func controlShare(c *cli.Context) error {
-	port := c.String("port")
-	if port == "" {
-		port = core.DefaultControlPort
-	}
-	client := net.NewControlClient(port)
-	resp, err := client.Share()
-	if err != nil {
-		slog.Fatalf("drand: could not request the share: %s", err)
-	}
-	buff, err := json.MarshalIndent(resp, "", "    ")
-	if err != nil {
-		slog.Fatal("could not JSON marshal:", err)
-	}
-	slog.Print(string(buff))
-	return nil
-}
-
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
 
-func contextToConfig(c *cli.Context) *core.Config {
-	var opts []core.ConfigOption
-	listen := c.String("listen")
-	if listen != "" {
-		opts = append(opts, core.WithListenAddress(listen))
-	}
-	port := c.String("port")
-	if port != "" {
-		opts = append(opts, core.WithControlPort(port))
-	}
-
-	config := c.GlobalString("config")
-	opts = append(opts, core.WithConfigFolder(config))
-	period := c.Duration("period")
-	opts = append(opts, core.WithBeaconPeriod(period))
-
-	if c.Bool("tls-disable") {
-		opts = append(opts, core.WithInsecure())
-		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
-			panic("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
-		}
-	} else {
-		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
-		opts = append(opts, core.WithTLS(certPath, keyPath))
-	}
-
-	if c.IsSet("certs-dir") {
-		paths, err := fs.Files(c.String("certs-dir"))
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("certs-dirs files: ", strings.Join(paths, ","))
-		opts = append(opts, core.WithTrustedCerts(paths...))
-	}
-
-	if c.IsSet("certs-dir") {
-		core.WithTrustedCerts(c.String("certs-dir"))
-	}
-
-	conf := core.NewConfig(opts...)
-	return conf
-}
-
-func getGroup(c *cli.Context) *key.Group {
-	g := &key.Group{}
-	if err := key.Load(c.String("group-init"), g); err != nil {
-		slog.Fatal(err)
-	}
-	slog.Infof("group file loaded with %d participants", g.Len())
-	return g
-}
-
-func resetBeaconDB(config *core.Config) bool {
-	if _, err := os.Stat(config.DBFolder()); err == nil {
-		// using fmt so does not get the new line at the end.
-		// XXX allow slog for that behavior
-		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
-		reader := bufio.NewReader(os.Stdin)
-		answer, err := reader.ReadString('\n')
-		if err != nil {
-			slog.Fatal("error reading: ", err)
-		}
-		answer = strings.ToLower(strings.TrimSpace(answer))
-		if answer != "y" {
-			slog.Print("Not deleting the database. Exiting drand.")
-			return true
-		}
-
-		if err := os.RemoveAll(config.DBFolder()); err != nil {
-			slog.Fatal(err)
-		}
-		slog.Print("Removed existing beacon database.")
-	}
-	return false
-}
-
 func askPort() string {
-	//slog.Print("asking for port")
 	for {
 		var port string
 		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
@@ -586,4 +331,22 @@ func askPort() string {
 		}
 		return askPort()
 	}
+}
+
+func contextToConfig(c *cli.Context) *core.Config {
+	var opts []core.ConfigOption
+	config := c.GlobalString("folder")
+	opts = append(opts, core.WithConfigFolder(config))
+
+	if c.Bool("tls-disable") {
+		opts = append(opts, core.WithInsecure())
+		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
+			panic("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
+		}
+	} else {
+		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
+		opts = append(opts, core.WithTLS(certPath, keyPath))
+	}
+	conf := core.NewConfig(opts...)
+	return conf
 }
