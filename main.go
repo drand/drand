@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -18,6 +19,7 @@ import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/net"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -30,7 +32,7 @@ var (
 
 const gname = "group.toml"
 const dpublic = "dist_key.public"
-const default_port = "8080"
+const defaultListenPort = "8080"
 
 func banner() {
 	fmt.Printf("drand v%s by nikkolasg @ DEDIS\n", version)
@@ -51,7 +53,7 @@ func main() {
 		Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
 	}
 	leaderFlag := cli.BoolFlag{
-		Name:  "leader, l",
+		Name:  "leader",
 		Usage: "Set this node as the initator of the distributed key generation process.",
 	}
 	verboseFlag := cli.IntFlag{
@@ -79,6 +81,10 @@ func main() {
 		Name:  "port",
 		Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
 	}
+	listenFlag := cli.StringFlag{
+		Name:  "listen, l",
+		Usage: "Set the listening (binding) address. Useful if you have some kind of proxy.",
+	}
 	nodeFlag := cli.StringFlag{
 		Name:  "nodes, n",
 		Usage: "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
@@ -88,7 +94,7 @@ func main() {
 		Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
 	}
 
-	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, certsDirFlag, listenFlag, distKeyFlag, thresholdFlag.
+	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, certsDirFlag, distKeyFlag, thresholdFlag.
 
 	// =====Commands=====
 
@@ -101,7 +107,7 @@ func main() {
 				"if there has been already a successful distributed key generation before, the node automatically switches to " +
 				"the public randomness generation mode after a potential state-syncing phase with the other nodes in group.toml.",
 			ArgsUsage: "<group.toml> the group file.",
-			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, verboseFlag),
+			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, listenFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -112,7 +118,7 @@ func main() {
 			Usage: "Stop the drand daemon.",
 			Action: func(c *cli.Context) error {
 				banner()
-				return XXX(c)
+				return stopCmd(c)
 			},
 		},
 		cli.Command{
@@ -164,7 +170,7 @@ func main() {
 					ArgsUsage: "<group.toml> provides the group informations of the node that we are trying to contact.",
 					Flags:     toArray(tlsCertFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return getPrivateCmd(c)
 					},
 				},
 				{
@@ -302,6 +308,18 @@ func startCmd(c *cli.Context) error {
 	return nil
 }
 
+func stopCmd(c *cli.Context) error {
+	conf := contextToConfig(c)
+	fs := key.NewFileStore(conf.ConfigFolder())
+	var drand *core.Drand
+	drand, err := core.LoadDrand(fs, conf)
+	if err != nil {
+		slog.Fatal(err)
+	}
+	drand.Stop()
+	return nil
+}
+
 func keygenCmd(c *cli.Context) error {
 	testWindows(c)
 	args := c.Args()
@@ -351,6 +369,37 @@ func keygenCmd(c *cli.Context) error {
 	return nil
 }
 
+// getPrivateCmd constructs a *key.Identity struct and uses grpc com
+func getPrivateCmd(c *cli.Context) error {
+	if !c.Args().Present() {
+		slog.Fatal("Get private takes a group file as argument.")
+	}
+	if !c.IsSet("nodes") {
+		slog.Fatal("Get private needs to know the address of the server to contact.")
+	}
+	defaultManager := net.NewCertManager()
+	if c.IsSet("tls-cert") {
+		defaultManager.Add(c.String("tls-cert"))
+	}
+	addr := c.String("nodes")
+	group := getGroup(c)
+	public := keyIdFromAddr(addr, group)
+	client := core.NewGrpcClientFromCert(defaultManager)
+	resp, err := client.Private(public)
+	if err != nil {
+		slog.Fatal(err)
+	}
+	type private struct {
+		Randomness []byte `json:"randomness"`
+	}
+	buff, err := json.MarshalIndent(&private{resp}, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
+	return nil
+}
+
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
@@ -361,7 +410,7 @@ func askPort() string {
 		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
 		fmt.Scanf("%s\n", &port)
 		if port == "" {
-			return default_port
+			return defaultListenPort
 		}
 		_, err := strconv.Atoi(port)
 		if len(port) > 2 && len(port) < 5 && err == nil {
@@ -405,7 +454,7 @@ func runDkg(c *cli.Context, d *core.Drand, ks key.Store) error {
 func resetBeaconDB(config *core.Config) bool {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		// using fmt so does not get the new line at the end. XXX allow slog for that behavior
-		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
+		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [y/n]: ")
 		reader := bufio.NewReader(os.Stdin)
 		answer, err := reader.ReadString('\n')
 		if err != nil {
@@ -424,8 +473,28 @@ func resetBeaconDB(config *core.Config) bool {
 	return false
 }
 
+// keyIdFromAddr looks at every node in the group file to retrieve to *key.Identity
+func keyIdFromAddr(addr string, group *key.Group) *key.Identity {
+	ids := group.Identities()
+	for _, id := range ids {
+		if id.Address() == addr {
+			return id
+		}
+	}
+	slog.Fatal("Could not retrive the node you are trying to contact in the group file.")
+	return nil
+}
+
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
+	listen := c.String("listen")
+	if listen != "" {
+		opts = append(opts, core.WithListenAddress(listen))
+	}
+	port := c.String("port")
+	if port != "" {
+		opts = append(opts, core.WithControlPort(port))
+	}
 	config := c.GlobalString("folder")
 	opts = append(opts, core.WithConfigFolder(config))
 

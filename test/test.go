@@ -3,11 +3,14 @@
 package test
 
 import (
+	"encoding/hex"
 	n "net"
 	"strconv"
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/pairing/bn256"
 )
 
 type testPeer struct {
@@ -101,4 +104,15 @@ func ListFromPrivates(keys []*key.Pair) []*key.Identity {
 	}
 	return list
 
+}
+
+func StringToPoint(s string) (kyber.Point, error) {
+	pairing := bn256.NewSuite()
+	g := pairing.G2()
+	buff, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	p := g.Point()
+	return p, p.UnmarshalBinary(buff)
 }
