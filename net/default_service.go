@@ -66,3 +66,24 @@ func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest
 		return s.C.Share(c, in)
 	}
 }
+func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+	if s.C == nil {
+		return &control.PublicKeyResponse{}, nil
+	} else {
+		return s.C.PublicKey(c, in)
+	}
+}
+func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
+	if s.C == nil {
+		return &control.PrivateKeyResponse{}, nil
+	} else {
+		return s.C.PrivateKey(c, in)
+	}
+}
+func (s *DefaultControlServer) CollectiveKey(c context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+	if s.C == nil {
+		return &control.CokeyResponse{}, nil
+	} else {
+		return s.C.CollectiveKey(c, in)
+	}
+}

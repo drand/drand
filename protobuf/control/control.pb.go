@@ -24,7 +24,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-// Sharerequest requests the private share of a drand node
+// ShareRequest requests the private share of a drand node
 type ShareRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -35,7 +35,7 @@ func (m *ShareRequest) Reset()         { *m = ShareRequest{} }
 func (m *ShareRequest) String() string { return proto.CompactTextString(m) }
 func (*ShareRequest) ProtoMessage()    {}
 func (*ShareRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_464c29c3a0e9167b, []int{0}
+	return fileDescriptor_control_5fb05b86c2376231, []int{0}
 }
 func (m *ShareRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShareRequest.Unmarshal(m, b)
@@ -55,7 +55,7 @@ func (m *ShareRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ShareRequest proto.InternalMessageInfo
 
-// ShareResponse holds the private share of a srand node
+// ShareResponse holds the private share of a drand node
 type ShareResponse struct {
 	Index                uint32         `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
 	Share                *crypto.Scalar `protobuf:"bytes,2,opt,name=share,proto3" json:"share,omitempty"`
@@ -68,7 +68,7 @@ func (m *ShareResponse) Reset()         { *m = ShareResponse{} }
 func (m *ShareResponse) String() string { return proto.CompactTextString(m) }
 func (*ShareResponse) ProtoMessage()    {}
 func (*ShareResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_464c29c3a0e9167b, []int{1}
+	return fileDescriptor_control_5fb05b86c2376231, []int{1}
 }
 func (m *ShareResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShareResponse.Unmarshal(m, b)
@@ -102,9 +102,225 @@ func (m *ShareResponse) GetShare() *crypto.Scalar {
 	return nil
 }
 
+// PublicKeyRequest requests the public key of a drand node
+type PublicKeyRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PublicKeyRequest) Reset()         { *m = PublicKeyRequest{} }
+func (m *PublicKeyRequest) String() string { return proto.CompactTextString(m) }
+func (*PublicKeyRequest) ProtoMessage()    {}
+func (*PublicKeyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_5fb05b86c2376231, []int{2}
+}
+func (m *PublicKeyRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PublicKeyRequest.Unmarshal(m, b)
+}
+func (m *PublicKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PublicKeyRequest.Marshal(b, m, deterministic)
+}
+func (dst *PublicKeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PublicKeyRequest.Merge(dst, src)
+}
+func (m *PublicKeyRequest) XXX_Size() int {
+	return xxx_messageInfo_PublicKeyRequest.Size(m)
+}
+func (m *PublicKeyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PublicKeyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PublicKeyRequest proto.InternalMessageInfo
+
+// PublicKeyResponse holds the public key of a drand node
+type PublicKeyResponse struct {
+	PubKey               *crypto.Point `protobuf:"bytes,1,opt,name=pubKey,proto3" json:"pubKey,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *PublicKeyResponse) Reset()         { *m = PublicKeyResponse{} }
+func (m *PublicKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*PublicKeyResponse) ProtoMessage()    {}
+func (*PublicKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_5fb05b86c2376231, []int{3}
+}
+func (m *PublicKeyResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PublicKeyResponse.Unmarshal(m, b)
+}
+func (m *PublicKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PublicKeyResponse.Marshal(b, m, deterministic)
+}
+func (dst *PublicKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PublicKeyResponse.Merge(dst, src)
+}
+func (m *PublicKeyResponse) XXX_Size() int {
+	return xxx_messageInfo_PublicKeyResponse.Size(m)
+}
+func (m *PublicKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PublicKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PublicKeyResponse proto.InternalMessageInfo
+
+func (m *PublicKeyResponse) GetPubKey() *crypto.Point {
+	if m != nil {
+		return m.PubKey
+	}
+	return nil
+}
+
+// PrivateKeyRequest requests the private key of a drand node
+type PrivateKeyRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *PrivateKeyRequest) Reset()         { *m = PrivateKeyRequest{} }
+func (m *PrivateKeyRequest) String() string { return proto.CompactTextString(m) }
+func (*PrivateKeyRequest) ProtoMessage()    {}
+func (*PrivateKeyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_5fb05b86c2376231, []int{4}
+}
+func (m *PrivateKeyRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PrivateKeyRequest.Unmarshal(m, b)
+}
+func (m *PrivateKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PrivateKeyRequest.Marshal(b, m, deterministic)
+}
+func (dst *PrivateKeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PrivateKeyRequest.Merge(dst, src)
+}
+func (m *PrivateKeyRequest) XXX_Size() int {
+	return xxx_messageInfo_PrivateKeyRequest.Size(m)
+}
+func (m *PrivateKeyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PrivateKeyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PrivateKeyRequest proto.InternalMessageInfo
+
+// PrivateKeyResponse holds the private key of a drand node
+type PrivateKeyResponse struct {
+	PriKey               *crypto.Scalar `protobuf:"bytes,1,opt,name=priKey,proto3" json:"priKey,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
+}
+
+func (m *PrivateKeyResponse) Reset()         { *m = PrivateKeyResponse{} }
+func (m *PrivateKeyResponse) String() string { return proto.CompactTextString(m) }
+func (*PrivateKeyResponse) ProtoMessage()    {}
+func (*PrivateKeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_5fb05b86c2376231, []int{5}
+}
+func (m *PrivateKeyResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PrivateKeyResponse.Unmarshal(m, b)
+}
+func (m *PrivateKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PrivateKeyResponse.Marshal(b, m, deterministic)
+}
+func (dst *PrivateKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PrivateKeyResponse.Merge(dst, src)
+}
+func (m *PrivateKeyResponse) XXX_Size() int {
+	return xxx_messageInfo_PrivateKeyResponse.Size(m)
+}
+func (m *PrivateKeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PrivateKeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PrivateKeyResponse proto.InternalMessageInfo
+
+func (m *PrivateKeyResponse) GetPriKey() *crypto.Scalar {
+	if m != nil {
+		return m.PriKey
+	}
+	return nil
+}
+
+// CokeyRequest requests the collective key of a drand node
+type CokeyRequest struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *CokeyRequest) Reset()         { *m = CokeyRequest{} }
+func (m *CokeyRequest) String() string { return proto.CompactTextString(m) }
+func (*CokeyRequest) ProtoMessage()    {}
+func (*CokeyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_5fb05b86c2376231, []int{6}
+}
+func (m *CokeyRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CokeyRequest.Unmarshal(m, b)
+}
+func (m *CokeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CokeyRequest.Marshal(b, m, deterministic)
+}
+func (dst *CokeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CokeyRequest.Merge(dst, src)
+}
+func (m *CokeyRequest) XXX_Size() int {
+	return xxx_messageInfo_CokeyRequest.Size(m)
+}
+func (m *CokeyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CokeyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CokeyRequest proto.InternalMessageInfo
+
+// CokeyResponse holds the collective key of a drand node
+type CokeyResponse struct {
+	CoKey                *crypto.Point `protobuf:"bytes,1,opt,name=coKey,proto3" json:"coKey,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *CokeyResponse) Reset()         { *m = CokeyResponse{} }
+func (m *CokeyResponse) String() string { return proto.CompactTextString(m) }
+func (*CokeyResponse) ProtoMessage()    {}
+func (*CokeyResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_5fb05b86c2376231, []int{7}
+}
+func (m *CokeyResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_CokeyResponse.Unmarshal(m, b)
+}
+func (m *CokeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_CokeyResponse.Marshal(b, m, deterministic)
+}
+func (dst *CokeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CokeyResponse.Merge(dst, src)
+}
+func (m *CokeyResponse) XXX_Size() int {
+	return xxx_messageInfo_CokeyResponse.Size(m)
+}
+func (m *CokeyResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CokeyResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_CokeyResponse proto.InternalMessageInfo
+
+func (m *CokeyResponse) GetCoKey() *crypto.Point {
+	if m != nil {
+		return m.CoKey
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*ShareRequest)(nil), "control.ShareRequest")
 	proto.RegisterType((*ShareResponse)(nil), "control.ShareResponse")
+	proto.RegisterType((*PublicKeyRequest)(nil), "control.PublicKeyRequest")
+	proto.RegisterType((*PublicKeyResponse)(nil), "control.PublicKeyResponse")
+	proto.RegisterType((*PrivateKeyRequest)(nil), "control.PrivateKeyRequest")
+	proto.RegisterType((*PrivateKeyResponse)(nil), "control.PrivateKeyResponse")
+	proto.RegisterType((*CokeyRequest)(nil), "control.CokeyRequest")
+	proto.RegisterType((*CokeyResponse)(nil), "control.CokeyResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -120,6 +336,9 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ControlClient interface {
 	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
+	PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error)
+	PrivateKey(ctx context.Context, in *PrivateKeyRequest, opts ...grpc.CallOption) (*PrivateKeyResponse, error)
+	CollectiveKey(ctx context.Context, in *CokeyRequest, opts ...grpc.CallOption) (*CokeyResponse, error)
 }
 
 type controlClient struct {
@@ -139,9 +358,39 @@ func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grp
 	return out, nil
 }
 
+func (c *controlClient) PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error) {
+	out := new(PublicKeyResponse)
+	err := c.cc.Invoke(ctx, "/control.Control/PublicKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) PrivateKey(ctx context.Context, in *PrivateKeyRequest, opts ...grpc.CallOption) (*PrivateKeyResponse, error) {
+	out := new(PrivateKeyResponse)
+	err := c.cc.Invoke(ctx, "/control.Control/PrivateKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) CollectiveKey(ctx context.Context, in *CokeyRequest, opts ...grpc.CallOption) (*CokeyResponse, error) {
+	out := new(CokeyResponse)
+	err := c.cc.Invoke(ctx, "/control.Control/CollectiveKey", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlServer is the server API for Control service.
 type ControlServer interface {
 	Share(context.Context, *ShareRequest) (*ShareResponse, error)
+	PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error)
+	PrivateKey(context.Context, *PrivateKeyRequest) (*PrivateKeyResponse, error)
+	CollectiveKey(context.Context, *CokeyRequest) (*CokeyResponse, error)
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
@@ -166,6 +415,60 @@ func _Control_Share_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Control_PublicKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublicKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).PublicKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/PublicKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).PublicKey(ctx, req.(*PublicKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_PrivateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PrivateKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).PrivateKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/PrivateKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).PrivateKey(ctx, req.(*PrivateKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_CollectiveKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CokeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).CollectiveKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/CollectiveKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).CollectiveKey(ctx, req.(*CokeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Control_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "control.Control",
 	HandlerType: (*ControlServer)(nil),
@@ -174,26 +477,48 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 			MethodName: "Share",
 			Handler:    _Control_Share_Handler,
 		},
+		{
+			MethodName: "PublicKey",
+			Handler:    _Control_PublicKey_Handler,
+		},
+		{
+			MethodName: "PrivateKey",
+			Handler:    _Control_PrivateKey_Handler,
+		},
+		{
+			MethodName: "CollectiveKey",
+			Handler:    _Control_CollectiveKey_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "control/control.proto",
 }
 
-func init() { proto.RegisterFile("control/control.proto", fileDescriptor_control_464c29c3a0e9167b) }
+func init() { proto.RegisterFile("control/control.proto", fileDescriptor_control_5fb05b86c2376231) }
 
-var fileDescriptor_control_464c29c3a0e9167b = []byte{
-	// 204 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4d, 0xce, 0xcf, 0x2b,
-	0x29, 0xca, 0xcf, 0xd1, 0x87, 0xd2, 0x7a, 0x05, 0x45, 0xf9, 0x25, 0xf9, 0x42, 0xec, 0x50, 0xae,
-	0x94, 0x48, 0x72, 0x51, 0x65, 0x41, 0x49, 0xbe, 0x7e, 0x6a, 0x4e, 0x6a, 0x6e, 0x6a, 0x5e, 0x09,
-	0x44, 0x5a, 0x89, 0x8f, 0x8b, 0x27, 0x38, 0x23, 0xb1, 0x28, 0x35, 0x28, 0xb5, 0xb0, 0x34, 0xb5,
-	0xb8, 0x44, 0xc9, 0x87, 0x8b, 0x17, 0xca, 0x2f, 0x2e, 0xc8, 0xcf, 0x2b, 0x4e, 0x15, 0x12, 0xe1,
-	0x62, 0xcd, 0xcc, 0x4b, 0x49, 0xad, 0x90, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0d, 0x82, 0x70, 0x84,
-	0x54, 0xb9, 0x58, 0x8b, 0x41, 0xca, 0x24, 0x98, 0x14, 0x18, 0x35, 0xb8, 0x8d, 0xf8, 0xf5, 0x60,
-	0xa6, 0x06, 0x27, 0x27, 0xe6, 0x24, 0x16, 0x05, 0x41, 0x64, 0x8d, 0x9c, 0xb9, 0xd8, 0x9d, 0x21,
-	0xd6, 0x0b, 0x59, 0x70, 0xb1, 0x82, 0x0d, 0x16, 0x12, 0xd5, 0x83, 0x39, 0x10, 0xd9, 0x62, 0x29,
-	0x31, 0x74, 0x61, 0x88, 0xfd, 0x4a, 0x0c, 0x4e, 0x9a, 0x51, 0xea, 0xe9, 0x99, 0x25, 0x19, 0xa5,
-	0x49, 0x7a, 0xc9, 0xf9, 0xb9, 0xfa, 0x29, 0xa9, 0x29, 0x99, 0xc5, 0xfa, 0x29, 0x45, 0x89, 0x79,
-	0x29, 0xfa, 0x60, 0x2f, 0x24, 0x95, 0xa6, 0xc1, 0xbc, 0x9c, 0xc4, 0x06, 0x16, 0x31, 0x06, 0x04,
-	0x00, 0x00, 0xff, 0xff, 0x80, 0xb5, 0x10, 0x15, 0x0c, 0x01, 0x00, 0x00,
+var fileDescriptor_control_5fb05b86c2376231 = []byte{
+	// 356 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x92, 0x41, 0x4f, 0xe2, 0x40,
+	0x14, 0xc7, 0x81, 0xa4, 0x90, 0x7d, 0x2c, 0xec, 0x32, 0x0b, 0x1b, 0xac, 0x17, 0xd2, 0xa8, 0xe0,
+	0xa5, 0x4d, 0x30, 0x26, 0x26, 0xc6, 0xc4, 0x88, 0x89, 0x07, 0x3c, 0x90, 0x72, 0xf3, 0xd6, 0x4e,
+	0x9f, 0x32, 0xb1, 0x74, 0xea, 0x74, 0x4a, 0xe4, 0x7b, 0xf8, 0x81, 0x0d, 0xed, 0xb4, 0x1d, 0x11,
+	0x4f, 0xcd, 0x7b, 0xff, 0x97, 0xdf, 0x9b, 0xf9, 0x75, 0x60, 0x40, 0x79, 0x24, 0x05, 0x0f, 0x1d,
+	0xf5, 0xb5, 0x63, 0xc1, 0x25, 0x27, 0x2d, 0x55, 0x9a, 0x7d, 0x2a, 0xb6, 0xb1, 0xe4, 0x0e, 0x86,
+	0xb8, 0xc6, 0x48, 0xe6, 0xb1, 0xd5, 0x85, 0xdf, 0xcb, 0x95, 0x27, 0xd0, 0xc5, 0xb7, 0x14, 0x13,
+	0x69, 0x3d, 0x42, 0x47, 0xd5, 0x49, 0xcc, 0xa3, 0x04, 0x49, 0x1f, 0x0c, 0x16, 0x05, 0xf8, 0x3e,
+	0xac, 0x8f, 0xea, 0x93, 0x8e, 0x9b, 0x17, 0xe4, 0x14, 0x8c, 0x64, 0x37, 0x36, 0x6c, 0x8c, 0xea,
+	0x93, 0xf6, 0xf4, 0x8f, 0x5d, 0x50, 0x97, 0xd4, 0x0b, 0x3d, 0xe1, 0xe6, 0xa9, 0x45, 0xe0, 0xef,
+	0x22, 0xf5, 0x43, 0x46, 0xe7, 0xb8, 0x2d, 0x36, 0x5c, 0x43, 0x4f, 0xeb, 0xa9, 0x2d, 0x67, 0xd0,
+	0x8c, 0x53, 0x7f, 0x8e, 0xdb, 0x6c, 0x4d, 0x7b, 0xda, 0x2d, 0x81, 0x0b, 0xce, 0x22, 0xe9, 0xaa,
+	0xd4, 0xfa, 0x07, 0xbd, 0x85, 0x60, 0x1b, 0x4f, 0xa2, 0x46, 0xbc, 0x01, 0xa2, 0x37, 0x15, 0x72,
+	0x0c, 0xcd, 0x58, 0xb0, 0x0a, 0xf9, 0xed, 0x8c, 0x2a, 0xde, 0x29, 0x98, 0xf1, 0xd7, 0x0a, 0x77,
+	0x09, 0x1d, 0x55, 0x2b, 0xd2, 0x09, 0x18, 0x94, 0xff, 0x7c, 0xb6, 0x3c, 0x9c, 0x7e, 0x34, 0xa0,
+	0x35, 0xcb, 0x5d, 0x93, 0x2b, 0x30, 0x32, 0x8b, 0x64, 0x60, 0x17, 0x7f, 0x43, 0xb7, 0x6c, 0xfe,
+	0xdf, 0x6f, 0xe7, 0x9b, 0xac, 0x1a, 0xb9, 0x87, 0x5f, 0xa5, 0x1d, 0x72, 0x54, 0x8e, 0xed, 0x5b,
+	0x34, 0xcd, 0x43, 0x51, 0x49, 0x79, 0x00, 0xa8, 0x8c, 0x10, 0x6d, 0x76, 0xdf, 0x9d, 0x79, 0x7c,
+	0x30, 0x2b, 0x41, 0xb7, 0x3b, 0x17, 0x61, 0x88, 0x54, 0xb2, 0x4d, 0xc6, 0xaa, 0x2e, 0xa4, 0x3b,
+	0xd3, 0x2e, 0xf4, 0x45, 0x9d, 0x55, 0xbb, 0x3b, 0x7f, 0x1a, 0xbf, 0x30, 0xb9, 0x4a, 0x7d, 0x9b,
+	0xf2, 0xb5, 0x13, 0x60, 0xc0, 0x12, 0x27, 0x10, 0x5e, 0x14, 0x38, 0xd9, 0x03, 0xf4, 0xd3, 0xe7,
+	0xe2, 0xc1, 0xfa, 0xcd, 0xac, 0x73, 0xf1, 0x19, 0x00, 0x00, 0xff, 0xff, 0x4d, 0x68, 0xf5, 0x0b,
+	0xca, 0x02, 0x00, 0x00,
 }

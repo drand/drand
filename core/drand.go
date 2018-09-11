@@ -321,12 +321,46 @@ func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
 func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	share, err := d.store.LoadShare()
 	if err != nil {
-		slog.Fatal("drand: could not load the share")
+		slog.Fatal("drand: could not load drand.share")
 	}
 	id := uint32(share.Share.I)
 	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with the share")
+		slog.Fatal("drand: there is something wrong with drand.share")
 	}
 	return &control.ShareResponse{Index: id, Share: protoShare}, nil
+}
+
+func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+	key, err := d.store.LoadKeyPair()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.public")
+	}
+	protoKey, err := crypto.KyberToProtoPoint(key.Public.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.public")
+	}
+	return &control.PublicKeyResponse{PubKey: protoKey}, nil
+}
+func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
+	key, err := d.store.LoadKeyPair()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.private")
+	}
+	protoKey, err := crypto.KyberToProtoScalar(key.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.private")
+	}
+	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
+}
+func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+	key, err := d.store.LoadDistPublic()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.cokey")
+	}
+	protoKey, err := crypto.KyberToProtoPoint(key.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.cokey")
+	}
+	return &control.CokeyResponse{CoKey: protoKey}, nil
 }

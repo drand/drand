@@ -182,3 +182,12 @@ func NewControlClient(port string) ControlClient {
 func (c ControlClient) Share() (*control.ShareResponse, error) {
 	return c.client.Share(context.Background(), &control.ShareRequest{})
 }
+func (c ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
+	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{})
+}
+func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
+	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{})
+}
+func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
+	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
+}

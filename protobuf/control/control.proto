@@ -12,14 +12,44 @@ import "crypto/element.proto";
 
 service Control {
   rpc Share(ShareRequest) returns (ShareResponse) { }
+  rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
+  rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
+  rpc CollectiveKey(CokeyRequest) returns (CokeyResponse) { }
 }
 
-// Sharerequest requests the private share of a drand node
+// ShareRequest requests the private share of a drand node
 message ShareRequest {
 }
 
-// ShareResponse holds the private share of a srand node
+// ShareResponse holds the private share of a drand node
 message ShareResponse {
   uint32 index = 1;
   element.Scalar share = 2;
+}
+
+// PublicKeyRequest requests the public key of a drand node
+message PublicKeyRequest {
+}
+
+// PublicKeyResponse holds the public key of a drand node
+message PublicKeyResponse {
+  element.Point pubKey = 1;
+}
+
+// PrivateKeyRequest requests the private key of a drand node
+message PrivateKeyRequest {
+}
+
+// PrivateKeyResponse holds the private key of a drand node
+message PrivateKeyResponse {
+  element.Scalar priKey = 1;
+}
+
+// CokeyRequest requests the collective key of a drand node
+message CokeyRequest {
+}
+
+// CokeyResponse holds the collective key of a drand node
+message CokeyResponse {
+  element.Point coKey = 1;
 }

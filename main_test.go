@@ -149,13 +149,31 @@ func TestClientTLS(t *testing.T) {
 	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, "--nodes", addr)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
-	require.True(t, strings.Contains(string(out), keyStr))
+	expectedOutput := "ASBnBkKH8NgaA+V1EJR4KH2gGD/Njz7aGLhQQtHIkD7IFgxW621YhNjFGcML+jv1GB9CvNLv2/S6QqsPMdE8l+lVJUO+Gs+ZEkdrfaEp18fkJ/uv5prFtjV3P0iLj0bz/EDGc7k6CKIMDjD9hN6Kia22+5Xsph7y//ZlJ7O+SRLe"
+	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 
 	cmd = exec.Command("drand", "show", "share")
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
-	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	expectedOutput = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
+	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "show", "public")
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "show", "private")
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "show", "cokey")
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	expectedOutput = "ASBnBkKH8NgaA+V1EJR4KH2gGD/Njz7aGLhQQtHIkD7IFgxW621YhNjFGcML+jv1GB9CvNLv2/S6QqsPMdE8l+lVJUO+Gs+ZEkdrfaEp18fkJ/uv5prFtjV3P0iLj0bz/EDGc7k6CKIMDjD9hN6Kia22+5Xsph7y//ZlJ7O+SRLe"
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 }

@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -221,21 +220,21 @@ func main() {
 					Name:  "cokey",
 					Usage: "Returns the collective key generated during DKG.",
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return showCokeyCmd(c)
 					},
 				},
 				{
 					Name:  "private",
 					Usage: "Returns the long-term private key of a node.",
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return showPrivateCmd(c)
 					},
 				},
 				{
 					Name:  "public",
 					Usage: "Returns the long-term public key of a node.",
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return showPublicCmd(c)
 					},
 				},
 			},
@@ -453,9 +452,14 @@ func getCokeyCmd(c *cli.Context) error {
 		slog.Fatal("could not fetch the distributed key from that server:", err)
 	}
 	b, _ := key.MarshalBinary()
-	dst := make([]byte, hex.EncodedLen(len(b)))
-	hex.Encode(dst, b)
-	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
+	type dkey struct {
+		CollectiveKey []byte `json:"collective key"`
+	}
+	buff, err := json.MarshalIndent(&dkey{b}, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
 	return nil
 }
 
@@ -467,7 +471,61 @@ func showShareCmd(c *cli.Context) error {
 	client := net.NewControlClient(port)
 	resp, err := client.Share()
 	if err != nil {
-		slog.Fatalf("drand: could not request the share: %s", err)
+		slog.Fatalf("drand: could not request drand.share: %s", err)
+	}
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
+	return nil
+}
+
+func showPublicCmd(c *cli.Context) error {
+	port := c.String("port")
+	if port == "" {
+		port = core.DefaultControlPort
+	}
+	client := net.NewControlClient(port)
+	resp, err := client.PublicKey()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.public: %s", err)
+	}
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
+	return nil
+}
+
+func showPrivateCmd(c *cli.Context) error {
+	port := c.String("port")
+	if port == "" {
+		port = core.DefaultControlPort
+	}
+	client := net.NewControlClient(port)
+	resp, err := client.PrivateKey()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.private: %s", err)
+	}
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
+	return nil
+}
+
+func showCokeyCmd(c *cli.Context) error {
+	port := c.String("port")
+	if port == "" {
+		port = core.DefaultControlPort
+	}
+	client := net.NewControlClient(port)
+	resp, err := client.CollectiveKey()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.cokey: %s", err)
 	}
 	buff, err := json.MarshalIndent(resp, "", "    ")
 	if err != nil {
