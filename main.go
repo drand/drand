@@ -192,7 +192,7 @@ func main() {
 					ArgsUsage: "<group.toml> provides the group informations of the node that we are trying to contact.",
 					Flags:     toArray(tlsCertFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return getCokey(c)
+						return getCokeyCmd(c)
 					},
 				},
 			},
@@ -207,7 +207,7 @@ func main() {
 				{
 					Name: "share",
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return showShareCmd(c)
 					},
 				},
 				{
@@ -438,7 +438,7 @@ func getPublicCmd(c *cli.Context) error {
 	return nil
 }
 
-func getCokey(c *cli.Context) error {
+func getCokeyCmd(c *cli.Context) error {
 	if !c.IsSet("nodes") {
 		slog.Fatal("Get private needs to know the address of the server to contact.")
 	}
@@ -456,6 +456,24 @@ func getCokey(c *cli.Context) error {
 	dst := make([]byte, hex.EncodedLen(len(b)))
 	hex.Encode(dst, b)
 	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
+	return nil
+}
+
+func showShareCmd(c *cli.Context) error {
+	port := c.String("port")
+	if port == "" {
+		port = core.DefaultControlPort
+	}
+	client := net.NewControlClient(port)
+	resp, err := client.Share()
+	if err != nil {
+		slog.Fatalf("drand: could not request the share: %s", err)
+	}
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
 	return nil
 }
 

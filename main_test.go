@@ -151,4 +151,11 @@ func TestClientTLS(t *testing.T) {
 	fmt.Println(string(out))
 	require.True(t, strings.Contains(string(out), keyStr))
 	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "show", "share")
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
+	require.NoError(t, err)
 }
