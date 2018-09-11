@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -181,7 +183,7 @@ func main() {
 						"if the contacted node has not activated TLS in which case it prints a warning.",
 					Flags: toArray(tlsCertFlag, insecureFlag, roundFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return getPublicCmd(c)
 					},
 				},
 				{
@@ -190,7 +192,7 @@ func main() {
 					ArgsUsage: "<group.toml> provides the group informations of the node that we are trying to contact.",
 					Flags:     toArray(tlsCertFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return XXX(c)
+						return getCokey(c)
 					},
 				},
 			},
@@ -210,7 +212,7 @@ func main() {
 				},
 				{
 					Name:  "group",
-					Usage: "Returns the gourp.toml.",
+					Usage: "Returns the group.toml.",
 					Action: func(c *cli.Context) error {
 						return XXX(c)
 					},
@@ -397,6 +399,63 @@ func getPrivateCmd(c *cli.Context) error {
 		slog.Fatal("could not JSON marshal:", err)
 	}
 	slog.Print(string(buff))
+	return nil
+}
+
+func getPublicCmd(c *cli.Context) error {
+	if !c.Args().Present() {
+		slog.Fatal("Get public command takes a group file as argument.")
+	}
+	if !c.IsSet("nodes") {
+		slog.Fatal("Get public command needs to know the address of the server to contact.")
+	}
+	defaultManager := net.NewCertManager()
+	if c.IsSet("tls-cert") {
+		defaultManager.Add(c.String("tls-cert"))
+	}
+	addr := c.String("nodes")
+	group := getGroup(c)
+	public := group.GetCoKey()
+	client := core.NewGrpcClientFromCert(defaultManager)
+	var resp *drand.PublicRandResponse
+	var err error
+	if c.IsSet("round") {
+		resp, err = client.Public(addr, public, !c.Bool("tls-disable"), c.Int("round"))
+		if err != nil {
+			slog.Fatal("could not get verified randomness:", err)
+		}
+	} else {
+		resp, err = client.LastPublic(addr, public, !c.Bool("tls-disable"))
+		if err != nil {
+			slog.Fatal("could not get verified randomness:", err)
+		}
+	}
+	buff, err := json.MarshalIndent(resp, "", "    ")
+	if err != nil {
+		slog.Fatal("could not JSON marshal:", err)
+	}
+	slog.Print(string(buff))
+	return nil
+}
+
+func getCokey(c *cli.Context) error {
+	if !c.IsSet("nodes") {
+		slog.Fatal("Get private needs to know the address of the server to contact.")
+	}
+	defaultManager := net.NewCertManager()
+	if c.IsSet("tls-cert") {
+		defaultManager.Add(c.String("tls-cert"))
+	}
+	addr := c.String("nodes")
+	client := core.NewGrpcClientFromCert(defaultManager)
+	key, err := client.DistKey(addr, !c.Bool("tls-disable"))
+	if err != nil {
+		slog.Fatal("could not fetch the distributed key from that server:", err)
+	}
+	b, _ := key.MarshalBinary()
+	dst := make([]byte, hex.EncodedLen(len(b)))
+	hex.Encode(dst, b)
+	slog.Print("{\n    \"distributed key\": \"" + string(dst) + "\"\n}")
 	return nil
 }
 

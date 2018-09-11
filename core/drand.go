@@ -140,6 +140,7 @@ func (d *Drand) WaitDKG() error {
 	}
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
+	d.group.SetCoKey(d.share.Public())
 	// XXX See if needed to change to qualified group
 	d.store.SaveGroup(d.group)
 	return d.initBeacon()
@@ -191,8 +192,14 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	}, nil
 }
 
-func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	beacon, err := d.beaconStore.Last()
+func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	var beacon *beacon.Beacon
+	var err error
+	if (in == &drand.PublicRandRequest{}) {
+		beacon, err = d.beaconStore.Last()
+	} else {
+		beacon, err = d.beaconStore.Get(in.GetRound())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}

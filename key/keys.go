@@ -168,12 +168,23 @@ func (b ByKey) Less(i, j int) bool {
 type Group struct {
 	Nodes     []*IndexedPublic
 	Threshold int
+	CoKey     *DistPublic
 }
 
 // IndexedPublic wraps a Public with its index relative to the group
 type IndexedPublic struct {
 	*Identity
 	Index int
+}
+
+// GetCoKey returns the collective key of the group
+func (g *Group) GetCoKey() *DistPublic {
+	return g.CoKey
+}
+
+// GetCoKey returns the collective key of the group
+func (g *Group) SetCoKey(key *DistPublic) {
+	g.CoKey = key
 }
 
 // Contains returns true if the public key is contained in the list or not.
@@ -243,6 +254,7 @@ func (g *Group) Filter(indexes []int) *Group {
 type GroupTOML struct {
 	Nodes     []*PublicTOML
 	Threshold int
+	CoKey     *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
@@ -265,6 +277,9 @@ func (g *Group) FromTOML(i interface{}) error {
 	} else if g.Threshold > g.Len() {
 		return errors.New("group file have threshold superior to number of participants")
 	}
+	d := new(DistPublic)
+	d.FromTOML(gt.CoKey)
+	g.CoKey = d
 	return nil
 }
 
@@ -275,6 +290,7 @@ func (g *Group) TOML() interface{} {
 	for i, p := range g.Nodes {
 		gtoml.Nodes[i] = p.Identity.TOML().(*PublicTOML)
 	}
+	gtoml.CoKey = g.CoKey.TOML().(*DistPublicTOML)
 	return gtoml
 }
 
@@ -285,10 +301,11 @@ func (g *Group) TOMLValue() interface{} {
 
 // NewGroup returns a list of identities as a Group. The threshold is set to a
 // the default returned by DefaultThreshod.
-func NewGroup(list []*Identity, threshold int) *Group {
+func NewGroup(list []*Identity, threshold int, key *DistPublic) *Group {
 	return &Group{
 		Nodes:     toIndexedList(list),
 		Threshold: threshold,
+		CoKey:     key,
 	}
 }
 
