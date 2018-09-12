@@ -47,7 +47,7 @@
     "util/random",
     "xof/blake2xb"
   ]
-  revision = "b61c9ac1d4742c616ca74b0a25beb505edb188af"
+  revision = "655ecb37bd8da56bb3a4343ec452cdafd376fcbf"
 
 [[projects]]
   name = "github.com/dedis/protobuf"
@@ -212,9 +212,28 @@
   revision = "41344da2231b913fa3d983840a57a6b1b7b631a1"
   version = "v1.12.0"
 
+[[projects]]
+  branch = "v0"
+  name = "gopkg.in/dedis/crypto.v0"
+  packages = [
+    "abstract",
+    "random",
+    "share",
+    "sign",
+    "subtle",
+    "util"
+  ]
+  revision = "8f53a63e87fd1781107812c75bc30004543e5b9c"
+
+[[projects]]
+  branch = "v0"
+  name = "gopkg.in/dedis/kyber.v0"
+  packages = ["share/vss"]
+  revision = "8f53a63e87fd1781107812c75bc30004543e5b9c"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c56e809993a1ff7fd4a1198e216295f6891507d355dfc19fb2f81271a50cb06f"
+  inputs-digest = "5137f5210bb9242e05319c069337313342bbcf38e2bd2d703f0decd3e72676f4"
   solver-name = "gps-cdcl"
   solver-version = 1

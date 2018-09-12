@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"sort"
 
 	kyber "github.com/dedis/kyber"
 	"github.com/dedis/kyber/pairing/bn256"
@@ -161,151 +160,6 @@ func (b ByKey) Less(i, j int) bool {
 	return bytes.Compare(is, js) < 0
 }
 
-// Group is a list of IndexedPublic providing helper methods to search and
-// get public keys from a list. It orders public keys from their byte
-// lexicographical order
-// TODO remove that non-sense afterall it is useless (i believe)
-type Group struct {
-	Nodes     []*IndexedPublic
-	Threshold int
-}
-
-// IndexedPublic wraps a Public with its index relative to the group
-type IndexedPublic struct {
-	*Identity
-	Index int
-}
-
-// Contains returns true if the public key is contained in the list or not.
-func (g *Group) Contains(pub *Identity) bool {
-	for _, pu := range g.Nodes {
-		if pu.Equal(pub) {
-			return true
-		}
-	}
-	return false
-}
-
-// Index returns the index of the given public key with a boolean indicating
-// whether the public has been found or not.
-func (g *Group) Index(pub *Identity) (int, bool) {
-	for _, pu := range g.Nodes {
-		if pu.Equal(pub) {
-			return pu.Index, true
-		}
-	}
-	return 0, false
-}
-
-// Public returns the public associated to that index
-// or panic otherwise. XXX Change that to return error
-func (g *Group) Public(i int) *Identity {
-	if i >= g.Len() {
-		panic("out of bounds access for Group")
-	}
-	return g.Nodes[i].Identity
-}
-
-// Points returns itself under the form of a list of kyber.Point
-func (g *Group) Points() []kyber.Point {
-	pts := make([]kyber.Point, g.Len())
-	for _, pu := range g.Nodes {
-		pts[pu.Index] = pu.Key
-	}
-	return pts
-}
-
-func (g *Group) Identities() []*Identity {
-	ids := make([]*Identity, g.Len(), g.Len())
-	for i := range g.Nodes {
-		ids[i] = g.Nodes[i].Identity
-	}
-	return ids
-}
-
-// Len returns the number of participants in the group
-func (g *Group) Len() int {
-	return len(g.Nodes)
-}
-
-func (g *Group) Filter(indexes []int) *Group {
-	var filtered []*IndexedPublic
-	for idx := range indexes {
-		filtered = append(filtered, &IndexedPublic{Identity: g.Public(idx), Index: idx})
-	}
-	return &Group{
-		Threshold: g.Threshold,
-		Nodes:     filtered,
-	}
-}
-
-// GroupTOML is the representation of a Group TOML compatible
-type GroupTOML struct {
-	Nodes     []*PublicTOML
-	Threshold int
-}
-
-// FromTOML decodes the group from the toml struct
-func (g *Group) FromTOML(i interface{}) error {
-	gt, ok := i.(*GroupTOML)
-	if !ok {
-		return fmt.Errorf("grouptoml unknown")
-	}
-	g.Threshold = gt.Threshold
-	list := make([]*Identity, len(gt.Nodes))
-	for i, ptoml := range gt.Nodes {
-		list[i] = new(Identity)
-		if err := list[i].FromTOML(ptoml); err != nil {
-			return err
-		}
-	}
-	g.Nodes = toIndexedList(list)
-	if g.Threshold == 0 {
-		return errors.New("group file have threshold 0")
-	} else if g.Threshold > g.Len() {
-		return errors.New("group file have threshold superior to number of participants")
-	}
-	return nil
-}
-
-// TOML returns a TOML-encodable version of the Group
-func (g *Group) TOML() interface{} {
-	gtoml := &GroupTOML{Threshold: g.Threshold}
-	gtoml.Nodes = make([]*PublicTOML, g.Len())
-	for i, p := range g.Nodes {
-		gtoml.Nodes[i] = p.Identity.TOML().(*PublicTOML)
-	}
-	return gtoml
-}
-
-// TOMLValue returns an empty TOML-compatible value of the group
-func (g *Group) TOMLValue() interface{} {
-	return &GroupTOML{}
-}
-
-// NewGroup returns a list of identities as a Group. The threshold is set to a
-// the default returned by DefaultThreshod.
-func NewGroup(list []*Identity, threshold int) *Group {
-	return &Group{
-		Nodes:     toIndexedList(list),
-		Threshold: threshold,
-	}
-}
-
-// returns an indexed list from a list of public keys. Functionality needed in
-// tests where one does not necessary load a group from a file.
-func toIndexedList(list []*Identity) []*IndexedPublic {
-	sort.Sort(ByKey(list))
-	ilist := make([]*IndexedPublic, len(list))
-	for i, p := range list {
-		ilist[i] = &IndexedPublic{
-			Identity: p,
-			Index:    i,
-		}
-	}
-	return ilist
-}
-
 // Share represents the private information that a node holds after a successful
 // DKG. This information MUST stay private !
 type Share dkg.DistKeyShare
@@ -313,7 +167,7 @@ type Share dkg.DistKeyShare
 // Public returns the distributed public key associated with the distributed key
 // share
 func (s *Share) Public() *DistPublic {
-	return &DistPublic{s.Commits[0]}
+	return &DistPublic{s.Commits}
 }
 
 // TOML returns a TOML-compatible version of this share
@@ -383,21 +237,24 @@ type ShareTOML struct {
 
 // DistPublic represents the distributed public key generated during a DKG. This
 // is the information that can be safely exported to end users verifying a
-// drand signature.
-// The public key belongs in the same group as the individual public key,i.e. G2
+// drand signature. It is the list of all commitments of the coefficients of the
+// private distributed polynomial.
 type DistPublic struct {
-	Key kyber.Point
+	Coefficients []kyber.Point
 }
 
 // DistPublicTOML is a TOML compatible value of a DistPublic
 type DistPublicTOML struct {
-	Key string
+	Coefficients []string
 }
 
 // TOML returns a TOML-compatible version of d
 func (d *DistPublic) TOML() interface{} {
-	str := pointToString(d.Key)
-	return &DistPublicTOML{str}
+	strings := make([]string, len(d.Coefficients))
+	for i, s := range d.Coefficients {
+		strings[i] = pointToString(s)
+	}
+	return &DistPublicTOML{strings}
 }
 
 // FromTOML initializes d from the TOML-compatible version of a DistPublic
@@ -406,9 +263,15 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 	if !ok {
 		return errors.New("wrong interface: expected DistPublicTOML")
 	}
+	points := make([]kyber.Point, len(d.Coefficients))
 	var err error
-	d.Key, err = stringToPoint(G2, dtoml.Key)
-	return err
+	for i, s := range dtoml.Coefficients {
+		points[i], err = stringToPoint(G2, s)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // TOMLValue returns an empty TOML-compatible dist public interface

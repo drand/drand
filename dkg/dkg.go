@@ -14,7 +14,6 @@ import (
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/kyber/share/dkg/pedersen"
 	"github.com/dedis/kyber/share/vss/pedersen"
-	"github.com/dedis/kyber/util/random"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc/peer"
 )
@@ -26,10 +25,12 @@ const DefaultTimeout = time.Duration(1) * time.Minute
 // Config is given to a DKG handler and contains all needed parameters to
 // successfully run the DKG protocol.
 type Config struct {
-	Suite dkg.Suite // which crypto group to use for this DKG run
-	Group *key.Group
-	// XXX Currently not in use / tested
-	Timeout time.Duration // after timeout, protocol is finished in any cases.
+	Key *key.Pair
+
+	DKG *dkg.Config
+
+	NewNodes *key.Group
+	OldNodes *key.Group
 }
 
 // Share represents the private information that a node holds after a successful
@@ -41,7 +42,8 @@ type Handler struct {
 	net           Network                    // network to send data out
 	conf          *Config                    // configuration given at init time
 	private       *key.Pair                  // private key
-	idx           int                        // the index of the private/public key pair in the list
+	nidx          int                        // the index of the private/public key pair in the new list
+	newNode       bool                       // true if this node belongs in the new group or not
 	state         *dkg.DistKeyGenerator      // dkg stateful struct
 	n             int                        // number of participants
 	tmpResponses  map[uint32][]*dkg.Response // temporary buffer of responses
@@ -56,29 +58,28 @@ type Handler struct {
 }
 
 // NewHandler returns a fresh dkg handler using this private key.
-func NewHandler(priv *key.Pair, conf *Config, n Network) (*Handler, error) {
-	if err := validateConf(conf); err != nil {
-		return nil, err
-	}
-	t := conf.Group.Threshold
-	points := conf.Group.Points()
-	myIdx, ok := conf.Group.Index(priv.Public)
-	if !ok {
-		return nil, errors.New("dkg: no nublic key corresponding in the given list")
-	}
-	randomSecret := conf.Suite.Scalar().Pick(random.New())
-	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t, randomSecret)
+func NewHandler(n Network, c *Config) (*Handler, error) {
+	state, err := dkg.NewDistKeyHandler(c.DKG)
 	if err != nil {
 		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
 	}
+	if c.OldNodes == nil {
+		c.OldNodes = c.NewNodes
+	}
+	var newNode bool
+	idx, found := c.NewNodes.Index(c.Key.Public)
+	if !found {
+		newNode = true
+	}
 	return &Handler{
-		conf:         conf,
-		private:      priv,
+		conf:         c,
+		private:      c.Key,
 		state:        state,
 		net:          n,
+		nidx:         idx,
+		newNode:      newNode,
 		tmpResponses: make(map[uint32][]*dkg.Response),
-		idx:          myIdx,
-		n:            conf.Group.Len(),
+		n:            len(c.DKG.NewNodes),
 		shareCh:      make(chan Share, 1),
 		errCh:        make(chan error, 1),
 	}, nil
@@ -122,16 +123,18 @@ func (h *Handler) WaitError() chan error {
 // participants that successfully finished the DKG round without any blaming
 // from any other participants. This group must be saved to be re-used later on
 // in case of a renewal for the share.
+// XXX For the moment it's only taking the new set of nodes completely.
 func (h *Handler) QualifiedGroup() *key.Group {
-	quals := h.state.QUAL()
-	return h.conf.Group.Filter(quals)
+	//quals := h.state.QUAL()
+	return key.NewGroup(h.conf.NewNodes.Identities(), h.conf.DKG.Threshold)
 }
 
 func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	h.Lock()
 	h.dealProcessed++
 	deal := &dkg.Deal{
-		Index: pdeal.Index,
+		Index:     pdeal.Index,
+		Signature: pdeal.Signature,
 		Deal: &vss.EncryptedDeal{
 			DHKey:     pdeal.Deal.Dhkey,
 			Signature: pdeal.Deal.Signature,
@@ -141,7 +144,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	}
 	defer h.processTmpResponses(deal)
 	defer h.Unlock()
-	slog.Debugf("dkg: %s processing deal from %s (%d processed)", h.addr(), h.raddr(deal.Index), h.dealProcessed)
+	slog.Debugf("dkg: %s processing deal from %s (%d processed)", h.addr(), h.raddr(deal.Index, true), h.dealProcessed)
 	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
 		slog.Infof("dkg: error processing deal: %s", err)
@@ -164,7 +167,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 			},
 		},
 	}
-	go h.broadcast(out)
+	go h.broadcast(out, true)
 	slog.Debugf("dkg: broadcasted response")
 }
 
@@ -255,18 +258,20 @@ func (h *Handler) checkCertified() {
 // received the deal. It is basically a no-go.
 func (h *Handler) sendDeals() error {
 	deals, err := h.state.Deals()
+	fmt.Println("deals -> ", len(deals), " -> ", err)
 	if err != nil {
 		return err
 	}
 	var good = 1
 	for i, deal := range deals {
-		if i == h.idx {
+		if i == h.nidx && h.newNode {
 			panic("end of the universe")
 		}
-		id := h.conf.Group.Public(i)
+		id := h.conf.NewNodes.Identities()[i]
 		packet := &dkg_proto.DKGPacket{
 			Deal: &dkg_proto.Deal{
-				Index: deal.Index,
+				Index:     deal.Index,
+				Signature: deal.Signature,
 				Deal: &vss_proto.EncryptedDeal{
 					Dhkey:     deal.Deal.DHKey,
 					Signature: deal.Deal.Signature,
@@ -283,27 +288,53 @@ func (h *Handler) sendDeals() error {
 			good++
 		}
 	}
-	if good < h.conf.Group.Threshold {
-		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Group.Threshold)
+	if good < h.conf.DKG.Threshold {
+		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.DKG.Threshold)
 	}
 	slog.Infof("dkg: sent deals successfully to %d nodes", good-1)
 	return nil
 }
 
-func (h *Handler) broadcast(p *dkg_proto.DKGPacket) {
-	var good int
-	for i, id := range h.conf.Group.Nodes {
-		if i == h.idx {
+// The following packets must be sent to the following nodes:
+// - Deals are sent to the new nodes only
+// - Responses are sent to to both new nodes and old nodes but *only once per
+// node*
+// - Justification are sent to the new nodes only
+func (h *Handler) broadcast(p *dkg_proto.DKGPacket, toOldNodes bool) {
+	var sent = make(map[string]bool)
+	var good, oldGood int
+	for i, id := range h.conf.NewNodes.Identities() {
+		if i == h.nidx && h.newNode {
 			continue
+		}
+		if toOldNodes {
+			sent[h.conf.DKG.NewNodes[i].String()] = true
 		}
 		if err := h.net.Send(id, p); err != nil {
 			slog.Debugf("dkg: error sending packet to %s: %s", id.Address(), err)
+			continue
 		}
 		slog.Debugf("dkg: %s broadcast: sent packet to %s", h.addr(), id.Address())
 		good++
 	}
+
+	if toOldNodes {
+		for i, id := range h.conf.OldNodes.Identities() {
+			_, present := sent[h.conf.OldNodes.Public(i).Key.String()]
+			if present {
+				continue
+			}
+			if err := h.net.Send(id, p); err != nil {
+				slog.Debugf("dkg: error sending packet to %s: %s", id.Address(), err)
+				continue
+			}
+			slog.Debugf("dkg: %s broadcast: sent packet to %s", h.addr(), id.Address())
+			oldGood++
+		}
+
+	}
 	// -1 because this handler automatically "receives" its own dkg packet
-	if good < h.conf.Group.Threshold-1 {
+	if good < h.conf.DKG.Threshold-1 {
 		h.errCh <- errors.New("dkg: broadcast not successful")
 	}
 	slog.Debugf("dkg: broadcast done")
@@ -313,17 +344,16 @@ func (h *Handler) addr() string {
 	return h.private.Public.Address()
 }
 
-func (h *Handler) raddr(i uint32) string {
-	return h.conf.Group.Public(int(i)).Address()
+func (h *Handler) raddr(i uint32, oldNodes bool) string {
+	if oldNodes {
+		return h.conf.OldNodes.Public(int(i)).Address()
+	} else {
+		return h.conf.NewNodes.Public(int(i)).Address()
+	}
 }
 
 // Network is used by the Handler to send a DKG protocol packet over the network.
 // XXX Not really needed, should use the net/protobuf interface instead
 type Network interface {
 	Send(net.Peer, *dkg_proto.DKGPacket) error
-}
-
-func validateConf(conf *Config) error {
-	// XXX TODO
-	return nil
 }

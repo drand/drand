@@ -11,6 +11,7 @@ import (
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/test"
 	sdkg "github.com/dedis/kyber/share/dkg/pedersen"
+	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,23 +44,29 @@ func testNets(n int) []*testNet {
 }
 
 func TestDKG(t *testing.T) {
-	//slog.Level = slog.LevelDebug
-
+	slog.Level = slog.LevelDebug
 	n := 5
 	thr := key.DefaultThreshold(n)
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
 	nets := testNets(n)
-	conf := &Config{
-		Suite: key.G2.(sdkg.Suite),
-		Group: key.NewGroup(pubs, thr),
-	}
-	conf.Group.Threshold = thr
 	handlers := make([]*Handler, n, n)
 	listeners := make([]net.Listener, n, n)
 	var err error
+
+	group := key.NewGroup(pubs, thr)
 	for i := 0; i < n; i++ {
-		handlers[i], err = NewHandler(privs[i], conf, nets[i])
+		dkgConf := sdkg.NewDKGConfig(key.G2.(sdkg.Suite),
+			privs[i].Key,
+			group.Points())
+		dkgConf.Threshold = thr
+		conf := &Config{
+			DKG:      dkgConf,
+			Key:      privs[i],
+			NewNodes: group,
+		}
+
+		handlers[i], err = NewHandler(nets[i], conf)
 		require.NoError(t, err)
 		dkgServer := testDKGServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{D: &dkgServer})

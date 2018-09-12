@@ -33,6 +33,8 @@ message Deal {
     uint32 index = 1;
     // encrypted version of the deal
     vss.EncryptedDeal deal = 2;
+    // signature over the deal and the index
+    bytes signature = 3;
 }
 
 // Response holds the response that a participant broadcast after having
