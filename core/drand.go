@@ -195,7 +195,7 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	var beacon *beacon.Beacon
 	var err error
-	if (in == &drand.PublicRandRequest{}) {
+	if in.GetRound() == 0 {
 		beacon, err = d.beaconStore.Last()
 	} else {
 		beacon, err = d.beaconStore.Get(in.GetRound())
