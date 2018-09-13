@@ -27,7 +27,7 @@ case "${unameOut}" in
         TMP="/tmp/$(basename $A)"
     ;;
 esac
-GROUPFILE="$TMP/group.toml"
+GROUPFILE="$TMP/groups/drand_group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
 IMG="dedis/drand:latest"
@@ -130,7 +130,7 @@ function run() {
 
     ## generate group toml
     #echo $allKeys
-    docker run --rm -v $TMP:/tmp:z $IMG group "${allKeys[@]}" > /dev/null XXX
+    docker run --rm -v $TMP:/tmp:z $IMG group "--folder" "$TMP" "${allKeys[@]}" > /dev/null XXX
     echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
