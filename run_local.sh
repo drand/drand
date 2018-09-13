@@ -27,6 +27,7 @@ case "${unameOut}" in
         TMP="/tmp/$(basename $A)"
     ;;
 esac
+GROUPDIR="$TMP/groups"
 GROUPFILE="$TMP/groups/drand_group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
@@ -94,6 +95,7 @@ function run() {
     echo "[+] Create the certificate directory"
     mkdir -m 740 $CERTSDIR
     mkdir -m 740 $LOGSDIR
+    mkdir -m 740 $GROUPDIR
 
     seq=$(seq 1 $N)
     rseq=$(seq $N -1 1)
@@ -130,8 +132,8 @@ function run() {
 
     ## generate group toml
     #echo $allKeys
-    docker run --rm -v $TMP:/tmp:z $IMG group "--folder" "$TMP" "${allKeys[@]}" > /dev/null XXX
-    echo "[+] Group file generated at $GROUPFILE"
+    docker run --rm -v $TMP:/tmp:z $IMG "--folder" "$TMP" group "${allKeys[@]}" > /dev/null XXX
+    echo "[+] Group file generated at $TMP/groups/drand_group.toml"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
         echo "[+] preparing for node $i"
