@@ -113,7 +113,7 @@ function run() {
         public="key/drand_id.public"
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
+        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
             #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
@@ -130,7 +130,7 @@ function run() {
 
     ## generate group toml
     #echo $allKeys
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml "${allKeys[@]}" > /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group "${allKeys[@]}" > /dev/null XXX
     echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
@@ -144,7 +144,7 @@ function run() {
         dockerGroupFile="/root/.drand/drand_group.toml"
 
 
-        drandCmd=("--debug" "run" "--period" "2s" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+        drandCmd=("start" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
         args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
@@ -153,7 +153,7 @@ function run() {
         args+=("-d") ## detached mode
         #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
-            drandCmd+=("--leader" "--period" "2s")
+            drandCmd+=("--leader")
             if [ "$1" = true ]; then
                 # running in foreground
                 echo "[+] Running in foreground!"
@@ -163,7 +163,7 @@ function run() {
         else
             echo "[+] Starting node $i "
         fi
-        drandCmd+=("--group-init" $dockerGroupFile)
+        drandCmd+=($dockerGroupFile)
         docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
         docker logs -f node$i > $logFile &
         sleep 0.1
@@ -185,8 +185,9 @@ function fetchTest() {
     serverCert="$CERTSDIR/server-$nindex.cert"
     serverCertDocker="/server.cert"
     serverCertVol="$serverCert:$serverCertDocker"
-    drandArgs=("fetch" "private")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "$serverId")
+    dockerGroupFile="/root/.drand/drand_group.toml"
+    drandArgs=("get" "private")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "--nodes" "${addresses[$nindex]}" "$dockerGroupFile")
     echo "---------------------------------------------"
     echo "              Private Randomness             "
     docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
@@ -196,10 +197,10 @@ function fetchTest() {
     echo "               Public Randomness             "
     drandPublic="/dist_public.toml"
     drandVol="$distPublic:$drandPublic"
-    drandArgs=( "fetch" "public")
+    drandArgs=( "get" "public")
     drandArgs+=("--tls-cert" "$serverCertDocker")
     idx=`expr $nindex - 1`
-    drandArgs+=("--public" $drandPublic "${addresses[$idx]}")
+    drandArgs+=("--nodes" "${addresses[$idx]}" "$dockerGroupFile")
     docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"

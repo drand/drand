@@ -31,7 +31,6 @@ var (
 	date    = "unknown"
 )
 
-const gname = "group.toml"
 const dpublic = "dist_key.public"
 const defaultListenPort = "8080"
 
@@ -94,6 +93,10 @@ func main() {
 		Name:  "round, r",
 		Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
 	}
+	groupFlag := cli.StringFlag{
+		Name:  "group, g",
+		Usage: "If you want to merge keys into an existing group.toml file, run the group command and specify the group.toml file with this flag.",
+	}
 
 	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, certsDirFlag, distKeyFlag, thresholdFlag.
 
@@ -137,9 +140,10 @@ func main() {
 			Usage: "Merge the given list of whitespace-separated drand.public keys into the group.toml " +
 				"file if one is provided, if not create a new group.toml file with the given identites.",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group to create/to insert into the group",
+			Flags:     toArray(groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return XXX(c)
+				return groupCmd(c)
 			},
 		},
 		cli.Command{
@@ -367,6 +371,34 @@ func keygenCmd(c *cli.Context) error {
 	buff.WriteString("\n")
 	slog.Print(buff.String())
 	slog.Print("Or just collect all public key files and use the group command!")
+	return nil
+}
+
+func groupCmd(c *cli.Context) error {
+	if !c.Args().Present() || c.NArg() < 3 {
+		slog.Fatal("group command take at least 3 keys as arguments")
+	}
+	var threshold = key.DefaultThreshold(c.NArg())
+	publics := make([]*key.Identity, c.NArg())
+	for i, str := range c.Args() {
+		pub := &key.Identity{}
+		slog.Print("Reading public identity from ", str)
+		if err := key.Load(str, pub); err != nil {
+			slog.Fatal(err)
+		}
+		publics[i] = pub
+	}
+	if c.IsSet("group") { //we need to update group file
+		return XXX(c)
+	} else {
+		config := contextToConfig(c)
+		group := key.NewGroup(publics, threshold, &key.DistPublic{})
+		groupPath := path.Join(config.ConfigFolder(), key.GroupFolderName)
+		if err := key.Save(groupPath, group, false); err != nil {
+			slog.Fatal(err)
+		}
+		slog.Printf("Group file written in %s. Distribute it to all the participants to start the DKG", groupPath)
+	}
 	return nil
 }
 

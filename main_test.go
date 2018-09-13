@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/dedis/drand/core"
+	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber/pairing/bn256"
@@ -78,6 +79,34 @@ func TestStartBeacon(t *testing.T) {
 	fmt.Print(string(out))
 	if e, ok := err.(*exec.ExitError); ok && e.Success() {
 		t.Fatal(err)
+	}
+}
+
+func TestGroupGen(t *testing.T) {
+	n := 5
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	defer os.RemoveAll(tmpPath)
+
+	names := make([]string, n, n)
+	privs := make([]*key.Pair, n, n)
+	for i := 0; i < n; i++ {
+		names[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", i))
+		privs[i] = key.NewKeyPair("127.0.0.1")
+		require.NoError(t, key.Save(names[i], privs[i].Public, false))
+		if yes, err := fs.Exists(names[i]); !yes || err != nil {
+			t.Fatal(err.Error())
+		}
+	}
+	groupPath := path.Join(tmpPath, key.GroupFolderName)
+	os.Args = []string{"drand", "--folder", tmpPath, "group"}
+	os.Args = append(os.Args, names...)
+	main()
+
+	group := new(key.Group)
+	require.NoError(t, key.Load(groupPath, group))
+	for i := 0; i < n; i++ {
+		require.True(t, group.Contains(privs[i].Public))
 	}
 }
 

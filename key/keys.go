@@ -413,6 +413,9 @@ type DistPublicTOML struct {
 
 // TOML returns a TOML-compatible version of d
 func (d *DistPublic) TOML() interface{} {
+	if d.Key == nil {
+		return &DistPublicTOML{}
+	}
 	str := pointToString(d.Key)
 	return &DistPublicTOML{str}
 }
@@ -424,8 +427,11 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 		return errors.New("wrong interface: expected DistPublicTOML")
 	}
 	var err error
-	d.Key, err = stringToPoint(G2, dtoml.Key)
-	return err
+	if dtoml.Key != "" {
+		d.Key, err = stringToPoint(G2, dtoml.Key)
+		return err
+	}
+	return nil
 }
 
 // TOMLValue returns an empty TOML-compatible dist public interface
