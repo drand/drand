@@ -352,13 +352,12 @@ func (d *DistKeyGenerator) ProcessDeal(dd *Deal) (*Response, error) {
 		}
 	}
 
-	// Set StatusApproval for the verifier that represents the participant
-	// that distibuted the Deal
-	// This must be set at all times but when the dealer is not in the newNodes
-	// list at the same position since the new node will issue the response.
-	oob := len(d.c.NewNodes) < int(dd.Index)
-	if oob || d.c.NewNodes[dd.Index].Equal(pub) {
-		d.verifiers[dd.Index].UnsafeSetResponseDKG(dd.Index, vss.StatusApproval)
+	// if the dealer in the old list is also present in the new list, then set
+	// his response to approval since he won't issue his own response for his
+	// own deal
+	newIdx, found := findPub(d.c.NewNodes, pub)
+	if found {
+		d.verifiers[dd.Index].UnsafeSetResponseDKG(uint32(newIdx), vss.StatusApproval)
 	}
 
 	return &Response{

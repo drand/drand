@@ -80,7 +80,7 @@ type EncryptedDeal struct {
 type Response struct {
 	// SessionID related to this run of the protocol
 	SessionID []byte
-	// Index of the verifier issuing this Response
+	// Index of the verifier issuing this Response from the new set of nodes
 	Index uint32
 	// false = NO APPROVAL == Complaint , true = APPROVAL
 	Status bool
@@ -653,6 +653,10 @@ func (a *aggregator) EnoughApprovals() bool {
 		}
 	}
 	return app >= a.t
+}
+
+func (a *aggregator) Responses() map[uint32]*Response {
+	return a.responses
 }
 
 // DealCertified returns true if there has been less than t complaints, all
