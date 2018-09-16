@@ -46,6 +46,13 @@ func (s *DefaultService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGRe
 	}
 	return &dkg.DKGResponse{}, nil
 }
+
+func (s *DefaultService) Reshare(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
+	if s.D != nil {
+		return s.D.Setup(c, in)
+	}
+	return &dkg.DKGResponse{}, nil
+}
 func (s *DefaultService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	if s.B == nil {
 		return &drand.BeaconResponse{}, nil

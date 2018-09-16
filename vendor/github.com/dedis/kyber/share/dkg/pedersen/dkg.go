@@ -642,6 +642,10 @@ func (d *DistKeyGenerator) resharingKey() (*DistKeyShare, error) {
 	}, nil
 }
 
+func (d *DistKeyGenerator) Verifiers() map[uint32]*vss.Verifier {
+	return d.verifiers
+}
+
 //Renew adds the new distributed key share g (with secret 0) to the distributed key share d.
 func (d *DistKeyShare) Renew(suite Suite, g *DistKeyShare) (*DistKeyShare, error) {
 	//Check G(0) = 0*G.

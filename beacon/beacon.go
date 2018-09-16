@@ -245,7 +245,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 			}
 			slog.Debugf("beacon: %s round %d valid response from %s", h.addr, round, i.Address())
 			respCh <- resp
-		}(id.Identity)
+		}(id)
 	}
 	// wait for a threshold of replies or if the timeout occured
 	for len(sigs) < h.group.Threshold {

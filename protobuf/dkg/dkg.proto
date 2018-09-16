@@ -13,6 +13,7 @@ import "crypto/share/vss/vss.proto";
 // participants and to create new publicly verifiable randomness.
 service Dkg {
    rpc Setup(DKGPacket) returns (DKGResponse);
+   rpc Reshare(DKGPacket) returns (DKGResponse);
 
 }
 

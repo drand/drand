@@ -13,6 +13,7 @@ import (
 type Group struct {
 	Nodes     []*Identity
 	Threshold int
+	PublicKey *DistPublic
 }
 
 func (g *Group) Identities() []*Identity {
@@ -67,6 +68,7 @@ func (g *Group) Len() int {
 type GroupTOML struct {
 	Nodes     []*PublicTOML
 	Threshold int
+	PublicKey *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
@@ -88,7 +90,9 @@ func (g *Group) FromTOML(i interface{}) error {
 	} else if g.Threshold > g.Len() {
 		return errors.New("group file have threshold superior to number of participants")
 	}
-	return nil
+
+	p := &DistPublic{}
+	return p.FromTOML(gt.PublicKey)
 }
 
 // TOML returns a TOML-encodable version of the Group
@@ -98,6 +102,11 @@ func (g *Group) TOML() interface{} {
 	for i, p := range g.Nodes {
 		gtoml.Nodes[i] = p.TOML().(*PublicTOML)
 	}
+
+	if g.PublicKey != nil {
+		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
+	}
+
 	return gtoml
 }
 
@@ -106,11 +115,19 @@ func (g *Group) TOMLValue() interface{} {
 	return &GroupTOML{}
 }
 
-// NewGroup returns a list of identities as a Group. The threshold is set to a
-// the default returned by DefaultThreshod.
+// NewGroup returns a list of identities as a Group.
 func NewGroup(list []*Identity, threshold int) *Group {
 	return &Group{
 		Nodes:     list,
 		Threshold: threshold,
+	}
+}
+
+// LoadGroup returns a group associated with a given public key
+func LoadGroup(list []*Identity, public *DistPublic, threshold int) *Group {
+	return &Group{
+		Nodes:     list,
+		Threshold: threshold,
+		PublicKey: public,
 	}
 }

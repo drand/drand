@@ -101,10 +101,16 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.
 		return nil, err
 	}
 	client := dkg.NewDkgClient(c)
-	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	//defer cancel()
-	//return client.Setup(context.Background(), in, grpc.FailFast(false))
 	return client.Setup(context.Background(), in, opts...)
+}
+
+func (g *grpcClient) Reshare(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error) {
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := dkg.NewDkgClient(c)
+	return client.Reshare(context.Background(), in, opts...)
 }
 
 func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error) {

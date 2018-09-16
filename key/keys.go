@@ -248,6 +248,12 @@ type DistPublicTOML struct {
 	Coefficients []string
 }
 
+// Key returns the first coefficient as representing the public key to be used
+// to verify signatures issued by the distributed key.
+func (d *DistPublic) Key() kyber.Point {
+	return d.Coefficients[0]
+}
+
 // TOML returns a TOML-compatible version of d
 func (d *DistPublic) TOML() interface{} {
 	strings := make([]string, len(d.Coefficients))

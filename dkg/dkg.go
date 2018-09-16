@@ -12,6 +12,7 @@ import (
 	"github.com/dedis/drand/net"
 	vss_proto "github.com/dedis/drand/protobuf/crypto/share/vss"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
+	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/share/dkg/pedersen"
 	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
@@ -22,15 +23,16 @@ type Suite = dkg.Suite
 
 const DefaultTimeout = time.Duration(1) * time.Minute
 
-// Config is given to a DKG handler and contains all needed parameters to
-// successfully run the DKG protocol.
+// Config holds all necessary informations to run a dkg protocol. This config is
+// transformed to be passed down to the kyber dkg library.
 type Config struct {
-	Key *key.Pair
-
-	DKG *dkg.Config
-
+	Suite    Suite
+	Key      *key.Pair
 	NewNodes *key.Group
 	OldNodes *key.Group
+
+	Share     *key.Share
+	Threshold int
 }
 
 // Share represents the private information that a node holds after a successful
@@ -39,10 +41,11 @@ type Share = dkg.DistKeyShare
 
 // Handler is the stateful struct that runs a DKG with the peers
 type Handler struct {
-	net           Network   // network to send data out
-	conf          *Config   // configuration given at init time
-	private       *key.Pair // private key
-	nidx          int       // the index of the private/public key pair in the new list
+	net           Network     // network to send data out
+	conf          *Config     // configuration given at init time
+	cdkg          *dkg.Config // dkg config
+	private       *key.Pair   // private key
+	nidx          int         // the index of the private/public key pair in the new list
 	oidx          int
 	newNode       bool                       // true if this node belongs in the new group or not
 	oldNode       bool                       // true if this node belongs to the oldNode list
@@ -61,13 +64,31 @@ type Handler struct {
 
 // NewHandler returns a fresh dkg handler using this private key.
 func NewHandler(n Network, c *Config) (*Handler, error) {
-	state, err := dkg.NewDistKeyHandler(c.DKG)
-	if err != nil {
-		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
-	}
 	if c.OldNodes == nil {
 		c.OldNodes = c.NewNodes
 	}
+	var share *dkg.DistKeyShare
+	if c.Share != nil {
+		s := dkg.DistKeyShare(*c.Share)
+		share = &s
+	}
+	var dpub []kyber.Point
+	if c.OldNodes.PublicKey != nil {
+		dpub = c.OldNodes.PublicKey.Coefficients
+	}
+	cdkg := &dkg.Config{
+		Suite:        c.Suite.(dkg.Suite),
+		Longterm:     c.Key.Key,
+		OldNodes:     c.OldNodes.Points(),
+		NewNodes:     c.NewNodes.Points(),
+		PublicCoeffs: dpub,
+		Share:        share,
+	}
+	state, err := dkg.NewDistKeyHandler(cdkg)
+	if err != nil {
+		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
+	}
+
 	var newNode bool
 	var oldNode bool
 	nidx, found := c.NewNodes.Index(c.Key.Public)
@@ -80,6 +101,7 @@ func NewHandler(n Network, c *Config) (*Handler, error) {
 	}
 	return &Handler{
 		conf:         c,
+		cdkg:         cdkg,
 		private:      c.Key,
 		state:        state,
 		net:          n,
@@ -88,7 +110,7 @@ func NewHandler(n Network, c *Config) (*Handler, error) {
 		newNode:      newNode,
 		oldNode:      oldNode,
 		tmpResponses: make(map[uint32][]*dkg.Response),
-		n:            len(c.DKG.NewNodes),
+		n:            len(cdkg.NewNodes),
 		shareCh:      make(chan Share, 1),
 		errCh:        make(chan error, 1),
 	}, nil
@@ -112,7 +134,6 @@ func (h *Handler) Start() {
 	h.sentDeals = true
 	if err := h.sendDeals(); err != nil {
 		h.errCh <- err
-		h.done = true
 	}
 }
 
@@ -135,7 +156,7 @@ func (h *Handler) WaitError() chan error {
 // XXX For the moment it's only taking the new set of nodes completely.
 func (h *Handler) QualifiedGroup() *key.Group {
 	//quals := h.state.QUAL()
-	return key.NewGroup(h.conf.NewNodes.Identities(), h.conf.DKG.Threshold)
+	return key.NewGroup(h.conf.NewNodes.Identities(), h.conf.Threshold)
 }
 
 func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
@@ -154,6 +175,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	defer h.processTmpResponses(deal)
 	defer h.Unlock()
 	slog.Debugf("dkg: %s processing deal from %s (%d processed)", h.addr(), h.raddr(deal.Index, true), h.dealProcessed)
+	slog.Debugf("dkg: after processing deal -> h.sentDeals %v && h.oldNode %v", h.sentDeals, h.oldNode)
 	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
 		slog.Infof("dkg: error processing deal: %s", err)
@@ -161,8 +183,14 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	}
 
 	if !h.sentDeals && h.oldNode {
-		go h.sendDeals()
+		slog.Debugf("dkg: %d sending deals out there", h.oidx)
 		h.sentDeals = true
+		go func() {
+			if err := h.sendDeals(); err != nil {
+				slog.Debugf("dkg: %d error sending deals ! %v", h.oidx, err)
+				h.errCh <- err
+			}
+		}()
 		slog.Debugf("dkg: sent all deals")
 	}
 
@@ -178,6 +206,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 				},
 			},
 		}
+		slog.Debugf("dkg: %d broadcasting responses after receiving deal", h.nidx)
 		go h.broadcast(out, true)
 		slog.Debugf("dkg: broadcasted response")
 	}
@@ -206,11 +235,7 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 	defer h.checkCertified()
 	defer h.Unlock()
 	h.respProcessed++
-	// XXX remove check
-	// we should never receive a response that we made
-	if h.newNode && presp.Response.Index == uint32(h.nidx) {
-		panic("that should never happen")
-	}
+
 	resp := &dkg.Response{
 		Index: presp.Index,
 		Response: &vss.Response{
@@ -248,7 +273,8 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 		//}
 		/*go h.broadcast(packet)*/
 	}
-	slog.Debugf("dkg: processResponse(%d/%d) from %s --> Certified() ? %v --> done ? %v", h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified(), h.done)
+	slog.Debugf("dkg: %d processResponse(%d/%d) from %s --> Certified() ? %v --> done ? %v", h.nidx, h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified(), h.done)
+
 }
 
 // checkCertified checks if there has been enough responses and if so, creates
@@ -260,7 +286,6 @@ func (h *Handler) checkCertified() {
 	if !h.state.Certified() || h.done {
 		return
 	}
-	//slog.Debugf("%s: processResponse(%d) from %s #3", d.addr, d.respProcessed, pub.Address)
 	h.done = true
 	slog.Infof("dkg: own share %d certified!", h.nidx)
 	dks, err := h.state.DistKeyShare()
@@ -280,6 +305,7 @@ func (h *Handler) sendDeals() error {
 		return err
 	}
 	var good = 1
+	slog.Debugf("dkg: %d starting sending deals to new participants", h.oidx)
 	ids := h.conf.NewNodes.Identities()
 	for i, deal := range deals {
 		if i == h.nidx && h.newNode {
@@ -300,17 +326,18 @@ func (h *Handler) sendDeals() error {
 			},
 		}
 
-		slog.Debugf("dkg: %s sending deal to %s", h.addr(), id.Address())
+		slog.Debugf("dkg: %d sending deal to %d", h.oidx, i)
 		if err := h.net.Send(id, packet); err != nil {
 			slog.Printf("dkg: failed to send deal to %s: %s", id.Address(), err)
 		} else {
+			slog.Debugf("dkg: %d sending deal to %d -- END", h.oidx, i)
 			good++
 		}
 	}
-	if good < h.conf.DKG.Threshold {
-		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.DKG.Threshold)
+	if good < h.conf.Threshold {
+		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Threshold)
 	}
-	slog.Infof("dkg: sent deals successfully to %d nodes", good-1)
+	slog.Infof("dkg: %d sent deals successfully to %d nodes", h.oidx, good-1)
 	return nil
 }
 
@@ -323,11 +350,11 @@ func (h *Handler) broadcast(p *dkg_proto.DKGPacket, toOldNodes bool) {
 	var sent = make(map[string]bool)
 	var good, oldGood int
 	for i, id := range h.conf.NewNodes.Identities() {
-		if h.newNode && h.nidx == i {
-			continue
-		}
 		if toOldNodes {
 			sent[id.Key.String()] = true
+		}
+		if h.newNode && h.nidx == i {
+			continue
 		}
 		if err := h.net.Send(id, p); err != nil {
 			slog.Debugf("dkg: error sending packet to %s: %s", id.Address(), err)
@@ -353,7 +380,7 @@ func (h *Handler) broadcast(p *dkg_proto.DKGPacket, toOldNodes bool) {
 		}
 
 	}
-	if good < h.conf.DKG.Threshold {
+	if good < h.conf.Threshold {
 		h.errCh <- errors.New("dkg: broadcast not successful")
 	}
 	slog.Debugf("dkg: broadcast done")
