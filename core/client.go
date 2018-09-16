@@ -53,7 +53,7 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*dra
 	if err != nil {
 		return nil, err
 	}
-	return resp, c.verify(pub.Key, resp)
+	return resp, c.verify(pub.Key(), resp)
 }
 
 // Private retrieves a private random value from the server. It does that by

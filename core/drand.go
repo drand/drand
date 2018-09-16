@@ -52,11 +52,12 @@ func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
 		return nil, err
 	}
 	dkgConf := &dkg.Config{
-		Suite:   key.G2.(dkg.Suite),
-		Group:   g,
-		Timeout: d.opts.dkgTimeout,
+		Key:      d.priv,
+		Suite:    key.G2.(dkg.Suite),
+		NewNodes: g,
+		Timeout:  d.opts.dkgTimeout,
 	}
-	d.dkg, err = dkg.NewHandler(d.priv, dkgConf, d.dkgNetwork())
+	d.dkg, err = dkg.NewHandler(d.dkgNetwork(), dkgConf)
 	d.group = g
 	return d, err
 }
@@ -158,7 +159,7 @@ func (d *Drand) BeaconLoop() {
 	// if there is an error we quit, if there is no beacon saved yet, we
 	// run the loop as usual.
 	var catchup = true
-	b, err := d.beaconStore.Last()
+	_, err := d.beaconStore.Last()
 	if err != nil {
 		if err == beacon.ErrNoBeaconSaved {
 			// we are starting the beacon generation
@@ -170,7 +171,7 @@ func (d *Drand) BeaconLoop() {
 		}
 	}
 	if catchup {
-		slog.Infof("drand: starting beacon loop in catch-up mode", err, b)
+		slog.Infof("drand: starting beacon loop in catch-up mode")
 	} else {
 		slog.Infof("drand: starting beacon loop")
 	}
@@ -182,7 +183,7 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	if err != nil {
 		return nil, errors.New("drand: could not load dist. key")
 	}
-	key, err := crypto.KyberToProtoPoint(pt.Key)
+	key, err := crypto.KyberToProtoPoint(pt.Key())
 	if err != nil {
 		slog.Fatal(err)
 	}
@@ -218,7 +219,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	}
 	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {
-		slog.Debugf("drand: received invalid ECIES private request:", err)
+		slog.Debugf("drand: received invalid ECIES private request: %s", err)
 		return nil, errors.New("invalid ECIES request")
 	}
 
@@ -238,6 +239,14 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 }
 
 func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
+	if d.isDKGDone() {
+		return nil, errors.New("drand: dkg finished already")
+	}
+	d.dkg.Process(c, in)
+	return &dkg_proto.DKGResponse{}, nil
+}
+
+func (d *Drand) Reshare(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
 	if d.isDKGDone() {
 		return nil, errors.New("drand: dkg finished already")
 	}

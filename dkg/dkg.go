@@ -33,6 +33,9 @@ type Config struct {
 
 	Share     *key.Share
 	Threshold int
+
+	// XXX currently not used
+	Timeout time.Duration
 }
 
 // Share represents the private information that a node holds after a successful

@@ -82,7 +82,7 @@ func TestDrandDKG(t *testing.T) {
 	launchDrand := func(i int) {
 		myCb := func(b *beacon.Beacon) {
 			msg := beacon.Message(b.PreviousRand, b.Round)
-			err := bls.Verify(key.Pairing, public.Key, msg, b.Randomness)
+			err := bls.Verify(key.Pairing, public.Key(), msg, b.Randomness)
 			if err != nil {
 				fmt.Printf("Beacon error callback: %s\n", b.Randomness)
 			}
