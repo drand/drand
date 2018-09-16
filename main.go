@@ -329,7 +329,7 @@ func keygenCmd(c *cli.Context) error {
 	testWindows(c)
 	args := c.Args()
 	if !args.Present() {
-		slog.Fatal("Missing drand address in argument (IPv4, dns)")
+		slog.Fatal("Missing drand address in argument")
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
@@ -375,7 +375,7 @@ func keygenCmd(c *cli.Context) error {
 }
 
 func groupCmd(c *cli.Context) error {
-	if !c.Args().Present() || c.NArg() < 3 {
+	if !c.Args().Present() || (c.NArg() < 3) && !c.IsSet("group") {
 		slog.Fatal("group command take at least 3 keys as arguments")
 	}
 	var threshold = key.DefaultThreshold(c.NArg())
@@ -388,16 +388,29 @@ func groupCmd(c *cli.Context) error {
 		}
 		publics[i] = pub
 	}
-	if c.IsSet("group") { //we need to update group file
-		return XXX(c)
+	if c.IsSet("group") {
+		groupPath := c.String("group")
+		oldG := &key.Group{}
+		if err := key.Load(groupPath, oldG); err != nil {
+			slog.Fatal(err)
+		}
+		group := oldG.MergeGroup(publics)
+		if err := key.Save(groupPath, group, false); err != nil {
+			slog.Fatal(err)
+		}
+		slog.Printf("Group file updated can be found at %s. Run upgrade command to do the resharing.", groupPath)
 	} else {
 		config := contextToConfig(c)
 		group := key.NewGroup(publics, threshold, &key.DistPublic{})
 		groupPath := path.Join(config.ConfigFolder(), key.GroupFolderName)
+		if err := key.Load(groupPath, group); err == nil {
+			slog.Fatal("drand: there already is a group.toml file, please use the flag --group to merge your new keys.")
+			// XXX: does that checks if existing groupFile ? check if empty struct
+		}
 		if err := key.Save(groupPath, group, false); err != nil {
 			slog.Fatal(err)
 		}
-		slog.Printf("Group file written in %s. Distribute it to all the participants to start the DKG", groupPath)
+		slog.Printf("Group file written in %s. Distribute it to all the participants to start the DKG.", groupPath)
 	}
 	return nil
 }
@@ -446,7 +459,7 @@ func getPublicCmd(c *cli.Context) error {
 	}
 	addr := c.String("nodes")
 	group := getGroup(c)
-	public := group.GetCoKey()
+	public := group.CoKey
 	client := core.NewGrpcClientFromCert(defaultManager)
 	var resp *drand.PublicRandResponse
 	var err error

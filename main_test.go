@@ -30,13 +30,103 @@ func TestMain(m *testing.M) {
 func TestKeyGen(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
-	os.Args = []string{"drand", "--folder", tmp, "generate-keypair", "127.0.0.1:8081"}
-	main()
+	cmd := exec.Command("drand", "--folder", tmp, "generate-keypair", "127.0.0.1:8081")
+	out, err := cmd.Output()
+	require.Nil(t, err)
+	fmt.Println(string(out))
 	config := core.NewConfig(core.WithConfigFolder(tmp))
 	fs := key.NewFileStore(config.ConfigFolder())
 	priv, err := fs.LoadKeyPair()
 	require.Nil(t, err)
 	require.NotNil(t, priv.Public)
+
+	tmp2 := path.Join(os.TempDir(), "drand2")
+	defer os.RemoveAll(tmp2)
+	cmd = exec.Command("drand", "--folder", tmp2, "generate-keypair")
+	out, err = cmd.Output()
+	require.Error(t, err)
+	fmt.Println(string(out))
+	config = core.NewConfig(core.WithConfigFolder(tmp2))
+	fs = key.NewFileStore(config.ConfigFolder())
+	priv, err = fs.LoadKeyPair()
+	require.Error(t, err)
+	require.Nil(t, priv)
+}
+
+//tests valid commands and then invalid commands
+func TestGroup(t *testing.T) {
+	n := 5
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	defer os.RemoveAll(tmpPath)
+
+	names := make([]string, n, n)
+	privs := make([]*key.Pair, n, n)
+	for i := 0; i < n; i++ {
+		names[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", i))
+		privs[i] = key.NewKeyPair("127.0.0.1")
+		require.NoError(t, key.Save(names[i], privs[i].Public, false))
+		if yes, err := fs.Exists(names[i]); !yes || err != nil {
+			t.Fatal(err.Error())
+		}
+	}
+
+	//test not enough keys
+	cmd := exec.Command("drand", "--folder", tmpPath, "group", names[0])
+	out, err := cmd.CombinedOutput()
+	expectedOut := "group command take at least 3 keys as arguments"
+	fmt.Println(string(out))
+	require.Error(t, err)
+
+	//test valid creation
+	groupPath := path.Join(tmpPath, key.GroupFolderName)
+	args := []string{"drand", "--folder", tmpPath, "group"}
+	args = append(args, names...)
+	cmd = exec.Command(args[0], args[1:]...)
+	out, err = cmd.Output()
+	expectedOut = "Group file written in /tmp/drand/groups. Distribute it to all the participants to start the DKG."
+	fmt.Println(string(out))
+	require.True(t, strings.Contains(string(out), expectedOut))
+	require.Nil(t, err)
+	group := new(key.Group)
+	require.NoError(t, key.Load(groupPath, group))
+	for i := 0; i < n; i++ {
+		require.True(t, group.Contains(privs[i].Public))
+	}
+	extraName := path.Join(tmpPath, fmt.Sprintf("drand-%d.public", n))
+	extraPriv := key.NewKeyPair("127.0.0.1")
+	require.NoError(t, key.Save(extraName, extraPriv.Public, false))
+	if yes, err := fs.Exists(extraName); !yes || err != nil {
+		t.Fatal(err.Error())
+	}
+
+	//test valid merge
+	cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", groupPath, extraName)
+	out, err = cmd.Output()
+	fmt.Println(string(out))
+	expectedOut = "Group file updated can be found at /tmp/drand/groups. Run upgrade command to do the resharing."
+	require.True(t, strings.Contains(string(out), expectedOut))
+	group = new(key.Group)
+	require.NoError(t, key.Load(groupPath, group))
+	for i := 0; i < n; i++ {
+		require.True(t, group.Contains(privs[i].Public))
+	}
+	require.True(t, group.Contains(extraPriv.Public))
+
+	//test there is already a group file
+	cmd = exec.Command(args[0], args[1:]...)
+	out, err = cmd.Output()
+	fmt.Println(string(out))
+	expectedOut = "drand: there already is a group.toml file, please use the flag --group to merge your new keys."
+	require.Error(t, err)
+	require.True(t, strings.Contains(string(out), expectedOut))
+
+	//test could not load group file
+	wrongGroupPath := "not_here"
+	cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", wrongGroupPath, names[0])
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.Error(t, err)
 }
 
 func TestStartAndStop(t *testing.T) {
@@ -82,32 +172,17 @@ func TestStartBeacon(t *testing.T) {
 	}
 }
 
-func TestGroupGen(t *testing.T) {
-	n := 5
+func TestStartWithoutGroup(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
-	names := make([]string, n, n)
-	privs := make([]*key.Pair, n, n)
-	for i := 0; i < n; i++ {
-		names[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", i))
-		privs[i] = key.NewKeyPair("127.0.0.1")
-		require.NoError(t, key.Save(names[i], privs[i].Public, false))
-		if yes, err := fs.Exists(names[i]); !yes || err != nil {
-			t.Fatal(err.Error())
-		}
-	}
-	groupPath := path.Join(tmpPath, key.GroupFolderName)
-	os.Args = []string{"drand", "--folder", tmpPath, "group"}
-	os.Args = append(os.Args, names...)
-	main()
-
-	group := new(key.Group)
-	require.NoError(t, key.Load(groupPath, group))
-	for i := 0; i < n; i++ {
-		require.True(t, group.Contains(privs[i].Public))
-	}
+	cmd := exec.Command("drand", "--folder", tmpPath, "start", "--tls-disable")
+	out, err := cmd.Output()
+	expectedErr := "The DKG has not been run before, please provide a group file to do the setup."
+	output := string(out)
+	require.Error(t, err)
+	require.True(t, strings.Contains(output, expectedErr))
 }
 
 func TestClientTLS(t *testing.T) {

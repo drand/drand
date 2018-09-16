@@ -177,12 +177,7 @@ type IndexedPublic struct {
 	Index int
 }
 
-// GetCoKey returns the collective key of the group
-func (g *Group) GetCoKey() *DistPublic {
-	return g.CoKey
-}
-
-// GetCoKey returns the collective key of the group
+// SetCoKey sets the collective key of the group
 func (g *Group) SetCoKey(key *DistPublic) {
 	g.CoKey = key
 }
@@ -309,7 +304,16 @@ func NewGroup(list []*Identity, threshold int, key *DistPublic) *Group {
 	}
 }
 
-// returns an indexed list from a list of public keys. Functionality needed in
+// MergeGroup takes a list of identities to add to an existing Group. CoKey is left unchanged
+func (g *Group) MergeGroup(list []*Identity) *Group {
+	return &Group{
+		Nodes:     toIndexedList(append(g.Identities(), list...)),
+		Threshold: DefaultThreshold(len(list) + g.Len()),
+		CoKey:     g.CoKey,
+	}
+}
+
+// toIndexedList returns an indexed list from a list of public keys. Functionality needed in
 // tests where one does not necessary load a group from a file.
 func toIndexedList(list []*Identity) []*IndexedPublic {
 	sort.Sort(ByKey(list))
