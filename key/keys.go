@@ -177,11 +177,6 @@ type IndexedPublic struct {
 	Index int
 }
 
-// SetCoKey sets the collective key of the group
-func (g *Group) SetCoKey(key *DistPublic) {
-	g.CoKey = key
-}
-
 // Contains returns true if the public key is contained in the list or not.
 func (g *Group) Contains(pub *Identity) bool {
 	for _, pu := range g.Nodes {

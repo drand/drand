@@ -140,7 +140,7 @@ func (d *Drand) WaitDKG() error {
 	}
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	d.group.SetCoKey(d.share.Public())
+	d.group.CoKey = d.share.Public()
 	// XXX See if needed to change to qualified group
 	d.store.SaveGroup(d.group)
 	return d.initBeacon()
