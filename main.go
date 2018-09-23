@@ -59,7 +59,7 @@ func main() {
 	verboseFlag := cli.IntFlag{
 		Name:  "verbose, V",
 		Value: 0,
-		Usage: "Set verbosity to the given level.",
+		Usage: "Set verbosity to the given level. 0 for normal output, 1 for informational output and 2 for debug output.",
 	}
 	tlsCertFlag := cli.StringFlag{
 		Name: "tls-cert, c",
@@ -247,13 +247,13 @@ func main() {
 	app.Flags = toArray(verboseFlag, folderFlag)
 	app.Before = func(c *cli.Context) error {
 		if c.GlobalIsSet("verbose") {
+			if c.Int("verbose") == 0 {
+				slog.Level = slog.LevelPrint
+			}
 			if c.Int("verbose") == 1 {
 				slog.Level = slog.LevelInfo
 			}
 			if c.Int("verbose") == 2 {
-				slog.Level = slog.LevelPrint
-			}
-			if c.Int("verbose") == 3 {
 				slog.Level = slog.LevelDebug
 			}
 		}

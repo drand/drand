@@ -135,7 +135,7 @@ function run() {
     #echo $allKeys
     echo "[+] Generating group file"
     docker run --rm -v $TMP:/tmp:z $IMG "--folder" "$TMP" group "${allKeys[@]}"
-    echo "[+] Group file generated at $TMP/groups/drand_group.toml"
+    createNSaveGroup
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
         echo "[+] preparing for node $i"
@@ -172,6 +172,13 @@ function run() {
         docker logs -f node$i > $logFile &
         sleep 0.1
     done
+}
+
+function createNSaveGroup() {
+    cat > GROUPFILE <<EOF1
+    will you find the file now
+EOF1
+    echo "[+] Groupfile saved at $GROUPFILE"
 }
 
 function cleanup() {
