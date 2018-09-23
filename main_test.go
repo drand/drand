@@ -16,6 +16,7 @@ import (
 	"github.com/dedis/kyber/pairing/bn256"
 	"github.com/dedis/kyber/share"
 	"github.com/kabukky/httpscerts"
+	"github.com/nikkolasg/slog"
 
 	"github.com/stretchr/testify/require"
 )
@@ -83,16 +84,25 @@ func TestGroup(t *testing.T) {
 	args := []string{"drand", "--folder", tmpPath, "group"}
 	args = append(args, names...)
 	cmd = exec.Command(args[0], args[1:]...)
-	out, err = cmd.Output()
-	expectedOut = "Group file written in /tmp/drand/groups. Distribute it to all the participants to start the DKG."
+	out, err = cmd.CombinedOutput()
+	expectedOut = "Copy the following snippet into a group.toml file and distribute it to all the participants to start the DKG."
 	fmt.Println(string(out))
 	require.True(t, strings.Contains(string(out), expectedOut))
 	require.Nil(t, err)
-	group := new(key.Group)
-	require.NoError(t, key.Load(groupPath, group))
-	for i := 0; i < n; i++ {
-		require.True(t, group.Contains(privs[i].Public))
+
+	//recreates exactly like in main and saves the group
+	var threshold = key.DefaultThreshold(n)
+	publics := make([]*key.Identity, n)
+	for i, str := range names {
+		pub := &key.Identity{}
+		if err := key.Load(str, pub); err != nil {
+			slog.Fatal(err)
+		}
+		publics[i] = pub
 	}
+	group := key.NewGroup(publics, threshold, &key.DistPublic{})
+	require.Nil(t, key.Save(groupPath, group, false))
+
 	extraName := path.Join(tmpPath, fmt.Sprintf("drand-%d.public", n))
 	extraPriv := key.NewKeyPair("127.0.0.1")
 	require.NoError(t, key.Save(extraName, extraPriv.Public, false))
@@ -102,16 +112,11 @@ func TestGroup(t *testing.T) {
 
 	//test valid merge
 	cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", groupPath, extraName)
-	out, err = cmd.Output()
+	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
-	expectedOut = "Group file updated can be found at /tmp/drand/groups. Run upgrade command to do the resharing."
+
+	expectedOut = "Copy the following snippet into a new_group.toml file and give it to the upgrade command to do the resharing."
 	require.True(t, strings.Contains(string(out), expectedOut))
-	group = new(key.Group)
-	require.NoError(t, key.Load(groupPath, group))
-	for i := 0; i < n; i++ {
-		require.True(t, group.Contains(privs[i].Public))
-	}
-	require.True(t, group.Contains(extraPriv.Public))
 
 	//test there is already a group file
 	cmd = exec.Command(args[0], args[1:]...)

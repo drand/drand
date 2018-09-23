@@ -267,9 +267,11 @@ func (g *Group) FromTOML(i interface{}) error {
 	} else if g.Threshold > g.Len() {
 		return errors.New("group file have threshold superior to number of participants")
 	}
-	d := new(DistPublic)
-	d.FromTOML(gt.CoKey)
-	g.CoKey = d
+	if !(gt.CoKey == nil) {
+		d := new(DistPublic)
+		d.FromTOML(gt.CoKey)
+		g.CoKey = d
+	}
 	return nil
 }
 
@@ -280,7 +282,9 @@ func (g *Group) TOML() interface{} {
 	for i, p := range g.Nodes {
 		gtoml.Nodes[i] = p.Identity.TOML().(*PublicTOML)
 	}
-	gtoml.CoKey = g.CoKey.TOML().(*DistPublicTOML)
+	if !(g.CoKey == nil || g.CoKey.Key == nil) {
+		gtoml.CoKey = g.CoKey.TOML().(*DistPublicTOML)
+	}
 	return gtoml
 }
 
@@ -299,12 +303,11 @@ func NewGroup(list []*Identity, threshold int, key *DistPublic) *Group {
 	}
 }
 
-// MergeGroup takes a list of identities to add to an existing Group. CoKey is left unchanged
+// MergeGroup takes a list of identities to add to an existing Group.
 func (g *Group) MergeGroup(list []*Identity) *Group {
 	return &Group{
 		Nodes:     toIndexedList(append(g.Identities(), list...)),
 		Threshold: DefaultThreshold(len(list) + g.Len()),
-		CoKey:     g.CoKey,
 	}
 }
 
@@ -412,9 +415,6 @@ type DistPublicTOML struct {
 
 // TOML returns a TOML-compatible version of d
 func (d *DistPublic) TOML() interface{} {
-	if d.Key == nil {
-		return &DistPublicTOML{}
-	}
 	str := pointToString(d.Key)
 	return &DistPublicTOML{str}
 }
@@ -426,11 +426,8 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 		return errors.New("wrong interface: expected DistPublicTOML")
 	}
 	var err error
-	if dtoml.Key != "" {
-		d.Key, err = stringToPoint(G2, dtoml.Key)
-		return err
-	}
-	return nil
+	d.Key, err = stringToPoint(G2, dtoml.Key)
+	return err
 }
 
 // TOMLValue returns an empty TOML-compatible dist public interface

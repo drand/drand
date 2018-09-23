@@ -395,22 +395,26 @@ func groupCmd(c *cli.Context) error {
 			slog.Fatal(err)
 		}
 		group := oldG.MergeGroup(publics)
-		if err := key.Save(groupPath, group, false); err != nil {
-			slog.Fatal(err)
+		var buff bytes.Buffer
+		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
+			slog.Print("doesn't want to encode")
 		}
-		slog.Printf("Group file updated can be found at %s. Run upgrade command to do the resharing.", groupPath)
+		buff.WriteString("\n")
+		slog.Printf("Copy the following snippet into a new_group.toml file and give it to the upgrade command to do the resharing. \n%s", buff.String())
 	} else {
 		config := contextToConfig(c)
-		group := key.NewGroup(publics, threshold, &key.DistPublic{})
+		group := key.NewGroup(publics, threshold, nil)
 		groupPath := path.Join(config.ConfigFolder(), key.GroupFolderName)
 		if err := key.Load(groupPath, group); err == nil {
 			slog.Fatal("drand: there already is a group.toml file, please use the flag --group to merge your new keys.")
 			// XXX: does that checks if existing groupFile ? check if empty struct
 		}
-		if err := key.Save(groupPath, group, false); err != nil {
-			slog.Fatal(err)
+		var buff bytes.Buffer
+		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
+			slog.Print("doesn't want to encode")
 		}
-		slog.Printf("Group file written in %s. Distribute it to all the participants to start the DKG.", groupPath)
+		buff.WriteString("\n")
+		slog.Printf("Copy the following snippet into a group.toml file and distribute it to all the participants to start the DKG. \n%s", buff.String())
 	}
 	return nil
 }

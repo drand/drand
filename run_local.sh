@@ -92,7 +92,7 @@ function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    echo "[+] Create the certificate directory"
+    echo "[+] Create the sub directories"
     mkdir -m 740 $CERTSDIR
     mkdir -m 740 $LOGSDIR
     mkdir -m 740 $GROUPDIR
@@ -128,10 +128,12 @@ function run() {
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
         echo "[+] Generated private/public pair + certificate for $addr"
+    cd ..
     done
 
     ## generate group toml
     #echo $allKeys
+    echo "[+] Generating group file"
     docker run --rm -v $TMP:/tmp:z $IMG "--folder" "$TMP" group "${allKeys[@]}"
     echo "[+] Group file generated at $TMP/groups/drand_group.toml"
     echo "[+] Starting all drand nodes sequentially..."

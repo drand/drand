@@ -331,6 +331,7 @@ func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.S
 	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }
 
+// PublicKey is a functionality of Control Service defined in protobuf/control that requests the long term public key of the drand node running locally
 func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
 	key, err := d.store.LoadKeyPair()
 	if err != nil {
@@ -342,6 +343,8 @@ func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*c
 	}
 	return &control.PublicKeyResponse{PubKey: protoKey}, nil
 }
+
+// PrivateKey is a functionality of Control Service defined in protobuf/control that requests the long term private key of the drand node running locally
 func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
 	key, err := d.store.LoadKeyPair()
 	if err != nil {
