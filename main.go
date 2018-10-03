@@ -97,8 +97,11 @@ func main() {
 		Name:  "group, g",
 		Usage: "If you want to merge keys into an existing group.toml file, run the group command and specify the group.toml file with this flag.",
 	}
-
-	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, certsDirFlag, distKeyFlag, thresholdFlag.
+	certsDirFlag := cli.StringFlag{
+		Name:  "certs-dir",
+		Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
+	}
+	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
 
 	// =====Commands=====
 
@@ -111,7 +114,7 @@ func main() {
 				"if there has been already a successful distributed key generation before, the node automatically switches to " +
 				"the public randomness generation mode after a potential state-syncing phase with the other nodes in group.toml.",
 			ArgsUsage: "<group.toml> the group file.",
-			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, listenFlag),
+			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, listenFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -690,6 +693,13 @@ func contextToConfig(c *cli.Context) *core.Config {
 	} else {
 		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
 		opts = append(opts, core.WithTLS(certPath, keyPath))
+	}
+	if c.IsSet("certs-dir") {
+		paths, err := fs.Files(c.String("certs-dir"))
+		if err != nil {
+			panic(err)
+		}
+		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
 	conf := core.NewConfig(opts...)
 	return conf

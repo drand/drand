@@ -113,9 +113,10 @@ function run() {
         mkdir -m 740 -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null
         public="key/drand_id.public"
+        touch $public
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
+        docker run --rm --volume ${allVolumes[$i]} $IMG "--folder" "$data" generate-keypair "$addr"
             #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
@@ -128,14 +129,16 @@ function run() {
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
         echo "[+] Generated private/public pair + certificate for $addr"
+
     cd ..
     done
 
     ## generate group toml
     #echo $allKeys
     echo "[+] Generating group file"
-    docker run --rm -v $TMP:/tmp:z $IMG "--folder" "$TMP" group "${allKeys[@]}"
-    createNSaveGroup
+    touch $GROUPFILE
+    docker run --rm -v $TMP:/tmp:z $IMG "--folder" "$TMP" group "${allKeys[@]}" >> $GROUPFILE
+    sed -i 1,10d $GROUPFILE
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
         echo "[+] preparing for node $i"
@@ -145,10 +148,9 @@ function run() {
         logFile="$LOGSDIR/node$i.log"
         groupFile="$data""drand_group.toml"
         cp $GROUPFILE $groupFile
-        dockerGroupFile="/root/.drand/drand_group.toml"
 
-
-        drandCmd=("start" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+        drandCmd=("--folder" "$TMP" "start" "--tls-cert" "$certFile" "--tls-key" "$keyFile" "--certs-dir" "/certs")
+        drandCmd+=($GROUPFILE)
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
         args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
@@ -167,18 +169,10 @@ function run() {
         else
             echo "[+] Starting node $i "
         fi
-        drandCmd+=($dockerGroupFile)
-        docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+        docker ${args[@]} "$IMG" "${drandCmd[@]}"
         docker logs -f node$i > $logFile &
         sleep 0.1
     done
-}
-
-function createNSaveGroup() {
-    cat > GROUPFILE <<EOF1
-    will you find the file now
-EOF1
-    echo "[+] Groupfile saved at $GROUPFILE"
 }
 
 function cleanup() {
@@ -196,9 +190,8 @@ function fetchTest() {
     serverCert="$CERTSDIR/server-$nindex.cert"
     serverCertDocker="/server.cert"
     serverCertVol="$serverCert:$serverCertDocker"
-    dockerGroupFile="/root/.drand/drand_group.toml"
     drandArgs=("get" "private")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "--nodes" "${addresses[$nindex]}" "$dockerGroupFile")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "--nodes" "${addresses[$nindex]}" "$GROUPFILE")
     echo "---------------------------------------------"
     echo "              Private Randomness             "
     docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
@@ -211,7 +204,7 @@ function fetchTest() {
     drandArgs=( "get" "public")
     drandArgs+=("--tls-cert" "$serverCertDocker")
     idx=`expr $nindex - 1`
-    drandArgs+=("--nodes" "${addresses[$idx]}" "$dockerGroupFile")
+    drandArgs+=("--nodes" "${addresses[$idx]}" "$GROUPFILE")
     docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"
