@@ -86,6 +86,7 @@ func (f *fileStore) SaveKeyPair(p *Pair) error {
 	if err := Save(f.privateKeyFile, p, true); err != nil {
 		return err
 	}
+	slog.Printf("Saved the key : %s at %s", p.Public.Addr, f.publicKeyFile)
 	return Save(f.publicKeyFile, p.Public, false)
 }
 
