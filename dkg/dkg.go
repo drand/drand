@@ -179,7 +179,7 @@ func (h *Handler) processTmpResponses(deal *dkg.Deal) {
 	for _, r := range resps {
 		_, err := h.state.ProcessResponse(r)
 		if err != nil {
-			slog.Debugf("dkg: err process temp response: ", err)
+			slog.Debug("dkg: err process temp response:", err)
 		}
 	}
 }
