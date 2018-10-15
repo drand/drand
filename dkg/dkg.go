@@ -14,7 +14,6 @@ import (
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/kyber/share/dkg/pedersen"
 	"github.com/dedis/kyber/share/vss/pedersen"
-	"github.com/dedis/kyber/util/random"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc/peer"
 )
@@ -66,8 +65,7 @@ func NewHandler(priv *key.Pair, conf *Config, n Network) (*Handler, error) {
 	if !ok {
 		return nil, errors.New("dkg: no nublic key corresponding in the given list")
 	}
-	randomSecret := conf.Suite.Scalar().Pick(random.New())
-	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t, randomSecret)
+	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t)
 	if err != nil {
 		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
 	}
