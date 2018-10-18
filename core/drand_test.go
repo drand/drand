@@ -24,12 +24,81 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDrandDKG(t *testing.T) {
+func TestDrandDKGReshare(t *testing.T) {
+	slog.Level = slog.LevelDebug
+
+	n := 5
+	thr := key.DefaultThreshold(n)
+
+	// create n shares
+	shares, dpub := test.SimulateDKG(t, key.G2, n, thr)
+	period := 1000 * time.Millisecond
+	old := net.DefaultTimeout
+	net.DefaultTimeout = 300 * time.Millisecond
+	defer func() { net.DefaultTimeout = old }()
+
+	drands, dir := BatchNewDrand(n, false,
+		WithBeaconPeriod(period),
+		WithCallOption(grpc.FailFast(true)))
+	defer CloseAllDrands(drands)
+	defer os.RemoveAll(dir)
+
+	ids := make([]*key.Identity, n)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+		drands[i].dkgDone = true
+	}
+	oldGroup := key.LoadGroup(ids, &key.DistPublic{dpub}, thr)
+	oldPath := path.Join(dir, "oldgroup.toml")
+	require.NoError(t, key.Save(oldPath, oldGroup, false))
+
+	newGroup := key.NewGroup(ids, thr)
+	newPath := path.Join(dir, "newgroup.toml")
+	require.NoError(t, key.Save(newPath, newGroup, false))
+
+	var wg sync.WaitGroup
+	wg.Add(n - 1)
+	for i, drand := range drands[1:] {
+		go func(d *Drand, j int) {
+			// simulate share material
+			ks := &key.Share{
+				Share:   shares[j+1],
+				Commits: dpub,
+			}
+			d.share = ks
+			// instruct to be ready for a reshare
+			client, err := net.NewControlClient(d.opts.controlPort)
+			require.NoError(t, err)
+			_, err = client.InitReshare(oldPath, newPath, false)
+			require.NoError(t, err)
+			err = d.WaitDKG()
+			require.Nil(t, err)
+			wg.Done()
+		}(drand, i)
+	}
+	ks := key.Share{
+		Share:   shares[0],
+		Commits: dpub,
+	}
+	root := drands[0]
+	root.share = &ks
+	//err := root.StartDKG(c)
+	client, err := net.NewControlClient(root.opts.controlPort)
+	require.NoError(t, err)
+	_, err = client.InitReshare(oldPath, newPath, true)
+	require.NoError(t, err)
+	err = root.WaitDKG()
+	require.NoError(t, err)
+	wg.Wait()
+
+}
+
+func TestDrandDKGFresh(t *testing.T) {
 	slog.Level = slog.LevelDebug
 
 	n := 5
 	nbRound := 3
-	//thr := key.DefaultThreshold(n)
+	thr := key.DefaultThreshold(n)
 	period := 1000 * time.Millisecond
 	old := net.DefaultTimeout
 	net.DefaultTimeout = 300 * time.Millisecond
@@ -41,13 +110,22 @@ func TestDrandDKG(t *testing.T) {
 	defer CloseAllDrands(drands[:n-1])
 	defer os.RemoveAll(dir)
 
+	ids := make([]*key.Identity, n)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+	}
+	newGroup := key.NewGroup(ids, thr)
+	for _, d := range drands {
+		_, found := newGroup.Index(d.priv.Public)
+		require.True(t, found)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(n - 1)
 	for _, drand := range drands[1:] {
 		go func(d *Drand) {
 			err := d.WaitDKG()
 			require.Nil(t, err)
-			require.NotNil(t, d.beacon)
 			wg.Done()
 		}(drand)
 	}
@@ -55,7 +133,13 @@ func TestDrandDKG(t *testing.T) {
 	root := drands[0]
 	err := root.StartDKG()
 	require.Nil(t, err)
+	err = root.WaitDKG()
+	require.Nil(t, err)
 	wg.Wait()
+
+	fmt.Println(" -++++++++++++++++ AAAAAAAAAAAAA ++++++++++++++++")
+	fmt.Println(" -++++++++++++++++ AAAAAAAAAAAAA ++++++++++++++++")
+	fmt.Println(" -++++++++++++++++ AAAAAAAAAAAAA ++++++++++++++++")
 
 	// check if share + dist public files are saved
 	public, err := root.store.LoadDistPublic()
