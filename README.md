@@ -124,7 +124,7 @@ Encrypt](https://letsencrypt.org/) and  [EFF's certbot](https://certbot.eff.org/
 Although we **do not recommend** it, you can always disable TLS in drand via:
 
 ```bash
-drand <command> --insecure
+drand <command> --tls-disable
 ```
 
 ### Docker
@@ -161,7 +161,7 @@ the randomness generation mode.
 To generate the long-term key pair `drand_id.{secret,public}`, execute
 
 ```bash
-drand keygen <address>
+drand generate-keypair <address>
 ```
 
 where `<address>` is the address from which your drand daemon is reachable. If
@@ -179,15 +179,28 @@ drand group <pk1> <pk2> ... <pkn>
 where `<pki>` is the public key file `drand_id.public` of the i-th participant.
 This group file **MUST** be distributed to all participants.
 
-#### Distributed Key Generation
+##### Special case of adding one (or several) key(s)
+
+When a new member is added in the drand run, adding their key in the existing group file can be done via:
+
+```bash
+drand group <new_pk1> <new_pk2> ... <new_pkn> \
+    --group <group.toml>
+```
+
+where `<new_pki>` is the public key file `drand_id.public` of the i-th participant to add into the existing group file identity file of the drand run specified in `<group.toml>`.
+
+This file does not replace the existing group file yet but will be used later on.
+
+#### Collective Key Generation
 
 After receiving the `group.toml` file, participants can start drand via:
 
 ```bash
-drand run \
+drand start \
     --tls-cert <fullchain.pem> \
     --tls-key <privkey.pem> \
-    --group-init <group.toml>
+    <group.toml>
 ```
 
 One of the nodes has to function as the leader which finalizes the setup and
@@ -195,11 +208,11 @@ later also initiates the randomness generation rounds. To start the drand
 daemon in leader mode, execute:
 
 ```bash
-drand run \
+drand start \
     --leader \
     --tls-cert <fullchain.pem> \
     --tls-key <privkey.pem> \
-    --group-init <group.toml>
+    <group.toml>
 ```
 
 Once running, the leader initiates the distributed key generation protocol
@@ -210,6 +223,17 @@ Once the DKG has finished, the keys are stored as
 `$HOME/.drand/groups/dist_key.{public,private}`. The distributed public key is
 additionally save in the currently active directory.
 
+
+##### Beacon Mode
+
+If there has already been a successful distributed key generation, the node can be started directly in randomness generation mode after a potential state-syncing phase with the other nodes. To do so, run:
+
+```bash
+drand start \
+    --tls-cert <fullchain.pem> \
+    --tls-key <privkey.pem> 
+```
+
 #### Randomness Generation
 
 After a successful setup, drand switches automatically to the randomness
@@ -218,16 +242,16 @@ intervals. Once a node has collected a threshold of shares in the current phase,
 it re-creates the public random value and stores it in its local instance of
 [BoltDB](https://github.com/coreos/bbolt).
 
-To change the default [interval length](https://golang.org/pkg/time/#ParseDuration) 
+<!--To change the default [interval length](https://golang.org/pkg/time/#ParseDuration) 
 from 1 minute to 30 seconds, for example, start drand via
 
 ```bash
-drand run \
+drand start \
     --leader \
     --period 30s \
     --tls-cert <fullchain.pem> \
     --tls-key <privkey.pem> \
-```
+```--->
 
 **Note:** If a group file is provided at this point, the existing beacon
 database will be erased.
@@ -235,14 +259,43 @@ database will be erased.
 #### Other Functionalities
 
 Drand's local administrator interface provides further functionality, e.g., to
-update group details or retrieve secret information.
+update group details or retrieve secret information. 
+
+Some of those functionnalities are 
+implemented via grpc, so if the communications should be done via a precise port, it can 
+be specified when starting drand via:
+
+```bash
+drand start \
+    --tls-cert <fullchain.pem> \
+    --tls-key <privkey.pem> \
+    --port <port> \
+    <group.toml>
+
+```
+
+##### Retrieve Long-Term Private Key
+
+To retrieve the long-term private key of our node, run:
+
+```bash
+drand show private
+```
+
+##### Retrieve Long-Term Public Key
+
+To retrieve the long-term public key of our node, run:
+
+```bash
+drand show public
+```
 
 ##### Retrieve Private Key Share
 
-To retrieve the private key share, as determined during the DKG, run the following command:
+To retrieve the private key share of our node, as determined during the DKG, run the following command:
 
 ```bash
-drand control share
+drand show share
 ```
 
 The JSON-formatted output has the following form:
@@ -257,6 +310,14 @@ The JSON-formatted output has the following form:
 }
 ```
 
+##### Retrieve Collective Key
+
+To retrieve the collective key of the drand beacon our node is involved in, run:
+
+```bash
+drand show cokey
+```
+
 ### Using Drand
 
 A drand beacon provides several public services to clients. Communication is
@@ -264,26 +325,30 @@ protected through TLS by default. If the contacted node is using a self-signed
 certificate, the client can use the `--tls-cert` flag to specify the server's
 certificate.
 
-#### Fetching the Distributed Public Key 
+#### Fetching the Collective Public Key 
 
-To retrieve the distributed public key of a drand beacon, execute
+To retrieve the collective public key of a drand beacon, execute
 
 ```bash
-drand fetch dist_key <address>
+drand get cokey --tls-cert <fullchain.pem> \
+    --node <address> \
+    <group.toml>
 ```
 
-where `<address>` is the address of a drand node.
+where `<group.toml>` is the group file identity file of a drand node and `<address>` is the address of the drand node to be contacted.
 
 #### Fetching Public Randomness
 
 To get the latest public random value, run
 
 ```bash
-drand fetch public --distkey <dist_key.public> <address>
+drand get public --tls-cert <fullchain.pem> \
+    --round <i>
+    --node <address> \
+    <group.toml>
 ```
 
-where `<dist_key.public>` is the distributed public key generated during the setup
-and `<address>` is the address of the drand node to be contacted.
+where `<group.toml>` is the group file and `<address>` is the address of the drand node to be contacted.
 
 The JSON-formatted output produced by drand is of the following form:
 
@@ -300,15 +365,26 @@ previous random value `prv`. The field `idx` specifies the index of `rnd` in the
 sequence of all random values produced by this drand instance. Both `rnd` and
 `prv` are encoded in base64.
 
+It is also possible to get the public random value of a specific run `i`, if available, via:
+
+```bash
+drand get public --tls-cert <fullchain.pem> \
+    --round <i>
+    --node <address> \
+    <group.toml>
+```
+
 #### Fetching Private Randomness
 
 To get a private random value, run
 
 ```bash
-drand fetch private <drand_id.public>
+drand get private --tls-cert <fullchain.pem> \
+    --node <address> \
+    <group.toml>
 ```
 
-where `<drand_id.public>` is the public identity file of a drand node.
+where `<group.toml>` is the group file identity file of a drand node and `<address>` is the address of the drand node to contact.
 
 The JSON-formatted output produced by drand is of the following form:
 
@@ -322,6 +398,13 @@ Here `rnd` is the 32-byte base64-encoded private random value produced by the
 contacted drand node. If the encryption is not correct, the command outputs an
 error instead.
 
+#### Stop Drand
+
+Stop the running instance via:
+
+```bash
+drand stop
+```
 
 ## Cryptography Background
 
