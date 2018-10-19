@@ -379,7 +379,7 @@ func TestSharePort(t *testing.T) {
 	cmd := exec.Command("drand", "control", "share", "--port", "8181")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("could not run the command : %s", err.Error())
+		t.Fatalf("could not run the command : %s -> output: %s", err.Error(), out)
 	}
 	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
 	require.True(t, strings.Contains(string(out), expectedOutput))
