@@ -11,6 +11,7 @@ import (
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/test"
 	sdkg "github.com/dedis/kyber/share/dkg/pedersen"
+	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,7 +44,7 @@ func testNets(n int) []*testNet {
 }
 
 func TestDKG(t *testing.T) {
-	//slog.Level = slog.LevelDebug
+	slog.Level = slog.LevelDebug
 
 	n := 5
 	thr := key.DefaultThreshold(n)
