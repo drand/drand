@@ -47,7 +47,7 @@
     "util/random",
     "xof/blake2xb"
   ]
-  revision = "b61c9ac1d4742c616ca74b0a25beb505edb188af"
+  revision = "99be66047fc8057d0fb2516f4ae9155032b8b69e"
 
 [[projects]]
   name = "github.com/dedis/protobuf"

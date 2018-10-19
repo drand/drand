@@ -170,7 +170,7 @@ func (d *Drand) BeaconLoop() {
 		}
 	}
 	if catchup {
-		slog.Infof("drand: starting beacon loop in catch-up mode", err, b)
+		slog.Infof("drand: starting beacon loop in catch-up mode (%s - %v)", err, b)
 	} else {
 		slog.Infof("drand: starting beacon loop")
 	}
@@ -218,7 +218,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	}
 	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {
-		slog.Debugf("drand: received invalid ECIES private request:", err)
+		slog.Debugf("drand: received invalid ECIES private request: %s", err)
 		return nil, errors.New("invalid ECIES request")
 	}
 

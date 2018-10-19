@@ -14,7 +14,6 @@ import (
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/kyber/share/dkg/pedersen"
 	"github.com/dedis/kyber/share/vss/pedersen"
-	"github.com/dedis/kyber/util/random"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc/peer"
 )
@@ -66,8 +65,7 @@ func NewHandler(priv *key.Pair, conf *Config, n Network) (*Handler, error) {
 	if !ok {
 		return nil, errors.New("dkg: no nublic key corresponding in the given list")
 	}
-	randomSecret := conf.Suite.Scalar().Pick(random.New())
-	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t, randomSecret)
+	state, err := dkg.NewDistKeyGenerator(conf.Suite, priv.Key, points, t)
 	if err != nil {
 		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
 	}
@@ -138,6 +136,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 			Nonce:     pdeal.Deal.Nonce,
 			Cipher:    pdeal.Deal.Cipher,
 		},
+		Signature: pdeal.Signature,
 	}
 	defer h.processTmpResponses(deal)
 	defer h.Unlock()
@@ -181,7 +180,7 @@ func (h *Handler) processTmpResponses(deal *dkg.Deal) {
 	for _, r := range resps {
 		_, err := h.state.ProcessResponse(r)
 		if err != nil {
-			slog.Debugf("dkg: err process temp response: ", err)
+			slog.Debugf("dkg: err process temp response: %s", err)
 		}
 	}
 }
@@ -273,9 +272,10 @@ func (h *Handler) sendDeals() error {
 					Nonce:     deal.Deal.Nonce,
 					Cipher:    deal.Deal.Cipher,
 				},
+				Signature: deal.Signature,
 			},
 		}
-
+		fmt.Println("Deal -> signature ", deal.Deal.Signature)
 		slog.Debugf("dkg: %s sending deal to %s", h.addr(), id.Address())
 		if err := h.net.Send(id, packet); err != nil {
 			slog.Printf("dkg: failed to send deal to %s: %s", id.Address(), err)

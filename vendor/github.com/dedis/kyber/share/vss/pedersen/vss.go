@@ -45,7 +45,7 @@ type Dealer struct {
 	sessionID []byte
 	// list of deals this Dealer has generated
 	deals []*Deal
-	*aggregator
+	*Aggregator
 }
 
 // Deal encapsulates the verifiable secret share and is sent by the dealer to a verifier.
@@ -80,7 +80,7 @@ type EncryptedDeal struct {
 type Response struct {
 	// SessionID related to this run of the protocol
 	SessionID []byte
-	// Index of the verifier issuing this Response
+	// Index of the verifier issuing this Response from the new set of nodes
 	Index uint32
 	// false = NO APPROVAL == Complaint , true = APPROVAL
 	Status bool
@@ -142,7 +142,7 @@ func NewDealer(suite Suite, longterm, secret kyber.Scalar, verifiers []kyber.Poi
 		return nil, err
 	}
 
-	d.aggregator = newAggregator(d.suite, d.pub, d.verifiers, d.secretCommits, d.t, d.sessionID)
+	d.Aggregator = newAggregator(d.suite, d.pub, d.verifiers, d.secretCommits, d.t, d.sessionID)
 	// C = F + G
 	d.deals = make([]*Deal, len(d.verifiers))
 	for i := range d.verifiers {
@@ -265,9 +265,6 @@ func (d *Dealer) SecretCommit() kyber.Point {
 // Commits returns the commitments of the coefficient of the secret polynomial
 // the Dealer is sharing.
 func (d *Dealer) Commits() []kyber.Point {
-	if !d.EnoughApprovals() || !d.DealCertified() {
-		return nil
-	}
 	return d.secretCommits
 }
 
@@ -286,7 +283,7 @@ func (d *Dealer) SessionID() []byte {
 // for this DKG protocol round. The caller is expected to call this after a long timeout
 // so each DKG node can still compute its share if enough Deals are valid.
 func (d *Dealer) SetTimeout() {
-	d.aggregator.cleanVerifiers()
+	d.Aggregator.cleanVerifiers()
 }
 
 // PrivatePoly returns the private polynomial used to generate the deal. This
@@ -307,7 +304,7 @@ type Verifier struct {
 	index       int
 	verifiers   []kyber.Point
 	hkdfContext []byte
-	*aggregator
+	*Aggregator
 }
 
 // NewVerifier returns a Verifier out of:
@@ -370,8 +367,8 @@ func (v *Verifier) ProcessEncryptedDeal(e *EncryptedDeal) (*Response, error) {
 		return nil, err
 	}
 
-	if v.aggregator == nil {
-		v.aggregator = newAggregator(v.suite, v.dealer, v.verifiers, d.Commitments, t, d.SessionID)
+	if v.Aggregator == nil {
+		v.Aggregator = newAggregator(v.suite, v.dealer, v.verifiers, d.Commitments, t, d.SessionID)
 	}
 
 	r := &Response{
@@ -391,7 +388,7 @@ func (v *Verifier) ProcessEncryptedDeal(e *EncryptedDeal) (*Response, error) {
 		return nil, err
 	}
 
-	if err = v.aggregator.addResponse(r); err != nil {
+	if err = v.Aggregator.addResponse(r); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -425,17 +422,24 @@ func (v *Verifier) decryptDeal(e *EncryptedDeal) (*Deal, error) {
 // ErrNoDealBeforeResponse is an error returned if a verifier receives a
 // deal before having received any responses. For the moment, the caller must
 // be sure to have dispatched a deal before.
-var ErrNoDealBeforeResponse = errors.New("verfier: need to receive deal before response")
+var ErrNoDealBeforeResponse = errors.New("verifier: need to receive deal before response")
 
 // ProcessResponse analyzes the given response. If it's a valid complaint, the
 // verifier should expect to see a Justification from the Dealer. It returns an
 // error if it's not a valid response.
 // Call `v.DealCertified()` to check if the whole protocol is finished.
 func (v *Verifier) ProcessResponse(resp *Response) error {
-	if v.aggregator == nil {
+	if v.Aggregator == nil {
 		return ErrNoDealBeforeResponse
 	}
-	return v.aggregator.verifyResponse(resp)
+	return v.Aggregator.verifyResponse(resp)
+}
+
+// Commits returns the commitments of the coefficients of the polynomial
+// contained in the Deal received. It is public information. The private
+// information in the deal must be retrieved through Deal().
+func (v *Verifier) Commits() []kyber.Point {
+	return v.deal.Commitments
 }
 
 // Deal returns the Deal that this verifier has received. It returns
@@ -452,7 +456,7 @@ func (v *Verifier) Deal() *Deal {
 // probably means the Dealer is acting maliciously. In order to be sure, call
 // `v.EnoughApprovals()` and if true, `v.DealCertified()`.
 func (v *Verifier) ProcessJustification(dr *Justification) error {
-	return v.aggregator.verifyJustification(dr)
+	return v.Aggregator.verifyJustification(dr)
 }
 
 // Key returns the longterm key pair this verifier is using during this protocol
@@ -493,24 +497,24 @@ func RecoverSecret(suite Suite, deals []*Deal, n, t int) (kyber.Scalar, error) {
 // for this DKG protocol round. The caller is expected to call this after a long timeout
 // so each DKG node can still compute its share if enough Deals are valid.
 func (v *Verifier) SetTimeout() {
-	v.aggregator.cleanVerifiers()
+	v.Aggregator.cleanVerifiers()
 }
 
 // UnsafeSetResponseDKG is an UNSAFE bypass method to allow DKG to use VSS
 // that works on basis of approval only.
 func (v *Verifier) UnsafeSetResponseDKG(idx uint32, approval bool) {
 	r := &Response{
-		SessionID: v.aggregator.sid,
+		SessionID: v.Aggregator.sid,
 		Index:     uint32(idx),
 		Status:    approval,
 	}
 
-	v.aggregator.addResponse(r)
+	v.Aggregator.addResponse(r)
 }
 
-// aggregator is used to collect all deals, and responses for one protocol run.
+// Aggregator is used to collect all deals, and responses for one protocol run.
 // It brings common functionalities for both Dealer and Verifier structs.
-type aggregator struct {
+type Aggregator struct {
 	suite     Suite
 	dealer    kyber.Point
 	verifiers []kyber.Point
@@ -523,8 +527,8 @@ type aggregator struct {
 	badDealer bool
 }
 
-func newAggregator(suite Suite, dealer kyber.Point, verifiers, commitments []kyber.Point, t int, sid []byte) *aggregator {
-	agg := &aggregator{
+func newAggregator(suite Suite, dealer kyber.Point, verifiers, commitments []kyber.Point, t int, sid []byte) *Aggregator {
+	agg := &Aggregator{
 		suite:     suite,
 		dealer:    dealer,
 		verifiers: verifiers,
@@ -536,12 +540,22 @@ func newAggregator(suite Suite, dealer kyber.Point, verifiers, commitments []kyb
 	return agg
 }
 
+// NewEmptyAggregator returns a structure capable of storing Responses about a
+// deal and check if the deal is certified or not.
+func NewEmptyAggregator(suite Suite, verifiers []kyber.Point) *Aggregator {
+	return &Aggregator{
+		suite:     suite,
+		verifiers: verifiers,
+		responses: make(map[uint32]*Response),
+	}
+}
+
 var errDealAlreadyProcessed = errors.New("vss: verifier already received a deal")
 
 // VerifyDeal analyzes the deal and returns an error if it's incorrect. If
 // inclusion is true, it also returns an error if it is the second time this struct
 // analyzes a Deal.
-func (a *aggregator) VerifyDeal(d *Deal, inclusion bool) error {
+func (a *Aggregator) VerifyDeal(d *Deal, inclusion bool) error {
 	if a.deal != nil && inclusion {
 		return errDealAlreadyProcessed
 
@@ -576,9 +590,9 @@ func (a *aggregator) VerifyDeal(d *Deal, inclusion bool) error {
 	return nil
 }
 
-// cleanVerifiers checks the aggregator's response array and creates a StatusComplaint
+// cleanVerifiers checks the Aggregator's response array and creates a StatusComplaint
 // response for all verifiers that did not respond to the Deal.
-func (a *aggregator) cleanVerifiers() {
+func (a *Aggregator) cleanVerifiers() {
 	for i := range a.verifiers {
 		if _, ok := a.responses[uint32(i)]; !ok {
 			a.responses[uint32(i)] = &Response{
@@ -590,8 +604,15 @@ func (a *aggregator) cleanVerifiers() {
 	}
 }
 
-func (a *aggregator) verifyResponse(r *Response) error {
-	if !bytes.Equal(r.SessionID, a.sid) {
+// ProcessResponse verifies the validity of the given response and stores it
+// internall. It is  the public version of verifyResponse created this way to
+// allow higher-level package to use these functionalities.
+func (a *Aggregator) ProcessResponse(r *Response) error {
+	return a.verifyResponse(r)
+}
+
+func (a *Aggregator) verifyResponse(r *Response) error {
+	if a.sid != nil && !bytes.Equal(r.SessionID, a.sid) {
 		return errors.New("vss: receiving inconsistent sessionID in response")
 	}
 
@@ -607,7 +628,7 @@ func (a *aggregator) verifyResponse(r *Response) error {
 	return a.addResponse(r)
 }
 
-func (a *aggregator) verifyJustification(j *Justification) error {
+func (a *Aggregator) verifyJustification(j *Justification) error {
 	if _, ok := findPub(a.verifiers, j.Index); !ok {
 		return errors.New("vss: index out of bounds in justification")
 	}
@@ -628,7 +649,7 @@ func (a *aggregator) verifyJustification(j *Justification) error {
 	return nil
 }
 
-func (a *aggregator) addResponse(r *Response) error {
+func (a *Aggregator) addResponse(r *Response) error {
 	if _, ok := findPub(a.verifiers, r.Index); !ok {
 		return errors.New("vss: index out of bounds in Complaint")
 	}
@@ -641,7 +662,7 @@ func (a *aggregator) addResponse(r *Response) error {
 
 // EnoughApprovals returns true if enough verifiers have sent their approval for
 // the deal they received.
-func (a *aggregator) EnoughApprovals() bool {
+func (a *Aggregator) EnoughApprovals() bool {
 	var app int
 	for _, r := range a.responses {
 		if r.Status == StatusApproval {
@@ -651,12 +672,16 @@ func (a *aggregator) EnoughApprovals() bool {
 	return app >= a.t
 }
 
+func (a *Aggregator) Responses() map[uint32]*Response {
+	return a.responses
+}
+
 // DealCertified returns true if there has been less than t complaints, all
 // Justifications were correct and if EnoughApprovals() returns true.
-func (a *aggregator) DealCertified() bool {
+func (a *Aggregator) DealCertified() bool {
 	var verifiersUnstable int
 
-	// XXX currently it can still happen that an aggregator has not been set,
+	// XXX currently it can still happen that an Aggregator has not been set,
 	// because it did not receive any deals yet or responses.
 	if a == nil {
 		return false
