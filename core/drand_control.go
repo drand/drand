@@ -16,9 +16,11 @@ import (
 	"gopkg.in/dedis/kyber.v0/share/vss"
 )
 
+// InitDKG take a DKGRequest, extracts the informations needed and wait for the
+// DKG protocol to finish. If the request specify this node is a leader, it
+// starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
 	d.state.Lock()
-	defer d.state.Unlock()
 
 	if d.dkgDone == true {
 		return nil, errors.New("drand: dkg phase already done. Can't run 2 init DKG")
@@ -26,10 +28,12 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 
 	group, err := extractGroup(in.GetDkgGroup())
 	if err != nil {
+		d.state.Unlock()
 		return nil, err
 	}
 	d.group = group
 	if idx, found := group.Index(d.priv.Public); !found {
+		d.state.Unlock()
 		return nil, errors.New("drand: public key not found in group")
 	} else {
 		d.idx = idx
@@ -42,16 +46,19 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 		Key:       d.priv,
 	}
 
+	d.state.Unlock()
+
 	if in.GetIsLeader() {
-		go d.StartDKG()
+		d.StartDKG()
 	}
+	d.WaitDKG()
 	return &control.DKGResponse{}, nil
 }
 
 // Reshare receives information about the old and new group from which to
 // operate the resharing protocol. It starts the resharing protocol if the
-// received node is stated as a leader and is present in the old group. Call
-// d.WaitDKG after this command to be notified of the end of the DKG protocol.
+// received node is stated as a leader and is present in the old group.
+// This function waits for the resharing DKG protocol to finish.
 func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*control.ReshareResponse, error) {
 
 	var oldGroup, newGroup *key.Group
@@ -63,74 +70,81 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 		return nil, err
 	}
 
-	d.state.Lock()
-	defer d.state.Unlock()
-
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
 
-	if oldPresent {
-		if d.group == nil {
-			return nil, errors.New("control: present in old group but no dkg here")
-		} else {
-			// stateful verification checking if we are in the old group that we have
-			// and the one we receive
-			currHash, err := d.group.Hash()
-			if err != nil {
-				return nil, err
-			}
-			oldHash, err := oldGroup.Hash()
-			if err != nil {
-				return nil, err
-			}
-			if currHash != oldHash {
-				return nil, errors.New("control: given old group is not the same as one saved")
-			}
-		}
-	}
+	err = func() error {
+		d.state.Lock()
+		defer d.state.Unlock()
 
-	// prepare dkg config to run the protocol
-	conf := &dkg.Config{
-		OldNodes:  oldGroup,
-		NewNodes:  newGroup,
-		Threshold: newGroup.Threshold,
-		Key:       d.priv,
-		Suite:     key.G2.(dkg.Suite),
-	}
-	// run the proto
-	if oldPresent {
-		if !d.dkgDone {
-			return nil, errors.New("control: can't reshare from old node when DKG not finished first")
+		if oldPresent {
+			if d.group == nil {
+				return errors.New("control: present in old group but no dkg here")
+			} else {
+				// stateful verification checking if we are in the old group that we have
+				// and the one we receive
+				currHash, err := d.group.Hash()
+				if err != nil {
+					return err
+				}
+				oldHash, err := oldGroup.Hash()
+				if err != nil {
+					return err
+				}
+				if currHash != oldHash {
+					return errors.New("control: given old group is not the same as one saved")
+				}
+			}
 		}
-		if d.share == nil {
-			return nil, errors.New("control: can't reshare without a share !")
-		}
-		conf.Share = d.share
-	}
 
-	nextHash, err := newGroup.Hash()
+		// prepare dkg config to run the protocol
+		conf := &dkg.Config{
+			OldNodes:  oldGroup,
+			NewNodes:  newGroup,
+			Threshold: newGroup.Threshold,
+			Key:       d.priv,
+			Suite:     key.G2.(dkg.Suite),
+		}
+		// run the proto
+		if oldPresent {
+			if !d.dkgDone {
+				return errors.New("control: can't reshare from old node when DKG not finished first")
+			}
+			if d.share == nil {
+				return errors.New("control: can't reshare without a share !")
+			}
+			conf.Share = d.share
+		}
+
+		nextHash, err := newGroup.Hash()
+		if err != nil {
+			return err
+		}
+
+		d.nextGroupHash = nextHash
+		d.nextGroup = newGroup
+		d.nextConf = conf
+		return nil
+	}()
+
 	if err != nil {
 		return nil, err
 	}
 
-	d.nextGroupHash = nextHash
-	d.nextGroup = newGroup
-	d.nextConf = conf
-
 	if oldPresent && in.GetIsLeader() {
 		// only the root sends a pre-message to the other old nodes and start
 		// the DKG
-		go d.startResharingAsLeader(conf, oldIdx, nextHash)
+		d.startResharingAsLeader(oldIdx)
 	}
-
+	d.WaitDKG()
 	return &control.ReshareResponse{}, nil
 }
 
-func (d *Drand) startResharingAsLeader(c *dkg.Config, oidx int, nextHash string) {
+func (d *Drand) startResharingAsLeader(oidx int) {
 	d.state.Lock()
-	msg := &dkg_proto.ResharePacket{GroupHash: nextHash}
+	msg := &dkg_proto.ResharePacket{GroupHash: d.nextGroupHash}
 	// send resharing packet to signal start of the protocol to other old
 	// nodes
-	for i, p := range c.OldNodes.Identities() {
+	for i, p := range d.nextConf.OldNodes.Identities() {
 		if i == oidx {
 			continue
 		}
