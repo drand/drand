@@ -5,7 +5,6 @@ package core
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
@@ -16,6 +15,38 @@ import (
 	"github.com/nikkolasg/slog"
 	"gopkg.in/dedis/kyber.v0/share/vss"
 )
+
+func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+
+	if d.dkgDone == true {
+		return nil, errors.New("drand: dkg phase already done. Can't run 2 init DKG")
+	}
+
+	group, err := extractGroup(in.GetDkgGroup())
+	if err != nil {
+		return nil, err
+	}
+	d.group = group
+	if idx, found := group.Index(d.priv.Public); !found {
+		return nil, errors.New("drand: public key not found in group")
+	} else {
+		d.idx = idx
+	}
+
+	d.nextConf = &dkg.Config{
+		Suite:     key.G2.(dkg.Suite),
+		NewNodes:  d.group,
+		Threshold: group.Threshold,
+		Key:       d.priv,
+	}
+
+	if in.GetIsLeader() {
+		go d.StartDKG()
+	}
+	return &control.DKGResponse{}, nil
+}
 
 // Reshare receives information about the old and new group from which to
 // operate the resharing protocol. It starts the resharing protocol if the
@@ -35,23 +66,28 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	d.state.Lock()
 	defer d.state.Unlock()
 
-	if d.group == nil {
-		return nil, errors.New("control: no dkg ran here can't reshare")
+	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
+
+	if oldPresent {
+		if d.group == nil {
+			return nil, errors.New("control: present in old group but no dkg here")
+		} else {
+			// stateful verification checking if we are in the old group that we have
+			// and the one we receive
+			currHash, err := d.group.Hash()
+			if err != nil {
+				return nil, err
+			}
+			oldHash, err := oldGroup.Hash()
+			if err != nil {
+				return nil, err
+			}
+			if currHash != oldHash {
+				return nil, errors.New("control: given old group is not the same as one saved")
+			}
+		}
 	}
-	// stateful verification checking if we are in the old group that we have
-	// and the one we receive
-	currHash, err := d.group.Hash()
-	if err != nil {
-		return nil, err
-	}
-	oldHash, err := oldGroup.Hash()
-	if err != nil {
-		return nil, err
-	}
-	if currHash != oldHash {
-		return nil, errors.New("control: given old group is not the same as one saved")
-	}
-	fmt.Println(" initreshare #1")
+
 	// prepare dkg config to run the protocol
 	conf := &dkg.Config{
 		OldNodes:  oldGroup,
@@ -61,7 +97,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 		Suite:     key.G2.(dkg.Suite),
 	}
 	// run the proto
-	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
 	if oldPresent {
 		if !d.dkgDone {
 			return nil, errors.New("control: can't reshare from old node when DKG not finished first")

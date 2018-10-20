@@ -8,6 +8,11 @@ It is generated from these files:
 	control/control.proto
 
 It has these top-level messages:
+	DKGRequest
+	DKGResponse
+	ReshareRequest
+	GroupInfo
+	ReshareResponse
 	ShareRequest
 	ShareResponse
 */
@@ -34,6 +39,193 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
+type DKGRequest struct {
+	DkgGroup *GroupInfo `protobuf:"bytes,1,opt,name=dkg_group,json=dkgGroup" json:"dkg_group,omitempty"`
+	IsLeader bool       `protobuf:"varint,2,opt,name=is_leader,json=isLeader" json:"is_leader,omitempty"`
+}
+
+func (m *DKGRequest) Reset()                    { *m = DKGRequest{} }
+func (m *DKGRequest) String() string            { return proto.CompactTextString(m) }
+func (*DKGRequest) ProtoMessage()               {}
+func (*DKGRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+
+func (m *DKGRequest) GetDkgGroup() *GroupInfo {
+	if m != nil {
+		return m.DkgGroup
+	}
+	return nil
+}
+
+func (m *DKGRequest) GetIsLeader() bool {
+	if m != nil {
+		return m.IsLeader
+	}
+	return false
+}
+
+type DKGResponse struct {
+}
+
+func (m *DKGResponse) Reset()                    { *m = DKGResponse{} }
+func (m *DKGResponse) String() string            { return proto.CompactTextString(m) }
+func (*DKGResponse) ProtoMessage()               {}
+func (*DKGResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+// ReshareRequest contains references to the old and new group to perform the
+// resharing protocol.
+type ReshareRequest struct {
+	Old      *GroupInfo `protobuf:"bytes,1,opt,name=old" json:"old,omitempty"`
+	New      *GroupInfo `protobuf:"bytes,2,opt,name=new" json:"new,omitempty"`
+	IsLeader bool       `protobuf:"varint,3,opt,name=is_leader,json=isLeader" json:"is_leader,omitempty"`
+}
+
+func (m *ReshareRequest) Reset()                    { *m = ReshareRequest{} }
+func (m *ReshareRequest) String() string            { return proto.CompactTextString(m) }
+func (*ReshareRequest) ProtoMessage()               {}
+func (*ReshareRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+
+func (m *ReshareRequest) GetOld() *GroupInfo {
+	if m != nil {
+		return m.Old
+	}
+	return nil
+}
+
+func (m *ReshareRequest) GetNew() *GroupInfo {
+	if m != nil {
+		return m.New
+	}
+	return nil
+}
+
+func (m *ReshareRequest) GetIsLeader() bool {
+	if m != nil {
+		return m.IsLeader
+	}
+	return false
+}
+
+type GroupInfo struct {
+	// Types that are valid to be assigned to Location:
+	//	*GroupInfo_Path
+	//	*GroupInfo_Url
+	Location isGroupInfo_Location `protobuf_oneof:"location"`
+}
+
+func (m *GroupInfo) Reset()                    { *m = GroupInfo{} }
+func (m *GroupInfo) String() string            { return proto.CompactTextString(m) }
+func (*GroupInfo) ProtoMessage()               {}
+func (*GroupInfo) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+
+type isGroupInfo_Location interface {
+	isGroupInfo_Location()
+}
+
+type GroupInfo_Path struct {
+	Path string `protobuf:"bytes,1,opt,name=path,oneof"`
+}
+type GroupInfo_Url struct {
+	Url string `protobuf:"bytes,2,opt,name=url,oneof"`
+}
+
+func (*GroupInfo_Path) isGroupInfo_Location() {}
+func (*GroupInfo_Url) isGroupInfo_Location()  {}
+
+func (m *GroupInfo) GetLocation() isGroupInfo_Location {
+	if m != nil {
+		return m.Location
+	}
+	return nil
+}
+
+func (m *GroupInfo) GetPath() string {
+	if x, ok := m.GetLocation().(*GroupInfo_Path); ok {
+		return x.Path
+	}
+	return ""
+}
+
+func (m *GroupInfo) GetUrl() string {
+	if x, ok := m.GetLocation().(*GroupInfo_Url); ok {
+		return x.Url
+	}
+	return ""
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*GroupInfo) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _GroupInfo_OneofMarshaler, _GroupInfo_OneofUnmarshaler, _GroupInfo_OneofSizer, []interface{}{
+		(*GroupInfo_Path)(nil),
+		(*GroupInfo_Url)(nil),
+	}
+}
+
+func _GroupInfo_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*GroupInfo)
+	// location
+	switch x := m.Location.(type) {
+	case *GroupInfo_Path:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		b.EncodeStringBytes(x.Path)
+	case *GroupInfo_Url:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		b.EncodeStringBytes(x.Url)
+	case nil:
+	default:
+		return fmt.Errorf("GroupInfo.Location has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _GroupInfo_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*GroupInfo)
+	switch tag {
+	case 1: // location.path
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		x, err := b.DecodeStringBytes()
+		m.Location = &GroupInfo_Path{x}
+		return true, err
+	case 2: // location.url
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		x, err := b.DecodeStringBytes()
+		m.Location = &GroupInfo_Url{x}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _GroupInfo_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*GroupInfo)
+	// location
+	switch x := m.Location.(type) {
+	case *GroupInfo_Path:
+		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.Path)))
+		n += len(x.Path)
+	case *GroupInfo_Url:
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(len(x.Url)))
+		n += len(x.Url)
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type ReshareResponse struct {
+}
+
+func (m *ReshareResponse) Reset()                    { *m = ReshareResponse{} }
+func (m *ReshareResponse) String() string            { return proto.CompactTextString(m) }
+func (*ReshareResponse) ProtoMessage()               {}
+func (*ReshareResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+
 // Sharerequest requests the private share of a drand node
 type ShareRequest struct {
 }
@@ -41,7 +233,7 @@ type ShareRequest struct {
 func (m *ShareRequest) Reset()                    { *m = ShareRequest{} }
 func (m *ShareRequest) String() string            { return proto.CompactTextString(m) }
 func (*ShareRequest) ProtoMessage()               {}
-func (*ShareRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*ShareRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 // ShareResponse holds the private share of a srand node
 type ShareResponse struct {
@@ -52,7 +244,7 @@ type ShareResponse struct {
 func (m *ShareResponse) Reset()                    { *m = ShareResponse{} }
 func (m *ShareResponse) String() string            { return proto.CompactTextString(m) }
 func (*ShareResponse) ProtoMessage()               {}
-func (*ShareResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*ShareResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 func (m *ShareResponse) GetIndex() uint32 {
 	if m != nil {
@@ -69,6 +261,11 @@ func (m *ShareResponse) GetShare() *element.Scalar {
 }
 
 func init() {
+	proto.RegisterType((*DKGRequest)(nil), "control.DKGRequest")
+	proto.RegisterType((*DKGResponse)(nil), "control.DKGResponse")
+	proto.RegisterType((*ReshareRequest)(nil), "control.ReshareRequest")
+	proto.RegisterType((*GroupInfo)(nil), "control.GroupInfo")
+	proto.RegisterType((*ReshareResponse)(nil), "control.ReshareResponse")
 	proto.RegisterType((*ShareRequest)(nil), "control.ShareRequest")
 	proto.RegisterType((*ShareResponse)(nil), "control.ShareResponse")
 }
@@ -84,7 +281,12 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Control service
 
 type ControlClient interface {
-	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
+	// Share returns the current share used by the node
+	GetShare(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
+	InitDKG(ctx context.Context, in *DKGRequest, opts ...grpc.CallOption) (*DKGResponse, error)
+	// InitReshares sends all informations so that the drand node knows how to
+	// proceeed during the next resharing protocol.
+	InitReshare(ctx context.Context, in *ReshareRequest, opts ...grpc.CallOption) (*ReshareResponse, error)
 }
 
 type controlClient struct {
@@ -95,9 +297,27 @@ func NewControlClient(cc *grpc.ClientConn) ControlClient {
 	return &controlClient{cc}
 }
 
-func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error) {
+func (c *controlClient) GetShare(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error) {
 	out := new(ShareResponse)
-	err := grpc.Invoke(ctx, "/control.Control/Share", in, out, c.cc, opts...)
+	err := grpc.Invoke(ctx, "/control.Control/GetShare", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) InitDKG(ctx context.Context, in *DKGRequest, opts ...grpc.CallOption) (*DKGResponse, error) {
+	out := new(DKGResponse)
+	err := grpc.Invoke(ctx, "/control.Control/InitDKG", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) InitReshare(ctx context.Context, in *ReshareRequest, opts ...grpc.CallOption) (*ReshareResponse, error) {
+	out := new(ReshareResponse)
+	err := grpc.Invoke(ctx, "/control.Control/InitReshare", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -107,27 +327,68 @@ func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grp
 // Server API for Control service
 
 type ControlServer interface {
-	Share(context.Context, *ShareRequest) (*ShareResponse, error)
+	// Share returns the current share used by the node
+	GetShare(context.Context, *ShareRequest) (*ShareResponse, error)
+	InitDKG(context.Context, *DKGRequest) (*DKGResponse, error)
+	// InitReshares sends all informations so that the drand node knows how to
+	// proceeed during the next resharing protocol.
+	InitReshare(context.Context, *ReshareRequest) (*ReshareResponse, error)
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
 	s.RegisterService(&_Control_serviceDesc, srv)
 }
 
-func _Control_Share_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Control_GetShare_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ShareRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServer).Share(ctx, in)
+		return srv.(ControlServer).GetShare(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/control.Control/Share",
+		FullMethod: "/control.Control/GetShare",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).Share(ctx, req.(*ShareRequest))
+		return srv.(ControlServer).GetShare(ctx, req.(*ShareRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_InitDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DKGRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).InitDKG(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/InitDKG",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).InitDKG(ctx, req.(*DKGRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_InitReshare_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReshareRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).InitReshare(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/InitReshare",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).InitReshare(ctx, req.(*ReshareRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -137,8 +398,16 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*ControlServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Share",
-			Handler:    _Control_Share_Handler,
+			MethodName: "GetShare",
+			Handler:    _Control_GetShare_Handler,
+		},
+		{
+			MethodName: "InitDKG",
+			Handler:    _Control_InitDKG_Handler,
+		},
+		{
+			MethodName: "InitReshare",
+			Handler:    _Control_InitReshare_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -148,18 +417,30 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("control/control.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 204 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4d, 0xce, 0xcf, 0x2b,
-	0x29, 0xca, 0xcf, 0xd1, 0x87, 0xd2, 0x7a, 0x05, 0x45, 0xf9, 0x25, 0xf9, 0x42, 0xec, 0x50, 0xae,
-	0x94, 0x48, 0x72, 0x51, 0x65, 0x41, 0x49, 0xbe, 0x7e, 0x6a, 0x4e, 0x6a, 0x6e, 0x6a, 0x5e, 0x09,
-	0x44, 0x5a, 0x89, 0x8f, 0x8b, 0x27, 0x38, 0x23, 0xb1, 0x28, 0x35, 0x28, 0xb5, 0xb0, 0x34, 0xb5,
-	0xb8, 0x44, 0xc9, 0x87, 0x8b, 0x17, 0xca, 0x2f, 0x2e, 0xc8, 0xcf, 0x2b, 0x4e, 0x15, 0x12, 0xe1,
-	0x62, 0xcd, 0xcc, 0x4b, 0x49, 0xad, 0x90, 0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0d, 0x82, 0x70, 0x84,
-	0x54, 0xb9, 0x58, 0x8b, 0x41, 0xca, 0x24, 0x98, 0x14, 0x18, 0x35, 0xb8, 0x8d, 0xf8, 0xf5, 0x60,
-	0xa6, 0x06, 0x27, 0x27, 0xe6, 0x24, 0x16, 0x05, 0x41, 0x64, 0x8d, 0x9c, 0xb9, 0xd8, 0x9d, 0x21,
-	0xd6, 0x0b, 0x59, 0x70, 0xb1, 0x82, 0x0d, 0x16, 0x12, 0xd5, 0x83, 0x39, 0x10, 0xd9, 0x62, 0x29,
-	0x31, 0x74, 0x61, 0x88, 0xfd, 0x4a, 0x0c, 0x4e, 0x9a, 0x51, 0xea, 0xe9, 0x99, 0x25, 0x19, 0xa5,
-	0x49, 0x7a, 0xc9, 0xf9, 0xb9, 0xfa, 0x29, 0xa9, 0x29, 0x99, 0xc5, 0xfa, 0x29, 0x45, 0x89, 0x79,
-	0x29, 0xfa, 0x60, 0x2f, 0x24, 0x95, 0xa6, 0xc1, 0xbc, 0x9c, 0xc4, 0x06, 0x16, 0x31, 0x06, 0x04,
-	0x00, 0x00, 0xff, 0xff, 0x80, 0xb5, 0x10, 0x15, 0x0c, 0x01, 0x00, 0x00,
+	// 388 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0x4d, 0x6f, 0xe2, 0x30,
+	0x14, 0x24, 0xcb, 0xb2, 0x24, 0x8f, 0x05, 0xb4, 0xde, 0xb0, 0x8b, 0xb2, 0x17, 0x14, 0x6d, 0x55,
+	0x7a, 0x49, 0x24, 0x2a, 0xf5, 0xd2, 0x53, 0x29, 0x52, 0x8a, 0xe0, 0x14, 0x6e, 0x5c, 0x50, 0x88,
+	0x4d, 0x88, 0x08, 0x76, 0xea, 0x38, 0xa2, 0xfc, 0xbd, 0xfe, 0xb2, 0x2a, 0xce, 0x47, 0x81, 0xaa,
+	0x3d, 0x45, 0x33, 0x6f, 0x3c, 0xf3, 0x26, 0x36, 0xf4, 0x7c, 0x46, 0x05, 0x67, 0x91, 0x5d, 0x7c,
+	0xad, 0x98, 0x33, 0xc1, 0x50, 0xb3, 0x80, 0x86, 0xee, 0xf3, 0x63, 0x2c, 0x98, 0x4d, 0x22, 0xb2,
+	0x27, 0x54, 0xe4, 0x63, 0x73, 0x09, 0x30, 0x99, 0x39, 0x2e, 0x79, 0x4e, 0x49, 0x22, 0x90, 0x0d,
+	0x1a, 0xde, 0x05, 0xab, 0x80, 0xb3, 0x34, 0xee, 0x2b, 0x03, 0x65, 0xd8, 0x1a, 0x21, 0xab, 0xf4,
+	0x73, 0x32, 0x76, 0x4a, 0x37, 0xcc, 0x55, 0xf1, 0x2e, 0x90, 0x08, 0xfd, 0x03, 0x2d, 0x4c, 0x56,
+	0x11, 0xf1, 0x30, 0xe1, 0xfd, 0x6f, 0x03, 0x65, 0xa8, 0xba, 0x6a, 0x98, 0xcc, 0x25, 0x36, 0xdb,
+	0xd0, 0x92, 0xde, 0x49, 0xcc, 0x68, 0x42, 0xcc, 0x23, 0x74, 0x5c, 0x92, 0x6c, 0x3d, 0x4e, 0xca,
+	0xb8, 0xff, 0x50, 0x67, 0x11, 0xfe, 0x22, 0x28, 0x1b, 0x67, 0x2a, 0x4a, 0x0e, 0xd2, 0xfd, 0x13,
+	0x15, 0x25, 0x87, 0xf3, 0x4d, 0xea, 0x17, 0x9b, 0x3c, 0x80, 0x56, 0xc9, 0x91, 0x0e, 0xdf, 0x63,
+	0x4f, 0x6c, 0x65, 0xac, 0xf6, 0x54, 0x73, 0x25, 0x42, 0x08, 0xea, 0x29, 0x8f, 0x64, 0x4a, 0x46,
+	0x66, 0x60, 0x0c, 0xa0, 0x46, 0xcc, 0xf7, 0x44, 0xc8, 0xa8, 0xf9, 0x0b, 0xba, 0xd5, 0xf6, 0x45,
+	0xa1, 0x0e, 0xfc, 0x5c, 0x9c, 0xd4, 0x31, 0xe7, 0xd0, 0x5e, 0x9c, 0x0a, 0x90, 0x0e, 0x8d, 0x90,
+	0x62, 0xf2, 0x22, 0xa3, 0xda, 0x6e, 0x0e, 0xd0, 0x15, 0x34, 0xa4, 0x4f, 0xd1, 0xa8, 0x6b, 0x95,
+	0x37, 0xb2, 0xf0, 0xbd, 0xc8, 0xe3, 0x6e, 0x3e, 0x1d, 0xbd, 0x2a, 0xd0, 0x7c, 0xcc, 0xbb, 0xa2,
+	0x7b, 0x50, 0x1d, 0x22, 0xa4, 0x39, 0xea, 0x55, 0x7f, 0xe0, 0x34, 0xdc, 0xf8, 0x73, 0x49, 0x17,
+	0x4b, 0xd6, 0xd0, 0x1d, 0x34, 0xa7, 0x34, 0x14, 0x93, 0x99, 0x83, 0x7e, 0x57, 0xa2, 0xf7, 0x4b,
+	0x37, 0xf4, 0x73, 0xb2, 0x3a, 0x37, 0x86, 0x56, 0x76, 0xae, 0x68, 0x8d, 0xfe, 0x56, 0xb2, 0xf3,
+	0x5b, 0x34, 0xfa, 0x1f, 0x07, 0xa5, 0xc7, 0xf8, 0x66, 0x79, 0x1d, 0x84, 0x62, 0x9b, 0xae, 0x2d,
+	0x9f, 0xed, 0x6d, 0x4c, 0x70, 0x98, 0xd8, 0x98, 0x7b, 0x14, 0xdb, 0xf2, 0xf9, 0xad, 0xd3, 0x4d,
+	0xf9, 0x5c, 0xd7, 0x3f, 0x24, 0x73, 0xfb, 0x16, 0x00, 0x00, 0xff, 0xff, 0x48, 0xd7, 0xf5, 0x5f,
+	0xc8, 0x02, 0x00, 0x00,
 }

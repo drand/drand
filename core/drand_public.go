@@ -39,7 +39,6 @@ func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_pr
 
 	// check that we are resharing to the new group that we expect
 	if in.GroupHash != d.nextGroupHash {
-		fmt.Println("in.GroupHash = > ", in.GroupHash, " vs d.nestGrouphash ", d.nextGroupHash)
 		return nil, errors.New("drand: can't reshare to new group: incompatible hashes")
 	}
 

@@ -46,26 +46,12 @@ type Drand struct {
 	state sync.Mutex
 }
 
-// NewDrand returns an drand struct that is ready to start the DKG protocol with
-// the given group and then to serve randomness. It assumes the private key pair
-// has been generated already.
-func NewDrand(s key.Store, g *key.Group, c *Config) (*Drand, error) {
+// NewDrand returns an drand struct. It assumes the private key pair
+// has been generated and saved already.
+func NewDrand(s key.Store, c *Config) (*Drand, error) {
 	d, err := initDrand(s, c)
 	if err != nil {
 		return nil, err
-	}
-	d.group = g
-	if idx, found := g.Index(d.priv.Public); !found {
-		return nil, errors.New("drand: public key not found in group")
-	} else {
-		d.idx = idx
-	}
-
-	d.nextConf = &dkg.Config{
-		Suite:     key.G2.(dkg.Suite),
-		NewNodes:  d.group,
-		Threshold: g.Threshold,
-		Key:       d.priv,
 	}
 	return d, nil
 }
@@ -142,17 +128,14 @@ func (d *Drand) StartDKG() error {
 // it. In case of a finished DKG protocol, it saves the dist. public  key and
 // private share. These should be loadable by the store.
 func (d *Drand) WaitDKG() error {
-	fmt.Printf(" +++++++ %d -> createDKG before\n.", d.idx)
 	if err := d.createDKG(); err != nil {
 		return err
 	}
-	fmt.Printf(" +++++++ %d -> createDKG after\n.", d.idx)
 
 	d.state.Lock()
 	waitCh := d.dkg.WaitShare()
 	errCh := d.dkg.WaitError()
 	d.state.Unlock()
-	fmt.Printf(" +++++++ %d -> WaitShare() after !\n.", d.idx)
 
 	var err error
 	select {

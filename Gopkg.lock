@@ -20,6 +20,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/dchest/blake2b"
+  packages = ["."]
+  revision = "06006a921c7d13e3fdf63c401cb0e4529a26e6e4"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/dedis/fixbuf"
   packages = ["."]
   revision = "290118f838f79dd2f76edf7a98cccf989eaf3310"
@@ -47,7 +53,7 @@
     "util/random",
     "xof/blake2xb"
   ]
-  revision = "2ecf096db092bcb9f94543127ffa843ea72a3bb6"
+  revision = "99be66047fc8057d0fb2516f4ae9155032b8b69e"
 
 [[projects]]
   name = "github.com/dedis/protobuf"
@@ -234,6 +240,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5137f5210bb9242e05319c069337313342bbcf38e2bd2d703f0decd3e72676f4"
+  inputs-digest = "b6a947379335da0c4679900c759b069860378d9b37974665f32520500de05aa6"
   solver-name = "gps-cdcl"
   solver-version = 1

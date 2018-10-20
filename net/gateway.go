@@ -36,7 +36,7 @@ type CallOption = grpc.CallOption
 type InternalClient interface {
 	NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error)
 	Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error)
-	Reshare(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error)
+	Reshare(p Peer, in *dkg.ResharePacket, opts ...CallOption) (*dkg.ReshareResponse, error)
 }
 
 // Listener is the active listener for incoming requests.

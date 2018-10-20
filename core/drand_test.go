@@ -27,45 +27,60 @@ import (
 func TestDrandDKGReshare(t *testing.T) {
 	slog.Level = slog.LevelDebug
 
-	n := 5
-	thr := key.DefaultThreshold(n)
+	oldN := 5
+	newN := 6
+	oldT := key.DefaultThreshold(oldN)
+	newT := key.DefaultThreshold(newN)
 
 	// create n shares
-	shares, dpub := test.SimulateDKG(t, key.G2, n, thr)
+	shares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
 	period := 1000 * time.Millisecond
 	old := net.DefaultTimeout
 	net.DefaultTimeout = 300 * time.Millisecond
 	defer func() { net.DefaultTimeout = old }()
 
-	drands, dir := BatchNewDrand(n, false,
+	// instantiating all drands already
+	drands, _, dir := BatchNewDrand(newN, false,
 		WithBeaconPeriod(period),
 		WithCallOption(grpc.FailFast(true)))
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 
-	ids := make([]*key.Identity, n)
+	// listing all new ids
+	ids := make([]*key.Identity, newN)
 	for i, d := range drands {
 		ids[i] = d.priv.Public
-		drands[i].dkgDone = true
+		drands[i].idx = i
 	}
-	oldGroup := key.LoadGroup(ids, &key.DistPublic{dpub}, thr)
+
+	// creating old group from subset of ids
+	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{dpub}, oldT)
 	oldPath := path.Join(dir, "oldgroup.toml")
 	require.NoError(t, key.Save(oldPath, oldGroup, false))
 
-	newGroup := key.NewGroup(ids, thr)
+	for i := range drands[:oldN] {
+		// so old drand nodes "think" it has already ran a dkg
+		drands[i].group = oldGroup
+		drands[i].dkgDone = true
+	}
+
+	newGroup := key.NewGroup(ids, newT)
 	newPath := path.Join(dir, "newgroup.toml")
 	require.NoError(t, key.Save(newPath, newGroup, false))
 
 	var wg sync.WaitGroup
-	wg.Add(n - 1)
+	wg.Add(newN - 1)
 	for i, drand := range drands[1:] {
 		go func(d *Drand, j int) {
-			// simulate share material
-			ks := &key.Share{
-				Share:   shares[j+1],
-				Commits: dpub,
+			if d.idx < oldN {
+				// simulate share material for old node
+				ks := &key.Share{
+					Share:   shares[d.idx],
+					Commits: dpub,
+				}
+				d.share = ks
 			}
-			d.share = ks
+
 			// instruct to be ready for a reshare
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
@@ -76,6 +91,7 @@ func TestDrandDKGReshare(t *testing.T) {
 			wg.Done()
 		}(drand, i)
 	}
+
 	ks := key.Share{
 		Share:   shares[0],
 		Commits: dpub,
@@ -98,48 +114,49 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	n := 5
 	nbRound := 3
-	thr := key.DefaultThreshold(n)
 	period := 1000 * time.Millisecond
 	old := net.DefaultTimeout
 	net.DefaultTimeout = 300 * time.Millisecond
 	defer func() { net.DefaultTimeout = old }()
 
-	drands, dir := BatchNewDrand(n, false,
+	drands, group, dir := BatchNewDrand(n, false,
 		WithBeaconPeriod(period),
 		WithCallOption(grpc.FailFast(true)))
 	defer CloseAllDrands(drands[:n-1])
 	defer os.RemoveAll(dir)
 
+	groupPath := path.Join(dir, "dkggroup.toml")
+	require.NoError(t, key.Save(groupPath, group, false))
+
 	ids := make([]*key.Identity, n)
 	for i, d := range drands {
 		ids[i] = d.priv.Public
-	}
-	newGroup := key.NewGroup(ids, thr)
-	for _, d := range drands {
-		_, found := newGroup.Index(d.priv.Public)
-		require.True(t, found)
 	}
 
 	var wg sync.WaitGroup
 	wg.Add(n - 1)
 	for _, drand := range drands[1:] {
 		go func(d *Drand) {
-			err := d.WaitDKG()
+			// instruct to be ready for a reshare
+			client, err := net.NewControlClient(d.opts.controlPort)
+			require.NoError(t, err)
+			_, err = client.InitDKG(groupPath, false)
+			require.NoError(t, err)
+			err = d.WaitDKG()
 			require.Nil(t, err)
 			wg.Done()
 		}(drand)
 	}
 
 	root := drands[0]
-	err := root.StartDKG()
-	require.Nil(t, err)
+	controlClient, err := net.NewControlClient(root.opts.controlPort)
+	require.NoError(t, err)
+	_, err = controlClient.InitDKG(groupPath, true)
+	require.NoError(t, err)
+
 	err = root.WaitDKG()
 	require.Nil(t, err)
 	wg.Wait()
-
-	fmt.Println(" -++++++++++++++++ AAAAAAAAAAAAA ++++++++++++++++")
-	fmt.Println(" -++++++++++++++++ AAAAAAAAAAAAA ++++++++++++++++")
-	fmt.Println(" -++++++++++++++++ AAAAAAAAAAAAA ++++++++++++++++")
 
 	// check if share + dist public files are saved
 	public, err := root.store.LoadDistPublic()
@@ -286,7 +303,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	require.NotNil(t, resp)
 }
 
-func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, string) {
+func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.Group, string) {
 	var privs []*key.Pair
 	var group *key.Group
 	if insecure {
@@ -337,12 +354,12 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, string
 			confOptions = append(confOptions, WithInsecure())
 		}
 		confOptions = append(confOptions, WithControlPort(ports[i]))
-		drands[i], err = NewDrand(s, group, NewConfig(confOptions...))
+		drands[i], err = NewDrand(s, NewConfig(confOptions...))
 		if err != nil {
 			panic(err)
 		}
 	}
-	return drands, dir
+	return drands, group, dir
 }
 
 func CloseAllDrands(drands []*Drand) {

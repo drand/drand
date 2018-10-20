@@ -11,7 +11,42 @@ option go_package = "github.com/dedis/drand/protobuf/control";
 import "crypto/element.proto";
 
 service Control {
-  rpc Share(ShareRequest) returns (ShareResponse) { }
+    // Share returns the current share used by the node 
+    rpc GetShare(ShareRequest) returns (ShareResponse) { }
+    rpc InitDKG(DKGRequest) returns (DKGResponse) { }
+    // InitReshares sends all informations so that the drand node knows how to
+    // proceeed during the next resharing protocol.
+    rpc InitReshare(ReshareRequest) returns (ReshareResponse) { }
+
+}
+
+message DKGRequest {
+    GroupInfo dkg_group = 1; 
+    bool is_leader = 2;
+}
+
+message DKGResponse {
+
+}
+
+// ReshareRequest contains references to the old and new group to perform the
+// resharing protocol.
+message ReshareRequest {
+    GroupInfo old = 1;
+    GroupInfo new = 2;
+    bool is_leader = 3;
+}
+
+message GroupInfo {
+    oneof location {
+        string path = 1;
+        // XXX not implemented 
+        string url = 2; 
+    }
+}
+
+message ReshareResponse {
+
 }
 
 // Sharerequest requests the private share of a drand node

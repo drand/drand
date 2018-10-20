@@ -10,10 +10,7 @@ import (
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/test"
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/share"
 	sdkg "github.com/dedis/kyber/share/dkg/pedersen"
-	"github.com/dedis/kyber/util/random"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
@@ -28,9 +25,9 @@ func (t *testDKGServer) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGRes
 	return &dkg.DKGResponse{}, nil
 }
 
-func (t *testDKGServer) Reshare(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
-	t.h.Process(c, in)
-	return &dkg.DKGResponse{}, nil
+func (t *testDKGServer) Reshare(c context.Context, in *dkg.ResharePacket) (*dkg.ReshareResponse, error) {
+	t.h.Process(c, in.Packet)
+	return &dkg.ReshareResponse{}, nil
 }
 
 // testNet implements the network interface that the dkg Handler expects
@@ -44,7 +41,7 @@ func (t *testNet) Send(p net.Peer, d *dkg.DKGPacket) error {
 	if t.fresh {
 		_, err = t.InternalClient.Setup(p, d)
 	} else {
-		_, err = t.InternalClient.Reshare(p, d)
+		_, err = t.InternalClient.Reshare(p, &dkg.ResharePacket{Packet: d})
 	}
 	return err
 }
@@ -96,8 +93,11 @@ func TestDKGFresh(t *testing.T) {
 		}
 		shareCh := handlers[idx].WaitShare()
 		errCh := handlers[idx].WaitError()
+		exitCh := handlers[idx].WaitExit()
 		select {
 		case <-shareCh:
+			finished <- idx
+		case <-exitCh:
 			finished <- idx
 		case err := <-errCh:
 			require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestDKGResharingPartial(t *testing.T) {
 	oldT := key.DefaultThreshold(oldN)
 	oldPrivs := test.GenerateIDs(oldN)
 	oldPubs := test.ListFromPrivates(oldPrivs)
-	oldShares, dpub := simulateDKG(t, key.G2, oldN, oldT)
+	oldShares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
 	oldGroup := key.LoadGroup(oldPubs, &key.DistPublic{dpub}, oldT)
 
 	newN := oldN + 1
@@ -211,10 +211,13 @@ func TestDKGResharingPartial(t *testing.T) {
 		if idx < oldN {
 			go handlers[idx].Start()
 		}
-		shareCh := handlers[idx].WaitShare()
 		errCh := handlers[idx].WaitError()
+		shareCh := handlers[idx].WaitShare()
+		exitCh := handlers[idx].WaitExit()
 		select {
 		case <-shareCh:
+			finished <- idx
+		case <-exitCh:
 			finished <- idx
 		case err := <-errCh:
 			require.NoError(t, err)
@@ -228,63 +231,21 @@ func TestDKGResharingPartial(t *testing.T) {
 		go goDkg(i)
 	}
 
+	//finisheds := make([]int, 0)
+	//for i := 0; i < total-1; i++ {
 	for i := 0; i < newN; i++ {
 		<-finished
+		//idx := <-finished
+		//finisheds = append(finisheds, idx)
+		//fmt.Printf("received finished signal %d/%d:%v\n", i+1, total, finisheds)
+		/*if len(finisheds) == 6 {*/
+		//fmt.Println("NewN = # responses per deal = ", newN, " => ", handlers[0].state.Certified())
+		//fmt.Println(handlers[0].state.QUAL())
+		//for ai, ag := range handlers[0].state.OldAggregators() {
+		//fmt.Printf("%d: (len %d) : %v\n", ai, len(ag.Responses()), ag.Responses())
+		//}
+		/*}*/
 	}
-}
-
-// returns a list of private shares along with the list of public coefficients
-// of the public polynomial
-func simulateDKG(test *testing.T, g kyber.Group, n, t int) ([]*share.PriShare, []kyber.Point) {
-	// Run an n-fold Pedersen VSS (= DKG)
-	priPolys := make([]*share.PriPoly, n)
-	priShares := make([][]*share.PriShare, n)
-	pubPolys := make([]*share.PubPoly, n)
-	pubShares := make([][]*share.PubShare, n)
-	for i := 0; i < n; i++ {
-		priPolys[i] = share.NewPriPoly(g, t, nil, random.New())
-		priShares[i] = priPolys[i].Shares(n)
-		pubPolys[i] = priPolys[i].Commit(nil)
-		pubShares[i] = pubPolys[i].Shares(n)
-	}
-
-	// Verify VSS shares
-	for i := 0; i < n; i++ {
-		for j := 0; j < n; j++ {
-			sij := priShares[i][j]
-			// s_ij * G
-			sijG := g.Point().Base().Mul(sij.V, nil)
-			require.True(test, sijG.Equal(pubShares[i][j].V))
-		}
-	}
-
-	// Create private DKG shares
-	dkgShares := make([]*share.PriShare, n)
-	for i := 0; i < n; i++ {
-		acc := g.Scalar().Zero()
-		for j := 0; j < n; j++ { // assuming all participants are in the qualified set
-			acc = g.Scalar().Add(acc, priShares[j][i].V)
-		}
-		dkgShares[i] = &share.PriShare{i, acc}
-	}
-
-	// Create public DKG commitments (= verification vector)
-	dkgCommits := make([]kyber.Point, t)
-	for k := 0; k < t; k++ {
-		acc := g.Point().Null()
-		for i := 0; i < n; i++ { // assuming all participants are in the qualified set
-			_, coeff := pubPolys[i].Info()
-			acc = g.Point().Add(acc, coeff[k])
-		}
-		dkgCommits[k] = acc
-	}
-
-	// Check that the private DKG shares verify against the public DKG commits
-	dkgPubPoly := share.NewPubPoly(g, nil, dkgCommits)
-	for i := 0; i < n; i++ {
-		require.True(test, dkgPubPoly.Check(dkgShares[i]))
-	}
-	return dkgShares, dkgCommits
 }
 
 func TestDKGResharingNewNode(t *testing.T) {
@@ -294,7 +255,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 	oldPrivs := test.GenerateIDs(oldN)
 	oldPubs := test.ListFromPrivates(oldPrivs)
 
-	oldShares, dpub := simulateDKG(t, key.G2, oldN, oldT)
+	oldShares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
 	oldGroup := key.LoadGroup(oldPubs, &key.DistPublic{dpub}, oldT)
 
 	newN := oldN + 1
@@ -365,8 +326,11 @@ func TestDKGResharingNewNode(t *testing.T) {
 		}
 		shareCh := handlers[idx].WaitShare()
 		errCh := handlers[idx].WaitError()
+		exitCh := handlers[idx].WaitExit()
 		select {
 		case <-shareCh:
+			finished <- idx
+		case <-exitCh:
 			finished <- idx
 		case err := <-errCh:
 			require.NoError(t, err)
@@ -380,7 +344,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 		go goDkg(i)
 	}
 
-	for i := 0; i < newN; i++ {
+	for i := 0; i < total; i++ {
 		<-finished
 	}
 }
