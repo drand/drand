@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	kyber "github.com/dedis/kyber"
 	"github.com/dedis/kyber/util/random"
@@ -23,6 +24,7 @@ func TestGroupSaveLoad(t *testing.T) {
 	}
 
 	group := LoadGroup(ids, &DistPublic{dpub}, DefaultThreshold(n))
+	group.Period = time.Second * 4
 
 	gtoml := group.TOML().(*GroupTOML)
 	require.NotNil(t, gtoml.PublicKey)
@@ -38,7 +40,9 @@ func TestGroupSaveLoad(t *testing.T) {
 
 	loaded := &Group{}
 	require.NoError(t, Load(groupPath, loaded))
+
 	require.Equal(t, loaded.Nodes, group.Nodes)
 	require.Equal(t, loaded.Threshold, group.Threshold)
 	require.Equal(t, loaded.PublicKey, group.PublicKey)
+	require.Equal(t, loaded.Period, group.Period)
 }

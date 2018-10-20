@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dchest/blake2b"
 	kyber "github.com/dedis/kyber"
@@ -14,9 +15,15 @@ import (
 
 // Group holds all information about a group of drand nodes.
 type Group struct {
-	Nodes     []*Identity
-	Threshold int
+	// List of identities forming this group
+	Nodes []*Identity
+	// The distributed public key of this group. It is nil if the group has not
+	// ran a DKG protocol yet.
 	PublicKey *DistPublic
+	// Threshold to setup during the DKG or resharing protocol.
+	Threshold int
+	// Period to use for the beacon randomness generation
+	Period time.Duration
 }
 
 func (g *Group) Identities() []*Identity {
@@ -91,12 +98,13 @@ func (g *Group) Len() int {
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
 	Nodes     []*PublicTOML
-	Threshold int
 	PublicKey *DistPublicTOML
+	Threshold int
+	Period    string
 }
 
 // FromTOML decodes the group from the toml struct
-func (g *Group) FromTOML(i interface{}) error {
+func (g *Group) FromTOML(i interface{}) (err error) {
 	gt, ok := i.(*GroupTOML)
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")
@@ -119,9 +127,12 @@ func (g *Group) FromTOML(i interface{}) error {
 	if gt.PublicKey != nil {
 		// dist key only if dkg ran
 		g.PublicKey = &DistPublic{}
-		return g.PublicKey.FromTOML(gt.PublicKey)
+		if err = g.PublicKey.FromTOML(gt.PublicKey); err != nil {
+			return err
+		}
 	}
-	return nil
+	g.Period, err = time.ParseDuration(gt.Period)
+	return err
 }
 
 // TOML returns a TOML-encodable version of the Group
@@ -135,7 +146,7 @@ func (g *Group) TOML() interface{} {
 	if g.PublicKey != nil {
 		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
 	}
-
+	gtoml.Period = g.Period.String()
 	return gtoml
 }
 
