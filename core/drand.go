@@ -160,6 +160,7 @@ func (d *Drand) WaitDKG() error {
 	d.dkgDone = true
 	d.dkg = nil
 	d.nextConf = nil
+	d.beacon = nil // to allow re-creation of beacon with new share
 	return nil
 }
 
@@ -184,16 +185,23 @@ func (d *Drand) createDKG() error {
 
 var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
 
+func (d *Drand) StartBeacon() error {
+	if err := d.initBeacon(); err != nil {
+		return err
+	}
+	go d.BeaconLoop()
+	return nil
+}
+
 // BeaconLoop starts periodically the TBLS protocol. The seed is the first
 // message signed alongside with the current timestamp. All subsequent
 // signatures are chained:
 // s_i+1 = SIG(s_i || timestamp)
 // For the moment, each resulting signature is stored in a file named
 // beacons/<timestamp>.sig.
+// The period is determined according the group.toml this node belongs to.
 func (d *Drand) BeaconLoop() error {
-	if err := d.initBeacon(); err != nil {
-		return err
-	}
+	d.state.Lock()
 	// heuristic: we catchup when we can retrieve a beacon from the db
 	// if there is an error we quit, if there is no beacon saved yet, we
 	// run the loop as usual.
@@ -205,6 +213,7 @@ func (d *Drand) BeaconLoop() error {
 			catchup = false
 		} else {
 			// there's a serious error
+			d.state.Unlock()
 			return fmt.Errorf("drand: could not determine beacon state: %s", err)
 		}
 	}
@@ -213,7 +222,10 @@ func (d *Drand) BeaconLoop() error {
 	} else {
 		slog.Infof("drand: starting beacon loop")
 	}
-	d.beacon.Loop(DefaultSeed, d.opts.beaconPeriod, catchup)
+	period := getPeriod(d.group)
+	d.state.Unlock()
+
+	d.beacon.Loop(DefaultSeed, period, catchup)
 	return nil
 }
 

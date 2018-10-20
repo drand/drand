@@ -51,8 +51,10 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	if in.GetIsLeader() {
 		d.StartDKG()
 	}
-	d.WaitDKG()
-	return &control.DKGResponse{}, nil
+	if err := d.WaitDKG(); err != nil {
+		return nil, err
+	}
+	return &control.DKGResponse{}, d.StartBeacon()
 }
 
 // Reshare receives information about the old and new group from which to
@@ -60,15 +62,23 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 // received node is stated as a leader and is present in the old group.
 // This function waits for the resharing DKG protocol to finish.
 func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*control.ReshareResponse, error) {
-
 	var oldGroup, newGroup *key.Group
 	var err error
-	if oldGroup, err = extractGroup(in.Old); err != nil {
-		return nil, err
-	}
+
 	if newGroup, err = extractGroup(in.New); err != nil {
 		return nil, err
 	}
+
+	d.state.Lock()
+	if oldGroup, err = extractGroup(in.Old); err != nil {
+		// try to get the current group
+		if d.group == nil {
+			d.state.Unlock()
+			return nil, errors.New("drand: can't init-reshare if no old group provided")
+		}
+		oldGroup = d.group
+	}
+	d.state.Unlock()
 
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
 
@@ -135,8 +145,11 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 		// the DKG
 		d.startResharingAsLeader(oldIdx)
 	}
-	d.WaitDKG()
-	return &control.ReshareResponse{}, nil
+	if err := d.WaitDKG(); err != nil {
+		return nil, err
+	}
+
+	return &control.ReshareResponse{}, d.StartBeacon()
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {
@@ -184,6 +197,10 @@ func (d *Drand) GetShare(ctx context.Context, in *control.ShareRequest) (*contro
 	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }
 
+func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
+	return &control.Pong{}, nil
+}
+
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 	var g = &key.Group{}
 	switch x := i.Location.(type) {
@@ -197,7 +214,7 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 		return nil, errors.New("control: can't allow new empty group")
 	}
 	// run a few checks on the proposed group
-	if g.Len() < 5 {
+	if g.Len() < 4 {
 		return nil, errors.New("control: can't accept group with fewer than 5 members")
 	}
 	if g.Threshold < vss.MinimumT(g.Len()) {

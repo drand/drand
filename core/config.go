@@ -8,6 +8,7 @@ import (
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/fs"
+	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"google.golang.org/grpc"
 )
@@ -43,7 +44,6 @@ type Config struct {
 	callOpts     []grpc.CallOption
 	dkgTimeout   time.Duration
 	boltOpts     *bolt.Options
-	beaconPeriod time.Duration
 	beaconCbs    []func(*beacon.Beacon)
 	insecure     bool
 	certPath     string
@@ -57,10 +57,9 @@ func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
 		//grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
-		dkgTimeout:   dkg.DefaultTimeout,
-		beaconPeriod: DefaultBeaconPeriod,
-		certmanager:  net.NewCertManager(),
-		controlPort:  DefaultControlPort,
+		dkgTimeout:  dkg.DefaultTimeout,
+		certmanager: net.NewCertManager(),
+		controlPort: DefaultControlPort,
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -141,12 +140,6 @@ func WithConfigFolder(folder string) ConfigOption {
 	}
 }
 
-func WithBeaconPeriod(period time.Duration) ConfigOption {
-	return func(d *Config) {
-		d.beaconPeriod = period
-	}
-}
-
 func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
 	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
@@ -190,4 +183,11 @@ func WithControlPort(port string) ConfigOption {
 	return func(d *Config) {
 		d.controlPort = port
 	}
+}
+
+func getPeriod(g *key.Group) time.Duration {
+	if g.Period == time.Duration(0) {
+		return DefaultBeaconPeriod
+	}
+	return g.Period
 }

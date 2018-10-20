@@ -11,13 +11,15 @@ option go_package = "github.com/dedis/drand/protobuf/control";
 import "crypto/element.proto";
 
 service Control {
+    // PingPong returns an empty message. Purpose is to test the control port.
+    rpc PingPong(Ping) returns (Pong) { }
     // Share returns the current share used by the node 
     rpc GetShare(ShareRequest) returns (ShareResponse) { }
+    // InitDKG sends information to daemon to start a fresh DKG protocol 
     rpc InitDKG(DKGRequest) returns (DKGResponse) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
     rpc InitReshare(ReshareRequest) returns (ReshareResponse) { }
-
 }
 
 message DKGRequest {
@@ -32,6 +34,10 @@ message DKGResponse {
 // ReshareRequest contains references to the old and new group to perform the
 // resharing protocol.
 message ReshareRequest {
+    // Old group that needs to issue the shares for the new group
+    // NOTE: It can be empty / nil. In that case, the drand node will try to
+    // load the group he belongs to at the moment, if any, and use it as the old
+    // group.
     GroupInfo old = 1;
     GroupInfo new = 2;
     bool is_leader = 3;
@@ -57,4 +63,11 @@ message ShareRequest {
 message ShareResponse {
   uint32 index = 1;
   element.Scalar share = 2;
+}
+
+message Ping {
+}
+
+message Pong {
+
 }

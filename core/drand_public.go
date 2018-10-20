@@ -63,7 +63,7 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.Be
 		return nil, errors.New("drand: dkg not finished")
 	}
 	if d.beacon == nil {
-		panic("that's not ever should happen so I'm panicking right now")
+		return nil, errors.New("drand: beacon not setup yet")
 	}
 	return d.beacon.ProcessBeacon(c, in)
 }

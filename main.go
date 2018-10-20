@@ -42,74 +42,79 @@ func banner() {
 	fmt.Printf(s)
 }
 
+var configFlag = cli.StringFlag{
+	Name:  "config, c",
+	Value: core.DefaultConfigFolder(),
+	Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
+}
+var seedFlag = cli.StringFlag{
+	Name:  "seed",
+	Value: string(core.DefaultSeed),
+	Usage: "set the seed message of the first beacon produced",
+}
+var periodFlag = cli.DurationFlag{
+	Name:  "period",
+	Value: core.DefaultBeaconPeriod,
+	Usage: "runs the beacon every `PERIOD`",
+}
+var leaderFlag = cli.BoolFlag{
+	Name:  "leader",
+	Usage: "Leader is the first node to start the DKG protocol",
+}
+var verboseFlag = cli.BoolFlag{
+	Name:  "debug, d",
+	Usage: "Use -d to log debug output",
+}
+var listenFlag = cli.StringFlag{
+	Name:  "listen,l",
+	Usage: "listening (binding) address. Useful if you have some kind of proxy",
+}
+var distKeyFlag = cli.StringFlag{
+	Name:  "public,p",
+	Usage: "the path of the public key file",
+}
+var thresholdFlag = cli.IntFlag{
+	Name:  "threshold, t",
+	Usage: "threshold to apply for the group. Default is n/2 + 1.",
+}
+var outFlag = cli.StringFlag{
+	Name:  "out, o",
+	Usage: "where to save either the group file or the distributed public key",
+}
+
+var tlsCertFlag = cli.StringFlag{
+	Name:  "tls-cert",
+	Usage: "TLS certificate path to use",
+}
+var tlsKeyFlag = cli.StringFlag{
+	Name:  "tls-key",
+	Usage: "TLS private key to use by the server",
+}
+var certsDirFlag = cli.StringFlag{
+	Name:  "certs-dir",
+	Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
+}
+var insecureFlag = cli.BoolFlag{
+	Name:  "insecure",
+	Usage: "indicates to use a non TLS server or connection",
+}
+var groupFlag = cli.StringFlag{
+	Name:  "group-init",
+	Usage: "the group file to use during the DKG. If specified, drand erases any existing beacon database, as it supports only being part of one group at a time.",
+}
+var portFlag = cli.StringFlag{
+	Name:  "port",
+	Usage: "the port you want to listen to for control port commands",
+}
+
+var oldGroupFlag = cli.StringFlag{
+	Name:  "old-group",
+	Usage: "Old group.toml path to specify when a new node wishes to participate in a resharing protocol. This flag is optional in case a node is already included in the current DKG.",
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Version = version
-	configFlag := cli.StringFlag{
-		Name:  "config, c",
-		Value: core.DefaultConfigFolder(),
-		Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
-	}
-	seedFlag := cli.StringFlag{
-		Name:  "seed",
-		Value: string(core.DefaultSeed),
-		Usage: "set the seed message of the first beacon produced",
-	}
-	periodFlag := cli.DurationFlag{
-		Name:  "period",
-		Value: core.DefaultBeaconPeriod,
-		Usage: "runs the beacon every `PERIOD`",
-	}
-	leaderFlag := cli.BoolFlag{
-		Name:  "leader",
-		Usage: "Leader is the first node to start the DKG protocol",
-	}
-	verboseFlag := cli.BoolFlag{
-		Name:  "debug, d",
-		Usage: "Use -d to log debug output",
-	}
-	listenFlag := cli.StringFlag{
-		Name:  "listen,l",
-		Usage: "listening (binding) address. Useful if you have some kind of proxy",
-	}
-	distKeyFlag := cli.StringFlag{
-		Name:  "public,p",
-		Usage: "the path of the public key file",
-	}
-	thresholdFlag := cli.IntFlag{
-		Name:  "threshold, t",
-		Usage: "threshold to apply for the group. Default is n/2 + 1.",
-	}
-	outFlag := cli.StringFlag{
-		Name:  "out, o",
-		Usage: "where to save either the group file or the distributed public key",
-	}
-
-	tlsCertFlag := cli.StringFlag{
-		Name:  "tls-cert",
-		Usage: "TLS certificate path to use",
-	}
-	tlsKeyFlag := cli.StringFlag{
-		Name:  "tls-key",
-		Usage: "TLS private key to use by the server",
-	}
-	certsDirFlag := cli.StringFlag{
-		Name:  "certs-dir",
-		Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
-	}
-	insecureFlag := cli.BoolFlag{
-		Name:  "insecure",
-		Usage: "indicates to use a non TLS server or connection",
-	}
-	groupFlag := cli.StringFlag{
-		Name:  "group-init",
-		Usage: "the group file to use during the DKG. If specified, drand erases any existing beacon database, as it supports only being part of one group at a time.",
-	}
-	portFlag := cli.StringFlag{
-		Name:  "port",
-		Usage: "the port you want to listen to for control port commands",
-	}
-
 	app.Commands = []cli.Command{
 		cli.Command{
 			Name:      "keygen",
@@ -137,25 +142,25 @@ func main() {
 			Flags: toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return dkgCmd(c)
+				return initDKG(c)
 			},
 		},
 		cli.Command{
-			Name:  "beacon",
-			Usage: "Run the beacon protocol",
-			Flags: toArray(periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag),
+			Name:  "reshare",
+			Usage: "Run the resharing protocol",
+			Flags: toArray(leaderFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, groupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return beaconCmd(c)
+				return initReshare(c)
 			},
 		},
 		cli.Command{
-			Name:  "run",
-			Usage: "Run the daemon, first do the dkg if needed then run the beacon",
+			Name:  "start",
+			Usage: "Run the daemon in foreground. Typically run this command in a tmux session.",
 			Flags: toArray(leaderFlag, periodFlag, seedFlag, listenFlag, tlsCertFlag, tlsKeyFlag, certsDirFlag, insecureFlag, groupFlag, portFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return runCmd(c)
+				return startDaemon(c)
 			},
 		},
 		{
@@ -201,7 +206,15 @@ func main() {
 					Usage: "Returns the private share of a node.",
 					Flags: toArray(portFlag),
 					Action: func(c *cli.Context) error {
-						return controlShare(c)
+						return getShare(c)
+					},
+				},
+				{
+					Name:  "ping",
+					Usage: "just pings the daemon to check its state",
+					Flags: toArray(portFlag),
+					Action: func(c *cli.Context) error {
+						return pingpong(c)
 					},
 				},
 			},
@@ -309,95 +322,6 @@ func groupCmd(c *cli.Context) error {
 	return nil
 }
 
-func dkgCmd(c *cli.Context) error {
-	if !c.IsSet("group-init") {
-		slog.Fatal("dkg requires a group.toml file")
-	}
-	group := getGroup(c)
-	conf := contextToConfig(c)
-	if exit := resetBeaconDB(conf); exit {
-		os.Exit(0)
-	}
-	fs := key.NewFileStore(conf.ConfigFolder())
-	drand, err := core.NewDrand(fs, group, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	return runDkg(c, drand, fs)
-}
-
-func runDkg(c *cli.Context, d *core.Drand, ks key.Store) error {
-	var err error
-	if c.Bool("leader") {
-		err = d.StartDKG()
-	} else {
-		err = d.WaitDKG()
-	}
-	if err != nil {
-		slog.Fatal(err)
-	}
-	slog.Print("DKG setup finished!")
-
-	public, err := ks.LoadDistPublic()
-	if err != nil {
-		slog.Fatal(err)
-	}
-	dir := fs.Pwd()
-	p := path.Join(dir, dpublic)
-	key.Save(p, public, false)
-	slog.Print("distributed public key saved at ", p)
-	return nil
-}
-
-func beaconCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	drand, err := core.LoadDrand(fs, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	drand.BeaconLoop()
-	return nil
-}
-
-func runCmd(c *cli.Context) error {
-	//x509 not available on windows: must run in insecure mode
-	if runtime.GOOS == "windows" && !c.Bool("insecure") {
-		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
-	}
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	var drand *core.Drand
-	var err error
-	if c.IsSet("group-init") {
-		group := getGroup(c)
-		if exit := resetBeaconDB(conf); exit {
-			os.Exit(0)
-		}
-		drand, err = core.NewDrand(fs, group, conf)
-		if err != nil {
-			slog.Fatal(err)
-		}
-		slog.Print("Starting the dkg first.")
-		runDkg(c, drand, fs)
-	} else {
-		_, errG := fs.LoadGroup()
-		_, errS := fs.LoadShare()
-		_, errD := fs.LoadDistPublic()
-		if errG != nil || errS != nil || errD != nil {
-			slog.Fatalf("The DKG has not been run before, please provide a group file to do the setup.")
-		}
-		slog.Print("No group file given, drand will try to run as a beacon.")
-		drand, err = core.LoadDrand(fs, conf)
-		if err != nil {
-			slog.Fatal(err)
-		}
-	}
-	slog.Print("Running the randomness beacon...")
-	drand.BeaconLoop()
-	return nil
-}
-
 func fetchPrivateCmd(c *cli.Context) error {
 	if c.NArg() < 1 {
 		slog.Fatal("fetch private takes the identity file of a server to contact")
@@ -473,24 +397,6 @@ func fetchDistKey(c *cli.Context) error {
 	return nil
 }
 
-func controlShare(c *cli.Context) error {
-	port := c.String("port")
-	if port == "" {
-		port = core.DefaultControlPort
-	}
-	client := net.NewControlClient(port)
-	resp, err := client.Share()
-	if err != nil {
-		slog.Fatalf("drand: could not request the share: %s", err)
-	}
-	buff, err := json.MarshalIndent(resp, "", "    ")
-	if err != nil {
-		slog.Fatal("could not JSON marshal:", err)
-	}
-	slog.Print(string(buff))
-	return nil
-}
-
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
@@ -508,8 +414,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	config := c.GlobalString("config")
 	opts = append(opts, core.WithConfigFolder(config))
-	period := c.Duration("period")
-	opts = append(opts, core.WithBeaconPeriod(period))
 
 	if c.Bool("insecure") {
 		opts = append(opts, core.WithInsecure())

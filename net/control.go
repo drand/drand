@@ -63,6 +63,11 @@ func (c *ControlClient) GetShare() (*control.ShareResponse, error) {
 	return c.client.GetShare(context.Background(), &control.ShareRequest{})
 }
 
+func (c *ControlClient) Ping() error {
+	_, err := c.client.PingPong(context.Background(), &control.Ping{})
+	return err
+}
+
 // InitReshare sets up the node to be ready for a resharing protocol.
 // oldPath and newPath represents the paths in the filesystems of the old group
 // and the new group respectively. Leader is true if the destination node should
@@ -112,4 +117,8 @@ func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest
 	} else {
 		return s.C.GetShare(c, in)
 	}
+}
+
+func (s *DefaultControlServer) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
+	return &control.Pong{}, nil
 }
