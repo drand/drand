@@ -2,9 +2,12 @@
 package key
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
+	"github.com/dchest/blake2b"
 	kyber "github.com/dedis/kyber"
 	"gopkg.in/dedis/kyber.v0/share/vss"
 )
@@ -50,6 +53,27 @@ func (g *Group) Public(i int) *Identity {
 	return g.Nodes[i]
 }
 
+// Hash returns an unique short representation of this group.
+// NOTE: It currently does NOT take into account the distributed public key when
+// set for simplicity (we want old nodes and new nodes to easily refer to the
+// same group for example). This may cause trouble in the future and may require
+// more thoughts.
+func (g *Group) Hash() (string, error) {
+	h := blake2b.New256()
+
+	// all nodes public keys and positions
+	for i, n := range g.Nodes {
+		binary.Write(h, binary.LittleEndian, uint32(i))
+		b, err := n.Key.MarshalBinary()
+		if err != nil {
+			return "", err
+		}
+		h.Write(b)
+	}
+	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
 // Points returns itself under the form of a list of kyber.Point
 func (g *Group) Points() []kyber.Point {
 	pts := make([]kyber.Point, g.Len())
@@ -78,21 +102,26 @@ func (g *Group) FromTOML(i interface{}) error {
 		return fmt.Errorf("grouptoml unknown")
 	}
 	g.Threshold = gt.Threshold
-	list := make([]*Identity, len(gt.Nodes))
+	g.Nodes = make([]*Identity, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
-		list[i] = new(Identity)
-		if err := list[i].FromTOML(ptoml); err != nil {
+		g.Nodes[i] = new(Identity)
+		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
 			return err
 		}
 	}
+
 	if g.Threshold < vss.MinimumT(len(gt.Nodes)) {
 		return errors.New("group file have threshold 0")
 	} else if g.Threshold > g.Len() {
-		return errors.New("group file have threshold superior to number of participants")
+		return errors.New("group file threshold greater than number of participants")
 	}
 
-	p := &DistPublic{}
-	return p.FromTOML(gt.PublicKey)
+	if gt.PublicKey != nil {
+		// dist key only if dkg ran
+		g.PublicKey = &DistPublic{}
+		return g.PublicKey.FromTOML(gt.PublicKey)
+	}
+	return nil
 }
 
 // TOML returns a TOML-encodable version of the Group

@@ -269,7 +269,7 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 	if !ok {
 		return errors.New("wrong interface: expected DistPublicTOML")
 	}
-	points := make([]kyber.Point, len(d.Coefficients))
+	points := make([]kyber.Point, len(dtoml.Coefficients))
 	var err error
 	for i, s := range dtoml.Coefficients {
 		points[i], err = stringToPoint(G2, s)
@@ -277,6 +277,7 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 			return err
 		}
 	}
+	d.Coefficients = points
 	return nil
 }
 
