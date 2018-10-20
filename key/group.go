@@ -10,7 +10,7 @@ import (
 
 	"github.com/dchest/blake2b"
 	kyber "github.com/dedis/kyber"
-	"gopkg.in/dedis/kyber.v0/share/vss"
+	vss "github.com/dedis/kyber/share/vss/pedersen"
 )
 
 // Group holds all information about a group of drand nodes.

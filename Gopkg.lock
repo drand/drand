@@ -218,28 +218,9 @@
   revision = "41344da2231b913fa3d983840a57a6b1b7b631a1"
   version = "v1.12.0"
 
-[[projects]]
-  branch = "v0"
-  name = "gopkg.in/dedis/crypto.v0"
-  packages = [
-    "abstract",
-    "random",
-    "share",
-    "sign",
-    "subtle",
-    "util"
-  ]
-  revision = "8f53a63e87fd1781107812c75bc30004543e5b9c"
-
-[[projects]]
-  branch = "v0"
-  name = "gopkg.in/dedis/kyber.v0"
-  packages = ["share/vss"]
-  revision = "8f53a63e87fd1781107812c75bc30004543e5b9c"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "b6a947379335da0c4679900c759b069860378d9b37974665f32520500de05aa6"
+  inputs-digest = "484bf6b4507ec7d7d0df1279c4642ed7a8e12663459cabe1de7d6c610fee76c7"
   solver-name = "gps-cdcl"
   solver-version = 1

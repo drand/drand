@@ -12,8 +12,8 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
+	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
-	"gopkg.in/dedis/kyber.v0/share/vss"
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the

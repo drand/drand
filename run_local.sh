@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# set -x
+ set -x
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers
 # The second part is triggered when this script is actually ran, and not
@@ -130,7 +130,8 @@ function run() {
 
     ## generate group toml
     #echo $allKeys
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml "${allKeys[@]}" > /dev/null
+    period="2s"
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]}" > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
@@ -143,9 +144,9 @@ function run() {
         cp $GROUPFILE $groupFile
         dockerGroupFile="/root/.drand/drand_group.toml"
 
-
-        drandCmd=("--debug" "run" "--period" "2s" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
-        args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i) ## ip
+        name="node$i"
+        drandCmd=("--debug" "start" "--period" "2s" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+        args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
         args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
         args+=("--volume" "${certs[$idx]}:$certFile") ## server cert
@@ -153,7 +154,7 @@ function run() {
         args+=("-d") ## detached mode
         #echo "--> starting drand node $i: ${SUBNET}2$i"
         if [ "$i" -eq 1 ]; then
-            drandCmd+=("--leader" "--period" "2s")
+            drandCmd+=("--leader")
             if [ "$1" = true ]; then
                 # running in foreground
                 echo "[+] Running in foreground!"
@@ -163,10 +164,25 @@ function run() {
         else
             echo "[+] Starting node $i "
         fi
-        drandCmd+=("--group-init" $dockerGroupFile)
-        docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+        docker ${args[@]} "$IMG" "${drandCmd[@]}" #> /dev/null
         docker logs -f node$i > $logFile &
-        sleep 0.1
+        drandCmd+=("--group-init" $dockerGroupFile)
+        sleep 0.5
+       
+        echo "------------ docker node launched ---- running exec ?"
+        
+        ## Ask to run the DKG protocol, in detached mode
+        dkgArgs=(exec -d $name) #--net $NET --ip ${SUBNET}2$i "-d")
+        while true; do
+            docker exec -it $name drand control ping
+            if [ $? == 0 ]; then
+                echo "$name is UP and RUNNING"
+                break
+            fi
+        done
+        echo "Running DKG with $name..."
+        docker exec  -d $name drand dkg "$dockerGroupFile"
+        args+=() ## config folder
     done
 }
 

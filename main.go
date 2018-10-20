@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/core"
@@ -130,7 +131,7 @@ func main() {
 			Name:      "group",
 			Usage:     "Create the group toml from individual public keys",
 			ArgsUsage: "<id1 id2 id3...> must be the identities of the group to create",
-			Flags:     toArray(thresholdFlag, outFlag),
+			Flags:     toArray(thresholdFlag, outFlag, periodFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
@@ -300,6 +301,14 @@ func groupCmd(c *cli.Context) error {
 		}
 		threshold = c.Int("threshold")
 	}
+	var period = core.DefaultBeaconPeriod
+	var err error
+	if c.IsSet("period") {
+		period, err = time.ParseDuration(c.String("period"))
+		if err != nil {
+			slog.Fatalf("drand: invalid period time given %s", err)
+		}
+	}
 
 	publics := make([]*key.Identity, c.NArg())
 	for i, str := range args {
@@ -311,6 +320,7 @@ func groupCmd(c *cli.Context) error {
 		publics[i] = pub
 	}
 	group := key.NewGroup(publics, threshold)
+	group.Period = period
 	groupPath := path.Join(fs.Pwd(), gname)
 	if c.String("out") != "" {
 		groupPath = c.String("out")
