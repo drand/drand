@@ -369,7 +369,6 @@ func (h *Handler) sendDeals() error {
 				},
 			},
 		}
-
 		slog.Debugf("dkg: %d sending deal to %d", h.oidx, i)
 		if err := h.net.Send(id, packet); err != nil {
 			slog.Printf("dkg: failed to send deal to %s: %s", id.Address(), err)

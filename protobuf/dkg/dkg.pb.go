@@ -125,7 +125,12 @@ type Deal struct {
 	Index uint32 `protobuf:"varint,1,opt,name=index" json:"index,omitempty"`
 	// encrypted version of the deal
 	Deal *vss.EncryptedDeal `protobuf:"bytes,2,opt,name=deal" json:"deal,omitempty"`
-	// signature over the deal and the index
+	// signature of the whole deal
+	// NOTE: this is almost duplicated data, since the vss deal already includes
+	// a signature. However it does not include the index of the dealer that
+	// issue this deal, so another one is required. Best would be to merge vss
+	// and dkg so we could use only one field of signature. For future work...
+	// :)
 	Signature []byte `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
 }
 

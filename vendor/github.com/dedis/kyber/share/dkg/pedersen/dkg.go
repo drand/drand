@@ -10,7 +10,6 @@
 package dkg
 
 import (
-	"bytes"
 	"errors"
 
 	"github.com/dedis/kyber"
@@ -108,6 +107,8 @@ type DistKeyGenerator struct {
 	dealer *vss.Dealer
 	// verifiers indexed by dealer index
 	verifiers map[uint32]*vss.Verifier
+	// performs the part of the response verification for old nodes
+	oldAggregators map[uint32]*vss.Aggregator
 
 	// index in the old list of nodes
 	oidx int
@@ -125,6 +126,8 @@ type DistKeyGenerator struct {
 	canReceive bool
 	// indicates whether the node holding the pub key is present in the new list
 	newPresent bool
+	// indicates whether the node is present in the old list
+	oldPresent bool
 }
 
 // NewDistKeyHandler takes a Config and returns a DistKeyGenerator that is able
@@ -146,6 +149,30 @@ func NewDistKeyHandler(c *Config) (*DistKeyGenerator, error) {
 	nidx, newPresent := findPub(c.NewNodes, pub)
 	if !oldPresent && !newPresent {
 		return nil, errors.New("dkg: public key not found in old list or new list")
+	}
+
+	var newThreshold int
+	if c.Threshold != 0 {
+		newThreshold = c.Threshold
+	} else {
+		newThreshold = vss.MinimumT(len(c.NewNodes))
+	}
+
+	var dealer *vss.Dealer
+	var err error
+	var canIssue bool
+	if c.Share != nil {
+		// resharing case
+		secretCoeff := c.Share.Share.V
+		dealer, err = vss.NewDealer(c.Suite, c.Longterm, secretCoeff, c.NewNodes, newThreshold)
+		canIssue = true
+	} else if !isResharing && newPresent {
+		// fresh DKG case
+		secretCoeff := c.Suite.Scalar().Pick(c.Suite.RandomStream())
+		dealer, err = vss.NewDealer(c.Suite, c.Longterm, secretCoeff, c.NewNodes, newThreshold)
+		canIssue = true
+		c.OldNodes = c.NewNodes
+		oidx, oldPresent = findPub(c.OldNodes, pub)
 	}
 
 	var dpub *share.PubPoly
@@ -170,52 +197,25 @@ func NewDistKeyHandler(c *Config) (*DistKeyGenerator, error) {
 		oldThreshold = len(c.PublicCoeffs)
 	}
 
-	var canIssue bool
-	if oldPresent {
-		canIssue = true
-	}
-
-	var secretCoeff kyber.Scalar
-	if c.Share != nil {
-		// resharing case
-		secretCoeff = c.Share.Share.V
-	} else {
-		// fresh DKG case
-		secretCoeff = c.Suite.Scalar().Pick(c.Suite.RandomStream())
-	}
-
-	var newThreshold int
-	if c.Threshold != 0 {
-		newThreshold = c.Threshold
-	} else {
-		newThreshold = vss.MinimumT(len(c.NewNodes))
-	}
-
-	var dealer *vss.Dealer
-	var err error
-	if canIssue {
-		dealer, err = vss.NewDealer(c.Suite, c.Longterm, secretCoeff, c.NewNodes, newThreshold)
-		if err != nil {
-			return nil, err
-		}
-	}
 	return &DistKeyGenerator{
-		dealer:      dealer,
-		verifiers:   make(map[uint32]*vss.Verifier),
-		suite:       c.Suite,
-		long:        c.Longterm,
-		pub:         pub,
-		canIssue:    canIssue,
-		canReceive:  canReceive,
-		isResharing: isResharing,
-		dpub:        dpub,
-		oidx:        oidx,
-		nidx:        nidx,
-		c:           c,
-		oldT:        oldThreshold,
-		newT:        newThreshold,
-		newPresent:  newPresent,
-	}, nil
+		dealer:         dealer,
+		verifiers:      make(map[uint32]*vss.Verifier),
+		oldAggregators: make(map[uint32]*vss.Aggregator),
+		suite:          c.Suite,
+		long:           c.Longterm,
+		pub:            pub,
+		canReceive:     canReceive,
+		canIssue:       canIssue,
+		isResharing:    isResharing,
+		dpub:           dpub,
+		oidx:           oidx,
+		nidx:           nidx,
+		c:              c,
+		oldT:           oldThreshold,
+		newT:           newThreshold,
+		newPresent:     newPresent,
+		oldPresent:     oldPresent,
+	}, err
 }
 
 // NewDistKeyGenerator returns a dist key generator ready to create a fresh
@@ -225,17 +225,15 @@ func NewDistKeyGenerator(suite Suite, longterm kyber.Scalar, participants []kybe
 		Suite:     suite,
 		Longterm:  longterm,
 		NewNodes:  participants,
-		OldNodes:  participants,
 		Threshold: t,
 	}
 	return NewDistKeyHandler(c)
 }
 
-// Deals returns all the deals that must be broadcasted to all
-// participants. The deal corresponding to this DKG is already added
-// to this DKG and is ommitted from the returned map. To know which
-// participant a deal belongs to, loop over the keys as indices in the
-// list of participants:
+// Deals returns all the deals that must be broadcasted to all participants in
+// the new list. The deal corresponding to this DKG is already added to this DKG
+// and is ommitted from the returned map. To know which participant a deal
+// belongs to, loop over the keys as indices in the list of new participants:
 //
 //   for i,dd := range distDeals {
 //      sendTo(participants[i],dd)
@@ -245,9 +243,6 @@ func NewDistKeyGenerator(suite Suite, longterm kyber.Scalar, participants []kybe
 // sever problem with the configuration or implementation and
 // results in a panic.
 func (d *DistKeyGenerator) Deals() (map[int]*Deal, error) {
-	if !d.canIssue {
-		return nil, errors.New("dkg: can't issue deals with this DKG, check config")
-	}
 	deals, err := d.dealer.EncryptedDeals()
 	if err != nil {
 		return nil, err
@@ -286,12 +281,18 @@ func (d *DistKeyGenerator) Deals() (map[int]*Deal, error) {
 }
 
 // ProcessDeal takes a Deal created by Deals() and stores and verifies it. It
-// returns a Response to broadcast to every other participant. It returns an
-// error in case the deal has already been stored, or if the deal is incorrect
-// (see vss.Verifier.ProcessEncryptedDeal).
+// returns a Response to broadcast to every other participant, including the old
+// participants. It returns an error in case the deal has already been stored,
+// or if the deal is incorrect (see vss.Verifier.ProcessEncryptedDeal).
 func (d *DistKeyGenerator) ProcessDeal(dd *Deal) (*Response, error) {
+	var pub kyber.Point
+	var ok bool
+	if d.isResharing {
+		pub, ok = getPub(d.c.OldNodes, dd.Index)
+	} else {
+		pub, ok = getPub(d.c.NewNodes, dd.Index)
+	}
 	// public key of the dealer
-	pub, ok := getPub(d.c.OldNodes, dd.Index)
 	if !ok {
 		return nil, errors.New("dkg: dist deal out of bounds index")
 	}
@@ -373,12 +374,7 @@ func (d *DistKeyGenerator) ProcessDeal(dd *Deal) (*Response, error) {
 // the response, and returns a justification.
 func (d *DistKeyGenerator) ProcessResponse(resp *Response) (*Justification, error) {
 	if d.isResharing && d.canIssue && !d.newPresent {
-		if int(resp.Index) == d.oidx {
-			return d.processResharingResponse(resp)
-		}
-		// nothing to do if the response is not about our deal since we don't
-		// keep anything
-		return nil, nil
+		return d.processResharingResponse(resp)
 	}
 
 	v, ok := d.verifiers[resp.Index]
@@ -390,11 +386,9 @@ func (d *DistKeyGenerator) ProcessResponse(resp *Response) (*Justification, erro
 		return nil, err
 	}
 
-	if !d.canIssue {
-		return nil, nil
-	}
-
-	if d.canIssue && resp.Index != uint32(d.oidx) {
+	myIdx := uint32(d.oidx)
+	if !d.canIssue || resp.Index != myIdx {
+		// no justification if we dont issue deals or the deal's not from us
 		return nil, nil
 	}
 
@@ -420,30 +414,22 @@ func (d *DistKeyGenerator) ProcessResponse(resp *Response) (*Justification, erro
 // receive shares. This function makes some check on the response and returns a
 // justification if the response is invalid.
 func (d *DistKeyGenerator) processResharingResponse(resp *Response) (*Justification, error) {
-	// check the signature authenticity
-	npub, present := getPub(d.c.NewNodes, resp.Response.Index)
+	agg, present := d.oldAggregators[resp.Index]
 	if !present {
-		return nil, errors.New("dkg: resharing response invalid index")
+		agg = vss.NewEmptyAggregator(d.suite, d.c.NewNodes)
+		d.oldAggregators[resp.Index] = agg
 	}
-	err := schnorr.Verify(d.suite, npub, resp.Response.Hash(d.suite), resp.Response.Signature)
-	if err != nil {
-		// can't return justification with invalid signature otherwise leads to
-		// attack on other nodes. One attacker can simply put the target victim
-		// index and write gibberish in the signature field. The attacker's
-		// response will have to be set to invalid with `SetTimeout` (a call
-		// anyway needed after a certain timeout).
-		return nil, errors.New("dkg: resharing response invalid signature")
+
+	err := agg.ProcessResponse(resp.Response)
+	if int(resp.Index) != d.oidx {
+		return nil, err
 	}
-	// check the status
+
 	if resp.Response.Status == vss.StatusApproval {
 		return nil, nil
 	}
 
-	// check the sessionID
-	if bytes.Compare(d.dealer.SessionID(), resp.Response.SessionID) != 0 {
-		return nil, errors.New("dkg: resharing response invalid sessionID")
-	}
-	// complaint response is "valid"
+	// status is complaint and it is about our deal
 	deal, err := d.dealer.PlaintextDeal(int(resp.Response.Index))
 	if err != nil {
 		return nil, errors.New("dkg: resharing response can't get deal. BUG - REPORT")
@@ -481,7 +467,11 @@ func (d *DistKeyGenerator) SetTimeout() {
 // only a threshold of deals but due to network synchronicity assumption, this
 // is much easier.
 func (d *DistKeyGenerator) Certified() bool {
-	return len(d.QUAL()) >= len(d.c.OldNodes)
+	if d.isResharing {
+		return len(d.QUAL()) >= len(d.c.OldNodes)
+	} else {
+		return len(d.QUAL()) >= len(d.c.NewNodes)
+	}
 }
 
 // QUAL returns the index in the list of participants that forms the QUALIFIED
@@ -492,11 +482,19 @@ func (d *DistKeyGenerator) Certified() bool {
 // XXX Have a method of retrieving invalid shares ?
 func (d *DistKeyGenerator) QUAL() []int {
 	var good []int
-	d.qualIter(func(i uint32, v *vss.Verifier) bool {
-		good = append(good, int(i))
-		return true
-	})
-	return good
+	if d.isResharing && d.canIssue && !d.newPresent {
+		d.oldQualIter(func(i uint32, v *vss.Aggregator) bool {
+			good = append(good, int(i))
+			return true
+		})
+		return good
+	} else {
+		d.qualIter(func(i uint32, v *vss.Verifier) bool {
+			good = append(good, int(i))
+			return true
+		})
+		return good
+	}
 }
 
 func (d *DistKeyGenerator) isInQUAL(idx uint32) bool {
@@ -513,6 +511,16 @@ func (d *DistKeyGenerator) isInQUAL(idx uint32) bool {
 
 func (d *DistKeyGenerator) qualIter(fn func(idx uint32, v *vss.Verifier) bool) {
 	for i, v := range d.verifiers {
+		if v.DealCertified() {
+			if !fn(i, v) {
+				break
+			}
+		}
+	}
+}
+
+func (d *DistKeyGenerator) oldQualIter(fn func(idx uint32, v *vss.Aggregator) bool) {
+	for i, v := range d.oldAggregators {
 		if v.DealCertified() {
 			if !fn(i, v) {
 				break
@@ -547,7 +555,6 @@ func (d *DistKeyGenerator) dkgKey() (*DistKeyShare, error) {
 	sh := d.suite.Scalar().Zero()
 	var pub *share.PubPoly
 	var err error
-
 	d.qualIter(func(i uint32, v *vss.Verifier) bool {
 		// share of dist. secret = sum of all share received.
 		deal := v.Deal()

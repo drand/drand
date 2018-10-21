@@ -224,7 +224,6 @@ func (d *Drand) BeaconLoop() error {
 	}
 	period := getPeriod(d.group)
 	d.state.Unlock()
-
 	d.beacon.Loop(DefaultSeed, period, catchup)
 	return nil
 }

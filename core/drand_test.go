@@ -41,7 +41,6 @@ func TestDrandDKGReshare(t *testing.T) {
 
 	// instantiating all drands already
 	drands, _, dir := BatchNewDrand(newN, false,
-		WithBeaconPeriod(period),
 		WithCallOption(grpc.FailFast(true)))
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
@@ -55,6 +54,7 @@ func TestDrandDKGReshare(t *testing.T) {
 
 	// creating old group from subset of ids
 	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{dpub}, oldT)
+	oldGroup.Period = period
 	oldPath := path.Join(dir, "oldgroup.toml")
 	require.NoError(t, key.Save(oldPath, oldGroup, false))
 
@@ -65,6 +65,7 @@ func TestDrandDKGReshare(t *testing.T) {
 	}
 
 	newGroup := key.NewGroup(ids, newT)
+	newGroup.Period = period
 	newPath := path.Join(dir, "newgroup.toml")
 	require.NoError(t, key.Save(newPath, newGroup, false))
 
@@ -120,11 +121,11 @@ func TestDrandDKGFresh(t *testing.T) {
 	defer func() { net.DefaultTimeout = old }()
 
 	drands, group, dir := BatchNewDrand(n, false,
-		WithBeaconPeriod(period),
 		WithCallOption(grpc.FailFast(true)))
 	defer CloseAllDrands(drands[:n-1])
 	defer os.RemoveAll(dir)
 
+	group.Period = period
 	groupPath := path.Join(dir, "dkggroup.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 

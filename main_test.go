@@ -361,7 +361,7 @@ func TestControlPort(t *testing.T) {
 	cmd := exec.Command("drand", "control", "ping", "--port", "8181")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("could not run the command : %s", err.Error())
+		t.Fatalf("could not run the command : %s -> output: %s", err.Error(), out)
 	}
 	expectedOutput := "drand daemon is alive on port"
 	require.True(t, strings.Contains(string(out), expectedOutput))
