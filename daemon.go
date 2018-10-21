@@ -35,6 +35,7 @@ func startDaemon(c *cli.Context) error {
 		// sense in practice
 		runtime.Goexit()
 	} else {
+		slog.Infof("drand: will already start running randomness beacon")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
 			slog.Fatalf("drand: can't load drand instance %s", err)

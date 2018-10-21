@@ -5,6 +5,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
@@ -20,6 +21,7 @@ import (
 // DKG protocol to finish. If the request specify this node is a leader, it
 // starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
+	fmt.Println(" -- DRAND InitDKG CONTROL-- ")
 	d.state.Lock()
 
 	if d.dkgDone == true {

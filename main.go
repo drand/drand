@@ -37,7 +37,7 @@ const dpublic = "dist_key.public"
 const default_port = "8080"
 
 func banner() {
-	fmt.Printf("drand v%s by nikkolasg @ DEDIS\n", version)
+	fmt.Printf("drand vtest-%s by nikkolasg @ DEDIS\n", version)
 	s := "WARNING: this software has NOT received a full audit and must be \n" +
 		"used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)
@@ -450,15 +450,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	conf := core.NewConfig(opts...)
 	return conf
-}
-
-func getGroup(c *cli.Context) *key.Group {
-	g := &key.Group{}
-	if err := key.Load(c.String("group-init"), g); err != nil {
-		slog.Fatal(err)
-	}
-	slog.Infof("group file loaded with %d participants", g.Len())
-	return g
 }
 
 func resetBeaconDB(config *core.Config) bool {

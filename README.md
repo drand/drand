@@ -98,50 +98,29 @@ Make sure that you have a working [Docker installation](https://docs.docker.com/
 ```
 go get -u github.com/dedis/drand
 ```
+## Components
+
+drand has two components:
+
++ a *daemon* that runs the DKG protocol and the randomness beacon
++ a local *control client* that issues command to the daemon so start the DKG
+  protocol, or retrieve informations.
+
+The daemon only listens for *localhost* connection from the control client,i.e.
+only server's administrators are able to issue commands to their respective drand nodes.
 
 ## Usage
 
-There are two ways to run a drand node: using TLS or using plain old regular
-un-encrypted connections. Drand by default tries to use TLS connections.
+This section explains in details the workflow to have a working group of drand
+nodes generate randomness. On a high-level, the workflow looks like this:
++ Generate individual longterm key-pair of drand nodes and then the group file that contains all public keys and other informations
++ Start each drand daemons
++ Instruct to each daemons to start the DKG protocol
 
-### With TLS
+The randomness beacon automatically starts as soon as the DKG protocol is
+finished.
 
-Drand supports by default TLS-encrypted communications. In order to do run drand
-in this mode, you need to give at least two options for most operations:
-+ `--tls-cert` must point to a valid PEM encoded certificate
-+ `--tls-key` must point to a valid TLS private key
-
-These options must be appended to any operations connecting on the network:
-`run`, `run dkg` and `run beacon`.
-
-An easy and free way to get TLS certificates these days is to use the [Let's
-Encrypt](https://letsencrypt.org/) service, with the official [EFF
-tool](https://certbot.eff.org/).
-
-### Without TLS
-
-Drand is able to run without TLS, mostly intended for testing purpose or for running drand inside a closed network. To run drand without TLS, you need to explicitly tell drand to do so with the `--insecure` flag:
-
-+ `drand keygen --insecure`
-+ `drand run --insecure`
-
-### With Docker
-
-**NOTE:** If you run drand in Docker, always use the following template
-```
-docker run \
-    --rm \
-    --name drand \
-    -p <port>:<port> \
-    --volume $HOME/.drand/:/root/.drand/ \
-    dedis/drand <command>
-```
-where `<port>` specifies the port through which your drand daemon is reachable
-and `<command>` has to be substituted by one of the respective drand
-commands below. You must add the corresponding volumes pointing to your TLS
-private key and certificate in case you are using TLS, which you should.
-
-## Setup
+### Setup
 
 To setup the drand beacon, each participant generates its long-term key pair
 from which we can then assemble the group configuration file, and finally all
@@ -159,30 +138,82 @@ channel, you can pass the `--insecure` flag.
 
 #### Group Configuration
 
-To generate the group configuration file `drand_group.toml`, run
+All informations regarding a group of drand nodes necessary for drand to function properly are located inside a group.toml configuration file. To run a DKG protocol, one needs to generate this group configuration file from all individual longterm keys generated in the previous step. One can do so with:
 ```
 drand group <pk1> <pk2> ... <pkn>
 ```
 where `<pki>` is the public key file `drand_id.public` of the i-th participant.
 The group file is generated in the current directory under `group.toml`.
+**NOTE:** At this stage, this group file MUST be distributed to all participants !
 
-**NOTE:** This group file MUST be distributed to all participants !
+##### Randomness Beacon Period
 
-#### Distributed Key Generation
-
-After receiving the `drand_group.toml` file, participants can start drand via:
+drand updates the configuration file after the DKG protocol finishes,
+with the distributed public key and automatically starts running the randomness beacon. By default, a randomness beacon has a period of 1mn,i.e. new randomness is generated every minute. If you wish to change the period, you must include that information **inside** the group configuration file. You can do by appending a flag to the command such as :
 ```
-drand run --tls-cert <cert path> --tls-key <key path> --group-init <group_file.toml>
+drand group --period 2m <pk1> <pk2> ... <pkn>
 ```
-where `<cert path>` is the path of your TLS certificate and `<key path>` is the
-path of your TLS private key. If you need non-secured channel, you can use the
-`--insecure` option.
 
-One of the nodes has to function as the leader which finalizes the setup and
-later also initiates regular randomness generation rounds. To start the drand
-daemon in leader mode, execute:
+### Starting drand daemon
+
+There are two ways to run a drand daemon: using TLS or using plain old regular
+un-encrypted connections. Drand by default tries to use TLS connections.
+
+#### With TLS
+
+Drand supports by default TLS-encrypted communications. In order to do run drand
+in this mode, you need to give at least two options for most operations:
++ `--tls-cert` must point to a valid PEM encoded certificate
++ `--tls-key` must point to a valid TLS private key
+
+These options must be appended to any operations connecting on the network:
+`run`, `run dkg` and `run beacon`.
+
+An easy and free way to get TLS certificates these days is to use the [Let's
+Encrypt](https://letsencrypt.org/) service, with the official [EFF
+tool](https://certbot.eff.org/).
+
+#### Without TLS
+
+Drand is able to run without TLS, mostly intended for testing purpose or for running drand inside a closed network. To run drand without TLS, you need to explicitly tell drand to do so with the `--insecure` flag:
+
++ `drand keygen --insecure`
++ `drand run --insecure`
+
+#### With Docker
+
+**NOTE:** If you run drand in Docker, always use the following template
 ```
-drand run --leader --tls-cert <cert path> --tls-key <key path> --group-init <group_file.toml>
+docker run \
+    --rm \
+    --name drand \
+    -p <port>:<port> \
+    --volume $HOME/.drand/:/root/.drand/ \
+    dedis/drand <command>
+```
+where `<port>` specifies the port through which your drand daemon is reachable
+and `<command>` has to be substituted by one of the respective drand
+commands below. You must add the corresponding volumes pointing to your TLS
+private key and certificate in case you are using TLS, which you should.
+
+**NOTE**: You can test if your daemon is up and running with a ping command on
+the same host as the daemon:
+```
+drand control ping
+```
+
+### Distributed Key Generation
+
+After running all drand daemons, each operator needs to issue a command to start
+the DKG, using the group file generated before. One can do so with:
+```
+drand dkg <group-file>
+```
+
+One of the nodes has to function as the leader to initiate the DKG protocol (no
+additional trust assumptions), he can do so with:
+```
+drand dkg --leader <group-file>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -194,7 +225,8 @@ Once the DKG phase is done, the distributed public key is saved in the local dir
 
 #### Downloading the distributed public key
 
-To get the distributed public key of a drand protocol run, execute :
+In order to verify the validity of each randomness beacon, one needs the
+distributed public key generated during the DKG protocol. To get the distributed public key of a drand node, execute :
 ```bash
 drand fetch dist_key <address>
 ```
@@ -292,6 +324,9 @@ The output will have the following JSON format :
 ```
 
 ## Learn More About The Crypto Magic Behind Drand
+
+You can learn more about drand, its motivations and how does it work on these
+[slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing).
 
 Drand relies on the following cryptographic constructions:
 - All drand protocols rely on [pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) using
