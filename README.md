@@ -158,6 +158,8 @@ drand group --period 2m <pk1> <pk2> ... <pkn>
 
 There are two ways to run a drand daemon: using TLS or using plain old regular
 un-encrypted connections. Drand by default tries to use TLS connections.
+The daemon does not go automatically in background, so you must run it with ` &
+` in your terminal, or within a screen / tmux session, or with the `-d` option enabled for the docker commands.
 
 #### With TLS
 
