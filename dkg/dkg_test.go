@@ -344,7 +344,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 		go goDkg(i)
 	}
 
-	for i := 0; i < total; i++ {
+	for i := 0; i < newN; i++ {
 		<-finished
 	}
 }
