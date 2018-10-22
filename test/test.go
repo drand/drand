@@ -78,12 +78,14 @@ func GenerateIDs(n int) []*key.Pair {
 	return keys
 }
 
+// Generates n insecure identities
 func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
 	group := key.NewGroup(ListFromPrivates(privs), key.DefaultThreshold(n))
 	return privs, group
 }
 
+// Generates n secure (TLS) identities
 func BatchTLSIdentities(n int) ([]*key.Pair, *key.Group) {
 	pairs, group := BatchIdentities(n)
 	for i := 0; i < n; i++ {

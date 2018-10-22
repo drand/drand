@@ -72,6 +72,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	}
 	drand.RegisterRandomnessServer(g.grpcServer, g.Service)
 	drand.RegisterBeaconServer(g.grpcServer, g.Service)
+	drand.RegisterInfoServer(grpcServer, s)
 	dkg.RegisterDkgServer(g.grpcServer, g.Service)
 	return g
 }
@@ -209,7 +210,7 @@ type ControlListener struct {
 func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", "localhost", port))
 	if err != nil {
-		slog.Fatal("Failed to listen")
+		slog.Fatal("Failed to listen:", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()
