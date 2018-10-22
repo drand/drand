@@ -160,7 +160,6 @@ func (d *Drand) WaitDKG() error {
 	d.dkgDone = true
 	d.dkg = nil
 	d.nextConf = nil
-	d.beacon = nil // to allow re-creation of beacon with new share
 	return nil
 }
 
@@ -191,6 +190,16 @@ func (d *Drand) StartBeacon() error {
 	}
 	go d.BeaconLoop()
 	return nil
+}
+
+func (d *Drand) StopBeacon() {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.beacon == nil {
+		return
+	}
+	d.beacon.Stop()
+	d.beacon = nil
 }
 
 // BeaconLoop starts periodically the TBLS protocol. The seed is the first

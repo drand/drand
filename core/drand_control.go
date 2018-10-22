@@ -150,7 +150,10 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	if err := d.WaitDKG(); err != nil {
 		return nil, err
 	}
-
+	// stop the beacon first, then re-create it with the new shares
+	// i.e. the current beacon is still running alongside with the new DKG but
+	// stops as soon as the new DKG finishes.
+	d.StopBeacon()
 	return &control.ReshareResponse{}, d.StartBeacon()
 }
 
