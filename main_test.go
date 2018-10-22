@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
@@ -358,6 +359,7 @@ func TestControlPort(t *testing.T) {
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
+	time.Sleep(50 * time.Millisecond)
 	cmd := exec.Command("drand", "control", "ping", "--port", "8181")
 	out, err := cmd.CombinedOutput()
 	if err != nil {

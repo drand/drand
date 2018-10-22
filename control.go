@@ -23,7 +23,7 @@ func initDKG(c *cli.Context) error {
 	}
 
 	slog.Print("drand: waiting the end of DKG protocol ... " +
-		"(you can CTRL-C to not wait)")
+		"(you can CTRL-C to not quit waiting)")
 	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name))
 	if err != nil {
 		slog.Fatalf("drand: initdkg %s", err)
