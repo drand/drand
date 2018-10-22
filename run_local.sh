@@ -13,7 +13,8 @@
 # docker scripting. One of these, one should try to do it in docker-compose.
 ## number of nodes
 
-N=6
+N=6 ## final number of nodes
+OLDN=5 ## starting number of nodes
 BASE="/tmp/drand"
 if [ ! -d "$BASE" ]; then
     mkdir -m 740 $BASE
@@ -96,7 +97,8 @@ function run() {
     mkdir -m 740 $LOGSDIR
 
     seq=$(seq 1 $N)
-    rseq=$(seq $N -1 1)
+    oldRseq=$(seq $OLDN -1 1)
+    newRseq=$(seq $N -1 1)
 
 
     #sequence=$(seq $N -1 1)
@@ -128,14 +130,13 @@ function run() {
         echo "[+] Generated private/public pair + certificate for $addr"
     done
 
-    ## generate group toml
-    #echo $allKeys
+    ## generate group toml from the first 5 nodes ONLY
+    ## We're gonna add the last one later on
     period="2s"
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]}" > /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..."
-    for i in $rseq; do
-        echo "[+] preparing for node $i"
+    for i in $oldRseq; do
         idx=`expr $i - 1`
         # gen key and append to group
         data="$TMP/node$i/"
@@ -166,21 +167,15 @@ function run() {
         fi
         docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
         docker logs -f node$i > $logFile &
+        #docker logs -f node$i &
 
         sleep 0.5
        
         # check if the node is up 
-        while true; do
-            docker exec -it $name drand control ping
-            if [ $? == 0 ]; then
-                echo "$name is UP and RUNNING"
-                break
-            fi
-            sleep 0.2
-        done
+        pingNode $name
 
         if [ "$i" -eq 1 ]; then
-            docker exec -d $name drand dkg --leader "$dockerGroupFile"
+            docker exec -it $name drand dkg --leader "$dockerGroupFile" > /dev/null
         else
             docker exec -d $name drand dkg "$dockerGroupFile"
         fi
@@ -196,6 +191,83 @@ function run() {
         echo " -> distributed public key NOT found... waiting"
         sleep 1
     done
+    share1Path="$TMP/node1/groups/dist_key.private"
+    share1Hash=$(sha256sum "$share1Path")
+    group1Path="$TMP/node1/groups/drand_group.toml"
+    group1Hash=$(sha256sum $group1Path)
+
+    # trying to add the last node to the group
+    echo "[+] Generating new group with additional node"
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group2.toml --period "$period" "${allKeys[@]}" > /dev/null
+
+    i=6
+    echo "[+] Starting node additional node $i"
+    idx=`expr $i - 1`
+    # gen key and append to group
+    data="$TMP/node$i/"
+    logFile="$LOGSDIR/node$i.log"
+    groupFile="$data""drand_group.toml"
+    cp $GROUPFILE $groupFile
+    dockerGroupFile="/root/.drand/drand_group.toml"
+
+    name="node$i"
+    drandCmd=("--debug" "start" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+    args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
+    args+=("--volume" "${allVolumes[$i]}") ## config folder
+    args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
+    args+=("--volume" "${certs[$idx]}:$certFile") ## server cert
+    args+=("--volume" "${tlskeys[$idx]}:$keyFile") ## server priv key
+    args+=("-d") ## detached mode
+    docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+    docker logs -f node$i > $logFile &
+    #docker logs -f node$i  &
+    # check if the node is up 
+    pingNode $name 
+
+    for i in $newRseq; do
+        name="node$i"
+         if [ "$i" -eq 1 ]; then
+            echo "[+] Start resharing command to leader $name"
+            docker exec -it $name drand reshare --leader "$dockerGroupFile" > /dev/null
+        elif [ "$i" -eq "$N" ]; then
+            echo "[+] Issuing resharing command to NEW node $name"
+            docker exec -d $name drand reshare "$dockerGroupFile"
+        else
+            echo "[+] Issuing resharing command to node $name"
+            docker exec -d $name drand reshare "$dockerGroupFile"
+        fi
+
+    done
+
+    ## check if the two groups file are different
+    group2Hash=$(sha256sum $group1Path)
+    if [ "$group1Hash" = "$group2Hash" ]; then
+        echo "[-] Checking group file... Same as before - WRONG."
+        exit 1
+    else
+        echo "[+] Checking group file... New one created !"
+    fi
+
+    share2Hash=$(sha256sum "$share1Path")
+    if [ "$share1Hash" = "$share2Hash" ]; then
+        echo "[-] Checking private shares... Same as before - WRONG"
+        exit 1
+    else
+        echo "[+] Checking private shares... New ones !"
+    fi
+
+}
+
+function pingNode() {
+    while true; do
+        docker exec -it $1 drand control ping > /dev/null
+        if [ $? == 0 ]; then
+            #echo "$name is UP and RUNNING"
+            break
+        fi
+        sleep 0.2
+    done
+
 
 }
 

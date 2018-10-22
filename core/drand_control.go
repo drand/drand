@@ -66,6 +66,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*control.ReshareResponse, error) {
 	var oldGroup, newGroup *key.Group
 	var err error
+	fmt.Println(" -- DRAND InitReshare CONTROL-- ")
 
 	if newGroup, err = extractGroup(in.New); err != nil {
 		return nil, err
