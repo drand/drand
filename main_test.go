@@ -322,17 +322,15 @@ func TestClientInsecure(t *testing.T) {
 	require.True(t, strings.Contains(string(out), keyStr))
 	require.NoError(t, err)
 
-	// TODO: There is an issue when `drand control share` is run with a custom port. It returns the wrong secret value.
-	// Commented out test in meantime.
-	//cmd = exec.Command("drand", "control", "--port", ctrlPort, "share")
-	//out, err = cmd.CombinedOutput()
-	//if err != nil {
-	//	t.Fatalf("could not run the command : %s", err.Error())
-	//}
-	//fmt.Println(out)
-	//expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
-	//require.True(t, strings.Contains(string(out), expectedOutput))
-	//require.NoError(t, err)
+	cmd = exec.Command("drand", "control", "share", "--port", ctrlPort)
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("could not run the command : %s", err.Error())
+	}
+	fmt.Println(out)
+	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	require.True(t, strings.Contains(string(out), expectedOutput))
+	require.NoError(t, err)
 }
 
 func TestClientTLS(t *testing.T) {
