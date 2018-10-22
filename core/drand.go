@@ -170,7 +170,7 @@ func (d *Drand) BeaconLoop() {
 		}
 	}
 	if catchup {
-		slog.Infof("drand: starting beacon loop in catch-up mode (%s - %v)", err, b)
+		slog.Infof("drand: starting beacon loop in catch-up mode from round %v", b.Round)
 	} else {
 		slog.Infof("drand: starting beacon loop")
 	}
