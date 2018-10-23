@@ -7,7 +7,7 @@ services:
 language: go
 
 go:
-    - "1.10.x"
+    - tip
 
 script:
     #- cd core && go test -v && cd ../ && cd beacon/ && go test -v && cd ../
