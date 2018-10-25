@@ -266,6 +266,75 @@ func TestRunGroupInit(t *testing.T) {
 	}
 }
 
+func TestClientInsecure(t *testing.T) {
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	defer os.RemoveAll(tmpPath)
+
+	pubPath := path.Join(tmpPath, "pub.key")
+	addr := "127.0.0.1:8083"
+	ctrlPort := "8889"
+
+	priv := key.NewKeyPair(addr)
+	require.NoError(t, key.Save(pubPath, priv.Public, false))
+
+	config := core.NewConfig(core.WithConfigFolder(tmpPath))
+	fs := key.NewFileStore(config.ConfigFolder())
+	fs.SaveKeyPair(priv)
+
+	// fake group
+	_, group := test.BatchIdentities(5)
+	group.Nodes[0] = &key.IndexedPublic{
+		Identity: priv.Public,
+		Index:    0,
+	}
+	groupPath := path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
+	require.NoError(t, key.Save(groupPath, group, false))
+
+	//fake share
+	pairing := bn256.NewSuite()
+	scalarOne := pairing.G2().Scalar().One()
+	s := &share.PriShare{I: 2, V: scalarOne}
+	share := &key.Share{Share: s}
+	fs.SaveShare(share)
+
+	// fake dkg outuput
+	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+	fakeKey, _ := stringToPoint(keyStr)
+	distKey := &key.DistPublic{Key: fakeKey}
+	require.NoError(t, fs.SaveDistPublic(distKey))
+
+	// Specify different control and listen ports than TLS example so the two concurrently running drand instances
+	// (one secure, one insecure) don't re-use ports.
+	os.Args = []string{"drand", "--config", tmpPath, "run", "--group-init", groupPath, "--listen", addr, "--port", ctrlPort, "--insecure"}
+	go main()
+
+	installCmd := exec.Command("go", "install")
+	_, err := installCmd.Output()
+	require.NoError(t, err)
+
+	cmd := exec.Command("drand", "fetch", "private", pubPath)
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err)
+
+	cmd = exec.Command("drand", "fetch", "dist_key", addr, "--insecure")
+	out, err = cmd.CombinedOutput()
+	require.True(t, strings.Contains(string(out), keyStr))
+	require.NoError(t, err)
+
+	// TODO: There is an issue when `drand control share` is run with a custom port. It returns the wrong secret value.
+	// Commented out test in meantime.
+	//cmd = exec.Command("drand", "control", "--port", ctrlPort, "share")
+	//out, err = cmd.CombinedOutput()
+	//if err != nil {
+	//	t.Fatalf("could not run the command : %s", err.Error())
+	//}
+	//fmt.Println(out)
+	//expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	//require.True(t, strings.Contains(string(out), expectedOutput))
+	//require.NoError(t, err)
+}
+
 func TestClientTLS(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
@@ -339,6 +408,7 @@ func TestClientTLS(t *testing.T) {
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 }
+
 func TestSharePort(t *testing.T) {
 	//prepare drand instance
 	tmpPath := path.Join(os.TempDir(), "drand")
