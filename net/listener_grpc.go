@@ -70,6 +70,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	}
 	drand.RegisterRandomnessServer(g.grpcServer, g.Service)
 	drand.RegisterBeaconServer(g.grpcServer, g.Service)
+	drand.RegisterInfoServer(grpcServer, s)
 	dkg.RegisterDkgServer(g.grpcServer, g.Service)
 	return g
 }

@@ -215,7 +215,7 @@ func (d *Drand) BeaconLoop() error {
 	// if there is an error we quit, if there is no beacon saved yet, we
 	// run the loop as usual.
 	var catchup = true
-	_, err := d.beaconStore.Last()
+	b, err := d.beaconStore.Last()
 	if err != nil {
 		if err == beacon.ErrNoBeaconSaved {
 			// we are starting the beacon generation
@@ -227,7 +227,7 @@ func (d *Drand) BeaconLoop() error {
 		}
 	}
 	if catchup {
-		slog.Infof("drand: starting beacon loop in catch-up mode")
+		slog.Infof("drand: starting beacon loop in catch-up mode from round %v", b.Round)
 	} else {
 		slog.Infof("drand: starting beacon loop")
 	}
