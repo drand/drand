@@ -27,8 +27,7 @@ case "${unameOut}" in
         TMP="/tmp/$(basename $A)"
     ;;
 esac
-GROUPDIR="$TMP/groups"
-GROUPFILE="$GROUPDIR/drand_group.toml"
+GROUPFILE="$TMP/group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
 IMG="dedis/drand:latest"
@@ -92,10 +91,9 @@ function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    echo "[+] Create the sub directories"
+    echo "[+] Create the certificate directory"
     mkdir -m 740 $CERTSDIR
     mkdir -m 740 $LOGSDIR
-    mkdir -m 740 $GROUPDIR
 
     seq=$(seq 1 $N)
     rseq=$(seq $N -1 1)
@@ -128,14 +126,12 @@ function run() {
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
         echo "[+] Generated private/public pair + certificate for $addr"
-    cd ..
     done
 
     ## generate group toml
     #echo $allKeys
-    echo "[+] Generating group file"
-    docker run --rm -v $TMP:/tmp:z $IMG "--folder" "$TMP" group "${allKeys[@]}"
-    echo "[+] Group file generated at $TMP/groups/drand_group.toml"
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml "${allKeys[@]}"
+    echo "[+] Group file generated at $GROUPFILE"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $rseq; do
         echo "[+] preparing for node $i"
@@ -148,7 +144,7 @@ function run() {
         dockerGroupFile="/root/.drand/drand_group.toml"
 
 
-        drandCmd=("start" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+        drandCmd=("--debug" "start" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
         args=(run --rm --name node$i --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
         args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
@@ -189,9 +185,8 @@ function fetchTest() {
     serverCert="$CERTSDIR/server-$nindex.cert"
     serverCertDocker="/server.cert"
     serverCertVol="$serverCert:$serverCertDocker"
-    dockerGroupFile="/root/.drand/drand_group.toml"
-    drandArgs=("get" "private")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "--nodes" "${addresses[$nindex]}" "$dockerGroupFile")
+    drandArgs=("fetch" "private")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "$serverId")
     echo "---------------------------------------------"
     echo "              Private Randomness             "
     docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
@@ -201,10 +196,10 @@ function fetchTest() {
     echo "               Public Randomness             "
     drandPublic="/dist_public.toml"
     drandVol="$distPublic:$drandPublic"
-    drandArgs=( "get" "public")
+    drandArgs=( "fetch" "public")
     drandArgs+=("--tls-cert" "$serverCertDocker")
     idx=`expr $nindex - 1`
-    drandArgs+=("--nodes" "${addresses[$idx]}" "$dockerGroupFile")
+    drandArgs+=("--public" $drandPublic "${addresses[$idx]}")
     docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"

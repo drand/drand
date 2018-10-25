@@ -59,7 +59,7 @@ func main() {
 	verboseFlag := cli.IntFlag{
 		Name:  "verbose, V",
 		Value: 0,
-		Usage: "Set verbosity to the given level.",
+		Usage: "Set verbosity to the given level. 0 for normal output, 1 for informational output and 2 for debug output.",
 	}
 	tlsCertFlag := cli.StringFlag{
 		Name: "tls-cert, c",
@@ -97,8 +97,16 @@ func main() {
 		Name:  "group, g",
 		Usage: "If you want to merge keys into an existing group.toml file, run the group command and specify the group.toml file with this flag.",
 	}
+	certsDirFlag := cli.StringFlag{
+		Name:  "certs-dir",
+		Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
+	}
+	outFlag := cli.StringFlag{
+		Name:  "out, o",
+		Usage: "where to save either the group file or the distributed public key",
+	}
 
-	// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, certsDirFlag, distKeyFlag, thresholdFlag.
+	// XXX deleted flags : debugFlag, groupFlag (for group init), seedFlag, periodFlag, distKeyFlag, thresholdFlag.
 
 	// =====Commands=====
 
@@ -111,7 +119,7 @@ func main() {
 				"if there has been already a successful distributed key generation before, the node automatically switches to " +
 				"the public randomness generation mode after a potential state-syncing phase with the other nodes in group.toml.",
 			ArgsUsage: "<group.toml> the group file.",
-			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, listenFlag),
+			Flags:     toArray(leaderFlag, tlsCertFlag, tlsKeyFlag, insecureFlag, portFlag, listenFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -140,7 +148,7 @@ func main() {
 			Usage: "Merge the given list of whitespace-separated drand.public keys into the group.toml " +
 				"file if one is provided, if not create a new group.toml file with the given identites.",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group to create/to insert into the group",
-			Flags:     toArray(groupFlag),
+			Flags:     toArray(groupFlag, outFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
@@ -247,13 +255,13 @@ func main() {
 	app.Flags = toArray(verboseFlag, folderFlag)
 	app.Before = func(c *cli.Context) error {
 		if c.GlobalIsSet("verbose") {
+			if c.Int("verbose") == 0 {
+				slog.Level = slog.LevelPrint
+			}
 			if c.Int("verbose") == 1 {
 				slog.Level = slog.LevelInfo
 			}
 			if c.Int("verbose") == 2 {
-				slog.Level = slog.LevelPrint
-			}
-			if c.Int("verbose") == 3 {
 				slog.Level = slog.LevelDebug
 			}
 		}
@@ -405,16 +413,23 @@ func groupCmd(c *cli.Context) error {
 		config := contextToConfig(c)
 		group := key.NewGroup(publics, threshold, nil)
 		groupPath := path.Join(config.ConfigFolder(), key.GroupFolderName)
-		if err := key.Load(groupPath, group); err == nil {
-			slog.Fatal("drand: there already is a group.toml file, please use the flag --group to merge your new keys.")
-			// XXX: does that checks if existing groupFile ? check if empty struct
+		if c.String("out") != "" {
+			groupPath = c.String("out")
+			if err := key.Save(groupPath, group, false); err != nil {
+				slog.Fatal(err)
+			}
+		} else {
+			if err := key.Load(groupPath, group); err == nil {
+				slog.Fatal("drand: there already is a group.toml file, please use the flag --group to merge your new keys.")
+				// XXX: does that checks if existing groupFile ? check if empty struct
+			}
+			var buff bytes.Buffer
+			if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
+				slog.Print("doesn't want to encode")
+			}
+			buff.WriteString("\n")
+			slog.Printf("Copy the following snippet into a group.toml file and distribute it to all the participants to start the DKG. \n%s", buff.String())
 		}
-		var buff bytes.Buffer
-		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
-			slog.Print("doesn't want to encode")
-		}
-		buff.WriteString("\n")
-		slog.Printf("Copy the following snippet into a group.toml file and distribute it to all the participants to start the DKG. \n%s", buff.String())
 	}
 	return nil
 }
@@ -690,6 +705,13 @@ func contextToConfig(c *cli.Context) *core.Config {
 	} else {
 		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
 		opts = append(opts, core.WithTLS(certPath, keyPath))
+	}
+	if c.IsSet("certs-dir") {
+		paths, err := fs.Files(c.String("certs-dir"))
+		if err != nil {
+			panic(err)
+		}
+		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
 	conf := core.NewConfig(opts...)
 	return conf
