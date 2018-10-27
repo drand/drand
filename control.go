@@ -9,31 +9,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-// initDKG indicates to the daemon to start the DKG protocol, as a leader or
-// not. The method waits until the DKG protocol finishes or an error occured.
-// If the DKG protocol finishes successfully, the beacon randomness loop starts.
-func initDKG(c *cli.Context) error {
-	groupPath := c.Args().First()
-	// still trying to load it ourself now for the moment
-	// just to test if it's a valid thing or not
-	conf := contextToConfig(c)
-	client, err := net.NewControlClient(conf.ControlPort())
-	if err != nil {
-		slog.Fatalf("drand: error creating control client: %s", err)
-	}
-
-	slog.Print("drand: waiting the end of DKG protocol ... " +
-		"(you can CTRL-C to not quit waiting)")
-	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name))
-	if err != nil {
-		slog.Fatalf("drand: initdkg %s", err)
-	}
-	return nil
-}
-
 // initReshare indicates to the daemon to start the resharing protocol, as a
 // leader or not. The method waits until the resharing protocol finishes or
-// an error occured. The "old group" toml is inferred either from the local
+// an error occured. TInfofhe "old group" toml is inferred either from the local
 // informations that the drand node is keeping (saved in filesystem), and can be
 // superseeded by the command line flag "old-group".
 // If the DKG protocol finishes successfully, the beacon randomness loop starts.
@@ -55,14 +33,9 @@ func initReshare(c *cli.Context) error {
 	}
 	newGroupPath = c.Args().First()
 
-	conf := contextToConfig(c)
-	client, err := net.NewControlClient(conf.ControlPort())
-	if err != nil {
-		slog.Fatalf("drand: error creating control client: %s", err)
-	}
-
+	client := controlClient(c)
 	slog.Print("drand: initiating resharing protocol. Waiting to the end ...")
-	_, err = client.InitReshare(oldGroupPath, newGroupPath, isLeader)
+	_, err := client.InitReshare(oldGroupPath, newGroupPath, isLeader)
 	if err != nil {
 		slog.Fatalf("drand: error resharing: %s", err)
 	}
@@ -70,38 +43,95 @@ func initReshare(c *cli.Context) error {
 }
 
 func getShare(c *cli.Context) error {
-	port := c.String("port")
-	if port == "" {
-		port = core.DefaultControlPort
-	}
-	client, err := net.NewControlClient(port)
-	if err != nil {
-		slog.Fatalf("drand: can't instantiate control client %s", err)
-	}
-	resp, err := client.GetShare()
+	client := controlClient(c)
+	resp, err := client.Share()
 	if err != nil {
 		slog.Fatalf("drand: could not request the share: %s", err)
 	}
-	buff, err := json.MarshalIndent(resp, "", "    ")
-	if err != nil {
-		slog.Fatal("could not JSON marshal:", err)
-	}
-	slog.Print(string(buff))
+	printJSON(resp)
 	return nil
 }
 
-func pingpong(c *cli.Context) error {
+func pingpongCmd(c *cli.Context) error {
+	client := controlClient(c)
+	if err := client.Ping(); err != nil {
+		slog.Fatalf("drand: can't ping the daemon ... %s", err)
+	}
+	slog.Printf("drand daemon is alive on port %s", controlPort(c))
+	return nil
+}
+
+func showGroupCmd(c *cli.Context) error {
+	client := controlClient(c)
+	r, err := client.Group()
+	if err != nil {
+		slog.Fatalf("drand: error asking for group file")
+	}
+	slog.Printf("\n\n%s", r.Group)
+	return nil
+}
+
+func showCokeyCmd(c *cli.Context) error {
+	client := controlClient(c)
+	resp, err := client.CollectiveKey()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.cokey: %s", err)
+	}
+	printJSON(resp)
+	return nil
+}
+
+func showPrivateCmd(c *cli.Context) error {
+	client := controlClient(c)
+	resp, err := client.PrivateKey()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.private: %s", err)
+	}
+	printJSON(resp)
+	return nil
+}
+
+func showPublicCmd(c *cli.Context) error {
+	client := controlClient(c)
+	resp, err := client.PublicKey()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.public: %s", err)
+	}
+	printJSON(resp)
+	return nil
+}
+
+func showShareCmd(c *cli.Context) error {
+	client := controlClient(c)
+	resp, err := client.Share()
+	if err != nil {
+		slog.Fatalf("drand: could not request drand.share: %s", err)
+	}
+	printJSON(resp)
+	return nil
+}
+
+func controlPort(c *cli.Context) string {
 	port := c.String("port")
 	if port == "" {
 		port = core.DefaultControlPort
 	}
+	return port
+}
+
+func controlClient(c *cli.Context) *net.ControlClient {
+	port := controlPort(c)
 	client, err := net.NewControlClient(port)
 	if err != nil {
-		slog.Fatalf("drand: can't instantiate control client %s", err)
+		slog.Fatalf("drand: can't instantiate control client: %s", err)
 	}
-	if err := client.Ping(); err != nil {
-		slog.Fatalf("drand: can't ping the daemon ... %s", err)
+	return client
+}
+
+func printJSON(j interface{}) {
+	buff, err := json.MarshalIndent(j, "", "    ")
+	if err != nil {
+		slog.Fatalf("drand: could not JSON marshal: %s", err)
 	}
-	slog.Printf("drand daemon is alive on port %s", port)
-	return nil
+	slog.Print(string(buff))
 }

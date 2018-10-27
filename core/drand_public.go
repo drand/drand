@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/crypto"
@@ -59,16 +60,24 @@ func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_pr
 }
 
 func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	if !d.isDKGDone() {
-		return nil, errors.New("drand: dkg not finished")
-	}
+	d.state.Lock()
+	defer d.state.Unlock()
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon not setup yet")
 	}
 	return d.beacon.ProcessBeacon(c, in)
 }
-func (d *Drand) Public(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	beacon, err := d.beaconStore.Last()
+
+func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	var beacon *beacon.Beacon
+	var err error
+	if in.GetRound() == 0 {
+		beacon, err = d.beaconStore.Last()
+	} else {
+		beacon, err = d.beaconStore.Get(in.GetRound())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}

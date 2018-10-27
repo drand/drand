@@ -17,6 +17,14 @@ It has these top-level messages:
 	ShareResponse
 	Ping
 	Pong
+	PublicKeyRequest
+	PublicKeyResponse
+	PrivateKeyRequest
+	PrivateKeyResponse
+	CokeyRequest
+	CokeyResponse
+	GroupRequest
+	GroupResponse
 */
 package control
 
@@ -232,7 +240,7 @@ func (m *ReshareResponse) String() string            { return proto.CompactTextS
 func (*ReshareResponse) ProtoMessage()               {}
 func (*ReshareResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
-// Sharerequest requests the private share of a drand node
+// ShareRequest requests the private share of a drand node
 type ShareRequest struct {
 }
 
@@ -241,7 +249,7 @@ func (m *ShareRequest) String() string            { return proto.CompactTextStri
 func (*ShareRequest) ProtoMessage()               {}
 func (*ShareRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
-// ShareResponse holds the private share of a srand node
+// ShareResponse holds the private share of a drand node
 type ShareResponse struct {
 	Index uint32          `protobuf:"varint,1,opt,name=index" json:"index,omitempty"`
 	Share *element.Scalar `protobuf:"bytes,2,opt,name=share" json:"share,omitempty"`
@@ -282,6 +290,109 @@ func (m *Pong) String() string            { return proto.CompactTextString(m) }
 func (*Pong) ProtoMessage()               {}
 func (*Pong) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
+// PublicKeyRequest requests the public key of a drand node
+type PublicKeyRequest struct {
+}
+
+func (m *PublicKeyRequest) Reset()                    { *m = PublicKeyRequest{} }
+func (m *PublicKeyRequest) String() string            { return proto.CompactTextString(m) }
+func (*PublicKeyRequest) ProtoMessage()               {}
+func (*PublicKeyRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+
+// PublicKeyResponse holds the public key of a drand node
+type PublicKeyResponse struct {
+	PubKey *element.Point `protobuf:"bytes,1,opt,name=pubKey" json:"pubKey,omitempty"`
+}
+
+func (m *PublicKeyResponse) Reset()                    { *m = PublicKeyResponse{} }
+func (m *PublicKeyResponse) String() string            { return proto.CompactTextString(m) }
+func (*PublicKeyResponse) ProtoMessage()               {}
+func (*PublicKeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+
+func (m *PublicKeyResponse) GetPubKey() *element.Point {
+	if m != nil {
+		return m.PubKey
+	}
+	return nil
+}
+
+// PrivateKeyRequest requests the private key of a drand node
+type PrivateKeyRequest struct {
+}
+
+func (m *PrivateKeyRequest) Reset()                    { *m = PrivateKeyRequest{} }
+func (m *PrivateKeyRequest) String() string            { return proto.CompactTextString(m) }
+func (*PrivateKeyRequest) ProtoMessage()               {}
+func (*PrivateKeyRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+
+// PrivateKeyResponse holds the private key of a drand node
+type PrivateKeyResponse struct {
+	PriKey *element.Scalar `protobuf:"bytes,1,opt,name=priKey" json:"priKey,omitempty"`
+}
+
+func (m *PrivateKeyResponse) Reset()                    { *m = PrivateKeyResponse{} }
+func (m *PrivateKeyResponse) String() string            { return proto.CompactTextString(m) }
+func (*PrivateKeyResponse) ProtoMessage()               {}
+func (*PrivateKeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+
+func (m *PrivateKeyResponse) GetPriKey() *element.Scalar {
+	if m != nil {
+		return m.PriKey
+	}
+	return nil
+}
+
+// CokeyRequest requests the collective key of a drand node
+type CokeyRequest struct {
+}
+
+func (m *CokeyRequest) Reset()                    { *m = CokeyRequest{} }
+func (m *CokeyRequest) String() string            { return proto.CompactTextString(m) }
+func (*CokeyRequest) ProtoMessage()               {}
+func (*CokeyRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+
+// CokeyResponse holds the collective key of a drand node
+type CokeyResponse struct {
+	CoKey *element.Point `protobuf:"bytes,1,opt,name=coKey" json:"coKey,omitempty"`
+}
+
+func (m *CokeyResponse) Reset()                    { *m = CokeyResponse{} }
+func (m *CokeyResponse) String() string            { return proto.CompactTextString(m) }
+func (*CokeyResponse) ProtoMessage()               {}
+func (*CokeyResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+
+func (m *CokeyResponse) GetCoKey() *element.Point {
+	if m != nil {
+		return m.CoKey
+	}
+	return nil
+}
+
+type GroupRequest struct {
+}
+
+func (m *GroupRequest) Reset()                    { *m = GroupRequest{} }
+func (m *GroupRequest) String() string            { return proto.CompactTextString(m) }
+func (*GroupRequest) ProtoMessage()               {}
+func (*GroupRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+
+type GroupResponse struct {
+	// group file encoded with JSON
+	Group string `protobuf:"bytes,1,opt,name=Group" json:"Group,omitempty"`
+}
+
+func (m *GroupResponse) Reset()                    { *m = GroupResponse{} }
+func (m *GroupResponse) String() string            { return proto.CompactTextString(m) }
+func (*GroupResponse) ProtoMessage()               {}
+func (*GroupResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+
+func (m *GroupResponse) GetGroup() string {
+	if m != nil {
+		return m.Group
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*DKGRequest)(nil), "control.DKGRequest")
 	proto.RegisterType((*DKGResponse)(nil), "control.DKGResponse")
@@ -292,6 +403,14 @@ func init() {
 	proto.RegisterType((*ShareResponse)(nil), "control.ShareResponse")
 	proto.RegisterType((*Ping)(nil), "control.Ping")
 	proto.RegisterType((*Pong)(nil), "control.Pong")
+	proto.RegisterType((*PublicKeyRequest)(nil), "control.PublicKeyRequest")
+	proto.RegisterType((*PublicKeyResponse)(nil), "control.PublicKeyResponse")
+	proto.RegisterType((*PrivateKeyRequest)(nil), "control.PrivateKeyRequest")
+	proto.RegisterType((*PrivateKeyResponse)(nil), "control.PrivateKeyResponse")
+	proto.RegisterType((*CokeyRequest)(nil), "control.CokeyRequest")
+	proto.RegisterType((*CokeyResponse)(nil), "control.CokeyResponse")
+	proto.RegisterType((*GroupRequest)(nil), "control.GroupRequest")
+	proto.RegisterType((*GroupResponse)(nil), "control.GroupResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -307,13 +426,21 @@ const _ = grpc.SupportPackageIsVersion4
 type ControlClient interface {
 	// PingPong returns an empty message. Purpose is to test the control port.
 	PingPong(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error)
-	// Share returns the current share used by the node
-	GetShare(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(ctx context.Context, in *DKGRequest, opts ...grpc.CallOption) (*DKGResponse, error)
 	// InitReshares sends all informations so that the drand node knows how to
 	// proceeed during the next resharing protocol.
 	InitReshare(ctx context.Context, in *ReshareRequest, opts ...grpc.CallOption) (*ReshareResponse, error)
+	// Share returns the current private share used by the node
+	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
+	// PublicKey returns the longterm public key of the drand node
+	PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error)
+	// PrivateKey returns the longterm private key of the drand node
+	PrivateKey(ctx context.Context, in *PrivateKeyRequest, opts ...grpc.CallOption) (*PrivateKeyResponse, error)
+	// CollectiveKey returns the distributed public key used by the node
+	CollectiveKey(ctx context.Context, in *CokeyRequest, opts ...grpc.CallOption) (*CokeyResponse, error)
+	// Group returns the current group file used
+	Group(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupResponse, error)
 }
 
 type controlClient struct {
@@ -327,15 +454,6 @@ func NewControlClient(cc *grpc.ClientConn) ControlClient {
 func (c *controlClient) PingPong(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error) {
 	out := new(Pong)
 	err := grpc.Invoke(ctx, "/control.Control/PingPong", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *controlClient) GetShare(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error) {
-	out := new(ShareResponse)
-	err := grpc.Invoke(ctx, "/control.Control/GetShare", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -360,18 +478,71 @@ func (c *controlClient) InitReshare(ctx context.Context, in *ReshareRequest, opt
 	return out, nil
 }
 
+func (c *controlClient) Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error) {
+	out := new(ShareResponse)
+	err := grpc.Invoke(ctx, "/control.Control/Share", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) PublicKey(ctx context.Context, in *PublicKeyRequest, opts ...grpc.CallOption) (*PublicKeyResponse, error) {
+	out := new(PublicKeyResponse)
+	err := grpc.Invoke(ctx, "/control.Control/PublicKey", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) PrivateKey(ctx context.Context, in *PrivateKeyRequest, opts ...grpc.CallOption) (*PrivateKeyResponse, error) {
+	out := new(PrivateKeyResponse)
+	err := grpc.Invoke(ctx, "/control.Control/PrivateKey", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) CollectiveKey(ctx context.Context, in *CokeyRequest, opts ...grpc.CallOption) (*CokeyResponse, error) {
+	out := new(CokeyResponse)
+	err := grpc.Invoke(ctx, "/control.Control/CollectiveKey", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) Group(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupResponse, error) {
+	out := new(GroupResponse)
+	err := grpc.Invoke(ctx, "/control.Control/Group", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Control service
 
 type ControlServer interface {
 	// PingPong returns an empty message. Purpose is to test the control port.
 	PingPong(context.Context, *Ping) (*Pong, error)
-	// Share returns the current share used by the node
-	GetShare(context.Context, *ShareRequest) (*ShareResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(context.Context, *DKGRequest) (*DKGResponse, error)
 	// InitReshares sends all informations so that the drand node knows how to
 	// proceeed during the next resharing protocol.
 	InitReshare(context.Context, *ReshareRequest) (*ReshareResponse, error)
+	// Share returns the current private share used by the node
+	Share(context.Context, *ShareRequest) (*ShareResponse, error)
+	// PublicKey returns the longterm public key of the drand node
+	PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error)
+	// PrivateKey returns the longterm private key of the drand node
+	PrivateKey(context.Context, *PrivateKeyRequest) (*PrivateKeyResponse, error)
+	// CollectiveKey returns the distributed public key used by the node
+	CollectiveKey(context.Context, *CokeyRequest) (*CokeyResponse, error)
+	// Group returns the current group file used
+	Group(context.Context, *GroupRequest) (*GroupResponse, error)
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
@@ -392,24 +563,6 @@ func _Control_PingPong_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServer).PingPong(ctx, req.(*Ping))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Control_GetShare_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ShareRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ControlServer).GetShare(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/control.Control/GetShare",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).GetShare(ctx, req.(*ShareRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -450,6 +603,96 @@ func _Control_InitReshare_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Control_Share_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ShareRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).Share(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/Share",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).Share(ctx, req.(*ShareRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_PublicKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublicKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).PublicKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/PublicKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).PublicKey(ctx, req.(*PublicKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_PrivateKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PrivateKeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).PrivateKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/PrivateKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).PrivateKey(ctx, req.(*PrivateKeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_CollectiveKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CokeyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).CollectiveKey(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/CollectiveKey",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).CollectiveKey(ctx, req.(*CokeyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_Group_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GroupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).Group(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/control.Control/Group",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).Group(ctx, req.(*GroupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Control_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "control.Control",
 	HandlerType: (*ControlServer)(nil),
@@ -459,16 +702,32 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Control_PingPong_Handler,
 		},
 		{
-			MethodName: "GetShare",
-			Handler:    _Control_GetShare_Handler,
-		},
-		{
 			MethodName: "InitDKG",
 			Handler:    _Control_InitDKG_Handler,
 		},
 		{
 			MethodName: "InitReshare",
 			Handler:    _Control_InitReshare_Handler,
+		},
+		{
+			MethodName: "Share",
+			Handler:    _Control_Share_Handler,
+		},
+		{
+			MethodName: "PublicKey",
+			Handler:    _Control_PublicKey_Handler,
+		},
+		{
+			MethodName: "PrivateKey",
+			Handler:    _Control_PrivateKey_Handler,
+		},
+		{
+			MethodName: "CollectiveKey",
+			Handler:    _Control_CollectiveKey_Handler,
+		},
+		{
+			MethodName: "Group",
+			Handler:    _Control_Group_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -478,32 +737,42 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("control/control.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 417 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0x4f, 0x6f, 0xd3, 0x30,
-	0x14, 0x6f, 0xe8, 0xb6, 0x26, 0xaf, 0x64, 0x13, 0x8f, 0x0c, 0xaa, 0x70, 0x99, 0x22, 0x10, 0x83,
-	0x43, 0x22, 0x0d, 0x89, 0x0b, 0x27, 0xca, 0xa4, 0x30, 0x6d, 0x07, 0x94, 0xde, 0x76, 0x99, 0xd2,
-	0xd8, 0x4b, 0xad, 0xa6, 0x76, 0x70, 0x1c, 0x95, 0x7e, 0x69, 0x3e, 0x03, 0xb2, 0xf3, 0x87, 0xb4,
-	0x88, 0x9d, 0xac, 0xdf, 0x1f, 0xbf, 0xf7, 0x7e, 0xf6, 0x83, 0xf3, 0x4c, 0x70, 0x25, 0x45, 0x11,
-	0xb5, 0x67, 0x58, 0x4a, 0xa1, 0x04, 0x4e, 0x5a, 0xe8, 0x7b, 0x99, 0xdc, 0x95, 0x4a, 0x44, 0xb4,
-	0xa0, 0x1b, 0xca, 0x55, 0x23, 0x07, 0xf7, 0x00, 0xd7, 0xb7, 0x71, 0x42, 0x7f, 0xd6, 0xb4, 0x52,
-	0x18, 0x81, 0x43, 0xd6, 0xf9, 0x43, 0x2e, 0x45, 0x5d, 0xce, 0xac, 0x0b, 0xeb, 0x72, 0x7a, 0x85,
-	0x61, 0x57, 0x2f, 0xd6, 0xec, 0x0d, 0x7f, 0x14, 0x89, 0x4d, 0xd6, 0xb9, 0x41, 0xf8, 0x06, 0x1c,
-	0x56, 0x3d, 0x14, 0x34, 0x25, 0x54, 0xce, 0x9e, 0x5d, 0x58, 0x97, 0x76, 0x62, 0xb3, 0xea, 0xce,
-	0xe0, 0xc0, 0x85, 0xa9, 0xa9, 0x5d, 0x95, 0x82, 0x57, 0x34, 0xd8, 0xc1, 0x69, 0x42, 0xab, 0x55,
-	0x2a, 0x69, 0xd7, 0xee, 0x2d, 0x8c, 0x45, 0x41, 0x9e, 0x68, 0xa4, 0x65, 0xed, 0xe2, 0x74, 0x6b,
-	0xaa, 0xff, 0xc7, 0xc5, 0xe9, 0x76, 0x7f, 0x92, 0xf1, 0xc1, 0x24, 0x5f, 0xc1, 0xe9, 0xed, 0xe8,
-	0xc1, 0x51, 0x99, 0xaa, 0x95, 0x69, 0xeb, 0x7c, 0x1f, 0x25, 0x06, 0x21, 0xc2, 0xb8, 0x96, 0x85,
-	0xe9, 0xa2, 0x49, 0x0d, 0xe6, 0x00, 0x76, 0x21, 0xb2, 0x54, 0x31, 0xc1, 0x83, 0x17, 0x70, 0xd6,
-	0x4f, 0xdf, 0x06, 0x3a, 0x85, 0xe7, 0x8b, 0x41, 0x9c, 0xe0, 0x0e, 0xdc, 0xc5, 0xd0, 0x80, 0x1e,
-	0x1c, 0x33, 0x4e, 0xe8, 0x2f, 0xd3, 0xca, 0x4d, 0x1a, 0x80, 0xef, 0xe0, 0xd8, 0xd4, 0x69, 0x13,
-	0x9d, 0x85, 0xdd, 0x8f, 0x2c, 0xb2, 0xb4, 0x48, 0x65, 0xd2, 0xa8, 0xc1, 0x09, 0x1c, 0xfd, 0x60,
-	0x3c, 0x37, 0xa7, 0xe0, 0xf9, 0xd5, 0x6f, 0x0b, 0x26, 0xdf, 0x9a, 0xec, 0xf8, 0x11, 0x6c, 0xad,
-	0x69, 0x1e, 0xdd, 0xfe, 0x45, 0x34, 0xe5, 0x0f, 0xa0, 0xe0, 0x79, 0x30, 0xc2, 0x2f, 0x60, 0xc7,
-	0x54, 0x99, 0xc1, 0xf0, 0xbc, 0x17, 0x87, 0x83, 0xfb, 0xaf, 0x0e, 0xe9, 0x36, 0xe0, 0x08, 0x3f,
-	0xc3, 0xe4, 0x86, 0x33, 0x75, 0x7d, 0x1b, 0xe3, 0xcb, 0xde, 0xf4, 0x77, 0x61, 0x7c, 0x6f, 0x9f,
-	0xec, 0xef, 0xcd, 0x61, 0xaa, 0xef, 0xb5, 0x2f, 0x86, 0xaf, 0x7b, 0xdb, 0xfe, 0x06, 0xf8, 0xb3,
-	0x7f, 0x85, 0xae, 0xc6, 0xfc, 0xc3, 0xfd, 0xfb, 0x9c, 0xa9, 0x55, 0xbd, 0x0c, 0x33, 0xb1, 0x89,
-	0x08, 0x25, 0xac, 0x8a, 0x88, 0x4c, 0x39, 0x89, 0xcc, 0xea, 0x2e, 0xeb, 0xc7, 0x6e, 0xd5, 0x97,
-	0x27, 0x86, 0xf9, 0xf4, 0x27, 0x00, 0x00, 0xff, 0xff, 0xd6, 0x77, 0x62, 0xaa, 0x04, 0x03, 0x00,
-	0x00,
+	// 585 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x54, 0x41, 0x4f, 0xdb, 0x4c,
+	0x10, 0x0d, 0x5f, 0x48, 0x88, 0x87, 0xcf, 0xd0, 0x2c, 0x49, 0x9b, 0x9a, 0x0b, 0xb2, 0xa0, 0xd0,
+	0x1e, 0x62, 0x89, 0xaa, 0x55, 0xa5, 0xaa, 0x52, 0x1b, 0x22, 0xa5, 0x28, 0x1c, 0x22, 0xe7, 0xc6,
+	0x05, 0x39, 0xf6, 0xe2, 0xac, 0x62, 0x76, 0x5d, 0x7b, 0x0d, 0xcd, 0x1f, 0xef, 0xb9, 0xda, 0xf5,
+	0x7a, 0x6d, 0x27, 0xd0, 0x93, 0xf5, 0xe6, 0xcd, 0xbe, 0xd9, 0x99, 0x79, 0x5e, 0xe8, 0xfb, 0x8c,
+	0xf2, 0x84, 0x45, 0x8e, 0xfa, 0x0e, 0xe3, 0x84, 0x71, 0x86, 0xf6, 0x14, 0xb4, 0x7a, 0x7e, 0xb2,
+	0x8e, 0x39, 0x73, 0x70, 0x84, 0x1f, 0x30, 0xe5, 0x39, 0x6d, 0xdf, 0x02, 0x8c, 0xa7, 0x13, 0x17,
+	0xff, 0xca, 0x70, 0xca, 0x91, 0x03, 0x46, 0xb0, 0x0a, 0xef, 0xc2, 0x84, 0x65, 0xf1, 0x60, 0xe7,
+	0x64, 0xe7, 0x62, 0xff, 0x12, 0x0d, 0x0b, 0xbd, 0x89, 0x88, 0x5e, 0xd3, 0x7b, 0xe6, 0x76, 0x82,
+	0x55, 0x28, 0x11, 0x3a, 0x06, 0x83, 0xa4, 0x77, 0x11, 0xf6, 0x02, 0x9c, 0x0c, 0xfe, 0x3b, 0xd9,
+	0xb9, 0xe8, 0xb8, 0x1d, 0x92, 0xde, 0x48, 0x6c, 0x9b, 0xb0, 0x2f, 0xb5, 0xd3, 0x98, 0xd1, 0x14,
+	0xdb, 0x6b, 0x38, 0x70, 0x71, 0xba, 0xf4, 0x12, 0x5c, 0x94, 0x3b, 0x85, 0x26, 0x8b, 0x82, 0x7f,
+	0x14, 0x12, 0xb4, 0xc8, 0xa2, 0xf8, 0x49, 0xaa, 0xbf, 0x90, 0x45, 0xf1, 0x53, 0xfd, 0x26, 0xcd,
+	0x8d, 0x9b, 0xfc, 0x00, 0x43, 0xa7, 0xa3, 0x1e, 0xec, 0xc6, 0x1e, 0x5f, 0xca, 0xb2, 0xc6, 0xcf,
+	0x86, 0x2b, 0x11, 0x42, 0xd0, 0xcc, 0x92, 0x48, 0x56, 0x11, 0x41, 0x01, 0x46, 0x00, 0x9d, 0x88,
+	0xf9, 0x1e, 0x27, 0x8c, 0xda, 0x5d, 0x38, 0xd4, 0xb7, 0x57, 0x0d, 0x1d, 0xc0, 0xff, 0xf3, 0x4a,
+	0x3b, 0xf6, 0x0d, 0x98, 0xf3, 0x6a, 0x02, 0xea, 0x41, 0x8b, 0xd0, 0x00, 0xff, 0x96, 0xa5, 0x4c,
+	0x37, 0x07, 0xe8, 0x0c, 0x5a, 0x52, 0x47, 0x75, 0x74, 0x38, 0x2c, 0x36, 0x32, 0xf7, 0xbd, 0xc8,
+	0x4b, 0xdc, 0x9c, 0xb5, 0xdb, 0xb0, 0x3b, 0x23, 0x34, 0x94, 0x5f, 0x46, 0x43, 0x1b, 0xc1, 0xab,
+	0x59, 0xb6, 0x88, 0x88, 0x3f, 0xc5, 0xeb, 0xa2, 0xe2, 0x57, 0xe8, 0x56, 0x62, 0xaa, 0xea, 0x3b,
+	0x68, 0xc7, 0xd9, 0x62, 0x8a, 0xd7, 0x6a, 0xb0, 0x07, 0xba, 0xc0, 0x8c, 0x11, 0xca, 0x5d, 0xc5,
+	0xda, 0x47, 0xd0, 0x9d, 0x25, 0xe4, 0xd1, 0xe3, 0xb8, 0xa2, 0xf8, 0x0d, 0x50, 0x35, 0xa8, 0x24,
+	0xcf, 0xa1, 0x1d, 0x27, 0xa4, 0x94, 0xdc, 0xba, 0xb3, 0xa2, 0xc5, 0x48, 0xae, 0xd8, 0xaa, 0x94,
+	0xfb, 0x04, 0xa6, 0xc2, 0x4a, 0xe9, 0x14, 0x5a, 0x3e, 0x7b, 0xf9, 0x6e, 0x39, 0x29, 0x64, 0xe4,
+	0xbe, 0x0a, 0x99, 0x33, 0x30, 0x15, 0x2e, 0x27, 0x3b, 0xd1, 0x26, 0x35, 0xdc, 0x1c, 0x5c, 0xfe,
+	0x69, 0xc2, 0xde, 0x55, 0x6e, 0x0f, 0xf4, 0x01, 0x3a, 0x62, 0x7c, 0x62, 0x74, 0xc8, 0xd4, 0xa6,
+	0x11, 0x21, 0xab, 0x02, 0xc5, 0x60, 0x1b, 0xe8, 0x33, 0xec, 0x5d, 0x53, 0xc2, 0xc7, 0xd3, 0x09,
+	0x3a, 0xd2, 0x5c, 0xf9, 0x5b, 0x58, 0xbd, 0x7a, 0x50, 0xad, 0xbf, 0x81, 0x46, 0xb0, 0x2f, 0xce,
+	0x29, 0x5f, 0xa0, 0x37, 0x3a, 0xad, 0xee, 0x73, 0x6b, 0xb0, 0x4d, 0x68, 0x8d, 0x2f, 0xd0, 0x92,
+	0xa6, 0x41, 0x7d, 0x9d, 0x54, 0x35, 0x95, 0xf5, 0x7a, 0x33, 0xac, 0x4f, 0x8e, 0xc1, 0xd0, 0xcb,
+	0x47, 0x6f, 0xcb, 0x9e, 0x36, 0x4c, 0x62, 0x59, 0xcf, 0x51, 0x5a, 0x65, 0x02, 0x50, 0x2e, 0x1c,
+	0x55, 0x72, 0x37, 0xad, 0x61, 0x1d, 0x3f, 0xcb, 0x69, 0xa1, 0xef, 0x62, 0xd5, 0x51, 0x84, 0x7d,
+	0x4e, 0x1e, 0xa5, 0x56, 0xd9, 0x50, 0xd5, 0x12, 0x95, 0x86, 0x6a, 0xce, 0xc8, 0x47, 0x91, 0xbf,
+	0x2a, 0xfd, 0xfa, 0x4f, 0xbe, 0x7d, 0xb2, 0x66, 0x06, 0xbb, 0x31, 0x7a, 0x7f, 0x7b, 0x1e, 0x12,
+	0xbe, 0xcc, 0x16, 0x43, 0x9f, 0x3d, 0x38, 0x01, 0x0e, 0x48, 0xea, 0x04, 0x89, 0x47, 0x03, 0x47,
+	0xbe, 0x72, 0x8b, 0xec, 0xbe, 0x78, 0x15, 0x17, 0x6d, 0x19, 0xf9, 0xf8, 0x37, 0x00, 0x00, 0xff,
+	0xff, 0x77, 0x3f, 0x67, 0xe3, 0x2f, 0x05, 0x00, 0x00,
 }

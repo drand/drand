@@ -15,6 +15,7 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
+	toml "github.com/pelletier/go-toml"
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the
@@ -189,22 +190,78 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	}, nil
 }
 
-// GetShare is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
-func (d *Drand) GetShare(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
+func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
+	return &control.Pong{}, nil
+}
+
+// Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
+func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	share, err := d.store.LoadShare()
 	if err != nil {
-		slog.Fatal("drand: could not load the share")
+		slog.Fatal("drand: could not load drand.share")
 	}
 	id := uint32(share.Share.I)
 	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with the share")
+		slog.Fatal("drand: there is something wrong with drand.share")
 	}
 	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }
 
-func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
-	return &control.Pong{}, nil
+// PublicKey is a functionality of Control Service defined in protobuf/control that requests the long term public key of the drand node running locally
+func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	key, err := d.store.LoadKeyPair()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.public")
+	}
+	protoKey, err := crypto.KyberToProtoPoint(key.Public.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.public")
+	}
+	return &control.PublicKeyResponse{PubKey: protoKey}, nil
+}
+
+// PrivateKey is a functionality of Control Service defined in protobuf/control that requests the long term private key of the drand node running locally
+func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	key, err := d.store.LoadKeyPair()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.private")
+	}
+	protoKey, err := crypto.KyberToProtoScalar(key.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.private")
+	}
+	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
+}
+
+func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+
+	key, err := d.store.LoadDistPublic()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.cokey")
+	}
+	protoKey, err := crypto.KyberToProtoPoint(key.Key())
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.cokey")
+	}
+	return &control.CokeyResponse{CoKey: protoKey}, nil
+}
+
+func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.group == nil {
+		return nil, errors.New("drand: no dkg group setup yet")
+	}
+	gtoml := d.group.TOML()
+	b, err := toml.Marshal(gtoml)
+	return &control.GroupResponse{string(b)}, err
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

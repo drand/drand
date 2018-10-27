@@ -28,7 +28,8 @@ case "${unameOut}" in
         TMP="/tmp/$(basename $A)"
     ;;
 esac
-GROUPFILE="$TMP/group.toml"
+GROUPDIR="$TMP/groups"
+GROUPFILE="$GROUPDIR/drand_group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
 IMG="dedis/drand:latest"
@@ -92,9 +93,10 @@ function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    echo "[+] Create the certificate directory"
+    echo "[+] Create the sub directories"
     mkdir -m 740 $CERTSDIR
     mkdir -m 740 $LOGSDIR
+    mkdir -m 740 $GROUPDIR
 
     seq=$(seq 1 $N)
     oldRseq=$(seq $OLDN -1 1)
@@ -110,16 +112,21 @@ function run() {
         host="${SUBNET}2$i"
         addr="$host:$PORT"
         addresses+=($addr)
-        mkdir -m 740 -p "$data"
+        mkdir -m 740 -p "$data/key/"
         #drand keygen --keys "$data" "$addr" > /dev/null
         public="key/drand_id.public"
+        private="key/drand_id.private"
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG keygen "$addr" > /dev/null
-            #allKeys[$i]=$data$public
-        cp $data$public $TMP/node$i.public
+        docker run --rm --volume ${allVolumes[$i]} $IMG "--folder" "$data" generate-keypair "$addr"
+        allKeys[$i]=$data$public
+        echo "$data$public"
+        cat $data$public 
+        echo "end of cat"
+ 
+        #cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
-        allKeys[$i]=/tmp/node$i.public
+        #allKeys[$i]=/tmp/node$i.public
 
         ## quicker generation with 1024 bits
         cd $data
@@ -128,6 +135,8 @@ function run() {
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
         echo "[+] Generated private/public pair + certificate for $addr"
+        cd ..
+
     done
 
     ## generate group toml from the first 5 nodes ONLY
@@ -286,8 +295,8 @@ function fetchTest() {
     serverCert="$CERTSDIR/server-$nindex.cert"
     serverCertDocker="/server.cert"
     serverCertVol="$serverCert:$serverCertDocker"
-    drandArgs=("fetch" "private")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "$serverId")
+    drandArgs=("get" "private")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "--nodes" "${addresses[$nindex]}" "$GROUPFILE")
     echo "---------------------------------------------"
     echo "              Private Randomness             "
     docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
@@ -297,10 +306,10 @@ function fetchTest() {
     echo "               Public Randomness             "
     drandPublic="/dist_public.toml"
     drandVol="$distPublic:$drandPublic"
-    drandArgs=( "fetch" "public")
+    drandArgs=( "get" "public")
     drandArgs+=("--tls-cert" "$serverCertDocker")
     idx=`expr $nindex - 1`
-    drandArgs+=("--public" $drandPublic "${addresses[$idx]}")
+    drandArgs+=("--nodes" "${addresses[$idx]}" "$GROUPFILE")
     docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"

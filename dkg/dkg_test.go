@@ -60,7 +60,16 @@ func TestDKGFresh(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
+<<<<<<< HEAD
 	nets := testNets(n, true)
+=======
+	nets := testNets(n)
+	conf := &Config{
+		Suite: key.G2.(sdkg.Suite),
+		Group: key.NewGroup(pubs, thr, &key.DistPublic{}),
+	}
+	conf.Group.Threshold = thr
+>>>>>>> interface
 	handlers := make([]*Handler, n, n)
 	listeners := make([]net.Listener, n, n)
 	var err error
