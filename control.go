@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io/ioutil"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
@@ -120,7 +121,13 @@ func showGroupCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: error asking for group file")
 	}
-	slog.Printf("\n\n%s", r.Group)
+	if c.IsSet(outFlag.Name) {
+		filePath := c.String(outFlag.Name)
+		ioutil.WriteFile(filePath, []byte(r.Group), 0777)
+		slog.Printf("group file written to %s", filePath)
+	} else {
+		slog.Printf("\n\n%s", r.Group)
+	}
 	return nil
 }
 

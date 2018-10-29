@@ -153,6 +153,7 @@ with the distributed public key and automatically starts running the randomness 
 ```
 drand group --period 2m <pk1> <pk2> ... <pkn>
 ```
+The period must be parsable by the [time](https://golang.org/pkg/time/#ParseDuration) package.
 
 ### Starting drand daemon
 
@@ -209,13 +210,13 @@ drand control ping
 After running all drand daemons, each operator needs to issue a command to start
 the DKG, using the group file generated before. One can do so with:
 ```
-drand dkg <group-file>
+drand share <group-file>
 ```
 
 One of the nodes has to function as the leader to initiate the DKG protocol (no
 additional trust assumptions), he can do so with:
 ```
-drand dkg --leader <group-file>
+drand share --leader <group-file>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -223,45 +224,58 @@ compute the distributed public key (`dist_key.public`) and the private key
 shares (`dist_key.private`) together with the participants specified in
 `drand_group.toml`.
 
-Once the DKG phase is done, the distributed public key is saved in the local directoryas well as in the configuration folder (`$HOME/.drand` by default) under the file `groups/dist_key.public`.
-
-#### Downloading the distributed public key
-
-In order to verify the validity of each randomness beacon, one needs the
-distributed public key generated during the DKG protocol. To get the distributed public key of a drand node, execute :
+**Group File**: Once the DKG phase is done, the group file is updated with the
+newly created distributed public key. That updated group file needed by drand to
+securely contact drand nodes on their public interface to gather private or
+public randomness. One can get it via the following: 
 ```bash
-drand fetch dist_key <address>
+drand show group
+``` 
+It will print the group file in its regular TOML format. If you want to save it to
+a file, append the `--out <file>` flag.
+
+**Distributed Public Key**: More generally, for third party implementation of
+randomness beacon verification, one only needs the distributed public key. If
+you are an administrator of a drand node, you can use the control port as the
+following:
+```bash
+drand show cokey
 ```
-`<address>` being the address the drand node to contact.
-Please note that a drand node can currently only being part of one "drand network" and thus handle only one distributed key. To get several networks, different instances of drand need to be ran.
-By default, drand uses TLS, but if do not want to, you can pass the `--insecure` flag. If the remote node is
-using a self signed certificate for example, you can use the `--tls-cert` option
-to specify the certificate of the server you wish to contact.
+
+Otherwise, you can contact an external drand node to ask him for the distributed
+public key:
+```
+drand get cokey <group.toml>
+```
+The group toml do not need to be updated with the collective key.
+**NOTE**:a drand node *can* lie about the key. That information is usually best
+gathered from a trusted drand operator and then statically embedded in any
+applications using drand.
+
+By default, drand uses TLS, but if do not want to, you can pass the
+`--disable-tls` flag. If the remote node is using a self signed certificate for
+example, you can use the `--tls-cert` option to specify the certificate of the
+server you wish to contact.
 
 ### Randomness Generation
 
 We now assume that the setup is done and we can switch to randomness generation.
 Note : if a group file is given at this point, the existing beacon database will be erased.
 
-The leader initiates a new randomness generation round automatically as per the
-specified time interval (default interval: `1m`). All beacon values are stored
-using [`BoltDB`](https://github.com/coreos/bbolt), a Go native fast key/value
-database engine.
+The leader initiates a new randomness generation round automatically after a
+successful DKG, as per the specified time interval (default interval: `1m`) in
+the group file. All beacon values are stored using
+[`BoltDB`](https://github.com/coreos/bbolt), a Go native fast key/value database
+engine.
 
-To change the [duration](https://golang.org/pkg/time/#ParseDuration) of the
-randomness generation interval, e.g., to `30s`, start drand via
-```
-drand run --leader --period 30s --tls-cert <cert path> --tls-key <key path>
-```
 
 ### Randomness Gathering
 
 + **Public Randomness**: To get the latest public beacon, run the following:
 ```bash
-drand fetch public --distkey dist_key.public <address>
+drand get public group.toml
 ```
-`dist_key.public` is the distributed key generated once the DKG phase completed,
-and `<address>` is the address of one drand node. By default, drand contacts
+`group.toml` is the group 
 the remote node **over TLS**. If the remote node is not using encrypted
 communications, then you can pass the `--insecure` flag. If the remote node is
 using a self signed certificate for example, you can use the `--tls-cert` option
@@ -270,11 +284,12 @@ to specify the certificate of the server you wish to contact.
 The output will have the following JSON format:
 ```json
 {
-    "round": 2,
-    "previous_rand": "jnbvQ3LSxg8kp8qwpPO1u2F4ietJCZmMjJUQ1KDo4u94P57hN1K2mJk7oeiWU2Czb5pNqWy4u6vQH2fkqdoNgA==",
-    "randomness": "QqcL2Pncns2pKrSdfJw0RK6YFosLpP/44FUBF6Udf38uz5rHyVsZ8/XgElTdDLCpUDIm/DWIzltIzmqArZTjlQ=="
+    "Round": 3,
+    "Previous": "12392dd64f6628c791fbde72ee8355cf6bc6500c5ba8fadf13ae7f27c688ecf06
+61df2092ba0efa4939ac2d19097202be51a7b452346e24a9a794ed8a905cc41",
+    "Randomness": "58e6e7a30648846b52d1a586bf45c6f3dcd1824308613002164bbd2442e1bc5
+a75826ab335cbe0d26862d33b7f7b9305076e95a8bb67adc2fd7be643672b4e29"
 }
-
 ```
 The public random value is the field `signature`, which is a valid BLS
 signature. The signature is made over the concatenation of the `previous_sig`
@@ -284,12 +299,12 @@ outcome.
 
 + **Private Randomness**: To get a private random value, run the following:
 ```bash
-drand fetch private <server_identity.toml>
+drand get private group.toml
 ```
 will output
 ```bash
 {
-    "randomness": "QvIntnAk9P+B3fVQXm3wahNCusx2fKQs0HMRHI77XRk="
+    "Randomness": "764f6e3eecdc4aba8b2f0119e7b2fd8c35948bf2be3f87ebb5823150c6065764"
 }
 ```
 `<server_identity.toml>` is the public identity file of one of the server. It is
@@ -300,7 +315,7 @@ certificate for example, you can use the `--tls-cert` option to specify the
 custom certificate.
 
 
-The command outputs a 32-byte base64-encoded random value coming from the local
+The command outputs a 32-byte hex-encoded random value coming from the local
 randomness engine of the contacted server. If the encryption is not correct, the
 command outputs an error instead.
 
@@ -320,15 +335,48 @@ The output will have the following JSON format :
   "index" : 1,
   "share" : {
     "gid": 22,
-    "data": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+    "data": "764f6e3eecdc4aba8b2f0119e7b2fd8c35948bf2be3f87ebb5823150c6065764"
   }
 }
 ```
 
+### Updating a drand group
+
+drand allows for "semi-dynamic" group update with a *resharing* protocol that
+can do the following:
++ new nodes can join an existing group and get shares. Note that all nodes get *new* shares after running the resharing protocol.
++ nodes can leave their current group. It may be necessary for nodes that do not
+  wish to operate drand anymore or *have been deemed not trustworthy enough*.
++ nodes can update the threshold associated with their current distributed
+  public key.
+
+The main advantage of this method is that the distributed public key stays the
+*same* even with new nodes coming in. That is useful in the case the distributed
+public key is embedded in the application using drand, and hence is difficult to
+update.
+
+Updating is simple in drand, it uses the same command as for the DKG:
+```bash
+drand share --from old-group.toml new-group.toml
+```
+for new nodes joining the system. The old group toml is fetched as shown above,
+and the new group toml is created the usual way (`drand group ....`).
+For nodes already in the group, there is no need to specify the old group, since
+drand already knows it:
+```bash
+drand share <newGroup.toml>
+```
+
+As usual, a leader must start the protocol by indicating the `--leader` flag.
+After the protocol is finished, each node listed in the new-group.toml file,
+will have a new share corresponding to the same distributed public
+key. The randomness generation starts immediately after the resharing protocol
+finishes.
+
 ## Learn More About The Crypto Magic Behind Drand
 
 You can learn more about drand, its motivations and how does it work on these
-[slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing).
+public [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing).
 
 Drand relies on the following cryptographic constructions:
 - All drand protocols rely on [pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) using
