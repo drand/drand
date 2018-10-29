@@ -377,7 +377,7 @@ func (*GroupRequest) ProtoMessage()               {}
 func (*GroupRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 type GroupResponse struct {
-	// group file encoded with JSON
+	// TOML-encoded group file
 	Group string `protobuf:"bytes,1,opt,name=Group" json:"Group,omitempty"`
 }
 

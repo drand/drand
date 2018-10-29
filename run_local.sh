@@ -313,6 +313,7 @@ function fetchTest() {
     groupVolume="$groupToml:$dockerGroupToml"
     drandArgs=("get" "private")
     drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
+    echo "[+] Series of tests using drand cli tool"
     echo "---------------------------------------------"
     echo "              Private Randomness             "
     docker run --rm --net $NET --ip "${SUBNET}10" -v "$serverCertVol" \
@@ -338,6 +339,20 @@ function fetchTest() {
                                                   -v "$groupVolume" \
                                                   $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
+    echo "---------------------------------------------"
+    echo "[+] Public Randomness with CURL"
+    img="byrnedo/alpine-curl"
+    ## XXX make curl work without the "-k" option
+    docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
+                $img -s -k --cacert "$serverCertDocker" \
+                "https://${addresses[0]}/public" | python -m json.tool
+
+    checkSuccess $? "verify REST API for public randomness"
+    echo "[+] Distributed key with CURL"
+    docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
+                $img -s -k --cacert "$serverCertDocker" \
+                "https://${addresses[0]}/info/dist_key" | python -m json.tool
+    checkSuccess $? "verify REST API for getting distributed key"
     echo "---------------------------------------------"
 }
 

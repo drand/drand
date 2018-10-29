@@ -1,8 +1,6 @@
 package core
 
 import (
-	"fmt"
-
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/key"
@@ -63,7 +61,6 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*dra
 // must be made over a TLS protected channel.
 func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int) (*drand.PublicRandResponse, error) {
 	resp, err := c.client.Public(&peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
-	fmt.Println(" --- PUBLIC secure? ", secure, err, resp)
 	if err != nil {
 		return nil, err
 	}

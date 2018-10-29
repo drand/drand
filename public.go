@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
@@ -83,7 +82,6 @@ func getPublicCmd(c *cli.Context) error {
 		Previous   string
 		Randomness string
 	}
-	fmt.Println(" --- resp = ", resp)
 	s := &publicRand{
 		Round:      resp.Round,
 		Previous:   hex.EncodeToString(resp.Previous),

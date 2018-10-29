@@ -29,6 +29,15 @@ service Randomness {
     }
 }
 
+service Info {
+  rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
+    option (google.api.http) = {
+      get: "/info/dist_key"
+    };
+  }
+}
+
+
 // PublicRandRequest requests a public random value that has been generated in a
 // unbiasable way and verifiable.
 message PublicRandRequest {
@@ -66,15 +75,6 @@ message ECIESObject {
     element.Point ephemeral = 1;
     bytes ciphertext = 2;
     bytes nonce = 3;
-}
-
-
-service Info {
-  rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
-    option (google.api.http) = {
-      get: "/info/dist_key"
-    };
-  }
 }
 
 // DistKeyRequest requests the distributed public key used during the randomness generation process
