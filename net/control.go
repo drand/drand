@@ -20,7 +20,7 @@ type ControlListener struct {
 func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
 	lis, err := net.Listen("tcp", controlListenAddr(port))
 	if err != nil {
-		slog.Fatal("Failed to listen")
+		slog.Fatalf("grpc listener failure: %s", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()

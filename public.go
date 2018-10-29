@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/hex"
-	"encoding/json"
+	"fmt"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
@@ -69,21 +69,28 @@ func getPublicCmd(c *cli.Context) error {
 	for _, id := range ids {
 		if c.IsSet("round") {
 			resp, err = client.Public(id.Addr, public, isTLS, c.Int("round"))
-			if err != nil {
-				slog.Fatal("drand:could not get verified randomness:", err)
-			}
 		} else {
 			resp, err = client.LastPublic(id.Addr, public, isTLS)
-			if err != nil {
-				slog.Fatal("could not get verified randomness:", err)
-			}
 		}
+		if err == nil {
+			slog.Infof("drand: public randomness retrieved from %s", id.Addr)
+			break
+		}
+		slog.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
 	}
-	buff, err := json.MarshalIndent(resp, "", "    ")
-	if err != nil {
-		slog.Fatal("could not JSON marshal:", err)
+	type publicRand struct {
+		Round      uint64
+		Previous   string
+		Randomness string
 	}
-	slog.Print(string(buff))
+	fmt.Println(" --- resp = ", resp)
+	s := &publicRand{
+		Round:      resp.Round,
+		Previous:   hex.EncodeToString(resp.Previous),
+		Randomness: hex.EncodeToString(resp.Randomness),
+	}
+
+	printJSON(s)
 	return nil
 }
 

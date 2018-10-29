@@ -18,7 +18,6 @@ sleep 5
 rootFolder="$TMP/node1"
 
 # check if there is the dist public key
-find .
 distPublic="$rootFolder/groups/dist_key.public"
 ls $distPublic
 checkSuccess $? "distributed public key file?"

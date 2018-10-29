@@ -141,7 +141,7 @@ func TestStartAndStop(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	cmd := exec.Command("drand", "--folder", tmpPath, "start", groupPath, "--tls-disable")
+	cmd := exec.Command("drand", "--folder", tmpPath, "start", "--tls-disable")
 	cmd.Env = append(os.Environ(), varEnv+"=1")
 	err := cmd.Run()
 	if e, ok := err.(*exec.ExitError); ok && e.Success() {
@@ -177,10 +177,15 @@ func TestStartBeacon(t *testing.T) {
 func TestStartWithoutGroup(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
-	defer os.RemoveAll(tmpPath)
+	defer func() {
+		if err := os.RemoveAll(tmpPath); err != nil {
+			fmt.Println(err)
+		}
+	}()
 
 	pubPath := path.Join(tmpPath, "pub.key")
 	addr := "127.0.0.1:8083"
+	addr2 := "127.0.0.1:8084"
 	ctrlPort := "8889"
 
 	priv := key.NewKeyPair(addr)
@@ -194,9 +199,12 @@ func TestStartWithoutGroup(t *testing.T) {
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
-	cmd := exec.Command("drand", "--folder", tmpPath, "start", "--tls-disable")
-	out, err := cmd.Output()
-	expectedErr := "The DKG has not been run before, please provide a group file to do the setup."
+	os.Args = []string{"drand", "--verbose", "2", "--folder", tmpPath, "start", "--tls-disable"}
+	go main()
+
+	initDKGCmd := exec.Command("drand", "share")
+	out, err := initDKGCmd.Output()
+	expectedErr := "needs at least one group.toml file argument"
 	output := string(out)
 	require.Error(t, err)
 	require.True(t, strings.Contains(output, expectedErr))
@@ -224,10 +232,10 @@ func TestStartWithoutGroup(t *testing.T) {
 	// Specify different control and listen ports than TLS example so the two
 	// concurrently running drand instances (one secure, one insecure) don't
 	// re-use ports.
-	os.Args = []string{"drand", "--folder", tmpPath, "start", "--listen", addr, "--port", ctrlPort, "--tls-disable"}
+	os.Args = []string{"drand", "--folder", tmpPath, "start", "--listen", addr2, "--control", ctrlPort, "--tls-disable"}
 	go main()
 
-	cmd = exec.Command("drand", "show", "ping", "--port", ctrlPort)
+	cmd := exec.Command("drand", "ping", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	require.NoError(t, err)
 
@@ -265,7 +273,8 @@ func TestClientTLS(t *testing.T) {
 	certPath := path.Join(tmpPath, "server.pem")
 	keyPath := path.Join(tmpPath, "key.pem")
 
-	addr := "127.0.0.1:8082"
+	addr := "127.0.0.1:8085"
+	ctrlPort := "9091"
 
 	priv := key.NewTLSKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
@@ -302,7 +311,7 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	os.Args = []string{"drand", "--folder", tmpPath, "start", "--tls-cert", certPath, "--tls-key", keyPath}
+	os.Args = []string{"drand", "--folder", tmpPath, "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort}
 	go main()
 
 	installCmd := exec.Command("go", "install")
@@ -332,10 +341,12 @@ func TestClientTLS(t *testing.T) {
 	//require.True(t, strings.Contains(string(out), expectedOutput))
 	/*require.NoError(t, err)*/
 
-	/*cmd = exec.Command("drand", "get", "public", "--tls-cert", certPath, "--nodes", addr, groupPath)
-	out, err = cmd.CombinedOutput()
-	fmt.Println(string(out))
-	require.NoError(t, err)*/
+	// XXX Can't test public randomness without launching an actual DKG / beacon
+	// process...
+	/*cmd = exec.Command("drand", "get", "public", "--tls-cert", certPath, "--nodes", addr, groupPath)*/
+	//out, err = cmd.CombinedOutput()
+	//fmt.Println(string(out))
+	//require.NoError(t, err)
 
 	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, "--nodes", addr, groupPath)
 	out, err = cmd.CombinedOutput()
@@ -344,24 +355,24 @@ func TestClientTLS(t *testing.T) {
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "share")
+	cmd = exec.Command("drand", "--verbose", "2", "show", "share", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	expectedOutput = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "public")
+	cmd = exec.Command("drand", "show", "public", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "private")
+	cmd = exec.Command("drand", "show", "private", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "cokey")
+	cmd = exec.Command("drand", "show", "cokey", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	expectedOutput = "ASBnBkKH8NgaA+V1EJR4KH2gGD/Njz7aGLhQQtHIkD7IFgxW621YhNjFGcML+jv1GB9CvNLv2/S6QqsPMdE8l+lVJUO+Gs+ZEkdrfaEp18fkJ/uv5prFtjV3P0iLj0bz/EDGc7k6CKIMDjD9hN6Kia22+5Xsph7y//ZlJ7O+SRLe"

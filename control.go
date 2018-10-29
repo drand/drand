@@ -4,10 +4,62 @@ import (
 	"encoding/json"
 
 	"github.com/dedis/drand/core"
+	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
+
+// shareCmd decides whether the command is for a DKG or for a resharing and
+// dispatch to the respective sub-commands.
+func shareCmd(c *cli.Context) error {
+	if !c.Args().Present() {
+		slog.Fatalf("drand: needs at least one group.toml file argument")
+	}
+
+	if c.IsSet(oldGroupFlag.Name) {
+		slog.Info("drand: old group file given for resharing protocol")
+		return initReshare(c)
+	}
+
+	conf := contextToConfig(c)
+	fs := key.NewFileStore(conf.ConfigFolder())
+	_, errG := fs.LoadGroup()
+	_, errS := fs.LoadShare()
+	_, errD := fs.LoadDistPublic()
+	// XXX place that logic inside core/ directly with only one method
+	freshRun := errG != nil || errS != nil || errD != nil
+	if freshRun {
+		slog.Info("drand: no current distributed key -> running DKG protocol.")
+		initDKG(c)
+	} else {
+		slog.Info("drand: found distributed key -> running resharing protocol.")
+		initReshare(c)
+	}
+	return nil
+}
+
+// initDKG indicates to the daemon to start the DKG protocol, as a leader or
+// not. The method waits until the DKG protocol finishes or an error occured.
+// If the DKG protocol finishes successfully, the beacon randomness loop starts.
+func initDKG(c *cli.Context) error {
+	groupPath := c.Args().First()
+	// still trying to load it ourself now for the moment
+	// just to test if it's a valid thing or not
+	conf := contextToConfig(c)
+	client, err := net.NewControlClient(conf.ControlPort())
+	if err != nil {
+		slog.Fatalf("drand: error creating control client: %s", err)
+	}
+
+	slog.Print("drand: waiting the end of DKG protocol ... " +
+		"(you can CTRL-C to not quit waiting)")
+	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name))
+	if err != nil {
+		slog.Fatalf("drand: initdkg %s", err)
+	}
+	return nil
+}
 
 // initReshare indicates to the daemon to start the resharing protocol, as a
 // leader or not. The method waits until the resharing protocol finishes or
@@ -24,7 +76,8 @@ func initReshare(c *cli.Context) error {
 
 	if c.IsSet(oldGroupFlag.Name) {
 		oldGroupPath = c.String(oldGroupFlag.Name)
-	} else {
+	}
+	if oldGroupPath == "" {
 		slog.Print("drand: old group path not specified. Using daemon's own group if possible.")
 	}
 
@@ -112,7 +165,7 @@ func showShareCmd(c *cli.Context) error {
 }
 
 func controlPort(c *cli.Context) string {
-	port := c.String("port")
+	port := c.String("control")
 	if port == "" {
 		port = core.DefaultControlPort
 	}

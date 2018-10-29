@@ -28,8 +28,7 @@ case "${unameOut}" in
         TMP="/tmp/$(basename $A)"
     ;;
 esac
-GROUPDIR="$TMP/groups"
-GROUPFILE="$GROUPDIR/drand_group.toml"
+GROUPFILE="$TMP/group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
 IMG="dedis/drand:latest"
@@ -51,10 +50,6 @@ function checkSuccess() {
     fi
 }
 
-
-function convert() {
-    return printf -v int '%d\n' "$1" 2>/dev/null
-}
 
 if [ "$#" -gt 0 ]; then
     #n=$(convert "$1")
@@ -93,10 +88,9 @@ function run() {
     echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    echo "[+] Create the sub directories"
+    echo "[+] Create the certificate directory"
     mkdir -m 740 $CERTSDIR
     mkdir -m 740 $LOGSDIR
-    mkdir -m 740 $GROUPDIR
 
     seq=$(seq 1 $N)
     oldRseq=$(seq $OLDN -1 1)
@@ -112,21 +106,16 @@ function run() {
         host="${SUBNET}2$i"
         addr="$host:$PORT"
         addresses+=($addr)
-        mkdir -m 740 -p "$data/key/"
+        mkdir -m 740 -p "$data"
         #drand keygen --keys "$data" "$addr" > /dev/null
         public="key/drand_id.public"
-        private="key/drand_id.private"
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG "--folder" "$data" generate-keypair "$addr"
-        allKeys[$i]=$data$public
-        echo "$data$public"
-        cat $data$public 
-        echo "end of cat"
- 
-        #cp $data$public $TMP/node$i.public
+        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
+            #allKeys[$i]=$data$public
+        cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
-        #allKeys[$i]=/tmp/node$i.public
+        allKeys[$i]=/tmp/node$i.public
 
         ## quicker generation with 1024 bits
         cd $data
@@ -135,15 +124,14 @@ function run() {
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
         echo "[+] Generated private/public pair + certificate for $addr"
-        cd ..
-
     done
 
     ## generate group toml from the first 5 nodes ONLY
     ## We're gonna add the last one later on
     period="2s"
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  > /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  #> /dev/null
     echo "[+] Group file generated at $GROUPFILE"
+    cp $GROUPFILE "$GROUPFILE.1"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $oldRseq; do
         idx=`expr $i - 1`
@@ -155,7 +143,8 @@ function run() {
         dockerGroupFile="/root/.drand/drand_group.toml"
 
         name="node$i"
-        drandCmd=("--debug" "start" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+        drandCmd=("--verbose" "2" "start" "--certs-dir" "/certs")
+        drandCmd+=("--tls-cert" "$certFile" "--tls-key" "$keyFile")
         args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
         args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
@@ -184,22 +173,37 @@ function run() {
         pingNode $name
 
         if [ "$i" -eq 1 ]; then
-            docker exec -it $name drand dkg --leader "$dockerGroupFile" > /dev/null
+            docker exec -it $name drand share --leader "$dockerGroupFile" > /dev/null
         else
-            docker exec -d $name drand dkg "$dockerGroupFile"
+            docker exec -d $name drand share "$dockerGroupFile"
         fi
+
+        if [ "$i" -eq 1 ]; then
+            while true; do
+                docker exec -it $name drand --verbose 2 get cokey \
+                    --tls-cert "$certFile" "$dockerGroupFile"
+                if [ "$?" -eq 0 ]; then
+                    echo "[+] Successfully retrieve distributed key from leader"
+                    break
+                fi
+                echo "[-] Can't get distributed key from root node. Waiting..."
+                sleep 1
+            done
+        fi
+
     done
 
     # trying to wait until dist_key.public is there
     dpublic="$TMP/node1/groups/dist_key.public"
     while true; do
         if [ -f "$dpublic" ]; then
-            echo " -> distributed public key found ! DKG finished"
+            echo "[+] Distributed public key file found."
             break;
         fi
-        echo " -> distributed public key NOT found... waiting"
+        echo "[-] Distributed public key file NOT found. Waiting a bit more..."
         sleep 1
     done
+
     share1Path="$TMP/node1/groups/dist_key.private"
     share1Hash=$(sha256sum "$share1Path")
     group1Path="$TMP/node1/groups/drand_group.toml"
@@ -207,7 +211,8 @@ function run() {
 
     # trying to add the last node to the group
     echo "[+] Generating new group with additional node"
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group2.toml --period "$period" "${allKeys[@]}" > /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]}" > /dev/null
+    cp $GROUPFILE "$GROUPFILE.2"
 
     i=6
     echo "[+] Starting node additional node $i"
@@ -220,7 +225,8 @@ function run() {
     dockerGroupFile="/root/.drand/drand_group.toml"
 
     name="node$i"
-    drandCmd=("--debug" "start" "--certs-dir" "/certs" "--tls-cert" "$certFile" "--tls-key" "$keyFile")
+    drandCmd=("--verbose" "2" "start" "--certs-dir" "/certs")
+    drandCmd+=("--tls-cert" "$certFile" "--tls-key" "$keyFile")
     args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
     args+=("--volume" "${allVolumes[$i]}") ## config folder
     args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
@@ -234,18 +240,27 @@ function run() {
     pingNode $name 
 
     for i in $newRseq; do
+        idx=`expr $i - 1`
+        name="node$i"
+        data="$TMP/node$i/"
+        logFile="$LOGSDIR/node$i.log"
+        nodeGroupFile="$data""drand_group.toml"
+        cp "$GROUPFILE.1" "$nodeGroupFile.1"
+        cp "$GROUPFILE.2" "$nodeGroupFile.2"
+        newGroup="/root/.drand/drand_group.toml.2"
+        oldGroup="/root/.drand/drand_group.toml.1"
+
         name="node$i"
          if [ "$i" -eq 1 ]; then
             echo "[+] Start resharing command to leader $name"
-            docker exec -it $name drand reshare --leader "$dockerGroupFile" > /dev/null
+            docker exec -it $name drand share --leader "$newGroup" > /dev/null
         elif [ "$i" -eq "$N" ]; then
             echo "[+] Issuing resharing command to NEW node $name"
-            docker exec -d $name drand reshare "$dockerGroupFile"
+            docker exec -d $name drand share --from "$oldGroup" "$newGroup"
         else
             echo "[+] Issuing resharing command to node $name"
-            docker exec -d $name drand reshare "$dockerGroupFile"
+            docker exec -d $name drand share "$newGroup"
         fi
-
     done
 
     ## check if the two groups file are different
@@ -269,7 +284,7 @@ function run() {
 
 function pingNode() {
     while true; do
-        docker exec -it $1 drand control ping > /dev/null
+        docker exec -it $1 drand --verbose 2 ping #> /dev/null
         if [ $? == 0 ]; then
             #echo "$name is UP and RUNNING"
             break
@@ -290,27 +305,38 @@ function fetchTest() {
     nindex=$1
     rootFolder="$TMP/node$nindex"
     distPublic="$rootFolder/groups/dist_key.public"
-    serverId="/key/drand_id.public"
-    drandVol="$rootFolder$serverId:$serverId"
     serverCert="$CERTSDIR/server-$nindex.cert"
     serverCertDocker="/server.cert"
     serverCertVol="$serverCert:$serverCertDocker"
+    groupToml="$rootFolder/groups/drand_group.toml"
+    dockerGroupToml="/group.toml"
+    groupVolume="$groupToml:$dockerGroupToml"
     drandArgs=("get" "private")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "--nodes" "${addresses[$nindex]}" "$GROUPFILE")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
     echo "---------------------------------------------"
     echo "              Private Randomness             "
-    docker run --rm --net $NET --ip "${SUBNET}10" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
+    docker run --rm --net $NET --ip "${SUBNET}10" -v "$serverCertVol" \
+                                                  -v "$groupVolume" \
+                                                  $IMG "${drandArgs[@]}"
     echo "---------------------------------------------"
     checkSuccess $? "verify randomness encryption"
+
+    echo "---------------------------------------------"
+    drandArgs=("--verbose" "2" "get" "cokey")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
+    docker run --rm --net $NET --ip "${SUBNET}10" -v "$serverCertVol" \
+                                                  -v "$groupVolume" \
+                                                  $IMG "${drandArgs[@]}"
+    checkSuccess $? "verify signature?"
+    echo "---------------------------------------------"
+
     echo "---------------------------------------------"
     echo "               Public Randomness             "
-    drandPublic="/dist_public.toml"
-    drandVol="$distPublic:$drandPublic"
-    drandArgs=( "get" "public")
-    drandArgs+=("--tls-cert" "$serverCertDocker")
-    idx=`expr $nindex - 1`
-    drandArgs+=("--nodes" "${addresses[$idx]}" "$GROUPFILE")
-    docker run --rm --net $NET --ip "${SUBNET}11" -v "$drandVol" -v "$serverCertVol" $IMG "${drandArgs[@]}"
+    drandArgs=("get" "public")
+    drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
+    docker run --rm --net $NET --ip "${SUBNET}11" -v "$serverCertVol" \
+                                                  -v "$groupVolume" \
+                                                  $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"
 }

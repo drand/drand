@@ -2,10 +2,10 @@ package main
 
 import (
 	"os"
+	"runtime"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -14,39 +14,34 @@ func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
+
+	// determine if we already ran a DKG or not
+	_, errG := fs.LoadGroup()
+	_, errS := fs.LoadShare()
+	_, errD := fs.LoadDistPublic()
+	// XXX place that logic inside core/ directly with only one method
+	freshRun := errG != nil || errS != nil || errD != nil
 	var err error
-	if c.Args().Present() {
+	if freshRun {
 		if exit := resetBeaconDB(conf); exit {
 			os.Exit(0)
 		}
-		slog.Print("drand: starting instance ...")
+		slog.Infof("drand: will run as fresh install -> expect to run DKG.")
 		drand, err = core.NewDrand(fs, conf)
 		if err != nil {
-			slog.Fatal(err)
+			slog.Fatalf("drand: can't instantiate drand instance %s", err)
 		}
-		slog.Print("drand: initiating DKG protocol ...")
-		client, err := net.NewControlClient(conf.ControlPort())
-		if err != nil {
-			slog.Fatalf("drand: error creating control client: %s", err)
-		}
-		// run DKG
-		groupPath := c.Args().First()
-		_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name))
+		// wait indefinitely  - XXX analyzes goroutine graphs to see if it makes
+		// sense in practice
+		runtime.Goexit()
 	} else {
-		_, errG := fs.LoadGroup()
-		_, errS := fs.LoadShare()
-		_, errD := fs.LoadDistPublic()
-		if errG != nil || errS != nil || errD != nil {
-			slog.Fatalf("The DKG has not been run before, please provide a group file to do the setup.")
-		}
-		slog.Print("No group file given, drand will try to run as a beacon.")
+		slog.Infof("drand: will already start running randomness beacon")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
-			slog.Fatal(err)
+			slog.Fatalf("drand: can't load drand instance %s", err)
 		}
+		drand.StartBeacon()
 	}
-	slog.Print("drand: starting beacon loop")
-	drand.StartBeacon()
 	return nil
 }
 

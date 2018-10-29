@@ -3,10 +3,12 @@ package core
 // This file
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 
+	toml "github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/control"
@@ -15,14 +17,12 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
-	toml "github.com/pelletier/go-toml"
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specify this node is a leader, it
 // starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
-	fmt.Println(" -- DRAND InitDKG CONTROL-- ")
 	d.state.Lock()
 
 	if d.dkgDone == true {
@@ -80,6 +80,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			d.state.Unlock()
 			return nil, errors.New("drand: can't init-reshare if no old group provided")
 		}
+		slog.Debugf("drand: using current group as old group in resharing request")
 		oldGroup = d.group
 	}
 	d.state.Unlock()
@@ -260,8 +261,9 @@ func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.G
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
 	gtoml := d.group.TOML()
-	b, err := toml.Marshal(gtoml)
-	return &control.GroupResponse{string(b)}, err
+	var buff bytes.Buffer
+	err := toml.NewEncoder(&buff).Encode(gtoml)
+	return &control.GroupResponse{buff.String()}, err
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

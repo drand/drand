@@ -74,8 +74,8 @@ var insecureFlag = cli.BoolFlag{
 	Usage: "Disable TLS for all communications (not recommended).",
 }
 
-var portFlag = cli.StringFlag{
-	Name:  "port",
+var controlFlag = cli.StringFlag{
+	Name:  "control",
 	Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
 }
 
@@ -110,11 +110,18 @@ var outFlag = cli.StringFlag{
 		" instead of stdout",
 }
 
+var periodFlag = cli.StringFlag{
+	Name:  "period",
+	Usage: "period to write in the group.toml file",
+}
+
 // XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
 
 var oldGroupFlag = cli.StringFlag{
-	Name:  "old-group",
-	Usage: "Old group.toml path to specify when a new node wishes to participate in a resharing protocol. This flag is optional in case a node is already included in the current DKG.",
+	Name: "from",
+	Usage: "Old group.toml path to specify when a new node wishes to participate " +
+		"in a resharing protocol. This flag is optional in case a node is already" +
+		"included in the current DKG.",
 }
 
 func main() {
@@ -124,19 +131,10 @@ func main() {
 	// =====Commands=====
 	app.Commands = []cli.Command{
 		cli.Command{
-			Name: "start",
-			Usage: "Start the drand daemon.\nIf the distributed key generation " +
-				"has not been executed before, the node waits to receive the " +
-				"signal from a leader to start the process of generating the " +
-				"collective public key and its private share share together with " +
-				"the other nodes in group.toml.\nOtherwise, if there has been " +
-				"already a successful distributed key generation before, the node " +
-				"automatically switches to the public randomness generation mode " +
-				"after a potential state-syncing phase with the other nodes in " +
-				"group.toml.\n",
-			ArgsUsage: "<group.toml> the group file.",
-			Flags: toArray(leaderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, portFlag, listenFlag, certsDirFlag),
+			Name:  "start",
+			Usage: "Start the drand daemon.",
+			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
+				insecureFlag, controlFlag, listenFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -148,6 +146,23 @@ func main() {
 			Action: func(c *cli.Context) error {
 				banner()
 				return stopCmd(c)
+			},
+		},
+		cli.Command{
+			Name: "share",
+			Usage: "Launch a sharing protocol. If one group is given as " +
+				"argument, drand launch a DKG protocol to create a distributed " +
+				"keypair between all participants listed in the group. A " +
+				"existing group can also issue new shares to a new group: use " +
+				"the flag --from to specify the the current group and give " +
+				"the new group as argument. Specify the --leader flag to make " +
+				"this daemon start the protocol\n",
+			ArgsUsage: "<group.toml> group file",
+			Flags: toArray(folderFlag, insecureFlag, controlFlag,
+				leaderFlag, oldGroupFlag),
+			Action: func(c *cli.Context) error {
+				banner()
+				return shareCmd(c)
 			},
 		},
 		cli.Command{
@@ -168,30 +183,30 @@ func main() {
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
-			Flags: toArray(groupFlag),
+			Flags: toArray(groupFlag, outFlag, periodFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
 			},
 		},
-		cli.Command{
-			Name: "update",
-			Usage: "Reshare the distributed key from the original set of nodes" +
-				"(old-group.toml) towards a new set (new-group.toml).\nTo " +
-				"execute this resharing at least t-of-n nodes from the original group " +
-				"have to be present. The new configuration can deviate " +
-				"arbitrarily from the old one including a different number of " +
-				"nodes n' or recovery threshold t'.\nAfter the resharing has been " +
-				"finished successfully, all nodes in the new group switch to the " +
-				"public randomness generation mode while all nodes in the original " +
-				"group delete their outdated private key shares.\n",
-			ArgsUsage: "<old-group.toml> <new-group.toml>",
-			Flags:     toArray(leaderFlag),
-			Action: func(c *cli.Context) error {
-				banner()
-				return initReshare(c)
-			},
-		},
+		/*cli.Command{*/
+		//Name: "update",
+		//Usage: "Reshare the distributed key from the original set of nodes" +
+		//"(old-group.toml) towards a new set (new-group.toml).\nTo " +
+		//"execute this resharing at least t-of-n nodes from the original group " +
+		//"have to be present. The new configuration can deviate " +
+		//"arbitrarily from the old one including a different number of " +
+		//"nodes n' or recovery threshold t'.\nAfter the resharing has been " +
+		//"finished successfully, all nodes in the new group switch to the " +
+		//"public randomness generation mode while all nodes in the original " +
+		//"group delete their outdated private key shares.\n",
+		//ArgsUsage: "<old-group.toml> <new-group.toml>",
+		//Flags:     toArray(leaderFlag),
+		//Action: func(c *cli.Context) error {
+		//banner()
+		//return initReshare(c)
+		//},
+		/*},*/
 		{
 			Name: "get",
 			Usage: "get allows for public information retrieval from a remote " +
@@ -241,6 +256,15 @@ func main() {
 			},
 		},
 		{
+			Name:  "ping",
+			Usage: "pings the daemon checking its state\n",
+			Flags: toArray(controlFlag),
+			Action: func(c *cli.Context) error {
+				return pingpongCmd(c)
+			},
+		},
+
+		{
 			Name: "show",
 			Usage: "local information retrieval about the node's cryptographic " +
 				"material. Show can print the information about the collective " +
@@ -248,19 +272,12 @@ func main() {
 				"long-term private key (drand.private), the long-term public key " +
 				"(drand.public), or the private key share (drand.share), " +
 				"respectively.\n",
-			Flags: toArray(portFlag),
+			Flags: toArray(controlFlag),
 			Subcommands: []cli.Command{
-				{
-					Name:  "ping",
-					Usage: "pings the daemon checking its state\n",
-					Flags: toArray(portFlag),
-					Action: func(c *cli.Context) error {
-						return pingpongCmd(c)
-					},
-				},
 				{
 					Name:  "share",
 					Usage: "shows the private share\n",
+					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
 						return showShareCmd(c)
 					},
@@ -270,7 +287,7 @@ func main() {
 					Usage: "shows the current group.toml used. The group.toml " +
 						"may contain the distributed public key if the DKG has been " +
 						"ran already.\n",
-					Flags: toArray(outFlag),
+					Flags: toArray(outFlag, controlFlag),
 					Action: func(c *cli.Context) error {
 						return showGroupCmd(c)
 					},
@@ -278,6 +295,7 @@ func main() {
 				{
 					Name:  "cokey",
 					Usage: "shows the collective key generated during DKG.\n",
+					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
 						return showCokeyCmd(c)
 					},
@@ -285,6 +303,7 @@ func main() {
 				{
 					Name:  "private",
 					Usage: "shows the long-term private key of a node.\n",
+					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
 						return showPrivateCmd(c)
 					},
@@ -292,6 +311,7 @@ func main() {
 				{
 					Name:  "public",
 					Usage: "shows he long-term public key of a node.\n",
+					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
 						return showPublicCmd(c)
 					},
@@ -322,7 +342,7 @@ func resetBeaconDB(config *core.Config) bool {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		// using fmt so does not get the new line at the end.
 		// XXX allow slog for that behavior
-		fmt.Print("INCONSISTENT STATE: the group-init flag is set, but a beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
+		fmt.Print("INCONSISTENT STATE: A beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
 		reader := bufio.NewReader(os.Stdin)
 		answer, err := reader.ReadString('\n')
 		if err != nil {
@@ -443,8 +463,8 @@ func groupCmd(c *cli.Context) error {
 
 	var period = core.DefaultBeaconPeriod
 	var err error
-	if c.IsSet("period") {
-		period, err = time.ParseDuration(c.String("period"))
+	if c.IsSet(periodFlag.Name) {
+		period, err = time.ParseDuration(c.String(periodFlag.Name))
 		if err != nil {
 			slog.Fatalf("drand: invalid period time given %s", err)
 		}
@@ -535,7 +555,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if listen != "" {
 		opts = append(opts, core.WithListenAddress(listen))
 	}
-	port := c.String("port")
+	port := c.String(controlFlag.Name)
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
 	}
