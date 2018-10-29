@@ -3,10 +3,12 @@ package core
 // This file
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 
+	toml "github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/control"
@@ -21,7 +23,6 @@ import (
 // DKG protocol to finish. If the request specify this node is a leader, it
 // starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
-	fmt.Println(" -- DRAND InitDKG CONTROL-- ")
 	d.state.Lock()
 
 	if d.dkgDone == true {
@@ -79,6 +80,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			d.state.Unlock()
 			return nil, errors.New("drand: can't init-reshare if no old group provided")
 		}
+		slog.Debugf("drand: using current group as old group in resharing request")
 		oldGroup = d.group
 	}
 	d.state.Unlock()
@@ -189,22 +191,79 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	}, nil
 }
 
-// GetShare is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
-func (d *Drand) GetShare(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
+func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
+	return &control.Pong{}, nil
+}
+
+// Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
+func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	share, err := d.store.LoadShare()
 	if err != nil {
-		slog.Fatal("drand: could not load the share")
+		slog.Fatal("drand: could not load drand.share")
 	}
 	id := uint32(share.Share.I)
 	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with the share")
+		slog.Fatal("drand: there is something wrong with drand.share")
 	}
 	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }
 
-func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
-	return &control.Pong{}, nil
+// PublicKey is a functionality of Control Service defined in protobuf/control that requests the long term public key of the drand node running locally
+func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	key, err := d.store.LoadKeyPair()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.public")
+	}
+	protoKey, err := crypto.KyberToProtoPoint(key.Public.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.public")
+	}
+	return &control.PublicKeyResponse{PubKey: protoKey}, nil
+}
+
+// PrivateKey is a functionality of Control Service defined in protobuf/control that requests the long term private key of the drand node running locally
+func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	key, err := d.store.LoadKeyPair()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.private")
+	}
+	protoKey, err := crypto.KyberToProtoScalar(key.Key)
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.private")
+	}
+	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
+}
+
+func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+
+	key, err := d.store.LoadDistPublic()
+	if err != nil {
+		slog.Fatal("drand: could not load drand.cokey")
+	}
+	protoKey, err := crypto.KyberToProtoPoint(key.Key())
+	if err != nil {
+		slog.Fatal("drand: there is something wrong with drand.cokey")
+	}
+	return &control.CokeyResponse{CoKey: protoKey}, nil
+}
+
+func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.group == nil {
+		return nil, errors.New("drand: no dkg group setup yet")
+	}
+	gtoml := d.group.TOML()
+	var buff bytes.Buffer
+	err := toml.NewEncoder(&buff).Encode(gtoml)
+	return &control.GroupResponse{buff.String()}, err
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

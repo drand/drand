@@ -23,6 +23,9 @@ after_success:
 before_deploy:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
 
+before_install:
+    - docker pull byrnedo/alpine-curl
+
 # calls goreleaser
 deploy:
   - provider: script

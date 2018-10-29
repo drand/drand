@@ -20,7 +20,7 @@ type ControlListener struct {
 func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
 	lis, err := net.Listen("tcp", controlListenAddr(port))
 	if err != nil {
-		slog.Fatal("Failed to listen")
+		slog.Fatalf("grpc listener failure: %s", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()
@@ -56,11 +56,6 @@ func NewControlClient(port string) (*ControlClient, error) {
 	}
 	c := control.NewControlClient(conn)
 	return &ControlClient{conn: conn, client: c}, nil
-}
-
-// GetShare returns the private share owned by the node
-func (c *ControlClient) GetShare() (*control.ShareResponse, error) {
-	return c.client.GetShare(context.Background(), &control.ShareRequest{})
 }
 
 func (c *ControlClient) Ping() error {
@@ -102,6 +97,22 @@ func (c *ControlClient) InitDKG(groupPath string, leader bool) (*control.DKGResp
 
 }
 
+func (c ControlClient) Share() (*control.ShareResponse, error) {
+	return c.client.Share(context.Background(), &control.ShareRequest{})
+}
+func (c ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
+	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{})
+}
+func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
+	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{})
+}
+func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
+	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
+}
+func (c *ControlClient) Group() (*control.GroupResponse, error) {
+	return c.client.Group(context.Background(), &control.GroupRequest{})
+}
+
 func controlListenAddr(port string) string {
 	return fmt.Sprintf("%s:%s", "localhost", port)
 }
@@ -111,14 +122,43 @@ type DefaultControlServer struct {
 	C control.ControlServer
 }
 
+func (s *DefaultControlServer) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
+	return &control.Pong{}, nil
+}
+
 func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	if s.C == nil {
 		return &control.ShareResponse{}, nil
 	} else {
-		return s.C.GetShare(c, in)
+		return s.C.Share(c, in)
+	}
+}
+func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
+	if s.C == nil {
+		return &control.PublicKeyResponse{}, nil
+	} else {
+		return s.C.PublicKey(c, in)
+	}
+}
+func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
+	if s.C == nil {
+		return &control.PrivateKeyResponse{}, nil
+	} else {
+		return s.C.PrivateKey(c, in)
+	}
+}
+func (s *DefaultControlServer) CollectiveKey(c context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+	if s.C == nil {
+		return &control.CokeyResponse{}, nil
+	} else {
+		return s.C.CollectiveKey(c, in)
 	}
 }
 
-func (s *DefaultControlServer) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
-	return &control.Pong{}, nil
+func (s *DefaultControlServer) Group(c context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
+	if s.C == nil {
+		return &control.GroupResponse{}, nil
+	} else {
+		return s.C.Group(c, in)
+	}
 }

@@ -79,7 +79,7 @@ type PublicTOML struct {
 
 // TOML returns a struct that can be marshalled using a TOML-encoding library
 func (p *Pair) TOML() interface{} {
-	hexKey := scalarToString(p.Key)
+	hexKey := ScalarToString(p.Key)
 	return &PairTOML{hexKey}
 }
 
@@ -130,7 +130,7 @@ func (p *Identity) FromTOML(i interface{}) error {
 
 // TOML returns a empty TOML-compatible version of the public key
 func (p *Identity) TOML() interface{} {
-	hex := pointToString(p.Key)
+	hex := PointToString(p.Key)
 	return &PublicTOML{
 		Address: p.Addr,
 		Key:     hex,
@@ -176,12 +176,12 @@ func (s *Share) TOML() interface{} {
 	dtoml.Commits = make([]string, len(s.Commits))
 	dtoml.PrivatePoly = make([]string, len(s.PrivatePoly))
 	for i, c := range s.Commits {
-		dtoml.Commits[i] = pointToString(c)
+		dtoml.Commits[i] = PointToString(c)
 	}
 	for i, c := range s.PrivatePoly {
-		dtoml.PrivatePoly[i] = scalarToString(c)
+		dtoml.PrivatePoly[i] = ScalarToString(c)
 	}
-	dtoml.Share = scalarToString(s.Share.V)
+	dtoml.Share = ScalarToString(s.Share.V)
 	dtoml.Index = s.Share.I
 	return dtoml
 }
@@ -194,7 +194,7 @@ func (s *Share) FromTOML(i interface{}) error {
 	}
 	s.Commits = make([]kyber.Point, len(t.Commits))
 	for i, c := range t.Commits {
-		p, err := stringToPoint(G2, c)
+		p, err := StringToPoint(G2, c)
 		if err != nil {
 			return fmt.Errorf("share.Commit[%d] corruputed: %s", i, err)
 		}
@@ -203,13 +203,13 @@ func (s *Share) FromTOML(i interface{}) error {
 
 	s.PrivatePoly = make([]kyber.Scalar, len(t.PrivatePoly))
 	for i, c := range t.PrivatePoly {
-		coeff, err := stringToScalar(G2, c)
+		coeff, err := StringToScalar(G2, c)
 		if err != nil {
 			return fmt.Errorf("share.PrivatePoly[%d] corrupted: %s", i, err)
 		}
 		s.PrivatePoly[i] = coeff
 	}
-	sshare, err := stringToScalar(G2, t.Share)
+	sshare, err := StringToScalar(G2, t.Share)
 	if err != nil {
 		return fmt.Errorf("share.Share corrupted: %s", err)
 	}
@@ -258,7 +258,7 @@ func (d *DistPublic) Key() kyber.Point {
 func (d *DistPublic) TOML() interface{} {
 	strings := make([]string, len(d.Coefficients))
 	for i, s := range d.Coefficients {
-		strings[i] = pointToString(s)
+		strings[i] = PointToString(s)
 	}
 	return &DistPublicTOML{strings}
 }
@@ -272,7 +272,7 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 	points := make([]kyber.Point, len(dtoml.Coefficients))
 	var err error
 	for i, s := range dtoml.Coefficients {
-		points[i], err = stringToPoint(G2, s)
+		points[i], err = StringToPoint(G2, s)
 		if err != nil {
 			return err
 		}
@@ -337,17 +337,20 @@ func (b *BeaconSignature) RawSig() []byte {
 	return s
 }
 
-func pointToString(p kyber.Point) string {
+// PointToString returns a hex-encoded string representation of the given point.
+func PointToString(p kyber.Point) string {
 	buff, _ := p.MarshalBinary()
 	return hex.EncodeToString(buff)
 }
 
-func scalarToString(s kyber.Scalar) string {
+// ScalarToString returns a hex-encoded string representation of the given scalar.
+func ScalarToString(s kyber.Scalar) string {
 	buff, _ := s.MarshalBinary()
 	return hex.EncodeToString(buff)
 }
 
-func stringToPoint(g kyber.Group, s string) (kyber.Point, error) {
+// StringToPoint unmarshals a point in the given group from the given string.
+func StringToPoint(g kyber.Group, s string) (kyber.Point, error) {
 	buff, err := hex.DecodeString(s)
 	if err != nil {
 		return nil, err
@@ -356,7 +359,8 @@ func stringToPoint(g kyber.Group, s string) (kyber.Point, error) {
 	return p, p.UnmarshalBinary(buff)
 }
 
-func stringToScalar(g kyber.Group, s string) (kyber.Scalar, error) {
+// StringToScalar unmarshals a scalar in the given group from the given string.
+func StringToScalar(g kyber.Group, s string) (kyber.Scalar, error) {
 	buff, err := hex.DecodeString(s)
 	if err != nil {
 		return nil, err

@@ -62,7 +62,7 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 	idx, exists := group.Index(priv.Public)
 	if !exists {
 		// XXX
-		panic("that's just plain wrong and I should be an error")
+		panic("drand: can't handle a keypair not included in the given group")
 	}
 	addr := group.Nodes[idx].Addr
 	return &Handler{

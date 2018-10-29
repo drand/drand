@@ -13,13 +13,23 @@ import "crypto/element.proto";
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
     rpc PingPong(Ping) returns (Pong) { }
-    // Share returns the current share used by the node 
-    rpc GetShare(ShareRequest) returns (ShareResponse) { }
     // InitDKG sends information to daemon to start a fresh DKG protocol 
     rpc InitDKG(DKGRequest) returns (DKGResponse) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
     rpc InitReshare(ReshareRequest) returns (ReshareResponse) { }
+
+    // Share returns the current private share used by the node 
+    rpc Share(ShareRequest) returns (ShareResponse) { }
+    // PublicKey returns the longterm public key of the drand node
+    rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
+    // PrivateKey returns the longterm private key of the drand node
+    rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
+    // CollectiveKey returns the distributed public key used by the node
+    rpc CollectiveKey(CokeyRequest) returns (CokeyResponse) { }
+    // Group returns the current group file used
+    rpc Group(GroupRequest) returns (GroupResponse) { }
+
 }
 
 message DKGRequest {
@@ -55,11 +65,11 @@ message ReshareResponse {
 
 }
 
-// Sharerequest requests the private share of a drand node
+// ShareRequest requests the private share of a drand node
 message ShareRequest {
 }
 
-// ShareResponse holds the private share of a srand node
+// ShareResponse holds the private share of a drand node
 message ShareResponse {
   uint32 index = 1;
   element.Scalar share = 2;
@@ -69,5 +79,40 @@ message Ping {
 }
 
 message Pong {
+}
 
+// PublicKeyRequest requests the public key of a drand node
+message PublicKeyRequest {
+}
+
+// PublicKeyResponse holds the public key of a drand node
+message PublicKeyResponse {
+  element.Point pubKey = 1;
+}
+
+// PrivateKeyRequest requests the private key of a drand node
+message PrivateKeyRequest {
+}
+
+// PrivateKeyResponse holds the private key of a drand node
+message PrivateKeyResponse {
+  element.Scalar priKey = 1;
+}
+
+// CokeyRequest requests the collective key of a drand node
+message CokeyRequest {
+}
+
+// CokeyResponse holds the collective key of a drand node
+message CokeyResponse {
+  element.Point coKey = 1;
+}
+
+message GroupRequest {
+
+}
+
+message GroupResponse {
+    // TOML-encoded group file 
+    string Group = 1;
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"runtime"
 
 	"github.com/dedis/drand/core"
@@ -9,11 +10,7 @@ import (
 	"github.com/urfave/cli"
 )
 
-func startDaemon(c *cli.Context) error {
-	if runtime.GOOS == "windows" && !c.Bool("insecure") {
-		slog.Fatal("TLS is not available on Windows, please run in insecure mode")
-	}
-
+func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
@@ -26,6 +23,9 @@ func startDaemon(c *cli.Context) error {
 	freshRun := errG != nil || errS != nil || errD != nil
 	var err error
 	if freshRun {
+		if exit := resetBeaconDB(conf); exit {
+			os.Exit(0)
+		}
 		slog.Infof("drand: will run as fresh install -> expect to run DKG.")
 		drand, err = core.NewDrand(fs, conf)
 		if err != nil {
