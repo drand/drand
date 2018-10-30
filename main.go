@@ -152,7 +152,7 @@ func main() {
 			Name: "share",
 			Usage: "Launch a sharing protocol. If one group is given as " +
 				"argument, drand launches a DKG protocol to create a distributed " +
-				"keypair between all participants listed in the group. A " +
+				"keypair between all participants listed in the group. An " +
 				"existing group can also issue new shares to a new group: use " +
 				"the flag --from to specify the current group and give " +
 				"the new group as argument. Specify the --leader flag to make " +
