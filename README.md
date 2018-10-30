@@ -114,7 +114,7 @@ nodes generate randomness. On a high-level, the workflow looks like this:
   starting the drand daemon.
 + **Distributed Key Generation**: each drand node collectively participates in
   the DKG.
-+ **Randomness generation**: the randomness beacon automatically starts as soon as 
++ **Randomness Generation**: the randomness beacon automatically starts as soon as 
 the DKG protocol is finished.
 
 ### Setup
@@ -327,26 +327,6 @@ from a Javascript application.  Communication is protected through TLS by
 default. If the contacted node is using a self-signed certificate, the client
 can use the `--tls-cert` flag to specify the server's certificate. 
 
-#### Using HTTP endpoints
-
-One may want get the distributed key or public randomness by issuing a GET to a
-HTTP endpoint instead of using a gRPC client. Here is a basic example on how to
-do so with curl.
-
-To get the distributed key, you can use:
-```bash
-curl <address>/info/dist_key
-```
-
-Similarly, to get the latest round of randomness from the drand beacon, you can use
-```bash
-curl <address>/public
-```
-
-All the RESP endpoints are specified in the `protobuf/drand/client.proto` file.
-**NOTE**: At the moment, the REST endpoints return base-64 encoded values, whereas
-the drand cli tool returns hexadecimal encoded value ([issue](https://github.com/dedis/drand/issues/85)).
-
 #### Fetching the Collective Public Key 
 
 To retrieve the collective public key of a drand beacon, execute:
@@ -401,6 +381,28 @@ The JSON-formatted output produced by drand should look like the following:
 The command outputs a 32-byte hex-encoded random value generated from the local
 randomness engine of the contacted server. If the encryption is not correct, the
 command outputs an error instead.
+
+#### Using HTTP endpoints
+
+One may want get the distributed key or public randomness by issuing a GET to a
+HTTP endpoint instead of using a gRPC client. Here is a basic example on how to
+do so with curl.
+
+To get the distributed key, you can use:
+```bash
+curl <address>/info/dist_key
+```
+
+Similarly, to get the latest round of randomness from the drand beacon, you can use
+```bash
+curl <address>/public
+```
+
+**All the RESP endpoints are specified in the `protobuf/drand/client.proto` file.**
+
+**NOTE**: At the moment, the REST endpoints return base-64 encoded values, whereas
+the drand cli tool returns hexadecimal encoded value ([issue](https://github.com/dedis/drand/issues/85)).
+
 
 ### Updating Drand Group
 
