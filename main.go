@@ -310,7 +310,7 @@ func main() {
 				},
 				{
 					Name:  "public",
-					Usage: "shows he long-term public key of a node.\n",
+					Usage: "shows the long-term public key of a node.\n",
 					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
 						return showPublicCmd(c)
