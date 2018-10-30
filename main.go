@@ -179,7 +179,7 @@ func main() {
 		cli.Command{
 			Name: "group",
 			Usage: "Merge the given list of whitespace-separated drand.public " +
-				"keys into the group.toml file if one is provided, if not create " +
+				"keys into the group.toml file if one is provided, if not, create " +
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
