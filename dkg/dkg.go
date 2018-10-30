@@ -409,7 +409,7 @@ func (h *Handler) broadcast(p *dkg_proto.DKGPacket, toOldNodes bool) {
 
 	if toOldNodes && h.conf.OldNodes != nil {
 		for _, id := range h.conf.OldNodes.Identities() {
-			// dont send twice to same address
+			// don't send twice to same address
 			_, present := sent[id.Key.String()]
 			if present {
 				continue
