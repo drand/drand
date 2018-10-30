@@ -23,7 +23,7 @@ type Suite = dkg.Suite
 
 const DefaultTimeout = time.Duration(1) * time.Minute
 
-// Config holds all necessary informations to run a dkg protocol. This config is
+// Config holds all necessary information to run a dkg protocol. This config is
 // transformed to be passed down to the kyber dkg library.
 type Config struct {
 	Suite    Suite
