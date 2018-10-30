@@ -113,9 +113,9 @@ only server's administrators are able to issue commands to their respective dran
 
 This section explains in details the workflow to have a working group of drand
 nodes generate randomness. On a high-level, the workflow looks like this:
-+ Generate individual longterm key-pair of drand nodes and then the group file that contains all public keys and other informations
-+ Start each drand daemons
-+ Instruct to each daemons to start the DKG protocol
++ Generate individual longterm key-pairs of drand nodes and then the group file that contains all public keys and other information
++ Start each drand daemon
++ Tell each daemon to start the DKG protocol
 
 The randomness beacon automatically starts as soon as the DKG protocol is
 finished.
@@ -149,7 +149,10 @@ The group file is generated in the current directory under `group.toml`.
 ##### Randomness Beacon Period
 
 drand updates the configuration file after the DKG protocol finishes,
-with the distributed public key and automatically starts running the randomness beacon. By default, a randomness beacon has a period of 1mn,i.e. new randomness is generated every minute. If you wish to change the period, you must include that information **inside** the group configuration file. You can do by appending a flag to the command such as :
+with the distributed public key and automatically starts running the randomness beacon. 
+By default, a randomness beacon has a period of 1mn, i.e., new randomness is generated 
+every minute. If you wish to change the period, you must include that information 
+**inside** the group configuration file. You can do so by appending a flag to the command such as :
 ```
 drand group --period 2m <pk1> <pk2> ... <pkn>
 ```
@@ -159,8 +162,8 @@ The period must be parsable by the [time](https://golang.org/pkg/time/#ParseDura
 
 There are two ways to run a drand daemon: using TLS or using plain old regular
 un-encrypted connections. Drand by default tries to use TLS connections.
-The daemon does not go automatically in background, so you must run it with ` &
-` in your terminal, or within a screen / tmux session, or with the `-d` option enabled for the docker commands.
+The daemon does not go automatically in background, so you must run it with `&`
+in your terminal, or within a screen / tmux session, or with the `-d` option enabled for the docker commands.
 
 #### With TLS
 
@@ -225,7 +228,7 @@ shares (`dist_key.private`) together with the participants specified in
 `drand_group.toml`.
 
 **Group File**: Once the DKG phase is done, the group file is updated with the
-newly created distributed public key. That updated group file needed by drand to
+newly created distributed public key. That updated group file is needed by drand to
 securely contact drand nodes on their public interface to gather private or
 public randomness. One can get it via the following: 
 ```bash
@@ -236,8 +239,8 @@ a file, append the `--out <file>` flag.
 
 **Distributed Public Key**: More generally, for third party implementation of
 randomness beacon verification, one only needs the distributed public key. If
-you are an administrator of a drand node, you can use the control port as the
-following:
+you are an administrator of a drand node, you can print the distributed public
+with the following command:
 ```bash
 drand show cokey
 ```
@@ -247,8 +250,8 @@ public key:
 ```
 drand get cokey <group.toml>
 ```
-The group toml do not need to be updated with the collective key.
-**NOTE**:a drand node *can* lie about the key. That information is usually best
+The group.toml does not need to be updated with the collective key.
+**NOTE**: a drand node *can* lie about the key. That information is usually best
 gathered from a trusted drand operator and then statically embedded in any
 applications using drand.
 
@@ -345,7 +348,7 @@ The output will have the following JSON format :
 drand allows for "semi-dynamic" group update with a *resharing* protocol that
 can do the following:
 + new nodes can join an existing group and get shares. Note that all nodes get *new* shares after running the resharing protocol.
-+ nodes can leave their current group. It may be necessary for nodes that do not
++ nodes can leave their current group, for example if they do not
   wish to operate drand anymore or *have been deemed not trustworthy enough*.
 + nodes can update the threshold associated with their current distributed
   public key.
@@ -368,7 +371,7 @@ drand share <newGroup.toml>
 ```
 
 As usual, a leader must start the protocol by indicating the `--leader` flag.
-After the protocol is finished, each node listed in the new-group.toml file,
+After the protocol is finished, each node listed in the new-group.toml file
 will have a new share corresponding to the same distributed public
 key. The randomness generation starts immediately after the resharing protocol
 finishes.
