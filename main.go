@@ -65,7 +65,7 @@ var tlsCertFlag = cli.StringFlag{
 var tlsKeyFlag = cli.StringFlag{
 	Name: "tls-key, k",
 	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
-		"The keys have to be specified as a list of whitespace-separated file paths. " +
+		"The key has to be specified as a file path. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 }
 
