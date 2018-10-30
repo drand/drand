@@ -319,6 +319,22 @@ The command outputs a 32-byte hex-encoded random value coming from the local
 randomness engine of the contacted server. If the encryption is not correct, the
 command outputs an error instead.
 
+#### Using HTTP endpoints
+
+Sometimes you may want get the distributed key or public randomness by issuing a GET to a HTTP endpoint instead of using
+a gRPC client.
+
+To curl the distributed key, you can use
+```bash
+curl <address>/info/dist_key
+```
+
+Similarly, to get the latest round of randomness from the drand beacon, you can use
+```bash
+curl <address>/public
+```
+
+
 ### Control Port
 
 Unlike the randomness generation or its output, some actions or data must have restricted access. Thus the control functionalities define a set of administrator-level commands, only accessible from localhost. They allow the owner of a drand node to modify the running drand instance (such as adding a new member to the group, ...) and to access their private information.
@@ -371,7 +387,6 @@ As usual, a leader must start the protocol by indicating the `--leader` flag.
 After the protocol is finished, each node listed in the new-group.toml file,
 will have a new share corresponding to the same distributed public
 key. The randomness generation starts immediately after the resharing protocol
-finishes.
 
 ## Learn More About The Crypto Magic Behind Drand
 
