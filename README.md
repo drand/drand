@@ -291,6 +291,22 @@ The output will have the following JSON format :
 }
 ```
 
+## Using HTTP endpoints
+
+Sometimes you may want get the distributed key or public randomness by issuing a GET to a HTTP endpoint instead of using
+a gRPC client.
+
+To curl the distributed key, you can use
+```bash
+curl <address>/info/dist_key
+```
+
+Similarly, to get the latest round of randomness from the drand beacon, you can use
+```bash
+curl <address>/public
+```
+
+
 ## Learn More About The Crypto Magic Behind Drand
 
 Drand relies on the following cryptographic constructions:
