@@ -113,7 +113,8 @@ only server's administrators are able to issue commands to their respective dran
 
 This section explains in details the workflow to have a working group of drand
 nodes generate randomness. On a high-level, the workflow looks like this:
-+ Generate individual longterm key-pairs of drand nodes and then the group file that contains all public keys and other information
++ Generate individual longterm key-pairs of drand nodes and then the group file 
+ that contains all public keys and other information
 + Start each drand daemon
 + Tell each daemon to start the DKG protocol
 
