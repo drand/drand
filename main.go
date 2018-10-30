@@ -245,7 +245,7 @@ func main() {
 				{
 					Name: "cokey",
 					Usage: "Get distributed public key generated during the " +
-						" DKG step.",
+						"DKG step.",
 					ArgsUsage: "<group.toml> provides the group informations of " +
 						"the node that we are trying to contact.",
 					Flags: toArray(tlsCertFlag, insecureFlag, nodeFlag),
