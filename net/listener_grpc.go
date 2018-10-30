@@ -52,7 +52,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	if err := drand.RegisterRandomnessHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
 	}
-	if err = drand.RegisterInfoHandlerClient(context.Background(), gwMux, proxyClient); err != nil {
+	if err = drand.RegisterInfoHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
 	}
 	restRouter := http.NewServeMux()
