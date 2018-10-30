@@ -106,7 +106,7 @@ var certsDirFlag = cli.StringFlag{
 
 var outFlag = cli.StringFlag{
 	Name: "out, o",
-	Usage: "indicates to save the requested information into a separate file" +
+	Usage: "save the requested information into a separate file" +
 		" instead of stdout",
 }
 
