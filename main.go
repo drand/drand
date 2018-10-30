@@ -232,7 +232,7 @@ func main() {
 					Name: "public",
 					Usage: "Get the latest public randomness from the drand " +
 						"beacon and verify it against the collective public key " +
-						"as specified in group.toml. Only one node is	contacted by " +
+						"as specified in group.toml. Only one node is contacted by " +
 						"default. This command attempts to connect to the drand " +
 						"beacon via TLS and falls back to plaintext communication " +
 						"if the contacted node has not activated TLS in which case " +
