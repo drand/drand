@@ -267,7 +267,7 @@ func main() {
 		{
 			Name: "show",
 			Usage: "local information retrieval about the node's cryptographic " +
-				"material. Show can print the information about the collective " +
+				"material. Show prints the information about the collective " +
 				"public key (drand.cokey), the group details (group.toml), the " +
 				"long-term private key (drand.private), the long-term public key " +
 				"(drand.public), or the private key share (drand.share), " +
