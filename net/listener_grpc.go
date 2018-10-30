@@ -52,6 +52,9 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	if err := drand.RegisterRandomnessHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
 	}
+	if err = drand.RegisterInfoHandlerClient(context.Background(), gwMux, proxyClient); err != nil {
+		panic(err)
+	}
 	restRouter := http.NewServeMux()
 	newHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -72,7 +75,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	}
 	drand.RegisterRandomnessServer(g.grpcServer, g.Service)
 	drand.RegisterBeaconServer(g.grpcServer, g.Service)
-	drand.RegisterInfoServer(grpcServer, s)
+	drand.RegisterInfoServer(g.grpcServer, g.Service)
 	dkg.RegisterDkgServer(g.grpcServer, g.Service)
 	return g
 }
