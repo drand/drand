@@ -151,7 +151,7 @@ func main() {
 		cli.Command{
 			Name: "share",
 			Usage: "Launch a sharing protocol. If one group is given as " +
-				"argument, drand launch a DKG protocol to create a distributed " +
+				"argument, drand launches a DKG protocol to create a distributed " +
 				"keypair between all participants listed in the group. A " +
 				"existing group can also issue new shares to a new group: use " +
 				"the flag --from to specify the the current group and give " +
