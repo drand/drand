@@ -189,24 +189,6 @@ func main() {
 				return groupCmd(c)
 			},
 		},
-		/*cli.Command{*/
-		//Name: "update",
-		//Usage: "Reshare the distributed key from the original set of nodes" +
-		//"(old-group.toml) towards a new set (new-group.toml).\nTo " +
-		//"execute this resharing at least t-of-n nodes from the original group " +
-		//"have to be present. The new configuration can deviate " +
-		//"arbitrarily from the old one including a different number of " +
-		//"nodes n' or recovery threshold t'.\nAfter the resharing has been " +
-		//"finished successfully, all nodes in the new group switch to the " +
-		//"public randomness generation mode while all nodes in the original " +
-		//"group delete their outdated private key shares.\n",
-		//ArgsUsage: "<old-group.toml> <new-group.toml>",
-		//Flags:     toArray(leaderFlag),
-		//Action: func(c *cli.Context) error {
-		//banner()
-		//return initReshare(c)
-		//},
-		/*},*/
 		{
 			Name: "get",
 			Usage: "get allows for public information retrieval from a remote " +
@@ -342,7 +324,10 @@ func resetBeaconDB(config *core.Config) bool {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		// using fmt so does not get the new line at the end.
 		// XXX allow slog for that behavior
-		fmt.Print("INCONSISTENT STATE: A beacon database exists already.\ndrand support only one identity at the time and thus needs to delete the existing beacon database.\nAccept to delete database ? [Y/n]: ")
+		fmt.Printf("INCONSISTENT STATE: A beacon database exists already.\n"+
+			"drand support only one identity at the time and thus needs to delete "+
+			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+
+			"database ? [Y/n]: ", config.DBFolder())
 		reader := bufio.NewReader(os.Stdin)
 		answer, err := reader.ReadString('\n')
 		if err != nil {

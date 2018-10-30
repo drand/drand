@@ -48,7 +48,7 @@ func (g *Group) Index(pub *Identity) (int, bool) {
 			return i, true
 		}
 	}
-	return 0, false
+	return -1, false
 }
 
 // Public returns the public associated to that index

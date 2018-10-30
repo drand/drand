@@ -18,6 +18,7 @@ import (
 // directory.
 const DefaultConfigFolderName = ".drand"
 
+// DefaultConfigFolder returns the default path of the configuration folder.
 func DefaultConfigFolder() string {
 	return path.Join(fs.HomeFolder(), DefaultConfigFolderName)
 }
@@ -33,8 +34,10 @@ const DefaultBeaconPeriod time.Duration = 1 * time.Minute
 // DefaultControlPort is the default port the functionnality control port communicate on.
 const DefaultControlPort = "8888"
 
+// ConfigOption is a function that applies a specific setting to a Config.
 type ConfigOption func(*Config)
 
+// Config holds all relevant information for a drand node to run.
 type Config struct {
 	configFolder string
 	dbFolder     string
@@ -68,14 +71,18 @@ func NewConfig(opts ...ConfigOption) *Config {
 	return d
 }
 
+// ConfigFolder returns the folder under which drand stores all its
+// configuration.
 func (d *Config) ConfigFolder() string {
 	return d.configFolder
 }
 
+// DBFolder returns the folder under which drand stores all generated beacons.
 func (d *Config) DBFolder() string {
 	return d.dbFolder
 }
 
+// Certs returns all custom certs currently being trusted by drand.
 func (d *Config) Certs() *net.CertManager {
 	return d.certmanager
 }
@@ -101,24 +108,29 @@ func (d *Config) callbacks(b *beacon.Beacon) {
 	}
 }
 
+// WithGrpcOptions applies grpc dialling option used when a drand node actively
+// contacts another.
 func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
 	return func(d *Config) {
 		d.grpcOpts = opts
 	}
 }
 
+// WithCallOption applies grpc options when drand calls a gRPC method.
 func WithCallOption(opts ...grpc.CallOption) ConfigOption {
 	return func(d *Config) {
 		d.callOpts = opts
 	}
 }
 
+// WithDkgTimeout sets the timeout under which the DKG must finish.
 func WithDkgTimeout(t time.Duration) ConfigOption {
 	return func(d *Config) {
 		d.dkgTimeout = t
 	}
 }
 
+// WithBoltOptions applies boltdb specific options when storing random beacons.
 func WithBoltOptions(opts *bolt.Options) ConfigOption {
 	return func(d *Config) {
 		d.boltOpts = opts
@@ -133,6 +145,7 @@ func WithDbFolder(folder string) ConfigOption {
 	}
 }
 
+// WithConfigFolder sets the base configuration folder to the given string.
 func WithConfigFolder(folder string) ConfigOption {
 	return func(d *Config) {
 		d.configFolder = folder
@@ -140,18 +153,24 @@ func WithConfigFolder(folder string) ConfigOption {
 	}
 }
 
+// WithBeaconCallback sets a function that is called each time a new random
+// beacon is generated.
 func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
 	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
 	}
 }
 
+// WithInsecure allows drand to listen on standard non-encrypted port and to
+// contact other nodes over non-encrypted TCP connections.
 func WithInsecure() ConfigOption {
 	return func(d *Config) {
 		d.insecure = true
 	}
 }
 
+// WithTLS registers the certificates and private key path so drand can accept
+// and issue connections using TLS.
 func WithTLS(certPath, keyPath string) ConfigOption {
 	return func(d *Config) {
 		d.certPath = certPath
@@ -159,6 +178,8 @@ func WithTLS(certPath, keyPath string) ConfigOption {
 	}
 }
 
+// WithTrustedCerts saves the certificates at the given paths and forces drand
+// to trust them. Mostly useful for testing.
 func WithTrustedCerts(certPaths ...string) ConfigOption {
 	return func(d *Config) {
 		for _, p := range certPaths {

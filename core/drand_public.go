@@ -16,6 +16,7 @@ import (
 	"github.com/nikkolasg/slog"
 )
 
+// Setup is the public method to call during a DKG protocol.
 func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -59,6 +60,8 @@ func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_pr
 	return &dkg_proto.ReshareResponse{}, nil
 }
 
+// NewBeacon methods receives a beacon generation requests and answers
+// with the partial signature from this drand node.
 func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -68,6 +71,8 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.Be
 	return d.beacon.ProcessBeacon(c, in)
 }
 
+// Public returns a public random beacon according to the request. If the Round
+// field is 0, then it returns the last one generated.
 func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -88,6 +93,7 @@ func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.P
 	}, nil
 }
 
+// Private returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
 func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	protoPoint := priv.GetRequest().GetEphemeral()
 	point, err := crypto.ProtoToKyberPoint(protoPoint)

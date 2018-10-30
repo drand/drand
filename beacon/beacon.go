@@ -61,7 +61,7 @@ type Handler struct {
 func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.Group, s Store) *Handler {
 	idx, exists := group.Index(priv.Public)
 	if !exists {
-		// XXX
+		// XXX Should it return an error instead ... ?
 		panic("drand: can't handle a keypair not included in the given group")
 	}
 	addr := group.Nodes[idx].Addr

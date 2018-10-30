@@ -172,9 +172,9 @@ func (h *Handler) WaitExit() chan bool {
 // participants that successfully finished the DKG round without any blaming
 // from any other participants. This group must be saved to be re-used later on
 // in case of a renewal for the share.
-// XXX For the moment it's only taking the new set of nodes completely.
+// TODO For the moment it's only taking the new set of nodes completely. Once we
+// allow for failing nodes during DKG, we must take the qualified group.
 func (h *Handler) QualifiedGroup() *key.Group {
-	//quals := h.state.QUAL()
 	return key.NewGroup(h.conf.NewNodes.Identities(), h.conf.Threshold)
 }
 
@@ -354,7 +354,7 @@ func (h *Handler) sendDeals() error {
 	for i, deal := range deals {
 		if i == h.nidx && h.newNode {
 			fmt.Printf("dkg %d (%s) has deal for idx %d\n", h.nidx, h.conf.Key.Public.Key.String(), i)
-			panic("end of the universe")
+			panic("this is a bug with drand that should not happen. Please submit report if possible")
 		}
 		id := ids[i]
 		packet := &dkg_proto.DKGPacket{
@@ -452,10 +452,4 @@ func (h *Handler) raddr(i uint32, oldNodes bool) string {
 // XXX Not really needed, should use the net/protobuf interface instead
 type Network interface {
 	Send(net.Peer, *dkg_proto.DKGPacket) error
-}
-
-// XXX DEBUG CODE - TO REMOVE
-
-func (h *Handler) State() *dkg.DistKeyGenerator {
-	return h.state
 }

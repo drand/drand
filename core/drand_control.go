@@ -1,12 +1,11 @@
 package core
 
-// This file
+// drand_control.go contains the logic of the control interface of drand.
 
 import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 
 	toml "github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
@@ -26,6 +25,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	d.state.Lock()
 
 	if d.dkgDone == true {
+		d.state.Unlock()
 		return nil, errors.New("drand: dkg phase already done. Can't run 2 init DKG")
 	}
 
@@ -35,12 +35,12 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 		return nil, err
 	}
 	d.group = group
-	if idx, found := group.Index(d.priv.Public); !found {
+	idx, found := group.Index(d.priv.Public)
+	if !found {
 		d.state.Unlock()
 		return nil, errors.New("drand: public key not found in group")
-	} else {
-		d.idx = idx
 	}
+	d.idx = idx
 
 	d.nextConf = &dkg.Config{
 		Suite:     key.G2.(dkg.Suite),
@@ -60,14 +60,13 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	return &control.DKGResponse{}, d.StartBeacon()
 }
 
-// Reshare receives information about the old and new group from which to
+// InitReshare receives information about the old and new group from which to
 // operate the resharing protocol. It starts the resharing protocol if the
 // received node is stated as a leader and is present in the old group.
 // This function waits for the resharing DKG protocol to finish.
 func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*control.ReshareResponse, error) {
 	var oldGroup, newGroup *key.Group
 	var err error
-	fmt.Println(" -- DRAND InitReshare CONTROL-- ")
 
 	if newGroup, err = extractGroup(in.New); err != nil {
 		return nil, err
@@ -94,20 +93,19 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 		if oldPresent {
 			if d.group == nil {
 				return errors.New("control: present in old group but no dkg here")
-			} else {
-				// stateful verification checking if we are in the old group that we have
-				// and the one we receive
-				currHash, err := d.group.Hash()
-				if err != nil {
-					return err
-				}
-				oldHash, err := oldGroup.Hash()
-				if err != nil {
-					return err
-				}
-				if currHash != oldHash {
-					return errors.New("control: given old group is not the same as one saved")
-				}
+			}
+			// stateful verification checking if we are in the old group that we have
+			// and the one we receive
+			currHash, err := d.group.Hash()
+			if err != nil {
+				return err
+			}
+			oldHash, err := oldGroup.Hash()
+			if err != nil {
+				return err
+			}
+			if currHash != oldHash {
+				return errors.New("control: given old group is not the same as one saved")
 			}
 		}
 
@@ -125,7 +123,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 				return errors.New("control: can't reshare from old node when DKG not finished first")
 			}
 			if d.share == nil {
-				return errors.New("control: can't reshare without a share !")
+				return errors.New("control: can't reshare without a share")
 			}
 			conf.Share = d.share
 		}
@@ -177,6 +175,7 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 	d.StartDKG()
 }
 
+// DistKey returns the distributed key corresponding to the current group
 func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	pt, err := d.store.LoadDistPublic()
 	if err != nil {
@@ -191,6 +190,8 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	}, nil
 }
 
+// PingPong simply responds with an empty packet, proving that this drand node
+// is up and alive.
 func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
 }
@@ -239,6 +240,7 @@ func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (
 	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
 }
 
+// CollectiveKey replies with the distributed key in the response
 func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -254,6 +256,7 @@ func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*c
 	return &control.CokeyResponse{CoKey: protoKey}, nil
 }
 
+// Group replies with the current group of this drand node
 func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -274,7 +277,6 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 		if err := key.Load(x.Path, g); err != nil {
 			return nil, err
 		}
-	case nil:
 	default:
 		return nil, errors.New("control: can't allow new empty group")
 	}

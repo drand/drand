@@ -87,8 +87,6 @@ func TestDrandDKGReshare(t *testing.T) {
 			require.NoError(t, err)
 			_, err = client.InitReshare(oldPath, newPath, false)
 			require.NoError(t, err)
-			//err = d.WaitDKG()
-			//require.Nil(t, err)
 			wg.Done()
 		}(drand, i)
 	}

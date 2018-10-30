@@ -31,7 +31,7 @@ func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client 
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
 }
 
-// NewRestClient returns a client that uses the HTTP Rest API delivered by drand
+// NewRESTClient returns a client that uses the HTTP Rest API delivered by drand
 // nodes
 func NewRESTClient() *Client {
 	return &Client{
@@ -39,8 +39,8 @@ func NewRESTClient() *Client {
 	}
 }
 
-// NewRestClient returns a client that uses the HTTP Rest API delivered by drand
-// nodes, using TLS connection for peers registered
+// NewRESTClientFromCert returns a client that uses the HTTP Rest API delivered
+// by drand nodes, using TLS connection for peers registered
 func NewRESTClientFromCert(c *net.CertManager) *Client {
 	return &Client{client: net.NewRestClientFromCertManager(c)}
 }
@@ -89,6 +89,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	return ecies.Decrypt(key.G2, ecies.DefaultHash, ephScalar, resp.GetResponse())
 }
 
+// DistKey returns the distributed key the node at this address is holding.
 func (c *Client) DistKey(addr string, secure bool) (kyber.Point, error) {
 	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
 	if err != nil {

@@ -153,7 +153,7 @@ func (d *Drand) WaitDKG() error {
 
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	// XXX change to qualified group
+	// XXX change to qualified group when handling failure during DKG time
 	d.group = d.nextConf.NewNodes
 	d.group.PublicKey = d.share.Public()
 	d.store.SaveGroup(d.group)
@@ -182,8 +182,12 @@ func (d *Drand) createDKG() error {
 	return nil
 }
 
+// DefaultSeed is the message signed during the first beacon generation,
+// alongside with the round number 0.
 var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
 
+// StartBeacon initializes the beacon if needed and launch a go routine that
+// runs the generation loop.
 func (d *Drand) StartBeacon() error {
 	if err := d.initBeacon(); err != nil {
 		return err
@@ -192,6 +196,7 @@ func (d *Drand) StartBeacon() error {
 	return nil
 }
 
+// StopBeacon stops the beacon generation process and resets it.
 func (d *Drand) StopBeacon() {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -237,13 +242,12 @@ func (d *Drand) BeaconLoop() error {
 	return nil
 }
 
+// Stop simply stops all drand operations.
 func (d *Drand) Stop() {
+	d.StopBeacon()
 	d.state.Lock()
-	defer d.state.Unlock()
 	d.gateway.StopAll()
-	if d.beacon != nil {
-		d.beacon.Stop()
-	}
+	d.state.Unlock()
 }
 
 // isDKGDone returns true if the DKG protocol has already been executed. That

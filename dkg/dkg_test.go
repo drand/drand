@@ -231,6 +231,8 @@ func TestDKGResharingPartial(t *testing.T) {
 		go goDkg(i)
 	}
 
+	// XXX commented code tries to handle the case where old nodes are excluded
+	// from the new group but don't return, while they should.
 	//finisheds := make([]int, 0)
 	//for i := 0; i < total-1; i++ {
 	for i := 0; i < newN; i++ {
