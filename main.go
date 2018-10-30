@@ -43,7 +43,7 @@ func banner() {
 var folderFlag = cli.StringFlag{
 	Name:  "folder, f",
 	Value: core.DefaultConfigFolder(),
-	Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
+	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
 }
 var leaderFlag = cli.BoolFlag{
 	Name:  "leader",
