@@ -19,7 +19,7 @@ import (
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the
-// DKG protocol to finish. If the request specify this node is a leader, it
+// DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
 	d.state.Lock()

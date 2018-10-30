@@ -15,7 +15,7 @@ import (
 // dispatch to the respective sub-commands.
 func shareCmd(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatalf("drand: needs at least one group.toml file argument")
+		slog.Fatal("drand: needs at least one group.toml file argument")
 	}
 
 	if c.IsSet(oldGroupFlag.Name) {

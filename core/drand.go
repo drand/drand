@@ -299,7 +299,7 @@ func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.DKGPacket) error {
 
 func (d *Drand) dkgNetwork(conf *dkg.Config) *dkgNetwork {
 	// simple test to check if we are in a resharing mode or in a fresh dkg mode
-	// that will lead to two different outer protobuf structure
+	// that will lead to two different outer protobuf structures
 	if conf.OldNodes == nil {
 		return &dkgNetwork{d.sendDkgPacket}
 	}

@@ -43,7 +43,7 @@ func banner() {
 var folderFlag = cli.StringFlag{
 	Name:  "folder, f",
 	Value: core.DefaultConfigFolder(),
-	Usage: "Folder to keep all drand cryptographic informations, in absolute form.",
+	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
 }
 var leaderFlag = cli.BoolFlag{
 	Name:  "leader",
@@ -65,7 +65,7 @@ var tlsCertFlag = cli.StringFlag{
 var tlsKeyFlag = cli.StringFlag{
 	Name: "tls-key, k",
 	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
-		"The keys have to be specified as a list of whitespace-separated file paths. " +
+		"The key has to be specified as a file path. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 }
 
@@ -106,7 +106,7 @@ var certsDirFlag = cli.StringFlag{
 
 var outFlag = cli.StringFlag{
 	Name: "out, o",
-	Usage: "indicates to save the requested information into a separate file" +
+	Usage: "save the requested information into a separate file" +
 		" instead of stdout",
 }
 
@@ -151,10 +151,10 @@ func main() {
 		cli.Command{
 			Name: "share",
 			Usage: "Launch a sharing protocol. If one group is given as " +
-				"argument, drand launch a DKG protocol to create a distributed " +
-				"keypair between all participants listed in the group. A " +
+				"argument, drand launches a DKG protocol to create a distributed " +
+				"keypair between all participants listed in the group. An " +
 				"existing group can also issue new shares to a new group: use " +
-				"the flag --from to specify the the current group and give " +
+				"the flag --from to specify the current group and give " +
 				"the new group as argument. Specify the --leader flag to make " +
 				"this daemon start the protocol\n",
 			ArgsUsage: "<group.toml> group file",
@@ -179,7 +179,7 @@ func main() {
 		cli.Command{
 			Name: "group",
 			Usage: "Merge the given list of whitespace-separated drand.public " +
-				"keys into the group.toml file if one is provided, if not create " +
+				"keys into the group.toml file if one is provided, if not, create " +
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
@@ -214,7 +214,7 @@ func main() {
 					Name: "public",
 					Usage: "Get the latest public randomness from the drand " +
 						"beacon and verify it against the collective public key " +
-						"as specified in group.toml. Only one node is	contacted by " +
+						"as specified in group.toml. Only one node is contacted by " +
 						"default. This command attempts to connect to the drand " +
 						"beacon via TLS and falls back to plaintext communication " +
 						"if the contacted node has not activated TLS in which case " +
@@ -227,7 +227,7 @@ func main() {
 				{
 					Name: "cokey",
 					Usage: "Get distributed public key generated during the " +
-						" DKG step.",
+						"DKG step.",
 					ArgsUsage: "<group.toml> provides the group informations of " +
 						"the node that we are trying to contact.",
 					Flags: toArray(tlsCertFlag, insecureFlag, nodeFlag),
@@ -249,7 +249,7 @@ func main() {
 		{
 			Name: "show",
 			Usage: "local information retrieval about the node's cryptographic " +
-				"material. Show can print the information about the collective " +
+				"material. Show prints the information about the collective " +
 				"public key (drand.cokey), the group details (group.toml), the " +
 				"long-term private key (drand.private), the long-term public key " +
 				"(drand.public), or the private key share (drand.share), " +
@@ -292,7 +292,7 @@ func main() {
 				},
 				{
 					Name:  "public",
-					Usage: "shows he long-term public key of a node.\n",
+					Usage: "shows the long-term public key of a node.\n",
 					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
 						return showPublicCmd(c)
