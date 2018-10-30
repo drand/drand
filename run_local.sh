@@ -16,6 +16,7 @@
 N=6 ## final number of nodes
 OLDN=5 ## starting number of nodes
 BASE="/tmp/drand"
+SHA="sha256sum"
 if [ ! -d "$BASE" ]; then
     mkdir -m 740 $BASE
 fi
@@ -26,6 +27,7 @@ case "${unameOut}" in
         A=$(mktemp -d -t "drand")
         mv $A "/tmp/$(basename $A)"
         TMP="/tmp/$(basename $A)"
+        SHA="shasum -a 256"
     ;;
 esac
 GROUPFILE="$TMP/group.toml"
@@ -205,9 +207,9 @@ function run() {
     done
 
     share1Path="$TMP/node1/groups/dist_key.private"
-    share1Hash=$(sha256sum "$share1Path")
+    share1Hash=$(eval "$SHA $share1Path")
     group1Path="$TMP/node1/groups/drand_group.toml"
-    group1Hash=$(sha256sum $group1Path)
+    group1Hash=$(eval "$SHA $group1Path")
 
     # trying to add the last node to the group
     echo "[+] Generating new group with additional node"
@@ -264,7 +266,7 @@ function run() {
     done
 
     ## check if the two groups file are different
-    group2Hash=$(sha256sum $group1Path)
+    group2Hash=$(eval "$SHA $group1Path")
     if [ "$group1Hash" = "$group2Hash" ]; then
         echo "[-] Checking group file... Same as before - WRONG."
         exit 1
@@ -272,7 +274,7 @@ function run() {
         echo "[+] Checking group file... New one created !"
     fi
 
-    share2Hash=$(sha256sum "$share1Path")
+    share2Hash=$(eval "$SHA $share1Path")
     if [ "$share1Hash" = "$share2Hash" ]; then
         echo "[-] Checking private shares... Same as before - WRONG"
         exit 1
@@ -343,6 +345,7 @@ function fetchTest() {
     echo "[+] Public Randomness with CURL"
     img="byrnedo/alpine-curl"
     ## XXX make curl work without the "-k" option
+    docker pull $img
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 "https://${addresses[0]}/public" | python -m json.tool
