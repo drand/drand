@@ -154,7 +154,7 @@ func main() {
 				"argument, drand launches a DKG protocol to create a distributed " +
 				"keypair between all participants listed in the group. A " +
 				"existing group can also issue new shares to a new group: use " +
-				"the flag --from to specify the the current group and give " +
+				"the flag --from to specify the current group and give " +
 				"the new group as argument. Specify the --leader flag to make " +
 				"this daemon start the protocol\n",
 			ArgsUsage: "<group.toml> group file",
