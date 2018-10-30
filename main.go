@@ -31,7 +31,7 @@ var (
 
 const gname = "group.toml"
 const dpublic = "dist_key.public"
-const default_port = "8080"
+const defaultPort = "8080"
 
 func banner() {
 	fmt.Printf("drand vtest-%s by nikkolasg @ DEDIS\n", version)
@@ -317,7 +317,9 @@ func main() {
 		testWindows(c)
 		return nil
 	}
-	app.Run(os.Args)
+	if err := app.Run(os.Args); err != nil {
+		slog.Fatalf("drand: error running app: %s", err)
+	}
 }
 
 func resetBeaconDB(config *core.Config) bool {
@@ -348,13 +350,14 @@ func resetBeaconDB(config *core.Config) bool {
 }
 
 func askPort() string {
-	//slog.Print("asking for port")
 	for {
 		var port string
-		slog.Print("No port given. Please, choose a port number (or ENTER for default port 8080): ")
-		fmt.Scanf("%s\n", &port)
+		slog.Print("No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
+		if _, err := fmt.Scanf("%s\n", &port); err != nil {
+			continue
+		}
 		if port == "" {
-			return default_port
+			return defaultPort
 		}
 		_, err := strconv.Atoi(port)
 		if len(port) > 2 && len(port) < 5 && err == nil {
@@ -500,30 +503,8 @@ func getGroup(c *cli.Context) *key.Group {
 	return g
 }
 
-func runDkg(c *cli.Context, d *core.Drand, ks key.Store) error {
-	var err error
-	if c.Bool("leader") {
-		err = d.StartDKG()
-	} else {
-		err = d.WaitDKG()
-	}
-	if err != nil {
-		slog.Fatal(err)
-	}
-	slog.Print("DKG setup finished!")
-	public, err := ks.LoadDistPublic()
-	if err != nil {
-		slog.Fatal(err)
-	}
-	dir := fs.Pwd()
-	p := path.Join(dir, dpublic)
-	key.Save(p, public, false)
-	slog.Print("distributed public key saved at ", p)
-	return nil
-}
-
-// keyIdFromAddr looks at every node in the group file to retrieve to *key.Identity
-func keyIdFromAddr(addr string, group *key.Group) *key.Identity {
+// keyIDFromAddr looks at every node in the group file to retrieve to *key.Identity
+func keyIDFromAddr(addr string, group *key.Group) *key.Identity {
 	ids := group.Identities()
 	for _, id := range ids {
 		if id.Address() == addr {

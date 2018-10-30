@@ -30,14 +30,15 @@ func shareCmd(c *cli.Context) error {
 	_, errD := fs.LoadDistPublic()
 	// XXX place that logic inside core/ directly with only one method
 	freshRun := errG != nil || errS != nil || errD != nil
+	var err error
 	if freshRun {
 		slog.Info("drand: no current distributed key -> running DKG protocol.")
-		initDKG(c)
+		err = initDKG(c)
 	} else {
 		slog.Info("drand: found distributed key -> running resharing protocol.")
-		initReshare(c)
+		err = initReshare(c)
 	}
-	return nil
+	return err
 }
 
 // initDKG indicates to the daemon to start the DKG protocol, as a leader or
@@ -123,7 +124,10 @@ func showGroupCmd(c *cli.Context) error {
 	}
 	if c.IsSet(outFlag.Name) {
 		filePath := c.String(outFlag.Name)
-		ioutil.WriteFile(filePath, []byte(r.Group), 0777)
+		err := ioutil.WriteFile(filePath, []byte(r.Group), 0777)
+		if err != nil {
+			slog.Fatalf("drand: can't write to file: %s", err)
+		}
 		slog.Printf("group file written to %s", filePath)
 	} else {
 		slog.Printf("\n\n%s", r.Group)

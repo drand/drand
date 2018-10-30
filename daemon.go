@@ -31,17 +31,20 @@ func startCmd(c *cli.Context) error {
 		if err != nil {
 			slog.Fatalf("drand: can't instantiate drand instance %s", err)
 		}
-		// wait indefinitely  - XXX analyzes goroutine graphs to see if it makes
-		// sense in practice
-		runtime.Goexit()
 	} else {
 		slog.Infof("drand: will already start running randomness beacon")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
 			slog.Fatalf("drand: can't load drand instance %s", err)
 		}
-		drand.StartBeacon()
+		if err := drand.StartBeacon(); err != nil {
+			slog.Fatalf("drand: starting beacon failed: %s", err)
+		}
 	}
+	// wait indefinitely  - XXX analyzes goroutine graphs to see if it actually
+	// makes sense
+	runtime.Goexit()
+
 	return nil
 }
 
