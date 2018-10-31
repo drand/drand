@@ -256,9 +256,10 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.True(t, strings.Contains(string(out), keyStr))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "control", "share", "--port", ctrlPort)
+	cmd = exec.Command("drand", "show", "share", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
+		fmt.Println(string(out))
 		t.Fatalf("could not run the command : %s", err.Error())
 	}
 	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
