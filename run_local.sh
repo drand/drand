@@ -65,7 +65,7 @@ fi
 
 ## build the test travis image
 function build() {
-    echo "[+] Building the docker image $IMG"
+    echo "[+] Building docker image $IMG"
     docker build -t "$IMG" .  > /dev/null
 }
 
@@ -87,10 +87,10 @@ keyFile="/key.pem" ## server private tls key path on every container
 # If foreground is true, then the last docker node runs in the foreground.
 # If foreground is false, then all docker nodes run in the background.
 function run() {
-    echo "[+] Create the docker network $NET with subnet ${SUBNET}0/24"
+    echo "[+] Creating docker network $NET with subnet ${SUBNET}0/24"
     docker network create "$NET" --subnet "${SUBNET}0/24" > /dev/null 2> /dev/null
 
-    echo "[+] Create the certificate directory"
+    echo "[+] Creating the certificate directory"
     mkdir -m 740 $CERTSDIR
     mkdir -m 740 $LOGSDIR
 
@@ -101,7 +101,7 @@ function run() {
 
     #sequence=$(seq $N -1 1)
     # creating the keys and compose part for each node
-    echo "[+] Generating all private key pairs and certificates..."
+    echo "[+] Generating key pairs and certificates for drand nodes"
     for i in $seq; do
         # gen key and append to group
         data="$TMP/node$i/"
@@ -125,7 +125,7 @@ function run() {
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
-        echo "[+] Generated private/public pair + certificate for $addr"
+        echo "[+] Done generating key pair and certificate for drand node $addr"
     done
 
     ## generate group toml from the first 5 nodes ONLY
@@ -161,7 +161,7 @@ function run() {
                 echo "[+] Running in foreground!"
                 unset 'args[${#args[@]}-1]'
             fi
-            echo "[+] Starting the leader of the dkg ($i)"
+            echo "[+] Starting (DKG coordinator) node $i"
         else
             echo "[+] Starting node $i "
         fi
@@ -298,7 +298,7 @@ function pingNode() {
 }
 
 function cleanup() {
-    echo "[+] Cleaning up the docker containers..."
+    echo "[+] Cleaning up docker containers"
     docker stop $(docker ps -a -q) > /dev/null 2>/dev/null
     docker rm -f $(docker ps -a -q) > /dev/null 2>/dev/null
 }
@@ -371,7 +371,7 @@ fi
 trap cleanup SIGINT
 build
 run false
-echo "[+] Waiting 3s to get some beacons..."
+echo "[+] Waiting to get some beacons"
 sleep 3
 while true;
 nindex=1
