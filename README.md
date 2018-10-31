@@ -33,7 +33,7 @@ randomness every few seconds.
 ### Public Randomness
 
 Generating public randomness is the primary functionality of drand. Public
-randomness is generated collectively by drand nodes and publicly available The
+randomness is generated collectively by drand nodes and publicly available. The
 main challenge in generating good randomness is that no party involved in the
 randomness generation process should be able to predict or bias the final
 output. Additionally, the final result has to be third-party verifiable to make
@@ -92,10 +92,6 @@ Drand can be installed via [Golang](https://golang.org/) or
 files such as the long-term key pair, the group file, and the collective public
 key in the directory `$HOME/.drand/`.
 
-### Via Docker
-
-Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/).
-
 ### Via Golang
 
 Make sure that you have a working [Golang
@@ -105,6 +101,10 @@ Then install drand via:
 ```bash
 go get -u github.com/dedis/drand
 ```
+
+### Via Docker
+
+Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/).
 
 ## Usage
 
@@ -119,7 +119,7 @@ the DKG protocol is finished.
 
 ### Setup
 
-The setup process for a drand beacon consists of three steps:
+The setup process for a drand node consists of two steps:
 1. Generate the long-term key pair for each node
 2. Setup the group configuration file
 
@@ -131,7 +131,7 @@ drand keygen <address>
 ```
 where `<address>` is the address from which your drand daemon is reachable. The
 address must be reachable over a TLS connection. In case you need non-secured
-channel, you can pass the `--insecure` flag.
+channel, you can pass the `--tls-disable` flag.
 
 #### Group Configuration
 
@@ -146,20 +146,27 @@ The group file is generated in the current directory under `group.toml`.
 ##### Randomness Beacon Period
 
 drand updates the configuration file after the DKG protocol finishes,
-with the distributed public key and automatically starts running the randomness beacon. By default, a randomness beacon has a period of 1mn,i.e. new randomness is generated every minute. If you wish to change the period, you must include that information **inside** the group configuration file. You can do by appending a flag to the command such as :
+with the distributed public key and automatically starts running the randomness
+beacon. By default, a randomness beacon has a period of 1mn,i.e. new randomness
+is generated every minute. If you wish to change the period, you must include
+that information **inside** the group configuration file. You can do by
+appending a flag to the command such as :
 ```
 drand group --period 2m <pk1> <pk2> ... <pkn>
 ```
+
+Or simply by editing manually the group file afterwards: it's a TOML
+configuration file.
 The period must be readable by the [time](https://golang.org/pkg/time/#ParseDuration) package.
 
 ### Starting drand daemon
 
-The daemon does not go automatically in background, so you must run it with ` & ` in 
-your terminal, within a screen / tmux session, or with the `-d` option enabled for the 
-docker commands. Once the daemon is running, the way to communicate is to use
-the control functionalities, such as starting a DKG, etc. The control client has
-to run on the same server as the drand daemon, so only drand administrators can
-issue command to their drand daemons.
+The daemon does not go automatically in background, so you must run it with ` &
+` in your terminal, within a screen / tmux session, or with the `-d` option
+enabled for the docker commands. Once the daemon is running, the way to issue
+commands to the daemon is to use the control functionalities.  The control
+client has to run on the same server as the drand daemon, so only drand
+administrators can issue command to their drand daemons.
 
 There are two ways to run a drand daemon: using TLS or using plain old regular
 un-encrypted connections. Drand by default tries to use TLS connections.
@@ -242,15 +249,16 @@ following:
 drand show cokey
 ```
 
-Otherwise, you can contact an external drand node to ask him for the distributed
-public key:
+Otherwise, you can contact an external drand node to ask him for its current
+distributed public key:
 ```
 drand get cokey <group.toml>
 ```
 The group toml do not need to be updated with the collective key.
 
-**NOTE**:a drand node *can* lie about the key. That information is usually best
-gathered from a trusted drand operator and then statically embedded in any
+**NOTE**: Using the last method (`get cokey`), a drand node *can* lie about the
+key if no out-of-band verification is performed. That information is usually
+best gathered from a trusted drand operator and then statically embedded in any
 applications using drand.
 
 ### Randomness Generation
