@@ -19,7 +19,7 @@ rootFolder="$TMP/node1"
 
 # check if there is the dist public key
 distPublic="$rootFolder/groups/dist_key.public"
-ls $distPublic > /dev/null 2> /dev/null
+ls $distPublic
 checkSuccess $? "distributed public key file?"
 
 # try to verify with it

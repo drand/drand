@@ -1,4 +1,4 @@
-// fs holds some utilities for manipulating the file system
+// Package fs holds some utilities for manipulating the file system
 package fs
 
 import (
@@ -9,6 +9,7 @@ import (
 	"path"
 )
 
+// HomeFolder returns the home folder of the current user
 func HomeFolder() string {
 	u, err := user.Current()
 	if err != nil {
@@ -28,8 +29,11 @@ func CreateSecureFolder(folder string) string {
 	} else {
 		//the folder exists already
 		info, err := os.Lstat(folder)
+		if err != nil {
+			return ""
+		}
 		perm := int(info.Mode().Perm())
-		if err != nil || perm != int(0740) {
+		if perm != int(0740) {
 			return ""
 		}
 	}

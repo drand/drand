@@ -31,7 +31,7 @@ func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client 
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
 }
 
-// NewRestClient returns a client that uses the HTTP Rest API delivered by drand
+// NewRESTClient returns a client that uses the HTTP Rest API delivered by drand
 // nodes
 func NewRESTClient() *Client {
 	return &Client{
@@ -39,8 +39,8 @@ func NewRESTClient() *Client {
 	}
 }
 
-// NewRestClient returns a client that uses the HTTP Rest API delivered by drand
-// nodes, using TLS connection for peers registered
+// NewRESTClientFromCert returns a client that uses the HTTP Rest API delivered
+// by drand nodes, using TLS connection for peers registered
 func NewRESTClientFromCert(c *net.CertManager) *Client {
 	return &Client{client: net.NewRestClientFromCertManager(c)}
 }
@@ -53,7 +53,18 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*dra
 	if err != nil {
 		return nil, err
 	}
-	return resp, c.verify(pub.Key, resp)
+	return resp, c.verify(pub.Key(), resp)
+}
+
+// Public returns the random output of the specified beacon at a given index. It
+// returns it if the randomness is valid. Secure indicates that the request
+// must be made over a TLS protected channel.
+func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int) (*drand.PublicRandResponse, error) {
+	resp, err := c.client.Public(&peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
+	if err != nil {
+		return nil, err
+	}
+	return resp, c.verify(pub.Key(), resp)
 }
 
 // Private retrieves a private random value from the server. It does that by
@@ -78,6 +89,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	return ecies.Decrypt(key.G2, ecies.DefaultHash, ephScalar, resp.GetResponse())
 }
 
+// DistKey returns the distributed key the node at this address is holding.
 func (c *Client) DistKey(addr string, secure bool) (kyber.Point, error) {
 	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
 	if err != nil {

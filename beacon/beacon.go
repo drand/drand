@@ -61,8 +61,8 @@ type Handler struct {
 func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.Group, s Store) *Handler {
 	idx, exists := group.Index(priv.Public)
 	if !exists {
-		// XXX
-		panic("that's just plain wrong and I should be an error")
+		// XXX Should it return an error instead ... ?
+		panic("drand: can't handle a keypair not included in the given group")
 	}
 	addr := group.Nodes[idx].Addr
 	return &Handler{
@@ -245,7 +245,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 			}
 			slog.Debugf("beacon: %s round %d valid response from %s", h.addr, round, i.Address())
 			respCh <- resp
-		}(id.Identity)
+		}(id)
 	}
 	// wait for a threshold of replies or if the timeout occured
 	for len(sigs) < h.group.Threshold {

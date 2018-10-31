@@ -2,12 +2,12 @@ package net
 
 import (
 	"time"
-	
+
 	"google.golang.org/grpc"
 
+	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/drand/protobuf/control"
 )
 
 var DefaultTimeout = time.Duration(30) * time.Second
@@ -31,11 +31,12 @@ type ExternalClient interface {
 type CallOption = grpc.CallOption
 
 // InternalClient represents all methods callable on drand nodes which are
-// internal to the system. See the folder api/ to get more info on the external
-// API drand nodes offer.
+// internal to the system. See relevant protobuf files in `/protobuf` for more
+// informations.
 type InternalClient interface {
 	NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error)
 	Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error)
+	Reshare(p Peer, in *dkg.ResharePacket, opts ...CallOption) (*dkg.ReshareResponse, error)
 }
 
 // Listener is the active listener for incoming requests.
@@ -47,8 +48,8 @@ type Listener interface {
 
 func NewGrpcGatewayInsecure(listen string, port string, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
 	return Gateway{
-		InternalClient: NewGrpcClient(opts...),
-		Listener:       NewTCPGrpcListener(listen, s),
+		InternalClient:  NewGrpcClient(opts...),
+		Listener:        NewTCPGrpcListener(listen, s),
 		ControlListener: NewTCPGrpcControlListener(cs, port),
 	}
 }
@@ -59,8 +60,8 @@ func NewGrpcGatewayFromCertManager(listen string, port string, certPath, keyPath
 		panic(err)
 	}
 	return Gateway{
-		InternalClient: NewGrpcClientFromCertManager(certs, opts...),
-		Listener:       l,
+		InternalClient:  NewGrpcClientFromCertManager(certs, opts...),
+		Listener:        l,
 		ControlListener: NewTCPGrpcControlListener(cs, port),
 	}
 }

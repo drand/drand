@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 
-	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 )
@@ -46,23 +45,17 @@ func (s *DefaultService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGRe
 	}
 	return &dkg.DKGResponse{}, nil
 }
+
+func (s *DefaultService) Reshare(c context.Context, in *dkg.ResharePacket) (*dkg.ReshareResponse, error) {
+	if s.D != nil {
+		return s.D.Reshare(c, in)
+	}
+	return &dkg.ReshareResponse{}, nil
+}
 func (s *DefaultService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
 	if s.B == nil {
 		return &drand.BeaconResponse{}, nil
 	} else {
 		return s.B.NewBeacon(c, in)
-	}
-}
-
-//DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
-type DefaultControlServer struct {
-	C control.ControlServer
-}
-
-func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
-	if s.C == nil {
-		return &control.ShareResponse{}, nil
-	} else {
-		return s.C.Share(c, in)
 	}
 }

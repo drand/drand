@@ -13,9 +13,24 @@ import "crypto/share/vss/vss.proto";
 // participants and to create new publicly verifiable randomness.
 service Dkg {
    rpc Setup(DKGPacket) returns (DKGResponse);
+   rpc Reshare(ResharePacket) returns (ReshareResponse);
 
 }
 
+// special wrapper for resharing operation that serves two purposes:
+// - indicate to non-leader old nodes that they should generate and send their
+// deals 
+// - indicate to which new group are we resharing. drand should keep a list of
+// new ready-to-operate groups allowed.
+message ResharePacket {
+    string group_hash = 1;
+    DKGPacket packet = 2;
+}
+
+// empty return response
+message ReshareResponse {
+    
+}
 // DKGPacket is used by the nodes to run the dkg protocol before being able to
 // generate randomness beacons.
 message DKGPacket {    
@@ -40,7 +55,6 @@ message Deal {
     // and dkg so we could use only one field of signature. For future work...
     // :)
     bytes signature = 3;
-
 }
 
 // Response holds the response that a participant broadcast after having
