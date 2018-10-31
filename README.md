@@ -253,8 +253,10 @@ distributed public key:
 ```bash
 drand get cokey --node <address> <group.toml>
 ```
-where `<group.toml>` is the group file identity file of a drand node and `<address>` is the address of the drand node to be contacted. Use the `--tls-cert` flag to specify the server's certificate if needed.
-The group toml do not need to be updated with the collective key.
+where `<group.toml>` is the group file identity file of a drand node. You can
+use the flag `--node <address>` to indicate which node you want to contact
+specifically.  Use the`--tls-cert` flag to specify the server's certificate if
+needed.  The group toml do not need to be updated with the collective key.
 
 **NOTE**: Using the last method (`get cokey`), a drand node *can* lie about the
 key if no out-of-band verification is performed. That information is usually
@@ -279,7 +281,7 @@ update group details or retrieve secret information. By default, the daemon
 listens on `127.0.0.1:8888`, but you can specify another control port when starting
 the daemon with:
 ```bash
-drand start --port 1234
+drand start --control 1234
 ```
 In that case, you need to specify the control port for each of the following
 commands.
@@ -439,13 +441,6 @@ Here `rnd` is the 32-byte base64-encoded private random value produced by the
 contacted drand node. If the encryption is not correct, the command outputs an
 error instead.
 
-#### Stop Drand
-
-Stop the running instance via:
-
-```bash
-drand stop
-```
 
 ## Cryptography Background
 
@@ -459,7 +454,7 @@ Drand relies on the following cryptographic constructions:
 - Threshold [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf) for the generation of public randomness.
 - [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the encryption of private randomness.
 
-For a more general overview on generation of public randomness, see the paper
+For our previous work on public randomness, see our academical paper
 [Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf).
 
 ## What's Next?
@@ -468,6 +463,7 @@ Although being already functional, drand is still at an early development stage
 and there is a lot left to be done. Feel free to submit feature requests or,
 even better, pull requests. ;)
 
++ flexible JS library
 + Support DKG timeouts
 + Add more unit tests
 + Reduce size of Docker
