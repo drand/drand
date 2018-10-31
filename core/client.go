@@ -1,6 +1,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/key"
@@ -9,7 +11,6 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber"
 	"github.com/dedis/kyber/sign/bls"
-	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 )
 
@@ -90,21 +91,18 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 }
 
 // DistKey returns the distributed key the node at this address is holding.
-func (c *Client) DistKey(addr string, secure bool) (kyber.Point, error) {
+func (c *Client) DistKey(addr string, secure bool) (*crypto.Point, error) {
 	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
-	if err != nil {
-		return nil, err
-	}
-	key, err := crypto.ProtoToKyberPoint(resp.GetKey())
-	if err != nil {
-		slog.Fatal(err)
-	}
-	return key, nil
+	return resp.Key, err
 }
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
 	msg := beacon.Message(resp.GetPrevious(), resp.GetRound())
-	return bls.Verify(key.Pairing, public, msg, resp.GetRandomness())
+	rand := resp.GetRandomness()
+	if rand == nil {
+		return errors.New("drand: no randomness found...")
+	}
+	return bls.Verify(key.Pairing, public, msg, rand.GetData())
 }
 
 func (c *Client) peer(addr string) {

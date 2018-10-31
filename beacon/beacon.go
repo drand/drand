@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dedis/drand/protobuf/crypto"
 	proto "github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber/share"
 	"github.com/dedis/kyber/sign/bls"
@@ -273,11 +274,16 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 		slog.Print("beacon: invalid reconstructed beacon signature ? That's BAD, threshold ", h.group.Threshold)
 		return
 	}
-
+	// XXX temporary solution to change when we really want flexible groups
+	id, exists := crypto.GroupToID(key.G1)
+	if !exists {
+		panic("aie aie")
+	}
 	beacon := &Beacon{
 		Round:        round,
 		PreviousRand: prevRand,
 		Randomness:   finalSig,
+		Gid:          id,
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway
@@ -287,7 +293,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	}
 	//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 	slog.Infof("beacon: round %d finished: %x", round, finalSig)
-	slog.Debugf("beacon: %s round %d finished: \n\tfinal: %x\n\tprev: %x\n", h.addr, round, finalSig, prevRand)
+	slog.Debugf("beacon: %s round %d finished: \n\tfinal: (id=%d) %x\n\tprev: %x\n", h.addr, round, beacon.Gid, finalSig, prevRand)
 	winCh <- roundInfo{round: round, signature: finalSig}
 }
 

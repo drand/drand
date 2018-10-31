@@ -4,10 +4,9 @@ import (
 	"encoding/hex"
 
 	"github.com/dedis/drand/core"
-	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	crypto "github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -80,12 +79,12 @@ func getPublicCmd(c *cli.Context) error {
 	type publicRand struct {
 		Round      uint64
 		Previous   string
-		Randomness string
+		Randomness *crypto.JSONPoint
 	}
 	s := &publicRand{
 		Round:      resp.Round,
 		Previous:   hex.EncodeToString(resp.Previous),
-		Randomness: hex.EncodeToString(resp.Randomness),
+		Randomness: resp.Randomness.ToJSON(),
 	}
 
 	printJSON(s)
@@ -99,7 +98,7 @@ func getCokeyCmd(c *cli.Context) error {
 	}
 	ids := getNodes(c)
 	client := core.NewGrpcClientFromCert(defaultManager)
-	var dkey kyber.Point
+	var dkey *crypto.Point
 	var err error
 	for _, id := range ids {
 		dkey, err = client.DistKey(id.Addr, !c.Bool("tls-disable"))
@@ -112,10 +111,6 @@ func getCokeyCmd(c *cli.Context) error {
 	if dkey == nil {
 		slog.Fatalf("drand: can't retrieve dist. key from all nodes")
 	}
-	str := key.PointToString(dkey)
-	type distkey struct {
-		CollectiveKey string
-	}
-	printJSON(&distkey{str})
+	printJSON(dkey.ToJSON())
 	return nil
 }

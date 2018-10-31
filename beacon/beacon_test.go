@@ -12,6 +12,7 @@ import (
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/dedis/kyber"
@@ -129,10 +130,13 @@ func TestBeacon(t *testing.T) {
 	// launchBeacon will launch the beacon at the given index. Each time a new
 	// beacon is ready from that node, it saves the beacon and the node index
 	// into the map
+	gid, exists := crypto.GroupToID(key.G1)
+	require.True(t, exists)
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
 			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
 			require.NoError(t, err)
+			require.Equal(t, b.Gid, gid)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
 			l.Unlock()

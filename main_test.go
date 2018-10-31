@@ -262,7 +262,7 @@ func TestStartWithoutGroup(t *testing.T) {
 		fmt.Println(string(out))
 		t.Fatalf("could not run the command : %s", err.Error())
 	}
-	expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	expectedOutput := "0000000000000000000000000000000000000000000000000000000000000001"
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 }
@@ -364,7 +364,8 @@ func TestClientTLS(t *testing.T) {
 	cmd = exec.Command("drand", "--verbose", "2", "show", "share", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
-	expectedOutput = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
+	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
+
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 
@@ -381,7 +382,7 @@ func TestClientTLS(t *testing.T) {
 	cmd = exec.Command("drand", "show", "cokey", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
-	expectedOutput = "ASBnBkKH8NgaA+V1EJR4KH2gGD/Njz7aGLhQQtHIkD7IFgxW621YhNjFGcML+jv1GB9CvNLv2/S6QqsPMdE8l+lVJUO+Gs+ZEkdrfaEp18fkJ/uv5prFtjV3P0iLj0bz/EDGc7k6CKIMDjD9hN6Kia22+5Xsph7y//ZlJ7O+SRLe"
+	expectedOutput = "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 }

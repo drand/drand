@@ -24,6 +24,8 @@ type Beacon struct {
 	Round uint64
 	// Randomness is the tbls signature of Round || PreviousRand
 	Randomness []byte
+	// Gid is the group id of the randomness - usually fixed
+	Gid int32
 }
 
 // Message returns a slice of bytes as the message to sign or to verify

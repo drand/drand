@@ -86,10 +86,14 @@ func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.P
 	if err != nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
+
 	return &drand.PublicRandResponse{
-		Previous:   beacon.PreviousRand,
-		Round:      beacon.Round,
-		Randomness: beacon.Randomness,
+		Previous: beacon.PreviousRand,
+		Round:    beacon.Round,
+		Randomness: &crypto.Point{
+			Data: beacon.Randomness,
+			Gid:  crypto.GroupID(beacon.Gid),
+		},
 	}, nil
 }
 
