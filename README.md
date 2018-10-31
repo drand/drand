@@ -398,7 +398,7 @@ Similarly, to get the latest round of randomness from the drand beacon, you can 
 curl <address>/public
 ```
 
-**All the RESP endpoints are specified in the `protobuf/drand/client.proto` file.**
+**All the REST endpoints are specified in the `protobuf/drand/client.proto` file.**
 
 **NOTE**: At the moment, the REST endpoints return base-64 encoded values, whereas
 the drand cli tool returns hexadecimal encoded value ([issue](https://github.com/dedis/drand/issues/85)).
@@ -482,9 +482,9 @@ Here's the list of people that contributed to drand:
 - Nicolas Gailly ([@nikkolasg1](https://twitter.com/nikkolasg1))
 - Philipp Jovanovic ([@daeinar](https://twitter.com/daeinar))
 - Mathilde Raynal ([@PizzaWhisperer](https://github.com/PizzaWhisperer))
+- Gabbi Fisher ([@gabbifish](https://github.com/gabbifish))
 - Linus Gasser ([@ineiti](https://github.com/ineiti))
 - Jeff Allen ([@jeffallen](https://github.com/jeffallen))
-- Gabbi Fisher ([@gabbifish](https://github.com/gabbifish))
 
 ## Acknowledgments
 
