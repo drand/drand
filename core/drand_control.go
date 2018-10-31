@@ -200,12 +200,12 @@ func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, er
 func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	share, err := d.store.LoadShare()
 	if err != nil {
-		slog.Fatal("drand: could not load drand.share")
+		return nil, err
 	}
 	id := uint32(share.Share.I)
 	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with drand.share")
+		return nil, err
 	}
 	return &control.ShareResponse{Index: id, Share: protoShare}, nil
 }
@@ -216,11 +216,11 @@ func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*c
 	defer d.state.Unlock()
 	key, err := d.store.LoadKeyPair()
 	if err != nil {
-		slog.Fatal("drand: could not load drand.public")
+		return nil, err
 	}
 	protoKey, err := crypto.KyberToProtoPoint(key.Public.Key)
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with drand.public")
+		return nil, err
 	}
 	return &control.PublicKeyResponse{PubKey: protoKey}, nil
 }
@@ -231,11 +231,11 @@ func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (
 	defer d.state.Unlock()
 	key, err := d.store.LoadKeyPair()
 	if err != nil {
-		slog.Fatal("drand: could not load drand.private")
+		return nil, err
 	}
 	protoKey, err := crypto.KyberToProtoScalar(key.Key)
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with drand.private")
+		return nil, err
 	}
 	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
 }
@@ -247,11 +247,11 @@ func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*c
 
 	key, err := d.store.LoadDistPublic()
 	if err != nil {
-		slog.Fatal("drand: could not load drand.cokey")
+		return nil, err
 	}
 	protoKey, err := crypto.KyberToProtoPoint(key.Key())
 	if err != nil {
-		slog.Fatal("drand: there is something wrong with drand.cokey")
+		return nil, err
 	}
 	return &control.CokeyResponse{CoKey: protoKey}, nil
 }
