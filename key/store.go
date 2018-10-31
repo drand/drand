@@ -29,7 +29,11 @@ type Store interface {
 	LoadDistPublic() (*DistPublic, error)
 }
 
+// ErrStoreFile returns an error in case the store can not save the requested
+// file
 var ErrStoreFile = errors.New("store file issues")
+
+// ErrAbsent returns
 var ErrAbsent = errors.New("store can't find requested object")
 
 // ConfigFolderFlag holds the name of the flag to set using the CLI to change
@@ -86,6 +90,7 @@ func (f *fileStore) SaveKeyPair(p *Pair) error {
 	if err := Save(f.privateKeyFile, p, true); err != nil {
 		return err
 	}
+	slog.Infof("Saved the key : %s at %s", p.Public.Addr, f.publicKeyFile)
 	return Save(f.publicKeyFile, p.Public, false)
 }
 

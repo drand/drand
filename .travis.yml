@@ -7,7 +7,7 @@ services:
 language: go
 
 go:
-    - "1.10.x"
+    - tip
 
 script:
     #- cd core && go test -v && cd ../ && cd beacon/ && go test -v && cd ../
@@ -22,6 +22,9 @@ after_success:
 
 before_deploy:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+before_install:
+    - docker pull byrnedo/alpine-curl
 
 # calls goreleaser
 deploy:

@@ -3,12 +3,10 @@ package net
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
 
-	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -52,6 +50,9 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	if err := drand.RegisterRandomnessHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
 	}
+	if err = drand.RegisterInfoHandlerClient(ctx, gwMux, proxyClient); err != nil {
+		panic(err)
+	}
 	restRouter := http.NewServeMux()
 	newHandler := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -72,6 +73,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	}
 	drand.RegisterRandomnessServer(g.grpcServer, g.Service)
 	drand.RegisterBeaconServer(g.grpcServer, g.Service)
+	drand.RegisterInfoServer(g.grpcServer, g.Service)
 	dkg.RegisterDkgServer(g.grpcServer, g.Service)
 	return g
 }
@@ -197,32 +199,4 @@ func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Ha
 			otherHandler.ServeHTTP(w, r)
 		}
 	})
-}
-
-//ControlListener is used to keep state of the connections of our drand instance
-type ControlListener struct {
-	conns *grpc.Server
-	lis   net.Listener
-}
-
-//NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
-func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
-	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%s", "localhost", port))
-	if err != nil {
-		slog.Fatal("Failed to listen")
-		return ControlListener{}
-	}
-	grpcServer := grpc.NewServer()
-	control.RegisterControlServer(grpcServer, s)
-	return ControlListener{conns: grpcServer, lis: lis}
-}
-
-func (g *ControlListener) Start() {
-	if err := g.conns.Serve(g.lis); err != nil {
-		slog.Fatalf("failed to serve: %s", err)
-	}
-}
-
-func (g *ControlListener) Stop() {
-	g.conns.Stop()
 }

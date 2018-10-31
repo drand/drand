@@ -9,6 +9,9 @@ import (
 /*
 Marshaling is a basic interface representing fixed-length (or known-length)
 cryptographic objects or structures having a built-in binary encoding.
+Implementors must ensure that calls to these methods do not modify
+the underlying object so that other users of the object can access
+it concurrently.
 */
 type Marshaling interface {
 	encoding.BinaryMarshaler

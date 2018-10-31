@@ -3,11 +3,14 @@
 package test
 
 import (
+	"encoding/hex"
 	n "net"
 	"strconv"
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	"github.com/dedis/kyber"
+	"github.com/dedis/kyber/pairing/bn256"
 )
 
 type testPeer struct {
@@ -78,12 +81,16 @@ func GenerateIDs(n int) []*key.Pair {
 	return keys
 }
 
+// Generates n insecure identities
 func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
-	group := key.NewGroup(ListFromPrivates(privs), key.DefaultThreshold(n))
+	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+	fakeKey, _ := StringToPoint(keyStr)
+	group := key.LoadGroup(ListFromPrivates(privs), &key.DistPublic{[]kyber.Point{fakeKey}}, key.DefaultThreshold(n))
 	return privs, group
 }
 
+// Generates n secure (TLS) identities
 func BatchTLSIdentities(n int) ([]*key.Pair, *key.Group) {
 	pairs, group := BatchIdentities(n)
 	for i := 0; i < n; i++ {
@@ -101,4 +108,15 @@ func ListFromPrivates(keys []*key.Pair) []*key.Identity {
 	}
 	return list
 
+}
+
+func StringToPoint(s string) (kyber.Point, error) {
+	pairing := bn256.NewSuite()
+	g := pairing.G2()
+	buff, err := hex.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	p := g.Point()
+	return p, p.UnmarshalBinary(buff)
 }

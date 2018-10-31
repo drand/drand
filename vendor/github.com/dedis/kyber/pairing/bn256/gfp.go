@@ -65,15 +65,3 @@ func (e *gfP) Unmarshal(in []byte) {
 
 func montEncode(c, a *gfP) { gfpMul(c, a, r2) }
 func montDecode(c, a *gfP) { gfpMul(c, a, &gfP{1}) }
-
-// go:noescape
-func gfpNeg(c, a *gfP)
-
-//go:noescape
-func gfpAdd(c, a, b *gfP)
-
-//go:noescape
-func gfpSub(c, a, b *gfP)
-
-//go:noescape
-func gfpMul(c, a, b *gfP)

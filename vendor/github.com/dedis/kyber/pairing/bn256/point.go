@@ -113,15 +113,18 @@ func (p *pointG1) Mul(s kyber.Scalar, q kyber.Point) kyber.Point {
 
 func (p *pointG1) MarshalBinary() ([]byte, error) {
 	n := p.ElementSize()
-	p.g.MakeAffine()
+	// Take a copy so that p is not written to, so calls to MarshalBinary
+	// are threadsafe.
+	pgtemp := *p.g
+	pgtemp.MakeAffine()
 	ret := make([]byte, p.MarshalSize())
-	if p.g.IsInfinity() {
+	if pgtemp.IsInfinity() {
 		return ret, nil
 	}
 	tmp := &gfP{}
-	montDecode(tmp, &p.g.x)
+	montDecode(tmp, &pgtemp.x)
 	tmp.Marshal(ret)
-	montDecode(tmp, &p.g.y)
+	montDecode(tmp, &pgtemp.y)
 	tmp.Marshal(ret[n:])
 	return ret, nil
 }
@@ -186,7 +189,7 @@ func (p *pointG1) ElementSize() int {
 }
 
 func (p *pointG1) String() string {
-	return "bn256.G1" + p.g.String()
+	return "bn256.G1:" + p.g.String()
 }
 
 type pointG2 struct {
@@ -378,7 +381,7 @@ func (p *pointG2) ElementSize() int {
 }
 
 func (p *pointG2) String() string {
-	return "bn256.G2" + p.g.String()
+	return "bn256.G2:" + p.g.String()
 }
 
 type pointGT struct {
@@ -575,7 +578,7 @@ func (p *pointGT) ElementSize() int {
 }
 
 func (p *pointGT) String() string {
-	return "bn256.GT" + p.g.String()
+	return "bn256.GT:" + p.g.String()
 }
 
 func (p *pointGT) Finalize() kyber.Point {
