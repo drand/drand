@@ -277,7 +277,8 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	// XXX temporary solution to change when we really want flexible groups
 	id, exists := crypto.GroupToID(key.G1)
 	if !exists {
-		panic("aie aie")
+		slog.Infof("beacon: invalid group")
+		return
 	}
 	beacon := &Beacon{
 		Round:        round,
