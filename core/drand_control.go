@@ -183,7 +183,7 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	}
 	key, err := crypto.KyberToProtoPoint(pt.Key())
 	if err != nil {
-		slog.Fatal(err)
+		return nil, err
 	}
 	return &drand.DistKeyResponse{
 		Key: key,
