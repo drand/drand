@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,12 +45,16 @@ func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
 	}
 }
 
+// NewGrpcClientFromCertManager returns a Client using gRPC with the given trust
+// store of certificates.
 func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) *grpcClient {
 	client := NewGrpcClient(opts...)
 	client.manager = c
 	return client
 }
 
+// NewGrpcClientWithTimeout returns a Client using gRPC using fixed timeout for
+// method calls.
 func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) *grpcClient {
 	c := NewGrpcClient(opts...)
 	c.timeout = timeout
@@ -61,66 +66,129 @@ func (g *grpcClient) SetTimeout(t time.Duration) {
 }
 
 func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+	var resp *drand.PublicRandResponse
+	var err error
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := drand.NewRandomnessClient(c)
+		resp, err = client.Public(context.Background(), in)
+		return err
 	}
-	client := drand.NewRandomnessClient(c)
-	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	//defer cancel()
-	r, err := client.Public(context.Background(), in)
-	return r, err
+	g.retryTLS(p, fn)
+	return resp, err
 }
 
 func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+	var resp *drand.PrivateRandResponse
+	var err error
+	fn := func() error {
+
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := drand.NewRandomnessClient(c)
+		resp, err = client.Private(context.Background(), in)
+		return err
 	}
-	client := drand.NewRandomnessClient(c)
-	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	//defer cancel()
-	return client.Private(context.Background(), in)
+	g.retryTLS(p, fn)
+	return resp, err
 
 }
 
 func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+	var resp *drand.DistKeyResponse
+	var err error
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := drand.NewInfoClient(c)
+		resp, err = client.DistKey(context.Background(), in)
+		return err
 	}
-	client := drand.NewInfoClient(c)
-	return client.DistKey(context.Background(), in)
+	g.retryTLS(p, fn)
+	return resp, err
 }
 
 func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error) {
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+	var resp *dkg.DKGResponse
+	var err error
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := dkg.NewDkgClient(c)
+		resp, err = client.Setup(context.Background(), in, opts...)
+		return err
 	}
-	client := dkg.NewDkgClient(c)
-	return client.Setup(context.Background(), in, opts...)
+	g.retryTLS(p, fn)
+	return resp, err
 }
 
 func (g *grpcClient) Reshare(p Peer, in *dkg.ResharePacket, opts ...CallOption) (*dkg.ReshareResponse, error) {
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+	var resp *dkg.ReshareResponse
+	var err error
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := dkg.NewDkgClient(c)
+		resp, err = client.Reshare(context.Background(), in, opts...)
+		return err
 	}
-	client := dkg.NewDkgClient(c)
-	return client.Reshare(context.Background(), in, opts...)
+	g.retryTLS(p, fn)
+	return resp, err
 }
 
 func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error) {
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+	var resp *drand.BeaconResponse
+	var err error
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := drand.NewBeaconClient(c)
+		resp, err = client.NewBeacon(context.Background(), in, grpc.FailFast(true))
+		return err
 	}
-	client := drand.NewBeaconClient(c)
-	//ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
-	//defer cancel()
-	//return client.NewBeacon(ctx, in, grpc.FailFast(false))
-	return client.NewBeacon(context.Background(), in, grpc.FailFast(true))
+	g.retryTLS(p, fn)
+	return resp, err
+}
+
+// retryTLS performs a manual reconnection in case there is an error with TLS
+// certificates. It's a hack for issue
+// https://github.com/grpc/grpc-go/issues/2394
+func (g *grpcClient) retryTLS(p Peer, fn func() error) {
+	for retry := 0; retry < 3; retry++ {
+		err := fn()
+		if err == nil {
+			return
+		}
+		isTLS := strings.Contains(err.Error(), "tls:")
+		isX509 := strings.Contains(err.Error(), "x509:")
+		if isTLS || isX509 {
+			slog.Infof("drand: forced client reconnection due to TLS error to %s", p.Address())
+			g.deleteConn(p)
+			g.conn(p)
+		} else {
+			// not an TLS error
+			return
+		}
+	}
+}
+
+func (g *grpcClient) deleteConn(p Peer) {
+	g.Lock()
+	defer g.Unlock()
+	delete(g.conns, p.Address())
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one
