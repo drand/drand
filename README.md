@@ -251,12 +251,13 @@ drand show cokey
 Otherwise, you can contact an external drand node to ask him for its current
 distributed public key:
 ```bash
-drand get cokey --node <address> <group.toml>
+drand get cokey --nodes <address> <group.toml>
 ```
 where `<group.toml>` is the group file identity file of a drand node. You can
-use the flag `--node <address>` to indicate which node you want to contact
-specifically.  Use the`--tls-cert` flag to specify the server's certificate if
-needed.  The group toml do not need to be updated with the collective key.
+use the flag `--nodes <address(es)>` to indicate which node you want to contact
+specifically (it is a whitespace-separated list).
+Use the`--tls-cert` flag to specify the server's certificate if
+needed. The group toml does not need to be updated with the collective key.
 
 **NOTE**: Using the last method (`get cokey`), a drand node *can* lie about the
 key if no out-of-band verification is performed. That information is usually
@@ -266,12 +267,12 @@ applications using drand.
 ### Randomness Generation
 
 After a successful setup, drand switches automatically to the randomness
-generation mode, where each node broadcasts randomness shares in regular
+generation mode, where each node broadcasts randomness shares at regular
 intervals. Once a node has collected a threshold of shares in the current phase,
 it computes the public random value and stores it in its local instance of
 [BoltDB](https://github.com/coreos/bbolt).
 
-The default interval is of one minute, if you wish to change that, you need to
+The default interval is one minute. If you wish to change that, you need to
 do so while generating the group file before the DKG.
 
 ### Control Functionalities
@@ -287,7 +288,6 @@ In that case, you need to specify the control port for each of the following
 commands.
 
 #### Long-Term Private Key
-
 
 To retrieve the long-term private key of our node, run:
 ```bash
@@ -321,7 +321,6 @@ The JSON-formatted output has the following form:
 The "gid" simply indicates which group the data belongs to.
 
 #### Distributed Key
-
 
 To retrieve the collective key of the drand beacon our node is involved in, run:
 ```bash
