@@ -1,7 +1,6 @@
 package key
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -20,8 +19,6 @@ func TestKeysSaveLoad(t *testing.T) {
 	defer os.RemoveAll(tmp)
 	store := NewFileStore(tmp).(*fileStore)
 	require.Equal(t, tmp, store.baseFolder)
-	fmt.Println(" --- tmp folder = ", tmp)
-	fmt.Println(" --> fs.publicKeyFile = ", store.publicKeyFile)
 
 	// test loading saving private public key
 	ps[0].Public.TLS = true
