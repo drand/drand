@@ -67,6 +67,10 @@ fi
 function build() {
     echo "[+] Building docker image $IMG"
     docker build -t "$IMG" .  > /dev/null
+    img="byrnedo/alpine-curl"
+    ## XXX make curl work without the "-k" option
+    docker pull $img > /dev/null
+
 }
 
 # associative array in bash 4
@@ -114,14 +118,13 @@ function run() {
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
         docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
-            #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
         allKeys[$i]=/tmp/node$i.public
 
         ## quicker generation with 1024 bits
         cd $data
-        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 > /dev/null 2>& 1
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
@@ -131,7 +134,7 @@ function run() {
     ## generate group toml from the first 5 nodes ONLY
     ## We're gonna add the last one later on
     period="2s"
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  #> /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     cp $GROUPFILE "$GROUPFILE.1"
     echo "[+] Starting all drand nodes sequentially..."
@@ -177,13 +180,13 @@ function run() {
         if [ "$i" -eq 1 ]; then
             docker exec -it $name drand share --leader "$dockerGroupFile" > /dev/null
         else
-            docker exec -d $name drand share "$dockerGroupFile"
+            docker exec -d $name drand share "$dockerGroupFile" > /dev/null
         fi
 
         if [ "$i" -eq 1 ]; then
             while true; do
                 docker exec -it $name drand --verbose 2 get cokey \
-                    --tls-cert "$certFile" "$dockerGroupFile"
+                    --tls-cert "$certFile" "$dockerGroupFile" > /dev/null
                 if [ "$?" -eq 0 ]; then
                     echo "[+] Successfully retrieve distributed key from leader"
                     break
@@ -258,10 +261,10 @@ function run() {
             docker exec -it $name drand share --leader "$newGroup" > /dev/null
         elif [ "$i" -eq "$N" ]; then
             echo "[+] Issuing resharing command to NEW node $name"
-            docker exec -d $name drand share --from "$oldGroup" "$newGroup"
+            docker exec -d $name drand share --from "$oldGroup" "$newGroup" > /dev/null
         else
             echo "[+] Issuing resharing command to node $name"
-            docker exec -d $name drand share "$newGroup"
+            docker exec -d $name drand share "$newGroup" > /dev/null
         fi
     done
 
@@ -286,7 +289,7 @@ function run() {
 
 function pingNode() {
     while true; do
-        docker exec -it $1 drand --verbose 2 ping #> /dev/null
+        docker exec -it $1 drand --verbose 2 ping > /dev/null
         if [ $? == 0 ]; then
             #echo "$name is UP and RUNNING"
             break
@@ -321,16 +324,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}10" -v "$serverCertVol" \
                                                   -v "$groupVolume" \
                                                   $IMG "${drandArgs[@]}"
-    echo "---------------------------------------------"
     checkSuccess $? "verify randomness encryption"
-
-    echo "---------------------------------------------"
-    drandArgs=("--verbose" "2" "get" "cokey")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
-    docker run --rm --net $NET --ip "${SUBNET}10" -v "$serverCertVol" \
-                                                  -v "$groupVolume" \
-                                                  $IMG "${drandArgs[@]}"
-    checkSuccess $? "verify signature?"
     echo "---------------------------------------------"
 
     echo "---------------------------------------------"
@@ -342,18 +336,24 @@ function fetchTest() {
                                                   $IMG "${drandArgs[@]}"
     checkSuccess $? "verify signature?"
     echo "---------------------------------------------"
+
+    echo "---------------------------------------------"
     echo "[+] Public Randomness with CURL"
     img="byrnedo/alpine-curl"
     ## XXX make curl work without the "-k" option
-    docker pull $img
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
+                -H "Content-type: application/json" \
                 "https://${addresses[0]}/public" | python -m json.tool
 
     checkSuccess $? "verify REST API for public randomness"
+    echo "---------------------------------------------"
+
+    echo "---------------------------------------------"
     echo "[+] Distributed key with CURL"
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
+                -H "Content-type: application/json" \
                 "https://${addresses[0]}/info/dist_key" | python -m json.tool
     checkSuccess $? "verify REST API for getting distributed key"
     echo "---------------------------------------------"

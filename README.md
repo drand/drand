@@ -313,12 +313,16 @@ The JSON-formatted output has the following form:
   "index" : 1,
   "share" : {
     "gid": 22,
-    "data": "764f6e3eecdc4aba8b2f0119e7b2fd8c35948bf2be3f87ebb5823150c6065764"
+    "scalar": "764f6e3eecdc4aba8b2f0119e7b2fd8c35948bf2be3f87ebb5823150c6065764"
   }
 }
 ```
 
-The "gid" simply indicates which group the data belongs to.
+The "gid" simply indicates which group the data belongs to. It is present for
+scalar and points on the curve, even though scalars are the same on the three
+groups of BN256. The field is present already to be able to accommodate
+different curves later on.
+
 
 #### Distributed Key
 
@@ -349,15 +353,25 @@ specified, this command returns the most recent random beacon.
 The JSON-formatted output produced by drand is of the following form:
 ```json
 {
-    "Round": 3,
-    "Previous": "12392dd64f6628c791fbde72ee8355cf6bc6500c5ba8fadf13ae7f27c688ecf06
-61df2092ba0efa4939ac2d19097202be51a7b452346e24a9a794ed8a905cc41",
-    "Randomness": "58e6e7a30648846b52d1a586bf45c6f3dcd1824308613002164bbd2442e1bc5
-a75826ab335cbe0d26862d33b7f7b9305076e95a8bb67adc2fd7be643672b4e29"
+    "round": 2,
+    "previous": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a2
+d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
+    "randomness": {
+        "gid": 21,
+        "point": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
+2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342"
+    }
 }
 ```
 
-Here `Randomness` is the latest random value, which is a threshold BLS signature on the previous random value `Previous`. The field `Round` specifies the index of `Randomness` in the sequence of all random values produced by this drand instance.
+Here `randomness` is the latest random value, which is a threshold BLS signature
+on the previous random value `Previous` and the round number. The field `Round`
+specifies the index of `Randomness` in the sequence of all random values
+produced by this drand instance. The **message signed** is therefore the
+concatenation of the round number treated as a `uint64` and the previous
+randomness.The gid is an indicator of the group this point belongs to. At the
+moment, we are only using BLS signatures on the BN256 curves and the signature
+is made over G1. 
 
 #### Fetching Private Randomness
 

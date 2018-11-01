@@ -18,6 +18,8 @@ type restClient struct {
 	manager    *CertManager
 }
 
+// NewRestClient returns a client capable of calling external public method on
+// drand nodes using the RESP API
 func NewRestClient() ExternalClient {
 	return &restClient{
 		marshaller: defaultJSONMarshaller,
@@ -25,6 +27,8 @@ func NewRestClient() ExternalClient {
 	}
 }
 
+// NewRestClientFromCertManager returns a Rest Client with the given cert
+// manager
 func NewRestClientFromCertManager(c *CertManager) ExternalClient {
 	client := NewRestClient().(*restClient)
 	client.manager = c
@@ -74,7 +78,6 @@ func (r *restClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 	}
 	drandResponse := new(drand.PrivateRandResponse)
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
-
 }
 
 func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {

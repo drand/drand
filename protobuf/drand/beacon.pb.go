@@ -47,7 +47,9 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 type BeaconRequest struct {
 	Round        uint64 `protobuf:"varint,1,opt,name=round" json:"round,omitempty"`
 	PreviousRand []byte `protobuf:"bytes,2,opt,name=previous_rand,json=previousRand,proto3" json:"previous_rand,omitempty"`
-	PartialRand  []byte `protobuf:"bytes,3,opt,name=partial_rand,json=partialRand,proto3" json:"partial_rand,omitempty"`
+	// To prove the issuer comes from a valid node
+	// It is a group point prefixed by the index of the issuer
+	PartialRand []byte `protobuf:"bytes,3,opt,name=partial_rand,json=partialRand,proto3" json:"partial_rand,omitempty"`
 }
 
 func (m *BeaconRequest) Reset()                    { *m = BeaconRequest{} }

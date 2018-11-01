@@ -20,6 +20,8 @@ service Beacon {
 message BeaconRequest {
     uint64 round = 1;
     bytes previous_rand = 2;
+    // To prove the issuer comes from a valid node
+    // It is a group point prefixed by the index of the issuer
     bytes partial_rand = 3;
 }
 

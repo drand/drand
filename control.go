@@ -1,8 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"io/ioutil"
+
+	"github.com/nikkolasg/hexjson"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
@@ -151,6 +152,7 @@ func showPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: could not request drand.private: %s", err)
 	}
+
 	printJSON(resp)
 	return nil
 }
@@ -161,6 +163,7 @@ func showPublicCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: could not request drand.public: %s", err)
 	}
+
 	printJSON(resp)
 	return nil
 }
@@ -171,6 +174,7 @@ func showShareCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: could not request drand.share: %s", err)
 	}
+
 	printJSON(resp)
 	return nil
 }

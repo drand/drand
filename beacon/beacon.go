@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dedis/drand/protobuf/crypto"
 	proto "github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/kyber/share"
 	"github.com/dedis/kyber/sign/bls"
@@ -54,6 +55,9 @@ type Handler struct {
 	ticker *time.Ticker
 	close  chan bool
 	addr   string
+	// group id to embed in all beacons
+	// XXX temporary solution to change when we really want flexible groups
+	id int32
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -64,6 +68,11 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 		// XXX Should it return an error instead ... ?
 		panic("drand: can't handle a keypair not included in the given group")
 	}
+	id, exists := crypto.GroupToID(key.G1)
+	if !exists {
+		panic("beacon: invalid group")
+	}
+
 	addr := group.Nodes[idx].Addr
 	return &Handler{
 		client:    c,
@@ -76,6 +85,7 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 		cache:     newSignatureCache(),
 		addr:      addr,
 		catchupCh: make(chan Beacon, 1),
+		id:        id,
 	}
 }
 
@@ -119,7 +129,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	return resp, err
 }
 
-// RandomBeacon starts periodically the TBLS protocol. The seed is the first
+// Loop starts periodically the TBLS protocol. The seed is the first
 // message signed alongside with the current round number. All subsequent
 // signatures are chained: s_i+1 = SIG(s_i || round)
 // The catchup parameter, if true, forces the beacon generator to wait until it
@@ -278,6 +288,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 		Round:        round,
 		PreviousRand: prevRand,
 		Randomness:   finalSig,
+		Gid:          h.id,
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway
@@ -287,7 +298,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	}
 	//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 	slog.Infof("beacon: round %d finished: %x", round, finalSig)
-	slog.Debugf("beacon: %s round %d finished: \n\tfinal: %x\n\tprev: %x\n", h.addr, round, finalSig, prevRand)
+	slog.Debugf("beacon: %s round %d finished: \n\tfinal: (id=%d) %x\n\tprev: %x\n", h.addr, round, beacon.Gid, finalSig, prevRand)
 	winCh <- roundInfo{round: round, signature: finalSig}
 }
 

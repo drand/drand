@@ -26,7 +26,7 @@ enum GroupID {
  */
 message Point {
    GroupID gid = 1;
-   bytes data = 2;
+   bytes point = 2;
 }
 
 /*
@@ -35,5 +35,5 @@ message Point {
 */
 message Scalar {
     GroupID gid = 1;
-    bytes data = 2;
+    bytes scalar = 2;
 }
