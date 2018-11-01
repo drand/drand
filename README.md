@@ -368,9 +368,12 @@ d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
 Here `randomness` is the latest random value, which is a threshold BLS signature
 on the previous random value `Previous` and the round number. The field `Round`
 specifies the index of `Randomness` in the sequence of all random values
-produced by this drand instance. The gid is an indicator of the group this point
-belongs to. At the moment, we are only using BLS signatures on the BN256 curves
-and the signature is made over G1. 
+produced by this drand instance. The **message signed** is therefore the
+concatenation of the round number treated as a `uint64` and the previous
+randomness.The gid is an indicator of the group this point belongs to. At the
+moment, we are only using BLS signatures on the BN256 curves and the signature
+is made over G1. 
+
 #### Fetching Private Randomness
 
 To get a private random value, run the following:

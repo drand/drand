@@ -118,7 +118,6 @@ function run() {
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
         docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
-            #allKeys[$i]=$data$public
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
         allKeys[$i]=/tmp/node$i.public
