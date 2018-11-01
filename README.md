@@ -305,7 +305,7 @@ drand show public
 
 To retrieve the private key share of our node, as determined during the DKG, run the following command:
 ```bash
-drand control share
+drand show share
 ```
 The JSON-formatted output has the following form:
 ```json
