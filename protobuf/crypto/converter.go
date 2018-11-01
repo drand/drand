@@ -4,7 +4,6 @@
 package crypto
 
 import (
-	"encoding/hex"
 	"errors"
 	fmt "fmt"
 
@@ -17,40 +16,6 @@ type ProtobufPoint = Point
 
 // ProtobufScalar is an alias to a Scalar represented in a protobuf packet
 type ProtobufScalar = Scalar
-
-// JSON is the interface that can output a JSON representation of itself
-type JSON interface {
-	To() interface{}
-	FromJSON(interface{}) error
-}
-
-// JSONScalar is a struct that is serializable by the standard encoding/json
-// package but that encodes the scalar in hexadecimal with the group
-// information.
-type JSONScalar struct {
-	Group  int32
-	Scalar string
-}
-
-// JSONPoint is a struct that is serializable by the standard encoding/json
-// package but that encodes the point in hexadecimal with the group
-// information.
-type JSONPoint struct {
-	Group int32
-	Point string
-}
-
-// ToJSON returns the JSON representation of this protobuf point
-func (p *ProtobufPoint) ToJSON() *JSONPoint {
-	str := hex.EncodeToString(p.Data)
-	return &JSONPoint{Group: int32(p.Gid), Point: str}
-}
-
-// ToJSON returns the JSON representation of this protobuf scalar
-func (p *ProtobufScalar) ToJSON() *JSONScalar {
-	str := hex.EncodeToString(p.Data)
-	return &JSONScalar{Group: int32(p.Gid), Scalar: str}
-}
 
 // ToKyber returns the kyber represnetation of this protobuf scalar
 func (p *ProtobufScalar) ToKyber() (kyber.Scalar, error) {
@@ -83,7 +48,7 @@ func ProtoToKyberPoint(p *ProtobufPoint) (kyber.Point, error) {
 		return nil, fmt.Errorf("oid %d unknown", p.GetGid())
 	}
 	point := group.Point()
-	return point, point.UnmarshalBinary(p.GetData())
+	return point, point.UnmarshalBinary(p.GetPoint())
 }
 
 // KyberToProtoPoint converts a kyber point to a protobuf scalar
@@ -99,8 +64,8 @@ func KyberToProtoPoint(p kyber.Point) (*ProtobufPoint, error) {
 	}
 	buffer, err := p.MarshalBinary()
 	return &ProtobufPoint{
-		Gid:  GroupID(gid),
-		Data: buffer,
+		Gid:   GroupID(gid),
+		Point: buffer,
 	}, err
 }
 
@@ -111,7 +76,7 @@ func ProtoToKyberScalar(p *ProtobufScalar) (kyber.Scalar, error) {
 		return nil, fmt.Errorf("group %d unknown", p.GetGid())
 	}
 	scalar := group.Scalar()
-	return scalar, scalar.UnmarshalBinary(p.GetData())
+	return scalar, scalar.UnmarshalBinary(p.GetScalar())
 }
 
 // KyberToProtoScalar converts a kyber scalar to a protobuf scalar
@@ -127,8 +92,8 @@ func KyberToProtoScalar(s kyber.Scalar) (*ProtobufScalar, error) {
 	}
 	buffer, err := s.MarshalBinary()
 	return &ProtobufScalar{
-		Gid:  GroupID(gid),
-		Data: buffer,
+		Gid:    GroupID(gid),
+		Scalar: buffer,
 	}, err
 }
 

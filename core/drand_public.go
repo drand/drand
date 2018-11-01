@@ -91,8 +91,8 @@ func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.P
 		Previous: beacon.PreviousRand,
 		Round:    beacon.Round,
 		Randomness: &crypto.Point{
-			Data: beacon.Randomness,
-			Gid:  crypto.GroupID(beacon.Gid),
+			Point: beacon.Randomness,
+			Gid:   crypto.GroupID(beacon.Gid),
 		},
 	}, nil
 }

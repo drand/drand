@@ -102,7 +102,7 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if rand == nil {
 		return errors.New("drand: no randomness found...")
 	}
-	return bls.Verify(key.Pairing, public, msg, rand.GetData())
+	return bls.Verify(key.Pairing, public, msg, rand.GetPoint())
 }
 
 func (c *Client) peer(addr string) {

@@ -94,6 +94,12 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/nikkolasg/hexjson"
+  packages = ["."]
+  revision = "78e39397e00c19adc06d5f44810e4694f251866d"
+
+[[projects]]
+  branch = "master"
   name = "github.com/nikkolasg/slog"
   packages = ["."]
   revision = "3c8d441d7a1e2d4104741afd74893eaac3f5320f"
@@ -221,6 +227,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "484bf6b4507ec7d7d0df1279c4642ed7a8e12663459cabe1de7d6c610fee76c7"
+  inputs-digest = "6737a61a9c789f0580512520bc0f6a2f79a17ef42d70bd44a78a38c260d21853"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -55,6 +55,9 @@ type Handler struct {
 	ticker *time.Ticker
 	close  chan bool
 	addr   string
+	// group id to embed in all beacons
+	// XXX temporary solution to change when we really want flexible groups
+	id int32
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -65,6 +68,11 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 		// XXX Should it return an error instead ... ?
 		panic("drand: can't handle a keypair not included in the given group")
 	}
+	id, exists := crypto.GroupToID(key.G1)
+	if !exists {
+		panic("beacon: invalid group")
+	}
+
 	addr := group.Nodes[idx].Addr
 	return &Handler{
 		client:    c,
@@ -77,6 +85,7 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 		cache:     newSignatureCache(),
 		addr:      addr,
 		catchupCh: make(chan Beacon, 1),
+		id:        id,
 	}
 }
 
@@ -120,7 +129,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	return resp, err
 }
 
-// RandomBeacon starts periodically the TBLS protocol. The seed is the first
+// Loop starts periodically the TBLS protocol. The seed is the first
 // message signed alongside with the current round number. All subsequent
 // signatures are chained: s_i+1 = SIG(s_i || round)
 // The catchup parameter, if true, forces the beacon generator to wait until it
@@ -274,17 +283,12 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 		slog.Print("beacon: invalid reconstructed beacon signature ? That's BAD, threshold ", h.group.Threshold)
 		return
 	}
-	// XXX temporary solution to change when we really want flexible groups
-	id, exists := crypto.GroupToID(key.G1)
-	if !exists {
-		slog.Infof("beacon: invalid group")
-		return
-	}
+
 	beacon := &Beacon{
 		Round:        round,
 		PreviousRand: prevRand,
 		Randomness:   finalSig,
-		Gid:          id,
+		Gid:          h.id,
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway

@@ -44,17 +44,8 @@ type Store interface {
 	Put(*Beacon) error
 	Last() (*Beacon, error)
 	Get(round uint64) (*Beacon, error)
-	//Cursor() (*Cursor,error)
 	// XXX Misses a delete function
 	Close()
-}
-
-// XXX To be implemented
-type Cursor interface {
-	Next() (*Beacon, error)
-	Prev() (*Beacon, error)
-	First() (*Beacon, error)
-	Last() (*Beacon, error)
 }
 
 // boldStore implements the Store interface using the kv storage boltdb (native
@@ -68,6 +59,7 @@ type boltStore struct {
 
 var bucketName = []byte("beacons")
 
+// BoltFileName is the name of the file boltdb writes to
 const BoltFileName = "drand.db"
 
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
@@ -121,6 +113,8 @@ func (b *boltStore) Put(beacon *Beacon) error {
 	return nil
 }
 
+// ErrNoBeaconSaved is the error returned when no beacon have been saved in the
+// database yet.
 var ErrNoBeaconSaved = errors.New("no beacon saved in db")
 
 // Last returns the last beacon signature saved into the db

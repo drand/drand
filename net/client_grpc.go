@@ -9,7 +9,6 @@ import (
 
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -23,7 +22,8 @@ type Service interface {
 	dkg.DkgServer
 }
 
-var defaultJSONMarshaller = &runtime.JSONBuiltin{}
+//var defaultJSONMarshaller = &runtime.JSONBuiltin{}
+var defaultJSONMarshaller = &HexJSON{}
 
 // grpcClient implements both InternalClient and ExternalClient functionalities
 // using gRPC as its underlying mechanism

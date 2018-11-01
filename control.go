@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"io/ioutil"
+
+	"github.com/nikkolasg/hexjson"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -104,11 +104,7 @@ func getShare(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: could not request the share: %s", err)
 	}
-	type jsonShare struct {
-		Index uint32
-		Share *crypto.JSONScalar
-	}
-	printJSON(&jsonShare{Index: resp.Index, Share: resp.Share.ToJSON()})
+	printJSON(resp)
 	return nil
 }
 
@@ -146,7 +142,7 @@ func showCokeyCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: could not request drand.cokey: %s", err)
 	}
-	printJSON(resp.CoKey.ToJSON())
+	printJSON(resp)
 	return nil
 }
 
@@ -157,7 +153,7 @@ func showPrivateCmd(c *cli.Context) error {
 		slog.Fatalf("drand: could not request drand.private: %s", err)
 	}
 
-	printJSON(resp.PriKey.ToJSON())
+	printJSON(resp)
 	return nil
 }
 
@@ -168,7 +164,7 @@ func showPublicCmd(c *cli.Context) error {
 		slog.Fatalf("drand: could not request drand.public: %s", err)
 	}
 
-	printJSON(resp.PubKey.ToJSON())
+	printJSON(resp)
 	return nil
 }
 
@@ -178,13 +174,8 @@ func showShareCmd(c *cli.Context) error {
 	if err != nil {
 		slog.Fatalf("drand: could not request drand.share: %s", err)
 	}
-	type hexShare struct {
-		Index uint32
-		Share *crypto.JSONScalar
-	}
 
-	h := &hexShare{Index: resp.Index, Share: resp.Share.ToJSON()}
-	printJSON(h)
+	printJSON(resp)
 	return nil
 }
 

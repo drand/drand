@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
-
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/net"
 	crypto "github.com/dedis/drand/protobuf/crypto"
@@ -37,10 +35,10 @@ func getPrivateCmd(c *cli.Context) error {
 	}
 
 	type private struct {
-		Randomness string
+		Randomness []byte
 	}
 
-	printJSON(&private{hex.EncodeToString(resp)})
+	printJSON(&private{resp})
 	return nil
 }
 
@@ -76,18 +74,8 @@ func getPublicCmd(c *cli.Context) error {
 		}
 		slog.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
 	}
-	type publicRand struct {
-		Round      uint64
-		Previous   string
-		Randomness *crypto.JSONPoint
-	}
-	s := &publicRand{
-		Round:      resp.Round,
-		Previous:   hex.EncodeToString(resp.Previous),
-		Randomness: resp.Randomness.ToJSON(),
-	}
 
-	printJSON(s)
+	printJSON(resp)
 	return nil
 }
 
@@ -111,6 +99,6 @@ func getCokeyCmd(c *cli.Context) error {
 	if dkey == nil {
 		slog.Fatalf("drand: can't retrieve dist. key from all nodes")
 	}
-	printJSON(dkey.ToJSON())
+	printJSON(dkey)
 	return nil
 }
