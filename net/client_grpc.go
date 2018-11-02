@@ -150,6 +150,21 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 	return resp, g.retryTLS(p, fn)
 }
 
+func (g *grpcClient) Home(p Peer, in *drand.HomeRequest, opts ...CallOption) (*drand.HomeResponse, error) {
+	var resp *drand.HomeResponse
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := drand.NewInfoClient(c)
+		resp, err = client.Home(context.Background(), in, opts...)
+		return err
+	}
+	return resp, g.retryTLS(p, fn)
+
+}
+
 // retryTLS performs a manual reconnection in case there is an error with TLS
 // certificates. It's a hack for issue
 // https://github.com/grpc/grpc-go/issues/2394
@@ -218,4 +233,8 @@ func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, o
 }
 func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
 	return p.s.DistKey(c, in)
+}
+
+func (p *proxyClient) Home(c context.Context, in *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {
+	return p.s.Home(c, in)
 }

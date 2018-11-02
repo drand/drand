@@ -131,3 +131,11 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, clientKey, randomness[:])
 	return &drand.PrivateRandResponse{Response: obj}, err
 }
+
+// Home ...
+func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+	return &drand.HomeResponse{
+		Status: fmt.Sprintf("drand up and running on %s",
+			d.priv.Public.Address()),
+	}, nil
+}

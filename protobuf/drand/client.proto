@@ -35,6 +35,12 @@ service Info {
       get: "/info/dist_key"
     };
   }
+  rpc Home(HomeRequest) returns (HomeResponse) {
+    option (google.api.http) = {
+      get: "/*"
+    };
+  }
+
 }
 
 
@@ -82,5 +88,13 @@ message DistKeyRequest {
 }
 
 message DistKeyResponse {
-  element.Point key = 1;
+     element.Point key = 1;
+}
+
+message HomeRequest {
+         
+}
+
+message HomeResponse {
+    string status = 1;
 }

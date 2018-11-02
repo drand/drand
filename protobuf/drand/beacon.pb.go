@@ -18,6 +18,8 @@ It has these top-level messages:
 	ECIESObject
 	DistKeyRequest
 	DistKeyResponse
+	HomeRequest
+	HomeResponse
 */
 package drand
 
