@@ -59,3 +59,10 @@ func (s *DefaultService) NewBeacon(c context.Context, in *drand.BeaconRequest) (
 		return s.B.NewBeacon(c, in)
 	}
 }
+
+func (s *DefaultService) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+	if s.I == nil {
+		return &drand.HomeResponse{}, nil
+	}
+	return s.I.Home(c, in)
+}
