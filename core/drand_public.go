@@ -76,6 +76,9 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.Be
 func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
+	if d.beacon == nil {
+		return nil, errors.New("drand: beacon generation not started yet")
+	}
 	var beacon *beacon.Beacon
 	var err error
 	if in.GetRound() == 0 {
