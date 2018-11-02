@@ -134,6 +134,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 
 // Home ...
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+	slog.Infof("drand: home method requested")
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),
