@@ -374,18 +374,6 @@ func testWindows(c *cli.Context) {
 	}
 }
 
-func stopCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	var drand *core.Drand
-	drand, err := core.LoadDrand(fs, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	drand.Stop()
-	return nil
-}
-
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {

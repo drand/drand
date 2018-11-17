@@ -18,8 +18,10 @@ func shareCmd(c *cli.Context) error {
 	if !c.Args().Present() {
 		slog.Fatal("drand: needs at least one group.toml file argument")
 	}
+	testEmptyGroup(c.Args().First())
 
 	if c.IsSet(oldGroupFlag.Name) {
+		testEmptyGroup(c.String(oldGroupFlag.Name))
 		slog.Info("drand: old group file given for resharing protocol")
 		return initReshare(c)
 	}
@@ -82,10 +84,6 @@ func initReshare(c *cli.Context) error {
 	}
 	if oldGroupPath == "" {
 		slog.Print("drand: old group path not specified. Using daemon's own group if possible.")
-	}
-
-	if c.NArg() < 1 {
-		slog.Fatalf("drand: need new group given as arguments to reshare")
 	}
 	newGroupPath = c.Args().First()
 
