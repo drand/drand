@@ -133,6 +133,18 @@ func TestGroup(t *testing.T) {
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.Error(t, err)
+
+	//test reject empty group file
+	emptyGroupPath := path.Join(tmpPath, "empty.toml")
+	emptyFile, err := os.Create(emptyGroupPath)
+	if err != nil {
+		slog.Fatal(err)
+	}
+	defer emptyFile.Close()
+	cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", emptyGroupPath, names[0])
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.Error(t, err)
 }
 
 func TestStartAndStop(t *testing.T) {
