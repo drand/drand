@@ -486,10 +486,10 @@ func toArray(flags ...cli.Flag) []cli.Flag {
 func getGroup(c *cli.Context) *key.Group {
 	g := &key.Group{}
 	groupPath := c.Args().First()
+	testEmptyGroup(groupPath)
 	if err := key.Load(groupPath, g); err != nil {
 		slog.Fatalf("drand: error loading group file: %s", err)
 	}
-	testEmptyGroup(groupPath)
 	slog.Infof("group file loaded with %d participants", g.Len())
 	return g
 }
