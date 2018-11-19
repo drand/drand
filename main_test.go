@@ -133,6 +133,18 @@ func TestGroup(t *testing.T) {
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.Error(t, err)
+
+	//test reject empty group file
+	emptyGroupPath := path.Join(tmpPath, "empty.toml")
+	emptyFile, err := os.Create(emptyGroupPath)
+	if err != nil {
+		slog.Fatal(err)
+	}
+	defer emptyFile.Close()
+	cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", emptyGroupPath, names[0])
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.Error(t, err)
 }
 
 func TestStartAndStop(t *testing.T) {
@@ -148,12 +160,6 @@ func TestStartAndStop(t *testing.T) {
 	cmd := exec.Command("drand", "--folder", tmpPath, "start", "--tls-disable")
 	cmd.Env = append(os.Environ(), varEnv+"=1")
 	err := cmd.Run()
-	if e, ok := err.(*exec.ExitError); ok && e.Success() {
-		t.Fatal(err)
-	}
-	cmd = exec.Command("drand", "-c", tmpPath, "stop")
-	cmd.Env = append(os.Environ(), varEnv+"=1")
-	err = cmd.Run()
 	if e, ok := err.(*exec.ExitError); ok && e.Success() {
 		t.Fatal(err)
 	}

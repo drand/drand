@@ -49,6 +49,6 @@ func startCmd(c *cli.Context) error {
 }
 
 func stopDaemon(c *cli.Context) error {
-	// XXX TODO
+	// TODO
 	panic("not implemented yet")
 }

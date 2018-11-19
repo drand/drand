@@ -145,7 +145,7 @@ func main() {
 			Usage: "Stop the drand daemon.\n",
 			Action: func(c *cli.Context) error {
 				banner()
-				return stopCmd(c)
+				return stopDaemon(c)
 			},
 		},
 		cli.Command{
@@ -374,18 +374,6 @@ func testWindows(c *cli.Context) {
 	}
 }
 
-func stopCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	var drand *core.Drand
-	drand, err := core.LoadDrand(fs, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	drand.Stop()
-	return nil
-}
-
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {
@@ -462,6 +450,7 @@ func groupCmd(c *cli.Context) error {
 	if c.IsSet("group") {
 		// merge with given group
 		groupPath := c.String("group")
+		testEmptyGroup(groupPath)
 		oldG := &key.Group{}
 		if err := key.Load(groupPath, oldG); err != nil {
 			slog.Fatal(err)
@@ -496,8 +485,10 @@ func toArray(flags ...cli.Flag) []cli.Flag {
 
 func getGroup(c *cli.Context) *key.Group {
 	g := &key.Group{}
-	if err := key.Load(c.Args().First(), g); err != nil {
-		slog.Fatalf("drand: error loading group argument: %s", err)
+	groupPath := c.Args().First()
+	testEmptyGroup(groupPath)
+	if err := key.Load(groupPath, g); err != nil {
+		slog.Fatalf("drand: error loading group file: %s", err)
 	}
 	slog.Infof("group file loaded with %d participants", g.Len())
 	return g
@@ -572,4 +563,19 @@ func getNodes(c *cli.Context) []*key.Identity {
 		slog.Fatalf("drand: no nodes specified with --nodes are in the group file")
 	}
 	return ids
+}
+
+func testEmptyGroup(path string) {
+	file, err := os.Open(path)
+	defer file.Close()
+	if err != nil {
+    slog.Fatal(err)
+	}
+	fi, err := file.Stat()
+	if err != nil {
+    slog.Fatal(err)
+	}
+	if fi.Size() == 0 {
+		slog.Fatal("drand: given group file is empty")
+	}
 }
