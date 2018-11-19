@@ -145,7 +145,7 @@ func main() {
 			Usage: "Stop the drand daemon.\n",
 			Action: func(c *cli.Context) error {
 				banner()
-				return stopCmd(c)
+				return stopDaemon(c)
 			},
 		},
 		cli.Command{

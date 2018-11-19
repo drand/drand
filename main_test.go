@@ -163,12 +163,6 @@ func TestStartAndStop(t *testing.T) {
 	if e, ok := err.(*exec.ExitError); ok && e.Success() {
 		t.Fatal(err)
 	}
-	cmd = exec.Command("drand", "-c", tmpPath, "stop")
-	cmd.Env = append(os.Environ(), varEnv+"=1")
-	err = cmd.Run()
-	if e, ok := err.(*exec.ExitError); ok && e.Success() {
-		t.Fatal(err)
-	}
 }
 
 func TestStartBeacon(t *testing.T) {
