@@ -49,18 +49,6 @@ func startCmd(c *cli.Context) error {
 }
 
 func stopDaemon(c *cli.Context) error {
-	// XXX TODO
+	// TODO
 	panic("not implemented yet")
-}
-
-func stopCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	var drand *core.Drand
-	drand, err := core.LoadDrand(fs, conf)
-	if err != nil {
-		slog.Fatal(err)
-	}
-	drand.Stop()
-	return nil
 }
