@@ -473,12 +473,13 @@ For our previous work on public randomness, see our academical paper
 ## DrandJS
 
 To facilitate the use of drand's randomness in JavaScript-based applications, we provide
-[DrandJS](https://github.com/PizzaWhisperer/drandjs). The main method `fetchAndVerify` of this JavaScript
-library fetches and verifies the output of a given drand protocol run.
+[DrandJS](https://github.com/PizzaWhisperer/drandjs). The main method `fetchAndVerify`
+of this JavaScript library fetches from a drand node the latest random beacon generated and then
+verifies it against the distributed key.
 For more details on the procedure and instructions on how to use it,
 refer to the [readme](https://github.com/PizzaWhisperer/drandjs/blob/master/README.md).
-As it is compiled from Go, DrandJS stays experimental but is used as proof-of-concept. Our objective is to
-have a library written in pure JavaScript.
+As it is compiled from Go, DrandJS stays experimental and is used as proof-of-concept.
+Our longterm objective is to have a library written in pure JavaScript.
 
 ## What's Next?
 
