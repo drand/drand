@@ -19,6 +19,8 @@ import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/net"
+	"github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -187,6 +189,15 @@ func main() {
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
+			},
+		},
+		cli.Command{
+			Name:  "check-group",
+			Usage: "Check node in the group for accessibility over the gRPC communication",
+			Flags: toArray(certsDirFlag),
+			Action: func(c *cli.Context) error {
+				banner()
+				return checkGroup(c)
 			},
 		},
 		{
@@ -479,6 +490,28 @@ func groupCmd(c *cli.Context) error {
 	return nil
 }
 
+func checkGroup(c *cli.Context) error {
+	if !c.Args().Present() {
+		slog.Fatal("drand: check-group expects a group argument")
+	}
+	conf := contextToConfig(c)
+	testEmptyGroup(c.Args().First())
+	group := new(key.Group)
+	if err := key.Load(c.Args().First(), group); err != nil {
+		slog.Fatal("drand: loading group failed")
+	}
+	for _, id := range group.Nodes {
+		client := net.NewGrpcClientFromCertManager(conf.Certs())
+		_, err := client.Home(id, &drand.HomeRequest{})
+		if err != nil {
+			slog.Fatalf("drand: error checking id %s", id.Address())
+		}
+		slog.Printf("drand: id %s answers correctly", id.Address())
+	}
+	slog.Print("all good")
+	return nil
+}
+
 func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
@@ -569,11 +602,11 @@ func testEmptyGroup(path string) {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
-    slog.Fatal(err)
+		slog.Fatal(err)
 	}
 	fi, err := file.Stat()
 	if err != nil {
-    slog.Fatal(err)
+		slog.Fatal(err)
 	}
 	if fi.Size() == 0 {
 		slog.Fatal("drand: given group file is empty")

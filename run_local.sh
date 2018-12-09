@@ -179,6 +179,10 @@ function run() {
 
         if [ "$i" -eq 1 ]; then
             docker exec -it $name drand share --leader "$dockerGroupFile" > /dev/null
+            # check the group
+            docker exec -it $name drand check-group "$dockerGroupFile" \
+            --certs-dir /certs > /dev/null
+            checkSuccess $? "[-] Group checking has failed. Stopping now."
         else
             docker exec -d $name drand share "$dockerGroupFile" > /dev/null
         fi
@@ -296,8 +300,6 @@ function pingNode() {
         fi
         sleep 0.2
     done
-
-
 }
 
 function cleanup() {
