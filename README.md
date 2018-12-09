@@ -400,12 +400,12 @@ do so with curl.
 
 To get the distributed key, you can use:
 ```bash
-curl <address>/info/dist_key
+curl <address>/api/info/distkey
 ```
 
 Similarly, to get the latest round of randomness from the drand beacon, you can use
 ```bash
-curl <address>/public
+curl <address>/api/public
 ```
 
 **All the REST endpoints are specified in the `protobuf/drand/client.proto` file.**
