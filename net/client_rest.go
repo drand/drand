@@ -39,15 +39,16 @@ func (r *restClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 	base := restAddr(p)
 	var req *http.Request
 	var err error
+	basePath := base + "/api/public"
 	if in.GetRound() == 0 {
 		// then simple GET method
-		req, err = http.NewRequest("GET", base+"/public", nil)
+		req, err = http.NewRequest("GET", basePath, nil)
 	} else {
 		buff, err := r.marshaller.Marshal(in)
 		if err != nil {
 			return nil, err
 		}
-		url := fmt.Sprintf("%s/public/%d", base, in.GetRound())
+		url := fmt.Sprintf("%s/%d", basePath, in.GetRound())
 		req, err = http.NewRequest("GET", url, bytes.NewBuffer(buff))
 	}
 	if err != nil {
@@ -67,7 +68,7 @@ func (r *restClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 	if err != nil {
 		return nil, err
 	}
-	url := base + "/private"
+	url := base + "/api/private"
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(buff))
 	if err != nil {
 		return nil, err
@@ -86,7 +87,7 @@ func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyRe
 	if err != nil {
 		return nil, err
 	}
-	url := base + "/distkey"
+	url := base + "/api/info/distkey"
 	req, err := http.NewRequest("GET", url, bytes.NewBuffer(buff))
 	if err != nil {
 		return nil, err

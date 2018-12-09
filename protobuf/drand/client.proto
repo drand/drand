@@ -15,15 +15,15 @@ import "google/api/annotations.proto";
 service Randomness {
     rpc Public(PublicRandRequest) returns (PublicRandResponse) {
         option (google.api.http) = {
-            get: "/public"
+            get: "/api/public"
             additional_bindings {
-                get: "/public/{round}"
+                get: "/api/public/{round}"
             }
         };
     }
     rpc Private(PrivateRandRequest) returns (PrivateRandResponse) {
         option (google.api.http) = {
-            post: "/private"
+            post: "/api/private"
             body: "*"
         };
     }
@@ -32,12 +32,12 @@ service Randomness {
 service Info {
   rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
     option (google.api.http) = {
-      get: "/info/dist_key"
+      get: "/api/info/distkey"
     };
   }
   rpc Home(HomeRequest) returns (HomeResponse) {
     option (google.api.http) = {
-      get: "/*"
+      get: "/api"
     };
   }
 
