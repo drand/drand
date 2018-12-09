@@ -266,7 +266,7 @@ func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.G
 	gtoml := d.group.TOML()
 	var buff bytes.Buffer
 	err := toml.NewEncoder(&buff).Encode(gtoml)
-	return &control.GroupResponse{buff.String()}, err
+	return &control.GroupResponse{GroupToml: buff.String()}, err
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

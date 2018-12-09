@@ -123,13 +123,13 @@ func showGroupCmd(c *cli.Context) error {
 	}
 	if c.IsSet(outFlag.Name) {
 		filePath := c.String(outFlag.Name)
-		err := ioutil.WriteFile(filePath, []byte(r.Group), 0777)
+		err := ioutil.WriteFile(filePath, []byte(r.GroupToml), 0777)
 		if err != nil {
 			slog.Fatalf("drand: can't write to file: %s", err)
 		}
 		slog.Printf("group file written to %s", filePath)
 	} else {
-		slog.Printf("\n\n%s", r.Group)
+		slog.Printf("\n\n%s", r.GroupToml)
 	}
 	return nil
 }
