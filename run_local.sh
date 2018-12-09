@@ -344,7 +344,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 -H "Content-type: application/json" \
-                "https://${addresses[0]}/public" | python -m json.tool
+                "https://${addresses[0]}/api/public" | python -m json.tool
 
     checkSuccess $? "verify REST API for public randomness"
     echo "---------------------------------------------"
@@ -354,7 +354,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 -H "Content-type: application/json" \
-                "https://${addresses[0]}/info/dist_key" | python -m json.tool
+                "https://${addresses[0]}/api/info/distkey" | python -m json.tool
     checkSuccess $? "verify REST API for getting distributed key"
     echo "---------------------------------------------"
 }
