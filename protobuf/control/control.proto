@@ -114,5 +114,5 @@ message GroupRequest {
 
 message GroupResponse {
     // TOML-encoded group file 
-    string Group = 1;
+    string groupToml = 1;
 }

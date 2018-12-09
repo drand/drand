@@ -25,6 +25,10 @@
 #   unused-packages = true
 
 
+required = [
+  "github.com/golang/protobuf/protoc-gen-go",
+]
+
 [[constraint]]
   name = "github.com/BurntSushi/toml"
   version = "0.3.0"
@@ -38,10 +42,6 @@
   name = "github.com/dedis/kyber"
 
 [[constraint]]
-  name = "github.com/golang/protobuf"
-  version = "1.1.0"
-
-[[constraint]]
   branch = "master"
   name = "github.com/nikkolasg/slog"
 
@@ -53,13 +53,51 @@
   name = "github.com/urfave/cli"
   version = "1.20.0"
 
-[[constraint]]
+###########
+
+#[[constraint]]
+#  branch = "master"
+#  name = "golang.org/x/net"
+
+#[[constraint]]
+#  name = "google.golang.org/grpc"
+#  branch = "master"
+
+#[[override]]
+#  name = "github.com/golang/protobuf"
+#  version = "1.1.0"
+
+#[[constraint]]
+#    name = "github.com/grpc-ecosystem/grpc-gateway"
+#    version = "1.3.0" 
+
+#[[override]]
+#    name = "google.golang.org/genproto"
+#    #version = "v0.0.0-20180831171423-11092d34479b"
+#    branch = "master"
+
+#########
+#
+[[override]]
+  name = "github.com/golang/protobuf"
+  version = "1.2.0"
+
+[[override]]
+  name = "github.com/grpc-ecosystem/grpc-gateway"
+  version = "1.5.1"
+
+[[override]]
   branch = "master"
   name = "golang.org/x/net"
 
-[[constraint]]
+[[override]]
+  branch = "master"
+  name = "google.golang.org/genproto"
+
+[[override]]
   name = "google.golang.org/grpc"
-  version = "1.12.0"
+  version = "1.17.0"
+
 
 [prune]
   go-tests = true

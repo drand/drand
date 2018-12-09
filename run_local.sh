@@ -179,6 +179,10 @@ function run() {
 
         if [ "$i" -eq 1 ]; then
             docker exec -it $name drand share --leader "$dockerGroupFile" > /dev/null
+            # check the group
+            docker exec -it $name drand check-group "$dockerGroupFile" \
+            --certs-dir /certs > /dev/null
+            checkSuccess $? "[-] Group checking has failed. Stopping now."
         else
             docker exec -d $name drand share "$dockerGroupFile" > /dev/null
         fi
@@ -296,8 +300,6 @@ function pingNode() {
         fi
         sleep 0.2
     done
-
-
 }
 
 function cleanup() {
@@ -344,7 +346,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 -H "Content-type: application/json" \
-                "https://${addresses[0]}/public" | python -m json.tool
+                "https://${addresses[0]}/api/public" | python -m json.tool
 
     checkSuccess $? "verify REST API for public randomness"
     echo "---------------------------------------------"
@@ -354,7 +356,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 -H "Content-type: application/json" \
-                "https://${addresses[0]}/info/dist_key" | python -m json.tool
+                "https://${addresses[0]}/api/info/distkey" | python -m json.tool
     checkSuccess $? "verify REST API for getting distributed key"
     echo "---------------------------------------------"
 }

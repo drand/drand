@@ -6,6 +6,9 @@
 // various CPU architectures.
 package cpu
 
+// CacheLinePad is used to pad structs to avoid false sharing.
+type CacheLinePad struct{ _ [cacheLineSize]byte }
+
 // X86 contains the supported CPU features of the
 // current X86/AMD64 platform. If the current platform
 // is not X86/AMD64 then all feature flags are false.
@@ -14,7 +17,7 @@ package cpu
 // and HasAVX2 are only set if the OS supports XMM and YMM
 // registers in addition to the CPUID feature bit being set.
 var X86 struct {
-	_            [cacheLineSize]byte
+	_            CacheLinePad
 	HasAES       bool // AES hardware implementation (AES NI)
 	HasADX       bool // Multi-precision add-carry instruction extensions
 	HasAVX       bool // Advanced vector extension
@@ -31,5 +34,37 @@ var X86 struct {
 	HasSSSE3     bool // Supplemental streaming SIMD extension 3
 	HasSSE41     bool // Streaming SIMD extension 4 and 4.1
 	HasSSE42     bool // Streaming SIMD extension 4 and 4.2
-	_            [cacheLineSize]byte
+	_            CacheLinePad
+}
+
+// ARM64 contains the supported CPU features of the
+// current ARMv8(aarch64) platform. If the current platform
+// is not arm64 then all feature flags are false.
+var ARM64 struct {
+	_           CacheLinePad
+	HasFP       bool // Floating-point instruction set (always available)
+	HasASIMD    bool // Advanced SIMD (always available)
+	HasEVTSTRM  bool // Event stream support
+	HasAES      bool // AES hardware implementation
+	HasPMULL    bool // Polynomial multiplication instruction set
+	HasSHA1     bool // SHA1 hardware implementation
+	HasSHA2     bool // SHA2 hardware implementation
+	HasCRC32    bool // CRC32 hardware implementation
+	HasATOMICS  bool // Atomic memory operation instruction set
+	HasFPHP     bool // Half precision floating-point instruction set
+	HasASIMDHP  bool // Advanced SIMD half precision instruction set
+	HasCPUID    bool // CPUID identification scheme registers
+	HasASIMDRDM bool // Rounding double multiply add/subtract instruction set
+	HasJSCVT    bool // Javascript conversion from floating-point to integer
+	HasFCMA     bool // Floating-point multiplication and addition of complex numbers
+	HasLRCPC    bool // Release Consistent processor consistent support
+	HasDCPOP    bool // Persistent memory support
+	HasSHA3     bool // SHA3 hardware implementation
+	HasSM3      bool // SM3 hardware implementation
+	HasSM4      bool // SM4 hardware implementation
+	HasASIMDDP  bool // Advanced SIMD double precision instruction set
+	HasSHA512   bool // SHA512 hardware implementation
+	HasSVE      bool // Scalable Vector Extensions
+	HasASIMDFHM bool // Advanced SIMD multiplication FP16 to FP32
+	_           CacheLinePad
 }
