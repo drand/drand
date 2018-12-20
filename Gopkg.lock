@@ -43,7 +43,7 @@
 
 [[projects]]
   branch = "group_info"
-  digest = "1:007539683a55b0c5ac355712942176b521af52b9c011c3f1ae7d9fd08a5fac70"
+  digest = "1:66d7ecd08ecd029b9a75c82780b0b5a758b708ddd7dde6c5f56a8b5960273649"
   name = "github.com/dedis/kyber"
   packages = [
     ".",
@@ -65,7 +65,7 @@
     "xof/blake2xb",
   ]
   pruneopts = "UT"
-  revision = "68fa3c771c3bc062ba45008ab08c760f8d4eddbe"
+  revision = "546132f954b83e774debd8b3b8bfdfda36af05ef"
 
 [[projects]]
   digest = "1:2bc670753d702d189816576bff13ad9abe6a3a23ffe9d2e06b8b92799856598f"
@@ -182,7 +182,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7a2e3d6819e7a97a877f8604e737901c6941e76d56ae98a51a1ca2f13de351fb"
+  digest = "1:89a0cb976397aa9157a45bb2b896d0bcd07ee095ac975e0f03c53250c402265e"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -194,18 +194,18 @@
     "trace",
   ]
   pruneopts = "UT"
-  revision = "610586996380ceef02dd726cc09df7e00a3f8e56"
+  revision = "e147a9138326bc0e9d4e179541ffd8af41cff8a9"
 
 [[projects]]
   branch = "master"
-  digest = "1:be19095cf23a507d511fe83777aba350d1738ddb1bd48bd29441c994f17bcd60"
+  digest = "1:9bd2a1332ddcee55c2dad82b983716d41a32635dafab848a12de0e73f29d4c2c"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
     "unix",
   ]
   pruneopts = "UT"
-  revision = "ad97f365e15054527b467150f898ec66d7f81e14"
+  revision = "074acd46bca67915925527c07849494d115e7c43"
 
 [[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
@@ -240,7 +240,7 @@
     "protobuf/field_mask",
   ]
   pruneopts = "UT"
-  revision = "bd91e49a0898e27abb88c339b432fa53d7497ac0"
+  revision = "5a97ab628bfb2f65f6befec18f4bc7bc7f382b77"
 
 [[projects]]
   digest = "1:9edd250a3c46675d0679d87540b30c9ed253b19bd1fd1af08f4f5fb3c79fc487"

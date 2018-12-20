@@ -14,6 +14,7 @@ import (
 	"crypto/subtle"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/dedis/kyber"
@@ -35,6 +36,10 @@ func (p *PriShare) Hash(s kyber.HashFactory) []byte {
 	_, _ = p.V.MarshalTo(h)
 	_ = binary.Write(h, binary.LittleEndian, p.I)
 	return h.Sum(nil)
+}
+
+func (p *PriShare) String() string {
+	return fmt.Sprintf("{%d:%p}", p.I, p.V)
 }
 
 // PriPoly represents a secret sharing polynomial.

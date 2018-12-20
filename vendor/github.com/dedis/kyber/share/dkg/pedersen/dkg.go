@@ -469,9 +469,8 @@ func (d *DistKeyGenerator) SetTimeout() {
 func (d *DistKeyGenerator) Certified() bool {
 	if d.isResharing {
 		return len(d.QUAL()) >= len(d.c.OldNodes)
-	} else {
-		return len(d.QUAL()) >= len(d.c.NewNodes)
 	}
+	return len(d.QUAL()) >= len(d.c.NewNodes)
 }
 
 // QUAL returns the index in the list of participants that forms the QUALIFIED
@@ -488,13 +487,12 @@ func (d *DistKeyGenerator) QUAL() []int {
 			return true
 		})
 		return good
-	} else {
-		d.qualIter(func(i uint32, v *vss.Verifier) bool {
-			good = append(good, int(i))
-			return true
-		})
-		return good
 	}
+	d.qualIter(func(i uint32, v *vss.Verifier) bool {
+		good = append(good, int(i))
+		return true
+	})
+	return good
 }
 
 func (d *DistKeyGenerator) isInQUAL(idx uint32) bool {
@@ -602,7 +600,7 @@ func (d *DistKeyGenerator) resharingKey() (*DistKeyShare, error) {
 
 	// the private polynomial is generated from the old nodes, thus inheriting
 	// the old threshold condition
-	priPoly, err := share.RecoverPriPoly(d.suite, shares, d.oldT, len(d.c.NewNodes))
+	priPoly, err := share.RecoverPriPoly(d.suite, shares, d.oldT, len(d.c.OldNodes))
 	if err != nil {
 		return nil, err
 	}
@@ -649,6 +647,7 @@ func (d *DistKeyGenerator) resharingKey() (*DistKeyShare, error) {
 	}, nil
 }
 
+// Verifiers returns the verifiers keeping state of each deals
 func (d *DistKeyGenerator) Verifiers() map[uint32]*vss.Verifier {
 	return d.verifiers
 }
