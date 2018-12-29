@@ -36,7 +36,7 @@ const dpublic = "dist_key.public"
 const defaultPort = "8080"
 
 func banner() {
-	fmt.Printf("drand %v-%v by nikkolasg\n", version, commit)
+	fmt.Printf("drand %v by nikkolasg\n", version)
 	s := "WARNING: this software has NOT received a full audit and must be \n" +
 		"used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)
