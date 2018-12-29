@@ -66,7 +66,7 @@ fi
 ## build the test travis image
 function build() {
     echo "[+] Building docker image $IMG"
-    docker build -t "$IMG" .  > /dev/null
+    docker build -t "$IMG" .  #> /dev/null
     img="byrnedo/alpine-curl"
     ## XXX make curl work without the "-k" option
     docker pull $img > /dev/null

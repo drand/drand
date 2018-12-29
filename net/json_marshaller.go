@@ -7,6 +7,7 @@ import (
 	"github.com/nikkolasg/hexjson"
 )
 
+// HexJSON transforms json into hex string instead of b64
 type HexJSON struct{}
 
 // ContentType always Returns "application/json".

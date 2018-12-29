@@ -44,7 +44,8 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	grpcServer := grpc.NewServer(opts...)
 
 	// REST api
-	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("application/json", defaultJSONMarshaller))
+	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
+	gwMux := runtime.NewServeMux(o)
 	proxyClient := newProxyClient(s)
 	ctx := context.TODO()
 	if err := drand.RegisterRandomnessHandlerClient(ctx, gwMux, proxyClient); err != nil {
@@ -101,6 +102,7 @@ type grpcTLSListener struct {
 	l net.Listener
 }
 
+// NewTLSGrpcListener brings...
 func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
@@ -123,7 +125,8 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	drand.RegisterBeaconServer(grpcServer, s)
 	dkg.RegisterDkgServer(grpcServer, s)
 
-	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("application/json", defaultJSONMarshaller))
+	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
+	gwMux := runtime.NewServeMux(o)
 	proxy := &drandProxy{s, s}
 	err = drand.RegisterRandomnessHandlerClient(context.Background(), gwMux, proxy)
 	if err != nil {
