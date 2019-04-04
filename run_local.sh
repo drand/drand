@@ -199,7 +199,6 @@ function run() {
                 sleep 1
             done
         fi
-
     done
 
     # trying to wait until dist_key.public is there

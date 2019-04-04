@@ -24,7 +24,6 @@
 #   go-tests = true
 #   unused-packages = true
 
-
 required = [
   "github.com/golang/protobuf/protoc-gen-go",
 ]

@@ -256,7 +256,7 @@ func (d *Dealer) ProcessResponse(r *Response) (*Justification, error) {
 // dealer. This function is only to be called once the deal has enough approvals
 // and is verified otherwise it returns nil.
 func (d *Dealer) SecretCommit() kyber.Point {
-	if !d.EnoughApprovals() || !d.DealCertified() {
+	if !d.DealCertified() {
 		return nil
 	}
 	return d.suite.Point().Mul(d.secret, nil)
@@ -283,7 +283,7 @@ func (d *Dealer) SessionID() []byte {
 // for this DKG protocol round. The caller is expected to call this after a long timeout
 // so each DKG node can still compute its share if enough Deals are valid.
 func (d *Dealer) SetTimeout() {
-	d.Aggregator.cleanVerifiers()
+	d.Aggregator.timeout = true
 }
 
 // PrivatePoly returns the private polynomial used to generate the deal. This
@@ -338,6 +338,7 @@ func NewVerifier(suite Suite, longterm kyber.Scalar, dealerKey kyber.Point,
 		pub:         pub,
 		index:       index,
 		hkdfContext: context(suite, dealerKey, verifiers),
+		Aggregator:  NewEmptyAggregator(suite, verifiers),
 	}
 	return v, nil
 }
@@ -365,10 +366,6 @@ func (v *Verifier) ProcessEncryptedDeal(e *EncryptedDeal) (*Response, error) {
 	sid, err := sessionID(v.suite, v.dealer, v.verifiers, d.Commitments, t)
 	if err != nil {
 		return nil, err
-	}
-
-	if v.Aggregator == nil {
-		v.Aggregator = newAggregator(v.suite, v.dealer, v.verifiers, d.Commitments, t, d.SessionID)
 	}
 
 	r := &Response{
@@ -429,7 +426,7 @@ var ErrNoDealBeforeResponse = errors.New("verifier: need to receive deal before 
 // error if it's not a valid response.
 // Call `v.DealCertified()` to check if the whole protocol is finished.
 func (v *Verifier) ProcessResponse(resp *Response) error {
-	if v.Aggregator == nil {
+	if v.Aggregator.deal == nil {
 		return ErrNoDealBeforeResponse
 	}
 	return v.Aggregator.verifyResponse(resp)
@@ -445,7 +442,7 @@ func (v *Verifier) Commits() []kyber.Point {
 // Deal returns the Deal that this verifier has received. It returns
 // nil if the deal is not certified or there is not enough approvals.
 func (v *Verifier) Deal() *Deal {
-	if !v.EnoughApprovals() || !v.DealCertified() {
+	if !v.DealCertified() {
 		return nil
 	}
 	return v.deal
@@ -454,7 +451,7 @@ func (v *Verifier) Deal() *Deal {
 // ProcessJustification takes a DealerResponse and returns an error if
 // something went wrong during the verification. If it is the case, that
 // probably means the Dealer is acting maliciously. In order to be sure, call
-// `v.EnoughApprovals()` and if true, `v.DealCertified()`.
+// `v.DealCertified()`.
 func (v *Verifier) ProcessJustification(dr *Justification) error {
 	return v.Aggregator.verifyJustification(dr)
 }
@@ -493,11 +490,12 @@ func RecoverSecret(suite Suite, deals []*Deal, n, t int) (kyber.Scalar, error) {
 	return share.RecoverSecret(suite, shares, t, n)
 }
 
-// SetTimeout marks the end of a round, invalidating any missing (or future) response
-// for this DKG protocol round. The caller is expected to call this after a long timeout
-// so each DKG node can still compute its share if enough Deals are valid.
+// SetTimeout marks the end of the protocol. The caller is expected to call this
+// after a long timeout so each verifier can still deem its share valid if
+// enough deals were approved. One should call `DealCertified()` after this
+// method in order to know if the deal is valid or the protocol should abort.
 func (v *Verifier) SetTimeout() {
-	v.Aggregator.cleanVerifiers()
+	v.Aggregator.timeout = true
 }
 
 // UnsafeSetResponseDKG is an UNSAFE bypass method to allow DKG to use VSS
@@ -525,6 +523,7 @@ type Aggregator struct {
 	deal      *Deal
 	t         int
 	badDealer bool
+	timeout   bool
 }
 
 func newAggregator(suite Suite, dealer kyber.Point, verifiers, commitments []kyber.Point, t int, sid []byte) *Aggregator {
@@ -564,10 +563,15 @@ func (a *Aggregator) VerifyDeal(d *Deal, inclusion bool) error {
 		a.commits = d.Commitments
 		a.sid = d.SessionID
 		a.deal = d
+		a.t = int(d.T)
 	}
 
 	if !validT(int(d.T), a.verifiers) {
 		return errors.New("vss: invalid t received in Deal")
+	}
+
+	if int(d.T) != a.t {
+		return errors.New("vss: incompatible threshold - potential attack")
 	}
 
 	if !bytes.Equal(a.sid, d.SessionID) {
@@ -590,8 +594,8 @@ func (a *Aggregator) VerifyDeal(d *Deal, inclusion bool) error {
 	return nil
 }
 
-// cleanVerifiers checks the Aggregator's response array and creates a StatusComplaint
-// response for all verifiers that did not respond to the Deal.
+// cleanVerifiers checks the Aggregator's response array and creates a
+// StatusComplaint response for all verifiers that did not respond to the Deal.
 func (a *Aggregator) cleanVerifiers() {
 	for i := range a.verifiers {
 		if _, ok := a.responses[uint32(i)]; !ok {
@@ -602,6 +606,15 @@ func (a *Aggregator) cleanVerifiers() {
 			}
 		}
 	}
+}
+
+// SetThreshold is used to specify the expected threshold *before* the verifier
+// receives anything. Sometimes, a verifier knows the treshold in advance and
+// should make sure the one it receives from the dealer is consistent. If this
+// method is not called, the first threshold received is considered as the
+// "truth".
+func (a *Aggregator) SetThreshold(t int) {
+	a.t = t
 }
 
 // ProcessResponse verifies the validity of the given response and stores it
@@ -641,7 +654,7 @@ func (a *Aggregator) verifyJustification(j *Justification) error {
 	}
 
 	if err := a.VerifyDeal(j.Deal, false); err != nil {
-		// if one response is bad, flag the dealer as malicious
+		// if one justification is bad, then flag the dealer as malicious
 		a.badDealer = true
 		return err
 	}
@@ -672,31 +685,58 @@ func (a *Aggregator) EnoughApprovals() bool {
 	return app >= a.t
 }
 
+// Responses returns the list of responses received and processed by this
+// aggregator
 func (a *Aggregator) Responses() map[uint32]*Response {
 	return a.responses
 }
 
-// DealCertified returns true if there has been less than t complaints, all
-// Justifications were correct and if EnoughApprovals() returns true.
+// DealCertified returns true if the deal is certified.
+// For a deal to be certified, it needs to comply to the following
+// conditions in two different cases, since we are not working with the
+// synchrony assumptions from Feldman's VSS:
+// Before the timeout (i.e. before the "period" ends):
+// 1. there is at least t approvals
+// 2. all complaints must be justified (a complaint becomes an approval when
+// justified) -> no complaints
+// 3. there must not be absent responses
+// After the timeout, when the "period" ended, we replace the third condition:
+// 3. there must not be more than n-t missing responses (otherwise it is not
+// possible to retrieve the secret).
+// If the caller previously called `SetTimeout` and `DealCertified()` returns
+// false, the protocol MUST abort as the deal is not and never will be validated.
 func (a *Aggregator) DealCertified() bool {
-	var verifiersUnstable int
+	var absentVerifiers int
+	var approvals int
+	var isComplaint bool
 
-	// XXX currently it can still happen that an Aggregator has not been set,
-	// because it did not receive any deals yet or responses.
-	if a == nil {
-		return false
-	}
-
-	// Check either a StatusApproval or StatusComplaint for all known verifiers
-	// i.e. make sure all verifiers are either timed-out or OK.
 	for i := range a.verifiers {
-		if _, ok := a.responses[uint32(i)]; !ok {
-			verifiersUnstable++
+		if r, ok := a.responses[uint32(i)]; !ok {
+			absentVerifiers++
+		} else if r.Status == StatusComplaint {
+			isComplaint = true
+		} else if r.Status == StatusApproval {
+			approvals++
 		}
 	}
+	enoughApprovals := approvals >= a.t
+	tooMuchAbsents := absentVerifiers > len(a.verifiers)-a.t
+	baseCondition := !a.badDealer && enoughApprovals && !isComplaint
+	if a.timeout {
+		return baseCondition && !tooMuchAbsents
+	}
+	return baseCondition && !(absentVerifiers > 0)
+}
 
-	tooMuchComplaints := verifiersUnstable > 0 || a.badDealer
-	return a.EnoughApprovals() && !tooMuchComplaints
+// MissingResponses returns the indexes of the expected but missing responses.
+func (a *Aggregator) MissingResponses() []int {
+	var absents []int
+	for i := range a.verifiers {
+		if _, ok := a.responses[uint32(i)]; !ok {
+			absents = append(absents, i)
+		}
+	}
+	return absents
 }
 
 // MinimumT returns the minimum safe T that is proven to be secure with this
