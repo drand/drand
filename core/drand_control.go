@@ -14,7 +14,7 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber/share/vss/pedersen"
+	vss "github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
 )
 
@@ -43,10 +43,9 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	d.idx = idx
 
 	d.nextConf = &dkg.Config{
-		Suite:     key.G2.(dkg.Suite),
-		NewNodes:  d.group,
-		Threshold: group.Threshold,
-		Key:       d.priv,
+		Suite:    key.G2.(dkg.Suite),
+		NewNodes: d.group,
+		Key:      d.priv,
 	}
 
 	d.state.Unlock()
@@ -111,11 +110,10 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 
 		// prepare dkg config to run the protocol
 		conf := &dkg.Config{
-			OldNodes:  oldGroup,
-			NewNodes:  newGroup,
-			Threshold: newGroup.Threshold,
-			Key:       d.priv,
-			Suite:     key.G2.(dkg.Suite),
+			OldNodes: oldGroup,
+			NewNodes: newGroup,
+			Key:      d.priv,
+			Suite:    key.G2.(dkg.Suite),
 		}
 		// run the proto
 		if oldPresent {
