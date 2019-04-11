@@ -41,7 +41,7 @@ func (m *PublicRandRequest) Reset()         { *m = PublicRandRequest{} }
 func (m *PublicRandRequest) String() string { return proto.CompactTextString(m) }
 func (*PublicRandRequest) ProtoMessage()    {}
 func (*PublicRandRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{0}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{0}
 }
 func (m *PublicRandRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicRandRequest.Unmarshal(m, b)
@@ -85,7 +85,7 @@ func (m *PublicRandResponse) Reset()         { *m = PublicRandResponse{} }
 func (m *PublicRandResponse) String() string { return proto.CompactTextString(m) }
 func (*PublicRandResponse) ProtoMessage()    {}
 func (*PublicRandResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{1}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{1}
 }
 func (m *PublicRandResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicRandResponse.Unmarshal(m, b)
@@ -141,7 +141,7 @@ func (m *PrivateRandRequest) Reset()         { *m = PrivateRandRequest{} }
 func (m *PrivateRandRequest) String() string { return proto.CompactTextString(m) }
 func (*PrivateRandRequest) ProtoMessage()    {}
 func (*PrivateRandRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{2}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{2}
 }
 func (m *PrivateRandRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateRandRequest.Unmarshal(m, b)
@@ -181,7 +181,7 @@ func (m *PrivateRandResponse) Reset()         { *m = PrivateRandResponse{} }
 func (m *PrivateRandResponse) String() string { return proto.CompactTextString(m) }
 func (*PrivateRandResponse) ProtoMessage()    {}
 func (*PrivateRandResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{3}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{3}
 }
 func (m *PrivateRandResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateRandResponse.Unmarshal(m, b)
@@ -221,7 +221,7 @@ func (m *ECIESObject) Reset()         { *m = ECIESObject{} }
 func (m *ECIESObject) String() string { return proto.CompactTextString(m) }
 func (*ECIESObject) ProtoMessage()    {}
 func (*ECIESObject) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{4}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{4}
 }
 func (m *ECIESObject) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ECIESObject.Unmarshal(m, b)
@@ -273,7 +273,7 @@ func (m *DistKeyRequest) Reset()         { *m = DistKeyRequest{} }
 func (m *DistKeyRequest) String() string { return proto.CompactTextString(m) }
 func (*DistKeyRequest) ProtoMessage()    {}
 func (*DistKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{5}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{5}
 }
 func (m *DistKeyRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistKeyRequest.Unmarshal(m, b)
@@ -304,7 +304,7 @@ func (m *DistKeyResponse) Reset()         { *m = DistKeyResponse{} }
 func (m *DistKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*DistKeyResponse) ProtoMessage()    {}
 func (*DistKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{6}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{6}
 }
 func (m *DistKeyResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistKeyResponse.Unmarshal(m, b)
@@ -341,7 +341,7 @@ func (m *HomeRequest) Reset()         { *m = HomeRequest{} }
 func (m *HomeRequest) String() string { return proto.CompactTextString(m) }
 func (*HomeRequest) ProtoMessage()    {}
 func (*HomeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{7}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{7}
 }
 func (m *HomeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HomeRequest.Unmarshal(m, b)
@@ -372,7 +372,7 @@ func (m *HomeResponse) Reset()         { *m = HomeResponse{} }
 func (m *HomeResponse) String() string { return proto.CompactTextString(m) }
 func (*HomeResponse) ProtoMessage()    {}
 func (*HomeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_client_89a0ad9403dde017, []int{8}
+	return fileDescriptor_client_b0e2f19983be69fc, []int{8}
 }
 func (m *HomeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HomeResponse.Unmarshal(m, b)
@@ -613,9 +613,9 @@ var _Info_serviceDesc = grpc.ServiceDesc{
 	Metadata: "drand/client.proto",
 }
 
-func init() { proto.RegisterFile("drand/client.proto", fileDescriptor_client_89a0ad9403dde017) }
+func init() { proto.RegisterFile("drand/client.proto", fileDescriptor_client_b0e2f19983be69fc) }
 
-var fileDescriptor_client_89a0ad9403dde017 = []byte{
+var fileDescriptor_client_b0e2f19983be69fc = []byte{
 	// 528 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x93, 0xcf, 0x6e, 0xd3, 0x40,
 	0x10, 0xc6, 0xe5, 0x36, 0x4d, 0xda, 0x49, 0x28, 0x64, 0xd2, 0x96, 0xd4, 0x42, 0x28, 0xb2, 0xf8,

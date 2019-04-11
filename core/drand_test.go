@@ -24,6 +24,93 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDrandDKGReshareTimeout(t *testing.T) {
+	slog.Level = slog.LevelDebug
+	oldN := 5 // 4 / 5
+	newN := 6 // 5 / 6
+	oldT := key.DefaultThreshold(oldN)
+	newT := key.DefaultThreshold(newN)
+	timeout := "1s"
+	offline := 1 // can't do more anyway with a 2/3 + 1 threshold
+	fmt.Printf("%d/%d -> %d/%d\n", oldT, oldN, newT, newN)
+
+	// create n shares
+	shares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	period := 1000 * time.Millisecond
+	old := net.DefaultTimeout
+	net.DefaultTimeout = 300 * time.Millisecond
+	defer func() { net.DefaultTimeout = old }()
+
+	// instantiating all drands already
+	drands, _, dir := BatchNewDrand(newN, false,
+		WithCallOption(grpc.FailFast(true)))
+	defer CloseAllDrands(drands)
+	defer os.RemoveAll(dir)
+
+	// listing all new ids
+	ids := make([]*key.Identity, newN)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+		drands[i].idx = i
+	}
+
+	// creating old group from subset of ids
+	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{Coefficients: dpub}, oldT)
+	oldGroup.Period = period
+	oldPath := path.Join(dir, "oldgroup.toml")
+	require.NoError(t, key.Save(oldPath, oldGroup, false))
+
+	for i := range drands[:oldN] {
+		// so old drand nodes "think" it already ran a dkg a first time.
+		drands[i].group = oldGroup
+		drands[i].dkgDone = true
+	}
+
+	// creating the new group from the whole set of keys
+	newGroup := key.NewGroup(ids, newT)
+	newGroup.Period = period
+	newPath := path.Join(dir, "newgroup.toml")
+	require.NoError(t, key.Save(newPath, newGroup, false))
+
+	var wg sync.WaitGroup
+	wg.Add(newN - 1 - offline)
+	for i, drand := range drands[1+offline:] {
+		go func(d *Drand, j int) {
+			if d.idx < oldN {
+				// simulate share material for old node
+				ks := &key.Share{
+					Share:   shares[d.idx],
+					Commits: dpub,
+				}
+				d.share = ks
+			}
+
+			// instruct to be ready for a reshare
+			client, err := net.NewControlClient(d.opts.controlPort)
+			require.NoError(t, err)
+			_, err = client.InitReshare(oldPath, newPath, false, timeout)
+			require.NoError(t, err)
+			wg.Done()
+		}(drand, i)
+	}
+
+	ks := key.Share{
+		Share:   shares[0],
+		Commits: dpub,
+	}
+	root := drands[0]
+	root.share = &ks
+	//err := root.StartDKG(c)
+	client, err := net.NewControlClient(root.opts.controlPort)
+	require.NoError(t, err)
+	_, err = client.InitReshare(oldPath, newPath, true, timeout)
+	require.NoError(t, err)
+	//err = root.WaitDKG()
+	//require.NoError(t, err)
+	wg.Wait()
+
+}
+
 func TestDrandDKGReshare(t *testing.T) {
 	slog.Level = slog.LevelDebug
 
@@ -53,7 +140,7 @@ func TestDrandDKGReshare(t *testing.T) {
 	}
 
 	// creating old group from subset of ids
-	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{dpub}, oldT)
+	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{Coefficients: dpub}, oldT)
 	oldGroup.Period = period
 	oldPath := path.Join(dir, "oldgroup.toml")
 	require.NoError(t, key.Save(oldPath, oldGroup, false))
@@ -85,7 +172,7 @@ func TestDrandDKGReshare(t *testing.T) {
 			// instruct to be ready for a reshare
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
-			_, err = client.InitReshare(oldPath, newPath, false)
+			_, err = client.InitReshare(oldPath, newPath, false, "")
 			require.NoError(t, err)
 			wg.Done()
 		}(drand, i)
@@ -100,7 +187,7 @@ func TestDrandDKGReshare(t *testing.T) {
 	//err := root.StartDKG(c)
 	client, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(t, err)
-	_, err = client.InitReshare(oldPath, newPath, true)
+	_, err = client.InitReshare(oldPath, newPath, true, "")
 	require.NoError(t, err)
 	//err = root.WaitDKG()
 	//require.NoError(t, err)

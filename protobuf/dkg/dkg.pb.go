@@ -41,7 +41,7 @@ func (m *ResharePacket) Reset()         { *m = ResharePacket{} }
 func (m *ResharePacket) String() string { return proto.CompactTextString(m) }
 func (*ResharePacket) ProtoMessage()    {}
 func (*ResharePacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{0}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{0}
 }
 func (m *ResharePacket) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResharePacket.Unmarshal(m, b)
@@ -86,7 +86,7 @@ func (m *ReshareResponse) Reset()         { *m = ReshareResponse{} }
 func (m *ReshareResponse) String() string { return proto.CompactTextString(m) }
 func (*ReshareResponse) ProtoMessage()    {}
 func (*ReshareResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{1}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{1}
 }
 func (m *ReshareResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ReshareResponse.Unmarshal(m, b)
@@ -121,7 +121,7 @@ func (m *DKGPacket) Reset()         { *m = DKGPacket{} }
 func (m *DKGPacket) String() string { return proto.CompactTextString(m) }
 func (*DKGPacket) ProtoMessage()    {}
 func (*DKGPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{2}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{2}
 }
 func (m *DKGPacket) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DKGPacket.Unmarshal(m, b)
@@ -172,7 +172,7 @@ func (m *DKGResponse) Reset()         { *m = DKGResponse{} }
 func (m *DKGResponse) String() string { return proto.CompactTextString(m) }
 func (*DKGResponse) ProtoMessage()    {}
 func (*DKGResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{3}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{3}
 }
 func (m *DKGResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DKGResponse.Unmarshal(m, b)
@@ -214,7 +214,7 @@ func (m *Deal) Reset()         { *m = Deal{} }
 func (m *Deal) String() string { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()    {}
 func (*Deal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{4}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{4}
 }
 func (m *Deal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Deal.Unmarshal(m, b)
@@ -271,7 +271,7 @@ func (m *Response) Reset()         { *m = Response{} }
 func (m *Response) String() string { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()    {}
 func (*Response) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{5}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{5}
 }
 func (m *Response) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Response.Unmarshal(m, b)
@@ -321,7 +321,7 @@ func (m *Justification) Reset()         { *m = Justification{} }
 func (m *Justification) String() string { return proto.CompactTextString(m) }
 func (*Justification) ProtoMessage()    {}
 func (*Justification) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_52b0ed2b365fbd5b, []int{6}
+	return fileDescriptor_dkg_3cf693340b7c29fc, []int{6}
 }
 func (m *Justification) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Justification.Unmarshal(m, b)
@@ -470,9 +470,9 @@ var _Dkg_serviceDesc = grpc.ServiceDesc{
 	Metadata: "dkg/dkg.proto",
 }
 
-func init() { proto.RegisterFile("dkg/dkg.proto", fileDescriptor_dkg_52b0ed2b365fbd5b) }
+func init() { proto.RegisterFile("dkg/dkg.proto", fileDescriptor_dkg_3cf693340b7c29fc) }
 
-var fileDescriptor_dkg_52b0ed2b365fbd5b = []byte{
+var fileDescriptor_dkg_3cf693340b7c29fc = []byte{
 	// 383 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x52, 0xcf, 0x4f, 0xea, 0x40,
 	0x10, 0x4e, 0xf9, 0xf5, 0xe8, 0xf0, 0xfa, 0x9e, 0x6e, 0x38, 0x90, 0x46, 0x12, 0x52, 0x23, 0x81,

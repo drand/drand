@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	toml "github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
@@ -84,7 +86,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	d.state.Unlock()
 
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
-
 	err = func() error {
 		d.state.Lock()
 		defer d.state.Unlock()
@@ -115,6 +116,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			Key:      d.priv,
 			Suite:    key.G2.(dkg.Suite),
 		}
+
 		// run the proto
 		if oldPresent {
 			if !d.dkgDone {
@@ -130,6 +132,16 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 		if err != nil {
 			return err
 		}
+
+		// try parsing the timeout
+		timeout, err := time.ParseDuration(in.Timeout)
+		if err != nil {
+			if in.Timeout != "" {
+				return fmt.Errorf("invalid timeout: %s", err)
+			}
+			timeout, _ = time.ParseDuration(DefaultDKGTimeout)
+		}
+		conf.Timeout = timeout
 
 		d.nextGroupHash = nextHash
 		d.nextGroup = newGroup
