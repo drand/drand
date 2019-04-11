@@ -685,7 +685,6 @@ func TestDKGResharingPartial2(t *testing.T) {
 		}
 
 		if allFound {
-			fmt.Println(" YOUOUUOUOUOUOUOU")
 			return
 		}
 		//idx := <-finished
