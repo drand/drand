@@ -163,7 +163,12 @@ func (h *Handler) Process(c context.Context, packet *dkg_proto.DKGPacket) {
 
 // Start sends the first message to run the protocol
 func (h *Handler) Start() {
-	go h.startTimer()
+	h.Lock()
+	if !h.timeoutLaunched {
+		h.timeoutLaunched = true
+		go h.startTimer() // start timer at the first message received
+	}
+	h.Unlock()
 	if err := h.sendDeals(); err != nil {
 		h.errCh <- err
 	}
@@ -200,8 +205,11 @@ func (h *Handler) QualifiedGroup() *key.Group {
 }
 
 func (h *Handler) startTimer() {
+	b := time.Now()
+	fmt.Printf("timer11 start at %s\n", time.Now())
 	select {
 	case <-time.After(h.conf.Timeout):
+		fmt.Printf("timer11 fired off at %s -- %s\n", time.Now(), time.Now().Sub(b))
 		h.Lock()
 		defer h.Unlock()
 		slog.Infof("dkg: %s - timeout -> setting invalid responses / deals", h.info())

@@ -49,6 +49,9 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 		NewNodes: d.group,
 		Key:      d.priv,
 	}
+	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
+		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
+	}
 
 	d.state.Unlock()
 
@@ -133,15 +136,9 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			return err
 		}
 
-		// try parsing the timeout
-		timeout, err := time.ParseDuration(in.Timeout)
-		if err != nil {
-			if in.Timeout != "" {
-				return fmt.Errorf("invalid timeout: %s", err)
-			}
-			timeout, _ = time.ParseDuration(DefaultDKGTimeout)
+		if err := setTimeout(conf, in.Timeout); err != nil {
+			return fmt.Errorf("drand: invalid timeout: %s", err)
 		}
-		conf.Timeout = timeout
 
 		d.nextGroupHash = nextHash
 		d.nextGroup = newGroup
@@ -298,4 +295,18 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 		return nil, errors.New("control: threshold of new group too low ")
 	}
 	return g, nil
+}
+
+func setTimeout(c *dkg.Config, timeoutStr string) error {
+	// try parsing the timeout
+	timeout, err := time.ParseDuration(timeoutStr)
+	if err != nil {
+		if timeoutStr != "" {
+			return fmt.Errorf("invalid timeout: %s", err)
+		}
+		timeout, _ = time.ParseDuration(DefaultDKGTimeout)
+	}
+	c.Timeout = timeout
+	fmt.Println(" TIMEOUT SET TO ", timeout)
+	return nil
 }

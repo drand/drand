@@ -332,7 +332,7 @@ func TestClientTLS(t *testing.T) {
 
 	cmd := exec.Command("drand", "get", "private", "--tls-cert", certPath, groupPath)
 	out, err := cmd.CombinedOutput()
-	fmt.Println(string(out))
+	fmt.Println("get private = ", string(out))
 	require.NoError(t, err)
 
 	// XXX Commented out test since we can't "fake" anymore in the same way
@@ -362,8 +362,12 @@ func TestClientTLS(t *testing.T) {
 
 	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, "--nodes", addr, groupPath)
 	out, err = cmd.CombinedOutput()
-	fmt.Println(string(out))
+	//fmt.Println(string(out))
 	expectedOutput := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+
+	//fmt.Printf("out = %s\n", string(out))
+	//fmt.Printf("expected = %s\n", expectedOutput)
+	//fmt.Printf("contains ? %v\n", strings.Contains(string(out), expectedOutput))
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 

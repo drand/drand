@@ -24,7 +24,7 @@ checkSuccess $? "distributed public key file?"
 
 # try to verify with it
 echo "[+] Verifying fetching public and private randomness"
-fetchTest 1 true
+fetchTest 2 true
 #drandPublic="/dist_public.toml"
 #drandVol="$distPublic:$drandPublic:z"
 #drandArgs=("--debug" "fetch" "public" "--insecure" "--public" $drandPublic "${addresses[1]}")

@@ -126,6 +126,11 @@ var oldGroupFlag = cli.StringFlag{
 		"included in the current DKG.",
 }
 
+var timeoutFlag = cli.StringFlag{
+	Name:  "timeout",
+	Usage: fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Version = version
@@ -161,7 +166,7 @@ func main() {
 				"this daemon start the protocol\n",
 			ArgsUsage: "<group.toml> group file",
 			Flags: toArray(folderFlag, insecureFlag, controlFlag,
-				leaderFlag, oldGroupFlag),
+				leaderFlag, oldGroupFlag, timeoutFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return shareCmd(c)

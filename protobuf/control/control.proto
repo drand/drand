@@ -35,6 +35,8 @@ service Control {
 message DKGRequest {
     GroupInfo dkg_group = 1; 
     bool is_leader = 2;
+    // timeout as parsed by Golang's time.ParseDuration method.
+    string timeout = 3; 
 }
 
 message DKGResponse {

@@ -30,7 +30,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	newN := 6 // 5 / 6
 	oldT := key.DefaultThreshold(oldN)
 	newT := key.DefaultThreshold(newN)
-	timeout := "1s"
+	timeout := "3s"
 	offline := 1 // can't do more anyway with a 2/3 + 1 threshold
 	fmt.Printf("%d/%d -> %d/%d\n", oldT, oldN, newT, newN)
 
@@ -94,19 +94,31 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		}(drand, i)
 	}
 
-	ks := key.Share{
-		Share:   shares[0],
-		Commits: dpub,
+	dkgDone := make(chan bool, 1)
+	go func() {
+		ks := key.Share{
+			Share:   shares[0],
+			Commits: dpub,
+		}
+		root := drands[0]
+		root.share = &ks
+		//err := root.StartDKG(c)
+		client, err := net.NewControlClient(root.opts.controlPort)
+		require.NoError(t, err)
+		_, err = client.InitReshare(oldPath, newPath, true, timeout)
+		require.NoError(t, err)
+		dkgDone <- true
+	}()
+
+	tt, _ := time.ParseDuration(timeout)
+	var timeoutDone bool
+	select {
+	case <-dkgDone:
+		require.True(t, timeoutDone)
+	case <-time.After(tt - 500*time.Millisecond):
+		timeoutDone = true
 	}
-	root := drands[0]
-	root.share = &ks
-	//err := root.StartDKG(c)
-	client, err := net.NewControlClient(root.opts.controlPort)
-	require.NoError(t, err)
-	_, err = client.InitReshare(oldPath, newPath, true, timeout)
-	require.NoError(t, err)
-	//err = root.WaitDKG()
-	//require.NoError(t, err)
+
 	wg.Wait()
 
 }
@@ -226,7 +238,7 @@ func TestDrandDKGFresh(t *testing.T) {
 			// instruct to be ready for a reshare
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
-			_, err = client.InitDKG(groupPath, false)
+			_, err = client.InitDKG(groupPath, false, "")
 			require.NoError(t, err)
 			//err = d.WaitDKG()
 			//require.Nil(t, err)
@@ -237,7 +249,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	root := drands[0]
 	controlClient, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(t, err)
-	_, err = controlClient.InitDKG(groupPath, true)
+	_, err = controlClient.InitDKG(groupPath, true, "")
 	require.NoError(t, err)
 
 	//err = root.WaitDKG()

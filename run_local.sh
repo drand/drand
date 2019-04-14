@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# set -x
+set -x
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers
 # The second part is triggered when this script is actually ran, and not
@@ -100,7 +100,7 @@ function run() {
 
     seq=$(seq 1 $N)
     oldRseq=$(seq $OLDN -1 1)
-    newRseq=$(seq $N -1 1)
+    newRseq=$(seq $N -1 2)
 
 
     #sequence=$(seq $N -1 1)
@@ -160,7 +160,6 @@ function run() {
         if [ "$i" -eq 1 ]; then
             if [ "$1" = true ]; then
                 # running in foreground
-                # XXX should be finished
                 echo "[+] Running in foreground!"
                 unset 'args[${#args[@]}-1]'
             fi
@@ -212,9 +211,11 @@ function run() {
         sleep 1
     done
 
-    share1Path="$TMP/node1/groups/dist_key.private"
+    ## we look at the second node since the first node will be out during the
+    ## resharing
+    share1Path="$TMP/node2/groups/dist_key.private"
     share1Hash=$(eval "$SHA $share1Path")
-    group1Path="$TMP/node1/groups/drand_group.toml"
+    group1Path="$TMP/node2/groups/drand_group.toml"
     group1Hash=$(eval "$SHA $group1Path")
 
     # trying to add the last node to the group
@@ -246,7 +247,12 @@ function run() {
     #docker logs -f node$i  &
     # check if the node is up 
     pingNode $name 
+    timeout="2s"
 
+    ## stop the first node
+    docker stop "node1"
+
+    ## start all nodes BUT the first one -> try a resharing threshold.
     for i in $newRseq; do
         idx=`expr $i - 1`
         name="node$i"
@@ -259,15 +265,15 @@ function run() {
         oldGroup="/root/.drand/drand_group.toml.1"
 
         name="node$i"
-         if [ "$i" -eq 1 ]; then
+         if [ "$i" -eq 2 ]; then
             echo "[+] Start resharing command to leader $name"
-            docker exec -it $name drand share --leader "$newGroup" > /dev/null
+            docker exec -it $name drand share --leader --timeout "$timeout" "$newGroup" > /dev/null
         elif [ "$i" -eq "$N" ]; then
             echo "[+] Issuing resharing command to NEW node $name"
-            docker exec -d $name drand share --from "$oldGroup" "$newGroup" > /dev/null
+            docker exec -d $name drand share --from "$oldGroup" --timeout "$timeout" "$newGroup" > /dev/null
         else
             echo "[+] Issuing resharing command to node $name"
-            docker exec -d $name drand share "$newGroup" > /dev/null
+            docker exec -d $name drand share --timeout "$timeout" "$newGroup" > /dev/null
         fi
     done
 
@@ -309,6 +315,7 @@ function cleanup() {
 
 function fetchTest() {
     nindex=$1
+    arrIndex=$(expr $nindex - 1)
     rootFolder="$TMP/node$nindex"
     distPublic="$rootFolder/groups/dist_key.public"
     serverCert="$CERTSDIR/server-$nindex.cert"
@@ -345,7 +352,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 -H "Content-type: application/json" \
-                "https://${addresses[0]}/api/public" | python -m json.tool
+                "https://${addresses[$arrIndex]}/api/public" | python -m json.tool
 
     checkSuccess $? "verify REST API for public randomness"
     echo "---------------------------------------------"
@@ -355,7 +362,7 @@ function fetchTest() {
     docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
                 $img -s -k --cacert "$serverCertDocker" \
                 -H "Content-type: application/json" \
-                "https://${addresses[0]}/api/info/distkey" | python -m json.tool
+                "https://${addresses[$arrIndex]}/api/info/distkey" | python -m json.tool
     checkSuccess $? "verify REST API for getting distributed key"
     echo "---------------------------------------------"
 }
@@ -375,7 +382,7 @@ run false
 echo "[+] Waiting to get some beacons"
 sleep 3
 while true;
-nindex=1
+nindex=2
 do
     fetchTest $nindex true
     sleep 2

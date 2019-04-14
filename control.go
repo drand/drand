@@ -3,11 +3,10 @@ package main
 import (
 	"io/ioutil"
 
-	"github.com/nikkolasg/hexjson"
-
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
+	json "github.com/nikkolasg/hexjson"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
@@ -59,7 +58,7 @@ func initDKG(c *cli.Context) error {
 
 	slog.Print("drand: waiting the end of DKG protocol ... " +
 		"(you can CTRL-C to not quit waiting)")
-	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name))
+	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name))
 	if err != nil {
 		slog.Fatalf("drand: initdkg %s", err)
 	}
@@ -89,7 +88,7 @@ func initReshare(c *cli.Context) error {
 
 	client := controlClient(c)
 	slog.Print("drand: initiating resharing protocol. Waiting to the end ...")
-	_, err := client.InitReshare(oldGroupPath, newGroupPath, isLeader)
+	_, err := client.InitReshare(oldGroupPath, newGroupPath, isLeader, c.String(timeoutFlag.Name))
 	if err != nil {
 		slog.Fatalf("drand: error resharing: %s", err)
 	}
