@@ -205,11 +205,8 @@ func (h *Handler) QualifiedGroup() *key.Group {
 }
 
 func (h *Handler) startTimer() {
-	b := time.Now()
-	fmt.Printf("timer11 start at %s\n", time.Now())
 	select {
 	case <-time.After(h.conf.Timeout):
-		fmt.Printf("timer11 fired off at %s -- %s\n", time.Now(), time.Now().Sub(b))
 		h.Lock()
 		defer h.Unlock()
 		slog.Infof("dkg: %s - timeout -> setting invalid responses / deals", h.info())

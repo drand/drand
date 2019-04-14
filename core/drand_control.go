@@ -18,6 +18,7 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	vss "github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
+	"google.golang.org/grpc"
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the
@@ -166,6 +167,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {
+	slog.Debugf("drand: start sending resharing signal")
 	d.state.Lock()
 	msg := &dkg_proto.ResharePacket{GroupHash: d.nextGroupHash}
 	// send resharing packet to signal start of the protocol to other old
@@ -174,11 +176,16 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 		if i == oidx {
 			continue
 		}
-		if _, err := d.gateway.InternalClient.Reshare(p, msg); err != nil {
-			slog.Debugf("drand: init reshare packet err %s", err)
-		}
+		// XXX find way to just have a small RPC timeout if one is down.
+		// Find out why resharing takes time...
+		go func(id *key.Identity) {
+			if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
+				slog.Debugf("drand: init reshare packet err %s", err)
+			}
+		}(p)
 	}
 	d.state.Unlock()
+	slog.Debugf("drand: resharing signal sent -> start DKG")
 	d.StartDKG()
 }
 

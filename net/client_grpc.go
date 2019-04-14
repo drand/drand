@@ -144,7 +144,7 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 			return err
 		}
 		client := drand.NewBeaconClient(c)
-		resp, err = client.NewBeacon(context.Background(), in, grpc.FailFast(true))
+		resp, err = client.NewBeacon(context.Background(), in, append(opts, grpc.FailFast(true))...)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)

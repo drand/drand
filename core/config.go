@@ -38,6 +38,12 @@ func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
 		//grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
+		grpcOpts: []grpc.DialOption{
+			grpc.WithBackoffMaxDelay(3 * time.Second),
+			//grpc.WithBlock(),
+			//grpc.FailOnNonTempDialError(true),
+			//grpc.WithTimeout(3 * time.Second)},
+		},
 		dkgTimeout:  dkg.DefaultTimeout,
 		certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
