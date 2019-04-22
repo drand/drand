@@ -36,7 +36,7 @@ func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_pr
 	defer d.state.Unlock()
 
 	if d.nextGroupHash == "" {
-		return nil, errors.New("drand: can't reshare because InitReshare has not been called")
+		return nil, fmt.Errorf("drand %s: can't reshare because InitReshare has not been called", d.priv.Public.Addr)
 	}
 
 	// check that we are resharing to the new group that we expect
@@ -44,19 +44,23 @@ func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_pr
 		return nil, errors.New("drand: can't reshare to new group: incompatible hashes")
 	}
 
-	if in.Packet == nil {
-		// indicator that we should start the DKG as we are one node in the old
-		// list that should reshare its share
+	if !d.nextFirstReceived && d.nextOldPresent {
+		d.nextFirstReceived = true
+		// go routine since StartDKG requires the global lock
 		go d.StartDKG()
-		return &dkg_proto.ReshareResponse{}, nil
 	}
 
 	if d.dkg == nil {
 		return nil, errors.New("drand: no dkg setup yet")
 	}
 
-	// we just relay to the dkg
-	d.dkg.Process(c, in.Packet)
+	d.nextFirstReceived = true
+	if in.Packet != nil {
+		// first packet from the "leader" contains a nil packet for
+		// nodes that are in the old list that must broadcast their
+		// deals.
+		d.dkg.Process(c, in.Packet)
+	}
 	return &dkg_proto.ReshareResponse{}, nil
 }
 

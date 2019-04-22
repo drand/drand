@@ -61,13 +61,14 @@ func TestDKGWithTimeout(t *testing.T) {
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
 	nets := testNets(n, true)
-	handlers := make([]*Handler, n, n)
-	listeners := make([]net.Listener, n, n)
 	var err error
 	group := key.NewGroup(pubs, thr)
 
 	offline := n - thr
 	alive := n - offline
+	fmt.Printf("n=%d, thr=%d, offline=%d, alive=%d\n", n, thr, offline, alive)
+	handlers := make([]*Handler, alive)
+	listeners := make([]net.Listener, alive)
 	for i := 0; i < alive; i++ {
 		conf := &Config{
 			Suite:    key.G2.(Suite),
@@ -113,12 +114,23 @@ func TestDKGWithTimeout(t *testing.T) {
 		go goDkg(i)
 	}
 
+	var finishedIdx []int
 	for i := 0; i < alive; i++ {
 		select {
-		case <-finished:
+		case idx := <-finished:
+			finishedIdx = append(finishedIdx, idx)
 			continue
 		case <-time.After(2 * time.Second):
 		}
+	}
+
+	require.True(t, len(finishedIdx) >= 0)
+	first := handlers[finishedIdx[0]]
+	qualGroup := first.QualifiedGroup()
+	fmt.Println(qualGroup.String())
+	for _, idx := range finishedIdx {
+		conf := handlers[idx].conf
+		require.True(t, qualGroup.Contains(conf.Key.Public))
 	}
 }
 

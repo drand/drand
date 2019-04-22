@@ -72,6 +72,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	newPath := path.Join(dir, "newgroup.toml")
 	require.NoError(t, key.Save(newPath, newGroup, false))
 
+	fmt.Printf("oldGroup: %v\n", oldGroup.String())
+	fmt.Printf("newGroup: %v\n", newGroup.String())
+	fmt.Printf("offline nodes: ")
+	for _, d := range drands[1 : 1+offline] {
+		fmt.Printf("%s -", d.priv.Public.Addr)
+	}
+	fmt.Println()
 	var wg sync.WaitGroup
 	wg.Add(newN - 1 - offline)
 	for i, drand := range drands[1+offline:] {
@@ -89,11 +96,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
 			_, err = client.InitReshare(oldPath, newPath, false, timeout)
+			fmt.Printf("drand %s: %v\n", d.priv.Public.Addr, err)
 			require.NoError(t, err)
 			wg.Done()
 		}(drand, i)
 	}
-
+	// let a bit of time so everybody has performed the initreshare
+	time.Sleep(100 * time.Millisecond)
 	dkgDone := make(chan bool, 1)
 	go func() {
 		ks := key.Share{
@@ -401,6 +410,11 @@ func TestDrandDKGFresh(t *testing.T) {
 	require.NotNil(t, resp)
 }
 
+// BatchNewDrand returns n drands, using TLS or not, with the given
+// options. It returns the list of Drand structures, the group created,
+// the folder where db, certificates, etc are stored. It is the folder
+// to delete at the end of the test. As well, it returns a public grpc
+// client that can reach any drand node.
 func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.Group, string) {
 	var privs []*key.Pair
 	var group *key.Group
@@ -460,9 +474,10 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 	return drands, group, dir
 }
 
+// CloseAllDrands closes all drands
 func CloseAllDrands(drands []*Drand) {
 	for i := 0; i < len(drands); i++ {
 		drands[i].Stop()
-		os.RemoveAll(drands[i].opts.dbFolder)
+		//os.RemoveAll(drands[i].opts.dbFolder)
 	}
 }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#set -x
+# set -x
 # This script contains two parts.
 # The first part is meant as a library, declaring the variables and functions to spins off drand containers
 # The second part is triggered when this script is actually ran, and not
@@ -15,7 +15,7 @@
 
 N=6 ## final number of nodes
 OLDN=5 ## starting number of nodes
-BASE="/tmp/drand"
+BASE="/tmp/drand-docker"
 SHA="sha256sum"
 if [ ! -d "$BASE" ]; then
     mkdir -m 740 $BASE
@@ -30,6 +30,7 @@ case "${unameOut}" in
         SHA="shasum -a 256"
     ;;
 esac
+echo "[+] Setting up tests in $TMP folder"
 GROUPFILE="$TMP/group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
@@ -250,7 +251,7 @@ function run() {
     timeout="2s"
 
     ## stop the first node
-    docker stop "node1"
+    docker stop "node1" > /dev/null
 
     ## start all nodes BUT the first one -> try a resharing threshold.
     for i in $newRseq; do
@@ -316,6 +317,7 @@ function cleanup() {
 function fetchTest() {
     nindex=$1
     arrIndex=$(expr $nindex - 1)
+    echo "fetchTest() $nindex $arrIndex ${addresses[0]} ${addresses[$arrIndex]}"
     rootFolder="$TMP/node$nindex"
     distPublic="$rootFolder/groups/dist_key.public"
     serverCert="$CERTSDIR/server-$nindex.cert"
@@ -338,7 +340,9 @@ function fetchTest() {
     echo "---------------------------------------------"
     echo "               Public Randomness             "
     drandArgs=("get" "public")
-    drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
+    drandArgs+=("--tls-cert" "$serverCertDocker")
+    drandArgs+=("--nodes" "${addresses[$arrIndex]}") 
+    drandArgs+=("$dockerGroupToml")
     docker run --rm --net $NET --ip "${SUBNET}11" -v "$serverCertVol" \
                                                   -v "$groupVolume" \
                                                   $IMG "${drandArgs[@]}"

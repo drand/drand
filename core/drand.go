@@ -38,9 +38,11 @@ type Drand struct {
 	dkgDone bool
 
 	// proposed next group hash for a resharing operation
-	nextGroupHash string
-	nextGroup     *key.Group
-	nextConf      *dkg.Config
+	nextGroupHash     string
+	nextGroup         *key.Group
+	nextConf          *dkg.Config
+	nextOldPresent    bool // true if we are in the old group
+	nextFirstReceived bool // false til receive 1st reshare packet
 
 	// global state lock
 	state sync.Mutex
@@ -153,9 +155,7 @@ func (d *Drand) WaitDKG() error {
 
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	// XXX change to qualified group when handling failure during DKG time
-	d.group = d.nextConf.NewNodes
-	d.group.PublicKey = d.share.Public()
+	d.group = d.dkg.QualifiedGroup()
 	d.store.SaveGroup(d.group)
 	d.dkgDone = true
 	d.dkg = nil
@@ -271,8 +271,8 @@ func (d *Drand) initBeacon() error {
 		return err
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-	d.beacon = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
-	return nil
+	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
+	return err
 }
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {

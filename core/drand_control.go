@@ -144,6 +144,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 		d.nextGroupHash = nextHash
 		d.nextGroup = newGroup
 		d.nextConf = conf
+		d.nextOldPresent = oldPresent
 		return nil
 	}()
 
@@ -152,15 +153,16 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	}
 
 	if oldPresent && in.GetIsLeader() {
-		// only the root sends a pre-message to the other old nodes and start
-		// the DKG
+		// only the root sends a pre-message to the other old
+		// nodes and start the DKG
 		d.startResharingAsLeader(oldIdx)
 	}
 	if err := d.WaitDKG(); err != nil {
 		return nil, err
 	}
 	// stop the beacon first, then re-create it with the new shares
-	// i.e. the current beacon is still running alongside with the new DKG but
+	// i.e. the current beacon is still running alongside with the
+	// new DKG but
 	// stops as soon as the new DKG finishes.
 	d.StopBeacon()
 	return &control.ReshareResponse{}, d.StartBeacon()
@@ -176,13 +178,12 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 		if i == oidx {
 			continue
 		}
+		id := p
 		// XXX find way to just have a small RPC timeout if one is down.
-		// Find out why resharing takes time...
-		go func(id *key.Identity) {
-			if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
-				slog.Debugf("drand: init reshare packet err %s", err)
-			}
-		}(p)
+		//fmt.Printf("drand leader %s -> signal to %s\n", d.priv.Public.Addr, id.Addr)
+		if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
+			slog.Debugf("drand: init reshare packet err %s", err)
+		}
 	}
 	d.state.Unlock()
 	slog.Debugf("drand: resharing signal sent -> start DKG")
@@ -314,6 +315,5 @@ func setTimeout(c *dkg.Config, timeoutStr string) error {
 		timeout, _ = time.ParseDuration(DefaultDKGTimeout)
 	}
 	c.Timeout = timeout
-	fmt.Println(" TIMEOUT SET TO ", timeout)
 	return nil
 }

@@ -2,12 +2,14 @@
 package key
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/dchest/blake2b"
 	kyber "github.com/dedis/kyber"
 	vss "github.com/dedis/kyber/share/vss/pedersen"
@@ -93,6 +95,12 @@ func (g *Group) Points() []kyber.Point {
 // Len returns the number of participants in the group
 func (g *Group) Len() int {
 	return len(g.Nodes)
+}
+
+func (g *Group) String() string {
+	var b bytes.Buffer
+	toml.NewEncoder(&b).Encode(g.TOML())
+	return b.String()
 }
 
 // GroupTOML is the representation of a Group TOML compatible

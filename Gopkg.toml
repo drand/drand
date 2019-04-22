@@ -37,7 +37,8 @@ required = [
   version = "1.3.0"
 
 [[constraint]]
-  branch = "group_info"
+  #branch = "group_info"
+  branch = "drand"
   name = "github.com/dedis/kyber"
 
 [[constraint]]

@@ -62,15 +62,14 @@ type Handler struct {
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.Group, s Store) *Handler {
+func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.Group, s Store) (*Handler, error) {
 	idx, exists := group.Index(priv.Public)
 	if !exists {
-		// XXX Should it return an error instead ... ?
-		panic("drand: can't handle a keypair not included in the given group")
+		return nil, errors.New("beacon: keypair not included in the given group")
 	}
 	id, exists := crypto.GroupToID(key.G1)
 	if !exists {
-		panic("beacon: invalid group")
+		return nil, errors.New("beacon: group has no registered ID")
 	}
 
 	addr := group.Nodes[idx].Addr
@@ -86,7 +85,7 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 		addr:      addr,
 		catchupCh: make(chan Beacon, 1),
 		id:        id,
-	}
+	}, nil
 }
 
 // ProcessBeacon receives a request for a beacon partial signature. It replies
@@ -145,7 +144,7 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 	h.ticker = time.NewTicker(period)
 	h.Unlock()
 
-	var goToNextRound bool = true // need to start one round anyway
+	var goToNextRound = true // need to start one round anyway
 	var currentRoundFinished bool
 
 	var round uint64
@@ -302,6 +301,8 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	winCh <- roundInfo{round: round, signature: finalSig}
 }
 
+// Stop the beacon loop from aggregating  further randomness, but it
+// finishes the one it is aggregating currently.
 func (h *Handler) Stop() {
 	h.Lock()
 	defer h.Unlock()

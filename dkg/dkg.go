@@ -193,15 +193,25 @@ func (h *Handler) WaitExit() chan bool {
 	return h.exitCh
 }
 
-// QualifiedGroup returns the group of qualified participants,i.e. the list of
-// participants that successfully finished the DKG round without any blaming
-// from any other participants. This group must be saved to be re-used later on
+// QualifiedGroup returns the group that correctly finished running the DKG
+// protocol. It may be a subset of the group given in the NewNodes field in the
+// config. Indeed, not all members may have been online or have completed the
+// protocol sucessfully. This group must be saved to be re-used later on
 // in case of a renewal for the share.
-// TODO For the moment it's only taking the new set of nodes completely. Once we
-// allow for failing nodes during DKG, we must take the qualified group.
+// This method MUST only be called if the dkg has finished as signalled on the
+// `WaitShare` channel.
+// XXX Best to group that with the WaitShare channel.
 func (h *Handler) QualifiedGroup() *key.Group {
-	//return key.NewGroup(h.conf.NewNodes.Identities(), h.conf.Threshold)
-	return key.LoadGroup(h.conf.NewNodes.Identities(), &key.DistPublic{Coefficients: h.share.Commits}, h.conf.NewNodes.Threshold)
+	sharesIndex := h.state.QualifiedShares()
+	fmt.Println("shareIndex == ", sharesIndex)
+	newGroup := make([]*key.Identity, 0, len(sharesIndex))
+	ids := h.conf.NewNodes.Identities()
+
+	for _, idx := range sharesIndex {
+		newGroup = append(newGroup, ids[idx])
+	}
+
+	return key.LoadGroup(newGroup, &key.DistPublic{Coefficients: h.share.Commits}, h.conf.NewNodes.Threshold)
 }
 
 func (h *Handler) startTimer() {
