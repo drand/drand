@@ -340,7 +340,7 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 		go h.broadcast(packet, true)
 	}
 
-	slog.Debugf("dkg: %s processResponse(%d/%d) from %s --> Certified() ? %v --> done ? %v", h.info(), h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified(), h.done)
+	slog.Debugf("dkg: %s processResponse(%d/%d) from %s --> Certified() ? %v", h.info(), h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified())
 
 }
 
@@ -367,9 +367,9 @@ func (h *Handler) checkCertified() {
 		return
 	}
 	var fully = true
-	if !h.state.FullyCertified() {
+	if !h.state.Certified() {
 		// we miss some responses / deals
-		if !(h.state.Certified() && h.timeouted) {
+		if !(h.state.ThresholdCertified() && h.timeouted) {
 			// if it's not threshold-certified or the timeout did not occur,
 			// that means it's not finished yet. After timeout, we are ready to
 			// accept the threshold-certified deals.

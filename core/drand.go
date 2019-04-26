@@ -215,6 +215,10 @@ func (d *Drand) StopBeacon() {
 // For the moment, each resulting signature is stored in a file named
 // beacons/<timestamp>.sig.
 // The period is determined according the group.toml this node belongs to.
+// new catchup policy:
+// - catchup when just loaded an previously established drand instances
+// - catchup when just finished a resharing for a new node
+// - no catchup at the end of a DKG / resharing (when part of the old group)
 func (d *Drand) BeaconLoop() error {
 	d.state.Lock()
 	period := getPeriod(d.group)

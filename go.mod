@@ -37,12 +37,12 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/urfave/cli v1.20.0
 	github.com/zmb3/gogetdoc v0.0.0-20190228002656-b37376c5da6a // indirect
-	go.dedis.ch/kyber/v3 v3.0.3-0.20190425235726-0d87da8d944a
+	go.dedis.ch/kyber/v3 v3.0.3-0.20190426163307-88c7f0c6c771
 	go.dedis.ch/protobuf v1.0.6 // indirect
-	golang.org/x/crypto v0.0.0-20190424203555-c05e17bb3b2d
+	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
 	golang.org/x/lint v0.0.0-20190409202823-959b441ac422 // indirect
 	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6
-	golang.org/x/sys v0.0.0-20190425145619-16072639606e
+	golang.org/x/sys v0.0.0-20190426135247-a129542de9ae
 	golang.org/x/text v0.3.2
 	golang.org/x/tools v0.0.0-20190425222832-ad9eeb80039a // indirect
 	google.golang.org/genproto v0.0.0-20181219182458-5a97ab628bfb
