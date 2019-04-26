@@ -245,15 +245,17 @@ func TestDrandDKGFresh(t *testing.T) {
 	displayInfo := func(prelude string) {
 		l.Lock()
 		defer l.Unlock()
-		fmt.Printf("\n --- %s ++ Beacon Map ---\n", prelude)
-		for round, beacons := range genBeacons {
-			fmt.Printf("\tround %d = ", round)
-			for _, b := range beacons {
-				fmt.Printf("(%d) %s -", b.Index, drands[b.Index].priv.Public.Addr)
+		if false {
+			fmt.Printf("\n --- %s ++ Beacon Map ---\n", prelude)
+			for round, beacons := range genBeacons {
+				fmt.Printf("\tround %d = ", round)
+				for _, b := range beacons {
+					fmt.Printf("(%d) %s -", b.Index, drands[b.Index].priv.Public.Addr)
+				}
+				fmt.Printf("\n")
 			}
-			fmt.Printf("\n")
+			fmt.Printf("\n --- ---------- ---\n")
 		}
-		fmt.Printf("\n --- ---------- ---\n")
 	}
 	// setupDrand setups the callbacks related to beacon generation. When a beacon
 	// is ready from that node, it saves the beacon and the node index
@@ -415,20 +417,8 @@ func TestDrandDKGFresh(t *testing.T) {
 	lastDrand := drands[n-1]
 	fmt.Printf("\n\n#1\n\n")
 	defer CloseAllDrands(drands[n-1:])
-	// trick the late drand into thinking it already has some beacon
-	// only need that trick for the test, it's easier
-	fmt.Printf("\n\n#2\n\n")
-	require.NoError(t, lastDrand.beaconStore.Put(&beacon.Beacon{
-		Round:        56,
-		PreviousRand: []byte{0x01, 0x02, 0x03},
-		Randomness:   []byte("best randomness ever"),
-	}))
-	// ugly trick to not get the callback (next line) triggered because the
-	// latter happens  inside a goroutine.
-	time.Sleep(100 * time.Millisecond)
-	// the logic should make the drand catchup automatically
 	setupDrand(n - 1)
-	lastDrand.StartBeacon()
+	lastDrand.StartBeacon(true)
 	go countGenBeacons(nbRound, n, done)
 	checkSuccess()
 
