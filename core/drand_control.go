@@ -16,9 +16,8 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	vss "github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
-	"google.golang.org/grpc"
+	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the
@@ -35,7 +34,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	group, err := extractGroup(in.GetDkgGroup())
 	if err != nil {
 		d.state.Unlock()
-		return nil, err
+		return nil, fmt.Errorf("drand: error reading group: %v", err)
 	}
 	d.group = group
 	idx, found := group.Index(d.priv.Public)
@@ -60,9 +59,13 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 		d.StartDKG()
 	}
 	if err := d.WaitDKG(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
-	return &control.DKGResponse{}, d.StartBeacon()
+	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
+	if err := d.StartBeacon(); err != nil {
+		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
+	}
+	return &control.DKGResponse{}, nil
 }
 
 // InitReshare receives information about the old and new group from which to
@@ -181,7 +184,8 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 		id := p
 		// XXX find way to just have a small RPC timeout if one is down.
 		//fmt.Printf("drand leader %s -> signal to %s\n", d.priv.Public.Addr, id.Addr)
-		if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
+		if _, err := d.gateway.InternalClient.Reshare(id, msg); err != nil {
+			//if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
 			slog.Debugf("drand: init reshare packet err %s", err)
 		}
 	}

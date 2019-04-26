@@ -9,8 +9,8 @@ import (
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/sign/bls"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/sign/bls"
 	"google.golang.org/grpc"
 )
 
@@ -100,7 +100,7 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	msg := beacon.Message(resp.GetPrevious(), resp.GetRound())
 	rand := resp.GetRandomness()
 	if rand == nil {
-		return errors.New("drand: no randomness found...")
+		return errors.New("drand: no randomness found")
 	}
 	return bls.Verify(key.Pairing, public, msg, rand.GetPoint())
 }

@@ -12,8 +12,8 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber"
 	"github.com/nikkolasg/slog"
+	"go.dedis.ch/kyber/v3"
 )
 
 // Setup is the public method to call during a DKG protocol.

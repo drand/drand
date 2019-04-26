@@ -10,10 +10,10 @@ import (
 	"github.com/dedis/drand/net"
 	vss_proto "github.com/dedis/drand/protobuf/crypto/share/vss"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
-	"github.com/dedis/kyber"
-	dkg "github.com/dedis/kyber/share/dkg/pedersen"
-	vss "github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
+	"go.dedis.ch/kyber/v3"
+	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 	"google.golang.org/grpc/peer"
 )
 
@@ -313,7 +313,7 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 		},
 	}
 	j, err := h.state.ProcessResponse(resp)
-	slog.Debugf("dkg: %s processing response(%d so far) from %d - %s", h.info(), h.respProcessed, resp.Response.Index, p.Addr)
+	slog.Debugf("dkg: %s processing response from %d for deal %d - %s", h.info(), resp.Response.Index, resp.Index, p.Addr)
 	if err != nil {
 		if err == vss.ErrNoDealBeforeResponse {
 			h.tmpResponses[resp.Index] = append(h.tmpResponses[resp.Index], resp)
@@ -327,18 +327,17 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 	if j != nil && h.oldNode {
 		// XXX TODO
 		slog.Debugf("dkg: broadcasting justification")
-		/*packet := &dkg_proto.Packet{*/
-		//Justification: &dkg_proto.Justification{
-		//Index: j.Index,
-		//Justification: &vss.Justification{
-		//SessionID: j.Justification.Index,
-		//Index: j.Justification.Index,
-		//Signature: j.Justification.Signature,
-
-		//}
-		//},
-		//}
-		/*go h.broadcast(packet)*/
+		packet := &dkg_proto.DKGPacket{
+			Justification: &dkg_proto.Justification{
+				Index: j.Index,
+				Justification: &vss_proto.Justification{
+					SessionId: j.Justification.SessionID,
+					Index:     j.Justification.Index,
+					Signature: j.Justification.Signature,
+				},
+			},
+		}
+		go h.broadcast(packet, true)
 	}
 
 	slog.Debugf("dkg: %s processResponse(%d/%d) from %s --> Certified() ? %v --> done ? %v", h.info(), h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified(), h.done)
@@ -367,6 +366,7 @@ func (h *Handler) checkCertified() {
 	if h.done {
 		return
 	}
+	var fully = true
 	if !h.state.FullyCertified() {
 		// we miss some responses / deals
 		if !(h.state.Certified() && h.timeouted) {
@@ -377,6 +377,7 @@ func (h *Handler) checkCertified() {
 		}
 		// we have enough deals/responses and the timeout passed so we consider
 		// it the end of the protocol
+		fully = false
 	}
 	h.done = true
 	close(h.timerCh)
@@ -386,7 +387,11 @@ func (h *Handler) checkCertified() {
 		h.exitCh <- true
 		return
 	}
-	slog.Infof("dkg: %d certified!", h.nidx)
+	if fully {
+		slog.Infof("dkg: %d fully certified!", h.nidx)
+	} else {
+		slog.Infof("dkg: %d threshold-certified!", h.nidx)
+	}
 	dks, err := h.state.DistKeyShare()
 	if err != nil {
 		slog.Infof("dkg: %d -> certified but error getting share: %s", h.nidx, err)

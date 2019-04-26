@@ -39,10 +39,10 @@ func NewConfig(opts ...ConfigOption) *Config {
 		configFolder: DefaultConfigFolder(),
 		//grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
 		grpcOpts: []grpc.DialOption{
-			grpc.WithBackoffMaxDelay(3 * time.Second),
+			/*grpc.WithBackoffMaxDelay(3 * time.Second),*/
 			//grpc.WithBlock(),
 			//grpc.FailOnNonTempDialError(true),
-			//grpc.WithTimeout(3 * time.Second)},
+			/*grpc.WithTimeout(DefaultDialTimeout),*/
 		},
 		dkgTimeout:  dkg.DefaultTimeout,
 		certmanager: net.NewCertManager(),

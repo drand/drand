@@ -139,15 +139,12 @@ func (d *Drand) WaitDKG() error {
 	errCh := d.dkg.WaitError()
 	d.state.Unlock()
 
-	var err error
 	select {
 	case share := <-waitCh:
 		s := key.Share(share)
 		d.share = &s
-	case err = <-errCh:
-	}
-	if err != nil {
-		return err
+	case err := <-errCh:
+		return fmt.Errorf("drand: error from dkg: %v", err)
 	}
 
 	d.state.Lock()
@@ -156,6 +153,10 @@ func (d *Drand) WaitDKG() error {
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
 	d.group = d.dkg.QualifiedGroup()
+	// need to save the period before since dkg returns a *new* fresh group, it
+	// does not know about the period.
+	d.group.Period = d.nextConf.NewNodes.Period
+	slog.Debugf("drand: DKG finished with %d node certified\n", d.group.Len())
 	d.store.SaveGroup(d.group)
 	d.dkgDone = true
 	d.dkg = nil
@@ -172,7 +173,7 @@ func (d *Drand) createDKG() error {
 		return nil
 	}
 	if d.nextConf == nil {
-		return errors.New("drand: invalid state -> nil nextConf")
+		return errors.New("drand: invalid state: no next configuration")
 	}
 	var err error
 	c := d.nextConf
@@ -216,6 +217,7 @@ func (d *Drand) StopBeacon() {
 // The period is determined according the group.toml this node belongs to.
 func (d *Drand) BeaconLoop() error {
 	d.state.Lock()
+	period := getPeriod(d.group)
 	// heuristic: we catchup when we can retrieve a beacon from the db
 	// if there is an error we quit, if there is no beacon saved yet, we
 	// run the loop as usual.
@@ -234,10 +236,10 @@ func (d *Drand) BeaconLoop() error {
 	if catchup {
 		slog.Infof("drand: starting beacon loop in catch-up mode from round %v", b.Round)
 	} else {
-		slog.Infof("drand: starting beacon loop")
+		slog.Infof("drand: starting beacon loop with period")
 	}
-	period := getPeriod(d.group)
 	d.state.Unlock()
+	// XXX put the previous message instead of the default seed
 	d.beacon.Loop(DefaultSeed, period, catchup)
 	return nil
 }
@@ -264,7 +266,6 @@ func (d *Drand) initBeacon() error {
 	if d.beacon != nil {
 		return nil
 	}
-	d.dkgDone = true
 	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {

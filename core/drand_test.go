@@ -18,10 +18,10 @@ import (
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
-	"github.com/dedis/kyber/sign/bls"
 	"github.com/kabukky/httpscerts"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
+	"go.dedis.ch/kyber/v3/sign/bls"
 )
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
@@ -37,9 +37,6 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// create n shares
 	shares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
 	period := 1000 * time.Millisecond
-	old := net.DefaultTimeout
-	net.DefaultTimeout = 300 * time.Millisecond
-	defer func() { net.DefaultTimeout = old }()
 
 	// instantiating all drands already
 	drands, _, dir := BatchNewDrand(newN, false,
@@ -143,9 +140,6 @@ func TestDrandDKGReshare(t *testing.T) {
 	// create n shares
 	shares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
 	period := 1000 * time.Millisecond
-	old := net.DefaultTimeout
-	net.DefaultTimeout = 300 * time.Millisecond
-	defer func() { net.DefaultTimeout = old }()
 
 	// instantiating all drands already
 	drands, _, dir := BatchNewDrand(newN, false,
@@ -218,13 +212,9 @@ func TestDrandDKGReshare(t *testing.T) {
 
 func TestDrandDKGFresh(t *testing.T) {
 	slog.Level = slog.LevelDebug
-
 	n := 5
-	nbRound := 3
+	nbRound := 4
 	period := 1000 * time.Millisecond
-	old := net.DefaultTimeout
-	net.DefaultTimeout = 300 * time.Millisecond
-	defer func() { net.DefaultTimeout = old }()
 
 	drands, group, dir := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)))
@@ -234,10 +224,64 @@ func TestDrandDKGFresh(t *testing.T) {
 	group.Period = period
 	groupPath := path.Join(dir, "dkggroup.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
-
 	ids := make([]*key.Identity, n)
 	for i, d := range drands {
 		ids[i] = d.priv.Public
+	}
+
+	var distributedPublic *key.DistPublic
+
+	type receivingStruct struct {
+		Index  int
+		Beacon *beacon.Beacon
+	}
+
+	// storing beacons from all nodes indexed per round
+	genBeacons := make(map[uint64][]*receivingStruct)
+	var l sync.Mutex
+	// this is just to signal we received a new beacon
+	newBeacon := make(chan int, n*nbRound)
+	// function printing the map
+	displayInfo := func(prelude string) {
+		l.Lock()
+		defer l.Unlock()
+		fmt.Printf("\n --- %s ++ Beacon Map ---\n", prelude)
+		for round, beacons := range genBeacons {
+			fmt.Printf("\tround %d = ", round)
+			for _, b := range beacons {
+				fmt.Printf("(%d) %s -", b.Index, drands[b.Index].priv.Public.Addr)
+			}
+			fmt.Printf("\n")
+		}
+		fmt.Printf("\n --- ---------- ---\n")
+	}
+	// setupDrand setups the callbacks related to beacon generation. When a beacon
+	// is ready from that node, it saves the beacon and the node index
+	// into the genBeacons map.
+	setupDrand := func(i int) {
+		//addr := drands[i].priv.Public.Address()
+		myCb := func(b *beacon.Beacon) {
+			msg := beacon.Message(b.PreviousRand, b.Round)
+			err := bls.Verify(key.Pairing, distributedPublic.Key(), msg, b.Randomness)
+			if err != nil {
+				fmt.Printf("Beacon error callback: %s\n", b.Randomness)
+			}
+			require.NoError(t, err)
+			l.Lock()
+			genBeacons[b.Round] = append(genBeacons[b.Round], &receivingStruct{
+				Index:  i,
+				Beacon: b,
+			})
+			l.Unlock()
+			//fmt.Printf("\n /\\/\\ New Beacon Round %d from node %d: %s /\\/\\\n", b.Round, i, addr)
+			//displayInfo()
+			newBeacon <- i
+		}
+		drands[i].opts.beaconCbs = append(drands[i].opts.beaconCbs, myCb)
+	}
+
+	for i := 0; i < n-1; i++ {
+		setupDrand(i)
 	}
 
 	var wg sync.WaitGroup
@@ -266,68 +310,43 @@ func TestDrandDKGFresh(t *testing.T) {
 	wg.Wait()
 
 	// check if share + dist public files are saved
-	public, err := root.store.LoadDistPublic()
+	distributedPublic, err = root.store.LoadDistPublic()
 	require.Nil(t, err)
-	require.NotNil(t, public)
+	require.NotNil(t, distributedPublic)
 	_, err = root.store.LoadShare()
 	require.Nil(t, err)
 
 	// make the last node fail
-	drands[n-1].Stop()
-
-	type receiveStruct struct {
-		I int
-		B *beacon.Beacon
-	}
-	// storing beacons from all nodes indexed per round
-	genBeacons := make(map[uint64][]*beacon.Beacon)
-	var l sync.Mutex
-	// this is just to signal we received a new beacon
-	newBeacon := make(chan int, n*nbRound)
-	// launchDrand will launch the beacon at the given index. Each time a new
-	// beacon is ready from that node, it saves the beacon and the node index
-	// into the map
-	launchDrand := func(i int) {
-		myCb := func(b *beacon.Beacon) {
-			msg := beacon.Message(b.PreviousRand, b.Round)
-			err := bls.Verify(key.Pairing, public.Key(), msg, b.Randomness)
-			if err != nil {
-				fmt.Printf("Beacon error callback: %s\n", b.Randomness)
-			}
-			require.NoError(t, err)
-			l.Lock()
-			genBeacons[b.Round] = append(genBeacons[b.Round], b)
-			l.Unlock()
-			newBeacon <- i
+	// XXX The node still replies to early beacon packet
+	lastOne := drands[n-1]
+	lastOne.Stop()
+	pinger, err := net.NewControlClient(lastOne.opts.controlPort)
+	require.NoError(t, err)
+	var counter = 1
+	for range time.Tick(100 * time.Millisecond) {
+		if err := pinger.Ping(); err != nil {
+			break
 		}
-		drands[i].opts.beaconCbs = append(drands[i].opts.beaconCbs, myCb)
-		//fmt.Printf(" --- Launch drand %s\n", drands[i].priv.Public.Address())
-		go drands[i].BeaconLoop()
+		counter++
+		if counter > 5 {
+			require.False(t, true, "last drand should be off by now")
+		}
 	}
+	fmt.Printf("\n\n\n\nStopping last drand %s\n Leader is %s\n\n\n\n\n\n\n\n", lastOne.priv.Public.Addr, root.priv.Public.Addr)
 
-	for i := 0; i < n-1; i++ {
-		launchDrand(i)
-	}
-
-	/* displayInfo := func() {*/
-	//l.Lock()
-	//defer l.Unlock()
-	//for round, beacons := range genBeacons {
-	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
-	//}
-	//fmt.Printf("\n")
-	/*}*/
 	//expected := nbRound * n
 	done := make(chan bool)
 	// test how many beacons are generated per each handler, except the last
 	// handler that will start later
 	countGenBeacons := func(rounds, beaconPerRound int, doneCh chan bool) {
+		displayInfo("STARTING BEACON")
 		for {
 			<-newBeacon
 			l.Lock()
 			// do we have enough rounds made
 			if len(genBeacons) < rounds {
 				l.Unlock()
+				displayInfo("NOTENOUGH ROUNDS")
 				continue
 			} else {
 				// do we have enough beacons for enough rounds
@@ -341,17 +360,18 @@ func TestDrandDKGFresh(t *testing.T) {
 				}
 				if fullRounds < rounds {
 					l.Unlock()
+					displayInfo("NOTENOUGH fullrounds")
 					continue
 				}
 			}
 			l.Unlock()
-			//displayInfo()
+			displayInfo("FULL MAPPING")
 			l.Lock()
 			// let's check if they are all equal
 			for _, beacons := range genBeacons {
-				original := beacons[0]
+				original := beacons[0].Beacon
 				for _, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Beacon.Randomness, original.Randomness) {
 						// randomness is not equal we return false
 						l.Unlock()
 						doneCh <- false
@@ -364,7 +384,10 @@ func TestDrandDKGFresh(t *testing.T) {
 			return
 		}
 	}
-	go countGenBeacons(nbRound, n-1, done)
+	// nbRound - 1 because in the first round, the leader is
+	// "too fast"
+	// n-1 since we have one node down
+	go countGenBeacons(nbRound-1, n-1, done)
 
 	checkSuccess := func() {
 		select {
@@ -385,24 +408,31 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	checkSuccess()
 
-	lastDrand := drands[n-1]
-	drands[n-1], err = LoadDrand(lastDrand.store, lastDrand.opts)
+	fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED FIRST PASS \n\n\n\n\n\n\n\n\n")
+
+	drands[n-1], err = LoadDrand(drands[n-1].store, drands[n-1].opts)
 	require.NoError(t, err)
+	lastDrand := drands[n-1]
+	fmt.Printf("\n\n#1\n\n")
 	defer CloseAllDrands(drands[n-1:])
 	// trick the late drand into thinking it already has some beacon
 	// only need that trick for the test, it's easier
-	require.NoError(t, drands[n-1].beaconStore.Put(&beacon.Beacon{
+	fmt.Printf("\n\n#2\n\n")
+	require.NoError(t, lastDrand.beaconStore.Put(&beacon.Beacon{
 		Round:        56,
 		PreviousRand: []byte{0x01, 0x02, 0x03},
 		Randomness:   []byte("best randomness ever"),
 	}))
-	// ugly trick to not get the callback triggered because it gets triggered in
-	// a goroutine, and the callback are set before by launchDrand.
+	// ugly trick to not get the callback (next line) triggered because the
+	// latter happens  inside a goroutine.
 	time.Sleep(100 * time.Millisecond)
 	// the logic should make the drand catchup automatically
-	launchDrand(n - 1)
+	setupDrand(n - 1)
+	lastDrand.StartBeacon()
 	go countGenBeacons(nbRound, n, done)
 	checkSuccess()
+
+	fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED SECOND PASS \n\n\n\n\n\n\n\n\n")
 
 	client := net.NewGrpcClientFromCertManager(root.opts.certmanager, root.opts.grpcOpts...)
 	resp, err := client.Public(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})

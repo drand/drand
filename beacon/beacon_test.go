@@ -15,13 +15,13 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/share"
-	"github.com/dedis/kyber/sign/bls"
-	"github.com/dedis/kyber/sign/tbls"
-	"github.com/dedis/kyber/util/random"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/share"
+	"go.dedis.ch/kyber/v3/sign/bls"
+	"go.dedis.ch/kyber/v3/sign/tbls"
+	"go.dedis.ch/kyber/v3/util/random"
 )
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
@@ -114,10 +114,6 @@ func TestBeacon(t *testing.T) {
 
 	listeners := make([]net.Listener, n)
 	handlers := make([]*Handler, n)
-	type receiveStruct struct {
-		I int
-		B *Beacon
-	}
 
 	seed := []byte("Sunshine in a bottle")
 	period := time.Duration(600) * time.Millisecond
@@ -153,7 +149,6 @@ func TestBeacon(t *testing.T) {
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
 		go listeners[i].Start()
 		go handlers[i].Loop(seed, period, catchup)
-		fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())
 	}
 
 	for i := 0; i < n-1; i++ {
@@ -280,10 +275,6 @@ func TestBeaconNEqualT(t *testing.T) {
 
 	listeners := make([]net.Listener, n)
 	handlers := make([]*Handler, n)
-	type receiveStruct struct {
-		I int
-		B *Beacon
-	}
 
 	seed := []byte("Sunshine in a bottle")
 	period := time.Duration(1000) * time.Millisecond
@@ -316,7 +307,6 @@ func TestBeaconNEqualT(t *testing.T) {
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
 		go listeners[i].Start()
 		go handlers[i].Loop(seed, period, catchup)
-		fmt.Printf("Starting beacon %d: %s\n", i, privs[i].Public.Address())
 	}
 
 	for i := 0; i < n; i++ {

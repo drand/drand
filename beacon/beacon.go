@@ -10,9 +10,9 @@ import (
 
 	"github.com/dedis/drand/protobuf/crypto"
 	proto "github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber/share"
-	"github.com/dedis/kyber/sign/bls"
-	"github.com/dedis/kyber/sign/tbls"
+	"go.dedis.ch/kyber/v3/share"
+	"go.dedis.ch/kyber/v3/sign/bls"
+	"go.dedis.ch/kyber/v3/sign/tbls"
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
@@ -137,7 +137,6 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 // solution, as a remote node could trick this beacon generator to start for an
 // outdated or far-in-the-future round. This is a starting point.
 func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
-
 	h.savePreviousSignature(seed)
 
 	h.Lock()
@@ -209,7 +208,6 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 			return
 		}
 	}
-	slog.Info("beacon: stopped loop")
 }
 
 type roundInfo struct {
@@ -218,7 +216,7 @@ type roundInfo struct {
 }
 
 func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, closeCh chan bool) {
-	slog.Debugf("beacon %s: next tick for round %d", h.addr, round)
+	slog.Debugf("beacon %s: next tick for round %d - time %s", h.addr, round, time.Now())
 	msg := Message(prevRand, round)
 	signature, err := h.signature(round, msg)
 	if err != nil {
@@ -245,7 +243,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 			//slog.Debugf("beacon: %s round %d: request new beacon to %s", h.addr, round, i.Address())
 			resp, err := h.client.NewBeacon(i, request)
 			if err != nil {
-				slog.Debugf("beacon: %s round %d err receiving response from %s: %s", h.addr, round, i.Address(), err)
+				slog.Debugf("beacon: %s round %d err from %s: %s", h.addr, round, i.Address(), err)
 				return
 			}
 			if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialRand); err != nil {
@@ -266,7 +264,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 			// it's already time to go to the next, there has been not
 			// enough time or nodes are too slow. In any case it's a
 			// problem.
-			slog.Infof("beacon: quitting prematurely round %d.", round)
+			slog.Infof("beacon: %s quitting prematurely round %d.", h.addr, round)
 			slog.Infof("beacon: might be a problem with the nodes or the beacon period is too short")
 			return
 		}
@@ -292,11 +290,11 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway
 	if err := h.store.Put(beacon); err != nil {
-		slog.Infof("beacon: error storing beacon randomness: %s", err)
+		slog.Infof("beacon: %s error storing beacon randomness: %s", h.addr, err)
 		return
 	}
 	//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
-	slog.Infof("beacon: round %d finished: %x", round, finalSig)
+	//slog.Infof("beacon: %s round %d finished: %x", h.addr, round, finalSig)
 	slog.Debugf("beacon: %s round %d finished: \n\tfinal: (id=%d) %x\n\tprev: %x\n", h.addr, round, beacon.Gid, finalSig, prevRand)
 	winCh <- roundInfo{round: round, signature: finalSig}
 }
@@ -373,29 +371,33 @@ func newSignatureCache() *signatureCache {
 // Put saves the partial signature associated with the given round and
 // message for futur usage.
 func (s *signatureCache) Put(round uint64, msg, rand []byte) {
-	return
-	s.Lock()
-	defer s.Unlock()
-	s.cache[round] = &partialRand{message: msg, partialRand: rand}
+	// XXX signature cache is disabled for the moment
+	if false {
+		s.Lock()
+		defer s.Unlock()
+		s.cache[round] = &partialRand{message: msg, partialRand: rand}
+
+	}
 }
 
 // Get returns the partial signature associated with the given round. It
 // verifies if the message is consistent (it should not be).It returns false if
 // the signature is not present or the message is not consistent.
 func (s *signatureCache) Get(round uint64, msg []byte) ([]byte, bool) {
+	if false {
+		s.Lock()
+		defer s.Unlock()
+		rand, ok := s.cache[round]
+		if !ok {
+			return nil, false
+		}
+		if !bytes.Equal(msg, rand.message) {
+			slog.Infof("beacon: inconsistency for round %d: msg stored %x vs msg received %x", round, msg, rand.message)
+			return nil, false
+		}
+		return rand.partialRand, true
+	}
 	return nil, false
-	s.Lock()
-	defer s.Unlock()
-	rand, ok := s.cache[round]
-	if !ok {
-		return nil, false
-	}
-	if !bytes.Equal(msg, rand.message) {
-		slog.Infof("beacon: inconsistency for round %d: msg stored %x vs msg received %x", round, msg, rand.message)
-		return nil, false
-	}
-	return rand.partialRand, true
-
 }
 
 // evictCache evicts some old entries that should not be required anymore.

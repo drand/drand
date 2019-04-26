@@ -10,7 +10,7 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 )
 
-var DefaultTimeout = time.Duration(30) * time.Second
+//var DefaultTimeout = time.Duration(30) * time.Second
 
 // Gateway is the main interface to communicate to the drand world. It
 // acts as a listener to receive incoming requests and acts a client connecting
@@ -55,7 +55,7 @@ func NewGrpcGatewayInsecure(listen string, port string, s Service, cs control.Co
 }
 
 func NewGrpcGatewayFromCertManager(listen string, port string, certPath, keyPath string, certs *CertManager, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
-	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s)
+	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
 		panic(err)
 	}

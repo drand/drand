@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"math"
 
-	kyber "github.com/dedis/kyber"
-	"github.com/dedis/kyber/pairing/bn256"
-	"github.com/dedis/kyber/share"
-	dkg "github.com/dedis/kyber/share/dkg/pedersen"
-	"github.com/dedis/kyber/util/random"
+	kyber "go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/pairing/bn256"
+	"go.dedis.ch/kyber/v3/share"
+	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v3/util/random"
 )
 
 // Pairing is the main pairing suite used by drand. New interesting curves
@@ -253,15 +253,15 @@ type DistPublic struct {
 	Coefficients []kyber.Point
 }
 
-// DistPublicTOML is a TOML compatible value of a DistPublic
-type DistPublicTOML struct {
-	Coefficients []string
-}
-
 // Key returns the first coefficient as representing the public key to be used
 // to verify signatures issued by the distributed key.
 func (d *DistPublic) Key() kyber.Point {
 	return d.Coefficients[0]
+}
+
+// DistPublicTOML is a TOML compatible value of a DistPublic
+type DistPublicTOML struct {
+	Coefficients []string
 }
 
 // TOML returns a TOML-compatible version of d
@@ -294,6 +294,23 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 // TOMLValue returns an empty TOML-compatible dist public interface
 func (d *DistPublic) TOMLValue() interface{} {
 	return &DistPublicTOML{}
+}
+
+// Equal returns if all coefficients of the public key d are equal to those of
+// d2
+func (d *DistPublic) Equal(d2 *DistPublic) bool {
+	if len(d.Coefficients) != len(d2.Coefficients) {
+		return false
+	}
+	for i := range d.Coefficients {
+		p1 := d.Coefficients[i]
+		p2 := d2.Coefficients[i]
+		// XXX to change: this is a naive comparison way
+		if p1.String() != p2.String() {
+			return false
+		}
+	}
+	return true
 }
 
 // BeaconSignature is the final reconstructed BLS signature that is saved in the
