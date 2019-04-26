@@ -62,8 +62,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
 	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
-	// After DKG, always start the beacon directly
-	if err := d.StartBeacon(false); err != nil {
+	if err := d.StartBeacon(); err != nil {
 		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
 	}
 	return &control.DKGResponse{}, nil
@@ -169,11 +168,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	// new DKG but
 	// stops as soon as the new DKG finishes.
 	d.StopBeacon()
-	catchup := true
-	if oldPresent {
-		catchup = false
-	}
-	return &control.ReshareResponse{}, d.StartBeacon(catchup)
+	return &control.ReshareResponse{}, d.StartBeacon()
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {

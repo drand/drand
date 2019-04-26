@@ -37,9 +37,7 @@ func startCmd(c *cli.Context) error {
 		if err != nil {
 			slog.Fatalf("drand: can't load drand instance %s", err)
 		}
-		// XXX make it configurable so that new share holder can still start if
-		// nobody started.
-		if err := drand.StartBeacon(true); err != nil {
+		if err := drand.StartBeacon(); err != nil {
 			slog.Fatalf("drand: starting beacon failed: %s", err)
 		}
 	}

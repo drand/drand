@@ -108,6 +108,9 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := d.initBeacon(); err != nil {
+		return nil, err
+	}
 	slog.Debugf("drand: loaded and serving at %s", d.priv.Public.Address())
 	return d, nil
 }
@@ -186,21 +189,11 @@ var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time,
 
 // StartBeacon initializes the beacon if needed and launch a go routine that
 // runs the generation loop.
-func (d *Drand) StartBeacon(catchup bool) error {
-	d.state.Lock()
-	defer d.state.Unlock()
-	if d.beacon == nil {
-		fs.CreateSecureFolder(d.opts.DBFolder())
-		store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
-		if err != nil {
-			return err
-		}
-		d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-		d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
+func (d *Drand) StartBeacon() error {
+	if err := d.initBeacon(); err != nil {
+		return err
 	}
-	period := getPeriod(d.group)
-	slog.Infof("drand: starting random beacon (catchup?%v)", catchup)
-	go d.beacon.Loop(DefaultSeed, period, catchup)
+	go d.BeaconLoop()
 	return nil
 }
 
@@ -213,6 +206,46 @@ func (d *Drand) StopBeacon() {
 	}
 	d.beacon.Stop()
 	d.beacon = nil
+}
+
+// BeaconLoop starts periodically the TBLS protocol. The seed is the first
+// message signed alongside with the current timestamp. All subsequent
+// signatures are chained:
+// s_i+1 = SIG(s_i || timestamp)
+// For the moment, each resulting signature is stored in a file named
+// beacons/<timestamp>.sig.
+// The period is determined according the group.toml this node belongs to.
+// new catchup policy:
+// - catchup when just loaded an previously established drand instances
+// - catchup when just finished a resharing for a new node
+// - no catchup at the end of a DKG / resharing (when part of the old group)
+func (d *Drand) BeaconLoop() error {
+	d.state.Lock()
+	period := getPeriod(d.group)
+	// heuristic: we catchup when we can retrieve a beacon from the db
+	// if there is an error we quit, if there is no beacon saved yet, we
+	// run the loop as usual.
+	var catchup = true
+	b, err := d.beaconStore.Last()
+	if err != nil {
+		if err == beacon.ErrNoBeaconSaved {
+			// we are starting the beacon generation
+			catchup = false
+		} else {
+			// there's a serious error
+			d.state.Unlock()
+			return fmt.Errorf("drand: could not determine beacon state: %s", err)
+		}
+	}
+	if catchup {
+		slog.Infof("drand: starting beacon loop in catch-up mode from round %v", b.Round)
+	} else {
+		slog.Infof("drand: starting beacon loop with period")
+	}
+	d.state.Unlock()
+	// XXX put the previous message instead of the default seed
+	d.beacon.Loop(DefaultSeed, period, catchup)
+	return nil
 }
 
 // Stop simply stops all drand operations.
