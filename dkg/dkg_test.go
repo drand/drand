@@ -423,6 +423,7 @@ func TestDKGResharingPartial(t *testing.T) {
 	}()
 
 	finished := make(chan int, total)
+	quitAll := make(chan bool)
 	goDkg := func(idx int) {
 		if idx < oldN {
 			go handlers[idx].Start()
@@ -437,6 +438,8 @@ func TestDKGResharingPartial(t *testing.T) {
 			finished <- idx
 		case err := <-errCh:
 			require.NoError(t, err)
+		case <-quitAll:
+			return
 		case <-time.After(3 * time.Second):
 			t.Fatal("not finished in time")
 		}
@@ -463,6 +466,7 @@ func TestDKGResharingPartial(t *testing.T) {
 		//}
 		/*}*/
 	}
+	close(quitAll)
 }
 
 func TestDKGResharingNewNode(t *testing.T) {
@@ -535,6 +539,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 	}()
 
 	finished := make(chan int, total)
+	quitAll := make(chan bool)
 	goDkg := func(idx int) {
 		if idx < oldN {
 			go handlers[idx].Start()
@@ -549,6 +554,8 @@ func TestDKGResharingNewNode(t *testing.T) {
 			finished <- idx
 		case err := <-errCh:
 			require.NoError(t, err)
+		case <-quitAll:
+			return
 		case <-time.After(3 * time.Second):
 			fmt.Println("timeout")
 			t.Fatal("not finished in time")
@@ -562,6 +569,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 	for i := 0; i < newN; i++ {
 		<-finished
 	}
+	close(quitAll)
 }
 
 func TestDKGResharingPartial2(t *testing.T) {
@@ -650,6 +658,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 	}()
 
 	finished := make(chan *key.Pair, total)
+	quitAll := make(chan bool)
 	goDkg := func(idx int) {
 		if idx < oldN {
 			go handlers[idx].Start()
@@ -710,4 +719,5 @@ func TestDKGResharingPartial2(t *testing.T) {
 		//}
 		/*}*/
 	}
+	close(quitAll)
 }
