@@ -33,4 +33,4 @@ const DefaultControlPort = "8888"
 const DefaultDKGTimeout = "10s"
 
 // DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
-var DefaultDialTimeout = 1 * time.Second
+var DefaultDialTimeout = 3 * time.Second

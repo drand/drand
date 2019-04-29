@@ -61,7 +61,10 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	if err := d.WaitDKG(); err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
+
 	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
+	d.initBeacon()
+	time.Sleep(500 * time.Millisecond)
 	// After DKG, always start the beacon directly
 	if err := d.StartBeacon(false); err != nil {
 		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
