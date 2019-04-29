@@ -23,9 +23,19 @@ import (
 // What is the maximum round difference a drand node accepts to sign
 var maxRoundDelta uint64 = 2
 
+// Config holds the different cryptographc informations necessary to run the
+// randomness beacon.
+type Config struct {
+	Private *key.Pair
+	Share   *key.Share
+	Group   *key.Group
+	Seed    []byte
+}
+
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
 // a full signature can be recosntructed, it saves it to the given Store.
 type Handler struct {
+	conf *Config
 	// to communicate with other drand peers
 	client net.InternalClient
 	// where to store the new randomness beacon
@@ -58,29 +68,36 @@ type Handler struct {
 	addr   string
 	// group id to embed in all beacons
 	// XXX temporary solution to change when we really want flexible groups
-	id int32
+	id      int32
+	seed    []byte
+	started bool
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.Group, s Store) (*Handler, error) {
-	idx, exists := group.Index(priv.Public)
+func NewHandler(c net.InternalClient, s Store, conf *Config) (*Handler, error) {
+	if conf.Private == nil || conf.Share == nil || conf.Group == nil || conf.Seed == nil {
+		return nil, errors.New("beacon: invalid configuration")
+	}
+	idx, exists := conf.Group.Index(conf.Private.Public)
 	if !exists {
 		return nil, errors.New("beacon: keypair not included in the given group")
 	}
+	// XXX Make it parametrizable
 	id, exists := crypto.GroupToID(key.G1)
 	if !exists {
 		return nil, errors.New("beacon: group has no registered ID")
 	}
 
-	addr := group.Nodes[idx].Addr
+	addr := conf.Group.Nodes[idx].Addr
 
-	c.SetTimeout(group.Period) // wait on each call no more than the period
+	c.SetTimeout(conf.Group.Period) // wait on each call no more than the period
 	return &Handler{
+		conf:      conf,
 		client:    c,
-		group:     group,
-		share:     sh,
-		pub:       share.NewPubPoly(key.G2, key.G2.Point().Base(), sh.Commits),
+		group:     conf.Group,
+		share:     conf.Share,
+		pub:       share.NewPubPoly(key.G2, key.G2.Point().Base(), conf.Share.Commits),
 		index:     idx,
 		store:     s,
 		close:     make(chan bool),
@@ -88,6 +105,7 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 		addr:      addr,
 		catchupCh: make(chan Beacon, 1),
 		id:        id,
+		seed:      conf.Seed,
 	}, nil
 }
 
@@ -103,9 +121,10 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	h.Lock()
 	defer h.Unlock()
 	var err error
-	// 1 and only test if we are running, not if we just started and are trying
-	// to catch up
-	if !h.catchup && uint64(math.Abs(float64(p.Round-h.round))) > maxRoundDelta {
+	// 1- we check the round number only if we started already and are not in
+	// catch-up mode
+	shouldVerify := h.started && !h.catchup
+	if shouldVerify && uint64(math.Abs(float64(p.Round-h.round))) > maxRoundDelta {
 		return nil, errors.New(errOutOfRound)
 	}
 
@@ -133,7 +152,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	return resp, err
 }
 
-// Loop starts periodically the TBLS protocol. The seed is the first
+// Run starts periodically the TBLS protocol. The seed is the first
 // message signed alongside with the current round number. All subsequent
 // signatures are chained: s_i+1 = SIG(s_i || round)
 // The catchup parameter, if true, forces the beacon generator to wait until it
@@ -141,13 +160,8 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 // knows the current round it must execute. WARNING: It is not a bullet proof
 // solution, as a remote node could trick this beacon generator to start for an
 // outdated or far-in-the-future round. This is a starting point.
-func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
-	h.savePreviousSignature(seed)
-
-	h.Lock()
-	h.ticker = time.NewTicker(period)
-	h.Unlock()
-
+//func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
+func (h *Handler) Run(period time.Duration, catchup bool) {
 	var goToNextRound = true // need to start one round anyway
 	var currentRoundFinished bool
 
@@ -155,6 +169,26 @@ func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 	var prevRand []byte
 	winCh := make(chan roundInfo)
 	closingCh := make(chan bool)
+
+	h.Lock()
+	if !catchup {
+		// let's determine the previous signature we should build upon. It can
+		// be the seed or a guenuine one.
+		b, err := h.store.Last()
+		if err == ErrNoBeaconSaved {
+			prevRand = h.seed
+		} else if err == nil {
+			prevRand = b.Randomness
+			h.round = b.Round
+		} else {
+			slog.Infof("beacon: can't load from the database: %v", err)
+		}
+	}
+
+	h.ticker = time.NewTicker(period)
+	h.started = true
+	h.Unlock()
+	h.savePreviousSignature(prevRand)
 
 	for {
 		if goToNextRound {

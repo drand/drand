@@ -198,7 +198,7 @@ func (d *Drand) StartBeacon(catchup bool) error {
 	}
 	period := getPeriod(d.group)
 	slog.Infof("drand: starting random beacon (catchup?%v) at %s", catchup, time.Now())
-	go d.beacon.Loop(DefaultSeed, period, catchup)
+	go d.beacon.Run(period, catchup)
 	return nil
 }
 
@@ -241,7 +241,8 @@ func (d *Drand) initBeacon() error {
 		return err
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
+	conf := &beacon.Config{Group: d.group, Private: d.priv, Share: d.share, Seed: DefaultSeed}
+	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.beaconStore, conf)
 	return err
 }
 

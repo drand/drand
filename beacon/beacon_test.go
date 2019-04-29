@@ -142,14 +142,13 @@ func TestBeacon(t *testing.T) {
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
-		//opts := []grpc.DialOption{grpc.WithTimeout(dialTimeout), grpc.WithBlock()}
-		//opts := []grpc.DialOption{grpc.FailOnNonTempDialError(true)}
-		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), privs[i], shares[i], group, store)
+		conf := &Config{Group: group, Private: privs[i], Share: shares[i], Seed: seed}
+		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
 		go listeners[i].Start()
-		go handlers[i].Loop(seed, period, catchup)
+		go handlers[i].Run(period, catchup)
 	}
 
 	for i := 0; i < n-1; i++ {
@@ -301,14 +300,13 @@ func TestBeaconNEqualT(t *testing.T) {
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
-		//opts := []grpc.DialOption{grpc.WithTimeout(dialTimeout), grpc.WithBlock()}
-		//opts := []grpc.DialOption{grpc.FailOnNonTempDialError(true)}
-		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), privs[i], shares[i], group, store)
+		conf := &Config{Group: group, Private: privs[i], Share: shares[i], Seed: seed}
+		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
 		go listeners[i].Start()
-		go handlers[i].Loop(seed, period, catchup)
+		go handlers[i].Run(period, catchup)
 	}
 
 	for i := 0; i < n; i++ {
