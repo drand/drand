@@ -7,8 +7,8 @@ import (
 	"errors"
 	fmt "fmt"
 
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/suites"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/suites"
 )
 
 // ProtobufPoint is an alias to a Point represented in a protobuf packet

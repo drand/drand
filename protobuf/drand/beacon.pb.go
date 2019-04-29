@@ -41,7 +41,7 @@ func (m *BeaconRequest) Reset()         { *m = BeaconRequest{} }
 func (m *BeaconRequest) String() string { return proto.CompactTextString(m) }
 func (*BeaconRequest) ProtoMessage()    {}
 func (*BeaconRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beacon_204afdee46a8c022, []int{0}
+	return fileDescriptor_beacon_8b3b965a255c059f, []int{0}
 }
 func (m *BeaconRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BeaconRequest.Unmarshal(m, b)
@@ -93,7 +93,7 @@ func (m *BeaconResponse) Reset()         { *m = BeaconResponse{} }
 func (m *BeaconResponse) String() string { return proto.CompactTextString(m) }
 func (*BeaconResponse) ProtoMessage()    {}
 func (*BeaconResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_beacon_204afdee46a8c022, []int{1}
+	return fileDescriptor_beacon_8b3b965a255c059f, []int{1}
 }
 func (m *BeaconResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_BeaconResponse.Unmarshal(m, b)
@@ -197,9 +197,9 @@ var _Beacon_serviceDesc = grpc.ServiceDesc{
 	Metadata: "drand/beacon.proto",
 }
 
-func init() { proto.RegisterFile("drand/beacon.proto", fileDescriptor_beacon_204afdee46a8c022) }
+func init() { proto.RegisterFile("drand/beacon.proto", fileDescriptor_beacon_8b3b965a255c059f) }
 
-var fileDescriptor_beacon_204afdee46a8c022 = []byte{
+var fileDescriptor_beacon_8b3b965a255c059f = []byte{
 	// 209 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x90, 0x3d, 0x4f, 0xc5, 0x20,
 	0x18, 0x85, 0x83, 0x7a, 0x6f, 0xe2, 0x6b, 0xeb, 0x40, 0x6a, 0xd2, 0x38, 0xd5, 0x1a, 0x63, 0x27,

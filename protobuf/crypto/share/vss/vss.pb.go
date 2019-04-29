@@ -41,7 +41,7 @@ func (m *EncryptedDeal) Reset()         { *m = EncryptedDeal{} }
 func (m *EncryptedDeal) String() string { return proto.CompactTextString(m) }
 func (*EncryptedDeal) ProtoMessage()    {}
 func (*EncryptedDeal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_vss_1c95840721eaff02, []int{0}
+	return fileDescriptor_vss_392a83f5d323db47, []int{0}
 }
 func (m *EncryptedDeal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_EncryptedDeal.Unmarshal(m, b)
@@ -111,7 +111,7 @@ func (m *Deal) Reset()         { *m = Deal{} }
 func (m *Deal) String() string { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()    {}
 func (*Deal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_vss_1c95840721eaff02, []int{1}
+	return fileDescriptor_vss_392a83f5d323db47, []int{1}
 }
 func (m *Deal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Deal.Unmarshal(m, b)
@@ -181,7 +181,7 @@ func (m *Response) Reset()         { *m = Response{} }
 func (m *Response) String() string { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()    {}
 func (*Response) Descriptor() ([]byte, []int) {
-	return fileDescriptor_vss_1c95840721eaff02, []int{2}
+	return fileDescriptor_vss_392a83f5d323db47, []int{2}
 }
 func (m *Response) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Response.Unmarshal(m, b)
@@ -251,7 +251,7 @@ func (m *Justification) Reset()         { *m = Justification{} }
 func (m *Justification) String() string { return proto.CompactTextString(m) }
 func (*Justification) ProtoMessage()    {}
 func (*Justification) Descriptor() ([]byte, []int) {
-	return fileDescriptor_vss_1c95840721eaff02, []int{3}
+	return fileDescriptor_vss_392a83f5d323db47, []int{3}
 }
 func (m *Justification) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Justification.Unmarshal(m, b)
@@ -306,9 +306,9 @@ func init() {
 	proto.RegisterType((*Justification)(nil), "vss.Justification")
 }
 
-func init() { proto.RegisterFile("crypto/share/vss/vss.proto", fileDescriptor_vss_1c95840721eaff02) }
+func init() { proto.RegisterFile("crypto/share/vss/vss.proto", fileDescriptor_vss_392a83f5d323db47) }
 
-var fileDescriptor_vss_1c95840721eaff02 = []byte{
+var fileDescriptor_vss_392a83f5d323db47 = []byte{
 	// 361 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x52, 0xc1, 0x6a, 0xe3, 0x30,
 	0x14, 0xc4, 0x1b, 0x27, 0x24, 0xf2, 0x7a, 0x0f, 0xde, 0xb0, 0x98, 0xb0, 0x81, 0xe0, 0x53, 0x7a,

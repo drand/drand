@@ -28,12 +28,14 @@ func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlList
 	return ControlListener{conns: grpcServer, lis: lis}
 }
 
+// Start the listener for the control commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
 		slog.Fatalf("failed to serve: %s", err)
 	}
 }
 
+// Stop the listener and connections
 func (g *ControlListener) Stop() {
 	g.conns.Stop()
 }
@@ -58,6 +60,7 @@ func NewControlClient(port string) (*ControlClient, error) {
 	return &ControlClient{conn: conn, client: c}, nil
 }
 
+// Ping the drand daemon to check if it's up and running
 func (c *ControlClient) Ping() error {
 	_, err := c.client.PingPong(context.Background(), &control.Ping{})
 	return err
@@ -69,15 +72,16 @@ func (c *ControlClient) Ping() error {
 // start the protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool) (*control.ReshareResponse, error) {
+func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeout string) (*control.ReshareResponse, error) {
 	request := &control.ReshareRequest{
 		Old: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{oldPath},
+			Location: &control.GroupInfo_Path{Path: oldPath},
 		},
 		New: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{newPath},
+			Location: &control.GroupInfo_Path{Path: newPath},
 		},
 		IsLeader: leader,
+		Timeout:  timeout,
 	}
 	return c.client.InitReshare(context.Background(), request)
 }
@@ -86,12 +90,13 @@ func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool) (*cont
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKG(groupPath string, leader bool) (*control.DKGResponse, error) {
+func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string) (*control.DKGResponse, error) {
 	request := &control.DKGRequest{
 		DkgGroup: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{groupPath},
+			Location: &control.GroupInfo_Path{Path: groupPath},
 		},
 		IsLeader: leader,
+		Timeout:  timeout,
 	}
 	return c.client.InitDKG(context.Background(), request)
 

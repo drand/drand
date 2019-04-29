@@ -1,16 +1,19 @@
-// Group is a list of Public keys providing helper methods to search and
 package key
 
+// Group is a list of Public keys providing helper methods to search and
+
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/dchest/blake2b"
-	kyber "github.com/dedis/kyber"
-	vss "github.com/dedis/kyber/share/vss/pedersen"
+	kyber "go.dedis.ch/kyber/v3"
+	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
 // Group holds all information about a group of drand nodes.
@@ -26,6 +29,7 @@ type Group struct {
 	Period time.Duration
 }
 
+// Identities return the underlying slice of identities
 func (g *Group) Identities() []*Identity {
 	return g.Nodes
 }
@@ -95,6 +99,12 @@ func (g *Group) Len() int {
 	return len(g.Nodes)
 }
 
+func (g *Group) String() string {
+	var b bytes.Buffer
+	toml.NewEncoder(&b).Encode(g.TOML())
+	return b.String()
+}
+
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
 	Nodes     []*PublicTOML
@@ -114,7 +124,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	for i, ptoml := range gt.Nodes {
 		g.Nodes[i] = new(Identity)
 		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
-			return err
+			return fmt.Errorf("group: unwrapping node[%d]: %v", i, err)
 		}
 	}
 
@@ -128,7 +138,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		// dist key only if dkg ran
 		g.PublicKey = &DistPublic{}
 		if err = g.PublicKey.FromTOML(gt.PublicKey); err != nil {
-			return err
+			return fmt.Errorf("group: unwrapping distributed public key: %v", err)
 		}
 	}
 	g.Period, err = time.ParseDuration(gt.Period)

@@ -6,16 +6,23 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 
-	kyber "github.com/dedis/kyber"
-	"github.com/dedis/kyber/pairing/bn256"
-	"github.com/dedis/kyber/share"
-	"github.com/dedis/kyber/share/dkg/pedersen"
-	"github.com/dedis/kyber/util/random"
+	kyber "go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/pairing/bn256"
+	"go.dedis.ch/kyber/v3/share"
+	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v3/util/random"
 )
 
+// Pairing is the main pairing suite used by drand. New interesting curves
+// should be allowed by drand, such as BLS12-381.
 var Pairing = bn256.NewSuite()
+
+// G1 is the G1 group implementation.
 var G1 = Pairing.G1()
+
+// G2 is the G2 group implementation.
 var G2 = Pairing.G2()
 
 // Pair is a wrapper around a random scalar  and the corresponding public
@@ -39,6 +46,7 @@ func (i *Identity) Address() string {
 	return i.Addr
 }
 
+// IsTLS returns true if this address is reachable over TLS.
 func (i *Identity) IsTLS() bool {
 	return i.TLS
 }
@@ -59,6 +67,8 @@ func NewKeyPair(address string) *Pair {
 	}
 }
 
+// NewTLSKeyPair returns a fresh keypair associated with the given address
+// reachable over TLS.
 func NewTLSKeyPair(address string) *Pair {
 	kp := NewKeyPair(address)
 	kp.Public.TLS = true
@@ -108,13 +118,13 @@ func (p *Pair) TOMLValue() interface{} {
 }
 
 // Equal returns true if the cryptographic public key of p equals p2's
-func (p *Identity) Equal(p2 *Identity) bool {
-	return p.Key.Equal(p2.Key)
+func (i *Identity) Equal(p2 *Identity) bool {
+	return i.Key.Equal(p2.Key)
 }
 
 // FromTOML loads reads the TOML description of the public key
-func (p *Identity) FromTOML(i interface{}) error {
-	ptoml, ok := i.(*PublicTOML)
+func (i *Identity) FromTOML(t interface{}) error {
+	ptoml, ok := t.(*PublicTOML)
 	if !ok {
 		return errors.New("Public can't decode from non PublicTOML struct")
 	}
@@ -122,24 +132,24 @@ func (p *Identity) FromTOML(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	p.Addr = ptoml.Address
-	p.Key = G2.Point()
-	p.TLS = ptoml.TLS
-	return p.Key.UnmarshalBinary(buff)
+	i.Addr = ptoml.Address
+	i.Key = G2.Point()
+	i.TLS = ptoml.TLS
+	return i.Key.UnmarshalBinary(buff)
 }
 
 // TOML returns a empty TOML-compatible version of the public key
-func (p *Identity) TOML() interface{} {
-	hex := PointToString(p.Key)
+func (i *Identity) TOML() interface{} {
+	hex := PointToString(i.Key)
 	return &PublicTOML{
-		Address: p.Addr,
+		Address: i.Addr,
 		Key:     hex,
-		TLS:     p.TLS,
+		TLS:     i.TLS,
 	}
 }
 
 // TOMLValue returns a TOML-compatible interface value
-func (p *Identity) TOMLValue() interface{} {
+func (i *Identity) TOMLValue() interface{} {
 	return &PublicTOML{}
 }
 
@@ -243,15 +253,15 @@ type DistPublic struct {
 	Coefficients []kyber.Point
 }
 
-// DistPublicTOML is a TOML compatible value of a DistPublic
-type DistPublicTOML struct {
-	Coefficients []string
-}
-
 // Key returns the first coefficient as representing the public key to be used
 // to verify signatures issued by the distributed key.
 func (d *DistPublic) Key() kyber.Point {
 	return d.Coefficients[0]
+}
+
+// DistPublicTOML is a TOML compatible value of a DistPublic
+type DistPublicTOML struct {
+	Coefficients []string
 }
 
 // TOML returns a TOML-compatible version of d
@@ -284,6 +294,23 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 // TOMLValue returns an empty TOML-compatible dist public interface
 func (d *DistPublic) TOMLValue() interface{} {
 	return &DistPublicTOML{}
+}
+
+// Equal returns if all coefficients of the public key d are equal to those of
+// d2
+func (d *DistPublic) Equal(d2 *DistPublic) bool {
+	if len(d.Coefficients) != len(d2.Coefficients) {
+		return false
+	}
+	for i := range d.Coefficients {
+		p1 := d.Coefficients[i]
+		p2 := d2.Coefficients[i]
+		// XXX to change: this is a naive comparison way
+		if p1.String() != p2.String() {
+			return false
+		}
+	}
+	return true
 }
 
 // BeaconSignature is the final reconstructed BLS signature that is saved in the
@@ -369,6 +396,7 @@ func StringToScalar(g kyber.Group, s string) (kyber.Scalar, error) {
 	return sc, sc.UnmarshalBinary(buff)
 }
 
+// DefaultThreshold return floor(n * 2/3) + 1
 func DefaultThreshold(n int) int {
-	return (n*2)/3 + 1
+	return int(math.Floor(float64((n*2))/3.0)) + 1
 }

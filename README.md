@@ -214,13 +214,13 @@ After running all drand daemons, each operator needs to issue a command to start
 the DKG protocol, using the group file generated before. One can do so using the
 control client with:
 ```
-drand share <group-file>
+drand share <group-file>  --timeout 10s
 ```
 
 One of the nodes has to function as the leader to initiate the DKG protocol (no
 additional trust assumptions), he can do so with:
 ```
-drand share --leader <group-file>
+drand share --leader <group-file> 
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -228,6 +228,10 @@ compute the distributed public key (`dist_key.public`) and the private key
 shares (`dist_key.private`) together with the participants specified in
 `drand_group.toml`. Once the DKG has finished, the keys are stored as
 `$HOME/.drand/groups/dist_key.{public,private}`.
+
+The timeout is an optional parameter indicating the maximum timeout the DKG
+protocol will wait. If there are some failed nodes during the DKG, then the DKG will finish only after the given timeout. The default value is set to 10s (see
+[`core/constants.go`](https://github.com/dedis/drand/blob/master/core/constants.go) file).
 
 **Group File**: Once the DKG phase is done, the group file is updated with the
 newly created distributed public key. That updated group file needed by drand to
@@ -261,7 +265,7 @@ needed. The group toml does not need to be updated with the collective key.
 
 **NOTE**: Using the last method (`get cokey`), a drand node *can* lie about the
 key if no out-of-band verification is performed. That information is usually
-best gathered from a trusted drand operator and then statically embedded in any
+best gathered from a trusted drand operator and then embedded in any
 applications using drand.
 
 ### Randomness Generation
@@ -484,15 +488,18 @@ Our longterm objective is to have a library written in pure JavaScript.
 ## What's Next?
 
 Although being already functional, drand is still at an early development stage
-and there is a lot left to be done. Feel free to submit feature requests or,
-even better, pull requests. ;)
+and there is a lot left to be done. The list of opened
+[issues](https://github.com/dedis/drand/issues) is a good place to start. On top
+of this, drand would benefit from higher-level enhancements such as the
+following: 
 
-+ Support DKG timeouts
 + Add more unit tests
 + Reduce size of Docker
 + Add a systemd unit file
 + Support multiple drand instances within one node
 + Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf)
+
+Feel free to submit feature requests or, even better, pull requests. ;)
 
 ## License
 

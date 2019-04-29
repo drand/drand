@@ -7,32 +7,10 @@ import (
 	bolt "github.com/coreos/bbolt"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
-	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"google.golang.org/grpc"
 )
-
-// DefaultConfigFolderName is the name of the folder containing all key materials
-// (and the beacons db file by default). It is relative to the user's home
-// directory.
-const DefaultConfigFolderName = ".drand"
-
-// DefaultConfigFolder returns the default path of the configuration folder.
-func DefaultConfigFolder() string {
-	return path.Join(fs.HomeFolder(), DefaultConfigFolderName)
-}
-
-// DefaultDbFolder is the name of the folder in which the db file is saved. By
-// default it is relative to the DefaultConfigFolder path.
-const DefaultDbFolder = "db"
-
-// DefaultBeaconPeriod is the period in which the beacon logic creates new
-// random beacon.
-const DefaultBeaconPeriod time.Duration = 1 * time.Minute
-
-// DefaultControlPort is the default port the functionnality control port communicate on.
-const DefaultControlPort = "8888"
 
 // ConfigOption is a function that applies a specific setting to a Config.
 type ConfigOption func(*Config)
@@ -60,6 +38,12 @@ func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
 		//grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
+		grpcOpts: []grpc.DialOption{
+			/*grpc.WithBackoffMaxDelay(3 * time.Second),*/
+			//grpc.WithBlock(),
+			//grpc.FailOnNonTempDialError(true),
+			/*grpc.WithTimeout(DefaultDialTimeout),*/
+		},
 		dkgTimeout:  dkg.DefaultTimeout,
 		certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,

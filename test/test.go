@@ -1,4 +1,4 @@
-// test package offers some common functionalities that are used throughout many
+// Package test offers some common functionalities that are used throughout many
 // different tests in drand.
 package test
 
@@ -9,8 +9,8 @@ import (
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/pairing/bn256"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/pairing/bn256"
 )
 
 type testPeer struct {
@@ -26,10 +26,12 @@ func (t *testPeer) IsTLS() bool {
 	return t.b
 }
 
+// NewPeer returns a new net.Peer
 func NewPeer(addr string) net.Peer {
 	return &testPeer{a: addr, b: false}
 }
 
+// NewTLSPeer returns a new net.Peer with TLS enabled
 func NewTLSPeer(addr string) net.Peer {
 	return &testPeer{a: addr, b: true}
 }
@@ -54,7 +56,7 @@ func Ports(n int) []string {
 	return ports
 }
 
-// GetFreePort returns an free TCP port.
+// FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
 func FreePort() int {
 	addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
@@ -81,16 +83,16 @@ func GenerateIDs(n int) []*key.Pair {
 	return keys
 }
 
-// Generates n insecure identities
+// BatchIdentities generates n insecure identities
 func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
-	keyStr := "012067064287f0d81a03e575109478287da0183fcd8f3eda18b85042d1c8903ec8160c56eb6d5884d8c519c30bfa3bf5181f42bcd2efdbf4ba42ab0f31d13c97e9552543be1acf9912476b7da129d7c7e427fbafe69ac5b635773f488b8f46f3fc40c673b93a08a20c0e30fd84de8a89adb6fb95eca61ef2fff66527b3be4912de"
+	keyStr := "0776a00e44dfa3ab8cff6b78b430bf16b9f8d088b54c660722a35f5034abf3ea4deb1a81f6b9241d22185ba07c37f71a67f94070a71493d10cb0c7e929808bd10cf2d72aeb7f4e10a8b0e6ccc27dad489c9a65097d342f01831ed3a9d0a875b770452b9458ec3bca06a5d4b99a5ac7f41ee5a8add2020291eab92b4c7f2d449f"
 	fakeKey, _ := StringToPoint(keyStr)
-	group := key.LoadGroup(ListFromPrivates(privs), &key.DistPublic{[]kyber.Point{fakeKey}}, key.DefaultThreshold(n))
+	group := key.LoadGroup(ListFromPrivates(privs), &key.DistPublic{Coefficients: []kyber.Point{fakeKey}}, key.DefaultThreshold(n))
 	return privs, group
 }
 
-// Generates n secure (TLS) identities
+// BatchTLSIdentities generates n secure (TLS) identities
 func BatchTLSIdentities(n int) ([]*key.Pair, *key.Group) {
 	pairs, group := BatchIdentities(n)
 	for i := 0; i < n; i++ {
@@ -110,6 +112,7 @@ func ListFromPrivates(keys []*key.Pair) []*key.Identity {
 
 }
 
+// StringToPoint returns the point representation of the given string
 func StringToPoint(s string) (kyber.Point, error) {
 	pairing := bn256.NewSuite()
 	g := pairing.G2()

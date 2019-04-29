@@ -1,16 +1,16 @@
 package test
 
-// returns a list of private shares along with the list of public coefficients
 import (
 	"testing"
 
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/share"
-	"github.com/dedis/kyber/util/random"
 	"github.com/stretchr/testify/require"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/share"
+	"go.dedis.ch/kyber/v3/util/random"
 )
 
-// of the public polynomial
+// SimulateDKG returns a list of private shares along with the list of
+// public coefficients of the public polynomial
 func SimulateDKG(test *testing.T, g kyber.Group, n, t int) ([]*share.PriShare, []kyber.Point) {
 	// Run an n-fold Pedersen VSS (= DKG)
 	priPolys := make([]*share.PriPoly, n)
@@ -41,7 +41,7 @@ func SimulateDKG(test *testing.T, g kyber.Group, n, t int) ([]*share.PriShare, [
 		for j := 0; j < n; j++ { // assuming all participants are in the qualified set
 			acc = g.Scalar().Add(acc, priShares[j][i].V)
 		}
-		dkgShares[i] = &share.PriShare{i, acc}
+		dkgShares[i] = &share.PriShare{I: i, V: acc}
 	}
 
 	// Create public DKG commitments (= verification vector)

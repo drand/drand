@@ -2,9 +2,7 @@ package dkg
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,15 +10,17 @@ import (
 	"github.com/dedis/drand/net"
 	vss_proto "github.com/dedis/drand/protobuf/crypto/share/vss"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/share/dkg/pedersen"
-	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
+	"go.dedis.ch/kyber/v3"
+	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 	"google.golang.org/grpc/peer"
 )
 
+// Suite is the suite used by the crypto dkg package
 type Suite = dkg.Suite
 
+// DefaultTimeout is the timeout used by default when unspecified in the config
 const DefaultTimeout = time.Duration(1) * time.Minute
 
 // Config holds all necessary information to run a dkg protocol. This config is
@@ -30,12 +30,8 @@ type Config struct {
 	Key      *key.Pair
 	NewNodes *key.Group
 	OldNodes *key.Group
-
-	Share     *key.Share
-	Threshold int
-
-	// XXX currently not used
-	Timeout time.Duration
+	Share    *key.Share
+	Timeout  time.Duration
 }
 
 // Share represents the private information that a node holds after a successful
@@ -64,6 +60,11 @@ type Handler struct {
 	exitCh        chan bool                  // any old node not in the new group will signal the end of the protocol through this channel
 
 	sync.Mutex
+	share           *dkg.DistKeyShare // the final share generated
+	sendDeal        bool              // true if this DKG should be expected to send a deal
+	timerCh         chan bool         // closed when timer should stop waiting
+	timeouted       bool              // true if timeout occured
+	timeoutLaunched bool              // true if timeout has launched already
 }
 
 // NewHandler returns a fresh dkg handler using this private key.
@@ -77,19 +78,22 @@ func NewHandler(n Network, c *Config) (*Handler, error) {
 	if c.OldNodes != nil && c.OldNodes.PublicKey != nil {
 		dpub = c.OldNodes.PublicKey.Coefficients
 	}
+
+	if c.Timeout == time.Duration(0) {
+		c.Timeout = DefaultTimeout
+	}
 	cdkg := &dkg.Config{
 		Suite:        c.Suite.(dkg.Suite),
 		Longterm:     c.Key.Key,
 		NewNodes:     c.NewNodes.Points(),
 		PublicCoeffs: dpub,
 		Share:        share,
+		NewThreshold: c.NewNodes.Threshold,
 	}
+
 	if c.OldNodes != nil {
 		cdkg.OldNodes = c.OldNodes.Points()
-	} else {
-		// nil oldnodes => DKG style
-		c.OldNodes = c.NewNodes
-		cdkg.OldNodes = cdkg.NewNodes
+		cdkg.OldThreshold = c.OldNodes.Threshold
 	}
 	state, err := dkg.NewDistKeyHandler(cdkg)
 	if err != nil {
@@ -109,7 +113,15 @@ func NewHandler(n Network, c *Config) (*Handler, error) {
 			oldNode = true
 		}
 	}
-	return &Handler{
+	var shouldSendDeal bool
+	if newNode && c.OldNodes == nil {
+		// fresh dkg case
+		shouldSendDeal = true
+	} else if oldNode && c.OldNodes != nil {
+		// resharing case
+		shouldSendDeal = true
+	}
+	handler := &Handler{
 		conf:         c,
 		cdkg:         cdkg,
 		private:      c.Key,
@@ -124,13 +136,20 @@ func NewHandler(n Network, c *Config) (*Handler, error) {
 		shareCh:      make(chan Share, 1),
 		errCh:        make(chan error, 1),
 		exitCh:       make(chan bool, 1),
-	}, nil
+		sendDeal:     shouldSendDeal,
+		timerCh:      make(chan bool, 1),
+	}
+	return handler, nil
 }
 
 // Process process an incoming message from the network.
 func (h *Handler) Process(c context.Context, packet *dkg_proto.DKGPacket) {
 	h.Lock()
 	defer h.Unlock()
+	if !h.timeoutLaunched {
+		h.timeoutLaunched = true
+		go h.startTimer() // start timer at the first message received
+	}
 	peer, _ := peer.FromContext(c)
 	switch {
 	case packet.Deal != nil:
@@ -144,6 +163,12 @@ func (h *Handler) Process(c context.Context, packet *dkg_proto.DKGPacket) {
 
 // Start sends the first message to run the protocol
 func (h *Handler) Start() {
+	h.Lock()
+	if !h.timeoutLaunched {
+		h.timeoutLaunched = true
+		go h.startTimer() // start timer at the first message received
+	}
+	h.Unlock()
 	if err := h.sendDeals(); err != nil {
 		h.errCh <- err
 	}
@@ -168,14 +193,42 @@ func (h *Handler) WaitExit() chan bool {
 	return h.exitCh
 }
 
-// QualifiedGroup returns the group of qualified participants,i.e. the list of
-// participants that successfully finished the DKG round without any blaming
-// from any other participants. This group must be saved to be re-used later on
+// QualifiedGroup returns the group that correctly finished running the DKG
+// protocol. It may be a subset of the group given in the NewNodes field in the
+// config. Indeed, not all members may have been online or have completed the
+// protocol sucessfully. This group must be saved to be re-used later on
 // in case of a renewal for the share.
-// TODO For the moment it's only taking the new set of nodes completely. Once we
-// allow for failing nodes during DKG, we must take the qualified group.
+// This method MUST only be called if the dkg has finished as signalled on the
+// `WaitShare` channel.
+// XXX Best to group that with the WaitShare channel.
 func (h *Handler) QualifiedGroup() *key.Group {
-	return key.NewGroup(h.conf.NewNodes.Identities(), h.conf.Threshold)
+	sharesIndex := h.state.QualifiedShares()
+	fmt.Println("shareIndex == ", sharesIndex)
+	newGroup := make([]*key.Identity, 0, len(sharesIndex))
+	ids := h.conf.NewNodes.Identities()
+
+	for _, idx := range sharesIndex {
+		newGroup = append(newGroup, ids[idx])
+	}
+
+	return key.LoadGroup(newGroup, &key.DistPublic{Coefficients: h.share.Commits}, h.conf.NewNodes.Threshold)
+}
+
+func (h *Handler) startTimer() {
+	select {
+	case <-time.After(h.conf.Timeout):
+		h.Lock()
+		defer h.Unlock()
+		slog.Infof("dkg: %s - timeout -> setting invalid responses / deals", h.info())
+		h.timeouted = true
+		h.state.SetTimeout()
+		h.checkCertified()
+		slog.Infof("dkg: %s - timeout -> setting invalid responses / deals DONE", h.info())
+	case <-h.timerCh:
+		// no need to set the timeout, i.e. we have all the required deals and
+		// responses !
+		return
+	}
 }
 
 func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
@@ -191,15 +244,14 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 		},
 	}
 	defer h.processTmpResponses(deal)
-	slog.Debugf("dkg: %d %s processing deal from %d %s (%d processed)", h.nidx, h.addr(), deal.Index, h.raddr(deal.Index, true), h.dealProcessed)
-	slog.Debugf("dkg: after processing deal -> h.sentDeals %v && h.oldNode %v", h.sentDeals, h.oldNode)
+	slog.Debugf("dkg: %d %s processing deal from %d %s (%d processed & sentdeals %v)", h.nidx, h.addr(), deal.Index, h.dealerAddr(deal.Index), h.dealProcessed, h.sentDeals)
 	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
 		slog.Infof("dkg: error processing deal: %s", err)
 		return
 	}
 
-	if !h.sentDeals && h.oldNode {
+	if !h.sentDeals && h.sendDeal {
 		slog.Debugf("dkg: %d sending deals out there", h.oidx)
 		go func() {
 			if err := h.sendDeals(); err != nil {
@@ -212,7 +264,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 
 	if h.newNode {
 		// this should always be the case since that function should only be
-		// called  to new nodes members
+		// called  to new nodes members§
 		out := &dkg_proto.DKGPacket{
 			Response: &dkg_proto.Response{
 				Index: resp.Index,
@@ -261,35 +313,34 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 		},
 	}
 	j, err := h.state.ProcessResponse(resp)
-	slog.Debugf("dkg: processing response(%d so far) from %s", h.respProcessed, p.Addr)
+	slog.Debugf("dkg: %s processing response from %d for deal %d - %s", h.info(), resp.Response.Index, resp.Index, p.Addr)
 	if err != nil {
-		if strings.Contains(err.Error(), "no deal for it") {
+		if err == vss.ErrNoDealBeforeResponse {
 			h.tmpResponses[resp.Index] = append(h.tmpResponses[resp.Index], resp)
 			slog.Debugf("dkg: %s storing future response for unknown deal (from %s) %d", h.addr(), p.Addr, resp.Index)
 			return
 		}
 		slog.Infof("dkg: error process response: %s", err)
-		slog.Debugf(" -- dkg %d (newNode?%v) response about deal %d from verifier/node %d", h.nidx, h.oldNode, resp.Index, resp.Response.Index)
+		slog.Debugf(" -- dkg %d (newNode?%v) response about deal %d from verifier/node %d", h.nidx, h.newNode, resp.Index, resp.Response.Index)
 		return
 	}
 	if j != nil && h.oldNode {
 		// XXX TODO
 		slog.Debugf("dkg: broadcasting justification")
-		/*packet := &dkg_proto.Packet{*/
-		//Justification: &dkg_proto.Justification{
-		//Index: j.Index,
-		//Justification: &vss.Justification{
-		//SessionID: j.Justification.Index,
-		//Index: j.Justification.Index,
-		//Signature: j.Justification.Signature,
-
-		//}
-		//},
-		//}
-		/*go h.broadcast(packet)*/
+		packet := &dkg_proto.DKGPacket{
+			Justification: &dkg_proto.Justification{
+				Index: j.Index,
+				Justification: &vss_proto.Justification{
+					SessionId: j.Justification.SessionID,
+					Index:     j.Justification.Index,
+					Signature: j.Justification.Signature,
+				},
+			},
+		}
+		go h.broadcast(packet, true)
 	}
 
-	slog.Debugf("dkg: %s processResponse(%d/%d) from %s --> Certified() ? %v --> done ? %v", h.info(), h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified(), h.done)
+	slog.Debugf("dkg: %s processResponse(%d/%d) from %s --> Certified() ? %v", h.info(), h.respProcessed, h.n*(h.n-1), p.Addr, h.state.Certified())
 
 }
 
@@ -312,23 +363,42 @@ func (h *Handler) info() string {
 // the distributed key share, and sends it along the channel returned by
 // WaitShare.
 func (h *Handler) checkCertified() {
-	if !h.state.Certified() || h.done {
+	if h.done {
 		return
 	}
+	var fully = true
+	if !h.state.Certified() {
+		// we miss some responses / deals
+		if !(h.state.ThresholdCertified() && h.timeouted) {
+			// if it's not threshold-certified or the timeout did not occur,
+			// that means it's not finished yet. After timeout, we are ready to
+			// accept the threshold-certified deals.
+			return
+		}
+		// we have enough deals/responses and the timeout passed so we consider
+		// it the end of the protocol
+		fully = false
+	}
 	h.done = true
+	close(h.timerCh)
 	if !h.newNode {
 		// we just signal an empty message since we are not holder of a share
 		// anymore
 		h.exitCh <- true
 		return
 	}
-	slog.Infof("dkg: %d certified!", h.nidx)
+	if fully {
+		slog.Infof("dkg: %d fully certified!", h.nidx)
+	} else {
+		slog.Infof("dkg: %d threshold-certified!", h.nidx)
+	}
 	dks, err := h.state.DistKeyShare()
 	if err != nil {
 		slog.Infof("dkg: %d -> certified but error getting share: %s", h.nidx, err)
 		return
 	}
 	share := Share(*dks)
+	h.share = &share
 	h.shareCh <- share
 }
 
@@ -373,12 +443,12 @@ func (h *Handler) sendDeals() error {
 		if err := h.net.Send(id, packet); err != nil {
 			slog.Printf("dkg: failed to send deal to %s: %s", id.Address(), err)
 		} else {
-			slog.Debugf("dkg: %d sending deal to %d -- END", h.oidx, i)
+			slog.Debugf("dkg: (oidx %d, nidx %d) sending deal to new node %d -- END", h.oidx, h.nidx, i)
 			good++
 		}
 	}
-	if good < h.conf.Threshold {
-		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.Threshold)
+	if good < h.conf.NewNodes.Threshold {
+		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.NewNodes.Threshold)
 	}
 	slog.Infof("dkg: %d sent deals successfully to %d nodes", h.oidx, good-1)
 	return nil
@@ -423,9 +493,9 @@ func (h *Handler) broadcast(p *dkg_proto.DKGPacket, toOldNodes bool) {
 		}
 
 	}
-	if good < h.conf.Threshold {
-		h.errCh <- errors.New("dkg: broadcast not successful")
-	}
+	//if good < h.conf.NewNodes.Threshold {
+	//h.errCh <- fmt.Errorf("dkg: broadcasted deal only to %d/%d (thr)", good, h.conf.NewNodes.Threshold)
+	//}
 	slog.Debugf("dkg: broadcast done")
 }
 
@@ -433,7 +503,7 @@ func (h *Handler) addr() string {
 	return h.private.Public.Address()
 }
 
-func (h *Handler) raddr(i uint32, oldNodes bool) string {
+func (h *Handler) dealerAddr(i uint32) string {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Printf("PANIC ! %s\n", err)
@@ -441,11 +511,25 @@ func (h *Handler) raddr(i uint32, oldNodes bool) string {
 			panic(err)
 		}
 	}()
-	if oldNodes {
-		return h.conf.OldNodes.Public(int(i)).Address()
-	} else {
+	if h.conf.OldNodes == nil {
 		return h.conf.NewNodes.Public(int(i)).Address()
 	}
+	return h.conf.OldNodes.Public(int(i)).Address()
+
+}
+
+func (h *Handler) raddr(i uint32, oldNodes bool) string {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("PANIC ! %s\n", err)
+			fmt.Printf(" \t %v --> oldnodes: %v\n", oldNodes, h.conf.OldNodes)
+			panic(err)
+		}
+	}()
+	if oldNodes {
+		return h.conf.OldNodes.Public(int(i)).Address()
+	}
+	return h.conf.NewNodes.Public(int(i)).Address()
 }
 
 // Network is used by the Handler to send a DKG protocol packet over the network.

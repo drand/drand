@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
@@ -38,9 +39,11 @@ type Drand struct {
 	dkgDone bool
 
 	// proposed next group hash for a resharing operation
-	nextGroupHash string
-	nextGroup     *key.Group
-	nextConf      *dkg.Config
+	nextGroupHash     string
+	nextGroup         *key.Group
+	nextConf          *dkg.Config
+	nextOldPresent    bool // true if we are in the old group
+	nextFirstReceived bool // false til receive 1st reshare packet
 
 	// global state lock
 	state sync.Mutex
@@ -106,9 +109,6 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := d.initBeacon(); err != nil {
-		return nil, err
-	}
 	slog.Debugf("drand: loaded and serving at %s", d.priv.Public.Address())
 	return d, nil
 }
@@ -137,15 +137,13 @@ func (d *Drand) WaitDKG() error {
 	errCh := d.dkg.WaitError()
 	d.state.Unlock()
 
-	var err error
+	slog.Debugf("drand: waiting DKG to start & finish at %s", time.Now())
 	select {
 	case share := <-waitCh:
 		s := key.Share(share)
 		d.share = &s
-	case err = <-errCh:
-	}
-	if err != nil {
-		return err
+	case err := <-errCh:
+		return fmt.Errorf("drand: error from dkg: %v", err)
 	}
 
 	d.state.Lock()
@@ -153,9 +151,11 @@ func (d *Drand) WaitDKG() error {
 
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	// XXX change to qualified group when handling failure during DKG time
-	d.group = d.nextConf.NewNodes
-	d.group.PublicKey = d.share.Public()
+	d.group = d.dkg.QualifiedGroup()
+	// need to save the period before since dkg returns a *new* fresh group, it
+	// does not know about the period.
+	d.group.Period = d.nextConf.NewNodes.Period
+	slog.Debugf("drand: DKG finished with %d node certified at %s\n", d.group.Len(), time.Now())
 	d.store.SaveGroup(d.group)
 	d.dkgDone = true
 	d.dkg = nil
@@ -172,7 +172,7 @@ func (d *Drand) createDKG() error {
 		return nil
 	}
 	if d.nextConf == nil {
-		return errors.New("drand: invalid state -> nil nextConf")
+		return errors.New("drand: invalid state: no next configuration")
 	}
 	var err error
 	c := d.nextConf
@@ -188,11 +188,17 @@ var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time,
 
 // StartBeacon initializes the beacon if needed and launch a go routine that
 // runs the generation loop.
-func (d *Drand) StartBeacon() error {
-	if err := d.initBeacon(); err != nil {
-		return err
+func (d *Drand) StartBeacon(catchup bool) error {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.beacon == nil {
+		d.state.Unlock()
+		d.initBeacon()
+		d.state.Lock()
 	}
-	go d.BeaconLoop()
+	period := getPeriod(d.group)
+	slog.Infof("drand: starting random beacon (catchup?%v) at %s", catchup, time.Now())
+	go d.beacon.Loop(DefaultSeed, period, catchup)
 	return nil
 }
 
@@ -205,41 +211,6 @@ func (d *Drand) StopBeacon() {
 	}
 	d.beacon.Stop()
 	d.beacon = nil
-}
-
-// BeaconLoop starts periodically the TBLS protocol. The seed is the first
-// message signed alongside with the current timestamp. All subsequent
-// signatures are chained:
-// s_i+1 = SIG(s_i || timestamp)
-// For the moment, each resulting signature is stored in a file named
-// beacons/<timestamp>.sig.
-// The period is determined according the group.toml this node belongs to.
-func (d *Drand) BeaconLoop() error {
-	d.state.Lock()
-	// heuristic: we catchup when we can retrieve a beacon from the db
-	// if there is an error we quit, if there is no beacon saved yet, we
-	// run the loop as usual.
-	var catchup = true
-	b, err := d.beaconStore.Last()
-	if err != nil {
-		if err == beacon.ErrNoBeaconSaved {
-			// we are starting the beacon generation
-			catchup = false
-		} else {
-			// there's a serious error
-			d.state.Unlock()
-			return fmt.Errorf("drand: could not determine beacon state: %s", err)
-		}
-	}
-	if catchup {
-		slog.Infof("drand: starting beacon loop in catch-up mode from round %v", b.Round)
-	} else {
-		slog.Infof("drand: starting beacon loop")
-	}
-	period := getPeriod(d.group)
-	d.state.Unlock()
-	d.beacon.Loop(DefaultSeed, period, catchup)
-	return nil
 }
 
 // Stop simply stops all drand operations.
@@ -264,15 +235,14 @@ func (d *Drand) initBeacon() error {
 	if d.beacon != nil {
 		return nil
 	}
-	d.dkgDone = true
 	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {
 		return err
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-	d.beacon = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
-	return nil
+	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
+	return err
 }
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {

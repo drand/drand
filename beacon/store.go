@@ -25,6 +25,7 @@ type Beacon struct {
 	// Randomness is the tbls signature of Round || PreviousRand
 	Randomness []byte
 	// Gid is the group id of the randomness - usually fixed
+	// See protobuf's crypto elements definitions for more information.
 	Gid int32
 }
 
@@ -89,7 +90,7 @@ func (b *boltStore) Close() {
 	if err := b.db.Close(); err != nil {
 		slog.Debugf("boltdb store: %s", err)
 	}
-	slog.Debugf("boltdb store: closing ...")
+	slog.Debugf("beacon: boltdb store closed.")
 }
 
 // Put implements the Store interface. WARNING: It does NOT verify that this

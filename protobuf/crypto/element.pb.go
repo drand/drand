@@ -47,7 +47,7 @@ func (x GroupID) String() string {
 	return proto.EnumName(GroupID_name, int32(x))
 }
 func (GroupID) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_element_ca189368ce9ff0b3, []int{0}
+	return fileDescriptor_element_8fc8933fdf3d6e2e, []int{0}
 }
 
 //
@@ -65,7 +65,7 @@ func (m *Point) Reset()         { *m = Point{} }
 func (m *Point) String() string { return proto.CompactTextString(m) }
 func (*Point) ProtoMessage()    {}
 func (*Point) Descriptor() ([]byte, []int) {
-	return fileDescriptor_element_ca189368ce9ff0b3, []int{0}
+	return fileDescriptor_element_8fc8933fdf3d6e2e, []int{0}
 }
 func (m *Point) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Point.Unmarshal(m, b)
@@ -114,7 +114,7 @@ func (m *Scalar) Reset()         { *m = Scalar{} }
 func (m *Scalar) String() string { return proto.CompactTextString(m) }
 func (*Scalar) ProtoMessage()    {}
 func (*Scalar) Descriptor() ([]byte, []int) {
-	return fileDescriptor_element_ca189368ce9ff0b3, []int{1}
+	return fileDescriptor_element_8fc8933fdf3d6e2e, []int{1}
 }
 func (m *Scalar) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Scalar.Unmarshal(m, b)
@@ -154,9 +154,9 @@ func init() {
 	proto.RegisterEnum("element.GroupID", GroupID_name, GroupID_value)
 }
 
-func init() { proto.RegisterFile("crypto/element.proto", fileDescriptor_element_ca189368ce9ff0b3) }
+func init() { proto.RegisterFile("crypto/element.proto", fileDescriptor_element_8fc8933fdf3d6e2e) }
 
-var fileDescriptor_element_ca189368ce9ff0b3 = []byte{
+var fileDescriptor_element_8fc8933fdf3d6e2e = []byte{
 	// 208 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x49, 0x2e, 0xaa, 0x2c,
 	0x28, 0xc9, 0xd7, 0x4f, 0xcd, 0x49, 0xcd, 0x4d, 0xcd, 0x2b, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9,

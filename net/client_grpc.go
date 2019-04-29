@@ -29,20 +29,22 @@ var defaultJSONMarshaller = &HexJSON{}
 // using gRPC as its underlying mechanism
 type grpcClient struct {
 	sync.Mutex
-	conns   map[string]*grpc.ClientConn
-	opts    []grpc.DialOption
-	timeout time.Duration
-	manager *CertManager
+	conns    map[string]*grpc.ClientConn
+	opts     []grpc.DialOption
+	timeout  time.Duration
+	manager  *CertManager
+	failFast grpc.CallOption
 }
 
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
 	return &grpcClient{
-		opts:    opts,
-		conns:   make(map[string]*grpc.ClientConn),
-		timeout: DefaultTimeout,
-		manager: NewCertManager(),
+		opts:     opts,
+		conns:    make(map[string]*grpc.ClientConn),
+		manager:  NewCertManager(),
+		timeout:  1 * time.Second,
+		failFast: grpc.FailFast(true),
 	}
 }
 
@@ -62,8 +64,14 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) *g
 	return c
 }
 
-func (g *grpcClient) SetTimeout(t time.Duration) {
-	g.timeout = t
+func (g *grpcClient) getTimeoutContext() context.Context {
+	clientDeadline := time.Now().Add(g.timeout)
+	ctx, _ := context.WithDeadline(context.Background(), clientDeadline)
+	return ctx
+}
+
+func (g *grpcClient) SetTimeout(p time.Duration) {
+	g.timeout = p
 }
 
 func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
@@ -116,7 +124,7 @@ func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.
 			return err
 		}
 		client := dkg.NewDkgClient(c)
-		resp, err = client.Setup(context.Background(), in, opts...)
+		resp, err = client.Setup(g.getTimeoutContext(), in, grpc.FailFast(true))
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -130,7 +138,7 @@ func (g *grpcClient) Reshare(p Peer, in *dkg.ResharePacket, opts ...CallOption) 
 			return err
 		}
 		client := dkg.NewDkgClient(c)
-		resp, err = client.Reshare(context.Background(), in, opts...)
+		resp, err = client.Reshare(g.getTimeoutContext(), in, grpc.FailFast(true))
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -144,7 +152,7 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 			return err
 		}
 		client := drand.NewBeaconClient(c)
-		resp, err = client.NewBeacon(context.Background(), in, grpc.FailFast(true))
+		resp, err = client.NewBeacon(g.getTimeoutContext(), in, append(opts, grpc.FailFast(true))...)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)

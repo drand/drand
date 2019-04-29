@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	toml "github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
@@ -14,8 +16,8 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber/share/vss/pedersen"
 	"github.com/nikkolasg/slog"
+	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
 // InitDKG take a DKGRequest, extracts the informations needed and wait for the
@@ -32,7 +34,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	group, err := extractGroup(in.GetDkgGroup())
 	if err != nil {
 		d.state.Unlock()
-		return nil, err
+		return nil, fmt.Errorf("drand: error reading group: %v", err)
 	}
 	d.group = group
 	idx, found := group.Index(d.priv.Public)
@@ -43,10 +45,12 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	d.idx = idx
 
 	d.nextConf = &dkg.Config{
-		Suite:     key.G2.(dkg.Suite),
-		NewNodes:  d.group,
-		Threshold: group.Threshold,
-		Key:       d.priv,
+		Suite:    key.G2.(dkg.Suite),
+		NewNodes: d.group,
+		Key:      d.priv,
+	}
+	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
+		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
 
 	d.state.Unlock()
@@ -55,9 +59,17 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 		d.StartDKG()
 	}
 	if err := d.WaitDKG(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
-	return &control.DKGResponse{}, d.StartBeacon()
+
+	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
+	d.initBeacon()
+	time.Sleep(500 * time.Millisecond)
+	// After DKG, always start the beacon directly
+	if err := d.StartBeacon(false); err != nil {
+		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
+	}
+	return &control.DKGResponse{}, nil
 }
 
 // InitReshare receives information about the old and new group from which to
@@ -85,7 +97,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	d.state.Unlock()
 
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
-
 	err = func() error {
 		d.state.Lock()
 		defer d.state.Unlock()
@@ -111,12 +122,12 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 
 		// prepare dkg config to run the protocol
 		conf := &dkg.Config{
-			OldNodes:  oldGroup,
-			NewNodes:  newGroup,
-			Threshold: newGroup.Threshold,
-			Key:       d.priv,
-			Suite:     key.G2.(dkg.Suite),
+			OldNodes: oldGroup,
+			NewNodes: newGroup,
+			Key:      d.priv,
+			Suite:    key.G2.(dkg.Suite),
 		}
+
 		// run the proto
 		if oldPresent {
 			if !d.dkgDone {
@@ -133,9 +144,14 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			return err
 		}
 
+		if err := setTimeout(conf, in.Timeout); err != nil {
+			return fmt.Errorf("drand: invalid timeout: %s", err)
+		}
+
 		d.nextGroupHash = nextHash
 		d.nextGroup = newGroup
 		d.nextConf = conf
+		d.nextOldPresent = oldPresent
 		return nil
 	}()
 
@@ -144,21 +160,29 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	}
 
 	if oldPresent && in.GetIsLeader() {
-		// only the root sends a pre-message to the other old nodes and start
-		// the DKG
+		// only the root sends a pre-message to the other old
+		// nodes and start the DKG
 		d.startResharingAsLeader(oldIdx)
 	}
 	if err := d.WaitDKG(); err != nil {
 		return nil, err
 	}
 	// stop the beacon first, then re-create it with the new shares
-	// i.e. the current beacon is still running alongside with the new DKG but
+	// i.e. the current beacon is still running alongside with the
+	// new DKG but
 	// stops as soon as the new DKG finishes.
 	d.StopBeacon()
-	return &control.ReshareResponse{}, d.StartBeacon()
+	d.initBeacon()
+	time.Sleep(500 * time.Millisecond)
+	catchup := true
+	if oldPresent {
+		catchup = false
+	}
+	return &control.ReshareResponse{}, d.StartBeacon(catchup)
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {
+	slog.Debugf("drand: start sending resharing signal")
 	d.state.Lock()
 	msg := &dkg_proto.ResharePacket{GroupHash: d.nextGroupHash}
 	// send resharing packet to signal start of the protocol to other old
@@ -167,11 +191,16 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 		if i == oidx {
 			continue
 		}
-		if _, err := d.gateway.InternalClient.Reshare(p, msg); err != nil {
+		id := p
+		// XXX find way to just have a small RPC timeout if one is down.
+		//fmt.Printf("drand leader %s -> signal to %s\n", d.priv.Public.Addr, id.Addr)
+		if _, err := d.gateway.InternalClient.Reshare(id, msg); err != nil {
+			//if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
 			slog.Debugf("drand: init reshare packet err %s", err)
 		}
 	}
 	d.state.Unlock()
+	slog.Debugf("drand: resharing signal sent -> start DKG")
 	d.StartDKG()
 }
 
@@ -288,4 +317,17 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 		return nil, errors.New("control: threshold of new group too low ")
 	}
 	return g, nil
+}
+
+func setTimeout(c *dkg.Config, timeoutStr string) error {
+	// try parsing the timeout
+	timeout, err := time.ParseDuration(timeoutStr)
+	if err != nil {
+		if timeoutStr != "" {
+			return fmt.Errorf("invalid timeout: %s", err)
+		}
+		timeout, _ = time.ParseDuration(DefaultDKGTimeout)
+	}
+	c.Timeout = timeout
+	return nil
 }

@@ -11,8 +11,8 @@ import (
 
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/kyber"
-	"github.com/dedis/kyber/util/random"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/util/random"
 	"golang.org/x/crypto/hkdf"
 )
 
