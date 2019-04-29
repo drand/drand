@@ -230,6 +230,11 @@ func TestDrandDKGFresh(t *testing.T) {
 	}
 
 	var distributedPublic *key.DistPublic
+	var publicSet = make(chan bool)
+	getPublic := func() *key.DistPublic {
+		<-publicSet
+		return distributedPublic
+	}
 
 	type receivingStruct struct {
 		Index  int
@@ -264,7 +269,7 @@ func TestDrandDKGFresh(t *testing.T) {
 		//addr := drands[i].priv.Public.Address()
 		myCb := func(b *beacon.Beacon) {
 			msg := beacon.Message(b.PreviousRand, b.Round)
-			err := bls.Verify(key.Pairing, distributedPublic.Key(), msg, b.Randomness)
+			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Randomness)
 			if err != nil {
 				fmt.Printf("Beacon error callback: %s\n", b.Randomness)
 			}
@@ -315,6 +320,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	distributedPublic, err = root.store.LoadDistPublic()
 	require.Nil(t, err)
 	require.NotNil(t, distributedPublic)
+	close(publicSet)
 	_, err = root.store.LoadShare()
 	require.Nil(t, err)
 
