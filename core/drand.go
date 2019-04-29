@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
@@ -136,6 +137,7 @@ func (d *Drand) WaitDKG() error {
 	errCh := d.dkg.WaitError()
 	d.state.Unlock()
 
+	slog.Debugf("drand: waiting DKG to start & finish at %s", time.Now())
 	select {
 	case share := <-waitCh:
 		s := key.Share(share)
@@ -153,7 +155,7 @@ func (d *Drand) WaitDKG() error {
 	// need to save the period before since dkg returns a *new* fresh group, it
 	// does not know about the period.
 	d.group.Period = d.nextConf.NewNodes.Period
-	slog.Debugf("drand: DKG finished with %d node certified\n", d.group.Len())
+	slog.Debugf("drand: DKG finished with %d node certified at %s\n", d.group.Len(), time.Now())
 	d.store.SaveGroup(d.group)
 	d.dkgDone = true
 	d.dkg = nil
@@ -190,16 +192,12 @@ func (d *Drand) StartBeacon(catchup bool) error {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
-		fs.CreateSecureFolder(d.opts.DBFolder())
-		store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
-		if err != nil {
-			return err
-		}
-		d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-		d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.priv, d.share, d.group, d.beaconStore)
+		d.state.Unlock()
+		d.initBeacon()
+		d.state.Lock()
 	}
 	period := getPeriod(d.group)
-	slog.Infof("drand: starting random beacon (catchup?%v)", catchup)
+	slog.Infof("drand: starting random beacon (catchup?%v) at %s", catchup, time.Now())
 	go d.beacon.Loop(DefaultSeed, period, catchup)
 	return nil
 }

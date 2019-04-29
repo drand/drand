@@ -169,6 +169,8 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	// new DKG but
 	// stops as soon as the new DKG finishes.
 	d.StopBeacon()
+	d.initBeacon()
+	time.Sleep(500 * time.Millisecond)
 	catchup := true
 	if oldPresent {
 		catchup = false

@@ -70,6 +70,10 @@ func (g *grpcClient) getTimeoutContext() context.Context {
 	return ctx
 }
 
+func (g *grpcClient) SetTimeout(p time.Duration) {
+	g.timeout = p
+}
+
 func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	var resp *drand.PublicRandResponse
 	fn := func() error {

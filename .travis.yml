@@ -10,7 +10,7 @@ go:
     - tip
 
 env:
-- GO111MODULE=on
+    - GO111MODULE=on
 
 script:
     #- cd core && go test -v && cd ../ && cd beacon/ && go test -v && cd ../

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"sync"
 	"time"
 
@@ -73,6 +74,8 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 	}
 
 	addr := group.Nodes[idx].Addr
+
+	c.SetTimeout(group.Period) // wait on each call no more than the period
 	return &Handler{
 		client:    c,
 		group:     group,
@@ -88,6 +91,8 @@ func NewHandler(c net.InternalClient, priv *key.Pair, sh *key.Share, group *key.
 	}, nil
 }
 
+var errOutOfRound = "out-of-round beacon request"
+
 // ProcessBeacon receives a request for a beacon partial signature. It replies
 // successfully with a valid partial signature over the given beacon packet
 // information if the following is true:
@@ -101,7 +106,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	// 1 and only test if we are running, not if we just started and are trying
 	// to catch up
 	if !h.catchup && uint64(math.Abs(float64(p.Round-h.round))) > maxRoundDelta {
-		return nil, errors.New("beacon won't sign out-of-round beacon request")
+		return nil, errors.New(errOutOfRound)
 	}
 
 	// 2- we dont catch up at least with invalid signature
@@ -244,6 +249,9 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 			resp, err := h.client.NewBeacon(i, request)
 			if err != nil {
 				slog.Debugf("beacon: %s round %d err from %s: %s", h.addr, round, i.Address(), err)
+				if strings.Contains(err.Error(), errOutOfRound) {
+
+				}
 				return
 			}
 			if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialRand); err != nil {

@@ -16,6 +16,7 @@
 
 N=6 ## final number of nodes in total - only N-1 will be running
 OLDN=5 ## starting number of nodes
+period="4s"
 BASE="/tmp/drand-docker"
 SHA="sha256sum"
 if [ ! -d "$BASE" ]; then
@@ -135,7 +136,6 @@ function run() {
 
     ## generate group toml from the first 5 nodes ONLY
     ## We're gonna add the last one later on
-    period="2s"
     docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  > /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     cp $GROUPFILE "$GROUPFILE.1"
@@ -393,7 +393,7 @@ trap cleanup SIGINT
 build
 run false
 echo "[+] Waiting to get some beacons"
-sleep 3
+sleep "$period"
 while true;
 nindex=2
 do
