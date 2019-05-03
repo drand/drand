@@ -3,12 +3,11 @@ package ecies
 import (
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
 	"errors"
 	"hash"
-	"io"
 
+	"github.com/dedis/drand/entropy"
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"go.dedis.ch/kyber/v3"
@@ -55,8 +54,8 @@ func Encrypt(g kyber.Group, fn func() hash.Hash, public kyber.Point, msg []byte)
 
 	// even though optional for this mode of ECIES, it _should_ not hurt if we
 	// add it.
-	nonce := make([]byte, 12)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+	nonce, err := entropy.GetRandom(12)
+	if err != nil {
 		return nil, err
 	}
 
@@ -103,10 +102,12 @@ func Decrypt(g kyber.Group, fn func() hash.Hash, priv kyber.Scalar, o *drand.ECI
 
 	// even though optional for this mode of ECIES, it _should_ not hurt if we
 	// add it.
-	nonce := make([]byte, 12)
-	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, err
-	}
+
+	// This nonce was never used in the original code; shall we omit generating it?
+	//nonce, err := entropy.GetRandom(12)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {

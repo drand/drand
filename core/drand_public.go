@@ -2,12 +2,12 @@ package core
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/ecies"
+	"github.com/dedis/drand/entropy"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
@@ -128,11 +128,11 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	if err := clientKey.UnmarshalBinary(msg); err != nil {
 		return nil, errors.New("invalid client key")
 	}
-	var randomness [32]byte
-	if n, err := rand.Read(randomness[:]); err != nil {
-		return nil, errors.New("error gathering randomness")
-	} else if n != 32 {
-		return nil, errors.New("error gathering randomness")
+	randomness, err := entropy.GetRandom(32)
+	if err != nil {
+		return nil, fmt.Errorf("error gathering randomness: %s", err)
+	} else if len(randomness) != 32 {
+		return nil, fmt.Errorf("error gathering randomness: expected 32 bytes, got %d", len(randomness))
 	}
 
 	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, clientKey, randomness[:])
