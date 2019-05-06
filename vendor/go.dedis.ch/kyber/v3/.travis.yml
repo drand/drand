@@ -1,0 +1,21 @@
+language: go
+
+go:
+  - "1.11.x"
+
+go_import_path: go.dedis.ch/kyber/v3
+
+install:
+  - go get github.com/dedis/Coding || true
+
+script:
+  - env GO111MODULE=on make test
+
+notifications:
+  email: false
+
+# https://restic.net/blog/2018-09-02/travis-build-cache
+cache:
+  directories:
+    - $HOME/.cache/go-build
+    - $GOPATH/pkg/mod

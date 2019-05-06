@@ -1,0 +1,13 @@
+On each participant, a verifier is indexed by the public key of the dealer and should receive
+--> one verifier PER dealer
+nOld
+nNew
++ a deal from the given dealer in OldNodes 
+    - verifier[dealer.index] 
+    - oldN verifiers
++ a resp from each of the NEW nodes 
+    - verifiers[dealer.Index]
+    - there will be nNew * nOld such response
+
+How to compute QUAL = # verifiers certified = # verifier which received nNew
+response = all shares of a dealer should be verified
