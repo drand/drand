@@ -52,7 +52,7 @@ func TestListener(t *testing.T) {
 
 	client := NewGrpcClient()
 	resp, err := client.Public(peer1, &drand.PublicRandRequest{})
-	require.Nil(t, err)
+	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 

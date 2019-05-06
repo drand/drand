@@ -49,6 +49,7 @@ func testNets(n int, fresh bool) []*testNet {
 	nets := make([]*testNet, n, n)
 	for i := 0; i < n; i++ {
 		nets[i] = &testNet{fresh: fresh, InternalClient: net.NewGrpcClient()}
+		nets[i].SetTimeout(5 * time.Second)
 	}
 	return nets
 }

@@ -46,7 +46,8 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	// REST api
 	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
 	gwMux := runtime.NewServeMux(o)
-	proxyClient := newProxyClient(s)
+	//proxyClient := newProxyClient(s)
+	proxyClient := &drandProxy{s, s}
 	ctx := context.TODO()
 	if err := drand.RegisterRandomnessHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
@@ -55,14 +56,15 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 		panic(err)
 	}
 	restRouter := http.NewServeMux()
-	newHandler := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		gwMux.ServeHTTP(w, r)
-	}
+	restRouter.Handle("/", gwMux)
+	//newHandler := func(w http.ResponseWriter, r *http.Request) {
+	//w.Header().Set("Access-Control-Allow-Origin", "*")
+	//gwMux.ServeHTTP(w, r)
+	//}
 
-	restRouter.Handle("/", http.HandlerFunc(newHandler))
+	//restRouter.Handle("/", http.HandlerFunc(newHandler))
 	restServer := &http.Server{
-		Handler: restRouter,
+		Handler: grpcHandlerFunc(grpcServer, restRouter),
 	}
 
 	g := &grpcInsecureListener{
@@ -80,7 +82,9 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 }
 
 func (g *grpcInsecureListener) Start() {
-	grpcL := g.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	// see https://github.com/grpc/grpc-go/issues/2406
+	// grpcL := g.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
+	grpcL := g.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	restL := g.mux.Match(cmux.Any())
 
 	go g.grpcServer.Serve(grpcL)
