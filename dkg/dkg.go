@@ -88,7 +88,7 @@ func NewHandler(n Network, c *Config) (*Handler, error) {
 		NewNodes:     c.NewNodes.Points(),
 		PublicCoeffs: dpub,
 		Share:        share,
-		NewThreshold: c.NewNodes.Threshold,
+		Threshold:    c.NewNodes.Threshold,
 	}
 
 	if c.OldNodes != nil {
