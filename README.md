@@ -100,9 +100,12 @@ Notice that drand relies on Go modules, which were introduced in Go 1.11, make s
 
 In order to install drand, you have two possibilities by default. The first one is to have drand in your `$GOPATH` and the second one is to have drand in a separate folder.
 
-If you want to have drand in your `$GOPATH`, you need to run the following commands:
+If you want to have drand in your `$GOPATH`, you can run the following commands:
 ```bash
 go get -u github.com/dedis/drand
+```
+Which will add a drand binary inside of your `$GOBIN`, however in order to manually build drand, you will need to explicitely use Go modules which means you will have to do the following:
+```bash
 cd $GOPATH/src/github.com/dedis/drand
 GO111MODULE=on go build
 ```
