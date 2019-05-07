@@ -87,7 +87,7 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 	return dkgShares, pubPoly.Commit()
 }
 
-func TestBeacon(t *testing.T) {
+func TestBeaconSimple(t *testing.T) {
 	slog.Level = slog.LevelDebug
 	n := 5
 	thr := 5/2 + 1
@@ -151,6 +151,7 @@ func TestBeacon(t *testing.T) {
 		go handlers[i].Run(period, catchup)
 	}
 
+	// have one that is not present
 	for i := 0; i < n-1; i++ {
 		launchBeacon(i, false)
 	}
@@ -240,7 +241,9 @@ func TestBeacon(t *testing.T) {
 	checkSuccess()
 
 	// start the last node that needs to catchup
+	fmt.Printf("\n\n\n LAST BEACON STARTING \n\n\n")
 	launchBeacon(n-1, true)
+	fmt.Printf("\n\n\n LAST BEACON STARTING DONE \n\n\n")
 	defer handlers[n-1].Stop()
 	defer listeners[n-1].Stop()
 
