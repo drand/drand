@@ -124,6 +124,16 @@ func TestBeaconSimple(t *testing.T) {
 	var l sync.Mutex
 	// this is just to signal we received a new beacon
 	newBeacon := make(chan int, n*nbRound)
+
+	/*displayInfo := func() {*/
+	//l.Lock()
+	//defer l.Unlock()
+	//for round, beacons := range genBeacons {
+	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
+	//}
+	//fmt.Printf("\n")
+	/*}*/
+
 	// launchBeacon will launch the beacon at the given index. Each time a new
 	// beacon is ready from that node, it saves the beacon and the node index
 	// into the map
@@ -137,7 +147,9 @@ func TestBeaconSimple(t *testing.T) {
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
 			l.Unlock()
+			fmt.Printf("\n\nNODE %d -> BEACON ROUND %d\n", i, b.Round)
 			newBeacon <- i
+			fmt.Printf("NODE %d -> BEACON ROUND SENT %d\n\n\n", i, b.Round)
 		}
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
@@ -163,14 +175,6 @@ func TestBeaconSimple(t *testing.T) {
 		}
 	}()
 
-	/* displayInfo := func() {*/
-	//l.Lock()
-	//defer l.Unlock()
-	//for round, beacons := range genBeacons {
-	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
-	//}
-	//fmt.Printf("\n")
-	/*}*/
 	//expected := nbRound * n
 	done := make(chan bool)
 	// test how many beacons are generated per each handler, except the last
