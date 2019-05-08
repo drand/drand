@@ -147,9 +147,7 @@ func TestBeaconSimple(t *testing.T) {
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
 			l.Unlock()
-			fmt.Printf("\n\nNODE %d -> BEACON ROUND %d\n", i, b.Round)
 			newBeacon <- i
-			fmt.Printf("NODE %d -> BEACON ROUND SENT %d\n\n\n", i, b.Round)
 		}
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
@@ -245,9 +243,7 @@ func TestBeaconSimple(t *testing.T) {
 	checkSuccess()
 
 	// start the last node that needs to catchup
-	fmt.Printf("\n\n\n LAST BEACON STARTING %s \n\n\n", privs[n-1].Public.Addr)
 	launchBeacon(n-1, true)
-	fmt.Printf("\n\n\n LAST BEACON STARTING DONE %s \n\n\n", privs[n-1].Public.Addr)
 	defer handlers[n-1].Stop()
 	defer listeners[n-1].Stop()
 
