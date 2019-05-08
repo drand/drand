@@ -11,9 +11,8 @@ ENV GO111MODULE=on
 
 COPY go.mod .
 COPY go.sum .
-RUN go mod download
 
-RUN go install && rm -rf "/go/src/github.com/dedis/drand"
+RUN go install -mod=vendor && rm -rf "/go/src/github.com/dedis/drand"
 
 WORKDIR /
 

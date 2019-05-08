@@ -87,7 +87,7 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 	return dkgShares, pubPoly.Commit()
 }
 
-func TestBeacon(t *testing.T) {
+func TestBeaconSimple(t *testing.T) {
 	slog.Level = slog.LevelDebug
 	n := 5
 	thr := 5/2 + 1
@@ -116,7 +116,7 @@ func TestBeacon(t *testing.T) {
 	handlers := make([]*Handler, n)
 
 	seed := []byte("Sunshine in a bottle")
-	period := time.Duration(600) * time.Millisecond
+	period := time.Duration(1000) * time.Millisecond
 	group.Period = period
 
 	// storing beacons from all nodes indexed per round
@@ -124,6 +124,16 @@ func TestBeacon(t *testing.T) {
 	var l sync.Mutex
 	// this is just to signal we received a new beacon
 	newBeacon := make(chan int, n*nbRound)
+
+	/*displayInfo := func() {*/
+	//l.Lock()
+	//defer l.Unlock()
+	//for round, beacons := range genBeacons {
+	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
+	//}
+	//fmt.Printf("\n")
+	/*}*/
+
 	// launchBeacon will launch the beacon at the given index. Each time a new
 	// beacon is ready from that node, it saves the beacon and the node index
 	// into the map
@@ -151,6 +161,7 @@ func TestBeacon(t *testing.T) {
 		go handlers[i].Run(period, catchup)
 	}
 
+	// have one that is not present
 	for i := 0; i < n-1; i++ {
 		launchBeacon(i, false)
 	}
@@ -162,14 +173,6 @@ func TestBeacon(t *testing.T) {
 		}
 	}()
 
-	/* displayInfo := func() {*/
-	//l.Lock()
-	//defer l.Unlock()
-	//for round, beacons := range genBeacons {
-	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
-	//}
-	//fmt.Printf("\n")
-	/*}*/
 	//expected := nbRound * n
 	done := make(chan bool)
 	// test how many beacons are generated per each handler, except the last
