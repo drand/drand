@@ -202,8 +202,9 @@ func (h *Handler) Run(period time.Duration, catchup bool) {
 				// it's OK here to potentially wait indefinitely since we anyway
 				// need to be up to date to continue so if we receive nothing we
 				// can't do anything else anyway.
+				slog.Debugf("beacon: %s waiting on other's signature (catchup mode)", h.addr)
 				b := <-h.catchupCh
-				slog.Infof("beacon: catched up on round %d (previous round %d)", b.Round, round)
+				slog.Infof("beacon: %s catched up on round %d (previous round %d)", h.addr, b.Round, round)
 				// nextRound() automatically increases
 				h.setRound(b.Round - 1)
 				h.savePreviousSignature(b.PreviousRand)

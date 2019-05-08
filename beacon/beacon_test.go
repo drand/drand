@@ -116,7 +116,7 @@ func TestBeaconSimple(t *testing.T) {
 	handlers := make([]*Handler, n)
 
 	seed := []byte("Sunshine in a bottle")
-	period := time.Duration(600) * time.Millisecond
+	period := time.Duration(1000) * time.Millisecond
 	group.Period = period
 
 	// storing beacons from all nodes indexed per round
@@ -245,9 +245,9 @@ func TestBeaconSimple(t *testing.T) {
 	checkSuccess()
 
 	// start the last node that needs to catchup
-	fmt.Printf("\n\n\n LAST BEACON STARTING \n\n\n")
+	fmt.Printf("\n\n\n LAST BEACON STARTING %s \n\n\n", privs[n-1].Public.Addr)
 	launchBeacon(n-1, true)
-	fmt.Printf("\n\n\n LAST BEACON STARTING DONE \n\n\n")
+	fmt.Printf("\n\n\n LAST BEACON STARTING DONE %s \n\n\n", privs[n-1].Public.Addr)
 	defer handlers[n-1].Stop()
 	defer listeners[n-1].Stop()
 
