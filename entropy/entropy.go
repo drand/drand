@@ -2,38 +2,27 @@ package entropy
 
 import (
 	"crypto/rand"
-	"fmt"
 )
 
-func GetRandom(len uint32) ([]byte, error) {
-	random := make([]byte, len)
-	err := customEntropy(random)
-	if err != nil {
-		// If customEntropy provides an error, fallback to go crypto/rand generator.
-		_, err := rand.Read(random)
-		return random, err
-	}
-	return random, nil
+// CustomRandomSource is a generic interface that any drand node operator can implement
+// to provide their own source of randomness in function GetRandom.
+type CustomRandomnSource interface {
+	Read(data []byte) (n int, err error)
 }
 
-func customEntropy(random []byte) (error) {
-	// Stub: return error because no custom entropy has been implemented yet.
-	return fmt.Errorf("no custom source of entropy has been implemented yet")
-
-	/* An example of providing randomness from an fake http endpoint:
-
-	url := fmt.Sprintf("https://randomness-source.com/entropy?bytes=%d", bytes)
-	resp, errGetRandomness := http.Get(url)
-	if errGetRandomness != nil {
-		return nil, errGetRandomness
+// GetRandom reads len bytes of randomness from whatever Reader is passed in, and returns
+// those bytes as the requested randomness.
+func GetRandom(source CustomRandomnSource, len uint32) ([]byte, error) {
+	if source == nil {
+		source = rand.Reader
 	}
 
-	body, errReadBody := ioutil.ReadAll(resp.Body)
-	if errReadBody != nil {
-		return nil, errReadBody
+	randomBytes := make([]byte, len)
+	bytesRead, err := source.Read(randomBytes)
+	if err != nil || uint32(bytesRead) != len {
+		// If customEntropy provides an error, fallback to Golang crypto/rand generator.
+		_, err := rand.Read(randomBytes)
+		return randomBytes, err
 	}
-
-	return body, nil
-
-	*/
+	return randomBytes, nil
 }

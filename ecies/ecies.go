@@ -54,7 +54,7 @@ func Encrypt(g kyber.Group, fn func() hash.Hash, public kyber.Point, msg []byte)
 
 	// even though optional for this mode of ECIES, it _should_ not hurt if we
 	// add it.
-	nonce, err := entropy.GetRandom(12)
+	nonce, err := entropy.GetRandom(nil, 12)
 	if err != nil {
 		return nil, err
 	}
@@ -102,12 +102,6 @@ func Decrypt(g kyber.Group, fn func() hash.Hash, priv kyber.Scalar, o *drand.ECI
 
 	// even though optional for this mode of ECIES, it _should_ not hurt if we
 	// add it.
-
-	// This nonce was never used in the original code; shall we omit generating it?
-	//nonce, err := entropy.GetRandom(12)
-	//if err != nil {
-	//	return nil, err
-	//}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {

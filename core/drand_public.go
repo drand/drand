@@ -128,7 +128,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	if err := clientKey.UnmarshalBinary(msg); err != nil {
 		return nil, errors.New("invalid client key")
 	}
-	randomness, err := entropy.GetRandom(32)
+	randomness, err := entropy.GetRandom(nil, 32)
 	if err != nil {
 		return nil, fmt.Errorf("error gathering randomness: %s", err)
 	} else if len(randomness) != 32 {
