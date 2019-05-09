@@ -6,13 +6,13 @@ import (
 
 // CustomRandomSource is a generic interface that any drand node operator can implement
 // to provide their own source of randomness in function GetRandom.
-type CustomRandomnSource interface {
+type EntropySource interface {
 	Read(data []byte) (n int, err error)
 }
 
 // GetRandom reads len bytes of randomness from whatever Reader is passed in, and returns
 // those bytes as the requested randomness.
-func GetRandom(source CustomRandomnSource, len uint32) ([]byte, error) {
+func GetRandom(source EntropySource, len uint32) ([]byte, error) {
 	if source == nil {
 		source = rand.Reader
 	}
