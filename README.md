@@ -91,33 +91,38 @@ Drand can be installed via [Golang](https://golang.org/) or
 files such as the long-term key pair, the group file, and the collective public
 key in the directory `$HOME/.drand/`.
 
-### Via Golang
+### Via Go's `get`
 
 Make sure that you have a working [Golang
-installation](https://golang.org/doc/install) and that your
-[GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
-Notice that drand relies on Go modules, which were introduced in Go 1.11, make sure you're running a recent version of Go (currently 1.12+ is required).
+installation](https://golang.org/doc/install).
+Notice that drand relies on Go modules, which were introduced 
+in Go 1.11, make sure you're running a recent version of Go 
+(currently 1.12+ is required).
 
-In order to install drand, you have two possibilities by default. The first one is to have drand in your `$GOPATH` and the second one is to have drand in a separate folder.
+In order to install drand, we required the env. variable
+`GO111MODULE` to be set to `on` instead of `auto`. 
+To do so you can either run `export GO111MODULE=on` in your shell 
+(notice this might have side effects on other projects), or you
+can simply run all `go` command with `GO111MODULE=on ` prepended.
 
-If you want to have drand in your `$GOPATH`, you can run the following commands:
+To install drand you can run:
 ```bash
-go get -u github.com/dedis/drand
+GO111MODULE=on go get github.com/dedis/drand@master
 ```
-Which will add a drand binary inside of your `$GOBIN`, however in order to manually build drand, you will need to explicitely use Go modules which means you will have to do the following:
-```bash
-cd $GOPATH/src/github.com/dedis/drand
-GO111MODULE=on go build
-```
-Notice the explicit `GO111MODULE=on` before the `go build` command, this is required since by default `GO111MODULE` is set to `auto`, which disables Go modules when `go` is run inside of the `$GOPATH`. If you don't want to call it explicitely you can also run `export GO111MODULE=on` in your shell, but notice this might have side effects on other projects and that it will prevent you to run `go get -u` to fetch drand. To use `go get` to fetch drand you will need to set `GO111MODULE=off` first. This is a known issue.
+This will add a `drand` binary inside of your `$GOBIN`.
 
-The second way is to go to a folder outside of your `$GOPATH` and run the following:
+### Via Go's `build`
+If you want to hack or modify drand, you have to pay extra attention
+because of the Go modules. First you need to git clone the repo:
 ```bash
 git clone https://github.com/dedis/drand.git
 cd drand
-go build
-``` 
-This works without having to set `GO111MODULE` because it defaults to `auto` (see [Golang's wiki](https://github.com/golang/go/wiki/Modules#when-do-i-get-old-behavior-vs-new-module-based-behavior) for more details).
+GO111MODULE=on go build
+```
+Notice that if you `git clone` drand oustide of your `$GOPATH`, 
+you can skip the `GO111MODULE=on` prefix, since it defaults to `auto` 
+(see [Golang's wiki](https://github.com/golang/go/wiki/Modules#when-do-i-get-old-behavior-vs-new-module-based-behavior)
+for more details).
 
 ### Via Docker
 
