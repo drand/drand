@@ -43,7 +43,7 @@ func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
 		opts:     opts,
 		conns:    make(map[string]*grpc.ClientConn),
 		manager:  NewCertManager(),
-		timeout:  1 * time.Second,
+		timeout:  10 * time.Second,
 		failFast: grpc.FailFast(true),
 	}
 }
