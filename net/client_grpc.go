@@ -40,10 +40,11 @@ type grpcClient struct {
 // ExternalClient using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
 	return &grpcClient{
-		opts:     opts,
-		conns:    make(map[string]*grpc.ClientConn),
-		manager:  NewCertManager(),
-		timeout:  10 * time.Second,
+		opts:    opts,
+		conns:   make(map[string]*grpc.ClientConn),
+		manager: NewCertManager(),
+		//timeout:  10 * time.Second,
+		timeout:  1 * time.Minute,
 		failFast: grpc.FailFast(true),
 	}
 }
