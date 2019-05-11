@@ -39,7 +39,7 @@ func startCmd(c *cli.Context) error {
 		}
 		// XXX make it configurable so that new share holder can still start if
 		// nobody started.
-		if err := drand.StartBeacon(true); err != nil {
+		if err := drand.StartBeacon(!c.Bool(pushFlag.Name)); err != nil {
 			slog.Fatalf("drand: starting beacon failed: %s", err)
 		}
 	}

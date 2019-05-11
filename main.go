@@ -131,6 +131,11 @@ var timeoutFlag = cli.StringFlag{
 	Usage: fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
 }
 
+var pushFlag = cli.BoolFlag{
+	Name:  "push",
+	Usage: "Push  mode forces the daemon to start making beacon requests to the other node, instead of waiting the other nodes contact it to catch-up on the round",
+}
+
 func main() {
 	app := cli.NewApp()
 	app.Version = version
@@ -141,7 +146,8 @@ func main() {
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, controlFlag, listenFlag, certsDirFlag),
+				insecureFlag, controlFlag, listenFlag,
+				certsDirFlag, pushFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
