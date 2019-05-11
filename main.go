@@ -434,7 +434,7 @@ func keygenCmd(c *cli.Context) error {
 	slog.Print("Generated keys at ", absPath)
 	slog.Print("You can copy paste the following snippet to a common group.toml file:")
 	var buff bytes.Buffer
-	buff.WriteString("[[nodes]]\n")
+	buff.WriteString("[[Nodes]]\n")
 	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
 		panic(err)
 	}
