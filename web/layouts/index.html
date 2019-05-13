@@ -1,7 +1,111 @@
-<h1>{{ .Site.Title }}</h1>
+<!DOCTYPE HTML>
+<!--
+ Alpha by HTML5 UP
+ html5up.net | @ajlkn
+ Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
+ -->
+<html>
+    <head>
+        <title>DRand wonderful website</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+        <link rel="stylesheet" href="../static/css/main.css" />
+    </head>
+    <body class="is-preload">
+        <div id="page-wrapper">
 
-<h2>{{ .Site.BaseURL }}</h2>
+            <!-- Main -->
+            <section id="main" class="container">
+                <header>
+                    <h2>DRand</h2>
+                    <p>(experimental) Distributed Randomness Beacon Daemon</p>
+                </header>
+                <div class="row">
+                    <div class="col-12">
 
-{{ .Title }}
-{{ .Content }}
+                        <!-- Text -->
+                        <section class="box">
+                            <p>DRand is brought to you by Nicolas Gailly, Philipp Jovanovic and Mathilde Raynal. <br>
+                            This website was built with DRandJS which enables the use of DRand's randomness in JavaScript-based application.
+                            </p>
 
+                            <hr />
+
+                            <header>
+                                <h3>Latest randomess</h3>
+                                <div id="printDiv">
+                                </div>
+
+                                <div id="myProgress">
+                                    <div id="myBar"></div>
+                                </div>
+
+                            </header>
+
+                            <hr />
+
+                            <h4>Running nodes</h4>
+                            <blockquote>List of runing nodes click on one to contact it</blockquote>
+
+                            <hr />
+                            <h4>Partners</h4>
+                            <div style=“text-align: center;”>
+                                <a href="https://dedis.epfl.ch">
+                                    <img src="../static/images/epfl.png" style="width:100px;height:100px;">
+                                        </a>
+                                <a href="https://www.cloudflare.com">
+                                    <img src="../static/images/cloudflare.png" style="width:100px;height:100px;">
+                                        </a>
+                                <a href="https://www.nagra.com">
+                                    <img src="../static/images/kudelski.jpg" style="width:100px;height:100px;">
+                                        </a>
+                                <a href="http://www.uchile.cl/english">
+                                    <img src="../static/images/uoc.png" style="width:100px;height:100px;">
+                                        </a>
+                            </div>
+
+                        </section>
+
+                    </div>
+                </div>
+
+
+                <!-- Footer -->
+                <footer id="footer">
+                    <ul class="icons">
+                        <li><a href="#" class="icon fa-github"><span class="label">Github</span></a></li>
+                        <li><a href="#" class="icon fa-envelope"><span class="label">Mail</span></a></li>
+                    </ul>
+                    <ul class="copyright">
+                        <li>&copy; dedis</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+                    </ul>
+                </footer>
+
+                </div>
+
+        <!-- Scripts -->
+        <script src="../static/js/jquery.min.js"></script>
+        <script src="../static/js/jquery.dropotron.min.js"></script>
+        <script src="../static/js/jquery.scrollex.min.js"></script>
+        <script src="../static/js/browser.min.js"></script>
+        <script src="../static/js/breakpoints.min.js"></script>
+        <script src="../static/js/util.js"></script>
+        <script src="../static/js/main.js"></script>
+
+        <!--drand stuff
+         <script src="../static/js/sjcl.min.js"></script>-->
+        <script src="../static/js/kyberjs.min.js"></script>
+        <script src="../static/js/helpers.js"></script>
+        <script src="../static/js/drand.js"></script>
+        <script src="../static/js/display.js"></script>
+        <script>
+            function chooseOne() {
+                testFetchKeyAndPublic()
+                //testFetchAndVerifyWithKey()
+            }
+        chooseOne();
+        window.setInterval(chooseOne,60000);
+            </script>
+
+    </body>
+</html>
