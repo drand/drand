@@ -5,7 +5,9 @@ function testFetchKeyAndPublic() {
   move();
   var date = new Date();
   var timestamp = date.toISOString();
+
   identity = {Address: "127.0.0.1:8000", TLS: false}
+
   fetchAndVerify(identity)
     .then(function (fulfilled) {
       randomness = fulfilled[0]
@@ -21,7 +23,6 @@ function testFetchKeyAndPublic() {
       var p2 = document.createElement("p");
       var textnode = document.createTextNode(randomness);
       var textnode2 = document.createTextNode(round + ' @ ' + timestamp);
-      //var textnode = document.createTextNode('(' + round + ') ' + randomness + ' : verified.');
       p.appendChild(textnode);
       p2.appendChild(textnode2);
       div.appendChild(p);
@@ -43,7 +44,9 @@ function testFetchKeyAndPublic() {
 
 function testFetchAndVerifyWithKey() {
   move();
-  identity = {Address: "127.0.0.1:8000", TLS: false, Key: "017f2254bc09a999661f92457122613adb773a6b7c74333a59bde7dd552a7eac2a79263bb6fb1f3840218f3181218b952e2af35be09edaee66566b458c92609f7571e8bb519c9109055b84f392c9e84f5bb828f988ce0423ce708be1dcf808d9cc63a610352b504115ee38bc23dd259e88a5d1221d53e45c9520be9b601fb4f578"}
+
+  identity = {Address: "127.0.0.1:8000", TLS: false, Key: "7cadcddbc8b87c045decf45ba3b0cc4292a3bd496904cf8b61a1ea6f2eae82166f508b79479ee2df378aa5ac3f5b061d92335679dfd21f6c1b06f7aacf434ccf5a46e87cc2006a76b7dd03a6d0c9a6efd7786dd5fbe77926fa681f1b5385f7453afd47e7d3685747fb75fdbc02990509049d28a079cab444b37e8fc0459be111"}
+
   fetchAndVerifyWithKey(identity)
     .then(function (fulfilled) {
       randomness = fulfilled[0]
