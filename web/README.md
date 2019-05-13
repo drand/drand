@@ -6,19 +6,12 @@
 
 ## Commands
 
-running 
-
+to start fake drand server run:
 ```
 python3 server_example/script.py
 ```
-and opening 
-```
-http://localhost:8000/layouts/index.html
-```
-shows the web_page
-
-
+then
 ``
-hugo server -- start webserver on localhost:1313
+make
 ``
-cannot load the js files because of  `[Error] Refused to execute http://localhost:1313/static/js/util.js as script because "X-Content-Type: nosniff" was given and its Content-Type is not a script MIME type.`
+start webserver on localhost:1313
