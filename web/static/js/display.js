@@ -28,7 +28,7 @@ function display_randomness(identity) {
       //print randomness as current
       var p = document.createElement("p");
       //print JSON when clicked
-      p.onclick = function() { alert(`{\n"round": ` + round + `,\n"previous":"` + previous + `",\n"randomness": {\n     "gid": 21,     "point":"`+ randomness+ `"\n       }\n}`);};
+      p.onclick = function() { alert(`Randomness requested to the node running at `+ identity.Address +`\n\n{\n"round": ` + round + `,\n"previous":"` + previous + `",\n"randomness": {\n     "gid": 21,    "point":"`+ randomness+ `"\n       }\n}`);};
       var p2 = document.createElement("p");
 
       var textnode = document.createTextNode(randomness_2lines);
