@@ -1,4 +1,5 @@
-const div = document.querySelector('#printDiv');
+const latestDiv = document.querySelector('#latest');
+const historyDiv = document.querySelector('#history');
 var lastRound = "0";
 
 function display_randomness(identity) {
@@ -8,66 +9,172 @@ function display_randomness(identity) {
 
   if (identity.Key == "") {
 
-  fetchAndVerify(identity)
+    fetchAndVerify(identity)
     .then(function (fulfilled) {
-      randomness = fulfilled[0]
-      round = fulfilled[1]
+      randomness = fulfilled[0];
+      previous = fulfilled[1];
+      round = fulfilled[2];
+
       if (round == lastRound || round == undefined) {
         return
       }
       lastRound = round;
 
+      var middle = Math.ceil(randomness.length / 2);
+      var s1 = randomness.slice(0, middle);
+      var s2 = randomness.slice(middle);
+      var randomness_2lines =  s1 + " \ " + s2;
+
+      //print randomness as current
       var p = document.createElement("p");
+      //print JSON when clicked
+      p.onclick = function() { console.log("You clicked, here is the JSON");};
       var p2 = document.createElement("p");
 
-      var textnode = document.createTextNode(randomness);
-      var textnode2 = document.createTextNode(round + ' @ ' + timestamp);
+      var textnode = document.createTextNode(randomness_2lines);
+      var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " verified");
       p.appendChild(textnode);
       p2.appendChild(textnode2);
-      div.appendChild(p);
-      div.appendChild(p2);
-  })
-    .catch(function (error) {
-      randomness = error[0]
-      round = error[1]
-      if (round == lastRound || round == undefined) {
-        return
-      }
-      lastRound = round;
-      var textnode = document.createTextNode('(' + round + ') ' + randomness + ' : unverified.');
-      var p = document.createElement("p");
-      p.appendChild(textnode);
-      div.appendChild(p);
-  });
-} else {
-  //identity = {Address: "127.0.0.1:8000", TLS: false, Key: "7cadcddbc8b87c045decf45ba3b0cc4292a3bd496904cf8b61a1ea6f2eae82166f508b79479ee2df378aa5ac3f5b061d92335679dfd21f6c1b06f7aacf434ccf5a46e87cc2006a76b7dd03a6d0c9a6efd7786dd5fbe77926fa681f1b5385f7453afd47e7d3685747fb75fdbc02990509049d28a079cab444b37e8fc0459be111"}
+      var item = latestDiv.childNodes[0];
+      var item = latestDiv.childNodes[1];
+      latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+      latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
 
-  fetchAndVerifyWithKey(identity)
-    .then(function (fulfilled) {
-      randomness = fulfilled[0]
-      round = fulfilled[1]
-      if (round == lastRound || round == undefined) {
-        return
-      }
-      lastRound = round;
-      var textnode = document.createTextNode('(' + round + ') ' + randomness + ' : verified.');
-      var p = document.createElement("p");
-      p.appendChild(textnode);
-      div.appendChild(p);
-  })
+
+      //append previous to history
+      var p3 = document.createElement("p");
+      p3.style.fontSize = '13px';
+      var round_minus_one = round - 1;
+      var textnode3 = document.createTextNode('(' + round_minus_one + ') ' + previous);
+      p3.appendChild(textnode3);
+      historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
+    })
     .catch(function (error) {
-      randomness = error[0]
-      round = error[1]
+      randomness = error[0];
+      previous = error[1];
+      round = error[2];
+
+      console.log(round);
+
       if (round == lastRound || round == undefined) {
         return
       }
       lastRound = round;
-      var textnode = document.createTextNode('(' + round + ') ' + randomness + ' : not verified.');
+
+      var middle = Math.ceil(randomness.length / 2);
+      var s1 = randomness.slice(0, middle);
+      var s2 = randomness.slice(middle);
+      var randomness_2lines =  s1 + " \ " + s2;
+
+      //print randomness as current
       var p = document.createElement("p");
+      //print JSON when clicked
+      p.onclick = function() { console.log("You clicked, here is the JSON");};
+      var p2 = document.createElement("p");
+
+      var textnode = document.createTextNode(randomness_2lines);
+      var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " unverified");
       p.appendChild(textnode);
-      div.appendChild(p);
-  });
-}
+      p2.appendChild(textnode2);
+      var item = latestDiv.childNodes[0];
+      var item = latestDiv.childNodes[1];
+      latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+      latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
+
+
+      //append previous to history
+      var p3 = document.createElement("p");
+      p3.style.fontSize = '13px';
+      var round_minus_one = round - 1;
+      var textnode3 = document.createTextNode('(' + round_minus_one + ') ' + previous);
+      p3.appendChild(textnode3);
+      historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
+    });
+  } else {
+    //identity = {Address: "127.0.0.1:8000", TLS: false, Key: "7cadcddbc8b87c045decf45ba3b0cc4292a3bd496904cf8b61a1ea6f2eae82166f508b79479ee2df378aa5ac3f5b061d92335679dfd21f6c1b06f7aacf434ccf5a46e87cc2006a76b7dd03a6d0c9a6efd7786dd5fbe77926fa681f1b5385f7453afd47e7d3685747fb75fdbc02990509049d28a079cab444b37e8fc0459be111"}
+
+    fetchAndVerifyWithKey(identity)
+    .then(function (fulfilled) {
+      randomness = fulfilled[0];
+      previous = fulfilled[1];
+      round = fulfilled[2];
+
+      if (round == lastRound || round == undefined) {
+        return
+      }
+      lastRound = round;
+
+      var middle = Math.ceil(randomness.length / 2);
+      var s1 = randomness.slice(0, middle);
+      var s2 = randomness.slice(middle);
+      var randomness_2lines =  s1 + " \ " + s2;
+
+      //print randomness as current
+      var p = document.createElement("p");
+      //print JSON when clicked
+      p.onclick = function() { console.log("You clicked, here is the JSON");};
+      var p2 = document.createElement("p");
+
+      var textnode = document.createTextNode(randomness_2lines);
+      var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " verified");
+      p.appendChild(textnode);
+      p2.appendChild(textnode2);
+      var item = latestDiv.childNodes[0];
+      var item = latestDiv.childNodes[1];
+      latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+      latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
+
+
+      //append previous to history
+      var p3 = document.createElement("p");
+      p3.style.fontSize = '13px';
+      var round_minus_one = round - 1;
+      var textnode3 = document.createTextNode('(' + round_minus_one + ') ' + previous);
+      p3.appendChild(textnode3);
+      historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
+    })
+    .catch(function (error) {
+      randomness = error[0];
+      previous = error[1];
+      round = error[2];
+
+      console.log(round);
+
+      if (round == lastRound || round == undefined) {
+        return
+      }
+      lastRound = round;
+
+      var middle = Math.ceil(randomness.length / 2);
+      var s1 = randomness.slice(0, middle);
+      var s2 = randomness.slice(middle);
+      var randomness_2lines =  s1 + " \ " + s2;
+
+      //print randomness as current
+      var p = document.createElement("p");
+      //print JSON when clicked
+      p.onclick = function() { console.log("You clicked, here is the JSON");};
+      var p2 = document.createElement("p");
+
+      var textnode = document.createTextNode(randomness_2lines);
+      var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " unverified");
+      p.appendChild(textnode);
+      p2.appendChild(textnode2);
+      var item = latestDiv.childNodes[0];
+      var item = latestDiv.childNodes[1];
+      latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+      latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
+
+
+      //append previous to history
+      var p3 = document.createElement("p");
+      p3.style.fontSize = '13px';
+      var round_minus_one = round - 1;
+      var textnode3 = document.createTextNode('(' + round_minus_one + ') ' + previous);
+      p3.appendChild(textnode3);
+      historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
+    });
+  }
 }
 
 function move() {

@@ -9,9 +9,9 @@ var fetchAndVerify = function(identity) {
         randomness = rand.randomness.point
         round = rand.round.toString();
         if (verify_drand(previous, randomness, round, pub_key)) {
-          resolve([randomness, round]);
+          resolve([randomness, previous, round]);
         } else {
-          reject([randomness, round]);
+          reject([randomness, previous, round]);
         }
       })
     })
@@ -27,9 +27,9 @@ var fetchAndVerifyWithKey = function(identity) {
       randomness = rand.randomness.point
       round = rand.round.toString();
       if (verify_drand(previous, randomness, round, pub_key)) {
-        resolve([randomness, round]);
+        resolve([randomness, previous, round]);
       } else {
-        reject([randomness, round]);
+        reject([randomness, previous, round]);
       }
     })
   });
