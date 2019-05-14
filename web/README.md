@@ -6,23 +6,23 @@
 
 ## Testing
 
-In order to test, we have to start a fake drand server to get the randomness from. To so such, run:
+In order to test, we have to start a fake drand server to get the randomness from. To so such, fo to the folder `server_example` and run:
 ```
-python3 server_example/script.py
+python3 script.py
 ```
 
 The public key, previous and randomness fields are generated thanks to the `server_example/main.go` file.
 
 ## Production
 
-When production ready, the folder `server_example` can be removed.
+The identity struct at line 97 of `layouts/index.html` should be modified accordingly to the address of the server to contact. If given Key is "" then it'll be fetched from the server as well.
 
-The identity struct at line 9 (or 48) of `static/js/display.js` should be modified accordingly to the address of the server to contact.
+In file `static/js/display.js` you can change how the randomness strings are printed (i.e., with/without a timestamp, ...)
 
-The `static/congif/group.toml` file should be the one given to the partipants.
+The `static/congif/group.toml` file should be the one given to the participants.
 (Note: if group.toml is uploaded for ex to /info/group.toml then code can be modified to fetch it too).
 
-Then start the webserver on localhost:1313 by running:
+Then start the web server on localhost:1313 by running:
 
 ```
 make
@@ -34,4 +34,4 @@ make deploy
 
 ## Other
 
-Design by HTML5 UP under the [Creative Commons Attribution License](https://html5up.net/license)
+Design by HTML5 UP under the [Creative Commons Attribution License 3.0](https://html5up.net/license)

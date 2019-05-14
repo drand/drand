@@ -1,9 +1,4 @@
 <!DOCTYPE HTML>
-<!--
- Alpha by HTML5 UP
- html5up.net | @ajlkn
- Free for personal and commercial use under the CCA 3.0 license (html5up.net/license)
- -->
 <html>
     <head>
         <title>DRand wonderful website</title>
@@ -83,7 +78,7 @@
 
                 </div>
 
-        <!-- Scripts -->
+        <!-- Scripts by HTML5 UP -->
         <script src="../js/jquery.min.js"></script>
         <script src="../js/jquery.dropotron.min.js"></script>
         <script src="../js/jquery.scrollex.min.js"></script>
@@ -92,20 +87,19 @@
         <script src="../js/util.js"></script>
         <script src="../js/main.js"></script>
 
-        <!--drand stuff
-         <script src="../js/sjcl.min.js"></script>-->
+        <!-- Scripts related to DRand -->
         <script src="../js/kyberjs.min.js"></script>
         <script src="../js/helpers.js"></script>
         <script src="../js/drand.js"></script>
         <script src="../js/display.js"></script>
         <script>
-            function chooseOne() {
-                testFetchKeyAndPublic()
-                //testFetchAndVerifyWithKey()
-            }
-        chooseOne();
-        window.setInterval(chooseOne,60000);
-            </script>
+        function wrap() {
+          identity = {Address: "127.0.0.1:8000", TLS: false, Key: ""};
+          display_randomness(identity);
+        }
+        wrap();
+        window.setInterval(wrap,60000);
+        </script>
 
     </body>
 </html>

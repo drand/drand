@@ -3,3 +3,4 @@ drand
 test/drand
 dist/
 web/public
+*.DS_Store
