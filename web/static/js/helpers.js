@@ -11,7 +11,7 @@ function fetchPublic(identity) {
 
 //fetches the public key
 function fetchKey(identity) {
-  var fullPath = identity.Address + "/api/info/dist_key";
+  var fullPath = identity.Address + "/api/info/distkey";
   if (identity.TLS == false) {
     fullPath = "http://" + fullPath;
   } else  {
