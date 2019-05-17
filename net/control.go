@@ -122,9 +122,9 @@ func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
 	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
 }
 
-// Group returns the TOML-encoded group of the remote node
-func (c *ControlClient) Group() (*control.GroupResponse, error) {
-	return c.client.Group(context.Background(), &control.GroupRequest{})
+// GroupFile returns the TOML-encoded group file
+func (c ControlClient) GroupFile() (*control.GroupResponse, error) {
+	return c.client.GroupFile(context.Background(), &control.GroupRequest{})
 }
 
 func controlListenAddr(port string) string {
@@ -171,12 +171,4 @@ func (s *DefaultControlServer) CollectiveKey(c context.Context, in *control.Coke
 		return &control.CokeyResponse{}, nil
 	}
 	return s.C.CollectiveKey(c, in)
-}
-
-// Group ...
-func (s *DefaultControlServer) Group(c context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
-	if s.C == nil {
-		return &control.GroupResponse{}, nil
-	}
-	return s.C.Group(c, in)
 }

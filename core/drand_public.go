@@ -1,10 +1,12 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 
+	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/entropy"
@@ -146,4 +148,21 @@ func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeRespo
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),
 	}, nil
+}
+
+// Group replies with the current group of this drand node in a TOML encoded
+// format
+func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.group == nil {
+		return nil, errors.New("drand: no dkg group setup yet")
+	}
+	gtoml := d.group.TOML()
+	var buff bytes.Buffer
+	err := toml.NewEncoder(&buff).Encode(gtoml)
+	if err != nil {
+		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
+	}
+	return &drand.GroupResponse{GroupToml: buff.String()}, nil
 }

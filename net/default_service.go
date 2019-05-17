@@ -37,6 +37,14 @@ func (s *DefaultService) Private(c context.Context, in *drand.PrivateRandRequest
 	return s.R.Private(c, in)
 }
 
+// Group ...
+func (s *DefaultService) Group(c context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+	if s.I == nil {
+		return &drand.GroupResponse{}, nil
+	}
+	return s.I.Group(c, in)
+}
+
 // DistKey ...
 func (s *DefaultService) DistKey(c context.Context, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	if s.I == nil {
@@ -132,10 +140,10 @@ func (s *DefaultService) CollectiveKey(c context.Context, in *drand.CokeyRequest
 	return s.C.CollectiveKey(c, in)
 }
 
-// Group ...
-func (s *DefaultService) Group(c context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+// GroupFile  ...
+func (s *DefaultService) GroupFile(c context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
 	if s.C == nil {
 		return &drand.GroupResponse{}, nil
 	}
-	return s.C.Group(c, in)
+	return s.C.GroupFile(c, in)
 }

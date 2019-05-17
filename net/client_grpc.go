@@ -104,6 +104,19 @@ func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.Priva
 	return resp, g.retryTLS(p, fn)
 }
 
+func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+	var resp *drand.GroupResponse
+	fn := func() error {
+		c, err := g.conn(p)
+		if err != nil {
+			return err
+		}
+		client := drand.NewInfoClient(c)
+		resp, err = client.Group(context.Background(), in)
+		return err
+	}
+	return resp, g.retryTLS(p, fn)
+}
 func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	var resp *drand.DistKeyResponse
 	fn := func() error {

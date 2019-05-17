@@ -98,7 +98,25 @@ func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyRe
 	}
 	drandResponse := new(drand.DistKeyResponse)
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
+}
 
+func (r *restClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+	base := restAddr(p)
+	buff, err := r.marshaller.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	url := base + "/api/info/group"
+	req, err := http.NewRequest("GET", url, bytes.NewBuffer(buff))
+	if err != nil {
+		return nil, err
+	}
+	respBody, err := r.doRequest(p, req)
+	if err != nil {
+		return nil, err
+	}
+	drandResponse := new(drand.GroupResponse)
+	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
 func (r *restClient) doRequest(remote Peer, req *http.Request) ([]byte, error) {

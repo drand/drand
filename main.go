@@ -243,7 +243,7 @@ func main() {
 						"it prints a warning.\n",
 					Flags: toArray(tlsCertFlag, insecureFlag, roundFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return getPublicCmd(c)
+						return getPublicRandomness(c)
 					},
 				},
 				{
