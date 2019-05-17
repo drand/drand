@@ -6,16 +6,16 @@
 
 ## Testing
 
-In order to test, we have to start a fake drand server to get the randomness from. To so such, fo to the folder `server_example` and run:
+In order to test, we have to start a fake drand server to get the randomness from. To so such run:
 ```
-python3 script.py
+python3 api/script.py
 ```
 
 The public key, previous and randomness fields are generated thanks to the `server_example/main.go` file.
 
 ## Production
 
-The identity struct at line 97 of `layouts/index.html` should be modified accordingly to the address of the server to contact. If given Key is "" then it'll be fetched from the server as well.
+The identity struct at line 94 of `layouts/index.html` should be modified accordingly to the address of the server to contact. If given Key is "" then it'll be fetched from the server as well.
 
 In file `static/js/display.js` you can change how the randomness strings are printed (i.e., with/without a timestamp, ...)
 

@@ -1,6 +1,6 @@
 //fetches the randomness
 function fetchPublic(identity) {
-  var fullPath = identity.Address + "/public";
+  var fullPath = identity.Address + "/api/public";
   if (identity.TLS == false) {
     fullPath = "http://" + fullPath;
   } else  {
@@ -11,7 +11,7 @@ function fetchPublic(identity) {
 
 //fetches the public key
 function fetchKey(identity) {
-  var fullPath = identity.Address + "/info/dist_key";
+  var fullPath = identity.Address + "/api/info/dist_key";
   if (identity.TLS == false) {
     fullPath = "http://" + fullPath;
   } else  {
