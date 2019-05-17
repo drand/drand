@@ -12,10 +12,10 @@ import (
 	toml "github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/protobuf/control"
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
+	control "github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )

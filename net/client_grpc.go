@@ -19,6 +19,7 @@ type Service interface {
 	drand.RandomnessServer
 	drand.InfoServer
 	drand.BeaconServer
+	drand.ControlServer
 	dkg.DkgServer
 }
 
