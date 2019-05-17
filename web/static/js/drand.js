@@ -13,8 +13,8 @@ var fetchAndVerify = function(identity) {
         } else {
           reject([randomness, previous, round]);
         }
-      })
-    })
+      }).catch(error => console.error('Could not fetch randomness:', error))
+    }).catch(error => console.error('Could not fetch dist_key:', error))
   });
 }
 
@@ -31,7 +31,7 @@ var fetchAndVerifyWithKey = function(identity) {
       } else {
         reject([randomness, previous, round]);
       }
-    })
+    }).catch(error => console.error('Could not fetch randomness:', error))
   });
 }
 
