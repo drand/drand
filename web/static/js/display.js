@@ -93,4 +93,8 @@ function print_round(randomness, previous, round, verified, timestamp) {
   var textnode3 = document.createTextNode('(' + round_minus_one + ') ' + previous);
   p3.appendChild(textnode3);
   historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
+  //if more than 15 remove last one
+  if (historyDiv.childElementCount >= 10) {
+    historyDiv.removeChild(historyDiv.lastChild);
+  }
 }
