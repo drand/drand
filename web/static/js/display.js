@@ -69,7 +69,10 @@ function print_round(randomness, previous, round, verified, timestamp) {
   //print randomness as current
   var p = document.createElement("p");
   //print JSON when clicked
-  p.onclick = function() { alert(`Randomness requested to the node running at `+ identity.Address +`\n\n{\n"round": ` + round + `,\n"previous":"` + previous + `",\n"randomness": {\n     "gid": 21,    "point":"`+ randomness+ `"\n       }\n}`);};
+  p.onmouseover = function() { p.style.textDecoration = "underline"; };
+  p.onmouseout = function() {p.style.textDecoration = "none";};
+  var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
+  p.onclick = function() { alert(`Randomness requested to the node running at `+ identity.Address + '\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2));};
   var p2 = document.createElement("p");
 
   var textnode = document.createTextNode(randomness_2lines);
