@@ -1,8 +1,12 @@
 const latestDiv = document.querySelector('#latest');
 const historyDiv = document.querySelector('#history');
+const nodesDiv = document.querySelector('#nodes');
+window.identity = "";
+
 var lastRound = "0";
 
-function display_randomness(identity) {
+function display_randomness() {
+  let identity = window.identity;
   move();
   var date = new Date();
   var timestamp = date.toISOString();
@@ -39,6 +43,7 @@ function display_randomness(identity) {
       print_round(randomness, previous, round, false, timestamp);
     });
   }
+  print_nodes(identity);
 }
 
 function move() {
@@ -99,5 +104,27 @@ function print_round(randomness, previous, round, verified, timestamp) {
   //if more than 15 remove last one
   if (historyDiv.childElementCount >= 10) {
     historyDiv.removeChild(historyDiv.lastChild);
+  }
+}
+
+function print_nodes(identity) {
+  if (nodesDiv.childElementCount == 0) {
+    fetchGroup(identity).then(group => {
+      var i = 0;
+      while (i < group.Nodes.length) {
+        let p4 = document.createElement("p");
+        p4.onmouseover = function() { p4.style.textDecoration = "underline"; };
+        p4.onmouseout = function() {p4.style.textDecoration = "none";};
+        let addr = group.Nodes[i].Address;
+        let tls = group.Nodes[i].TLS;
+        p4.onclick = function() {
+          window.identity = {Address: addr, TLS: tls, Key: ""};
+        };
+        var text = document.createTextNode(group.Nodes[i].Address);
+        p4.appendChild(text);
+        nodesDiv.appendChild(p4);
+        i = i + 1;
+      }
+    }).catch(error => console.error('Could not fetch group:', error))
   }
 }

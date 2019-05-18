@@ -46,8 +46,9 @@
                             <hr />
 
                             <h3>Running nodes</h3>
-                            <blockquote>List of runing nodes click on one to contact it</blockquote>
-
+                            <blockquote>Click on one of the nodes participating in the run to use it as the server to contact</blockquote>
+                            <div id="nodes">
+                            </div>
                             <hr />
                             <h3>Partners</h3>
                             <div style=“text-align: center;”>
@@ -90,12 +91,10 @@
         <script src="../js/drand.js"></script>
         <script src="../js/display.js"></script>
         <script>
-        function wrap() {
-          identity = {Address: "127.0.0.1:8000", TLS: false, Key: ""};
-          display_randomness(identity);
-        }
-        wrap();
-        window.setInterval(wrap,60000);
+          window.identity = {Address: "127.0.0.1:8000", TLS: false, Key: ""};
+
+          display_randomness();
+          window.setInterval(display_randomness, 60000);
         </script>
 
     </body>

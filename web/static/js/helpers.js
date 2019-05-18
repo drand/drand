@@ -20,6 +20,17 @@ function fetchKey(identity) {
   return fetch(fullPath).then(resp => Promise.resolve(resp.json()));
 }
 
+//fetches the group file
+function fetchGroup(identity) {
+  var fullPath = identity.Address + "/api/info/group";
+  if (identity.TLS == false) {
+    fullPath = "http://" + fullPath;
+  } else  {
+    fullPath = "https://" + fullPath;
+  }
+  return fetch(fullPath).then(resp => Promise.resolve(resp.json()));
+}
+
 //converts hex string to bytes array
 function hexToBytes(hex) {
     for (var bytes = [], c = 0; c < hex.length; c += 2)
