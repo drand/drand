@@ -42,7 +42,7 @@ func getPrivateCmd(c *cli.Context) error {
 	return nil
 }
 
-func getPublicCmd(c *cli.Context) error {
+func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
 		slog.Fatal("Get public command takes a group file as argument.")
 	}

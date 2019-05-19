@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/dedis/drand/protobuf/control"
+	control "github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 )
@@ -102,20 +102,29 @@ func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string) (
 
 }
 
+// Share returns the share of the remote node
 func (c ControlClient) Share() (*control.ShareResponse, error) {
 	return c.client.Share(context.Background(), &control.ShareRequest{})
 }
+
+// PublicKey returns the public key of the remote node
 func (c ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
 	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{})
 }
+
+// PrivateKey returns the private key of the remote node
 func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
 	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{})
 }
+
+// CollectiveKey returns the collective key of the remote node
 func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
 	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
 }
-func (c *ControlClient) Group() (*control.GroupResponse, error) {
-	return c.client.Group(context.Background(), &control.GroupRequest{})
+
+// GroupFile returns the TOML-encoded group file
+func (c ControlClient) GroupFile() (*control.GroupResponse, error) {
+	return c.client.GroupFile(context.Background(), &control.GroupRequest{})
 }
 
 func controlListenAddr(port string) string {
@@ -127,43 +136,39 @@ type DefaultControlServer struct {
 	C control.ControlServer
 }
 
+// PingPong ...
 func (s *DefaultControlServer) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
 }
 
+// Share ...
 func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	if s.C == nil {
 		return &control.ShareResponse{}, nil
-	} else {
-		return s.C.Share(c, in)
 	}
+	return s.C.Share(c, in)
 }
+
+// PublicKey ...
 func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
 	if s.C == nil {
 		return &control.PublicKeyResponse{}, nil
-	} else {
-		return s.C.PublicKey(c, in)
 	}
+	return s.C.PublicKey(c, in)
 }
+
+// PrivateKey ...
 func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
 	if s.C == nil {
 		return &control.PrivateKeyResponse{}, nil
-	} else {
-		return s.C.PrivateKey(c, in)
 	}
+	return s.C.PrivateKey(c, in)
 }
+
+// CollectiveKey ...
 func (s *DefaultControlServer) CollectiveKey(c context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
 	if s.C == nil {
 		return &control.CokeyResponse{}, nil
-	} else {
-		return s.C.CollectiveKey(c, in)
 	}
-}
-
-func (s *DefaultControlServer) Group(c context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
-	if s.C == nil {
-		return &control.GroupResponse{}, nil
-	} else {
-		return s.C.Group(c, in)
-	}
+	return s.C.CollectiveKey(c, in)
 }

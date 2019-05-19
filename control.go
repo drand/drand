@@ -116,13 +116,14 @@ func pingpongCmd(c *cli.Context) error {
 
 func showGroupCmd(c *cli.Context) error {
 	client := controlClient(c)
-	r, err := client.Group()
+	r, err := client.GroupFile()
 	if err != nil {
-		slog.Fatalf("drand: error asking for group file")
+		slog.Fatalf("drand: fetching group file error: %s", err)
 	}
+
 	if c.IsSet(outFlag.Name) {
 		filePath := c.String(outFlag.Name)
-		err := ioutil.WriteFile(filePath, []byte(r.GroupToml), 0777)
+		err := ioutil.WriteFile(filePath, []byte(r.GroupToml), 0750)
 		if err != nil {
 			slog.Fatalf("drand: can't write to file: %s", err)
 		}

@@ -4,11 +4,12 @@
  */
 syntax = "proto3";
 
-package control;
+package drand;
 
-option go_package = "github.com/dedis/drand/protobuf/control";
+option go_package = "github.com/dedis/drand/protobuf/drand";
 
 import "crypto/element.proto";
+import "drand/info.proto";
 
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
@@ -18,7 +19,6 @@ service Control {
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
     rpc InitReshare(ReshareRequest) returns (ReshareResponse) { }
-
     // Share returns the current private share used by the node 
     rpc Share(ShareRequest) returns (ShareResponse) { }
     // PublicKey returns the longterm public key of the drand node
@@ -27,9 +27,10 @@ service Control {
     rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
     // CollectiveKey returns the distributed public key used by the node
     rpc CollectiveKey(CokeyRequest) returns (CokeyResponse) { }
-    // Group returns the current group file used
-    rpc Group(GroupRequest) returns (GroupResponse) { }
-
+    // GroupFile returns the TOML-encoded group file
+    // similar to public.Group method but needed for ease of use of the
+    // control functionalities
+    rpc GroupFile(GroupRequest) returns (GroupResponse) { }
 }
 
 message DKGRequest {
@@ -112,11 +113,4 @@ message CokeyResponse {
   element.Point coKey = 1;
 }
 
-message GroupRequest {
 
-}
-
-message GroupResponse {
-    // TOML-encoded group file 
-    string groupToml = 1;
-}

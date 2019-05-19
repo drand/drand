@@ -96,6 +96,12 @@ func (c *Client) DistKey(addr string, secure bool) (*crypto.Point, error) {
 	return resp.Key, err
 }
 
+// Group returns the group file used by the node in a TOML encoded format
+func (c *Client) Group(addr string, secure bool) (string, error) {
+	resp, err := c.client.Group(&peerAddr{addr, secure}, &drand.GroupRequest{})
+	return resp.GroupToml, err
+}
+
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
 	msg := beacon.Message(resp.GetPrevious(), resp.GetRound())
 	rand := resp.GetRandomness()

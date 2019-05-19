@@ -193,6 +193,9 @@ func (d *drandProxy) DistKey(c context.Context, r *drand.DistKeyRequest, opts ..
 func (d *drandProxy) Home(c context.Context, r *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {
 	return d.d.Home(c, r)
 }
+func (d *drandProxy) Group(c context.Context, r *drand.GroupRequest, opts ...grpc.CallOption) (*drand.GroupResponse, error) {
+	return d.d.Group(c, r)
+}
 
 // grpcHandlerFunc returns an http.Handler that delegates to grpcServer on
 // incoming gRPC connections or otherHandler otherwise. Copied from cockroachdb.
