@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package drand;
+
+option go_package = "github.com/dedis/drand/protobuf/drand";
+
+import "crypto/element.proto";
+import "google/api/annotations.proto";
+
+
+service Info {
+  rpc Group(GroupRequest) returns (GroupResponse) {
+    option (google.api.http) =  {
+        get: "/api/info/group"
+    };
+  }
+
+  rpc DistKey(DistKeyRequest) returns (DistKeyResponse) {
+    option (google.api.http) = {
+      get: "/api/info/distkey"
+    };
+  }
+
+  rpc Home(HomeRequest) returns (HomeResponse) {
+    option (google.api.http) = {
+      get: "/api"
+    };
+  }
+}
+
+
+// DistKeyRequest requests the distributed public key used during the randomness generation process
+message DistKeyRequest {
+}
+
+message DistKeyResponse {
+     element.Point key = 1;
+}
+
+message HomeRequest {
+         
+}
+
+message HomeResponse {
+    string status = 1;
+}
+message GroupRequest {
+
+}
+
+message GroupResponse {
+    // TOML-encoded group file 
+    string group_toml = 1;
+}

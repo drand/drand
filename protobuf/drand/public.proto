@@ -1,0 +1,69 @@
+/*
+ * This protobuf file contains the definition of the public API endpoints as
+ * well as messages. All client implementations should use this reference
+ * protobuf to implement a compatible drand client.
+ */
+syntax = "proto3";
+
+package drand;
+
+option go_package = "github.com/dedis/drand/protobuf/drand";
+
+import "crypto/element.proto";
+import "google/api/annotations.proto";
+
+service Randomness {
+    rpc Public(PublicRandRequest) returns (PublicRandResponse) {
+        option (google.api.http) = {
+            get: "/api/public"
+            additional_bindings {
+                get: "/api/public/{round}"
+            }
+        };
+    }
+    rpc Private(PrivateRandRequest) returns (PrivateRandResponse) {
+        option (google.api.http) = {
+            post: "/api/private"
+            body: "*"
+        };
+    }
+}
+
+// PublicRandRequest requests a public random value that has been generated in a
+// unbiasable way and verifiable.
+message PublicRandRequest {
+    // round uniquely identifies a beacon. If round == 0, then the response will
+    // contain the last.
+    // XXX better ways to do that...
+    uint64 round = 1;
+}
+
+// PublicRandResponse holds a signature which is the random value. It can be
+// verified thanks to the distributed public key of the nodes that have ran the
+// DKG protocol and is unbiasable. The randomness can be verified using the BLS
+// verification routine with the message "round || previous_rand".
+message PublicRandResponse {
+    uint64 round = 1;
+    bytes previous = 2;
+    element.Point randomness = 3;
+}
+
+// PrivateRandRequest is the message to send when requesting a private random
+// value.
+message PrivateRandRequest {
+    // Request must contains a public key towards which to encrypt the private
+    // randomness.
+    ECIESObject request = 1;
+}
+
+message PrivateRandResponse {
+    // Response contains the private randomness encrypted towards the client's
+    // request key.
+    ECIESObject response = 1;
+}
+
+message ECIESObject {
+    element.Point ephemeral = 1;
+    bytes ciphertext = 2;
+    bytes nonce = 3;
+}
