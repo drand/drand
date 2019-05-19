@@ -11,16 +11,19 @@ In order to test, we have to start a fake drand server to get the randomness fro
 python3 api/script.py
 ```
 
-The public key, previous and randomness fields are generated thanks to the `server_example/main.go` file.
+The public key, previous and randomness fields that you can find in the `api` folder are generated with the `api/main.go` file.
 
 ## Production
 
 The identity struct at line 94 of `layouts/index.html` should be modified accordingly to the address of the server to contact. If given Key is "" then it'll be fetched from the server as well.
 
-In file `static/js/display.js` you can change how the randomness strings are printed (i.e., with/without a timestamp, ...)
+In file `static/js/display.js` you can change how the randomness strings are printed (i.e., with/without a timestamp, list of runing nodes...).
 
-The `static/congif/group.toml` file should be the one given to the participants.
-(Note: if group.toml is uploaded for ex to /info/group.toml then code can be modified to fetch it too).
+### Features
+- Latest randomness with round, timestamp and verified check. Click on it to see who was contacted and the associated JSON,
+- Stack of the 10 last rounds of randomness,
+- List of running nodes, and possibility to click on one to contact it
+
 
 Then start the web server on localhost:1313 by running:
 
