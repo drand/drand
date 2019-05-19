@@ -13,6 +13,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
@@ -434,6 +435,52 @@ func TestDrandDKGFresh(t *testing.T) {
 	resp, err := client.Public(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+}
+
+func TestDrandPublicGroup(t *testing.T) {
+	slog.Level = slog.LevelDebug
+
+	n := 5
+	thr := key.DefaultThreshold(n)
+
+	// create n shares
+	_, dpub := test.SimulateDKG(t, key.G2, n, thr)
+	period := 1000 * time.Millisecond
+
+	// instantiating all drands already
+	drands, _, dir := BatchNewDrand(n, true)
+	defer CloseAllDrands(drands)
+	defer os.RemoveAll(dir)
+
+	// listing all new ids
+	ids := make([]*key.Identity, n)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+		drands[i].idx = i
+	}
+
+	// creating old group from subset of ids
+	group1 := key.LoadGroup(ids, &key.DistPublic{Coefficients: dpub}, thr)
+	group1.Period = period
+	path := path.Join(dir, "group.toml")
+	require.NoError(t, key.Save(path, group1, false))
+
+	for i := range drands {
+		// so old drand nodes "think" it has already ran a dkg
+		drands[i].group = group1
+		drands[i].dkgDone = true
+	}
+
+	client := NewGrpcClient()
+	var buff bytes.Buffer
+	err := toml.NewEncoder(&buff).Encode(group1.TOML())
+	require.NoError(t, err)
+	group1Toml := buff.String()
+	for _, d := range drands {
+		tomlGroup, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
+		require.NoError(t, err)
+		require.Equal(t, group1Toml, tomlGroup)
+	}
 }
 
 // BatchNewDrand returns n drands, using TLS or not, with the given
