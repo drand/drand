@@ -1,10 +1,10 @@
 <!DOCTYPE HTML>
 <html>
     <head>
-        <title>DRand wonderful website</title>
+        <title>{{ .Site.Title }}</title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-        <link rel="stylesheet" href="../css/main.css" />
+        <link rel="stylesheet" href="{{ .Site.BaseURL }}css/main.css" />
     </head>
     <body class="is-preload">
         <div id="page-wrapper">
@@ -12,78 +12,107 @@
             <!-- Main -->
             <section id="main" class="container">
                 <header>
-                    <h2>DRand</h2>
-                    <p>(experimental) Distributed Randomness Beacon Daemon</p>
+                    <h2>Drand</h2>
+                    <p>A Distributed Randomness Beacon</p>
                 </header>
-                <div class="row">
-                    <div class="col-12">
+                <div class="box">
+                    <span class="image featured">
+                        <img src="{{ .Site.BaseURL }}img/network.jpg" alt>
+                    </span>
+                    <h3>Overview</h3>
+                    <p>
+                    The <code>drand</code> randomness beacon is a world-wide network of independent partners who provide <strong>verifable,
+                    high-entropy randomness as a service</strong> to the public. To generate this randomness in an unbiasable and unpredictable way,
+                    the <code>drand</code> network relies on cutting-edge methodologies from cryptography and distributed systems research.
+                    For more details on the technology, please refer to the <a href="#">documentation</a>.
+                    </p>
 
-                        <!-- Text -->
-                        <section class="box">
-                            <p>DRand is brought to you by Nicolas Gailly, Philipp Jovanovic and Mathilde Raynal. <br>
-                            This website was built with DRandJS which enables the use of DRand's randomness in JavaScript-based application.
-                            </p>
-
-                            <hr />
-
-                            <header>
-                                <h3>Latest randomness</h3>
-                                <div id="latest">
-                                  <p> </p>
-                                  <p> </p>
-                                </div>
-
-                                <div id="myProgress">
-                                    <div id="myBar"></div>
-                                </div>
-
-                            <hr />
-                            <h3>Randomness history</h3>
-                                <div id="history">
-                                </div>
-
-
-                            <hr />
-
-                            <h3>Running nodes</h3>
-                            <blockquote>Click on one of the nodes participating in the run to use it as the server to contact</blockquote>
-                            <div id="nodes">
+                    <div class="row">
+                        <div class="col-12">
+                            <h3>Randomness</h3>
+                            <div id="latest"></div>
+                            <div id="myProgress">
+                                <div id="myBar"></div>
                             </div>
-                            <hr />
-                            <h3>Partners</h3>
-                            <div style=“text-align: center;”>
-                                <a href="https://dedis.epfl.ch">
-                                    <img src="../images/epfl.png" style="width:100px;height:100px;">
-                                        </a>
-                                <a href="https://www.cloudflare.com">
-                                    <img src="../images/cloudflare.png" style="width:100px;height:100px;">
-                                        </a>
-                                <a href="https://www.nagra.com">
-                                    <img src="../images/kudelski.jpg" style="width:100px;height:100px;">
-                                        </a>
-                                <a href="http://www.uchile.cl/english">
-                                    <img src="../images/uoc.png" style="width:100px;height:100px;">
-                                        </a>
+                            <br>
+                            <div id="history"></div>
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Round</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <th>1</th>
+                                            <th>0x4245afeaccce31bac</th>
+                                        </tr>
+                                        <tr>
+                                            <th>2</th>
+                                            <th>0x4245afeaccce31bac</th>
+                                        </tr>
+                                        <tr>
+                                            <th>3</th>
+                                            <th>0x4245afeaccce31bac</th>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
-                          </header>
-                        </section>
+                        </div>
+                        <div class="col-12">
+                            <h3>Network</h3>
+                            <p>Click on one of the nodes participating in the run to use it as the server to contact</p>
+                            <div id="nodes"></div>
+                        </div>
 
-                    </div>
-                </div>
+                    </div><!--row-->
+                </div><!--box-->
+
+                <div class="box">
+                    <h3>Partners</h3>
+                    <p>The organizations below contribute to the <code>drand</code> beacon. If you want to participate in the network as well, please <a href="mailto:dedis@epfl.ch?subject=Joining the drand network">contact us</a>.</p>
+                    <div class="row" id="partners">
+                        <div class="col-3">
+                            <span class="image fit">
+                                <a href="https://dedis.epfl.ch" ><img src="{{ .Site.BaseURL }}img/epfl.png"></a>
+                            </span>
+                        </div>
+                        <div class="col-3">
+                            <span class="image fit">
+                                <a href="https://www.cloudflare.com" ><img src="{{ .Site.BaseURL }}img/cloudflare.png"></a>
+                            </span>
+                        </div>
+                        <div class="col-3">
+                            <span class="image fit">
+                                <a href="https://www.kudelskisecurity.com" ><img src="{{ .Site.BaseURL }}img/kudelski.jpg"></a>
+                            </span>
+                        </div>
+                        <div class="col-3">
+                            <span class="image fit">
+                                <a href="http://www.uchile.cl/english" ><img src="{{ .Site.BaseURL }}img/uoc.png"></a>
+                            </span>
+                        </div>
+                    </div><!--row-->
+                </div><!--box-->
 
 
-                <!-- Footer -->
-                <footer id="footer">
-                    <ul class="icons">
-                        <li><a href="https://github.com/dedis/drand" class="icon fa-github"><span class="label">Github</span></a></li>
-                        <li><a href="mailto:dedis@epfl.ch?subject=DRand" class="icon fa-envelope"><span class="label">Mail</span></a></li>
-                    </ul>
-                    <ul class="copyright">
-                        <li>&copy; dedis</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
-                    </ul>
-                </footer>
+            </section>
 
-                </div>
+            <!-- Footer -->
+            <footer id="footer">
+                <ul class="icons">
+                    <li><a href="https://github.com/dedis/drand" class="icon fa-github"><span class="label">Github</span></a></li>
+                    <li><a href="mailto:dedis@epfl.ch?subject=Drand" class="icon fa-envelope"><span class="label">Mail</span></a></li>
+                </ul>
+                <ul class="copyright">
+                    <li>&copy; <a href="https://dedis.epfl.ch/">EPFL/DEDIS</a>. All rights reserved.</li>
+                    <li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+                </ul>
+            </footer>
+
+        </div><!--page-wrapper-->
 
         <!-- Scripts -->
         <script src="../js/kyberjs.min.js"></script>
