@@ -1,135 +1,121 @@
 <!DOCTYPE HTML>
 <html>
-    <head>
-        <title>{{ .Site.Title }}</title>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-        <link rel="stylesheet" href="{{ .Site.BaseURL }}css/main.css" />
-    </head>
-    <body class="is-preload">
-        <div id="page-wrapper">
+<head>
+  <title>{{ .Site.Title }}</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <link rel="stylesheet" href="{{ .Site.BaseURL }}css/main.css" />
+</head>
+<body class="is-preload">
+  <div id="page-wrapper">
 
-            <!-- Main -->
-            <section id="main" class="container">
-                <header>
-                    <h2>Drand</h2>
-                    <p>A Distributed Randomness Beacon</p>
-                </header>
-                <div class="box">
-                    <h3>Overview</h3>
-                    <p>
-                    The <code>drand</code> randomness beacon is a world-wide network of independent partners who provide <strong>verifable,
-                    high-entropy randomness as a service</strong> to the public. To generate this randomness in an unbiasable and unpredictable way,
-                    the <code>drand</code> network relies on cutting-edge methodologies from cryptography and distributed systems research.
-                    For more details on the technology, please refer to the <a href="#">documentation</a>.
-                    </p>
+    <!-- Main -->
+    <section id="main" class="container">
+      <header>
+        <h2>Drand</h2>
+        <p>A Distributed Randomness Beacon</p>
+      </header>
+      <div class="box">
+        <h3>Overview</h3>
+        <p>
+          The <code>drand</code> randomness beacon is a world-wide network of independent partners who provide <strong>verifable,
+            high-entropy randomness as a service</strong> to the public. To generate this randomness in an unbiasable and unpredictable way,
+            the <code>drand</code> network relies on cutting-edge methodologies from cryptography and distributed systems research.
+            For more details on the technology, please refer to the <a href="#">documentation</a>.
+          </p>
+        </div>
+
+        <div class="box">
+          <div class="row">
+            <div class="col-12">
+              <header>
+                <h3>Latest randomness</h3>
+                <div id="latest">
+                  <p id="doNotRmMePhilipp"> </p>
+                  <p id="doNotRmMePhilipp">> </p>
                 </div>
 
-                <div class="box">
+                <div id="myProgress">
+                  <div id="myBar"></div>
+                </div>
 
-                    <div class="row">
-                        <div class="col-12">
-                            <h3>Randomness</h3>
-                            <div id="latest"></div>
-                            <div id="myProgress">
-                                <div id="myBar"></div>
-                            </div>
-                            <br>
-                            <div id="history"></div>
-                            <div class="table-wrapper">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Round</th>
-                                            <th>Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <th>1</th>
-                                            <th>0x4245afeaccce31bac</th>
-                                        </tr>
-                                        <tr>
-                                            <th>2</th>
-                                            <th>0x4245afeaccce31bac</th>
-                                        </tr>
-                                        <tr>
-                                            <th>3</th>
-                                            <th>0x4245afeaccce31bac</th>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="col-12">
-                            <h3>Network</h3>
-                            <p>By clicking on one of the nodes displayed below, you can choose which server is contacted to retrieve the next random value.</p>
-                            <div id="nodes"></div>
-                        </div>
-
-                    </div><!--row-->
-                    <span class="image featured">
-                        <img src="{{ .Site.BaseURL }}img/network.jpg" alt>
-                    </span>
-                </div><!--box-->
+                <hr />
+                <h3>Randomness history</h3>
+                <div id="history">
+                </div>
 
 
-                <div class="box">
-                    <h3>Partners</h3>
-                    <p>The organizations below contribute to the <code>drand</code> beacon. If you want to participate in the network as well, please <a href="mailto:dedis@epfl.ch?subject=Joining the drand network">contact us</a>.</p>
-                    <div class="row" id="partners">
-                        <div class="col-3">
-                            <span class="image fit">
-                                <a href="https://dedis.epfl.ch" ><img src="{{ .Site.BaseURL }}img/epfl.png"></a>
-                            </span>
-                        </div>
-                        <div class="col-3">
-                            <span class="image fit">
-                                <a href="https://www.cloudflare.com" ><img src="{{ .Site.BaseURL }}img/cloudflare.png"></a>
-                            </span>
-                        </div>
-                        <div class="col-3">
-                            <span class="image fit">
-                                <a href="https://www.kudelskisecurity.com" ><img src="{{ .Site.BaseURL }}img/kudelski.jpg"></a>
-                            </span>
-                        </div>
-                        <div class="col-3">
-                            <span class="image fit">
-                                <a href="http://www.uchile.cl/english" ><img src="{{ .Site.BaseURL }}img/uoc.png"></a>
-                            </span>
-                        </div>
-                    </div><!--row-->
-                </div><!--box-->
+                <hr />
+              </div>
+
+              <div class="col-12">
+                <h3>Network</h3>
+                <p>By clicking on one of the nodes displayed below, you can choose which server is contacted to retrieve the next random value.</p>
+                <div id="nodes"></div>
+              </div>
+
+            </div><!--row-->
+            <span class="image featured">
+              <img src="{{ .Site.BaseURL }}img/network.jpg" alt>
+            </span>
+          </div><!--box-->
 
 
-            </section>
+          <div class="box">
+            <h3>Partners</h3>
+            <p>The organizations below contribute to the <code>drand</code> beacon. If you want to participate in the network as well, please <a href="mailto:dedis@epfl.ch?subject=Joining the drand network">contact us</a>.</p>
+            <div class="row" id="partners">
+              <div class="col-3">
+                <span class="image fit">
+                  <a href="https://dedis.epfl.ch" ><img src="{{ .Site.BaseURL }}img/epfl.png"></a>
+                </span>
+              </div>
+              <div class="col-3">
+                <span class="image fit">
+                  <a href="https://www.cloudflare.com" ><img src="{{ .Site.BaseURL }}img/cloudflare.png"></a>
+                </span>
+              </div>
+              <div class="col-3">
+                <span class="image fit">
+                  <a href="https://www.kudelskisecurity.com" ><img src="{{ .Site.BaseURL }}img/kudelski.jpg"></a>
+                </span>
+              </div>
+              <div class="col-3">
+                <span class="image fit">
+                  <a href="http://www.uchile.cl/english" ><img src="{{ .Site.BaseURL }}img/uoc.png"></a>
+                </span>
+              </div>
+            </div><!--row-->
+          </div><!--box-->
 
-            <!-- Footer -->
-            <footer id="footer">
-                <ul class="icons">
-                    <li><a href="https://github.com/dedis/drand" class="icon fa-github"><span class="label">Github</span></a></li>
-                    <li><a href="mailto:dedis@epfl.ch?subject=Drand" class="icon fa-envelope"><span class="label">Mail</span></a></li>
-                </ul>
-                <ul class="copyright">
-                    <li>&copy; <a href="https://dedis.epfl.ch/">EPFL/DEDIS</a>. All rights reserved.</li>
-                    <li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
-                </ul>
-            </footer>
 
-        </div><!--page-wrapper-->
+        </section>
 
-        <!-- Scripts -->
-        <script src="../js/kyberjs.min.js"></script>
-        <script src="../js/helpers.js"></script>
-        <script src="../js/drand.js"></script>
-        <script src="../js/display.js"></script>
-        <script>
-          window.identity = {Address: "127.0.0.1:8000", TLS: false, Key: ""};
+        <!-- Footer -->
+        <footer id="footer">
+          <ul class="icons">
+            <li><a href="https://github.com/dedis/drand" class="icon fa-github"><span class="label">Github</span></a></li>
+            <li><a href="mailto:dedis@epfl.ch?subject=Drand" class="icon fa-envelope"><span class="label">Mail</span></a></li>
+          </ul>
+          <ul class="copyright">
+            <li>&copy; <a href="https://dedis.epfl.ch/">EPFL/DEDIS</a>. All rights reserved.</li>
+            <li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+          </ul>
+        </footer>
 
-          display_randomness();
-          window.setInterval(display_randomness, 60000);
-        </script>
+      </div><!--page-wrapper-->
+
+      <!-- Scripts -->
+      <script src="../js/kyberjs.min.js"></script>
+      <script src="../js/helpers.js"></script>
+      <script src="../js/drand.js"></script>
+      <script src="../js/display.js"></script>
+      <script>
+      window.identity = {Address: "127.0.0.1:8000", TLS: false, Key: ""};
+
+      display_randomness();
+      window.setInterval(display_randomness, 60000);
+      </script>
 
     </body>
-</html>
+    </html>
