@@ -378,6 +378,14 @@ function fetchTest() {
                 "https://${addresses[$arrIndex]}/api/info/distkey" | python -m json.tool
     checkSuccess $? "verify REST API for getting distributed key"
     echo "---------------------------------------------"
+    echo "[+] Group information with CURL"
+    docker run --rm --net $NET --ip "${SUBNET}12" -v "$serverCertVol" \
+                $img -s -k --cacert "$serverCertDocker" \
+                -H "Content-type: application/json" \
+                "https://${addresses[$arrIndex]}/api/info/group" | python -m json.tool
+    checkSuccess $? "verify REST API for getting group info"
+    echo "---------------------------------------------"
+
 }
 
 cleanup
