@@ -51,9 +51,9 @@ message GroupRequest {
 
 // GroupResponse contains the Group information currently used by the drand node
 message GroupResponse {
-    repeated Node nodes = 1;
-    uint32 threshold = 2;
     uint32 period = 3; // in ms
+    uint32 threshold = 2;
+    repeated Node nodes = 1;
     repeated string distkey = 4; // coefficients of the public poly. 1st is key.
 }
 
