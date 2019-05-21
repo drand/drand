@@ -123,8 +123,8 @@ func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
 }
 
 // GroupFile returns the TOML-encoded group file
-func (c ControlClient) GroupFile() (*control.GroupResponse, error) {
-	return c.client.GroupFile(context.Background(), &control.GroupRequest{})
+func (c ControlClient) GroupFile() (*control.GroupTOMLResponse, error) {
+	return c.client.GroupFile(context.Background(), &control.GroupTOMLRequest{})
 }
 
 func controlListenAddr(port string) string {
