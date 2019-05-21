@@ -141,9 +141,9 @@ func (s *DefaultService) CollectiveKey(c context.Context, in *drand.CokeyRequest
 }
 
 // GroupFile  ...
-func (s *DefaultService) GroupFile(c context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (s *DefaultService) GroupFile(c context.Context, in *drand.GroupTOMLRequest) (*drand.GroupTOMLResponse, error) {
 	if s.C == nil {
-		return &drand.GroupResponse{}, nil
+		return &drand.GroupTOMLResponse{}, nil
 	}
 	return s.C.GroupFile(c, in)
 }

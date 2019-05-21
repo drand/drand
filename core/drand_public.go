@@ -1,12 +1,11 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/entropy"
@@ -158,11 +157,23 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	gtoml := d.group.TOML()
-	var buff bytes.Buffer
-	err := toml.NewEncoder(&buff).Encode(gtoml)
-	if err != nil {
-		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
+	gtoml := d.group.TOML().(*key.GroupTOML)
+	var resp = new(drand.GroupResponse)
+	resp.Nodes = make([]*drand.Node, len(gtoml.Nodes))
+	for i, n := range gtoml.Nodes {
+		resp.Nodes[i] = &drand.Node{
+			Address: n.Address,
+			Key:     n.Key,
+			TLS:     n.TLS,
+		}
 	}
-	return &drand.GroupResponse{GroupToml: buff.String()}, nil
+	resp.Threshold = uint32(gtoml.Threshold)
+	// take the period in second -> ms. grouptoml already transforms it to toml
+	ms := uint32(d.group.Period / time.Millisecond)
+	resp.Period = ms
+	if gtoml.PublicKey != nil {
+		resp.Distkey = make([]string, len(gtoml.PublicKey.Coefficients))
+		copy(resp.Distkey, gtoml.PublicKey.Coefficients)
+	}
+	return resp, nil
 }

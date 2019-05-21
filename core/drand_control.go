@@ -3,11 +3,13 @@ package core
 // drand_control.go contains the logic of the control interface of drand.
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/crypto"
@@ -284,8 +286,19 @@ func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*c
 }
 
 // GroupFile replies with the distributed key in the response
-func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
-	return d.Group(ctx, in)
+func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*control.GroupTOMLResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.group == nil {
+		return nil, errors.New("drand: no dkg group setup yet")
+	}
+	gtoml := d.group.TOML()
+	var buff bytes.Buffer
+	err := toml.NewEncoder(&buff).Encode(gtoml)
+	if err != nil {
+		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
+	}
+	return &drand.GroupTOMLResponse{GroupToml: buff.String()}, nil
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

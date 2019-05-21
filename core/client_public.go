@@ -15,6 +15,7 @@ import (
 )
 
 // Client is the endpoint logic, communicating with drand servers
+// XXX: This API should go away. Do not extend any further.
 type Client struct {
 	client net.ExternalClient
 }
@@ -96,10 +97,9 @@ func (c *Client) DistKey(addr string, secure bool) (*crypto.Point, error) {
 	return resp.Key, err
 }
 
-// Group returns the group file used by the node in a TOML encoded format
-func (c *Client) Group(addr string, secure bool) (string, error) {
-	resp, err := c.client.Group(&peerAddr{addr, secure}, &drand.GroupRequest{})
-	return resp.GroupToml, err
+// Group returns the group file used by the node in a JSON encoded format
+func (c *Client) Group(addr string, secure bool) (*drand.GroupResponse, error) {
+	return c.client.Group(&peerAddr{addr, secure}, &drand.GroupRequest{})
 }
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {

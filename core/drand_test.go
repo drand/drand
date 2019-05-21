@@ -13,7 +13,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
@@ -465,6 +464,8 @@ func TestDrandPublicGroup(t *testing.T) {
 	path := path.Join(dir, "group.toml")
 	require.NoError(t, key.Save(path, group1, false))
 
+	gtoml := group1.TOML().(*key.GroupTOML)
+
 	for i := range drands {
 		// so old drand nodes "think" it has already ran a dkg
 		drands[i].group = group1
@@ -472,15 +473,26 @@ func TestDrandPublicGroup(t *testing.T) {
 	}
 
 	client := NewGrpcClient()
-	var buff bytes.Buffer
-	err := toml.NewEncoder(&buff).Encode(group1.TOML())
-	require.NoError(t, err)
-	group1Toml := buff.String()
+	rest := net.NewRestClient()
 	for _, d := range drands {
-		tomlGroup, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
+		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
 		require.NoError(t, err)
-		require.Equal(t, group1Toml, tomlGroup)
+
+		require.Equal(t, uint32(group1.Period), groupResp.Period*1e6)
+		require.Equal(t, uint32(group1.Threshold), groupResp.Threshold)
+		require.Equal(t, gtoml.PublicKey.Coefficients, groupResp.Distkey)
+		require.Len(t, groupResp.Nodes, len(group1.Nodes))
+		for i, n := range group1.Nodes {
+			n2 := groupResp.Nodes[i]
+			require.Equal(t, n.Addr, n2.Address)
+			require.Equal(t, gtoml.Nodes[i].Key, n2.Key)
+			require.Equal(t, n.TLS, n2.TLS)
+		}
+		restGroup, err := rest.Group(d.priv.Public, &drand.GroupRequest{})
+		require.NoError(t, err)
+		require.Equal(t, groupResp, restGroup)
 	}
+
 }
 
 // BatchNewDrand returns n drands, using TLS or not, with the given
