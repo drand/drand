@@ -180,7 +180,7 @@ func (d *Drand) createDKG() error {
 	}
 	var err error
 	c := d.nextConf
-	if d.dkg, err = dkg.NewHandler(d.dkgNetwork(c), c); err != nil {
+	if d.dkg, err = dkg.NewHandler(d.dkgNetwork(c), c, d.log); err != nil {
 		return err
 	}
 	return nil
@@ -246,7 +246,7 @@ func (d *Drand) initBeacon() error {
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
 	conf := &beacon.Config{Group: d.group, Private: d.priv, Share: d.share, Seed: DefaultSeed}
-	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.beaconStore, conf)
+	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.beaconStore, conf, d.log)
 	return err
 }
 
