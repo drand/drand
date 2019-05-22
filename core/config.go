@@ -8,6 +8,7 @@ import (
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
 	"google.golang.org/grpc"
 )
@@ -30,6 +31,7 @@ type Config struct {
 	certPath     string
 	keyPath      string
 	certmanager  *net.CertManager
+	logger       log.Logger
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -47,6 +49,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		dkgTimeout:  dkg.DefaultTimeout,
 		certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
+		logger:      log.DefaultLogger,
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -84,6 +87,11 @@ func (d *Config) ListenAddress(defaultAddr string) string {
 // which can be the default one or the port setup thanks to WithControlPort
 func (d *Config) ControlPort() string {
 	return d.controlPort
+}
+
+// Logger returns the logger associated with this config.
+func (d *Config) Logger() log.Logger {
+	return d.logger
 }
 
 func (d *Config) callbacks(b *beacon.Beacon) {
@@ -183,10 +191,18 @@ func WithListenAddress(addr string) ConfigOption {
 	}
 }
 
-// WithControlPort specifies which port on localhost the ListenerControl should bind to.
+// WithControlPort specifies which port on localhost the ListenerControl should
+// bind to.
 func WithControlPort(port string) ConfigOption {
 	return func(d *Config) {
 		d.controlPort = port
+	}
+}
+
+// WithLogLevel sets the logging verbosity to the given level.
+func WithLogLevel(level int) ConfigOption {
+	return func(d *Config) {
+		d.logger = log.NewLogger(level)
 	}
 }
 

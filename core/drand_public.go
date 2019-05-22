@@ -13,8 +13,8 @@ import (
 	"github.com/dedis/drand/protobuf/crypto"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/nikkolasg/slog"
 	"go.dedis.ch/kyber/v3"
+	"google.golang.org/grpc/peer"
 )
 
 // Setup is the public method to call during a DKG protocol.
@@ -121,7 +121,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	}
 	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {
-		slog.Debugf("drand: received invalid ECIES private request: %s", err)
+		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err)
 		return nil, errors.New("invalid ECIES request")
 	}
 
@@ -142,7 +142,8 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 
 // Home ...
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	slog.Infof("drand: home method requested")
+	peer, _ := peer.FromContext(c)
+	d.log.With("module", "public").Info("home", peer)
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),

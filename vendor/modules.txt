@@ -6,6 +6,11 @@ github.com/coreos/bbolt
 github.com/davecgh/go-spew/spew
 # github.com/dchest/blake2b v1.0.0
 github.com/dchest/blake2b
+# github.com/go-kit/kit v0.8.0
+github.com/go-kit/kit/log
+github.com/go-kit/kit/log/level
+# github.com/go-logfmt/logfmt v0.4.0
+github.com/go-logfmt/logfmt
 # github.com/golang/protobuf v1.3.1
 github.com/golang/protobuf/proto
 github.com/golang/protobuf/jsonpb
@@ -25,6 +30,8 @@ github.com/grpc-ecosystem/grpc-gateway/utilities
 github.com/grpc-ecosystem/grpc-gateway/internal
 # github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 github.com/kabukky/httpscerts
+# github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
+github.com/kr/logfmt
 # github.com/nikkolasg/hexjson v0.0.0-20181101101858-78e39397e00c
 github.com/nikkolasg/hexjson
 # github.com/nikkolasg/slog v0.0.0-20170921200349-3c8d441d7a1e

@@ -10,9 +10,9 @@ import (
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
-	"github.com/nikkolasg/slog"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -44,6 +44,9 @@ type Drand struct {
 	nextConf          *dkg.Config
 	nextOldPresent    bool // true if we are in the old group
 	nextFirstReceived bool // false til receive 1st reshare packet
+
+	// general logger
+	log log.Logger
 
 	// global state lock
 	state sync.Mutex
@@ -77,6 +80,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		store: s,
 		priv:  priv,
 		opts:  c,
+		log:   c.Logger(),
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
@@ -109,7 +113,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	slog.Debugf("drand: loaded and serving at %s", d.priv.Public.Address())
+	d.log.Debug("drand: loaded and serving at %s", d.priv.Public.Address())
 	return d, nil
 }
 
@@ -137,7 +141,7 @@ func (d *Drand) WaitDKG() error {
 	errCh := d.dkg.WaitError()
 	d.state.Unlock()
 
-	slog.Debugf("drand: waiting DKG to start & finish at %s", time.Now())
+	d.log.Debug("dkg_start", time.Now().String())
 	select {
 	case share := <-waitCh:
 		s := key.Share(share)
@@ -155,7 +159,7 @@ func (d *Drand) WaitDKG() error {
 	// need to save the period before since dkg returns a *new* fresh group, it
 	// does not know about the period.
 	d.group.Period = d.nextConf.NewNodes.Period
-	slog.Debugf("drand: DKG finished with %d node certified at %s\n", d.group.Len(), time.Now())
+	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
 	d.store.SaveGroup(d.group)
 	d.dkgDone = true
 	d.dkg = nil
@@ -197,7 +201,7 @@ func (d *Drand) StartBeacon(catchup bool) error {
 		d.state.Lock()
 	}
 	period := getPeriod(d.group)
-	slog.Infof("drand: starting random beacon (catchup?%v) at %s", catchup, time.Now())
+	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	go d.beacon.Run(period, catchup)
 	return nil
 }
