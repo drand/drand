@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/test"
@@ -78,7 +79,7 @@ func TestDKGWithTimeout(t *testing.T) {
 			Timeout:  timeout,
 		}
 
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		dkgServer := testDKGServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
@@ -154,7 +155,7 @@ func TestDKGFresh(t *testing.T) {
 			NewNodes: group,
 		}
 
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		dkgServer := testDKGServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
@@ -248,7 +249,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 			Share:    &share,
 			Timeout:  timeout,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
@@ -265,7 +266,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 			OldNodes: oldGroup,
 			Timeout:  timeout,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		require.True(t, handlers[i].newNode)
 		require.False(t, handlers[i].oldNode)
@@ -390,7 +391,7 @@ func TestDKGResharingPartial(t *testing.T) {
 			NewNodes: newGroup,
 			Share:    &share,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
@@ -406,7 +407,7 @@ func TestDKGResharingPartial(t *testing.T) {
 			NewNodes: newGroup,
 			OldNodes: oldGroup,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		require.True(t, handlers[i].newNode)
 		require.False(t, handlers[i].oldNode)
@@ -505,7 +506,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 			NewNodes: newGroup,
 			Share:    &share,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
@@ -522,7 +523,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 			OldNodes: oldGroup,
 		}
 
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		require.True(t, handlers[i].newNode)
 		require.False(t, handlers[i].oldNode)
@@ -625,7 +626,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 			NewNodes: newGroup,
 			Share:    &share,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
@@ -641,7 +642,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 			NewNodes: newGroup,
 			OldNodes: oldGroup,
 		}
-		handlers[i], err = NewHandler(nets[i], conf)
+		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		require.True(t, handlers[i].newNode)
 		require.False(t, handlers[i].oldNode)
@@ -659,7 +660,6 @@ func TestDKGResharingPartial2(t *testing.T) {
 	}()
 
 	finished := make(chan *key.Pair, total)
-	quitAll := make(chan bool)
 	goDkg := func(idx int) {
 		if idx < oldN {
 			go handlers[idx].Start()
@@ -720,5 +720,4 @@ func TestDKGResharingPartial2(t *testing.T) {
 		//}
 		/*}*/
 	}
-	close(quitAll)
 }

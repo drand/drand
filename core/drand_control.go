@@ -16,7 +16,6 @@ import (
 	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	control "github.com/dedis/drand/protobuf/drand"
-	"github.com/nikkolasg/slog"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
@@ -91,7 +90,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			d.state.Unlock()
 			return nil, errors.New("drand: can't init-reshare if no old group provided")
 		}
-		slog.Debugf("drand: using current group as old group in resharing request")
+		d.log.With("module", "control").Debug("init_reshare", "old group equal current group")
 		oldGroup = d.group
 	}
 	d.state.Unlock()
@@ -182,7 +181,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {
-	slog.Debugf("drand: start sending resharing signal")
+	d.log.With("module", "control").Debug("leader_reshare", "start signalling")
 	d.state.Lock()
 	msg := &dkg_proto.ResharePacket{GroupHash: d.nextGroupHash}
 	// send resharing packet to signal start of the protocol to other old
@@ -196,11 +195,11 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 		//fmt.Printf("drand leader %s -> signal to %s\n", d.priv.Public.Addr, id.Addr)
 		if _, err := d.gateway.InternalClient.Reshare(id, msg); err != nil {
 			//if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
-			slog.Debugf("drand: init reshare packet err %s", err)
+			d.log.With("module", "control").Error("leader_reshare", err)
 		}
 	}
 	d.state.Unlock()
-	slog.Debugf("drand: resharing signal sent -> start DKG")
+	d.log.With("module", "control").Debug("leader_reshare", "start DKG")
 	d.StartDKG()
 }
 

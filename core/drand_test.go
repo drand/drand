@@ -416,7 +416,7 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	checkSuccess()
 
-	fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED FIRST PASS \n\n\n\n\n\n\n\n\n")
+	//fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED FIRST PASS \n\n\n\n\n\n\n\n\n")
 
 	drands[n-1], err = LoadDrand(drands[n-1].store, drands[n-1].opts)
 	require.NoError(t, err)
@@ -428,7 +428,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	go countGenBeacons(nbRound, n, done)
 	checkSuccess()
 
-	fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED SECOND PASS \n\n\n\n\n\n\n\n\n")
+	//fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED SECOND PASS \n\n\n\n\n\n\n\n\n")
 
 	client := net.NewGrpcClientFromCertManager(root.opts.certmanager, root.opts.grpcOpts...)
 	resp, err := client.Public(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})

@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
-	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/share"
@@ -88,7 +88,6 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 }
 
 func TestBeaconSimple(t *testing.T) {
-	slog.Level = slog.LevelDebug
 	n := 5
 	thr := 5/2 + 1
 	//thr := 5
@@ -153,7 +152,7 @@ func TestBeaconSimple(t *testing.T) {
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
 		conf := &Config{Group: group, Private: privs[i], Share: shares[i], Seed: seed}
-		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf)
+		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
@@ -252,7 +251,6 @@ func TestBeaconSimple(t *testing.T) {
 }
 
 func TestBeaconNEqualT(t *testing.T) {
-	slog.Level = slog.LevelDebug
 	n := 5
 	//thr := 5/2 + 1
 	thr := 5
@@ -304,7 +302,7 @@ func TestBeaconNEqualT(t *testing.T) {
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
 		conf := &Config{Group: group, Private: privs[i], Share: shares[i], Seed: seed}
-		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf)
+		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
 		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
