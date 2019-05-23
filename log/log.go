@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	lvl "github.com/go-kit/kit/log/level"
@@ -72,6 +73,8 @@ func NewKitLogger(opts ...lvl.Option) Logger {
 	for _, opt := range opts {
 		logger = lvl.NewFilter(logger, opt)
 	}
+	timestamp := log.TimestampFormat(time.Now, time.RFC1123)
+	logger = log.With(logger, "ts", timestamp)
 	logger = log.With(logger, "call", log.Caller(8))
 	return NewKitLoggerFrom(logger)
 }
