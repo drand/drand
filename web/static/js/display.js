@@ -49,12 +49,12 @@ function display_randomness() {
 function move() {
   var elem = document.getElementById("myBar");
   var width = 0;
-  var id = setInterval(frame, 1);
+  var id = setInterval(frame, 60);
   function frame() {
     if (width >= 100) {
       clearInterval(id);
     } else {
-      width = width + 0.015;
+      width += 0.1;
       elem.style.width = width + '%';
     }
   }
@@ -77,7 +77,13 @@ function print_round(randomness, previous, round, verified, timestamp) {
   p.onmouseover = function() { p.style.textDecoration = "underline"; };
   p.onmouseout = function() {p.style.textDecoration = "none";};
   var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
-  p.onclick = function() { alert(`Randomness requested to the node running at `+ identity.Address + '\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2));};
+  p.onclick = function() {
+    if (identity.TLS){
+      alert(`Randomness fetched from https://`+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2));
+    } else {
+      alert(`Randomness fetched from http://`+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2));
+    }
+  };
   var p2 = document.createElement("p");
 
   var textnode = document.createTextNode(randomness_2lines);
@@ -119,6 +125,9 @@ function print_nodes(identity) {
         let tls = group.Nodes[i].TLS;
         p4.onclick = function() {
           window.identity = {Address: addr, TLS: tls, Key: ""};
+          display_randomness();
+          window.clearInterval(id);
+          window.setInterval(display_randomness, 60000);
         };
         var text = document.createTextNode(group.Nodes[i].Address);
         p4.appendChild(text);
