@@ -15,16 +15,10 @@ function display_randomness() {
   var timestamp = date.toString().substring(3);
   fetchAndVerify(identity, distkey)
     .then(function (fulfilled) {
-      randomness = fulfilled[0];
-      previous = fulfilled[1];
-      round = fulfilled[2];
-      print_round(randomness, previous, round, true, timestamp);
+      print_round(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
     })
     .catch(function (error) {
-      randomness = error[0];
-      previous = error[1];
-      round = error[2];
-      print_round(randomness, previous, round, false, timestamp);
+      print_round(error.randomness, error.previous, error.round, false, timestamp);
     });
   print_nodes(identity);
 }
