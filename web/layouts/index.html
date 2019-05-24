@@ -109,7 +109,8 @@
       <script src="https://cdn.jsdelivr.net/gh/PizzaWhisperer/drandjs/dist/drand.js"></script>
       <script src="../js/display.js"></script>
       <script>
-      window.identity = {Address: "127.0.0.1:8000", TLS: false, Key: ""};
+      window.identity = {Address: "127.0.0.1:8000", TLS: false};
+      window.distkey = "";
 
       display_randomness();
       var id = window.setInterval(display_randomness, 60000);

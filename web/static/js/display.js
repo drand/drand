@@ -2,18 +2,18 @@ const latestDiv = document.querySelector('#latest');
 const historyDiv = document.querySelector('#history');
 const nodesDiv = document.querySelector('#nodes');
 window.identity = "";
+window.distkey = "";
 
 var lastRound = "0";
 
 function display_randomness() {
-  let identity = window.identity;
+  var identity = window.identity;
+  var distkey = window.distkey;
+
   move();
   var date = new Date();
-  var timestamp = date.toISOString();
-
-  if (identity.Key == "") {
-
-    fetchAndVerify(identity)
+  var timestamp = date.toString().substring(3);
+  fetchAndVerify(identity, distkey)
     .then(function (fulfilled) {
       randomness = fulfilled[0];
       previous = fulfilled[1];
@@ -26,23 +26,6 @@ function display_randomness() {
       round = error[2];
       print_round(randomness, previous, round, false, timestamp);
     });
-  } else {
-    //identity = {Address: "127.0.0.1:8000", TLS: false, Key: "7cadcddbc8b87c045decf45ba3b0cc4292a3bd496904cf8b61a1ea6f2eae82166f508b79479ee2df378aa5ac3f5b061d92335679dfd21f6c1b06f7aacf434ccf5a46e87cc2006a76b7dd03a6d0c9a6efd7786dd5fbe77926fa681f1b5385f7453afd47e7d3685747fb75fdbc02990509049d28a079cab444b37e8fc0459be111"}
-
-    fetchAndVerifyWithKey(identity)
-    .then(function (fulfilled) {
-      randomness = fulfilled[0];
-      previous = fulfilled[1];
-      round = fulfilled[2];
-      print_round(randomness, previous, round, true, timestamp);
-    })
-    .catch(function (error) {
-      randomness = error[0];
-      previous = error[1];
-      round = error[2];
-      print_round(randomness, previous, round, false, timestamp);
-    });
-  }
   print_nodes(identity);
 }
 
@@ -124,7 +107,7 @@ function print_nodes(identity) {
         let addr = group.Nodes[i].Address;
         let tls = group.Nodes[i].TLS;
         p4.onclick = function() {
-          window.identity = {Address: addr, TLS: tls, Key: ""};
+          window.identity = {Address: addr, TLS: tls};
           display_randomness();
           window.clearInterval(id);
           window.setInterval(display_randomness, 60000);
