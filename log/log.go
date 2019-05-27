@@ -21,8 +21,10 @@ type Logger interface {
 }
 
 const (
+	// LogNone forbids any log entries
+	LogNone int = iota
 	// LogInfo sets the logging verbosity to info
-	LogInfo int = iota
+	LogInfo
 	// LogDebug sets the logging verbosity to debug
 	LogDebug
 )
