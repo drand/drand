@@ -416,7 +416,7 @@ func keygenCmd(c *cli.Context) error {
 	fs := key.NewFileStore(config.ConfigFolder())
 
 	if _, err := fs.LoadKeyPair(); err == nil {
-		fatal("keypair already present. Remove them before generating new one")
+		fmt.Println("keypair already present. Remove them before generating new one")
 		return nil
 	}
 	if err := fs.SaveKeyPair(priv); err != nil {
