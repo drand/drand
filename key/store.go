@@ -141,12 +141,6 @@ func (f *fileStore) Reset(...ResetOption) error {
 	if err := Delete(f.distKeyFile); err != nil {
 		return fmt.Errorf("drand: err deleting dist. key file: %v", err)
 	}
-	_, err := f.LoadDistPublic()
-	if err == nil {
-		panic("aie")
-	} else {
-		fmt.Println("ALL GOOD")
-	}
 	if err := Delete(f.shareFile); err != nil {
 		return fmt.Errorf("drand: errd eleting share file: %v", err)
 	}
