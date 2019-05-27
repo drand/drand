@@ -400,7 +400,7 @@ func keygenCmd(c *cli.Context) error {
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
 	if !validID.MatchString(addr) {
-		fatal("port not ok")
+		fmt.Println("port not ok")
 		addr = addr + ":" + askPort()
 	}
 	var priv *key.Pair
