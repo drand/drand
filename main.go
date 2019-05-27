@@ -405,10 +405,10 @@ func keygenCmd(c *cli.Context) error {
 	}
 	var priv *key.Pair
 	if c.Bool("tls-disable") {
-		fatal("Generating private / public key pair without TLS.")
+		fmt.Println("Generating private / public key pair without TLS.")
 		priv = key.NewKeyPair(addr)
 	} else {
-		fatal("Generating private / public key pair with TLS indication")
+		fmt.Println("Generating private / public key pair with TLS indication")
 		priv = key.NewTLSKeyPair(addr)
 	}
 
