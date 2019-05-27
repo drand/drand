@@ -1,13 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	json "github.com/nikkolasg/hexjson"
-	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
 
@@ -15,13 +15,13 @@ import (
 // dispatch to the respective sub-commands.
 func shareCmd(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatal("drand: needs at least one group.toml file argument")
+		fatal("drand: needs at least one group.toml file argument")
 	}
 	testEmptyGroup(c.Args().First())
 
 	if c.IsSet(oldGroupFlag.Name) {
 		testEmptyGroup(c.String(oldGroupFlag.Name))
-		slog.Info("drand: old group file given for resharing protocol")
+		fmt.Println("drand: old group file given for resharing protocol")
 		return initReshare(c)
 	}
 
@@ -34,10 +34,10 @@ func shareCmd(c *cli.Context) error {
 	freshRun := errG != nil || errS != nil || errD != nil
 	var err error
 	if freshRun {
-		slog.Info("drand: no current distributed key -> running DKG protocol.")
+		fmt.Println("drand: no current distributed key -> running DKG protocol.")
 		err = initDKG(c)
 	} else {
-		slog.Info("drand: found distributed key -> running resharing protocol.")
+		fmt.Println("drand: found distributed key -> running resharing protocol.")
 		err = initReshare(c)
 	}
 	return err
@@ -53,14 +53,14 @@ func initDKG(c *cli.Context) error {
 	conf := contextToConfig(c)
 	client, err := net.NewControlClient(conf.ControlPort())
 	if err != nil {
-		slog.Fatalf("drand: error creating control client: %s", err)
+		fatal("drand: error creating control client: %s", err)
 	}
 
-	slog.Print("drand: waiting the end of DKG protocol ... " +
+	fmt.Print("drand: waiting the end of DKG protocol ... " +
 		"(you can CTRL-C to not quit waiting)")
 	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name))
 	if err != nil {
-		slog.Fatalf("drand: initdkg %s", err)
+		fatal("drand: initdkg %s", err)
 	}
 	return nil
 }
@@ -82,15 +82,15 @@ func initReshare(c *cli.Context) error {
 		oldGroupPath = c.String(oldGroupFlag.Name)
 	}
 	if oldGroupPath == "" {
-		slog.Print("drand: old group path not specified. Using daemon's own group if possible.")
+		fmt.Print("drand: old group path not specified. Using daemon's own group if possible.")
 	}
 	newGroupPath = c.Args().First()
 
 	client := controlClient(c)
-	slog.Print("drand: initiating resharing protocol. Waiting to the end ...")
+	fmt.Println("drand: initiating resharing protocol. Waiting to the end ...")
 	_, err := client.InitReshare(oldGroupPath, newGroupPath, isLeader, c.String(timeoutFlag.Name))
 	if err != nil {
-		slog.Fatalf("drand: error resharing: %s", err)
+		fatal("drand: error resharing: %s", err)
 	}
 	return nil
 }
@@ -99,7 +99,7 @@ func getShare(c *cli.Context) error {
 	client := controlClient(c)
 	resp, err := client.Share()
 	if err != nil {
-		slog.Fatalf("drand: could not request the share: %s", err)
+		fatal("drand: could not request the share: %s", err)
 	}
 	printJSON(resp)
 	return nil
@@ -108,9 +108,9 @@ func getShare(c *cli.Context) error {
 func pingpongCmd(c *cli.Context) error {
 	client := controlClient(c)
 	if err := client.Ping(); err != nil {
-		slog.Fatalf("drand: can't ping the daemon ... %s", err)
+		fatal("drand: can't ping the daemon ... %s", err)
 	}
-	slog.Printf("drand daemon is alive on port %s", controlPort(c))
+	fmt.Printf("drand daemon is alive on port %s", controlPort(c))
 	return nil
 }
 
@@ -118,18 +118,18 @@ func showGroupCmd(c *cli.Context) error {
 	client := controlClient(c)
 	r, err := client.GroupFile()
 	if err != nil {
-		slog.Fatalf("drand: fetching group file error: %s", err)
+		fatal("drand: fetching group file error: %s", err)
 	}
 
 	if c.IsSet(outFlag.Name) {
 		filePath := c.String(outFlag.Name)
 		err := ioutil.WriteFile(filePath, []byte(r.GroupToml), 0750)
 		if err != nil {
-			slog.Fatalf("drand: can't write to file: %s", err)
+			fatal("drand: can't write to file: %s", err)
 		}
-		slog.Printf("group file written to %s", filePath)
+		fmt.Printf("group file written to %s", filePath)
 	} else {
-		slog.Printf("\n\n%s", r.GroupToml)
+		fmt.Printf("\n\n%s", r.GroupToml)
 	}
 	return nil
 }
@@ -138,7 +138,7 @@ func showCokeyCmd(c *cli.Context) error {
 	client := controlClient(c)
 	resp, err := client.CollectiveKey()
 	if err != nil {
-		slog.Fatalf("drand: could not request drand.cokey: %s", err)
+		fatal("drand: could not request drand.cokey: %s", err)
 	}
 	printJSON(resp)
 	return nil
@@ -148,7 +148,7 @@ func showPrivateCmd(c *cli.Context) error {
 	client := controlClient(c)
 	resp, err := client.PrivateKey()
 	if err != nil {
-		slog.Fatalf("drand: could not request drand.private: %s", err)
+		fatal("drand: could not request drand.private: %s", err)
 	}
 
 	printJSON(resp)
@@ -159,7 +159,7 @@ func showPublicCmd(c *cli.Context) error {
 	client := controlClient(c)
 	resp, err := client.PublicKey()
 	if err != nil {
-		slog.Fatalf("drand: could not request drand.public: %s", err)
+		fatal("drand: could not request drand.public: %s", err)
 	}
 
 	printJSON(resp)
@@ -170,7 +170,7 @@ func showShareCmd(c *cli.Context) error {
 	client := controlClient(c)
 	resp, err := client.Share()
 	if err != nil {
-		slog.Fatalf("drand: could not request drand.share: %s", err)
+		fatal("drand: could not request drand.share: %s", err)
 	}
 
 	printJSON(resp)
@@ -189,7 +189,7 @@ func controlClient(c *cli.Context) *net.ControlClient {
 	port := controlPort(c)
 	client, err := net.NewControlClient(port)
 	if err != nil {
-		slog.Fatalf("drand: can't instantiate control client: %s", err)
+		fatal("drand: can't instantiate control client: %s", err)
 	}
 	return client
 }
@@ -197,7 +197,7 @@ func controlClient(c *cli.Context) *net.ControlClient {
 func printJSON(j interface{}) {
 	buff, err := json.MarshalIndent(j, "", "    ")
 	if err != nil {
-		slog.Fatalf("drand: could not JSON marshal: %s", err)
+		fatal("drand: could not JSON marshal: %s", err)
 	}
-	slog.Print(string(buff))
+	fmt.Print(string(buff))
 }

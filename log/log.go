@@ -21,8 +21,10 @@ type Logger interface {
 }
 
 const (
+	// LogNone forbids any log entries
+	LogNone int = iota
 	// LogInfo sets the logging verbosity to info
-	LogInfo int = iota
+	LogInfo
 	// LogDebug sets the logging verbosity to debug
 	LogDebug
 )
@@ -48,6 +50,8 @@ type kitLogger struct {
 func NewLogger(level int) Logger {
 	var opt lvl.Option
 	switch level {
+	case LogNone:
+		opt = lvl.AllowNone()
 	case LogInfo:
 		opt = lvl.AllowInfo()
 	case LogDebug:
