@@ -54,8 +54,8 @@ var leaderFlag = cli.BoolFlag{
 }
 var verboseFlag = cli.IntFlag{
 	Name:  "verbose, V",
-	Value: 0,
-	Usage: "Set verbosity to the given level. 0 for normal output, 1 for informational output and 2 for debug output.",
+	Value: 1,
+	Usage: "Set verbosity to the given level. Level 1 is the info level and level 2 is the debug level. Verbosity is at the info level by default.",
 }
 
 var tlsCertFlag = cli.StringFlag{
@@ -551,12 +551,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	if c.GlobalIsSet("verbose") {
 		switch c.Int("verbose") {
-		case log.LogNone:
-			opts = append(opts, core.WithLogLevel(log.LogNone))
 		case log.LogInfo:
 			opts = append(opts, core.WithLogLevel(log.LogInfo))
 		case log.LogDebug:
-			fmt.Println("drand: unknown log level - setting to debug")
+			fmt.Println("drand: unknown log level - debug default")
 			fallthrough // default
 		default:
 			opts = append(opts, core.WithLogLevel(log.LogDebug))

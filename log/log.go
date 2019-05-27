@@ -50,6 +50,8 @@ type kitLogger struct {
 func NewLogger(level int) Logger {
 	var opt lvl.Option
 	switch level {
+	case LogNone:
+		opt = lvl.AllowNone()
 	case LogInfo:
 		opt = lvl.AllowInfo()
 	case LogDebug:
