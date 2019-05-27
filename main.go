@@ -268,7 +268,14 @@ func main() {
 				return pingpongCmd(c)
 			},
 		},
-
+		{
+			Name:  "reset",
+			Usage: "Resets the local distributed information (share, group file and random beacons).",
+			Flags: toArray(controlFlag),
+			Action: func(c *cli.Context) error {
+				return resetCmd(c)
+			},
+		},
 		{
 			Name: "show",
 			Usage: "local information retrieval about the node's cryptographic " +
@@ -335,10 +342,34 @@ func main() {
 	}
 }
 
+func resetCmd(c *cli.Context) error {
+	conf := contextToConfig(c)
+	fmt.Printf("You are about to delete your local share, group file and generated random beacons. Are you sure you wish to perform this operation? [y/N]")
+	reader := bufio.NewReader(os.Stdin)
+	answer, err := reader.ReadString('\n')
+	if err != nil {
+		slog.Fatal("error reading: ", err)
+	}
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if answer != "y" {
+		slog.Print("drand: not reseting the state.")
+		return nil
+	}
+	store := key.NewFileStore(conf.ConfigFolder())
+	if err := store.Reset(); err != nil {
+		fmt.Printf("drand: err reseting key store: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.RemoveAll(conf.DBFolder()); err != nil {
+		fmt.Printf("drand: err reseting beacons database: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("drand: database reset")
+	return nil
+}
+
 func resetBeaconDB(config *core.Config) bool {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
-		// using fmt so does not get the new line at the end.
-		// XXX allow slog for that behavior
 		fmt.Printf("INCONSISTENT STATE: A beacon database exists already.\n"+
 			"drand support only one identity at the time and thus needs to delete "+
 			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+

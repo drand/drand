@@ -47,3 +47,10 @@ func (k *KeyStore) SaveDistPublic(d *key.DistPublic) error {
 func (k *KeyStore) LoadDistPublic() (*key.DistPublic, error) {
 	return k.dist, nil
 }
+
+func (k *KeyStore) Reset(...key.ResetOption) error {
+	k.group = nil
+	k.dist = nil
+	k.share = nil
+	return nil
+}

@@ -27,6 +27,7 @@ type Store interface {
 	LoadGroup() (*Group, error)
 	SaveDistPublic(d *DistPublic) error
 	LoadDistPublic() (*DistPublic, error)
+	Reset(...ResetOption) error
 }
 
 // ErrStoreFile returns an error in case the store can not save the requested
@@ -136,6 +137,20 @@ func (f *fileStore) LoadDistPublic() (*DistPublic, error) {
 	return d, Load(f.distKeyFile, d)
 }
 
+func (f *fileStore) Reset(...ResetOption) error {
+	if err := Delete(f.distKeyFile); err != nil {
+		return fmt.Errorf("drand: err deleting dist. key file: %v", err)
+	}
+	if err := Delete(f.shareFile); err != nil {
+		return fmt.Errorf("drand: errd eleting share file: %v", err)
+	}
+
+	if err := Delete(f.groupFile); err != nil {
+		return fmt.Errorf("drand: err deleting group file: %v", err)
+	}
+	return nil
+}
+
 // Save the given Tomler interface to the given path. If secure is true, the
 // file will have a 0700 security.
 func Save(path string, t Tomler, secure bool) error {
@@ -163,3 +178,13 @@ func Load(path string, t Tomler) error {
 	}
 	return t.FromTOML(tomlValue)
 }
+
+// Delete the resource denoted by the given path. If it is a file, it deletes
+// the file; if it is a folder it delete the folder and all its content.
+func Delete(path string) error {
+	return os.RemoveAll(path)
+}
+
+// ResetOption is an option to allow for fine-grained reset
+// operations
+type ResetOption int
