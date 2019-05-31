@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"path/filepath"
 
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/key"
@@ -17,12 +19,17 @@ func shareCmd(c *cli.Context) error {
 	if !c.Args().Present() {
 		fatal("drand: needs at least one group.toml file argument")
 	}
-	testEmptyGroup(c.Args().First())
+	groupPath := c.Args().First()
+	groupPath, err := filepath.Abs(groupPath)
+	if err != nil {
+		fatal("can't open group path absolute path from %s", c.Args().First())
+	}
+	testEmptyGroup(groupPath)
 
 	if c.IsSet(oldGroupFlag.Name) {
 		testEmptyGroup(c.String(oldGroupFlag.Name))
 		fmt.Println("drand: old group file given for resharing protocol")
-		return initReshare(c)
+		return initReshare(c, groupPath)
 	}
 
 	conf := contextToConfig(c)
@@ -32,13 +39,12 @@ func shareCmd(c *cli.Context) error {
 	_, errD := fs.LoadDistPublic()
 	// XXX place that logic inside core/ directly with only one method
 	freshRun := errG != nil || errS != nil || errD != nil
-	var err error
 	if freshRun {
 		fmt.Println("drand: no current distributed key -> running DKG protocol.")
-		err = initDKG(c)
+		err = initDKG(c, groupPath)
 	} else {
 		fmt.Println("drand: found distributed key -> running resharing protocol.")
-		err = initReshare(c)
+		err = initReshare(c, groupPath)
 	}
 	return err
 }
@@ -46,8 +52,7 @@ func shareCmd(c *cli.Context) error {
 // initDKG indicates to the daemon to start the DKG protocol, as a leader or
 // not. The method waits until the DKG protocol finishes or an error occured.
 // If the DKG protocol finishes successfully, the beacon randomness loop starts.
-func initDKG(c *cli.Context) error {
-	groupPath := c.Args().First()
+func initDKG(c *cli.Context, groupPath string) error {
 	// still trying to load it ourself now for the moment
 	// just to test if it's a valid thing or not
 	conf := contextToConfig(c)
@@ -74,9 +79,9 @@ func initDKG(c *cli.Context) error {
 // NOTE: If the contacted node is not present in the new list of nodes, the
 // waiting *can* be infinite in some cases. It's an issue that is low priority
 // though.
-func initReshare(c *cli.Context) error {
+func initReshare(c *cli.Context, newGroupPath string) error {
 	var isLeader = c.Bool(leaderFlag.Name)
-	var oldGroupPath, newGroupPath string
+	var oldGroupPath string
 
 	if c.IsSet(oldGroupFlag.Name) {
 		oldGroupPath = c.String(oldGroupFlag.Name)
@@ -84,7 +89,6 @@ func initReshare(c *cli.Context) error {
 	if oldGroupPath == "" {
 		fmt.Print("drand: old group path not specified. Using daemon's own group if possible.")
 	}
-	newGroupPath = c.Args().First()
 
 	client := controlClient(c)
 	fmt.Println("drand: initiating resharing protocol. Waiting to the end ...")
@@ -200,4 +204,12 @@ func printJSON(j interface{}) {
 		fatal("drand: could not JSON marshal: %s", err)
 	}
 	fmt.Print(string(buff))
+}
+func fileExists(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }
