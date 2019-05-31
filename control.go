@@ -21,8 +21,8 @@ func shareCmd(c *cli.Context) error {
 	}
 	groupPath := c.Args().First()
 	groupPath, err := filepath.Abs(groupPath)
-	if err == nil {
-		fatal("can't open group path absolute path")
+	if err != nil {
+		fatal("can't open group path absolute path from %s", c.Args().First())
 	}
 	testEmptyGroup(groupPath)
 
