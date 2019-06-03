@@ -37,6 +37,8 @@ type grpcClient struct {
 	failFast grpc.CallOption
 }
 
+var defaultTimeout = 1 * time.Minute
+
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
@@ -45,7 +47,7 @@ func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
 		conns:   make(map[string]*grpc.ClientConn),
 		manager: NewCertManager(),
 		//timeout:  10 * time.Second,
-		timeout:  1 * time.Minute,
+		timeout:  defaultTimeout,
 		failFast: grpc.FailFast(true),
 	}
 }
