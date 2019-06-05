@@ -1,22 +1,33 @@
 # Drand on Docker
 
-The main readme is [here](./README.md).
+The main readme is [here](./README.md). This README is somewhat not aligned with the Docker setup already proposed (I'm refering to the `Dockerfile` in the repo), *but* it is batteries-included: follow this guide (and only this one) to get a simple, resilient `drand` setup in Docker. In contrast, the docker setup in the repo is not built so the keys remains after recreating the image, etc.
 
-## Simple Docker & Docker-compose setup
+## Generate keys
 
-Creating a docker image from scratch:
+Before creating the docker, let's generate keys locally (on the host)
 
-Let's write a `Dockerfile` with the following contents:
+	go get -u github.com/dedis/drand
+	drand generate-keypair <address>
 
-	FROM golang:1.12.5-alpine # update this number from time to time, but keep "alpine" for a lightweight image
+Where `<address>` is for instance `drand.yourserver.com:1234` or `yourserver.com:1234`.
+
+This generates keys in `~/.drand/keys/` on the host.
+
+## Docker & Docker-compose setup
+
+Create a `Dockerfile` with the following contents:
+
+	FROM golang:1.12.5-alpine # update this number when possible, but keep "alpine" for a lightweight image
 	RUN apk update
 	RUN apk upgrade
 	RUN apk add git
 	RUN go get -u github.com/dedis/drand
 	WORKDIR /
-	ENTRYPOINT ["drand", "--verbose", "2", "generate-keys"]
+	ENTRYPOINT ["drand", "--verbose", "2", "start", "--listen", "0.0.0.0:8080"]
 
-This image COULD already be built and run via ` docker build - < Dockerfile`, if you prefer not to use docker-compose. But I wouldn't recommand it, so let's continue with docker-compose. It will help keeping our container running, plus manage volumes, etc.
+**Note:** if you intend to use `drand` behind a reverse-proxy, add `--tls-disable` here; please read "Docker behind reverse proxy setup" at the end of this guide. 
+
+Let's continue with docker-compose. It will help keeping our container running, plus manage volumes, etc.
 
 Create the following `docker-compose.yml` :
 
@@ -25,9 +36,9 @@ Create the following `docker-compose.yml` :
 	  volumes:
 	    - ./data:/root/.drand
 	  ports:
-	    - "0.0.0.0:1234:8080" # replace 1234 with the external port you want
+	    - "0.0.0.0:1234:8080"
 
-Finally, also create a `data` folder to hold the keys and settings. It has to have permissions `740`
+Finally, also create a `data` folder to hold the keys and settings. It __HAS__ to have permissions `740`.
 
 	mkdir data
 	chmod 740 data
@@ -36,11 +47,7 @@ Drand can then be built into an image with
 
 	docker-compose up --build
 
-This command should have generated you keys in `data/keys`. If that's the case, we can now kill the image with `CTRL-C`, then change the entrypoint in `Dockerfile` with
-
-	ENTRYPOINT ["drand", "--verbose", "2", "start", "--listen", "0.0.0.0:8080"]
-
-and the image is finally ready for DKG, just start it and let it run in background with 
+Finally, the image is ready for DKG. Just start it and let it run in background with 
 
 	docker-compose up -d
 
@@ -50,16 +57,19 @@ and the image is finally ready for DKG, just start it and let it run in backgrou
 
 If you did the setup above, you have a container running, loaded with your keys. It still misses two things:
 
-1. the group.toml file corresponding to other participants. For this, you have to exchange keys manually.
-2. running the DKG protocol to bootstrap drand
+1. the group.toml file corresponding to other participants. For this, you have to exchange keys manually, e.g., via email.
+2. running the DKG protocol to bootstrap drand.
 
-Fortunately, with our docker-compose volumes, it's now very easy. Just added your `group.toml` into the root of the `data` folder.
+Fortunately, with our docker-compose volumes, it's now very easy to add things into the running container. Just add your `group.toml` into the root of the `data` folder (__NOT__ in the `data/groups/` folder; this one is manually managed by drand, don't touch it).
 
-Then, open a CLI into your running docker by locating its id:
+Then, open a CLI into your running docker.
 
+First find its id on the host:
+
+	$ docker ps
 	697e4766f8b2        drand_drand             "drand --verbose 2 s…"   11 minutes ago      Up 9 minutes
 
-The id of the container is `697e4766f8b2`. Enter it by running
+The id of the container is `697e4766f8b2`. Enter it by running:
 
 	docker exec -it 697e4766f8b2 /bin/sh
 
@@ -71,7 +81,7 @@ __Notice the full path__ `/root/.drand/group.toml` and not `group.toml` nor `./g
 
 ## Checking the logs
 
-From outside the containers, run `docker-compose logs`
+From outside the container, run `docker-compose logs`
 
 ## Updating drand
 
@@ -89,9 +99,52 @@ Then rebuild and restart it
 
 	docker-compose up --build -d
 
+## Something went wrong, reset (without losing the keys)
+
+Kill the container:
+
+	docker-compose down
+
+Delete what you want to reset in `data`: typically, you absolutely want to __keep__ `data/keys`, __especially__ if you shared those keys to create a `group.toml` with other people. For instance if the DKG failed, remove `data/db` and `data/groups`. Notice that if you added the `group.toml` into the root of `data` as suggested, it should still be there (don't delete it unless you want to change the group).
+
+Then, rebuild the image from scratch:
+
+	docker system prune -a
+	docker-compose up --build -d
+
+Check that things are running with
+
+	docker-compose logs
+
+You're now back to the step "DKG" of this guide.
+
 ## Docker behind reverse proxy setup
 
-Typically, I only have TLS certificates for the reverse proxy in my VPS, and hence my local `drand` needs to use the `--tls-disable` flag, like so in the `Dockerfile`:
+Typically, the TLS part of my VPS is managed by a single reverse proxy, which then proxies multiple services running locally with docker.
+
+There is one subtletly: you need to forward _both_ GRPC (used by drand "core") and web traffic (for the web interface). To forward GRPC, you need to have nginx `1.13.10` or above, it's a fairly recent addition.
+
+Then, you need to forward differently traffic to `/` and to `/api/`. Here's an example configuration for `nginx`:
+
+	server {
+	  server_name drand.lbarman.ch;
+	  listen 443 ssl http2;
+	  ssl_protocols   SSLv3 TLSv1 TLSv1.1 TLSv1.2;
+	  ssl_ciphers   HIGH:!aNULL:!MD5;
+	  location / {
+	    grpc_pass grpc://localhost:1234;
+	  }
+	  location /api/ {
+	    proxy_pass http://localhost:1234; 
+	    proxy_set_header Host $host;
+	  }
+	  
+	  ssl_certificate /etc/letsencrypt/live/.../fullchain.pem; # managed by Certbot
+	  ssl_certificate_key /etc/letsencrypt/live/.../privkey.pem; # managed by Certbot
+	}
+
+
+Naturally, the local `drand` in the container does not need to worry about TLS anymore. Add the `--tls-disable` flag in the `Dockerfile`:
 
 	ENTRYPOINT ["drand", "--verbose", "2", "start", "--tls-disable", "--listen", "0.0.0.0:8080"]
 
