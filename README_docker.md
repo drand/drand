@@ -1,6 +1,19 @@
-# Drand on Docker
+# Batteries-included drand on Docker
 
 The main readme is [here](./README.md). This README is somewhat not aligned with the Docker setup already proposed (I'm refering to the `Dockerfile` in the repo), *but* it is batteries-included: follow this guide (and only this one) to get a simple, resilient `drand` setup in Docker. In contrast, the docker setup in the repo is not built so the keys remains after recreating the image, etc.
+
+## Prerequisites for this guide
+
+a VPS with the following software setup:
+
+1. `docker >= 17.12`
+2. `docker-compose >= 1.18`
+
+(but typically versions are not important)
+
+on your host:
+
+1. `go >= 1.12`
 
 ## Generate keys
 
