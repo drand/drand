@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	gnet "net"
 	"os"
 	"path"
@@ -64,7 +65,15 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	}
 
 	// creating the new group from the whole set of keys
-	newGroup := key.NewGroup(ids, newT)
+	shuffledIds := make([]*key.Identity, len(ids))
+	copy(shuffledIds, ids)
+	// shuffle with random swaps
+	for i := 0; i < len(ids)*3; i++ {
+		i1 := rand.Intn(len(ids))
+		i2 := rand.Intn(len(ids))
+		shuffledIds[i1], shuffledIds[i2] = shuffledIds[i2], shuffledIds[i1]
+	}
+	newGroup := key.NewGroup(shuffledIds, newT)
 	newGroup.Period = period
 	newPath := path.Join(dir, "newgroup.toml")
 	require.NoError(t, key.Save(newPath, newGroup, false))
@@ -78,6 +87,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	fmt.Println()
 	var wg sync.WaitGroup
 	wg.Add(newN - 1 - offline)
+	// skip the offline ones and the "first" (as leader)
 	for i, drand := range drands[1+offline:] {
 		go func(d *Drand, j int) {
 			if d.idx < oldN {

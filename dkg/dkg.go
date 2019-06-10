@@ -1,8 +1,11 @@
 package dkg
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -205,7 +208,7 @@ func (h *Handler) WaitExit() chan bool {
 // XXX Best to group that with the WaitShare channel.
 func (h *Handler) QualifiedGroup() *key.Group {
 	sharesIndex := h.state.QualifiedShares()
-	h.l.Info("share_indexes", sharesIndex)
+	h.l.Info("share_indexes", intArray(sharesIndex))
 	newGroup := make([]*key.Identity, 0, len(sharesIndex))
 	ids := h.conf.NewNodes.Identities()
 
@@ -312,11 +315,11 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 		},
 	}
 	j, err := h.state.ProcessResponse(resp)
-	localLog.Debug("from", resp.Response.Index, "for_deal", resp.Index, "addr", p.Addr)
+	localLog.Debug("from", resp.Response.Index, "for_deal", resp.Index, "addr", p.Addr.String())
 	if err != nil {
 		if err == vss.ErrNoDealBeforeResponse {
 			h.tmpResponses[resp.Index] = append(h.tmpResponses[resp.Index], resp)
-			localLog.Debug("response_unknown_deal", resp.Index, "addr", p.Addr)
+			localLog.Debug("response_unknown_deal", resp.Index, "addr", p.Addr.String())
 			return
 		}
 		localLog.Error("for_deal", resp.Index, "addr", p.Addr, "error", err)
@@ -526,4 +529,18 @@ func (h *Handler) raddr(i uint32, oldNodes bool) string {
 // XXX Not really needed, should use the net/protobuf interface instead
 type Network interface {
 	Send(net.Peer, *dkg_proto.DKGPacket) error
+}
+
+type intArray []int
+
+func (i intArray) String() string {
+	var s bytes.Buffer
+	s.WriteString("[")
+	var sarr = make([]string, len(i))
+	for idx, v := range i {
+		sarr[idx] = strconv.Itoa(v)
+	}
+	s.WriteString(strings.Join(sarr, ","))
+	s.WriteString("]")
+	return s.String()
 }
