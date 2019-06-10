@@ -127,7 +127,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	defer h.Unlock()
 
 	peer, _ := peer.FromContext(c)
-	h.l.Debug("process_beacon", "request", "from", peer)
+	h.l.Debug("process_beacon", "request", "from", peer.Addr.String())
 	var err error
 	// 1- we check the round number only if we started already and are not in
 	// catch-up mode
