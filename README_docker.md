@@ -1,6 +1,6 @@
 # Drand on docker
 
-The main readme is [here](./README.md). This README is somewhat not aligned with the Docker setup already proposed (I'm refering to the `Dockerfile` in the repo), *but* it is batteries-included: follow this guide (and only this one) to get a simple, resilient `drand` setup in Docker. In contrast, the docker setup in the repo is not built so the keys remains after recreating the image, etc.
+The main readme for the drand project is [here](./README.md). This readme describes how to run `drand` on `docker` and `docker-compose`.
 
 ## Prerequisites for this guide
 

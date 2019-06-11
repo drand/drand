@@ -102,7 +102,7 @@ go get -u github.com/dedis/drand
 ```
 ### Via Docker
 
-Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/).
+The setup is explained in [README_docker.md](README_docker.md).
 
 ## Usage
 
@@ -190,23 +190,6 @@ Although we **do not recommend** it, you can always disable TLS in drand via:
 ```bash
 drand start --tls-disable
 ```
-
-#### With Docker
-If you run drand in Docker, **always** use the following template
-
-```bash
-docker run \
-    --rm \
-    --name drand \
-    -p <port>:<port> \
-    --volume $HOME/.drand/:/root/.drand/ \
-    dedis/drand <command>
-```
-
-where `<port>` specifies the port through which your drand daemon is reachable
-and `<command>` has to be substituted by one of the respective drand
-commands below. You must add the corresponding volumes pointing to your TLS
-private key and certificate in case you are using TLS (recommended).
 
 ### Distributed Key Generation
 
