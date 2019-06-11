@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	gnet "net"
 	"os"
 	"path"
@@ -64,7 +65,11 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	}
 
 	// creating the new group from the whole set of keys
-	newGroup := key.NewGroup(ids, newT)
+	shuffled := make([]*key.Identity, len(ids))
+	for i, randIndex := range rand.Perm(len(ids)) {
+		shuffled[i] = ids[randIndex]
+	}
+	newGroup := key.NewGroup(shuffled, newT)
 	newGroup.Period = period
 	newPath := path.Join(dir, "newgroup.toml")
 	require.NoError(t, key.Save(newPath, newGroup, false))
@@ -492,6 +497,129 @@ func TestDrandPublicGroup(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, groupResp, restGroup)
 	}
+
+}
+
+// Run a DKG with one node down, then run the reshare with the node up
+func TestDrandDKGAndReshare(t *testing.T) {
+	slog.Level = slog.LevelDebug
+	oldN := 6
+	newN := 6
+	oldT := key.DefaultThreshold(oldN)
+	newT := key.DefaultThreshold(newN)
+	timeout := "3s"
+	offline := 1 // the first node will be offline during the dkg
+	fmt.Printf("%d/%d -> %d/%d\n", oldT, oldN, newT, newN)
+	period := 1000 * time.Millisecond
+
+	// instantiating all drands already
+	drands, oldGroup, dir := BatchNewDrand(newN, false,
+		WithCallOption(grpc.FailFast(true)))
+	defer CloseAllDrands(drands)
+	defer os.RemoveAll(dir)
+
+	oldGroup.Period = period
+	oldGroupPath := path.Join(dir, "dkggroup.toml")
+	require.NoError(t, key.Save(oldGroupPath, oldGroup, false))
+
+	// listing all new ids
+	ids := make([]*key.Identity, newN)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+		drands[i].idx = i
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(oldN - offline - 1)
+	for _, drand := range drands[offline+1:] {
+		go func(d *Drand) {
+			// instruct to be ready for a reshare
+			client, err := net.NewControlClient(d.opts.controlPort)
+			require.NoError(t, err)
+			_, err = client.InitDKG(oldGroupPath, false, timeout)
+			require.NoError(t, err)
+			//err = d.WaitDKG()
+			//require.Nil(t, err)
+			wg.Done()
+		}(drand)
+	}
+
+	leaderIdx := offline + 0
+
+	root := drands[leaderIdx]
+	controlClient, err := net.NewControlClient(root.opts.controlPort)
+	require.NoError(t, err)
+	_, err = controlClient.InitDKG(oldGroupPath, true, timeout)
+	require.NoError(t, err)
+	wg.Wait()
+
+	shares := make([]*key.Share, oldN)
+	var dpub *key.DistPublic
+	for i, d := range drands {
+		if i < leaderIdx {
+			continue
+		}
+		d.state.Lock()
+		shares[i] = d.share
+		dpub = &key.DistPublic{
+			Coefficients: d.share.Commits,
+		}
+		d.state.Unlock()
+	}
+
+	// creating the new group from the whole set of keys
+	shuffled := make([]*key.Identity, len(ids))
+	for i, randIndex := range rand.Perm(len(ids)) {
+		shuffled[i] = ids[randIndex]
+	}
+	newGroup := key.NewGroup(shuffled, newT)
+	newGroup.Period = period
+	newPath := path.Join(dir, "newgroup.toml")
+	require.NoError(t, key.Save(newPath, newGroup, false))
+
+	fmt.Printf("oldGroup: %v\n", oldGroup.String())
+	fmt.Printf("newGroup: %v\n", newGroup.String())
+	var wg2 sync.WaitGroup
+	wg2.Add(newN - 1)
+	for i, drand := range drands[1:] {
+		go func(d *Drand, j int) {
+			// instruct to be ready for a reshare
+			client, err := net.NewControlClient(d.opts.controlPort)
+			require.NoError(t, err)
+			_, err = client.InitReshare(oldGroupPath, newPath, false, timeout)
+			fmt.Printf("drand %s: %v\n", d.priv.Public.Addr, err)
+			require.NoError(t, err)
+			wg2.Done()
+		}(drand, i)
+	}
+	// let a bit of time so everybody has performed the initreshare
+	time.Sleep(100 * time.Millisecond)
+	dkgDone := make(chan bool, 1)
+	go func() {
+		ks := key.Share{
+			Share:   shares[leaderIdx].Share,
+			Commits: dpub.Coefficients,
+		}
+		root := drands[leaderIdx]
+		root.share = &ks
+		//err := root.StartDKG(c)
+		client, err := net.NewControlClient(root.opts.controlPort)
+		require.NoError(t, err)
+		_, err = client.InitReshare(oldGroupPath, newPath, true, timeout)
+		require.NoError(t, err)
+		dkgDone <- true
+	}()
+
+	tt, _ := time.ParseDuration(timeout)
+	var timeoutDone bool
+	select {
+	case <-dkgDone:
+		require.True(t, timeoutDone)
+	case <-time.After(tt - 500*time.Millisecond):
+		timeoutDone = true
+	}
+
+	wg2.Wait()
 
 }
 
