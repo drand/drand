@@ -121,7 +121,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 	}
 	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {
-		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err)
+		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err.Error())
 		return nil, errors.New("invalid ECIES request")
 	}
 
@@ -143,7 +143,7 @@ func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*dra
 // Home ...
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	peer, _ := peer.FromContext(c)
-	d.log.With("module", "public").Info("home", peer)
+	d.log.With("module", "public").Info("home", peer.Addr.String())
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),

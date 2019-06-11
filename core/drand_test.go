@@ -83,6 +83,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	fmt.Println()
 	var wg sync.WaitGroup
 	wg.Add(newN - 1 - offline)
+	// skip the offline ones and the "first" (as leader)
 	for i, drand := range drands[1+offline:] {
 		go func(d *Drand, j int) {
 			if d.idx < oldN {
