@@ -76,9 +76,9 @@ function print_round(randomness, previous, round, verified, timestamp) {
   p.onclick = function() {
     var modalcontent = document.getElementById("jsonHolder");
     if (identity.TLS){
-      modalcontent.innerHTML = '<pre> Randomness fetched from https://'+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+      modalcontent.innerHTML = 'Randomness fetched from https://'+ identity.Address + '/api/public:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     } else {
-      modalcontent.innerHTML = '<pre> Randomness fetched from http://'+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+      modalcontent.innerHTML = 'Randomness fetched from http://'+ identity.Address + '/api/public:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     }
     modal.style.display = "block";
   };
