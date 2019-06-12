@@ -10,9 +10,12 @@ function display_randomness() {
   var identity = window.identity;
   var distkey = window.distkey;
 
+  //start the progress bar
   move();
+  //get timestamp
   var date = new Date();
   var timestamp = date.toString().substring(3);
+  //print randomness
   fetchAndVerify(identity, distkey)
     .then(function (fulfilled) {
       print_round(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
@@ -20,9 +23,11 @@ function display_randomness() {
     .catch(function (error) {
       print_round(error.randomness, error.previous, error.round, false, timestamp);
     });
+  //print servers
   print_nodes(identity);
 }
 
+//handles the progress bar
 function move() {
   var elem = document.getElementById("myBar");
   var width = 0;
@@ -37,6 +42,7 @@ function move() {
   }
 }
 
+//prints the current randomness and updates the history
 function print_round(randomness, previous, round, verified, timestamp) {
   if (round == lastRound || round == undefined) {
     return
@@ -50,34 +56,39 @@ function print_round(randomness, previous, round, verified, timestamp) {
 
   //print randomness as current
   var p = document.createElement("p");
-  //print JSON when clicked
-  p.onmouseover = function() { p.style.textDecoration = "underline"; };
-  p.onmouseout = function() {p.style.textDecoration = "none";};
-  var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
-  p.onclick = function() {
-    if (identity.TLS){
-      alert(`Randomness fetched from https://`+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2));
-    } else {
-      alert(`Randomness fetched from http://`+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2));
-    }
-  };
   var p2 = document.createElement("p");
-
   var textnode = document.createTextNode(randomness_2lines);
+  p.appendChild(textnode);
+  latestDiv.replaceChild(p, latestDiv.childNodes[0]);
   if (verified) {
     var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " verified");
   } else {
     var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " unverified");
   }
-  p.appendChild(textnode);
   p2.appendChild(textnode2);
-  var item = latestDiv.childNodes[0];
-  var item = latestDiv.childNodes[1];
-  latestDiv.replaceChild(p, latestDiv.childNodes[0]);
   latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
 
+  //print JSON when clicked
+  p.onmouseover = function() { p.style.textDecoration = "underline"; };
+  p.onmouseout = function() {p.style.textDecoration = "none";};
+  var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
+  var modal = document.getElementById("myModal");
+  p.onclick = function() {
+    var modalcontent = document.getElementById("jsonHolder");
+    if (identity.TLS){
+      modalcontent.innerHTML = '<pre> Randomness fetched from https://'+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+    } else {
+      modalcontent.innerHTML = '<pre> Randomness fetched from http://'+ identity.Address + '/api/public\n\n' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+    }
+    modal.style.display = "block";
+  };
+  window.onclick = function(event) {
+    if (event.target == modal) {
+      modal.style.display = "none";
+    }
+  }
 
-  //append previous to history
+  //append previous randomness to history
   var p3 = document.createElement("p");
   p3.style.fontSize = '13px';
   var round_minus_one = round - 1;
@@ -90,23 +101,25 @@ function print_round(randomness, previous, round, verified, timestamp) {
   }
 }
 
+//prints interactive list of drand nodes
 function print_nodes(identity) {
+  //only prints once
   if (nodesDiv.childElementCount == 0) {
     fetchGroup(identity).then(group => {
       var i = 0;
-      while (i < group.Nodes.length) {
+      while (i < group.nodes.length) {
         let p4 = document.createElement("p");
         p4.onmouseover = function() { p4.style.textDecoration = "underline"; };
         p4.onmouseout = function() {p4.style.textDecoration = "none";};
-        let addr = group.Nodes[i].Address;
-        let tls = group.Nodes[i].TLS;
+        let addr = group.nodes[i].address;
+        let tls = group.nodes[i].TLS;
         p4.onclick = function() {
           window.identity = {Address: addr, TLS: tls};
-          display_randomness();
           window.clearInterval(id);
+          display_randomness();
           window.setInterval(display_randomness, 60000);
         };
-        var text = document.createTextNode(group.Nodes[i].Address);
+        var text = document.createTextNode(group.nodes[i].address);
         p4.appendChild(text);
         nodesDiv.appendChild(p4);
         i = i + 1;

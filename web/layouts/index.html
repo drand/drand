@@ -35,6 +35,12 @@
                   <p id="doNotRmMePhilipp"> </p>
                 </div>
 
+                <div id="myModal" class="modal">
+                  <div class="modal-content">
+                      <p id="jsonHolder">initial text</p>
+                  </div>
+                </div>
+
                 <div id="myProgress">
                   <div id="myBar"></div>
                 </div>
@@ -109,7 +115,7 @@
       <script src="https://cdn.jsdelivr.net/gh/PizzaWhisperer/drandjs/dist/drand.js"></script>
       <script src="{{ .Site.BaseURL }}js/display.js"></script>
       <script>
-      window.identity = {Address: "127.0.0.1:8000", TLS: false};
+      window.identity = {Address: "drand.zerobyte.io:8888", TLS: true};
       window.distkey = "";
 
       display_randomness();
