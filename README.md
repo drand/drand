@@ -469,6 +469,7 @@ Drand relies on the following cryptographic constructions:
 - [Pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) and [Barreto-Naehrig curves](https://github.com/dfinity/bn).
 - [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3) for the setup.
 - Threshold [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf) for the generation of public randomness.
+- The resharing scheme used comes from the [paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.2968&rep=rep1&type=pdf) from  Y. Desmedt and S. Jajodia.
 - [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the encryption of private randomness.
 
 For our previous work on public randomness, see our academical paper
