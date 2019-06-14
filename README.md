@@ -486,6 +486,13 @@ refer to the [readme](https://github.com/PizzaWhisperer/drandjs/blob/master/READ
 As it is compiled from Go, DrandJS stays experimental and is used as proof-of-concept.
 Our longterm objective is to have a library written in pure JavaScript.
 
+## Documentation
+
+drand has three separate documentation on the [cryptographic
+background](https://hackmd.io/@nikkolasg/HyUAgm234), the [drand operator
+guide](https://hackmd.io/@nikkolasg/Hkz2XFWa4) and the [client side
+API](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) of drand.
+
 ## What's Next?
 
 Although being already functional, drand is still at an early development stage
