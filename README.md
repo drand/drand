@@ -501,11 +501,12 @@ and there is a lot left to be done. The list of opened
 of this, drand would benefit from higher-level enhancements such as the
 following: 
 
++ Move to the BL12-381 curve 
 + Add more unit tests
 + Reduce size of Docker
 + Add a systemd unit file
 + Support multiple drand instances within one node
-+ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf)
++ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf) or an approach based on verifiable succint computations (zk-SNARKs, etc).
 
 Feel free to submit feature requests or, even better, pull requests. ;)
 
