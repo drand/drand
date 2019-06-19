@@ -561,7 +561,6 @@ func getGroup(c *cli.Context) *key.Group {
 	if err := key.Load(groupPath, g); err != nil {
 		fatal("drand: error loading group file: %s", err)
 	}
-	fmt.Printf("group file loaded with %d participants", g.Len())
 	return g
 }
 
