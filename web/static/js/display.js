@@ -5,6 +5,7 @@ window.identity = "";
 window.distkey = "";
 
 var lastRound = "0";
+var idBar = -1;
 
 function display_randomness() {
   var identity = window.identity;
@@ -17,12 +18,12 @@ function display_randomness() {
   var timestamp = date.toString().substring(3);
   //print randomness
   fetchAndVerify(identity, distkey)
-    .then(function (fulfilled) {
-      print_round(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
-    })
-    .catch(function (error) {
-      print_round(error.randomness, error.previous, error.round, false, timestamp);
-    });
+  .then(function (fulfilled) {
+    print_round(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
+  })
+  .catch(function (error) {
+    print_round(error.randomness, error.previous, error.round, false, timestamp);
+  });
   //print servers
   print_nodes(identity);
 }
@@ -31,7 +32,10 @@ function display_randomness() {
 function move() {
   var elem = document.getElementById("myBar");
   var width = 0;
-  var id = setInterval(frame, 60);
+  if (idBar != -1) {
+    window.clearInterval(idBar);
+  }
+  idBar = setInterval(frame, 60);
   function frame() {
     if (width >= 100) {
       clearInterval(id);
@@ -44,7 +48,7 @@ function move() {
 
 //prints the current randomness and updates the history
 function print_round(randomness, previous, round, verified, timestamp) {
-  if (round == lastRound || round == undefined) {
+  if (round <= lastRound || round == undefined) {
     return
   }
   lastRound = round;
@@ -108,22 +112,38 @@ function print_nodes(identity) {
     fetchGroup(identity).then(group => {
       var i = 0;
       while (i < group.nodes.length) {
-        let p4 = document.createElement("p");
-        p4.onmouseover = function() { p4.style.textDecoration = "underline"; };
-        p4.onmouseout = function() {p4.style.textDecoration = "none";};
         let addr = group.nodes[i].address;
         let tls = group.nodes[i].TLS;
-        p4.onclick = function() {
+
+        let line = document.createElement("tr");
+        let statusCol = document.createElement("td");
+        isUp(addr, tls)
+        .then((rand) => {statusCol.innerHTML = '<td> ✅ </td>';})
+        .catch((err) => {statusCol.innerHTML = '<td> 🚫 </td>';});
+        let addrCol = document.createElement("td");
+        addrCol.innerHTML = '<td>' + addr + '</td>';
+        addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
+        addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
+        addrCol.onclick = function() {
           window.identity = {Address: addr, TLS: tls};
           window.clearInterval(id);
           display_randomness();
           window.setInterval(display_randomness, 60000);
         };
-        var text = document.createTextNode(group.nodes[i].address);
-        p4.appendChild(text);
-        nodesDiv.appendChild(p4);
+        line.appendChild(statusCol);
+        line.appendChild(addrCol);
+        nodesDiv.appendChild(line);
         i = i + 1;
       }
     }).catch(error => console.error('Could not fetch group:', error))
   }
+}
+
+//decides if node is reachable by trying to fetch randomness
+function isUp(addr, tls) {
+  return new Promise(function(resolve, reject) {
+    fetchPublic({Address: addr, TLS: tls})
+    .then((rand) => {resolve(true);})
+    .catch((error) => {reject(false);});
+  });
 }

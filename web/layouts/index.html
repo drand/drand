@@ -21,7 +21,7 @@
           The <code>drand</code> randomness beacon is a world-wide network of independent partners who provide <strong>verifable,
             high-entropy randomness as a service</strong> to the public. To generate this randomness in an unbiasable and unpredictable way,
             the <code>drand</code> network relies on cutting-edge methodologies from cryptography and distributed systems research.
-            For more details on the technology, please refer to the <a href="#">documentation</a>.
+            For more details on the technology, please refer to the <a href="https://developers.cloudflare.com/randomness-beacon/cryptographic-background/setup-phase/">documentation</a>.
           </p>
         </div>
 
@@ -37,7 +37,7 @@
 
                 <div id="myModal" class="modal">
                   <div class="modal-content">
-                      <p id="jsonHolder">initial text</p>
+                    <p id="jsonHolder">initial text</p>
                   </div>
                 </div>
 
@@ -49,23 +49,33 @@
                 <h3>Randomness history</h3>
                 <div id="history">
                 </div>
-
-
-                <hr />
               </div>
+            </div>
+          </div>
 
-              <div class="col-12">
-                <h3>Network</h3>
-                <p>By clicking on one of the nodes displayed below, you can choose which server is contacted to retrieve the next random value.</p>
-                <div id="nodes"></div>
+          <div class="box">
+            <div class="col-12">
+              <h3>Network</h3>
+              <p>By clicking on one of the nodes displayed below, you can choose which server is contacted to retrieve the next random value.</p>
+              <div>
+                <div class="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Status</th>
+                        <th>Address</th>
+                      </tr>
+                    </thead>
+                    <tbody id="nodes">
+                    </tbody>
+                  </table>
+                </div>
               </div>
-
-            </div><!--row-->
+            </div>
             <span class="image featured">
               <img src="{{ .Site.BaseURL }}img/network.jpg" alt>
             </span>
           </div><!--box-->
-
 
           <div class="box">
             <h3>Partners</h3>
@@ -91,9 +101,18 @@
                   <a href="http://www.uchile.cl/english" ><img src="{{ .Site.BaseURL }}img/uoc.png"></a>
                 </span>
               </div>
+              <div class="col-3">
+                <span class="image fit">
+                  <a href="https://protocol.ai" ><img src="{{ .Site.BaseURL }}img/proto.jpeg"></a>
+                </span>
+              </div>
+              <div class="col-3">
+                <span class="image fit">
+                  <a href="https://www.c4dt.org" ><img src="{{ .Site.BaseURL }}img/c4dt.png"></a>
+                </span>
+              </div>
             </div><!--row-->
           </div><!--box-->
-
 
         </section>
 
