@@ -1,20 +1,22 @@
-FROM golang:1.12.4-alpine
+FROM golang:1.12.4 as build
 
 MAINTAINER Nicolas GAILLY <nikkolasg@gmail.com>
 
-RUN apk update && apk upgrade && \
-    apk add --no-cache bash git openssh
-COPY . "/go/src/github.com/dedis/drand"
-WORKDIR "/go/src/github.com/dedis/drand"
-# from https://dev.to/plutov/docker-and-go-modules-3kkn
+RUN apt-get update && \
+    apt-get install -y  bash git openssh-server && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /go/src/github.com/dedis/drand
+
+COPY . .
+
 ENV GO111MODULE=on
 
-COPY go.mod .
-COPY go.sum .
+RUN go install -mod=vendor
 
-RUN go install -mod=vendor && rm -rf "/go/src/github.com/dedis/drand"
 
-WORKDIR /
+FROM gcr.io/distroless/base
 
-ENTRYPOINT ["drand"]
+COPY --from=build /go/bin/drand /
 
+ENTRYPOINT ["/drand"]
