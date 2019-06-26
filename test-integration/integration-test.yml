@@ -1,0 +1,31 @@
+version: '3'
+
+services:
+  drand-client-1:
+    build: ..
+    entrypoint: /data/client-script.sh
+    volumes:
+      - ./data:/data:z
+    networks: 
+      - drand-network
+    environment:
+      PORT: 8080
+    ports:
+      - "8080:8080"
+  drand-client-2:
+    build: ..
+    entrypoint: /data/client-script.sh
+    volumes:
+      - ./data:/data:z
+    networks: 
+      - drand-network
+    environment:
+      PORT: 8081
+    ports:
+      - "8081:8081"
+networks:
+  drand-network:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.33.0.0/16
