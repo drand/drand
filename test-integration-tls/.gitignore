@@ -1,3 +1,4 @@
 data/group.toml
 data/*.public
 data/TLS_certificates_*
+last_run.log
