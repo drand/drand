@@ -16,12 +16,10 @@ env:
 install: true
 
 script:
-    #- cd core && go test -v && cd ../ && cd beacon/ && go test -v && cd ../
-    - go test -v -mod=vendor ./...
-    - sudo env "PATH=$PATH" ./docker_test.sh
+    - make test
 
 after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    - if [ "$TRAVIS_BRANCH" == "master" ]; then
         sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
         sudo docker push dedis/drand:latest;
     fi
