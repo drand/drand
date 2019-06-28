@@ -6,7 +6,7 @@ test-unit:
 	go test -v -mod=vendor ./...
 
 test-integration:
-	./test-integration/test.sh
+	cd ./test-integration-notls/ && ./test.sh
 
 linter:
 	@echo "Checking (& upgrading) correct formatting of files... (if this fail, re-run until success)"
