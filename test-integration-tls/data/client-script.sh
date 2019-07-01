@@ -1,6 +1,6 @@
 #!/bin/sh
 
-IP_ADDR=`ip a | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | grep 172.33.0`
+IP_ADDR=`ip a | grep global | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -n 1`
 IP_ADDR_PORT="${IP_ADDR}:${PORT}"
 
 SHARED_FOLDER="/data"
@@ -32,7 +32,7 @@ mkdir -p "${TLS_KEY_FOLDER}"
 chmod ugo+rwx "${TLS_KEY_FOLDER}"
 mkdir -p "${TLS_CERT_FOLDER}"
 chmod ugo+rwx "${TLS_CERT_FOLDER}"
-go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 > /dev/null 2>& 1
+go run $GOROOT/src/crypto/tls/generate_cert.go --host "${IP_ADDR}" --rsa-bits 1024 > /dev/null 2>& 1
 chmod ugo+rwx *.pem
 cp "cert.pem" "${TLS_CERT}"
 cp "key.pem" "${TLS_KEY}"

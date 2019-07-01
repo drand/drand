@@ -1,6 +1,6 @@
 #!/bin/sh
 
-IP_ADDR=`ip a | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | grep 172.33.0`
+IP_ADDR=`ip a | grep global | grep -oE "\b([0-9]{1,3}\.){3}[0-9]{1,3}\b" | head -n 1`
 IP_ADDR_PORT="${IP_ADDR}:${PORT}"
 
 SHARED_FOLDER="/data"

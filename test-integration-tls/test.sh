@@ -10,7 +10,7 @@ RETRIES=10
 # utility functions
 json_web_request () {
   ADDRESS=$1
-  curl -s -S -H "Content-type: application/json" "${ADDRESS}"
+  curl -s -S -k -H "Content-type: application/json" "${ADDRESS}"
 }
 
 # post-test cleanup
@@ -36,8 +36,6 @@ if [ $? -ne 0 ] ; then
   exit -1
 fi
 
-docker-compose -p "${DOCKER_COMPOSE_PROJECT_NAME}" logs -f
-
 # redirect logs to LOG_FILE
 rm -f "${LOG_FILE}"
 docker-compose -p "${DOCKER_COMPOSE_PROJECT_NAME}" logs -f > "${LOG_FILE}" & # this is magically killed when the containers go down. Neat!
@@ -51,7 +49,7 @@ RANDOM_CONTAINER_ID=$(docker network inspect -f '{{ range $key, $value := .Conta
 
 CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${RANDOM_CONTAINER_ID}")
 CONTAINER_PORT=$(docker inspect --format='{{range $p, $conf := .NetworkSettings.Ports}}{{(index $conf 0).HostPort}}{{end}}' "${RANDOM_CONTAINER_ID}")
-CONTAINER_WEB_API_ADDR="http://${CONTAINER_IP}:${CONTAINER_PORT}/api/"
+CONTAINER_WEB_API_ADDR="https://${CONTAINER_IP}:${CONTAINER_PORT}/api/"
 
 # 10 attempts to fetch randomness from this container
 echo "Contacting container ${RANDOM_CONTAINER_ID} on ${CONTAINER_WEB_API_ADDR}public to get public randomness"
