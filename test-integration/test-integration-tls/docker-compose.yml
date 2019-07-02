@@ -4,7 +4,7 @@ services:
   drand-client-1:
     image: drand-it
     build:
-      context: ..
+      context: ../..
       dockerfile: Dockerfile
     entrypoint: /data/client-script.sh
     volumes:
