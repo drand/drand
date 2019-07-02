@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DOCKER_COMPOSE_PROJECT_NAME="drand-integration-test"
 DOCKER_COMPOSE_NETWORK_NAME="drand-network"
