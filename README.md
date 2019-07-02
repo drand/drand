@@ -17,16 +17,16 @@ critical at this point.**
 ## Quickstart
 
 To run drand locally make sure that you have a working
-[Docker installation](https://docs.docker.com/engine/installation/).
+[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
 Then execute (might need root privileges to run Docker on some systems):
 ```bash
 git clone https://github.com/dedis/drand
 cd drand
-./run_local.sh
+make deploy-local
 ```
 
-The script spins up six local drand nodes using Docker and produces fresh
-randomness every few seconds.
+The script spins up 5 local drand nodes using Docker and produces fresh
+randomness every 10 seconds.
 
 ## Overview
 

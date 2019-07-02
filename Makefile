@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration deploy-local linter
+.PHONY: test test-unit test-integration demo deploy-local linter
 
 test: linter test-unit test-integration
 
@@ -18,6 +18,6 @@ linter:
 		fi; \
 	}
 
-
+demo:
 deploy-local:
-	./run_local.sh
+	cd demo && ./run.sh
