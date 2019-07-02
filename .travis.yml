@@ -19,14 +19,10 @@ script:
     - make test
 
 after_success:
-    - if [ "$TRAVIS_BRANCH" == "master" ]; then
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
         sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
         sudo docker push dedis/drand:latest;
     fi
 
 before_deploy:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-before_install:
-    - docker pull byrnedo/alpine-curl
-
