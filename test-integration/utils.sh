@@ -46,7 +46,7 @@ test_and_retrieve_keys_and_randomness() {
   API_ANSWER2=$(json_web_request "${URL}public")
 
   echo "Distributed Randomness:"
-  echo "${API_ANSWER2}" | jq
+  echo "${API_ANSWER2}" | jq '.'
   echo ""
 
   echo "${API_ANSWER}" | jq -e ".randomness" >/dev/null
@@ -58,7 +58,7 @@ test_and_retrieve_keys_and_randomness() {
   # Retrieve Public Key
   API_ANSWER3=$(json_web_request "${URL}info/distkey")
   echo "Distributed Public Key:"
-  echo "${API_ANSWER3}" | jq
+  echo "${API_ANSWER3}" | jq '.'
   echo ""
 
   echo "${API_ANSWER3}" | jq -e ".key" >/dev/null
@@ -70,7 +70,7 @@ test_and_retrieve_keys_and_randomness() {
   # Retrieve Group Info
   API_ANSWER4=$(json_web_request "${URL}info/group")
   echo "Group Info:"
-  echo "${API_ANSWER4}" | jq
+  echo "${API_ANSWER4}" | jq '.'
   echo ""
 
   echo "${API_ANSWER4}" | jq -e ".distkey" >/dev/null
