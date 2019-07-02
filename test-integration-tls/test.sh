@@ -106,6 +106,11 @@ do
     echo "Error: ${API_ANSWER}"
     echo "Sleeping 10 and retrying (  $REPEAT/$RETRIES)..."
     sleep 10
+
+    if [ "${REPEAT}" == "${RETRIES}" ]; then
+      echo "Couldn't fetch randomness, aborting."
+      exit 1
+    fi
   else
     break
   fi
@@ -133,6 +138,11 @@ do
     echo "Error: ${API_ANSWER}"
     echo "Sleeping 10 and retrying ($REPEAT/$RETRIES)..."
     sleep 10
+
+    if [ "${REPEAT}" == "${RETRIES}" ]; then
+      echo "Couldn't fetch randomness, aborting."
+      exit 1
+    fi
   else
     break
   fi
