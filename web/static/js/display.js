@@ -4,31 +4,38 @@ const nodesDiv = document.querySelector('#nodes');
 window.identity = "";
 window.distkey = "";
 
-var lastRound = "0";
+//counter used to navigate through randomness indexes
+var currRound = "0";
 var idBar = -1;
 
-function display_randomness() {
+/**
+* displayRandomness is the main function which display
+* the latest randomness and nodes when opening the page
+**/
+function displayRandomness() {
   var identity = window.identity;
   var distkey = window.distkey;
 
   //start the progress bar
   move();
-  //get timestamp
+  //get readable timestamp
   var date = new Date();
-  var timestamp = date.toString().substring(3);
+  var timestamp = date.toString().substring(3, 34);
   //print randomness
   fetchAndVerify(identity, distkey)
   .then(function (fulfilled) {
-    print_round(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
+    printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
   })
   .catch(function (error) {
-    print_round(error.randomness, error.previous, error.round, false, timestamp);
+    printRound(error.randomness, error.previous, error.round, false, timestamp);
   });
   //print servers
-  print_nodes(identity);
+  printNodes(identity);
 }
 
-//handles the progress bar
+/**
+* move handles the progress bar
+**/
 function move() {
   var elem = document.getElementById("myBar");
   var width = 0;
@@ -38,7 +45,7 @@ function move() {
   idBar = setInterval(frame, 60);
   function frame() {
     if (width >= 100) {
-      clearInterval(id);
+      clearInterval(idBar);
     } else {
       width += 0.1;
       elem.style.width = width + '%';
@@ -46,12 +53,14 @@ function move() {
   }
 }
 
-//prints the current randomness and updates the history
-function print_round(randomness, previous, round, verified, timestamp) {
-  if (round <= lastRound || round == undefined) {
+/**
+* printRound formats and prints the given randomness with interactions
+**/
+function printRound(randomness, previous, round, verified, timestamp) {
+  if (round <= currRound || round == undefined) {
     return
   }
-  lastRound = round;
+  currRound = round;
 
   var middle = Math.ceil(randomness.length / 2);
   var s1 = randomness.slice(0, middle);
@@ -65,9 +74,9 @@ function print_round(randomness, previous, round, verified, timestamp) {
   p.appendChild(textnode);
   latestDiv.replaceChild(p, latestDiv.childNodes[0]);
   if (verified) {
-    var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " verified");
+    var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " & verified");
   } else {
-    var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " unverified");
+    var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " & unverified");
   }
   p2.appendChild(textnode2);
   latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
@@ -91,6 +100,7 @@ function print_round(randomness, previous, round, verified, timestamp) {
       modal.style.display = "none";
     }
   }
+  /* --not used anymore but may be useful--
 
   //append previous randomness to history
   var p3 = document.createElement("p");
@@ -101,12 +111,15 @@ function print_round(randomness, previous, round, verified, timestamp) {
   historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
   //if more than 15 remove last one
   if (historyDiv.childElementCount >= 10) {
-    historyDiv.removeChild(historyDiv.lastChild);
-  }
+  historyDiv.removeChild(historyDiv.lastChild);
+}
+*/
 }
 
-//prints interactive list of drand nodes
-function print_nodes(identity) {
+/**
+* printNodes prints interactive list of drand nodes
+**/
+function printNodes(identity) {
   //only prints once
   if (nodesDiv.childElementCount == 0) {
     fetchGroup(identity).then(group => {
@@ -126,9 +139,7 @@ function print_nodes(identity) {
         addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
         addrCol.onclick = function() {
           window.identity = {Address: addr, TLS: tls};
-          window.clearInterval(id);
-          display_randomness();
-          window.setInterval(display_randomness, 60000);
+          refresh();
         };
         line.appendChild(statusCol);
         line.appendChild(addrCol);
@@ -139,11 +150,92 @@ function print_nodes(identity) {
   }
 }
 
-//decides if node is reachable by trying to fetch randomness
+/**
+* isUp decides if node is reachable by trying to fetch randomness
+**/
 function isUp(addr, tls) {
   return new Promise(function(resolve, reject) {
     fetchPublic({Address: addr, TLS: tls})
     .then((rand) => {resolve(true);})
     .catch((error) => {reject(false);});
+  });
+}
+
+/**
+* goToPrev navigates to previous randomness output
+**/
+function goToPrev() {
+  if (currRound == 0) {
+    return
+  }
+  currRound -= 2;
+  round = currRound + 1;
+  //stop the 60s chrono and progress bar
+  window.clearInterval(id);
+  window.clearInterval(idBar);
+  var elem = document.getElementById("myBar");
+  elem.style.width = 0 + '%';
+  //print previous rand
+  var identity = window.identity;
+  var distkey = window.distkey;
+  fetchAndVerifyRound(identity, distkey, round)
+  .then(function (fulfilled) {
+    printRound(fulfilled.randomness, fulfilled.previous, round, true, "?");
+  })
+  .catch(function (error) {
+    printRound(error.randomness, error.previous, round, false, "?");
+  });
+}
+
+/**
+* goToNext navigates to next randomness output
+**/
+function goToNext() {
+  getLatestIndex().then((latestRound) => {
+    if (currRound == latestRound) {
+      //we cannot go further
+      return
+    }
+    if (currRound + 1 == latestRound) {
+      //sync with latest randomness
+      refresh();
+      return
+    }
+    //update index
+    round = currRound + 1;
+    //stop the 60s chrono and progress bar
+    window.clearInterval(id);
+    window.clearInterval(idBar);
+    var elem = document.getElementById("myBar");
+    elem.style.width = 0 + '%';
+    //print next rand
+    var identity = window.identity;
+    var distkey = window.distkey;
+    fetchAndVerifyRound(identity, distkey, round)
+    .then(function (fulfilled) {
+      printRound(fulfilled.randomness, fulfilled.previous, round, true, "?");
+    })
+    .catch(function (error) {
+      printRound(error.randomness, error.previous, round, false, "?");
+    });
+  });
+}
+
+/**
+* refresh goes back to latest output
+**/
+function refresh() {
+  window.clearInterval(id);
+  displayRandomness();
+  window.setInterval(displayRandomness, 60000);
+}
+
+/**
+* getLatestIndex returns the index of the latest randomness
+**/
+function getLatestIndex() {
+  return new Promise(function(resolve, reject) {
+    var identity = window.identity;
+    fetchPublic(identity).then((rand) => {resolve(rand.round);})
   });
 }

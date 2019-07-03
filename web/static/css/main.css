@@ -3884,6 +3884,7 @@ body.landing #main {
 
 #latest {
 	text-align: center;
+	font-size: 16px;
 }
 
 .modal {
@@ -3906,4 +3907,8 @@ body.landing #main {
 	padding: 20px;
 	border: 1px solid #888;
 	width: 80%;
+}
+
+.icons i:hover {
+	color:#e9b4a0;
 }

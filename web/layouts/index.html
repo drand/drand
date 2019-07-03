@@ -25,34 +25,37 @@
           </p>
         </div>
 
+        <!--Randomness box-->
         <div class="box">
-          <div class="row">
-            <div class="col-12">
-              <header>
-                <h3>Latest randomness</h3>
-                <div id="latest">
-                  <p id="doNotRmMePhilipp"> </p>
-                  <p id="doNotRmMePhilipp"> </p>
-                </div>
+          <div class="col-12">
+            <header>
+              <h3>Randomness</h3>
+              <br />
+              <div id="latest">
+                <p id="doNotRmMePhilipp"> </p>
+                <p id="doNotRmMePhilipp"> </p>
+              </div>
 
-                <div id="myModal" class="modal">
-                  <div class="modal-content">
-                    <p id="jsonHolder">initial text</p>
-                  </div>
-                </div>
-
-                <div id="myProgress">
-                  <div id="myBar"></div>
-                </div>
-
-                <hr />
-                <h3>Randomness history</h3>
-                <div id="history">
+              <div id="myModal" class="modal">
+                <div class="modal-content">
+                  <p id="jsonHolder">initial text</p>
                 </div>
               </div>
+
+              <div id="myProgress">
+                <div id="myBar"></div>
+              </div>
+              <br />
+
+              <ul class="icons" style="text-align:center">
+                <li><i class="fa fa-chevron-left" onclick="goToPrev()"></i></li>
+                <li><i class="fa fa-refresh" onclick="refresh()"></i></li>
+                <li><i class="fa fa-chevron-right" onclick="goToNext()"></i></li>
+              </ul>
             </div>
           </div>
 
+          <!--Network box-->
           <div class="box">
             <div class="col-12">
               <h3>Network</h3>
@@ -75,8 +78,9 @@
             <span class="image featured">
               <img src="{{ .Site.BaseURL }}img/network.jpg" alt>
             </span>
-          </div><!--box-->
+          </div>
 
+          <!--Partners box-->
           <div class="box">
             <h3>Partners</h3>
             <p>The organizations below contribute to the <code>drand</code> beacon. If you want to participate in the network as well, please <a href="mailto:dedis@epfl.ch?subject=Joining the drand network">contact us</a>.</p>
@@ -111,8 +115,8 @@
                   <a href="https://www.c4dt.org" ><img src="{{ .Site.BaseURL }}img/c4dt.png"></a>
                 </span>
               </div>
-            </div><!--row-->
-          </div><!--box-->
+            </div>
+          </div>
 
         </section>
 
@@ -128,7 +132,7 @@
           </ul>
         </footer>
 
-      </div><!--page-wrapper-->
+      </div>
 
       <!-- Scripts for drandjs and display-->
       <script src="https://cdn.jsdelivr.net/gh/PizzaWhisperer/drandjs/dist/drand.js"></script>
@@ -137,8 +141,8 @@
       window.identity = {Address: "drand.zerobyte.io:8888", TLS: true};
       window.distkey = "";
 
-      display_randomness();
-      var id = window.setInterval(display_randomness, 60000);
+      displayRandomness();
+      var id = window.setInterval(displayRandomness, 60000);
       </script>
 
     </body>
