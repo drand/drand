@@ -26,10 +26,12 @@ import (
 	"github.com/urfave/cli"
 )
 
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	version   = "dev"
+	gitCommit = "none"
+	buildDate = "unknown"
 )
 
 const gname = "group.toml"
@@ -37,9 +39,8 @@ const dpublic = "dist_key.public"
 const defaultPort = "8080"
 
 func banner() {
-	fmt.Printf("drand %v by nikkolasg\n", version)
-	s := "WARNING: this software has NOT received a full audit and must be \n" +
-		"used with caution and probably NOT in a production environment.\n"
+	fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	s := "WARNING: this software has NOT received a full audit and must be used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)
 }
 
@@ -139,6 +140,11 @@ var pushFlag = cli.BoolFlag{
 
 func main() {
 	app := cli.NewApp()
+
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	}
+
 	app.Version = version
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
