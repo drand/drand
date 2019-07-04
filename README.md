@@ -14,14 +14,24 @@ Drand nodes can also serve locally-generated private randomness to clients.
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 
-## Quickstart
+## Installing drand locally
 
-To run drand locally make sure that you have a working
-[Docker installation](https://docs.docker.com/engine/installation/).
-Then execute (might need root privileges to run Docker on some systems):
+Requirements: `go >= 1.12`.
+
 ```bash
 git clone https://github.com/dedis/drand
 cd drand
+make install
+```
+
+Then you can run the command-line application with `drand`
+
+## Quickstart - Docker
+
+To deploy several drand nodes locally, make sure that you have a working
+[Docker installation](https://docs.docker.com/engine/installation/).
+Then execute (might need root privileges to run Docker on some systems):
+```bash
 ./run_local.sh
 ```
 
