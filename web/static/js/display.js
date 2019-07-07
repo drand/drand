@@ -62,17 +62,14 @@ function printRound(randomness, previous, round, verified, timestamp) {
   }
   currRound = round;
 
-  var middle = Math.ceil(randomness.length / 2);
-  var s1 = randomness.slice(0, middle);
-  var s2 = randomness.slice(middle);
-  var randomness_2lines =  s1 + " \ " + s2;
-
   //print randomness as current
   var p = document.createElement("p");
   var p2 = document.createElement("p");
-  var textnode = document.createTextNode(randomness_2lines);
-  p.appendChild(textnode);
-  latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+  digestMessage(randomness).then(digestValue => {
+    var textnode = document.createTextNode(hexString(digestValue));
+    p.appendChild(textnode);
+    latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+  });
   if (verified) {
     var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " & verified");
   } else {
@@ -100,20 +97,6 @@ function printRound(randomness, previous, round, verified, timestamp) {
       modal.style.display = "none";
     }
   }
-  /* --not used anymore but may be useful--
-
-  //append previous randomness to history
-  var p3 = document.createElement("p");
-  p3.style.fontSize = '13px';
-  var round_minus_one = round - 1;
-  var textnode3 = document.createTextNode('(' + round_minus_one + ') ' + previous);
-  p3.appendChild(textnode3);
-  historyDiv.insertBefore(p3, historyDiv.childNodes[0]);
-  //if more than 15 remove last one
-  if (historyDiv.childElementCount >= 10) {
-  historyDiv.removeChild(historyDiv.lastChild);
-}
-*/
 }
 
 /**
@@ -180,10 +163,10 @@ function goToPrev() {
   var distkey = window.distkey;
   fetchAndVerifyRound(identity, distkey, round)
   .then(function (fulfilled) {
-    printRound(fulfilled.randomness, fulfilled.previous, round, true, "?");
+    printRound(fulfilled.randomness, fulfilled.previous, round, true, " _ ");
   })
   .catch(function (error) {
-    printRound(error.randomness, error.previous, round, false, "?");
+    printRound(error.randomness, error.previous, round, false, " _ ");
   });
 }
 
@@ -238,4 +221,22 @@ function getLatestIndex() {
     var identity = window.identity;
     fetchPublic(identity).then((rand) => {resolve(rand.round);})
   });
+}
+
+function digestMessage(message) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  return window.crypto.subtle.digest('SHA-256', data);
+}
+
+function hexString(buffer) {
+  const byteArray = new Uint8Array(buffer);
+
+  const hexCodes = [...byteArray].map(value => {
+    const hexCode = value.toString(16);
+    const paddedHexCode = hexCode.padStart(2, '0');
+    return paddedHexCode;
+  });
+
+  return hexCodes.join('');
 }
