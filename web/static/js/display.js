@@ -1,6 +1,6 @@
 const latestDiv = document.querySelector('#latest');
 const historyDiv = document.querySelector('#history');
-const nodesDiv = document.querySelector('#nodes');
+const nodesDiv = document.getElementsByClassName('map');
 window.identity = "";
 window.distkey = "";
 
@@ -30,7 +30,7 @@ function displayRandomness() {
     printRound(error.randomness, error.previous, error.round, false, timestamp);
   });
   //print servers
-  printNodes(identity);
+  printNodes();
 }
 
 /**
@@ -102,35 +102,80 @@ function printRound(randomness, previous, round, verified, timestamp) {
 /**
 * printNodes prints interactive list of drand nodes
 **/
-function printNodes(identity) {
-  //only prints once
-  if (nodesDiv.childElementCount == 0) {
-    fetchGroup(identity).then(group => {
-      var i = 0;
-      while (i < group.nodes.length) {
-        let addr = group.nodes[i].address;
-        let tls = group.nodes[i].TLS;
-
-        let line = document.createElement("tr");
-        let statusCol = document.createElement("td");
-        isUp(addr, tls)
-        .then((rand) => {statusCol.innerHTML = '<td> ✅ </td>';})
-        .catch((err) => {statusCol.innerHTML = '<td> 🚫 </td>';});
-        let addrCol = document.createElement("td");
-        addrCol.innerHTML = '<td>' + addr + '</td>';
-        addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
-        addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
-        addrCol.onclick = function() {
-          window.identity = {Address: addr, TLS: tls};
-          refresh();
-        };
-        line.appendChild(statusCol);
-        line.appendChild(addrCol);
-        nodesDiv.appendChild(line);
-        i = i + 1;
-      }
-    }).catch(error => console.error('Could not fetch group:', error))
-  }
+function printNodes() {
+    $(function () {
+      $(".mapcontainer").mapael({
+        map: {
+          name: "world_countries",
+          defaultArea: {
+            attrs: {
+              fill: "#d1d1d1"
+              , stroke: "#d1d1d1"
+            },
+            attrsHover: {
+              fill: "#d1d1d1"
+              , stroke: "#d1d1d1"
+            }
+          },
+          defaultPlot: {
+            size:20,
+            factor: 0.6,
+            attrs: {
+              fill:"#e9b4a0",
+              stroke: "#fff"
+            },
+            eventHandlers: {
+              click: function (e, id, mapElem, textElem, elemOptions) {
+                window.identity = {Address: elemOptions.tooltip.content, TLS: true};
+                refresh();
+              }
+            }
+          }
+        },
+        plots: {
+          'cothority': {
+            latitude: 48.86,
+            longitude: 2.3444,
+            tooltip: {content: "drand.cothority.net:7003"}
+          },
+          'zerobyte': {
+            latitude: 41.827637,
+            longitude: 2.462732,
+            tooltip: {content: "drand.zerobyte.io:8888"}
+          },
+          'nikkolasg': {
+            latitude: 50.989125,
+            longitude: 9.205674,
+            tooltip: {content: "drand.nikkolasg.xyz:8888"}
+          },
+          'lbarman': {
+            latitude: 45.289125,
+            longitude: 13.205674,
+            tooltip: {content: "drand.lbarman.ch:443"}
+          },
+          'kudelski': {
+            latitude: 39.789125,
+            longitude: 9.205674,
+            tooltip: {content: "drand.kudelskisecurity.com:443"}
+          },
+          'pl': {
+            latitude: 44.667,
+            longitude: -122.833,
+            tooltip: {content: "drand.protocol.ai:8080"}
+          },
+          'cf': {
+            latitude: 37.792032,
+            longitude: -122.394613,
+            tooltip: {content: "drand.cloudflare.com:443"}
+          },
+          'uoc': {
+            latitude: -33.781682,
+            longitude: -70.924195,
+            tooltip: {content: "random.uchile.cl:8080"}
+          },
+        }
+      });
+    });
 }
 
 /**
@@ -196,10 +241,10 @@ function goToNext() {
     var distkey = window.distkey;
     fetchAndVerifyRound(identity, distkey, round)
     .then(function (fulfilled) {
-      printRound(fulfilled.randomness, fulfilled.previous, round, true, "?");
+      printRound(fulfilled.randomness, fulfilled.previous, round, true, "_");
     })
     .catch(function (error) {
-      printRound(error.randomness, error.previous, round, false, "?");
+      printRound(error.randomness, error.previous, round, false, "_");
     });
   });
 }
@@ -223,6 +268,9 @@ function getLatestIndex() {
   });
 }
 
+/**
+* digestMessage and hexString are used to hash the signature
+**/
 function digestMessage(message) {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);

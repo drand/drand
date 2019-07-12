@@ -3912,3 +3912,20 @@ body.landing #main {
 .icons i:hover {
 	color:#e9b4a0;
 }
+
+.mapael .map {
+	position: relative;
+}
+
+.mapael .mapTooltip {
+	position: absolute;
+	background-color: #e9b4a0;
+	moz-opacity: 0.70;
+	opacity: 1.0;
+	filter: alpha(opacity=80);
+	border-radius: 10px;
+	padding: 10px;
+	z-index: 1000;
+	display: none;
+	color: #343434;
+}

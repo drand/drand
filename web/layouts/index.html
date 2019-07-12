@@ -12,7 +12,7 @@
     <!-- Main -->
     <section id="main" class="container">
       <header>
-        <h2>Drand</h2>
+        <h2>drand</h2>
         <p>A Distributed Randomness Beacon</p>
       </header>
       <div class="box">
@@ -21,7 +21,7 @@
           The <code>drand</code> randomness beacon is a world-wide network of independent partners who provide <strong>verifable,
             high-entropy randomness as a service</strong> to the public. To generate this randomness in an unbiasable and unpredictable way,
             the <code>drand</code> network relies on cutting-edge methodologies from cryptography and distributed systems research.
-            For more details on the technology, please refer to the <a href="https://developers.cloudflare.com/randomness-beacon/cryptographic-background/setup-phase/">documentation</a>.
+            For more details on the technology, please refer to the <a href="https://developers.cloudflare.com/randomness-beacon/cryptographic-background/">documentation</a>.
           </p>
         </div>
 
@@ -29,8 +29,8 @@
         <div class="box">
           <div class="col-12">
             <header>
-              <h3>Randomness</h3>
-              Hash of the output of drand beacon (SHA256), can click on the randomness to print raw JSON and navigate.
+              <h3>Randomness History</h3>
+              Features: Printed is the hash (SHA256) of the output of the drand beacon, can click on it to print corresponding raw JSON, and can navigate between rounds.
               <br />
               <br />
               <div id="latest">
@@ -61,62 +61,60 @@
           <div class="box">
             <div class="col-12">
               <h3>Network</h3>
-              <p>By clicking on one of the nodes displayed below, you can choose which server is contacted to retrieve the next random value.</p>
-              <div>
-                <div class="table-wrapper">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Status</th>
-                        <th>Address</th>
-                      </tr>
-                    </thead>
-                    <tbody id="nodes">
-                    </tbody>
-                  </table>
+              Features: by clicking on one of the nodes displayed below, you can choose which server is contacted to retrieve the random value(s).
+              <br />
+                  <br />
+            </div>
+
+            <div class="container">
+              <div class="mapcontainer">
+                <div class="map">
                 </div>
               </div>
             </div>
-            <span class="image featured">
-              <img src="{{ .Site.BaseURL }}img/map.png" alt>
-            </span>
+
           </div>
 
           <!--Partners box-->
           <div class="box">
+
             <h3>League of Entropy</h3>
-            We are proud to be part of the League of Entropy,  a consortium of organizations that are working together to produce a truly random beacon. To lear more, we refer you to <a href="https://blog.cloudflare.com/league-of-entropy/">this blog post</a> by Cloudflare.
+            We are proud to be part of the League of Entropy, a consortium of organizations that are working together to provide randomness as a service. To learn more, we refer you to <a href="https://blog.cloudflare.com/league-of-entropy/">this blog post</a> by Cloudflare.
             <hr>
+
             <h3>Partners</h3>
-            <p>The organizations below contribute to the <code>drand</code> beacon. If you want to participate in the network as well, please <a href="mailto:dedis@epfl.ch?subject=Joining the drand network">contact us</a>.</p>
+            The organizations below contribute to the <code>drand</code> beacon. If you want to participate in the network as well, please <a href="mailto:dedis@epfl.ch?subject=Joining the drand network">contact us</a>.
+            <br />
+            <br />
+
             <div class="row" id="partners">
-              <div class="col-3">
-                <span class="image fit">
+              <div class="col-2">
+                <span class="image fit" style="filter: grayscale(100%);">
                   <a href="https://dedis.epfl.ch" ><img src="{{ .Site.BaseURL }}img/epfl.png"></a>
                 </span>
               </div>
-              <div class="col-3">
-                <span class="image fit">
-                  <a href="https://www.cloudflare.com" ><img src="{{ .Site.BaseURL }}img/cloudflare.png"></a>
+              <div class="col-2">
+                <span class="image fit" style="filter: grayscale(100%);">
+                  <a href="https://www.cloudflare.com" ><img src="{{ .Site.BaseURL }}img/cf.png"></a>
                 </span>
               </div>
-              <div class="col-3">
-                <span class="image fit">
-                  <a href="https://www.kudelskisecurity.com" ><img src="{{ .Site.BaseURL }}img/kudelski.jpg"></a>
+              <div class="col-2">
+                <span class="image fit" style="filter: grayscale(100%);">
+                  <a href="https://www.kudelskisecurity.com" ><img src="{{ .Site.BaseURL }}img/ks.png"></a>
                 </span>
               </div>
-              <div class="col-3">
-                <span class="image fit">
+              <div class="col-2">
+                <span class="image fit" style="filter: grayscale(100%);">
                   <a href="http://www.uchile.cl/english" ><img src="{{ .Site.BaseURL }}img/uoc.png"></a>
                 </span>
               </div>
-              <div class="col-3">
-                <span class="image fit">
-                  <a href="https://protocol.ai" ><img src="{{ .Site.BaseURL }}img/proto.jpeg"></a>
+              <div class="col-2">
+                <span class="image fit" style="filter: grayscale(100%);">
+                  <a href="https://protocol.ai" ><img src="{{ .Site.BaseURL }}img/pl.png"></a>
                 </span>
               </div>
-              <div class="col-3">
-                <span class="image fit">
+              <div class="col-2">
+                <span class="image fit" style="height:50px;filter: grayscale(100%);">
                   <a href="https://www.c4dt.org" ><img src="{{ .Site.BaseURL }}img/c4dt.png"></a>
                 </span>
               </div>
@@ -132,7 +130,7 @@
             <li><a href="mailto:dedis@epfl.ch?subject=Drand" class="icon fa-envelope"><span class="label">Mail</span></a></li>
           </ul>
           <ul class="copyright">
-            <li>&copy; <a href="https://dedis.epfl.ch/">EPFL/DEDIS</a>. All rights reserved.</li>
+            <li>&copy; <a href="https://dedis.epfl.ch/">DEDIS/Mathilde Raynal</a>. All rights reserved.</li>
             <li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
           </ul>
         </footer>
@@ -141,7 +139,13 @@
 
       <!-- Scripts for drandjs and display-->
       <script src="https://cdn.jsdelivr.net/gh/PizzaWhisperer/drandjs/dist/drand.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js" charset="utf-8"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.2.7/raphael.min.js" charset="utf-8"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-mapael/2.2.0/js/jquery.mapael.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-mapael/2.2.0/js/maps/world_countries.js"></script>
       <script src="{{ .Site.BaseURL }}js/display.js"></script>
+
+
       <script>
       window.identity = {Address: "drand.zerobyte.io:8888", TLS: true};
       window.distkey = "";
