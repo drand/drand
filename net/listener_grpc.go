@@ -146,6 +146,31 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	server := &http.Server{
 		Handler: grpcHandlerFunc(grpcServer, mux),
 		TLSConfig: &tls.Config{
+			// From https://blog.cloudflare.com/exposing-go-on-the-internet/
+
+			// Causes servers to use Go's default ciphersuite preferences,
+			// which are tuned to avoid attacks. Does nothing on clients.
+			PreferServerCipherSuites: true,
+
+			// Only use curves which have assembly implementations
+			CurvePreferences: []tls.CurveID{
+				tls.CurveP256,
+				tls.X25519,
+			},
+
+			// Drand clients and servers are all modern software, and so we
+			// can require TLS 1.2 and the best cipher suites.
+			MinVersion: tls.VersionTLS12,
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			},
+			// End Cloudflare recommendations.
+
 			Certificates: []tls.Certificate{x509KeyPair},
 			NextProtos:   []string{"h2"},
 		},
