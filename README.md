@@ -397,10 +397,6 @@ curl <address>/api/public
 
 **All the REST endpoints are specified in the `protobuf/drand/client.proto` file.**
 
-**NOTE**: At the moment, the REST endpoints return base-64 encoded values, whereas
-the drand cli tool returns hexadecimal encoded value ([issue](https://github.com/dedis/drand/issues/85)).
-
-
 ### Updating Drand Group
 
 Drand allows for "semi-dynamic" group update with a *resharing* protocol that
