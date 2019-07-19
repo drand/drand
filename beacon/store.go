@@ -18,11 +18,13 @@ import (
 
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
-	// PreviousRand is the previous randomness generated
-	PreviousRand []byte
+	// PreviousSig is the previous signature generated
+	PreviousSig []byte
 	// Round is the round number this beacon is tied to
 	Round uint64
-	// Randomness is the tbls signature of Round || PreviousRand
+	// Signature is the tbls signature of Round || PreviousRand
+	Signature []byte
+	// Randomness is the hash of the tbls signature of Round || PreviousRand
 	Randomness []byte
 	// Gid is the group id of the randomness - usually fixed
 	// See protobuf's crypto elements definitions for more information.
@@ -31,10 +33,10 @@ type Beacon struct {
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
-func Message(prevRand []byte, round uint64) []byte {
+func Message(prevSig []byte, round uint64) []byte {
 	var buff bytes.Buffer
 	buff.Write(roundToBytes(round))
-	buff.Write(prevRand)
+	buff.Write(prevSig)
 	return buff.Bytes()
 }
 

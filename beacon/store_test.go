@@ -1,6 +1,7 @@
 package beacon
 
 import (
+	"crypto/sha512"
 	"os"
 	"path"
 	"testing"
@@ -21,16 +22,26 @@ func TestBoltStore(t *testing.T) {
 	store, err := NewBoltStore(path, nil)
 	require.NoError(t, err)
 
+	hash1 := sha512.New()
+	hash1.Write([]byte(sig2))
+	rand1 := hash1.Sum(nil)
+
+	hash2 := sha512.New()
+	hash2.Write([]byte(sig1))
+	rand2 := hash2.Sum(nil)
+
 	b1 := &Beacon{
-		PreviousRand: sig1,
-		Round:        145,
-		Randomness:   sig2,
+		PreviousSig: sig1,
+		Round:       145,
+		Signature:   sig2,
+		Randomness:  rand1,
 	}
 
 	b2 := &Beacon{
-		PreviousRand: sig2,
-		Round:        146,
-		Randomness:   sig1,
+		PreviousSig: sig2,
+		Round:       146,
+		Signature:   sig1,
+		Randomness:  rand2,
 	}
 
 	require.NoError(t, store.Put(b1))

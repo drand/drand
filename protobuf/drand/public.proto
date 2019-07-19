@@ -45,7 +45,8 @@ message PublicRandRequest {
 message PublicRandResponse {
     uint64 round = 1;
     bytes previous = 2;
-    element.Point randomness = 3;
+    element.Point signature = 3;
+    bytes randomness = 4;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random

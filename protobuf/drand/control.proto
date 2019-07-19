@@ -13,12 +13,12 @@ import "crypto/element.proto";
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
     rpc PingPong(Ping) returns (Pong) { }
-    // InitDKG sends information to daemon to start a fresh DKG protocol 
+    // InitDKG sends information to daemon to start a fresh DKG protocol
     rpc InitDKG(DKGRequest) returns (DKGResponse) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
     rpc InitReshare(ReshareRequest) returns (ReshareResponse) { }
-    // Share returns the current private share used by the node 
+    // Share returns the current private share used by the node
     rpc Share(ShareRequest) returns (ShareResponse) { }
     // PublicKey returns the longterm public key of the drand node
     rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
@@ -33,10 +33,10 @@ service Control {
 }
 
 message DKGRequest {
-    GroupInfo dkg_group = 1; 
+    GroupInfo dkg_group = 1;
     bool is_leader = 2;
     // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 3; 
+    string timeout = 3;
 }
 
 message DKGResponse {
@@ -54,14 +54,14 @@ message ReshareRequest {
     GroupInfo new = 2;
     bool is_leader = 3;
     // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 4; 
+    string timeout = 4;
 }
 
 message GroupInfo {
     oneof location {
         string path = 1;
-        // XXX not implemented 
-        string url = 2; 
+        // XXX not implemented
+        string url = 2;
     }
 }
 
@@ -117,6 +117,6 @@ message GroupTOMLRequest {
 }
 
 message GroupTOMLResponse {
-    // TOML-encoded group file 
+    // TOML-encoded group file
     string group_toml = 1;
 }

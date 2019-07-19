@@ -27,11 +27,11 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 // partial signature for this beacon. All participants send and collects many of
 // theses partial beacon packets to recreate locally one beacon
 type BeaconRequest struct {
-	Round        uint64 `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
-	PreviousRand []byte `protobuf:"bytes,2,opt,name=previous_rand,json=previousRand,proto3" json:"previous_rand,omitempty"`
+	Round       uint64 `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
+	PreviousSig []byte `protobuf:"bytes,2,opt,name=previous_sig,json=previousSig,proto3" json:"previous_sig,omitempty"`
 	// To prove the issuer comes from a valid node
 	// It is a group point prefixed by the index of the issuer
-	PartialRand          []byte   `protobuf:"bytes,3,opt,name=partial_rand,json=partialRand,proto3" json:"partial_rand,omitempty"`
+	PartialSig           []byte   `protobuf:"bytes,3,opt,name=partial_sig,json=PartialSig,proto3" json:"partial_sig,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -68,22 +68,22 @@ func (m *BeaconRequest) GetRound() uint64 {
 	return 0
 }
 
-func (m *BeaconRequest) GetPreviousRand() []byte {
+func (m *BeaconRequest) GetPreviousSig() []byte {
 	if m != nil {
-		return m.PreviousRand
+		return m.PreviousSig
 	}
 	return nil
 }
 
-func (m *BeaconRequest) GetPartialRand() []byte {
+func (m *BeaconRequest) GetPartialSig() []byte {
 	if m != nil {
-		return m.PartialRand
+		return m.PartialSig
 	}
 	return nil
 }
 
 type BeaconResponse struct {
-	PartialRand          []byte   `protobuf:"bytes,1,opt,name=partial_rand,json=partialRand,proto3" json:"partial_rand,omitempty"`
+	PartialSig           []byte   `protobuf:"bytes,1,opt,name=partial_sig,json=PartialSig,proto3" json:"partial_sig,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -113,9 +113,9 @@ func (m *BeaconResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_BeaconResponse proto.InternalMessageInfo
 
-func (m *BeaconResponse) GetPartialRand() []byte {
+func (m *BeaconResponse) GetPartialSig() []byte {
 	if m != nil {
-		return m.PartialRand
+		return m.PartialSig
 	}
 	return nil
 }

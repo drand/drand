@@ -75,7 +75,8 @@ func (m *PublicRandRequest) GetRound() uint64 {
 type PublicRandResponse struct {
 	Round                uint64        `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
 	Previous             []byte        `protobuf:"bytes,2,opt,name=previous,proto3" json:"previous,omitempty"`
-	Randomness           *crypto.Point `protobuf:"bytes,3,opt,name=randomness,proto3" json:"randomness,omitempty"`
+	Signature            *crypto.Point `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
+	Randomness           []byte        `protobuf:"bytes,4,opt,name=randomness,proto3" json:"randomness,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -119,7 +120,14 @@ func (m *PublicRandResponse) GetPrevious() []byte {
 	return nil
 }
 
-func (m *PublicRandResponse) GetRandomness() *crypto.Point {
+func (m *PublicRandResponse) GetSignature() *crypto.Point {
+	if m != nil {
+		return m.Signature
+	}
+	return nil
+}
+
+func (m *PublicRandResponse) GetRandomness() []byte {
 	if m != nil {
 		return m.Randomness
 	}

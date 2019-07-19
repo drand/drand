@@ -140,7 +140,7 @@ func TestBeaconSimple(t *testing.T) {
 	require.True(t, exists)
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
-			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
+			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
 			require.Equal(t, b.Gid, gid)
 			l.Lock()
@@ -291,7 +291,7 @@ func TestBeaconNEqualT(t *testing.T) {
 	// into the map
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
-			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
+			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)

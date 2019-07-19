@@ -278,10 +278,10 @@ func TestDrandDKGFresh(t *testing.T) {
 	setupDrand := func(i int) {
 		//addr := drands[i].priv.Public.Address()
 		myCb := func(b *beacon.Beacon) {
-			msg := beacon.Message(b.PreviousRand, b.Round)
-			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Randomness)
+			msg := beacon.Message(b.PreviousSig, b.Round)
+			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Signature)
 			if err != nil {
-				fmt.Printf("Beacon error callback: %s\n", b.Randomness)
+				fmt.Printf("Beacon error callback: %s\n", b.Signature)
 			}
 			require.NoError(t, err)
 			l.Lock()

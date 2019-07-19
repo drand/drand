@@ -9,8 +9,8 @@ import (
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
+	"go.dedis.ch/kyber/sign/bls"
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/sign/bls"
 	"google.golang.org/grpc"
 )
 
@@ -108,7 +108,13 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if rand == nil {
 		return errors.New("drand: no randomness found")
 	}
-	return bls.Verify(key.Pairing, public, msg, rand.GetPoint())
+	valid := bls.Verify(key.Pairing, public, msg, resp.GetSignature())
+	/**hash := sha512.New()
+	hash.Write(resp.GetSignature().GetPoint())
+	randExpected := hash.Sum(nil)
+	// TODO: HASH(SIG) == RAND
+	//	valid := bls.Verify(key.Pairing, public, msg, resp.GetSig()) && randExpected == rand**/
+	return valid
 }
 
 func (c *Client) peer(addr string) {
