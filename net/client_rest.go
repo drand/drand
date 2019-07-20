@@ -20,7 +20,7 @@ type restClient struct {
 
 // NewRestClient returns a client capable of calling external public method on
 // drand nodes using the RESP API
-func NewRestClient() ExternalClient {
+func NewRestClient() PublicClient {
 	return &restClient{
 		marshaller: defaultJSONMarshaller,
 		manager:    NewCertManager(),
@@ -29,13 +29,13 @@ func NewRestClient() ExternalClient {
 
 // NewRestClientFromCertManager returns a Rest Client with the given cert
 // manager
-func NewRestClientFromCertManager(c *CertManager) ExternalClient {
+func NewRestClientFromCertManager(c *CertManager) PublicClient {
 	client := NewRestClient().(*restClient)
 	client.manager = c
 	return client
 }
 
-func (r *restClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (r *restClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	base := restAddr(p)
 	var req *http.Request
 	var err error
@@ -62,7 +62,7 @@ func (r *restClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicR
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
-func (r *restClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+func (r *restClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	base := restAddr(p)
 	buff, err := r.marshaller.Marshal(in)
 	if err != nil {

@@ -1,3 +1,4 @@
+// Package ecies provides an implementation of the ECIES scheme.
 package ecies
 
 import (
@@ -5,35 +6,37 @@ import (
 	"crypto/cipher"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"hash"
 
 	"github.com/dedis/drand/entropy"
-	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/util/random"
 	"golang.org/x/crypto/hkdf"
 )
 
-// This file provides an implementation of the ECIES scheme.
-
+// DefaultHash is the default hash to use with ECIES
 var DefaultHash = sha256.New
 
-// Encrypts performs a ephemereal-static  DH exchange, creates the shared key
+// Encrypt performs a ephemereal-static  DH exchange, creates the shared key
 // from it using a KDF scheme (hkdf from Go at the time of writing) and then
 // computes the ciphertext using a AEAD scheme (AES-GCM from Go at the time of
 // writing). This methods returns the ephemeral point of the DH exchange, the
 // ciphertext and the associated nonce. It returns an error if something went
 // wrong during the encryption.
-func Encrypt(g kyber.Group, fn func() hash.Hash, public kyber.Point, msg []byte) (*drand.ECIESObject, error) {
+func Encrypt(g kyber.Group, fn func() hash.Hash, public kyber.Point, msg []byte) (*drand.ECIES, error) {
+	if fn == nil {
+		fn = DefaultHash
+	}
 	// generate an ephemeral key pair and performs the DH
 	r := g.Scalar().Pick(random.New())
 	R := g.Point().Mul(r, nil)
 	eph := R
 
-	ephProto, err := crypto.KyberToProtoPoint(eph)
+	ephProto, err := eph.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ecies: encrypt failed to marshal eph. point: %s", err)
 	}
 	dh := g.Point().Mul(r, public)
 	dhBuff, err := dh.MarshalBinary()
@@ -68,18 +71,19 @@ func Encrypt(g kyber.Group, fn func() hash.Hash, public kyber.Point, msg []byte)
 		return nil, err
 	}
 	ciphertext := aesgcm.Seal(nil, nonce, msg, nil)
-	return &drand.ECIESObject{
+	return &drand.ECIES{
 		Ephemeral:  ephProto,
 		Ciphertext: ciphertext,
 		Nonce:      nonce,
 	}, nil
 }
 
-// Decrypts does almost the same as Encrypt: the ephemereal static DH exchange,
+// Decrypt does almost the same as Encrypt: the ephemereal static DH exchange,
 // and the derivation of the symmetric key. It finally tries to decrypt the
 // ciphertext and returns the plaintext if successful, an error otherwise.
-func Decrypt(g kyber.Group, fn func() hash.Hash, priv kyber.Scalar, o *drand.ECIESObject) ([]byte, error) {
-	eph, err := crypto.ProtoToKyberPoint(o.GetEphemeral())
+func Decrypt(g kyber.Group, fn func() hash.Hash, priv kyber.Scalar, o *drand.ECIES) ([]byte, error) {
+	eph := g.Point()
+	err := eph.UnmarshalBinary(o.GetEphemeral())
 	if err != nil {
 		return nil, err
 	}

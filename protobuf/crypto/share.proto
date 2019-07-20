@@ -4,9 +4,7 @@
  */
 syntax = "proto3";
 
-option go_package = "github.com/dedis/drand/protobuf/crypto/share";
-
-import "crypto/element.proto";
+option go_package = "github.com/dedis/drand/protobuf/crypto";
 
 package share;
 
@@ -19,5 +17,5 @@ message PrivateShare {
     // index of the participant
     uint32 index = 1;
     // the share itself
-    element.Scalar share = 2;
+    bytes share = 2;
 }

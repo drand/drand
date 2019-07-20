@@ -9,7 +9,7 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/dkg"
+	"github.com/dedis/drand/protobuf/crypto/dkg"
 	"github.com/dedis/drand/test"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,7 @@ type testDKGServer struct {
 	h *Handler
 }
 
-func (t *testDKGServer) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
+func (t *testDKGServer) Setup(c context.Context, in *dkg.Packet) (*dkg.DKGResponse, error) {
 	t.h.Process(c, in)
 	return &dkg.DKGResponse{}, nil
 }
@@ -36,7 +36,7 @@ type testNet struct {
 	net.InternalClient
 }
 
-func (t *testNet) Send(p net.Peer, d *dkg.DKGPacket) error {
+func (t *testNet) Send(p net.Peer, d *dkg.Packet) error {
 	var err error
 	if t.fresh {
 		_, err = t.InternalClient.Setup(p, d)

@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 
-	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 )
 
@@ -14,75 +13,73 @@ import (
 // BeaconServer, RandomnessServer or DkgServer and instanciate defaultService
 // with &DefaultService{<your struct>}.
 type DefaultService struct {
-	B drand.BeaconServer
-	R drand.RandomnessServer
-	I drand.InfoServer
-	C drand.ControlServer
-	D dkg.DkgServer
+	Pr drand.ProtocolServer
+	Pu drand.PublicServer
+	C  drand.ControlServer
 }
 
-// Public ...
-func (s *DefaultService) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	if s.R == nil {
+// PublicRand ...
+func (s *DefaultService) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	if s.Pu == nil {
 		return &drand.PublicRandResponse{}, nil
 	}
-	return s.R.Public(c, in)
+	return s.Pu.PublicRand(c, in)
 }
 
-// Private ...
-func (s *DefaultService) Private(c context.Context, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	if s.R == nil {
+// PrivateRand ...
+func (s *DefaultService) PrivateRand(c context.Context, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+	if s.Pu == nil {
 		return &drand.PrivateRandResponse{}, nil
 	}
-	return s.R.Private(c, in)
+	return s.Pu.PrivateRand(c, in)
 }
 
 // Group ...
 func (s *DefaultService) Group(c context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
-	if s.I == nil {
+	if s.Pu == nil {
 		return &drand.GroupResponse{}, nil
 	}
-	return s.I.Group(c, in)
+	return s.Pu.Group(c, in)
 }
 
 // DistKey ...
 func (s *DefaultService) DistKey(c context.Context, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	if s.I == nil {
+	if s.Pu == nil {
 		return &drand.DistKeyResponse{}, nil
 	}
-	return s.I.DistKey(c, in)
+	return s.Pu.DistKey(c, in)
 }
 
 // Setup ...
-func (s *DefaultService) Setup(c context.Context, in *dkg.DKGPacket) (*dkg.DKGResponse, error) {
-	if s.D != nil {
-		return s.D.Setup(c, in)
+func (s *DefaultService) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
+	if s.Pr != nil {
+		return s.Pr.Setup(c, in)
 	}
-	return &dkg.DKGResponse{}, nil
+	return new(drand.Empty), nil
 }
 
 // Reshare ...
-func (s *DefaultService) Reshare(c context.Context, in *dkg.ResharePacket) (*dkg.ReshareResponse, error) {
-	if s.D != nil {
-		return s.D.Reshare(c, in)
+func (s *DefaultService) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
+	if s.Pr != nil {
+		return s.Pr.Reshare(c, in)
 	}
-	return &dkg.ReshareResponse{}, nil
+	return new(drand.Empty), nil
 }
 
 // NewBeacon ...
 func (s *DefaultService) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	if s.B == nil {
+	if s.Pr == nil {
 		return &drand.BeaconResponse{}, nil
 	}
-	return s.B.NewBeacon(c, in)
+	return s.Pr.NewBeacon(c, in)
 }
 
 // Home ...
 func (s *DefaultService) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	if s.I == nil {
+	if s.Pu == nil {
 		return &drand.HomeResponse{}, nil
 	}
-	return s.I.Home(c, in)
+	return s.Pu.Home(c, in)
 }
 
 // Control functionalities

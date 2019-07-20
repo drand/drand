@@ -8,7 +8,6 @@ package drand;
 
 option go_package = "github.com/dedis/drand/protobuf/drand";
 
-import "crypto/element.proto";
 
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
@@ -75,8 +74,8 @@ message ShareRequest {
 
 // ShareResponse holds the private share of a drand node
 message ShareResponse {
-  uint32 index = 1;
-  element.Scalar share = 2;
+  uint32 index = 2;
+  bytes share = 3;
 }
 
 message Ping {
@@ -91,7 +90,7 @@ message PublicKeyRequest {
 
 // PublicKeyResponse holds the public key of a drand node
 message PublicKeyResponse {
-  element.Point pubKey = 1;
+  bytes pubKey = 2;
 }
 
 // PrivateKeyRequest requests the private key of a drand node
@@ -100,7 +99,7 @@ message PrivateKeyRequest {
 
 // PrivateKeyResponse holds the private key of a drand node
 message PrivateKeyResponse {
-  element.Scalar priKey = 1;
+  bytes priKey = 2;
 }
 
 // CokeyRequest requests the collective key of a drand node
@@ -109,7 +108,7 @@ message CokeyRequest {
 
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
-  element.Point coKey = 1;
+  bytes coKey = 2;
 }
 
 message GroupTOMLRequest {
