@@ -1,6 +1,8 @@
 package core
 
 import (
+	"bytes"
+	"crypto/sha512"
 	"errors"
 
 	"github.com/dedis/drand/beacon"
@@ -9,8 +11,8 @@ import (
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
-	"go.dedis.ch/kyber/sign/bls"
 	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/sign/bls"
 	"google.golang.org/grpc"
 )
 
@@ -108,13 +110,17 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if rand == nil {
 		return errors.New("drand: no randomness found")
 	}
-	valid := bls.Verify(key.Pairing, public, msg, resp.GetSignature())
-	/**hash := sha512.New()
+	ver := bls.Verify(key.Pairing, public, msg, resp.GetSignature().GetPoint())
+	if ver != nil {
+		return ver
+	}
+	hash := sha512.New()
 	hash.Write(resp.GetSignature().GetPoint())
 	randExpected := hash.Sum(nil)
-	// TODO: HASH(SIG) == RAND
-	//	valid := bls.Verify(key.Pairing, public, msg, resp.GetSig()) && randExpected == rand**/
-	return valid
+	if !bytes.Equal(randExpected, rand) {
+		return errors.New("randomness is incorrect")
+	}
+	return nil
 }
 
 func (c *Client) peer(addr string) {
