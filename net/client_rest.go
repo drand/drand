@@ -13,6 +13,8 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 )
 
+var _ PublicClient = (*restClient)(nil)
+
 type restClient struct {
 	marshaller runtime.Marshaler
 	manager    *CertManager
@@ -117,6 +119,26 @@ func (r *restClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 	}
 	drandResponse := new(drand.GroupResponse)
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
+}
+
+func (r *restClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+	base := restAddr(p)
+	buff, err := r.marshaller.Marshal(in)
+	if err != nil {
+		return nil, err
+	}
+	url := base + "/api"
+	req, err := http.NewRequest("GET", url, bytes.NewBuffer(buff))
+	if err != nil {
+		return nil, err
+	}
+	respBody, err := r.doRequest(p, req)
+	if err != nil {
+		return nil, err
+	}
+	drandResponse := new(drand.HomeResponse)
+	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
+
 }
 
 func (r *restClient) doRequest(remote Peer, req *http.Request) ([]byte, error) {

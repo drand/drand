@@ -91,9 +91,9 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 }
 
 // DistKey returns the distributed key the node at this address is holding.
-func (c *Client) DistKey(addr string, secure bool) ([]byte, error) {
+func (c *Client) DistKey(addr string, secure bool) (*drand.DistKeyResponse, error) {
 	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
-	return resp.Key, err
+	return resp, err
 }
 
 // Group returns the group file used by the node in a JSON encoded format

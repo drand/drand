@@ -29,4 +29,5 @@ type PublicClient interface {
 	PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 	DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
 	Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error)
+	Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
 }

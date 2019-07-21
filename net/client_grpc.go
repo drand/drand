@@ -13,6 +13,8 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+var _ Client = (*grpcClient)(nil)
+
 //var defaultJSONMarshaller = &runtime.JSONBuiltin{}
 var defaultJSONMarshaller = &HexJSON{}
 
@@ -165,7 +167,7 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 	return resp, g.retryTLS(p, fn)
 }
 
-func (g *grpcClient) Home(p Peer, in *drand.HomeRequest, opts ...CallOption) (*drand.HomeResponse, error) {
+func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	var resp *drand.HomeResponse
 	fn := func() error {
 		c, err := g.conn(p)
@@ -173,7 +175,7 @@ func (g *grpcClient) Home(p Peer, in *drand.HomeRequest, opts ...CallOption) (*d
 			return err
 		}
 		client := drand.NewPublicClient(c)
-		resp, err = client.Home(context.Background(), in, opts...)
+		resp, err = client.Home(context.Background(), in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
