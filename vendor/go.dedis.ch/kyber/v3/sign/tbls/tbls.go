@@ -29,7 +29,10 @@ func (s SigShare) Index() (int, error) {
 	var index uint16
 	buf := bytes.NewReader(s)
 	err := binary.Read(buf, binary.BigEndian, &index)
-	return int(index), err
+	if err != nil {
+		return -1, err
+	}
+	return int(index), nil
 }
 
 // Value returns the value v of the TBLS share Si.
@@ -98,9 +101,6 @@ func Recover(suite pairing.Suite, public *share.PubPoly, msg []byte, sigs [][]by
 	}
 	sig, err := commit.MarshalBinary()
 	if err != nil {
-		return nil, err
-	}
-	if err := bls.Verify(suite, public.Commit(), msg, sig); err != nil {
 		return nil, err
 	}
 	return sig, nil
