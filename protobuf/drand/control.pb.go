@@ -23,7 +23,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type DKGRequest struct {
+type InitDKGPacket struct {
 	DkgGroup *GroupInfo `protobuf:"bytes,1,opt,name=dkg_group,json=dkgGroup,proto3" json:"dkg_group,omitempty"`
 	IsLeader bool       `protobuf:"varint,2,opt,name=is_leader,json=isLeader,proto3" json:"is_leader,omitempty"`
 	// timeout as parsed by Golang's time.ParseDuration method.
@@ -33,84 +33,54 @@ type DKGRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *DKGRequest) Reset()         { *m = DKGRequest{} }
-func (m *DKGRequest) String() string { return proto.CompactTextString(m) }
-func (*DKGRequest) ProtoMessage()    {}
-func (*DKGRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{0}
+func (m *InitDKGPacket) Reset()         { *m = InitDKGPacket{} }
+func (m *InitDKGPacket) String() string { return proto.CompactTextString(m) }
+func (*InitDKGPacket) ProtoMessage()    {}
+func (*InitDKGPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_081f15b74aa71ed6, []int{0}
 }
-func (m *DKGRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DKGRequest.Unmarshal(m, b)
+func (m *InitDKGPacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InitDKGPacket.Unmarshal(m, b)
 }
-func (m *DKGRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DKGRequest.Marshal(b, m, deterministic)
+func (m *InitDKGPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InitDKGPacket.Marshal(b, m, deterministic)
 }
-func (dst *DKGRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DKGRequest.Merge(dst, src)
+func (dst *InitDKGPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InitDKGPacket.Merge(dst, src)
 }
-func (m *DKGRequest) XXX_Size() int {
-	return xxx_messageInfo_DKGRequest.Size(m)
+func (m *InitDKGPacket) XXX_Size() int {
+	return xxx_messageInfo_InitDKGPacket.Size(m)
 }
-func (m *DKGRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_DKGRequest.DiscardUnknown(m)
+func (m *InitDKGPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_InitDKGPacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_DKGRequest proto.InternalMessageInfo
+var xxx_messageInfo_InitDKGPacket proto.InternalMessageInfo
 
-func (m *DKGRequest) GetDkgGroup() *GroupInfo {
+func (m *InitDKGPacket) GetDkgGroup() *GroupInfo {
 	if m != nil {
 		return m.DkgGroup
 	}
 	return nil
 }
 
-func (m *DKGRequest) GetIsLeader() bool {
+func (m *InitDKGPacket) GetIsLeader() bool {
 	if m != nil {
 		return m.IsLeader
 	}
 	return false
 }
 
-func (m *DKGRequest) GetTimeout() string {
+func (m *InitDKGPacket) GetTimeout() string {
 	if m != nil {
 		return m.Timeout
 	}
 	return ""
 }
 
-type DKGResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *DKGResponse) Reset()         { *m = DKGResponse{} }
-func (m *DKGResponse) String() string { return proto.CompactTextString(m) }
-func (*DKGResponse) ProtoMessage()    {}
-func (*DKGResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{1}
-}
-func (m *DKGResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DKGResponse.Unmarshal(m, b)
-}
-func (m *DKGResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DKGResponse.Marshal(b, m, deterministic)
-}
-func (dst *DKGResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DKGResponse.Merge(dst, src)
-}
-func (m *DKGResponse) XXX_Size() int {
-	return xxx_messageInfo_DKGResponse.Size(m)
-}
-func (m *DKGResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_DKGResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DKGResponse proto.InternalMessageInfo
-
 // ReshareRequest contains references to the old and new group to perform the
 // resharing protocol.
-type ReshareRequest struct {
+type InitResharePacket struct {
 	// Old group that needs to issue the shares for the new group
 	// NOTE: It can be empty / nil. In that case, the drand node will try to
 	// load the group he belongs to at the moment, if any, and use it as the old
@@ -125,52 +95,52 @@ type ReshareRequest struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ReshareRequest) Reset()         { *m = ReshareRequest{} }
-func (m *ReshareRequest) String() string { return proto.CompactTextString(m) }
-func (*ReshareRequest) ProtoMessage()    {}
-func (*ReshareRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{2}
+func (m *InitResharePacket) Reset()         { *m = InitResharePacket{} }
+func (m *InitResharePacket) String() string { return proto.CompactTextString(m) }
+func (*InitResharePacket) ProtoMessage()    {}
+func (*InitResharePacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_control_081f15b74aa71ed6, []int{1}
 }
-func (m *ReshareRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ReshareRequest.Unmarshal(m, b)
+func (m *InitResharePacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InitResharePacket.Unmarshal(m, b)
 }
-func (m *ReshareRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ReshareRequest.Marshal(b, m, deterministic)
+func (m *InitResharePacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InitResharePacket.Marshal(b, m, deterministic)
 }
-func (dst *ReshareRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ReshareRequest.Merge(dst, src)
+func (dst *InitResharePacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InitResharePacket.Merge(dst, src)
 }
-func (m *ReshareRequest) XXX_Size() int {
-	return xxx_messageInfo_ReshareRequest.Size(m)
+func (m *InitResharePacket) XXX_Size() int {
+	return xxx_messageInfo_InitResharePacket.Size(m)
 }
-func (m *ReshareRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ReshareRequest.DiscardUnknown(m)
+func (m *InitResharePacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_InitResharePacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ReshareRequest proto.InternalMessageInfo
+var xxx_messageInfo_InitResharePacket proto.InternalMessageInfo
 
-func (m *ReshareRequest) GetOld() *GroupInfo {
+func (m *InitResharePacket) GetOld() *GroupInfo {
 	if m != nil {
 		return m.Old
 	}
 	return nil
 }
 
-func (m *ReshareRequest) GetNew() *GroupInfo {
+func (m *InitResharePacket) GetNew() *GroupInfo {
 	if m != nil {
 		return m.New
 	}
 	return nil
 }
 
-func (m *ReshareRequest) GetIsLeader() bool {
+func (m *InitResharePacket) GetIsLeader() bool {
 	if m != nil {
 		return m.IsLeader
 	}
 	return false
 }
 
-func (m *ReshareRequest) GetTimeout() string {
+func (m *InitResharePacket) GetTimeout() string {
 	if m != nil {
 		return m.Timeout
 	}
@@ -191,7 +161,7 @@ func (m *GroupInfo) Reset()         { *m = GroupInfo{} }
 func (m *GroupInfo) String() string { return proto.CompactTextString(m) }
 func (*GroupInfo) ProtoMessage()    {}
 func (*GroupInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{3}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{2}
 }
 func (m *GroupInfo) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GroupInfo.Unmarshal(m, b)
@@ -314,36 +284,6 @@ func _GroupInfo_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-type ReshareResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ReshareResponse) Reset()         { *m = ReshareResponse{} }
-func (m *ReshareResponse) String() string { return proto.CompactTextString(m) }
-func (*ReshareResponse) ProtoMessage()    {}
-func (*ReshareResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{4}
-}
-func (m *ReshareResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ReshareResponse.Unmarshal(m, b)
-}
-func (m *ReshareResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ReshareResponse.Marshal(b, m, deterministic)
-}
-func (dst *ReshareResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ReshareResponse.Merge(dst, src)
-}
-func (m *ReshareResponse) XXX_Size() int {
-	return xxx_messageInfo_ReshareResponse.Size(m)
-}
-func (m *ReshareResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ReshareResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ReshareResponse proto.InternalMessageInfo
-
 // ShareRequest requests the private share of a drand node
 type ShareRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -355,7 +295,7 @@ func (m *ShareRequest) Reset()         { *m = ShareRequest{} }
 func (m *ShareRequest) String() string { return proto.CompactTextString(m) }
 func (*ShareRequest) ProtoMessage()    {}
 func (*ShareRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{5}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{3}
 }
 func (m *ShareRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShareRequest.Unmarshal(m, b)
@@ -388,7 +328,7 @@ func (m *ShareResponse) Reset()         { *m = ShareResponse{} }
 func (m *ShareResponse) String() string { return proto.CompactTextString(m) }
 func (*ShareResponse) ProtoMessage()    {}
 func (*ShareResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{6}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{4}
 }
 func (m *ShareResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ShareResponse.Unmarshal(m, b)
@@ -432,7 +372,7 @@ func (m *Ping) Reset()         { *m = Ping{} }
 func (m *Ping) String() string { return proto.CompactTextString(m) }
 func (*Ping) ProtoMessage()    {}
 func (*Ping) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{7}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{5}
 }
 func (m *Ping) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Ping.Unmarshal(m, b)
@@ -462,7 +402,7 @@ func (m *Pong) Reset()         { *m = Pong{} }
 func (m *Pong) String() string { return proto.CompactTextString(m) }
 func (*Pong) ProtoMessage()    {}
 func (*Pong) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{8}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{6}
 }
 func (m *Pong) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Pong.Unmarshal(m, b)
@@ -493,7 +433,7 @@ func (m *PublicKeyRequest) Reset()         { *m = PublicKeyRequest{} }
 func (m *PublicKeyRequest) String() string { return proto.CompactTextString(m) }
 func (*PublicKeyRequest) ProtoMessage()    {}
 func (*PublicKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{9}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{7}
 }
 func (m *PublicKeyRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicKeyRequest.Unmarshal(m, b)
@@ -525,7 +465,7 @@ func (m *PublicKeyResponse) Reset()         { *m = PublicKeyResponse{} }
 func (m *PublicKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*PublicKeyResponse) ProtoMessage()    {}
 func (*PublicKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{10}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{8}
 }
 func (m *PublicKeyResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicKeyResponse.Unmarshal(m, b)
@@ -563,7 +503,7 @@ func (m *PrivateKeyRequest) Reset()         { *m = PrivateKeyRequest{} }
 func (m *PrivateKeyRequest) String() string { return proto.CompactTextString(m) }
 func (*PrivateKeyRequest) ProtoMessage()    {}
 func (*PrivateKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{11}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{9}
 }
 func (m *PrivateKeyRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateKeyRequest.Unmarshal(m, b)
@@ -595,7 +535,7 @@ func (m *PrivateKeyResponse) Reset()         { *m = PrivateKeyResponse{} }
 func (m *PrivateKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*PrivateKeyResponse) ProtoMessage()    {}
 func (*PrivateKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{12}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{10}
 }
 func (m *PrivateKeyResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateKeyResponse.Unmarshal(m, b)
@@ -633,7 +573,7 @@ func (m *CokeyRequest) Reset()         { *m = CokeyRequest{} }
 func (m *CokeyRequest) String() string { return proto.CompactTextString(m) }
 func (*CokeyRequest) ProtoMessage()    {}
 func (*CokeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{13}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{11}
 }
 func (m *CokeyRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CokeyRequest.Unmarshal(m, b)
@@ -665,7 +605,7 @@ func (m *CokeyResponse) Reset()         { *m = CokeyResponse{} }
 func (m *CokeyResponse) String() string { return proto.CompactTextString(m) }
 func (*CokeyResponse) ProtoMessage()    {}
 func (*CokeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{14}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{12}
 }
 func (m *CokeyResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_CokeyResponse.Unmarshal(m, b)
@@ -702,7 +642,7 @@ func (m *GroupTOMLRequest) Reset()         { *m = GroupTOMLRequest{} }
 func (m *GroupTOMLRequest) String() string { return proto.CompactTextString(m) }
 func (*GroupTOMLRequest) ProtoMessage()    {}
 func (*GroupTOMLRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{15}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{13}
 }
 func (m *GroupTOMLRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GroupTOMLRequest.Unmarshal(m, b)
@@ -734,7 +674,7 @@ func (m *GroupTOMLResponse) Reset()         { *m = GroupTOMLResponse{} }
 func (m *GroupTOMLResponse) String() string { return proto.CompactTextString(m) }
 func (*GroupTOMLResponse) ProtoMessage()    {}
 func (*GroupTOMLResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_control_2dc0074adf013293, []int{16}
+	return fileDescriptor_control_081f15b74aa71ed6, []int{14}
 }
 func (m *GroupTOMLResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GroupTOMLResponse.Unmarshal(m, b)
@@ -762,11 +702,9 @@ func (m *GroupTOMLResponse) GetGroupToml() string {
 }
 
 func init() {
-	proto.RegisterType((*DKGRequest)(nil), "drand.DKGRequest")
-	proto.RegisterType((*DKGResponse)(nil), "drand.DKGResponse")
-	proto.RegisterType((*ReshareRequest)(nil), "drand.ReshareRequest")
+	proto.RegisterType((*InitDKGPacket)(nil), "drand.InitDKGPacket")
+	proto.RegisterType((*InitResharePacket)(nil), "drand.InitResharePacket")
 	proto.RegisterType((*GroupInfo)(nil), "drand.GroupInfo")
-	proto.RegisterType((*ReshareResponse)(nil), "drand.ReshareResponse")
 	proto.RegisterType((*ShareRequest)(nil), "drand.ShareRequest")
 	proto.RegisterType((*ShareResponse)(nil), "drand.ShareResponse")
 	proto.RegisterType((*Ping)(nil), "drand.Ping")
@@ -796,10 +734,10 @@ type ControlClient interface {
 	// PingPong returns an empty message. Purpose is to test the control port.
 	PingPong(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
-	InitDKG(ctx context.Context, in *DKGRequest, opts ...grpc.CallOption) (*DKGResponse, error)
+	InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*Empty, error)
 	// InitReshares sends all informations so that the drand node knows how to
 	// proceeed during the next resharing protocol.
-	InitReshare(ctx context.Context, in *ReshareRequest, opts ...grpc.CallOption) (*ReshareResponse, error)
+	InitReshare(ctx context.Context, in *InitResharePacket, opts ...grpc.CallOption) (*Empty, error)
 	// Share returns the current private share used by the node
 	Share(ctx context.Context, in *ShareRequest, opts ...grpc.CallOption) (*ShareResponse, error)
 	// PublicKey returns the longterm public key of the drand node
@@ -831,8 +769,8 @@ func (c *controlClient) PingPong(ctx context.Context, in *Ping, opts ...grpc.Cal
 	return out, nil
 }
 
-func (c *controlClient) InitDKG(ctx context.Context, in *DKGRequest, opts ...grpc.CallOption) (*DKGResponse, error) {
-	out := new(DKGResponse)
+func (c *controlClient) InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/drand.Control/InitDKG", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -840,8 +778,8 @@ func (c *controlClient) InitDKG(ctx context.Context, in *DKGRequest, opts ...grp
 	return out, nil
 }
 
-func (c *controlClient) InitReshare(ctx context.Context, in *ReshareRequest, opts ...grpc.CallOption) (*ReshareResponse, error) {
-	out := new(ReshareResponse)
+func (c *controlClient) InitReshare(ctx context.Context, in *InitResharePacket, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/drand.Control/InitReshare", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -899,10 +837,10 @@ type ControlServer interface {
 	// PingPong returns an empty message. Purpose is to test the control port.
 	PingPong(context.Context, *Ping) (*Pong, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
-	InitDKG(context.Context, *DKGRequest) (*DKGResponse, error)
+	InitDKG(context.Context, *InitDKGPacket) (*Empty, error)
 	// InitReshares sends all informations so that the drand node knows how to
 	// proceeed during the next resharing protocol.
-	InitReshare(context.Context, *ReshareRequest) (*ReshareResponse, error)
+	InitReshare(context.Context, *InitResharePacket) (*Empty, error)
 	// Share returns the current private share used by the node
 	Share(context.Context, *ShareRequest) (*ShareResponse, error)
 	// PublicKey returns the longterm public key of the drand node
@@ -940,7 +878,7 @@ func _Control_PingPong_Handler(srv interface{}, ctx context.Context, dec func(in
 }
 
 func _Control_InitDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DKGRequest)
+	in := new(InitDKGPacket)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -952,13 +890,13 @@ func _Control_InitDKG_Handler(srv interface{}, ctx context.Context, dec func(int
 		FullMethod: "/drand.Control/InitDKG",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).InitDKG(ctx, req.(*DKGRequest))
+		return srv.(ControlServer).InitDKG(ctx, req.(*InitDKGPacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Control_InitReshare_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReshareRequest)
+	in := new(InitResharePacket)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -970,7 +908,7 @@ func _Control_InitReshare_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/drand.Control/InitReshare",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).InitReshare(ctx, req.(*ReshareRequest))
+		return srv.(ControlServer).InitReshare(ctx, req.(*InitResharePacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1106,45 +1044,45 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 	Metadata: "drand/control.proto",
 }
 
-func init() { proto.RegisterFile("drand/control.proto", fileDescriptor_control_2dc0074adf013293) }
+func init() { proto.RegisterFile("drand/control.proto", fileDescriptor_control_081f15b74aa71ed6) }
 
-var fileDescriptor_control_2dc0074adf013293 = []byte{
-	// 585 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x54, 0xdd, 0x6e, 0xda, 0x4c,
-	0x10, 0x85, 0x8f, 0xf0, 0xe3, 0x01, 0xf2, 0x85, 0x85, 0xa6, 0xd4, 0x55, 0x25, 0x64, 0x29, 0x2d,
-	0x52, 0x5b, 0x90, 0x68, 0xef, 0x5a, 0x55, 0x6d, 0x88, 0x4a, 0x23, 0x52, 0x15, 0x39, 0xb9, 0xea,
-	0x0d, 0x32, 0xf6, 0xc6, 0xac, 0x30, 0x5e, 0x6a, 0xaf, 0x93, 0xe6, 0x29, 0xfa, 0x8e, 0x7d, 0x92,
-	0x6a, 0xc7, 0xf6, 0xb2, 0x90, 0xe4, 0x0a, 0x9d, 0xb3, 0xf3, 0x77, 0xe6, 0x0c, 0x86, 0xb6, 0x17,
-	0x39, 0xa1, 0x37, 0x74, 0x79, 0x28, 0x22, 0x1e, 0x0c, 0x36, 0x11, 0x17, 0x9c, 0x94, 0x91, 0xb4,
-	0x22, 0x80, 0xb3, 0xe9, 0xc4, 0xa6, 0xbf, 0x12, 0x1a, 0x0b, 0xf2, 0x16, 0x0c, 0x6f, 0xe5, 0xcf,
-	0xfd, 0x88, 0x27, 0x9b, 0x6e, 0xb1, 0x57, 0xec, 0xd7, 0x47, 0x47, 0x03, 0x0c, 0x1c, 0x4c, 0x24,
-	0x77, 0x1e, 0x5e, 0x73, 0xbb, 0xe6, 0xad, 0x7c, 0x44, 0xe4, 0x39, 0x18, 0x2c, 0x9e, 0x07, 0xd4,
-	0xf1, 0x68, 0xd4, 0xfd, 0xaf, 0x57, 0xec, 0xd7, 0xec, 0x1a, 0x8b, 0x2f, 0x10, 0x93, 0x2e, 0x54,
-	0x05, 0x5b, 0x53, 0x9e, 0x88, 0x6e, 0xa9, 0x57, 0xec, 0x1b, 0x76, 0x0e, 0xad, 0x26, 0xd4, 0xb1,
-	0x67, 0xbc, 0xe1, 0x61, 0x4c, 0xad, 0x3f, 0x45, 0x38, 0xb4, 0x69, 0xbc, 0x74, 0x22, 0x9a, 0xcf,
-	0x61, 0x41, 0x89, 0x07, 0xde, 0xa3, 0x13, 0xc8, 0x47, 0x19, 0x13, 0xd2, 0x5b, 0x6c, 0xfb, 0x60,
-	0x4c, 0x48, 0x6f, 0x77, 0x07, 0x2c, 0x3d, 0x3e, 0xe0, 0xc1, 0xee, 0x80, 0x5f, 0xc0, 0x50, 0x85,
-	0x48, 0x07, 0x0e, 0x36, 0x8e, 0x58, 0xe2, 0x30, 0xc6, 0xb7, 0x82, 0x8d, 0x88, 0x10, 0x28, 0x25,
-	0x51, 0x80, 0xdd, 0x25, 0x29, 0xc1, 0x29, 0x40, 0x2d, 0xe0, 0xae, 0x23, 0x18, 0x0f, 0xad, 0x16,
-	0xfc, 0xaf, 0x34, 0x65, 0x3a, 0x0f, 0xa1, 0x71, 0xa9, 0x89, 0xb4, 0x3e, 0x40, 0xf3, 0x52, 0x0f,
-	0x20, 0x1d, 0x28, 0xb3, 0xd0, 0xa3, 0xbf, 0xb1, 0x6a, 0xd3, 0x4e, 0x81, 0x64, 0xb1, 0x0e, 0xce,
-	0xdf, 0xb0, 0x53, 0x60, 0x55, 0xe0, 0x60, 0xc6, 0x42, 0x1f, 0x7f, 0x79, 0xe8, 0x5b, 0x04, 0x8e,
-	0x66, 0xc9, 0x22, 0x60, 0xee, 0x94, 0xde, 0xe5, 0x0d, 0x5e, 0x43, 0x4b, 0xe3, 0xb2, 0x26, 0xc7,
-	0x50, 0xd9, 0x24, 0x8b, 0x29, 0xbd, 0xc3, 0x2e, 0x0d, 0x3b, 0x43, 0x56, 0x1b, 0x5a, 0xb3, 0x88,
-	0xdd, 0x38, 0x82, 0x6a, 0x15, 0xde, 0x00, 0xd1, 0x49, 0xad, 0x44, 0xc4, 0xf4, 0x12, 0x88, 0xa4,
-	0xc0, 0x31, 0x5f, 0x6d, 0xb3, 0x4f, 0xa0, 0x99, 0xe1, 0xad, 0x40, 0x97, 0x6f, 0xf3, 0x52, 0x20,
-	0x47, 0xc7, 0x6d, 0x5f, 0xfd, 0xf8, 0x7e, 0x91, 0xa7, 0x8e, 0xa0, 0xa5, 0x71, 0x59, 0xfa, 0x0b,
-	0x00, 0xbc, 0xcc, 0xb9, 0xe0, 0xeb, 0x20, 0xf5, 0xc3, 0x36, 0x90, 0xb9, 0xe2, 0xeb, 0x60, 0xf4,
-	0xb7, 0x04, 0xd5, 0x71, 0x7a, 0xe3, 0xe4, 0x25, 0xd4, 0xe4, 0x7a, 0xe4, 0x6a, 0x48, 0x3d, 0xbb,
-	0x0d, 0x49, 0x98, 0x0a, 0xc8, 0xa5, 0x15, 0xc8, 0x08, 0xaa, 0xe7, 0x21, 0x13, 0x67, 0xd3, 0x09,
-	0x69, 0x65, 0x2f, 0xdb, 0xbf, 0x83, 0x49, 0x74, 0x2a, 0x73, 0xb1, 0x40, 0x3e, 0x41, 0x5d, 0xe6,
-	0x64, 0xf6, 0x92, 0x27, 0x59, 0xd0, 0xee, 0x09, 0x9b, 0xc7, 0xfb, 0xb4, 0xca, 0x7f, 0x0f, 0x65,
-	0xf4, 0x9d, 0xb4, 0xb3, 0x10, 0xfd, 0x2a, 0xcc, 0xce, 0x2e, 0xa9, 0xb2, 0x3e, 0x83, 0xa1, 0xcc,
-	0x24, 0x4f, 0x73, 0x15, 0x7b, 0x96, 0x9b, 0xdd, 0xfb, 0x0f, 0xaa, 0xc2, 0x18, 0x60, 0x6b, 0x26,
-	0x51, 0x91, 0xfb, 0xa6, 0x9b, 0xcf, 0x1e, 0x78, 0x51, 0x45, 0x3e, 0x4a, 0x4f, 0x83, 0x80, 0xba,
-	0x82, 0xdd, 0x60, 0x9d, 0x5c, 0x84, 0xee, 0xbc, 0x12, 0xb1, 0x63, 0x7f, 0x2a, 0x02, 0x6d, 0xfd,
-	0xca, 0x02, 0xaa, 0x44, 0xec, 0x9b, 0xaf, 0x44, 0xdc, 0xbb, 0x00, 0xab, 0x70, 0xfa, 0xea, 0xe7,
-	0x89, 0xcf, 0xc4, 0x32, 0x59, 0x0c, 0x5c, 0xbe, 0x1e, 0x7a, 0xd4, 0x63, 0xf1, 0x30, 0xfd, 0xbc,
-	0xe1, 0x67, 0x6d, 0x91, 0x5c, 0xa7, 0x70, 0x51, 0x41, 0xfc, 0xee, 0x5f, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x7a, 0x31, 0x41, 0x4e, 0xfd, 0x04, 0x00, 0x00,
+var fileDescriptor_control_081f15b74aa71ed6 = []byte{
+	// 586 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x54, 0x5d, 0x8f, 0xd2, 0x40,
+	0x14, 0x05, 0xd9, 0x5d, 0xe8, 0x05, 0xcc, 0x32, 0x10, 0xad, 0x35, 0x26, 0xa4, 0xc9, 0x2a, 0x89,
+	0x0a, 0x09, 0x9a, 0xf8, 0xa0, 0x0f, 0xba, 0xa8, 0xeb, 0x86, 0x35, 0x92, 0xba, 0x4f, 0xbe, 0x90,
+	0xd2, 0xce, 0x96, 0x09, 0xa5, 0x53, 0xdb, 0xe9, 0xae, 0xfc, 0x0d, 0x7f, 0x9d, 0x3f, 0xc7, 0xcc,
+	0x9d, 0xa1, 0xb4, 0xcb, 0xee, 0x13, 0x39, 0xe7, 0xf6, 0x7e, 0x9c, 0x7b, 0x2e, 0x03, 0x5d, 0x3f,
+	0x71, 0x23, 0x7f, 0xe4, 0xf1, 0x48, 0x24, 0x3c, 0x1c, 0xc6, 0x09, 0x17, 0x9c, 0x1c, 0x22, 0x69,
+	0x75, 0x54, 0x8c, 0xae, 0x63, 0xb1, 0x51, 0x11, 0x3b, 0x83, 0xf6, 0x79, 0xc4, 0xc4, 0xe7, 0xe9,
+	0xd9, 0xcc, 0xf5, 0x56, 0x54, 0x90, 0xd7, 0x60, 0xf8, 0xab, 0x60, 0x1e, 0x24, 0x3c, 0x8b, 0xcd,
+	0x6a, 0xbf, 0x3a, 0x68, 0x8e, 0x8f, 0x87, 0x98, 0x37, 0x3c, 0x93, 0xdc, 0x79, 0x74, 0xc5, 0x9d,
+	0x86, 0xbf, 0x0a, 0x10, 0x91, 0xa7, 0x60, 0xb0, 0x74, 0x1e, 0x52, 0xd7, 0xa7, 0x89, 0xf9, 0xa0,
+	0x5f, 0x1d, 0x34, 0x9c, 0x06, 0x4b, 0x2f, 0x10, 0x13, 0x13, 0xea, 0x82, 0xad, 0x29, 0xcf, 0x84,
+	0x59, 0xeb, 0x57, 0x07, 0x86, 0xb3, 0x85, 0xf6, 0xdf, 0x2a, 0x74, 0x64, 0x5f, 0x87, 0xa6, 0x4b,
+	0x37, 0xa1, 0xba, 0xb7, 0x0d, 0x35, 0x1e, 0xfa, 0xf7, 0x76, 0x95, 0x41, 0xf9, 0x4d, 0x44, 0x6f,
+	0xb0, 0xd5, 0x9d, 0xdf, 0x44, 0xf4, 0xa6, 0x3c, 0x54, 0xed, 0xfe, 0xa1, 0x0e, 0xca, 0x43, 0x7d,
+	0x02, 0x23, 0x2f, 0x44, 0x7a, 0x70, 0x10, 0xbb, 0x62, 0x89, 0xc3, 0x18, 0xdf, 0x2a, 0x0e, 0x22,
+	0x42, 0xa0, 0x96, 0x25, 0x21, 0x76, 0x97, 0xa4, 0x04, 0xa7, 0x00, 0x8d, 0x90, 0x7b, 0xae, 0x60,
+	0x3c, 0xb2, 0x1f, 0x42, 0xeb, 0xa7, 0x14, 0xe4, 0xd0, 0xdf, 0x19, 0x4d, 0x85, 0xfd, 0x1e, 0xda,
+	0x1a, 0xa7, 0x31, 0x8f, 0x52, 0x4a, 0x7a, 0x70, 0xc8, 0x22, 0x9f, 0xfe, 0xc1, 0x12, 0x6d, 0x47,
+	0x01, 0xc9, 0xe2, 0x1e, 0x70, 0xd8, 0x96, 0xa3, 0x80, 0x7d, 0x04, 0x07, 0x33, 0x16, 0x05, 0xf8,
+	0xcb, 0xa3, 0xc0, 0x26, 0x70, 0x3c, 0xcb, 0x16, 0x21, 0xf3, 0xa6, 0x74, 0xb3, 0x6d, 0xf0, 0x12,
+	0x3a, 0x05, 0x4e, 0x37, 0x79, 0x04, 0x47, 0x71, 0xb6, 0x98, 0xd2, 0x0d, 0x76, 0x69, 0x39, 0x1a,
+	0xd9, 0x5d, 0xe8, 0xcc, 0x12, 0x76, 0xed, 0x0a, 0x5a, 0xa8, 0xf0, 0x0a, 0x48, 0x91, 0x2c, 0x94,
+	0x48, 0x58, 0xb1, 0x04, 0x22, 0x29, 0x70, 0xc2, 0x57, 0xbb, 0xec, 0x13, 0x68, 0x6b, 0xbc, 0x13,
+	0xe8, 0xf1, 0x5d, 0x9e, 0x02, 0x72, 0x74, 0x5c, 0xed, 0xe5, 0x8f, 0xef, 0x17, 0xdb, 0xd4, 0x31,
+	0x74, 0x0a, 0x9c, 0x4e, 0x7f, 0x06, 0x80, 0xa7, 0x37, 0x17, 0x7c, 0x1d, 0xaa, 0xe5, 0x3b, 0x06,
+	0x32, 0x97, 0x7c, 0x1d, 0x8e, 0xff, 0xd5, 0xa0, 0x3e, 0x51, 0xa7, 0x4d, 0x9e, 0x43, 0x43, 0xae,
+	0x47, 0xae, 0x86, 0x34, 0xf5, 0x21, 0x48, 0xc2, 0xca, 0x81, 0x5c, 0x5a, 0x85, 0x8c, 0xa0, 0xae,
+	0x4f, 0x9c, 0xf4, 0x74, 0xa4, 0x74, 0xf2, 0x56, 0x4b, 0xb3, 0x5f, 0xe4, 0xff, 0xc2, 0xae, 0x90,
+	0x77, 0xd0, 0x2c, 0xdc, 0x26, 0x31, 0x0b, 0x49, 0xa5, 0x7b, 0xdd, 0x4b, 0x7c, 0x0b, 0x87, 0xe8,
+	0x36, 0xe9, 0xea, 0x40, 0xf1, 0x16, 0xac, 0x5e, 0x99, 0x54, 0x82, 0xed, 0x0a, 0xf9, 0x08, 0x46,
+	0x6e, 0x21, 0x79, 0xbc, 0x9d, 0xfd, 0x96, 0xd1, 0x96, 0xb9, 0x1f, 0xc8, 0x2b, 0x4c, 0x00, 0x76,
+	0x16, 0xe6, 0xf3, 0xee, 0x59, 0x6d, 0x3d, 0xb9, 0x23, 0x92, 0x17, 0xf9, 0x20, 0x9d, 0x0c, 0x43,
+	0xea, 0x09, 0x76, 0x8d, 0x75, 0xb6, 0x22, 0x8a, 0x7e, 0xe7, 0x22, 0x4a, 0xa6, 0x2b, 0x11, 0x68,
+	0xe6, 0x57, 0x16, 0xd2, 0x5c, 0xc4, 0x6d, 0xcb, 0x73, 0x11, 0x7b, 0xbe, 0xdb, 0x95, 0xd3, 0x17,
+	0xbf, 0x4e, 0x02, 0x26, 0x96, 0xd9, 0x62, 0xe8, 0xf1, 0xf5, 0xc8, 0xa7, 0x3e, 0x4b, 0x47, 0xea,
+	0xbd, 0xc2, 0x97, 0x6a, 0x91, 0x5d, 0x29, 0xb8, 0x38, 0x42, 0xfc, 0xe6, 0x7f, 0x00, 0x00, 0x00,
+	0xff, 0xff, 0xc5, 0xf4, 0x3a, 0x96, 0xea, 0x04, 0x00, 0x00,
 }

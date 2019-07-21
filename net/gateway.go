@@ -8,7 +8,6 @@ import (
 	//"github.com/dedis/drand/protobuf/control"
 
 	"github.com/dedis/drand/protobuf/drand"
-	control "github.com/dedis/drand/protobuf/drand"
 )
 
 //var DefaultTimeout = time.Duration(30) * time.Second
@@ -42,7 +41,7 @@ type Service interface {
 // NewGrpcGatewayInsecure returns a grpc Gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewGrpcGatewayInsecure(listen string, port string, s Service, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayInsecure(listen string, s Service, opts ...grpc.DialOption) Gateway {
 	return Gateway{
 		ProtocolClient: NewGrpcClient(opts...),
 		Listener:       NewTCPGrpcListener(listen, s),
@@ -51,7 +50,7 @@ func NewGrpcGatewayInsecure(listen string, port string, s Service, opts ...grpc.
 
 // NewGrpcGatewayFromCertManager returns a grpc gateway using the TLS
 // certificate manager
-func NewGrpcGatewayFromCertManager(listen string, port string, certPath, keyPath string, certs *CertManager, s Service, cs control.ControlServer, opts ...grpc.DialOption) Gateway {
+func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) Gateway {
 	l, err := NewTLSGrpcListener(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
 		panic(err)

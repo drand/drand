@@ -10,6 +10,7 @@ import (
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/crypto/dkg"
+	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
@@ -17,31 +18,32 @@ import (
 
 // testDKGServer implements a barebone service to be plugged in a net.DefaultService
 type testDKGServer struct {
+	*net.EmptyServer
 	h *Handler
 }
 
-func (t *testDKGServer) Setup(c context.Context, in *dkg.Packet) (*dkg.DKGResponse, error) {
-	t.h.Process(c, in)
-	return &dkg.DKGResponse{}, nil
+func (t *testDKGServer) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
+	t.h.Process(c, in.Dkg)
+	return &drand.Empty{}, nil
 }
 
-func (t *testDKGServer) Reshare(c context.Context, in *dkg.ResharePacket) (*dkg.ReshareResponse, error) {
-	t.h.Process(c, in.Packet)
-	return &dkg.ReshareResponse{}, nil
+func (t *testDKGServer) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
+	t.h.Process(c, in.Dkg)
+	return &drand.Empty{}, nil
 }
 
 // testNet implements the network interface that the dkg Handler expects
 type testNet struct {
 	fresh bool
-	net.InternalClient
+	net.ProtocolClient
 }
 
 func (t *testNet) Send(p net.Peer, d *dkg.Packet) error {
 	var err error
 	if t.fresh {
-		_, err = t.InternalClient.Setup(p, d)
+		_, err = t.ProtocolClient.Setup(p, &drand.SetupPacket{Dkg: d})
 	} else {
-		_, err = t.InternalClient.Reshare(p, &dkg.ResharePacket{Packet: d})
+		_, err = t.ProtocolClient.Reshare(p, &drand.ResharePacket{Dkg: d})
 	}
 	return err
 }
@@ -49,7 +51,7 @@ func (t *testNet) Send(p net.Peer, d *dkg.Packet) error {
 func testNets(n int, fresh bool) []*testNet {
 	nets := make([]*testNet, n, n)
 	for i := 0; i < n; i++ {
-		nets[i] = &testNet{fresh: fresh, InternalClient: net.NewGrpcClient()}
+		nets[i] = &testNet{fresh: fresh, ProtocolClient: net.NewGrpcClient()}
 		nets[i].SetTimeout(5 * time.Second)
 	}
 	return nets
@@ -82,7 +84,7 @@ func TestDKGWithTimeout(t *testing.T) {
 		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 	}
 	defer func() {
@@ -158,7 +160,7 @@ func TestDKGFresh(t *testing.T) {
 		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
 		require.NoError(t, err)
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 	}
 	defer func() {
@@ -253,7 +255,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 	}
 	// new nodes
@@ -272,7 +274,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 		require.False(t, handlers[i].oldNode)
 		require.Equal(t, handlers[i].nidx, newIdx)
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 
 	}
@@ -395,7 +397,7 @@ func TestDKGResharingPartial(t *testing.T) {
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 	}
 	// new nodes
@@ -413,7 +415,7 @@ func TestDKGResharingPartial(t *testing.T) {
 		require.False(t, handlers[i].oldNode)
 		require.Equal(t, handlers[i].nidx, newIdx)
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 
 	}
@@ -510,7 +512,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 	}
 	// new nodes
@@ -529,7 +531,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 		require.False(t, handlers[i].oldNode)
 		require.Equal(t, handlers[i].nidx, newIdx)
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 
 	}
@@ -630,7 +632,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 		require.NoError(t, err)
 
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 	}
 	// new nodes
@@ -648,7 +650,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 		require.False(t, handlers[i].oldNode)
 		require.Equal(t, handlers[i].nidx, newIdx)
 		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &net.DefaultService{D: &dkgServer})
+		listeners[i] = net.NewTCPGrpcListener(newPrivs[newIdx].Public.Addr, &dkgServer)
 		go listeners[i].Start()
 
 	}

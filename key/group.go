@@ -18,15 +18,17 @@ import (
 
 // Group holds all information about a group of drand nodes.
 type Group struct {
+	// Curve identifier
+	Curve string
+	// Threshold to setup during the DKG or resharing protocol.
+	Threshold int
+	// Period to use for the beacon randomness generation
+	Period time.Duration
 	// List of identities forming this group
 	Nodes []*Identity
 	// The distributed public key of this group. It is nil if the group has not
 	// ran a DKG protocol yet.
 	PublicKey *DistPublic
-	// Threshold to setup during the DKG or resharing protocol.
-	Threshold int
-	// Period to use for the beacon randomness generation
-	Period time.Duration
 }
 
 // Identities return the underlying slice of identities
@@ -107,10 +109,11 @@ func (g *Group) String() string {
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	Nodes     []*PublicTOML
-	PublicKey *DistPublicTOML
+	Curve     string
 	Threshold int
 	Period    string
+	Nodes     []*PublicTOML
+	PublicKey *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
@@ -119,6 +122,10 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")
 	}
+	if gt.Curve != Pairing.String() {
+		return fmt.Errorf("group toml has unknown curve %s", gt.Curve)
+	}
+	g.Curve = gt.Curve
 	g.Threshold = gt.Threshold
 	g.Nodes = make([]*Identity, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
@@ -147,7 +154,10 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 
 // TOML returns a TOML-encodable version of the Group
 func (g *Group) TOML() interface{} {
-	gtoml := &GroupTOML{Threshold: g.Threshold}
+	gtoml := &GroupTOML{
+		Curve:     Pairing.String(),
+		Threshold: g.Threshold,
+	}
 	gtoml.Nodes = make([]*PublicTOML, g.Len())
 	for i, p := range g.Nodes {
 		gtoml.Nodes[i] = p.TOML().(*PublicTOML)
@@ -182,7 +192,10 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 
 // NewGroup returns a list of identities as a Group.
 func NewGroup(list []*Identity, threshold int) *Group {
+	// XXX can't do that now since relying on index in the group in dkg and test
+	//sort.Sort(ByKey(list))
 	return &Group{
+		Curve:     Pairing.String(),
 		Nodes:     list,
 		Threshold: threshold,
 	}
@@ -190,7 +203,9 @@ func NewGroup(list []*Identity, threshold int) *Group {
 
 // LoadGroup returns a group associated with a given public key
 func LoadGroup(list []*Identity, public *DistPublic, threshold int) *Group {
+	//sort.Sort(ByKey(list))
 	return &Group{
+		Curve:     Pairing.String(),
 		Nodes:     list,
 		Threshold: threshold,
 		PublicKey: public,

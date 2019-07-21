@@ -115,17 +115,18 @@ message GroupRequest {
 }
 
 // GroupResponse contains the Group information currently used by the drand node
+// in HEXADECIMAL the same format as the group.toml file.
 message GroupResponse {
     uint32 threshold = 2;
     // in ms
     uint32 period = 3; 
     repeated Node nodes = 4;
-    repeated bytes distkey = 5; 
+    repeated string distkey = 5; 
 }
 
 // Node represents the information about a drand's node
 message Node {
     string address = 1;
-    bytes key = 2; // public key of the node
+    string key = 2; // public key of the node
     bool TLS = 3;
 }

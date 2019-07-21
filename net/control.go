@@ -72,8 +72,8 @@ func (c *ControlClient) Ping() error {
 // start the protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeout string) (*control.ReshareResponse, error) {
-	request := &control.ReshareRequest{
+func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeout string) (*control.Empty, error) {
+	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
 		},
@@ -90,8 +90,8 @@ func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeou
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string) (*control.DKGResponse, error) {
-	request := &control.DKGRequest{
+func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string) (*control.Empty, error) {
+	request := &control.InitDKGPacket{
 		DkgGroup: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: groupPath},
 		},

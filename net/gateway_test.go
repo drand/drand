@@ -29,6 +29,7 @@ func (t *testPeer) IsTLS() bool {
 }
 
 type testRandomnessServer struct {
+	*EmptyServer
 	round uint64
 }
 
@@ -52,9 +53,9 @@ func TestListener(t *testing.T) {
 	addr1 := "127.0.0.1:4000"
 	peer1 := &testPeer{addr1, false}
 	//addr2 := "127.0.0.1:4001"
-	randServer := &testRandomnessServer{42}
+	randServer := &testRandomnessServer{round: 42}
 
-	lis1 := NewTCPGrpcListener(addr1, &DefaultService{Pu: randServer})
+	lis1 := NewTCPGrpcListener(addr1, randServer)
 	go lis1.Start()
 	defer lis1.Stop()
 	time.Sleep(100 * time.Millisecond)
@@ -92,9 +93,9 @@ func TestListenerTLS(t *testing.T) {
 		//require.NoError(t, httpscerts.Generate(certPath, keyPath, addr1))
 	}
 
-	randServer := &testRandomnessServer{42}
+	randServer := &testRandomnessServer{round: 42}
 
-	lis1, err := NewTLSGrpcListener(addr1, certPath, keyPath, &DefaultService{Pu: randServer})
+	lis1, err := NewTLSGrpcListener(addr1, certPath, keyPath, randServer)
 	require.NoError(t, err)
 	go lis1.Start()
 	defer lis1.Stop()

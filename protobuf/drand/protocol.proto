@@ -10,12 +10,13 @@ package drand;
 option go_package = "github.com/dedis/drand/protobuf/drand";
 
 import "crypto/dkg/dkg.proto";
+import "drand/empty.proto";
 
 service Protocol {
     // Setup is doing the DKG setup phase
-    rpc Setup(SetupPacket) returns (Empty);
+    rpc Setup(SetupPacket) returns (drand.Empty);
     // Reshare performs the resharing phase
-    rpc Reshare(ResharePacket) returns (Empty);
+    rpc Reshare(ResharePacket) returns (drand.Empty);
     // NewBeacon asks for a partial signature to another node
     rpc NewBeacon(BeaconRequest) returns (BeaconResponse);
 }
@@ -44,10 +45,8 @@ message SetupPacket {
 // generate and send their deals - indicate to which new group are we resharing.
 // drand should keep a list of new ready-to-operate groups allowed.
 message ResharePacket {
-    dkg.Packet setup = 1;
+    dkg.Packet dkg = 1;
     string group_hash = 2;
 }
 
-message Empty {
 
-}
