@@ -66,7 +66,12 @@ function printRound(randomness, previous, round, verified, timestamp) {
   var p = document.createElement("p");
   var p2 = document.createElement("p");
   digestMessage(randomness).then(digestValue => {
-    var textnode = document.createTextNode(hexString(digestValue));
+    var randomness = hexString(digestValue);
+    var middle = Math.ceil(randomness.length / 2);
+    var s1 = randomness.slice(0, middle);
+    var s2 = randomness.slice(middle);
+    var randomness_2lines =  s1 + " \ " + s2;
+    var textnode = document.createTextNode(randomness_2lines);
     p.appendChild(textnode);
     latestDiv.replaceChild(p, latestDiv.childNodes[0]);
   });
@@ -100,82 +105,63 @@ function printRound(randomness, previous, round, verified, timestamp) {
 }
 
 /**
-* printNodes prints interactive list of drand nodes
+* printNodes prints interactive map of drand nodes
 **/
 function printNodes() {
-    $(function () {
-      $(".mapcontainer").mapael({
-        map: {
-          name: "world_countries",
-          defaultArea: {
-            attrs: {
-              fill: "#d1d1d1"
-              , stroke: "#d1d1d1"
-            },
-            attrsHover: {
-              fill: "#d1d1d1"
-              , stroke: "#d1d1d1"
-            }
+  var nodes = [
+    JSON.parse('{"addr": "drand.cothority.net:7003", "lat": 48.86, "lon": 2.3444}'),
+    JSON.parse('{"addr": "drand.zerobyte.io:8888", "lat": 41.827637, "lon": 2.462732}'),
+    JSON.parse('{"addr": "drand.nikkolasg.xyz:8888", "lat": 50.989125, "lon": 9.205674}'),
+    JSON.parse('{"addr": "drand.lbarman.ch:443", "lat": 45.289125, "lon": 13.205674}'),
+    JSON.parse('{"addr": "drand.kudelskisecurity.com:443", "lat": 39.789125, "lon": 9.205674}'),
+    JSON.parse('{"addr": "drand.protocol.ai:8080", "lat": 44.667, "lon": -122.833}'),
+    JSON.parse('{"addr": "random.uchile.cl:8080", "lat": -33.781682, "lon": -70.924195}'),
+    JSON.parse('{"addr": "drand.cloudflare.com:443", "lat": 37.792032, "lon": -122.394613}')
+  ];
+
+  $(function () {
+    $(".mapcontainer").mapael({
+      //default settings
+      map: {
+        name: "world_countries",
+        defaultArea: {
+          attrs: {
+            fill: "#d1d1d1"
+            , stroke: "#d1d1d1"
           },
-          defaultPlot: {
-            size:20,
-            factor: 0.6,
-            attrs: {
-              fill:"#e9b4a0",
-              stroke: "#fff"
-            },
-            eventHandlers: {
-              click: function (e, id, mapElem, textElem, elemOptions) {
-                window.identity = {Address: elemOptions.tooltip.content, TLS: true};
-                refresh();
-              }
-            }
+          attrsHover: {
+            fill: "#d1d1d1"
+            , stroke: "#d1d1d1"
           }
         },
-        plots: {
-          'cothority': {
-            latitude: 48.86,
-            longitude: 2.3444,
-            tooltip: {content: "drand.cothority.net:7003"}
+        defaultPlot: {
+          size:20,
+          factor: 0.6,
+          attrs: {
+            fill:"#e9b4a0",
+            stroke: "#fff"
           },
-          'zerobyte': {
-            latitude: 41.827637,
-            longitude: 2.462732,
-            tooltip: {content: "drand.zerobyte.io:8888"}
-          },
-          'nikkolasg': {
-            latitude: 50.989125,
-            longitude: 9.205674,
-            tooltip: {content: "drand.nikkolasg.xyz:8888"}
-          },
-          'lbarman': {
-            latitude: 45.289125,
-            longitude: 13.205674,
-            tooltip: {content: "drand.lbarman.ch:443"}
-          },
-          'kudelski': {
-            latitude: 39.789125,
-            longitude: 9.205674,
-            tooltip: {content: "drand.kudelskisecurity.com:443"}
-          },
-          'pl': {
-            latitude: 44.667,
-            longitude: -122.833,
-            tooltip: {content: "drand.protocol.ai:8080"}
-          },
-          'cf': {
-            latitude: 37.792032,
-            longitude: -122.394613,
-            tooltip: {content: "drand.cloudflare.com:443"}
-          },
-          'uoc': {
-            latitude: -33.781682,
-            longitude: -70.924195,
-            tooltip: {content: "random.uchile.cl:8080"}
-          },
+          eventHandlers: {
+            click: function (e, id, mapElem, textElem, elemOptions) {
+              window.identity = {Address: elemOptions.tooltip.content, TLS: true};
+              refresh();
+            }
+          }
         }
-      });
+      }
     });
+    //for each node, look at status and show by adding to plot list if up
+    for (let id in nodes) {
+      var node = nodes[id];
+      isUp(nodes[id].addr, true)
+      .then((rand) => {
+        var node = nodes[id];
+        var updatedOptions = JSON.parse('{"newPlots": {"' + node.addr +'": {"latitude":"' + node.lat +'", "longitude":"' + node.lon + '", "tooltip": { "content":"' + node.addr +'"}}}}');
+        $(".mapcontainer").trigger('update', updatedOptions);
+      })
+      .catch((err) => {console.log(nodes[id].addr + ' is down');});
+    }
+  });
 }
 
 /**
@@ -263,8 +249,7 @@ function refresh() {
 **/
 function getLatestIndex() {
   return new Promise(function(resolve, reject) {
-    var identity = window.identity;
-    fetchPublic(identity).then((rand) => {resolve(rand.round);})
+    fetchPublic(window.identity).then((rand) => {resolve(rand.round);})
   });
 }
 
@@ -274,7 +259,7 @@ function getLatestIndex() {
 function digestMessage(message) {
   const encoder = new TextEncoder();
   const data = encoder.encode(message);
-  return window.crypto.subtle.digest('SHA-256', data);
+  return window.crypto.subtle.digest('SHA-512', data);
 }
 
 function hexString(buffer) {
