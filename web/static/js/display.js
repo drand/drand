@@ -18,16 +18,13 @@ function displayRandomness() {
 
   //start the progress bar
   move();
-  //get readable timestamp
-  var date = new Date();
-  var timestamp = date.toString().substring(3, 34);
   //print randomness
   fetchAndVerify(identity, distkey)
   .then(function (fulfilled) {
-    printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, true, timestamp);
+    printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, true);
   })
   .catch(function (error) {
-    printRound(error.randomness, error.previous, error.round, false, timestamp);
+    printRound(error.randomness, error.previous, error.round, false);
   });
   //print servers
   printNodes();
@@ -56,29 +53,31 @@ function move() {
 /**
 * printRound formats and prints the given randomness with interactions
 **/
-function printRound(randomness, previous, round, verified, timestamp) {
+function printRound(randomness, previous, round, verified) {
   if (round <= currRound || round == undefined) {
     return
   }
   currRound = round;
 
   //print randomness as current
-  var p = document.createElement("p");
+  var p = document.createElement("pre");
   var p2 = document.createElement("p");
   digestMessage(randomness).then(digestValue => {
     var randomness = hexString(digestValue);
-    var middle = Math.ceil(randomness.length / 2);
-    var s1 = randomness.slice(0, middle);
-    var s2 = randomness.slice(middle);
-    var randomness_2lines =  s1 + " \ " + s2;
-    var textnode = document.createTextNode(randomness_2lines);
+    var quarter = Math.ceil(randomness.length / 4);
+    var s1 = randomness.slice(0, quarter);
+    var s2 = randomness.slice(quarter, 2*quarter);
+    var s3 = randomness.slice(2*quarter, 3*quarter);
+    var s4 = randomness.slice(3*quarter);
+    var randomness_4lines =  s1 + '\n' + s2 + "\n" + s3 + "\n" + s4;
+    var textnode = document.createTextNode(randomness_4lines);
     p.appendChild(textnode);
     latestDiv.replaceChild(p, latestDiv.childNodes[0]);
   });
   if (verified) {
-    var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " & verified");
+    var textnode2 = document.createTextNode(round + " : verified");
   } else {
-    var textnode2 = document.createTextNode(round + ' @ ' + timestamp + " & unverified");
+    var textnode2 = document.createTextNode(round + " : unverified");
   }
   p2.appendChild(textnode2);
   latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
@@ -138,7 +137,7 @@ function printNodes() {
           size:20,
           factor: 0.6,
           attrs: {
-            fill:"#e9b4a0",
+            fill:"#99D19A",
             stroke: "#fff"
           },
           eventHandlers: {
@@ -194,10 +193,10 @@ function goToPrev() {
   var distkey = window.distkey;
   fetchAndVerifyRound(identity, distkey, round)
   .then(function (fulfilled) {
-    printRound(fulfilled.randomness, fulfilled.previous, round, true, " _ ");
+    printRound(fulfilled.randomness, fulfilled.previous, round, true);
   })
   .catch(function (error) {
-    printRound(error.randomness, error.previous, round, false, " _ ");
+    printRound(error.randomness, error.previous, round, false);
   });
 }
 
@@ -227,10 +226,10 @@ function goToNext() {
     var distkey = window.distkey;
     fetchAndVerifyRound(identity, distkey, round)
     .then(function (fulfilled) {
-      printRound(fulfilled.randomness, fulfilled.previous, round, true, "_");
+      printRound(fulfilled.randomness, fulfilled.previous, round, true);
     })
     .catch(function (error) {
-      printRound(error.randomness, error.previous, round, false, "_");
+      printRound(error.randomness, error.previous, round, false);
     });
   });
 }
