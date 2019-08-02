@@ -13,7 +13,6 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/stretchr/testify/require"
@@ -26,6 +25,7 @@ import (
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
+	*net.EmptyServer
 	h *Handler
 }
 
@@ -136,13 +136,10 @@ func TestBeaconSimple(t *testing.T) {
 	// launchBeacon will launch the beacon at the given index. Each time a new
 	// beacon is ready from that node, it saves the beacon and the node index
 	// into the map
-	gid, exists := crypto.GroupToID(key.G1)
-	require.True(t, exists)
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
 			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
-			require.Equal(t, b.Gid, gid)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
 			l.Unlock()
@@ -155,7 +152,7 @@ func TestBeaconSimple(t *testing.T) {
 		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &beaconServer)
 		go listeners[i].Start()
 		go handlers[i].Run(period, catchup)
 	}
@@ -305,7 +302,7 @@ func TestBeaconNEqualT(t *testing.T) {
 		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &net.DefaultService{B: &beaconServer})
+		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &beaconServer)
 		go listeners[i].Start()
 		go handlers[i].Run(period, catchup)
 	}

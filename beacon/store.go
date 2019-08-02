@@ -22,13 +22,10 @@ type Beacon struct {
 	PreviousSig []byte
 	// Round is the round number this beacon is tied to
 	Round uint64
-	// Signature is the tbls signature of Round || PreviousRand
+	// Signature is the BLS deterministic signature over Round || PreviousRand
 	Signature []byte
-	// Randomness is the hash of the tbls signature of Round || PreviousRand
+	// Randomness is the hash of Signature
 	Randomness []byte
-	// Gid is the group id of the randomness - usually fixed
-	// See protobuf's crypto elements definitions for more information.
-	Gid int32
 }
 
 // Message returns a slice of bytes as the message to sign or to verify

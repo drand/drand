@@ -12,8 +12,8 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
-	vss_proto "github.com/dedis/drand/protobuf/crypto/share/vss"
-	dkg_proto "github.com/dedis/drand/protobuf/dkg"
+	dkg_proto "github.com/dedis/drand/protobuf/crypto/dkg"
+	vss_proto "github.com/dedis/drand/protobuf/crypto/vss"
 	"go.dedis.ch/kyber/v3"
 	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
@@ -148,7 +148,7 @@ func NewHandler(n Network, c *Config, l log.Logger) (*Handler, error) {
 }
 
 // Process process an incoming message from the network.
-func (h *Handler) Process(c context.Context, packet *dkg_proto.DKGPacket) {
+func (h *Handler) Process(c context.Context, packet *dkg_proto.Packet) {
 	h.Lock()
 	defer h.Unlock()
 	if !h.timeoutLaunched {
@@ -268,7 +268,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 	if h.newNode {
 		// this should always be the case since that function should only be
 		// called  to new nodes members§
-		out := &dkg_proto.DKGPacket{
+		out := &dkg_proto.Packet{
 			Response: &dkg_proto.Response{
 				Index: resp.Index,
 				Response: &vss_proto.Response{
@@ -328,7 +328,7 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 	if j != nil && h.oldNode {
 		// XXX TODO
 		localLog.Debug("broadcasting justification")
-		packet := &dkg_proto.DKGPacket{
+		packet := &dkg_proto.Packet{
 			Justification: &dkg_proto.Justification{
 				Index: j.Index,
 				Justification: &vss_proto.Justification{
@@ -428,7 +428,7 @@ func (h *Handler) sendDeals() error {
 			panic("this is a bug with drand that should not happen. Please submit report if possible")
 		}
 		id := ids[i]
-		packet := &dkg_proto.DKGPacket{
+		packet := &dkg_proto.Packet{
 			Deal: &dkg_proto.Deal{
 				Index:     deal.Index,
 				Signature: deal.Signature,
@@ -459,7 +459,7 @@ func (h *Handler) sendDeals() error {
 // - Responses are sent to to both new nodes and old nodes but *only once per
 // node*
 // - Justification are sent to the new nodes only
-func (h *Handler) broadcast(p *dkg_proto.DKGPacket, toOldNodes bool) {
+func (h *Handler) broadcast(p *dkg_proto.Packet, toOldNodes bool) {
 	var sent = make(map[string]bool)
 	var good, oldGood int
 	for i, id := range h.conf.NewNodes.Identities() {
@@ -526,9 +526,8 @@ func (h *Handler) raddr(i uint32, oldNodes bool) string {
 }
 
 // Network is used by the Handler to send a DKG protocol packet over the network.
-// XXX Not really needed, should use the net/protobuf interface instead
 type Network interface {
-	Send(net.Peer, *dkg_proto.DKGPacket) error
+	Send(net.Peer, *dkg_proto.Packet) error
 }
 
 type intArray []int

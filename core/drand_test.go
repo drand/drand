@@ -441,7 +441,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	//fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED SECOND PASS \n\n\n\n\n\n\n\n\n")
 
 	client := net.NewGrpcClientFromCertManager(root.opts.certmanager, root.opts.grpcOpts...)
-	resp, err := client.Public(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 }

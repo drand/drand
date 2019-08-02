@@ -8,16 +8,16 @@ package drand;
 
 option go_package = "github.com/dedis/drand/protobuf/drand";
 
-import "crypto/element.proto";
+import "drand/empty.proto";
 
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
     rpc PingPong(Ping) returns (Pong) { }
     // InitDKG sends information to daemon to start a fresh DKG protocol
-    rpc InitDKG(DKGRequest) returns (DKGResponse) { }
+    rpc InitDKG(InitDKGPacket) returns (drand.Empty) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
-    rpc InitReshare(ReshareRequest) returns (ReshareResponse) { }
+    rpc InitReshare(InitResharePacket) returns (drand.Empty) { }
     // Share returns the current private share used by the node
     rpc Share(ShareRequest) returns (ShareResponse) { }
     // PublicKey returns the longterm public key of the drand node
@@ -32,20 +32,16 @@ service Control {
     rpc GroupFile(GroupTOMLRequest) returns (GroupTOMLResponse) { }
 }
 
-message DKGRequest {
+message InitDKGPacket {
     GroupInfo dkg_group = 1;
     bool is_leader = 2;
     // timeout as parsed by Golang's time.ParseDuration method.
     string timeout = 3;
 }
 
-message DKGResponse {
-
-}
-
 // ReshareRequest contains references to the old and new group to perform the
 // resharing protocol.
-message ReshareRequest {
+message InitResharePacket {
     // Old group that needs to issue the shares for the new group
     // NOTE: It can be empty / nil. In that case, the drand node will try to
     // load the group he belongs to at the moment, if any, and use it as the old
@@ -65,18 +61,14 @@ message GroupInfo {
     }
 }
 
-message ReshareResponse {
-
-}
-
 // ShareRequest requests the private share of a drand node
 message ShareRequest {
 }
 
 // ShareResponse holds the private share of a drand node
 message ShareResponse {
-  uint32 index = 1;
-  element.Scalar share = 2;
+  uint32 index = 2;
+  bytes share = 3;
 }
 
 message Ping {
@@ -91,7 +83,7 @@ message PublicKeyRequest {
 
 // PublicKeyResponse holds the public key of a drand node
 message PublicKeyResponse {
-  element.Point pubKey = 1;
+  bytes pubKey = 2;
 }
 
 // PrivateKeyRequest requests the private key of a drand node
@@ -100,7 +92,7 @@ message PrivateKeyRequest {
 
 // PrivateKeyResponse holds the private key of a drand node
 message PrivateKeyResponse {
-  element.Scalar priKey = 1;
+  bytes priKey = 2;
 }
 
 // CokeyRequest requests the collective key of a drand node
@@ -109,7 +101,7 @@ message CokeyRequest {
 
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
-  element.Point coKey = 1;
+  bytes coKey = 2;
 }
 
 message GroupTOMLRequest {

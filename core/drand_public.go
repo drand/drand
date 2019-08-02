@@ -10,15 +10,12 @@ import (
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/entropy"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/protobuf/crypto"
-	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"go.dedis.ch/kyber/v3"
 	"google.golang.org/grpc/peer"
 )
 
 // Setup is the public method to call during a DKG protocol.
-func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DKGResponse, error) {
+func (d *Drand) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.dkgDone {
@@ -27,12 +24,12 @@ func (d *Drand) Setup(c context.Context, in *dkg_proto.DKGPacket) (*dkg_proto.DK
 	if d.dkg == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
-	d.dkg.Process(c, in)
-	return &dkg_proto.DKGResponse{}, nil
+	d.dkg.Process(c, in.Dkg)
+	return new(drand.Empty), nil
 }
 
 // Reshare is called when a resharing protocol is in progress
-func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_proto.ReshareResponse, error) {
+func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 
@@ -56,13 +53,13 @@ func (d *Drand) Reshare(c context.Context, in *dkg_proto.ResharePacket) (*dkg_pr
 	}
 
 	d.nextFirstReceived = true
-	if in.Packet != nil {
+	if in.Dkg != nil {
 		// first packet from the "leader" contains a nil packet for
 		// nodes that are in the old list that must broadcast their
 		// deals.
-		d.dkg.Process(c, in.Packet)
+		d.dkg.Process(c, in.Dkg)
 	}
-	return &dkg_proto.ReshareResponse{}, nil
+	return new(drand.Empty), nil
 }
 
 // NewBeacon methods receives a beacon generation requests and answers
@@ -76,9 +73,9 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.Be
 	return d.beacon.ProcessBeacon(c, in)
 }
 
-// Public returns a public random beacon according to the request. If the Round
+// PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
-func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -96,29 +93,18 @@ func (d *Drand) Public(c context.Context, in *drand.PublicRandRequest) (*drand.P
 	}
 
 	return &drand.PublicRandResponse{
-		Previous: beacon.PreviousSig,
-		Round:    beacon.Round,
-		Signature: &crypto.Point{
-			Point: beacon.Signature,
-			Gid:   crypto.GroupID(beacon.Gid),
-		},
-		Randomness: beacon.Randomness,
+		Previous:  beacon.PreviousSig,
+		Round:     beacon.Round,
+		Signature: beacon.Signature,
 	}, nil
 }
 
-// Private returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
-func (d *Drand) Private(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+// PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
+func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	protoPoint := priv.GetRequest().GetEphemeral()
-	point, err := crypto.ProtoToKyberPoint(protoPoint)
-	if err != nil {
+	point := key.G2.Point()
+	if err := point.UnmarshalBinary(protoPoint); err != nil {
 		return nil, err
-	}
-	groupable, ok := point.(kyber.Groupable)
-	if !ok {
-		return nil, errors.New("point is not on a registered curve")
-	}
-	if groupable.Group().String() != key.G2.String() {
-		return nil, errors.New("point is not on the supported curve")
 	}
 	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {

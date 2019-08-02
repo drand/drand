@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/dedis/drand/log"
-	"github.com/dedis/drand/protobuf/crypto"
 	proto "github.com/dedis/drand/protobuf/drand"
 	"go.dedis.ch/kyber/v3/share"
 	"go.dedis.ch/kyber/v3/sign/bls"
@@ -40,7 +39,7 @@ type Config struct {
 type Handler struct {
 	conf *Config
 	// to communicate with other drand peers
-	client net.InternalClient
+	client net.ProtocolClient
 	// where to store the new randomness beacon
 	store Store
 	// to sign beacons
@@ -80,18 +79,13 @@ type Handler struct {
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.InternalClient, s Store, conf *Config, l log.Logger) (*Handler, error) {
+func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Handler, error) {
 	if conf.Private == nil || conf.Share == nil || conf.Group == nil || conf.Seed == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}
 	idx, exists := conf.Group.Index(conf.Private.Public)
 	if !exists {
 		return nil, errors.New("beacon: keypair not included in the given group")
-	}
-	// XXX Make it parametrizable
-	id, exists := crypto.GroupToID(key.G1)
-	if !exists {
-		return nil, errors.New("beacon: group has no registered ID")
 	}
 
 	addr := conf.Group.Nodes[idx].Addr
@@ -109,7 +103,6 @@ func NewHandler(c net.InternalClient, s Store, conf *Config, l log.Logger) (*Han
 		cache:     newSignatureCache(),
 		addr:      addr,
 		catchupCh: make(chan Beacon, 1),
-		id:        id,
 		seed:      conf.Seed,
 		l:         l.With("beacon", idx),
 	}, nil
@@ -340,7 +333,6 @@ func (h *Handler) run(round uint64, prevSig []byte, winCh chan roundInfo, closeC
 		PreviousSig: prevSig,
 		Signature:   finalSig,
 		Randomness:  randomness,
-		Gid:         h.id,
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway
