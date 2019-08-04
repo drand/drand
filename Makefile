@@ -6,7 +6,7 @@ test-unit:
 	GO111MODULE=on go test -v -mod=vendor ./...
 
 test-integration:
-	$(MAKE) -C test-integration test
+	sudo $(MAKE) -C test-integration test
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
@@ -20,4 +20,4 @@ linter:
 
 demo:
 deploy-local:
-	cd demo && ./run.sh
+	cd demo && sudo ./run.sh
