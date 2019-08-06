@@ -68,8 +68,9 @@ phases:
     threshold version of the *Boneh-Lynn-Shacham* (BLS) signature scheme and their
     respective private key shares. Once any node (or third-party observer) has
     gathered t partial signatures, it can reconstruct the full BLS
-    signature (using Lagrange interpolation) which corresponds to the collective
-    random value. This random beacon / full BLS signature can be verified against
+    signature (using Lagrange interpolation). The signature is then hashed using
+    SHA-512 to ensure that there is no bias in the byte representation of the final output.
+    This hash corresponds to the collective random value and can be verified against
     the collective public key.
 
 ### Private Randomness
@@ -213,7 +214,7 @@ drand share <group-file>  --timeout 10s
 One of the nodes has to function as the leader to initiate the DKG protocol (no
 additional trust assumptions), he can do so with:
 ```
-drand share --leader <group-file> 
+drand share --leader <group-file>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -353,21 +354,20 @@ The JSON-formatted output produced by drand is of the following form:
     "round": 2,
     "previous": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a2
 d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
-    "randomness": {
-        "gid": 21,
-        "point": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
-2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342"
-    }
+    "signature": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
+2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
+    "randomness": "ee9e1aeba4a946ce2ac2bd42ab04439c959d8538546ea637418394c99c522eec2
+    92bbbfac2605cbfe3734e40a5d3cc762428583b243151b2a84418e376ea0af6"
 }
 ```
 
-Here `randomness` is the latest random value, which is a threshold BLS signature
-on the previous random value `Previous` and the round number. The field `Round`
+Here `Signature` is the threshold BLS signature
+on the previous signature value `Previous` and the current round number. `Randomness`
+is the hash of `Signature`, to be used as the random value for this round. The field `Round`
 specifies the index of `Randomness` in the sequence of all random values
 produced by this drand instance. The **message signed** is therefore the
 concatenation of the round number treated as a `uint64` and the previous
-randomness.The gid is an indicator of the group this point belongs to. At the
-moment, we are only using BLS signatures on the BN256 curves and the signature
+signature. At the moment, we are only using BLS signatures on the BN256 curves and the signature
 is made over G1.
 
 #### Fetching Private Randomness
@@ -488,9 +488,9 @@ Although being already functional, drand is still at an early development stage
 and there is a lot left to be done. The list of opened
 [issues](https://github.com/dedis/drand/issues) is a good place to start. On top
 of this, drand would benefit from higher-level enhancements such as the
-following: 
+following:
 
-+ Move to the BL12-381 curve 
++ Move to the BL12-381 curve
 + Add more unit tests
 + Reduce size of Docker
 + Add a systemd unit file

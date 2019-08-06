@@ -65,12 +65,9 @@ type Handler struct {
 	// signal the beacon received from incoming request to the timer
 	catchupCh chan Beacon
 
-	ticker *time.Ticker
-	close  chan bool
-	addr   string
-	// group id to embed in all beacons
-	// XXX temporary solution to change when we really want flexible groups
-	id      int32
+	ticker  *time.Ticker
+	close   chan bool
+	addr    string
 	seed    []byte
 	started bool
 
