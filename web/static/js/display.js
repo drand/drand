@@ -1,4 +1,6 @@
 const latestDiv = document.querySelector('#latest');
+const roundDiv = document.querySelector('#round');
+const contactDiv = document.querySelector('#contact');
 const historyDiv = document.querySelector('#history');
 const nodesDiv = document.getElementsByClassName('map');
 window.identity = "";
@@ -61,7 +63,6 @@ function printRound(randomness, previous, round, verified) {
 
   //print randomness as current
   var p = document.createElement("pre");
-  var p2 = document.createElement("p");
   digestMessage(randomness).then(digestValue => {
     var randomness = hexString(digestValue);
     var quarter = Math.ceil(randomness.length / 4);
@@ -74,25 +75,18 @@ function printRound(randomness, previous, round, verified) {
     p.appendChild(textnode);
     latestDiv.replaceChild(p, latestDiv.childNodes[0]);
   });
-  if (verified) {
-    var textnode2 = document.createTextNode(round + " : verified");
-  } else {
-    var textnode2 = document.createTextNode(round + " : unverified");
-  }
-  p2.appendChild(textnode2);
-  latestDiv.replaceChild(p2, latestDiv.childNodes[1]);
 
   //print JSON when clicked
-  p.onmouseover = function() { p.style.textDecoration = "underline"; };
+  p.onmouseover = function() { p.style.textDecoration = "underline"; p.style.cursor = "pointer"};
   p.onmouseout = function() {p.style.textDecoration = "none";};
   var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
   var modal = document.getElementById("myModal");
   p.onclick = function() {
     var modalcontent = document.getElementById("jsonHolder");
     if (identity.TLS){
-      modalcontent.innerHTML = 'Randomness fetched from https://'+ identity.Address + '/api/public:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+      modalcontent.innerHTML = 'Randomness fetched from <strong> https://'+ identity.Address + '/api/public</strong>:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     } else {
-      modalcontent.innerHTML = 'Randomness fetched from http://'+ identity.Address + '/api/public:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+      modalcontent.innerHTML = 'Randomness fetched from <strong> http://'+ identity.Address + '/api/public</strong>:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     }
     modal.style.display = "block";
   };
@@ -101,6 +95,23 @@ function printRound(randomness, previous, round, verified) {
       modal.style.display = "none";
     }
   }
+
+  //shows if verified
+  if (verified) {
+    console.log("should do something");
+  }
+
+  //index info
+  var p2 = document.createElement("pre");
+  var textnode2 = document.createTextNode(round);
+  p2.appendChild(textnode2);
+  roundDiv.replaceChild(p2, roundDiv.childNodes[0]);
+
+  //contact info
+  var p3 = document.createElement("pre");
+  var textnode3 = document.createTextNode(identity.Address);
+  p3.appendChild(textnode3);
+  contactDiv.replaceChild(p3, contactDiv.childNodes[0]);
 }
 
 /**
@@ -245,6 +256,7 @@ function refresh() {
 
 /**
 * getLatestIndex returns the index of the latest randomness
+* used to get upper bound for the prev/next navigation
 **/
 function getLatestIndex() {
   return new Promise(function(resolve, reject) {

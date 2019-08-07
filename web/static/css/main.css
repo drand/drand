@@ -3911,11 +3911,6 @@ body.landing #main {
 	width: 80%;
 }
 
-.icons i:hover {
-	color:#99d0d1;
-}
-
-
 /* map */
 
 .mapael .map {
@@ -3967,4 +3962,10 @@ filter: none;
 
 .pic:hover .text{
 	opacity:1;
+}
+
+button {
+	color: #646464;
+	cursor: pointer;
+	border-radius: 4px;
 }
