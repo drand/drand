@@ -526,3 +526,11 @@ helpful discussions on the drand design.
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native Golang
 bn256 implementation and for their help in the design of drand and future ideas.
+
+## Coverage
+
+- EPFL blog [post](https://actu.epfl.ch/news/epfl-helps-launch-globally-distributed-randomness-/)
+- Cloudflare crypto week [introduction post](https://new.blog.cloudflare.com/league-of-entropy/) and the more [technical post](https://new.blog.cloudflare.com/inside-the-entropy/).
+- Kudelski Security blog [post](https://research.kudelskisecurity.com/2019/06/17/league-of-entropy/)
+- OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
+- SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
