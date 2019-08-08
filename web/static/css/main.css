@@ -3963,9 +3963,3 @@ filter: none;
 .pic:hover .text{
 	opacity:1;
 }
-
-button {
-	color: #646464;
-	cursor: pointer;
-	border-radius: 4px;
-}

@@ -1,13 +1,17 @@
 const latestDiv = document.querySelector('#latest');
 const roundDiv = document.querySelector('#round');
+const verifyButton = document.querySelector('#verify');
 const contactDiv = document.querySelector('#contact');
 const historyDiv = document.querySelector('#history');
 const nodesDiv = document.getElementsByClassName('map');
+
 window.identity = "";
 window.distkey = "";
+window.verified = false;
 
 //counter used to navigate through randomness indexes
 var currRound = "0";
+//interval id for bar progress
 var idBar = -1;
 
 /**
@@ -20,12 +24,14 @@ function displayRandomness() {
 
   //start the progress bar
   move();
-  //print randomness
+  //print randomness and update verfified status
   fetchAndVerify(identity, distkey)
   .then(function (fulfilled) {
+    window.verified = true;
     printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, true);
   })
   .catch(function (error) {
+    window.verified = false;
     printRound(error.randomness, error.previous, error.round, false);
   });
   //print servers
@@ -84,9 +90,9 @@ function printRound(randomness, previous, round, verified) {
   p.onclick = function() {
     var modalcontent = document.getElementById("jsonHolder");
     if (identity.TLS){
-      modalcontent.innerHTML = 'Randomness fetched from <strong> https://'+ identity.Address + '/api/public</strong>:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+      modalcontent.innerHTML = 'Request URL: <strong> https://'+ identity.Address + '/api/public</strong> <br> Raw JSON: <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     } else {
-      modalcontent.innerHTML = 'Randomness fetched from <strong> http://'+ identity.Address + '/api/public</strong>:\n <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
+      modalcontent.innerHTML = 'Request URL: <strong> http://'+ identity.Address + '/api/public</strong> <br> Raw JSON: <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     }
     modal.style.display = "block";
   };
@@ -96,22 +102,14 @@ function printRound(randomness, previous, round, verified) {
     }
   }
 
-  //shows if verified
-  if (verified) {
-    console.log("should do something");
-  }
-
   //index info
   var p2 = document.createElement("pre");
   var textnode2 = document.createTextNode(round);
   p2.appendChild(textnode2);
   roundDiv.replaceChild(p2, roundDiv.childNodes[0]);
 
-  //contact info
-  var p3 = document.createElement("pre");
-  var textnode3 = document.createTextNode(identity.Address);
-  p3.appendChild(textnode3);
-  contactDiv.replaceChild(p3, contactDiv.childNodes[0]);
+  //refresh verify button
+  refreshVerify();
 }
 
 /**
@@ -172,6 +170,10 @@ function printNodes() {
       .catch((err) => {console.log(nodes[id].addr + ' is down');});
     }
   });
+
+//update who is contacted
+contactDiv.innerHTML = window.identity.Address;
+
 }
 
 /**
@@ -283,4 +285,20 @@ function hexString(buffer) {
   });
 
   return hexCodes.join('');
+}
+
+/**
+* checkVerify checks if randomness was verified and changes button to ok or
+* nope, refreshVerify puts button back to default
+**/
+function checkVerify(key) {
+  if (window.verified) {
+    verifyButton.innerHTML = '<a title="randomness was successfully verified" class="button alt icon small fa-check"> verified </a>';
+  } else {
+    verifyButton.innerHTML = '<a title="ransomness could not be verified" class="button alt icon solid small fa-times"> not verified</a>';
+  }
+}
+
+function refreshVerify() {
+  verifyButton.innerHTML = '<a class="button alt solid small" onclick="checkVerify()">verify</a>';
 }
