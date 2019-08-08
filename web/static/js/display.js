@@ -85,15 +85,16 @@ function printRound(randomness, previous, round, verified) {
   //print JSON when clicked
   p.onmouseover = function() { p.style.textDecoration = "underline"; p.style.cursor = "pointer"};
   p.onmouseout = function() {p.style.textDecoration = "none";};
+  if (identity.TLS){
+    var reqURL = 'https://'+ identity.Address + '/api/public';
+  } else {
+    var reqURL = 'http://'+ identity.Address + '/api/public';
+  }
   var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
   var modal = document.getElementById("myModal");
   p.onclick = function() {
     var modalcontent = document.getElementById("jsonHolder");
-    if (identity.TLS){
-      modalcontent.innerHTML = 'Request URL: <strong> https://'+ identity.Address + '/api/public</strong> <br> Raw JSON: <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
-    } else {
-      modalcontent.innerHTML = 'Request URL: <strong> http://'+ identity.Address + '/api/public</strong> <br> Raw JSON: <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
-    }
+    modalcontent.innerHTML = 'Request URL: <strong>'+ reqURL + '</strong> <br> Raw JSON: <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     modal.style.display = "block";
   };
   window.onclick = function(event) {
@@ -172,7 +173,7 @@ function printNodes() {
   });
 
 //update who is contacted
-contactDiv.innerHTML = window.identity.Address;
+contactDiv.innerHTML = "https://" + window.identity.Address+ "/api/public";
 
 }
 
