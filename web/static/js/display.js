@@ -173,7 +173,9 @@ function printNodes() {
   });
 
 //update who is contacted
-contactDiv.innerHTML = "https://" + window.identity.Address+ "/api/public";
+var url = 'https://' + window.identity.Address+ '/api/public';
+contactDiv.innerHTML = '<a href="'+url+'">'+url+'</a>';
+console.log(contactDiv);
 
 }
 
@@ -294,7 +296,7 @@ function hexString(buffer) {
 **/
 function checkVerify(key) {
   if (window.verified) {
-    verifyButton.innerHTML = '<a title="randomness was successfully verified" class="button alt icon small fa-check"> verified </a>';
+    verifyButton.innerHTML = '<a title="randomness was successfully verified" class="button alt icon small fa-check"> verified using drandjs</a>';
   } else {
     verifyButton.innerHTML = '<a title="ransomness could not be verified" class="button alt icon solid small fa-times"> not verified</a>';
   }

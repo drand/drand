@@ -223,7 +223,8 @@ pre {
 	font-family: monospace;
 	font-size: 0.9em;
 	line-height: 1.75em;
-	margin: 0 0 2em 0;
+	margin-bottom: 2em;
+	margin-top: auto;
 	overflow-x: auto;
 	padding: 1em 1.5em;
 }
@@ -3873,7 +3874,8 @@ body.landing #main {
 
 /* progress bar */
 #myProgress {
-	width: 100%;
+	margin: 0 auto;
+	width: 50%;
 	background-color: #ddd;
 }
 
@@ -3962,4 +3964,14 @@ filter: none;
 
 .pic:hover .text{
 	opacity:1;
+}
+
+#round {
+	margin-left: 13.5em;
+	margin-right: 13.5em;
+}
+
+#latest {
+	margin-left: 12.5em;
+	margin-right: 12.5em;
 }
