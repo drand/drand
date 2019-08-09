@@ -301,5 +301,5 @@ function checkVerify(key) {
 }
 
 function refreshVerify() {
-  verifyButton.innerHTML = '<a class="button alt solid small" onclick="checkVerify()">verify</a>';
+  verifyButton.innerHTML = '<a class="button alt solid small" onclick="checkVerify()">Verify</a>';
 }
