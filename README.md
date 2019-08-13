@@ -534,3 +534,4 @@ bn256 implementation and for their help in the design of drand and future ideas.
 - Kudelski Security blog [post](https://research.kudelskisecurity.com/2019/06/17/league-of-entropy/)
 - OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
 - SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
+- Duo [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
