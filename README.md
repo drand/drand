@@ -14,14 +14,26 @@ Drand nodes can also serve locally-generated private randomness to clients.
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 
-## Quickstart
+## Installing drand locally
 
-To run drand locally make sure that you have a working
-[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
+Requirements: `go >= 1.12`.
+
 Then execute (might need root privileges to run Docker on some systems):
 ```bash
 git clone https://github.com/dedis/drand
 cd drand
+make install
+```
+
+Then you can run the command-line application with `drand`
+
+## Quickstart - Docker
+
+To deploy several drand nodes locally, make sure that you have a working
+[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
+
+Then execute (it will ask you for root since it deals with docker containers):
+```bash
 make deploy-local
 ```
 
@@ -397,10 +409,6 @@ curl <address>/api/public
 
 **All the REST endpoints are specified in the `protobuf/drand/client.proto` file.**
 
-**NOTE**: At the moment, the REST endpoints return base-64 encoded values, whereas
-the drand cli tool returns hexadecimal encoded value ([issue](https://github.com/dedis/drand/issues/85)).
-
-
 ### Updating Drand Group
 
 Drand allows for "semi-dynamic" group update with a *resharing* protocol that
@@ -520,3 +528,12 @@ helpful discussions on the drand design.
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native Golang
 bn256 implementation and for their help in the design of drand and future ideas.
+
+## Coverage
+
+- EPFL blog [post](https://actu.epfl.ch/news/epfl-helps-launch-globally-distributed-randomness-/)
+- Cloudflare crypto week [introduction post](https://new.blog.cloudflare.com/league-of-entropy/) and the more [technical post](https://new.blog.cloudflare.com/inside-the-entropy/).
+- Kudelski Security blog [post](https://research.kudelskisecurity.com/2019/06/17/league-of-entropy/)
+- OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
+- SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
+- Duo [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
