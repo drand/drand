@@ -19,7 +19,8 @@ before_script:
     - docker build -t drand-it . #docker-compose should be self-sufficient, but fails on travis...
 
 script:
-    - make test
+    - make test-unit
+    - sudo make test-integration
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
