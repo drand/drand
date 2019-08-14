@@ -8,12 +8,6 @@
 # sourced. This part calls the function to setup the drand containers and run
 # them. It produces produce randomness in a temporary folder..
 #
-# NOTE: Using docker compose should give a higher degree of flexibility and
-# composability. However I had trouble with spawning the containers too fast and
-# having weird binding errors: port already in use. I rolled back to simple
-# docker scripting. One of these, one should try to do it in docker-compose.
-## number of nodes
-
 N=6 ## final number of nodes in total - only N-1 will be running
 OLDN=5 ## starting number of nodes
 period="4s"
@@ -69,9 +63,8 @@ fi
 ## build the test travis image
 function build() {
     echo "[+] Building docker image $IMG"
-    docker build -t "$IMG" .  #> /dev/null
+    docker build -t "$IMG" -f "$DOCKERFILE" "$GOPATH/$DRAND_PATH"
     img="byrnedo/alpine-curl"
-    ## XXX make curl work without the "-k" option
     docker pull $img > /dev/null
 
 }

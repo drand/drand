@@ -6,7 +6,7 @@ test-unit:
 	GO111MODULE=on go test -v -mod=vendor ./...
 
 test-integration:
-	sudo $(MAKE) -C test-integration test
+	sudo GOPATH=$(GOPATH) $(MAKE) -C test-integration test
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
