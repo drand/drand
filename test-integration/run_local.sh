@@ -30,9 +30,14 @@ echo "[+] Setting up tests in $TMP folder"
 GROUPFILE="$TMP/group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
+
+# get current github directory
+curr=$(pwd)
+cd ..
+root=$(pwd)
+cd "$curr"
 IMG="dedis/drand:latest"
-DRAND_PATH="src/github.com/dedis/drand"
-DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
+DOCKERFILE="$root/Dockerfile"
 NET="drand"
 SUBNET="192.168.215."
 PORT="80"
@@ -63,8 +68,10 @@ fi
 ## build the test travis image
 function build() {
     echo "[+] Building docker image $IMG"
-    docker build -t "$IMG" -f "$DOCKERFILE" "$GOPATH/$DRAND_PATH"
+    echo " ---- GOPATH $GOPATH"
+    docker build -t "$IMG" -f "$DOCKERFILE" "$root"
     img="byrnedo/alpine-curl"
+    ## XXX make curl work without the "-k" option
     docker pull $img > /dev/null
 
 }
