@@ -120,14 +120,14 @@ function run() {
         public="key/drand_id.public"
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
+        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" # > /dev/null
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
         allKeys[$i]=/tmp/node$i.public
 
         ## quicker generation with 1024 bits
         cd $data
-        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 > /dev/null 2>& 1
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 # > /dev/null 2>& 1
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert
