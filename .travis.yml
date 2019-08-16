@@ -20,7 +20,8 @@ before_script:
 
 script:
     - make test-unit
-    - sudo make test-integration
+    # keep environnement variable for sudo
+    - sudo -E make test-integration
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
