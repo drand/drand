@@ -2669,9 +2669,10 @@ table td {
 	padding: 0.75em 0.75em;
 }
 
+
 table th {
 	color: #646464;
-	font-size: 0.9em;
+	font-size: 1em;
 	font-weight: 300;
 	padding: 0 0.75em 0.75em 0.75em;
 	text-align: left;

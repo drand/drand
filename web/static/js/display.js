@@ -4,6 +4,7 @@ const verifyButton = document.querySelector('#verify');
 const contactDiv = document.querySelector('#contact');
 const historyDiv = document.querySelector('#history');
 const nodesDiv = document.getElementsByClassName('map');
+const nodesListDiv = document.querySelector('#nodes');
 
 window.identity = "";
 window.distkey = "";
@@ -19,13 +20,10 @@ var idBar = -1;
 * the latest randomness and nodes when opening the page
 **/
 function displayRandomness() {
-  var identity = window.identity;
-  var distkey = window.distkey;
-
   //start the progress bar
   move();
   //print randomness and update verfified status
-  fetchAndVerify(identity, distkey)
+  fetchAndVerify(window.identity, window.distkey)
   .then(function (fulfilled) {
     window.verified = true;
     printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, true);
@@ -34,8 +32,10 @@ function displayRandomness() {
     window.verified = false;
     printRound(error.randomness, error.previous, error.round, false);
   });
-  //print servers
-  printNodes();
+  //print servers on map
+  //printNodesMap();
+  //print server as list
+  printNodesList();
 }
 
 /**
@@ -85,10 +85,10 @@ function printRound(randomness, previous, round, verified) {
   //print JSON when clicked
   p.onmouseover = function() { p.style.textDecoration = "underline"; p.style.cursor = "pointer"};
   p.onmouseout = function() {p.style.textDecoration = "none";};
-  if (identity.TLS){
-    var reqURL = 'https://'+ identity.Address + '/api/public';
+  if (window.identity.TLS){
+    var reqURL = 'https://'+ window.identity.Address + '/api/public';
   } else {
-    var reqURL = 'http://'+ identity.Address + '/api/public';
+    var reqURL = 'http://'+ window.identity.Address + '/api/public';
   }
   var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
   var modal = document.getElementById("myModal");
@@ -114,9 +114,9 @@ function printRound(randomness, previous, round, verified) {
 }
 
 /**
-* printNodes prints interactive map of drand nodes
+* printNodesMap prints interactive map of drand nodes
 **/
-function printNodes() {
+function printNodesMap() {
   var nodes = [
     JSON.parse('{"addr": "drand.cothority.net:7003", "lat": 48.86, "lon": 2.3444}'),
     JSON.parse('{"addr": "drand.zerobyte.io:8888", "lat": 41.827637, "lon": 2.462732}'),
@@ -172,10 +172,61 @@ function printNodes() {
     }
   });
 
-//update who is contacted
-var url = 'https://' + window.identity.Address+ '/api/public';
-contactDiv.innerHTML = '<a href="'+url+'">'+url+'</a>';
-console.log(contactDiv);
+  //update who is contacted
+  var url = 'https://' + window.identity.Address+ '/api/public';
+  contactDiv.innerHTML = '<a href="'+url+'">'+url+'</a>';
+  console.log(contactDiv);
+
+}
+
+/**
+* printNodeList prints interactive list of drand nodes
+**/
+function printNodesList() {
+
+  //only prints once
+  if (nodesListDiv.childElementCount == 0) {
+    fetchGroup(window.identity).then(group => {
+      var i = 0;
+      while (i < group.nodes.length) {
+        let addr = group.nodes[i].address;
+        let host = addr.split(":")[0];
+        let port = addr.split(":")[1];
+        let tls = group.nodes[i].TLS;
+
+        let line = document.createElement("tr");
+        let statusCol = document.createElement("td");
+        isUp(addr, tls)
+        //✅
+        .then((rand) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; ✔️ </td>';})
+        .catch((err) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';});
+        let addrCol = document.createElement("td");
+        addrCol.innerHTML = '<td>' + host + '</td>';
+        addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
+        addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
+        addrCol.onclick = function() {
+          window.identity = {Address: addr, TLS: tls};
+          refresh();
+        };
+        let portCol = document.createElement("td");
+        portCol.innerHTML = '<td>' +port+'</td>';
+        let tlsCol = document.createElement("td");
+        tlsCol.innerHTML = '<td> non tls </td>';
+        if (tls) {
+          tlsCol.innerHTML = '<td> tls </td>';
+        }
+        line.appendChild(statusCol);
+        line.appendChild(addrCol);
+        line.appendChild(portCol);
+        line.appendChild(tlsCol);
+        nodesListDiv.appendChild(line);
+        i = i + 1;
+      }
+    }).catch(error => console.error('Could not fetch group:', error))
+  }
+  //update who is contacted
+  var url = 'https://' + window.identity.Address+ '/api/public';
+  contactDiv.innerHTML = '<a href="'+url+'">'+url+'</a>';
 
 }
 
@@ -205,9 +256,7 @@ function goToPrev() {
   var elem = document.getElementById("myBar");
   elem.style.width = 0 + '%';
   //print previous rand
-  var identity = window.identity;
-  var distkey = window.distkey;
-  fetchAndVerifyRound(identity, distkey, round)
+  fetchAndVerifyRound(window.identity, window.distkey, round)
   .then(function (fulfilled) {
     printRound(fulfilled.randomness, fulfilled.previous, round, true);
   })
@@ -238,9 +287,7 @@ function goToNext() {
     var elem = document.getElementById("myBar");
     elem.style.width = 0 + '%';
     //print next rand
-    var identity = window.identity;
-    var distkey = window.distkey;
-    fetchAndVerifyRound(identity, distkey, round)
+    fetchAndVerifyRound(window.identity, window.distkey, round)
     .then(function (fulfilled) {
       printRound(fulfilled.randomness, fulfilled.previous, round, true);
     })
@@ -296,9 +343,9 @@ function hexString(buffer) {
 **/
 function checkVerify(key) {
   if (window.verified) {
-    verifyButton.innerHTML = '<a title="randomness was successfully verified" class="button alt icon small fa-check"> verified using drandjs</a>';
+    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" title="randomness was successfully verified" class="button alt icon small fa-check"> verified using drandjs, click here to discover our js librairy</a>';
   } else {
-    verifyButton.innerHTML = '<a title="ransomness could not be verified" class="button alt icon solid small fa-times"> not verified</a>';
+    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" title="ransomness could not be verified" class="button alt icon solid small fa-times"> drandjs could not verified</a>';
   }
 }
 
