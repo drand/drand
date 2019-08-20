@@ -1,53 +1,64 @@
 #!/bin/bash
 # set -x
 
-### This script allows to deploy the proposed drand website to the given address
+### This script allows you to deploy our drand website on your domain
+## There are 2 modes: interactive and flag based
 
-echo Before starting, make sure that your ssh setup is compatible with what is done at https://gohugo.io/hosting-and-deployment/deployment-with-rsync/#install-ssh-key
-echo What is the host name you want to deploy to ?
-read HOST
-echo Confirmation check: host name is $HOST
-echo What is your domain URL ?
-read URL
-echo Confirmation check: url is $URL
-echo What is your user name ?
-read USER
-echo Confirmation check: user name is $USER
-echo What is the path of the destination directory ? (/var/www/html/)
-read DIR
-echo Confirmation check: path is $DIR
-#read -r -p "${1:-Please make sure that your ssh setup is compatible with https://gohugo.io/hosting-and-deployment/deployment-with-rsync/#install-ssh-key. If not, would you like us to do the setup for you ? [y/n]} " response
-#case "$response" in
-#  [yY])
-#  echo Creating new ssh key and registering it on remote host...
+if [ $# -eq 0 ]
+  then
+    echo Before starting make sure that your SSH setup is compatible with: https://gohugo.io/hosting-and-deployment/deployment-with-rsync/#install-ssh-key
+    echo What is your user name ?
+    read USER
+    echo What is your website\'s URL ? \(https://drand.io/\)
+    read URL
+    #format the /
+    URL="$(sed 's/\//\\\//g' <<<$URL)"
+    echo What is the host name you want to deploy to ?
+    read HOST
+    echo What is the path of the destination directory ? \(/var/www/html/\)
+    read DIR
+    echo Let\'s deploy...
 
-  # need to create ssh key
-  #var rep = pwd
+    #replace url in config.toml ?
+    VAR1="https:\/\/drand.io\/"
+    sed -i -e "s/$VAR1/$URL/g" "$PWD/config.toml"
 
-  #cd && mkdir .ssh & cd .ssh
-  #ssh-keygen -t rsa -q -C "For SSH" -f rsa_id
-  #cat >> config <<EOF
-  #Host HOST
-  #Hostname HOST
-  #Port 22
-  #User USER
-  #IdentityFile ~/.ssh/rsa_id
-  #EOF
+    hugo && rsync -Paivz --delete public/ ${USER}@${HOST}:${DIR}
 
-  #ssh-copy-id -i rsa_id.pub USER@HOST.com
-  #ssh user@host
+    exit 0
+  else
+    while [ ! $# -eq 0 ]
+    do
+	     case "$1" in
+		       --user)
+              export USER=$2
+	            ;;
+		       --host)
+              export HOST=$2
+	            ;;
+          --url)
+              export URL=$2
+	            ;;
+          --dir)
+             export DIR=$2
+             ;;
+         --help | -h)
+            echo "Before starting make sure that your SSH setup is compatible with: https://gohugo.io/hosting-and-deployment/deployment-with-rsync/#install-ssh-key"
+            echo "Args like --user user --host host --dir dir --url url"
+            echo "or start without args to go into interactive mode"
+            exit
+            ;;
+	     esac
+	     shift
+    done
+    #format the /
+    URL="$(sed 's/\//\\\//g' <<<$URL)"
+    echo Let\'s deploy...
+    #replace url in config.toml ?
+    VAR1="https:\/\/drand.io\/"
+    sed -i -e "s/$VAR1/$URL/g" "$PWD/config.toml"
 
-  #cd rep
-#  ;;
-#  *)
-#  ;;
-#esac
-echo Let\'s deploy...
+    hugo && rsync -Paivz --delete public/ ${USER}@${HOST}:${DIR}
 
-#replace url in config.toml ?
-var1 = "https://drand.io/"
-sed -i -e "s/$var1/$URL/g" /config.toml
-
-hugo && rsync -Paivz --delete public/ ${USER}@${HOST}:${DIR}
-
-exit 0
+    exit 0
+fi
