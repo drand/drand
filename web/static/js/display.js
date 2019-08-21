@@ -6,8 +6,6 @@ const historyDiv = document.querySelector('#history');
 const nodesDiv = document.getElementsByClassName('map');
 const nodesListDiv = document.querySelector('#nodes');
 
-window.identity = "";
-window.distkey = "";
 window.verified = false;
 
 //counter used to navigate through randomness indexes
@@ -19,7 +17,13 @@ var idBar = -1;
 * displayRandomness is the main function which display
 * the latest randomness and nodes when opening the page
 **/
-function displayRandomness() {
+async function displayRandomness() {
+  //when started, contact random node from group file
+  if (window.identity == "") {
+    findFirstNode();
+    //wait for promise to find node (seriously there must be another way)
+    await sleep(2000);
+  }
   //start the progress bar
   move();
   //print randomness and update verfified status
@@ -184,50 +188,54 @@ function printNodesMap() {
 **/
 function printNodesList() {
 
-  //only prints once
-  if (nodesListDiv.childElementCount == 0) {
-    fetchGroup(window.identity).then(group => {
-      var i = 0;
-      while (i < group.nodes.length) {
-        let addr = group.nodes[i].address;
-        let host = addr.split(":")[0];
-        let port = addr.split(":")[1];
-        let tls = group.nodes[i].TLS;
+  fetchGroup(window.identity).then(group => {
+    nodesListDiv.innerHTML="";
+    var i = 0;
+    while (i < group.nodes.length) {
+      let addr = group.nodes[i].address;
+      let host = addr.split(":")[0];
+      let port = addr.split(":")[1];
+      let tls = group.nodes[i].TLS;
 
-        let line = document.createElement("tr");
-        let statusCol = document.createElement("td");
-        isUp(addr, tls)
-        //✅
-        .then((rand) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; ✔️ </td>';})
-        .catch((err) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';});
-        let addrCol = document.createElement("td");
-        addrCol.innerHTML = '<td>' + host + '</td>';
-        addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
-        addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
-        addrCol.onclick = function() {
-          window.identity = {Address: addr, TLS: tls};
-          refresh();
-        };
-        let portCol = document.createElement("td");
-        portCol.innerHTML = '<td>' +port+'</td>';
-        let tlsCol = document.createElement("td");
-        tlsCol.innerHTML = '<td> non tls </td>';
-        if (tls) {
-          tlsCol.innerHTML = '<td> tls </td>';
-        }
-        line.appendChild(statusCol);
-        line.appendChild(addrCol);
-        line.appendChild(portCol);
-        line.appendChild(tlsCol);
-        nodesListDiv.appendChild(line);
-        i = i + 1;
+      let line = document.createElement("tr");
+      let statusCol = document.createElement("td");
+      isUp(addr, tls)
+      .then((rand) => {
+        statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; ✔️ </td>';
+        statusCol.style.color= "transparent";
+        statusCol.style.textShadow= "0 0 0 green";
+      })
+      .catch((err) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';});
+      line.appendChild(statusCol);
+      let addrCol = document.createElement("td");
+      addrCol.innerHTML = '<td>' + host + '</td>';
+      addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
+      addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
+      addrCol.onclick = function() {
+        window.identity = {Address: addr, TLS: tls};
+        refresh();
+      };
+      line.appendChild(addrCol);
+      let portCol = document.createElement("td");
+      portCol.innerHTML = '<td>' +port+'</td>';
+      line.appendChild(portCol);
+      let tlsCol = document.createElement("td");
+      tlsCol.innerHTML = '<td> non tls </td>';
+      if (tls) {
+        tlsCol.innerHTML = '<td> tls </td>';
       }
-    }).catch(error => console.error('Could not fetch group:', error))
-  }
-  //update who is contacted
-  var url = 'https://' + window.identity.Address+ '/api/public';
-  contactDiv.innerHTML = '<a href="'+url+'">'+url+'</a>';
-
+      line.appendChild(tlsCol);
+      let linkCol = document.createElement("td");
+      linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" class="fa fa-external-link-alt" href="https://' + addr + '/api/public"></a></td>';
+      linkCol.style.textAlign="center";
+      line.appendChild(linkCol);
+      if (addr == window.identity.Address) {
+        line.style.fontWeight="bold";
+      }
+      nodesListDiv.appendChild(line);
+      i = i + 1;
+    }
+  }).catch(error => console.error('Could not fetch group:', error))
 }
 
 /**
@@ -343,12 +351,46 @@ function hexString(buffer) {
 **/
 function checkVerify(key) {
   if (window.verified) {
-    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" title="randomness was successfully verified" class="button alt icon small fa-check"> verified using drandjs, click here to discover our js librairy</a>';
+    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon small fa-check"> verified using drandjs, click here to discover our js library</a>';
   } else {
-    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" title="ransomness could not be verified" class="button alt icon solid small fa-times"> drandjs could not verified</a>';
+    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon solid small fa-times"> drandjs could not verify this randomness against the distributed key</a>';
   }
 }
 
 function refreshVerify() {
   verifyButton.innerHTML = '<a class="button alt solid small" onclick="checkVerify()">Verify</a>';
+}
+
+/**
+* findFirstNode picks a first node to contact at random from the up servers
+* starts by reading last configuration file from github repo, filters the
+* addresses and tries until success to contact a server with tls from the pool
+**/
+function findFirstNode() {
+  fetch('https://raw.githubusercontent.com/dedis/drand/master/deploy/latest/group.toml')
+  .then(response => {
+    response.text()
+    .then((text) => {
+      let addrList = Object.values(text.split('\n')).filter(str => str.includes("Address")).map(item => item.substring(13, item.length - 1));
+      let rndId = Math.floor(Math.random() * addrList.length);
+      isUp(addrList[rndId], true)
+      .then((result) => {
+        window.identity = {Address: addrList[rndId], TLS: true};
+      })
+      .catch((err) => {console.log("NO"); findFirstNode();});;
+      var config = toml.parse(text);
+      console.log(typeof config);
+    })
+    .catch((err) => {"could not parse group from github"});;
+  })
+  .catch(err => {
+    console.log("could not get the group from github");
+  });
+}
+
+/**
+* sleep makes the main thread wait ms milliseconds before continuing
+**/
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

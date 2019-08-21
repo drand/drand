@@ -19,7 +19,7 @@ if [ $# -eq 0 ]
     read DIR
     echo Let\'s deploy...
 
-    #replace url in config.toml ?
+    #replace url in config.toml
     VAR1="https:\/\/drand.io\/"
     sed -i -e "s/$VAR1/$URL/g" "$PWD/config.toml"
 
