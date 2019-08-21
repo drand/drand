@@ -21,8 +21,10 @@ async function displayRandomness() {
   //when started, contact random node from group file
   if (window.identity == "") {
     findFirstNode();
-    //wait for promise to find node (seriously there must be another way)
-    await sleep(2000);
+    while (window.identity == "") {
+      //wait for promise to find node (seriously there must be another way)
+      await sleep(1);
+    }
   }
   //start the progress bar
   move();
@@ -375,7 +377,9 @@ function findFirstNode() {
       let rndId = Math.floor(Math.random() * addrList.length);
       isUp(addrList[rndId], true)
       .then((result) => {
+        console.log("done");
         window.identity = {Address: addrList[rndId], TLS: true};
+        return
       })
       .catch((err) => {console.log("NO"); findFirstNode();});;
       var config = toml.parse(text);
