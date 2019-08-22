@@ -1,9 +1,6 @@
 const latestDiv = document.querySelector('#latest');
 const roundDiv = document.querySelector('#round');
 const verifyButton = document.querySelector('#verify');
-const contactDiv = document.querySelector('#contact');
-const historyDiv = document.querySelector('#history');
-const nodesDiv = document.getElementsByClassName('map');
 const nodesListDiv = document.querySelector('#nodes');
 
 window.verified = false;
@@ -68,7 +65,7 @@ function move() {
 * printRound formats and prints the given randomness with interactions
 **/
 function printRound(randomness, previous, round, verified) {
-  if (round <= currRound || round == undefined) {
+  if (round < currRound || round == undefined) {
     return
   }
   currRound = round;
@@ -177,12 +174,6 @@ function printNodesMap() {
       .catch((err) => {console.log(nodes[id].addr + ' is down');});
     }
   });
-
-  //update who is contacted
-  var url = 'https://' + window.identity.Address+ '/api/public';
-  contactDiv.innerHTML = '<a href="'+url+'">'+url+'</a>';
-  console.log(contactDiv);
-
 }
 
 /**
@@ -370,22 +361,20 @@ function refreshVerify() {
 **/
 function findFirstNode() {
   fetch('https://raw.githubusercontent.com/dedis/drand/master/deploy/latest/group.toml')
-  .then(response => {
+  .then(function(response) {
     response.text()
     .then((text) => {
       let addrList = Object.values(text.split('\n')).filter(str => str.includes("Address")).map(item => item.substring(13, item.length - 1));
       let rndId = Math.floor(Math.random() * addrList.length);
       isUp(addrList[rndId], true)
       .then((result) => {
-        console.log("done");
         window.identity = {Address: addrList[rndId], TLS: true};
         return
       })
-      .catch((err) => {console.log("NO"); findFirstNode();});;
-      var config = toml.parse(text);
-      console.log(typeof config);
-    })
-    .catch((err) => {"could not parse group from github"});;
+      .catch((err) => {
+        findFirstNode();
+      });
+    });
   })
   .catch(err => {
     console.log("could not get the group from github");

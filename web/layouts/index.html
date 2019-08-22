@@ -5,8 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
   <link rel="stylesheet" href="{{ .Site.BaseURL }}css/main.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0-12/css/all.min.css" integrity="sha256-cC4ByuxbguozEVx8jcKy94MFiGvxN9GwjCqZ8f3+yBk=" crossorigin="anonymous" />
-  </head>
+</head>
 <body class="is-preload">
   <div id="page-wrapper">
 
@@ -71,7 +70,7 @@
       <div class="box">
         <h3>Network</h3>
         The randomness is currently fetched from the host listed in bold.
-        The node to contact can be chosen by clinking on one of the available servers (green status) from the table below.
+        The node to contact can be chosen by clinking on one of the available servers (with green status) from the table below.
         <br><br>
         <div>
           <div class="table-wrapper">
@@ -81,7 +80,7 @@
                   <th>Status</th>
                   <th>Host</th>
                   <th>Port</th>
-                  <th style="width:18%">Connection type</th>
+                  <th style="width:17%">Connection type</th>
                   <th style="width:10%" ></th>
                 </tr>
               </thead>
@@ -90,6 +89,7 @@
             </table>
           </div>
         </div>
+        <!--> container div is used when showing nodes as map <-->
         <div class="container">
           <div class="mapcontainer">
             <div class="map">
@@ -179,7 +179,6 @@
 
   <!-- Scripts for drandjs and display-->
   <script src="https://cdn.jsdelivr.net/gh/PizzaWhisperer/drandjs/dist/drand.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/alexbeletsky/toml-js/lib/toml.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js" charset="utf-8"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.2.8/raphael.min.js" charset="utf-8"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-mapael/2.2.0/js/jquery.mapael.min.js"></script>
@@ -188,12 +187,12 @@
 
 
   <script>
-  window.identity = "";
-  window.distkey = "";
+    window.identity = "";
+    window.distkey = "";
 
-  displayRandomness();
-  var id = window.setInterval(displayRandomness, 60000);
-</script>
+    displayRandomness();
+    var id = window.setInterval(displayRandomness, 60000);
+  </script>
 
 </body>
 </html>
