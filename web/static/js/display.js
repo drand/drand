@@ -219,7 +219,7 @@ function printNodesList() {
       }
       line.appendChild(tlsCol);
       let linkCol = document.createElement("td");
-      linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" class="fa fa-external-link-alt" href="https://' + addr + '/api/public"></a></td>';
+      linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" class="fa-external-link-alt" href="https://' + addr + '/api/public"></a></td>';
       linkCol.style.textAlign="center";
       line.appendChild(linkCol);
       if (addr == window.identity.Address) {
