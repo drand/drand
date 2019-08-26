@@ -1,38 +1,35 @@
+
 # Drand Web App
 
-## Requirements
+This is the source code of `drand`'s' website, used to smartly present the outputs of the beacon and its network configuration. It comes with additional functionalities such as:
+- Possibility to navigate through the randomness history,
+- Verification of the generated randomness against the distributed key, using [drandjs](https://github.com/PizzaWhisperer/drandjs),
+- First contacted node is randomly picked from the latest [configuration file](https://github.com/dedis/drand/blob/master/deploy/latest/group.toml) hosted on Github,
+- User can choose which node of the group is contacted to fetch the randomness from.
 
-- [hugo](https://gohugo.io)
+You can find a running example at XXX.
 
-## Production
+## XXX
 
-The identity struct at line 112 of `layouts/index.html` should be modified accordingly to the address of the drand server to contact. If given Key is "" then it'll be fetched from the server as well.
+#### Requirements
+- [hugo](https://gohugo.io),
+- local copy of the code, which can be downloaded with `go get -u github.com/dedis/drand` or `git clone https://github.com/dedis/drand`,
+- an SSH setup compatible with https://gohugo.io/hosting-and-deployment/deployment-with-rsync/#install-ssh-key.
 
-In file `static/js/display.js` you can change how the randomness strings are printed (i.e., with/without a timestamp, list of runing nodes...).
-
-## Test Server
-
-If one does not know a drand node to contact, they can start a fake drand server to get the randomness from. To so such run:
-```
-python3 api/script.py
-```
-
-The public key, previous and randomness fields that you can find in the `api` folder are generated with the `api/main.go` file. The group file is taken from a former drand network.
-
-## Features
-- Latest randomness with round, timestamp and verified check,
-- Click on the latest randomness to see who was contacted and the associated raw JSON,
-- Stack of the 10 previous rounds of randomness,
-- List of running nodes, and possibility to click on one to contact it for the randomness.
-
-## Deploy
-
+#### Build
 Start the web server on localhost:1313 by running:
-
 ```
 make
 ```
-and deploy with
+
+#### Deploy
+There are two ways to deploy the website.
+- Use the `deploy.sh` script, which will ask for USER, HOST, DIR and URL. You can refer to the help menu to guide you or if you need help with the parameters:
+```
+sh deploy.sh --help
+```
+.
+- _(more advanced)_ Manually replace the `DEST` in the `makefile` with the path on your server and the `baseURL` with your website's URL in `config.toml`, then run:
 ```
 make deploy
 ```
