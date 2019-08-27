@@ -219,7 +219,7 @@ function printNodesList() {
       }
       line.appendChild(tlsCol);
       let linkCol = document.createElement("td");
-      linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" class="fa-external-link-alt" href="https://' + addr + '/api/public"></a></td>';
+      linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" href="https://' + addr + '/api/public"><i class="fas fa-external-link-alt"></i></a></td>';
       linkCol.style.textAlign="center";
       line.appendChild(linkCol);
       if (addr == window.identity.Address) {
@@ -344,9 +344,9 @@ function hexString(buffer) {
 **/
 function checkVerify(key) {
   if (window.verified) {
-    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon small fa-check"> verified using drandjs, click here to discover our js library</a>';
+    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon solid small"> <i class="fas fa-check"></i> &nbsp; verified using drandjs, click here to discover our js library</a>';
   } else {
-    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon solid small fa-times"> drandjs could not verify this randomness against the distributed key</a>';
+    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon solid small"> <i class="fas fa-times"></i> &nbsp; drandjs could not verify this randomness against the distributed key</a>';
   }
 }
 
