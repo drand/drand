@@ -1,15 +1,15 @@
 
 # Drand Web App
 
-This is the source code of `drand`'s' website, used to smartly present the outputs of the beacon and its network configuration. It comes with additional functionalities such as:
+This is the source code of `drand`'s website, used to smartly present the outputs of the beacon and its network configuration. It comes with additional functionalities such as:
 - Possibility to navigate through the randomness history,
 - Verification of the generated randomness against the distributed key, using [drandjs](https://github.com/PizzaWhisperer/drandjs),
 - First contacted node is randomly picked from the latest [configuration file](https://github.com/dedis/drand/blob/master/deploy/latest/group.toml) hosted on Github,
 - User can choose which node of the group is contacted to fetch the randomness from.
 
-You can find a running example at XXX.
+You can find a live example at XXX.
 
-## XXX
+## Run it
 
 #### Requirements
 - [hugo](https://gohugo.io),
@@ -24,12 +24,12 @@ make
 
 #### Deploy
 There are two ways to deploy the website.
-- Use the `deploy.sh` script, which will ask for USER, HOST, DIR and URL. You can refer to the help menu to guide you or if you need help with the parameters:
+- Use `deploy.sh` script, which will ask for the user and host names compatible with your SSH setup, as well as the path on the server and the URL you want to deploy this website to. You can refer to the help menu to see how to use this script or more informations if you have some trouble identifying the parameters:
 ```
 sh deploy.sh --help
 ```
 .
-- _(more advanced)_ Manually replace the `DEST` in the `makefile` with the path on your server and the `baseURL` with your website's URL in `config.toml`, then run:
+- _(more advanced)_ Manually overwrite the `DEST` variable in the [makefile](https://github.com/dedis/drand/blob/web/web/Makefile#L2) with the path on your server and the `baseURL` in [config.toml](https://github.com/dedis/drand/blob/web/web/config.toml#L1) with your website's URL, then run:
 ```
 make deploy
 ```
