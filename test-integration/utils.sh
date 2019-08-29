@@ -8,7 +8,7 @@ json_web_request () {
 }
 
 get_docker_drand_network_name() {
-    DRAND_NETWORK_ID=$(docker network ls | grep drand | cut -d " " -f 1)
+    DRAND_NETWORK_ID=$(docker network ls | grep drand-networ | cut -d " " -f 1)
     DRAND_NETWORK_NAME=$(docker inspect -f '{{.Name}}' "${DRAND_NETWORK_ID}")
     echo "${DRAND_NETWORK_NAME}"
 }
