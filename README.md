@@ -18,6 +18,7 @@ critical at this point.**
 
 Requirements: `go >= 1.12`.
 
+Then execute (might need root privileges to run Docker on some systems):
 ```bash
 git clone https://github.com/dedis/drand
 cd drand
@@ -29,14 +30,15 @@ Then you can run the command-line application with `drand`
 ## Quickstart - Docker
 
 To deploy several drand nodes locally, make sure that you have a working
-[Docker installation](https://docs.docker.com/engine/installation/).
-Then execute (might need root privileges to run Docker on some systems):
+[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
+
+Then execute (it will ask you for root since it deals with docker containers):
 ```bash
-./run_local.sh
+make deploy-local
 ```
 
-The script spins up six local drand nodes using Docker and produces fresh
-randomness every few seconds.
+The script spins up 5 local drand nodes using Docker and produces fresh
+randomness every 10 seconds.
 
 ## Overview
 
