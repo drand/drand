@@ -6,6 +6,7 @@ test-unit:
 	GO111MODULE=on go test -v -mod=vendor ./...
 
 test-integration:
+	@echo "first makefile: Path is $$PATH"
 	PATH=$(PATH) GOPATH=$(GOPATH) $(MAKE) -C test-integration test
 
 linter:

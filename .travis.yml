@@ -21,7 +21,7 @@ before_script:
 script:
     - make test-unit
     # keep environnement variable for sudo
-    - sudo -E PATH=$PATH:$(which go) make test-integration
+    - sudo -E env "PATH=$PATH" make test-integration
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
