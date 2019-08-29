@@ -88,7 +88,7 @@ body {
 	-ms-overflow-style: scrollbar;
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 600px) {
 
 	html, body {
 		min-width: 320px;
@@ -1719,7 +1719,7 @@ code {
 
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 600px) {
 
 	.row {
 		display: flex;
@@ -2592,13 +2592,13 @@ ul.actions.fit.stacked {
 	width: 100%;
 }
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 600px) {
 
 	ul.actions:not(.fixed) {
-		-moz-flex-direction: column;
-		-webkit-flex-direction: column;
-		-ms-flex-direction: column;
-		flex-direction: column;
+		-moz-flex-direction: row;
+		-webkit-flex-direction: row;
+		-ms-flex-direction: row;
+		flex-direction: row;
 		margin-left: 0;
 		width: 100% !important;
 	}
@@ -2614,23 +2614,20 @@ ul.actions.fit.stacked {
 		flex-shrink: 1;
 		padding: 1em 0 0 0;
 		text-align: center;
-		width: 100%;
 	}
+
 
 	ul.actions:not(.fixed) li > * {
 		width: 100%;
 	}
 
-	ul.actions:not(.fixed) li:first-child {
-		padding-top: 0;
-	}
 
 	ul.actions:not(.fixed) li input[type="submit"],
 	ul.actions:not(.fixed) li input[type="reset"],
 	ul.actions:not(.fixed) li input[type="button"],
 	ul.actions:not(.fixed) li button,
 	ul.actions:not(.fixed) li .button {
-		width: 100%;
+		width:80%;
 	}
 
 	ul.actions:not(.fixed) li input[type="submit"].icon:before,
@@ -3767,7 +3764,7 @@ body.landing #main {
 
 /* Mobile (Portrait) */
 
-@media screen and (max-width: 480px) {
+@media screen and (max-width: 600px) {
 
 	/* Basic */
 
@@ -3798,10 +3795,6 @@ body.landing #main {
 		width: 100%;
 	}
 
-	ul.actions li:first-child {
-		padding-top: 0;
-	}
-
 	ul.actions li > * {
 		width: 100%;
 		margin: 0 !important;
@@ -3813,10 +3806,6 @@ body.landing #main {
 
 	ul.actions.small li {
 		padding: 0.5em 0 0 0;
-	}
-
-	ul.actions.small li:first-child {
-		padding-top: 0;
 	}
 
 	/* Box */
@@ -3892,6 +3881,35 @@ body.landing #main {
 	font-size: 16px;
 }
 
+#round {
+	margin-left: 25%;
+	margin-right: 25%;
+}
+
+#latest {
+	margin-left: 25%;
+	margin-right: 25%;
+}
+
+@media screen and (max-width: 600px) {
+	#latest {
+		margin-left: 10%;
+		margin-right: 10%;
+	}
+
+	#round {
+		margin-left: 10%;
+		margin-right:10%;
+	}
+
+	#myProgress {
+		margin-left: 10%;
+		margin-right: 10%;
+		width: auto;
+	}
+}
+
+/* json */
 .modal {
 	display: none;
 	position: fixed;
@@ -3965,14 +3983,4 @@ filter: none;
 
 .pic:hover .text{
 	opacity:1;
-}
-
-#round {
-	margin-left: 25%;
-	margin-right: 25%;
-}
-
-#latest {
-	margin-left: 25%;
-	margin-right: 25%;
 }
