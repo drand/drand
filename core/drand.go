@@ -12,7 +12,8 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
-	dkg_proto "github.com/dedis/drand/protobuf/dkg"
+	dkg_proto "github.com/dedis/drand/protobuf/crypto/dkg"
+	"github.com/dedis/drand/protobuf/drand"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -28,6 +29,7 @@ type Drand struct {
 
 	store   key.Store
 	gateway net.Gateway
+	control net.ControlListener
 
 	dkg         *dkg.Handler
 	beacon      *beacon.Handler
@@ -84,12 +86,14 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
-	p := c.ControlPort()
 	if c.insecure {
-		d.gateway = net.NewGrpcGatewayInsecure(a, p, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
 	} else {
-		d.gateway = net.NewGrpcGatewayFromCertManager(a, p, c.certPath, c.keyPath, c.certmanager, d, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
 	}
+	p := c.ControlPort()
+	d.control = net.NewTCPGrpcControlListener(d, p)
+	go d.control.Start()
 	d.gateway.StartAll()
 	return d, nil
 }
@@ -222,6 +226,7 @@ func (d *Drand) Stop() {
 	d.StopBeacon()
 	d.state.Lock()
 	d.gateway.StopAll()
+	d.control.Stop()
 	d.state.Unlock()
 }
 
@@ -246,7 +251,7 @@ func (d *Drand) initBeacon() error {
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
 	conf := &beacon.Config{Group: d.group, Private: d.priv, Share: d.share, Seed: DefaultSeed}
-	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.beaconStore, conf, d.log)
+	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
 	return err
 }
 
@@ -257,18 +262,18 @@ func (d *Drand) beaconCallback(b *beacon.Beacon) {
 // little trick to be able to capture when drand is using the DKG methods,
 // instead of offloading that to an external struct without any vision of drand
 // internals, or implementing a big "Send" method directly on drand.
-func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.DKGPacket) error {
-	_, err := d.gateway.InternalClient.Setup(p, pack)
+func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.Packet) error {
+	_, err := d.gateway.ProtocolClient.Setup(p, &drand.SetupPacket{Dkg: pack})
 	return err
 }
 
-func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.DKGPacket) error {
+func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.Packet) error {
 	// no concurrency to get nextHash since this is only used within a locked drand
-	reshare := &dkg_proto.ResharePacket{
-		Packet:    pack,
+	reshare := &drand.ResharePacket{
+		Dkg:       pack,
 		GroupHash: d.nextGroupHash,
 	}
-	_, err := d.gateway.InternalClient.Reshare(p, reshare)
+	_, err := d.gateway.ProtocolClient.Reshare(p, reshare)
 	return err
 }
 
@@ -282,9 +287,9 @@ func (d *Drand) dkgNetwork(conf *dkg.Config) *dkgNetwork {
 }
 
 type dkgNetwork struct {
-	send func(net.Peer, *dkg_proto.DKGPacket) error
+	send func(net.Peer, *dkg_proto.Packet) error
 }
 
-func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
+func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.Packet) error {
 	return d.send(p, pack)
 }

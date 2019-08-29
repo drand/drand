@@ -12,18 +12,17 @@ import (
 	"go.dedis.ch/kyber/v3/group/mod"
 )
 
+var marshalPointID1 = [8]byte{'b', 'n', '2', '5', '6', '.', 'g', '1'}
+var marshalPointID2 = [8]byte{'b', 'n', '2', '5', '6', '.', 'g', '2'}
+var marshalPointIDT = [8]byte{'b', 'n', '2', '5', '6', '.', 'g', 't'}
+
 type pointG1 struct {
-	g     *curvePoint
-	group kyber.Group
+	g *curvePoint
 }
 
-func newPointG1(group kyber.Group) *pointG1 {
-	p := &pointG1{g: &curvePoint{}, group: group}
+func newPointG1() *pointG1 {
+	p := &pointG1{g: &curvePoint{}}
 	return p
-}
-
-func (p *pointG1) Group() kyber.Group {
-	return p.group
 }
 
 func (p *pointG1) Equal(q kyber.Point) bool {
@@ -43,13 +42,9 @@ func (p *pointG1) Base() kyber.Point {
 }
 
 func (p *pointG1) Pick(rand cipher.Stream) kyber.Point {
-	s := &scalarDescribing{
-		Int:   mod.NewInt64(0, Order),
-		group: p.group,
-	}
-	s.Pick(rand)
+	s := mod.NewInt64(0, Order).Pick(rand)
 	p.Base()
-	p.g.Mul(p.g, &s.V)
+	p.g.Mul(p.g, &s.(*mod.Int).V)
 	return p
 }
 
@@ -61,7 +56,7 @@ func (p *pointG1) Set(q kyber.Point) kyber.Point {
 
 // Clone makes a hard copy of the point
 func (p *pointG1) Clone() kyber.Point {
-	q := newPointG1(p.group)
+	q := newPointG1()
 	q.g = p.g.Clone()
 	return q
 }
@@ -92,7 +87,7 @@ func (p *pointG1) Add(a, b kyber.Point) kyber.Point {
 }
 
 func (p *pointG1) Sub(a, b kyber.Point) kyber.Point {
-	q := newPointG1(p.group)
+	q := newPointG1()
 	return p.Add(a, q.Neg(b))
 }
 
@@ -104,9 +99,9 @@ func (p *pointG1) Neg(q kyber.Point) kyber.Point {
 
 func (p *pointG1) Mul(s kyber.Scalar, q kyber.Point) kyber.Point {
 	if q == nil {
-		q = newPointG1(p.group).Base()
+		q = newPointG1().Base()
 	}
-	t := s.(*scalarDescribing).V
+	t := s.(*mod.Int).V
 	r := q.(*pointG1).g
 	p.g.Mul(r, &t)
 	return p
@@ -131,6 +126,10 @@ func (p *pointG1) MarshalBinary() ([]byte, error) {
 	montDecode(tmp, &pgtemp.y)
 	tmp.Marshal(ret[n:])
 	return ret, nil
+}
+
+func (p *pointG1) MarshalID() [8]byte {
+	return marshalPointID1
 }
 
 func (p *pointG1) MarshalTo(w io.Writer) (int, error) {
@@ -255,17 +254,12 @@ func hashToPoint(m []byte) (*big.Int, *big.Int) {
 }
 
 type pointG2 struct {
-	g     *twistPoint
-	group kyber.Group
+	g *twistPoint
 }
 
-func newPointG2(group kyber.Group) *pointG2 {
-	p := &pointG2{g: &twistPoint{}, group: group}
+func newPointG2() *pointG2 {
+	p := &pointG2{g: &twistPoint{}}
 	return p
-}
-
-func (p *pointG2) Group() kyber.Group {
-	return p.group
 }
 
 func (p *pointG2) Equal(q kyber.Point) bool {
@@ -285,13 +279,9 @@ func (p *pointG2) Base() kyber.Point {
 }
 
 func (p *pointG2) Pick(rand cipher.Stream) kyber.Point {
-	s := &scalarDescribing{
-		Int:   mod.NewInt64(0, Order),
-		group: p.group,
-	}
-	s.Pick(rand)
+	s := mod.NewInt64(0, Order).Pick(rand)
 	p.Base()
-	p.g.Mul(p.g, &s.V)
+	p.g.Mul(p.g, &s.(*mod.Int).V)
 	return p
 }
 
@@ -303,7 +293,7 @@ func (p *pointG2) Set(q kyber.Point) kyber.Point {
 
 // Clone makes a hard copy of the field
 func (p *pointG2) Clone() kyber.Point {
-	q := newPointG2(p.group)
+	q := newPointG2()
 	q.g = p.g.Clone()
 	return q
 }
@@ -328,7 +318,7 @@ func (p *pointG2) Add(a, b kyber.Point) kyber.Point {
 }
 
 func (p *pointG2) Sub(a, b kyber.Point) kyber.Point {
-	q := newPointG2(p.group)
+	q := newPointG2()
 	return p.Add(a, q.Neg(b))
 }
 
@@ -340,9 +330,9 @@ func (p *pointG2) Neg(q kyber.Point) kyber.Point {
 
 func (p *pointG2) Mul(s kyber.Scalar, q kyber.Point) kyber.Point {
 	if q == nil {
-		q = newPointG2(p.group).Base()
+		q = newPointG2().Base()
 	}
-	t := s.(*scalarDescribing).Int.V
+	t := s.(*mod.Int).V
 	r := q.(*pointG2).g
 	p.g.Mul(r, &t)
 	return p
@@ -375,6 +365,10 @@ func (p *pointG2) MarshalBinary() ([]byte, error) {
 	temp.Marshal(ret[3*n:])
 
 	return ret, nil
+}
+
+func (p *pointG2) MarshalID() [8]byte {
+	return marshalPointID2
 }
 
 func (p *pointG2) MarshalTo(w io.Writer) (int, error) {
@@ -442,17 +436,12 @@ func (p *pointG2) String() string {
 }
 
 type pointGT struct {
-	g     *gfP12
-	group kyber.Group
+	g *gfP12
 }
 
-func newPointGT(group kyber.Group) *pointGT {
-	p := &pointGT{g: &gfP12{}, group: group}
+func newPointGT() *pointGT {
+	p := &pointGT{g: &gfP12{}}
 	return p
-}
-
-func (p *pointGT) Group() kyber.Group {
-	return p.group
 }
 
 func (p *pointGT) Equal(q kyber.Point) bool {
@@ -472,14 +461,9 @@ func (p *pointGT) Base() kyber.Point {
 }
 
 func (p *pointGT) Pick(rand cipher.Stream) kyber.Point {
-	s := &scalarDescribing{
-		Int:   mod.NewInt64(0, Order),
-		group: p.group,
-	}
-	s.Pick(rand)
+	s := mod.NewInt64(0, Order).Pick(rand)
 	p.Base()
-	p.g.Exp(p.g, &s.V)
-
+	p.g.Exp(p.g, &s.(*mod.Int).V)
 	return p
 }
 
@@ -491,7 +475,7 @@ func (p *pointGT) Set(q kyber.Point) kyber.Point {
 
 // Clone makes a hard copy of the point
 func (p *pointGT) Clone() kyber.Point {
-	q := newPointGT(p.group)
+	q := newPointGT()
 	q.g = p.g.Clone()
 	return q
 }
@@ -516,7 +500,7 @@ func (p *pointGT) Add(a, b kyber.Point) kyber.Point {
 }
 
 func (p *pointGT) Sub(a, b kyber.Point) kyber.Point {
-	q := newPointGT(p.group)
+	q := newPointGT()
 	return p.Add(a, q.Neg(b))
 }
 
@@ -528,9 +512,9 @@ func (p *pointGT) Neg(q kyber.Point) kyber.Point {
 
 func (p *pointGT) Mul(s kyber.Scalar, q kyber.Point) kyber.Point {
 	if q == nil {
-		q = newPointGT(p.group).Base()
+		q = newPointGT().Base()
 	}
-	t := s.(*scalarDescribing).Int.V
+	t := s.(*mod.Int).V
 	r := q.(*pointGT).g
 	p.g.Exp(r, &t)
 	return p
@@ -567,6 +551,10 @@ func (p *pointGT) MarshalBinary() ([]byte, error) {
 	temp.Marshal(ret[11*n:])
 
 	return ret, nil
+}
+
+func (p *pointGT) MarshalID() [8]byte {
+	return marshalPointIDT
 }
 
 func (p *pointGT) MarshalTo(w io.Writer) (int, error) {

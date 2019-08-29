@@ -7,21 +7,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-// Service holds all functionalities that a drand node should implement
-type Service interface {
-	drand.RandomnessServer
-	drand.InfoServer
-	drand.BeaconServer
-	drand.ControlServer
-	dkg.DkgServer
-}
+var _ Client = (*grpcClient)(nil)
 
 //var defaultJSONMarshaller = &runtime.JSONBuiltin{}
 var defaultJSONMarshaller = &HexJSON{}
@@ -41,7 +33,7 @@ var defaultTimeout = 1 * time.Minute
 
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
-func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
+func NewGrpcClient(opts ...grpc.DialOption) Client {
 	return &grpcClient{
 		opts:    opts,
 		conns:   make(map[string]*grpc.ClientConn),
@@ -54,16 +46,16 @@ func NewGrpcClient(opts ...grpc.DialOption) *grpcClient {
 
 // NewGrpcClientFromCertManager returns a Client using gRPC with the given trust
 // store of certificates.
-func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) *grpcClient {
-	client := NewGrpcClient(opts...)
+func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) Client {
+	client := NewGrpcClient(opts...).(*grpcClient)
 	client.manager = c
 	return client
 }
 
 // NewGrpcClientWithTimeout returns a Client using gRPC using fixed timeout for
 // method calls.
-func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) *grpcClient {
-	c := NewGrpcClient(opts...)
+func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Client {
+	c := NewGrpcClient(opts...).(*grpcClient)
 	c.timeout = timeout
 	return c
 }
@@ -78,29 +70,29 @@ func (g *grpcClient) SetTimeout(p time.Duration) {
 	g.timeout = p
 }
 
-func (g *grpcClient) Public(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	var resp *drand.PublicRandResponse
 	fn := func() error {
 		c, err := g.conn(p)
 		if err != nil {
 			return err
 		}
-		client := drand.NewRandomnessClient(c)
-		resp, err = client.Public(context.Background(), in)
+		client := drand.NewPublicClient(c)
+		resp, err = client.PublicRand(context.Background(), in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
 }
 
-func (g *grpcClient) Private(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	var resp *drand.PrivateRandResponse
 	fn := func() error {
 		c, err := g.conn(p)
 		if err != nil {
 			return err
 		}
-		client := drand.NewRandomnessClient(c)
-		resp, err = client.Private(context.Background(), in)
+		client := drand.NewPublicClient(c)
+		resp, err = client.PrivateRand(context.Background(), in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -113,7 +105,7 @@ func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 		if err != nil {
 			return err
 		}
-		client := drand.NewInfoClient(c)
+		client := drand.NewPublicClient(c)
 		resp, err = client.Group(context.Background(), in)
 		return err
 	}
@@ -126,35 +118,35 @@ func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyRe
 		if err != nil {
 			return err
 		}
-		client := drand.NewInfoClient(c)
+		client := drand.NewPublicClient(c)
 		resp, err = client.DistKey(context.Background(), in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
 }
 
-func (g *grpcClient) Setup(p Peer, in *dkg.DKGPacket, opts ...CallOption) (*dkg.DKGResponse, error) {
-	var resp *dkg.DKGResponse
+func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error) {
+	var resp *drand.Empty
 	fn := func() error {
 		c, err := g.conn(p)
 		if err != nil {
 			return err
 		}
-		client := dkg.NewDkgClient(c)
+		client := drand.NewProtocolClient(c)
 		resp, err = client.Setup(g.getTimeoutContext(), in, grpc.FailFast(true))
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
 }
 
-func (g *grpcClient) Reshare(p Peer, in *dkg.ResharePacket, opts ...CallOption) (*dkg.ReshareResponse, error) {
-	var resp *dkg.ReshareResponse
+func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
+	var resp *drand.Empty
 	fn := func() error {
 		c, err := g.conn(p)
 		if err != nil {
 			return err
 		}
-		client := dkg.NewDkgClient(c)
+		client := drand.NewProtocolClient(c)
 		resp, err = client.Reshare(g.getTimeoutContext(), in, grpc.FailFast(true))
 		return err
 	}
@@ -168,22 +160,22 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 		if err != nil {
 			return err
 		}
-		client := drand.NewBeaconClient(c)
+		client := drand.NewProtocolClient(c)
 		resp, err = client.NewBeacon(g.getTimeoutContext(), in, append(opts, grpc.FailFast(true))...)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
 }
 
-func (g *grpcClient) Home(p Peer, in *drand.HomeRequest, opts ...CallOption) (*drand.HomeResponse, error) {
+func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	var resp *drand.HomeResponse
 	fn := func() error {
 		c, err := g.conn(p)
 		if err != nil {
 			return err
 		}
-		client := drand.NewInfoClient(c)
-		resp, err = client.Home(context.Background(), in, opts...)
+		client := drand.NewPublicClient(c)
+		resp, err = client.Home(context.Background(), in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -251,10 +243,10 @@ func newProxyClient(s Service) *proxyClient {
 }
 
 func (p *proxyClient) Public(c context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
-	return p.s.Public(c, in)
+	return p.s.PublicRand(c, in)
 }
 func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
-	return p.s.Private(c, in)
+	return p.s.PrivateRand(c, in)
 }
 func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
 	return p.s.DistKey(c, in)

@@ -7,7 +7,6 @@ import (
 	"github.com/dedis/drand/ecies"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/sign/bls"
@@ -17,7 +16,7 @@ import (
 // Client is the endpoint logic, communicating with drand servers
 // XXX: This API should go away. Do not extend any further.
 type Client struct {
-	client net.ExternalClient
+	client net.PublicClient
 }
 
 // NewGrpcClient returns a Client able to talk to drand instances using gRPC
@@ -51,7 +50,7 @@ func NewRESTClientFromCert(c *net.CertManager) *Client {
 // returns it if the randomness is valid. Secure indicates that the request
 // must be made over a TLS protected channel.
 func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.Public(&peerAddr{addr, secure}, &drand.PublicRandRequest{})
+	resp, err := c.client.PublicRand(&peerAddr{addr, secure}, &drand.PublicRandRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +61,7 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*dra
 // returns it if the randomness is valid. Secure indicates that the request
 // must be made over a TLS protected channel.
 func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.Public(&peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
+	resp, err := c.client.PublicRand(&peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +83,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Private(id, &drand.PrivateRandRequest{Request: obj})
+	resp, err := c.client.PrivateRand(id, &drand.PrivateRandRequest{Request: obj})
 	if err != nil {
 		return nil, err
 	}
@@ -92,9 +91,9 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 }
 
 // DistKey returns the distributed key the node at this address is holding.
-func (c *Client) DistKey(addr string, secure bool) (*crypto.Point, error) {
+func (c *Client) DistKey(addr string, secure bool) (*drand.DistKeyResponse, error) {
 	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
-	return resp.Key, err
+	return resp, err
 }
 
 // Group returns the group file used by the node in a JSON encoded format
@@ -108,7 +107,7 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if rand == nil {
 		return errors.New("drand: no randomness found")
 	}
-	return bls.Verify(key.Pairing, public, msg, rand.GetPoint())
+	return bls.Verify(key.Pairing, public, msg, rand)
 }
 
 func (c *Client) peer(addr string) {

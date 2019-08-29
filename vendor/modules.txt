@@ -47,7 +47,7 @@ github.com/stretchr/testify/assert
 github.com/urfave/cli
 # go.dedis.ch/fixbuf v1.0.3
 go.dedis.ch/fixbuf
-# go.dedis.ch/kyber/v3 v3.0.3-0.20190501101437-0324e4ea86f1
+# go.dedis.ch/kyber/v3 v3.0.4
 go.dedis.ch/kyber/v3/share
 go.dedis.ch/kyber/v3/sign/bls
 go.dedis.ch/kyber/v3/sign/tbls
@@ -56,13 +56,10 @@ go.dedis.ch/kyber/v3/share/vss/pedersen
 go.dedis.ch/kyber/v3/share/dkg/pedersen
 go.dedis.ch/kyber/v3/util/random
 go.dedis.ch/kyber/v3/pairing/bn256
-go.dedis.ch/kyber/v3/suites
 go.dedis.ch/kyber/v3/pairing
 go.dedis.ch/kyber/v3/sign/schnorr
 go.dedis.ch/kyber/v3/group/mod
 go.dedis.ch/kyber/v3/xof/blake2xb
-go.dedis.ch/kyber/v3/group/edwards25519
-go.dedis.ch/kyber/v3/group/nist
 go.dedis.ch/kyber/v3/group/internal/marshalling
 # go.dedis.ch/protobuf v1.0.6
 go.dedis.ch/protobuf
@@ -91,8 +88,8 @@ google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/protobuf/field_mask
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.20.1
-google.golang.org/grpc
 google.golang.org/grpc/peer
+google.golang.org/grpc
 google.golang.org/grpc/credentials
 google.golang.org/grpc/codes
 google.golang.org/grpc/grpclog

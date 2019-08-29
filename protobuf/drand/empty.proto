@@ -1,0 +1,12 @@
+/*
+ * Protobuf file containing empty message definition
+ */
+syntax = "proto3";
+
+package drand;
+
+option go_package = "github.com/dedis/drand/protobuf/drand";
+
+message Empty {
+
+}

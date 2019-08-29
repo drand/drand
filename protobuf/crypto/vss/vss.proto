@@ -3,12 +3,11 @@
  */
 syntax = "proto3";
 
-import "crypto/element.proto";
-import "crypto/share/share.proto";
+import "crypto/share.proto";
 
 package vss;
 
-option go_package = "github.com/dedis/drand/protobuf/crypto/share/vss";
+option go_package = "github.com/dedis/drand/protobuf/crypto/vss";
 
 // EncryptedDeal holds a share encrypted towards the share holder's longterm
 // public key..
@@ -37,7 +36,7 @@ message Deal {
     // threshold of the secret sharing protocol run
     uint32 threshold = 3;
     // commitments of the polynomial used to derive the share
-    repeated element.Point commitments = 4;
+    repeated bytes commitments = 4;
 }
 
 /*
