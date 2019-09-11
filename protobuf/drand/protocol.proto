@@ -21,19 +21,19 @@ service Protocol {
     rpc NewBeacon(BeaconRequest) returns (BeaconResponse);
 }
 
-// BeaconRequest  holds a link to a previous signature, a timestamp and the
+// BeaconRequest holds a link to a previous signature, a timestamp and the
 // partial signature for this beacon. All participants send and collects many of
 // theses partial beacon packets to recreate locally one beacon
 message BeaconRequest {
-    uint64 round = 2;
-    bytes previous_sig = 3;
+    uint64 round = 1;
+    bytes previous_sig = 2;
     // To prove the issuer comes from a valid node in the group
     // It is a group point prefixed by the index of the issuer
-    bytes partial_sig = 4;
+    bytes partial_sig = 3;
 }
 
 message BeaconResponse {
-    bytes partial_sig = 2;
+    bytes partial_sig = 1;
 }
 
 message SetupPacket {

@@ -8,12 +8,6 @@
 # sourced. This part calls the function to setup the drand containers and run
 # them. It produces produce randomness in a temporary folder..
 #
-# NOTE: Using docker compose should give a higher degree of flexibility and
-# composability. However I had trouble with spawning the containers too fast and
-# having weird binding errors: port already in use. I rolled back to simple
-# docker scripting. One of these, one should try to do it in docker-compose.
-## number of nodes
-
 N=6 ## final number of nodes in total - only N-1 will be running
 OLDN=5 ## starting number of nodes
 period="4s"
@@ -36,9 +30,14 @@ echo "[+] Setting up tests in $TMP folder"
 GROUPFILE="$TMP/group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
+
+# get current github directory
+curr=$(pwd)
+cd ..
+root=$(pwd)
+cd "$curr"
 IMG="dedis/drand:latest"
-DRAND_PATH="src/github.com/dedis/drand"
-DOCKERFILE="$GOPATH/$DRAND_PATH/Dockerfile"
+DOCKERFILE="$root/Dockerfile"
 NET="drand"
 SUBNET="192.168.215."
 PORT="80"
@@ -69,7 +68,8 @@ fi
 ## build the test travis image
 function build() {
     echo "[+] Building docker image $IMG"
-    docker build -t "$IMG" .  #> /dev/null
+    echo " ---- GOPATH $GOPATH"
+    docker build -t "$IMG" -f "$DOCKERFILE" "$root"
     img="byrnedo/alpine-curl"
     ## XXX make curl work without the "-k" option
     docker pull $img > /dev/null
@@ -120,14 +120,14 @@ function run() {
         public="key/drand_id.public"
         volume="$data:/root/.drand/:z" ## :z means shareable with other containers
         allVolumes[$i]=$volume
-        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" > /dev/null
+        docker run --rm --volume ${allVolumes[$i]} $IMG generate-keypair "$addr" # > /dev/null
         cp $data$public $TMP/node$i.public
         ## all keys from docker point of view
         allKeys[$i]=/tmp/node$i.public
 
         ## quicker generation with 1024 bits
         cd $data
-        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 > /dev/null 2>& 1
+        go run $GOROOT/src/crypto/tls/generate_cert.go --host $host --rsa-bits 1024 # > /dev/null 2>& 1
         certs+=("$(pwd)/cert.pem")
         tlskeys+=("$(pwd)/key.pem")
         cp cert.pem  $CERTSDIR/server-$i.cert

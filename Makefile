@@ -1,4 +1,27 @@
-.PHONY: install build
+.PHONY: test test-unit test-integration demo deploy-local linter install build
+
+test: linter test-unit test-integration
+
+test-unit:
+	GO111MODULE=on go test -v -mod=vendor ./...
+
+test-integration:
+	@echo "first makefile: Path is $$PATH"
+	PATH=$(PATH) GOPATH=$(GOPATH) $(MAKE) -C test-integration test
+
+linter:
+	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
+	@{ \
+		files=$$( go fmt ./... ); \
+		if [ -n "$$files" ]; then \
+		echo "Files not properly formatted: $$files"; \
+		exit 1; \
+		fi; \
+	}
+
+demo:
+deploy-local:
+	cd demo && sudo ./run.sh
 
 # create the "drand" binary and install it in $GOBIN
 install:

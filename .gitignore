@@ -1,4 +1,8 @@
 TODO.md
 test/drand
+<<<<<<< HEAD
 dist/
 *.DS_Store
+=======
+dist/
+>>>>>>> master

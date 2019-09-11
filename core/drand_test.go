@@ -20,13 +20,11 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/kabukky/httpscerts"
-	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/kyber/v3/sign/bls"
 )
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
-	slog.Level = slog.LevelDebug
 	oldN := 5 // 4 / 5
 	newN := 6 // 5 / 6
 	oldT := key.DefaultThreshold(oldN)
@@ -140,7 +138,6 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 }
 
 func TestDrandDKGReshare(t *testing.T) {
-	slog.Level = slog.LevelDebug
 
 	oldN := 5
 	newN := 6
@@ -221,7 +218,6 @@ func TestDrandDKGReshare(t *testing.T) {
 }
 
 func TestDrandDKGFresh(t *testing.T) {
-	slog.Level = slog.LevelDebug
 	n := 5
 	nbRound := 4
 	period := 1000 * time.Millisecond
@@ -389,7 +385,7 @@ func TestDrandDKGFresh(t *testing.T) {
 			for _, beacons := range genBeacons {
 				original := beacons[0].Beacon
 				for _, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Beacon.Signature, original.Signature) {
 						// randomness is not equal we return false
 						l.Unlock()
 						doneCh <- false
@@ -447,7 +443,6 @@ func TestDrandDKGFresh(t *testing.T) {
 }
 
 func TestDrandPublicGroup(t *testing.T) {
-	slog.Level = slog.LevelDebug
 
 	n := 5
 	thr := key.DefaultThreshold(n)

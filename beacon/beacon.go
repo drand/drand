@@ -329,7 +329,6 @@ func (h *Handler) run(round uint64, prevSig []byte, winCh chan roundInfo, closeC
 		Round:       round,
 		PreviousSig: prevSig,
 		Signature:   finalSig,
-		Randomness:  randomness,
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway

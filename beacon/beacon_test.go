@@ -203,10 +203,10 @@ func TestBeaconSimple(t *testing.T) {
 			for round, beacons := range genBeacons {
 				original := beacons[0]
 				for i, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Signature, original.Signature) {
 						// randomness is not equal we return false
 						l.Unlock()
-						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Randomness, i+1, beacon.Randomness)
+						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Signature, i+1, beacon.Signature)
 						doneCh <- false
 						return
 					}
@@ -360,10 +360,10 @@ func TestBeaconNEqualT(t *testing.T) {
 			for round, beacons := range genBeacons {
 				original := beacons[0]
 				for i, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Signature, original.Signature) {
 						// randomness is not equal we return false
 						l.Unlock()
-						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Randomness, i+1, beacon.Randomness)
+						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Signature, i+1, beacon.Signature)
 						doneCh <- false
 						return
 					}

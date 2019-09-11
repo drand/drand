@@ -24,8 +24,6 @@ type Beacon struct {
 	Round uint64
 	// Signature is the BLS deterministic signature over Round || PreviousRand
 	Signature []byte
-	// Randomness is the hash of Signature
-	Randomness []byte
 }
 
 // Message returns a slice of bytes as the message to sign or to verify

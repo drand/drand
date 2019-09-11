@@ -6,7 +6,7 @@ import (
 )
 
 func TestGetRandomness32BytesDefault(t *testing.T) {
-	random, err := GetRandom(nil,32)
+	random, err := GetRandom(nil, 32)
 	if err != nil {
 		t.Fatal("Getting randomness failed:", err)
 	}

@@ -61,12 +61,16 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 }
 
 func (g *grpcClient) getTimeoutContext() context.Context {
+	g.Lock()
+	defer g.Unlock()
 	clientDeadline := time.Now().Add(g.timeout)
 	ctx, _ := context.WithDeadline(context.Background(), clientDeadline)
 	return ctx
 }
 
 func (g *grpcClient) SetTimeout(p time.Duration) {
+	g.Lock()
+	defer g.Unlock()
 	g.timeout = p
 }
 
