@@ -18,8 +18,6 @@ import (
 
 // Group holds all information about a group of drand nodes.
 type Group struct {
-	// Curve identifier
-	Curve string
 	// Threshold to setup during the DKG or resharing protocol.
 	Threshold int
 	// Period to use for the beacon randomness generation
@@ -109,7 +107,6 @@ func (g *Group) String() string {
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	Curve     string
 	Threshold int
 	Period    string
 	Nodes     []*PublicTOML
@@ -122,10 +119,6 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	if !ok {
 		return fmt.Errorf("grouptoml unknown")
 	}
-	if gt.Curve != Pairing.String() {
-		return fmt.Errorf("group toml has unknown curve %s", gt.Curve)
-	}
-	g.Curve = gt.Curve
 	g.Threshold = gt.Threshold
 	g.Nodes = make([]*Identity, len(gt.Nodes))
 	for i, ptoml := range gt.Nodes {
@@ -155,7 +148,6 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 // TOML returns a TOML-encodable version of the Group
 func (g *Group) TOML() interface{} {
 	gtoml := &GroupTOML{
-		Curve:     Pairing.String(),
 		Threshold: g.Threshold,
 	}
 	gtoml.Nodes = make([]*PublicTOML, g.Len())
@@ -195,7 +187,6 @@ func NewGroup(list []*Identity, threshold int) *Group {
 	// XXX can't do that now since relying on index in the group in dkg and test
 	//sort.Sort(ByKey(list))
 	return &Group{
-		Curve:     Pairing.String(),
 		Nodes:     list,
 		Threshold: threshold,
 	}
@@ -205,7 +196,6 @@ func NewGroup(list []*Identity, threshold int) *Group {
 func LoadGroup(list []*Identity, public *DistPublic, threshold int) *Group {
 	//sort.Sort(ByKey(list))
 	return &Group{
-		Curve:     Pairing.String(),
 		Nodes:     list,
 		Threshold: threshold,
 		PublicKey: public,
