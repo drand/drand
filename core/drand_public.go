@@ -91,14 +91,18 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	if err != nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
-
+	peer, ok := peer.FromContext(c)
+	if ok {
+		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
+		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
+	}
 	h := RandomnessHash()
-	h.Write(beacon.Signature)
+	h.Write(beacon.GetSignature())
 	randomness := h.Sum(nil)
 	return &drand.PublicRandResponse{
-		Previous:   beacon.PreviousSig,
+		Previous:   beacon.GetPreviousSig(),
 		Round:      beacon.Round,
-		Signature:  beacon.Signature,
+		Signature:  beacon.GetSignature(),
 		Randomness: randomness,
 	}, nil
 }
@@ -133,8 +137,10 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 
 // Home ...
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	peer, _ := peer.FromContext(c)
-	d.log.With("module", "public").Info("home", peer.Addr.String())
+	peer, ok := peer.FromContext(c)
+	if ok {
+		d.log.With("module", "public").Info("home", peer.Addr.String())
+	}
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),
