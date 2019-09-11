@@ -24,6 +24,31 @@ type Beacon struct {
 	Round uint64
 	// Signature is the BLS deterministic signature over Round || PreviousRand
 	Signature []byte
+
+	// aliases field required for retro-compatibility
+	// TODO remove those when transition complete to new Beacon struct
+	// PreviousRand is the "old" PreviousSig
+	PreviousRand []byte
+	// Randomness is the "old" Signature
+	Randomness []byte
+}
+
+// GetSignature returns the signature of this beacon. Needed for
+// retro-compatibility
+func (b *Beacon) GetSignature() []byte {
+	if b.Signature != nil {
+		return b.Signature
+	}
+	return b.PreviousRand
+}
+
+// GetPreviousSig returns the signature of the previous beacon. Needed for
+// retro-compatibility.
+func (b *Beacon) GetPreviousSig() []byte {
+	if b.PreviousSig != nil {
+		return b.PreviousSig
+	}
+	return b.PreviousRand
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
