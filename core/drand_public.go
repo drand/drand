@@ -91,7 +91,10 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	if err != nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
-
+	peer, ok := peer.FromContext(c)
+	if ok {
+		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
+	}
 	h := RandomnessHash()
 	h.Write(beacon.GetSignature())
 	randomness := h.Sum(nil)
