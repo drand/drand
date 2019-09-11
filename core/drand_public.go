@@ -94,6 +94,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	peer, ok := peer.FromContext(c)
 	if ok {
 		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
+		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
 	}
 	h := RandomnessHash()
 	h.Write(beacon.GetSignature())
