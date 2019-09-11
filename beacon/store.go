@@ -18,22 +18,20 @@ import (
 
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
-	// PreviousRand is the previous randomness generated
-	PreviousRand []byte
+	// PreviousSig is the previous signature generated
+	PreviousSig []byte
 	// Round is the round number this beacon is tied to
 	Round uint64
 	// Signature is the BLS deterministic signature over Round || PreviousRand
 	Signature []byte
-	// Randomness is the hash of Signature
-	Randomness []byte
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
-func Message(prevRand []byte, round uint64) []byte {
+func Message(prevSig []byte, round uint64) []byte {
 	var buff bytes.Buffer
 	buff.Write(roundToBytes(round))
-	buff.Write(prevRand)
+	buff.Write(prevSig)
 	return buff.Bytes()
 }
 

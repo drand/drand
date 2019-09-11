@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"context"
+	"crypto/sha512"
 	"errors"
 	"fmt"
 	"math"
@@ -55,7 +56,7 @@ type Handler struct {
 	round uint64
 	// previous signature generated at the previous round. Useful to generate
 	// the next signature on the next round.
-	previousRand []byte
+	previousSig []byte
 	// stores some recent signature to avoid recreating them
 	cache *signatureCache
 	// signal if a beacon node is late, it waits for the next incoming request
@@ -64,12 +65,9 @@ type Handler struct {
 	// signal the beacon received from incoming request to the timer
 	catchupCh chan Beacon
 
-	ticker *time.Ticker
-	close  chan bool
-	addr   string
-	// group id to embed in all beacons
-	// XXX temporary solution to change when we really want flexible groups
-	id      int32
+	ticker  *time.Ticker
+	close   chan bool
+	addr    string
 	seed    []byte
 	started bool
 
@@ -131,8 +129,8 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	}
 
 	// 2- we dont catch up at least with invalid signature
-	msg := Message(p.PreviousRand, p.Round)
-	if err := tbls.Verify(key.Pairing, h.pub, msg, p.PartialRand); err != nil {
+	msg := Message(p.PreviousSig, p.Round)
+	if err := tbls.Verify(key.Pairing, h.pub, msg, p.PartialSig); err != nil {
 		h.l.Error("process_beacon", err, "from", peer)
 		return nil, err
 	}
@@ -140,15 +138,15 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	// check if we have it in the saved signatures
 	signature, err := h.signature(p.Round, msg)
 	resp := &proto.BeaconResponse{
-		PartialRand: signature,
+		PartialSig: signature,
 	}
 
 	// start our own internal timer
 	if h.catchup {
 		h.l.Info("process_beacon", "catchup")
 		h.catchupCh <- Beacon{
-			PreviousRand: p.GetPreviousRand(),
-			Round:        p.GetRound(),
+			PreviousSig: p.GetPreviousSig(),
+			Round:       p.GetRound(),
 		}
 		h.catchup = false
 	}
@@ -169,7 +167,7 @@ func (h *Handler) Run(period time.Duration, catchup bool) {
 	var currentRoundFinished bool
 
 	var round uint64
-	var prevRand []byte
+	var prevSig []byte
 	winCh := make(chan roundInfo)
 	closingCh := make(chan bool)
 
@@ -179,9 +177,9 @@ func (h *Handler) Run(period time.Duration, catchup bool) {
 		// be the seed or a guenuine one.
 		b, err := h.store.Last()
 		if err == ErrNoBeaconSaved {
-			prevRand = h.seed
+			prevSig = h.seed
 		} else if err == nil {
-			prevRand = b.Randomness
+			prevSig = b.Signature
 			h.round = b.Round
 		} else {
 			h.l.Info("run", fmt.Errorf("database error: %v", err))
@@ -191,7 +189,7 @@ func (h *Handler) Run(period time.Duration, catchup bool) {
 	h.ticker = time.NewTicker(period)
 	h.started = true
 	h.Unlock()
-	h.savePreviousSignature(prevRand)
+	h.savePreviousSignature(prevSig)
 	for {
 		if goToNextRound {
 			// we launch the next round and close the previous operations if
@@ -209,15 +207,15 @@ func (h *Handler) Run(period time.Duration, catchup bool) {
 				h.l.Debug("beacon_loop", "synchronized", "new_round", b.Round, "previous_round", round)
 				// nextRound() automatically increases
 				h.setRound(b.Round - 1)
-				h.savePreviousSignature(b.PreviousRand)
+				h.savePreviousSignature(b.PreviousSig)
 				catchup = false
 			}
 
 			// take the next round and prev signature
 			round = h.nextRound()
-			prevRand = h.getPreviousSignature()
+			prevSig = h.getPreviousSignature()
 
-			go h.run(round, prevRand, winCh, closingCh)
+			go h.run(round, prevSig, winCh, closingCh)
 
 			goToNextRound = false
 			currentRoundFinished = false
@@ -257,9 +255,9 @@ type roundInfo struct {
 	signature []byte
 }
 
-func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, closeCh chan bool) {
+func (h *Handler) run(round uint64, prevSig []byte, winCh chan roundInfo, closeCh chan bool) {
 	h.l.Debug("beacon_round", round, "time", time.Now())
-	msg := Message(prevRand, round)
+	msg := Message(prevSig, round)
 	signature, err := h.signature(round, msg)
 	if err != nil {
 		h.l.Error("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", round)
@@ -269,9 +267,9 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	var sigs [][]byte
 	sigs = append(sigs, signature)
 	request := &proto.BeaconRequest{
-		Round:        round,
-		PreviousRand: prevRand,
-		PartialRand:  signature,
+		Round:       round,
+		PreviousSig: prevSig,
+		PartialSig:  signature,
 	}
 	respCh := make(chan *proto.BeaconResponse, h.group.Len())
 	// send all requests in parallel
@@ -290,7 +288,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 				}
 				return
 			}
-			if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialRand); err != nil {
+			if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialSig); err != nil {
 				h.l.Error("beacon_round", round, "invalid beacon resp", err)
 				return
 			}
@@ -302,8 +300,8 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	for len(sigs) < h.group.Threshold {
 		select {
 		case resp := <-respCh:
-			sigs = append(sigs, resp.PartialRand)
-			h.l.Debug("beacon_round", round, "partial_randomness", len(sigs), "required", h.group.Threshold)
+			sigs = append(sigs, resp.PartialSig)
+			h.l.Debug("beacon_round", round, "partial_signature", len(sigs), "required", h.group.Threshold)
 		case <-closeCh:
 			// it's already time to go to the next, there has been not
 			// enough time or nodes are too slow. In any case it's a
@@ -323,11 +321,14 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 		return
 	}
 
+	hash := sha512.New()
+	hash.Write(finalSig)
+	randomness := hash.Sum(nil)
+
 	beacon := &Beacon{
-		Round:        round,
-		PreviousRand: prevRand,
-		Signature:    finalSig,
-		Randomness:   finalSig,
+		Round:       round,
+		PreviousSig: prevSig,
+		Signature:   finalSig,
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway
@@ -337,7 +338,7 @@ func (h *Handler) run(round uint64, prevRand []byte, winCh chan roundInfo, close
 	}
 	//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 	//slog.Infof("beacon: %s round %d finished: %x", h.addr, round, finalSig)
-	h.l.Info("beacon_round", round, "randomness", fmt.Sprintf("%x", finalSig), "previous_rand", fmt.Sprintf("%x", prevRand))
+	h.l.Info("beacon_round", round, "signature", fmt.Sprintf("%x", finalSig), "previous_sig", fmt.Sprintf("%x", prevSig), "randomness", fmt.Sprintf("%x", randomness))
 	winCh <- roundInfo{round: round, signature: finalSig}
 }
 
@@ -371,13 +372,13 @@ func (h *Handler) setRound(r uint64) {
 func (h *Handler) savePreviousSignature(sig []byte) {
 	h.Lock()
 	defer h.Unlock()
-	h.previousRand = sig
+	h.previousSig = sig
 }
 
 func (h *Handler) getPreviousSignature() []byte {
 	h.Lock()
 	defer h.Unlock()
-	return h.previousRand
+	return h.previousSig
 }
 
 func (h *Handler) signature(round uint64, msg []byte) ([]byte, error) {
@@ -401,23 +402,23 @@ func (h *Handler) setCatchup(catchup bool) {
 
 type signatureCache struct {
 	sync.Mutex
-	cache map[uint64]*partialRand
+	cache map[uint64]*PartialSig
 }
 
 func newSignatureCache() *signatureCache {
 	return &signatureCache{
-		cache: make(map[uint64]*partialRand),
+		cache: make(map[uint64]*PartialSig),
 	}
 }
 
 // Put saves the partial signature associated with the given round and
 // message for futur usage.
-func (s *signatureCache) Put(round uint64, msg, rand []byte) {
+func (s *signatureCache) Put(round uint64, msg, sig []byte) {
 	// XXX signature cache is disabled for the moment
 	if false {
 		s.Lock()
 		defer s.Unlock()
-		s.cache[round] = &partialRand{message: msg, partialRand: rand}
+		s.cache[round] = &PartialSig{message: msg, PartialSig: sig}
 
 	}
 }
@@ -429,15 +430,15 @@ func (s *signatureCache) Get(round uint64, msg []byte) ([]byte, bool) {
 	if false {
 		s.Lock()
 		defer s.Unlock()
-		rand, ok := s.cache[round]
+		sig, ok := s.cache[round]
 		if !ok {
 			return nil, false
 		}
-		if !bytes.Equal(msg, rand.message) {
+		if !bytes.Equal(msg, sig.message) {
 			//slog.Infof("beacon: inconsistency for round %d: msg stored %x vs msg received %x", round, msg, rand.message)
 			return nil, false
 		}
-		return rand.partialRand, true
+		return sig.PartialSig, true
 	}
 	return nil, false
 }
@@ -451,7 +452,8 @@ func (s *signatureCache) Evict(currRound uint64) {
 	}
 }
 
-type partialRand struct {
-	message     []byte
-	partialRand []byte
+//PartialSig holds partial signature
+type PartialSig struct {
+	message    []byte
+	PartialSig []byte
 }

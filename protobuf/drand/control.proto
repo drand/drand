@@ -33,10 +33,10 @@ service Control {
 }
 
 message InitDKGPacket {
-    GroupInfo dkg_group = 1; 
+    GroupInfo dkg_group = 1;
     bool is_leader = 2;
     // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 3; 
+    string timeout = 3;
 }
 
 // ReshareRequest contains references to the old and new group to perform the
@@ -50,14 +50,14 @@ message InitResharePacket {
     GroupInfo new = 2;
     bool is_leader = 3;
     // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 4; 
+    string timeout = 4;
 }
 
 message GroupInfo {
     oneof location {
         string path = 1;
-        // XXX not implemented 
-        string url = 2; 
+        // XXX not implemented
+        string url = 2;
     }
 }
 
@@ -109,6 +109,6 @@ message GroupTOMLRequest {
 }
 
 message GroupTOMLResponse {
-    // TOML-encoded group file 
+    // TOML-encoded group file
     string group_toml = 1;
 }

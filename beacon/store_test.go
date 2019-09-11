@@ -22,15 +22,15 @@ func TestBoltStore(t *testing.T) {
 	require.NoError(t, err)
 
 	b1 := &Beacon{
-		PreviousRand: sig1,
-		Round:        145,
-		Randomness:   sig2,
+		PreviousSig: sig1,
+		Round:       145,
+		Signature:   sig2,
 	}
 
 	b2 := &Beacon{
-		PreviousRand: sig2,
-		Round:        146,
-		Randomness:   sig1,
+		PreviousSig: sig2,
+		Round:       146,
+		Signature:   sig1,
 	}
 
 	require.NoError(t, store.Put(b1))

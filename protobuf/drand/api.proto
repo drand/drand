@@ -58,7 +58,7 @@ service Public {
 // PublicRandRequest requests a public random value that has been generated in a
 // unbiasable way and verifiable.
 message PublicRandRequest {
-    // round uniquely identifies a beacon. If round == 0 (or unsecified), then
+    // round uniquely identifies a beacon. If round == 0 (or unspecified), then
     // the response will contain the last.
     uint64 round = 1;
 }
@@ -68,10 +68,10 @@ message PublicRandRequest {
 // DKG protocol and is unbiasable. The randomness can be verified using the BLS
 // verification routine with the message "round || previous_rand".
 message PublicRandResponse {
-    uint64 round = 2;
-    bytes previous = 3;
-    bytes signature = 4;
-    bytes randomness = 5;
+    uint64 round = 1;
+    bytes previous = 2;
+    bytes signature = 3;
+    bytes randomness = 4;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random
@@ -103,7 +103,6 @@ message DistKeyResponse {
 }
 
 message HomeRequest {
-         
 }
 
 message HomeResponse {
@@ -119,9 +118,9 @@ message GroupRequest {
 message GroupResponse {
     uint32 threshold = 2;
     // in ms
-    uint32 period = 3; 
+    uint32 period = 3;
     repeated Node nodes = 4;
-    repeated string distkey = 5; 
+    repeated string distkey = 5;
 }
 
 // Node represents the information about a drand's node

@@ -92,10 +92,14 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
 
+	h := RandomnessHash()
+	h.Write(beacon.Signature)
+	randomness := h.Sum(nil)
 	return &drand.PublicRandResponse{
-		Previous:  beacon.PreviousRand,
-		Round:     beacon.Round,
-		Signature: beacon.Signature,
+		Previous:   beacon.PreviousSig,
+		Round:      beacon.Round,
+		Signature:  beacon.Signature,
+		Randomness: randomness,
 	}, nil
 }
 

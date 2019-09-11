@@ -138,7 +138,7 @@ func TestBeaconSimple(t *testing.T) {
 	// into the map
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
-			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
+			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
@@ -203,10 +203,10 @@ func TestBeaconSimple(t *testing.T) {
 			for round, beacons := range genBeacons {
 				original := beacons[0]
 				for i, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Signature, original.Signature) {
 						// randomness is not equal we return false
 						l.Unlock()
-						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Randomness, i+1, beacon.Randomness)
+						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Signature, i+1, beacon.Signature)
 						doneCh <- false
 						return
 					}
@@ -288,7 +288,7 @@ func TestBeaconNEqualT(t *testing.T) {
 	// into the map
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
-			err := bls.Verify(key.Pairing, public, Message(b.PreviousRand, b.Round), b.Randomness)
+			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
@@ -360,10 +360,10 @@ func TestBeaconNEqualT(t *testing.T) {
 			for round, beacons := range genBeacons {
 				original := beacons[0]
 				for i, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Signature, original.Signature) {
 						// randomness is not equal we return false
 						l.Unlock()
-						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Randomness, i+1, beacon.Randomness)
+						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Signature, i+1, beacon.Signature)
 						doneCh <- false
 						return
 					}

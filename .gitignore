@@ -1,3 +1,4 @@
 TODO.md
 test/drand
 dist/
+*.DS_Store
