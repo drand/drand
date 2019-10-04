@@ -190,6 +190,17 @@ function printNodesList() {
       let port = addr.split(":")[1];
       let tls = group.nodes[i].TLS;
 
+        // DNS.Query(host, DNS.QueryType.A,
+        //   function(data) {
+        //       console.log(host);
+        //       console.log(data[0].Address);
+        //   });
+          DNS.Country(host, DNS.QueryType.A,
+            function(data) {
+                console.log(host);
+                console.log(data);
+            });
+
       let line = document.createElement("tr");
       let statusCol = document.createElement("td");
       isUp(addr, tls)
