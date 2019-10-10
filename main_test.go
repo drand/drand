@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	gnet "net"
 	"os"
@@ -271,6 +272,22 @@ func TestStartWithoutGroup(t *testing.T) {
 	expectedOutput := "0000000000000000000000000000000000000000000000000000000000000001"
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
+
+	// reset state
+	cmd = exec.Command("drand", "--folder", tmpPath, "reset")
+	var in bytes.Buffer
+	in.WriteString("y\n")
+	cmd.Stdin = &in
+	out, err = cmd.CombinedOutput()
+	fmt.Println(string(out))
+	require.NoError(t, err)
+	_, err = fs.LoadDistPublic()
+	require.Error(t, err)
+	_, err = fs.LoadShare()
+	require.Error(t, err)
+	_, err = fs.LoadGroup()
+	require.Error(t, err)
+
 }
 
 func TestClientTLS(t *testing.T) {

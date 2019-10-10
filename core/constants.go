@@ -1,6 +1,7 @@
 package core
 
 import (
+	"crypto/sha512"
 	"path"
 	"time"
 
@@ -30,7 +31,11 @@ const DefaultControlPort = "8888"
 
 // DefaultDKGTimeout is the time the DKG timeouts by default. See
 // kyber/share/dkg/pedersen for more information.
-const DefaultDKGTimeout = "10s"
+const DefaultDKGTimeout = "1m"
 
 // DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
-var DefaultDialTimeout = 3 * time.Second
+var DefaultDialTimeout = 10 * time.Second
+
+// RandomnessHash is the hash function used to produce the final randomness from
+// the signature
+var RandomnessHash = sha512.New

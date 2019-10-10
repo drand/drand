@@ -1,0 +1,50 @@
+/*
+ * This protobuf file contains the services and message definitions of all
+ * methods used by drand nodes to produce distributed randomness.
+ *
+*/
+syntax = "proto3";
+
+package drand;
+
+option go_package = "github.com/dedis/drand/protobuf/drand";
+
+import "crypto/dkg/dkg.proto";
+import "drand/empty.proto";
+
+service Protocol {
+    // Setup is doing the DKG setup phase
+    rpc Setup(SetupPacket) returns (drand.Empty);
+    // Reshare performs the resharing phase
+    rpc Reshare(ResharePacket) returns (drand.Empty);
+    // NewBeacon asks for a partial signature to another node
+    rpc NewBeacon(BeaconRequest) returns (BeaconResponse);
+}
+
+// BeaconRequest holds a link to a previous signature, a timestamp and the
+// partial signature for this beacon. All participants send and collects many of
+// theses partial beacon packets to recreate locally one beacon
+message BeaconRequest {
+    uint64 round = 1;
+    bytes previous_sig = 2;
+    // To prove the issuer comes from a valid node in the group
+    // It is a group point prefixed by the index of the issuer
+    bytes partial_sig = 3;
+}
+
+message BeaconResponse {
+    bytes partial_sig = 1;
+}
+
+message SetupPacket {
+    dkg.Packet dkg = 1;
+}
+
+// Reshare is a wrapper around a Setup packet for resharing operation that
+// serves two purposes: - indicate to non-leader old nodes that they should
+// generate and send their deals - indicate to which new group are we resharing.
+// drand should keep a list of new ready-to-operate groups allowed.
+message ResharePacket {
+    dkg.Packet dkg = 1;
+    string group_hash = 2;
+}

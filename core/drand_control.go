@@ -9,21 +9,18 @@ import (
 	"fmt"
 	"time"
 
-	toml "github.com/BurntSushi/toml"
+	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/protobuf/control"
-	"github.com/dedis/drand/protobuf/crypto"
-	dkg_proto "github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
-	"github.com/nikkolasg/slog"
+	control "github.com/dedis/drand/protobuf/drand"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
-// InitDKG take a DKGRequest, extracts the informations needed and wait for the
+// InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
-func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKGResponse, error) {
+func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.Empty, error) {
 	d.state.Lock()
 
 	if d.dkgDone == true {
@@ -69,14 +66,14 @@ func (d *Drand) InitDKG(c context.Context, in *control.DKGRequest) (*control.DKG
 	if err := d.StartBeacon(false); err != nil {
 		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
 	}
-	return &control.DKGResponse{}, nil
+	return &control.Empty{}, nil
 }
 
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol. It starts the resharing protocol if the
 // received node is stated as a leader and is present in the old group.
 // This function waits for the resharing DKG protocol to finish.
-func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*control.ReshareResponse, error) {
+func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*control.Empty, error) {
 	var oldGroup, newGroup *key.Group
 	var err error
 
@@ -91,7 +88,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 			d.state.Unlock()
 			return nil, errors.New("drand: can't init-reshare if no old group provided")
 		}
-		slog.Debugf("drand: using current group as old group in resharing request")
+		d.log.With("module", "control").Debug("init_reshare", "old group equal current group")
 		oldGroup = d.group
 	}
 	d.state.Unlock()
@@ -178,13 +175,13 @@ func (d *Drand) InitReshare(c context.Context, in *control.ReshareRequest) (*con
 	if oldPresent {
 		catchup = false
 	}
-	return &control.ReshareResponse{}, d.StartBeacon(catchup)
+	return &control.Empty{}, d.StartBeacon(catchup)
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {
-	slog.Debugf("drand: start sending resharing signal")
+	d.log.With("module", "control").Debug("leader_reshare", "start signalling")
 	d.state.Lock()
-	msg := &dkg_proto.ResharePacket{GroupHash: d.nextGroupHash}
+	msg := &control.ResharePacket{GroupHash: d.nextGroupHash}
 	// send resharing packet to signal start of the protocol to other old
 	// nodes
 	for i, p := range d.nextConf.OldNodes.Identities() {
@@ -194,13 +191,13 @@ func (d *Drand) startResharingAsLeader(oidx int) {
 		id := p
 		// XXX find way to just have a small RPC timeout if one is down.
 		//fmt.Printf("drand leader %s -> signal to %s\n", d.priv.Public.Addr, id.Addr)
-		if _, err := d.gateway.InternalClient.Reshare(id, msg); err != nil {
+		if _, err := d.gateway.ProtocolClient.Reshare(id, msg); err != nil {
 			//if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
-			slog.Debugf("drand: init reshare packet err %s", err)
+			d.log.With("module", "control").Error("leader_reshare", err)
 		}
 	}
 	d.state.Unlock()
-	slog.Debugf("drand: resharing signal sent -> start DKG")
+	d.log.With("module", "control").Debug("leader_reshare", "start DKG")
 	d.StartDKG()
 }
 
@@ -210,12 +207,12 @@ func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyR
 	if err != nil {
 		return nil, errors.New("drand: could not load dist. key")
 	}
-	key, err := crypto.KyberToProtoPoint(pt.Key())
+	buff, err := pt.Key().MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	return &drand.DistKeyResponse{
-		Key: key,
+		Key: buff,
 	}, nil
 }
 
@@ -232,11 +229,11 @@ func (d *Drand) Share(ctx context.Context, in *control.ShareRequest) (*control.S
 		return nil, err
 	}
 	id := uint32(share.Share.I)
-	protoShare, err := crypto.KyberToProtoScalar(share.Share.V)
+	buff, err := share.Share.V.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return &control.ShareResponse{Index: id, Share: protoShare}, nil
+	return &control.ShareResponse{Index: id, Share: buff}, nil
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control that requests the long term public key of the drand node running locally
@@ -247,7 +244,7 @@ func (d *Drand) PublicKey(ctx context.Context, in *control.PublicKeyRequest) (*c
 	if err != nil {
 		return nil, err
 	}
-	protoKey, err := crypto.KyberToProtoPoint(key.Public.Key)
+	protoKey, err := key.Public.Key.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +259,7 @@ func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (
 	if err != nil {
 		return nil, err
 	}
-	protoKey, err := crypto.KyberToProtoScalar(key.Key)
+	protoKey, err := key.Key.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
@@ -278,15 +275,15 @@ func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*c
 	if err != nil {
 		return nil, err
 	}
-	protoKey, err := crypto.KyberToProtoPoint(key.Key())
+	protoKey, err := key.Key().MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	return &control.CokeyResponse{CoKey: protoKey}, nil
 }
 
-// Group replies with the current group of this drand node
-func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.GroupResponse, error) {
+// GroupFile replies with the distributed key in the response
+func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*control.GroupTOMLResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.group == nil {
@@ -295,7 +292,10 @@ func (d *Drand) Group(ctx context.Context, in *control.GroupRequest) (*control.G
 	gtoml := d.group.TOML()
 	var buff bytes.Buffer
 	err := toml.NewEncoder(&buff).Encode(gtoml)
-	return &control.GroupResponse{GroupToml: buff.String()}, err
+	if err != nil {
+		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
+	}
+	return &drand.GroupTOMLResponse{GroupToml: buff.String()}, nil
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

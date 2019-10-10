@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	gnet "net"
 	"os"
 	"path"
@@ -19,13 +20,11 @@ import (
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
 	"github.com/kabukky/httpscerts"
-	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/kyber/v3/sign/bls"
 )
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
-	slog.Level = slog.LevelDebug
 	oldN := 5 // 4 / 5
 	newN := 6 // 5 / 6
 	oldT := key.DefaultThreshold(oldN)
@@ -64,7 +63,15 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	}
 
 	// creating the new group from the whole set of keys
-	newGroup := key.NewGroup(ids, newT)
+	shuffledIds := make([]*key.Identity, len(ids))
+	copy(shuffledIds, ids)
+	// shuffle with random swaps
+	for i := 0; i < len(ids)*3; i++ {
+		i1 := rand.Intn(len(ids))
+		i2 := rand.Intn(len(ids))
+		shuffledIds[i1], shuffledIds[i2] = shuffledIds[i2], shuffledIds[i1]
+	}
+	newGroup := key.NewGroup(shuffledIds, newT)
 	newGroup.Period = period
 	newPath := path.Join(dir, "newgroup.toml")
 	require.NoError(t, key.Save(newPath, newGroup, false))
@@ -78,6 +85,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	fmt.Println()
 	var wg sync.WaitGroup
 	wg.Add(newN - 1 - offline)
+	// skip the offline ones and the "first" (as leader)
 	for i, drand := range drands[1+offline:] {
 		go func(d *Drand, j int) {
 			if d.idx < oldN {
@@ -130,7 +138,6 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 }
 
 func TestDrandDKGReshare(t *testing.T) {
-	slog.Level = slog.LevelDebug
 
 	oldN := 5
 	newN := 6
@@ -211,7 +218,6 @@ func TestDrandDKGReshare(t *testing.T) {
 }
 
 func TestDrandDKGFresh(t *testing.T) {
-	slog.Level = slog.LevelDebug
 	n := 5
 	nbRound := 4
 	period := 1000 * time.Millisecond
@@ -268,10 +274,10 @@ func TestDrandDKGFresh(t *testing.T) {
 	setupDrand := func(i int) {
 		//addr := drands[i].priv.Public.Address()
 		myCb := func(b *beacon.Beacon) {
-			msg := beacon.Message(b.PreviousRand, b.Round)
-			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Randomness)
+			msg := beacon.Message(b.PreviousSig, b.Round)
+			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Signature)
 			if err != nil {
-				fmt.Printf("Beacon error callback: %s\n", b.Randomness)
+				fmt.Printf("Beacon error callback: %s\n", b.Signature)
 			}
 			require.NoError(t, err)
 			l.Lock()
@@ -379,7 +385,7 @@ func TestDrandDKGFresh(t *testing.T) {
 			for _, beacons := range genBeacons {
 				original := beacons[0].Beacon
 				for _, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Beacon.Randomness, original.Randomness) {
+					if !bytes.Equal(beacon.Beacon.Signature, original.Signature) {
 						// randomness is not equal we return false
 						l.Unlock()
 						doneCh <- false
@@ -416,7 +422,7 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	checkSuccess()
 
-	fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED FIRST PASS \n\n\n\n\n\n\n\n\n")
+	//fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED FIRST PASS \n\n\n\n\n\n\n\n\n")
 
 	drands[n-1], err = LoadDrand(drands[n-1].store, drands[n-1].opts)
 	require.NoError(t, err)
@@ -428,12 +434,70 @@ func TestDrandDKGFresh(t *testing.T) {
 	go countGenBeacons(nbRound, n, done)
 	checkSuccess()
 
-	fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED SECOND PASS \n\n\n\n\n\n\n\n\n")
+	//fmt.Printf("\n\n\n\n\n HELLLOOOOO FINISHED SECOND PASS \n\n\n\n\n\n\n\n\n")
 
 	client := net.NewGrpcClientFromCertManager(root.opts.certmanager, root.opts.grpcOpts...)
-	resp, err := client.Public(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(test.NewTLSPeer(root.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
+}
+
+func TestDrandPublicGroup(t *testing.T) {
+
+	n := 5
+	thr := key.DefaultThreshold(n)
+
+	// create n shares
+	_, dpub := test.SimulateDKG(t, key.G2, n, thr)
+	period := 1000 * time.Millisecond
+
+	// instantiating all drands already
+	drands, _, dir := BatchNewDrand(n, true)
+	defer CloseAllDrands(drands)
+	defer os.RemoveAll(dir)
+
+	// listing all new ids
+	ids := make([]*key.Identity, n)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+		drands[i].idx = i
+	}
+
+	// creating old group from subset of ids
+	group1 := key.LoadGroup(ids, &key.DistPublic{Coefficients: dpub}, thr)
+	group1.Period = period
+	path := path.Join(dir, "group.toml")
+	require.NoError(t, key.Save(path, group1, false))
+
+	gtoml := group1.TOML().(*key.GroupTOML)
+
+	for i := range drands {
+		// so old drand nodes "think" it has already ran a dkg
+		drands[i].group = group1
+		drands[i].dkgDone = true
+	}
+
+	client := NewGrpcClient()
+	rest := net.NewRestClient()
+	for _, d := range drands {
+		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
+		require.NoError(t, err)
+
+		require.Equal(t, uint32(group1.Period), groupResp.Period*1e6)
+		require.Equal(t, uint32(group1.Threshold), groupResp.Threshold)
+		require.Equal(t, gtoml.PublicKey.Coefficients, groupResp.Distkey)
+		require.Len(t, groupResp.Nodes, len(group1.Nodes))
+		for i, n := range group1.Nodes {
+			n2 := groupResp.Nodes[i]
+			require.Equal(t, n.Addr, n2.Address)
+			require.Equal(t, gtoml.Nodes[i].Key, n2.Key)
+			require.Equal(t, n.TLS, n2.TLS)
+		}
+		restGroup, err := rest.Group(d.priv.Public, &drand.GroupRequest{})
+		require.NoError(t, err)
+		require.Equal(t, groupResp, restGroup)
+	}
+
 }
 
 // BatchNewDrand returns n drands, using TLS or not, with the given

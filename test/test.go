@@ -112,7 +112,7 @@ func ListFromPrivates(keys []*key.Pair) []*key.Identity {
 
 }
 
-// StringToPoint returns the point representation of the given string
+// StringToPoint ...
 func StringToPoint(s string) (kyber.Point, error) {
 	pairing := bn256.NewSuite()
 	g := pairing.G2()

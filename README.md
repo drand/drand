@@ -14,19 +14,31 @@ Drand nodes can also serve locally-generated private randomness to clients.
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 
-## Quickstart
+## Installing drand locally
 
-To run drand locally make sure that you have a working
-[Docker installation](https://docs.docker.com/engine/installation/).
+Requirements: `go >= 1.12`.
+
 Then execute (might need root privileges to run Docker on some systems):
 ```bash
 git clone https://github.com/dedis/drand
 cd drand
-./run_local.sh
+make install
 ```
 
-The script spins up six local drand nodes using Docker and produces fresh
-randomness every few seconds.
+Then you can run the command-line application with `drand`
+
+## Quickstart - Docker
+
+To deploy several drand nodes locally, make sure that you have a working
+[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
+
+Then execute (it will ask you for root since it deals with docker containers):
+```bash
+make deploy-local
+```
+
+The script spins up 5 local drand nodes using Docker and produces fresh
+randomness every 10 seconds.
 
 ## Overview
 
@@ -58,8 +70,9 @@ phases:
     threshold version of the *Boneh-Lynn-Shacham* (BLS) signature scheme and their
     respective private key shares. Once any node (or third-party observer) has
     gathered t partial signatures, it can reconstruct the full BLS
-    signature (using Lagrange interpolation) which corresponds to the collective
-    random value. This random beacon / full BLS signature can be verified against
+    signature (using Lagrange interpolation). The signature is then hashed using
+    SHA-512 to ensure that there is no bias in the byte representation of the final output.
+    This hash corresponds to the collective random value and can be verified against
     the collective public key.
 
 ### Private Randomness
@@ -102,7 +115,45 @@ go get -u github.com/dedis/drand
 ```
 ### Via Docker
 
-Make sure that you have a working [Docker installation](https://docs.docker.com/engine/installation/).
+The setup is explained in [README_docker.md](README_docker.md).
+
+### TLS setup: Nginx with Let's Encrypt
+
+Running drand behind a reverse proxy is the **default** method of deploying
+drand. Such a setup greatly simplify TLS management issues (renewal of certificates, etc). We provide here the
+minimum setup using [nginx](https://www.nginx.com/) and [certbot](https://certbot.eff.org/lets-encrypt/) - make sure you have both binaries installed with the latest version.
+
++ First, add an entry in the nginx configuration for drand:
+```bash
+# /etc/nginx/sites-available/default
+server {
+  server_name drand.nikkolasg.xyz;
+  listen 443 ssl;
+ 
+  location / {
+    grpc_pass grpc://localhost:8080;
+  }
+  location /api/ {
+    proxy_pass http://localhost:8080; 
+    proxy_set_header Host $host;
+  }
+}  
+```
+**Note**: you can change 
+1. the port on which you want drand to be accessible by changing the line `listen 443 ssl` to use any port.
+2. the port on which the drand binary will listen locally by changing the line `proxy_pass http://localhost:8080; ` and ` grpc_pass grpc://localhost:8080;` to use any local port.
+
++ Run certbot to get a TLS certificate:
+```bash
+sudo certbot --nginx
+```
+
++ **Running** drand now requires to add the following options:
+```bash
+drand start --tls-disable --listen 127.0.0.1:8080
+```
+
+The `--listen` flag tells drand to listen on the given address instead of the public address generated during the setup phase (see below).
 
 ## Usage
 
@@ -127,9 +178,7 @@ To generate the long-term key pair `drand_id.{secret,public}` of the drand daemo
 ```
 drand generate-keypair <address>
 ```
-where `<address>` is the address from which your drand daemon is reachable. The
-address must be reachable over a TLS connection. In case you need non-secured
-channel, you can pass the `--tls-disable` flag.
+where `<address>` is the address from which your drand daemon is reachable. The address must be reachable over a TLS connection directly or via a reverse proxy setup. In case you need non-secured channel, you can pass the `--tls-disable` flag.
 
 #### Group Configuration
 
@@ -191,23 +240,6 @@ Although we **do not recommend** it, you can always disable TLS in drand via:
 drand start --tls-disable
 ```
 
-#### With Docker
-If you run drand in Docker, **always** use the following template
-
-```bash
-docker run \
-    --rm \
-    --name drand \
-    -p <port>:<port> \
-    --volume $HOME/.drand/:/root/.drand/ \
-    dedis/drand <command>
-```
-
-where `<port>` specifies the port through which your drand daemon is reachable
-and `<command>` has to be substituted by one of the respective drand
-commands below. You must add the corresponding volumes pointing to your TLS
-private key and certificate in case you are using TLS (recommended).
-
 ### Distributed Key Generation
 
 After running all drand daemons, each operator needs to issue a command to start
@@ -220,7 +252,7 @@ drand share <group-file>  --timeout 10s
 One of the nodes has to function as the leader to initiate the DKG protocol (no
 additional trust assumptions), he can do so with:
 ```
-drand share --leader <group-file> 
+drand share --leader <group-file>
 ```
 
 Once running, the leader initiates the distributed key generation protocol to
@@ -360,21 +392,20 @@ The JSON-formatted output produced by drand is of the following form:
     "round": 2,
     "previous": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a2
 d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
-    "randomness": {
-        "gid": 21,
-        "point": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
-2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342"
-    }
+    "signature": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
+2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
+    "randomness": "ee9e1aeba4a946ce2ac2bd42ab04439c959d8538546ea637418394c99c522eec2
+    92bbbfac2605cbfe3734e40a5d3cc762428583b243151b2a84418e376ea0af6"
 }
 ```
 
-Here `randomness` is the latest random value, which is a threshold BLS signature
-on the previous random value `Previous` and the round number. The field `Round`
+Here `Signature` is the threshold BLS signature
+on the previous signature value `Previous` and the current round number. `Randomness`
+is the hash of `Signature`, to be used as the random value for this round. The field `Round`
 specifies the index of `Randomness` in the sequence of all random values
 produced by this drand instance. The **message signed** is therefore the
 concatenation of the round number treated as a `uint64` and the previous
-randomness.The gid is an indicator of the group this point belongs to. At the
-moment, we are only using BLS signatures on the BN256 curves and the signature
+signature. At the moment, we are only using BLS signatures on the BN256 curves and the signature
 is made over G1.
 
 #### Fetching Private Randomness
@@ -413,10 +444,6 @@ curl <address>/api/public
 ```
 
 **All the REST endpoints are specified in the `protobuf/drand/client.proto` file.**
-
-**NOTE**: At the moment, the REST endpoints return base-64 encoded values, whereas
-the drand cli tool returns hexadecimal encoded value ([issue](https://github.com/dedis/drand/issues/85)).
-
 
 ### Updating Drand Group
 
@@ -469,6 +496,7 @@ Drand relies on the following cryptographic constructions:
 - [Pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) and [Barreto-Naehrig curves](https://github.com/dfinity/bn).
 - [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3) for the setup.
 - Threshold [BLS signatures](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf) for the generation of public randomness.
+- The resharing scheme used comes from the [paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.2968&rep=rep1&type=pdf) from  Y. Desmedt and S. Jajodia.
 - [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the encryption of private randomness.
 
 For our previous work on public randomness, see our academical paper
@@ -485,19 +513,27 @@ refer to the [readme](https://github.com/PizzaWhisperer/drandjs/blob/master/READ
 As it is compiled from Go, DrandJS stays experimental and is used as proof-of-concept.
 Our longterm objective is to have a library written in pure JavaScript.
 
+## Documentation
+
+drand has three separate documentation on the [cryptographic
+background](https://hackmd.io/@nikkolasg/HyUAgm234), the [drand operator
+guide](https://hackmd.io/@nikkolasg/Hkz2XFWa4) and the [client side
+API](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) of drand.
+
 ## What's Next?
 
 Although being already functional, drand is still at an early development stage
 and there is a lot left to be done. The list of opened
 [issues](https://github.com/dedis/drand/issues) is a good place to start. On top
 of this, drand would benefit from higher-level enhancements such as the
-following: 
+following:
 
++ Move to the BL12-381 curve
 + Add more unit tests
 + Reduce size of Docker
 + Add a systemd unit file
 + Support multiple drand instances within one node
-+ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf)
++ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf) or an approach based on verifiable succint computations (zk-SNARKs, etc).
 
 Feel free to submit feature requests or, even better, pull requests. ;)
 
@@ -528,3 +564,12 @@ helpful discussions on the drand design.
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native Golang
 bn256 implementation and for their help in the design of drand and future ideas.
+
+## Coverage
+
+- EPFL blog [post](https://actu.epfl.ch/news/epfl-helps-launch-globally-distributed-randomness-/)
+- Cloudflare crypto week [introduction post](https://new.blog.cloudflare.com/league-of-entropy/) and the more [technical post](https://new.blog.cloudflare.com/inside-the-entropy/).
+- Kudelski Security blog [post](https://research.kudelskisecurity.com/2019/06/17/league-of-entropy/)
+- OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
+- SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
+- Duo [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
