@@ -1,0 +1,114 @@
+/*
+ * This protobuf file contains the definition of the requests and responses
+ * used by a drand node to locally run some commands.
+ */
+syntax = "proto3";
+
+package drand;
+
+option go_package = "github.com/dedis/drand/protobuf/drand";
+
+import "drand/empty.proto";
+
+service Control {
+    // PingPong returns an empty message. Purpose is to test the control port.
+    rpc PingPong(Ping) returns (Pong) { }
+    // InitDKG sends information to daemon to start a fresh DKG protocol 
+    rpc InitDKG(InitDKGPacket) returns (drand.Empty) { }
+    // InitReshares sends all informations so that the drand node knows how to
+    // proceeed during the next resharing protocol.
+    rpc InitReshare(InitResharePacket) returns (drand.Empty) { }
+    // Share returns the current private share used by the node 
+    rpc Share(ShareRequest) returns (ShareResponse) { }
+    // PublicKey returns the longterm public key of the drand node
+    rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
+    // PrivateKey returns the longterm private key of the drand node
+    rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
+    // CollectiveKey returns the distributed public key used by the node
+    rpc CollectiveKey(CokeyRequest) returns (CokeyResponse) { }
+    // GroupFile returns the TOML-encoded group file
+    // similar to public.Group method but needed for ease of use of the
+    // control functionalities
+    rpc GroupFile(GroupTOMLRequest) returns (GroupTOMLResponse) { }
+}
+
+message InitDKGPacket {
+    GroupInfo dkg_group = 1;
+    bool is_leader = 2;
+    // timeout as parsed by Golang's time.ParseDuration method.
+    string timeout = 3;
+}
+
+// ReshareRequest contains references to the old and new group to perform the
+// resharing protocol.
+message InitResharePacket {
+    // Old group that needs to issue the shares for the new group
+    // NOTE: It can be empty / nil. In that case, the drand node will try to
+    // load the group he belongs to at the moment, if any, and use it as the old
+    // group.
+    GroupInfo old = 1;
+    GroupInfo new = 2;
+    bool is_leader = 3;
+    // timeout as parsed by Golang's time.ParseDuration method.
+    string timeout = 4;
+}
+
+message GroupInfo {
+    oneof location {
+        string path = 1;
+        // XXX not implemented
+        string url = 2;
+    }
+}
+
+// ShareRequest requests the private share of a drand node
+message ShareRequest {
+}
+
+// ShareResponse holds the private share of a drand node
+message ShareResponse {
+  uint32 index = 2;
+  bytes share = 3;
+}
+
+message Ping {
+}
+
+message Pong {
+}
+
+// PublicKeyRequest requests the public key of a drand node
+message PublicKeyRequest {
+}
+
+// PublicKeyResponse holds the public key of a drand node
+message PublicKeyResponse {
+  bytes pubKey = 2;
+}
+
+// PrivateKeyRequest requests the private key of a drand node
+message PrivateKeyRequest {
+}
+
+// PrivateKeyResponse holds the private key of a drand node
+message PrivateKeyResponse {
+  bytes priKey = 2;
+}
+
+// CokeyRequest requests the collective key of a drand node
+message CokeyRequest {
+}
+
+// CokeyResponse holds the collective key of a drand node
+message CokeyResponse {
+  bytes coKey = 2;
+}
+
+message GroupTOMLRequest {
+
+}
+
+message GroupTOMLResponse {
+    // TOML-encoded group file
+    string group_toml = 1;
+}

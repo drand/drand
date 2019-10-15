@@ -15,10 +15,13 @@ env:
 # https://arslan.io/2018/08/26/using-go-modules-with-vendor-support-on-travis-ci/
 install: true
 
+before_script: 
+    - docker build -t drand-it . #docker-compose should be self-sufficient, but fails on travis...
+
 script:
-    #- cd core && go test -v && cd ../ && cd beacon/ && go test -v && cd ../
-    - go test -v -mod=vendor ./...
-    - sudo env "PATH=$PATH" ./docker_test.sh
+    - make test-unit
+    # keep environnement variable for sudo
+    - sudo -E env "PATH=$PATH" make test-integration
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
@@ -28,20 +31,3 @@ after_success:
 
 before_deploy:
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-
-before_install:
-    - docker pull byrnedo/alpine-curl
-
-# calls goreleaser
-deploy:
-  - provider: script
-    skip_cleanup: true
-    script: curl -sL https://git.io/goreleaser | bash
-    on:
-      tags: true
-      condition: $TRAVIS_OS_NAME = linux
-  #- provider: script
-    #script: docker push dedis/drand:$TRAVIS_TAG
-    #on:
-        #tags: true
-        #condition: $TRAVIS_OS_NAME = linux

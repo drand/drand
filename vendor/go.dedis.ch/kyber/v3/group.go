@@ -163,11 +163,3 @@ type Group interface {
 	PointLen() int // Max length of point in bytes
 	Point() Point  // Create new point
 }
-
-// Groupable is an interface that returns the group an element is using.
-// Points and Scalars can implement this interface that help build with automatic
-// /un/marshalling functionality
-type Groupable interface {
-	// Returns the group the interface is using
-	Group() Group
-}

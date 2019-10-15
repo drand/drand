@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dedis/drand/protobuf/dkg"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
@@ -47,12 +46,9 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
 	gwMux := runtime.NewServeMux(o)
 	//proxyClient := newProxyClient(s)
-	proxyClient := &drandProxy{s, s}
+	proxyClient := &drandProxy{s}
 	ctx := context.TODO()
-	if err := drand.RegisterRandomnessHandlerClient(ctx, gwMux, proxyClient); err != nil {
-		panic(err)
-	}
-	if err = drand.RegisterInfoHandlerClient(ctx, gwMux, proxyClient); err != nil {
+	if err := drand.RegisterPublicHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
 	}
 	restRouter := http.NewServeMux()
@@ -74,10 +70,8 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 		mux:        mux,
 		lis:        l,
 	}
-	drand.RegisterRandomnessServer(g.grpcServer, g.Service)
-	drand.RegisterBeaconServer(g.grpcServer, g.Service)
-	drand.RegisterInfoServer(g.grpcServer, g.Service)
-	dkg.RegisterDkgServer(g.grpcServer, g.Service)
+	drand.RegisterProtocolServer(g.grpcServer, g.Service)
+	drand.RegisterPublicServer(g.grpcServer, g.Service)
 	return g
 }
 
@@ -124,19 +118,13 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	}
 	serverOpts := append(opts, grpc.Creds(grpcCreds))
 	grpcServer := grpc.NewServer(serverOpts...)
-	drand.RegisterRandomnessServer(grpcServer, s)
-	drand.RegisterInfoServer(grpcServer, s)
-	drand.RegisterBeaconServer(grpcServer, s)
-	dkg.RegisterDkgServer(grpcServer, s)
+	drand.RegisterPublicServer(grpcServer, s)
+	drand.RegisterProtocolServer(grpcServer, s)
 
 	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
 	gwMux := runtime.NewServeMux(o)
-	proxy := &drandProxy{s, s}
-	err = drand.RegisterRandomnessHandlerClient(context.Background(), gwMux, proxy)
-	if err != nil {
-		return nil, err
-	}
-	err = drand.RegisterInfoHandlerClient(context.Background(), gwMux, proxy)
+	proxy := &drandProxy{s}
+	err = drand.RegisterPublicHandlerClient(context.Background(), gwMux, proxy)
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +134,31 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	server := &http.Server{
 		Handler: grpcHandlerFunc(grpcServer, mux),
 		TLSConfig: &tls.Config{
+			// From https://blog.cloudflare.com/exposing-go-on-the-internet/
+
+			// Causes servers to use Go's default ciphersuite preferences,
+			// which are tuned to avoid attacks. Does nothing on clients.
+			PreferServerCipherSuites: true,
+
+			// Only use curves which have assembly implementations
+			CurvePreferences: []tls.CurveID{
+				tls.CurveP256,
+				tls.X25519,
+			},
+
+			// Drand clients and servers are all modern software, and so we
+			// can require TLS 1.2 and the best cipher suites.
+			MinVersion: tls.VersionTLS12,
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+			},
+			// End Cloudflare recommendations.
+
 			Certificates: []tls.Certificate{x509KeyPair},
 			NextProtos:   []string{"h2"},
 		},
@@ -175,23 +188,31 @@ func (g *grpcTLSListener) Stop() {
 	}
 }
 
+// drandProxy is used as a proxy between the REST API receiver and the gRPC
+// endpoint. Normally, one would need to make another HTTP request to the
+// grpc endpoint. Here we use a struct that directly calls the requested gRPC
+// method since both the REST API and gRPC API lives on the same endpoint.
 type drandProxy struct {
-	r drand.RandomnessServer
-	d drand.InfoServer
+	r drand.PublicServer
 }
 
-func (d *drandProxy) Public(c context.Context, r *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
-	return d.r.Public(c, r)
+var _ drand.PublicClient = (*drandProxy)(nil)
+
+func (d *drandProxy) PublicRand(c context.Context, r *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
+	return d.r.PublicRand(c, r)
 }
-func (d *drandProxy) Private(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
-	return d.r.Private(c, r)
+func (d *drandProxy) PrivateRand(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
+	return d.r.PrivateRand(c, r)
 }
 
 func (d *drandProxy) DistKey(c context.Context, r *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
-	return d.d.DistKey(c, r)
+	return d.r.DistKey(c, r)
 }
 func (d *drandProxy) Home(c context.Context, r *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {
-	return d.d.Home(c, r)
+	return d.r.Home(c, r)
+}
+func (d *drandProxy) Group(c context.Context, r *drand.GroupRequest, opts ...grpc.CallOption) (*drand.GroupResponse, error) {
+	return d.r.Group(c, r)
 }
 
 // grpcHandlerFunc returns an http.Handler that delegates to grpcServer on

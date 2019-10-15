@@ -2,13 +2,13 @@ package key
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/fs"
-	"github.com/nikkolasg/slog"
 )
 
 // Store abstracts the loading and saving of any private/public cryptographic
@@ -27,6 +27,7 @@ type Store interface {
 	LoadGroup() (*Group, error)
 	SaveDistPublic(d *DistPublic) error
 	LoadDistPublic() (*DistPublic, error)
+	Reset(...ResetOption) error
 }
 
 // ErrStoreFile returns an error in case the store can not save the requested
@@ -40,7 +41,10 @@ var ErrAbsent = errors.New("store can't find requested object")
 // the default configuration folder of drand. It mimicks the gpg flag option.
 const ConfigFolderFlag = "homedir"
 
+// KeyFolderName is the name of the folder where drand keeps its keys
 const KeyFolderName = "key"
+
+// GroupFolderName is the name of the folder where drand keeps its group files
 const GroupFolderName = "groups"
 const keyFileName = "drand_id"
 const privateExtension = ".private"
@@ -66,12 +70,13 @@ type fileStore struct {
 	groupFile      string
 }
 
-// NewDefaultFileStore is used to create the config folder and all the subfolders.
+// NewFileStore is used to create the config folder and all the subfolders.
 // If a folder alredy exists, we simply check the rights
 func NewFileStore(baseFolder string) Store {
 	//config folder
 	if fs.CreateSecureFolder(baseFolder) == "" {
-		slog.Fatal("Something went wrong with the config folder. Make sure that you have the appropriate rights.")
+		fmt.Println("Something went wrong with the config folder. Make sure that you have the appropriate rights.")
+		os.Exit(1)
 	}
 	store := &fileStore{baseFolder: baseFolder}
 	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))
@@ -90,7 +95,7 @@ func (f *fileStore) SaveKeyPair(p *Pair) error {
 	if err := Save(f.privateKeyFile, p, true); err != nil {
 		return err
 	}
-	slog.Infof("Saved the key : %s at %s", p.Public.Addr, f.publicKeyFile)
+	fmt.Printf("Saved the key : %s at %s\n", p.Public.Addr, f.publicKeyFile)
 	return Save(f.publicKeyFile, p.Public, false)
 }
 
@@ -113,7 +118,7 @@ func (f *fileStore) SaveGroup(g *Group) error {
 }
 
 func (f *fileStore) SaveShare(share *Share) error {
-	slog.Info("crypto store: saving private share in ", f.shareFile)
+	fmt.Printf("crypto store: saving private share in %s\n", f.shareFile)
 	return Save(f.shareFile, share, true)
 }
 
@@ -123,7 +128,7 @@ func (f *fileStore) LoadShare() (*Share, error) {
 }
 
 func (f *fileStore) SaveDistPublic(d *DistPublic) error {
-	slog.Info("crypto store: saving public distributed key in ", f.distKeyFile)
+	fmt.Printf("crypto store: saving public distributed key in %s\n", f.distKeyFile)
 	return Save(f.distKeyFile, d, false)
 }
 
@@ -132,6 +137,22 @@ func (f *fileStore) LoadDistPublic() (*DistPublic, error) {
 	return d, Load(f.distKeyFile, d)
 }
 
+func (f *fileStore) Reset(...ResetOption) error {
+	if err := Delete(f.distKeyFile); err != nil {
+		return fmt.Errorf("drand: err deleting dist. key file: %v", err)
+	}
+	if err := Delete(f.shareFile); err != nil {
+		return fmt.Errorf("drand: errd eleting share file: %v", err)
+	}
+
+	if err := Delete(f.groupFile); err != nil {
+		return fmt.Errorf("drand: err deleting group file: %v", err)
+	}
+	return nil
+}
+
+// Save the given Tomler interface to the given path. If secure is true, the
+// file will have a 0700 security.
 func Save(path string, t Tomler, secure bool) error {
 	var fd *os.File
 	var err error
@@ -141,13 +162,14 @@ func Save(path string, t Tomler, secure bool) error {
 		fd, err = os.Create(path)
 	}
 	if err != nil {
-		slog.Infof("config: can't save %s to %s: %s", reflect.TypeOf(t).String(), path, err)
+		fmt.Printf("config: can't save %s to %s: %s\n", reflect.TypeOf(t).String(), path, err)
 		return err
 	}
 	defer fd.Close()
 	return toml.NewEncoder(fd).Encode(t.TOML())
 }
 
+// Load the given Tomler from the given file path.
 func Load(path string, t Tomler) error {
 	tomlValue := t.TOMLValue()
 	var err error
@@ -156,3 +178,13 @@ func Load(path string, t Tomler) error {
 	}
 	return t.FromTOML(tomlValue)
 }
+
+// Delete the resource denoted by the given path. If it is a file, it deletes
+// the file; if it is a folder it delete the folder and all its content.
+func Delete(path string) error {
+	return os.RemoveAll(path)
+}
+
+// ResetOption is an option to allow for fine-grained reset
+// operations
+type ResetOption int

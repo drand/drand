@@ -1,0 +1,21 @@
+/*
+ * This protobuf files contains the definition related to a private share and
+ * public share that can be used to run a VSS or DKG protocol.
+ */
+syntax = "proto3";
+
+option go_package = "github.com/dedis/drand/protobuf/crypto";
+
+package share;
+
+
+/*
+ * PrivateShare holds a share that is private for the given participant at the
+ * given index.
+ */
+message PrivateShare {
+    // index of the participant
+    uint32 index = 1;
+    // the share itself
+    bytes share = 2;
+}

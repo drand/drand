@@ -18,23 +18,45 @@ import (
 
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
-	// PreviousRand is the previous randomness generated
-	PreviousRand []byte
+	// PreviousSig is the previous signature generated
+	PreviousSig []byte
 	// Round is the round number this beacon is tied to
 	Round uint64
-	// Randomness is the tbls signature of Round || PreviousRand
+	// Signature is the BLS deterministic signature over Round || PreviousRand
+	Signature []byte
+
+	// aliases field required for retro-compatibility
+	// TODO remove those when transition complete to new Beacon struct
+	// PreviousRand is the "old" PreviousSig
+	PreviousRand []byte
+	// Randomness is the "old" Signature
 	Randomness []byte
-	// Gid is the group id of the randomness - usually fixed
-	// See protobuf's crypto elements definitions for more information.
-	Gid int32
+}
+
+// GetSignature returns the signature of this beacon. Needed for
+// retro-compatibility
+func (b *Beacon) GetSignature() []byte {
+	if b.Signature != nil {
+		return b.Signature
+	}
+	return b.PreviousRand
+}
+
+// GetPreviousSig returns the signature of the previous beacon. Needed for
+// retro-compatibility.
+func (b *Beacon) GetPreviousSig() []byte {
+	if b.PreviousSig != nil {
+		return b.PreviousSig
+	}
+	return b.PreviousRand
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
-func Message(prevRand []byte, round uint64) []byte {
+func Message(prevSig []byte, round uint64) []byte {
 	var buff bytes.Buffer
 	buff.Write(roundToBytes(round))
-	buff.Write(prevRand)
+	buff.Write(prevSig)
 	return buff.Bytes()
 }
 

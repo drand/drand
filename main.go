@@ -19,16 +19,19 @@ import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
 
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version = "dev"
-	commit  = "none"
-	date    = "unknown"
+	version   = "dev"
+	gitCommit = "none"
+	buildDate = "unknown"
 )
 
 const gname = "group.toml"
@@ -36,9 +39,8 @@ const dpublic = "dist_key.public"
 const defaultPort = "8080"
 
 func banner() {
-	fmt.Printf("drand %v by nikkolasg\n", version)
-	s := "WARNING: this software has NOT received a full audit and must be \n" +
-		"used with caution and probably NOT in a production environment.\n"
+	fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	s := "WARNING: this software has NOT received a full audit and must be used with caution and probably NOT in a production environment.\n"
 	fmt.Printf(s)
 }
 
@@ -53,8 +55,8 @@ var leaderFlag = cli.BoolFlag{
 }
 var verboseFlag = cli.IntFlag{
 	Name:  "verbose, V",
-	Value: 0,
-	Usage: "Set verbosity to the given level. 0 for normal output, 1 for informational output and 2 for debug output.",
+	Value: 1,
+	Usage: "Set verbosity to the given level. Level 1 is the info level and level 2 is the debug level. Verbosity is at the info level by default.",
 }
 
 var tlsCertFlag = cli.StringFlag{
@@ -131,8 +133,18 @@ var timeoutFlag = cli.StringFlag{
 	Usage: fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
 }
 
+var pushFlag = cli.BoolFlag{
+	Name:  "push",
+	Usage: "Push  mode forces the daemon to start making beacon requests to the other node, instead of waiting the other nodes contact it to catch-up on the round",
+}
+
 func main() {
 	app := cli.NewApp()
+
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	}
+
 	app.Version = version
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
@@ -141,7 +153,8 @@ func main() {
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, controlFlag, listenFlag, certsDirFlag),
+				insecureFlag, controlFlag, listenFlag,
+				certsDirFlag, pushFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -237,7 +250,7 @@ func main() {
 						"it prints a warning.\n",
 					Flags: toArray(tlsCertFlag, insecureFlag, roundFlag, nodeFlag),
 					Action: func(c *cli.Context) error {
-						return getPublicCmd(c)
+						return getPublicRandomness(c)
 					},
 				},
 				{
@@ -261,7 +274,14 @@ func main() {
 				return pingpongCmd(c)
 			},
 		},
-
+		{
+			Name:  "reset",
+			Usage: "Resets the local distributed information (share, group file and random beacons).",
+			Flags: toArray(controlFlag),
+			Action: func(c *cli.Context) error {
+				return resetCmd(c)
+			},
+		},
 		{
 			Name: "show",
 			Usage: "local information retrieval about the node's cryptographic " +
@@ -319,17 +339,7 @@ func main() {
 	}
 	app.Flags = toArray(verboseFlag, folderFlag)
 	app.Before = func(c *cli.Context) error {
-		if c.GlobalIsSet("verbose") {
-			if c.Int("verbose") == 0 {
-				slog.Level = slog.LevelPrint
-			}
-			if c.Int("verbose") == 1 {
-				slog.Level = slog.LevelInfo
-			}
-			if c.Int("verbose") == 2 {
-				slog.Level = slog.LevelDebug
-			}
-		}
+
 		testWindows(c)
 		return nil
 	}
@@ -338,10 +348,34 @@ func main() {
 	}
 }
 
+func resetCmd(c *cli.Context) error {
+	conf := contextToConfig(c)
+	fmt.Printf("You are about to delete your local share, group file and generated random beacons. Are you sure you wish to perform this operation? [y/N]")
+	reader := bufio.NewReader(os.Stdin)
+	answer, err := reader.ReadString('\n')
+	if err != nil {
+		slog.Fatal("error reading: ", err)
+	}
+	answer = strings.ToLower(strings.TrimSpace(answer))
+	if answer != "y" {
+		slog.Print("drand: not reseting the state.")
+		return nil
+	}
+	store := key.NewFileStore(conf.ConfigFolder())
+	if err := store.Reset(); err != nil {
+		fmt.Printf("drand: err reseting key store: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.RemoveAll(conf.DBFolder()); err != nil {
+		fmt.Printf("drand: err reseting beacons database: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("drand: database reset")
+	return nil
+}
+
 func resetBeaconDB(config *core.Config) bool {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
-		// using fmt so does not get the new line at the end.
-		// XXX allow slog for that behavior
 		fmt.Printf("INCONSISTENT STATE: A beacon database exists already.\n"+
 			"drand support only one identity at the time and thus needs to delete "+
 			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+
@@ -386,27 +420,32 @@ func askPort() string {
 func testWindows(c *cli.Context) {
 	//x509 not available on windows: must run without TLS
 	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
-		slog.Fatal("TLS is not available on Windows, please disable TLS")
+		fatal("TLS is not available on Windows, please disable TLS")
 	}
+}
+
+func fatal(str string, args ...interface{}) {
+	fmt.Printf(str+"\n", args)
+	os.Exit(1)
 }
 
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {
-		slog.Fatal("Missing drand address in argument")
+		fatal("Missing drand address in argument")
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
 	if !validID.MatchString(addr) {
-		slog.Print("port not ok")
+		fmt.Println("port not ok")
 		addr = addr + ":" + askPort()
 	}
 	var priv *key.Pair
 	if c.Bool("tls-disable") {
-		slog.Info("Generating private / public key pair without TLS.")
+		fmt.Println("Generating private / public key pair without TLS.")
 		priv = key.NewKeyPair(addr)
 	} else {
-		slog.Info("Generating private / public key pair with TLS indication")
+		fmt.Println("Generating private / public key pair with TLS indication")
 		priv = key.NewTLSKeyPair(addr)
 	}
 
@@ -414,41 +453,41 @@ func keygenCmd(c *cli.Context) error {
 	fs := key.NewFileStore(config.ConfigFolder())
 
 	if _, err := fs.LoadKeyPair(); err == nil {
-		slog.Info("keypair already present. Remove them before generating new one")
+		fmt.Println("keypair already present. Remove them before generating new one")
 		return nil
 	}
 	if err := fs.SaveKeyPair(priv); err != nil {
-		slog.Fatal("could not save key: ", err)
+		fatal("could not save key: ", err)
 	}
 	fullpath := path.Join(config.ConfigFolder(), key.KeyFolderName)
 	absPath, err := filepath.Abs(fullpath)
 	if err != nil {
-		slog.Fatal("err getting full path: ", err)
+		fatal("err getting full path: ", err)
 	}
-	slog.Print("Generated keys at ", absPath)
-	slog.Print("You can copy paste the following snippet to a common group.toml file:")
+	fmt.Println("Generated keys at ", absPath)
+	fmt.Println("You can copy paste the following snippet to a common group.toml file:")
 	var buff bytes.Buffer
-	buff.WriteString("[[nodes]]\n")
+	buff.WriteString("[[Nodes]]\n")
 	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
 		panic(err)
 	}
 	buff.WriteString("\n")
-	slog.Print(buff.String())
-	slog.Print("Or just collect all public key files and use the group command!")
+	fmt.Println(buff.String())
+	fmt.Println("Or just collect all public key files and use the group command!")
 	return nil
 }
 
 func groupCmd(c *cli.Context) error {
 	if !c.Args().Present() || (c.NArg() < 3 && !c.IsSet("group")) {
-		slog.Fatal("drand: group command take at least 3 keys as arguments")
+		fatal("drand: group command take at least 3 keys as arguments")
 	}
 	var threshold = key.DefaultThreshold(c.NArg())
 	publics := make([]*key.Identity, c.NArg())
 	for i, str := range c.Args() {
 		pub := &key.Identity{}
-		slog.Infof("drand: reading public identity from %s", str)
+		fmt.Printf("drand: reading public identity from %s\n", str)
 		if err := key.Load(str, pub); err != nil {
-			slog.Fatal(err)
+			fatal("drand: can't load key %d: %v", i, err)
 		}
 		publics[i] = pub
 	}
@@ -458,7 +497,7 @@ func groupCmd(c *cli.Context) error {
 	if c.IsSet(periodFlag.Name) {
 		period, err = time.ParseDuration(c.String(periodFlag.Name))
 		if err != nil {
-			slog.Fatalf("drand: invalid period time given %s", err)
+			fatal("drand: invalid period time given %s", err)
 		}
 	}
 
@@ -469,7 +508,7 @@ func groupCmd(c *cli.Context) error {
 		testEmptyGroup(groupPath)
 		oldG := &key.Group{}
 		if err := key.Load(groupPath, oldG); err != nil {
-			slog.Fatal(err)
+			fatal("drand: can't load group: %v", err)
 		}
 		group = oldG.MergeGroup(publics)
 	} else {
@@ -480,40 +519,40 @@ func groupCmd(c *cli.Context) error {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
 		if err := key.Save(groupPath, group, false); err != nil {
-			slog.Fatal(err)
+			fatal("drand: can't save group: %v", err)
 		}
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
-			slog.Print("doesn't want to encode")
+			fatal("drand: can't encode group to TOML: %v", err)
 		}
 		buff.WriteString("\n")
-		slog.Printf("Copy the following snippet into a new group.toml file " +
+		fmt.Printf("Copy the following snippet into a new group.toml file " +
 			"and distribute it to all the participants:\n")
-		slog.Printf(buff.String())
+		fmt.Printf(buff.String())
 	}
 	return nil
 }
 
 func checkGroup(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatal("drand: check-group expects a group argument")
+		fatal("drand: check-group expects a group argument")
 	}
 	conf := contextToConfig(c)
 	testEmptyGroup(c.Args().First())
 	group := new(key.Group)
 	if err := key.Load(c.Args().First(), group); err != nil {
-		slog.Fatal("drand: loading group failed")
+		fatal("drand: loading group failed")
 	}
 	for _, id := range group.Nodes {
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
 		_, err := client.Home(id, &drand.HomeRequest{})
 		if err != nil {
-			slog.Fatalf("drand: error checking id %s", id.Address())
+			fatal("drand: error checking id %s", id.Address())
 		}
-		slog.Printf("drand: id %s answers correctly", id.Address())
+		fmt.Printf("drand: id %s answers correctly", id.Address())
 	}
-	slog.Print("all good")
+	fmt.Println("all good")
 	return nil
 }
 
@@ -526,9 +565,9 @@ func getGroup(c *cli.Context) *key.Group {
 	groupPath := c.Args().First()
 	testEmptyGroup(groupPath)
 	if err := key.Load(groupPath, g); err != nil {
-		slog.Fatalf("drand: error loading group file: %s", err)
+		fatal("drand: error loading group file: %s", err)
 	}
-	slog.Infof("group file loaded with %d participants", g.Len())
+	fmt.Printf("group file loaded with %d participants", g.Len())
 	return g
 }
 
@@ -540,12 +579,27 @@ func keyIDFromAddr(addr string, group *key.Group) *key.Identity {
 			return id
 		}
 	}
-	slog.Fatal("Could not retrive the node you are trying to contact in the group file.")
+	fatal("Could not retrive the node you are trying to contact in the group file.")
 	return nil
 }
 
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
+
+	if c.GlobalIsSet("verbose") {
+		switch c.Int("verbose") {
+		case log.LogInfo:
+			opts = append(opts, core.WithLogLevel(log.LogInfo))
+		case log.LogDebug:
+			fmt.Println("drand: unknown log level - debug default")
+			fallthrough // default
+		default:
+			opts = append(opts, core.WithLogLevel(log.LogDebug))
+		}
+	} else {
+		opts = append(opts, core.WithLogLevel(log.LogInfo))
+	}
+
 	listen := c.String("listen")
 	if listen != "" {
 		opts = append(opts, core.WithListenAddress(listen))
@@ -591,14 +645,14 @@ func getNodes(c *cli.Context) []*key.Identity {
 			}
 		}
 		if len(ids) == 0 {
-			slog.Fatalf("drand: addresses specified don't exist in group.toml")
+			fatal("drand: addresses specified don't exist in group.toml")
 		}
 	} else {
 		// select them all in order
 		ids = gids
 	}
 	if len(ids) == 0 {
-		slog.Fatalf("drand: no nodes specified with --nodes are in the group file")
+		fatal("drand: no nodes specified with --nodes are in the group file")
 	}
 	return ids
 }
@@ -607,13 +661,13 @@ func testEmptyGroup(path string) {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
-		slog.Fatal(err)
+		fatal("drand: can't opern group path: %v", err)
 	}
 	fi, err := file.Stat()
 	if err != nil {
-		slog.Fatal(err)
+		fatal("drand: can't open file info: %v", err)
 	}
 	if fi.Size() == 0 {
-		slog.Fatal("drand: given group file is empty")
+		fatal("drand: group file empty")
 	}
 }

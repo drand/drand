@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/dedis/drand/core"
 	"github.com/dedis/drand/net"
-	crypto "github.com/dedis/drand/protobuf/crypto"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
@@ -42,7 +41,7 @@ func getPrivateCmd(c *cli.Context) error {
 	return nil
 }
 
-func getPublicCmd(c *cli.Context) error {
+func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
 		slog.Fatal("Get public command takes a group file as argument.")
 	}
@@ -86,7 +85,7 @@ func getCokeyCmd(c *cli.Context) error {
 	}
 	ids := getNodes(c)
 	client := core.NewGrpcClientFromCert(defaultManager)
-	var dkey *crypto.Point
+	var dkey *drand.DistKeyResponse
 	var err error
 	for _, id := range ids {
 		dkey, err = client.DistKey(id.Addr, !c.Bool("tls-disable"))

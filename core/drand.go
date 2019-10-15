@@ -10,9 +10,10 @@ import (
 	"github.com/dedis/drand/dkg"
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
+	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
-	dkg_proto "github.com/dedis/drand/protobuf/dkg"
-	"github.com/nikkolasg/slog"
+	dkg_proto "github.com/dedis/drand/protobuf/crypto/dkg"
+	"github.com/dedis/drand/protobuf/drand"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -28,6 +29,7 @@ type Drand struct {
 
 	store   key.Store
 	gateway net.Gateway
+	control net.ControlListener
 
 	dkg         *dkg.Handler
 	beacon      *beacon.Handler
@@ -44,6 +46,9 @@ type Drand struct {
 	nextConf          *dkg.Config
 	nextOldPresent    bool // true if we are in the old group
 	nextFirstReceived bool // false til receive 1st reshare packet
+
+	// general logger
+	log log.Logger
 
 	// global state lock
 	state sync.Mutex
@@ -77,15 +82,18 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		store: s,
 		priv:  priv,
 		opts:  c,
+		log:   c.Logger(),
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
-	p := c.ControlPort()
 	if c.insecure {
-		d.gateway = net.NewGrpcGatewayInsecure(a, p, d, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
 	} else {
-		d.gateway = net.NewGrpcGatewayFromCertManager(a, p, c.certPath, c.keyPath, c.certmanager, d, d, d.opts.grpcOpts...)
+		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
 	}
+	p := c.ControlPort()
+	d.control = net.NewTCPGrpcControlListener(d, p)
+	go d.control.Start()
 	d.gateway.StartAll()
 	return d, nil
 }
@@ -109,7 +117,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	slog.Debugf("drand: loaded and serving at %s", d.priv.Public.Address())
+	d.log.Debug("drand: loaded and serving at %s", d.priv.Public.Address())
 	return d, nil
 }
 
@@ -137,7 +145,7 @@ func (d *Drand) WaitDKG() error {
 	errCh := d.dkg.WaitError()
 	d.state.Unlock()
 
-	slog.Debugf("drand: waiting DKG to start & finish at %s", time.Now())
+	d.log.Debug("dkg_start", time.Now().String())
 	select {
 	case share := <-waitCh:
 		s := key.Share(share)
@@ -155,7 +163,7 @@ func (d *Drand) WaitDKG() error {
 	// need to save the period before since dkg returns a *new* fresh group, it
 	// does not know about the period.
 	d.group.Period = d.nextConf.NewNodes.Period
-	slog.Debugf("drand: DKG finished with %d node certified at %s\n", d.group.Len(), time.Now())
+	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
 	d.store.SaveGroup(d.group)
 	d.dkgDone = true
 	d.dkg = nil
@@ -176,7 +184,7 @@ func (d *Drand) createDKG() error {
 	}
 	var err error
 	c := d.nextConf
-	if d.dkg, err = dkg.NewHandler(d.dkgNetwork(c), c); err != nil {
+	if d.dkg, err = dkg.NewHandler(d.dkgNetwork(c), c, d.log); err != nil {
 		return err
 	}
 	return nil
@@ -197,7 +205,7 @@ func (d *Drand) StartBeacon(catchup bool) error {
 		d.state.Lock()
 	}
 	period := getPeriod(d.group)
-	slog.Infof("drand: starting random beacon (catchup?%v) at %s", catchup, time.Now())
+	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	go d.beacon.Run(period, catchup)
 	return nil
 }
@@ -218,6 +226,7 @@ func (d *Drand) Stop() {
 	d.StopBeacon()
 	d.state.Lock()
 	d.gateway.StopAll()
+	d.control.Stop()
 	d.state.Unlock()
 }
 
@@ -242,7 +251,7 @@ func (d *Drand) initBeacon() error {
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
 	conf := &beacon.Config{Group: d.group, Private: d.priv, Share: d.share, Seed: DefaultSeed}
-	d.beacon, err = beacon.NewHandler(d.gateway.InternalClient, d.beaconStore, conf)
+	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
 	return err
 }
 
@@ -253,18 +262,18 @@ func (d *Drand) beaconCallback(b *beacon.Beacon) {
 // little trick to be able to capture when drand is using the DKG methods,
 // instead of offloading that to an external struct without any vision of drand
 // internals, or implementing a big "Send" method directly on drand.
-func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.DKGPacket) error {
-	_, err := d.gateway.InternalClient.Setup(p, pack)
+func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.Packet) error {
+	_, err := d.gateway.ProtocolClient.Setup(p, &drand.SetupPacket{Dkg: pack})
 	return err
 }
 
-func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.DKGPacket) error {
+func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.Packet) error {
 	// no concurrency to get nextHash since this is only used within a locked drand
-	reshare := &dkg_proto.ResharePacket{
-		Packet:    pack,
+	reshare := &drand.ResharePacket{
+		Dkg:       pack,
 		GroupHash: d.nextGroupHash,
 	}
-	_, err := d.gateway.InternalClient.Reshare(p, reshare)
+	_, err := d.gateway.ProtocolClient.Reshare(p, reshare)
 	return err
 }
 
@@ -278,9 +287,9 @@ func (d *Drand) dkgNetwork(conf *dkg.Config) *dkgNetwork {
 }
 
 type dkgNetwork struct {
-	send func(net.Peer, *dkg_proto.DKGPacket) error
+	send func(net.Peer, *dkg_proto.Packet) error
 }
 
-func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.DKGPacket) error {
+func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.Packet) error {
 	return d.send(p, pack)
 }

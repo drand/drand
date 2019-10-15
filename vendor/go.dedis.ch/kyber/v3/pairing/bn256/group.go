@@ -13,22 +13,15 @@ type groupG1 struct {
 }
 
 func (g *groupG1) String() string {
-	return "BN256_G1"
+	return "bn256.G1"
 }
 
 func (g *groupG1) PointLen() int {
-	return newPointG1(g).MarshalSize()
-}
-
-func (g *groupG1) Scalar() kyber.Scalar {
-	return &scalarDescribing{
-		Int:   g.common.Scalar().(*mod.Int),
-		group: g,
-	}
+	return newPointG1().MarshalSize()
 }
 
 func (g *groupG1) Point() kyber.Point {
-	return newPointG1(g)
+	return newPointG1()
 }
 
 type groupG2 struct {
@@ -37,22 +30,15 @@ type groupG2 struct {
 }
 
 func (g *groupG2) String() string {
-	return "BN256_G2"
+	return "bn256.G2"
 }
 
 func (g *groupG2) PointLen() int {
-	return newPointG2(g).MarshalSize()
+	return newPointG2().MarshalSize()
 }
 
 func (g *groupG2) Point() kyber.Point {
-	return newPointG2(g)
-}
-
-func (g *groupG2) Scalar() kyber.Scalar {
-	return &scalarDescribing{
-		Int:   g.common.Scalar().(*mod.Int),
-		group: g,
-	}
+	return newPointG2()
 }
 
 type groupGT struct {
@@ -61,22 +47,15 @@ type groupGT struct {
 }
 
 func (g *groupGT) String() string {
-	return "BN256_GT"
+	return "bn256.GT"
 }
 
 func (g *groupGT) PointLen() int {
-	return newPointGT(g).MarshalSize()
+	return newPointGT().MarshalSize()
 }
 
 func (g *groupGT) Point() kyber.Point {
-	return newPointGT(g)
-}
-
-func (g *groupGT) Scalar() kyber.Scalar {
-	return &scalarDescribing{
-		Int:   g.common.Scalar().(*mod.Int),
-		group: g,
-	}
+	return newPointGT()
 }
 
 // common functionalities across G1, G2, and GT
@@ -96,85 +75,4 @@ func (c *common) PrimeOrder() bool {
 
 func (c *common) NewKey(rand cipher.Stream) kyber.Scalar {
 	return mod.NewInt64(0, Order).Pick(rand)
-}
-
-type scalarDescribing struct {
-	*mod.Int
-	group kyber.Group
-}
-
-func (s *scalarDescribing) Group() kyber.Group {
-	return s.group
-}
-
-func (s *scalarDescribing) Equal(s2 kyber.Scalar) bool {
-	return s.Int.Equal(s2.(*scalarDescribing).Int)
-}
-
-func (s *scalarDescribing) Set(a kyber.Scalar) kyber.Scalar {
-	s.Int.Set(a.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Add(a, b kyber.Scalar) kyber.Scalar {
-	s.Int.Add(a.(*scalarDescribing).Int, b.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Sub(a, b kyber.Scalar) kyber.Scalar {
-	s.Int.Sub(a.(*scalarDescribing).Int, b.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Neg(a kyber.Scalar) kyber.Scalar {
-	s.Int.Neg(a.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Mul(a, b kyber.Scalar) kyber.Scalar {
-	s.Int.Mul(a.(*scalarDescribing).Int, b.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Div(a, b kyber.Scalar) kyber.Scalar {
-	s.Int.Div(a.(*scalarDescribing).Int, b.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Inv(a kyber.Scalar) kyber.Scalar {
-	s.Int.Inv(a.(*scalarDescribing).Int)
-	return s
-}
-
-func (s *scalarDescribing) Pick(rand cipher.Stream) kyber.Scalar {
-	s.Int.Pick(rand)
-	return s
-}
-
-func (s *scalarDescribing) Clone() kyber.Scalar {
-	s2 := s.Int.Clone()
-	return &scalarDescribing{
-		Int:   s2.(*mod.Int),
-		group: s.group,
-	}
-}
-
-func (s *scalarDescribing) SetInt64(v int64) kyber.Scalar {
-	s.Int.SetInt64(v)
-	return s
-}
-
-func (s *scalarDescribing) Zero() kyber.Scalar {
-	s.Int.Zero()
-	return s
-}
-
-func (s *scalarDescribing) One() kyber.Scalar {
-	s.Int.One()
-	return s
-}
-
-func (s *scalarDescribing) SetBytes(buff []byte) kyber.Scalar {
-	s.Int.SetBytes(buff)
-	return s
 }
