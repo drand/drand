@@ -68,18 +68,15 @@ function printRound(randomness, previous, round, verified) {
 
   //print randomness as current
   var p = document.createElement("pre");
-  digestMessage(randomness).then(digestValue => {
-    var randomness = hexString(digestValue);
-    var quarter = Math.ceil(randomness.length / 4);
-    var s1 = randomness.slice(0, quarter);
-    var s2 = randomness.slice(quarter, 2*quarter);
-    var s3 = randomness.slice(2*quarter, 3*quarter);
-    var s4 = randomness.slice(3*quarter);
-    var randomness_4lines =  s1 + '\n' + s2 + "\n" + s3 + "\n" + s4;
-    var textnode = document.createTextNode(randomness_4lines);
-    p.appendChild(textnode);
-    latestDiv.replaceChild(p, latestDiv.childNodes[0]);
-  });
+  var quarter = Math.ceil(randomness.length / 4);
+  var s1 = randomness.slice(0, quarter);
+  var s2 = randomness.slice(quarter, 2*quarter);
+  var s3 = randomness.slice(2*quarter, 3*quarter);
+  var s4 = randomness.slice(3*quarter);
+  var randomness_4lines =  s1 + '\n' + s2 + "\n" + s3 + "\n" + s4;
+  var textnode = document.createTextNode(randomness_4lines);
+  p.appendChild(textnode);
+  latestDiv.replaceChild(p, latestDiv.childNodes[0]);
 
   //print JSON when clicked
   p.onmouseover = function() { p.style.textDecoration = "underline"; p.style.cursor = "pointer"};
@@ -159,7 +156,6 @@ function printNodesList() {
 
       var loc = locationMap.get(host);
       if (loc == undefined) { //did not fill map loc yet
-        console.log("calling getLoc ?");
         function handleResponse(json) {
           locationMap.set(host, json.country_code2);
           refresh();
@@ -275,27 +271,6 @@ function getLatestIndex() {
 }
 
 /**
-* digestMessage and hexString are used to hash the signature
-**/
-function digestMessage(message) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(message);
-  return window.crypto.subtle.digest('SHA-512', data);
-}
-
-function hexString(buffer) {
-  const byteArray = new Uint8Array(buffer);
-
-  const hexCodes = [...byteArray].map(value => {
-    const hexCode = value.toString(16);
-    const paddedHexCode = hexCode.padStart(2, '0');
-    return paddedHexCode;
-  });
-
-  return hexCodes.join('');
-}
-
-/**
 * checkVerify checks if randomness was verified and changes button to ok or
 * nope, refreshVerify puts button back to default
 **/
@@ -334,7 +309,7 @@ function findFirstNode() {
     });
   })
   .catch(err => {
-    console.log("could not get the group from github");
+    alert("could not get the group from github, reload the page");
   });
 }
 
