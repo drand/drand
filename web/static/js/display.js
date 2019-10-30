@@ -2,6 +2,7 @@ const latestDiv = document.querySelector('#latest');
 const roundDiv = document.querySelector('#round');
 const verifyButton = document.querySelector('#verify');
 const nodesListDiv = document.querySelector('#nodes');
+var locationMap = new Map();
 
 window.verified = false;
 
@@ -13,18 +14,16 @@ var idBar = -1;
 /**
 * displayRandomness is the main function which display
 * the latest randomness and nodes when opening the page
+* the first contacted node is picked at random from group file
 **/
-async function displayRandomness() {
-  //when started, contact random node from group file
+function displayRandomness() {
   if (window.identity == "") {
     findFirstNode();
     while (window.identity == "") {
-      //wait for promise to find node (seriously there must be another way)
       await sleep(1);
     }
   }
-  //start the progress bar
-  move();
+  startProgressBar();
   //print randomness and update verfified status
   fetchAndVerify(window.identity, window.distkey)
   .then(function (fulfilled) {
@@ -35,16 +34,13 @@ async function displayRandomness() {
     window.verified = false;
     printRound(error.randomness, error.previous, error.round, false);
   });
-  //print servers on map
-  //printNodesMap();
-  //print server as list
   printNodesList();
 }
 
 /**
-* move handles the progress bar
+* startProgressBar handles the progress bar
 **/
-function move() {
+function startProgressBar() {
   var elem = document.getElementById("myBar");
   var width = 0;
   if (idBar != -1) {
@@ -117,70 +113,9 @@ function printRound(randomness, previous, round, verified) {
 }
 
 /**
-* printNodesMap prints interactive map of drand nodes
-**/
-function printNodesMap() {
-  var nodes = [
-    JSON.parse('{"addr": "drand.cothority.net:7003", "lat": 48.86, "lon": 2.3444}'),
-    JSON.parse('{"addr": "drand.zerobyte.io:8888", "lat": 41.827637, "lon": 2.462732}'),
-    JSON.parse('{"addr": "drand.nikkolasg.xyz:8888", "lat": 50.989125, "lon": 9.205674}'),
-    JSON.parse('{"addr": "drand.lbarman.ch:443", "lat": 45.289125, "lon": 13.205674}'),
-    JSON.parse('{"addr": "drand.kudelskisecurity.com:443", "lat": 39.789125, "lon": 9.205674}'),
-    JSON.parse('{"addr": "drand.protocol.ai:8080", "lat": 44.667, "lon": -122.833}'),
-    JSON.parse('{"addr": "random.uchile.cl:8080", "lat": -33.781682, "lon": -70.924195}'),
-    JSON.parse('{"addr": "drand.cloudflare.com:443", "lat": 37.792032, "lon": -122.394613}')
-  ];
-
-  $(function () {
-    $(".mapcontainer").mapael({
-      //default settings
-      map: {
-        name: "world_countries",
-        defaultArea: {
-          attrs: {
-            fill: "#d1d1d1"
-            , stroke: "#d1d1d1"
-          },
-          attrsHover: {
-            fill: "#d1d1d1"
-            , stroke: "#d1d1d1"
-          }
-        },
-        defaultPlot: {
-          size:20,
-          factor: 0.6,
-          attrs: {
-            fill:"#99D19A",
-            stroke: "#fff"
-          },
-          eventHandlers: {
-            click: function (e, id, mapElem, textElem, elemOptions) {
-              window.identity = {Address: elemOptions.tooltip.content, TLS: true};
-              refresh();
-            }
-          }
-        }
-      }
-    });
-    //for each node, look at status and show by adding to plot list if up
-    for (let id in nodes) {
-      var node = nodes[id];
-      isUp(nodes[id].addr, true)
-      .then((rand) => {
-        var node = nodes[id];
-        var updatedOptions = JSON.parse('{"newPlots": {"' + node.addr +'": {"latitude":"' + node.lat +'", "longitude":"' + node.lon + '", "tooltip": { "content":"' + node.addr +'"}}}}');
-        $(".mapcontainer").trigger('update', updatedOptions);
-      })
-      .catch((err) => {console.log(nodes[id].addr + ' is down');});
-    }
-  });
-}
-
-/**
 * printNodeList prints interactive list of drand nodes
 **/
-function printNodesList() {
-
+async function printNodesList() {
   fetchGroup(window.identity).then(group => {
     nodesListDiv.innerHTML="";
     var i = 0;
@@ -189,17 +124,6 @@ function printNodesList() {
       let host = addr.split(":")[0];
       let port = addr.split(":")[1];
       let tls = group.nodes[i].TLS;
-
-        // DNS.Query(host, DNS.QueryType.A,
-        //   function(data) {
-        //       console.log(host);
-        //       console.log(data[0].Address);
-        //   });
-          DNS.Country(host, DNS.QueryType.A,
-            function(data) {
-                console.log(host);
-                console.log(data);
-            });
 
       let line = document.createElement("tr");
       let statusCol = document.createElement("td");
@@ -211,6 +135,7 @@ function printNodesList() {
       })
       .catch((err) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';});
       line.appendChild(statusCol);
+
       let addrCol = document.createElement("td");
       addrCol.innerHTML = '<td>' + host + '</td>';
       addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
@@ -220,19 +145,44 @@ function printNodesList() {
         refresh();
       };
       line.appendChild(addrCol);
+
       let portCol = document.createElement("td");
       portCol.innerHTML = '<td>' +port+'</td>';
       line.appendChild(portCol);
+
       let tlsCol = document.createElement("td");
       tlsCol.innerHTML = '<td> non tls </td>';
       if (tls) {
         tlsCol.innerHTML = '<td> tls </td>';
       }
       line.appendChild(tlsCol);
+
+      var loc = locationMap.get(host);
+      if (loc == undefined) { //did not fill map loc yet
+        console.log("calling getLoc ?");
+        function handleResponse(json) {
+          locationMap.set(host, json.country_code2);
+        }
+        getLoc(host, handleResponse);
+      }
+      console.log("called ?");
+      // //wait 10 ms for getLoc to finish
+      // var i = 100;
+      // while (i > 0) {
+      //   i = i -1;
+      // }
+      console.log("done ?");
+      loc = locationMap.get(host);
+      console.log(loc);
+      let countryCol = document.createElement("td");
+      countryCol.innerHTML = '<td>' + loc + '</td>';
+      line.appendChild(countryCol);
+
       let linkCol = document.createElement("td");
       linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" href="https://' + addr + '/api/public"><i class="fas fa-external-link-alt"></i></a></td>';
       linkCol.style.textAlign="center";
       line.appendChild(linkCol);
+
       if (addr == window.identity.Address) {
         line.style.fontWeight="bold";
       }
@@ -397,4 +347,24 @@ function findFirstNode() {
 **/
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+* used to communicate with dns-js.com API
+**/
+function getLoc(domain, callback) {
+  var xhr = new XMLHttpRequest();
+  URL = "https://www.dns-js.com/api.aspx";
+  xhr.open("POST", URL);
+  xhr.onreadystatechange = function () {
+    if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
+      let data = JSON.parse(xhr.response);
+      var ip = data[0].Address;
+      setIPAddressParameter(ip);
+      setExcludesParameter("ip");
+      setFieldsParameter("country_code2");
+      getGeolocation(callback, "ca50c203abfa45a39fe376f3ba9d0a3f");
+    }
+  }
+  xhr.send(JSON.stringify({Action: "Query", Domain: domain,Type: 1}));
 }
