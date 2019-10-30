@@ -16,7 +16,7 @@ var idBar = -1;
 * the latest randomness and nodes when opening the page
 * the first contacted node is picked at random from group file
 **/
-function displayRandomness() {
+async function displayRandomness() {
   if (window.identity == "") {
     findFirstNode();
     while (window.identity == "") {
@@ -115,7 +115,7 @@ function printRound(randomness, previous, round, verified) {
 /**
 * printNodeList prints interactive list of drand nodes
 **/
-async function printNodesList() {
+function printNodesList() {
   fetchGroup(window.identity).then(group => {
     nodesListDiv.innerHTML="";
     var i = 0;
@@ -162,18 +162,14 @@ async function printNodesList() {
         console.log("calling getLoc ?");
         function handleResponse(json) {
           locationMap.set(host, json.country_code2);
+          refresh();
         }
         getLoc(host, handleResponse);
       }
-      console.log("called ?");
-      // //wait 10 ms for getLoc to finish
-      // var i = 100;
-      // while (i > 0) {
-      //   i = i -1;
-      // }
-      console.log("done ?");
       loc = locationMap.get(host);
-      console.log(loc);
+      if (loc == undefined) {
+        loc = "?";
+      }
       let countryCol = document.createElement("td");
       countryCol.innerHTML = '<td>' + loc + '</td>';
       line.appendChild(countryCol);
@@ -350,7 +346,7 @@ function sleep(ms) {
 }
 
 /**
-* used to communicate with dns-js.com API
+* getLoc communicates with dns-js.com and geoIP.com APIs
 **/
 function getLoc(domain, callback) {
   var xhr = new XMLHttpRequest();
