@@ -51,8 +51,6 @@ github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijb
 go.dedis.ch/fixbuf v1.0.3 h1:hGcV9Cd/znUxlusJ64eAlExS+5cJDIyTyEG+otu5wQs=
 go.dedis.ch/fixbuf v1.0.3/go.mod h1:yzJMt34Wa5xD37V5RTdmp38cz3QhMagdGoem9anUalw=
 go.dedis.ch/kyber/v3 v3.0.0-pre2/go.mod h1:OzvaEnPvKlyrWyp3kGXlFdp7ap1VC6RkZDTaPikqhsQ=
-go.dedis.ch/kyber/v3 v3.0.3-0.20190501101437-0324e4ea86f1 h1:j0+AwoGHBc+7X9CkFJpa3dVArfr7KnfrjwRPfSW7kV4=
-go.dedis.ch/kyber/v3 v3.0.3-0.20190501101437-0324e4ea86f1/go.mod h1:OzvaEnPvKlyrWyp3kGXlFdp7ap1VC6RkZDTaPikqhsQ=
 go.dedis.ch/kyber/v3 v3.0.4 h1:FDuC/S3STkvwxZ0ooo3gcp56QkUKsN7Jy7cpzBxL+vQ=
 go.dedis.ch/kyber/v3 v3.0.4/go.mod h1:OzvaEnPvKlyrWyp3kGXlFdp7ap1VC6RkZDTaPikqhsQ=
 go.dedis.ch/protobuf v1.0.5 h1:EbF1czEKICxf5KY8Tm7wMF28hcOQbB6yk4IybIFWTYE=

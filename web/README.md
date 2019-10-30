@@ -7,7 +7,7 @@ This is the source code of `drand`'s website, used to smartly present the output
 - First contacted node is randomly picked from the latest [configuration file](https://github.com/dedis/drand/blob/master/deploy/latest/group.toml) hosted on Github,
 - User can choose which node of the group is contacted to fetch the randomness from.
 
-You can find a live example at XXX.
+You can find a live example at [zerobyte.io](https://drand.zerobyte.io).
 
 ## Run it
 
