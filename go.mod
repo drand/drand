@@ -11,8 +11,9 @@ require (
 	github.com/go-logfmt/logfmt v0.4.0 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/protobuf v1.3.2
-	github.com/grpc-ecosystem/grpc-gateway v1.9.4
+	github.com/grpc-ecosystem/grpc-gateway v1.12.0
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
+	github.com/kr/pretty v0.1.0 // indirect
 	github.com/nikkolasg/hexjson v0.0.0-20181101101858-78e39397e00c
 	github.com/nikkolasg/slog v0.0.0-20170921200349-3c8d441d7a1e
 	github.com/soheilhy/cmux v0.1.4
@@ -22,9 +23,11 @@ require (
 	go.dedis.ch/protobuf v1.0.6 // indirect
 	go.etcd.io/bbolt v1.3.2 // indirect
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
-	golang.org/x/net v0.0.0-20190628185345-da137c7871d7
+	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
 	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
 	golang.org/x/text v0.3.2 // indirect
-	google.golang.org/genproto v0.0.0-20190716160619-c506a9f90610
-	google.golang.org/grpc v1.22.0
+	google.golang.org/genproto v0.0.0-20190927181202-20e1ac93f88c
+	google.golang.org/grpc v1.24.0
+	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
+	gopkg.in/resty.v1 v1.12.0 // indirect
 )

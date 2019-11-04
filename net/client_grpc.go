@@ -38,9 +38,7 @@ func NewGrpcClient(opts ...grpc.DialOption) Client {
 		opts:    opts,
 		conns:   make(map[string]*grpc.ClientConn),
 		manager: NewCertManager(),
-		//timeout:  10 * time.Second,
-		timeout:  defaultTimeout,
-		failFast: grpc.FailFast(true),
+		timeout: defaultTimeout,
 	}
 }
 
@@ -60,12 +58,11 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 	return c
 }
 
-func (g *grpcClient) getTimeoutContext() context.Context {
+func (g *grpcClient) getTimeoutContext() (context.Context, context.CancelFunc) {
 	g.Lock()
 	defer g.Unlock()
 	clientDeadline := time.Now().Add(g.timeout)
-	ctx, _ := context.WithDeadline(context.Background(), clientDeadline)
-	return ctx
+	return context.WithDeadline(context.Background(), clientDeadline)
 }
 
 func (g *grpcClient) SetTimeout(p time.Duration) {
@@ -137,7 +134,9 @@ func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*
 			return err
 		}
 		client := drand.NewProtocolClient(c)
-		resp, err = client.Setup(g.getTimeoutContext(), in, grpc.FailFast(true))
+		ctx, canc := g.getTimeoutContext()
+		resp, err = client.Setup(ctx, in, grpc.FailFast(true))
+		canc()
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -151,7 +150,9 @@ func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption
 			return err
 		}
 		client := drand.NewProtocolClient(c)
-		resp, err = client.Reshare(g.getTimeoutContext(), in, grpc.FailFast(true))
+		ctx, canc := g.getTimeoutContext()
+		resp, err = client.Reshare(ctx, in, grpc.FailFast(true))
+		canc()
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -165,7 +166,9 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 			return err
 		}
 		client := drand.NewProtocolClient(c)
-		resp, err = client.NewBeacon(g.getTimeoutContext(), in, append(opts, grpc.FailFast(true))...)
+		ctx, canc := g.getTimeoutContext()
+		resp, err = client.NewBeacon(ctx, in, append(opts, grpc.FailFast(true))...)
+		canc()
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -190,7 +193,8 @@ func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, e
 // certificates. It's a hack for issue
 // https://github.com/grpc/grpc-go/issues/2394
 func (g *grpcClient) retryTLS(p Peer, fn func() error) error {
-	for retry := 0; retry < 3; retry++ {
+	total := 1
+	for retry := 0; retry < total; retry++ {
 		err := fn()
 		if err == nil {
 			return nil
