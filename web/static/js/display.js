@@ -28,11 +28,11 @@ async function displayRandomness() {
   fetchAndVerify(window.identity, window.distkey)
   .then(function (fulfilled) {
     window.verified = true;
-    printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, true);
+    printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, "0", true);
   })
   .catch(function (error) {
     window.verified = false;
-    printRound(error.randomness, error.previous, error.round, false);
+    printRound(error.randomness, error.previous, error.round, "0", false);
   });
   printNodesList();
 }
@@ -60,15 +60,15 @@ function startProgressBar() {
 /**
 * printRound formats and prints the given randomness with interactions
 **/
-function printRound(randomness, previous, round, verified) {
-  if (round < currRound || round == undefined) {
+function printRound(randomness, previous, round, signature, verified) {
+  if (round <= currRound || round == undefined || randomness == undefined || previous == undefined || signature == undefined) {
     return
   }
   currRound = round;
 
   //print randomness as current
   var p = document.createElement("pre");
-  var quarter = Math.ceil(randomness.length / 4);
+  var quarter = Math.ceil(randomness.length/4);
   var s1 = randomness.slice(0, quarter);
   var s2 = randomness.slice(quarter, 2*quarter);
   var s3 = randomness.slice(2*quarter, 3*quarter);
@@ -81,14 +81,14 @@ function printRound(randomness, previous, round, verified) {
   //print JSON when clicked
   p.onmouseover = function() { p.style.textDecoration = "underline"; p.style.cursor = "pointer"};
   p.onmouseout = function() {p.style.textDecoration = "none";};
-  if (window.identity.TLS){
-    var reqURL = 'https://'+ window.identity.Address + '/api/public';
-  } else {
-    var reqURL = 'http://'+ window.identity.Address + '/api/public';
-  }
-  var jsonStr = '{"round":'+round+',"previous":"'+previous+ '","randomness":{"gid": 21,"point":"'+randomness+ '"}}';
+  var jsonStr = '{"round":'+round+',"previous":"'+previous+'","signature":"'+signature+'","randomness":"'+randomness+'"}';
   var modal = document.getElementById("myModal");
   p.onclick = function() {
+    if (window.identity.TLS){
+      var reqURL = 'https://'+ window.identity.Address + '/api/public';
+    } else {
+      var reqURL = 'http://'+ window.identity.Address + '/api/public';
+    }
     var modalcontent = document.getElementById("jsonHolder");
     modalcontent.innerHTML = 'Request URL: <strong>'+ reqURL + '</strong> <br> Raw JSON: <pre>' + JSON.stringify(JSON.parse(jsonStr),null,2) + "</pre>";
     modal.style.display = "block";
@@ -164,7 +164,7 @@ function printNodesList() {
       }
       loc = locationMap.get(host);
       if (loc == undefined) {
-        loc = "?";
+        loc = " ";
       }
       let countryCol = document.createElement("td");
       countryCol.innerHTML = '<td>' + loc + '</td>';
@@ -212,10 +212,10 @@ function goToPrev() {
   //print previous rand
   fetchAndVerifyRound(window.identity, window.distkey, round)
   .then(function (fulfilled) {
-    printRound(fulfilled.randomness, fulfilled.previous, round, true);
+    printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
   })
   .catch(function (error) {
-    printRound(error.randomness, error.previous, round, false);
+    printRound(error.randomness, error.previous, round, "0", false);
   });
 }
 
@@ -243,10 +243,10 @@ function goToNext() {
     //print next rand
     fetchAndVerifyRound(window.identity, window.distkey, round)
     .then(function (fulfilled) {
-      printRound(fulfilled.randomness, fulfilled.previous, round, true);
+      printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
     })
     .catch(function (error) {
-      printRound(error.randomness, error.previous, round, false);
+      printRound(error.randomness, error.previous, round, "0", false);
     });
   });
 }
