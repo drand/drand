@@ -11,23 +11,23 @@ github.com/go-kit/kit/log
 github.com/go-kit/kit/log/level
 # github.com/go-logfmt/logfmt v0.4.0
 github.com/go-logfmt/logfmt
-# github.com/golang/protobuf v1.3.1
-github.com/golang/protobuf/proto
+# github.com/golang/protobuf v1.3.2
 github.com/golang/protobuf/jsonpb
-github.com/golang/protobuf/protoc-gen-go/generator
-github.com/golang/protobuf/ptypes/any
-github.com/golang/protobuf/ptypes/duration
-github.com/golang/protobuf/ptypes/timestamp
-github.com/golang/protobuf/ptypes/wrappers
+github.com/golang/protobuf/proto
 github.com/golang/protobuf/protoc-gen-go/descriptor
-github.com/golang/protobuf/ptypes
-github.com/golang/protobuf/ptypes/struct
+github.com/golang/protobuf/protoc-gen-go/generator
 github.com/golang/protobuf/protoc-gen-go/generator/internal/remap
 github.com/golang/protobuf/protoc-gen-go/plugin
-# github.com/grpc-ecosystem/grpc-gateway v1.8.5
+github.com/golang/protobuf/ptypes
+github.com/golang/protobuf/ptypes/any
+github.com/golang/protobuf/ptypes/duration
+github.com/golang/protobuf/ptypes/struct
+github.com/golang/protobuf/ptypes/timestamp
+github.com/golang/protobuf/ptypes/wrappers
+# github.com/grpc-ecosystem/grpc-gateway v1.9.4
+github.com/grpc-ecosystem/grpc-gateway/internal
 github.com/grpc-ecosystem/grpc-gateway/runtime
 github.com/grpc-ecosystem/grpc-gateway/utilities
-github.com/grpc-ecosystem/grpc-gateway/internal
 # github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 github.com/kabukky/httpscerts
 # github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515
@@ -41,64 +41,65 @@ github.com/pmezard/go-difflib/difflib
 # github.com/soheilhy/cmux v0.1.4
 github.com/soheilhy/cmux
 # github.com/stretchr/testify v1.3.0
-github.com/stretchr/testify/require
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
 # github.com/urfave/cli v1.20.0
 github.com/urfave/cli
 # go.dedis.ch/fixbuf v1.0.3
 go.dedis.ch/fixbuf
 # go.dedis.ch/kyber/v3 v3.0.4
-go.dedis.ch/kyber/v3/share
-go.dedis.ch/kyber/v3/sign/bls
-go.dedis.ch/kyber/v3/sign/tbls
 go.dedis.ch/kyber/v3
-go.dedis.ch/kyber/v3/share/vss/pedersen
-go.dedis.ch/kyber/v3/share/dkg/pedersen
-go.dedis.ch/kyber/v3/util/random
-go.dedis.ch/kyber/v3/pairing/bn256
-go.dedis.ch/kyber/v3/pairing
-go.dedis.ch/kyber/v3/sign/schnorr
-go.dedis.ch/kyber/v3/group/mod
-go.dedis.ch/kyber/v3/xof/blake2xb
 go.dedis.ch/kyber/v3/group/internal/marshalling
+go.dedis.ch/kyber/v3/group/mod
+go.dedis.ch/kyber/v3/pairing
+go.dedis.ch/kyber/v3/pairing/bn256
+go.dedis.ch/kyber/v3/share
+go.dedis.ch/kyber/v3/share/dkg/pedersen
+go.dedis.ch/kyber/v3/share/vss/pedersen
+go.dedis.ch/kyber/v3/sign/bls
+go.dedis.ch/kyber/v3/sign/schnorr
+go.dedis.ch/kyber/v3/sign/tbls
+go.dedis.ch/kyber/v3/util/random
+go.dedis.ch/kyber/v3/xof/blake2xb
 # go.dedis.ch/protobuf v1.0.6
 go.dedis.ch/protobuf
-# golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734
-golang.org/x/crypto/hkdf
+# golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 golang.org/x/crypto/blake2b
-# golang.org/x/net v0.0.0-20190503192946-f4e77d36d62c
+golang.org/x/crypto/hkdf
+# golang.org/x/net v0.0.0-20190628185345-da137c7871d7
 golang.org/x/net/context
-golang.org/x/net/trace
+golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
-golang.org/x/net/internal/timeseries
-golang.org/x/net/http/httpguts
 golang.org/x/net/idna
-# golang.org/x/sys v0.0.0-20190506115046-ca7f33d4116e
-golang.org/x/sys/unix
+golang.org/x/net/internal/timeseries
+golang.org/x/net/trace
+# golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7
 golang.org/x/sys/cpu
+golang.org/x/sys/unix
 # golang.org/x/text v0.3.2
 golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-golang.org/x/text/transform
-# google.golang.org/genproto v0.0.0-20190502173448-54afdca5d873
+# google.golang.org/genproto v0.0.0-20190716160619-c506a9f90610
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/httpbody
-google.golang.org/genproto/protobuf/field_mask
 google.golang.org/genproto/googleapis/rpc/status
-# google.golang.org/grpc v1.20.1
-google.golang.org/grpc/peer
+google.golang.org/genproto/protobuf/field_mask
+# google.golang.org/grpc v1.22.0
 google.golang.org/grpc
-google.golang.org/grpc/credentials
-google.golang.org/grpc/codes
-google.golang.org/grpc/grpclog
-google.golang.org/grpc/status
 google.golang.org/grpc/balancer
+google.golang.org/grpc/balancer/base
 google.golang.org/grpc/balancer/roundrobin
+google.golang.org/grpc/binarylog/grpc_binarylog_v1
+google.golang.org/grpc/codes
 google.golang.org/grpc/connectivity
+google.golang.org/grpc/credentials
+google.golang.org/grpc/credentials/internal
 google.golang.org/grpc/encoding
 google.golang.org/grpc/encoding/proto
+google.golang.org/grpc/grpclog
 google.golang.org/grpc/internal
 google.golang.org/grpc/internal/backoff
 google.golang.org/grpc/internal/balancerload
@@ -107,16 +108,16 @@ google.golang.org/grpc/internal/channelz
 google.golang.org/grpc/internal/envconfig
 google.golang.org/grpc/internal/grpcrand
 google.golang.org/grpc/internal/grpcsync
+google.golang.org/grpc/internal/syscall
 google.golang.org/grpc/internal/transport
 google.golang.org/grpc/keepalive
 google.golang.org/grpc/metadata
 google.golang.org/grpc/naming
+google.golang.org/grpc/peer
 google.golang.org/grpc/resolver
 google.golang.org/grpc/resolver/dns
 google.golang.org/grpc/resolver/passthrough
+google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
+google.golang.org/grpc/status
 google.golang.org/grpc/tap
-google.golang.org/grpc/credentials/internal
-google.golang.org/grpc/balancer/base
-google.golang.org/grpc/binarylog/grpc_binarylog_v1
-google.golang.org/grpc/internal/syscall
