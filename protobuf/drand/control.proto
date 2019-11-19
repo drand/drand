@@ -13,12 +13,12 @@ import "drand/empty.proto";
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
     rpc PingPong(Ping) returns (Pong) { }
-    // InitDKG sends information to daemon to start a fresh DKG protocol 
+    // InitDKG sends information to daemon to start a fresh DKG protocol
     rpc InitDKG(InitDKGPacket) returns (drand.Empty) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
     rpc InitReshare(InitResharePacket) returns (drand.Empty) { }
-    // Share returns the current private share used by the node 
+    // Share returns the current private share used by the node
     rpc Share(ShareRequest) returns (ShareResponse) { }
     // PublicKey returns the longterm public key of the drand node
     rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
@@ -37,6 +37,8 @@ message InitDKGPacket {
     bool is_leader = 2;
     // timeout as parsed by Golang's time.ParseDuration method.
     string timeout = 3;
+    string entropy = 5;
+    bool userOnly = 6;
 }
 
 // ReshareRequest contains references to the old and new group to perform the

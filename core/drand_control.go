@@ -11,6 +11,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/dedis/drand/dkg"
+	"github.com/dedis/drand/entropy"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/drand"
 	control "github.com/dedis/drand/protobuf/drand"
@@ -41,10 +42,14 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 	d.idx = idx
 
+	entropyReader := entropy.NewEntropyReader(in.Entropy, in.UserOnly)
+
 	d.nextConf = &dkg.Config{
-		Suite:    key.KeyGroup.(dkg.Suite),
-		NewNodes: d.group,
-		Key:      d.priv,
+		Suite:          key.G2.(dkg.Suite),
+		NewNodes:       d.group,
+		Key:            d.priv,
+		Reader:         entropyReader.ExtractReader(),
+		UserReaderOnly: entropyReader.GetUserOnly(),
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)

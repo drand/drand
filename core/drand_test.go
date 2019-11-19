@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/dedis/drand/beacon"
+	"github.com/dedis/drand/entropy"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
@@ -221,6 +222,10 @@ func TestDrandDKGFresh(t *testing.T) {
 	nbRound := 4
 	period := 1000 * time.Millisecond
 
+	emptyReader := ""
+	defaultUserOnly := false
+	defaultEntropyReader := entropy.NewEntropyReader(emptyReader, defaultUserOnly)
+
 	drands, group, dir := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)))
 	defer CloseAllDrands(drands[:n-1])
@@ -303,7 +308,7 @@ func TestDrandDKGFresh(t *testing.T) {
 			// instruct to be ready for a reshare
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
-			_, err = client.InitDKG(groupPath, false, "")
+			_, err = client.InitDKG(groupPath, false, "", defaultEntropyReader)
 			require.NoError(t, err)
 			//err = d.WaitDKG()
 			//require.Nil(t, err)
@@ -314,7 +319,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	root := drands[0]
 	controlClient, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(t, err)
-	_, err = controlClient.InitDKG(groupPath, true, "")
+	_, err = controlClient.InitDKG(groupPath, true, "", defaultEntropyReader)
 	require.NoError(t, err)
 
 	//err = root.WaitDKG()
