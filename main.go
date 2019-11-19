@@ -138,6 +138,16 @@ var pushFlag = cli.BoolFlag{
 	Usage: "Push  mode forces the daemon to start making beacon requests to the other node, instead of waiting the other nodes contact it to catch-up on the round",
 }
 
+var sourceFlag = cli.StringFlag{
+	Name:  "source",
+	Usage: "Source flag allows to use the given file as additional entropy during resharing step.",
+}
+
+var userEntropyOnlyFlag = cli.BoolFlag{
+	Name:  "userEntropyOnly",
+	Usage: "UserEntropyOnly flag used with the source flag allows to only use the user's entropy (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -179,7 +189,7 @@ func main() {
 				"this daemon start the protocol\n",
 			ArgsUsage: "<group.toml> group file",
 			Flags: toArray(folderFlag, insecureFlag, controlFlag,
-				leaderFlag, oldGroupFlag, timeoutFlag),
+				leaderFlag, oldGroupFlag, timeoutFlag, sourceFlag, userEntropyOnlyFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return shareCmd(c)

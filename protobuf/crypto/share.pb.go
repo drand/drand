@@ -3,9 +3,12 @@
 
 package crypto // import "github.com/drand/drand/protobuf/crypto"
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	math "math"
+
+	proto "github.com/golang/protobuf/proto"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,7 +19,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 //
 // PrivateShare holds a share that is private for the given participant at the
@@ -35,16 +38,17 @@ func (m *PrivateShare) Reset()         { *m = PrivateShare{} }
 func (m *PrivateShare) String() string { return proto.CompactTextString(m) }
 func (*PrivateShare) ProtoMessage()    {}
 func (*PrivateShare) Descriptor() ([]byte, []int) {
-	return fileDescriptor_share_3ef45179cf094846, []int{0}
+	return fileDescriptor_9eb819a094d20c65, []int{0}
 }
+
 func (m *PrivateShare) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateShare.Unmarshal(m, b)
 }
 func (m *PrivateShare) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PrivateShare.Marshal(b, m, deterministic)
 }
-func (dst *PrivateShare) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PrivateShare.Merge(dst, src)
+func (m *PrivateShare) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PrivateShare.Merge(m, src)
 }
 func (m *PrivateShare) XXX_Size() int {
 	return xxx_messageInfo_PrivateShare.Size(m)
@@ -73,9 +77,9 @@ func init() {
 	proto.RegisterType((*PrivateShare)(nil), "share.PrivateShare")
 }
 
-func init() { proto.RegisterFile("crypto/share.proto", fileDescriptor_share_3ef45179cf094846) }
+func init() { proto.RegisterFile("crypto/share.proto", fileDescriptor_9eb819a094d20c65) }
 
-var fileDescriptor_share_3ef45179cf094846 = []byte{
+var fileDescriptor_9eb819a094d20c65 = []byte{
 	// 132 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4a, 0x2e, 0xaa, 0x2c,
 	0x28, 0xc9, 0xd7, 0x2f, 0xce, 0x48, 0x2c, 0x4a, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62,

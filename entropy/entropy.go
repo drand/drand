@@ -2,6 +2,8 @@ package entropy
 
 import (
 	"crypto/rand"
+	"io"
+	"os"
 )
 
 // CustomRandomSource is a generic interface that any drand node operator can implement
@@ -25,4 +27,37 @@ func GetRandom(source EntropySource, len uint32) ([]byte, error) {
 		return randomBytes, err
 	}
 	return randomBytes, nil
+}
+
+// EntropyReader hold info for user entropy to be given to the dkg
+// Warning: UserOnly should be set to true for debugging, and randomness coming from user
+// should always be mixed with crypto/rand and thus userOnly dhoul be false by default
+type EntropyReader struct {
+	Entropy  string
+	UserOnly bool
+}
+
+// GetEntropy returns the path of the file to use as additional entropy
+func (r *EntropyReader) GetEntropy() string {
+	return r.Entropy
+}
+
+// ExtractReader creates an io.Reader using r's entropy file
+func (r *EntropyReader) ExtractReader() io.Reader {
+	if r.Entropy == "" {
+		return nil
+	}
+	// f should have been tested already XXX again ?
+	f, _ := os.Open(r.Entropy)
+	return f
+}
+
+// GetUserOnly returns true if user wants to use their randomness only
+func (r *EntropyReader) GetUserOnly() bool {
+	return r.UserOnly
+}
+
+// NewEntropyReader creates a new EntropyReader struct
+func NewEntropyReader(path string, userOnly bool) *EntropyReader {
+	return &EntropyReader{path, userOnly}
 }
