@@ -185,8 +185,8 @@
   <script src="{{ .Site.BaseURL }}js/display.js"></script>
 
   <script>
-    window.identity = "";
-    window.distkey = "";
+    window.identity = {Address: "drand.nikkolasg.xyz:8888", TLS: true};
+    window.distkey = defaultDistKey;
 
     displayRandomness();
     var id = window.setInterval(displayRandomness, 60000);

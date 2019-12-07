@@ -25,7 +25,7 @@ async function displayRandomness() {
   }
   startProgressBar();
   //print randomness and update verfified status
-  fetchAndVerify(window.identity, window.distkey)
+  fetchAndVerify(window.identity, window.distkey, latestRound)
   .then(function (fulfilled) {
     window.verified = true;
     printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, "0", true);
@@ -189,7 +189,7 @@ function printNodesList() {
 **/
 function isUp(addr, tls) {
   return new Promise(function(resolve, reject) {
-    fetchPublic({Address: addr, TLS: tls})
+    fetchLatest({Address: addr, TLS: tls})
     .then((rand) => {resolve(true);})
     .catch((error) => {reject(false);});
   });
@@ -210,7 +210,7 @@ function goToPrev() {
   var elem = document.getElementById("myBar");
   elem.style.width = 0 + '%';
   //print previous rand
-  fetchAndVerifyRound(window.identity, window.distkey, round)
+  fetchAndVerify(window.identity, window.distkey, round)
   .then(function (fulfilled) {
     printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
   })
@@ -241,7 +241,7 @@ function goToNext() {
     var elem = document.getElementById("myBar");
     elem.style.width = 0 + '%';
     //print next rand
-    fetchAndVerifyRound(window.identity, window.distkey, round)
+    fetchAndVerify(window.identity, window.distkey, round)
     .then(function (fulfilled) {
       printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
     })
@@ -266,7 +266,7 @@ function refresh() {
 **/
 function getLatestIndex() {
   return new Promise(function(resolve, reject) {
-    fetchPublic(window.identity).then((rand) => {resolve(rand.round);})
+    fetchLatest(window.identity).then((rand) => {resolve(rand.round);})
   });
 }
 
