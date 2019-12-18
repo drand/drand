@@ -925,7 +925,7 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	file.Close()
 	defer os.Remove("./veryrandom.sh")
 
 	execRand := "veryrandom.sh"
