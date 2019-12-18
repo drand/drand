@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"io"
 	"os"
+	"os/exec"
 )
 
 // CustomRandomSource is a generic interface that any drand node operator can implement
@@ -60,4 +61,20 @@ func (r *EntropyReader) GetUserOnly() bool {
 // NewEntropyReader creates a new EntropyReader struct
 func NewEntropyReader(path string, userOnly bool) *EntropyReader {
 	return &EntropyReader{path, userOnly}
+}
+
+func CreateFileFromExec(execPath string) (string, error) {
+	cmd := exec.Command("./" + execPath)
+	outfile, err := os.Create("./entropyCapture.txt")
+	if err != nil {
+		return "", err
+	}
+	defer outfile.Close()
+	cmd.Stdout = outfile
+
+	err = cmd.Run()
+	if err != nil {
+		return "", err
+	}
+	return outfile.Name(), nil
 }
