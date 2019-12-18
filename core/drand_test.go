@@ -909,3 +909,114 @@ func TestDrandDKGFreshWithSameReader(t *testing.T) {
 	secret := s.PrivatePoly[0]
 	require.True(t, secret.String() == "26b57c5071e58f244f104f75604956e995edb1963fd40f31489a2eeca7aded00")
 }
+
+func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
+	n := 5
+	nbRound := 2
+	period := 1000 * time.Millisecond
+
+	file, err := os.Create("./veryrandom.sh")
+	file.Chmod(0740)
+
+	if err != nil {
+		panic(err)
+	}
+	_, err = file.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis. It is now five after the hour of 6:00 A.M. in the big monster city.")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	defer os.Remove("./veryrandom.sh")
+
+	execRand := "veryrandom.sh"
+	userOnly := true
+	reader, err := entropy.CreateFileFromExec(execRand)
+	require.NoError(t, err)
+	entropyReader := entropy.NewEntropyReader(reader, userOnly)
+
+	drands, group, dir := BatchNewDrand(n, false,
+		WithCallOption(grpc.FailFast(true)))
+	defer CloseAllDrands(drands[:n-1])
+	defer os.RemoveAll(dir)
+
+	group.Period = period
+	groupPath := path.Join(dir, "dkggroup.toml")
+	require.NoError(t, key.Save(groupPath, group, false))
+	ids := make([]*key.Identity, n)
+	for i, d := range drands {
+		ids[i] = d.priv.Public
+	}
+
+	var distributedPublic *key.DistPublic
+	var publicSet = make(chan bool)
+	getPublic := func() *key.DistPublic {
+		<-publicSet
+		return distributedPublic
+	}
+
+	type receivingStruct struct {
+		Index  int
+		Beacon *beacon.Beacon
+	}
+
+	genBeacons := make(map[uint64][]*receivingStruct)
+	var l sync.Mutex
+	newBeacon := make(chan int, n*nbRound)
+	setupDrand := func(i int) {
+		myCb := func(b *beacon.Beacon) {
+			msg := beacon.Message(b.PreviousSig, b.Round)
+			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Signature)
+			if err != nil {
+				fmt.Printf("Beacon error callback: %s\n", b.Signature)
+			}
+			require.NoError(t, err)
+			l.Lock()
+			genBeacons[b.Round] = append(genBeacons[b.Round], &receivingStruct{
+				Index:  i,
+				Beacon: b,
+			})
+			l.Unlock()
+			newBeacon <- i
+		}
+		drands[i].opts.beaconCbs = append(drands[i].opts.beaconCbs, myCb)
+	}
+
+	for i := 0; i < n-1; i++ {
+		setupDrand(i)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(n - 1)
+	for _, drand := range drands[1:] {
+		go func(d *Drand) {
+			client, err := net.NewControlClient(d.opts.controlPort)
+			require.NoError(t, err)
+			_, err = client.InitDKG(groupPath, false, "", entropyReader)
+			require.NoError(t, err)
+			wg.Done()
+		}(drand)
+	}
+
+	root := drands[0]
+	controlClient, err := net.NewControlClient(root.opts.controlPort)
+	require.NoError(t, err)
+	_, err = controlClient.InitDKG(groupPath, true, "", entropyReader)
+	require.NoError(t, err)
+
+	wg.Wait()
+
+	distributedPublic, err = root.store.LoadDistPublic()
+	require.Nil(t, err)
+	require.NotNil(t, distributedPublic)
+	close(publicSet)
+	s, err := root.store.LoadShare()
+	require.Nil(t, err)
+
+	print(distributedPublic.Key().String())
+
+	//the key should be the same from run to run
+	require.True(t, distributedPublic.Key().String() == "bn256.G2:((06bbf0b024ae3c72ec5c83c2e626c14b35cdc6e117dc55d2440116f9df609e42, 09a591810c90a82e2bb674bb3ce4a6ea42a1c92a9fa2abd594f90454d5b3d831), (77c056c21a25356271738eca8594533ec4c1583a72c4253ed09d5b6b096ed933, 05f7d1f363bf47b8d3636ddf939dfa6dd849465a7247328666d3a3a314cd13f0))")
+	//same for the share
+	secret := s.PrivatePoly[0]
+	require.True(t, secret.String() == "26b57c5071e58f244f104f75604956e995edb1963fd40f31489a2eeca7aded00")
+}
