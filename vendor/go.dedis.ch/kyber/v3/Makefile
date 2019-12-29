@@ -19,7 +19,7 @@ test_fmt:
 test_lint:
 	@echo Checking linting of files
 	@{ \
-		go get -u github.com/golang/lint/golint; \
+		GO111MODULE=off go get golang.org/x/lint; \
 		lintfiles=$$( golint ./... | egrep -v _test.go ); \
 		if [ -n "$$lintfiles" ]; then \
 		echo "Lint errors:"; \
@@ -29,7 +29,7 @@ test_lint:
 	}
 
 test_goveralls:
-	go get github.com/mattn/goveralls
+	GO111MODULE=off go get github.com/mattn/goveralls
 	$(CODING)/coveralls.sh $(EXCLUDE_TEST)
 	$(gopath)/bin/goveralls -coverprofile=profile.cov -service=travis-ci || true
 
