@@ -15,13 +15,13 @@ import (
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
 	"github.com/dedis/drand/test"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/util/random"
 	"github.com/stretchr/testify/require"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/share"
-	"go.dedis.ch/kyber/v3/sign/bls"
-	"go.dedis.ch/kyber/v3/sign/tbls"
-	"go.dedis.ch/kyber/v3/util/random"
 )
+
+// TODO make beacon tests not dependant on key.Scheme
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
@@ -38,8 +38,8 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 	var pubPoly *share.PubPoly
 	var err error
 	for i := 0; i < n; i++ {
-		pri := share.NewPriPoly(key.G2, t, key.G2.Scalar().Pick(random.New()), random.New())
-		pub := pri.Commit(key.G2.Point().Base())
+		pri := share.NewPriPoly(key.KeyGroup, t, key.KeyGroup.Scalar().Pick(random.New()), random.New())
+		pub := pri.Commit(key.KeyGroup.Point().Base())
 		if priPoly == nil {
 			priPoly = pri
 			pubPoly = pub
@@ -55,7 +55,7 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 		}
 	}
 	shares := priPoly.Shares(n)
-	secret, err := share.RecoverSecret(key.G2, shares, t, n)
+	secret, err := share.RecoverSecret(key.KeyGroup, shares, t, n)
 	if err != nil {
 		panic(err)
 	}
@@ -67,7 +67,7 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 	_, commits := pubPoly.Info()
 	dkgShares := make([]*key.Share, n, n)
 	for i := 0; i < n; i++ {
-		sigs[i], err = tbls.Sign(key.Pairing, shares[i], msg)
+		sigs[i], err = key.Scheme.Sign(shares[i], msg)
 		if err != nil {
 			panic(err)
 		}
@@ -76,11 +76,11 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 			Commits: commits,
 		}
 	}
-	sig, err := tbls.Recover(key.Pairing, pubPoly, msg, sigs, t, n)
+	sig, err := key.Scheme.Recover(pubPoly, msg, sigs, t, n)
 	if err != nil {
 		panic(err)
 	}
-	if err := bls.Verify(key.Pairing, pubPoly.Commit(), msg, sig); err != nil {
+	if err := key.Scheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
 		panic(err)
 	}
 	//fmt.Println(pubPoly.Commit())
@@ -138,7 +138,7 @@ func TestBeaconSimple(t *testing.T) {
 	// into the map
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
-			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
+			err := key.Scheme.VerifyRecovered(public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
@@ -148,7 +148,12 @@ func TestBeaconSimple(t *testing.T) {
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
-		conf := &Config{Group: group, Private: privs[i], Share: shares[i], Seed: seed}
+		conf := &Config{
+			Group:   group,
+			Private: privs[i],
+			Share:   shares[i],
+			Seed:    seed,
+			Scheme:  key.Scheme}
 		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}
@@ -288,7 +293,7 @@ func TestBeaconNEqualT(t *testing.T) {
 	// into the map
 	launchBeacon := func(i int, catchup bool) {
 		myCb := func(b *Beacon) {
-			err := bls.Verify(key.Pairing, public, Message(b.PreviousSig, b.Round), b.Signature)
+			err := key.Scheme.VerifyRecovered(public, Message(b.PreviousSig, b.Round), b.Signature)
 			require.NoError(t, err)
 			l.Lock()
 			genBeacons[b.Round] = append(genBeacons[b.Round], b)
@@ -298,7 +303,12 @@ func TestBeaconNEqualT(t *testing.T) {
 		store, err := NewBoltStore(paths[i], nil)
 		require.NoError(t, err)
 		store = NewCallbackStore(store, myCb)
-		conf := &Config{Group: group, Private: privs[i], Share: shares[i], Seed: seed}
+		conf := &Config{
+			Group:   group,
+			Private: privs[i],
+			Share:   shares[i],
+			Seed:    seed,
+			Scheme:  key.Scheme}
 		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
 		require.NoError(t, err)
 		beaconServer := testBeaconServer{h: handlers[i]}

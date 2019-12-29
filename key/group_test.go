@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber/util/random"
 	"github.com/stretchr/testify/require"
-	kyber "go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/util/random"
 )
 
 func TestGroupSaveLoad(t *testing.T) {
@@ -17,7 +17,7 @@ func TestGroupSaveLoad(t *testing.T) {
 	dpub := make([]kyber.Point, n)
 	for i := 0; i < n; i++ {
 		ids[i] = &Identity{
-			Key:  G2.Point().Mul(G2.Scalar().Pick(random.New()), nil),
+			Key:  KeyGroup.Point().Mul(KeyGroup.Scalar().Pick(random.New()), nil),
 			Addr: "--",
 		}
 		dpub[i] = ids[i].Key

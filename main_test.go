@@ -16,11 +16,11 @@ import (
 	"github.com/dedis/drand/fs"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/test"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
 	"github.com/kabukky/httpscerts"
 	"github.com/nikkolasg/slog"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/share"
+	"go.dedis.ch/kyber/v3/util/random"
 
 	"github.com/stretchr/testify/require"
 )
@@ -228,15 +228,14 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, key.Save(groupPath, group, false))
 
 	//fake share
-	pairing := bn256.NewSuite()
-	scalarOne := pairing.G2().Scalar().One()
+	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
 	// fake dkg outuput
-	keyStr := "0776a00e44dfa3ab8cff6b78b430bf16b9f8d088b54c660722a35f5034abf3ea4deb1a81f6b9241d22185ba07c37f71a67f94070a71493d10cb0c7e929808bd10cf2d72aeb7f4e10a8b0e6ccc27dad489c9a65097d342f01831ed3a9d0a875b770452b9458ec3bca06a5d4b99a5ac7f41ee5a8add2020291eab92b4c7f2d449f"
-	fakeKey, _ := key.StringToPoint(key.G2, keyStr)
+	fakeKey := key.KeyGroup.Point().Pick(random.New())
+	fakeStr := key.PointToString(fakeKey)
 	distKey := &key.DistPublic{
 		Coefficients: []kyber.Point{fakeKey},
 	}
@@ -245,12 +244,15 @@ func TestStartWithoutGroup(t *testing.T) {
 	// Specify different control and listen ports than TLS example so the two
 	// concurrently running drand instances (one secure, one insecure) don't
 	// re-use ports.
+	fmt.Println("BEFORE RUNNING")
 	os.Args = []string{"drand", "--folder", tmpPath, "start", "--listen", addr2, "--control", ctrlPort, "--tls-disable"}
 	go main()
+	fmt.Println("AFTER RUNNING")
+	time.Sleep(300 * time.Millisecond)
 
 	cmd := exec.Command("drand", "ping", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
-	require.NoError(t, err)
+	require.NoError(t, err, string(out))
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
@@ -260,7 +262,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	cmd = exec.Command("drand", "get", "cokey", "--tls-disable", groupPath)
 	out, err = cmd.CombinedOutput()
-	require.True(t, strings.Contains(string(out), keyStr))
+	require.True(t, strings.Contains(string(out), fakeStr))
 	require.NoError(t, err)
 
 	cmd = exec.Command("drand", "show", "share", "--control", ctrlPort)
@@ -326,17 +328,16 @@ func TestClientTLS(t *testing.T) {
 	fs.SaveGroup(group)
 
 	// fake dkg outuput
-	keyStr := "0776a00e44dfa3ab8cff6b78b430bf16b9f8d088b54c660722a35f5034abf3ea4deb1a81f6b9241d22185ba07c37f71a67f94070a71493d10cb0c7e929808bd10cf2d72aeb7f4e10a8b0e6ccc27dad489c9a65097d342f01831ed3a9d0a875b770452b9458ec3bca06a5d4b99a5ac7f41ee5a8add2020291eab92b4c7f2d449f"
+	fakeKey := key.KeyGroup.Point().Pick(random.New())
+	keyStr := key.PointToString(fakeKey)
 
-	fakeKey, _ := test.StringToPoint(keyStr)
 	distKey := &key.DistPublic{
 		Coefficients: []kyber.Point{fakeKey},
 	}
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
 	//fake share
-	pairing := bn256.NewSuite()
-	scalarOne := pairing.G2().Scalar().One()
+	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)

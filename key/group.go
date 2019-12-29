@@ -12,8 +12,8 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/dchest/blake2b"
-	kyber "go.dedis.ch/kyber/v3"
-	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
+	kyber "github.com/drand/kyber"
+	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
 // Group holds all information about a group of drand nodes.

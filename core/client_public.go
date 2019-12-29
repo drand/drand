@@ -10,8 +10,7 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
 	"github.com/dedis/drand/protobuf/drand"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/sign/bls"
+	"github.com/drand/kyber"
 	"google.golang.org/grpc"
 )
 
@@ -75,13 +74,13 @@ func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int
 // and decrypts the response, the randomness. Client will attempt a TLS
 // connection to the address in the identity if id.IsTLS() returns true
 func (c *Client) Private(id *key.Identity) ([]byte, error) {
-	ephScalar := key.G2.Scalar()
-	ephPoint := key.G2.Point().Mul(ephScalar, nil)
+	ephScalar := key.KeyGroup.Scalar()
+	ephPoint := key.KeyGroup.Point().Mul(ephScalar, nil)
 	ephBuff, err := ephPoint.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, id.Key, ephBuff)
+	obj, err := ecies.Encrypt(key.KeyGroup, ecies.DefaultHash, id.Key, ephBuff)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +88,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ecies.Decrypt(key.G2, ecies.DefaultHash, ephScalar, resp.GetResponse())
+	return ecies.Decrypt(key.KeyGroup, ecies.DefaultHash, ephScalar, resp.GetResponse())
 }
 
 // DistKey returns the distributed key the node at this address is holding.
@@ -109,7 +108,7 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if rand == nil {
 		return errors.New("drand: no randomness found")
 	}
-	ver := bls.Verify(key.Pairing, public, msg, resp.GetSignature())
+	ver := key.Scheme.VerifyRecovered(public, msg, resp.GetSignature())
 	if ver != nil {
 		return ver
 	}

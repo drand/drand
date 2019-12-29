@@ -13,9 +13,8 @@ import (
 
 	"github.com/dedis/drand/log"
 	proto "github.com/dedis/drand/protobuf/drand"
-	"go.dedis.ch/kyber/v3/share"
-	"go.dedis.ch/kyber/v3/sign/bls"
-	"go.dedis.ch/kyber/v3/sign/tbls"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/sign"
 	"google.golang.org/grpc/peer"
 
 	"github.com/dedis/drand/key"
@@ -31,6 +30,7 @@ type Config struct {
 	Private *key.Pair
 	Share   *key.Share
 	Group   *key.Group
+	Scheme  sign.ThresholdScheme
 	Seed    []byte
 }
 
@@ -93,7 +93,7 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 		client:    c,
 		group:     conf.Group,
 		share:     conf.Share,
-		pub:       share.NewPubPoly(key.G2, key.G2.Point().Base(), conf.Share.Commits),
+		pub:       conf.Share.PubPoly(),
 		index:     idx,
 		store:     s,
 		close:     make(chan bool),
@@ -130,7 +130,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 
 	// 2- we dont catch up at least with invalid signature
 	msg := Message(p.PreviousSig, p.Round)
-	if err := tbls.Verify(key.Pairing, h.pub, msg, p.PartialSig); err != nil {
+	if err := h.conf.Scheme.VerifyPartial(h.pub, msg, p.PartialSig); err != nil {
 		h.l.Error("process_beacon", err, "from", peer)
 		return nil, err
 	}
@@ -288,7 +288,7 @@ func (h *Handler) run(round uint64, prevSig []byte, winCh chan roundInfo, closeC
 				}
 				return
 			}
-			if err := tbls.Verify(key.Pairing, h.pub, msg, resp.PartialSig); err != nil {
+			if err := h.conf.Scheme.VerifyPartial(h.pub, msg, resp.PartialSig); err != nil {
 				h.l.Error("beacon_round", round, "invalid beacon resp", err)
 				return
 			}
@@ -310,13 +310,13 @@ func (h *Handler) run(round uint64, prevSig []byte, winCh chan roundInfo, closeC
 			return
 		}
 	}
-	finalSig, err := tbls.Recover(key.Pairing, h.pub, msg, sigs, h.group.Threshold, h.group.Len())
+	finalSig, err := h.conf.Scheme.Recover(h.pub, msg, sigs, h.group.Threshold, h.group.Len())
 	if err != nil {
 		h.l.Error("beacon_round", round, "no final beacon", err)
 		return
 	}
 
-	if err := bls.Verify(key.Pairing, h.pub.Commit(), msg, finalSig); err != nil {
+	if err := h.conf.Scheme.VerifyRecovered(h.pub.Commit(), msg, finalSig); err != nil {
 		h.l.Error("beacon_round", round, "invalid beacon signature", err)
 		return
 	}
@@ -385,7 +385,8 @@ func (h *Handler) signature(round uint64, msg []byte) ([]byte, error) {
 	var err error
 	signature, ok := h.cache.Get(round, msg)
 	if !ok {
-		signature, err = tbls.Sign(key.Pairing, h.share.Share, msg)
+		fmt.Println("h.conf.Scheme", h.conf.Scheme)
+		signature, err = h.conf.Scheme.Sign(h.share.PrivateShare(), msg)
 		if err != nil {
 			return nil, err
 		}
