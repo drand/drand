@@ -3,12 +3,14 @@ package dkg
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
@@ -35,6 +37,7 @@ type Config struct {
 	OldNodes *key.Group
 	Share    *key.Share
 	Timeout  time.Duration
+	Clock    clock.Clock
 }
 
 // Share represents the private information that a node holds after a successful
@@ -73,6 +76,9 @@ type Handler struct {
 
 // NewHandler returns a fresh dkg handler using this private key.
 func NewHandler(n Network, c *Config, l log.Logger) (*Handler, error) {
+	if c.Clock == nil {
+		return nil, errors.New("dkg: handler needs at least a Clock")
+	}
 	var share *dkg.DistKeyShare
 	if c.Share != nil {
 		s := dkg.DistKeyShare(*c.Share)
@@ -221,7 +227,7 @@ func (h *Handler) QualifiedGroup() *key.Group {
 
 func (h *Handler) startTimer() {
 	select {
-	case <-time.After(h.conf.Timeout):
+	case <-h.conf.Clock.After(h.conf.Timeout):
 		h.Lock()
 		defer h.Unlock()
 		h.l.Info("timout", "triggered")

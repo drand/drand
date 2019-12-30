@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
@@ -57,145 +58,185 @@ func testNets(n int, fresh bool) []*testNet {
 	return nets
 }
 
-func TestDKGWithTimeout(t *testing.T) {
-	slog.Level = slog.LevelDebug
-	n := 7
-	thr := key.DefaultThreshold(n)
-	timeout := 500 * time.Millisecond
+type DKGTest struct {
+	n         int
+	thr       int
+	clock     *clock.Mock
+	timeout   time.Duration
+	group     *key.Group
+	privates  []*key.Pair
+	publics   []*key.Identity
+	handlers  []*Handler
+	listeners []net.Listener
+	nets      []*testNet
+	callbacks []func(*Handler)
+}
+
+func NewDKGTest(n, thr int, timeout time.Duration) *DKGTest {
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
-	nets := testNets(n, true)
-	var err error
 	group := key.NewGroup(pubs, thr)
-
-	offline := n - thr
-	alive := n - offline
-	fmt.Printf("n=%d, thr=%d, offline=%d, alive=%d\n", n, thr, offline, alive)
-	handlers := make([]*Handler, alive)
-	listeners := make([]net.Listener, alive)
-	for i := 0; i < alive; i++ {
-		conf := &Config{
-			Suite:    key.KeyGroup.(Suite),
-			Key:      privs[i],
-			NewNodes: group,
-			Timeout:  timeout,
-		}
-
-		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
-		require.NoError(t, err)
-		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &dkgServer)
-		go listeners[i].Start()
+	return &DKGTest{
+		n:         n,
+		thr:       thr,
+		timeout:   timeout,
+		group:     group,
+		privates:  privs,
+		publics:   pubs,
+		nets:      testNets(n, true),
+		handlers:  make([]*Handler, n),
+		listeners: make([]net.Listener, n),
+		callbacks: make([]func(*Handler), n),
+		clock:     clock.NewMock(),
 	}
-	defer func() {
-		for i := 0; i < alive; i++ {
-			listeners[i].Stop()
-		}
-	}()
+}
 
-	finished := make(chan int, n)
-	goDkg := func(idx int) {
-		if idx == 0 {
-			go handlers[idx].Start()
-		}
-		shareCh := handlers[idx].WaitShare()
-		errCh := handlers[idx].WaitError()
-		exitCh := handlers[idx].WaitExit()
+func (d *DKGTest) ServeDKG(i int) {
+	conf := &Config{
+		Suite:    key.KeyGroup.(Suite),
+		Key:      d.privates[i],
+		NewNodes: d.group,
+		Timeout:  d.timeout,
+		Clock:    d.clock,
+	}
+	var err error
+	d.handlers[i], err = NewHandler(d.nets[i], conf, log.DefaultLogger)
+	checkErr(err)
+	dkgServer := testDKGServer{h: d.handlers[i]}
+	d.listeners[i] = net.NewTCPGrpcListener(d.privates[i].Public.Addr, &dkgServer)
+	go d.listeners[i].Start()
+	if cb := d.callbacks[i]; cb != nil {
+		go cb(d.handlers[i])
+	}
+	time.Sleep(10 * time.Millisecond)
+}
+
+func (d *DKGTest) CallbackFor(i int, fn func(s *Share, e error, exit bool)) {
+	d.callbacks[i] = func(h *Handler) {
+		shareCh := h.WaitShare()
+		errCh := h.WaitError()
+		exitCh := h.WaitExit()
 		select {
-		case <-shareCh:
-			finished <- idx
-		case <-exitCh:
-			finished <- idx
+		case s := <-shareCh:
+			fn(&s, nil, false)
 		case err := <-errCh:
-			require.NoError(t, err)
-		case <-time.After(3 * time.Second):
-			fmt.Println("timeout")
-			t.Fatal("not finished in time")
+			fn(nil, err, false)
+		case <-exitCh:
+			fn(nil, nil, true)
 		}
 	}
+}
 
-	for i := 0; i < alive; i++ {
-		go goDkg(i)
+func (d *DKGTest) WaitFinishFor(i int) {
+	if d.handlers[i] == nil {
+		panic("not supposed ot happen")
 	}
-
-	var finishedIdx []int
-	for i := 0; i < alive; i++ {
-		select {
-		case idx := <-finished:
-			finishedIdx = append(finishedIdx, idx)
-			continue
-		case <-time.After(2 * time.Second):
+	<-d.handlers[i].WaitShare()
+}
+func (d *DKGTest) WaitFinish(min int) []int {
+	doneCh := make(chan int, d.n)
+	for i := 0; i < d.n; i++ {
+		go func(i int) {
+			h := d.handlers[i]
+			if h == nil {
+				return
+			}
+			shareCh := h.WaitShare()
+			errCh := h.WaitError()
+			exitCh := h.WaitExit()
+			select {
+			case <-shareCh:
+				doneCh <- i
+			case <-exitCh:
+			case err := <-errCh:
+				checkErr(err)
+			}
+		}(i)
+	}
+	var indexes []int
+	for {
+		indexes = append(indexes, <-doneCh)
+		//fmt.Printf(" \n\nDKG %d FINISHED \n\n", <-doneCh)
+		if len(indexes) == min {
+			return indexes
 		}
 	}
+}
 
-	require.True(t, len(finishedIdx) >= 0)
-	first := handlers[finishedIdx[0]]
-	qualGroup := first.QualifiedGroup()
-	fmt.Println(qualGroup.String())
-	for _, idx := range finishedIdx {
-		conf := handlers[idx].conf
-		require.True(t, qualGroup.Contains(conf.Key.Public))
+func (d *DKGTest) CheckIncludedQUALFrom(from, dkg int) bool {
+	h := d.handlers[from]
+	if h == nil {
+		panic("that should not happen")
+	}
+	group := h.QualifiedGroup()
+	pub := d.publics[dkg]
+	return group.Contains(pub)
+}
+
+func (d *DKGTest) CheckIncludedQUAL(indexes []int) bool {
+	for idx := range indexes {
+		for idx2 := range indexes {
+			if !d.CheckIncludedQUALFrom(idx, idx2) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (d *DKGTest) StartDKG(i int) {
+	go d.handlers[i].Start()
+	time.Sleep(5 * time.Millisecond)
+}
+
+func (d *DKGTest) StopDKG(i int) {
+	if l := d.listeners[i]; l != nil {
+		l.Stop()
+	}
+}
+
+func (d *DKGTest) MoveTime(t time.Duration) {
+	d.clock.Add(t)
+	time.Sleep(10 * time.Millisecond)
+}
+func checkErr(e error) {
+	if e != nil {
+		panic(e)
 	}
 }
 
 func TestDKGFresh(t *testing.T) {
 	n := 5
-	slog.Level = slog.LevelDebug
 	thr := key.DefaultThreshold(n)
-	privs := test.GenerateIDs(n)
-	pubs := test.ListFromPrivates(privs)
-	nets := testNets(n, true)
-	handlers := make([]*Handler, n, n)
-	listeners := make([]net.Listener, n, n)
-	var err error
-
-	group := key.NewGroup(pubs, thr)
-	for i := 0; i < n; i++ {
-		conf := &Config{
-			Suite:    key.KeyGroup.(Suite),
-			Key:      privs[i],
-			NewNodes: group,
-		}
-
-		handlers[i], err = NewHandler(nets[i], conf, log.DefaultLogger)
-		require.NoError(t, err)
-		dkgServer := testDKGServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &dkgServer)
-		go listeners[i].Start()
-	}
-	defer func() {
-		for i := 0; i < n; i++ {
-			listeners[i].Stop()
-		}
-	}()
-
-	finished := make(chan int, n)
-	goDkg := func(idx int) {
-		if idx == 0 {
-			go handlers[idx].Start()
-		}
-		shareCh := handlers[idx].WaitShare()
-		errCh := handlers[idx].WaitError()
-		exitCh := handlers[idx].WaitExit()
-		select {
-		case <-shareCh:
-			finished <- idx
-		case <-exitCh:
-			finished <- idx
-		case err := <-errCh:
-			require.NoError(t, err)
-		case <-time.After(3 * time.Second):
-			fmt.Println("timeout")
-			t.Fatal("not finished in time")
-		}
-	}
+	timeout := 2 * time.Second
+	dt := NewDKGTest(n, thr, timeout)
 
 	for i := 0; i < n; i++ {
-		go goDkg(i)
+		dt.ServeDKG(i)
 	}
-	for i := 0; i < n; i++ {
-		<-finished
+
+	dt.StartDKG(0)
+	indexes := dt.WaitFinish(n)
+	require.True(t, dt.CheckIncludedQUAL(indexes))
+}
+
+func TestDKGWithTimeout2(t *testing.T) {
+	n := 7
+	thr := key.DefaultThreshold(n)
+	timeout := 1 * time.Second
+	offline := n - thr
+	alive := n - offline
+	dt := NewDKGTest(n, thr, timeout)
+	for i := 0; i < alive; i++ {
+		dt.ServeDKG(i)
 	}
+	dt.StartDKG(0)
+	// wait for all messages to come back and forth but less than timeout
+	time.Sleep(500 * time.Millisecond)
+	// trigger timeout immediatly
+	dt.MoveTime(timeout * 2)
+	indexes := dt.WaitFinish(alive)
+	require.True(t, dt.CheckIncludedQUAL(indexes))
 }
 
 func TestDKGResharingPartialWithTimeout(t *testing.T) {
