@@ -18,13 +18,17 @@ var Pairing = bls.NewBLS12381Suite()
 //var G2 = Pairing.G2()
 
 // KeyGroup is the group used to create the keys
-var KeyGroup = Pairing.G2()
+var KeyGroup = Pairing.G1()
 
 // SigGroup is the group used to create the signatures; it must always be
 // different than KeyGroup: G1 key group and G2 sig group or G1 sig group and G2
 // keygroup.
-var SigGroup = Pairing.G1()
+var SigGroup = Pairing.G2()
 
 // Scheme is the signature scheme used, defining over which curve the signature
 // and keys respectively are.
-var Scheme = tbls.NewThresholdSchemeOnG1(Pairing)
+var Scheme = tbls.NewThresholdSchemeOnG2(Pairing)
+
+func init() {
+	//fmt.Println(" YOLO ")
+}

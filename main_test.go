@@ -18,9 +18,9 @@ import (
 	"github.com/dedis/drand/test"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/util/random"
 	"github.com/kabukky/httpscerts"
 	"github.com/nikkolasg/slog"
-	"go.dedis.ch/kyber/v3/util/random"
 
 	"github.com/stretchr/testify/require"
 )
@@ -244,10 +244,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	// Specify different control and listen ports than TLS example so the two
 	// concurrently running drand instances (one secure, one insecure) don't
 	// re-use ports.
-	fmt.Println("BEFORE RUNNING")
 	os.Args = []string{"drand", "--folder", tmpPath, "start", "--listen", addr2, "--control", ctrlPort, "--tls-disable"}
 	go main()
-	fmt.Println("AFTER RUNNING")
 	time.Sleep(300 * time.Millisecond)
 
 	cmd := exec.Command("drand", "ping", "--control", ctrlPort)
