@@ -21,7 +21,6 @@ require (
 	github.com/soheilhy/cmux v0.1.4
 	github.com/stretchr/testify v1.3.0
 	github.com/urfave/cli v1.20.0
-	go.dedis.ch/kyber/v3 v3.0.9
 	go.etcd.io/bbolt v1.3.2 // indirect
 	golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 	golang.org/x/net v0.0.0-20191002035440-2ec189313ef0
