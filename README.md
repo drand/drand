@@ -2,7 +2,7 @@
 
 # Drand - A Distributed Randomness Beacon Daemon
 
-(drand has originally be implemented within the [DEDIS organization](
+(drand was first developped within the [DEDIS organization](
 https://github.com/dedis), and is now under the drand organization).
 
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
