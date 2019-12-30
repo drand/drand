@@ -2,6 +2,9 @@
 
 # Drand - A Distributed Randomness Beacon Daemon
 
+(drand has originally be implemented within the [DEDIS organization](
+https://github.com/dedis), and is now under the drand organization).
+
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
 in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
@@ -564,6 +567,9 @@ helpful discussions on the drand design.
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native Golang
 bn256 implementation and for their help in the design of drand and future ideas.
+
+Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.ch)
+for letting me work on this project and helping me grow it.
 
 ## Coverage
 
