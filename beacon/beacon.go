@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/dedis/drand/log"
 	proto "github.com/dedis/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
@@ -27,11 +28,13 @@ var maxRoundDelta uint64 = 2
 // Config holds the different cryptographc informations necessary to run the
 // randomness beacon.
 type Config struct {
+	// XXX Think of removing uncessary access to keypair - only given for index
 	Private *key.Pair
 	Share   *key.Share
 	Group   *key.Group
 	Scheme  sign.ThresholdScheme
 	Seed    []byte
+	Clock   clock.Clock
 }
 
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
@@ -65,7 +68,7 @@ type Handler struct {
 	// signal the beacon received from incoming request to the timer
 	catchupCh chan Beacon
 
-	ticker  *time.Ticker
+	ticker  *clock.Ticker
 	close   chan bool
 	addr    string
 	seed    []byte
@@ -87,6 +90,7 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 
 	addr := conf.Group.Nodes[idx].Addr
 
+	// XXX move that outside beacon
 	c.SetTimeout(conf.Group.Period) // wait on each call no more than the period
 	return &Handler{
 		conf:      conf,
@@ -101,7 +105,7 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 		addr:      addr,
 		catchupCh: make(chan Beacon, 1),
 		seed:      conf.Seed,
-		l:         l.With("beacon", idx),
+		l:         l.With("group_idx", idx),
 	}, nil
 }
 
@@ -186,7 +190,7 @@ func (h *Handler) Run(period time.Duration, catchup bool) {
 		}
 	}
 
-	h.ticker = time.NewTicker(period)
+	h.ticker = h.conf.Clock.Ticker(period)
 	h.started = true
 	h.Unlock()
 	h.savePreviousSignature(prevSig)
@@ -256,7 +260,7 @@ type roundInfo struct {
 }
 
 func (h *Handler) run(round uint64, prevSig []byte, winCh chan roundInfo, closeCh chan bool) {
-	h.l.Debug("beacon_round", round, "time", time.Now())
+	h.l.Debug("beacon_round", round, "time", h.conf.Clock.Now())
 	msg := Message(prevSig, round)
 	signature, err := h.signature(round, msg)
 	if err != nil {
@@ -385,7 +389,6 @@ func (h *Handler) signature(round uint64, msg []byte) ([]byte, error) {
 	var err error
 	signature, ok := h.cache.Get(round, msg)
 	if !ok {
-		fmt.Println("h.conf.Scheme", h.conf.Scheme)
 		signature, err = h.conf.Scheme.Sign(h.share.PrivateShare(), msg)
 		if err != nil {
 			return nil, err

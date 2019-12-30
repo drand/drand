@@ -1,15 +1,15 @@
 package beacon
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/log"
 	"github.com/dedis/drand/net"
@@ -87,321 +87,210 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 	return dkgShares, pubPoly.Commit()
 }
 
+const prefixBeaconTest = "beaconTest"
+
+type BeaconTest struct {
+	paths     []string
+	n         int
+	thr       int
+	period    time.Duration
+	group     *key.Group
+	privates  []*key.Pair
+	shares    []*key.Share
+	dpublic   kyber.Point
+	callbacks []func(*Beacon)
+	clock     *clock.Mock
+	handlers  []*Handler
+	listeners []net.Listener
+}
+
+func NewBeaconTest(n, thr int, period time.Duration) *BeaconTest {
+	paths := createBoltStores(prefixBeaconTest, n)
+	shares, public := dkgShares(n, thr)
+	privs, group := test.BatchIdentities(n)
+	group.Threshold = thr
+	group.Period = period
+
+	return &BeaconTest{
+		n:         n,
+		thr:       thr,
+		period:    period,
+		paths:     paths,
+		clock:     clock.NewMock(),
+		privates:  privs,
+		group:     group,
+		shares:    shares,
+		dpublic:   public,
+		callbacks: make([]func(*Beacon), n),
+		handlers:  make([]*Handler, n),
+		listeners: make([]net.Listener, n),
+	}
+}
+
+func (b *BeaconTest) CallbackFor(i int, fn func(*Beacon)) {
+	b.callbacks[i] = fn
+}
+
+func (b *BeaconTest) ServeBeacon(i int) {
+	seed := []byte("Sunshine in a bottle")
+	store, err := NewBoltStore(b.paths[i], nil)
+	if err != nil {
+		panic(err)
+	}
+	if cb := b.callbacks[i]; cb != nil {
+		store = NewCallbackStore(store, b.callbacks[i])
+	}
+	conf := &Config{
+		Group:   b.group,
+		Private: b.privates[i],
+		Share:   b.shares[i],
+		Seed:    seed,
+		Scheme:  key.Scheme,
+		Clock:   b.clock,
+	}
+
+	b.handlers[i], err = NewHandler(net.NewGrpcClient(), store, conf, log.DefaultLogger)
+	checkErr(err)
+	beaconServer := testBeaconServer{h: b.handlers[i]}
+	b.listeners[i] = net.NewTCPGrpcListener(b.privates[i].Public.Addr, &beaconServer)
+	go b.listeners[i].Start()
+	time.Sleep(10 * time.Millisecond)
+}
+
+func (b *BeaconTest) StartBeacon(i int, catchup bool) {
+	go b.handlers[i].Run(b.period, catchup)
+}
+
+func (b *BeaconTest) MovePeriod(p int) {
+	for i := 0; i < p; i++ {
+		b.clock.Add(b.period)
+		// give each handlers 20ms to perform their duty
+		time.Sleep(time.Duration(b.n*50) * time.Millisecond)
+	}
+}
+
+func (b *BeaconTest) StopBeacon(i int) {
+	if l := b.listeners[i]; l != nil {
+		l.Stop()
+	}
+	if h := b.handlers[i]; h != nil {
+		h.Stop()
+	}
+}
+
+func (b *BeaconTest) StopAll() {
+	for i := 0; i < b.n; i++ {
+		b.StopBeacon(i)
+	}
+}
+
+func (b *BeaconTest) CleanUp() {
+	deleteBoltStores(prefixBeaconTest)
+	b.StopAll()
+}
+
+func checkErr(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+func moveTime(c *clock.Mock, t time.Duration, n int) {
+	for i := 0; i < n; i++ {
+		c.Add(t)
+		time.Sleep(300 * time.Millisecond)
+		fmt.Println("Ticking")
+	}
+}
+
+func createBoltStores(prefix string, n int) []string {
+	paths := make([]string, n, n)
+	for i := 0; i < n; i++ {
+		paths[i] = path.Join(prefix, fmt.Sprintf("drand-%d", i))
+		if err := os.MkdirAll(paths[i], 0755); err != nil {
+			panic(err)
+		}
+	}
+	return paths
+}
+
+func deleteBoltStores(prefix string) {
+	os.RemoveAll(prefix)
+}
+
 func TestBeaconSimple(t *testing.T) {
 	n := 5
 	thr := 5/2 + 1
-	//thr := 5
-	// how many generated beacons should we wait from each beacon handler
-	nbRound := 3
-	dialTimeout := time.Duration(200) * time.Millisecond
-
-	tmp := path.Join(os.TempDir(), "drandtest")
-	paths := make([]string, n, n)
-	for i := 0; i < n; i++ {
-		paths[i] = path.Join(tmp, fmt.Sprintf("drand-%d", i))
-		require.NoError(t, os.MkdirAll(paths[i], 0755))
-	}
-	defer func() {
-		for i := 0; i < n; i++ {
-			os.RemoveAll(paths[i])
-		}
-	}()
-
-	shares, public := dkgShares(n, thr)
-	privs, group := test.BatchIdentities(n)
-	group.Threshold = thr
-
-	listeners := make([]net.Listener, n)
-	handlers := make([]*Handler, n)
-
-	seed := []byte("Sunshine in a bottle")
 	period := time.Duration(1000) * time.Millisecond
-	group.Period = period
 
-	// storing beacons from all nodes indexed per round
-	genBeacons := make(map[uint64][]*Beacon)
-	var l sync.Mutex
-	// this is just to signal we received a new beacon
-	newBeacon := make(chan int, n*nbRound)
+	bt := NewBeaconTest(n, thr, period)
+	defer bt.CleanUp()
 
-	/*displayInfo := func() {*/
-	//l.Lock()
-	//defer l.Unlock()
-	//for round, beacons := range genBeacons {
-	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
-	//}
-	//fmt.Printf("\n")
-	/*}*/
-
-	// launchBeacon will launch the beacon at the given index. Each time a new
-	// beacon is ready from that node, it saves the beacon and the node index
-	// into the map
-	launchBeacon := func(i int, catchup bool) {
-		myCb := func(b *Beacon) {
-			err := key.Scheme.VerifyRecovered(public, Message(b.PreviousSig, b.Round), b.Signature)
-			require.NoError(t, err)
-			l.Lock()
-			genBeacons[b.Round] = append(genBeacons[b.Round], b)
-			l.Unlock()
-			newBeacon <- i
-		}
-		store, err := NewBoltStore(paths[i], nil)
+	var counter uint64
+	myCallBack := func(b *Beacon) {
+		// verify partial sig
+		msg := Message(b.PreviousSig, b.Round)
+		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 		require.NoError(t, err)
-		store = NewCallbackStore(store, myCb)
-		conf := &Config{
-			Group:   group,
-			Private: privs[i],
-			Share:   shares[i],
-			Seed:    seed,
-			Scheme:  key.Scheme}
-		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
-		require.NoError(t, err)
-		beaconServer := testBeaconServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &beaconServer)
-		go listeners[i].Start()
-		go handlers[i].Run(period, catchup)
+		// increase counter
+		atomic.AddUint64(&counter, 1)
 	}
 
-	// have one that is not present
-	for i := 0; i < n-1; i++ {
-		launchBeacon(i, false)
+	for i := 0; i < n; i++ {
+		bt.CallbackFor(i, myCallBack)
+		// first serve all beacons
+		bt.ServeBeacon(i)
 	}
 
-	defer func() {
-		for i := 0; i < n-1; i++ {
-			handlers[i].Stop()
-			listeners[i].Stop()
-		}
-	}()
-
-	//expected := nbRound * n
-	done := make(chan bool)
-	// test how many beacons are generated per each handler, except the last
-	// handler that will start later
-	countGenBeacons := func(rounds, beaconPerRound int, doneCh chan bool) {
-		for {
-			<-newBeacon
-			l.Lock()
-			// do we have enough rounds made
-			if len(genBeacons) < rounds {
-				l.Unlock()
-				continue
-			} else {
-				// do we have enough beacons for enough rounds
-				// we want at least <rounds> rounds with at least
-				// <beaconPerRound> beacons in each
-				fullRounds := 0
-				for _, beacons := range genBeacons {
-					if len(beacons) >= beaconPerRound {
-						fullRounds++
-					}
-				}
-				if fullRounds < rounds {
-					l.Unlock()
-					continue
-				}
-			}
-			l.Unlock()
-			//displayInfo()
-			l.Lock()
-			// let's check if they are all equal
-			for round, beacons := range genBeacons {
-				original := beacons[0]
-				for i, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Signature, original.Signature) {
-						// randomness is not equal we return false
-						l.Unlock()
-						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Signature, i+1, beacon.Signature)
-						doneCh <- false
-						return
-					}
-				}
-			}
-			l.Unlock()
-			doneCh <- true
-			return
-		}
-	}
-	go countGenBeacons(nbRound, n-1, done)
-
-	checkSuccess := func() {
-		select {
-		case success := <-done:
-			if !success {
-				t.Fatal("Not all equal")
-			}
-			// erase the map
-			l.Lock()
-			for i := range genBeacons {
-				delete(genBeacons, i)
-			}
-			l.Unlock()
-			//case <-time.After(period * time.Duration(nbRound*20)):
-			//t.Fatal("not in time")
-		}
+	for i := 0; i < n; i++ {
+		bt.StartBeacon(i, false)
 	}
 
-	checkSuccess()
+	// check 1 period
+	bt.MovePeriod(1)
+	v := int(atomic.LoadUint64(&counter))
+	require.Equal(t, n, v)
 
-	// start the last node that needs to catchup
-	launchBeacon(n-1, true)
-	defer handlers[n-1].Stop()
-	defer listeners[n-1].Stop()
-
-	go countGenBeacons(nbRound, n, done)
-	checkSuccess()
+	// check 2 period
+	bt.MovePeriod(1)
+	v = int(atomic.LoadUint64(&counter))
+	require.Equal(t, n*2, v)
 }
 
-func TestBeaconNEqualT(t *testing.T) {
+func TestBeaconThreshold(t *testing.T) {
 	n := 5
-	//thr := 5/2 + 1
-	thr := 5
-	// how many generated beacons should we wait from each beacon handler
-	nbRound := 3
-	dialTimeout := time.Duration(200) * time.Millisecond
-
-	tmp := path.Join(os.TempDir(), "drandtest")
-	paths := make([]string, n, n)
-	for i := 0; i < n; i++ {
-		paths[i] = path.Join(tmp, fmt.Sprintf("drand-%d", i))
-		require.NoError(t, os.MkdirAll(paths[i], 0755))
-	}
-	defer func() {
-		for i := 0; i < n; i++ {
-			os.RemoveAll(paths[i])
-		}
-	}()
-
-	shares, public := dkgShares(n, thr)
-	privs, group := test.BatchIdentities(n)
-	group.Threshold = thr
-
-	listeners := make([]net.Listener, n)
-	handlers := make([]*Handler, n)
-
-	seed := []byte("Sunshine in a bottle")
+	thr := 5/2 + 1
 	period := time.Duration(1000) * time.Millisecond
-	group.Period = period
 
-	// storing beacons from all nodes indexed per round
-	genBeacons := make(map[uint64][]*Beacon)
-	var l sync.Mutex
-	// this is just to signal we received a new beacon
-	newBeacon := make(chan int, n*nbRound)
-	// launchBeacon will launch the beacon at the given index. Each time a new
-	// beacon is ready from that node, it saves the beacon and the node index
-	// into the map
-	launchBeacon := func(i int, catchup bool) {
-		myCb := func(b *Beacon) {
-			err := key.Scheme.VerifyRecovered(public, Message(b.PreviousSig, b.Round), b.Signature)
-			require.NoError(t, err)
-			l.Lock()
-			genBeacons[b.Round] = append(genBeacons[b.Round], b)
-			l.Unlock()
-			newBeacon <- i
-		}
-		store, err := NewBoltStore(paths[i], nil)
+	bt := NewBeaconTest(n, thr, period)
+	defer bt.CleanUp()
+
+	var counter uint64
+	myCallBack := func(b *Beacon) {
+		// verify partial sig
+		msg := Message(b.PreviousSig, b.Round)
+		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 		require.NoError(t, err)
-		store = NewCallbackStore(store, myCb)
-		conf := &Config{
-			Group:   group,
-			Private: privs[i],
-			Share:   shares[i],
-			Seed:    seed,
-			Scheme:  key.Scheme}
-		handlers[i], err = NewHandler(net.NewGrpcClientWithTimeout(dialTimeout), store, conf, log.DefaultLogger)
-		require.NoError(t, err)
-		beaconServer := testBeaconServer{h: handlers[i]}
-		listeners[i] = net.NewTCPGrpcListener(privs[i].Public.Addr, &beaconServer)
-		go listeners[i].Start()
-		go handlers[i].Run(period, catchup)
+		// increase counter
+		atomic.AddUint64(&counter, 1)
 	}
 
 	for i := 0; i < n; i++ {
-		launchBeacon(i, false)
+		bt.CallbackFor(i, myCallBack)
+		// first serve all beacons
+		bt.ServeBeacon(i)
 	}
 
-	defer func() {
-		for i := 0; i < n; i++ {
-			handlers[i].Stop()
-			listeners[i].Stop()
-		}
-	}()
-
-	/* displayInfo := func() {*/
-	//l.Lock()
-	//defer l.Unlock()
-	//for round, beacons := range genBeacons {
-	//fmt.Printf("round %d = %d beacons.", round, len(beacons))
-	//}
-	//fmt.Printf("\n")
-	/*}*/
-	//expected := nbRound * n
-	done := make(chan bool)
-	// test how many beacons are generated per each handler, except the last
-	// handler that will start later
-	countGenBeacons := func(rounds, beaconPerRound int, doneCh chan bool) {
-		for {
-			<-newBeacon
-			l.Lock()
-			// do we have enough rounds made
-			if len(genBeacons) < rounds {
-				l.Unlock()
-				continue
-			} else {
-				// do we have enough beacons for enough rounds
-				// we want at least <rounds> rounds with at least
-				// <beaconPerRound> beacons in each
-				fullRounds := 0
-				for _, beacons := range genBeacons {
-					if len(beacons) >= beaconPerRound {
-						fullRounds++
-					}
-				}
-				if fullRounds < rounds {
-					l.Unlock()
-					continue
-				}
-			}
-			l.Unlock()
-			//displayInfo()
-			l.Lock()
-			// let's check if they are all equal
-			for round, beacons := range genBeacons {
-				original := beacons[0]
-				for i, beacon := range beacons[1:] {
-					if !bytes.Equal(beacon.Signature, original.Signature) {
-						// randomness is not equal we return false
-						l.Unlock()
-						fmt.Printf("round %d: original %x vs (%d) %x\n", round, original.Signature, i+1, beacon.Signature)
-						doneCh <- false
-						return
-					}
-				}
-			}
-			l.Unlock()
-			doneCh <- true
-			return
-		}
-	}
-	go countGenBeacons(nbRound, n, done)
-
-	checkSuccess := func() {
-		select {
-		case success := <-done:
-			if !success {
-				t.Fatal("Not all equal")
-			}
-			// erase the map
-			l.Lock()
-			for i := range genBeacons {
-				delete(genBeacons, i)
-			}
-			l.Unlock()
-			//case <-time.After(period * time.Duration(nbRound*20)):
-			//t.Fatal("not in time")
-		}
+	for i := 0; i < n-1; i++ {
+		bt.StartBeacon(i, false)
 	}
 
-	checkSuccess()
+	bt.MovePeriod(1)
+	v := int(atomic.LoadUint64(&counter))
+	require.Equal(t, n-1, v)
+
+	bt.StartBeacon(n-1, true)
+
+	bt.MovePeriod(1)
+	v = int(atomic.LoadUint64(&counter))
+	require.Equal(t, n*2-1, v)
 }
