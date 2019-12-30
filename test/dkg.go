@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/share"
-	"go.dedis.ch/kyber/v3/util/random"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/util/random"
 )
 
 // SimulateDKG returns a list of private shares along with the list of

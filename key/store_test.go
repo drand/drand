@@ -5,9 +5,9 @@ import (
 	"path"
 	"testing"
 
+	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber/share"
 	"github.com/stretchr/testify/require"
-	kyber "go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/share"
 )
 
 func TestKeysSaveLoad(t *testing.T) {

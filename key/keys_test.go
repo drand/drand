@@ -2,14 +2,15 @@ package key
 
 import (
 	"bytes"
+	"os"
 	"strconv"
 	"testing"
 
 	"github.com/BurntSushi/toml"
+	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/util/random"
 	"github.com/stretchr/testify/require"
-	kyber "go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/share"
-	"go.dedis.ch/kyber/v3/util/random"
 )
 
 func TestKeyPublic(t *testing.T) {
@@ -38,8 +39,8 @@ func TestKeyDistributedPublic(t *testing.T) {
 	n := 4
 	publics := make([]kyber.Point, n)
 	for i := range publics {
-		key := G2.Scalar().Pick(random.New())
-		publics[i] = G2.Point().Mul(key, nil)
+		key := KeyGroup.Scalar().Pick(random.New())
+		publics[i] = KeyGroup.Point().Mul(key, nil)
 	}
 
 	distPublic := &DistPublic{Coefficients: publics}
@@ -48,6 +49,7 @@ func TestKeyDistributedPublic(t *testing.T) {
 	var writer bytes.Buffer
 	enc := toml.NewEncoder(&writer)
 	require.NoError(t, enc.Encode(dtoml))
+	toml.NewEncoder(os.Stdout).Encode(dtoml)
 
 	d2 := new(DistPublic)
 	d2Toml := new(DistPublicTOML)
@@ -55,7 +57,9 @@ func TestKeyDistributedPublic(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, d2.FromTOML(d2Toml))
 
-	checkTOML := &DistPublicTOML{Coefficients: []string{"0776a00e44dfa3ab8cff6b78b430bf16b9f8d088b54c660722a35f5034abf3ea4deb1a81f6b9241d22185ba07c37f71a67f94070a71493d10cb0c7e929808bd10cf2d72aeb7f4e10a8b0e6ccc27dad489c9a65097d342f01831ed3a9d0a875b770452b9458ec3bca06a5d4b99a5ac7f41ee5a8add2020291eab92b4c7f2d449f", "740d1293f2730092255818b5802787084804d91cf9d92f5068f188b8be6241356ac97ab33193497f9cacb9dca637b0921f9906a5af8159886b7a9a44c6694fa101a83714013b8f8b12c8db8911cf390da35ceedbf9b2371fe23141350e9d99df8136586f3f8f6089fc6cb6de9acc54ab192d78c2c0c70b9df938f7930b1d44a9", "023643d5e595d960b5da67879382051a54df13fd312c256c0beb0dc82442f1308e0510a1ef04706445c79a79bbc7792c99ca82eae23f9ce8e30a5d79ed263fe24e2136e7d1d46a61746b521a443b6951a34dd8ccd36b1f294f0e254d99975ce5515e485a874b3636d60de39b933b0a9a1fcb942590089554e4321af31bf94ca1", "6fb6e322585ff85d976cc43a8ac81d6753850855c08d16ce458a1d6ada16c2ea8d9a54a6ec3d106dd08686abb5e7fee94f27a4d74a452673ec6796eff4766ecc7097117761aed5cb510d96d3955cceb2c3c44f89e3c27f3fa8fd3c0410a805ee018f83999c668ed674498c3fda09fa4f516a4bac6b6a875410a2037e1aa21cae"}}
+	// TODO : just create the struct manually: otherwise when changing curves,
+	// test fails.
+	checkTOML := &DistPublicTOML{Coefficients: []string{"96ea03d91b9f30315c06169396bcaa6a1a0c7def89980bec8d1f93c21273a77cd1f85f2226dc2b1dad5c1217cc3f65b1043afcbc9a1c374fbf8c1444a1eea4d44729c759074e08d994cc1add37ac90624a07584c9be47b52aafa7253df672754", "b42b8ca5c1ce1fd607c3607d82a4e2ff6b737a86be5271994c786781390e7cbd786f0a414371ffbbe50224164068b1d012cbeed230d3cc0bda514dcf91b2f3c0b9cb05fa3f27857891ba11e3df840128a83053fd8cf373002d27b80a67f40caf", "91ec46451b74b240b21f492baa60d6f4c8f6aef0de843f34336a9f6bfb75d278b795f9b09296430ca1decfbd6235424503f9e4ce8539e71f1b7e8b0870f745abf0bada7905050480f3e0306f353266a1f4d465a355d33fc02f28374cd3273244", "a4aa79ce57d03cb19259b44da6ef7fd0821ee095b8e16111b0b44cdc068d7d56d27a11ee86a868af3a16c085d2be9fbc03315023c385837dc892f9dbd59763bbf66667510bae8e95b61d9a54647bab2bef6e5563c7509cbc4fceacb578115c0b"}}
 
 	check := &DistPublic{}
 	require.NoError(t, check.FromTOML(checkTOML))
@@ -80,10 +84,10 @@ func TestShare(t *testing.T) {
 	s.Commits = make([]kyber.Point, n, n)
 	s.PrivatePoly = make([]kyber.Scalar, n, n)
 	for i := 0; i < n; i++ {
-		s.Commits[i] = G2.Point().Pick(random.New())
-		s.PrivatePoly[i] = G2.Scalar().Pick(random.New())
+		s.Commits[i] = KeyGroup.Point().Pick(random.New())
+		s.PrivatePoly[i] = KeyGroup.Scalar().Pick(random.New())
 	}
-	s.Share = &share.PriShare{V: G2.Scalar().Pick(random.New()), I: 0}
+	s.Share = &share.PriShare{V: KeyGroup.Scalar().Pick(random.New()), I: 0}
 
 	stoml := s.TOML()
 	s2 := new(Share)
@@ -107,9 +111,8 @@ func BatchIdentities(n int) ([]*Pair, *Group) {
 		privs[i] = NewTLSKeyPair(addr)
 		pubs[i] = privs[i].Public
 	}
-	keyStr := "0776a00e44dfa3ab8cff6b78b430bf16b9f8d088b54c660722a35f5034abf3ea4deb1a81f6b9241d22185ba07c37f71a67f94070a71493d10cb0c7e929808bd10cf2d72aeb7f4e10a8b0e6ccc27dad489c9a65097d342f01831ed3a9d0a875b770452b9458ec3bca06a5d4b99a5ac7f41ee5a8add2020291eab92b4c7f2d449f"
-	fakeKey, _ := StringToPoint(G2, keyStr)
-	distKey := &DistPublic{[]kyber.Point{fakeKey}}
+	fakeDistKey := KeyGroup.Point().Pick(random.New())
+	distKey := &DistPublic{[]kyber.Point{fakeDistKey}}
 	group := &Group{
 		Threshold: DefaultThreshold(n),
 		Nodes:     pubs,

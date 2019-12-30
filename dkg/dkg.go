@@ -14,9 +14,9 @@ import (
 	"github.com/dedis/drand/net"
 	dkg_proto "github.com/dedis/drand/protobuf/crypto/dkg"
 	vss_proto "github.com/dedis/drand/protobuf/crypto/vss"
-	"go.dedis.ch/kyber/v3"
-	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
-	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
+	"github.com/drand/kyber"
+	dkg "github.com/drand/kyber/share/dkg/pedersen"
+	vss "github.com/drand/kyber/share/vss/pedersen"
 	"google.golang.org/grpc/peer"
 )
 

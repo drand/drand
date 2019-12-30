@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"math"
 
-	kyber "go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/share"
-	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
-	"go.dedis.ch/kyber/v3/util/random"
+	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	dkg "github.com/drand/kyber/share/dkg/pedersen"
+	"github.com/drand/kyber/util/random"
 )
 
 // Pair is a wrapper around a random scalar  and the corresponding public
@@ -44,8 +44,8 @@ func (i *Identity) IsTLS() bool {
 // decided by the group variable by default. Currently, drand only supports
 // bn256.
 func NewKeyPair(address string) *Pair {
-	key := G2.Scalar().Pick(random.New())
-	pubKey := G2.Point().Mul(key, nil)
+	key := KeyGroup.Scalar().Pick(random.New())
+	pubKey := KeyGroup.Point().Mul(key, nil)
 	pub := &Identity{
 		Key:  pubKey,
 		Addr: address,
@@ -93,7 +93,7 @@ func (p *Pair) FromTOML(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	p.Key = G2.Scalar()
+	p.Key = KeyGroup.Scalar()
 	if err := p.Key.UnmarshalBinary(buff); err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (i *Identity) FromTOML(t interface{}) error {
 		return err
 	}
 	i.Addr = ptoml.Address
-	i.Key = G2.Point()
+	i.Key = KeyGroup.Point()
 	i.TLS = ptoml.TLS
 	return i.Key.UnmarshalBinary(buff)
 }
@@ -163,6 +163,17 @@ func (b ByKey) Less(i, j int) bool {
 // DKG. This information MUST stay private !
 type Share dkg.DistKeyShare
 
+// PubPoly returns the public polynomial that can be used to verify any
+// individual patial signature
+func (s *Share) PubPoly() *share.PubPoly {
+	return share.NewPubPoly(KeyGroup, KeyGroup.Point().Base(), s.Commits)
+}
+
+// PrivateShare returns the private share used to produce a partial signature
+func (s *Share) PrivateShare() *share.PriShare {
+	return s.Share
+}
+
 // Public returns the distributed public key associated with the distributed key
 // share
 func (s *Share) Public() *DistPublic {
@@ -193,7 +204,7 @@ func (s *Share) FromTOML(i interface{}) error {
 	}
 	s.Commits = make([]kyber.Point, len(t.Commits))
 	for i, c := range t.Commits {
-		p, err := StringToPoint(G2, c)
+		p, err := StringToPoint(KeyGroup, c)
 		if err != nil {
 			return fmt.Errorf("share.Commit[%d] corruputed: %s", i, err)
 		}
@@ -202,13 +213,13 @@ func (s *Share) FromTOML(i interface{}) error {
 
 	s.PrivatePoly = make([]kyber.Scalar, len(t.PrivatePoly))
 	for i, c := range t.PrivatePoly {
-		coeff, err := StringToScalar(G2, c)
+		coeff, err := StringToScalar(KeyGroup, c)
 		if err != nil {
 			return fmt.Errorf("share.PrivatePoly[%d] corrupted: %s", i, err)
 		}
 		s.PrivatePoly[i] = coeff
 	}
-	sshare, err := StringToScalar(G2, t.Share)
+	sshare, err := StringToScalar(KeyGroup, t.Share)
 	if err != nil {
 		return fmt.Errorf("share.Share corrupted: %s", err)
 	}
@@ -271,7 +282,7 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 	points := make([]kyber.Point, len(dtoml.Coefficients))
 	var err error
 	for i, s := range dtoml.Coefficients {
-		points[i], err = StringToPoint(G2, s)
+		points[i], err = StringToPoint(KeyGroup, s)
 		if err != nil {
 			return err
 		}

@@ -11,8 +11,8 @@ import (
 
 	"github.com/dedis/drand/entropy"
 	"github.com/dedis/drand/protobuf/drand"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/util/random"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/util/random"
 	"golang.org/x/crypto/hkdf"
 )
 

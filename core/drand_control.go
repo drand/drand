@@ -14,7 +14,7 @@ import (
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/protobuf/drand"
 	control "github.com/dedis/drand/protobuf/drand"
-	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
+	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
 // InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
@@ -42,7 +42,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	d.idx = idx
 
 	d.nextConf = &dkg.Config{
-		Suite:    key.G2.(dkg.Suite),
+		Suite:    key.KeyGroup.(dkg.Suite),
 		NewNodes: d.group,
 		Key:      d.priv,
 	}
@@ -122,7 +122,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 			OldNodes: oldGroup,
 			NewNodes: newGroup,
 			Key:      d.priv,
-			Suite:    key.G2.(dkg.Suite),
+			Suite:    key.KeyGroup.(dkg.Suite),
 		}
 
 		// run the proto

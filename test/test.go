@@ -9,8 +9,9 @@ import (
 
 	"github.com/dedis/drand/key"
 	"github.com/dedis/drand/net"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing/bn256"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/pairing/bn256"
+	"github.com/drand/kyber/util/random"
 )
 
 type testPeer struct {
@@ -86,8 +87,7 @@ func GenerateIDs(n int) []*key.Pair {
 // BatchIdentities generates n insecure identities
 func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
-	keyStr := "0776a00e44dfa3ab8cff6b78b430bf16b9f8d088b54c660722a35f5034abf3ea4deb1a81f6b9241d22185ba07c37f71a67f94070a71493d10cb0c7e929808bd10cf2d72aeb7f4e10a8b0e6ccc27dad489c9a65097d342f01831ed3a9d0a875b770452b9458ec3bca06a5d4b99a5ac7f41ee5a8add2020291eab92b4c7f2d449f"
-	fakeKey, _ := StringToPoint(keyStr)
+	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	group := key.LoadGroup(ListFromPrivates(privs), &key.DistPublic{Coefficients: []kyber.Point{fakeKey}}, key.DefaultThreshold(n))
 	return privs, group
 }

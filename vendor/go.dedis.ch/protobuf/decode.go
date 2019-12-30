@@ -84,6 +84,19 @@ func (de *decoder) message(buf []byte, sval reflect.Value) error {
 	if sval.Kind() != reflect.Struct {
 		return errors.New("not a struct")
 	}
+
+	for i := 0; i < sval.NumField(); i++ {
+		switch field := sval.Field(i); field.Kind() {
+		case reflect.Interface:
+			// Interface are not reset because the decoder won't
+			// be able to instantiate it again in some scenarios.
+		default:
+			if field.CanSet() {
+				field.Set(reflect.Zero(field.Type()))
+			}
+		}
+	}
+
 	// Decode all the fields
 	fields := ProtoFields(sval.Type())
 	fieldi := 0
@@ -133,7 +146,6 @@ func (de *decoder) message(buf []byte, sval reflect.Value) error {
 			return err
 		}
 		buf = rem
-
 	}
 	return nil
 }
@@ -292,6 +304,8 @@ func (de *decoder) putvalue(wiretype int, val reflect.Value,
 			t := time.Unix(sv/int64(time.Second), sv%int64(time.Second))
 			val.Set(reflect.ValueOf(t))
 			return nil
+		} else if enc, ok := val.Addr().Interface().(encoding.BinaryUnmarshaler); ok {
+			return enc.UnmarshalBinary(vb[:])
 		}
 		if wiretype != 2 {
 			return errors.New("bad wiretype for embedded message")

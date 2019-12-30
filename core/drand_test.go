@@ -21,7 +21,6 @@ import (
 	"github.com/dedis/drand/test"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
-	"go.dedis.ch/kyber/v3/sign/bls"
 )
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
@@ -34,7 +33,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	fmt.Printf("%d/%d -> %d/%d\n", oldT, oldN, newT, newN)
 
 	// create n shares
-	shares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	shares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
 	period := 1000 * time.Millisecond
 
 	// instantiating all drands already
@@ -145,7 +144,7 @@ func TestDrandDKGReshare(t *testing.T) {
 	newT := key.DefaultThreshold(newN)
 
 	// create n shares
-	shares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	shares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
 	period := 1000 * time.Millisecond
 
 	// instantiating all drands already
@@ -275,7 +274,7 @@ func TestDrandDKGFresh(t *testing.T) {
 		//addr := drands[i].priv.Public.Address()
 		myCb := func(b *beacon.Beacon) {
 			msg := beacon.Message(b.PreviousSig, b.Round)
-			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Signature)
+			err := key.Scheme.VerifyRecovered(getPublic().Key(), msg, b.Signature)
 			if err != nil {
 				fmt.Printf("Beacon error callback: %s\n", b.Signature)
 			}
@@ -448,7 +447,7 @@ func TestDrandPublicGroup(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 
 	// create n shares
-	_, dpub := test.SimulateDKG(t, key.G2, n, thr)
+	_, dpub := test.SimulateDKG(t, key.KeyGroup, n, thr)
 	period := 1000 * time.Millisecond
 
 	// instantiating all drands already

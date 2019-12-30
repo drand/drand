@@ -75,7 +75,7 @@ func TestDKGWithTimeout(t *testing.T) {
 	listeners := make([]net.Listener, alive)
 	for i := 0; i < alive; i++ {
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      privs[i],
 			NewNodes: group,
 			Timeout:  timeout,
@@ -152,7 +152,7 @@ func TestDKGFresh(t *testing.T) {
 	group := key.NewGroup(pubs, thr)
 	for i := 0; i < n; i++ {
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      privs[i],
 			NewNodes: group,
 		}
@@ -204,7 +204,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 	oldT := key.DefaultThreshold(oldN)
 	oldPrivs := test.GenerateIDs(oldN)
 	oldPubs := test.ListFromPrivates(oldPrivs)
-	oldShares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	oldShares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
 	oldGroup := key.LoadGroup(oldPubs, &key.DistPublic{Coefficients: dpub}, oldT)
 
 	timeout := 500 * time.Millisecond
@@ -244,7 +244,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 			Commits: dpub,
 		}
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      oldPrivs[i],
 			OldNodes: oldGroup,
 			NewNodes: newGroup,
@@ -262,7 +262,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 	for i := oldN; i < total; i++ {
 		newIdx := i - oldN + newOffset
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      newPrivs[newIdx],
 			NewNodes: newGroup,
 			OldNodes: oldGroup,
@@ -349,7 +349,7 @@ func TestDKGResharingPartial(t *testing.T) {
 	oldT := key.DefaultThreshold(oldN)
 	oldPrivs := test.GenerateIDs(oldN)
 	oldPubs := test.ListFromPrivates(oldPrivs)
-	oldShares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	oldShares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
 	oldGroup := key.LoadGroup(oldPubs, &key.DistPublic{Coefficients: dpub}, oldT)
 
 	newN := oldN + 1
@@ -387,7 +387,7 @@ func TestDKGResharingPartial(t *testing.T) {
 			Commits: dpub,
 		}
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      oldPrivs[i],
 			OldNodes: oldGroup,
 			NewNodes: newGroup,
@@ -404,7 +404,7 @@ func TestDKGResharingPartial(t *testing.T) {
 	for i := oldN; i < total; i++ {
 		newIdx := i - oldN + newOffset
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      newPrivs[newIdx],
 			NewNodes: newGroup,
 			OldNodes: oldGroup,
@@ -480,7 +480,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 	oldPrivs := test.GenerateIDs(oldN)
 	oldPubs := test.ListFromPrivates(oldPrivs)
 
-	oldShares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	oldShares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
 	oldGroup := key.LoadGroup(oldPubs, &key.DistPublic{Coefficients: dpub}, oldT)
 
 	newN := oldN + 1
@@ -502,7 +502,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 	for i := 0; i < oldN; i++ {
 		share := key.Share{Commits: dpub, Share: oldShares[i]}
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      oldPrivs[i],
 			OldNodes: oldGroup,
 			NewNodes: newGroup,
@@ -519,7 +519,7 @@ func TestDKGResharingNewNode(t *testing.T) {
 	for i := oldN; i < total; i++ {
 		newIdx := i - oldN
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      newPrivs[newIdx],
 			NewNodes: newGroup,
 			OldNodes: oldGroup,
@@ -582,7 +582,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 	oldT := key.DefaultThreshold(oldN)
 	oldPrivs := test.GenerateIDs(oldN)
 	oldPubs := test.ListFromPrivates(oldPrivs)
-	oldShares, dpub := test.SimulateDKG(t, key.G2, oldN, oldT)
+	oldShares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
 	oldGroup := key.LoadGroup(oldPubs, &key.DistPublic{Coefficients: dpub}, oldT)
 
 	newN := oldN + 2
@@ -622,7 +622,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 			Commits: dpub,
 		}
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      oldPrivs[i],
 			OldNodes: oldGroup,
 			NewNodes: newGroup,
@@ -639,7 +639,7 @@ func TestDKGResharingPartial2(t *testing.T) {
 	for i := oldN; i < total; i++ {
 		newIdx := i - oldN + newOffset
 		conf := &Config{
-			Suite:    key.G2.(Suite),
+			Suite:    key.KeyGroup.(Suite),
 			Key:      newPrivs[newIdx],
 			NewNodes: newGroup,
 			OldNodes: oldGroup,

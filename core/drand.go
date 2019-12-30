@@ -67,6 +67,7 @@ func NewDrand(s key.Store, c *Config) (*Drand, error) {
 // initDrand inits the drand struct by loading the private key, and by creating the
 // gateway with the correct options.
 func initDrand(s key.Store, c *Config) (*Drand, error) {
+	logger := c.Logger()
 	if c.insecure == false && (c.certPath == "" || c.keyPath == "") {
 		return nil, errors.New("config: need to set WithInsecure if no certificate and private key path given")
 	}
@@ -82,7 +83,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		store: s,
 		priv:  priv,
 		opts:  c,
-		log:   c.Logger(),
+		log:   logger,
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
@@ -94,6 +95,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
+	d.log.Info("network_listen", a, "control_port", c.ControlPort())
 	d.gateway.StartAll()
 	return d, nil
 }
@@ -250,7 +252,13 @@ func (d *Drand) initBeacon() error {
 		return err
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
-	conf := &beacon.Config{Group: d.group, Private: d.priv, Share: d.share, Seed: DefaultSeed}
+	conf := &beacon.Config{
+		Group:   d.group,
+		Private: d.priv,
+		Share:   d.share,
+		Seed:    DefaultSeed,
+		Scheme:  key.Scheme,
+	}
 	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
 	return err
 }

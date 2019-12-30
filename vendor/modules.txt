@@ -6,6 +6,23 @@ github.com/coreos/bbolt
 github.com/davecgh/go-spew/spew
 # github.com/dchest/blake2b v1.0.0
 github.com/dchest/blake2b
+# github.com/drand/bls12-381 v0.0.0-20191229142545-6d154e1dec77
+github.com/drand/bls12-381
+# github.com/drand/kyber v1.0.1-0.20191229124149-558f79cb7274
+github.com/drand/kyber
+github.com/drand/kyber/group/internal/marshalling
+github.com/drand/kyber/group/mod
+github.com/drand/kyber/pairing
+github.com/drand/kyber/pairing/bn256
+github.com/drand/kyber/share
+github.com/drand/kyber/share/dkg/pedersen
+github.com/drand/kyber/share/vss/pedersen
+github.com/drand/kyber/sign
+github.com/drand/kyber/sign/bls
+github.com/drand/kyber/sign/schnorr
+github.com/drand/kyber/sign/tbls
+github.com/drand/kyber/util/random
+github.com/drand/kyber/xof/blake2xb
 # github.com/go-kit/kit v0.8.0
 github.com/go-kit/kit/log
 github.com/go-kit/kit/log/level
@@ -45,21 +62,11 @@ github.com/stretchr/testify/require
 github.com/urfave/cli
 # go.dedis.ch/fixbuf v1.0.3
 go.dedis.ch/fixbuf
-# go.dedis.ch/kyber/v3 v3.0.4
+# go.dedis.ch/kyber/v3 v3.0.9
 go.dedis.ch/kyber/v3
-go.dedis.ch/kyber/v3/group/internal/marshalling
-go.dedis.ch/kyber/v3/group/mod
-go.dedis.ch/kyber/v3/pairing
-go.dedis.ch/kyber/v3/pairing/bn256
-go.dedis.ch/kyber/v3/share
-go.dedis.ch/kyber/v3/share/dkg/pedersen
-go.dedis.ch/kyber/v3/share/vss/pedersen
-go.dedis.ch/kyber/v3/sign/bls
-go.dedis.ch/kyber/v3/sign/schnorr
-go.dedis.ch/kyber/v3/sign/tbls
 go.dedis.ch/kyber/v3/util/random
 go.dedis.ch/kyber/v3/xof/blake2xb
-# go.dedis.ch/protobuf v1.0.6
+# go.dedis.ch/protobuf v1.0.11
 go.dedis.ch/protobuf
 # golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4
 golang.org/x/crypto/blake2b
@@ -72,7 +79,7 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7
+# golang.org/x/sys v0.0.0-20191025090151-53bf42e6b339
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 # golang.org/x/text v0.3.2

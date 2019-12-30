@@ -110,17 +110,17 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
 func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	protoPoint := priv.GetRequest().GetEphemeral()
-	point := key.G2.Point()
+	point := key.KeyGroup.Point()
 	if err := point.UnmarshalBinary(protoPoint); err != nil {
 		return nil, err
 	}
-	msg, err := ecies.Decrypt(key.G2, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
+	msg, err := ecies.Decrypt(key.KeyGroup, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
 	if err != nil {
 		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err.Error())
 		return nil, errors.New("invalid ECIES request")
 	}
 
-	clientKey := key.G2.Point()
+	clientKey := key.KeyGroup.Point()
 	if err := clientKey.UnmarshalBinary(msg); err != nil {
 		return nil, errors.New("invalid client key")
 	}
@@ -131,7 +131,7 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 		return nil, fmt.Errorf("error gathering randomness: expected 32 bytes, got %d", len(randomness))
 	}
 
-	obj, err := ecies.Encrypt(key.G2, ecies.DefaultHash, clientKey, randomness[:])
+	obj, err := ecies.Encrypt(key.KeyGroup, ecies.DefaultHash, clientKey, randomness[:])
 	return &drand.PrivateRandResponse{Response: obj}, err
 }
 
