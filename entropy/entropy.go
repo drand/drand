@@ -1,9 +1,10 @@
 package entropy
 
 import (
+	"bufio"
+	"bytes"
 	"crypto/rand"
-	"io"
-	"os"
+	"errors"
 	"os/exec"
 )
 
@@ -38,19 +39,25 @@ type EntropyReader struct {
 	UserOnly bool
 }
 
+func (r *EntropyReader) Read(p []byte) (n int, err error) {
+	if r.Entropy == "" {
+		return 0, errors.New("No reader was provided")
+	}
+	cmd := exec.Command("./" + r.Entropy)
+	var b bytes.Buffer
+	cmd.Stdout = bufio.NewWriter(&b)
+
+	err = cmd.Run()
+	if err != nil {
+		return 0, err
+	}
+	copy(p, b.Bytes())
+	return b.Len(), nil
+}
+
 // GetEntropy returns the path of the file to use as additional entropy
 func (r *EntropyReader) GetEntropy() string {
 	return r.Entropy
-}
-
-// ExtractReader creates an io.Reader using r's entropy file
-func (r *EntropyReader) ExtractReader() io.Reader {
-	if r.Entropy == "" {
-		return nil
-	}
-	// f should have been tested already XXX again ?
-	f, _ := os.Open(r.Entropy)
-	return f
 }
 
 // GetUserOnly returns true if user wants to use their randomness only
@@ -61,20 +68,4 @@ func (r *EntropyReader) GetUserOnly() bool {
 // NewEntropyReader creates a new EntropyReader struct
 func NewEntropyReader(path string, userOnly bool) *EntropyReader {
 	return &EntropyReader{path, userOnly}
-}
-
-func CreateFileFromExec(execPath string) (string, error) {
-	cmd := exec.Command("./" + execPath)
-	outfile, err := os.Create("./entropyCapture.txt")
-	if err != nil {
-		return "", err
-	}
-	defer outfile.Close()
-	cmd.Stdout = outfile
-
-	err = cmd.Run()
-	if err != nil {
-		return "", err
-	}
-	return outfile.Name(), nil
 }

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -49,7 +48,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		Suite:          key.Pairing.(dkg.Suite),
 		NewNodes:       d.group,
 		Key:            d.priv,
-		Reader:         entropyReader.ExtractReader(),
+		Reader:         entropyReader,
 		UserReaderOnly: entropyReader.GetUserOnly(),
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
@@ -64,8 +63,6 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	if err := d.WaitDKG(); err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
-
-	os.Remove("./entropyCapture.txt")
 
 	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
 	d.initBeacon()
