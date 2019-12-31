@@ -425,39 +425,56 @@ func (h *Handler) sendDeals() error {
 		return err
 	}
 	h.Unlock()
-	var good = 1
 	h.l.Debug("send_deal", "start")
+	statusCh := make(chan bool, len(deals))
 	ids := h.conf.NewNodes.Identities()
 	for i, deal := range deals {
 		if i == h.nidx && h.newNode {
 			h.l.Fatal("same index deal", i, "pubkey", h.conf.Key.Public.Key.String())
 			panic("this is a bug with drand that should not happen. Please submit report if possible")
 		}
-		id := ids[i]
-		packet := &dkg_proto.Packet{
-			Deal: &dkg_proto.Deal{
-				Index:     deal.Index,
-				Signature: deal.Signature,
-				Deal: &vss_proto.EncryptedDeal{
-					Dhkey:     deal.Deal.DHKey,
-					Signature: deal.Deal.Signature,
-					Nonce:     deal.Deal.Nonce,
-					Cipher:    deal.Deal.Cipher,
+		go func(i int, deal *dkg.Deal) {
+			id := ids[i]
+			packet := &dkg_proto.Packet{
+				Deal: &dkg_proto.Deal{
+					Index:     deal.Index,
+					Signature: deal.Signature,
+					Deal: &vss_proto.EncryptedDeal{
+						Dhkey:     deal.Deal.DHKey,
+						Signature: deal.Deal.Signature,
+						Nonce:     deal.Deal.Nonce,
+						Cipher:    deal.Deal.Cipher,
+					},
 				},
-			},
-		}
-		h.l.Debug("send_deal_to", i)
-		if err := h.net.Send(id, packet); err != nil {
-			h.l.Error("send_deal", "fail to send deal to", fmt.Sprintf("%s: %s", id.Address(), err))
-		} else {
+			}
+			h.l.Debug("send_deal_to", i)
+			fmt.Println("SEnding deal to ", i)
+			if err := h.net.Send(id, packet); err != nil {
+				h.l.Error("send_deal", "fail to send deal to", fmt.Sprintf("%s: %s", id.Address(), err))
+				statusCh <- false
+			} else {
+				statusCh <- true
+			}
+		}(i, deal)
+	}
+
+	var good = 1
+	var bad = 0
+	for {
+		if <-statusCh {
 			good++
+		} else {
+			bad++
+		}
+		if bad > h.conf.NewNodes.Threshold {
+			return fmt.Errorf("dkg: error sending deals to %d  nodes / %d (threshold %d)", bad, h.n, h.conf.NewNodes.Threshold)
+		}
+		if bad+good == h.conf.NewNodes.Len() {
+			h.l.Info("send_deal", "sucess", "to", good-1)
+			return nil
 		}
 	}
-	if good < h.conf.NewNodes.Threshold {
-		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.NewNodes.Threshold)
-	}
-	h.l.Info("send_deal", "sucess", "to", good-1)
-	return nil
+
 }
 
 // The following packets must be sent to the following nodes:
