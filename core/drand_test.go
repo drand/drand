@@ -629,7 +629,7 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 	setupDrand := func(i int) {
 		myCb := func(b *beacon.Beacon) {
 			msg := beacon.Message(b.PreviousSig, b.Round)
-			err := bls.Verify(key.Pairing, getPublic().Key(), msg, b.Signature)
+			err := key.Scheme.VerifyRecovered(getPublic().Key(), msg, b.Signature)
 			if err != nil {
 				fmt.Printf("Beacon error callback: %s\n", b.Signature)
 			}
@@ -677,7 +677,7 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 	require.Nil(t, err)
 
 	//the share should be the same from run to run
-	require.True(t, distributedPublic.Key().String() == "bn256.G2:((700ce577d222c8766623ee5e4e39694a9fa8b0257e9666b5a205f63faf5f9004, 12e64c24a109557f34fbcfbc8c5855d362811ecf393a5c416845247cd2ef9e99), (744b0e92df68f5b407c2ab0d352e528e2fe6a9fc577e61594450c014bdb1d128, 72829bc85cb8a0ff2a0058c185dd8d5bdbd4bcf1d0a206f576f4f9cf1044e20c))")
+	require.True(t, distributedPublic.Key().String() == "bls12-381.G1: 8cea5ae189ab46efa86cddff90884f72aec48733459aaed50d979c52ac8df38394f39e1e20fb794bfc1569d45c189a04")
 	//same for the share
 	secret := s.PrivatePoly[0]
 	require.True(t, secret.String() == "0fe814bb7d5d496547e1c14a8837e19e3dcb891f663b675896bb741a8084c655")

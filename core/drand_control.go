@@ -45,7 +45,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	entropyReader := entropy.NewEntropyReader(in.Entropy, in.UserOnly)
 
 	d.nextConf = &dkg.Config{
-		Suite:          key.G2.(dkg.Suite),
+		Suite:          key.KeyGroup.(dkg.Suite),
 		NewNodes:       d.group,
 		Key:            d.priv,
 		Reader:         entropyReader,
