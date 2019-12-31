@@ -45,6 +45,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		Suite:    key.KeyGroup.(dkg.Suite),
 		NewNodes: d.group,
 		Key:      d.priv,
+		Clock:    d.opts.clock,
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
@@ -123,6 +124,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 			NewNodes: newGroup,
 			Key:      d.priv,
 			Suite:    key.KeyGroup.(dkg.Suite),
+			Clock:    d.opts.clock,
 		}
 
 		// run the proto

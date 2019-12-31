@@ -258,6 +258,7 @@ func (d *Drand) initBeacon() error {
 		Share:   d.share,
 		Seed:    DefaultSeed,
 		Scheme:  key.Scheme,
+		Clock:   d.opts.clock,
 	}
 	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
 	return err

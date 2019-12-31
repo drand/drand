@@ -4,6 +4,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	bolt "github.com/coreos/bbolt"
 	"github.com/dedis/drand/beacon"
 	"github.com/dedis/drand/dkg"
@@ -32,6 +33,7 @@ type Config struct {
 	keyPath      string
 	certmanager  *net.CertManager
 	logger       log.Logger
+	clock        clock.Clock
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -50,6 +52,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
+		clock:       clock.New(),
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
