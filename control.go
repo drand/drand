@@ -62,7 +62,7 @@ func initDKG(c *cli.Context, groupPath string) error {
 		fatal("drand: error creating control client: %s", err)
 	}
 
-	if c.IsSet(userEntropyOnlyFlag.Name) && (!c.IsSet(sourceEFlag.Name) && !c.IsSet(sourceFFlag.Name)) {
+	if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
 		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
 	}
 	entropyReader := entropyReaderFromContext(c)
@@ -222,28 +222,9 @@ func fileExists(name string) bool {
 
 func entropyReaderFromContext(c *cli.Context) *entropy.EntropyReader {
 	var source string
-	var err error
 	userOnly := false
-	if c.IsSet(sourceEFlag.Name) {
-		source, err = entropy.CreateFileFromExec(sourceEFlag.Name)
-		if err != nil {
-			fatal("drand: executable provided as additional entropy cannot be used: %s", err)
-		}
-	}
-	if c.IsSet(sourceFFlag.Name) {
-		f, err := os.Open(sourceFFlag.Name)
-		if err != nil {
-			fatal("drand: file provided as additional entropy cannot be used: %s", err)
-		}
-		b := make([]byte, 1)
-		n, err := f.Read(b)
-		if err != nil || n == 0 {
-			fatal("drand: file provided as additional entropy cannot be used: %s", err)
-		}
-		//rewind not to "lose" the byte we read as test NOT SURE ABOUT THIS XXX
-		f.Seek(0, 0)
-		f.Close()
-		source = c.String(sourceFFlag.Name)
+	if c.IsSet(sourceFlag.Name) {
+		source = c.String(sourceFlag.Name)
 		if c.IsSet(userEntropyOnlyFlag.Name) {
 			userOnly = true
 		}
