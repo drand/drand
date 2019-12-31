@@ -164,9 +164,10 @@ func (b *BeaconTest) StartBeacon(i int, catchup bool) {
 func (b *BeaconTest) MovePeriod(p int) {
 	for i := 0; i < p; i++ {
 		b.clock.Add(b.period)
-		// give each handlers 20ms to perform their duty
+		// give each handlers time to perform their duty
 		time.Sleep(time.Duration(b.n*50) * time.Millisecond)
 	}
+	time.Sleep(100 * time.Millisecond)
 }
 
 func (b *BeaconTest) StopBeacon(i int) {
@@ -192,13 +193,6 @@ func (b *BeaconTest) CleanUp() {
 func checkErr(e error) {
 	if e != nil {
 		panic(e)
-	}
-}
-func moveTime(c *clock.Mock, t time.Duration, n int) {
-	for i := 0; i < n; i++ {
-		c.Add(t)
-		time.Sleep(300 * time.Millisecond)
-		fmt.Println("Ticking")
 	}
 }
 
