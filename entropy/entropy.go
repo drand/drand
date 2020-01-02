@@ -51,8 +51,7 @@ func (r *EntropyReader) Read(p []byte) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(p, b.Bytes())
-	return b.Len(), nil
+	return copy(p, b.Bytes()), nil
 }
 
 // GetEntropy returns the path of the file to use as additional entropy
