@@ -135,17 +135,17 @@ var timeoutFlag = cli.StringFlag{
 
 var pushFlag = cli.BoolFlag{
 	Name:  "push",
-	Usage: "Push  mode forces the daemon to start making beacon requests to the other node, instead of waiting the other nodes contact it to catch-up on the round",
+	Usage: "Push mode forces the daemon to start making beacon requests to the other node, instead of waiting the other nodes contact it to catch-up on the round",
 }
 
 var sourceFlag = cli.StringFlag{
 	Name:  "source",
-	Usage: "Source flag allows to use the given program output as additional entropy during resharing step.",
+	Usage: "Source flag allows to provide an executable which output will be used as additional entropy during resharing step.",
 }
 
 var userEntropyOnlyFlag = cli.BoolFlag{
 	Name:  "userEntropyOnly",
-	Usage: "UserEntropyOnly flag used with the source flag allows to only use the user's entropy (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
+	Usage: "UserEntropyOnly flag used with the source flag allows to only use the user's entropy to pick the dkg secret (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
 }
 
 func main() {

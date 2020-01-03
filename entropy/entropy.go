@@ -39,19 +39,24 @@ type EntropyReader struct {
 	UserOnly bool
 }
 
+// Read calls the executable as many times needed to fill the array p
+// n == len(p) if and only if err == nil
 func (r *EntropyReader) Read(p []byte) (n int, err error) {
 	if r.Entropy == "" {
 		return 0, errors.New("No reader was provided")
 	}
-	cmd := exec.Command("./" + r.Entropy)
 	var b bytes.Buffer
-	cmd.Stdout = bufio.NewWriter(&b)
-
-	err = cmd.Run()
-	if err != nil {
-		return 0, err
+	read := 0
+	for read < len(p) {
+		cmd := exec.Command("./" + r.Entropy)
+		cmd.Stdout = bufio.NewWriter(&b)
+		err = cmd.Run()
+		if err != nil {
+			return 0, err
+		}
+		read += copy(p[read:], b.Bytes())
 	}
-	return copy(p, b.Bytes()), nil
+	return len(p), nil
 }
 
 // GetEntropy returns the path of the file to use as additional entropy
