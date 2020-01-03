@@ -270,13 +270,13 @@ protocol will wait. If there are some failed nodes during the DKG, then the DKG 
 
 During the DKG, it is possible for a participant to inject their own entropy source into the creation of their secret. To do such, their random data must be provided in the DKG command by using the flag `source` like:
 ```
-drand share <group-file> --source <entropy-file>
+drand share <group-file> --source <entropy-exe>
 ```
-where `<entropy-file>` is the path to the file to read the user's random data from.
+where `<entropy-exe>` is the path to the executable which output will be used as the user's random data.
 
 As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `UserReaderOnly` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
 ```
-drand share <group-file> --source <entropy-file> --UserReaderOnly
+drand share <group-file> --source <entropy-exe> --UserReaderOnly
 ```
 
 **Group File**: Once the DKG phase is done, the group file is updated with the
@@ -590,4 +590,4 @@ for letting me work on this project and helping me grow it.
 - OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
 - SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
 - Duo [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
-- (French) [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.htm 
+- (French) [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.htm

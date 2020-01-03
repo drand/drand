@@ -2,6 +2,7 @@ package entropy
 
 import (
 	"bytes"
+	"os"
 	"testing"
 )
 
@@ -27,5 +28,53 @@ func TestNoDuplicatesDefault(t *testing.T) {
 	}
 	if bytes.Compare(random1, random2) == 0 {
 		t.Fatal("Randomness was the same for two samples, which is incorrect.")
+	}
+}
+
+func TestEntropyRead(t *testing.T) {
+	file, err := os.Create("./veryrandom.sh")
+	file.Chmod(0740)
+
+	if err != nil {
+		panic(err)
+	}
+	_, err = file.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis")
+	if err != nil {
+		panic(err)
+	}
+	file.Close()
+	defer os.Remove("./veryrandom.sh")
+
+	execRand := "veryrandom.sh"
+	userOnly := true
+	entropyReader := NewEntropyReader(execRand, userOnly)
+	p := make([]byte, 32)
+	n, err := entropyReader.Read(p)
+	if err != nil || n != len(p) {
+		t.Fatal("read did not work")
+	}
+}
+
+func TestEntropyReadSmallExec(t *testing.T) {
+	file, err := os.Create("./veryrandom.sh")
+	file.Chmod(0740)
+
+	if err != nil {
+		panic(err)
+	}
+	_, err = file.WriteString("#!/bin/sh\necho Hey")
+	if err != nil {
+		panic(err)
+	}
+	file.Close()
+	defer os.Remove("./veryrandom.sh")
+
+	execRand := "veryrandom.sh"
+	userOnly := true
+	entropyReader := NewEntropyReader(execRand, userOnly)
+	p := make([]byte, 32)
+	n, err := entropyReader.Read(p)
+	if err != nil || n != len(p) {
+		t.Fatal("read did not work", n, err)
 	}
 }

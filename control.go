@@ -224,6 +224,13 @@ func entropyReaderFromContext(c *cli.Context) *entropy.EntropyReader {
 	var source string
 	userOnly := false
 	if c.IsSet(sourceFlag.Name) {
+		fi, err := os.Lstat(sourceFlag.Name)
+		if err != nil {
+			fatal("drand: cannot use given entropy source: %s", err)
+		}
+		if (fi.Mode().Perm() >> 6 & 1) != 1 {
+			fatal("drand: cannot execute entropy source: %s", err)
+		}
 		source = c.String(sourceFlag.Name)
 		if c.IsSet(userEntropyOnlyFlag.Name) {
 			userOnly = true
