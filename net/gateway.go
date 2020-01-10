@@ -5,9 +5,9 @@ import (
 
 	"google.golang.org/grpc"
 
-	//"github.com/dedis/drand/protobuf/control"
+	//"github.com/drand/drand/protobuf/control"
 
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 //var DefaultTimeout = time.Duration(30) * time.Second

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/dedis/drand/entropy"
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/entropy"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
 	"golang.org/x/crypto/hkdf"

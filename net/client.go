@@ -3,7 +3,7 @@ package net
 import (
 	"time"
 
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 // Client implements methods to call on the protocol API and the public API of a

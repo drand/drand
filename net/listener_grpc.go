@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
 	"github.com/soheilhy/cmux"

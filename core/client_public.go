@@ -5,11 +5,11 @@ import (
 	"crypto/sha512"
 	"errors"
 
-	"github.com/dedis/drand/beacon"
-	"github.com/dedis/drand/ecies"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/ecies"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 	"google.golang.org/grpc"
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	control "github.com/dedis/drand/protobuf/drand"
+	control "github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 )

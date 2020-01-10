@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
