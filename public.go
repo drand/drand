@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/dedis/drand/core"
-	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/core"
+	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )

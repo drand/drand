@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dedis/drand/beacon"
-	"github.com/dedis/drand/dkg"
-	"github.com/dedis/drand/fs"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/log"
-	"github.com/dedis/drand/net"
-	dkg_proto "github.com/dedis/drand/protobuf/crypto/dkg"
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/dkg"
+	"github.com/drand/drand/fs"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
+	dkg_proto "github.com/drand/drand/protobuf/crypto/dkg"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it

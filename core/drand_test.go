@@ -14,11 +14,11 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/dedis/drand/beacon"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/drand/test"
+	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )

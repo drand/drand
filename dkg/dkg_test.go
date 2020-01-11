@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/log"
-	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/crypto/dkg"
-	"github.com/dedis/drand/protobuf/drand"
-	"github.com/dedis/drand/test"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/crypto/dkg"
+	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )

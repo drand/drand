@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dedis/drand/core"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
+	"github.com/drand/drand/core"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli"
 )

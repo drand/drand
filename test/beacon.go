@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dedis/drand/key"
+	"github.com/drand/drand/key"
 	"github.com/stretchr/testify/require"
 )
 

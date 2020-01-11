@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

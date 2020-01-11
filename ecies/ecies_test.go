@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/dedis/drand/key"
+	"github.com/drand/drand/key"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,6 +1,6 @@
 package test
 
-import "github.com/dedis/drand/key"
+import "github.com/drand/drand/key"
 
 type KeyStore struct {
 	priv  *key.Pair
