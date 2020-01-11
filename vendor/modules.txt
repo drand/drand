@@ -62,10 +62,6 @@ github.com/stretchr/testify/require
 github.com/urfave/cli
 # go.dedis.ch/fixbuf v1.0.3
 go.dedis.ch/fixbuf
-# go.dedis.ch/kyber/v3 v3.0.9
-go.dedis.ch/kyber/v3
-go.dedis.ch/kyber/v3/util/random
-go.dedis.ch/kyber/v3/xof/blake2xb
 # go.dedis.ch/protobuf v1.0.11
 go.dedis.ch/protobuf
 # golang.org/x/crypto v0.0.0-20190701094942-4def268fd1a4

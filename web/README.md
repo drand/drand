@@ -13,7 +13,7 @@ You can find a live example at [zerobyte.io](https://drand.zerobyte.io).
 
 #### Requirements
 - [hugo](https://gohugo.io),
-- local copy of the code, which can be downloaded with `go get -u github.com/dedis/drand` or `git clone https://github.com/dedis/drand`,
+- local copy of the code, which can be downloaded with `go get -u github.com/drand/drand` or `git clone https://github.com/drand/drand`,
 - an SSH setup compatible with https://gohugo.io/hosting-and-deployment/deployment-with-rsync/#install-ssh-key.
 
 #### Build

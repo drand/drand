@@ -11,6 +11,17 @@ var currRound = "0";
 //interval id for bar progress
 var idBar = -1;
 
+const fetchCommand = "fetchVerify";
+window.worker.addEventListener('message', function(e) {
+    var data = e.data;
+    switch (data.cmd) {
+        case fetchCommand:
+            console.log("display.js: received fetch Command",data);
+            window.verified = data.verified;
+            printRound(data.randomness, data.previous, data.round, data.signature, data.verified);
+    }
+  }, false);
+
 /**
 * displayRandomness is the main function which display
 * the latest randomness and nodes when opening the page
@@ -25,15 +36,24 @@ async function displayRandomness() {
   }
   startProgressBar();
   //print randomness and update verfified status
-  fetchAndVerify(window.identity, window.distkey, latestRound)
-  .then(function (fulfilled) {
-    window.verified = true;
-    printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, "0", true);
-  })
-  .catch(function (error) {
-    window.verified = false;
-    printRound(error.randomness, error.previous, error.round, "0", false);
+  window.worker.postMessage({
+      cmd: fetchCommand, 
+      identity: window.identity,
+      distkey: window.distkey,
+      round: drandjs.latestRound,
   });
+
+  /*drandjs.fetchAndVerify(window.identity, window.distkey, drandjs.latestRound)*/
+  //.then(function (fulfilled) {
+      //console.log("fullfilled: ",fulfilled);
+    //window.verified = true;
+    //printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, "0", true);
+  //})
+  //.catch(function (error) {
+      //console.log("NOT fullfilled: ",error);
+    //window.verified = false;
+    //printRound(error.randomness, error.previous, error.round, "0", false);
+  /*});*/
   printNodesList();
 }
 
@@ -68,12 +88,10 @@ function printRound(randomness, previous, round, signature, verified) {
 
   //print randomness as current
   var p = document.createElement("pre");
-  var quarter = Math.ceil(randomness.length/4);
+  var quarter = Math.ceil(randomness.length/2);
   var s1 = randomness.slice(0, quarter);
   var s2 = randomness.slice(quarter, 2*quarter);
-  var s3 = randomness.slice(2*quarter, 3*quarter);
-  var s4 = randomness.slice(3*quarter);
-  var randomness_4lines =  s1 + '\n' + s2 + "\n" + s3 + "\n" + s4;
+  var randomness_4lines =  s1 + '\n' + s2;
   var textnode = document.createTextNode(randomness_4lines);
   p.appendChild(textnode);
   latestDiv.replaceChild(p, latestDiv.childNodes[0]);
@@ -113,7 +131,7 @@ function printRound(randomness, previous, round, signature, verified) {
 * printNodeList prints interactive list of drand nodes
 **/
 function printNodesList() {
-  fetchGroup(window.identity).then(group => {
+  drandjs.fetchGroup(window.identity).then(group => {
     nodesListDiv.innerHTML="";
     var i = 0;
     while (i < group.nodes.length) {
@@ -129,8 +147,12 @@ function printNodesList() {
         statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; ✔️ </td>';
         statusCol.style.color= "transparent";
         statusCol.style.textShadow= "0 0 0 green";
+        console.log(addr," is  up");
       })
-      .catch((err) => {statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';});
+      .catch((err) => {
+          statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';
+          console.log(addr," is NOT up",err);
+      });
       line.appendChild(statusCol);
 
       let addrCol = document.createElement("td");
@@ -189,7 +211,8 @@ function printNodesList() {
 **/
 function isUp(addr, tls) {
   return new Promise(function(resolve, reject) {
-    fetchLatest({Address: addr, TLS: tls})
+    drandjs.fetchLatest({Address: addr, TLS: tls})
+    .then((r) => { console.log(addr," is up"); return Promise.resolve(r); })
     .then((rand) => {resolve(true);})
     .catch((error) => {reject(false);});
   });
@@ -210,13 +233,19 @@ function goToPrev() {
   var elem = document.getElementById("myBar");
   elem.style.width = 0 + '%';
   //print previous rand
-  fetchAndVerify(window.identity, window.distkey, round)
-  .then(function (fulfilled) {
-    printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
-  })
-  .catch(function (error) {
-    printRound(error.randomness, error.previous, round, "0", false);
+  window.worker.postMessage({
+      cmd: fetchCommand, 
+      identity: window.identity,
+      distkey: window.distkey,
+      round: round,
   });
+  /*drandjs.fetchAndVerify(window.identity, window.distkey, round)*/
+  //.then(function (fulfilled) {
+    //printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
+  //})
+  //.catch(function (error) {
+    //printRound(error.randomness, error.previous, round, "0", false);
+  /*});*/
 }
 
 /**
@@ -241,13 +270,20 @@ function goToNext() {
     var elem = document.getElementById("myBar");
     elem.style.width = 0 + '%';
     //print next rand
-    fetchAndVerify(window.identity, window.distkey, round)
-    .then(function (fulfilled) {
-      printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
-    })
-    .catch(function (error) {
-      printRound(error.randomness, error.previous, round, "0", false);
-    });
+    window.worker.postMessage({
+      cmd: fetchCommand, 
+      identity: window.identity,
+      distkey: window.distkey,
+      round: round,
+  });
+
+/*    drandjs.fetchAndVerify(window.identity, window.distkey, round)*/
+    //.then(function (fulfilled) {
+      //printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
+    //})
+    //.catch(function (error) {
+      //printRound(error.randomness, error.previous, round, "0", false);
+    /*});*/
   });
 }
 
@@ -266,7 +302,7 @@ function refresh() {
 **/
 function getLatestIndex() {
   return new Promise(function(resolve, reject) {
-    fetchLatest(window.identity).then((rand) => {resolve(rand.round);})
+    drandjs.fetchLatest(window.identity).then((rand) => {resolve(rand.round);})
   });
 }
 
@@ -276,9 +312,9 @@ function getLatestIndex() {
 **/
 function checkVerify(key) {
   if (window.verified) {
-    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon solid small"> <i class="fas fa-check"></i> &nbsp; verified using drandjs, click here to discover our js library</a>';
+    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-check"></i> &nbsp; verified using drandjs </a>';
   } else {
-    verifyButton.innerHTML = '<a href="https://github.com/PizzaWhisperer/drandjs/" class="button alt icon solid small"> <i class="fas fa-times"></i> &nbsp; drandjs could not verify this randomness against the distributed key</a>';
+    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-times"></i> &nbsp; drandjs could not verify this randomness against the distributed key</a>';
   }
 }
 

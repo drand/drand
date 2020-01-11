@@ -2,3 +2,5 @@ TODO.md
 test/drand
 dist/
 *.DS_Store
+web/static/js/drandjs
+!web/static/js/drandjs/dist/drandjs.js

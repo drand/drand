@@ -7,5 +7,9 @@ server:
 build:
 	hugo
 
+test-server:
+	hugo --config config_test.toml
+	hugo server --config config_test.toml --buildDrafts --forceSyncStatic --disableFastRender --verbose
+
 deploy:
 	rsync -Paivz --delete $(SRC) $(DEST)
