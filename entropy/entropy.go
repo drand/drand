@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"os/exec"
 )
 
@@ -32,11 +33,8 @@ func GetRandom(source EntropySource, len uint32) ([]byte, error) {
 }
 
 // EntropyReader hold info for user entropy to be given to the dkg
-// Warning: UserOnly should be set to true for debugging, and randomness coming from user
-// should always be mixed with crypto/rand and thus userOnly dhoul be false by default
 type EntropyReader struct {
-	Entropy  string
-	UserOnly bool
+	Entropy string
 }
 
 // Read calls the executable as many times needed to fill the array p
@@ -48,10 +46,11 @@ func (r *EntropyReader) Read(p []byte) (n int, err error) {
 	var b bytes.Buffer
 	read := 0
 	for read < len(p) {
-		cmd := exec.Command("./" + r.Entropy)
+		cmd := exec.Command(r.Entropy)
 		cmd.Stdout = bufio.NewWriter(&b)
 		err = cmd.Run()
 		if err != nil {
+			fmt.Printf("entropy: cannot read from the file: %s\v", err.Error())
 			return 0, err
 		}
 		read += copy(p[read:], b.Bytes())
@@ -64,12 +63,7 @@ func (r *EntropyReader) GetEntropy() string {
 	return r.Entropy
 }
 
-// GetUserOnly returns true if user wants to use their randomness only
-func (r *EntropyReader) GetUserOnly() bool {
-	return r.UserOnly
-}
-
 // NewEntropyReader creates a new EntropyReader struct
-func NewEntropyReader(path string, userOnly bool) *EntropyReader {
-	return &EntropyReader{path, userOnly}
+func NewEntropyReader(path string) *EntropyReader {
+	return &EntropyReader{path}
 }

@@ -42,14 +42,14 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 	d.idx = idx
 
-	entropyReader := entropy.NewEntropyReader(in.Entropy, in.UserOnly)
+	entropyReader := entropy.NewEntropyReader(in.Entropy)
 
 	d.nextConf = &dkg.Config{
 		Suite:          key.KeyGroup.(dkg.Suite),
 		NewNodes:       d.group,
 		Key:            d.priv,
 		Reader:         entropyReader,
-		UserReaderOnly: entropyReader.GetUserOnly(),
+		UserReaderOnly: in.UserOnly,
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)

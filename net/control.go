@@ -91,7 +91,7 @@ func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeou
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string, reader *entropy.EntropyReader) (*control.Empty, error) {
+func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string, reader *entropy.EntropyReader, userOnyl bool) (*control.Empty, error) {
 	request := &control.InitDKGPacket{
 		DkgGroup: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: groupPath},
@@ -99,7 +99,7 @@ func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string, r
 		IsLeader: leader,
 		Timeout:  timeout,
 		Entropy:  reader.GetEntropy(),
-		UserOnly: reader.GetUserOnly(),
+		UserOnly: userOnyl,
 	}
 	return c.client.InitDKG(context.Background(), request)
 

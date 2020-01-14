@@ -271,23 +271,13 @@ protocol will wait. If there are some failed nodes during the DKG, then the DKG 
 
 During the DKG, it is possible for a participant to inject their own entropy source into the creation of their secret. To do such, their random data must be provided in the DKG command by using the flag `source` like:
 ```
-<<<<<<< HEAD
 drand share <group-file> --source <entropy-exec>
 ```
-where `<entropy-exec>` is the path to the executable which produces the user's random data. The permissions should allow at least the owner and group to execute it.
+where `<entropy-exec>` is the path to the executable which produces the user's random data.
 
-As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `UserReaderOnly` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
+As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `user-source-only` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
 ```
-drand share <group-file> --source <entropy-exec> --UserReaderOnly
-=======
-drand share <group-file> --source <entropy-exe>
-```
-where `<entropy-exe>` is the path to the executable which output will be used as the user's random data.
-
-As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `UserReaderOnly` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
-```
-drand share <group-file> --source <entropy-exe> --UserReaderOnly
->>>>>>> fixes
+drand share <group-file> --source <entropy-exec> --user-source-only
 ```
 
 **Group File**: Once the DKG phase is done, the group file is updated with the

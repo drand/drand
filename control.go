@@ -66,10 +66,14 @@ func initDKG(c *cli.Context, groupPath string) error {
 		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
 	}
 	entropyReader := entropyReaderFromContext(c)
+	userOnly := false
+	if c.IsSet(userEntropyOnlyFlag.Name) {
+		userOnly = true
+	}
 
 	fmt.Print("drand: waiting the end of DKG protocol ... " +
 		"(you can CTRL-C to not quit waiting)")
-	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name), entropyReader)
+	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name), entropyReader, userOnly)
 	if err != nil {
 		fatal("drand: initdkg %s", err)
 	}
@@ -222,25 +226,13 @@ func fileExists(name string) bool {
 
 func entropyReaderFromContext(c *cli.Context) *entropy.EntropyReader {
 	var source string
-	userOnly := false
+
 	if c.IsSet(sourceFlag.Name) {
-		fi, err := os.Lstat(sourceFlag.Name)
+		_, err := os.Lstat(c.String(sourceFlag.Name))
 		if err != nil {
 			fatal("drand: cannot use given entropy source: %s", err)
 		}
-<<<<<<< HEAD
-		fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // comp to 0110
-		if fi.Mode().Perm() == 0110 {
-			fatal("drand: cannot use given entropy source: %s", err)
-=======
-		if (fi.Mode().Perm() >> 6 & 1) != 1 {
-			fatal("drand: cannot execute entropy source: %s", err)
->>>>>>> fixes
-		}
 		source = c.String(sourceFlag.Name)
-		if c.IsSet(userEntropyOnlyFlag.Name) {
-			userOnly = true
-		}
 	}
-	return entropy.NewEntropyReader(source, userOnly)
+	return entropy.NewEntropyReader(source)
 }

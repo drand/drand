@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	gnet "net"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -224,7 +226,7 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	emptyReader := ""
 	defaultUserOnly := false
-	defaultEntropyReader := entropy.NewEntropyReader(emptyReader, defaultUserOnly)
+	defaultEntropyReader := entropy.NewEntropyReader(emptyReader)
 
 	drands, group, dir := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)))
@@ -308,7 +310,7 @@ func TestDrandDKGFresh(t *testing.T) {
 			// instruct to be ready for a reshare
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
-			_, err = client.InitDKG(groupPath, false, "", defaultEntropyReader)
+			_, err = client.InitDKG(groupPath, false, "", defaultEntropyReader, defaultUserOnly)
 			require.NoError(t, err)
 			//err = d.WaitDKG()
 			//require.Nil(t, err)
@@ -319,7 +321,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	root := drands[0]
 	controlClient, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(t, err)
-	_, err = controlClient.InitDKG(groupPath, true, "", defaultEntropyReader)
+	_, err = controlClient.InitDKG(groupPath, true, "", defaultEntropyReader, defaultUserOnly)
 	require.NoError(t, err)
 
 	//err = root.WaitDKG()
@@ -581,22 +583,23 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 	nbRound := 2
 	period := 1000 * time.Millisecond
 
-	file, err := os.Create("./veryrandom.sh")
-	file.Chmod(0740)
-
+	tmp := os.TempDir()
+	tmp_dir, err := ioutil.TempDir(tmp, "tmp_entrop")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	_, err = file.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis")
-	if err != nil {
-		panic(err)
-	}
-	file.Close()
-	defer os.Remove("./veryrandom.sh")
+	defer os.RemoveAll(tmp_dir)
 
-	execRand := "veryrandom.sh"
+	tmpfn := filepath.Join(tmp_dir, "veryrandom.sh")
+	content := []byte("#!/bin/sh\necho Hey, good morning, Monstropolis")
+	if err := ioutil.WriteFile(tmpfn, content, 0777); err != nil {
+		log.Fatal(err)
+	}
+
+	execRand := tmpfn
 	userOnly := true
-	entropyReader := entropy.NewEntropyReader(execRand, userOnly)
+	entropyReader := entropy.NewEntropyReader(execRand)
+	fmt.Printf("reader %v\ns", entropyReader.GetEntropy())
 
 	drands, group, dir := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)))
@@ -655,7 +658,7 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 		go func(d *Drand) {
 			client, err := net.NewControlClient(d.opts.controlPort)
 			require.NoError(t, err)
-			_, err = client.InitDKG(groupPath, false, "", entropyReader)
+			_, err = client.InitDKG(groupPath, false, "", entropyReader, userOnly)
 			require.NoError(t, err)
 			wg.Done()
 		}(drand)
@@ -664,7 +667,7 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 	root := drands[0]
 	controlClient, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(t, err)
-	_, err = controlClient.InitDKG(groupPath, true, "", entropyReader)
+	_, err = controlClient.InitDKG(groupPath, true, "", entropyReader, userOnly)
 	require.NoError(t, err)
 
 	wg.Wait()

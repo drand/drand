@@ -144,8 +144,8 @@ var sourceFlag = cli.StringFlag{
 }
 
 var userEntropyOnlyFlag = cli.BoolFlag{
-	Name:  "userEntropyOnly",
-	Usage: "UserEntropyOnly flag used with the source flag allows to only use the user's entropy to pick the dkg secret (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
+	Name:  "user-source-only",
+	Usage: "user-source-only flag used with the source flag allows to only use the user's entropy to pick the dkg secret (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
 }
 
 func main() {
