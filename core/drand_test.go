@@ -226,6 +226,7 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	emptyReader := ""
 	defaultUserOnly := false
+
 	defaultEntropyReader := entropy.NewEntropyReader(emptyReader)
 
 	drands, group, dir := BatchNewDrand(n, false,
@@ -599,7 +600,6 @@ func TestDrandDKGFreshWithExecutableEntropy(t *testing.T) {
 	execRand := tmpfn
 	userOnly := true
 	entropyReader := entropy.NewEntropyReader(execRand)
-	fmt.Printf("reader %v\ns", entropyReader.GetEntropy())
 
 	drands, group, dir := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)))

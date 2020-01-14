@@ -7,7 +7,7 @@ import "crypto/share.proto";
 
 package vss;
 
-option go_package = "github.com/dedis/drand/protobuf/crypto/vss";
+option go_package = "github.com/drand/drand/protobuf/crypto/vss";
 
 // EncryptedDeal holds a share encrypted towards the share holder's longterm
 // public key..
@@ -23,7 +23,7 @@ message EncryptedDeal {
     bytes cipher = 4;
 }
 
-/* 
+/*
  * Deal holds the share created by a dealer for a round of a vss or dkg protocol
  * It is always meant to be encrypted when on transit because it contains
  * private information (the share).
@@ -44,7 +44,7 @@ message Deal {
  * deal. It is meant to be broadcasted to every participants.
  */
 message Response {
-    // session id of the 
+    // session id of the
     bytes session_id = 1;
     // index of the verifier issuing the response
     uint32 index = 2;
@@ -63,7 +63,7 @@ message Response {
 message Justification {
     // session id of the current run
     bytes session_id = 1;
-    // index of the issuer of this justification    
+    // index of the issuer of this justification
     uint32 index = 2;
     // plaintext deal that the complaint response points to
     Deal deal = 3;

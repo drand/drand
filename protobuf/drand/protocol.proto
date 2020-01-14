@@ -7,7 +7,7 @@ syntax = "proto3";
 
 package drand;
 
-option go_package = "github.com/dedis/drand/protobuf/drand";
+option go_package = "github.com/drand/drand/protobuf/drand";
 
 import "crypto/dkg/dkg.proto";
 import "drand/empty.proto";

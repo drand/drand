@@ -10,6 +10,7 @@ import (
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli"
 )

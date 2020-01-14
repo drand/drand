@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package drand;
 
-option go_package = "github.com/dedis/drand/protobuf/drand";
+option go_package = "github.com/drand/drand/protobuf/drand";
 
 message Empty {
 

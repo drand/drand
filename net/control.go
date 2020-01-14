@@ -7,6 +7,7 @@ import (
 
 	"github.com/drand/drand/entropy"
 	control "github.com/drand/drand/protobuf/drand"
+
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 )

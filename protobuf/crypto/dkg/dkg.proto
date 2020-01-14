@@ -1,12 +1,12 @@
 /*
  * This protobuf file contains the definitions of all the calls and messages
  * used by drand nodes themselves to create the distributed randomness beacon.
- */ 
+ */
 syntax = "proto3";
 
 package dkg;
 
-option go_package = "github.com/dedis/drand/protobuf/crypto/dkg";
+option go_package = "github.com/drand/drand/protobuf/crypto/dkg";
 import "crypto/vss/vss.proto";
 
 // Packet is a wrapper around the three different types of DKG messages
@@ -23,7 +23,7 @@ message Deal {
     uint32 index = 1;
     // encrypted version of the deal
     vss.EncryptedDeal deal = 2;
-    // signature of the whole deal 
+    // signature of the whole deal
     // NOTE: this is almost duplicated data, since the vss deal already includes
     // a signature. However it does not include the index of the dealer that
     // issue this deal, so another one is required. Best would be to merge vss
