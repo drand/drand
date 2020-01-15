@@ -3,7 +3,7 @@ package net
 import (
 	"context"
 
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 var _ Service = (*EmptyServer)(nil)

@@ -12,14 +12,14 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
-	"github.com/dedis/drand/log"
-	proto "github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/log"
+	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign"
 	"google.golang.org/grpc/peer"
 
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 )
 
 // What is the maximum round difference a drand node accepts to sign

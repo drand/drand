@@ -7,8 +7,8 @@ import (
 	n "net"
 	"strconv"
 
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/net"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing/bn256"
 	"github.com/drand/kyber/util/random"

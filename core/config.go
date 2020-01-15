@@ -6,11 +6,11 @@ import (
 
 	"github.com/benbjohnson/clock"
 	bolt "github.com/coreos/bbolt"
-	"github.com/dedis/drand/beacon"
-	"github.com/dedis/drand/dkg"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/log"
-	"github.com/dedis/drand/net"
+	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/dkg"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
 	"google.golang.org/grpc"
 )
 

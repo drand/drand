@@ -5,8 +5,8 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/dedis/drand/core"
-	"github.com/dedis/drand/key"
+	"github.com/drand/drand/core"
+	"github.com/drand/drand/key"
 	"github.com/urfave/cli"
 )
 

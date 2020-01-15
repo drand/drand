@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dedis/drand/beacon"
-	"github.com/dedis/drand/ecies"
-	"github.com/dedis/drand/entropy"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/ecies"
+	"github.com/drand/drand/entropy"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc/peer"
 )
 

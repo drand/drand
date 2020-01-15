@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/dedis/drand/dkg"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/protobuf/drand"
-	control "github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/dkg"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/drand"
+	control "github.com/drand/drand/protobuf/drand"
 	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 

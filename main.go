@@ -16,12 +16,12 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/dedis/drand/core"
-	"github.com/dedis/drand/fs"
-	"github.com/dedis/drand/key"
-	"github.com/dedis/drand/log"
-	"github.com/dedis/drand/net"
-	"github.com/dedis/drand/protobuf/drand"
+	"github.com/drand/drand/core"
+	"github.com/drand/drand/fs"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli"
 )
