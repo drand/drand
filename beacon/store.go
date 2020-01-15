@@ -2,6 +2,7 @@ package beacon
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -57,7 +58,9 @@ func Message(prevSig []byte, round uint64) []byte {
 	var buff bytes.Buffer
 	buff.Write(roundToBytes(round))
 	buff.Write(prevSig)
-	return buff.Bytes()
+	h := sha256.New()
+	h.Write(buff.Bytes())
+	return h.Sum(nil)
 }
 
 // Store is an interface to store Beacons packets where they can also be
