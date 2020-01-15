@@ -195,7 +195,6 @@
   <script>
     window.identity = {Address: "{{ .Site.Params.serverContact }}", 
           TLS: {{ .Site.Params.tls }}};
-    window.distkey = drandjs.defaultDistKey;
 
     displayRandomness();
     var id = window.setInterval(displayRandomness, 60000);

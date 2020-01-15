@@ -6,21 +6,44 @@ var locationMap = new Map();
 
 window.verified = false;
 
-//counter used to navigate through randomness indexes
-var currRound = "0";
 //interval id for bar progress
 var idBar = -1;
 
 const fetchCommand = "fetchVerify";
+const randKey = "randomness";
 window.worker.addEventListener('message', function(e) {
     var data = e.data;
     switch (data.cmd) {
         case fetchCommand:
-            console.log("display.js: received fetch Command",data);
-            window.verified = data.verified;
-            printRound(data.randomness, data.previous, data.round, data.signature, data.verified);
+            console.log("display.js: received fetch results:",data);
+            if ("randomness" in data) {
+                const d = data.randomness;
+                window.verified = d.verified;
+                window.distkey = d.distkey;
+                const randomness = drandjs.toHexString(drandjs.sha256(d.signature));
+                printRound(randomness, d.previous, d.round, d.signature, true);
+                setVerified(true);
+            } else if ("error" in data) {
+                setRound(data.request.round);
+                if (data.error.includes("verification")) { 
+                    const d = data.invalid;
+                    const randomness = drandjs.toHexString(drandjs.sha256(d.signature));
+                    setRandomness(sliceRandomness(d.randomness));
+                    setVerified(false, "Invalid verification");
+                } else {
+                    setVerified(false, " Error during verification");
+                    var p = document.createElement("pre");
+                    var textnode = document.createTextNode(data.error);
+                    p.appendChild(textnode);
+                    latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+                    console.log("display.js ERROR : " + data.error);
+                    // showError();
+                }
+            } else {
+                throw new Error("THAT SHOULD NOT HAPPENS");
+            }
     }
-  }, false);
+}, false);
 
 /**
 * displayRandomness is the main function which display
@@ -28,33 +51,28 @@ window.worker.addEventListener('message', function(e) {
 * the first contacted node is picked at random from group file
 **/
 async function displayRandomness() {
-  if (window.identity == "") {
-    findFirstNode();
-    while (window.identity == "") {
-      await sleep(1);
-    }
-  }
+  window.identity = window.identity || await findFirstNode();
   startProgressBar();
   //print randomness and update verfified status
-  window.worker.postMessage({
-      cmd: fetchCommand, 
-      identity: window.identity,
-      distkey: window.distkey,
-      round: drandjs.latestRound,
-  });
+  console.log("display.js fecthing randomness - from ", window.identity);
+  requestFetch(window.identity, window.distkey);
+  printNodesList(window.identity);
+}
 
-  /*drandjs.fetchAndVerify(window.identity, window.distkey, drandjs.latestRound)*/
-  //.then(function (fulfilled) {
-      //console.log("fullfilled: ",fulfilled);
-    //window.verified = true;
-    //printRound(fulfilled.randomness, fulfilled.previous, fulfilled.round, "0", true);
-  //})
-  //.catch(function (error) {
-      //console.log("NOT fullfilled: ",error);
-    //window.verified = false;
-    //printRound(error.randomness, error.previous, error.round, "0", false);
-  /*});*/
-  printNodesList();
+function requestFetch(id, dist, round) {
+    setButtonInProgress();
+    if (round == null) {
+        setRound("fetching latest round...");
+    } else {
+        setRound(round);
+    }
+    setRandomness("...\n...");
+    window.worker.postMessage({
+      cmd: fetchCommand, 
+      identity: id,
+      distkey: dist,
+      round: round, 
+    });
 }
 
 /**
@@ -77,25 +95,29 @@ function startProgressBar() {
   }
 }
 
-/**
-* printRound formats and prints the given randomness with interactions
-**/
-function printRound(randomness, previous, round, signature, verified) {
-  if (round <= currRound || round == undefined || randomness == undefined || previous == undefined || signature == undefined) {
-    return
-  }
-  currRound = round;
-
-  //print randomness as current
+function setRandomness(str) {
   var p = document.createElement("pre");
+    var textnode = document.createTextNode(str);
+  p.appendChild(textnode);
+  latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+  return p;
+}
+
+function sliceRandomness(randomness) {
   var quarter = Math.ceil(randomness.length/2);
   var s1 = randomness.slice(0, quarter);
   var s2 = randomness.slice(quarter, 2*quarter);
   var randomness_4lines =  s1 + '\n' + s2;
-  var textnode = document.createTextNode(randomness_4lines);
-  p.appendChild(textnode);
-  latestDiv.replaceChild(p, latestDiv.childNodes[0]);
+  return randomness_4lines;
+}
 
+/**
+* printRound formats and prints the given randomness with interactions
+**/
+function printRound(randomness, previous, round, signature, verified) {
+  //print randomness as current
+  var r4l = sliceRandomness(randomness);
+  var p = setRandomness(r4l);
   //print JSON when clicked
   p.onmouseover = function() { p.style.textDecoration = "underline"; p.style.cursor = "pointer"};
   p.onmouseout = function() {p.style.textDecoration = "none";};
@@ -118,134 +140,120 @@ function printRound(randomness, previous, round, signature, verified) {
   }
 
   //index info
-  var p2 = document.createElement("pre");
-  var textnode2 = document.createTextNode(round);
-  p2.appendChild(textnode2);
-  roundDiv.replaceChild(p2, roundDiv.childNodes[0]);
-
-  //refresh verify button
-  refreshVerify();
+  setRound(round);
 }
 
 /**
 * printNodeList prints interactive list of drand nodes
 **/
-function printNodesList() {
-  drandjs.fetchGroup(window.identity).then(group => {
-    nodesListDiv.innerHTML="";
-    var i = 0;
-    while (i < group.nodes.length) {
-      let addr = group.nodes[i].address;
-      let host = addr.split(":")[0];
-      let port = addr.split(":")[1];
-      let tls = group.nodes[i].TLS;
-
-      let line = document.createElement("tr");
-      let statusCol = document.createElement("td");
-      isUp(addr, tls)
-      .then((rand) => {
-        statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; ✔️ </td>';
-        statusCol.style.color= "transparent";
-        statusCol.style.textShadow= "0 0 0 green";
-        console.log(addr," is  up");
-      })
-      .catch((err) => {
-          statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';
-          console.log(addr," is NOT up",err);
-      });
-      line.appendChild(statusCol);
-
-      let addrCol = document.createElement("td");
-      addrCol.innerHTML = '<td>' + host + '</td>';
-      addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
-      addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
-      addrCol.onclick = function() {
-        window.identity = {Address: addr, TLS: tls};
-        refresh();
-      };
-      line.appendChild(addrCol);
-
-      let portCol = document.createElement("td");
-      portCol.innerHTML = '<td>' +port+'</td>';
-      line.appendChild(portCol);
-
-      let tlsCol = document.createElement("td");
-      tlsCol.innerHTML = '<td> non tls </td>';
-      if (tls) {
-        tlsCol.innerHTML = '<td> tls </td>';
-      }
-      line.appendChild(tlsCol);
-
-      var loc = locationMap.get(host);
-      if (loc == undefined) { //did not fill map loc yet
-        function handleResponse(json) {
-          locationMap.set(host, json.country_code2);
-          refresh();
-        }
-        getLoc(host, handleResponse);
-      }
-      loc = locationMap.get(host);
-      if (loc == undefined) {
-        loc = " ";
-      }
-      let countryCol = document.createElement("td");
-      countryCol.innerHTML = '<td>' + loc + '</td>';
-      line.appendChild(countryCol);
-
-      let linkCol = document.createElement("td");
-      linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" href="https://' + addr + '/api/public"><i class="fas fa-external-link-alt"></i></a></td>';
-      linkCol.style.textAlign="center";
-      line.appendChild(linkCol);
-
-      if (addr == window.identity.Address) {
-        line.style.fontWeight="bold";
-      }
-      nodesListDiv.appendChild(line);
-      i = i + 1;
+async function printNodesList(identity) {
+    var group = undefined;
+    try {
+        group = await drandjs.fetchGroup(identity);
+    } catch (e) {
+        console.error("printNodesList coult not fetch group from ",identity,":",e);
+        return;
     }
-  }).catch(error => console.error('Could not fetch group:', error))
+    nodesListDiv.innerHTML="";
+    for(var i = 0; i < group.nodes.length; i++) {
+        let addr = group.nodes[i].address;
+        let host = addr.split(":")[0];
+        let port = addr.split(":")[1];
+        // when not present, assume not TLS
+        // gRPC or golang/json doesn't put TLS field when false...
+        let tls = group.nodes[i].TLS || false;
+
+        let line = document.createElement("tr");
+        let statusCol = document.createElement("td");
+        // run them in parallel
+        isUp(addr, tls).then((rand) => {
+            statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; ✔️ </td>';
+            statusCol.style.color= "transparent";
+            statusCol.style.textShadow= "0 0 0 green";
+            console.log(addr," is  up");
+        }).catch(() => {
+            statusCol.innerHTML = '<td> &nbsp;&nbsp;&nbsp; 🚫 </td>';
+        });
+    
+        line.appendChild(statusCol);
+
+        let addrCol = document.createElement("td");
+        addrCol.innerHTML = '<td>' + host + '</td>';
+        addrCol.onmouseover = function() { addrCol.style.textDecoration = "underline"; };
+        addrCol.onmouseout = function() {addrCol.style.textDecoration = "none";};
+        addrCol.onclick = function() {
+          window.identity = {Address: addr, TLS: tls};
+          refresh();
+        };
+        line.appendChild(addrCol);
+
+        let portCol = document.createElement("td");
+        portCol.innerHTML = '<td>' +port+'</td>';
+        line.appendChild(portCol);
+
+        let tlsCol = document.createElement("td");
+        tlsCol.innerHTML = '<td> non tls </td>';
+        if (tls) {
+          tlsCol.innerHTML = '<td> tls </td>';
+        }
+        line.appendChild(tlsCol);
+
+        var loc = locationMap.get(host);
+        if (loc == undefined) { //did not fill map loc yet
+          function handleResponse(json) {
+            locationMap.set(host, json.country_code2);
+            refresh();
+          }
+          getLoc(host, handleResponse);
+        }
+        loc = locationMap.get(host);
+        if (loc == undefined) {
+          loc = " ";
+        }
+        let countryCol = document.createElement("td");
+        countryCol.innerHTML = '<td>' + loc + '</td>';
+        line.appendChild(countryCol);
+
+        let linkCol = document.createElement("td");
+        linkCol.innerHTML = '<td><a title="https://' + addr + '/api/public" href="https://' + addr + '/api/public"><i class="fas fa-external-link-alt"></i></a></td>';
+        linkCol.style.textAlign="center";
+        line.appendChild(linkCol);
+
+        if (addr == window.identity.Address) {
+          line.style.fontWeight="bold";
+        }
+        nodesListDiv.appendChild(line);
+    }
 }
 
 /**
 * isUp decides if node is reachable by trying to fetch randomness
 **/
-function isUp(addr, tls) {
-  return new Promise(function(resolve, reject) {
-    drandjs.fetchLatest({Address: addr, TLS: tls})
-    .then((r) => { console.log(addr," is up"); return Promise.resolve(r); })
-    .then((rand) => {resolve(true);})
-    .catch((error) => {reject(false);});
-  });
+async function isUp(addr, tls) {
+    try {
+        await drandjs.fetchLatest({Address: addr, TLS: tls})
+        console.log(addr," is up !");
+        return true;
+    } catch (e) {
+        console.log(addr, ": error reaching out: ",e);
+        throw e;
+    }
 }
 
 /**
 * goToPrev navigates to previous randomness output
 **/
 function goToPrev() {
-  if (currRound == 0) {
-    return
-  }
-  currRound -= 2;
-  round = currRound + 1;
+  var round = getRound() - 1;
   //stop the 60s chrono and progress bar
   window.clearInterval(id);
   window.clearInterval(idBar);
   var elem = document.getElementById("myBar");
   elem.style.width = 0 + '%';
   //print previous rand
-  window.worker.postMessage({
-      cmd: fetchCommand, 
-      identity: window.identity,
-      distkey: window.distkey,
-      round: round,
-  });
-  /*drandjs.fetchAndVerify(window.identity, window.distkey, round)*/
-  //.then(function (fulfilled) {
-    //printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
-  //})
-  //.catch(function (error) {
-    //printRound(error.randomness, error.previous, round, "0", false);
-  /*});*/
+  
+  console.log("display.js fetching previous randomness");
+  requestFetch(window.identity, window.distkey,round);
 }
 
 /**
@@ -253,37 +261,21 @@ function goToPrev() {
 **/
 function goToNext() {
   getLatestIndex().then((latestRound) => {
-    if (currRound == latestRound) {
+    if (getRound() == latestRound) {
+      console.log("display.js: goToNext returns since already at latest round");
       //we cannot go further
       return
     }
-    if (currRound + 1 == latestRound) {
-      //sync with latest randomness
-      refresh();
-      return
-    }
     //update index
-    round = currRound + 1;
+    var round = getRound() + 1;
     //stop the 60s chrono and progress bar
     window.clearInterval(id);
     window.clearInterval(idBar);
     var elem = document.getElementById("myBar");
     elem.style.width = 0 + '%';
     //print next rand
-    window.worker.postMessage({
-      cmd: fetchCommand, 
-      identity: window.identity,
-      distkey: window.distkey,
-      round: round,
-  });
-
-/*    drandjs.fetchAndVerify(window.identity, window.distkey, round)*/
-    //.then(function (fulfilled) {
-      //printRound(fulfilled.randomness, fulfilled.previous, round, "0", true);
-    //})
-    //.catch(function (error) {
-      //printRound(error.randomness, error.previous, round, "0", false);
-    /*});*/
+    console.log("display.js sending command to fetch next round",round);
+    requestFetch( window.identity, window.distkey,round);
   });
 }
 
@@ -307,46 +299,63 @@ function getLatestIndex() {
 }
 
 /**
-* checkVerify checks if randomness was verified and changes button to ok or
-* nope, refreshVerify puts button back to default
+* setVerified sets the msg for the button and sets the icon depending on the
+* correct argument
 **/
-function checkVerify(key) {
-  if (window.verified) {
-    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-check"></i> &nbsp; verified using drandjs </a>';
+function setVerified(correct, msg) {
+  if (correct) {
+    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-check"></i> &nbsp; randomness verified </a>';
   } else {
-    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-times"></i> &nbsp; drandjs could not verify this randomness against the distributed key</a>';
+    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-times"></i> &nbsp; ' + msg + ' </a>';
   }
 }
 
-function refreshVerify() {
-  verifyButton.innerHTML = '<a class="button alt solid small" onclick="checkVerify()">Verify</a>';
+function setButtonInProgress() {
+    verifyButton.innerHTML = '<a class="button alt icon solid small"> <i class="fas fa-cog"></i> &nbsp; Randomness being fetched and verified ... </a>';
 }
 
+function setRound(round) {
+  var p2 = document.createElement("pre");
+  var textnode2 = document.createTextNode(round);
+  p2.appendChild(textnode2);
+  roundDiv.replaceChild(p2, roundDiv.childNodes[0]);
+}
+
+function getRound() {
+  return parseInt(roundDiv.childNodes[0].innerText);
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1)); // random index from 0 to i
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
 /**
 * findFirstNode picks a first node to contact at random from the up servers
 * starts by reading last configuration file from github repo, filters the
 * addresses and tries until success to contact a server with tls from the pool
 **/
-function findFirstNode() {
-  fetch('https://raw.githubusercontent.com/dedis/drand/master/deploy/latest/group.toml')
-  .then(function(response) {
-    response.text()
-    .then((text) => {
-      let addrList = Object.values(text.split('\n')).filter(str => str.includes("Address")).map(item => item.substring(13, item.length - 1));
-      let rndId = Math.floor(Math.random() * addrList.length);
-      isUp(addrList[rndId], true)
-      .then((result) => {
-        window.identity = {Address: addrList[rndId], TLS: true};
-        return
-      })
-      .catch((err) => {
-        findFirstNode();
-      });
-    });
-  })
-  .catch(err => {
-    alert("could not get the group from github, reload the page");
-  });
+async function findFirstNode() {
+  try {
+    const resp = await fetch('https://raw.githubusercontent.com/dedis/drand/master/deploy/latest/group.toml')
+    const text = await resp.text();
+    const addrList = Object.values(text.split('\n')).filter(str => str.includes("Address")).map(item => item.substring(13, item.length - 1));
+    const shuffled = shuffle(addrList);
+    for (var i =0; i < shuffled.length; i++) {
+        const addr = addrList[shuffled];
+        try {
+            // try by default TLS nodes if we haven't got any
+            await isUp(addr,true);
+            console.log(addr, "is UP!");
+            return addr;
+        } catch (e) {
+            console.log(e);
+        }
+    }
+  } catch (e) {
+    alert(`could not get the group from github, reload the page:\n ${e}`);
+  }
 }
 
 /**
@@ -360,6 +369,7 @@ function sleep(ms) {
 * getLoc communicates with dns-js.com and geoIP.com APIs
 **/
 function getLoc(domain, callback) {
+  return;
   var xhr = new XMLHttpRequest();
   URL = "https://www.dns-js.com/api.aspx";
   xhr.open("POST", URL);
