@@ -28,6 +28,7 @@ type Config struct {
 	dkgTimeout   time.Duration
 	boltOpts     *bolt.Options
 	beaconCbs    []func(*beacon.Beacon)
+	dkgCallback  func(*key.Share)
 	insecure     bool
 	certPath     string
 	keyPath      string
@@ -103,6 +104,12 @@ func (d *Config) callbacks(b *beacon.Beacon) {
 	}
 }
 
+func (d *Config) applyDkgCallback(share *key.Share) {
+	if d.dkgCallback != nil {
+		d.dkgCallback(share)
+	}
+}
+
 // WithGrpcOptions applies grpc dialling option used when a drand node actively
 // contacts another.
 func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
@@ -153,6 +160,14 @@ func WithConfigFolder(folder string) ConfigOption {
 func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
 	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
+	}
+}
+
+// WithDKGCallback sets a function that is called when the DKG finishes. It
+// passes in the share of this node and the distributed public key generated.
+func WithDKGCallback(fn func(*key.Share)) ConfigOption {
+	return func(d *Config) {
+		d.dkgCallback = fn
 	}
 }
 
