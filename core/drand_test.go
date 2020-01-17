@@ -377,62 +377,50 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.TestPublicBeacon(dt.ids[0])
 }
 
+// Check they all have same public group file after dkg
 func TestDrandPublicGroup(t *testing.T) {
-
-	n := 5
+	n := 10
 	thr := key.DefaultThreshold(n)
+	p := 200 * time.Millisecond
+	dt := NewDrandTest(t, n, thr, p)
+	defer dt.Cleanup()
+	dt.RunDKG()
 
-	// create n shares
-	_, dpub := test.SimulateDKG(t, key.KeyGroup, n, thr)
-	period := 1000 * time.Millisecond
-
-	// instantiating all drands already
-	drands, _, dir := BatchNewDrand(n, true)
-	defer CloseAllDrands(drands)
-	defer os.RemoveAll(dir)
-
-	// listing all new ids
-	ids := make([]*key.Identity, n)
-	for i, d := range drands {
-		ids[i] = d.priv.Public
-		drands[i].idx = i
-	}
-
-	// creating old group from subset of ids
-	group1 := key.LoadGroup(ids, &key.DistPublic{Coefficients: dpub}, thr)
-	group1.Period = period
-	path := path.Join(dir, "group.toml")
-	require.NoError(t, key.Save(path, group1, false))
-
-	gtoml := group1.TOML().(*key.GroupTOML)
-
-	for i := range drands {
-		// so old drand nodes "think" it has already ran a dkg
-		drands[i].group = group1
-		drands[i].dkgDone = true
-	}
-
-	client := NewGrpcClient()
-	rest := net.NewRestClient()
-	for _, d := range drands {
+	//client := NewGrpcClient()
+	cm := dt.drands[dt.ids[0]].opts.certmanager
+	client := NewGrpcClientFromCert(cm)
+	rest := net.NewRestClientFromCertManager(cm)
+	var group *drand.GroupResponse
+	for i, id := range dt.ids {
+		d := dt.drands[id]
 		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
-		require.NoError(t, err)
+		require.NoError(t, err, fmt.Sprintf("idx %d: addr %s", i, id))
+		if group == nil {
+			group = groupResp
+		}
+		require.Equal(t, uint32(group.Period), groupResp.Period)
+		require.Equal(t, uint32(group.Threshold), groupResp.Threshold)
+		require.Equal(t, group.Distkey, groupResp.Distkey)
+		require.Len(t, groupResp.Nodes, len(group.Nodes))
 
-		require.Equal(t, uint32(group1.Period), groupResp.Period*1e6)
-		require.Equal(t, uint32(group1.Threshold), groupResp.Threshold)
-		require.Equal(t, gtoml.PublicKey.Coefficients, groupResp.Distkey)
-		require.Len(t, groupResp.Nodes, len(group1.Nodes))
-		for i, n := range group1.Nodes {
-			n2 := groupResp.Nodes[i]
-			require.Equal(t, n.Addr, n2.Address)
-			require.Equal(t, gtoml.Nodes[i].Key, n2.Key)
-			require.Equal(t, n.TLS, n2.TLS)
+		nodes := groupResp.GetNodes()
+		for addr, d := range dt.drands {
+			var found bool
+			for _, n := range nodes {
+				sameAddr := n.GetAddress() == addr
+				sameKey := n.GetKey() == key.PointToString(d.priv.Public.Key)
+				sameTLS := n.GetTLS() == d.priv.Public.TLS
+				if sameAddr && sameKey && sameTLS {
+					found = true
+					break
+				}
+			}
+			require.True(t, found)
 		}
 		restGroup, err := rest.Group(d.priv.Public, &drand.GroupRequest{})
 		require.NoError(t, err)
 		require.Equal(t, groupResp, restGroup)
 	}
-
 }
 
 // BatchNewDrand returns n drands, using TLS or not, with the given
