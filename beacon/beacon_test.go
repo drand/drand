@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -212,6 +211,19 @@ func deleteBoltStores(prefix string) {
 	os.RemoveAll(prefix)
 }
 
+func checkWait(counter *sync.WaitGroup) {
+	var doneCh = make(chan bool, 1)
+	go func() {
+		counter.Wait()
+		doneCh <- true
+	}()
+	select {
+	case <-doneCh:
+		break
+	case <-time.After(1 * time.Second):
+		panic("outdated beacon time")
+	}
+}
 func TestBeaconSimple(t *testing.T) {
 	n := 5
 	thr := 5/2 + 1
@@ -240,28 +252,14 @@ func TestBeaconSimple(t *testing.T) {
 		bt.StartBeacon(i, false)
 	}
 
-	checkWait := func() {
-		var doneCh = make(chan bool, 1)
-		go func() {
-			counter.Wait()
-			doneCh <- true
-		}()
-		select {
-		case <-doneCh:
-			break
-		case <-time.After(1 * time.Second):
-			panic("outdated beacon time")
-		}
-	}
-
 	// check 1 period
 	bt.MovePeriod(1)
-	checkWait()
+	checkWait(counter)
 
 	// check 2 period
 	counter.Add(n)
 	bt.MovePeriod(1)
-	checkWait()
+	checkWait(counter)
 }
 
 func TestBeaconThreshold(t *testing.T) {
@@ -272,14 +270,13 @@ func TestBeaconThreshold(t *testing.T) {
 	bt := NewBeaconTest(n, thr, period)
 	defer bt.CleanUp()
 
-	var counter uint64
+	var counter = &sync.WaitGroup{}
 	myCallBack := func(b *Beacon) {
 		// verify partial sig
 		msg := Message(b.PreviousSig, b.Round)
 		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 		require.NoError(t, err)
-		// increase counter
-		atomic.AddUint64(&counter, 1)
+		counter.Done()
 	}
 
 	for i := 0; i < n; i++ {
@@ -292,13 +289,12 @@ func TestBeaconThreshold(t *testing.T) {
 		bt.StartBeacon(i, false)
 	}
 
+	counter.Add(n - 1)
 	bt.MovePeriod(1)
-	v := int(atomic.LoadUint64(&counter))
-	require.Equal(t, n-1, v)
+	checkWait(counter)
 
 	bt.StartBeacon(n-1, true)
-
+	counter.Add(n)
 	bt.MovePeriod(1)
-	v = int(atomic.LoadUint64(&counter))
-	require.Equal(t, n*2-1, v)
+	checkWait(counter)
 }
