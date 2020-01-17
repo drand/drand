@@ -15,12 +15,10 @@ env:
 # https://arslan.io/2018/08/26/using-go-modules-with-vendor-support-on-travis-ci/
 install: true
 
-before_script: 
-    - docker build -t drand-it . #docker-compose should be self-sufficient, but fails on travis...
-
 script:
     - make test-unit
     # keep environnement variable for sudo
+    - docker build -t drand-it . #docker-compose should be self-sufficient, but fails on travis...
     - sudo -E env "PATH=$PATH" make test-integration
 
 after_success:
