@@ -241,11 +241,14 @@ func TestBeaconSimple(t *testing.T) {
 
 	// check 1 period
 	bt.MovePeriod(1)
+	// Travis ...
+	time.Sleep(100 * time.Millisecond)
 	v := int(atomic.LoadUint64(&counter))
 	require.Equal(t, n, v)
 
 	// check 2 period
 	bt.MovePeriod(1)
+	time.Sleep(100 * time.Millisecond)
 	v = int(atomic.LoadUint64(&counter))
 	require.Equal(t, n*2, v)
 }
