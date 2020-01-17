@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -219,14 +220,14 @@ func TestBeaconSimple(t *testing.T) {
 	bt := NewBeaconTest(n, thr, period)
 	defer bt.CleanUp()
 
-	var counter uint64
+	var counter = &sync.WaitGroup{}
+	counter.Add(n)
 	myCallBack := func(b *Beacon) {
 		// verify partial sig
 		msg := Message(b.PreviousSig, b.Round)
 		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 		require.NoError(t, err)
-		// increase counter
-		atomic.AddUint64(&counter, 1)
+		counter.Done()
 	}
 
 	for i := 0; i < n; i++ {
@@ -239,18 +240,28 @@ func TestBeaconSimple(t *testing.T) {
 		bt.StartBeacon(i, false)
 	}
 
+	checkWait := func() {
+		var doneCh = make(chan bool, 1)
+		go func() {
+			counter.Wait()
+			doneCh <- true
+		}()
+		select {
+		case <-doneCh:
+			break
+		case <-time.After(1 * time.Second):
+			panic("outdated beacon time")
+		}
+	}
+
 	// check 1 period
 	bt.MovePeriod(1)
-	// Travis ...
-	time.Sleep(100 * time.Millisecond)
-	v := int(atomic.LoadUint64(&counter))
-	require.Equal(t, n, v)
+	checkWait()
 
 	// check 2 period
+	counter.Add(n)
 	bt.MovePeriod(1)
-	time.Sleep(100 * time.Millisecond)
-	v = int(atomic.LoadUint64(&counter))
-	require.Equal(t, n*2, v)
+	checkWait()
 }
 
 func TestBeaconThreshold(t *testing.T) {
