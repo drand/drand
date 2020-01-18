@@ -6,7 +6,6 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/benbjohnson/clock v1.0.0
 	github.com/coreos/bbolt v1.3.2
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dchest/blake2b v1.0.0
 	github.com/drand/bls12-381 v0.0.0-20200110233355-faca855b3a67
 	github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2
@@ -27,3 +26,5 @@ require (
 	google.golang.org/genproto v0.0.0-20200108215221-bd8f9a0ef82f
 	google.golang.org/grpc v1.26.0
 )
+
+replace github.com/drand/kyber => /home/nalos/prog/drand/drand/../kyber

@@ -135,7 +135,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	// 2- we dont catch up at least with invalid signature
 	msg := Message(p.PreviousSig, p.Round)
 	if err := h.conf.Scheme.VerifyPartial(h.pub, msg, p.PartialSig); err != nil {
-		h.l.Error("process_beacon", err, "from", peer)
+		h.l.Error("process_beacon", err, "from", peer.Addr.String())
 		return nil, err
 	}
 
@@ -167,6 +167,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 // outdated or far-in-the-future round. This is a starting point.
 //func (h *Handler) Loop(seed []byte, period time.Duration, catchup bool) {
 func (h *Handler) Run(period time.Duration, catchup bool) {
+	h.l.Info("beacon", "start")
 	var goToNextRound = true // need to start one round anyway
 	var currentRoundFinished bool
 
@@ -356,6 +357,7 @@ func (h *Handler) Stop() {
 	}
 	close(h.close)
 	h.store.Close()
+	h.l.Info("beacon", "stop")
 }
 
 // nextRound increase the round counter and evicts the cache from old entries.

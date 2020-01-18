@@ -170,17 +170,17 @@ func (g *Group) TOMLValue() interface{} {
 // MergeGroup returns a NEW group with both list of identities combined,
 // the maximum between the default threshold and the group's threshold,
 // and with the same period as the group.
-func (g *Group) MergeGroup(list []*Identity) *Group {
-	thr := DefaultThreshold(len(list) + g.Len())
-	if thr < g.Threshold {
-		thr = g.Threshold
-	}
-	return &Group{
-		Nodes:     append(g.Identities(), list...),
-		Threshold: thr,
-		Period:    g.Period,
-	}
-}
+/*func (g *Group) MergeGroup(list []*Identity) *Group {*/
+//thr := DefaultThreshold(len(list) + g.Len())
+//if thr < g.Threshold {
+//thr = g.Threshold
+//}
+//return &Group{
+//Nodes:     append(g.Identities(), list...),
+//Threshold: thr,
+//Period:    g.Period,
+//}
+/*}*/
 
 // NewGroup returns a list of identities as a Group.
 func NewGroup(list []*Identity, threshold int) *Group {

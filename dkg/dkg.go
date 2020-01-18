@@ -222,6 +222,7 @@ func (h *Handler) QualifiedGroup() *key.Group {
 		newGroup = append(newGroup, ids[idx])
 	}
 
+	fmt.Println(h.share)
 	return key.LoadGroup(newGroup, &key.DistPublic{Coefficients: h.share.Commits}, h.conf.NewNodes.Threshold)
 }
 

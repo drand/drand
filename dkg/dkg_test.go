@@ -287,7 +287,10 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 			errCh := h.WaitError()
 			exitCh := h.WaitExit()
 			select {
-			case <-shareCh:
+			case sh := <-shareCh:
+				if sh.Commits == nil {
+					panic("nil share")
+				}
 				doneCh <- n.pub.Address()
 			case <-exitCh:
 			case err := <-errCh:
@@ -410,7 +413,9 @@ func TestDKGWithTimeout(t *testing.T) {
 	time.Sleep(700 * time.Millisecond)
 	// trigger timeout immediatly
 	dt.MoveTime(timeout * 2)
-	keys, _ := dt.WaitFinish(alive)
+	keys, timeouted := dt.WaitFinish(alive)
+	// dkg should have finished,
+	require.False(t, timeouted)
 	require.True(t, dt.CheckIncludedQUAL(keys))
 }
 

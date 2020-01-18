@@ -158,6 +158,10 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, err
 	}
 
+	// stop the beacon before running the dkg to avoid running into sync issues
+	// of using the new shares with the old beacon, etc.
+	d.StopBeacon()
+
 	if oldPresent && in.GetIsLeader() {
 		// only the root sends a pre-message to the other old
 		// nodes and start the DKG
@@ -166,13 +170,14 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if err := d.WaitDKG(); err != nil {
 		return nil, err
 	}
+	fmt.Println("TEST - FINISHED DKG")
 	// stop the beacon first, then re-create it with the new shares
-	// i.e. the current beacon is still running alongside with the
-	// new DKG but
-	// stops as soon as the new DKG finishes.
-	d.StopBeacon()
 	d.initBeacon()
-	time.Sleep(500 * time.Millisecond)
+	fmt.Println("TEST - FINISHED DKG #2")
+	// XXX completely arbritrary timeout to wait for the other so they finish it
+	// too
+	d.opts.clock.Sleep(500 * time.Millisecond)
+	fmt.Println("TEST - FINISHED DKG #3")
 	catchup := true
 	if oldPresent {
 		catchup = false
@@ -297,7 +302,9 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*c
 	if err != nil {
 		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
 	}
-	return &drand.GroupTOMLResponse{GroupToml: buff.String()}, nil
+	groupStr := buff.String()
+	fmt.Println("DRAND.Group: ", groupStr)
+	return &drand.GroupTOMLResponse{GroupToml: groupStr}, nil
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

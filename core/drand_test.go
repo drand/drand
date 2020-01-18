@@ -13,12 +13,14 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/BurntSushi/toml"
 	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	"github.com/drand/kyber"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -26,212 +28,79 @@ import (
 func TestDrandDKGReshareTimeout(t *testing.T) {
 	oldN := 5 // 4 / 5
 	newN := 6 // 5 / 6
-	oldT := key.DefaultThreshold(oldN)
-	newT := key.DefaultThreshold(newN)
-	timeout := "3s"
+	oldThr := key.DefaultThreshold(oldN)
+	newThr := key.DefaultThreshold(newN)
+	timeoutStr := "200ms"
+	timeout, _ := time.ParseDuration(timeoutStr)
+	period := 300 * time.Millisecond
 	offline := 1 // can't do more anyway with a 2/3 + 1 threshold
-	fmt.Printf("%d/%d -> %d/%d\n", oldT, oldN, newT, newN)
 
-	// create n shares
-	shares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
-	period := 1000 * time.Millisecond
-
-	// instantiating all drands already
-	drands, _, dir := BatchNewDrand(newN, false,
-		WithCallOption(grpc.FailFast(true)))
-	defer CloseAllDrands(drands)
-	defer os.RemoveAll(dir)
-
-	// listing all new ids
-	ids := make([]*key.Identity, newN)
-	for i, d := range drands {
-		ids[i] = d.priv.Public
-		drands[i].idx = i
+	dt := NewDrandTest(t, oldN, oldThr, period)
+	defer dt.Cleanup()
+	dt.RunDKG()
+	pubShare := func(s *key.Share) kyber.Point {
+		return key.KeyGroup.Point().Mul(s.Share.V, nil)
+	}
+	for _, drand := range dt.drands {
+		pk := drand.priv.Public
+		idx, ok := dt.group.Index(pk)
+		require.True(t, ok)
+		fmt.Printf("idx: %d : pubkey %s\n\t - pub share: %s\n\n", idx, pk.Key.String(), pubShare(drand.share).String())
 	}
 
-	// creating old group from subset of ids
-	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{Coefficients: dpub}, oldT)
-	oldGroup.Period = period
-	oldPath := path.Join(dir, "oldgroup.toml")
-	require.NoError(t, key.Save(oldPath, oldGroup, false))
+	dt.SetupReshare(oldN-offline, newN-oldN, newThr)
 
-	for i := range drands[:oldN] {
-		// so old drand nodes "think" it already ran a dkg a first time.
-		drands[i].group = oldGroup
-		drands[i].dkgDone = true
-	}
-
-	// creating the new group from the whole set of keys
-	shuffledIds := make([]*key.Identity, len(ids))
-	copy(shuffledIds, ids)
-	// shuffle with random swaps
-	for i := 0; i < len(ids)*3; i++ {
-		i1 := rand.Intn(len(ids))
-		i2 := rand.Intn(len(ids))
-		shuffledIds[i1], shuffledIds[i2] = shuffledIds[i2], shuffledIds[i1]
-	}
-	newGroup := key.NewGroup(shuffledIds, newT)
-	newGroup.Period = period
-	newPath := path.Join(dir, "newgroup.toml")
-	require.NoError(t, key.Save(newPath, newGroup, false))
-
-	fmt.Printf("oldGroup: %v\n", oldGroup.String())
-	fmt.Printf("newGroup: %v\n", newGroup.String())
-	fmt.Printf("offline nodes: ")
-	for _, d := range drands[1 : 1+offline] {
-		fmt.Printf("%s -", d.priv.Public.Addr)
-	}
-	fmt.Println()
-	var wg sync.WaitGroup
-	wg.Add(newN - 1 - offline)
-	// skip the offline ones and the "first" (as leader)
-	for i, drand := range drands[1+offline:] {
-		go func(d *Drand, j int) {
-			if d.idx < oldN {
-				// simulate share material for old node
-				ks := &key.Share{
-					Share:   shares[d.idx],
-					Commits: dpub,
-				}
-				d.share = ks
-			}
-
-			// instruct to be ready for a reshare
-			client, err := net.NewControlClient(d.opts.controlPort)
-			require.NoError(t, err)
-			_, err = client.InitReshare(oldPath, newPath, false, timeout)
-			fmt.Printf("drand %s: %v\n", d.priv.Public.Addr, err)
-			require.NoError(t, err)
-			wg.Done()
-		}(drand, i)
-	}
-	// let a bit of time so everybody has performed the initreshare
-	time.Sleep(100 * time.Millisecond)
-	dkgDone := make(chan bool, 1)
+	// run the resharing
+	var doneReshare = make(chan bool, 1)
 	go func() {
-		ks := key.Share{
-			Share:   shares[0],
-			Commits: dpub,
-		}
-		root := drands[0]
-		root.share = &ks
-		//err := root.StartDKG(c)
-		client, err := net.NewControlClient(root.opts.controlPort)
-		require.NoError(t, err)
-		_, err = client.InitReshare(oldPath, newPath, true, timeout)
-		require.NoError(t, err)
-		dkgDone <- true
+		dt.RunReshare(oldN-offline, newN-oldN, timeoutStr)
+		doneReshare <- true
 	}()
-
-	tt, _ := time.ParseDuration(timeout)
-	var timeoutDone bool
-	select {
-	case <-dkgDone:
-		require.True(t, timeoutDone)
-	case <-time.After(tt - 500*time.Millisecond):
-		timeoutDone = true
+	checkDone := func() bool {
+		select {
+		case <-doneReshare:
+			return true
+		default:
+			return false
+		}
 	}
+	// check it is not done yet
+	require.False(t, checkDone())
 
-	wg.Wait()
-
-}
-
-func TestDrandDKGReshare(t *testing.T) {
-
-	oldN := 5
-	newN := 6
-	oldT := key.DefaultThreshold(oldN)
-	newT := key.DefaultThreshold(newN)
-
-	// create n shares
-	shares, dpub := test.SimulateDKG(t, key.KeyGroup, oldN, oldT)
-	period := 1000 * time.Millisecond
-
-	// instantiating all drands already
-	drands, _, dir := BatchNewDrand(newN, false,
-		WithCallOption(grpc.FailFast(true)))
-	defer CloseAllDrands(drands)
-	defer os.RemoveAll(dir)
-
-	// listing all new ids
-	ids := make([]*key.Identity, newN)
-	for i, d := range drands {
-		ids[i] = d.priv.Public
-		drands[i].idx = i
-	}
-
-	// creating old group from subset of ids
-	oldGroup := key.LoadGroup(ids[:oldN], &key.DistPublic{Coefficients: dpub}, oldT)
-	oldGroup.Period = period
-	oldPath := path.Join(dir, "oldgroup.toml")
-	require.NoError(t, key.Save(oldPath, oldGroup, false))
-
-	for i := range drands[:oldN] {
-		// so old drand nodes "think" it has already ran a dkg
-		drands[i].group = oldGroup
-		drands[i].dkgDone = true
-	}
-
-	newGroup := key.NewGroup(ids, newT)
-	newGroup.Period = period
-	newPath := path.Join(dir, "newgroup.toml")
-	require.NoError(t, key.Save(newPath, newGroup, false))
-
-	var wg sync.WaitGroup
-	wg.Add(newN - 1)
-	for i, drand := range drands[1:] {
-		go func(d *Drand, j int) {
-			if d.idx < oldN {
-				// simulate share material for old node
-				ks := &key.Share{
-					Share:   shares[d.idx],
-					Commits: dpub,
-				}
-				d.share = ks
-			}
-
-			// instruct to be ready for a reshare
-			client, err := net.NewControlClient(d.opts.controlPort)
-			require.NoError(t, err)
-			_, err = client.InitReshare(oldPath, newPath, false, "")
-			require.NoError(t, err)
-			wg.Done()
-		}(drand, i)
-	}
-
-	ks := key.Share{
-		Share:   shares[0],
-		Commits: dpub,
-	}
-	root := drands[0]
-	root.share = &ks
-	//err := root.StartDKG(c)
-	client, err := net.NewControlClient(root.opts.controlPort)
-	require.NoError(t, err)
-	_, err = client.InitReshare(oldPath, newPath, true, "")
-	require.NoError(t, err)
-	//err = root.WaitDKG()
-	//require.NoError(t, err)
-	wg.Wait()
-
+	// advance time to the timeout
+	dt.MoveTime(timeout)
+	// give time to finish for the go routines and such
+	time.Sleep(100 * time.Millisecond)
+	// give time for the custom delay introduced for syncing
+	dt.MoveTime(5000 * time.Millisecond)
+	//time.Sleep(100 * time.Millisecond)
+	require.True(t, checkDone())
 }
 
 type DrandTest struct {
-	t         *testing.T
-	n         int
-	thr       int
-	dir       string
-	drands    map[string]*Drand
-	group     *key.Group
-	groupPath string
-	period    time.Duration
-	ids       []string
-	shares    map[string]*key.Share
-	clock     *clock.Mock
+	t            *testing.T
+	n            int
+	thr          int
+	dir          string
+	newDir       string
+	drands       map[string]*Drand
+	newDrands    map[string]*Drand
+	group        *key.Group
+	newGroup     *key.Group
+	groupPath    string
+	newGroupPath string
+	period       time.Duration
+	ids          []string
+	newIds       []string
+	shares       map[string]*key.Share
+	clock        *clock.Mock
+	certPaths    []string
+	newCertPaths []string
 }
 
 func (d *DrandTest) Cleanup() {
 	os.RemoveAll(d.dir)
+	os.RemoveAll(d.newDir)
 }
 
 func (d *DrandTest) GetBeacon(id string, round int) (*beacon.Beacon, error) {
@@ -241,8 +110,118 @@ func (d *DrandTest) GetBeacon(id string, round int) (*beacon.Beacon, error) {
 	return dd.beaconStore.Get(uint64(round))
 }
 
+// returns new ids generated
+func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
+	newN := keepOld + addNew
+	ids := make([]*key.Identity, 0, newN)
+	newAddr := make([]string, addNew)
+	newDrands, _, newDir, newCertPaths := BatchNewDrand(addNew, false,
+		WithCallOption(grpc.FailFast(true)),
+	)
+	d.newDir = newDir
+	d.newDrands = make(map[string]*Drand)
+	// add old participants
+	for _, id := range d.ids[:keepOld] {
+		drand := d.drands[id]
+		ids = append(ids, drand.priv.Public)
+		for _, cp := range newCertPaths {
+			drand.opts.certmanager.Add(cp)
+		}
+
+	}
+	// add new participants
+	for i, drand := range newDrands {
+		ids = append(ids, drand.priv.Public)
+		newAddr[i] = drand.priv.Public.Address()
+		d.newDrands[drand.priv.Public.Address()] = drand
+		d.setCallbacks(drand)
+		for _, cp := range d.certPaths {
+			drand.opts.certmanager.Add(cp)
+		}
+	}
+	d.newIds = newAddr
+
+	//
+
+	shuffledIds := make([]*key.Identity, len(ids))
+	copy(shuffledIds, ids)
+	// shuffle with random swaps
+	for i := 0; i < len(ids)*3; i++ {
+		i1 := rand.Intn(len(ids))
+		i2 := rand.Intn(len(ids))
+		shuffledIds[i1], shuffledIds[i2] = shuffledIds[i2], shuffledIds[i1]
+	}
+
+	d.newGroup = key.NewGroup(shuffledIds, newThr)
+	d.newGroup.Period = d.period
+	fmt.Println("RESHARE GROUP:\n", d.newGroup.String())
+	d.newGroupPath = path.Join(newDir, "newgroup.toml")
+	require.NoError(d.t, key.Save(d.newGroupPath, d.newGroup, false))
+	return newAddr
+}
+
+func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
+	var counter = &sync.WaitGroup{}
+	runreshare := func(dr *Drand, leader bool) {
+		// instruct to be ready for a reshare
+		client, err := net.NewControlClient(dr.opts.controlPort)
+		require.NoError(d.t, err)
+		_, err = client.InitReshare(d.groupPath, d.newGroupPath, leader, timeout)
+		require.NoError(d.t, err)
+		fmt.Printf("TEST: drand %s is done for resharing\n", dr.priv.Public.Address())
+		counter.Done()
+	}
+
+	// take list of old nodes present in new groups
+	var oldNodes []string
+	for _, id := range d.ids {
+		drand := d.drands[id]
+		if d.newGroup.Contains(drand.priv.Public) {
+			oldNodes = append(oldNodes, drand.priv.Public.Address())
+		}
+	}
+
+	// run the old ones
+	// exclude leader
+	counter.Add(oldRun - 1)
+	for _, id := range oldNodes[1:oldRun] {
+		fmt.Println("Launching reshare on old", id)
+		go runreshare(d.drands[id], false)
+	}
+	// stop the rest
+	for _, id := range oldNodes[oldRun:] {
+		d.drands[id].Stop()
+	}
+
+	// run the new ones
+	counter.Add(newRun)
+	for _, id := range d.newIds[:newRun] {
+		fmt.Println("Launching reshare on new", id)
+		go runreshare(d.newDrands[id], false)
+	}
+
+	// run leader
+	fmt.Println("Launching reshare on (old) root", d.ids[0])
+	counter.Add(1)
+	go runreshare(d.drands[oldNodes[0]], true)
+	checkWait(counter)
+}
+
+func checkWait(counter *sync.WaitGroup) {
+	var doneCh = make(chan bool, 1)
+	go func() {
+		counter.Wait()
+		doneCh <- true
+	}()
+	select {
+	case <-doneCh:
+		break
+	case <-time.After(2 * time.Second):
+		panic("outdated beacon time")
+	}
+}
 func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
-	drands, group, dir := BatchNewDrand(n, false,
+	drands, group, dir, certPaths := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)),
 	)
 	group.Period = period
@@ -265,6 +244,7 @@ func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
 		ids:       ids,
 		clock:     clock.NewMock(),
 		shares:    make(map[string]*key.Share),
+		certPaths: certPaths,
 	}
 }
 
@@ -289,6 +269,20 @@ func (d *DrandTest) RunDKG() {
 	_, err = controlClient.InitDKG(d.groupPath, true, "")
 	require.NoError(d.t, err)
 	wg.Wait()
+	resp, err := controlClient.GroupFile()
+	require.NoError(d.t, err)
+	group := new(key.Group)
+	groupToml := new(key.GroupTOML)
+	_, err = toml.Decode(resp.GetGroupToml(), groupToml)
+	require.NoError(d.t, err)
+	require.NoError(d.t, group.FromTOML(groupToml))
+	d.group = group
+	require.Equal(d.t, d.thr, d.group.Threshold)
+	for _, drand := range d.drands {
+		require.True(d.t, d.group.Contains(drand.priv.Public))
+	}
+	require.Len(d.t, d.group.PublicKey.Coefficients, d.thr)
+	require.NoError(d.t, key.Save(d.groupPath, d.group, false))
 }
 
 func (d *DrandTest) setCallbacks(dr *Drand) {
@@ -335,11 +329,11 @@ func (d *DrandTest) MoveTime(p time.Duration) {
 	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 }
 
-func (d *DrandTest) TestBeaconLength(length int, ids ...string) {
+func (d *DrandTest) TestBeaconLength(max int, ids ...string) {
 	for _, id := range ids {
 		drand, ok := d.drands[id]
 		require.True(d.t, ok)
-		require.Less(d.t, drand.beaconStore.Len(), length)
+		require.LessOrEqual(d.t, drand.beaconStore.Len(), max)
 	}
 
 }
@@ -428,7 +422,7 @@ func TestDrandPublicGroup(t *testing.T) {
 // the folder where db, certificates, etc are stored. It is the folder
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
-func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.Group, string) {
+func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.Group, string, []string) {
 	var privs []*key.Pair
 	var group *key.Group
 	if insecure {
@@ -484,7 +478,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 			panic(err)
 		}
 	}
-	return drands, group, dir
+	return drands, group, dir, certPaths
 }
 
 // CloseAllDrands closes all drands
