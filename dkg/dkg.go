@@ -243,6 +243,7 @@ func (h *Handler) startTimer() {
 }
 
 func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
+	localLog := h.l.With("process", "deal")
 	h.dealProcessed++
 	deal := &dkg.Deal{
 		Index:     pdeal.Index,
@@ -255,20 +256,19 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 		},
 	}
 	defer h.processTmpResponses(deal)
-	h.l.Debug("process_deal", deal.Index, "from", h.dealerAddr(deal.Index), "processed", h.dealProcessed, "sent", h.sentDeals)
+	localLog.Debug("from", h.dealerAddr(deal.Index), "processed", h.dealProcessed, "sent", h.sentDeals)
 	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
-		h.l.Error("process_deal", err)
+		localLog.Error("kyber", err)
 		return
 	}
 
 	if !h.sentDeals && h.sendDeal {
-		h.l.Debug("process_deal", "sending deals to others")
+		localLog.Debug("action", "sending_deals")
 		go func() {
 			if err := h.sendDeals(); err != nil {
 				h.errCh <- err
 			}
-			h.l.Debug("process_deal", "sent all deals")
 		}()
 	}
 
@@ -286,7 +286,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 				},
 			},
 		}
-		h.l.Debug("process_deal", "broadcasting responses")
+		localLog.Debug("action", "broadcasting_responses")
 		go h.broadcast(out, true)
 	}
 }
@@ -309,7 +309,8 @@ func (h *Handler) processTmpResponses(deal *dkg.Deal) {
 
 func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 	defer h.checkCertified()
-	localLog := h.l.With("process_response")
+	localLog := h.l.With("process", "response")
+	//h.l.Debug("process_deal", deal.Index, "from", h.dealerAddr(deal.Index),
 	h.respProcessed++
 
 	resp := &dkg.Response{

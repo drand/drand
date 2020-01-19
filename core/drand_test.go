@@ -17,6 +17,7 @@ import (
 	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -65,15 +66,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		}
 	}
 	// check it is not done yet
+	time.Sleep(timeout)
 	require.False(t, checkDone())
 
 	// advance time to the timeout
 	dt.MoveTime(timeout)
 	// give time to finish for the go routines and such
-	time.Sleep(100 * time.Millisecond)
-	// give time for the custom delay introduced for syncing
-	dt.MoveTime(5000 * time.Millisecond)
-	//time.Sleep(100 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 	require.True(t, checkDone())
 }
 
@@ -161,15 +160,19 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
 }
 
 func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
-	var counter = &sync.WaitGroup{}
+	var clientCounter = &sync.WaitGroup{}
+	var dkgCounter = &sync.WaitGroup{}
 	runreshare := func(dr *Drand, leader bool) {
+		dr.opts.dkgCallback = func(*key.Share) {
+			dkgCounter.Done()
+		}
 		// instruct to be ready for a reshare
 		client, err := net.NewControlClient(dr.opts.controlPort)
 		require.NoError(d.t, err)
 		_, err = client.InitReshare(d.groupPath, d.newGroupPath, leader, timeout)
 		require.NoError(d.t, err)
 		fmt.Printf("TEST: drand %s is done for resharing\n", dr.priv.Public.Address())
-		counter.Done()
+		clientCounter.Done()
 	}
 
 	// take list of old nodes present in new groups
@@ -183,7 +186,8 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 
 	// run the old ones
 	// exclude leader
-	counter.Add(oldRun - 1)
+	clientCounter.Add(oldRun - 1)
+	dkgCounter.Add(oldRun - 1)
 	for _, id := range oldNodes[1:oldRun] {
 		fmt.Println("Launching reshare on old", id)
 		go runreshare(d.drands[id], false)
@@ -194,7 +198,8 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 	}
 
 	// run the new ones
-	counter.Add(newRun)
+	clientCounter.Add(newRun)
+	dkgCounter.Add(newRun)
 	for _, id := range d.newIds[:newRun] {
 		fmt.Println("Launching reshare on new", id)
 		go runreshare(d.newDrands[id], false)
@@ -202,9 +207,15 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 
 	// run leader
 	fmt.Println("Launching reshare on (old) root", d.ids[0])
-	counter.Add(1)
+	clientCounter.Add(1)
+	dkgCounter.Add(1)
 	go runreshare(d.drands[oldNodes[0]], true)
-	checkWait(counter)
+	checkWait(dkgCounter)
+	fmt.Printf("\n\n -- TEST FINISHED ALL DKG --\n\n")
+	// add sync time
+	d.clock.Add(1000 * time.Millisecond)
+	// wait for the return of the clients
+	checkWait(clientCounter)
 }
 
 func checkWait(counter *sync.WaitGroup) {
@@ -216,7 +227,7 @@ func checkWait(counter *sync.WaitGroup) {
 	select {
 	case <-doneCh:
 		break
-	case <-time.After(2 * time.Second):
+	case <-time.After(11 * time.Second):
 		panic("outdated beacon time")
 	}
 }
@@ -473,6 +484,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 			confOptions = append(confOptions, WithInsecure())
 		}
 		confOptions = append(confOptions, WithControlPort(ports[i]))
+		confOptions = append(confOptions, WithLogLevel(log.LogDebug))
 		drands[i], err = NewDrand(s, NewConfig(confOptions...))
 		if err != nil {
 			panic(err)
