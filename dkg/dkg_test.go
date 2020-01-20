@@ -142,10 +142,12 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 
 	newPrivs := make([]*key.Pair, 0, newN)
 	newPubs := make([]*key.Identity, 0, newN)
+	// the old nodes that are also in the new group
 	for _, p := range oldPrivs[oldToRemove:] {
 		newPrivs = append(newPrivs, p)
 		newPubs = append(newPubs, p.Public)
 	}
+	// the new nodes not present in the old group
 	for _, p := range addPrivs {
 		newPrivs = append(newPrivs, p)
 		newPubs = append(newPubs, p.Public)
@@ -166,49 +168,54 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	for i := 0; i < oldToRemove; i++ {
 		c := conf
 		c.Key = oldPrivs[i]
+		groupIndex, ok := oldGroup.Index(c.Key.Public)
+		require.True(t, ok)
 		c.Share = &key.Share{
-			Share:   oldShares[i],
+			Share:   oldShares[groupIndex],
 			Commits: dpub,
 		}
 		var err error
 		handler, err := NewHandler(nets[i], &c, log.DefaultLogger)
 		checkErr(err)
 		dkgServer := testDKGServer{h: handler}
-		listener := net.NewTCPGrpcListener(oldPrivs[i].Public.Addr, &dkgServer)
+		listener := net.NewTCPGrpcListener(c.Key.Public.Address(), &dkgServer)
 
-		oldNodes[oldPubs[i].Address()] = &node{
-			priv:     oldPrivs[i],
-			pub:      oldPubs[i],
+		oldNodes[c.Key.Public.Address()] = &node{
+			priv:     c.Key,
+			pub:      c.Key.Public,
 			net:      nets[i],
 			handler:  handler,
 			listener: listener,
 			newNode:  false,
 		}
-		keys[i] = oldPubs[i].Address()
+		keys[i] = c.Key.Public.Address()
 	}
 	newNodes := make(map[string]*node)
 	for i := 0; i < newN; i++ {
 		c := conf
 		c.Key = newPrivs[i]
+		nnet := nets[oldToRemove+i]
 		if i < common {
+			groupIndex, ok := oldGroup.Index(c.Key.Public)
+			require.True(t, ok)
 			c.Share = &key.Share{
-				Share:   oldShares[oldToRemove+i],
+				Share:   oldShares[groupIndex],
 				Commits: dpub,
 			}
 		}
 		var err error
-		handler, err := NewHandler(nets[i], &c, log.DefaultLogger)
+		handler, err := NewHandler(nnet, &c, log.DefaultLogger)
 		checkErr(err)
 		dkgServer := testDKGServer{h: handler}
-		newNodes[newPubs[i].Address()] = &node{
-			priv:     newPrivs[i],
-			pub:      newPubs[i],
-			net:      nets[oldToRemove+i],
-			listener: net.NewTCPGrpcListener(newPrivs[i].Public.Addr, &dkgServer),
+		newNodes[c.Key.Public.Address()] = &node{
+			priv:     c.Key,
+			pub:      c.Key.Public,
+			net:      nnet,
+			listener: net.NewTCPGrpcListener(c.Key.Public.Address(), &dkgServer),
 			handler:  handler,
 			newNode:  true,
 		}
-		keys[oldToRemove+i] = newPubs[i].Address()
+		keys[oldToRemove+i] = c.Key.Public.Address()
 	}
 	return &DKGTest{
 		total:     totalDKGs,
@@ -237,6 +244,7 @@ func (d *DKGTest) tryBoth(id string, fn func(n *node), silent ...bool) {
 
 func (d *DKGTest) ServeDKG(id string) {
 	d.tryBoth(id, func(n *node) {
+		fmt.Printf("\t-| ServeDKG %s\n", n.pub.Address())
 		go n.listener.Start()
 		if cb := d.callbacks[id]; cb != nil {
 			go cb(n.handler)
@@ -281,8 +289,8 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 	}
 	doneCh := make(chan string, d.total)
 	for _, n := range d.newNodes {
-		go func(n *node) {
-			h := n.handler
+		go func(nd *node) {
+			h := nd.handler
 			shareCh := h.WaitShare()
 			errCh := h.WaitError()
 			exitCh := h.WaitExit()
@@ -291,7 +299,7 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 				if sh.Commits == nil {
 					panic("nil share")
 				}
-				doneCh <- n.pub.Address()
+				doneCh <- nd.pub.Address()
 			case <-exitCh:
 			case err := <-errCh:
 				checkErr(err)
@@ -305,7 +313,6 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 	var ids []string
 	for {
 		select {
-
 		case id := <-doneCh:
 			ids = append(ids, id)
 			//fmt.Printf(" \n\nDKG %d FINISHED \n\n", <-doneCh)
@@ -344,9 +351,8 @@ func (d *DKGTest) CheckIncludedQUAL(ids []string) bool {
 
 func (d *DKGTest) StartDKG(id string) {
 	d.tryBoth(id, func(n *node) {
-		fmt.Printf("\n\nstart DKG id %s\n\n\n", id)
+		fmt.Printf(" -- Test - StartDKG for %s\n", n.pub.Address())
 		n.handler.Start()
-		fmt.Printf("\n\nstart DKG id DONE%s\n\n\n", id)
 		time.Sleep(5 * time.Millisecond)
 	})
 }
@@ -414,6 +420,9 @@ func TestDKGWithTimeout(t *testing.T) {
 	// trigger timeout immediatly
 	dt.MoveTime(timeout * 2)
 	keys, timeouted := dt.WaitFinish(alive)
+	fmt.Printf("\n\n -- DKGTest Keys: %v\n\n", dt.keys)
+	fmt.Printf("\n\n -- SERVING DKG ADDRESSES: %v\n\n", dt.keys[:alive])
+	fmt.Printf("\n\n -- WaitFinish returned: %v\n\n", keys)
 	// dkg should have finished,
 	require.False(t, timeouted)
 	require.True(t, dt.CheckIncludedQUAL(keys))
@@ -423,7 +432,7 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 	slog.Level = slog.LevelDebug
 	oldN := 7
 	oldT := key.DefaultThreshold(oldN)
-	// reshare with all but threshold of old nodes down and two new nodes
+	// reshare with all but threshold of old nodes down
 	newN := oldN + 1
 	newT := oldT + 1
 	common := oldT
@@ -431,12 +440,16 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 	newOffline := newN - newT
 	timeout := 1000 * time.Millisecond
 	dt := NewDKGTestResharing(t, oldN, oldT, newN, newT, common, timeout)
-	// serve the old nodes online
+	fmt.Printf("Old Group:\n%s\n", dt.oldGroup.String())
+	fmt.Printf("New Group:\n%s\n", dt.newGroup.String())
+	// serve the old nodes online that wont be present in the new group
 	for _, n := range dt.oldNodesA()[oldOffline:] {
 		dt.ServeDKG(n.pub.Address())
+		fmt.Printf(" -- Test - ServerDKG for %s\n", n.pub.Address())
 		defer dt.StopDKG(n.pub.Address())
 	}
-	// serve the new nodes online
+	// serve the new (and old) nodes online - those who'll be present in the new
+	// group
 	for _, n := range dt.newNodesA()[newOffline:] {
 		dt.ServeDKG(n.pub.Address())
 		defer dt.StopDKG(n.pub.Address())
@@ -444,6 +457,8 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 
 	// start all nodes that are in the old group
 	for _, id := range dt.oldGroup.Identities() {
+		//for _, n := range dt.oldNodesA()[oldOffline:] {
+		//go dt.StartDKG(n.pub.Address())
 		go dt.StartDKG(id.Address())
 	}
 

@@ -222,7 +222,9 @@ func (h *Handler) QualifiedGroup() *key.Group {
 		newGroup = append(newGroup, ids[idx])
 	}
 
-	fmt.Println(h.share)
+	ni := h.conf.NewNodes.Identities()[h.nidx]
+	fmt.Println("nidx", h.nidx, " -> address ", ni.Address())
+	//fmt.Println(h.share)
 	return key.LoadGroup(newGroup, &key.DistPublic{Coefficients: h.share.Commits}, h.conf.NewNodes.Threshold)
 }
 
@@ -408,6 +410,7 @@ func (h *Handler) checkCertified() {
 	}
 	share := Share(*dks)
 	h.share = &share
+	fmt.Printf("-- dkg library: nidx %d -> setting share idx %d\n", h.nidx, h.share.Share.I)
 	h.shareCh <- share
 }
 
@@ -421,6 +424,7 @@ func (h *Handler) sendDeals() error {
 		return nil
 	}
 	h.sentDeals = true
+	fmt.Println(" -- DKG - ", h.private.Public.Address(), " call state.Deals() ...")
 	deals, err := h.state.Deals()
 	if err != nil {
 		h.Unlock()
@@ -450,7 +454,6 @@ func (h *Handler) sendDeals() error {
 				},
 			}
 			h.l.Debug("send_deal_to", i)
-			fmt.Println("SEnding deal to ", i)
 			if err := h.net.Send(id, packet); err != nil {
 				h.l.Error("send_deal", "fail to send deal to", fmt.Sprintf("%s: %s", id.Address(), err))
 				statusCh <- false
