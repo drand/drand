@@ -66,13 +66,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		}
 	}
 	// check it is not done yet
-	time.Sleep(timeout)
+	time.Sleep(1 * time.Second)
 	require.False(t, checkDone())
 
 	// advance time to the timeout
 	dt.MoveTime(timeout)
 	// give time to finish for the go routines and such
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 	require.True(t, checkDone())
 }
 
