@@ -26,6 +26,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func getSleepDuration() time.Duration {
+	if os.Getenv("TRAVIS_BRANCH") != "" {
+		return time.Duration(1500) * time.Millisecond
+	}
+	return time.Duration(300) * time.Millisecond
+}
+
 func TestDrandDKGReshareTimeout(t *testing.T) {
 	oldN := 5 // 4 / 5
 	newN := 6 // 5 / 6
@@ -66,13 +73,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		}
 	}
 	// check it is not done yet
-	time.Sleep(1 * time.Second)
+	time.Sleep(getSleepDuration())
 	require.False(t, checkDone())
 
 	// advance time to the timeout
 	dt.MoveTime(timeout)
 	// give time to finish for the go routines and such
-	time.Sleep(1 * time.Second)
+	time.Sleep(getSleepDuration())
 	require.True(t, checkDone())
 }
 
@@ -336,11 +343,7 @@ func (d *DrandTest) StartDrand(id string, catchup bool) {
 func (d *DrandTest) MoveTime(p time.Duration) {
 	d.clock.Add(p)
 	d.clock.Add(50 * time.Millisecond)
-	sleepTime := 20 * d.n
-	if os.Getenv("TRAVIS_BRANCH") != "" {
-		sleepTime = 100 * d.n
-	}
-	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+	time.Sleep(getSleepDuration())
 }
 
 func (d *DrandTest) TestBeaconLength(max int, ids ...string) {
