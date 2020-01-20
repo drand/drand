@@ -3,14 +3,15 @@
 
 # Drand - A Distributed Randomness Beacon Daemon
 
-(drand was first developped within the [DEDIS organization](
-https://github.com/dedis), and is now under the drand organization).
-
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
 in [Golang](https://golang.org/). Servers running drand can be linked with each
 other to produce collective, publicly verifiable, unbiasable, unpredictable
 random values at fixed intervals using bilinear pairings and threshold cryptography.
 Drand nodes can also serve locally-generated private randomness to clients.
+
+drand was first developed within the [DEDIS organization](
+https://github.com/dedis), and as of December 2019,
+is now under the drand organization.
 
 ### Disclaimer
 
@@ -503,7 +504,7 @@ Drand relies on the following cryptographic constructions:
 - The resharing scheme used comes from the [paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.2968&rep=rep1&type=pdf) from  Y. Desmedt and S. Jajodia.
 - [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the encryption of private randomness.
 
-Note that drand was originaly a [DEDIS](https://dedis.ch)-owned project that is now spinning off on its own Github organization. For related previous work on public randomness, see [DEDIS]'s academical paper
+Note that drand was originaly a [DEDIS](https://dedis.ch)-owned project that is now spinning off on its own Github organization. For related previous work on public randomness, see [DEDIS]'s academic paper
 [Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf).
 
 ## DrandJS
