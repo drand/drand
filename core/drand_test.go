@@ -337,6 +337,9 @@ func (d *DrandTest) MoveTime(p time.Duration) {
 	d.clock.Add(p)
 	d.clock.Add(50 * time.Millisecond)
 	sleepTime := 20 * d.n
+	if os.Getenv("TRAVIS_BRANCH") != "" {
+		sleepTime = 100 * d.n
+	}
 	time.Sleep(time.Duration(sleepTime) * time.Millisecond)
 }
 

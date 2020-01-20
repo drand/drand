@@ -22,7 +22,9 @@ require (
 	github.com/urfave/cli v1.22.2
 	go.etcd.io/bbolt v1.3.3 // indirect
 	golang.org/x/crypto v0.0.0-20200109152110-61a87790db17
-	golang.org/x/net v0.0.0-20191209160850-c0dbc17a3553
-	google.golang.org/genproto v0.0.0-20200108215221-bd8f9a0ef82f
+	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa
+	golang.org/x/sys v0.0.0-20200120151820-655fe14d7479 // indirect
+	golang.org/x/text v0.3.2 // indirect
+	google.golang.org/genproto v0.0.0-20200117163144-32f20d992d24
 	google.golang.org/grpc v1.26.0
 )
