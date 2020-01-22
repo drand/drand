@@ -171,14 +171,11 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if err := d.WaitDKG(); err != nil {
 		return nil, err
 	}
-	fmt.Println("TEST - FINISHED DKG")
 	// stop the beacon first, then re-create it with the new shares
 	d.initBeacon()
-	fmt.Println("TEST - FINISHED DKG #2")
 	// XXX completely arbritrary timeout to wait for the other so they finish it
 	// too
 	d.opts.clock.Sleep(syncTime)
-	fmt.Println("TEST - FINISHED DKG #3")
 	catchup := true
 	if oldPresent {
 		catchup = false
@@ -304,7 +301,6 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*c
 		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
 	}
 	groupStr := buff.String()
-	fmt.Println("DRAND.Group: ", groupStr)
 	return &drand.GroupTOMLResponse{GroupToml: groupStr}, nil
 }
 
