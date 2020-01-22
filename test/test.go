@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	n "net"
 	"strconv"
+	"sync"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -57,9 +58,13 @@ func Ports(n int) []string {
 	return ports
 }
 
+var globalLock sync.Mutex
+
 // FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
 func FreePort() int {
+	globalLock.Lock()
+	defer globalLock.Unlock()
 	addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
 		panic(err)

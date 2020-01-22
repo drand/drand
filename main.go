@@ -548,11 +548,11 @@ func checkGroup(c *cli.Context) error {
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
 		_, err := client.Home(id, &drand.HomeRequest{})
 		if err != nil {
-			fatal("drand: error checking id %s", id.Address())
+			fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)
+			continue
 		}
-		fmt.Printf("drand: id %s answers correctly", id.Address())
+		fmt.Printf("drand: id %s answers correctly\n", id.Address())
 	}
-	fmt.Println("all good")
 	return nil
 }
 

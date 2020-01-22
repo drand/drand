@@ -37,7 +37,6 @@ func NewGrpcClient(opts ...grpc.DialOption) Client {
 	return &grpcClient{
 		opts:    opts,
 		conns:   make(map[string]*grpc.ClientConn),
-		manager: NewCertManager(),
 		timeout: defaultTimeout,
 	}
 }
@@ -230,9 +229,12 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 		if !p.IsTLS() {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 		} else {
-			pool := g.manager.Pool()
-			creds := credentials.NewClientTLSFromCert(pool, "")
-			opts := append(g.opts, grpc.WithTransportCredentials(creds))
+			opts := g.opts
+			if g.manager != nil {
+				pool := g.manager.Pool()
+				creds := credentials.NewClientTLSFromCert(pool, "")
+				opts = append(g.opts, grpc.WithTransportCredentials(creds))
+			}
 			c, err = grpc.Dial(p.Address(), opts...)
 		}
 		g.conns[p.Address()] = c
