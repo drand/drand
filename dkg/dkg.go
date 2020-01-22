@@ -375,6 +375,7 @@ func (h *Handler) info() string {
 // WaitShare.
 func (h *Handler) checkCertified() {
 	if h.done {
+		h.l.Debug("certified", "early_return")
 		return
 	}
 	var fully = true

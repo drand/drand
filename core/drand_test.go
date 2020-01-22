@@ -187,7 +187,7 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 		require.NoError(d.t, err)
 		_, err = client.InitReshare(d.groupPath, d.newGroupPath, leader, timeout)
 		require.NoError(d.t, err)
-		fmt.Printf("TEST: drand %s is done for resharing\n", dr.priv.Public.Address())
+		fmt.Printf("\n\nDKG TEST: drand %s DONE RESHARING (%v)\n", dr.priv.Public.Address(), leader)
 		clientCounter.Done()
 	}
 
@@ -227,9 +227,9 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 	fmt.Println("Launching reshare on (old) root", d.ids[0])
 	clientCounter.Add(1)
 	go runreshare(d.drands[oldNodes[0]], true)
-	fmt.Printf("\n\n -- TEST FINISHED ALL DKG --\n\n")
 	// wait for the return of the clients
 	checkWait(clientCounter)
+	fmt.Printf("\n\n -- TEST FINISHED ALL RESHARE DKG --\n\n")
 }
 
 func checkWait(counter *sync.WaitGroup) {
