@@ -285,6 +285,7 @@ func (d *DrandTest) RunDKG() {
 			_, err = client.InitDKG(d.groupPath, false, "")
 			require.NoError(d.t, err)
 			wg.Done()
+			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", dd.priv.Public.Address())
 		}(d.drands[id])
 	}
 
@@ -294,7 +295,7 @@ func (d *DrandTest) RunDKG() {
 	_, err = controlClient.InitDKG(d.groupPath, true, "")
 	require.NoError(d.t, err)
 	wg.Wait()
-	fmt.Printf("\n\n\n TESTDKG ROOT FINISHED\n\n\n")
+	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", d.ids[0])
 	resp, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
 	group := new(key.Group)
@@ -355,6 +356,9 @@ func (d *DrandTest) setDKGCallback(ids []string) {
 	}
 	go func() {
 		wg.Wait()
+		// TRAVIS: let all peers go into sleep mode before increasing
+		// their clock
+		time.Sleep(100 * time.Millisecond)
 		for _, id := range ids {
 			d.clocks[id].Add(syncTime)
 		}
@@ -542,7 +546,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 			confOptions = append(confOptions, WithInsecure())
 		}
 		confOptions = append(confOptions, WithControlPort(ports[i]))
-		confOptions = append(confOptions, WithLogLevel(log.LogInfo))
+		confOptions = append(confOptions, WithLogLevel(log.LogDebug))
 		drands[i], err = NewDrand(s, NewConfig(confOptions...))
 		if err != nil {
 			panic(err)
