@@ -4,7 +4,8 @@
  */
 syntax = "proto3";
 
-option go_package = "github.com/dedis/drand/protobuf/crypto";
+/*option go_package = "github.com/drand/drand/protobuf/crypto";*/
+option go_package = "share";
 
 package share;
 

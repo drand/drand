@@ -6,7 +6,8 @@ syntax = "proto3";
 
 package drand;
 
-option go_package = "github.com/dedis/drand/protobuf/drand";
+/*option go_package = "github.com/drand/drand/protobuf/drand";*/
+option go_package = "drand";
 
 import "drand/empty.proto";
 
@@ -30,6 +31,8 @@ service Control {
     // similar to public.Group method but needed for ease of use of the
     // control functionalities
     rpc GroupFile(GroupTOMLRequest) returns (GroupTOMLResponse) { }
+
+    rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 }
 
 message InitDKGPacket {
@@ -111,4 +114,12 @@ message GroupTOMLRequest {
 message GroupTOMLResponse {
     // TOML-encoded group file
     string group_toml = 1;
+}
+
+message ShutdownRequest {
+
+}
+
+message ShutdownResponse {
+
 }

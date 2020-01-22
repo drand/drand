@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -43,14 +42,16 @@ func startCmd(c *cli.Context) error {
 			fatal("drand: starting beacon failed: %s", err)
 		}
 	}
-	// wait indefinitely  - XXX analyzes goroutine graphs to see if it actually
-	// makes sense
-	runtime.Goexit()
+	<-drand.WaitExit()
 
 	return nil
 }
 
 func stopDaemon(c *cli.Context) error {
-	// TODO
-	panic("not implemented yet")
+	client := controlClient(c)
+	if _, err := client.Shutdown(); err != nil {
+		fmt.Printf("Error stopping drand daemon: %v\n", err)
+	}
+	fmt.Println("drand daemon stopped correctly. Bye.")
+	return nil
 }

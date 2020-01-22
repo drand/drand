@@ -4,3 +4,4 @@ dist/
 *.DS_Store
 web/static/js/drandjs
 !web/static/js/drandjs/dist/drandjs.js
+*swagger.json

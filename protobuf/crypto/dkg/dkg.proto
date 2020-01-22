@@ -6,7 +6,8 @@ syntax = "proto3";
 
 package dkg;
 
-option go_package = "github.com/dedis/drand/protobuf/crypto/dkg";
+/*option go_package = "github.com/drand/drand/protobuf/crypto/dkg";*/
+option go_package = "dkg";
 import "crypto/vss/vss.proto";
 
 // Packet is a wrapper around the three different types of DKG messages

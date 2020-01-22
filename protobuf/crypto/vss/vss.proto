@@ -7,7 +7,8 @@ import "crypto/share.proto";
 
 package vss;
 
-option go_package = "github.com/dedis/drand/protobuf/crypto/vss";
+/*option go_package = "github.com/drand/drand/protobuf/crypto/vss";*/
+option go_package = "vss";
 
 // EncryptedDeal holds a share encrypted towards the share holder's longterm
 // public key..

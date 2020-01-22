@@ -127,6 +127,11 @@ func (c ControlClient) GroupFile() (*control.GroupTOMLResponse, error) {
 	return c.client.GroupFile(context.Background(), &control.GroupTOMLRequest{})
 }
 
+// Shutdown stops the daemon
+func (c ControlClient) Shutdown() (*control.ShutdownResponse, error) {
+	return c.client.Shutdown(context.Background(), &control.ShutdownRequest{})
+}
+
 func controlListenAddr(port string) string {
 	return fmt.Sprintf("%s:%s", "localhost", port)
 }
