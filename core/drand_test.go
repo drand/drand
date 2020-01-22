@@ -58,6 +58,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 
 	dt.SetupReshare(oldN-offline, newN-oldN, newThr)
 
+	fmt.Println("SETUP RESHARE DONE")
 	// run the resharing
 	var doneReshare = make(chan bool, 1)
 	go func() {
@@ -83,6 +84,17 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	require.True(t, checkDone())
 }
 
+type SyncClock struct {
+	*clock.Mock
+	*sync.Mutex
+}
+
+func (s *SyncClock) Add(d time.Duration) {
+	//s.Lock()
+	//defer s.Unlock()
+	s.Mock.Add(d)
+}
+
 type DrandTest struct {
 	t            *testing.T
 	n            int
@@ -99,7 +111,7 @@ type DrandTest struct {
 	ids          []string
 	newIds       []string
 	shares       map[string]*key.Share
-	clock        *clock.Mock
+	clocks       map[string]*SyncClock
 	certPaths    []string
 	newCertPaths []string
 }
@@ -140,11 +152,12 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
 		ids = append(ids, drand.priv.Public)
 		newAddr[i] = drand.priv.Public.Address()
 		d.newDrands[drand.priv.Public.Address()] = drand
-		d.setCallbacks(drand)
+		d.setClock(newAddr[i])
 		for _, cp := range d.certPaths {
 			drand.opts.certmanager.Add(cp)
 		}
 	}
+
 	d.newIds = newAddr
 
 	//
@@ -168,11 +181,7 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
 
 func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 	var clientCounter = &sync.WaitGroup{}
-	var dkgCounter = &sync.WaitGroup{}
 	runreshare := func(dr *Drand, leader bool) {
-		dr.opts.dkgCallback = func(*key.Share) {
-			dkgCounter.Done()
-		}
 		// instruct to be ready for a reshare
 		client, err := net.NewControlClient(dr.opts.controlPort)
 		require.NoError(d.t, err)
@@ -191,13 +200,14 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 		}
 	}
 
+	var allIds []string
 	// run the old ones
 	// exclude leader
 	clientCounter.Add(oldRun - 1)
-	dkgCounter.Add(oldRun - 1)
 	for _, id := range oldNodes[1:oldRun] {
 		fmt.Println("Launching reshare on old", id)
 		go runreshare(d.drands[id], false)
+		allIds = append(allIds, id)
 	}
 	// stop the rest
 	for _, id := range oldNodes[oldRun:] {
@@ -206,21 +216,18 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 
 	// run the new ones
 	clientCounter.Add(newRun)
-	dkgCounter.Add(newRun)
 	for _, id := range d.newIds[:newRun] {
 		fmt.Println("Launching reshare on new", id)
 		go runreshare(d.newDrands[id], false)
+		allIds = append(allIds, id)
 	}
-
+	allIds = append(allIds, oldNodes[0])
+	d.setDKGCallback(allIds)
 	// run leader
 	fmt.Println("Launching reshare on (old) root", d.ids[0])
 	clientCounter.Add(1)
-	dkgCounter.Add(1)
 	go runreshare(d.drands[oldNodes[0]], true)
-	checkWait(dkgCounter)
 	fmt.Printf("\n\n -- TEST FINISHED ALL DKG --\n\n")
-	// add sync time
-	d.clock.Add(1000 * time.Millisecond)
 	// wait for the return of the clients
 	checkWait(clientCounter)
 }
@@ -260,8 +267,8 @@ func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
 		groupPath: groupPath,
 		period:    period,
 		ids:       ids,
-		clock:     clock.NewMock(),
 		shares:    make(map[string]*key.Share),
+		clocks:    make(map[string]*SyncClock),
 		certPaths: certPaths,
 	}
 }
@@ -269,9 +276,10 @@ func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
 func (d *DrandTest) RunDKG() {
 	var wg sync.WaitGroup
 	wg.Add(d.n - 1)
+	d.setClock(d.ids...)
+	d.setDKGCallback(d.ids)
 	for _, id := range d.ids[1:] {
 		go func(dd *Drand) {
-			d.setCallbacks(dd)
 			client, err := net.NewControlClient(dd.opts.controlPort)
 			require.NoError(d.t, err)
 			_, err = client.InitDKG(d.groupPath, false, "")
@@ -281,12 +289,12 @@ func (d *DrandTest) RunDKG() {
 	}
 
 	root := d.drands[d.ids[0]]
-	d.setCallbacks(root)
 	controlClient, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(d.t, err)
 	_, err = controlClient.InitDKG(d.groupPath, true, "")
 	require.NoError(d.t, err)
 	wg.Wait()
+	fmt.Printf("\n\n\n TESTDKG ROOT FINISHED\n\n\n")
 	resp, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
 	group := new(key.Group)
@@ -303,11 +311,54 @@ func (d *DrandTest) RunDKG() {
 	require.NoError(d.t, key.Save(d.groupPath, d.group, false))
 }
 
-func (d *DrandTest) setCallbacks(dr *Drand) {
-	dr.opts.dkgCallback = func(s *key.Share) {
-		d.shares[dr.priv.Public.Address()] = s
+func (d *DrandTest) tryBoth(id string, fn func(d *Drand)) {
+	if dr, ok := d.drands[id]; ok {
+		fn(dr)
+	} else if dr, ok = d.newDrands[id]; ok {
+		fn(dr)
+	} else {
+		panic("that should not happen")
 	}
-	dr.opts.clock = d.clock
+}
+
+func (d *DrandTest) setClock(ids ...string) {
+	for _, id := range ids {
+		d.tryBoth(id, func(dr *Drand) {
+			c := &SyncClock{
+				Mock:  clock.NewMock(),
+				Mutex: new(sync.Mutex),
+			}
+			addr := dr.priv.Public.Address()
+			d.clocks[addr] = c
+			dr.opts.clock = c
+			dr.opts.dkgCallback = func(s *key.Share) {
+				d.shares[addr] = s
+				fmt.Printf("\n\n\n  --- DKG %s FINISHED ---\n\n\n", addr)
+			}
+		})
+	}
+}
+
+// first wait for all dkg callbacks to trigger, then update the clock of every
+// ids
+func (d *DrandTest) setDKGCallback(ids []string) {
+	var wg sync.WaitGroup
+	wg.Add(len(ids))
+	for _, id := range ids {
+		d.tryBoth(id, func(dr *Drand) {
+			dr.opts.dkgCallback = func(s *key.Share) {
+				d.shares[dr.priv.Public.Address()] = s
+				fmt.Printf("\n\n %s DKG DONE \n\n", dr.priv.Public.Address())
+				wg.Done()
+			}
+		})
+	}
+	go func() {
+		wg.Wait()
+		for _, id := range ids {
+			d.clocks[id].Add(syncTime)
+		}
+	}()
 }
 
 func (d *DrandTest) GetDrand(id string) *Drand {
@@ -336,13 +387,14 @@ func (d *DrandTest) StartDrand(id string, catchup bool) {
 	dr, err = LoadDrand(dr.store, dr.opts)
 	require.NoError(d.t, err)
 	d.drands[id] = dr
-	d.setCallbacks(dr)
+	d.setClock(id)
 	dr.StartBeacon(catchup)
 }
 
 func (d *DrandTest) MoveTime(p time.Duration) {
-	d.clock.Add(p)
-	d.clock.Add(50 * time.Millisecond)
+	for _, c := range d.clocks {
+		c.Add(p)
+	}
 	time.Sleep(getSleepDuration())
 }
 
@@ -364,9 +416,9 @@ func (d *DrandTest) TestPublicBeacon(id string) {
 }
 
 func TestDrandDKGFresh(t *testing.T) {
-	n := 10
+	n := 5
 	p := 200 * time.Millisecond
-	dt := NewDrandTest(t, n, 7, p)
+	dt := NewDrandTest(t, n, key.DefaultThreshold(n), p)
 	defer dt.Cleanup()
 	dt.RunDKG()
 	// make the last node fail
@@ -490,7 +542,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 			confOptions = append(confOptions, WithInsecure())
 		}
 		confOptions = append(confOptions, WithControlPort(ports[i]))
-		confOptions = append(confOptions, WithLogLevel(log.LogDebug))
+		confOptions = append(confOptions, WithLogLevel(log.LogInfo))
 		drands[i], err = NewDrand(s, NewConfig(confOptions...))
 		if err != nil {
 			panic(err)

@@ -17,6 +17,8 @@ import (
 	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
+var syncTime = 500 * time.Millisecond
+
 // InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
@@ -60,9 +62,8 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
 
-	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
 	d.initBeacon()
-	time.Sleep(500 * time.Millisecond)
+	d.opts.clock.Sleep(syncTime)
 	// After DKG, always start the beacon directly
 	if err := d.StartBeacon(false); err != nil {
 		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
@@ -176,7 +177,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	fmt.Println("TEST - FINISHED DKG #2")
 	// XXX completely arbritrary timeout to wait for the other so they finish it
 	// too
-	d.opts.clock.Sleep(500 * time.Millisecond)
+	d.opts.clock.Sleep(syncTime)
 	fmt.Println("TEST - FINISHED DKG #3")
 	catchup := true
 	if oldPresent {
