@@ -85,7 +85,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		priv:   priv,
 		opts:   c,
 		log:    logger,
-		exitCh: make(chan bool),
+		exitCh: make(chan bool, 1),
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
