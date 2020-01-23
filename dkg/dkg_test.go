@@ -70,7 +70,7 @@ type node struct {
 type DKGTest struct {
 	total    int
 	keys     []string
-	clock    *clock.Mock
+	clocks   map[string]*clock.Mock
 	timeout  time.Duration
 	newGroup *key.Group
 	newNodes map[string]*node
@@ -87,16 +87,18 @@ func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration) *DKGTest {
 	newNodes := make(map[string]*node)
 	nets := testNets(n, true)
 	keys := make([]string, n)
-	clock := clock.NewMock()
+	clocks := make(map[string]*clock.Mock)
 	conf := Config{
 		Suite:    key.KeyGroup.(Suite),
 		NewNodes: newGroup,
 		Timeout:  timeout,
-		Clock:    clock,
 	}
 	for i := 0; i < n; i++ {
 		c := conf
 		c.Key = privs[i]
+		clock := clock.NewMock()
+		c.Clock = clock
+		clocks[c.Key.Public.Address()] = clock
 		var err error
 		nets[i].SetTimeout(timeout / 2)
 		handler, err := NewHandler(nets[i], &c, log.DefaultLogger)
@@ -122,7 +124,7 @@ func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration) *DKGTest {
 		newGroup:  newGroup,
 		newNodes:  newNodes,
 		callbacks: make(map[string]func(*Handler), n),
-		clock:     clock,
+		clocks:    clocks,
 	}
 }
 
@@ -136,7 +138,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	oldToRemove := oldN - common
 	totalDKGs := oldN + newToAdd
 	nets := testNets(totalDKGs, false)
-
+	clocks := make(map[string]*clock.Mock)
 	addPrivs := test.GenerateIDs(newToAdd)
 	//addPubs := test.ListFromPrivates(addPrivs)
 
@@ -157,17 +159,18 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	oldNodes := make(map[string]*node)
 	keys := make([]string, totalDKGs)
 
-	clock := clock.NewMock()
 	conf := Config{
 		Suite:    key.KeyGroup.(Suite),
 		NewNodes: newGroup,
 		OldNodes: oldGroup,
 		Timeout:  timeout,
-		Clock:    clock,
 	}
 	for i := 0; i < oldToRemove; i++ {
 		c := conf
 		c.Key = oldPrivs[i]
+		clock := clock.NewMock()
+		c.Clock = clock
+		clocks[c.Key.Public.Address()] = clock
 		groupIndex, ok := oldGroup.Index(c.Key.Public)
 		require.True(t, ok)
 		c.Share = &key.Share{
@@ -194,6 +197,10 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	for i := 0; i < newN; i++ {
 		c := conf
 		c.Key = newPrivs[i]
+		clock := clock.NewMock()
+		c.Clock = clock
+		clocks[c.Key.Public.Address()] = clock
+
 		nnet := nets[oldToRemove+i]
 		if i < common {
 			groupIndex, ok := oldGroup.Index(c.Key.Public)
@@ -226,7 +233,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 		oldNodes:  oldNodes,
 		timeout:   timeout,
 		callbacks: make(map[string]func(*Handler)),
-		clock:     clock,
+		clocks:    clocks,
 	}
 }
 
@@ -303,7 +310,7 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 			case <-exitCh:
 			case err := <-errCh:
 				checkErr(err)
-			case <-d.clock.After(timeout):
+			case <-time.After(timeout):
 				timeouted <- true
 			case <-exit:
 				return
@@ -380,8 +387,16 @@ func (d *DKGTest) StopDKG(id string) {
 }
 
 func (d *DKGTest) MoveTime(t time.Duration) {
-	d.clock.Add(t)
-	time.Sleep(10 * time.Millisecond)
+	added := 0
+	for id := range d.newNodes {
+		d.clocks[id].Add(t)
+		added++
+	}
+	for id := range d.oldNodes {
+		d.clocks[id].Add(t)
+		added++
+	}
+	time.Sleep(time.Duration(10*added) * time.Millisecond)
 }
 func checkErr(e error) {
 	if e != nil {
