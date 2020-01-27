@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 )
 
@@ -25,7 +26,8 @@ func GetRandom(source EntropySource, len uint32) ([]byte, error) {
 	randomBytes := make([]byte, len)
 	bytesRead, err := source.Read(randomBytes)
 	if err != nil || uint32(bytesRead) != len {
-		// If customEntropy provides an error, fallback to Golang crypto/rand generator.
+		// If customEntropy provides an error,
+		// fallback to Golang crypto/rand generator.
 		_, err := rand.Read(randomBytes)
 		return randomBytes, err
 	}
@@ -36,6 +38,8 @@ func GetRandom(source EntropySource, len uint32) ([]byte, error) {
 type EntropyReader struct {
 	Entropy string
 }
+
+var _ io.Reader = &EntropyReader{}
 
 // Read calls the executable as many times needed to fill the array p
 // n == len(p) if and only if err == nil
@@ -51,7 +55,7 @@ func (r *EntropyReader) Read(p []byte) (n int, err error) {
 		err = cmd.Run()
 		if err != nil {
 			fmt.Printf("entropy: cannot read from the file: %s\v", err.Error())
-			return 0, err
+			return read, err
 		}
 		read += copy(p[read:], b.Bytes())
 	}

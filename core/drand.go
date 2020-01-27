@@ -167,6 +167,7 @@ func (d *Drand) WaitDKG() error {
 	d.group.Period = d.nextConf.NewNodes.Period
 	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
 	d.store.SaveGroup(d.group)
+	d.opts.applyDkgCallback(d.share)
 	d.dkgDone = true
 	d.dkg = nil
 	d.nextConf = nil
@@ -258,6 +259,7 @@ func (d *Drand) initBeacon() error {
 		Share:   d.share,
 		Seed:    DefaultSeed,
 		Scheme:  key.Scheme,
+		Clock:   d.opts.clock,
 	}
 	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
 	return err

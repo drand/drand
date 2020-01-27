@@ -214,7 +214,7 @@ func printJSON(j interface{}) {
 	if err != nil {
 		fatal("drand: could not JSON marshal: %s", err)
 	}
-	fmt.Print(string(buff))
+	fmt.Println(string(buff))
 }
 func fileExists(name string) bool {
 	if _, err := os.Stat(name); err != nil {

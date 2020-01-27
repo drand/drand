@@ -3,7 +3,7 @@
 test: linter test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -v -mod=vendor ./...
+	GO111MODULE=on go test -v ./...
 
 test-integration:
 	@echo "first makefile: Path is $$PATH"
@@ -25,7 +25,7 @@ deploy-local:
 
 # create the "drand" binary and install it in $GOBIN
 install:
-	GO111MODULE=on go install -mod=vendor -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`" 
+	GO111MODULE=on go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`" 
 
 # create the "drand" binary in the current folder
 build: 

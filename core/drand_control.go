@@ -18,6 +18,8 @@ import (
 	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
+var syncTime = 500 * time.Millisecond
+
 // InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
@@ -50,6 +52,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		Key:            d.priv,
 		Reader:         entropyReader,
 		UserReaderOnly: in.UserOnly,
+		Clock:          d.opts.clock,
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
@@ -64,9 +67,8 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
 
-	//fmt.Printf("\n\n\ndrand %d -- %s: DKG finished. Starting beacon.\n\n\n", idx, d.priv.Public.Addr)
 	d.initBeacon()
-	time.Sleep(500 * time.Millisecond)
+	d.opts.clock.Sleep(syncTime)
 	// After DKG, always start the beacon directly
 	if err := d.StartBeacon(false); err != nil {
 		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
@@ -128,6 +130,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 			NewNodes: newGroup,
 			Key:      d.priv,
 			Suite:    key.KeyGroup.(dkg.Suite),
+			Clock:    d.opts.clock,
 		}
 
 		// run the proto
@@ -161,6 +164,10 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, err
 	}
 
+	// stop the beacon before running the dkg to avoid running into sync issues
+	// of using the new shares with the old beacon, etc.
+	d.StopBeacon()
+
 	if oldPresent && in.GetIsLeader() {
 		// only the root sends a pre-message to the other old
 		// nodes and start the DKG
@@ -170,12 +177,10 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, err
 	}
 	// stop the beacon first, then re-create it with the new shares
-	// i.e. the current beacon is still running alongside with the
-	// new DKG but
-	// stops as soon as the new DKG finishes.
-	d.StopBeacon()
 	d.initBeacon()
-	time.Sleep(500 * time.Millisecond)
+	// XXX completely arbritrary timeout to wait for the other so they finish it
+	// too
+	d.opts.clock.Sleep(syncTime)
 	catchup := true
 	if oldPresent {
 		catchup = false
@@ -300,7 +305,8 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*c
 	if err != nil {
 		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
 	}
-	return &drand.GroupTOMLResponse{GroupToml: buff.String()}, nil
+	groupStr := buff.String()
+	return &drand.GroupTOMLResponse{GroupToml: groupStr}, nil
 }
 
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {

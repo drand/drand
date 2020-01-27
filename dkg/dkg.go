@@ -3,6 +3,7 @@ package dkg
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -38,6 +40,7 @@ type Config struct {
 	Timeout        time.Duration
 	Reader         io.Reader
 	UserReaderOnly bool
+	Clock          clock.Clock
 }
 
 // Share represents the private information that a node holds after a successful
@@ -76,6 +79,9 @@ type Handler struct {
 
 // NewHandler returns a fresh dkg handler using this private key.
 func NewHandler(n Network, c *Config, l log.Logger) (*Handler, error) {
+	if c.Clock == nil {
+		return nil, errors.New("dkg: handler needs at least a Clock")
+	}
 	var share *dkg.DistKeyShare
 	if c.Share != nil {
 		s := dkg.DistKeyShare(*c.Share)
@@ -226,7 +232,7 @@ func (h *Handler) QualifiedGroup() *key.Group {
 
 func (h *Handler) startTimer() {
 	select {
-	case <-time.After(h.conf.Timeout):
+	case <-h.conf.Clock.After(h.conf.Timeout):
 		h.Lock()
 		defer h.Unlock()
 		h.l.Info("timout", "triggered")
@@ -241,6 +247,7 @@ func (h *Handler) startTimer() {
 }
 
 func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
+	localLog := h.l.With("process", "deal")
 	h.dealProcessed++
 	deal := &dkg.Deal{
 		Index:     pdeal.Index,
@@ -253,20 +260,19 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 		},
 	}
 	defer h.processTmpResponses(deal)
-	h.l.Debug("process_deal", deal.Index, "from", h.dealerAddr(deal.Index), "processed", h.dealProcessed, "sent", h.sentDeals)
+	localLog.Debug("from", h.dealerAddr(deal.Index), "processed", h.dealProcessed, "sent", h.sentDeals)
 	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
-		h.l.Error("process_deal", err)
+		localLog.Error("kyber", err)
 		return
 	}
 
 	if !h.sentDeals && h.sendDeal {
-		h.l.Debug("process_deal", "sending deals to others")
+		localLog.Debug("action", "sending_deals")
 		go func() {
 			if err := h.sendDeals(); err != nil {
 				h.errCh <- err
 			}
-			h.l.Debug("process_deal", "sent all deals")
 		}()
 	}
 
@@ -284,7 +290,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 				},
 			},
 		}
-		h.l.Debug("process_deal", "broadcasting responses")
+		localLog.Debug("action", "broadcasting_responses")
 		go h.broadcast(out, true)
 	}
 }
@@ -307,7 +313,8 @@ func (h *Handler) processTmpResponses(deal *dkg.Deal) {
 
 func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 	defer h.checkCertified()
-	localLog := h.l.With("process_response")
+	localLog := h.l.With("process", "response")
+	//h.l.Debug("process_deal", deal.Index, "from", h.dealerAddr(deal.Index),
 	h.respProcessed++
 
 	resp := &dkg.Response{
@@ -370,6 +377,7 @@ func (h *Handler) info() string {
 // WaitShare.
 func (h *Handler) checkCertified() {
 	if h.done {
+		h.l.Debug("certified", "early_return")
 		return
 	}
 	var fully = true
@@ -393,11 +401,7 @@ func (h *Handler) checkCertified() {
 		h.exitCh <- true
 		return
 	}
-	if fully {
-		h.l.Info("certified", "full")
-	} else {
-		h.l.Info("certified", "threshold")
-	}
+
 	dks, err := h.state.DistKeyShare()
 	if err != nil {
 		h.l.Error("certified", "err getting share", err)
@@ -405,6 +409,11 @@ func (h *Handler) checkCertified() {
 	}
 	share := Share(*dks)
 	h.share = &share
+	t := "threshold"
+	if fully {
+		t = "fully"
+	}
+	h.l.Info("certified", t, "share", share.PriShare().String())
 	h.shareCh <- share
 }
 
@@ -424,39 +433,55 @@ func (h *Handler) sendDeals() error {
 		return err
 	}
 	h.Unlock()
-	var good = 1
 	h.l.Debug("send_deal", "start")
+	statusCh := make(chan bool, len(deals))
 	ids := h.conf.NewNodes.Identities()
 	for i, deal := range deals {
 		if i == h.nidx && h.newNode {
 			h.l.Fatal("same index deal", i, "pubkey", h.conf.Key.Public.Key.String())
 			panic("this is a bug with drand that should not happen. Please submit report if possible")
 		}
-		id := ids[i]
-		packet := &dkg_proto.Packet{
-			Deal: &dkg_proto.Deal{
-				Index:     deal.Index,
-				Signature: deal.Signature,
-				Deal: &vss_proto.EncryptedDeal{
-					Dhkey:     deal.Deal.DHKey,
-					Signature: deal.Deal.Signature,
-					Nonce:     deal.Deal.Nonce,
-					Cipher:    deal.Deal.Cipher,
+		go func(i int, deal *dkg.Deal) {
+			id := ids[i]
+			packet := &dkg_proto.Packet{
+				Deal: &dkg_proto.Deal{
+					Index:     deal.Index,
+					Signature: deal.Signature,
+					Deal: &vss_proto.EncryptedDeal{
+						Dhkey:     deal.Deal.DHKey,
+						Signature: deal.Deal.Signature,
+						Nonce:     deal.Deal.Nonce,
+						Cipher:    deal.Deal.Cipher,
+					},
 				},
-			},
-		}
-		h.l.Debug("send_deal_to", i)
-		if err := h.net.Send(id, packet); err != nil {
-			h.l.Error("send_deal", "fail to send deal to", fmt.Sprintf("%s: %s", id.Address(), err))
-		} else {
+			}
+			h.l.Debug("send_deal_to", i)
+			if err := h.net.Send(id, packet); err != nil {
+				h.l.Error("send_deal", "fail to send deal to", fmt.Sprintf("%s: %s", id.Address(), err))
+				statusCh <- false
+			} else {
+				statusCh <- true
+			}
+		}(i, deal)
+	}
+
+	var good = 1
+	var bad = 0
+	for {
+		if <-statusCh {
 			good++
+		} else {
+			bad++
+		}
+		if bad > h.conf.NewNodes.Threshold {
+			return fmt.Errorf("dkg: error sending deals to %d  nodes / %d (threshold %d)", bad, h.n, h.conf.NewNodes.Threshold)
+		}
+		if bad+good == h.conf.NewNodes.Len() {
+			h.l.Info("send_deal", "sucess", "to", good-1)
+			return nil
 		}
 	}
-	if good < h.conf.NewNodes.Threshold {
-		return fmt.Errorf("dkg: could only send deals to %d / %d (threshold %d)", good, h.n, h.conf.NewNodes.Threshold)
-	}
-	h.l.Info("send_deal", "sucess", "to", good-1)
-	return nil
+
 }
 
 // The following packets must be sent to the following nodes:

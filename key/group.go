@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -175,8 +176,9 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 	if thr < g.Threshold {
 		thr = g.Threshold
 	}
+	nl := append(g.Identities(), list...)
 	return &Group{
-		Nodes:     append(g.Identities(), list...),
+		Nodes:     copyAndShuffle(nl),
 		Threshold: thr,
 		Period:    g.Period,
 	}
@@ -184,20 +186,24 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 
 // NewGroup returns a list of identities as a Group.
 func NewGroup(list []*Identity, threshold int) *Group {
-	// XXX can't do that now since relying on index in the group in dkg and test
-	//sort.Sort(ByKey(list))
 	return &Group{
-		Nodes:     list,
+		Nodes:     copyAndShuffle(list),
 		Threshold: threshold,
 	}
 }
 
 // LoadGroup returns a group associated with a given public key
 func LoadGroup(list []*Identity, public *DistPublic, threshold int) *Group {
-	//sort.Sort(ByKey(list))
 	return &Group{
-		Nodes:     list,
+		Nodes:     copyAndShuffle(list),
 		Threshold: threshold,
 		PublicKey: public,
 	}
+}
+
+func copyAndShuffle(list []*Identity) []*Identity {
+	nl := make([]*Identity, len(list))
+	copy(nl, list)
+	sort.Sort(ByKey(nl))
+	return nl
 }
