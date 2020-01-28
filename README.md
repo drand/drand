@@ -22,6 +22,7 @@ critical at this point.**
 
 ## Table of Contents
 
+* [Goal and description](#goal-and-description)
 * [Installing drand locally](#installing-drand-locally)
 * [Quickstart - Docker](#quickstart---docker)
 * [Overview](#overview)
@@ -59,6 +60,36 @@ critical at this point.**
 * [Contributors](#contributors)
 * [Acknowledgments](#acknowledgments)
 * [Coverage](#coverage)
+* [Supporting](#supporting)
+
+## Goal and description
+
+The need for digital randomness is paramount in multiple digital applications
+([e]voting, lottery, cyptographic parameters, embedded devices bootstrapping
+randomness, blockchain systems etc) as well in non-digital such as statistical
+sampling (used for example to check results of an election), assigning court
+cases to random judges, random financial audits, etc.  However, constructing a
+secure source of randomness is nothing but easy: there are countless examples of
+attacks where the randomness generation was the culprit (static keys,
+non-uniform distribution, biasable output, etc).  drand aims to fix that gap by
+providing a Randomness-as-a-Service network (similar to NTP servers for time, or
+Certificate Authority servers for CAs verification), providing continuous source
+of randomness which is:
+* Decentralized: drand is a software ran by a diverse set of reputable entities
+  on the Internet and a threshold of them is needed to generate randomness,
+  there is no central point of failure. 
+* Publicly verifiable & unbiasable: drand periodically delivers publicly verifiable
+and unbiasable randomness. Any third party can fetch and verify the authenticity
+of the randomness and by that making sure it hasn't been tampered with.
+* And "private" as well: drand nodes can also deliver encrypted randomness 
+to be used in a local applications, for example to seed the OS's PRNG.
+
+Drand currently runs a first test network composed by trustworthy organizations
+around the globe such as Cloudflare, EPFL, University of Chile and Kudelski
+Security.  The main website of the first launch sponsored by Cloudflare is
+hosted at the [league of entropy site](https://leagueofentropy.com).
+There is an independent drand website (source in `web/`) showing the same
+network hosted in one of the participant's server: https://drand.zerobyte.io
 
 ## Installing drand locally
 
