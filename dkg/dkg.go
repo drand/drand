@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,13 +32,15 @@ const DefaultTimeout = time.Duration(1) * time.Minute
 // Config holds all necessary information to run a dkg protocol. This config is
 // transformed to be passed down to the kyber dkg library.
 type Config struct {
-	Suite    Suite
-	Key      *key.Pair
-	NewNodes *key.Group
-	OldNodes *key.Group
-	Share    *key.Share
-	Timeout  time.Duration
-	Clock    clock.Clock
+	Suite          Suite
+	Key            *key.Pair
+	NewNodes       *key.Group
+	OldNodes       *key.Group
+	Share          *key.Share
+	Timeout        time.Duration
+	Reader         io.Reader
+	UserReaderOnly bool
+	Clock          clock.Clock
 }
 
 // Share represents the private information that a node holds after a successful
@@ -93,12 +96,14 @@ func NewHandler(n Network, c *Config, l log.Logger) (*Handler, error) {
 		c.Timeout = DefaultTimeout
 	}
 	cdkg := &dkg.Config{
-		Suite:        c.Suite.(dkg.Suite),
-		Longterm:     c.Key.Key,
-		NewNodes:     c.NewNodes.Points(),
-		PublicCoeffs: dpub,
-		Share:        share,
-		Threshold:    c.NewNodes.Threshold,
+		Suite:          c.Suite.(dkg.Suite),
+		Longterm:       c.Key.Key,
+		NewNodes:       c.NewNodes.Points(),
+		PublicCoeffs:   dpub,
+		Share:          share,
+		Threshold:      c.NewNodes.Threshold,
+		Reader:         c.Reader,
+		UserReaderOnly: c.UserReaderOnly,
 	}
 
 	if c.OldNodes != nil {

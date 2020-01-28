@@ -180,7 +180,7 @@ server {
     grpc_pass grpc://localhost:8080;
   }
   location /api/ {
-    proxy_pass http://localhost:8080; 
+    proxy_pass http://localhost:8080;
     proxy_set_header Host $host;
   }
 }  
@@ -311,10 +311,21 @@ The timeout is an optional parameter indicating the maximum timeout the DKG
 protocol will wait. If there are some failed nodes during the DKG, then the DKG will finish only after the given timeout. The default value is set to 10s (see
 [`core/constants.go`](https://github.com/dedis/drand/blob/master/core/constants.go) file).
 
+During the DKG, it is possible for a participant to inject their own entropy source into the creation of their secret. To do such, their random data must be provided in the DKG command by using the flag `source` like:
+```
+drand share <group-file> --source <entropy-exec>
+```
+where `<entropy-exec>` is the path to the executable which produces the user's random data.
+
+As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `user-source-only` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
+```
+drand share <group-file> --source <entropy-exec> --user-source-only
+```
+
 **Group File**: Once the DKG phase is done, the group file is updated with the
 newly created distributed public key. That updated group file needed by drand to
 securely contact drand nodes on their public interface to gather private or
-public randomness. A drand administrator can get the updated group file  it via
+public randomness. A drand administrator can get the updated group file it via
 the following:
 ```bash
 drand show group
@@ -630,4 +641,3 @@ Drand is an open source project, currently as a side project. If you believe in
 the project, your financial help would be very valuable. Please contact me on
 [twitter](https://twitter.com/nikkolasg1) to know more about the project and its
 continuation and how to fund it. More documentation on that frnt will arrive.
-

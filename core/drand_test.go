@@ -282,7 +282,7 @@ func (d *DrandTest) RunDKG() {
 		go func(dd *Drand) {
 			client, err := net.NewControlClient(dd.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(d.groupPath, false, "")
+			_, err = client.InitDKG(d.groupPath, false, "", nil)
 			require.NoError(d.t, err)
 			wg.Done()
 			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", dd.priv.Public.Address())
@@ -292,7 +292,7 @@ func (d *DrandTest) RunDKG() {
 	root := d.drands[d.ids[0]]
 	controlClient, err := net.NewControlClient(root.opts.controlPort)
 	require.NoError(d.t, err)
-	_, err = controlClient.InitDKG(d.groupPath, true, "")
+	_, err = controlClient.InitDKG(d.groupPath, true, "", nil)
 	require.NoError(d.t, err)
 	wg.Wait()
 	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", d.ids[0])

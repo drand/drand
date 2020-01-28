@@ -21,7 +21,7 @@
 
 # fail automatically as soon as an error is detected
 set -e
-set -x
+#set -x
 
 curr=$(pwd)
 echo "Compilation of protobufs definitions to go files"

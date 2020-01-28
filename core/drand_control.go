@@ -7,10 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/dkg"
+	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
@@ -43,11 +45,14 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 	d.idx = idx
 
+	reader, user := extractEntropy(in.Entropy)
 	d.nextConf = &dkg.Config{
-		Suite:    key.KeyGroup.(dkg.Suite),
-		NewNodes: d.group,
-		Key:      d.priv,
-		Clock:    d.opts.clock,
+		Suite:          key.KeyGroup.(dkg.Suite),
+		NewNodes:       d.group,
+		Key:            d.priv,
+		Reader:         reader,
+		UserReaderOnly: user,
+		Clock:          d.opts.clock,
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
@@ -56,7 +61,9 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	d.state.Unlock()
 
 	if in.GetIsLeader() {
-		d.StartDKG()
+		if err := d.StartDKG(); err != nil {
+			return nil, err
+		}
 	}
 	if err := d.WaitDKG(); err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
@@ -328,6 +335,15 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 		return nil, errors.New("control: threshold of new group too low ")
 	}
 	return g, nil
+}
+
+func extractEntropy(i *control.EntropyInfo) (io.Reader, bool) {
+	if i == nil {
+		return nil, false
+	}
+	r := entropy.NewScriptReader(i.Script)
+	user := i.UserOnly
+	return r, user
 }
 
 func setTimeout(c *dkg.Config, timeoutStr string) error {
