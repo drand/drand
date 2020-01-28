@@ -40,6 +40,15 @@ message InitDKGPacket {
     bool is_leader = 2;
     // timeout as parsed by Golang's time.ParseDuration method.
     string timeout = 3;
+    EntropyInfo entropy = 4;
+}
+
+// EntropyInfo contains information about external entropy sources
+// can be optional
+message EntropyInfo {
+    string script = 1;
+    // do we only take this entropy source or mix it with /dev/urandom
+    bool userOnly = 10;
 }
 
 // ReshareRequest contains references to the old and new group to perform the

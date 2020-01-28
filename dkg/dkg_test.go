@@ -3,10 +3,15 @@ package dkg
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/benbjohnson/clock"
+	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -78,9 +83,11 @@ type DKGTest struct {
 	oldNodes map[string]*node
 
 	callbacks map[string]func(*Handler)
+	shares    map[string]*key.Share
+	sync.Mutex
 }
 
-func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration) *DKGTest {
+func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration, r io.Reader, onlyUser bool) *DKGTest {
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
 	newGroup := key.NewGroup(pubs, thr)
@@ -89,9 +96,11 @@ func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration) *DKGTest {
 	keys := make([]string, n)
 	clocks := make(map[string]*clock.Mock)
 	conf := Config{
-		Suite:    key.KeyGroup.(Suite),
-		NewNodes: newGroup,
-		Timeout:  timeout,
+		Suite:          key.KeyGroup.(Suite),
+		NewNodes:       newGroup,
+		Timeout:        timeout,
+		Reader:         r,
+		UserReaderOnly: onlyUser,
 	}
 	for i := 0; i < n; i++ {
 		c := conf
@@ -124,6 +133,7 @@ func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration) *DKGTest {
 		newGroup:  newGroup,
 		newNodes:  newNodes,
 		callbacks: make(map[string]func(*Handler), n),
+		shares:    make(map[string]*key.Share),
 		clocks:    clocks,
 	}
 }
@@ -233,6 +243,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 		oldNodes:  oldNodes,
 		timeout:   timeout,
 		callbacks: make(map[string]func(*Handler)),
+		shares:    make(map[string]*key.Share),
 		clocks:    clocks,
 	}
 }
@@ -279,11 +290,25 @@ func (d *DKGTest) CallbackFor(id string, fn func(s *Share, e error, exit bool)) 
 func (d *DKGTest) WaitFinishFor(id string) {
 	d.tryBoth(id, func(n *node) {
 		if n.newNode {
-			<-n.handler.WaitShare()
+			sh := key.Share(<-n.handler.WaitShare())
+			d.saveShare(id, &sh)
 		} else {
 			<-n.handler.WaitExit()
 		}
 	})
+}
+
+func (d *DKGTest) saveShare(id string, sh *key.Share) {
+	d.Lock()
+	defer d.Unlock()
+	d.shares[id] = sh
+}
+
+func (d *DKGTest) getShare(id string) *key.Share {
+	d.Lock()
+	defer d.Unlock()
+	s, _ := d.shares[id]
+	return s
 }
 
 // wait for newNodes to finish
@@ -295,8 +320,8 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 		timeout = timeouta[0]
 	}
 	doneCh := make(chan string, d.total)
-	for _, n := range d.newNodes {
-		go func(nd *node) {
+	for i, n := range d.newNodes {
+		go func(id string, nd *node) {
 			h := nd.handler
 			shareCh := h.WaitShare()
 			errCh := h.WaitError()
@@ -306,6 +331,8 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 				if sh.Commits == nil {
 					panic("nil share")
 				}
+				ssh := key.Share(sh)
+				d.saveShare(id, &ssh)
 				doneCh <- nd.pub.Address()
 			case <-exitCh:
 			case err := <-errCh:
@@ -315,7 +342,7 @@ func (d *DKGTest) WaitFinish(min int, timeouta ...time.Duration) ([]string, bool
 			case <-exit:
 				return
 			}
-		}(n)
+		}(i, n)
 	}
 	var ids []string
 	for {
@@ -408,7 +435,7 @@ func TestDKGFresh(t *testing.T) {
 	n := 5
 	thr := key.DefaultThreshold(n)
 	timeout := 2 * time.Second
-	dt := NewDKGTest(t, n, thr, timeout)
+	dt := NewDKGTest(t, n, thr, timeout, nil, false)
 
 	for _, k := range dt.keys {
 		dt.ServeDKG(k)
@@ -425,7 +452,7 @@ func TestDKGWithTimeout(t *testing.T) {
 	timeout := 1 * time.Second
 	offline := n - thr
 	alive := n - offline
-	dt := NewDKGTest(t, n, thr, timeout)
+	dt := NewDKGTest(t, n, thr, timeout, nil, false)
 	for _, k := range dt.keys[:alive] {
 		dt.ServeDKG(k)
 	}
@@ -571,4 +598,71 @@ func TestDKGResharingPartial(t *testing.T) {
 	finished, to := dt.WaitFinish(newN)
 	require.False(t, to)
 	require.True(t, dt.CheckIncludedQUAL(finished))
+}
+
+func TestDKGEntropy(t *testing.T) {
+	source := tmpEntropySource()
+	defer os.RemoveAll(source.GetPath())
+
+	n := 5
+	thr := key.DefaultThreshold(n)
+	timeout := 2 * time.Second
+
+	// same entropy should give same shares
+	dt1 := NewDKGTest(t, n, thr, timeout, source, true)
+	dt2 := NewDKGTest(t, n, thr, timeout, source, true)
+	// not when mixed with /dev/urandom
+	dt3 := NewDKGTest(t, n, thr, timeout, source, false)
+
+	run := func(d *DKGTest) []string {
+		for _, k := range d.keys {
+			d.ServeDKG(k)
+		}
+
+		d.StartDKG(d.keys[0])
+		keys, timeouted := d.WaitFinish(n)
+		require.False(t, timeouted)
+		return keys
+	}
+
+	finished1 := run(dt1)
+	finished2 := run(dt2)
+
+	for _, id1 := range finished1 {
+		s1 := dt1.getShare(id1)
+		p1 := s1.Public().Key()
+		for _, id2 := range finished2 {
+			s2 := dt2.getShare(id2)
+			p2 := s2.Public().Key()
+			require.True(t, p1.Equal(p2))
+		}
+	}
+
+	finished3 := run(dt3)
+	for _, id1 := range finished1 {
+		s1 := dt1.getShare(id1)
+		p1 := s1.Public()
+		for _, id3 := range finished3 {
+			s3 := dt3.getShare(id3)
+			p3 := s3.Public()
+			require.False(t, p1.Equal(p3))
+		}
+	}
+}
+
+func tmpEntropySource() *entropy.ScriptReader {
+	f, err := ioutil.TempFile("", "entropy")
+	if err != nil {
+		panic(err)
+	}
+	if err := f.Chmod(0777); err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	_, err = f.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis")
+	if err != nil {
+		panic(err)
+	}
+	r := entropy.NewScriptReader(f.Name())
+	return r
 }

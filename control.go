@@ -9,6 +9,8 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+	control "github.com/drand/drand/protobuf/drand"
+
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli"
 )
@@ -61,9 +63,15 @@ func initDKG(c *cli.Context, groupPath string) error {
 		fatal("drand: error creating control client: %s", err)
 	}
 
+	if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
+		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
+	}
+	entropyInfo := entropyInfoFromReader(c)
+
 	fmt.Print("drand: waiting the end of DKG protocol ... " +
 		"(you can CTRL-C to not quit waiting)")
-	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name))
+
+	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name), entropyInfo)
 	if err != nil {
 		fatal("drand: initdkg %s", err)
 	}
@@ -212,4 +220,20 @@ func fileExists(name string) bool {
 		}
 	}
 	return true
+}
+
+func entropyInfoFromReader(c *cli.Context) *control.EntropyInfo {
+	if c.IsSet(sourceFlag.Name) {
+		_, err := os.Lstat(c.String(sourceFlag.Name))
+		if err != nil {
+			fatal("drand: cannot use given entropy source: %s", err)
+		}
+		source := c.String(sourceFlag.Name)
+		ei := &control.EntropyInfo{
+			Script:   source,
+			UserOnly: c.Bool(userEntropyOnlyFlag.Name),
+		}
+		return ei
+	}
+	return nil
 }

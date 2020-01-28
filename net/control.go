@@ -6,6 +6,7 @@ import (
 	"net"
 
 	control "github.com/drand/drand/protobuf/drand"
+
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 )
@@ -90,13 +91,14 @@ func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeou
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string) (*control.Empty, error) {
+func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string, entropy *control.EntropyInfo) (*control.Empty, error) {
 	request := &control.InitDKGPacket{
 		DkgGroup: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: groupPath},
 		},
 		IsLeader: leader,
 		Timeout:  timeout,
+		Entropy:  entropy,
 	}
 	return c.client.InitDKG(context.Background(), request)
 

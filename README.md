@@ -140,7 +140,7 @@ server {
     grpc_pass grpc://localhost:8080;
   }
   location /api/ {
-    proxy_pass http://localhost:8080; 
+    proxy_pass http://localhost:8080;
     proxy_set_header Host $host;
   }
 }  
@@ -271,10 +271,21 @@ The timeout is an optional parameter indicating the maximum timeout the DKG
 protocol will wait. If there are some failed nodes during the DKG, then the DKG will finish only after the given timeout. The default value is set to 10s (see
 [`core/constants.go`](https://github.com/dedis/drand/blob/master/core/constants.go) file).
 
+During the DKG, it is possible for a participant to inject their own entropy source into the creation of their secret. To do such, their random data must be provided in the DKG command by using the flag `source` like:
+```
+drand share <group-file> --source <entropy-exec>
+```
+where `<entropy-exec>` is the path to the executable which produces the user's random data.
+
+As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `user-source-only` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
+```
+drand share <group-file> --source <entropy-exec> --user-source-only
+```
+
 **Group File**: Once the DKG phase is done, the group file is updated with the
 newly created distributed public key. That updated group file needed by drand to
 securely contact drand nodes on their public interface to gather private or
-public randomness. A drand administrator can get the updated group file  it via
+public randomness. A drand administrator can get the updated group file it via
 the following:
 ```bash
 drand show group
@@ -582,4 +593,4 @@ for letting me work on this project and helping me grow it.
 - OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
 - SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
 - Duo [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
-- (French) [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.htm 
+- (French) [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.htm
