@@ -338,6 +338,9 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 }
 
 func extractEntropy(i *control.EntropyInfo) (io.Reader, bool) {
+	if i == nil {
+		return nil, false
+	}
 	r := entropy.NewScriptReader(i.Script)
 	user := i.UserOnly
 	return r, user
