@@ -304,6 +304,11 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*c
 	return &drand.GroupTOMLResponse{GroupToml: groupStr}, nil
 }
 
+func (d *Drand) Shutdown(ctx context.Context, in *control.ShutdownRequest) (*control.ShutdownResponse, error) {
+	d.Stop()
+	return nil, nil
+}
+
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 	var g = &key.Group{}
 	switch x := i.Location.(type) {

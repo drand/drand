@@ -49,8 +49,8 @@ func NewConfig(opts ...ConfigOption) *Config {
 			//grpc.FailOnNonTempDialError(true),
 			/*grpc.WithTimeout(DefaultDialTimeout),*/
 		},
-		dkgTimeout:  dkg.DefaultTimeout,
-		certmanager: net.NewCertManager(),
+		dkgTimeout: dkg.DefaultTimeout,
+		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
 		clock:       clock.New(),
@@ -192,6 +192,9 @@ func WithTLS(certPath, keyPath string) ConfigOption {
 // to trust them. Mostly useful for testing.
 func WithTrustedCerts(certPaths ...string) ConfigOption {
 	return func(d *Config) {
+		if d.certmanager == nil {
+			d.certmanager = net.NewCertManager()
+		}
 		for _, p := range certPaths {
 			if err := d.certmanager.Add(p); err != nil {
 				panic(err)

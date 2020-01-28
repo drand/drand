@@ -25,7 +25,7 @@ type restClient struct {
 func NewRestClient() PublicClient {
 	return &restClient{
 		marshaller: defaultJSONMarshaller,
-		manager:    NewCertManager(),
+		//manager:    NewCertManager(),
 	}
 }
 
@@ -145,15 +145,17 @@ func (r *restClient) doRequest(remote Peer, req *http.Request) ([]byte, error) {
 	req.Header.Set("Content-Type", "application/json")
 	client := &http.Client{}
 
-	pool := r.manager.Pool()
 	if remote.IsTLS() {
 		h, _, err := net.SplitHostPort(remote.Address())
 		if err != nil {
 			return nil, err
 		}
 		conf := &tls.Config{
-			RootCAs:    pool,
 			ServerName: h,
+		}
+
+		if r.manager != nil {
+			conf.RootCAs = r.manager.Pool()
 		}
 		client.Transport = &http.Transport{TLSClientConfig: conf}
 	}

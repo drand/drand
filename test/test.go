@@ -41,9 +41,10 @@ func NewTLSPeer(addr string) net.Peer {
 // Addresses returns a list of TCP localhost addresses starting from the given
 // port= start.
 func Addresses(n int) []string {
-	addrs := make([]string, n, n)
+	addrs := make([]string, 0, n)
+	ports := Ports(n)
 	for i := 0; i < n; i++ {
-		addrs[i] = "127.0.0.1:" + strconv.Itoa(FreePort())
+		addrs = append(addrs, "127.0.0.1:"+ports[i])
 	}
 	return addrs
 }
@@ -51,31 +52,45 @@ func Addresses(n int) []string {
 // Ports returns a list of ports starting from the given
 // port= start.
 func Ports(n int) []string {
-	ports := make([]string, n, n)
+	ports := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		ports[i] = strconv.Itoa(FreePort())
+		ports = append(ports, FreePort())
 	}
 	return ports
 }
 
+var allPorts []string
 var globalLock sync.Mutex
 
 // FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
-func FreePort() int {
+func FreePort() string {
 	globalLock.Lock()
 	defer globalLock.Unlock()
-	addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		panic(err)
-	}
+	for {
+		addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			panic(err)
+		}
 
-	l, err := n.ListenTCP("tcp", addr)
-	if err != nil {
-		panic(err)
+		l, err := n.ListenTCP("tcp", addr)
+		if err != nil {
+			panic(err)
+		}
+		defer l.Close()
+		p := strconv.Itoa(l.Addr().(*n.TCPAddr).Port)
+		var found bool
+		for _, u := range allPorts {
+			if p == u {
+				found = true
+				break
+			}
+		}
+		if !found {
+			allPorts = append(allPorts, p)
+			return p
+		}
 	}
-	defer l.Close()
-	return l.Addr().(*n.TCPAddr).Port
 }
 
 // GenerateIDs returns n keys with random port localhost addresses

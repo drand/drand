@@ -90,3 +90,8 @@ func (s *EmptyServer) CollectiveKey(context.Context, *drand.CokeyRequest) (*dran
 func (s *EmptyServer) GroupFile(context.Context, *drand.GroupTOMLRequest) (*drand.GroupTOMLResponse, error) {
 	return nil, nil
 }
+
+// Shutdown ...
+func (s *EmptyServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
+	return nil, nil
+}
