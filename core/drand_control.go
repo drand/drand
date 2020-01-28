@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -44,14 +45,13 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 	d.idx = idx
 
-	entropyReader := entropy.NewEntropyReader(in.Entropy)
-
+	reader, user := extractEntropy(in.Entropy)
 	d.nextConf = &dkg.Config{
 		Suite:          key.KeyGroup.(dkg.Suite),
 		NewNodes:       d.group,
 		Key:            d.priv,
-		Reader:         entropyReader,
-		UserReaderOnly: in.UserOnly,
+		Reader:         reader,
+		UserReaderOnly: user,
 		Clock:          d.opts.clock,
 	}
 	if err := setTimeout(d.nextConf, in.Timeout); err != nil {
@@ -61,7 +61,9 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	d.state.Unlock()
 
 	if in.GetIsLeader() {
-		d.StartDKG()
+		if err := d.StartDKG(); err != nil {
+			return nil, err
+		}
 	}
 	if err := d.WaitDKG(); err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
@@ -309,6 +311,11 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*c
 	return &drand.GroupTOMLResponse{GroupToml: groupStr}, nil
 }
 
+func (d *Drand) Shutdown(ctx context.Context, in *control.ShutdownRequest) (*control.ShutdownResponse, error) {
+	d.Stop()
+	return nil, nil
+}
+
 func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 	var g = &key.Group{}
 	switch x := i.Location.(type) {
@@ -328,6 +335,12 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 		return nil, errors.New("control: threshold of new group too low ")
 	}
 	return g, nil
+}
+
+func extractEntropy(i *control.EntropyInfo) (io.Reader, bool) {
+	r := entropy.NewScriptReader(i.Script)
+	user := i.UserOnly
+	return r, user
 }
 
 func setTimeout(c *dkg.Config, timeoutStr string) error {

@@ -134,8 +134,8 @@ minimum setup using [nginx](https://www.nginx.com/) and [certbot](https://certbo
 # /etc/nginx/sites-available/default
 server {
   server_name drand.nikkolasg.xyz;
-  listen 443 ssl;
-
+  listen 443 ssl http2;
+ 
   location / {
     grpc_pass grpc://localhost:8080;
   }
@@ -145,8 +145,8 @@ server {
   }
 }  
 ```
-**Note**: you can change
-1. the port on which you want drand to be accessible by changing the line `listen 443 ssl` to use any port.
+**Note**: you can change 
+1. the port on which you want drand to be accessible by changing the line `listen 443 ssl http2` to use any port.
 2. the port on which the drand binary will listen locally by changing the line `proxy_pass http://localhost:8080; ` and ` grpc_pass grpc://localhost:8080;` to use any local port.
 
 + Run certbot to get a TLS certificate:

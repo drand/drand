@@ -3,12 +3,9 @@
 
 package drand
 
-import (
-	fmt "fmt"
-	math "math"
-
-	proto "github.com/golang/protobuf/proto"
-)
+import proto "github.com/golang/protobuf/proto"
+import fmt "fmt"
+import math "math"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -19,7 +16,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type Empty struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -31,17 +28,16 @@ func (m *Empty) Reset()         { *m = Empty{} }
 func (m *Empty) String() string { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()    {}
 func (*Empty) Descriptor() ([]byte, []int) {
-	return fileDescriptor_92cd9babbd1560be, []int{0}
+	return fileDescriptor_empty_fd6d5d4baffebede, []int{0}
 }
-
 func (m *Empty) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Empty.Unmarshal(m, b)
 }
 func (m *Empty) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Empty.Marshal(b, m, deterministic)
 }
-func (m *Empty) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Empty.Merge(m, src)
+func (dst *Empty) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Empty.Merge(dst, src)
 }
 func (m *Empty) XXX_Size() int {
 	return xxx_messageInfo_Empty.Size(m)
@@ -56,14 +52,12 @@ func init() {
 	proto.RegisterType((*Empty)(nil), "drand.Empty")
 }
 
-func init() { proto.RegisterFile("drand/empty.proto", fileDescriptor_92cd9babbd1560be) }
+func init() { proto.RegisterFile("drand/empty.proto", fileDescriptor_empty_fd6d5d4baffebede) }
 
-var fileDescriptor_92cd9babbd1560be = []byte{
-	// 88 bytes of a gzipped FileDescriptorProto
+var fileDescriptor_empty_fd6d5d4baffebede = []byte{
+	// 64 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x4c, 0x29, 0x4a, 0xcc,
 	0x4b, 0xd1, 0x4f, 0xcd, 0x2d, 0x28, 0xa9, 0xd4, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05,
-	0x0b, 0x29, 0xb1, 0x73, 0xb1, 0xba, 0x82, 0x44, 0x9d, 0xd4, 0xa3, 0x54, 0xd3, 0x33, 0x4b, 0x32,
-	0x4a, 0x93, 0xf4, 0x92, 0xf3, 0x73, 0xf5, 0x53, 0x52, 0x53, 0x32, 0x8b, 0xf5, 0x21, 0xba, 0xc0,
-	0xea, 0x93, 0x4a, 0xd3, 0x20, 0xdc, 0x24, 0x36, 0x30, 0xdf, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff,
-	0x35, 0xcc, 0x6c, 0xac, 0x54, 0x00, 0x00, 0x00,
+	0x0b, 0x29, 0xb1, 0x73, 0xb1, 0xba, 0x82, 0x44, 0x9d, 0xd8, 0xa3, 0x20, 0x22, 0x49, 0x6c, 0x60,
+	0x79, 0x63, 0x40, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf6, 0xb6, 0x17, 0x8e, 0x34, 0x00, 0x00, 0x00,
 }

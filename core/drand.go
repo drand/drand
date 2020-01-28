@@ -51,7 +51,8 @@ type Drand struct {
 	log log.Logger
 
 	// global state lock
-	state sync.Mutex
+	state  sync.Mutex
+	exitCh chan bool
 }
 
 // NewDrand returns an drand struct. It assumes the private key pair
@@ -80,10 +81,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	// identity. If there is an option to set the address, it will override the
 	// default set here..
 	d := &Drand{
-		store: s,
-		priv:  priv,
-		opts:  c,
-		log:   logger,
+		store:  s,
+		priv:   priv,
+		opts:   c,
+		log:    logger,
+		exitCh: make(chan bool, 1),
 	}
 
 	a := c.ListenAddress(priv.Public.Address())
@@ -231,6 +233,12 @@ func (d *Drand) Stop() {
 	d.gateway.StopAll()
 	d.control.Stop()
 	d.state.Unlock()
+	d.exitCh <- true
+}
+
+// WaitExit returns a channel that signals when drand stops its operations
+func (d *Drand) WaitExit() chan bool {
+	return d.exitCh
 }
 
 // isDKGDone returns true if the DKG protocol has already been executed. That

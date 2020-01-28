@@ -46,7 +46,7 @@ func TestEntropyRead(t *testing.T) {
 	defer os.Remove("./veryrandom.sh")
 
 	execRand := "./veryrandom.sh"
-	entropyReader := NewEntropyReader(execRand)
+	entropyReader := NewScriptReader(execRand)
 	p := make([]byte, 32)
 	n, err := entropyReader.Read(p)
 	if err != nil || n != len(p) {
@@ -69,7 +69,7 @@ func TestEntropyReadSmallExec(t *testing.T) {
 	defer os.Remove("./veryrandom.sh")
 
 	execRand := "./veryrandom.sh"
-	entropyReader := NewEntropyReader(execRand)
+	entropyReader := NewScriptReader(execRand)
 	p := make([]byte, 32)
 	n, err := entropyReader.Read(p)
 	if err != nil || n != len(p) {

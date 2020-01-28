@@ -277,7 +277,7 @@ func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
 func (d *DrandTest) RunDKG() {
 	// XXX make it optional
 	uo := false
-	er := entropy.NewEntropyReader("")
+	er := entropy.NewScriptReader("")
 
 	var wg sync.WaitGroup
 	wg.Add(d.n - 1)
