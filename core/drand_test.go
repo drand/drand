@@ -28,7 +28,7 @@ import (
 
 func getSleepDuration() time.Duration {
 	if os.Getenv("TRAVIS_BRANCH") != "" {
-		return time.Duration(1500) * time.Millisecond
+		return time.Duration(3000) * time.Millisecond
 	}
 	return time.Duration(300) * time.Millisecond
 }
@@ -78,7 +78,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	require.False(t, checkDone())
 
 	// advance time to the timeout
-	dt.MoveTime(timeout)
+	dt.MoveTime(timeout * time.Duration(2))
 	// give time to finish for the go routines and such
 	time.Sleep(getSleepDuration())
 	require.True(t, checkDone())

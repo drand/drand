@@ -31,9 +31,9 @@ GROUPFILE="$TMP/group.toml"
 CERTSDIR="$TMP/certs"
 LOGSDIR="$TMP/logs"
 
-# get current github directory
+## file in test/test-integration
 curr=$(pwd)
-cd ..
+cd ../../
 root=$(pwd)
 cd "$curr"
 IMG="dedis/drand:latest"

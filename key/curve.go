@@ -28,7 +28,3 @@ var SigGroup = Pairing.G2()
 // Scheme is the signature scheme used, defining over which curve the signature
 // and keys respectively are.
 var Scheme = tbls.NewThresholdSchemeOnG2(Pairing)
-
-func init() {
-	//fmt.Println(" YOLO ")
-}
