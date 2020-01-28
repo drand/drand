@@ -622,4 +622,12 @@ for letting me work on this project and helping me grow it.
 - OneZero [post](https://onezero.medium.com/the-league-of-entropy-is-making-randomness-truly-random-522f22ce93ce) on the league of entropy
 - SlashDot [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
 - Duo [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
-- (French) [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.htm 
+- (French) [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.html)
+
+## Supporting 
+
+Drand is an open source project, currently as a side project. If you believe in
+the project, your financial help would be very valuable. Please contact me on
+[twitter](https://twitter.com/nikkolasg1) to know more about the project and its
+continuation and how to fund it. More documentation on that frnt will arrive.
+
