@@ -54,16 +54,17 @@ func Addresses(n int) []string {
 func Ports(n int) []string {
 	ports := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		ports = append(ports, FreePort(ports))
+		ports = append(ports, FreePort())
 	}
 	return ports
 }
 
+var allPorts []string
 var globalLock sync.Mutex
 
 // FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
-func FreePort(used []string) string {
+func FreePort() string {
 	globalLock.Lock()
 	defer globalLock.Unlock()
 	for {
@@ -79,13 +80,14 @@ func FreePort(used []string) string {
 		defer l.Close()
 		p := strconv.Itoa(l.Addr().(*n.TCPAddr).Port)
 		var found bool
-		for _, u := range used {
+		for _, u := range allPorts {
 			if p == u {
 				found = true
 				break
 			}
 		}
 		if !found {
+			allPorts = append(allPorts, p)
 			return p
 		}
 	}
