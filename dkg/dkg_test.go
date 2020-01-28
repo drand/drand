@@ -485,13 +485,14 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 	}()
 	_, timeouted := dt.WaitFinish(newN-newOffline, timeout/2)
 	require.True(t, timeouted)
-
+	fmt.Println(" -- trying before timeout, nobody finished - good")
 	// every new online  should have finished after timeout
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		dt.MoveTime(timeout)
+		fmt.Println(" -- trying after set timeout, sleeping...")
 		// time for the messages to pass through
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}()
 	fmt.Println("BEFORE wait finishing timeouted #2")
 	finished, to := dt.WaitFinish(newN - newOffline)
