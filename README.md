@@ -1,6 +1,6 @@
 ** MAINTENANCE MODE : drand is transitioning and is putting in place good versioning practices. Things are disrupted at the moment. Use the "web" branch for compatibility with the current network.**
 
-[![Build Status](https://travis-ci.org/dedis/drand.svg?branch=master)](https://travis-ci.org/dedis/drand)
+[![Build Status](https://travis-ci.org/drand/drand.svg?branch=master)](https://travis-ci.org/drand/drand)
 
 # Drand - A Distributed Randomness Beacon Daemon
 
