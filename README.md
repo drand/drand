@@ -20,6 +20,46 @@ is now under the drand organization.
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 
+## Table of Contents
+
+* [Installing drand locally](#installing-drand-locally)
+* [Quickstart - Docker](#quickstart---docker)
+* [Overview](#overview)
+   * [Public Randomness](#public-randomness)
+   * [Private Randomness](#private-randomness)
+* [Installation](#installation)
+   * [Via Golang](#via-golang)
+   * [Via Docker](#via-docker)
+   * [TLS setup: Nginx with Let's Encrypt](#tls-setup-nginx-with-lets-encrypt)
+* [Usage](#usage)
+   * [Setup](#setup)
+      * [Long-Term Key](#long-term-key)
+      * [Group Configuration](#group-configuration)
+         * [Randomness Beacon Period](#randomness-beacon-period)
+   * [Starting drand daemon](#starting-drand-daemon)
+      * [With TLS](#with-tls)
+      * [Without TLS](#without-tls)
+   * [Distributed Key Generation](#distributed-key-generation)
+   * [Randomness Generation](#randomness-generation)
+   * [Control Functionalities](#control-functionalities)
+      * [Long-Term Private Key](#long-term-private-key)
+      * [Long-Term Public Key](#long-term-public-key)
+      * [Private Key Share](#private-key-share)
+      * [Distributed Key](#distributed-key)
+   * [Using Drand](#using-drand)
+   * [Fetching Public Randomness](#fetching-public-randomness)
+      * [Fetching Private Randomness](#fetching-private-randomness)
+      * [Using HTTP endpoints](#using-http-endpoints)
+   * [Updating Drand Group](#updating-drand-group)
+* [Cryptography Background](#cryptography-background)
+* [DrandJS](#drandjs)
+* [Documentation](#documentation)
+* [What's Next?](#whats-next)
+* [License](#license)
+* [Contributors](#contributors)
+* [Acknowledgments](#acknowledgments)
+* [Coverage](#coverage)
+
 ## Installing drand locally
 
 Requirements: `go >= 1.12`.
