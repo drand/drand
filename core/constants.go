@@ -1,7 +1,7 @@
 package core
 
 import (
-	"crypto/sha512"
+	"crypto/sha256"
 	"path"
 	"time"
 
@@ -38,4 +38,4 @@ var DefaultDialTimeout = 10 * time.Second
 
 // RandomnessHash is the hash function used to produce the final randomness from
 // the signature
-var RandomnessHash = sha512.New
+var RandomnessHash = sha256.New

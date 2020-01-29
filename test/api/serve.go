@@ -5,8 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
+
+	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
@@ -128,15 +129,30 @@ func generateData() *Data {
 		Previous:  hex.EncodeToString(previous[:]),
 		Round:     round,
 	}
-	s, _ := json.MarshalIndent(d, "", "    ")
-	fmt.Println(string(s))
+	//s, _ := json.MarshalIndent(d, "", "    ")
+	//fmt.Println(string(s))
 	return d
+}
+
+type TestJSON struct {
+	Public string
+	API    *drand.PublicRandResponse
 }
 
 func main() {
 	d := generateData()
 	testValid(d)
 	server := newServer(d)
+	resp, err := server.PublicRand(context.TODO(), &drand.PublicRandRequest{})
+	if err != nil {
+		panic(err)
+	}
+	tjson := &TestJSON{
+		Public: d.Public,
+		API:    resp,
+	}
+	s, _ := json.MarshalIndent(tjson, "", "    ")
+	fmt.Println(string(s))
 	listener := net.NewTCPGrpcListener(serve, server)
 	fmt.Println("server will listen on ", serve)
 	listener.Start()
