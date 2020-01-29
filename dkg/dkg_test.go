@@ -22,6 +22,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func getSleepDuration() time.Duration {
+	if os.Getenv("TRAVIS_BRANCH") != "" {
+		return time.Duration(3000) * time.Millisecond
+	}
+	return time.Duration(300) * time.Millisecond
+}
+
 // testDKGServer implements a barebone service to be plugged in a net.DefaultService
 type testDKGServer struct {
 	*net.EmptyServer
@@ -514,13 +521,11 @@ func TestDKGResharingPartialWithTimeout(t *testing.T) {
 	require.True(t, timeouted)
 	fmt.Println(" -- trying before timeout, nobody finished - good")
 	// every new online  should have finished after timeout
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		dt.MoveTime(timeout)
-		fmt.Println(" -- trying after set timeout, sleeping...")
-		// time for the messages to pass through
-		time.Sleep(500 * time.Millisecond)
-	}()
+	time.Sleep(getSleepDuration())
+	dt.MoveTime(timeout * time.Duration(2))
+	fmt.Println(" -- trying after set timeout, sleeping...")
+	// time for the messages to pass through
+	time.Sleep(getSleepDuration())
 	fmt.Println("BEFORE wait finishing timeouted #2")
 	finished, to := dt.WaitFinish(newN - newOffline)
 	fmt.Println("AFTER wait finishing timeouted #2")
