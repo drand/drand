@@ -16,7 +16,8 @@ Fetch randomness from the first node by running:
 curl $(sudo docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' drand1):8080/api/public
 ```
 
-You can change the `drand1` to `drand{1-5}` to fetch randomness from another
-node.
+You can change the `drand1` to `drand{1-5}` to fetch randomness from another node.
+
 Command first tries to get the IP address of the first container, and calls the
 REST API on it.
+**Note**: Due to limited features of Docker Desktop on Mac OS, it will probably not work on Mac OS (not tested) See the docker desktop [page](https://docs.docker.com/docker-for-mac/networking/) for more information.
