@@ -57,10 +57,8 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 	return c
 }
 
-func (g *grpcClient) getTimeoutContext() (context.Context, context.CancelFunc) {
-	g.Lock()
-	defer g.Unlock()
-	clientDeadline := time.Now().Add(g.timeout)
+func getTimeoutContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	clientDeadline := time.Now().Add(timeout)
 	return context.WithDeadline(context.Background(), clientDeadline)
 }
 
@@ -78,7 +76,8 @@ func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.Pub
 			return err
 		}
 		client := drand.NewPublicClient(c)
-		resp, err = client.PublicRand(context.Background(), in)
+		ctx, _ := getTimeoutContext(g.timeout)
+		resp, err = client.PublicRand(ctx, in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -92,7 +91,8 @@ func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.P
 			return err
 		}
 		client := drand.NewPublicClient(c)
-		resp, err = client.PrivateRand(context.Background(), in)
+		ctx, _ := getTimeoutContext(g.timeout)
+		resp, err = client.PrivateRand(ctx, in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -106,7 +106,8 @@ func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 			return err
 		}
 		client := drand.NewPublicClient(c)
-		resp, err = client.Group(context.Background(), in)
+		ctx, _ := getTimeoutContext(g.timeout)
+		resp, err = client.Group(ctx, in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -133,9 +134,9 @@ func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*
 			return err
 		}
 		client := drand.NewProtocolClient(c)
-		ctx, canc := g.getTimeoutContext()
-		resp, err = client.Setup(ctx, in, grpc.FailFast(true))
-		canc()
+		// give more time for DKG we are not in a hurry
+		ctx, _ := getTimeoutContext(g.timeout * time.Duration(2))
+		resp, err = client.Setup(ctx, in, opts...)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -149,9 +150,9 @@ func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption
 			return err
 		}
 		client := drand.NewProtocolClient(c)
-		ctx, canc := g.getTimeoutContext()
-		resp, err = client.Reshare(ctx, in, grpc.FailFast(true))
-		canc()
+		// give more time for DKG we are not in a hurry
+		ctx, _ := getTimeoutContext(g.timeout * time.Duration(2))
+		resp, err = client.Reshare(ctx, in, opts...)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -165,9 +166,8 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 			return err
 		}
 		client := drand.NewProtocolClient(c)
-		ctx, canc := g.getTimeoutContext()
-		resp, err = client.NewBeacon(ctx, in, append(opts, grpc.FailFast(true))...)
-		canc()
+		ctx, _ := getTimeoutContext(g.timeout)
+		resp, err = client.NewBeacon(ctx, in, opts...)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
@@ -181,7 +181,8 @@ func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, e
 			return err
 		}
 		client := drand.NewPublicClient(c)
-		resp, err = client.Home(context.Background(), in)
+		ctx, _ := getTimeoutContext(g.timeout)
+		resp, err = client.Home(ctx, in)
 		return err
 	}
 	return resp, g.retryTLS(p, fn)
