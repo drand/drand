@@ -25,7 +25,7 @@ echo ""
 echo "Query a node's API: "
 echo "  Linux: curl CONTAINER_IP:PORT/api/public "
 echo "  alternative: docker exec drand1 call_api "
-echo "View the logs: docker-compose logs -f"
 echo ""
-read -n1 -r -p "Press any key to quit..." key
+
+docker-compose logs -f
 cleanup
