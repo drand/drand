@@ -644,6 +644,7 @@ Here's the list of people that contributed to drand:
 - Nicolas Gailly ([@nikkolasg1](https://twitter.com/nikkolasg1))
 - Philipp Jovanovic ([@daeinar](https://twitter.com/daeinar))
 - Mathilde Raynal ([@PizzaWhisperer](https://github.com/PizzaWhisperer))
+- Ludovic Barman ([@Lbarman](https://github.com/lbarman/))
 - Gabbi Fisher ([@gabbifish](https://github.com/gabbifish))
 - Linus Gasser ([@ineiti](https://github.com/ineiti))
 - Jeff Allen ([@jeffallen](https://github.com/jeffallen))
