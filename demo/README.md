@@ -28,4 +28,3 @@ However, on MacOS X, `curl` cannot contact internal containers (see the [issue](
 `docker exec drand1 call_api`
 
 which simply calls `curl` from inside `drand1`.
-
