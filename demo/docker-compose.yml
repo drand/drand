@@ -3,6 +3,7 @@ version: '3'
 services:
   drand-client-1:
     image: drand-it
+    container_name: drand1
     build:
       context: ..
       dockerfile: Dockerfile
@@ -18,6 +19,7 @@ services:
       - "8080:8080"
   drand-client-2:
     image: drand-it
+    container_name: drand2
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
@@ -29,6 +31,7 @@ services:
       - "8081:8081"
   drand-client-3:
     image: drand-it
+    container_name: drand3
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
@@ -40,6 +43,7 @@ services:
       - "8082:8082"
   drand-client-4:
     image: drand-it
+    container_name: drand4
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
@@ -51,6 +55,7 @@ services:
       - "8083:8083"
   drand-client-5:
     image: drand-it
+    container_name: drand5
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
