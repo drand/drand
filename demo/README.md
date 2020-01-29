@@ -1,23 +1,30 @@
-# Demo example
+# drand Demo
 
-Make sure you have docker and docker-compose installed
+Prerequisites:
 
-Then run
-```bash
-sudo ./run.sh
-```
-(sudo may not be required to run docker depending on your setup, try without
-first!)
+1. `docker >= 17.12`
+2. `docker-compose >= 1.18`
 
-# Using
+Run the demo: `./run.sh`
 
-Fetch randomness from the first node by running:
-```bash
-curl $(sudo docker inspect --format='{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' drand1):8080/api/public
-```
+This commands builds the docker images, and starts the containers: 
 
-You can change the `drand1` to `drand{1-5}` to fetch randomness from another node.
+![Setup](https://user-images.githubusercontent.com/5019664/73373513-06e0cc00-42b9-11ea-9a87-3acf16a20b29.png)
 
-Command first tries to get the IP address of the first container, and calls the
-REST API on it.
-**Note**: Due to limited features of Docker Desktop on Mac OS, it will probably not work on Mac OS (not tested) See the docker desktop [page](https://docs.docker.com/docker-for-mac/networking/) for more information.
+... then, the nodes start generating randomness periodically:
+
+![Randomness](https://user-images.githubusercontent.com/5019664/73373726-5e7f3780-42b9-11ea-8821-27146ed1e701.png)
+
+You may inspect the entrypoint of the clients in `/data/client-script.sh`.
+
+## Manually contacting the API
+
+drand has a Web REST api which can be contacted by `curl`:
+
+`curl CONTAINER_IP:PORT/api/public`, where `PORT` is `8080-8085` in this demo.
+
+However, on MacOS X, `curl` cannot contact internal containers (see the [issue](https://github.com/drand/drand/pull/193)); instead, please run
+
+`docker exec drand1 call_api`
+
+which simply calls `curl` from inside `drand1`.
