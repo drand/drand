@@ -51,7 +51,6 @@ critical at this point.**
       * [Fetching Private Randomness](#fetching-private-randomness)
       * [Using HTTP endpoints](#using-http-endpoints)
    * [Updating Drand Group](#updating-drand-group)
-* [Cryptography Background](#cryptography-background)
 * [DrandJS](#drandjs)
 * [Documentation](#documentation)
 * [What's Next?](#whats-next)
@@ -187,7 +186,7 @@ installation](https://golang.org/doc/install) and that your
 [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.  
 Then install drand via:
 ```bash
-go get -u github.com/dedis/drand
+go get -u github.com/drand/drand
 ```
 ### Via Docker
 
@@ -196,8 +195,12 @@ The setup is explained in [README_docker.md](README_docker.md).
 ### TLS setup: Nginx with Let's Encrypt
 
 Running drand behind a reverse proxy is the **default** method of deploying
-drand. Such a setup greatly simplify TLS management issues (renewal of certificates, etc). We provide here the
-minimum setup using [nginx](https://www.nginx.com/) and [certbot](https://certbot.eff.org/lets-encrypt/) - make sure you have both binaries installed with the latest version.
+drand. Such a setup greatly simplify TLS management issues (renewal of
+certificates, etc). We provide here the minimum setup using
+[nginx](https://www.nginx.com/) and
+[certbot](https://certbot.eff.org/lets-encrypt/) - make sure you have both
+binaries installed with the latest version; nginx version must be at least >=
+1.13.10 for gRPC compatibility.
 
 + First, add an entry in the nginx configuration for drand:
 ```bash
@@ -572,13 +575,31 @@ Here `rnd` is the 32-byte base64-encoded private random value produced by the
 contacted drand node. If the encryption is not correct, the command outputs an
 error instead.
 
+## DrandJS
 
-## Cryptography Background
+To facilitate the use of drand's randomness in JavaScript-based applications, we
+provide [DrandJS](https://github.com/PizzaWhisperer/drandjs). The main method
+`fetchAndVerify` of this JavaScript library fetches from a drand node the latest
+random beacon generated and then verifies it against the distributed key.  For
+more details on the procedure and instructions on how to use it, refer to the
+[readme](https://github.com/PizzaWhisperer/drandjs/blob/master/README.md).
 
-You can learn more about drand, its motivations and how does it work on these
-public [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing).
+Note this library is still a proof of concept and uses a rather slow pairing based
+library in JS.
 
-Drand relies on the following cryptographic constructions:
+## Documentation
+ 
+Here is a list of all documentation related to drand: 
+
+* For a high level presentation of motivations and background, here are some
+public [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing) about drand.
+
+* The client-side API documentation of of drand: [link](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
+* The drand *operator guide* documentation: [link](https://hackmd.io/@nikkolasg/Hkz2XFWa4) 
+* A basic explainer of the cryptography behind drand: [link](https://hackmd.io/@nikkolasg/HyUAgm234), 
+
+As well, here is a list of background readings w.r.t to the cryptography used in
+drand:
 
 - [Pairing-based cryptography](https://en.wikipedia.org/wiki/Pairing-based_cryptography) and [Barreto-Naehrig curves](https://github.com/dfinity/bn).
 - [Pedersen's distributed key generation protocol](https://link.springer.com/article/10.1007/s00145-006-0347-3) for the setup.
@@ -586,26 +607,9 @@ Drand relies on the following cryptographic constructions:
 - The resharing scheme used comes from the [paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.2968&rep=rep1&type=pdf) from  Y. Desmedt and S. Jajodia.
 - [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the encryption of private randomness.
 
-Note that drand was originaly a [DEDIS](https://dedis.ch)-owned project that is now spinning off on its own Github organization. For related previous work on public randomness, see [DEDIS]'s academic paper
+Note that drand was originaly a [DEDIS](https://dedis.ch)-owned project that is now spinning off on its own Github organization. For related previous work on public randomness, see DEDIS's academic paper
 [Scalable Bias-Resistant Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf).
 
-## DrandJS
-
-To facilitate the use of drand's randomness in JavaScript-based applications, we provide
-[DrandJS](https://github.com/PizzaWhisperer/drandjs). The main method `fetchAndVerify`
-of this JavaScript library fetches from a drand node the latest random beacon generated and then
-verifies it against the distributed key.
-For more details on the procedure and instructions on how to use it,
-refer to the [readme](https://github.com/PizzaWhisperer/drandjs/blob/master/README.md).
-As it is compiled from Go, DrandJS stays experimental and is used as proof-of-concept.
-Our longterm objective is to have a library written in pure JavaScript.
-
-## Documentation
-
-drand has three separate documentation on the [cryptographic
-background](https://hackmd.io/@nikkolasg/HyUAgm234), the [drand operator
-guide](https://hackmd.io/@nikkolasg/Hkz2XFWa4) and the [client side
-API](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) of drand.
 
 ## What's Next?
 
@@ -615,14 +619,21 @@ and there is a lot left to be done. The list of opened
 of this, drand would benefit from higher-level enhancements such as the
 following:
 
-+ Move to the BL12-381 curve
++ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf) or an approach based on verifiable succint computations (zk-SNARKs, etc).
++ Use / implement a faster pairing based library in JS
++ implement "customizable" randomness, where input is chosen from the user
+  (drand would be acting as a distributed threshold [oPRF](https://eprint.iacr.org/2018/733.pdf))
++ expand the network
++ implemented ECIES private randomness in JS (?)
 + Add more unit tests
 + Reduce size of Docker
 + Add a systemd unit file
 + Support multiple drand instances within one node
-+ Implement a more [failure-resilient DKG protocol](https://eprint.iacr.org/2012/377.pdf) or an approach based on verifiable succint computations (zk-SNARKs, etc).
 
-Feel free to submit feature requests or, even better, pull requests. ;)
+Feel free to submit feature requests or, even better, pull requests ;) But
+please note like, this is still currently a side project!
+Contact me on [twitter](https://twitter.com/nikkolasg1) for more information
+about the project.
 
 ## License
 
