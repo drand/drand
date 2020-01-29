@@ -21,15 +21,15 @@ critical at this point.**
 
 ## Table of Contents
 
-* [Goal and description](#goal-and-description)
-* [Installing drand locally](#installing-drand-locally)
-* [Quickstart - Docker](#quickstart---docker)
-* [Overview](#overview)
+* [Goal and Ovierview](#goal-and-ovierview)
    * [Public Randomness](#public-randomness)
    * [Private Randomness](#private-randomness)
+* [Local demo](#local-demo)
 * [Installation](#installation)
-   * [Via Golang](#via-golang)
-   * [Via Docker](#via-docker)
+   * [Official release](#official-release)
+   * [Manual installation](#manual-installation)
+      * [Via Golang](#via-golang)
+      * [Via Docker](#via-docker)
    * [TLS setup: Nginx with Let's Encrypt](#tls-setup-nginx-with-lets-encrypt)
 * [Usage](#usage)
    * [Setup](#setup)
@@ -60,7 +60,8 @@ critical at this point.**
 * [Coverage](#coverage)
 * [Supporting](#supporting)
 
-## Goal and description
+
+## Goal and Ovierview
 
 The need for digital randomness is paramount in multiple digital applications
 ([e]voting, lottery, cyptographic parameters, embedded devices bootstrapping
@@ -88,34 +89,6 @@ Security.  The main website of the first launch sponsored by Cloudflare is
 hosted at the [league of entropy site](https://leagueofentropy.com).
 There is an independent drand website (source in `web/`) showing the same
 network hosted in one of the participant's server: https://drand.zerobyte.io
-
-## Installing drand locally
-
-Requirements: `go >= 1.12`.
-
-Then execute (might need root privileges to run Docker on some systems):
-```bash
-git clone https://github.com/drand/drand
-cd drand
-make install
-```
-
-Then you can run the command-line application with `drand`
-
-## Quickstart - Docker
-
-To deploy several drand nodes locally, make sure that you have a working
-[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
-
-Then execute (it will ask you for root since it deals with docker containers):
-```bash
-make deploy-local
-```
-
-The script spins up 5 local drand nodes using Docker and produces fresh
-randomness every 10 seconds.
-
-## Overview
 
 ### Public Randomness
 
@@ -172,25 +145,46 @@ we run into the chicken-and-egg problem of how to produce on the client's side a
 secure ephemeral key pair for ECIES encryption without a good (local) source of
 randomness.
 
+## Local demo
+
+To deploy several drand nodes locally, make sure that you have a working
+[Docker](https://docs.docker.com/engine/installation/) + [Docker-compose setup](https://docs.docker.com/compose/install/).
+
+Then execute (it will ask you for root since it deals with docker containers):
+```bash
+make deploy-local
+```
+The script spins up 5 local drand nodes using Docker and produces fresh
+randomness every 10 seconds.
+
 ## Installation
+
+### Official release
+
+Please go use the latest drand binary in the [reease page](https://github.com/drand/drand/releases).
+
+### Manual installation
 
 Drand can be installed via [Golang](https://golang.org/) or
 [Docker](https://www.docker.com/). By default, drand saves the configuration
 files such as the long-term key pair, the group file, and the collective public
 key in the directory `$HOME/.drand/`.
 
-### Via Golang
+#### Via Golang
 
 Make sure that you have a working [Golang
 installation](https://golang.org/doc/install) and that your
 [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.  
 Then install drand via:
 ```bash
-go get -u github.com/drand/drand
+git clone https://github.com/drand/drand
+cd drand
+make install
 ```
-### Via Docker
 
-The setup is explained in [README_docker.md](README_docker.md).
+#### Via Docker
+
+The setup is explained in [README_docker.md](https://github.com/drand/drand/tree/master/docker/README_docker.md).
 
 ### TLS setup: Nginx with Let's Encrypt
 
