@@ -2,6 +2,7 @@ version: '3'
 
 services:
   drand-client-1:
+    container_name: drand1
     image: drand-it
     build:
       context: ..
@@ -10,59 +11,53 @@ services:
     volumes:
       - ./data:/data:z
     networks: 
-      - drand-network
+      - drandnetwork
     environment:
       PORT: 8080
       LEADER: 1
-    ports:
-      - "8080:8080"
   drand-client-2:
+    container_name: drand2
     image: drand-it
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
     networks: 
-      - drand-network
+      - drandnetwork
     environment:
       PORT: 8081
-    ports:
-      - "8081:8081"
   drand-client-3:
+    container_name: drand3
     image: drand-it
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
     networks: 
-      - drand-network
+      - drandnetwork
     environment:
       PORT: 8082
-    ports:
-      - "8082:8082"
   drand-client-4:
+    container_name: drand4
     image: drand-it
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
     networks: 
-      - drand-network
+      - drandnetwork
     environment:
       PORT: 8083
-    ports:
-      - "8083:8083"
   drand-client-5:
+    container_name: drand5
     image: drand-it
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
     networks: 
-      - drand-network
+      - drandnetwork
     environment:
       PORT: 8084
-    ports:
-      - "8084:8084"
 
 networks:
-  drand-network:
+  drandnetwork:
     ipam:
       driver: default
       config:

@@ -19,6 +19,15 @@ PUBLIC_KEY=`cat /root/.drand/key/drand_id.public`
 echo -en "[[Nodes]]\n${PUBLIC_KEY}\n\n" >> "${GROUP_FILE}"
 echo
 
+# On MacOS, you can't ping/curl the container from the host. Here's a fix
+apk add curl
+cat << FIX_SCRIPT > /bin/call_api
+#!/bin/sh
+echo "Running curl -s ${IP_ADDR_PORT}/api/public from inside the container:"
+curl -s ${IP_ADDR_PORT}/api/public
+FIX_SCRIPT
+chmod ug+x /bin/call_api
+
 # Boot the drand deamon in background
 nohup drand start --tls-disable & # add "--verbose 2" here for more details
 
