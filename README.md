@@ -95,7 +95,7 @@ Requirements: `go >= 1.12`.
 
 Then execute (might need root privileges to run Docker on some systems):
 ```bash
-git clone https://github.com/dedis/drand
+git clone https://github.com/drand/drand
 cd drand
 make install
 ```
