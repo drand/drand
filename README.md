@@ -637,8 +637,10 @@ about the project.
 
 ## License
 
-The drand source code is released under MIT license, see the file
-[LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for the full text.
+The drand source code is released under MIT license originated at the DEDIS lab,
+see the file [LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for
+the full text.
+All modifications brought to this repository are as well under an MIT license.
 
 ## Contributors
 
