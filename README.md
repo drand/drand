@@ -344,11 +344,12 @@ The timeout is an optional parameter indicating the maximum timeout the DKG
 protocol will wait. If there are some failed nodes during the DKG, then the DKG will finish only after the given timeout. The default value is set to 10s (see
 [`core/constants.go`](https://github.com/dedis/drand/blob/master/core/constants.go) file).
 
-During the DKG, it is possible for a participant to inject their own entropy source into the creation of their secret. To do such, their random data must be provided in the DKG command by using the flag `source` like:
+**Custom entropy source**: By default drand takes its entropy for the setup
+phase from the OS's entropy source (`/dev/urandom` on unix systems). However, it is possible for a participant to inject their own entropy source into the creation of their secret. To do so, one must have an executable that produces random data when called and pass the name of that executable to drand:
 ```
 drand share <group-file> --source <entropy-exec>
 ```
-where `<entropy-exec>` is the path to the executable which produces the user's random data.
+where `<entropy-exec>` is the path to the executable which produces the user's random data on stdout.
 
 As a precaution, the user's randomness is mixed by default with `crypto/rand` to create a random stream. In order to introduce reproducibility, the flag `user-source-only` can be set to impose that only the user-specified entropy source is used. Its use should be limited to testing.
 ```
