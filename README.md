@@ -1,6 +1,13 @@
 [![Build Status](https://travis-ci.org/drand/drand.svg?branch=master)](https://travis-ci.org/drand/drand)
 
 # Drand - A Distributed Randomness Beacon Daemon
+Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
+in [Golang](https://golang.org/). Servers running drand can be linked with each
+other to produce collective, publicly verifiable, unbiasable, unpredictable
+random values at fixed intervals using bilinear pairings and threshold
+cryptography. Drand nodes can also serve locally-generated private randomness
+to clients.
+
 drand was first developed within the [DEDIS organization](
 https://github.com/dedis), and as of December 2019,
 is now under the drand organization.
@@ -142,7 +149,7 @@ Then execute (it will ask you for root since it deals with docker containers):
 make deploy-local
 ```
 The script spins up 5 local drand nodes using Docker and produces fresh
-randomness every 10 seconds.
+[randomness every 10 seconds](https://github.com/drand/drand/tree/master/demo).
 
 ## Installation
 ### Official release
@@ -561,9 +568,9 @@ error instead.
 
 ## DrandJS
 To facilitate the use of drand's randomness in JavaScript-based applications,
-we provide [DrandJS](https://github.com/PizzaWhisperer/drandjs). The main
-method `fetchAndVerify` of this JavaScript library fetches from a drand node
-the latest random beacon generated and then verifies it against the distributed
+we provide [DrandJS](https://github.com/drand/drandjs). The main method
+`fetchAndVerify` of this JavaScript library fetches from a drand node the
+latest random beacon generated and then verifies it against the distributed
 key.  For more details on the procedure and instructions on how to use it,
 refer to the
 [readme](https://github.com/PizzaWhisperer/drandjs/blob/master/README.md).
