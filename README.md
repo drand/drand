@@ -686,6 +686,7 @@ for letting me work on this project and helping me grow it.
   [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
 - Duo
   [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
+- [Liftr](https://liftrinsights.com/liftr-cloud-look-ahead-cloudflare-introduces-the-league-of-entropy-googles-solution-to-keep-data-sets-private-and-more/)
 - (French)
   [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.html)
 
