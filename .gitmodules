@@ -1,3 +1,7 @@
 [submodule "web/static/js/drandjs"]
 	path = web/static/js/drandjs
 	url = https://github.com/drand/drandjs
+[submodule "web/public"]
+	path = web/public
+	url = git@github.com:drand/drand.github.io
+	branch = master

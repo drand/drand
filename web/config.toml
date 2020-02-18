@@ -1,7 +1,7 @@
-baseURL = "https://drand.io/"
+baseURL = "https://drand.github.io/"
 languageCode = "en-us"
 title = "drand - A Distributed Randomness Beacon"
 
 [params]
-    serverContact = "drand.zerobyte.xyz"
+    serverContact = "drand.nikkolasg.xyz:8888"
     tls = true
