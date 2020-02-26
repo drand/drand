@@ -36,7 +36,7 @@ curr=$(pwd)
 cd ../../
 root=$(pwd)
 cd "$curr"
-IMG="dedis/drand:latest"
+IMG="drandorg/drand:latest"
 DOCKERFILE="$root/Dockerfile"
 NET="drand"
 SUBNET="192.168.215."

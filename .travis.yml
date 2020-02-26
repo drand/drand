@@ -1,6 +1,3 @@
-#dist: trusty
-sudo: required
-
 services:
     - docker
 
@@ -10,22 +7,27 @@ go:
     - tip
 
 env:
+  global:
     - GO111MODULE=on
+    - COMMIT: ${TRAVIS_COMMIT::8}
+    - IMAGE: drandorg/drand
 
 # https://arslan.io/2018/08/26/using-go-modules-with-vendor-support-on-travis-ci/
 install: true
 
 script:
     - make test-unit
+    - docker build -t $IMAGE . #docker-compose should be self-sufficient, but fails on travis...
     # keep environnement variable for sudo
-    - docker build -t drand-it . #docker-compose should be self-sufficient, but fails on travis...
     - sudo -E env "PATH=$PATH" make test-integration
 
-after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
-        sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-        sudo docker push dedis/drand:latest;
-    fi
-
 before_deploy:
+    - docker tag $IMAGE $IMAGE:$COMMIT;
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+
+deploy:
+    provider: script
+    script: docker push $IMAGE
+    on:
+        branch: master
+        repo: drand/drand
