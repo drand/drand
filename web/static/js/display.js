@@ -21,7 +21,7 @@ window.worker.addEventListener('message', function(e) {
                 window.verified = d.verified;
                 window.distkey = d.distkey;
                 const randomness = drandjs.toHexString(drandjs.sha256(d.signature));
-                printRound(randomness, d.previous, d.round, d.signature, true);
+                printRound(randomness, d.previous, d.round, d.signature);
                 setVerified(true);
             } else if ("error" in data) {
                 setRound(data.request.round);
@@ -29,7 +29,13 @@ window.worker.addEventListener('message', function(e) {
                     const d = data.invalid;
                     const randomness = drandjs.toHexString(drandjs.sha256(d.signature));
                     setRandomness(sliceRandomness(d.randomness));
-                    setVerified(false, "Invalid verification");
+                    console.log("unable to verify with current hash-to-curve method");
+                    // XXX: currently the library use the Boneh hash to curve
+                    // method which isn't implemented in JS - Need to do a
+                    // webassembly wrapper around the rust library
+                    printRound(randomness, d.previous, d.round, d.signature);
+                    setVerified(false, "Randomness fetched correctly");
+                    //setVerified(false, "Invalid verification");
                 } else {
                     setVerified(false, " Error during verification");
                     var p = document.createElement("pre");
@@ -114,7 +120,7 @@ function sliceRandomness(randomness) {
 /**
 * printRound formats and prints the given randomness with interactions
 **/
-function printRound(randomness, previous, round, signature, verified) {
+function printRound(randomness, previous, round, signature) {
   //print randomness as current
   var r4l = sliceRandomness(randomness);
   var p = setRandomness(r4l);
