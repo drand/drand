@@ -37,6 +37,10 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: error reading group: %v", err)
 	}
+	if group.GenesisTime < time.Now().Unix() {
+		d.state.Unlock()
+		return nil, errors.New("control: group with genesis time in the past")
+	}
 	d.group = group
 	idx, found := group.Index(d.priv.Public)
 	if !found {
@@ -70,11 +74,8 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 
 	d.initBeacon()
-	d.opts.clock.Sleep(syncTime)
 	// After DKG, always start the beacon directly
-	if err := d.StartBeacon(false); err != nil {
-		return nil, fmt.Errorf("drand: err during beacon generation: %v", err)
-	}
+	d.StartBeacon(false)
 	return &control.Empty{}, nil
 }
 
@@ -88,6 +89,9 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 
 	if newGroup, err = extractGroup(in.New); err != nil {
 		return nil, err
+	}
+	if newGroup.GenesisTime < time.Now().Unix() {
+		return nil, errors.New("control: new group with genesis time in the past")
 	}
 
 	d.state.Lock()
@@ -187,7 +191,8 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if oldPresent {
 		catchup = false
 	}
-	return &control.Empty{}, d.StartBeacon(catchup)
+	d.StartBeacon(catchup)
+	return &control.Empty{}, nil
 }
 
 func (d *Drand) startResharingAsLeader(oidx int) {
@@ -334,6 +339,7 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 	if g.Threshold < vss.MinimumT(g.Len()) {
 		return nil, errors.New("control: threshold of new group too low ")
 	}
+
 	return g, nil
 }
 

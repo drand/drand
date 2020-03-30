@@ -5,7 +5,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func getPrivateCmd(c *cli.Context) error {

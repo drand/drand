@@ -17,39 +17,6 @@ import (
 // stores and loads beacon signatures. At the moment of writing, it consists of
 // a boltdb key/value database store.
 
-// Beacon holds the randomness as well as the info to verify it.
-type Beacon struct {
-	// PreviousSig is the previous signature generated
-	PreviousSig []byte
-	// Round is the round number this beacon is tied to
-	Round uint64
-	// Signature is the BLS deterministic signature over Round || PreviousRand
-	Signature []byte
-}
-
-// GetSignature returns the signature of this beacon. Needed for
-// retro-compatibility
-func (b *Beacon) GetSignature() []byte {
-	return b.Signature
-}
-
-// GetPreviousSig returns the signature of the previous beacon. Needed for
-// retro-compatibility.
-func (b *Beacon) GetPreviousSig() []byte {
-	return b.PreviousSig
-}
-
-// Message returns a slice of bytes as the message to sign or to verify
-// alongside a beacon signature.
-func Message(prevSig []byte, round uint64) []byte {
-	var buff bytes.Buffer
-	buff.Write(roundToBytes(round))
-	buff.Write(prevSig)
-	h := sha256.New()
-	h.Write(buff.Bytes())
-	return h.Sum(nil)
-}
-
 // Store is an interface to store Beacons packets where they can also be
 // retrieved to be delivered to end clients.
 type Store interface {

@@ -12,7 +12,7 @@ import (
 	control "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // shareCmd decides whether the command is for a DKG or for a resharing and

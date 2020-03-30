@@ -25,6 +25,8 @@ type Group struct {
 	Period time.Duration
 	// List of identities forming this group
 	Nodes []*Identity
+	// Time at which the group will start the network - unix format
+	GenesisTime int64
 	// The distributed public key of this group. It is nil if the group has not
 	// ran a DKG protocol yet.
 	PublicKey *DistPublic
@@ -83,6 +85,7 @@ func (g *Group) Hash() (string, error) {
 		h.Write(b)
 	}
 	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
+	binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
@@ -108,10 +111,11 @@ func (g *Group) String() string {
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	Threshold int
-	Period    string
-	Nodes     []*PublicTOML
-	PublicKey *DistPublicTOML
+	Threshold   int
+	Period      string
+	Nodes       []*PublicTOML
+	GenesisTime int64
+	PublicKey   *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
@@ -143,6 +147,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		}
 	}
 	g.Period, err = time.ParseDuration(gt.Period)
+	g.GenesisTime = gt.GenesisTime
 	return err
 }
 
@@ -160,6 +165,7 @@ func (g *Group) TOML() interface{} {
 		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
 	}
 	gtoml.Period = g.Period.String()
+	gtoml.GenesisTime = g.GenesisTime
 	return gtoml
 }
 
@@ -185,10 +191,11 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 }
 
 // NewGroup returns a list of identities as a Group.
-func NewGroup(list []*Identity, threshold int) *Group {
+func NewGroup(list []*Identity, threshold int, genesis int64) *Group {
 	return &Group{
-		Nodes:     copyAndShuffle(list),
-		Threshold: threshold,
+		Nodes:       copyAndShuffle(list),
+		Threshold:   threshold,
+		GenesisTime: genesis,
 	}
 }
 

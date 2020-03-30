@@ -201,7 +201,7 @@ var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time,
 
 // StartBeacon initializes the beacon if needed and launch a go routine that
 // runs the generation loop.
-func (d *Drand) StartBeacon(catchup bool) error {
+func (d *Drand) StartBeacon(catchup bool) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -212,7 +212,6 @@ func (d *Drand) StartBeacon(catchup bool) error {
 	period := getPeriod(d.group)
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	go d.beacon.Run(period, catchup)
-	return nil
 }
 
 // StopBeacon stops the beacon generation process and resets it.

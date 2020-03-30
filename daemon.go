@@ -6,7 +6,7 @@ import (
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func startCmd(c *cli.Context) error {

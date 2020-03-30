@@ -23,7 +23,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags
@@ -44,106 +44,117 @@ func banner() {
 	fmt.Printf(s)
 }
 
-var folderFlag = cli.StringFlag{
+var folderFlag = &cli.StringFlag{
 	Name:  "folder, f",
 	Value: core.DefaultConfigFolder(),
 	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
 }
-var leaderFlag = cli.BoolFlag{
+var leaderFlag = &cli.BoolFlag{
 	Name:  "leader",
 	Usage: "Set this node as the initator of the distributed key generation process.",
 }
-var verboseFlag = cli.IntFlag{
+var verboseFlag = &cli.IntFlag{
 	Name:  "verbose, V",
 	Value: 1,
 	Usage: "Set verbosity to the given level. Level 1 is the info level and level 2 is the debug level. Verbosity is at the info level by default.",
 }
 
-var tlsCertFlag = cli.StringFlag{
+var tlsCertFlag = &cli.StringFlag{
 	Name: "tls-cert, c",
 	Usage: "Set the TLS certificate chain (in PEM format) for this drand node. " +
 		"The certificates have to be specified as a list of whitespace-separated file paths. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 }
 
-var tlsKeyFlag = cli.StringFlag{
+var tlsKeyFlag = &cli.StringFlag{
 	Name: "tls-key, k",
 	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
 		"The key has to be specified as a file path. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 }
 
-var insecureFlag = cli.BoolFlag{
+var insecureFlag = &cli.BoolFlag{
 	Name:  "tls-disable, d",
 	Usage: "Disable TLS for all communications (not recommended).",
 }
 
-var controlFlag = cli.StringFlag{
+var controlFlag = &cli.StringFlag{
 	Name:  "control",
 	Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
 }
 
-var listenFlag = cli.StringFlag{
+var listenFlag = &cli.StringFlag{
 	Name:  "listen, l",
 	Usage: "Set the listening (binding) address. Useful if you have some kind of proxy.",
 }
 
-var nodeFlag = cli.StringFlag{
+var nodeFlag = &cli.StringFlag{
 	Name:  "nodes, n",
 	Usage: "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
 }
 
-var roundFlag = cli.IntFlag{
+var roundFlag = &cli.IntFlag{
 	Name:  "round, r",
 	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
 }
 
-var groupFlag = cli.StringFlag{
+var groupFlag = &cli.StringFlag{
 	Name:  "group, g",
 	Usage: "If you want to merge keys into an existing group.toml file, run the group command and specify the group.toml file with this flag.",
 }
 
-var certsDirFlag = cli.StringFlag{
+var certsDirFlag = &cli.StringFlag{
 	Name:  "certs-dir",
 	Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
 }
 
-var outFlag = cli.StringFlag{
+var outFlag = &cli.StringFlag{
 	Name: "out, o",
 	Usage: "save the requested information into a separate file" +
 		" instead of stdout",
 }
 
-var periodFlag = cli.StringFlag{
+var periodFlag = &cli.StringFlag{
 	Name:  "period",
 	Usage: "period to write in the group.toml file",
 }
 
+var thresholdFlag = &cli.IntFlag{
+	Name:  "threshold",
+	Usage: "threshold to set on the group file",
+}
+
+var genesisFlag = &cli.Int64Flag{
+	Name:     "genesis",
+	Required: true,
+	Usage:    "genesis time to set on the group file - unix time",
+}
+
 // XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
 
-var oldGroupFlag = cli.StringFlag{
+var oldGroupFlag = &cli.StringFlag{
 	Name: "from",
 	Usage: "Old group.toml path to specify when a new node wishes to participate " +
 		"in a resharing protocol. This flag is optional in case a node is already" +
 		"included in the current DKG.",
 }
 
-var timeoutFlag = cli.StringFlag{
+var timeoutFlag = &cli.StringFlag{
 	Name:  "timeout",
 	Usage: fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
 }
 
-var pushFlag = cli.BoolFlag{
+var pushFlag = &cli.BoolFlag{
 	Name:  "push",
 	Usage: "Push mode forces the daemon to start making beacon requests to the other node, instead of waiting the other nodes contact it to catch-up on the round",
 }
 
-var sourceFlag = cli.StringFlag{
+var sourceFlag = &cli.StringFlag{
 	Name:  "source",
 	Usage: "Source flag allows to provide an executable which output will be used as additional entropy during resharing step.",
 }
 
-var userEntropyOnlyFlag = cli.BoolFlag{
+var userEntropyOnlyFlag = &cli.BoolFlag{
 	Name:  "user-source-only",
 	Usage: "user-source-only flag used with the source flag allows to only use the user's entropy to pick the dkg secret (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
 }
@@ -158,8 +169,8 @@ func main() {
 	app.Version = version
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
-	app.Commands = []cli.Command{
-		cli.Command{
+	app.Commands = []*cli.Command{
+		&cli.Command{
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
@@ -170,7 +181,7 @@ func main() {
 				return startCmd(c)
 			},
 		},
-		cli.Command{
+		&cli.Command{
 			Name:  "stop",
 			Usage: "Stop the drand daemon.\n",
 			Action: func(c *cli.Context) error {
@@ -178,7 +189,7 @@ func main() {
 				return stopDaemon(c)
 			},
 		},
-		cli.Command{
+		&cli.Command{
 			Name: "share",
 			Usage: "Launch a sharing protocol. If one group is given as " +
 				"argument, drand launches a DKG protocol to create a distributed " +
@@ -195,7 +206,7 @@ func main() {
 				return shareCmd(c)
 			},
 		},
-		cli.Command{
+		&cli.Command{
 			Name: "generate-keypair",
 			Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 				"for this node.\n",
@@ -206,20 +217,20 @@ func main() {
 				return keygenCmd(c)
 			},
 		},
-		cli.Command{
+		&cli.Command{
 			Name: "group",
 			Usage: "Merge the given list of whitespace-separated drand.public " +
 				"keys into the group.toml file if one is provided, if not, create " +
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
-			Flags: toArray(groupFlag, outFlag, periodFlag),
+			Flags: toArray(outFlag, periodFlag, thresholdFlag, genesisFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
 			},
 		},
-		cli.Command{
+		&cli.Command{
 			Name:  "check-group",
 			Usage: "Check node in the group for accessibility over the gRPC communication",
 			Flags: toArray(certsDirFlag),
@@ -232,7 +243,7 @@ func main() {
 			Name: "get",
 			Usage: "get allows for public information retrieval from a remote " +
 				"drand node.\n",
-			Subcommands: []cli.Command{
+			Subcommands: []*cli.Command{
 				{
 					Name: "private",
 					Usage: "Get private randomness from the drand beacon as " +
@@ -301,7 +312,7 @@ func main() {
 				"(drand.public), or the private key share (drand.share), " +
 				"respectively.\n",
 			Flags: toArray(controlFlag),
-			Subcommands: []cli.Command{
+			Subcommands: []*cli.Command{
 				{
 					Name:  "share",
 					Usage: "shows the private share\n",
@@ -492,8 +503,16 @@ func groupCmd(c *cli.Context) error {
 		fatal("drand: group command take at least 3 keys as arguments")
 	}
 	var threshold = key.DefaultThreshold(c.NArg())
+	if c.IsSet(thresholdFlag.Name) {
+		var localThr = c.Int(thresholdFlag.Name)
+		if localThr < threshold {
+			fatal(fmt.Sprintf("drand: threshold specified too low %d/%d", localThr, threshold))
+		}
+		threshold = localThr
+	}
+
 	publics := make([]*key.Identity, c.NArg())
-	for i, str := range c.Args() {
+	for i, str := range c.Args().Slice() {
 		pub := &key.Identity{}
 		fmt.Printf("drand: reading public identity from %s\n", str)
 		if err := key.Load(str, pub); err != nil {
@@ -511,19 +530,8 @@ func groupCmd(c *cli.Context) error {
 		}
 	}
 
-	var group *key.Group
-	if c.IsSet("group") {
-		// merge with given group
-		groupPath := c.String("group")
-		testEmptyGroup(groupPath)
-		oldG := &key.Group{}
-		if err := key.Load(groupPath, oldG); err != nil {
-			fatal("drand: can't load group: %v", err)
-		}
-		group = oldG.MergeGroup(publics)
-	} else {
-		group = key.NewGroup(publics, threshold)
-	}
+	genesis := c.Int64(genesisFlag.Name)
+	group := key.NewGroup(publics, threshold, genesis)
 	group.Period = period
 
 	if c.IsSet("out") {
@@ -595,7 +603,7 @@ func keyIDFromAddr(addr string, group *key.Group) *key.Identity {
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
 
-	if c.GlobalIsSet("verbose") {
+	if c.IsSet("verbose") {
 		switch c.Int("verbose") {
 		case log.LogInfo:
 			opts = append(opts, core.WithLogLevel(log.LogInfo))
@@ -617,7 +625,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
 	}
-	config := c.GlobalString("folder")
+	config := c.String("folder")
 	opts = append(opts, core.WithConfigFolder(config))
 
 	if c.Bool("tls-disable") {
