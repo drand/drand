@@ -163,10 +163,15 @@ func (d *Drand) WaitDKG() error {
 
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
+	// XXX This method of overwriting is not ideal in case of resharing - if a
+	// node fails during resharing he can't use the old group until the new
+	// network starts...
 	d.group = d.dkg.QualifiedGroup()
 	// need to save the period before since dkg returns a *new* fresh group, it
 	// does not know about the period.
 	d.group.Period = d.nextConf.NewNodes.Period
+	d.group.GenesisTime = d.nextConf.GenesisTime
+	d.group.TransitionTime = d.nextConf.TransitionTime
 	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
 	d.store.SaveGroup(d.group)
 	d.opts.applyDkgCallback(d.share)
@@ -199,8 +204,8 @@ func (d *Drand) createDKG() error {
 // alongside with the round number 0.
 var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
 
-// StartBeacon initializes the beacon if needed and launch a go routine that
-// runs the generation loop.
+// StartBeacon initializes the beacon if needed and launch a go
+// routine that runs the generation loop.
 func (d *Drand) StartBeacon(catchup bool) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -209,9 +214,60 @@ func (d *Drand) StartBeacon(catchup bool) {
 		d.initBeacon()
 		d.state.Lock()
 	}
-	period := getPeriod(d.group)
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
-	go d.beacon.Run(period, catchup)
+	if catchup {
+		if err := d.beacon.SyncAndRun(); err != nil {
+			d.log.Error("beacon_start", err)
+		}
+	} else {
+		if err := d.beacon.Start(); err != nil {
+			d.log.Error("beacon_start", err)
+		}
+	}
+}
+
+// transition between an "old" group and a new group. This method is called
+// *after* a resharing dkg has proceed.
+// the new beacon syncs before the new network starts
+// and will start once the new network time kicks in. The old beacon will stop
+// just before the time of the new network.
+// TODO: due to current WaitDKG behavior, the old group is overwritten, so an
+// old node that fails during the time the resharing is done and the new network
+// comes up have to wait for the new network to comes in - that is to be fixed
+func (d *Drand) transition(oldPresent, newPresent bool) {
+	// the node should stop a bit before the new round to avoid starting it at
+	// the same time as the new node
+	// NOTE: this limits the round time of drand to 3s - for now it is not a use
+	// case of drand to go that fast
+	timeToStop := d.group.TransitionTime - 3
+	if !newPresent {
+		// an old node is leaving the network
+		if err := d.beacon.StopAt(timeToStop); err != nil {
+			d.log.Error("leaving_group", err)
+		} else {
+			d.log.Info("leaving_group", "done", "time", d.opts.clock.Now())
+		}
+		return
+	}
+
+	// tell the current beacon to stop just before the new network starts
+	if oldPresent {
+		// get reference to last beacon and init the new one
+		d.state.Lock()
+		currentBeacon := d.beacon
+		d.state.Unlock()
+		go currentBeacon.StopAt(timeToStop)
+	}
+	newBeacon, err := d.initBeacon()
+	if err != nil {
+		return err
+	}
+	// tell the new node that has "nothing" to sync in the meantime
+	// XXX
+	if !oldPresent {
+
+	}
+	newBeacon.Sync()
 }
 
 // StopBeacon stops the beacon generation process and resets it.
@@ -248,28 +304,21 @@ func (d *Drand) isDKGDone() bool {
 	return d.dkgDone
 }
 
-func (d *Drand) initBeacon() error {
-	d.state.Lock()
-	defer d.state.Unlock()
-	if d.beacon != nil {
-		return nil
-	}
+func (d *Drand) initBeacon() (*beacon.Handler, error) {
 	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
 	conf := &beacon.Config{
 		Group:   d.group,
 		Private: d.priv,
 		Share:   d.share,
-		Seed:    DefaultSeed,
 		Scheme:  key.Scheme,
 		Clock:   d.opts.clock,
 	}
-	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
-	return err
+	return beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
 }
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {

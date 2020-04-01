@@ -73,8 +73,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
 
-	d.initBeacon()
-	// After DKG, always start the beacon directly
+	// beacon will start at the genesis time specified
 	d.StartBeacon(false)
 	return &control.Empty{}, nil
 }
@@ -107,6 +106,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	d.state.Unlock()
 
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
+	_, newPresent := newGroup.Index(d.priv.Public)
 	err = func() error {
 		d.state.Lock()
 		defer d.state.Unlock()
@@ -170,10 +170,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, err
 	}
 
-	// stop the beacon before running the dkg to avoid running into sync issues
-	// of using the new shares with the old beacon, etc.
-	d.StopBeacon()
-
 	if oldPresent && in.GetIsLeader() {
 		// only the root sends a pre-message to the other old
 		// nodes and start the DKG
@@ -182,15 +178,18 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if err := d.WaitDKG(); err != nil {
 		return nil, err
 	}
+	go d.transition(newPresent)
 	// stop the beacon first, then re-create it with the new shares
 	d.initBeacon()
-	// XXX completely arbritrary timeout to wait for the other so they finish it
-	// too
-	d.opts.clock.Sleep(syncTime)
 	catchup := true
 	if oldPresent {
 		catchup = false
 	}
+
+	// stop the beacon before running the dkg to avoid running into sync issues
+	// of using the new shares with the old beacon, etc.
+	d.StopBeacon()
+
 	d.StartBeacon(catchup)
 	return &control.Empty{}, nil
 }

@@ -25,8 +25,11 @@ type Group struct {
 	Period time.Duration
 	// List of identities forming this group
 	Nodes []*Identity
-	// Time at which the group will start the network - unix format
+	// Time at which the first round of the chain is mined
 	GenesisTime int64
+	// In case of a resharing, this is the time at which the network will
+	// transition from the old network to the new network.
+	TransitionTime int64
 	// The distributed public key of this group. It is nil if the group has not
 	// ran a DKG protocol yet.
 	PublicKey *DistPublic
@@ -115,11 +118,12 @@ func (g *Group) String() string {
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	Threshold   int
-	Period      string
-	Nodes       []*PublicTOML
-	GenesisTime int64
-	PublicKey   *DistPublicTOML
+	Threshold      int
+	Period         string
+	Nodes          []*PublicTOML
+	GenesisTime    int64
+	TransitionTime int64 `toml:omitempty`
+	PublicKey      *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
@@ -155,6 +159,9 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		return err
 	}
 	g.GenesisTime = gt.GenesisTime
+	if gt.TransitionTime != 0 {
+		g.TransitionTime = gt.TransitionTime
+	}
 	return nil
 }
 
@@ -173,6 +180,9 @@ func (g *Group) TOML() interface{} {
 	}
 	gtoml.Period = g.Period.String()
 	gtoml.GenesisTime = g.GenesisTime
+	if g.TransitionTime != 0 {
+		gtoml.TransitionTime = g.TransitionTime
+	}
 	return gtoml
 }
 

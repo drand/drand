@@ -3,7 +3,6 @@ package beacon
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"path"
 	"sync"
@@ -23,8 +22,22 @@ type Store interface {
 	Put(*Beacon) error
 	Last() (*Beacon, error)
 	Get(round uint64) (*Beacon, error)
+	Cursor() Cursor
 	// XXX Misses a delete function
 	Close()
+}
+
+// Iterate over items in sorted key order. This starts from the
+// first key/value pair and updates the k/v variables to the
+// next key/value on each iteration.
+//
+// The loop finishes at the end of the cursor when a nil key is returned.
+//    for k, v := c.First(); k != nil; k, v = c.Next() {
+//        fmt.Printf("A %s is %s.\n", k, v)
+//    }
+type Cursor interface {
+	First() *Beacon
+	Next() *Beacon
 }
 
 // boldStore implements the Store interface using the kv storage boltdb (native
@@ -77,7 +90,7 @@ func (b *boltStore) Put(beacon *Beacon) error {
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
 		key := roundToBytes(beacon.Round)
-		buff, err := json.Marshal(beacon)
+		buff, err := beacon.Marshal()
 		if err != nil {
 			return err
 		}
@@ -99,7 +112,7 @@ var ErrNoBeaconSaved = errors.New("no beacon saved in db")
 // Last returns the last beacon signature saved into the db
 func (b *boltStore) Last() (*Beacon, error) {
 	var beacon *Beacon
-	err := b.db.Update(func(tx *bolt.Tx) error {
+	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
 		cursor := bucket.Cursor()
 		_, v := cursor.Last()
@@ -107,7 +120,7 @@ func (b *boltStore) Last() (*Beacon, error) {
 			return ErrNoBeaconSaved
 		}
 		b := &Beacon{}
-		if err := json.Unmarshal(v, b); err != nil {
+		if err := b.Unmarshal(v); err != nil {
 			return err
 		}
 		beacon = b
@@ -119,20 +132,59 @@ func (b *boltStore) Last() (*Beacon, error) {
 // Get returns the beacon saved at this round
 func (b *boltStore) Get(round uint64) (*Beacon, error) {
 	var beacon *Beacon
-	err := b.db.Update(func(tx *bolt.Tx) error {
+	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
 		v := bucket.Get(roundToBytes(round))
 		if v == nil {
 			return ErrNoBeaconSaved
 		}
 		b := &Beacon{}
-		if err := json.Unmarshal(v, b); err != nil {
+		if err := b.Unmarshal(v); err != nil {
 			return err
 		}
 		beacon = b
 		return nil
 	})
 	return beacon, err
+}
+
+func (b *boltStore) Cursor() Cursor {
+	var c *bolt.Cursor
+	// no error returned
+	b.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		c = bucket.Cursor()
+		return nil
+	})
+	return &boltCursor{Cursor: c}
+}
+
+type boltCursor struct {
+	*bolt.Cursor
+}
+
+func (c *boltCursor) First() *Beacon {
+	k, v := c.Cursor.First()
+	if k == nil {
+		return nil
+	}
+	b := new(Beacon)
+	if err := b.Unmarshal(v); err != nil {
+		return nil
+	}
+	return b
+}
+
+func (c *boltCursor) Next() *Beacon {
+	k, v := c.Cursor.First()
+	if k == nil {
+		return nil
+	}
+	b := new(Beacon)
+	if err := b.Unmarshal(v); err != nil {
+		return nil
+	}
+	return b
 }
 
 type cbStore struct {

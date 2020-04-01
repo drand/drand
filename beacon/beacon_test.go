@@ -382,7 +382,7 @@ func TestBeaconThreshold(t *testing.T) {
 
 	currentRound++
 	// make a few round
-	makeRounds(3, n-1)
+	makeRounds(2, n-1)
 
 	// launch the last one
 	bt.CallbackFor(n-1, myCallBack(n-1))
@@ -390,12 +390,12 @@ func TestBeaconThreshold(t *testing.T) {
 	bt.StartBeacon(n-1, true)
 	// wait a bit for syncing to take place
 	time.Sleep(100 * time.Millisecond)
-	makeRounds(3, n)
+	makeRounds(2, n)
 
 	// stop last one again - so it will force a sync not from genesis
 	bt.StopBeacon(n - 1)
 	// make a few round
-	makeRounds(3, n-1)
+	makeRounds(2, n-1)
 	// start the node again
 	bt.CreateNode(n - 1)
 	bt.ServeBeacon(n - 1)

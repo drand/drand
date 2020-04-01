@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"math"
 	"time"
 )
@@ -22,6 +23,14 @@ type Beacon struct {
 	Signature []byte
 }
 
+func (b *Beacon) Equal(b2 *Beacon) bool {
+	return b.PreviousRound == b2.PreviousRound &&
+		bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
+		b.Round == b2.Round &&
+		bytes.Equal(b.Signature, b2.Signature)
+
+}
+
 // GetSignature returns the signature of this beacon. Needed for
 // retro-compatibility
 func (b *Beacon) GetSignature() []byte {
@@ -32,6 +41,14 @@ func (b *Beacon) GetSignature() []byte {
 // retro-compatibility.
 func (b *Beacon) GetPreviousSig() []byte {
 	return b.PreviousSig
+}
+
+func (b *Beacon) Marshal() ([]byte, error) {
+	return json.Marshal(b)
+}
+
+func (b *Beacon) Unmarshal(buff []byte) error {
+	return json.Unmarshal(buff, b)
 }
 
 // Message returns a slice of bytes as the message to sign or to verify

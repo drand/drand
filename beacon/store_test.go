@@ -60,4 +60,17 @@ func TestBoltStore(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 		t.Fail()
 	}
+
+	store, err = NewBoltStore(path, nil)
+	require.NoError(t, err)
+	store.Put(b1)
+	store.Put(b2)
+
+	c := store.Cursor()
+	expecteds := []*Beacon{b1, b2}
+	i := 0
+	for b := c.First(); b != nil; b = c.Next() {
+		require.True(t, expecteds[i].Equal(b))
+		i++
+	}
 }

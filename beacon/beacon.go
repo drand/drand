@@ -254,48 +254,52 @@ func (h *Handler) Start() error {
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) SyncAndRun() error {
-	trials := 0
-	maxTrials := 3
-	var nextRound uint64
-	var nextTime int64
-	var previousBeacon *Beacon
-	var err error
-	for trials < maxTrials {
-		previousBeacon, err = h.store.Last()
-		if err == ErrNoBeaconSaved {
-			return errors.New("no genesis block stored")
-		}
-		if err != nil {
-			return err
-		}
-		// always catch up on the upcoming round - sync could take some time so
-		// we check each time what's the next round
-		nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-		if previousBeacon.Round+1 == nextRound {
-			// next round will build on the one we have
-			// This assumes the network is live
-			h.l.Debug("sync", "done", "upto", previousBeacon.Round, "next_time", nextTime)
-			break
-		}
-		// there is a gap - we need to sync with other peers
-		currRound := previousBeacon.Round
-		currSig := previousBeacon.Signature
-		//fmt.Printf("\n node %d LAUNCHING SYNC from round %d -- previousBeacon.Round %d\n\n", h.index, currRound, previousBeacon.Round)
-		if err := h.syncFrom(currRound, currSig); err != nil {
-			h.l.Error("sync", "failed", "from", currRound, "trial", trials)
-		}
-		trials++
-	}
-	if trials == maxTrials {
-		h.l.Fatal("beacon_sync", "failed")
-	}
+	prevBeacon, err := h.Sync()
+	if err != nil {
 
-	// next round R is signing over rand_(R-1) || R
-	previousSig := previousBeacon.Signature
-	previousRound := previousBeacon.Round
+	}
+	nextRound, nextTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	previousSig := prevBeacon.Signature
+	previousRound := prevBeacon.Round
 	fmt.Printf("\n SYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
 	go h.run(previousSig, previousRound, nextRound, nextTime)
 	return nil
+}
+
+func (h *Handler) Sync() (*Beacon, error) {
+	var nextRound uint64
+	var nextTime int64
+	var err error
+	var lastBeacon *Beacon
+	// only reason why trying multiple times is when the syncing takes too much
+	// time and then we miss the current round, hence 2 times should be fine.
+	for trial := 0; trial < 2; trial++ {
+		lastBeacon, err = h.store.Last()
+		if err == ErrNoBeaconSaved {
+			return nil, errors.New("no genesis block stored. BUG")
+		}
+		if err != nil {
+			return nil, err
+		}
+		nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+		if lastBeacon.Round+1 == nextRound {
+			// next round will build on the one we have - no need to sync
+			return lastBeacon, nil
+		}
+		// there is a gap - we need to sync with other peers
+		currRound := lastBeacon.Round
+		currSig := lastBeacon.Signature
+		//fmt.Printf("\n node %d LAUNCHING SYNC from round %d -- previousBeacon.Round %d\n\n", h.index, currRound, previousBeacon.Round)
+		if err := h.syncFrom(currRound, currSig); err != nil {
+			h.l.Error("sync", "failed", "from", currRound)
+		}
+		lastBeacon = h.loadLastSucessfulRound()
+		if lastBeacon == nil {
+			h.l.Fatal("after_sync", "nil_beacon")
+		}
+	}
+	h.l.Debug("sync", "done", "upto", lastBeacon.Round, "next_time", nextTime)
+	return lastBeacon, nil
 }
 
 // Run starts the TBLS protocol: it will start the round "nextRound" that is
@@ -571,6 +575,20 @@ func (h *Handler) Stop() {
 	h.store.Close()
 	h.started = false
 	h.l.Info("beacon", "stop")
+}
+
+func (h *Handler) StopAt(stopTime int64) error {
+	now := h.conf.Clock.Now().Unix()
+	if stopTime <= now {
+		// actually we can stop in the present but with "Stop"
+		return errors.New("can't stop in the past or present")
+	}
+	duration := time.Duration(stopTime - now)
+	go func() {
+		h.conf.Clock.Sleep(duration)
+		h.Stop()
+	}()
+	return nil
 }
 
 func (h *Handler) flushCurrentSig() {
