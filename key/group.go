@@ -73,20 +73,24 @@ func (g *Group) Public(i int) *Identity {
 // same group for example). This may cause trouble in the future and may require
 // more thoughts.
 func (g *Group) Hash() (string, error) {
-	h := blake2b.New256()
+	buff, err := g.hashBytes()
+	return hex.EncodeToString(buff), err
+}
 
+func (g *Group) hashBytes() ([]byte, error) {
+	h := blake2b.New256()
 	// all nodes public keys and positions
 	for i, n := range g.Nodes {
 		binary.Write(h, binary.LittleEndian, uint32(i))
 		b, err := n.Key.MarshalBinary()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		h.Write(b)
 	}
 	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
 	binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
-	return hex.EncodeToString(h.Sum(nil)), nil
+	return h.Sum(nil), nil
 }
 
 // Points returns itself under the form of a list of kyber.Point
@@ -147,8 +151,11 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		}
 	}
 	g.Period, err = time.ParseDuration(gt.Period)
+	if err != nil {
+		return err
+	}
 	g.GenesisTime = gt.GenesisTime
-	return err
+	return nil
 }
 
 // TOML returns a TOML-encodable version of the Group
@@ -169,6 +176,14 @@ func (g *Group) TOML() interface{} {
 	return gtoml
 }
 
+func (g *Group) GenesisSeed() []byte {
+	buff, err := g.hashBytes()
+	if err != nil {
+		panic(err)
+	}
+	return buff
+}
+
 // TOMLValue returns an empty TOML-compatible value of the group
 func (g *Group) TOMLValue() interface{} {
 	return &GroupTOML{}
@@ -184,7 +199,7 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 	}
 	nl := append(g.Identities(), list...)
 	return &Group{
-		Nodes:     copyAndShuffle(nl),
+		Nodes:     copyAndSort(nl),
 		Threshold: thr,
 		Period:    g.Period,
 	}
@@ -193,7 +208,7 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 // NewGroup returns a list of identities as a Group.
 func NewGroup(list []*Identity, threshold int, genesis int64) *Group {
 	return &Group{
-		Nodes:       copyAndShuffle(list),
+		Nodes:       copyAndSort(list),
 		Threshold:   threshold,
 		GenesisTime: genesis,
 	}
@@ -202,13 +217,13 @@ func NewGroup(list []*Identity, threshold int, genesis int64) *Group {
 // LoadGroup returns a group associated with a given public key
 func LoadGroup(list []*Identity, public *DistPublic, threshold int) *Group {
 	return &Group{
-		Nodes:     copyAndShuffle(list),
+		Nodes:     copyAndSort(list),
 		Threshold: threshold,
 		PublicKey: public,
 	}
 }
 
-func copyAndShuffle(list []*Identity) []*Identity {
+func copyAndSort(list []*Identity) []*Identity {
 	nl := make([]*Identity, len(list))
 	copy(nl, list)
 	sort.Sort(ByKey(nl))

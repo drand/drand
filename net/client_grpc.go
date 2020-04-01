@@ -2,9 +2,7 @@ package net
 
 import (
 	"context"
-	"errors"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -58,9 +56,9 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 	return c
 }
 
-func getTimeoutContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+func getTimeoutContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	clientDeadline := time.Now().Add(timeout)
-	return context.WithDeadline(context.Background(), clientDeadline)
+	return context.WithDeadline(ctx, clientDeadline)
 }
 
 func (g *grpcClient) SetTimeout(p time.Duration) {
@@ -76,7 +74,7 @@ func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.Pub
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(g.timeout)
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
 	resp, err = client.PublicRand(ctx, in)
 	return resp, err
 }
@@ -88,7 +86,7 @@ func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.P
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(g.timeout)
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
 	resp, err = client.PrivateRand(ctx, in)
 	return resp, err
 }
@@ -100,7 +98,7 @@ func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(g.timeout)
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
 	resp, err = client.Group(ctx, in)
 	return resp, err
 }
@@ -123,7 +121,7 @@ func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*
 	}
 	client := drand.NewProtocolClient(c)
 	// give more time for DKG we are not in a hurry
-	ctx, _ := getTimeoutContext(g.timeout * time.Duration(2))
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout*time.Duration(2))
 	resp, err = client.Setup(ctx, in, opts...)
 	return resp, err
 }
@@ -136,7 +134,7 @@ func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption
 	}
 	client := drand.NewProtocolClient(c)
 	// give more time for DKG we are not in a hurry
-	ctx, _ := getTimeoutContext(g.timeout * time.Duration(2))
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout*time.Duration(2))
 	resp, err = client.Reshare(ctx, in, opts...)
 	return resp, err
 }
@@ -148,10 +146,12 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ := getTimeoutContext(g.timeout)
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
 	resp, err = client.NewBeacon(ctx, in, opts...)
 	return resp, err
 }
+
+const SyncBlockKey = "sync"
 
 func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.SyncResponse, error) {
 	resp := make(chan *drand.SyncResponse)
@@ -160,11 +160,24 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ := getTimeoutContext(g.timeout)
+	ctx, _ = getTimeoutContext(ctx, g.timeout)
 	stream, err := client.SyncChain(ctx, in)
 	if err != nil {
 		return nil, err
 	}
+	/*// read how many first*/
+	//md, err := stream.Header()
+	//if err != nil {
+	//return nil, err
+	//}
+	//vals := md.Get(SyncBlockKey)
+	//if len(vals) != 1 {
+	//return nil, fmt.Errorf("invalid header received: %v", vals)
+	//}
+	//toReceive, err := strconv.Atoi(vals[0])
+	//if err != nil {
+	//return nil, fmt.Errorf("invalid number of blocks to sync received: %v", vals[0])
+	/*}*/
 	go func() {
 		for {
 			reply, err := stream.Recv()
@@ -192,7 +205,7 @@ func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, e
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(g.timeout)
+	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
 	resp, err = client.Home(ctx, in)
 	return resp, err
 }

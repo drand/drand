@@ -41,6 +41,10 @@ func (s *EmptyServer) Setup(context.Context, *drand.SetupPacket) (*drand.Empty, 
 	return nil, nil
 }
 
+func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error {
+	return nil
+}
+
 // Reshare ...
 func (s *EmptyServer) Reshare(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
 	return nil, nil

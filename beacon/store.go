@@ -2,7 +2,6 @@ package beacon
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -152,7 +151,9 @@ func (c *cbStore) Put(b *Beacon) error {
 	if err := c.Store.Put(b); err != nil {
 		return err
 	}
-	go c.cb(b)
+	if b.Round != 0 {
+		go c.cb(b)
+	}
 	return nil
 }
 
