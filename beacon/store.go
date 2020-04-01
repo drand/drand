@@ -22,7 +22,7 @@ type Store interface {
 	Put(*Beacon) error
 	Last() (*Beacon, error)
 	Get(round uint64) (*Beacon, error)
-	Cursor() Cursor
+	Cursor(func(Cursor))
 	// XXX Misses a delete function
 	Close()
 }
@@ -38,6 +38,7 @@ type Store interface {
 type Cursor interface {
 	First() *Beacon
 	Next() *Beacon
+	Seek(round uint64) *Beacon
 }
 
 // boldStore implements the Store interface using the kv storage boltdb (native
@@ -148,15 +149,13 @@ func (b *boltStore) Get(round uint64) (*Beacon, error) {
 	return beacon, err
 }
 
-func (b *boltStore) Cursor() Cursor {
-	var c *bolt.Cursor
-	// no error returned
+func (b *boltStore) Cursor(fn func(Cursor)) {
 	b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
-		c = bucket.Cursor()
+		c := bucket.Cursor()
+		fn(&boltCursor{Cursor: c})
 		return nil
 	})
-	return &boltCursor{Cursor: c}
 }
 
 type boltCursor struct {
@@ -177,6 +176,18 @@ func (c *boltCursor) First() *Beacon {
 
 func (c *boltCursor) Next() *Beacon {
 	k, v := c.Cursor.First()
+	if k == nil {
+		return nil
+	}
+	b := new(Beacon)
+	if err := b.Unmarshal(v); err != nil {
+		return nil
+	}
+	return b
+}
+
+func (c *boltCursor) Seek(round uint64) *Beacon {
+	k, v := c.Cursor.Seek(roundToBytes(round))
 	if k == nil {
 		return nil
 	}

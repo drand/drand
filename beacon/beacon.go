@@ -182,50 +182,24 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	return resp, err
 }
 
-// 1 week with 30s round time
-const MaxSyncLenght = 20160
-
 func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error {
-	if h.lastSuccess == nil {
-		return errors.New("no beacon created yet")
-	}
-	to := req.GetFromRound()
-	var allBeacons = []*Beacon{h.lastSuccess}
-	from := allBeacons[0].Round
-	if from-to > MaxSyncLenght {
-		return errors.New("too long sync request")
-	}
-	// XXX Change store to include pointer to round that builds upon it
-	// so we don't have to fetch in reverse order (or blindy if we want to go in
-	// normal order)
-	for from >= to {
-		beacon, err := h.store.Get(from)
-		if err == ErrNoBeaconSaved {
-			from--
+	fromRound := req.GetFromRound()
+	var err error
+	h.store.Cursor(func(c Cursor) {
+		for beacon := c.Seek(fromRound); beacon != nil; beacon = c.Next() {
+			reply := &proto.SyncResponse{
+				PreviousRound: beacon.PreviousRound,
+				PreviousSig:   beacon.PreviousSig,
+				Round:         beacon.Round,
+				Signature:     beacon.Signature,
+			}
+			fmt.Printf("\nnode %d - reply sync from round %d to %d\n\n", h.index, fromRound, reply.Round)
+			if err = p.Send(reply); err != nil {
+				return
+			}
 		}
-		if err != nil {
-			h.l.Error("loading_beacon", from)
-			// XXX Should probably fatal here; it's not good
-			return errors.New("error loading beacons")
-		}
-		from = beacon.PreviousRound
-		allBeacons = append(allBeacons, beacon)
-	}
-	for i := len(allBeacons) - 1; i >= 0; i-- {
-		beacon := allBeacons[i]
-		reply := &proto.SyncResponse{
-			PreviousRound: beacon.PreviousRound,
-			PreviousSig:   beacon.PreviousSig,
-			Round:         beacon.Round,
-			Signature:     beacon.Signature,
-		}
-		fmt.Printf("\nnode %d - reply sync from round %d to %d\n\n", h.index, to, reply.Round)
-		if err := p.Send(reply); err != nil {
-			return err
-		}
-		to = beacon.Round
-	}
-	return nil
+	})
+	return err
 }
 
 // Start runs the beacon protocol (threshold BLS signature). The first round

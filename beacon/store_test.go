@@ -66,11 +66,12 @@ func TestBoltStore(t *testing.T) {
 	store.Put(b1)
 	store.Put(b2)
 
-	c := store.Cursor()
-	expecteds := []*Beacon{b1, b2}
-	i := 0
-	for b := c.First(); b != nil; b = c.Next() {
-		require.True(t, expecteds[i].Equal(b))
-		i++
-	}
+	store.Cursor(func(c Cursor) {
+		expecteds := []*Beacon{b1, b2}
+		i := 0
+		for b := c.First(); b != nil; b = c.Next() {
+			require.True(t, expecteds[i].Equal(b))
+			i++
+		}
+	})
 }
