@@ -200,13 +200,9 @@ func (b *BeaconTest) StartBeacons(n int) {
 func (b *BeaconTest) StartBeacon(i int, catchup bool) {
 	b.nodes[i].started = true
 	if catchup {
-		if err := b.nodes[i].handler.Catchup(); err != nil {
-			panic(err)
-		}
+		go b.nodes[i].handler.Catchup()
 	} else {
-		if err := b.nodes[i].handler.Start(); err != nil {
-			panic(err)
-		}
+		go b.nodes[i].handler.Start()
 	}
 }
 

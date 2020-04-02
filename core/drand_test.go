@@ -26,11 +26,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func getSleepDuration() time.Duration {
-	if os.Getenv("TRAVIS_BRANCH") != "" {
-		return time.Duration(3000) * time.Millisecond
-	}
-	return time.Duration(300) * time.Millisecond
+func TestDrandDKGFresh(t *testing.T) {
+	n := 4
+	beaconPeriod := 1 * time.Second
+	var offsetGenesis = 1 * time.Second
+	genesis := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
+	dt := NewDrandTest(t, n, key.DefaultThreshold(n), beaconPeriod, genesis)
+	defer dt.Cleanup()
+	dt.RunDKG()
+	fmt.Println(" --- DKG FINISHED ---")
+	// make the last node fail
+	lastID := dt.ids[n-1]
+	lastOne := dt.GetDrand(lastID)
+	lastOne.Stop()
+	fmt.Println(" --- lastOne STOPPED --- ")
+
+	// move time to genesis
+	dt.MoveTime(offsetGenesis)
+	// two = genesis + 1st round (happens at genesis)
+	dt.TestBeaconLength(2, dt.ids[:n-1]...)
+	fmt.Println(" --- Test BEACON LENGTH --- ")
+	// start last one
+	dt.StartDrand(lastID, true)
+	// leave some room to do the catchup
+	time.Sleep(100 * time.Millisecond)
+	fmt.Println(" --- STARTED BEACON DRAND ---")
+	dt.MoveTime(beaconPeriod)
+	dt.TestBeaconLength(3, dt.ids...)
+	dt.TestPublicBeacon(dt.ids[0])
 }
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
@@ -42,13 +65,19 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	timeout, _ := time.ParseDuration(timeoutStr)
 	period := 1 * time.Second
 	// starts at 1sec
-	genesisTime := clock.NewFakeClock().Now().Unix() + 1
+	var offsetGenesis int64 = 1
+	genesisTime := clock.NewFakeClock().Now().Unix() + offsetGenesis
+	// after 3 rounds, transition
 	transitionTime := genesisTime + 3
 	offline := 1 // can't do more anyway with a 2/3 + 1 threshold
 
 	dt := NewDrandTest(t, oldN, oldThr, period, genesisTime)
 	defer dt.Cleanup()
 	dt.RunDKG()
+
+	// move to genesis time - so nodes start to make a round
+	dt.MoveTime(time.Duration(offsetGenesis))
+
 	pubShare := func(s *key.Share) kyber.Point {
 		return key.KeyGroup.Point().Mul(s.Share.V, nil)
 	}
@@ -80,9 +109,10 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	time.Sleep(getSleepDuration())
 	require.False(t, checkDone())
 
-	// advance time to the timeout
-	dt.MoveTime(timeout * time.Duration(2))
-	// give time to finish for the go routines and such
+	//// advance time to the timeout
+	dt.MoveTime(timeout)
+	//dt.MoveTime(time.Duration(offsetGenesis))
+	//give time to finish for the go routines and such
 	time.Sleep(getSleepDuration())
 	require.True(t, checkDone())
 }
@@ -223,6 +253,7 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 	clientCounter.Add(1)
 	go runreshare(d.drands[oldNodes[0]], true)
 	// wait for the return of the clients
+	fmt.Println("\n\n -- Waiting COUNTER for ", oldRun-1+newRun+1, " nodes --")
 	checkWait(clientCounter)
 	fmt.Printf("\n\n -- TEST FINISHED ALL RESHARE DKG --\n\n")
 }
@@ -382,8 +413,9 @@ func (d *DrandTest) StartDrand(id string, catchup bool) {
 }
 
 func (d *DrandTest) MoveTime(p time.Duration) {
-	for _, c := range d.clocks {
+	for id, c := range d.clocks {
 		c.Advance(p)
+		fmt.Printf(" --- MoveTime: %s: clock %d vs drand.clock %d\n", id, c.Now().Unix(), d.drands[id].opts.clock.Now().Unix())
 	}
 	d.myClock.Advance(p)
 	time.Sleep(getSleepDuration())
@@ -393,7 +425,13 @@ func (d *DrandTest) TestBeaconLength(max int, ids ...string) {
 	for _, id := range ids {
 		drand, ok := d.drands[id]
 		require.True(d.t, ok)
-		require.LessOrEqual(d.t, drand.beacon.Store().Len(), max)
+		drand.beacon.Store().Cursor(func(c beacon.Cursor) {
+			for b := c.First(); b != nil; b = c.Next() {
+				fmt.Printf("\n\t %d: beacon %s\n", drand.index, b)
+			}
+		})
+
+		require.Equal(d.t, max, drand.beacon.Store().Len())
 	}
 
 }
@@ -404,37 +442,6 @@ func (d *DrandTest) TestPublicBeacon(id string) {
 	resp, err := client.PublicRand(test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
-}
-
-func TestDrandDKGFresh(t *testing.T) {
-	n := 5
-	p := 200 * time.Millisecond
-	var offsetGenesis int64 = 1
-	genesis := clock.NewFakeClock().Now().Unix() + offsetGenesis
-	dt := NewDrandTest(t, n, key.DefaultThreshold(n), p, genesis)
-	defer dt.Cleanup()
-	dt.RunDKG()
-	fmt.Println(" --- DKG FINISHED ---")
-	// move time to genesis
-	dt.MoveTime(time.Duration(offsetGenesis))
-	// make the last node fail
-	lastID := dt.ids[n-1]
-	lastOne := dt.GetDrand(lastID)
-	lastOne.Stop()
-	fmt.Println(" --- lastOne STOPPED --- ")
-	// test everyone has two beacon except the one we stopped
-	dt.MoveTime(p)
-	dt.TestBeaconLength(2, dt.ids[:n-1]...)
-	fmt.Println(" --- Test BEACON LENGTH --- ")
-	// start last one
-	dt.StartDrand(lastID, true)
-	fmt.Println(" --- STARTED BEACON DRAND ---")
-	dt.MoveTime(p)
-	dt.TestBeaconLength(3, dt.ids[:n-1]...)
-	// 2 because the first beacon is ran automatically by everyone, can't stop
-	// it before at the moment
-	dt.TestBeaconLength(2, lastID)
-	dt.TestPublicBeacon(dt.ids[0])
 }
 
 // Check they all have same public group file after dkg
@@ -555,4 +562,11 @@ func CloseAllDrands(drands []*Drand) {
 		drands[i].Stop()
 		//os.RemoveAll(drands[i].opts.dbFolder)
 	}
+}
+
+func getSleepDuration() time.Duration {
+	if os.Getenv("TRAVIS_BRANCH") != "" {
+		return time.Duration(3000) * time.Millisecond
+	}
+	return time.Duration(300) * time.Millisecond
 }

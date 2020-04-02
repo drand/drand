@@ -173,7 +173,7 @@ func (c *boltCursor) First() *Beacon {
 }
 
 func (c *boltCursor) Next() *Beacon {
-	k, v := c.Cursor.First()
+	k, v := c.Cursor.Next()
 	if k == nil {
 		return nil
 	}

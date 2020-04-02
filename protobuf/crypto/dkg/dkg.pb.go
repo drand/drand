@@ -4,8 +4,8 @@
 package dkg
 
 import (
-	vss "github.com/drand/drand/protobuf/crypto/vss"
 	fmt "fmt"
+	vss "github.com/drand/drand/protobuf/crypto/vss"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
 )

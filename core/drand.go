@@ -24,6 +24,7 @@ type Drand struct {
 	priv *key.Pair
 	// current group this drand node is using
 	group *key.Group
+	index int
 
 	store   key.Store
 	gateway net.Gateway
@@ -195,28 +196,20 @@ func (d *Drand) createDKG(conf *dkg.Config) error {
 	return nil
 }
 
-// DefaultSeed is the message signed during the first beacon generation,
-// alongside with the round number 0.
-var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
-
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (d *Drand) StartBeacon(catchup bool) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	var err error
-	fmt.Println("\t before newBeacon")
 	d.beacon, err = d.newBeacon()
-	fmt.Println("\t after newBeacon")
 	if err != nil {
 		d.log.Error("init_beacon", err)
 		return
 	}
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
-		if err := d.beacon.Catchup(); err != nil {
-			d.log.Error("beacon_start", err)
-		}
+		go d.beacon.Catchup()
 	} else {
 		if err := d.beacon.Start(); err != nil {
 			d.log.Error("beacon_start", err)
@@ -290,13 +283,10 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 func (d *Drand) StopBeacon() {
 	d.state.Lock()
 	defer d.state.Unlock()
-	fmt.Println("\t |||| StopBeacon")
 	if d.beacon == nil {
 		return
 	}
-
 	d.beacon.Stop()
-	fmt.Println("\t |||| StopBeacon ------")
 	d.beacon = nil
 }
 
@@ -325,9 +315,7 @@ func (d *Drand) isDKGDone() bool {
 
 func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	fs.CreateSecureFolder(d.opts.DBFolder())
-	fmt.Println("\t before creating bolt store")
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
-	fmt.Println("\t after creating bolt store")
 	if err != nil {
 		return nil, err
 	}

@@ -234,19 +234,18 @@ func (h *Handler) Start() error {
 // already running network . If the node does not have the previous randomness,
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
-func (h *Handler) Catchup() error {
+func (h *Handler) Catchup() {
 	ids := shuffleNodes(h.conf.Group.Nodes)
 	// we sync with the nodes of the current network
 	prevBeacon, err := h.Sync(ids)
 	if err != nil {
-		return err
+		h.l.Error("syncing", err)
 	}
 	nextRound, nextTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	previousSig := prevBeacon.Signature
 	previousRound := prevBeacon.Round
 	fmt.Printf("\n SYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
-	go h.run(previousSig, previousRound, nextRound, nextTime)
-	return nil
+	h.run(previousSig, previousRound, nextRound, nextTime)
 }
 
 // Transition makes this beacon continuously sync until the time written in the
@@ -260,7 +259,8 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 	targetTime := h.conf.Group.TransitionTime
 	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	if tTime != targetTime {
-		h.l.Fatal("transition time is not a correct time of round")
+		fmt.Println("next time : ", tTime, " transition time: ", targetTime)
+		h.l.Fatal("transition_time", "invalid")
 		return nil
 	}
 	ids := shuffleNodes(h.conf.Group.Nodes)
@@ -512,7 +512,13 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 	shortPrevSig := shortSigStr(prevSig)
 	shortRand := shortSigStr(randomness)
 	h.l.Info("done_round", currentRound, "signature", shortSig, "randomness", shortRand, "previous_sig", shortPrevSig)
-	winCh <- beacon
+	select {
+	case <-closeCh:
+		// run is already out
+		return
+	default:
+		winCh <- beacon
+	}
 }
 
 // initRound & initSignature are the round & signature this node has
@@ -656,7 +662,11 @@ func (h *Handler) applyCallbacks(b *Beacon) {
 }
 
 func shortSigStr(sig []byte) string {
-	return hex.EncodeToString(sig[0:3])
+	max := 3
+	if len(sig) < max {
+		max = len(sig)
+	}
+	return hex.EncodeToString(sig[0:max])
 }
 
 type sigPair struct {

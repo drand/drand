@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"math"
 	"time"
 )
@@ -44,6 +45,10 @@ func (b *Beacon) Unmarshal(buff []byte) error {
 func (b *Beacon) Randomness() []byte {
 	out := sha256.Sum256(b.Signature)
 	return out[:]
+}
+
+func (b *Beacon) String() string {
+	return fmt.Sprintf("{ round: %d, sig: %s, prevRound: %d, prevSig: %s }", b.Round, shortSigStr(b.Signature), b.PreviousRound, shortSigStr(b.PreviousSig))
 }
 
 // Message returns a slice of bytes as the message to sign or to verify

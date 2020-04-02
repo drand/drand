@@ -42,7 +42,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		fmt.Println(group.GenesisTime, d.opts.clock.Now().Unix())
 		return nil, errors.New("control: group with genesis time in the past")
 	}
-	_, found := group.Index(d.priv.Public)
+	index, found := group.Index(d.priv.Public)
 	if !found {
 		d.state.Unlock()
 		return nil, errors.New("drand: public key not found in group")
@@ -72,6 +72,9 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	if err := d.WaitDKG(dkgConfig); err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
+	d.state.Lock()
+	d.index = index
+	d.state.Unlock()
 
 	// beacon will start at the genesis time specified
 	d.StartBeacon(false)
