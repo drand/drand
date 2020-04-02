@@ -4,13 +4,13 @@ import (
 	"path"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	bolt "github.com/coreos/bbolt"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	clock "github.com/jonboulle/clockwork"
 	"google.golang.org/grpc"
 )
 
@@ -53,7 +53,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
-		clock:       clock.New(),
+		clock:       clock.NewRealClock(),
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {

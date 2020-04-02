@@ -31,24 +31,19 @@ func (b *Beacon) Equal(b2 *Beacon) bool {
 
 }
 
-// GetSignature returns the signature of this beacon. Needed for
-// retro-compatibility
-func (b *Beacon) GetSignature() []byte {
-	return b.Signature
-}
-
-// GetPreviousSig returns the signature of the previous beacon. Needed for
-// retro-compatibility.
-func (b *Beacon) GetPreviousSig() []byte {
-	return b.PreviousSig
-}
-
 func (b *Beacon) Marshal() ([]byte, error) {
 	return json.Marshal(b)
 }
 
 func (b *Beacon) Unmarshal(buff []byte) error {
 	return json.Unmarshal(buff, b)
+}
+
+// Randomness returns the hashed signature. It is an example that uses sha256,
+// but it could use blake2b for example.
+func (b *Beacon) Randomness() []byte {
+	out := sha256.Sum256(b.Signature)
+	return out[:]
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
@@ -70,7 +65,7 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 		return genesis
 	}
 	// - 1 because genesis time is for 1st round already
-	return genesis + int64(round*uint64(period.Seconds())) - 1
+	return genesis + int64((round-1)*uint64(period.Seconds()))
 }
 
 // NextRound returns the next upcoming round and its UNIX time given the genesis

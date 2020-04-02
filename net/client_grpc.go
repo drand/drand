@@ -79,6 +79,43 @@ func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.Pub
 	return resp, err
 }
 
+func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error) {
+	var outCh = make(chan *drand.PublicRandResponse, 10)
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewPublicClient(c)
+	ctx, _ = getTimeoutContext(ctx, g.timeout)
+	stream, err := client.PublicRandStream(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				close(outCh)
+				return
+			}
+			if err != nil {
+				// XXX should probably do stg different here but since we are
+				// continuously stream, if stream stops, it means stg went
+				// wrong; it should never EOF
+				close(outCh)
+				return
+			}
+			select {
+			case outCh <- resp:
+			case <-ctx.Done():
+				close(outCh)
+				return
+			}
+		}
+	}()
+	return outCh, nil
+}
+
 func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	var resp *drand.PrivateRandResponse
 	c, err := g.conn(p)

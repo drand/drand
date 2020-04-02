@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -20,6 +19,7 @@ import (
 	"github.com/drand/kyber"
 	dkg "github.com/drand/kyber/share/dkg/pedersen"
 	vss "github.com/drand/kyber/share/vss/pedersen"
+	clock "github.com/jonboulle/clockwork"
 	"google.golang.org/grpc/peer"
 )
 

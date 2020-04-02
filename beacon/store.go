@@ -62,7 +62,6 @@ func NewBoltStore(folder string, opts *bolt.Options) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	// create the bucket already
 	err = db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists(bucketName)
@@ -82,7 +81,6 @@ func (b *boltStore) Close() {
 	if err := b.db.Close(); err != nil {
 		slog.Debugf("boltdb store: %s", err)
 	}
-	slog.Debugf("beacon: boltdb store closed.")
 }
 
 // Put implements the Store interface. WARNING: It does NOT verify that this

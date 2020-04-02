@@ -14,7 +14,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/BurntSushi/toml"
-	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -22,6 +21,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
+	clock "github.com/jonboulle/clockwork"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -40,10 +40,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	newThr := key.DefaultThreshold(newN)
 	timeoutStr := "200ms"
 	timeout, _ := time.ParseDuration(timeoutStr)
-	period := 300 * time.Millisecond
+	period := 1 * time.Second
+	// starts at 1sec
+	genesisTime := clock.NewFakeClock().Now().Unix() + 1
+	transitionTime := genesisTime + 3
 	offline := 1 // can't do more anyway with a 2/3 + 1 threshold
 
-	dt := NewDrandTest(t, oldN, oldThr, period)
+	dt := NewDrandTest(t, oldN, oldThr, period, genesisTime)
 	defer dt.Cleanup()
 	dt.RunDKG()
 	pubShare := func(s *key.Share) kyber.Point {
@@ -56,7 +59,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		fmt.Printf("idx: %d : pubkey %s\n\t - pub share: %s\n\n", idx, pk.Key.String(), pubShare(drand.share).String())
 	}
 
-	dt.SetupReshare(oldN-offline, newN-oldN, newThr)
+	dt.SetupReshare(oldN-offline, newN-oldN, newThr, transitionTime)
 
 	fmt.Println("SETUP RESHARE DONE")
 	// run the resharing
@@ -84,17 +87,6 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	require.True(t, checkDone())
 }
 
-type SyncClock struct {
-	*clock.Mock
-	*sync.Mutex
-}
-
-func (s *SyncClock) Add(d time.Duration) {
-	//s.Lock()
-	//defer s.Unlock()
-	s.Mock.Add(d)
-}
-
 type DrandTest struct {
 	t            *testing.T
 	n            int
@@ -108,10 +100,12 @@ type DrandTest struct {
 	groupPath    string
 	newGroupPath string
 	period       time.Duration
+	genesis      int64
 	ids          []string
 	newIds       []string
 	shares       map[string]*key.Share
-	clocks       map[string]*SyncClock
+	clocks       map[string]clock.FakeClock
+	myClock      clock.FakeClock
 	certPaths    []string
 	newCertPaths []string
 }
@@ -125,11 +119,11 @@ func (d *DrandTest) GetBeacon(id string, round int) (*beacon.Beacon, error) {
 	dd, ok := d.drands[id]
 	require.True(d.t, ok)
 
-	return dd.beaconStore.Get(uint64(round))
+	return dd.beacon.Store().Get(uint64(round))
 }
 
 // returns new ids generated
-func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
+func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int, transitionTime int64) []string {
 	newN := keepOld + addNew
 	ids := make([]*key.Identity, 0, newN)
 	newAddr := make([]string, addNew)
@@ -171,8 +165,9 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
 		shuffledIds[i1], shuffledIds[i2] = shuffledIds[i2], shuffledIds[i1]
 	}
 
-	d.newGroup = key.NewGroup(shuffledIds, newThr)
+	d.newGroup = key.NewGroup(shuffledIds, newThr, d.group.GenesisTime)
 	d.newGroup.Period = d.period
+	d.newGroup.TransitionTime = transitionTime
 	fmt.Println("RESHARE GROUP:\n", d.newGroup.String())
 	d.newGroupPath = path.Join(newDir, "newgroup.toml")
 	require.NoError(d.t, key.Save(d.newGroupPath, d.newGroup, false))
@@ -245,13 +240,15 @@ func checkWait(counter *sync.WaitGroup) {
 		panic("outdated beacon time")
 	}
 }
-func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
+func NewDrandTest(t *testing.T, n, thr int, period time.Duration, genesis int64) *DrandTest {
 	drands, group, dir, certPaths := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)),
 	)
 	group.Period = period
+	group.GenesisTime = genesis
 	groupPath := path.Join(dir, "dkggroup.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
+	myClock := clock.NewFakeClock()
 	ids := make([]string, n)
 	mDrands := make(map[string]*Drand, n)
 	for i, d := range drands {
@@ -268,7 +265,8 @@ func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
 		period:    period,
 		ids:       ids,
 		shares:    make(map[string]*key.Share),
-		clocks:    make(map[string]*SyncClock),
+		clocks:    make(map[string]clock.FakeClock),
+		myClock:   myClock,
 		certPaths: certPaths,
 	}
 }
@@ -323,15 +321,13 @@ func (d *DrandTest) tryBoth(id string, fn func(d *Drand)) {
 }
 
 func (d *DrandTest) setClock(ids ...string) {
+	now := d.myClock.Now()
 	for _, id := range ids {
 		d.tryBoth(id, func(dr *Drand) {
-			c := &SyncClock{
-				Mock:  clock.NewMock(),
-				Mutex: new(sync.Mutex),
-			}
 			addr := dr.priv.Public.Address()
-			d.clocks[addr] = c
-			dr.opts.clock = c
+			clock := clock.NewFakeClockAt(now)
+			d.clocks[addr] = clock
+			dr.opts.clock = clock
 			dr.opts.dkgCallback = func(s *key.Share) {
 				d.shares[addr] = s
 				fmt.Printf("\n\n\n  --- DKG %s FINISHED ---\n\n\n", addr)
@@ -343,26 +339,14 @@ func (d *DrandTest) setClock(ids ...string) {
 // first wait for all dkg callbacks to trigger, then update the clock of every
 // ids
 func (d *DrandTest) setDKGCallback(ids []string) {
-	var wg sync.WaitGroup
-	wg.Add(len(ids))
 	for _, id := range ids {
 		d.tryBoth(id, func(dr *Drand) {
 			dr.opts.dkgCallback = func(s *key.Share) {
 				d.shares[dr.priv.Public.Address()] = s
 				fmt.Printf("\n\n %s DKG DONE \n\n", dr.priv.Public.Address())
-				wg.Done()
 			}
 		})
 	}
-	go func() {
-		wg.Wait()
-		// TRAVIS: let all peers go into sleep mode before increasing
-		// their clock
-		time.Sleep(100 * time.Millisecond)
-		for _, id := range ids {
-			d.clocks[id].Add(syncTime)
-		}
-	}()
 }
 
 func (d *DrandTest) GetDrand(id string) *Drand {
@@ -392,13 +376,16 @@ func (d *DrandTest) StartDrand(id string, catchup bool) {
 	require.NoError(d.t, err)
 	d.drands[id] = dr
 	d.setClock(id)
+	fmt.Println("--- JUST BEFORE STARTBEACON---")
 	dr.StartBeacon(catchup)
+	fmt.Println("--- JUST AFTER STARTBEACON---")
 }
 
 func (d *DrandTest) MoveTime(p time.Duration) {
 	for _, c := range d.clocks {
-		c.Add(p)
+		c.Advance(p)
 	}
+	d.myClock.Advance(p)
 	time.Sleep(getSleepDuration())
 }
 
@@ -406,7 +393,7 @@ func (d *DrandTest) TestBeaconLength(max int, ids ...string) {
 	for _, id := range ids {
 		drand, ok := d.drands[id]
 		require.True(d.t, ok)
-		require.LessOrEqual(d.t, drand.beaconStore.Len(), max)
+		require.LessOrEqual(d.t, drand.beacon.Store().Len(), max)
 	}
 
 }
@@ -422,20 +409,26 @@ func (d *DrandTest) TestPublicBeacon(id string) {
 func TestDrandDKGFresh(t *testing.T) {
 	n := 5
 	p := 200 * time.Millisecond
-	dt := NewDrandTest(t, n, key.DefaultThreshold(n), p)
+	var offsetGenesis int64 = 1
+	genesis := clock.NewFakeClock().Now().Unix() + offsetGenesis
+	dt := NewDrandTest(t, n, key.DefaultThreshold(n), p, genesis)
 	defer dt.Cleanup()
 	dt.RunDKG()
+	fmt.Println(" --- DKG FINISHED ---")
+	// move time to genesis
+	dt.MoveTime(time.Duration(offsetGenesis))
 	// make the last node fail
-	// XXX The node still replies to early beacon packet
 	lastID := dt.ids[n-1]
 	lastOne := dt.GetDrand(lastID)
 	lastOne.Stop()
+	fmt.Println(" --- lastOne STOPPED --- ")
 	// test everyone has two beacon except the one we stopped
 	dt.MoveTime(p)
 	dt.TestBeaconLength(2, dt.ids[:n-1]...)
-
+	fmt.Println(" --- Test BEACON LENGTH --- ")
 	// start last one
 	dt.StartDrand(lastID, true)
+	fmt.Println(" --- STARTED BEACON DRAND ---")
 	dt.MoveTime(p)
 	dt.TestBeaconLength(3, dt.ids[:n-1]...)
 	// 2 because the first beacon is ran automatically by everyone, can't stop
@@ -449,7 +442,8 @@ func TestDrandPublicGroup(t *testing.T) {
 	n := 10
 	thr := key.DefaultThreshold(n)
 	p := 200 * time.Millisecond
-	dt := NewDrandTest(t, n, thr, p)
+	genesisTime := clock.NewFakeClock().Now().Unix()
+	dt := NewDrandTest(t, n, thr, p, genesisTime)
 	defer dt.Cleanup()
 	dt.RunDKG()
 

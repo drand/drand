@@ -70,6 +70,9 @@ type Handler struct {
 	close   chan bool
 	addr    string
 	started bool
+	stopped bool
+
+	callbacks []func(*Beacon)
 
 	l log.Logger
 }
@@ -182,6 +185,10 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	return resp, err
 }
 
+func (h *Handler) Store() Store {
+	return h.store
+}
+
 func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error {
 	fromRound := req.GetFromRound()
 	var err error
@@ -212,7 +219,7 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 func (h *Handler) Start() error {
 	h.l.Info("beacon", "start")
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
-		return errors.New("beacon: genesis time already passed. Call SyncAndRun().")
+		return errors.New("beacon: genesis time already passed. Call Catchup().")
 	}
 	genesis, err := h.store.Get(0)
 	if err != nil {
@@ -222,15 +229,17 @@ func (h *Handler) Start() error {
 	return nil
 }
 
-// SyncAndRun waits the next round's time to participate. This method is called
+// Catchup waits the next round's time to participate. This method is called
 // when a node stops its daemon (maintenance or else) and get backs in the
 // already running network . If the node does not have the previous randomness,
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
-func (h *Handler) SyncAndRun() error {
-	prevBeacon, err := h.Sync()
+func (h *Handler) Catchup() error {
+	ids := shuffleNodes(h.conf.Group.Nodes)
+	// we sync with the nodes of the current network
+	prevBeacon, err := h.Sync(ids)
 	if err != nil {
-
+		return err
 	}
 	nextRound, nextTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	previousSig := prevBeacon.Signature
@@ -240,7 +249,55 @@ func (h *Handler) SyncAndRun() error {
 	return nil
 }
 
-func (h *Handler) Sync() (*Beacon, error) {
+// Transition makes this beacon continuously sync until the time written in the
+// "TransitionTime" in the handler's group file, where he will start generating
+// randomness. To sync, he contact the nodes listed in the previous group file
+// given.
+// TODO: it should be better to use the public streaming API but since it is
+// likely to change, right now we use the sync API. Later on when API is well
+// defined, best to use streaming.
+func (h *Handler) Transition(prevNodes []*key.Identity) error {
+	targetTime := h.conf.Group.TransitionTime
+	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	if tTime != targetTime {
+		h.l.Fatal("transition time is not a correct time of round")
+		return nil
+	}
+	ids := shuffleNodes(h.conf.Group.Nodes)
+	var lastBeacon *Beacon
+	var err error
+	nErr := 0
+	maxErr := len(prevNodes)
+	for nErr < maxErr {
+		// we keep the same list of ids - so we contact the same peer for each
+		// consecutive sync calls instead of using different peers each time
+		lastBeacon, err = h.Sync(ids)
+		if err != nil {
+			h.l.Error("transition", err)
+			nErr++
+			continue
+		}
+		if lastBeacon.Round+1 == tRound {
+			// next round is the round where the transition happens !
+			// switch to "normal" run mode
+			break
+		}
+		// we have some rounds to go before we arrive at the transition time
+		// we sleep a period and then get back the next round afterwards
+		// XXX TODO This assumes the same period for the previous group as for the
+		// new group ! We need to change that if we want to have two independent
+		// period time
+		h.conf.Clock.Sleep(h.conf.Group.Period)
+	}
+	if nErr == maxErr {
+		h.l.Error("transition", "too-many-failures", "nerrors", nErr)
+		return errors.New("can't sync to transition time")
+	}
+	h.run(lastBeacon.PreviousSig, lastBeacon.PreviousRound, tRound, tTime)
+	return nil
+}
+
+func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 	var nextRound uint64
 	var nextTime int64
 	var err error
@@ -264,7 +321,7 @@ func (h *Handler) Sync() (*Beacon, error) {
 		currRound := lastBeacon.Round
 		currSig := lastBeacon.Signature
 		//fmt.Printf("\n node %d LAUNCHING SYNC from round %d -- previousBeacon.Round %d\n\n", h.index, currRound, previousBeacon.Round)
-		if err := h.syncFrom(currRound, currSig); err != nil {
+		if err := h.syncFrom(to, currRound, currSig); err != nil {
 			h.l.Error("sync", "failed", "from", currRound)
 		}
 		lastBeacon = h.loadLastSucessfulRound()
@@ -346,6 +403,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 			prevSig = beacon.Signature
 			prevRound = beacon.Round
 			currentRoundFinished = true
+			h.applyCallbacks(beacon)
 			fmt.Printf("\n FINISHED node %d - round %d\n\n", h.index, prevRound)
 		case <-h.close:
 			return
@@ -458,16 +516,11 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 }
 
 // initRound & initSignature are the round & signature this node has
-func (h *Handler) syncFrom(initRound uint64, initSignature []byte) error {
+func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature []byte) error {
 	currentRound := initRound
 	fmt.Printf("\n node %d runs SYNCFROM --- currentRound %d\n\n", h.index, currentRound)
 	currentSig := initSignature
-	ids := make([]*key.Identity, 0, len(h.group.Nodes))
-	for _, id := range h.group.Nodes {
-		ids = append(ids, id)
-	}
-	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
-	for _, id := range h.group.Nodes {
+	for _, id := range to {
 		if h.addr == id.Addr {
 			continue
 		}
@@ -539,7 +592,7 @@ func (h *Handler) syncFrom(initRound uint64, initSignature []byte) error {
 func (h *Handler) Stop() {
 	h.Lock()
 	defer h.Unlock()
-	if !h.started {
+	if h.stopped {
 		return
 	}
 	if h.ticker != nil {
@@ -547,7 +600,7 @@ func (h *Handler) Stop() {
 	}
 	close(h.close)
 	h.store.Close()
-	h.started = false
+	h.stopped = true
 	h.l.Info("beacon", "stop")
 }
 
@@ -588,6 +641,20 @@ func (h *Handler) getCurrentSignature(round uint64, msg []byte) ([]byte, error) 
 	return h.currentPartial.sig, nil
 }
 
+func (h *Handler) AddCallback(fn func(*Beacon)) {
+	h.Lock()
+	defer h.Unlock()
+	h.callbacks = append(h.callbacks, fn)
+}
+
+func (h *Handler) applyCallbacks(b *Beacon) {
+	h.Lock()
+	defer h.Unlock()
+	for _, fn := range h.callbacks {
+		go fn(b)
+	}
+}
+
 func shortSigStr(sig []byte) string {
 	return hex.EncodeToString(sig[0:3])
 }
@@ -595,4 +662,13 @@ func shortSigStr(sig []byte) string {
 type sigPair struct {
 	round uint64
 	sig   []byte
+}
+
+func shuffleNodes(nodes []*key.Identity) []*key.Identity {
+	ids := make([]*key.Identity, 0, len(nodes))
+	for _, id := range nodes {
+		ids = append(ids, id)
+	}
+	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
+	return ids
 }

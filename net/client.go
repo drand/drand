@@ -27,6 +27,7 @@ type ProtocolClient interface {
 // PublicClient holds all the methods of the public API . See
 // `protobuf/drand/public.proto` for more information.
 type PublicClient interface {
+	PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error)
 	PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 	DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)

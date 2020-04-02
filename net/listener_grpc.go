@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"strings"
@@ -200,6 +201,9 @@ var _ drand.PublicClient = (*drandProxy)(nil)
 
 func (d *drandProxy) PublicRand(c context.Context, r *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
 	return d.r.PublicRand(c, r)
+}
+func (d *drandProxy) PublicRandStream(ctx context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (drand.Public_PublicRandStreamClient, error) {
+	return nil, errors.New("streaming is not supported on HTTP endpoint")
 }
 func (d *drandProxy) PrivateRand(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
 	return d.r.PrivateRand(c, r)
