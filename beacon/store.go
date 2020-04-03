@@ -39,6 +39,7 @@ type Cursor interface {
 	First() *Beacon
 	Next() *Beacon
 	Seek(round uint64) *Beacon
+	Last() *Beacon
 }
 
 // boldStore implements the Store interface using the kv storage boltdb (native
@@ -62,19 +63,31 @@ func NewBoltStore(folder string, opts *bolt.Options) (Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	var baseLen = 0
 	// create the bucket already
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(bucketName)
-		return err
+		bucket, err := tx.CreateBucketIfNotExists(bucketName)
+		if err != nil {
+			return err
+		}
+		baseLen += bucket.Stats().KeyN
+		return nil
 	})
 
 	return &boltStore{
-		db: db,
+		db:  db,
+		len: baseLen,
 	}, err
 }
 
 func (b *boltStore) Len() int {
-	return b.len
+	var length = 0
+	b.db.View(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket(bucketName)
+		length = bucket.Stats().KeyN
+		return nil
+	})
+	return length
 }
 
 func (b *boltStore) Close() {
@@ -98,9 +111,6 @@ func (b *boltStore) Put(beacon *Beacon) error {
 	if err != nil {
 		return err
 	}
-	b.Lock()
-	b.len++
-	b.Unlock()
 	return nil
 }
 
@@ -186,6 +196,18 @@ func (c *boltCursor) Next() *Beacon {
 
 func (c *boltCursor) Seek(round uint64) *Beacon {
 	k, v := c.Cursor.Seek(roundToBytes(round))
+	if k == nil {
+		return nil
+	}
+	b := new(Beacon)
+	if err := b.Unmarshal(v); err != nil {
+		return nil
+	}
+	return b
+}
+
+func (c *boltCursor) Last() *Beacon {
+	k, v := c.Cursor.Last()
 	if k == nil {
 		return nil
 	}

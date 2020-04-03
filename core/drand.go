@@ -172,6 +172,8 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 	d.group.Period = conf.NewNodes.Period
 	d.group.GenesisTime = conf.NewNodes.GenesisTime
 	d.group.TransitionTime = conf.NewNodes.TransitionTime
+	d.group.GenesisSeed = conf.NewNodes.GetGenesisSeed()
+
 	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
 	d.store.SaveGroup(d.group)
 	d.opts.applyDkgCallback(d.share)
@@ -226,12 +228,24 @@ func (d *Drand) StartBeacon(catchup bool) {
 // old node that fails during the time the resharing is done and the new network
 // comes up have to wait for the new network to comes in - that is to be fixed
 func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
+	replaceBeacon := func() *beacon.Handler {
+		d.state.Lock()
+		defer d.state.Unlock()
+		var err error
+		d.beacon, err = d.newBeacon()
+		if err != nil {
+			d.log.Fatal("new_beacon", err)
+		}
+		d.beacon.AddCallback(d.callbacks.NewBeacon)
+		return d.beacon
+	}
 	// the node should stop a bit before the new round to avoid starting it at
 	// the same time as the new node
-	// NOTE: this limits the round time of drand to > 3s - for now it is not a use
-	// case to go below.
-	timeToStop := d.group.TransitionTime - 3
+	// NOTE: this limits the round time of drand - for now it is not a use
+	// case to go that fast
+	timeToStop := d.group.TransitionTime - 1
 	if !newPresent {
+		fmt.Printf(" OLD NODE STOPping %s\n", d.priv.Public.Address())
 		// an old node is leaving the network
 		if err := d.beacon.StopAt(timeToStop); err != nil {
 			d.log.Error("leaving_group", err)
@@ -240,42 +254,28 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 		}
 		return
 	}
-
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
 		// get reference to last beacon and init the new one
 		d.state.Lock()
 		currentBeacon := d.beacon
+		share := d.share
 		d.state.Unlock()
-		go currentBeacon.StopAt(timeToStop)
-	}
-	newBeacon, err := d.newBeacon()
-	if err != nil {
-		d.log.Fatal("new_beacon", err)
-	}
-
-	go func() {
-		// sleep until the round where new network takes over
-		// and at that point, switch the current beacon
-		// XXX technical debt here that is annoying and hazardous
-		// - should use a proper state transition mechanism
-		now := d.opts.clock.Now().Unix()
-		toSleep := time.Duration(timeToStop - now)
-		d.opts.clock.Sleep(toSleep)
-		d.state.Lock()
-		d.beacon = newBeacon
-		// switch from the old beacon to the new beacon for callbacks
-		d.beacon.AddCallback(d.callbacks.NewBeacon)
-		d.state.Unlock()
-	}()
-	// tell the new node that has "nothing" stored to sync in the meantime
-	// and then to start at the time of the new network
-	if !oldPresent {
-		go func() {
-			if err := newBeacon.Transition(oldGroup.Nodes); err != nil {
-				d.log.Error("sync_before", err)
-			}
-		}()
+		currentBeacon.StopAt(timeToStop)
+		nbeacon := replaceBeacon()
+		//lbeacon, _ := nbeacon.Store().Last()
+		fmt.Printf(" TRANSITION OLD NODE done: node %s - %p : current %d : will stop at %d --> pub %s \n", d.priv.Public.Address(), nbeacon, d.opts.clock.Now().Unix(), timeToStop, share.PubPoly().Eval(1).V.String()[14:19])
+		nbeacon.Transition(oldGroup.Nodes)
+		d.log.Info("transition_old", "done")
+	} else {
+		// tell the new node that has "nothing" stored to sync in the meantime
+		// and then to start at the time of the new network
+		newBeacon := replaceBeacon()
+		fmt.Printf(" TRANSITION NEW NODE: node %s - %p calling transition pub %s\n\n", d.priv.Public.Address(), d.beacon, d.share.PubPoly().Eval(1).V.String()[14:19])
+		if err := newBeacon.Transition(oldGroup.Nodes); err != nil {
+			d.log.Error("sync_before", err)
+		}
+		d.log.Info("transition_new", "done")
 	}
 }
 

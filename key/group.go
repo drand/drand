@@ -27,6 +27,11 @@ type Group struct {
 	Nodes []*Identity
 	// Time at which the first round of the chain is mined
 	GenesisTime int64
+	// Seed of the genesis block. When doing a DKG from scratch, it will be
+	// populated directly from the list of nodes and other parameters. WHen
+	// doing a resharing, this seed is taken from the first group of the
+	// network.
+	GenesisSeed []byte
 	// In case of a resharing, this is the time at which the network will
 	// transition from the old network to the new network.
 	TransitionTime int64
@@ -122,7 +127,8 @@ type GroupTOML struct {
 	Period         string
 	Nodes          []*PublicTOML
 	GenesisTime    int64
-	TransitionTime int64 `toml:omitempty`
+	TransitionTime int64  `toml:omitempty`
+	GenesisSeed    string `toml:omitempty`
 	PublicKey      *DistPublicTOML
 }
 
@@ -162,6 +168,11 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	if gt.TransitionTime != 0 {
 		g.TransitionTime = gt.TransitionTime
 	}
+	if gt.GenesisSeed != "" {
+		if g.GenesisSeed, err = hex.DecodeString(gt.GenesisSeed); err != nil {
+			return fmt.Errorf("group: decoding genesis seed %v", err)
+		}
+	}
 	return nil
 }
 
@@ -183,15 +194,22 @@ func (g *Group) TOML() interface{} {
 	if g.TransitionTime != 0 {
 		gtoml.TransitionTime = g.TransitionTime
 	}
+	if g.GenesisSeed != nil {
+		gtoml.GenesisSeed = hex.EncodeToString(g.GenesisSeed)
+	}
 	return gtoml
 }
 
-func (g *Group) GenesisSeed() []byte {
+func (g *Group) GetGenesisSeed() []byte {
+	if g.GenesisSeed != nil {
+		return g.GenesisSeed
+	}
 	buff, err := g.hashBytes()
 	if err != nil {
 		panic(err)
 	}
-	return buff
+	g.GenesisSeed = buff
+	return g.GenesisSeed
 }
 
 // TOMLValue returns an empty TOML-compatible value of the group

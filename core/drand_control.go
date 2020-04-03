@@ -92,9 +92,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if newGroup, err = extractGroup(in.New); err != nil {
 		return nil, err
 	}
-	if newGroup.GenesisTime < d.opts.clock.Now().Unix() {
-		return nil, errors.New("control: group with genesis time in the past")
-	}
 
 	d.state.Lock()
 	if oldGroup, err = extractGroup(in.Old); err != nil {
@@ -107,6 +104,22 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		oldGroup = d.group
 	}
 	d.state.Unlock()
+
+	if oldGroup.GenesisTime != newGroup.GenesisTime {
+		return nil, errors.New("control: old and new group have different genesis time")
+	}
+
+	if oldGroup.GenesisTime > d.opts.clock.Now().Unix() {
+		return nil, errors.New("control: genesis time is in the future")
+	}
+
+	if oldGroup.Period != newGroup.Period {
+		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
+	}
+
+	if newGroup.TransitionTime < d.opts.clock.Now().Unix() {
+		return nil, errors.New("control: group with transition time in the past")
+	}
 
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
 	_, newPresent := newGroup.Index(d.priv.Public)
@@ -143,7 +156,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 			Clock:    d.opts.clock,
 		}
 
-		// run the proto
+		// gives the share to the dkg if we are a current node
 		if oldPresent {
 			if !d.dkgDone {
 				return errors.New("control: can't reshare from old node when DKG not finished first")
@@ -182,7 +195,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if err := d.WaitDKG(dkgConf); err != nil {
 		return nil, err
 	}
-	d.transition(oldGroup, oldPresent, newPresent)
+	go d.transition(oldGroup, oldPresent, newPresent)
 	return &control.Empty{}, nil
 }
 
@@ -332,7 +345,7 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 	}
 	// run a few checks on the proposed group
 	if g.Len() < 4 {
-		return nil, errors.New("control: can't accept group with fewer than 5 members")
+		return nil, errors.New("control: can't accept group with fewer than 4 members")
 	}
 	if g.Threshold < vss.MinimumT(g.Len()) {
 		return nil, errors.New("control: threshold of new group too low ")

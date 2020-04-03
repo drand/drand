@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBoltStore(t *testing.T) {
+func TestStoreBolt(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drandtest")
 	require.NoError(t, os.MkdirAll(tmp, 0755))
 	path := tmp
@@ -20,6 +20,8 @@ func TestBoltStore(t *testing.T) {
 
 	store, err := NewBoltStore(path, nil)
 	require.NoError(t, err)
+
+	require.Equal(t, 0, store.Len())
 
 	b1 := &Beacon{
 		PreviousSig: sig1,
@@ -33,6 +35,8 @@ func TestBoltStore(t *testing.T) {
 		Signature:   sig1,
 	}
 
+	require.NoError(t, store.Put(b1))
+	require.Equal(t, 1, store.Len())
 	require.NoError(t, store.Put(b1))
 	require.Equal(t, 1, store.Len())
 	require.NoError(t, store.Put(b2))

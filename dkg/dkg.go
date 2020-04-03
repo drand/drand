@@ -3,6 +3,8 @@ package dkg
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -231,10 +233,12 @@ func (h *Handler) QualifiedGroup() *key.Group {
 }
 
 func (h *Handler) startTimer() {
+	fmt.Printf(" DKG HANDLER TIMEOUT %s -> now %d -> will trigger at %d\n", h.conf.Key.Public.Address(), h.conf.Clock.Now().Unix(), h.conf.Clock.Now().Add(h.conf.Timeout).Unix())
 	select {
 	case <-h.conf.Clock.After(h.conf.Timeout):
 		h.Lock()
 		defer h.Unlock()
+		fmt.Printf("DKG HANDLER %s - %d - timeout triggered !\n", h.conf.Key.Public.Address(), h.nidx)
 		h.l.Info("timout", "triggered")
 		h.timeouted = true
 		h.state.SetTimeout()
@@ -413,7 +417,10 @@ func (h *Handler) checkCertified() {
 	if fully {
 		t = "fully"
 	}
-	h.l.Info("certified", t, "share", share.PriShare().String())
+	hash := sha256.New()
+	buff, _ := share.PriShare().V.MarshalBinary()
+	hash.Write(buff)
+	h.l.Info("certified", t, "share_hash", hex.EncodeToString(hash.Sum(nil)[0:3]))
 	h.shareCh <- share
 }
 
@@ -515,10 +522,10 @@ func (h *Handler) broadcast(p *dkg_proto.Packet, toOldNodes bool) {
 				continue
 			}
 			if err := h.net.Send(id, p); err != nil {
-				h.l.Debug("broadcast", err, "to", id.Address(), "oldnodes")
+				h.l.Debug("broadcast_old", err, "to", id.Address())
 				continue
 			}
-			h.l.Debug("broadcast", "sucess", "to", id.Address(), "oldnodes")
+			h.l.Debug("broadcast_old", "sucess", "to", id.Address())
 			oldGood++
 		}
 
