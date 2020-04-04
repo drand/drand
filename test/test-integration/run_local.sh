@@ -136,7 +136,7 @@ function run() {
 
     ## generate group toml from the first 5 nodes ONLY
     ## We're gonna add the last one later on
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  > /dev/null
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  #> /dev/null
     echo "[+] Group file generated at $GROUPFILE"
     cp $GROUPFILE "$GROUPFILE.1"
     echo "[+] Starting all drand nodes sequentially..."

@@ -364,7 +364,7 @@ func (b *BeaconSignature) RawSig() []byte {
 	return s
 }
 
-// DefaultThreshold return floor(n * 2/3) + 1
+// DefaultThreshold return floor(n / 2) + 1
 func DefaultThreshold(n int) int {
-	return int(math.Floor(float64((n*2))/3.0)) + 1
+	return int(math.Floor(float64(n)/2.0)) + 1
 }

@@ -194,9 +194,7 @@ func (g *Group) TOML() interface{} {
 	if g.TransitionTime != 0 {
 		gtoml.TransitionTime = g.TransitionTime
 	}
-	if g.GenesisSeed != nil {
-		gtoml.GenesisSeed = hex.EncodeToString(g.GenesisSeed)
-	}
+	gtoml.GenesisSeed = hex.EncodeToString(g.GetGenesisSeed())
 	return gtoml
 }
 

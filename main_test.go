@@ -81,14 +81,14 @@ func TestGroup(t *testing.T) {
 	}
 
 	//test not enough keys
-	cmd := exec.Command("drand", "group", names[0], "--folder", tmpPath)
+	cmd := exec.Command("drand", "group", "--folder", tmpPath, names[0])
 	out, err := cmd.CombinedOutput()
 	expectedOut := "group command take at least 3 keys as arguments"
 	fmt.Println(string(out))
+	require.True(t, strings.Contains(string(out), expectedOut))
 	require.Error(t, err)
 
 	// test invalid genesis time
-	groupPath := path.Join(tmpPath, key.GroupFolderName)
 	invalidGenesis := strconv.Itoa(int(time.Now().Unix() - 10))
 	args := []string{"drand", "group", "--genesis", invalidGenesis, "--folder", tmpPath}
 	args = append(args, names...)
@@ -97,67 +97,67 @@ func TestGroup(t *testing.T) {
 	require.Error(t, err)
 
 	//test valid creation
-	groupPath = path.Join(tmpPath, key.GroupFolderName)
+	groupPath := path.Join(tmpPath, "group1.toml")
 	genesis := strconv.Itoa(int(time.Now().Unix() + 10))
-	args = []string{"drand", "group", "--genesis", genesis, "--folder", tmpPath}
+	args = []string{"drand", "group", "--genesis", genesis, "--folder", tmpPath, "--out", groupPath}
 	args = append(args, names...)
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
-	expectedOut = "Copy the following snippet into a new group.toml file " +
-		"and distribute it to all the participants:"
-	fmt.Println(string(out))
-	require.True(t, strings.Contains(string(out), expectedOut))
-	require.Nil(t, err)
+	// check it read all names given
+	for _, name := range names {
+		require.True(t, strings.Contains(string(out), name), string(out))
+	}
+	require.NoError(t, err, string(out))
 
-	//recreates exactly like in main and saves the group
-	var threshold = key.DefaultThreshold(n)
-	publics := make([]*key.Identity, n)
-	for i, str := range names {
-		pub := &key.Identity{}
-		if err := key.Load(str, pub); err != nil {
-			slog.Fatal(err)
+	loadedGroup := new(key.Group)
+	require.NoError(t, key.Load(groupPath, loadedGroup))
+	// expect a genesis seed
+	require.True(t, len(loadedGroup.GenesisSeed) != 0)
+	for _, priv := range privs {
+		_, found := loadedGroup.Index(priv.Public)
+		require.True(t, found)
+	}
+
+	// test resharing from the previous group
+	// create new keys
+	newNames := make([]string, n, n)
+	newPrivs := make([]*key.Pair, n, n)
+	for i := 0; i < n; i++ {
+		newNames[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", n+i))
+		newPrivs[i] = key.NewKeyPair("127.0.0.1:443")
+		require.NoError(t, key.Save(newNames[i], newPrivs[i].Public, false))
+		if yes, err := fs.Exists(newNames[i]); !yes || err != nil {
+			t.Fatal(err.Error())
 		}
-		publics[i] = pub
 	}
-	group := key.NewGroup(publics, threshold, 0)
-	group.PublicKey = &key.DistPublic{
-		Coefficients: []kyber.Point{publics[0].Key},
+	// decide a transition time
+	transitionTime := time.Now().Add(100 * time.Second).Unix()
+	transitionStr := strconv.Itoa(int(transitionTime))
+
+	newGroupPath := path.Join(tmpPath, key.GroupFolderName)
+	newArgs := []string{"drand", "group", "--folder", tmpPath, "--from", groupPath, "--transition", transitionStr, "--out", newGroupPath}
+	newArgs = append(newArgs, newNames...)
+	newCmd := exec.Command(newArgs[0], newArgs[1:]...)
+	out, err = newCmd.CombinedOutput()
+	// check it read all names given
+	for _, name := range newNames {
+		require.True(t, strings.Contains(string(out), name), string(out))
 	}
-	require.Nil(t, key.Save(groupPath, group, false))
+	require.NoError(t, err, string(out))
+	fmt.Println(string(out))
 
-	extraName := path.Join(tmpPath, fmt.Sprintf("drand-%d.public", n))
-	extraPriv := key.NewKeyPair("127.0.0.1")
-	require.NoError(t, key.Save(extraName, extraPriv.Public, false))
-	if yes, err := fs.Exists(extraName); !yes || err != nil {
-		t.Fatal(err.Error())
+	// load and verify new information is correct
+	newLoadedGroup := new(key.Group)
+	require.NoError(t, key.Load(newGroupPath, newLoadedGroup))
+	// expect the same genesis seed, period
+	require.Equal(t, loadedGroup.GetGenesisSeed(), newLoadedGroup.GetGenesisSeed())
+	require.Equal(t, loadedGroup.Period, newLoadedGroup.Period)
+	require.Equal(t, transitionTime, newLoadedGroup.TransitionTime)
+	for _, priv := range newPrivs {
+		_, found := newLoadedGroup.Index(priv.Public)
+		require.True(t, found)
 	}
 
-	//test valid merge
-	/*cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", groupPath, extraName)*/
-	//out, err = cmd.CombinedOutput()
-	//fmt.Println(string(out))
-
-	//expectedOut = "Copy the following snippet into a new_group.toml file and give it to the upgrade command to do the resharing."
-	//require.True(t, strings.Contains(string(out), expectedOut))
-
-	//test could not load group file
-	/*wrongGroupPath := "not_here"*/
-	//cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", wrongGroupPath, names[0])
-	//out, err = cmd.CombinedOutput()
-	//fmt.Println(string(out))
-	//require.Error(t, err)
-
-	////test reject empty group file
-	//emptyGroupPath := path.Join(tmpPath, "empty.toml")
-	//emptyFile, err := os.Create(emptyGroupPath)
-	//if err != nil {
-	//slog.Fatal(err)
-	//}
-	//defer emptyFile.Close()
-	//cmd = exec.Command("drand", "--folder", tmpPath, "group", "--group", emptyGroupPath, names[0])
-	//out, err = cmd.CombinedOutput()
-	//fmt.Println(string(out))
-	/*require.Error(t, err)*/
 }
 
 func TestStartAndStop(t *testing.T) {

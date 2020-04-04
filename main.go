@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -98,9 +99,9 @@ var roundFlag = &cli.IntFlag{
 	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
 }
 
-var groupFlag = &cli.StringFlag{
-	Name:  "group",
-	Usage: "If you want to merge keys into an existing group.toml file, run the group command and specify the group.toml file with this flag.",
+var fromGroupFlag = &cli.StringFlag{
+	Name:  "from",
+	Usage: "If you want to replace keys into an existing group.toml file to perform a resharing later on, run the group command and specify the existing group.toml file with this flag.",
 }
 
 var certsDirFlag = &cli.StringFlag{
@@ -125,9 +126,13 @@ var thresholdFlag = &cli.IntFlag{
 }
 
 var genesisFlag = &cli.Int64Flag{
-	Name:     "genesis",
-	Required: true,
-	Usage:    "genesis time to set on the group file - unix time",
+	Name:  "genesis",
+	Usage: "genesis time to set on the group file - unix time",
+}
+
+var transitionFlag = &cli.Int64Flag{
+	Name:  "transition",
+	Usage: "transition time from the current network to the new network",
 }
 
 // XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
@@ -225,7 +230,7 @@ func main() {
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
-			Flags: toArray(folderFlag, outFlag, periodFlag, thresholdFlag, genesisFlag),
+			Flags: toArray(folderFlag, outFlag, periodFlag, thresholdFlag, genesisFlag, transitionFlag, fromGroupFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
@@ -446,7 +451,7 @@ func testWindows(c *cli.Context) {
 }
 
 func fatal(str string, args ...interface{}) {
-	fmt.Printf(str+"\n", args)
+	fmt.Printf(str+"\n", args...)
 	os.Exit(1)
 }
 
@@ -499,28 +504,16 @@ func keygenCmd(c *cli.Context) error {
 }
 
 func groupCmd(c *cli.Context) error {
-	if !c.Args().Present() || (c.NArg() < 3 && !c.IsSet("group")) {
+	isResharing := c.IsSet(fromGroupFlag.Name)
+	if !c.Args().Present() || (c.NArg() < 3 && !isResharing) {
 		fatal("drand: group command take at least 3 keys as arguments")
 	}
-	var threshold = key.DefaultThreshold(c.NArg())
-	if c.IsSet(thresholdFlag.Name) {
-		var localThr = c.Int(thresholdFlag.Name)
-		if localThr < threshold {
-			fatal(fmt.Sprintf("drand: threshold specified too low %d/%d", localThr, threshold))
-		}
-		threshold = localThr
+	if isResharing {
+		// separate the logic
+		return groupReshareCmd(c)
 	}
-
-	publics := make([]*key.Identity, c.NArg())
-	for i, str := range c.Args().Slice() {
-		pub := &key.Identity{}
-		fmt.Printf("drand: reading public identity from %s\n", str)
-		if err := key.Load(str, pub); err != nil {
-			fatal("drand: can't load key %d: %v", i, err)
-		}
-		publics[i] = pub
-	}
-
+	threshold := getThreshold(c)
+	publics := getPublicKeys(c)
 	var period = core.DefaultBeaconPeriod
 	var err error
 	if c.IsSet(periodFlag.Name) {
@@ -536,11 +529,39 @@ func groupCmd(c *cli.Context) error {
 	}
 	group := key.NewGroup(publics, threshold, genesis)
 	group.Period = period
+	groupOut(c, group)
+	return nil
+}
 
+func groupReshareCmd(c *cli.Context) error {
+	// check if transition time is specified, otherwise we can't go on
+	if !c.IsSet(transitionFlag.Name) {
+		fatal("For a creating a group from a current group, transition time flag is required")
+	}
+	fmt.Println("Creating a new group for resharing...")
+	oldGroupPath := c.String(fromGroupFlag.Name)
+	group := new(key.Group)
+	if err := key.Load(oldGroupPath, group); err != nil {
+		return err
+	}
+	if len(group.GenesisSeed) == 0 {
+		return errors.New("old group has an empty genesis seed")
+	}
+	// NOTE: for now we keep the same period as the old group, changing period
+	// for the same group is not implemented yet
+	group.TransitionTime = c.Int64(transitionFlag.Name)
+	group.Threshold = getThreshold(c)
+	group.Nodes = getPublicKeys(c)
+
+	groupOut(c, group)
+	return nil
+}
+
+func groupOut(c *cli.Context, group *key.Group) {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
 		if err := key.Save(groupPath, group, false); err != nil {
-			fatal("drand: can't save group: %v", err)
+			fatal("drand: can't save group to specified file name: %v", err)
 		}
 	} else {
 		var buff bytes.Buffer
@@ -552,9 +573,32 @@ func groupCmd(c *cli.Context) error {
 			"and distribute it to all the participants:\n")
 		fmt.Printf(buff.String())
 	}
-	return nil
 }
 
+func getThreshold(c *cli.Context) int {
+	var threshold = key.DefaultThreshold(c.NArg())
+	if c.IsSet(thresholdFlag.Name) {
+		var localThr = c.Int(thresholdFlag.Name)
+		if localThr < threshold {
+			fatal(fmt.Sprintf("drand: threshold specified too low %d/%d", localThr, threshold))
+		}
+		return localThr
+	}
+	return threshold
+}
+
+func getPublicKeys(c *cli.Context) []*key.Identity {
+	publics := make([]*key.Identity, c.NArg())
+	for i, str := range c.Args().Slice() {
+		pub := &key.Identity{}
+		fmt.Printf("drand: reading public identity from %s\n", str)
+		if err := key.Load(str, pub); err != nil {
+			fatal("drand: can't load key %d: %v", i, err)
+		}
+		publics[i] = pub
+	}
+	return publics
+}
 func checkGroup(c *cli.Context) error {
 	if !c.Args().Present() {
 		fatal("drand: check-group expects a group argument")
