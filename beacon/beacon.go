@@ -192,8 +192,9 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 				Round:         beacon.Round,
 				Signature:     beacon.Signature,
 			}
-			fmt.Printf("\nnode %d - reply sync from round %d to %d\n\n", h.index, fromRound, reply.Round)
-			h.l.Debug("sync_chain_reply", peer.Addr.String(), "from", fromRound, "to", reply.Round)
+			nRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+			fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d\n\n", h.index, fromRound, reply.Round, nRound-1)
+			h.l.Debug("sync_chain_reply", peer.Addr.String(), "from", fromRound, "to", reply.Round, "head", nRound-1)
 			if err = p.Send(reply); err != nil {
 				return
 			}
@@ -270,7 +271,7 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 	var lastBeacon *Beacon
 	var err error
 	nErr := 0
-	maxErr := len(prevNodes)
+	maxErr := 10
 	for nErr < maxErr {
 		// we keep the same list of ids - so we contact the same peer for each
 		// consecutive sync calls instead of using different peers each time
@@ -281,9 +282,15 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 			continue
 		}
 		if lastBeacon.Round+1 == tRound {
-			h.l.Debug("transition_sync", "done", "head", lastBeacon.Round)
 			// next round is the round where the transition happens !
 			// switch to "normal" run mode
+			h.l.Debug("transition_sync", "done", "head", lastBeacon.Round)
+			// XXX note that
+			h.savePreviousRound(&roundInfo{
+				round: lastBeacon.Round,
+				sig:   lastBeacon.Signature,
+			})
+
 			break
 		}
 		fmt.Printf("\t TransitionSYNC: lastRound %d - target time is %d target round is %d\n", lastBeacon.Round, tTime, tRound)
@@ -579,6 +586,7 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 				Signature:     syncReply.GetSignature(),
 			}
 			h.store.Put(beacon)
+
 			currentBeacon = beacon
 			currentRound = syncReply.GetRound()
 			currentSig = syncReply.GetSignature()

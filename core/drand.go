@@ -236,6 +236,11 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 		if err != nil {
 			d.log.Fatal("new_beacon", err)
 		}
+		var found bool
+		d.index, found = d.group.Index(d.priv.Public)
+		if !found {
+			d.log.Fatal("transition_index", "absent")
+		}
 		d.beacon.AddCallback(d.callbacks.NewBeacon)
 		return d.beacon
 	}
@@ -271,7 +276,7 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 		// tell the new node that has "nothing" stored to sync in the meantime
 		// and then to start at the time of the new network
 		newBeacon := replaceBeacon()
-		fmt.Printf(" TRANSITION NEW NODE: node %s - %p calling transition pub %s\n\n", d.priv.Public.Address(), d.beacon, d.share.PubPoly().Eval(1).V.String()[14:19])
+		fmt.Printf(" TRANSITION NEW NODE: node %d: %s - %p calling transition pub %s\n\n", d.index, d.priv.Public.Address(), d.beacon, d.share.PubPoly().Eval(1).V.String()[14:19])
 		if err := newBeacon.Transition(oldGroup.Nodes); err != nil {
 			d.log.Error("sync_before", err)
 		}

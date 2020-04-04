@@ -109,6 +109,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	time.Sleep(getSleepDuration())
 	// advance time to the timeout
 	fmt.Printf("\n -- Move to timeout time !! -- \n")
+	// after this, the resharing should be done
 	dt.MoveTime(timeout)
 	//give time to finish for the go routines and such
 	time.Sleep(getSleepDuration())
@@ -133,6 +134,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// the new group
 	dt.TestBeaconLength(3, dt.reshareIds...)
 
+	fmt.Printf("\n -- TEST RESHARING: New group round time \n\n")
 	// move 1s to pass to first round of the new group
 	dt.MoveTime(1 * time.Second)
 	dt.TestBeaconLength(4, dt.reshareIds...)
