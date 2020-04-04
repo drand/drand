@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -28,6 +29,7 @@ func getPrivateCmd(c *cli.Context) error {
 			break
 		}
 		slog.Infof("drand: error contacting node %s: %s", public.Addr, err)
+		fmt.Println(" || no response private: id", public.Address())
 	}
 	if resp == nil {
 		slog.Fatalf("drand: zero successful contacts with nodes")

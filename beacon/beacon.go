@@ -336,8 +336,9 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 			h.l.Error("sync", "failed", "from", currRound)
 		}
 		if lastBeacon == nil {
-			h.l.Fatal("after_sync", "nil_beacon")
+			h.l.Error("after_sync", "nil_beacon")
 		}
+		h.conf.Clock.Sleep(5 * time.Second)
 	}
 	h.l.Debug("sync", "done", "upto", lastBeacon.Round, "next_time", nextTime)
 	return lastBeacon, nil

@@ -45,7 +45,7 @@ func banner() {
 }
 
 var folderFlag = &cli.StringFlag{
-	Name:  "folder, f",
+	Name:  "folder",
 	Value: core.DefaultConfigFolder(),
 	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
 }
@@ -54,27 +54,27 @@ var leaderFlag = &cli.BoolFlag{
 	Usage: "Set this node as the initator of the distributed key generation process.",
 }
 var verboseFlag = &cli.IntFlag{
-	Name:  "verbose, V",
+	Name:  "verbose",
 	Value: 1,
 	Usage: "Set verbosity to the given level. Level 1 is the info level and level 2 is the debug level. Verbosity is at the info level by default.",
 }
 
 var tlsCertFlag = &cli.StringFlag{
-	Name: "tls-cert, c",
+	Name: "tls-cert",
 	Usage: "Set the TLS certificate chain (in PEM format) for this drand node. " +
 		"The certificates have to be specified as a list of whitespace-separated file paths. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 }
 
 var tlsKeyFlag = &cli.StringFlag{
-	Name: "tls-key, k",
+	Name: "tls-key",
 	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
 		"The key has to be specified as a file path. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
 }
 
 var insecureFlag = &cli.BoolFlag{
-	Name:  "tls-disable, d",
+	Name:  "tls-disable",
 	Usage: "Disable TLS for all communications (not recommended).",
 }
 
@@ -84,22 +84,22 @@ var controlFlag = &cli.StringFlag{
 }
 
 var listenFlag = &cli.StringFlag{
-	Name:  "listen, l",
+	Name:  "listen",
 	Usage: "Set the listening (binding) address. Useful if you have some kind of proxy.",
 }
 
 var nodeFlag = &cli.StringFlag{
-	Name:  "nodes, n",
+	Name:  "nodes",
 	Usage: "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
 }
 
 var roundFlag = &cli.IntFlag{
-	Name:  "round, r",
+	Name:  "round",
 	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
 }
 
 var groupFlag = &cli.StringFlag{
-	Name:  "group, g",
+	Name:  "group",
 	Usage: "If you want to merge keys into an existing group.toml file, run the group command and specify the group.toml file with this flag.",
 }
 
@@ -109,7 +109,7 @@ var certsDirFlag = &cli.StringFlag{
 }
 
 var outFlag = &cli.StringFlag{
-	Name: "out, o",
+	Name: "out",
 	Usage: "save the requested information into a separate file" +
 		" instead of stdout",
 }
@@ -175,7 +175,7 @@ func main() {
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 				insecureFlag, controlFlag, listenFlag,
-				certsDirFlag, pushFlag),
+				certsDirFlag, pushFlag, verboseFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -184,6 +184,7 @@ func main() {
 		&cli.Command{
 			Name:  "stop",
 			Usage: "Stop the drand daemon.\n",
+			Flags: toArray(controlFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return stopDaemon(c)
@@ -211,7 +212,7 @@ func main() {
 			Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 				"for this node.\n",
 			ArgsUsage: "<address> is the public address for other nodes to contact",
-			Flags:     toArray(insecureFlag),
+			Flags:     toArray(folderFlag, insecureFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return keygenCmd(c)
@@ -224,7 +225,7 @@ func main() {
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
-			Flags: toArray(outFlag, periodFlag, thresholdFlag, genesisFlag),
+			Flags: toArray(folderFlag, outFlag, periodFlag, thresholdFlag, genesisFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
@@ -297,8 +298,8 @@ func main() {
 		},
 		{
 			Name:  "reset",
-			Usage: "Resets the local distributed information (share, group file and random beacons).",
-			Flags: toArray(controlFlag),
+			Usage: "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
+			Flags: toArray(folderFlag, controlFlag),
 			Action: func(c *cli.Context) error {
 				return resetCmd(c)
 			},
@@ -311,7 +312,7 @@ func main() {
 				"long-term private key (drand.private), the long-term public key " +
 				"(drand.public), or the private key share (drand.share), " +
 				"respectively.\n",
-			Flags: toArray(controlFlag),
+			Flags: toArray(folderFlag, controlFlag),
 			Subcommands: []*cli.Command{
 				{
 					Name:  "share",
@@ -360,7 +361,6 @@ func main() {
 	}
 	app.Flags = toArray(verboseFlag, folderFlag)
 	app.Before = func(c *cli.Context) error {
-
 		testWindows(c)
 		return nil
 	}
@@ -453,12 +453,12 @@ func fatal(str string, args ...interface{}) {
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {
-		fatal("Missing drand address in argument")
+		fatal("Missing drand address in argument. Abort.")
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
 	if !validID.MatchString(addr) {
-		fmt.Println("port not ok")
+		fmt.Println("Invalid port.")
 		addr = addr + ":" + askPort()
 	}
 	var priv *key.Pair
@@ -474,7 +474,7 @@ func keygenCmd(c *cli.Context) error {
 	fs := key.NewFileStore(config.ConfigFolder())
 
 	if _, err := fs.LoadKeyPair(); err == nil {
-		fmt.Println("keypair already present. Remove them before generating new one")
+		fmt.Printf("Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolder())
 		return nil
 	}
 	if err := fs.SaveKeyPair(priv); err != nil {
@@ -531,6 +531,9 @@ func groupCmd(c *cli.Context) error {
 	}
 
 	genesis := c.Int64(genesisFlag.Name)
+	if genesis <= time.Now().Unix() {
+		fatal("drand: genesis time in the past")
+	}
 	group := key.NewGroup(publics, threshold, genesis)
 	group.Period = period
 
@@ -625,7 +628,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
 	}
-	config := c.String("folder")
+	config := c.String(folderFlag.Name)
 	opts = append(opts, core.WithConfigFolder(config))
 
 	if c.Bool("tls-disable") {

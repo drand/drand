@@ -13,7 +13,7 @@ func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
-
+	fmt.Println(" | Fetching config folder: ", conf.ConfigFolder())
 	// determine if we already ran a DKG or not
 	_, errG := fs.LoadGroup()
 	_, errS := fs.LoadShare()
@@ -38,9 +38,7 @@ func startCmd(c *cli.Context) error {
 		}
 		// XXX make it configurable so that new share holder can still start if
 		// nobody started.
-		if err := drand.StartBeacon(!c.Bool(pushFlag.Name)); err != nil {
-			fatal("drand: starting beacon failed: %s", err)
-		}
+		drand.StartBeacon(!c.Bool(pushFlag.Name))
 	}
 	<-drand.WaitExit()
 

@@ -190,10 +190,11 @@ func showShareCmd(c *cli.Context) error {
 }
 
 func controlPort(c *cli.Context) string {
-	port := c.String("control")
+	port := c.String(controlFlag.Name)
 	if port == "" {
 		port = core.DefaultControlPort
 	}
+	fmt.Println(" --- controlport using ", port)
 	return port
 }
 
