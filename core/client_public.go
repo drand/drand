@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"crypto/sha512"
 	"errors"
 
 	"github.com/drand/drand/beacon"
@@ -112,7 +111,7 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if ver != nil {
 		return ver
 	}
-	hash := sha512.New()
+	hash := RandomnessHash()
 	hash.Write(resp.GetSignature())
 	randExpected := hash.Sum(nil)
 	if !bytes.Equal(randExpected, rand) {
