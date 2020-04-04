@@ -183,7 +183,7 @@ func (b *BeaconTest) CreateNode(i int) {
 }
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*Beacon)) {
-	b.nodes[i].callback = fn
+	b.nodes[i].handler.AddCallback(fn)
 }
 
 func (b *BeaconTest) ServeBeacon(i int) {
@@ -333,8 +333,8 @@ func TestBeaconThreshold(t *testing.T) {
 	thr := n/2 + 1
 	period := 2 * time.Second
 
-	//var genesisTime int64 = clock.NewMock().Now().Unix() + 2
-	var genesisTime int64 = clock.NewFakeClock().Now().Unix() + 2
+	offsetGenesis := 2 * time.Second
+	var genesisTime int64 = clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
 
 	bt := NewBeaconTest(n, thr, period, genesisTime)
 	defer bt.CleanUp()
@@ -358,15 +358,15 @@ func TestBeaconThreshold(t *testing.T) {
 	makeRounds := func(r int, howMany int) {
 		func() {
 			for i := 0; i < r; i++ {
+				currentRound++
 				counter.Add(howMany)
 				bt.MoveTime(period)
 				checkWait(counter)
 				time.Sleep(100 * time.Millisecond)
-				currentRound++
 			}
 		}()
-
 	}
+	nRounds := 1
 	// open connections for all but one
 	for i := 0; i < n-1; i++ {
 		bt.CallbackFor(i, myCallBack(i))
@@ -375,29 +375,40 @@ func TestBeaconThreshold(t *testing.T) {
 
 	// start all but one
 	bt.StartBeacons(n - 1)
+	// move to genesis time and check they ran the round 1
+	currentRound = 1
+	counter.Add(n - 1)
+	bt.MoveTime(offsetGenesis)
+	checkWait(counter)
 
-	currentRound++
-	// make a few round
-	makeRounds(2, n-1)
+	// make a few rounds
+	makeRounds(nRounds, n-1)
 
 	// launch the last one
 	bt.CallbackFor(n-1, myCallBack(n-1))
 	bt.ServeBeacon(n - 1)
 	bt.StartBeacon(n-1, true)
+	fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
 	// wait a bit for syncing to take place
 	time.Sleep(100 * time.Millisecond)
-	makeRounds(2, n)
+	fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
+	// and then run a few rounds
+	makeRounds(nRounds, n)
 
+	fmt.Printf("\n | STOP LAST NODE |\n\n")
 	// stop last one again - so it will force a sync not from genesis
 	bt.StopBeacon(n - 1)
 	// make a few round
-	makeRounds(2, n-1)
+	makeRounds(nRounds, n-1)
+
+	fmt.Printf("\n | CREATE LAST NODE AGAIN | \n\n")
 	// start the node again
 	bt.CreateNode(n - 1)
 	bt.ServeBeacon(n - 1)
 	bt.StartBeacon(n-1, true)
+	bt.CallbackFor(n-1, myCallBack(n-1))
 	// let time for syncing
 	time.Sleep(100 * time.Millisecond)
 	// expect lastnode to have catch up
-	makeRounds(3, n)
+	makeRounds(nRounds, n)
 }

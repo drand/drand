@@ -48,17 +48,18 @@ func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupRespon
 
 // PublicRand implements net.Service
 func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	prev := decodeHex(s.d.Previous)
+	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
 	if in.GetRound() == uint64(s.d.Round+1) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
 	randomness := sha256Hash(signature)
 	return &drand.PublicRandResponse{
-		Round:      uint64(s.d.Round),
-		Previous:   prev,
-		Signature:  signature,
-		Randomness: randomness,
+		Round:             uint64(s.d.Round),
+		PreviousSignature: prev,
+		PreviousRound:     uint64(s.d.PreviousRound),
+		Signature:         signature,
+		Randomness:        randomness,
 	}, nil
 }
 
@@ -77,12 +78,12 @@ func testValid(d *Data) {
 		panic(err)
 	}
 	sig := decodeHex(d.Signature)
-	prev := decodeHex(d.Previous)
-	msg := beacon.Message(prev, uint64(d.Round))
+	prev := decodeHex(d.PreviousSignature)
+	msg := beacon.Message(prev, uint64(d.PreviousRound), uint64(d.Round))
 	if err := key.Scheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
 		panic(err)
 	}
-	invMsg := beacon.Message(prev, uint64(d.Round-1))
+	invMsg := beacon.Message(prev, uint64(d.PreviousRound), uint64(d.Round-1))
 	if err := key.Scheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
 		panic("should be invalid signature")
 	}
@@ -100,10 +101,11 @@ func decodeHex(s string) []byte {
 
 // Data of signing
 type Data struct {
-	Public    string
-	Signature string
-	Round     int
-	Previous  string
+	Public            string
+	Signature         string
+	Round             int
+	PreviousSignature string
+	PreviousRound     int
 }
 
 func generateData() *Data {
@@ -114,7 +116,8 @@ func generateData() *Data {
 		panic(err)
 	}
 	round := 1969
-	msg := beacon.Message(previous[:], uint64(round))
+	prevRound := uint64(1968)
+	msg := beacon.Message(previous[:], prevRound, uint64(round))
 	fmt.Println("msg: ", hex.EncodeToString(msg))
 	sshare := share.PriShare{I: 0, V: secret}
 	tsig, err := key.Scheme.Sign(&sshare, msg)
@@ -124,10 +127,11 @@ func generateData() *Data {
 	tshare := tbls.SigShare(tsig)
 	sig := tshare.Value()
 	d := &Data{
-		Public:    key.PointToString(public),
-		Signature: hex.EncodeToString(sig),
-		Previous:  hex.EncodeToString(previous[:]),
-		Round:     round,
+		Public:            key.PointToString(public),
+		Signature:         hex.EncodeToString(sig),
+		PreviousSignature: hex.EncodeToString(previous[:]),
+		PreviousRound:     int(prevRound),
+		Round:             round,
 	}
 	//s, _ := json.MarshalIndent(d, "", "    ")
 	//fmt.Println(string(s))

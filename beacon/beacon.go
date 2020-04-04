@@ -55,15 +55,13 @@ type Handler struct {
 	cache *PartialCache
 	// the signature of this node for the current round. acts like a cache to
 	// avoid resigning it for each request.
-	currentPartial *sigPair
-	// last successful beacon created by the network - it's the point of
-	// reference when building the next round and/or answering partial requests
-	lastSuccess *Beacon
+	currentPartial *partialSig
+	// the last previous round this node must must build upon - It is set when
+	// the node starts running and is only increased when node successfully build
+	// a new beacon.
+	prevRound *roundInfo
 
 	index int
-
-	// current round
-	round uint64
 
 	ticker  clock.Ticker
 	close   chan bool
@@ -109,6 +107,10 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 		Round:     0,
 	}
 	s.Put(b)
+	handler.savePreviousRound(&roundInfo{
+		sig:   b.Signature,
+		round: 0,
+	})
 	return handler, nil
 }
 
@@ -126,23 +128,16 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
+
 	if p.GetRound() != currentRound {
 		// request is not for current round
 		h.l.Error("request_round", p.GetRound(), "current_round", nextRound-1)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), nextRound-1)
 	}
 
-	var previousSig []byte
-	var previousRound uint64
-
-	// load the last successful beacon and check if the request is pointing
-	// to the last created beacon of this node.
-	beacon, err := h.store.Last()
-	if err != nil {
-		h.l.Error("store_last", err, "BUG")
-		return nil, errors.New("no beacons")
-	}
-	if beacon.Round != p.GetPreviousRound() {
+	// we take our own previous round instead of trusting the requester
+	var previousRound = h.loadPreviousRound()
+	if previousRound.round != p.GetPreviousRound() {
 		// this means either
 		// 1. requester is lying about request - he's trying to gather
 		// partial signature that builds over another round
@@ -150,25 +145,16 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 		// Since we can not know which case, we don't answer with a partial
 		// request to avoid situation 1.
 		// TODO: run sync
-		return nil, fmt.Errorf("last round stored %d is not one given %d", beacon.Round, p.GetPreviousRound())
+		return nil, fmt.Errorf("last round stored %d is not one given %d", previousRound.round, p.GetPreviousRound())
 	}
-	// we take our own previous signature instead of trusting the requester
-	previousSig = beacon.Signature
-	previousRound = beacon.Round
 
-	msg := Message(previousSig, previousRound, currentRound)
+	msg := Message(previousRound.sig, previousRound.round, currentRound)
 	// verify if request is valid
 	if err := h.conf.Scheme.VerifyPartial(h.pub, msg, p.PartialSig); err != nil {
 		shortPub := h.pub.Eval(1).V.String()[14:19]
 		fmt.Printf(" || FAIL index %d : pointer %p : shortPub: %s\n", h.index, h, shortPub)
-		h.l.Error("process_request", err, "from", peer.Addr.String(), "prev_sig", shortSigStr(previousSig), "prev_round", previousRound, "curr_round", currentRound, "msg_sign", shortSigStr(msg))
+		h.l.Error("process_request", err, "from", peer.Addr.String(), "prev_sig", shortSigStr(previousRound.sig), "prev_round", previousRound, "curr_round", currentRound, "msg_sign", shortSigStr(msg))
 		return nil, err
-	}
-
-	// load or create signature
-	partialSig, err := h.getCurrentSignature(currentRound, msg)
-	if err != nil {
-		return nil, errors.New("can't generate partial signature")
 	}
 
 	// keep it in the cache - it can shortcut some time to complete the
@@ -176,11 +162,15 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	h.cache.Add(p.PartialSig)
 	// index is valid since signature verified before
 	index, _ := h.conf.Scheme.IndexOf(p.PartialSig)
-
+	partialSig, err := h.getOrSetCurrentSignature(currentRound, msg)
+	if err != nil {
+		h.l.Error("get_current_partial", err)
+		return nil, errors.New("can't get current partial signature")
+	}
 	resp := &proto.BeaconResponse{
 		PartialSig: partialSig,
 	}
-	h.l.Debug("process_beacon", currentRound, "answered_to", index)
+	h.l.Debug("process_beacon", currentRound, "answered_to", index, "addr", peer.Addr.String())
 	return resp, err
 }
 
@@ -191,6 +181,9 @@ func (h *Handler) Store() Store {
 func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error {
 	fromRound := req.GetFromRound()
 	var err error
+	peer, _ := peer.FromContext(p.Context())
+	h.l.Debug("received", "request", "from", peer.Addr.String())
+
 	h.store.Cursor(func(c Cursor) {
 		for beacon := c.Seek(fromRound); beacon != nil; beacon = c.Next() {
 			reply := &proto.SyncResponse{
@@ -200,9 +193,11 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 				Signature:     beacon.Signature,
 			}
 			fmt.Printf("\nnode %d - reply sync from round %d to %d\n\n", h.index, fromRound, reply.Round)
+			h.l.Debug("sync_chain_reply", peer.Addr.String(), "from", fromRound, "to", reply.Round)
 			if err = p.Send(reply); err != nil {
 				return
 			}
+			fromRound = reply.Round
 		}
 	})
 	return err
@@ -243,7 +238,11 @@ func (h *Handler) Catchup() {
 	nextRound, nextTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	previousSig := prevBeacon.Signature
 	previousRound := prevBeacon.Round
-	fmt.Printf("\n SYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
+	h.savePreviousRound(&roundInfo{
+		round: previousRound,
+		sig:   previousSig,
+	})
+	fmt.Printf("\nSYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
 	h.run(previousSig, previousRound, nextRound, nextTime)
 }
 
@@ -312,21 +311,21 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 	var nextTime int64
 	var err error
 	var lastBeacon *Beacon
+	lastBeacon, err = h.store.Last()
+	if err == ErrNoBeaconSaved {
+		return nil, errors.New("no genesis block stored. BUG")
+	}
+	if err != nil {
+		return nil, err
+	}
+	nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	if lastBeacon.Round+1 == nextRound {
+		// next round will build on the one we have - no need to sync
+		return lastBeacon, nil
+	}
 	// only reason why trying multiple times is when the syncing takes too much
 	// time and then we miss the current round, hence 2 times should be fine.
 	for trial := 0; trial < 2; trial++ {
-		lastBeacon, err = h.store.Last()
-		if err == ErrNoBeaconSaved {
-			return nil, errors.New("no genesis block stored. BUG")
-		}
-		if err != nil {
-			return nil, err
-		}
-		nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-		if lastBeacon.Round+1 == nextRound {
-			// next round will build on the one we have - no need to sync
-			return lastBeacon, nil
-		}
 		// there is a gap - we need to sync with other peers
 		currRound := lastBeacon.Round
 		currSig := lastBeacon.Signature
@@ -338,10 +337,15 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		if lastBeacon == nil {
 			h.l.Error("after_sync", "nil_beacon")
 		}
-		h.conf.Clock.Sleep(5 * time.Second)
+		nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+		if lastBeacon.Round+1 == nextRound {
+			// next round will build on the one we have - no need to sync
+			h.l.Debug("sync", "done", "upto", lastBeacon.Round, "next_time", nextTime)
+			return lastBeacon, nil
+		}
+		h.conf.Clock.Sleep(30 * time.Second)
 	}
-	h.l.Debug("sync", "done", "upto", lastBeacon.Round, "next_time", nextTime)
-	return lastBeacon, nil
+	return nil, errors.New("impossible to sync to current round: network is down?")
 }
 
 // Run starts the TBLS protocol: it will start the round "nextRound" that is
@@ -397,6 +401,10 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 			h.flushCurrentSig()
 			// the ticker is king so we always start a new round at each tick
 			goToNextRound = true
+			h.savePreviousRound(&roundInfo{
+				round: prevRound,
+				sig:   prevSig,
+			})
 			fmt.Printf("\n <<- node %d : NEW TICK round %d -  %d \n\n", h.index, currentRound, h.conf.Clock.Now().Unix())
 			continue
 		case beacon := <-winCh:
@@ -424,7 +432,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh chan *Beacon, closeCh chan bool) {
 	// we sign for the new current round
 	msg := Message(prevSig, prevRound, currentRound)
-	currSig, err := h.getCurrentSignature(currentRound, msg)
+	currSig, err := h.getOrSetCurrentSignature(currentRound, msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", currentRound)
 		return
@@ -580,7 +588,7 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 			// if it gave us the round just before the next one, then we are
 			// synced!
 			if currentRound+1 == nextRound {
-				h.l.Debug("sync_at", "head", "round", currentRound, "sig", shortSigStr(currentSig))
+				h.l.Debug("sync", "finished", "round", currentRound, "sig", shortSigStr(currentSig))
 				cancel()
 				return currentBeacon, nil
 			}
@@ -628,7 +636,7 @@ func (h *Handler) flushCurrentSig() {
 	h.currentPartial = nil
 }
 
-func (h *Handler) getCurrentSignature(round uint64, msg []byte) ([]byte, error) {
+func (h *Handler) getOrSetCurrentSignature(round uint64, msg []byte) ([]byte, error) {
 	h.Lock()
 	defer h.Unlock()
 	if h.currentPartial == nil || h.currentPartial.round != round {
@@ -637,12 +645,27 @@ func (h *Handler) getCurrentSignature(round uint64, msg []byte) ([]byte, error) 
 			return nil, err
 		}
 		h.cache.Add(signature)
-		h.currentPartial = &sigPair{
-			round: round,
-			sig:   signature,
+		h.currentPartial = &partialSig{
+			round:   round,
+			partial: signature,
 		}
 	}
-	return h.currentPartial.sig, nil
+	return h.currentPartial.partial, nil
+}
+
+var errOutdatedRound = errors.New("current partial signature not for this round")
+
+// save the last round on which this node should build upon
+func (h *Handler) savePreviousRound(prevRound *roundInfo) {
+	h.Lock()
+	defer h.Unlock()
+	h.prevRound = prevRound
+}
+
+func (h *Handler) loadPreviousRound() *roundInfo {
+	h.Lock()
+	defer h.Unlock()
+	return h.prevRound
 }
 
 func (h *Handler) AddCallback(fn func(*Beacon)) {
@@ -667,7 +690,12 @@ func shortSigStr(sig []byte) string {
 	return hex.EncodeToString(sig[0:max])
 }
 
-type sigPair struct {
+type partialSig struct {
+	round   uint64
+	partial []byte
+}
+
+type roundInfo struct {
 	round uint64
 	sig   []byte
 }
