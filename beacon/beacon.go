@@ -341,14 +341,16 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		if err != nil {
 			h.l.Error("sync", "failed", "from", currRound)
 		}
-		if lastBeacon == nil {
+		if lastBeacon != nil {
+			nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+			if lastBeacon.Round+1 == nextRound {
+				// next round will build on the one we have - no need to sync
+				h.l.Debug("sync", "done", "upto", lastBeacon.Round, "next_time", nextTime)
+				return lastBeacon, nil
+			}
+			h.l.Debug("sync", "incomplete", "want", nextRound-1, "has", lastBeacon.Round)
+		} else {
 			h.l.Error("after_sync", "nil_beacon")
-		}
-		nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-		if lastBeacon.Round+1 == nextRound {
-			// next round will build on the one we have - no need to sync
-			h.l.Debug("sync", "done", "upto", lastBeacon.Round, "next_time", nextTime)
-			return lastBeacon, nil
 		}
 		h.conf.Clock.Sleep(30 * time.Second)
 	}
