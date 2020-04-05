@@ -525,7 +525,7 @@ func groupCmd(c *cli.Context) error {
 
 	genesis := c.Int64(genesisFlag.Name)
 	if genesis <= time.Now().Unix() {
-		fatal("drand: genesis time in the past")
+		fatal("drand: genesis time in the past or not specified")
 	}
 	group := key.NewGroup(publics, threshold, genesis)
 	group.Period = period

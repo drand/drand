@@ -73,6 +73,7 @@ func initDKG(c *cli.Context, groupPath string) error {
 
 	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name), entropyInfo)
 	if err != nil {
+		fmt.Println("init dkg", err)
 		fatal("drand: initdkg %s", err)
 	}
 	return nil

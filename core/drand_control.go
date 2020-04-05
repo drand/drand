@@ -25,6 +25,7 @@ var syncTime = 500 * time.Millisecond
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.Empty, error) {
+	d.log.Info("init_dkg", "begin")
 	d.state.Lock()
 
 	if d.dkgDone == true {
@@ -39,7 +40,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 	if group.GenesisTime < d.opts.clock.Now().Unix() {
 		d.state.Unlock()
-		fmt.Println(group.GenesisTime, d.opts.clock.Now().Unix())
+		d.log.Error("genesis", "invalid", "given", group.GenesisTime, "now", d.opts.clock.Now().Unix())
 		return nil, errors.New("control: group with genesis time in the past")
 	}
 	index, found := group.Index(d.priv.Public)
@@ -64,11 +65,13 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	d.state.Unlock()
 
 	if in.GetIsLeader() {
+		d.log.Info("init_dkg", "start_dkg")
 		if err := d.StartDKG(dkgConfig); err != nil {
 			return nil, err
 		}
 	}
 
+	d.log.Info("init_dkg", "wait_dkg_end")
 	if err := d.WaitDKG(dkgConfig); err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}

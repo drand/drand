@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -262,13 +263,17 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	if !ok {
 		slog.Debugf("grpc-client: attempting connection to %s (TLS %v)", p.Address(), p.IsTLS())
 		if !p.IsTLS() {
+			fmt.Println(" || USING NO TLS !")
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 		} else {
 			opts := g.opts
 			if g.manager != nil {
+				fmt.Println(" || USING POOL !")
 				pool := g.manager.Pool()
 				creds := credentials.NewClientTLSFromCert(pool, "")
 				opts = append(g.opts, grpc.WithTransportCredentials(creds))
+			} else {
+				fmt.Println(" || NOT USING POOL!", g.manager)
 			}
 			c, err = grpc.Dial(p.Address(), opts...)
 		}

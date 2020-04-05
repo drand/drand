@@ -42,6 +42,10 @@ NET="drand"
 SUBNET="192.168.215."
 PORT="80"
 GOROOT=$(go env GOROOT)
+GENESISOFFSET=12
+GENESISTIME=""
+TRANSITIONOFFSET=6
+TRANSITIONTIME=""
 # go run $GOROOT/src/crypto/tls/generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,localhost --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 
 function checkSuccess() {
@@ -136,8 +140,9 @@ function run() {
 
     ## generate group toml from the first 5 nodes ONLY
     ## We're gonna add the last one later on
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]:0:$OLDN}"  #> /dev/null
-    echo "[+] Group file generated at $GROUPFILE"
+    GENESISTIME=$(($(date +%s) + $GENESISOFFSET ))
+    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" --genesis $GENESISTIME "${allKeys[@]:0:$OLDN}"  #> /dev/null
+    echo "[+] Group file generated at $GROUPFILE for genesis time $GENESISTIME"
     cp $GROUPFILE "$GROUPFILE.1"
     echo "[+] Starting all drand nodes sequentially..."
     for i in $oldRseq; do
@@ -213,6 +218,11 @@ function run() {
         sleep 1
     done
 
+    ## make them do at least one round
+    echo "[+] Sleeping to wait for genesis start time + one period round"
+    sleep $GENESISOFFSET
+    sleep $period
+
     ## we look at the second node since the first node will be out during the
     ## resharing
     share1Path="$TMP/node2/groups/dist_key.private"
@@ -227,7 +237,9 @@ function run() {
 
     # trying to add the last node to the group
     echo "[+] Generating new group with additional node"
-    docker run --rm -v $TMP:/tmp:z $IMG group --out /tmp/group.toml --period "$period" "${allKeys[@]}" > /dev/null
+    TRANSITIONTIME=$(($(date +%s) + $TRANSITIONOFFSET ))
+    dockerPath=/tmp/group.toml
+    docker run --rm -v $TMP:/tmp:z $IMG group --out $dockerPath --from $dockerPath --transition $TRANSITIONTIME "${allKeys[@]}" #> /dev/null
     cp $GROUPFILE "$GROUPFILE.2"
 
     i=6
@@ -304,6 +316,9 @@ function run() {
         echo "[+] Checking private shares... New ones !"
     fi
 
+    echo "[+] Sleeping to reach transition time + one round"
+    sleep $TRANSITIONOFFSET
+    sleep $period
 }
 
 function pingNode() {
@@ -398,7 +413,7 @@ fi
 
 ## RUN LOCALLY SCRIPT
 trap cleanup SIGINT
-build
+#build
 run false
 echo "[+] Waiting to get some beacons"
 sleep "$period"

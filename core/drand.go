@@ -94,8 +94,10 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 
 	a := c.ListenAddress(priv.Public.Address())
 	if c.insecure {
+		d.log.Info("network", "tls-disable")
 		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
 	} else {
+		d.log.Info("network", "tls-enabled")
 		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
 	}
 	p := c.ControlPort()
