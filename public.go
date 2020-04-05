@@ -29,7 +29,7 @@ func getPrivateCmd(c *cli.Context) error {
 			break
 		}
 		slog.Infof("drand: error contacting node %s: %s", public.Addr, err)
-		fmt.Println(" || no response private: id", public.Address())
+		fmt.Println(" || no response private: id", public.Address(), err)
 	}
 	if resp == nil {
 		slog.Fatalf("drand: zero successful contacts with nodes")

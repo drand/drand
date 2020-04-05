@@ -352,8 +352,11 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		} else {
 			h.l.Error("after_sync", "nil_beacon")
 		}
-		h.conf.Clock.Sleep(30 * time.Second)
+		sleepPeriod := 30 * time.Second
+		h.l.Debug("sync", "incomplete", "sleeping", sleepPeriod.Seconds())
+		h.conf.Clock.Sleep(sleepPeriod)
 	}
+	h.l.Error("sync", "failed", "BUG")
 	return nil, errors.New("impossible to sync to current round: network is down?")
 }
 

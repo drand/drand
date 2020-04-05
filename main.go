@@ -50,14 +50,15 @@ var folderFlag = &cli.StringFlag{
 	Value: core.DefaultConfigFolder(),
 	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
 }
+
 var leaderFlag = &cli.BoolFlag{
 	Name:  "leader",
 	Usage: "Set this node as the initator of the distributed key generation process.",
 }
-var verboseFlag = &cli.IntFlag{
+
+var verboseFlag = &cli.BoolFlag{
 	Name:  "verbose",
-	Value: 1,
-	Usage: "Set verbosity to the given level. Level 1 is the info level and level 2 is the debug level. Verbosity is at the info level by default.",
+	Usage: "If set, verbosity is at the debug level",
 }
 
 var tlsCertFlag = &cli.StringFlag{
@@ -650,16 +651,8 @@ func keyIDFromAddr(addr string, group *key.Group) *key.Identity {
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
 
-	if c.IsSet("verbose") {
-		switch c.Int("verbose") {
-		case log.LogInfo:
-			opts = append(opts, core.WithLogLevel(log.LogInfo))
-		case log.LogDebug:
-			fmt.Println("drand: unknown log level - debug default")
-			fallthrough // default
-		default:
-			opts = append(opts, core.WithLogLevel(log.LogDebug))
-		}
+	if c.IsSet(verboseFlag.Name) {
+		opts = append(opts, core.WithLogLevel(log.LogDebug))
 	} else {
 		opts = append(opts, core.WithLogLevel(log.LogInfo))
 	}

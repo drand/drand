@@ -231,8 +231,6 @@ func TestStartWithoutGroup(t *testing.T) {
 	pubPath := path.Join(tmpPath, "pub.key")
 	port1, _ := strconv.Atoi(test.FreePort())
 	addr := "127.0.0.1:" + strconv.Itoa(port1)
-	port2, _ := strconv.Atoi(test.FreePort())
-	addr2 := "127.0.0.1:" + strconv.Itoa(port2)
 	ctrlPort1 := test.FreePort()
 	ctrlPort2 := test.FreePort()
 
@@ -241,15 +239,15 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
 	fs := key.NewFileStore(config.ConfigFolder())
-	fs.SaveKeyPair(priv)
+	require.NoError(t, fs.SaveKeyPair(priv))
 
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
-	start1 := exec.CommandContext(ctx, "drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1)
+	lctx, lcancel := context.WithCancel(context.Background())
+	start1 := exec.CommandContext(lctx, "drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1)
 	go start1.Run()
-	defer exec.Command("drand", "stop").Run()
 
 	fmt.Println(" DRAND SHARE ---")
 	initDKGCmd := exec.Command("drand", "share", "--control", ctrlPort1)
@@ -258,6 +256,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	output := string(out)
 	require.Error(t, err)
 	require.True(t, strings.Contains(output, expectedErr))
+	lcancel()
 
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
@@ -267,14 +266,16 @@ func TestStartWithoutGroup(t *testing.T) {
 	group.GenesisTime = time.Now().Unix() - 10
 	group.Nodes[0] = priv.Public
 	group.Nodes[1] = priv.Public
-	groupPath := path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
+	groupPath := path.Join(tmpPath, "drand_group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
+	// save it also to somewhere drand will find it
+	require.NoError(t, fs.SaveGroup(group))
 
 	//fake share
 	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
 	share := &key.Share{Share: s}
-	fs.SaveShare(share)
+	require.NoError(t, fs.SaveShare(share))
 
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
@@ -285,10 +286,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort1)
 
-	// Specify different control and listen ports than TLS example so the two
-	// concurrently running drand instances (one secure, one insecure) don't
-	// re-use ports.
-	start2 := exec.CommandContext(ctx, "drand", "start", "--listen", addr2, "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath)
+	start2 := exec.CommandContext(ctx, "drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose")
 	start2.Stdout = os.Stdout
 	start2.Stderr = os.Stderr
 	go start2.Run()
@@ -302,7 +300,12 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
-	getCmd := exec.Command("drand", "get", "private", "--tls-disable", groupPath, "--verbose", "2")
+	fmt.Printf("\n Running GET PRIVATE command with group file at %s\n", groupPath)
+	loadedGroup := new(key.Group)
+	require.NoError(t, key.Load(groupPath, loadedGroup))
+	fmt.Printf("%s", loadedGroup.String())
+
+	getCmd := exec.Command("drand", "get", "private", "--tls-disable", groupPath)
 	out, err = getCmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 
@@ -343,6 +346,9 @@ func TestClientTLS(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	pubPath := path.Join(tmpPath, "pub.key")
@@ -389,8 +395,9 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	os.Args = []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath}
-	go main()
+	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath}
+	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
+	go startCmd.Run()
 
 	installCmd := exec.Command("go", "install")
 	_, err := installCmd.Output()
@@ -437,7 +444,7 @@ func TestClientTLS(t *testing.T) {
 	require.Contains(t, string(out), expectedOutput)
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "--verbose", "2", "show", "share", "--control", ctrlPort)
+	cmd = exec.Command("drand", "show", "share", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
