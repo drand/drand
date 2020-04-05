@@ -305,8 +305,7 @@ func (d *DistPublic) Equal(d2 *DistPublic) bool {
 	for i := range d.Coefficients {
 		p1 := d.Coefficients[i]
 		p2 := d2.Coefficients[i]
-		// XXX to change: this is a naive comparison way
-		if p1.String() != p2.String() {
+		if !p1.Equal(p2) {
 			return false
 		}
 	}

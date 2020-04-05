@@ -10,6 +10,7 @@
 #
 N=6 ## final number of nodes in total - only N-1 will be running
 OLDN=5 ## starting number of nodes
+thr=4
 period="4s"
 BASE="/tmp/drand-docker"
 SHA="sha256sum"
@@ -42,9 +43,9 @@ NET="drand"
 SUBNET="192.168.215."
 PORT="80"
 GOROOT=$(go env GOROOT)
-GENESISOFFSET=12
+GENESISOFFSET=20
 GENESISTIME=""
-TRANSITIONOFFSET=6
+TRANSITIONOFFSET=40
 TRANSITIONTIME=""
 # go run $GOROOT/src/crypto/tls/generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,localhost --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
 
@@ -155,7 +156,7 @@ function run() {
         dockerGroupFile="/root/.drand/drand_group.toml"
 
         name="node$i"
-        drandCmd=("--verbose" "2" "start" "--certs-dir" "/certs")
+        drandCmd=("start" "--verbose" "--certs-dir" "/certs")
         drandCmd+=("--tls-cert" "$certFile" "--tls-key" "$keyFile")
         args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
         args+=("--volume" "${allVolumes[$i]}") ## config folder
@@ -174,7 +175,7 @@ function run() {
         else
             echo "[+] Starting node $i "
         fi
-        docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
+        docker ${args[@]} "$IMG" "${drandCmd[@]}" #> /dev/null
         docker logs -f node$i > $logFile &
         #docker logs -f node$i &
 
@@ -195,7 +196,7 @@ function run() {
 
         if [ "$i" -eq 1 ]; then
             while true; do
-                docker exec -it $name drand --verbose 2 get cokey \
+                docker exec -it $name drand get cokey --verbose \
                     --tls-cert "$certFile" "$dockerGroupFile" > /dev/null
                 if [ "$?" -eq 0 ]; then
                     echo "[+] Successfully retrieve distributed key from leader"
@@ -220,8 +221,10 @@ function run() {
 
     ## make them do at least one round
     echo "[+] Sleeping to wait for genesis start time + one period round"
-    sleep $GENESISOFFSET
+    sleep $(($GENESISTIME - $(date +%s)))
+    echo "   - Genesis time reached: $(date +%s)"
     sleep $period
+    echo "   - Second round time reached: $(date +%s)"
 
     ## we look at the second node since the first node will be out during the
     ## resharing
@@ -236,94 +239,98 @@ function run() {
     cp "$group1Path" "$GROUPFILE.1"
 
     # trying to add the last node to the group
-    echo "[+] Generating new group with additional node"
-    TRANSITIONTIME=$(($(date +%s) + $TRANSITIONOFFSET ))
-    dockerPath=/tmp/group.toml
-    docker run --rm -v $TMP:/tmp:z $IMG group --out $dockerPath --from $dockerPath --transition $TRANSITIONTIME "${allKeys[@]}" #> /dev/null
-    cp $GROUPFILE "$GROUPFILE.2"
+   ## TRANSITIONTIME=$(($(date +%s) + $TRANSITIONOFFSET ))
+   ## echo "[+] Generating new group with additional node  - transition at $TRANSITIONTIME"
+   ## dockerPath=/tmp/group.toml
+   ## docker run --rm -v $TMP:/tmp:z $IMG group --out $dockerPath --from $dockerPath --transition $TRANSITIONTIME --threshold $thr "${allKeys[@]}" #> /dev/null
+   ## cp $GROUPFILE "$GROUPFILE.2"
 
-    i=6
-    echo "[+] Starting node additional node $i"
-    idx=`expr $i - 1`
-    # gen key and append to group
-    data="$TMP/node$i/"
-    logFile="$LOGSDIR/node$i.log"
-    groupFile="$data""drand_group.toml"
-    cp $GROUPFILE $groupFile
-    groupFileOld="$data""drand_group.toml.old"
-    cp $group1Path $groupFileOld
-    dockerGroupFile="/root/.drand/drand_group.toml"
+   ## i=6
+   ## echo "[+] Starting node additional node $i"
+   ## idx=`expr $i - 1`
+   ## # gen key and append to group
+   ## data="$TMP/node$i/"
+   ## logFile="$LOGSDIR/node$i.log"
+   ## groupFile="$data""drand_group.toml"
+   ## cp $GROUPFILE $groupFile
+   ## groupFileOld="$data""drand_group.toml.old"
+   ## cp $group1Path $groupFileOld
+   ## dockerGroupFile="/root/.drand/drand_group.toml"
 
-    name="node$i"
-    drandCmd=("--verbose" "2" "start" "--certs-dir" "/certs")
-    drandCmd+=("--tls-cert" "$certFile" "--tls-key" "$keyFile")
-    args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
-    args+=("--volume" "${allVolumes[$i]}") ## config folder
-    args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
-    args+=("--volume" "${certs[$idx]}:$certFile") ## server cert
-    args+=("--volume" "${tlskeys[$idx]}:$keyFile") ## server priv key
-    args+=("-d") ## detached mode
-    docker ${args[@]} "$IMG" "${drandCmd[@]}" > /dev/null
-    docker logs -f node$i > $logFile &
-    #docker logs -f node$i  &
-    # check if the node is up 
-    pingNode $name 
-    timeout="10s"
+   ## name="node$i"
+   ## drandCmd=("start" "--verbose" "--certs-dir" "/certs")
+   ## drandCmd+=("--tls-cert" "$certFile" "--tls-key" "$keyFile")
+   ## args=(run --rm --name $name --net $NET  --ip ${SUBNET}2$i) ## ip
+   ## args+=("--volume" "${allVolumes[$i]}") ## config folder
+   ## args+=("--volume" "$CERTSDIR:/certs:z") ## set of whole certs
+   ## args+=("--volume" "${certs[$idx]}:$certFile") ## server cert
+   ## args+=("--volume" "${tlskeys[$idx]}:$keyFile") ## server priv key
+   ## args+=("-d") ## detached mode
+   ## docker ${args[@]} "$IMG" "${drandCmd[@]}" # > /dev/null
+   ## docker logs -f node$i > $logFile &
+   ## #docker logs -f node$i  &
+   ## # check if the node is up 
+   ## pingNode $name 
+   ## timeout="15s"
 
-    ## stop the first node
-    docker stop "node1" > /dev/null
+   ## ## stop the first node
+   ## echo "[+] Stopping the first node"
+   ## docker stop "node1" # > /dev/null
 
-    ## start all nodes BUT the first one -> try a resharing threshold.
-    for i in $newRseq; do
-        idx=`expr $i - 1`
-        name="node$i"
-        data="$TMP/node$i/"
-        logFile="$LOGSDIR/node$i.log"
-        nodeGroupFile="$data""drand_group.toml"
-        cp "$GROUPFILE.1" "$nodeGroupFile.1"
-        cp "$GROUPFILE.2" "$nodeGroupFile.2"
-        newGroup="/root/.drand/drand_group.toml.2"
-        oldGroup="/root/.drand/drand_group.toml.1"
-        #oldGroup=$groupFileOld
+   ## ## start all nodes BUT the first one -> try a resharing threshold.
+   ## for i in $newRseq; do
+   ##     idx=`expr $i - 1`
+   ##     name="node$i"
+   ##     data="$TMP/node$i/"
+   ##     logFile="$LOGSDIR/node$i.log"
+   ##     nodeGroupFile="$data""drand_group.toml"
+   ##     cp "$GROUPFILE.1" "$nodeGroupFile.1"
+   ##     cp "$GROUPFILE.2" "$nodeGroupFile.2"
+   ##     newGroup="/root/.drand/drand_group.toml.2"
+   ##     oldGroup="/root/.drand/drand_group.toml.1"
+   ##     #oldGroup=$groupFileOld
 
-        name="node$i"
-         if [ "$i" -eq 2 ]; then
-            echo "[+] Start resharing command to leader $name"
-            docker exec -it $name drand share --leader --timeout "$timeout" "$newGroup" > /dev/null
-        elif [ "$i" -eq "$N" ]; then
-            echo "[+] Issuing resharing command to NEW node $name"
-            docker exec -d $name drand share --from "$oldGroup" --timeout "$timeout" "$newGroup" > /dev/null
-        else
-            echo "[+] Issuing resharing command to node $name"
-            docker exec -d $name drand share --timeout "$timeout" "$newGroup" > /dev/null
-        fi
-    done
+   ##     name="node$i"
+   ##      if [ "$i" -eq 2 ]; then
+   ##         echo "[+] Start resharing command to leader $name"
+   ##         docker exec -it $name drand share --leader --timeout "$timeout" "$newGroup" > /dev/null
+   ##     elif [ "$i" -eq "$N" ]; then
+   ##         echo "[+] Issuing resharing command to NEW node $name"
+   ##         docker exec -d $name drand share --from "$oldGroup" --timeout "$timeout" "$newGroup" > /dev/null
+   ##     else
+   ##         echo "[+] Issuing resharing command to node $name"
+   ##         docker exec -d $name drand share --timeout "$timeout" "$newGroup" > /dev/null
+   ##     fi
+   ## done
 
-    ## check if the two groups file are different
-    group2Hash=$(eval "$SHA $group1Path")
-    if [ "$group1Hash" = "$group2Hash" ]; then
-        echo "[-] Checking group file... Same as before - WRONG."
-        exit 1
-    else
-        echo "[+] Checking group file... New one created !"
-    fi
+   ## ## check if the two groups file are different
+   ## group2Hash=$(eval "$SHA $group1Path")
+   ## if [ "$group1Hash" = "$group2Hash" ]; then
+   ##     echo "[-] Checking group file... Same as before - WRONG."
+   ##     exit 1
+   ## else
+   ##     echo "[+] Checking group file... New one created !"
+   ## fi
 
-    share2Hash=$(eval "$SHA $share1Path")
-    if [ "$share1Hash" = "$share2Hash" ]; then
-        echo "[-] Checking private shares... Same as before - WRONG"
-        exit 1
-    else
-        echo "[+] Checking private shares... New ones !"
-    fi
+   ## share2Hash=$(eval "$SHA $share1Path")
+   ## if [ "$share1Hash" = "$share2Hash" ]; then
+   ##     echo "[-] Checking private shares... Same as before - WRONG"
+   ##     exit 1
+   ## else
+   ##     echo "[+] Checking private shares... New ones !"
+   ## fi
 
-    echo "[+] Sleeping to reach transition time + one round"
-    sleep $TRANSITIONOFFSET
-    sleep $period
+   ## toSleep=$(($TRANSITIONTIME - $(date +%s)))
+   ## echo "[+] Sleeping $toSleep + $period seconds to wait transition time + one round"
+   ## sleep $toSleep
+   ## echo "   - Transition time reached: $(date +%s)"
+   ## sleep $period
+   ## echo "   - Second round time reached after transition $(date +%s)"
 }
 
 function pingNode() {
     while true; do
-        docker exec -it $1 drand --verbose 2 ping > /dev/null
+        docker exec -it $1 drand ping > /dev/null
         if [ $? == 0 ]; then
             #echo "$name is UP and RUNNING"
             break
@@ -343,7 +350,10 @@ function fetchTest() {
     arrIndex=$(expr $nindex - 1)
     echo "fetchTest() $nindex $arrIndex ${addresses[0]} ${addresses[$arrIndex]}"
     rootFolder="$TMP/node$nindex"
-    distPublic="$rootFolder/groups/dist_key.public"
+    #distPublic="$rootFolder/groups/dist_key.public"
+    # trying to wait until dist_key.public is there
+    distPublic="$TMP/node1/groups/dist_key.public"
+
     serverCert="$CERTSDIR/server-$nindex.cert"
     serverCertDocker="/server.cert"
     serverCertVol="$serverCert:$serverCertDocker"
@@ -413,7 +423,7 @@ fi
 
 ## RUN LOCALLY SCRIPT
 trap cleanup SIGINT
-#build
+build
 run false
 echo "[+] Waiting to get some beacons"
 sleep "$period"

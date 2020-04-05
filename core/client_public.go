@@ -2,8 +2,9 @@ package core
 
 import (
 	"bytes"
-	"crypto/sha512"
+	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/ecies"
@@ -115,11 +116,11 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if ver != nil {
 		return ver
 	}
-	hash := sha512.New()
-	hash.Write(resp.GetSignature())
-	randExpected := hash.Sum(nil)
-	if !bytes.Equal(randExpected, rand) {
-		return errors.New("randomness is incorrect")
+	expect := beacon.RandomnessFromSignature(resp.GetSignature())
+	if !bytes.Equal(expect, rand) {
+		exp := hex.EncodeToString(expect)[10:14]
+		got := hex.EncodeToString(rand)[10:14]
+		return fmt.Errorf("randomness: got %s , expected %s", got, exp)
 	}
 	return nil
 }

@@ -548,13 +548,18 @@ func groupReshareCmd(c *cli.Context) error {
 	if len(group.GenesisSeed) == 0 {
 		return errors.New("old group has an empty genesis seed")
 	}
+	newT := getThreshold(c)
+	newNodes := getPublicKeys(c)
+
+	// XXX Refactor that logic into group
+	newGroup := key.NewGroup(newNodes, newT, group.GenesisTime)
 	// NOTE: for now we keep the same period as the old group, changing period
 	// for the same group is not implemented yet
-	group.TransitionTime = c.Int64(transitionFlag.Name)
-	group.Threshold = getThreshold(c)
-	group.Nodes = getPublicKeys(c)
+	newGroup.Period = group.Period
+	newGroup.GenesisSeed = group.GetGenesisSeed()
+	newGroup.TransitionTime = c.Int64(transitionFlag.Name)
 
-	groupOut(c, group)
+	groupOut(c, newGroup)
 	return nil
 }
 
@@ -610,14 +615,21 @@ func checkGroup(c *cli.Context) error {
 	if err := key.Load(c.Args().First(), group); err != nil {
 		fatal("drand: loading group failed")
 	}
+	var allGood = true
+	var invalidIds []string
 	for _, id := range group.Nodes {
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
 		_, err := client.Home(id, &drand.HomeRequest{})
 		if err != nil {
 			fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)
+			allGood = false
+			invalidIds = append(invalidIds, id.Address())
 			continue
 		}
 		fmt.Printf("drand: id %s answers correctly\n", id.Address())
+	}
+	if !allGood {
+		return fmt.Errorf("Following nodes don't answer: %s", strings.Join(invalidIds, " ,"))
 	}
 	return nil
 }

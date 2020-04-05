@@ -163,7 +163,6 @@ func showPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		fatal("drand: could not request drand.private: %s", err)
 	}
-
 	printJSON(resp)
 	return nil
 }

@@ -6,8 +6,7 @@ test-unit:
 	GO111MODULE=on go test -v ./...
 
 test-integration:
-	@echo "first makefile: Path is $$PATH"
-	PATH=$(PATH) GOPATH=$(GOPATH) $(MAKE) -C test/test-integration test
+	cd test/full && go build && ./full -build
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"

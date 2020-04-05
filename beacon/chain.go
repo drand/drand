@@ -43,7 +43,11 @@ func (b *Beacon) Unmarshal(buff []byte) error {
 // Randomness returns the hashed signature. It is an example that uses sha256,
 // but it could use blake2b for example.
 func (b *Beacon) Randomness() []byte {
-	out := sha256.Sum256(b.Signature)
+	return RandomnessFromSignature(b.Signature)
+}
+
+func RandomnessFromSignature(sig []byte) []byte {
+	out := sha256.Sum256(sig)
 	return out[:]
 }
 

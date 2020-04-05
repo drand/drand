@@ -125,7 +125,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	}
 
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
-	_, newPresent := newGroup.Index(d.priv.Public)
+	newIdx, newPresent := newGroup.Index(d.priv.Public)
 	var dkgConf *dkg.Config
 	err = func() error {
 		d.state.Lock()
@@ -198,6 +198,8 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if err := d.WaitDKG(dkgConf); err != nil {
 		return nil, err
 	}
+	d.log.Info("dkg_reshare", "finished")
+	fmt.Printf("going to TRANSITION: oidx %d nidx %d oldpresent %v newpresent %v\n", oldIdx, newIdx, oldPresent, newPresent)
 	go d.transition(oldGroup, oldPresent, newPresent)
 	return &control.Empty{}, nil
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -29,7 +29,6 @@ func getPrivateCmd(c *cli.Context) error {
 			break
 		}
 		slog.Infof("drand: error contacting node %s: %s", public.Addr, err)
-		fmt.Println(" || no response private: id", public.Address(), err)
 	}
 	if resp == nil {
 		slog.Fatalf("drand: zero successful contacts with nodes")
@@ -48,8 +47,8 @@ func getPublicRandomness(c *cli.Context) error {
 		slog.Fatal("Get public command takes a group file as argument.")
 	}
 	defaultManager := net.NewCertManager()
-	if c.IsSet("tls-cert") {
-		defaultManager.Add(c.String("tls-cert"))
+	if c.IsSet(tlsCertFlag.Name) {
+		defaultManager.Add(c.String(tlsCertFlag.Name))
 	}
 
 	ids := getNodes(c)
@@ -63,6 +62,7 @@ func getPublicRandomness(c *cli.Context) error {
 	isTLS := !c.Bool("tls-disable")
 	var resp *drand.PublicRandResponse
 	var err error
+	var foundCorrect bool
 	for _, id := range ids {
 		if c.IsSet("round") {
 			resp, err = client.Public(id.Addr, public, isTLS, c.Int("round"))
@@ -70,10 +70,14 @@ func getPublicRandomness(c *cli.Context) error {
 			resp, err = client.LastPublic(id.Addr, public, isTLS)
 		}
 		if err == nil {
+			foundCorrect = true
 			slog.Infof("drand: public randomness retrieved from %s", id.Addr)
 			break
 		}
 		slog.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
+	}
+	if !foundCorrect {
+		return errors.New("drand: could not verify randomness")
 	}
 
 	printJSON(resp)
@@ -81,11 +85,12 @@ func getPublicRandomness(c *cli.Context) error {
 }
 
 func getCokeyCmd(c *cli.Context) error {
-	defaultManager := net.NewCertManager()
-	if c.IsSet("tls-cert") {
-		defaultManager.Add(c.String("tls-cert"))
-	}
 	ids := getNodes(c)
+	defaultManager := net.NewCertManager()
+	if c.IsSet(tlsCertFlag.Name) {
+		certPath := c.String(tlsCertFlag.Name)
+		defaultManager.Add(certPath)
+	}
 	client := core.NewGrpcClientFromCert(defaultManager)
 	var dkey *drand.DistKeyResponse
 	var err error
