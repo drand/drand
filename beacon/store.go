@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"path"
 	"sync"
+	"time"
 
 	bolt "github.com/coreos/bbolt"
 	"github.com/nikkolasg/slog"
@@ -116,7 +118,7 @@ func (b *boltStore) Put(beacon *Beacon) error {
 
 // ErrNoBeaconSaved is the error returned when no beacon have been saved in the
 // database yet.
-var ErrNoBeaconSaved = errors.New("no beacon saved in db")
+var ErrNoBeaconSaved = errors.New("beacon not found in database")
 
 // Last returns the last beacon signature saved into the db
 func (b *boltStore) Last() (*Beacon, error) {
@@ -154,6 +156,9 @@ func (b *boltStore) Get(round uint64) (*Beacon, error) {
 		beacon = b
 		return nil
 	})
+	if err != nil {
+		return nil, fmt.Errorf("%v:\n%s", err, printStore(b))
+	}
 	return beacon, err
 }
 
@@ -244,4 +249,15 @@ func roundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
 	binary.Write(&buff, binary.BigEndian, r)
 	return buff.Bytes()
+}
+
+func printStore(s Store) string {
+	time.Sleep(1 * time.Second)
+	var out = ""
+	s.Cursor(func(c Cursor) {
+		for b := c.First(); b != nil; b = c.Next() {
+			out += fmt.Sprintf("%s\n", b)
+		}
+	})
+	return out
 }

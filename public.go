@@ -64,8 +64,8 @@ func getPublicRandomness(c *cli.Context) error {
 	var err error
 	var foundCorrect bool
 	for _, id := range ids {
-		if c.IsSet("round") {
-			resp, err = client.Public(id.Addr, public, isTLS, c.Int("round"))
+		if c.IsSet(roundFlag.Name) {
+			resp, err = client.Public(id.Addr, public, isTLS, c.Int(roundFlag.Name))
 		} else {
 			resp, err = client.LastPublic(id.Addr, public, isTLS)
 		}

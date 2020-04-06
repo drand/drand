@@ -35,6 +35,7 @@ type Config struct {
 	certmanager  *net.CertManager
 	logger       log.Logger
 	clock        clock.Clock
+	wait         time.Duration
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -54,6 +55,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
 		clock:       clock.NewRealClock(),
+		wait:        DefaultWaitTime,
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -224,6 +226,12 @@ func WithControlPort(port string) ConfigOption {
 func WithLogLevel(level int) ConfigOption {
 	return func(d *Config) {
 		d.logger = log.NewLogger(level)
+	}
+}
+
+func WithWaitTime(wait time.Duration) ConfigOption {
+	return func(d *Config) {
+		d.wait = wait
 	}
 }
 

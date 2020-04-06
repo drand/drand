@@ -231,7 +231,10 @@ func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChai
 	d.state.Lock()
 	beacon := d.beacon
 	d.state.Unlock()
-	return beacon.SyncChain(req, stream)
+	if beacon != nil {
+		beacon.SyncChain(req, stream)
+	}
+	return nil
 }
 
 // DistKey returns the distributed key corresponding to the current group

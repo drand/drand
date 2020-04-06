@@ -105,14 +105,15 @@ func (n *Node) Start(certFolder string) {
 	cmd.Stderr = logFile
 	go func() {
 		defer logFile.Close()
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("\n\n node %s: running daemon: %v\n\t-check %s\n", n.addr, err, n.logPath)
-		}
+		// TODO make the "stop" command returns a graceful error code when
+		// stopped
+		cmd.Run()
 	}()
 }
 
 func (n *Node) RunDKG(group string, timeout string, leader bool) {
 	args := []string{"share", "--control", n.ctrl, "--timeout", timeout}
+	args = append(args, pair("--folder", n.base)...)
 	if leader {
 		args = append(args, "--leader")
 	}
@@ -122,7 +123,19 @@ func (n *Node) RunDKG(group string, timeout string, leader bool) {
 }
 
 func (n *Node) RunReshare(oldGroup string, newGroup string, timeout string, leader bool) {
-
+	args := []string{"share"}
+	args = append(args, pair("--folder", n.base)...)
+	args = append(args, pair("--control", n.ctrl)...)
+	args = append(args, pair("--timeout", timeout)...)
+	if n.reshared {
+		args = append(args, pair("--from", oldGroup)...)
+	}
+	if leader {
+		args = append(args, "--leader")
+	}
+	args = append(args, newGroup)
+	cmd := exec.Command("drand", args...)
+	runCommand(cmd, fmt.Sprintf("drand node %s", n.addr))
 }
 
 func (n *Node) GetCokey(group string) bool {
@@ -160,9 +173,10 @@ func (n *Node) Ping() bool {
 	return true
 }
 
-func (n *Node) GetLastBeacon(groupPath string) (*drand.PublicRandResponse, string) {
+func (n *Node) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
 	args := []string{"get", "public", "--tls-cert", n.certPath}
-	args = append(args, []string{"--nodes", n.addr}...)
+	args = append(args, pair("--nodes", n.addr)...)
+	args = append(args, pair("--round", strconv.Itoa(int(round)))...)
 	args = append(args, groupPath)
 	cmd := exec.Command("drand", args...)
 	out := runCommand(cmd)
@@ -177,6 +191,14 @@ func (n *Node) WriteCertificate(path string) {
 
 func (n *Node) WritePublic(path string) {
 	checkErr(key.Save(path, n.priv.Public, false))
+}
+
+func (n *Node) Stop() {
+	if n.cancel != nil {
+		n.cancel()
+	}
+	stopCmd := exec.Command("drand", "stop", "--control", n.ctrl)
+	stopCmd.Run()
 }
 
 func pair(k, v string) []string {

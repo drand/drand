@@ -39,3 +39,7 @@ var DefaultDialTimeout = 10 * time.Second
 // RandomnessHash is the hash function used to produce the final randomness from
 // the signature
 var RandomnessHash = sha256.New
+
+// DefaultWaitTime is the time beacon nodes wait before asking other nodes for
+// partial signature. Because time shifts can happen
+var DefaultWaitTime = 300 * time.Millisecond

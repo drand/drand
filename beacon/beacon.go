@@ -27,11 +27,12 @@ import (
 // randomness beacon.
 type Config struct {
 	// XXX Think of removing uncessary access to keypair - only given for index
-	Private *key.Pair
-	Share   *key.Share
-	Group   *key.Group
-	Scheme  sign.ThresholdScheme
-	Clock   clock.Clock
+	Private  *key.Pair
+	Share    *key.Share
+	Group    *key.Group
+	Scheme   sign.ThresholdScheme
+	Clock    clock.Clock
+	WaitTime time.Duration
 }
 
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
@@ -83,6 +84,10 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 	idx, exists := conf.Group.Index(conf.Private.Public)
 	if !exists {
 		return nil, errors.New("beacon: keypair not included in the given group")
+	}
+
+	if conf.WaitTime == time.Duration(0) {
+		conf.WaitTime = 100 * time.Millisecond
 	}
 
 	c.SetTimeout(conf.Group.Period) // wait on each call no more than the period
@@ -153,7 +158,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconRequest) (*pro
 	if err := h.conf.Scheme.VerifyPartial(h.pub, msg, p.PartialSig); err != nil {
 		shortPub := h.pub.Eval(1).V.String()[14:19]
 		fmt.Printf(" || FAIL index %d : pointer %p : shortPub: %s\n", h.index, h, shortPub)
-		h.l.Error("process_request", err, "from", peer.Addr.String(), "prev_sig", shortSigStr(previousRound.sig), "prev_round", previousRound, "curr_round", currentRound, "msg_sign", shortSigStr(msg))
+		h.l.Error("process_request", err, "from", peer.Addr.String(), "prev_sig", shortSigStr(previousRound.sig), "prev_round", previousRound.round, "curr_round", currentRound, "msg_sign", shortSigStr(msg))
 		return nil, err
 	}
 
@@ -193,9 +198,11 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 				Signature:     beacon.Signature,
 			}
 			nRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-			fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d\n\n", h.index, fromRound, reply.Round, nRound-1)
+			l, _ := h.store.Last()
+			fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d -- last beacon %s\n\n", h.index, fromRound, reply.Round, nRound-1, l)
 			h.l.Debug("sync_chain_reply", peer.Addr.String(), "from", fromRound, "to", reply.Round, "head", nRound-1)
 			if err = p.Send(reply); err != nil {
+				fmt.Println(" ERROR SYNC CHAIN SERVER SIDE:", err)
 				return
 			}
 			fromRound = reply.Round
@@ -267,7 +274,7 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 		h.l.Fatal("transition_time", "invalid")
 		return nil
 	}
-	ids := shuffleNodes(h.conf.Group.Nodes)
+	ids := shuffleNodes(prevNodes)
 	var lastBeacon *Beacon
 	var err error
 	nErr := 0
@@ -367,7 +374,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 	// sleep until beginning of next round
 	now := h.conf.Clock.Now().Unix()
 	sleepTime := startTime - now
-	h.l.Info("run_round", nextRound, "waiting_for", sleepTime)
+	h.l.Info("run_round", nextRound, "waiting_for", sleepTime, "period", h.conf.Group.Period.String())
 	fmt.Printf("node %d - %s | pointer: %p (genesis %d) - current time %d / now %d -> startTime %d - sleeping for %d ... (clock %p) - initRound: %d, nextRound %d\n", h.index, h.conf.Private.Public.Address(), h, h.conf.Group.GenesisTime, h.conf.Clock.Now().Unix(), now, startTime, sleepTime, h.conf.Clock, initRound, nextRound)
 	h.conf.Clock.Sleep(time.Duration(sleepTime) * time.Second)
 	fmt.Printf("\n%d: node %d finished sleeping - time %d - starttime should be %d\n", time.Now().Unix(), h.index, h.conf.Clock.Now().Unix(), startTime)
@@ -385,6 +392,10 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 	h.ticker = h.conf.Clock.NewTicker(period)
 	h.started = true
 	h.Unlock()
+	/*now := h.conf.Clock.Now().Unix()*/
+	//_, nTime := NextRound(now, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	//wait := h.conf.Clock.After(time.Duration((nTime - now) * int64(time.Second.Seconds())))
+
 	for {
 		if goToNextRound {
 			fmt.Printf("\nnode %d - %p - goToNextRound %d!\n\n", h.index, h, currentRound)
@@ -457,6 +468,10 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 		PartialSig:    currSig,
 	}
 	respCh := make(chan *proto.BeaconResponse, h.group.Len())
+
+	// NOTE: sleep a while to not ask nodes too fast - they may have a slight bias
+	// in time
+	time.Sleep(h.conf.WaitTime)
 	// send all requests in parallel
 	// XXX Use the cache for a smarter fetching strategy
 	for _, id := range h.group.Nodes {
@@ -547,8 +562,12 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 		if h.addr == id.Addr {
 			continue
 		}
+		fmt.Println(" TRYING TO SYNC TO ", id.Address())
+		// if node doesn't answer quickly, we move on
+		//h.client.SetTimeout(1 * time.Second)
 		h.l.Debug("request", "sync", "to", id.Addr, "from_round", currentRound+1)
-		ctx, cancel := context.WithCancel(context.Background())
+		//ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.Background(), func() {}
 		request := &proto.SyncRequest{
 			// we ask rounds from at least one round more than what we already
 			// have
@@ -557,9 +576,11 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 		respCh, err := h.client.SyncChain(ctx, id, request)
 		if err != nil {
 			h.l.Error("sync_from", currentRound, "error", err, "from", id.Address())
+			fmt.Println(" CAN NOT SYNC TO ", id.Address())
 			continue
 		}
 
+		fmt.Println(" LISTENING TO SYNC CHANNEL FROM ", id.Address())
 		for syncReply := range respCh {
 			// we only sync for increasing round numbers
 			// there might be gaps so we dont check for sequentiality but our

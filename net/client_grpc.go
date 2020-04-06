@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -56,8 +57,10 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 	return c
 }
 
-func getTimeoutContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
-	clientDeadline := time.Now().Add(timeout)
+func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	g.Lock()
+	defer g.Unlock()
+	clientDeadline := time.Now().Add(g.timeout)
 	return context.WithDeadline(ctx, clientDeadline)
 }
 
@@ -74,7 +77,7 @@ func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.Pub
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.PublicRand(ctx, in)
 	return resp, err
 }
@@ -86,7 +89,7 @@ func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.Pub
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ = getTimeoutContext(ctx, g.timeout)
+	ctx, _ = g.getTimeoutContext(ctx)
 	stream, err := client.PublicRandStream(ctx, in)
 	if err != nil {
 		return nil, err
@@ -123,7 +126,7 @@ func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.P
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.PrivateRand(ctx, in)
 	return resp, err
 }
@@ -135,7 +138,7 @@ func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.Group(ctx, in)
 	return resp, err
 }
@@ -157,8 +160,7 @@ func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	// give more time for DKG we are not in a hurry
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout*time.Duration(2))
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.Setup(ctx, in, opts...)
 	return resp, err
 }
@@ -170,8 +172,7 @@ func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	// give more time for DKG we are not in a hurry
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout*time.Duration(2))
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.Reshare(ctx, in, opts...)
 	return resp, err
 }
@@ -183,7 +184,7 @@ func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOpti
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.NewBeacon(ctx, in, opts...)
 	return resp, err
 }
@@ -197,35 +198,25 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ = getTimeoutContext(ctx, g.timeout)
 	stream, err := client.SyncChain(ctx, in)
 	if err != nil {
 		return nil, err
 	}
-	/*// read how many first*/
-	//md, err := stream.Header()
-	//if err != nil {
-	//return nil, err
-	//}
-	//vals := md.Get(SyncBlockKey)
-	//if len(vals) != 1 {
-	//return nil, fmt.Errorf("invalid header received: %v", vals)
-	//}
-	//toReceive, err := strconv.Atoi(vals[0])
-	//if err != nil {
-	//return nil, fmt.Errorf("invalid number of blocks to sync received: %v", vals[0])
-	/*}*/
 	go func() {
+		defer close(resp)
 		for {
 			reply, err := stream.Recv()
 			if err == io.EOF {
+				fmt.Println(" --- STREAM EOF")
 				break
 			}
 			if err != nil {
+				fmt.Println(" --- STREAM ERR:", err)
 				break
 			}
 			select {
 			case <-ctx.Done():
+				fmt.Println(" --- STREAM CONTEXT DONE")
 				break
 			default:
 				resp <- reply
@@ -242,7 +233,7 @@ func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, e
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := getTimeoutContext(context.Background(), g.timeout)
+	ctx, _ := g.getTimeoutContext(context.Background())
 	resp, err = client.Home(ctx, in)
 	return resp, err
 }

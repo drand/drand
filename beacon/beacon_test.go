@@ -167,11 +167,12 @@ func (b *BeaconTest) CreateNode(i int) {
 		node.clock = clock.NewFakeClock()
 		node.clock.Advance(b.time.Since(node.clock.Now()))
 		conf := &Config{
-			Group:   b.group,
-			Private: p,
-			Share:   b.shares[idx],
-			Scheme:  key.Scheme,
-			Clock:   node.clock,
+			Group:    b.group,
+			Private:  p,
+			Share:    b.shares[idx],
+			Scheme:   key.Scheme,
+			Clock:    node.clock,
+			WaitTime: 100 * time.Millisecond,
 		}
 
 		node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
