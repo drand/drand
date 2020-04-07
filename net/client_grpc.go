@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -177,16 +178,23 @@ func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption
 	return resp, err
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error) {
-	var resp *drand.BeaconResponse
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
+func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error) {
+	do := func() (*drand.Empty, error) {
+		c, err := g.conn(p)
+		if err != nil {
+			return nil, err
+		}
+		client := drand.NewProtocolClient(c)
+		ctx, _ := g.getTimeoutContext(context.Background())
+		return client.NewBeacon(ctx, in, opts...)
 	}
-	client := drand.NewProtocolClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
-	resp, err = client.NewBeacon(ctx, in, opts...)
-	return resp, err
+	if resp, err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
+		g.deleteConn(p)
+		return do()
+		//return resp, err
+	} else {
+		return resp, err
+	}
 }
 
 const SyncBlockKey = "sync"

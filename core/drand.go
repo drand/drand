@@ -252,7 +252,7 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	// case to go that fast
 	timeToStop := d.group.TransitionTime - 1
 	if !newPresent {
-		fmt.Printf(" OLD NODE STOPping %s\n", d.priv.Public.Address())
+		//fmt.Printf(" OLD NODE STOPping %s\n", d.priv.Public.Address())
 		// an old node is leaving the network
 		if err := d.beacon.StopAt(timeToStop); err != nil {
 			d.log.Error("leaving_group", err)
@@ -266,19 +266,19 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 		// get reference to last beacon and init the new one
 		d.state.Lock()
 		currentBeacon := d.beacon
-		share := d.share
+		//share := d.share
 		d.state.Unlock()
 		currentBeacon.StopAt(timeToStop)
 		nbeacon := replaceBeacon()
 		//lbeacon, _ := nbeacon.Store().Last()
-		fmt.Printf(" TRANSITION OLD NODE done: node %s - %p : current %d : will stop at %d --> pub %s \n", d.priv.Public.Address(), nbeacon, d.opts.clock.Now().Unix(), timeToStop, share.PubPoly().Eval(1).V.String()[14:19])
+		//fmt.Printf(" TRANSITION OLD NODE done: node %s - %p : current %d : will stop at %d --> pub %s \n", d.priv.Public.Address(), nbeacon, d.opts.clock.Now().Unix(), timeToStop, share.PubPoly().Eval(1).V.String()[14:19])
 		nbeacon.Transition(oldGroup.Nodes)
 		d.log.Info("transition_old", "done")
 	} else {
 		// tell the new node that has "nothing" stored to sync in the meantime
 		// and then to start at the time of the new network
 		newBeacon := replaceBeacon()
-		fmt.Printf(" TRANSITION NEW NODE: node %d: %s - %p calling transition pub %s\n\n", d.index, d.priv.Public.Address(), d.beacon, d.share.PubPoly().Eval(1).V.String()[14:19])
+		//fmt.Printf(" TRANSITION NEW NODE: node %d: %s - %p calling transition pub %s\n\n", d.index, d.priv.Public.Address(), d.beacon, d.share.PubPoly().Eval(1).V.String()[14:19])
 		if err := newBeacon.Transition(oldGroup.Nodes); err != nil {
 			d.log.Error("sync_before", err)
 		}

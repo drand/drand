@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -61,6 +62,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 
 	//restRouter.Handle("/", http.HandlerFunc(newHandler))
 	restServer := &http.Server{
+		Addr:    addr,
 		Handler: grpcHandlerFunc(grpcServer, restRouter),
 	}
 
@@ -78,7 +80,6 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 
 func (g *grpcInsecureListener) Start() {
 	// see https://github.com/grpc/grpc-go/issues/2406
-	// grpcL := g.mux.Match(cmux.HTTP2HeaderField("content-type", "application/grpc"))
 	grpcL := g.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	restL := g.mux.Match(cmux.Any())
 
@@ -90,7 +91,9 @@ func (g *grpcInsecureListener) Start() {
 func (g *grpcInsecureListener) Stop() {
 	g.lis.Close()
 	g.restServer.Shutdown(context.Background())
+	//fmt.Println(" shutting down grpc server....")
 	g.grpcServer.Stop()
+	//fmt.Println(" shutting down grpc server.... DONE")
 }
 
 type grpcTLSListener struct {
@@ -177,7 +180,7 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 
 func (g *grpcTLSListener) Start() {
 	if err := g.server.Serve(g.l); err != nil {
-		slog.Debugf("grpc: tls listener start failed: %s", err)
+		fmt.Printf("grpc: tls listener start failed: %s", err)
 	}
 }
 
@@ -185,8 +188,10 @@ func (g *grpcTLSListener) Stop() {
 	// Graceful stop not supported with HTTP Server
 	// https://github.com/grpc/grpc-go/issues/1384
 	if err := g.server.Shutdown(context.TODO()); err != nil {
-		slog.Debugf("grpc: tls listener shutdown failed: %s", err)
+		slog.Debugf("grpc: tls listener shutdown failed: %s\n", err)
 	}
+	g.grpcServer.Stop()
+	g.l.Close()
 }
 
 // drandProxy is used as a proxy between the REST API receiver and the gRPC

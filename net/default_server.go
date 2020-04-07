@@ -55,7 +55,7 @@ func (s *EmptyServer) Reshare(context.Context, *drand.ResharePacket) (*drand.Emp
 }
 
 // NewBeacon ...
-func (s *EmptyServer) NewBeacon(context.Context, *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+func (s *EmptyServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 

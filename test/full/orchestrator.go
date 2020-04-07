@@ -187,10 +187,8 @@ func (e *Orchestrator) WaitPeriod() {
 	nRound, nTime := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(3 * time.Second))
 
-	fmt.Printf("[+] Sleeping %ds to reach round %d\n", int(until.Seconds()), nRound)
-	d, err := time.ParseDuration(e.period)
-	checkErr(err)
-	time.Sleep(d)
+	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
+	time.Sleep(until)
 }
 
 func (e *Orchestrator) CheckBeacon() {
@@ -225,28 +223,31 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 		}
 	}
 	fmt.Println("[+] Checking randomness via HTTP API using curl")
-	if true {
-		fmt.Println("\tX Avoiding REST api with gRPC - JSON API - issue")
-	} else {
-		var printed bool
-		for _, node := range nodes {
-			args := []string{"-k", "-s"}
-			args = append(args, pair("--cacert", node.certPath)...)
-			args = append(args, pair("-H", "\"Context-type: application/json\"")...)
-			args = append(args, "https://"+node.addr+"/api/public")
-			cmd := exec.Command("curl", args...)
-			if !printed {
-				fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
-			}
+	tryCurl := true
+	var printed bool
+	for _, node := range nodes {
+		args := []string{"-k", "-s"}
+		args = append(args, pair("--cacert", node.certPath)...)
+		args = append(args, pair("-H", "Context-type: application/json")...)
+		args = append(args, "https://"+node.addr+"/api/public")
+		cmd := exec.Command("curl", args...)
+		if !printed {
+			fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
+			printed = true
+		}
+		if tryCurl {
 			// curl returns weird error code
 			out, _ := cmd.CombinedOutput()
+			out = append(out, []byte("\n")...)
 			var r = new(drand.PublicRandResponse)
-			checkErr(json.Unmarshal(out, r))
+			checkErr(json.Unmarshal(out, r), string(out))
 			if r.GetRound() != rand.GetRound() {
 				panic("[-] Inconsistent round from curl vs CLI")
 			} else if !bytes.Equal(r.GetSignature(), rand.GetSignature()) {
 				panic("[-] Inconsistent signature from curl vs CLI")
 			}
+		} else {
+			fmt.Printf("\t[-] Issue with curl command at the moment\n")
 		}
 	}
 	out, err := json.MarshalIndent(rand, "", "    ")
@@ -328,6 +329,14 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	e.newGroup = g
 	checkErr(key.Save(e.newGroupPath, e.newGroup, false))
 	fmt.Println("\t- Overwrite reshared group with distributed key to ", e.newGroupPath)
+	fmt.Println("[+] Check previous distributed key is the same as the new one")
+	oldgroup := new(key.Group)
+	newgroup := new(key.Group)
+	checkErr(key.Load(e.groupPath, oldgroup))
+	checkErr(key.Load(e.newGroupPath, newgroup))
+	if !oldgroup.PublicKey.Key().Equal(newgroup.PublicKey.Key()) {
+		fmt.Printf("[-] Invalid distributed key !\n")
+	}
 }
 
 func createNodes(n int, offset int, basePath, certFolder string) ([]*Node, []string) {
@@ -373,8 +382,12 @@ func runCommand(c *exec.Cmd, add ...string) []byte {
 	return out
 }
 
-func checkErr(err error) {
+func checkErr(err error, out ...string) {
 	if err != nil {
-		panic(err)
+		if len(out) > 0 {
+			panic(fmt.Errorf("%s: %v", out[0], err))
+		} else {
+			panic(err)
+		}
 	}
 }

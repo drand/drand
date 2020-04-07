@@ -34,8 +34,8 @@ func main() {
 	}
 	n := 5
 	thr := 4
+	period := "6s"
 	newThr := 5
-	period := "10s"
 	periodD, _ := time.ParseDuration(period)
 	orch := NewOrchestrator(n, thr, period)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
@@ -52,8 +52,11 @@ func main() {
 	orch.CheckGroup()
 	orch.RunDKG("2s")
 	orch.WaitGenesis()
-	orch.WaitPeriod()
-	orch.CheckBeacon()
+	for i := 0; i < 4; i++ {
+		orch.WaitPeriod()
+		orch.CheckBeacon()
+
+	}
 	orch.StartNewNodes()
 	// leave some time (6s) for new nodes to sync
 	// TODO: make them sync before the resharing happens

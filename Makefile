@@ -6,7 +6,7 @@ test-unit:
 	GO111MODULE=on go test -v ./...
 
 test-integration:
-	cd test/full && go build && ./full -build
+	cd test/full && go build && ./full -build -test
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
@@ -19,7 +19,8 @@ linter:
 	}
 
 demo:
-	cd demo && sudo ./run.sh
+	cd test/full && go build && ./full -build 
+	#cd demo && sudo ./run.sh
 
 # create the "drand" binary and install it in $GOBIN
 install:

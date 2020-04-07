@@ -36,9 +36,9 @@ func TestDrandDKGFresh(t *testing.T) {
 	fmt.Println(" --- DKG FINISHED ---")
 	// make the last node fail
 	lastID := dt.ids[n-1]
-	lastOne := dt.GetDrand(lastID)
-	lastOne.Stop()
-	fmt.Println(" --- lastOne STOPPED --- ")
+	dt.StopDrand(lastID)
+	//lastOne.Stop()
+	fmt.Printf("\n--- lastOne STOPPED --- \n\n")
 
 	// move time to genesis
 	dt.MoveTime(offsetGenesis)
@@ -430,13 +430,16 @@ func (d *DrandTest) StopDrand(id string) {
 	pinger, err := net.NewControlClient(dr.opts.controlPort)
 	require.NoError(d.t, err)
 	var counter = 1
+	fmt.Println(" DRAND ", dr.priv.Public.Address(), " TRYING TO PING")
 	for range time.Tick(100 * time.Millisecond) {
 		if err := pinger.Ping(); err != nil {
+			fmt.Println(" DRAND ", dr.priv.Public.Address(), " TRYING TO PING DONE")
 			break
 		}
 		counter++
 		require.LessOrEqual(d.t, counter, 5)
 	}
+	fmt.Println(" DRAND ", dr.priv.Public.Address(), " STOPPED")
 }
 
 func (d *DrandTest) StartDrand(id string, catchup bool) {

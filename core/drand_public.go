@@ -64,7 +64,7 @@ func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empt
 
 // NewBeacon methods receives a beacon generation requests and answers
 // with the partial signature from this drand node.
-func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
