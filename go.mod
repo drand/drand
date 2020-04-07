@@ -28,5 +28,3 @@ require (
 	google.golang.org/grpc v1.27.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
-
-replace google.golang.org/grpc v1.27.0 => ../grpc-go
