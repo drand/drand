@@ -128,6 +128,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 		return nil, err
 	}
 	d.log.Debug("serving", d.priv.Public.Address())
+	d.dkgDone = true
 	return d, nil
 }
 

@@ -32,7 +32,7 @@ func main() {
 	if *testF {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
-	n := 5
+	n := 6
 	thr := 4
 	period := "6s"
 	newThr := 5
@@ -54,19 +54,39 @@ func main() {
 	orch.WaitGenesis()
 	for i := 0; i < 4; i++ {
 		orch.WaitPeriod()
-		orch.CheckBeacon()
-
+		orch.CheckCurrentBeacon()
 	}
+	// stop a node and look if the beacon still continues
+	nodeToStop := 3
+	orch.StopNode(nodeToStop)
+	for i := 0; i < 4; i++ {
+		orch.WaitPeriod()
+		orch.CheckCurrentBeacon(nodeToStop)
+	}
+
+	// start the node again and expects him to catch up
+	orch.StartNode(nodeToStop)
+	orch.WaitPeriod()
+	fmt.Println("[+] Trying to fetch beacon from all nodes again")
+	// at this point node should have catched up
+	for i := 0; i < 4; i++ {
+		orch.WaitPeriod()
+		orch.CheckCurrentBeacon()
+	}
+
+	/// --- RESHARING PART ---
 	orch.StartNewNodes()
 	// leave some time (6s) for new nodes to sync
 	// TODO: make them sync before the resharing happens
 	transition := findTransitionTime(periodD, genesis, 6)
+	// exclude first node
 	orch.CreateResharingGroup(1, newThr, transition)
 	orch.RunResharing("2s")
 	limit := 10000
 	if *testF {
 		limit = 4
 	}
+	// look if beacon is still up even with the nodeToExclude being offline
 	for i := 0; i < limit; i++ {
 		orch.WaitPeriod()
 		orch.CheckNewBeacon()

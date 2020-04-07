@@ -191,13 +191,33 @@ func (e *Orchestrator) WaitPeriod() {
 	time.Sleep(until)
 }
 
-func (e *Orchestrator) CheckBeacon() {
-	e.checkBeaconNodes(e.nodes, e.groupPath)
+func (e *Orchestrator) CheckCurrentBeacon(exclude ...int) {
+	filtered := filterNodes(e.nodes, exclude...)
+	e.checkBeaconNodes(filtered, e.groupPath)
 }
 
-func (e *Orchestrator) CheckNewBeacon() {
-	e.checkBeaconNodes(e.reshareNodes, e.newGroupPath)
+func (e *Orchestrator) CheckNewBeacon(exclude ...int) {
+	filtered := filterNodes(e.reshareNodes, exclude...)
+	e.checkBeaconNodes(filtered, e.newGroupPath)
 }
+
+func filterNodes(list []*Node, exclude ...int) []*Node {
+	var filtered []*Node
+	for _, n := range list {
+		var isExcluded bool
+		for _, i := range exclude {
+			if i == n.i {
+				isExcluded = true
+				break
+			}
+		}
+		if !isExcluded {
+			filtered = append(filtered, n)
+		}
+	}
+	return filtered
+}
+
 func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 	nRound, _ := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	currRound := nRound - 1
@@ -358,6 +378,37 @@ func createNodes(n int, offset int, basePath, certFolder string) ([]*Node, []str
 	return nodes, paths
 }
 
+func (e *Orchestrator) StopNode(i int) {
+	for _, node := range e.nodes {
+		if node.i == i {
+			fmt.Printf("[+] Stopping node %s to simulate a node failure\n", node.addr)
+			node.Stop()
+		}
+	}
+}
+func (e *Orchestrator) StartNode(i int) {
+	var foundNode *Node
+	for _, node := range e.nodes {
+		if node.i == i {
+			foundNode = node
+		}
+	}
+	if foundNode == nil {
+		panic("node to start doesn't exist")
+	}
+
+	fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.addr)
+	foundNode.Start(e.certFolder)
+	trial := 0
+	for trial < 5 {
+		if foundNode.Ping() {
+			fmt.Printf("\t- Node %s started correctly\n", foundNode.addr)
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+	panic(fmt.Errorf("[-] Could not start node %s ... \n"))
+}
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
 	for _, node := range e.nodes {

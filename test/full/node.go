@@ -165,9 +165,9 @@ func (n *Node) GetGroup() *key.Group {
 
 func (n *Node) Ping() bool {
 	cmd := exec.Command("drand", "ping", "--control", n.ctrl)
-	out, err := cmd.CombinedOutput()
+	_, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("node %s: ping: %v - \n\tout: %s\n", n.addr, err, string(out))
+		//fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.addr, err, string(out))
 		return false
 	}
 	return true
