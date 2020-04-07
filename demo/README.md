@@ -1,30 +1,34 @@
-# drand Demo
+# Local demo of drand 
 
-Prerequisites:
+This folder contains code that spins up drand nodes in the same way as in a real
+world deployment. It uses real processes as drand instances and uses the CLI
+commands. 
 
-1. `docker >= 17.12`
-2. `docker-compose >= 1.18`
+## What the demo is doing
 
-Run the demo: `./run.sh`
+It prints out many information on its standard output so you can see what are
+the steps the demo is performing:
+* Setting a up a new network from scratch (running the DKG)
+* Getting some beacons
+* Stopping a node and checking network is still alive
+* Getting node back and checking it has catched up the chain
+* Doing a resharing to an extended group
+* Checking the new network produces valid random beacons
 
-This commands builds the docker images, and starts the containers: 
+## Run the demo 
 
-![Setup](https://user-images.githubusercontent.com/5019664/73373513-06e0cc00-42b9-11ea-9a87-3acf16a20b29.png)
+```
+go build && ./demo -build 
+```
 
-... then, the nodes start generating randomness periodically:
+You can stop the demo by CTRL-C when ever you want.
 
-![Randomness](https://user-images.githubusercontent.com/5019664/73373726-5e7f3780-42b9-11ea-8821-27146ed1e701.png)
+## Fetching randomness
 
-You may inspect the entrypoint of the clients in `/data/client-script.sh`.
+You can fetch randomness  by running the command written out by the demo.
 
-## Manually contacting the API
+## Inspecting nodes
 
-drand has a Web REST api which can be contacted by `curl`:
-
-`curl CONTAINER_IP:PORT/api/public`, where `PORT` is `8080-8085` in this demo.
-
-However, on MacOS X, `curl` cannot contact internal containers (see the [issue](https://github.com/drand/drand/pull/193)); instead, please run
-
-`docker exec drand1 call_api`
-
-which simply calls `curl` from inside `drand1`.
+All temporary files are written to `/tmp/drand-demo`.
+You can inspect the private key, share, group and log of all nodes in
+`/tmp/drand-demo/node-X/`.

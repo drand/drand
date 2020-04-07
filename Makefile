@@ -1,12 +1,12 @@
 .PHONY: test test-unit test-integration demo deploy-local linter install build
 
-test: linter test-unit test-integration
+test: test-unit test-integration
 
 test-unit:
 	GO111MODULE=on go test -v ./...
 
 test-integration:
-	cd test/full && go build && ./full -build -test
+	cd demo && go build && ./demo -build -test
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"

@@ -125,10 +125,6 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	return nil
 }
 
-func (c *Client) peer(addr string) {
-
-}
-
 type peerAddr struct {
 	addr string
 	t    bool

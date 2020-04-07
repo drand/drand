@@ -140,16 +140,16 @@ a secure ephemeral key pair for ECIES encryption without a good (local) source
 of randomness.
 
 ## Local demo
-To deploy several drand nodes locally, make sure that you have a working
-[Docker](https://docs.docker.com/engine/installation/) +
-[Docker-compose setup](https://docs.docker.com/compose/install/).
 
-Then execute (it will ask you for root since it deals with docker containers):
+To run a local demo, you can simply run:
 ```bash
-make deploy-local
+make demo
 ```
-The script spins up 5 local drand nodes using Docker and produces fresh
-[randomness every 10 seconds](https://github.com/drand/drand/tree/master/demo).
+
+The script spins up a few drand local processes, performe resharing and other
+operations and will continue to print out new randomness every Xs (currently
+6s).
+For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
 
 ## Installation
 ### Official release
