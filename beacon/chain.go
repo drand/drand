@@ -70,6 +70,16 @@ func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
 	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
 }
 
+// Verify is similar to verify beacon but doesn't require to get the full beacon
+// structure.
+func Verify(pubkey kyber.Point, prevSig []byte, prevRound, currRound uint64) error {
+	return VerifyBeacon(pubkey, &Beacon{
+		PreviousRound: prevRound,
+		Round:         currRound,
+		PreviousSig:   prevSig,
+	})
+}
+
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
 // H ( prevRound || prevSig || currRound)
