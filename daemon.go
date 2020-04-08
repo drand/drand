@@ -37,7 +37,9 @@ func startCmd(c *cli.Context) error {
 		}
 		// XXX make it configurable so that new share holder can still start if
 		// nobody started.
-		drand.StartBeacon(!c.Bool(pushFlag.Name))
+		//drand.StartBeacon(!c.Bool(pushFlag.Name))
+		catchup := true
+		drand.StartBeacon(catchup)
 	}
 	<-drand.WaitExit()
 

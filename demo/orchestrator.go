@@ -41,7 +41,7 @@ type Orchestrator struct {
 }
 
 func NewOrchestrator(n int, thr int, period string) *Orchestrator {
-	basePath := path.Join(os.TempDir(), "drand-demo")
+	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
@@ -79,8 +79,9 @@ func (e *Orchestrator) CreateGroup(genesis int64) {
 	fmt.Printf("[+] Group file stored at %s\n", e.groupPath)
 }
 
-func (e *Orchestrator) StartCurrentNodes() {
-	e.startNodes(e.nodes)
+func (e *Orchestrator) StartCurrentNodes(toExclude ...int) {
+	filtered := filterNodes(e.nodes, toExclude...)
+	e.startNodes(filtered)
 }
 
 func (e *Orchestrator) StartNewNodes() {
@@ -183,6 +184,11 @@ func (e *Orchestrator) WaitGenesis() {
 	time.Sleep(relax)
 }
 
+func (e *Orchestrator) Wait(t time.Duration) {
+	fmt.Printf("[+] Sleep %ss to leave some time to sync & start again\n", t)
+	time.Sleep(t)
+}
+
 func (e *Orchestrator) WaitPeriod() {
 	nRound, nTime := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(3 * time.Second))
@@ -204,7 +210,7 @@ func (e *Orchestrator) CheckNewBeacon(exclude ...int) {
 func filterNodes(list []*Node, exclude ...int) []*Node {
 	var filtered []*Node
 	for _, n := range list {
-		var isExcluded bool
+		var isExcluded = false
 		for _, i := range exclude {
 			if i == n.i {
 				isExcluded = true
@@ -386,6 +392,15 @@ func (e *Orchestrator) StopNode(i int) {
 		}
 	}
 }
+
+func (e *Orchestrator) StopAllNodes(toExclude ...int) {
+	filtered := filterNodes(e.nodes, toExclude...)
+	fmt.Printf("[+] Stopping the rest (%d nodes) for a complete failure\n", len(filtered))
+	for _, node := range filtered {
+		e.StopNode(node.i)
+	}
+}
+
 func (e *Orchestrator) StartNode(i int) {
 	var foundNode *Node
 	for _, node := range e.nodes {

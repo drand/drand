@@ -12,6 +12,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -27,20 +28,21 @@ type Node struct {
 	keyPath string
 	// where all public certs are stored
 	certFolder string
-
-	logPath  string
-	addr     string
-	priv     *key.Pair
-	store    key.Store
-	cancel   context.CancelFunc
-	ctrl     string
-	reshared bool
+	startCmd   *exec.Cmd
+	logPath    string
+	addr       string
+	priv       *key.Pair
+	store      key.Store
+	cancel     context.CancelFunc
+	ctrl       string
+	reshared   bool
 }
 
 func NewNode(i int, base string) *Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
+	os.Remove(logPath)
 	n := &Node{
 		base:    nbase,
 		i:       i,
@@ -88,7 +90,8 @@ func (n *Node) setup() {
 
 func (n *Node) Start(certFolder string) {
 	// create log file
-	logFile, err := os.Create(n.logPath)
+	//logFile, err := os.Create(n.logPath)
+	logFile, err := os.OpenFile(n.logPath, os.O_RDWR|os.O_CREATE, 0777)
 	checkErr(err)
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
@@ -101,6 +104,7 @@ func (n *Node) Start(certFolder string) {
 	n.cancel = cancel
 	n.certFolder = certFolder
 	cmd := exec.CommandContext(ctx, "drand", args...)
+	n.startCmd = cmd
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
 	go func() {
@@ -199,6 +203,17 @@ func (n *Node) Stop() {
 	}
 	stopCmd := exec.Command("drand", "stop", "--control", n.ctrl)
 	stopCmd.Run()
+	killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))
+	killPid.Run()
+
+	for i := 0; i < 3; i++ {
+		if n.Ping() {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		return
+	}
+	panic("node should have stopped but is still running")
 }
 
 func pair(k, v string) []string {

@@ -230,7 +230,7 @@ func (h *Handler) Catchup() {
 	nextRound, nextTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	previousSig := prevBeacon.Signature
 	previousRound := prevBeacon.Round
-	fmt.Printf("\nSYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
+	//fmt.Printf("\nSYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
 	h.run(previousSig, previousRound, nextRound, nextTime)
 }
 
@@ -335,12 +335,13 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		} else {
 			h.l.Error("after_sync", "nil_beacon")
 		}
-		sleepPeriod := 30 * time.Second
-		h.l.Debug("sync", "incomplete", "sleeping", sleepPeriod.Seconds())
+		// not to aggressive
+		sleepPeriod := 2 * time.Second
+		h.l.Debug("sync_incomplete", "try_again")
 		h.conf.Clock.Sleep(sleepPeriod)
 	}
-	h.l.Error("sync", "failed", "BUG")
-	return nil, errors.New("impossible to sync to current round: network is down?")
+	h.l.Error("sync", "failed", "network_down_or_BUG")
+	return lastBeacon, errors.New("impossible to sync to current round: network is down?")
 }
 
 // Run starts the TBLS protocol: it will start the round "nextRound" that is

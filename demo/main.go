@@ -64,10 +64,24 @@ func main() {
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
 
+	// stop the whole network, wait a bit and see if it can restart at the right
+	// round
+	orch.StopAllNodes(nodeToStop)
+	orch.WaitPeriod()
+	orch.WaitPeriod()
+	// start all but the one still down
+	orch.StartCurrentNodes(nodeToStop)
+	// leave time to network to sync
+	orch.Wait(time.Duration(2) * periodD)
+	for i := 0; i < 4; i++ {
+		orch.WaitPeriod()
+		orch.CheckCurrentBeacon(nodeToStop)
+	}
+
+	fmt.Println("[+] Trying to fetch beacon from all nodes again")
 	// start the node again and expects him to catch up
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
-	fmt.Println("[+] Trying to fetch beacon from all nodes again")
 	// at this point node should have catched up
 	for i := 0; i < 4; i++ {
 		orch.WaitPeriod()
