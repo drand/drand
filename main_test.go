@@ -98,8 +98,8 @@ func TestGroup(t *testing.T) {
 
 	//test valid creation
 	groupPath := path.Join(tmpPath, "group1.toml")
-	genesis := strconv.Itoa(int(time.Now().Unix() + 10))
-	args = []string{"drand", "group", "--genesis", genesis, "--folder", tmpPath, "--out", groupPath}
+	genesis := int(time.Now().Unix() + 10)
+	args = []string{"drand", "group", "--genesis", strconv.Itoa(genesis), "--folder", tmpPath, "--out", groupPath}
 	args = append(args, names...)
 	cmd = exec.Command(args[0], args[1:]...)
 	out, err = cmd.CombinedOutput()
@@ -113,6 +113,32 @@ func TestGroup(t *testing.T) {
 	require.NoError(t, key.Load(groupPath, loadedGroup))
 	// expect a genesis seed
 	require.True(t, len(loadedGroup.GenesisSeed) != 0)
+	require.Equal(t, int64(genesis), loadedGroup.GenesisTime)
+	for _, priv := range privs {
+		_, found := loadedGroup.Index(priv.Public)
+		require.True(t, found)
+	}
+
+	// test valid creation with `start-in`
+	startIn := "1m"
+	startInD, err := time.ParseDuration(startIn)
+	require.NoError(t, err)
+	expGenesis := time.Now().Add(startInD).Unix()
+	args = []string{"drand", "group", "--start-in", startIn, "--folder", tmpPath, "--out", groupPath}
+	args = append(args, names...)
+	cmd = exec.Command(args[0], args[1:]...)
+	out, err = cmd.CombinedOutput()
+	// check it read all names given
+	for _, name := range names {
+		require.True(t, strings.Contains(string(out), name), string(out))
+	}
+	require.NoError(t, err, string(out))
+
+	loadedGroup = new(key.Group)
+	require.NoError(t, key.Load(groupPath, loadedGroup))
+	// expect a genesis seed
+	require.True(t, len(loadedGroup.GenesisSeed) != 0)
+	require.True(t, loadedGroup.GenesisTime >= expGenesis)
 	for _, priv := range privs {
 		_, found := loadedGroup.Index(priv.Public)
 		require.True(t, found)

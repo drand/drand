@@ -165,6 +165,11 @@ var userEntropyOnlyFlag = &cli.BoolFlag{
 	Usage: "user-source-only flag used with the source flag allows to only use the user's entropy to pick the dkg secret (won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
 }
 
+var startInFlag = &cli.StringFlag{
+	Name:  "start-in",
+	Usage: "Duration to parse in which the setup or resharing phase will start. This flags sets the `GenesisTime` or `TransitionTime` in `start-in` period from now.",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -231,7 +236,7 @@ func main() {
 				"a new group.toml file with the given identites.\n",
 			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
 				"to create/to insert into the group",
-			Flags: toArray(folderFlag, outFlag, periodFlag, thresholdFlag, genesisFlag, transitionFlag, fromGroupFlag),
+			Flags: toArray(folderFlag, outFlag, periodFlag, thresholdFlag, genesisFlag, transitionFlag, fromGroupFlag, startInFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return groupCmd(c)
@@ -523,23 +528,49 @@ func groupCmd(c *cli.Context) error {
 			fatal("drand: invalid period time given %s", err)
 		}
 	}
-
-	genesis := c.Int64(genesisFlag.Name)
+	genesis, err := getStartIn(c)
+	if err != nil {
+		if !c.IsSet(genesisFlag.Name) {
+			fatal("no start-in flag nor genesis flag specified")
+		}
+		genesis = c.Int64(genesisFlag.Name)
+	}
 	if genesis <= time.Now().Unix() {
 		fatal("drand: genesis time in the past or not specified")
 	}
+	fmt.Printf("Creating the new group file at time %s\n", time.Unix(genesis, 0).String())
 	group := key.NewGroup(publics, threshold, genesis)
 	group.Period = period
 	groupOut(c, group)
 	return nil
 }
 
+func getStartIn(c *cli.Context) (int64, error) {
+	if !c.IsSet(startInFlag.Name) {
+		return 0, errors.New("no start-in flag specified")
+	}
+	periodStr := c.String(startInFlag.Name)
+	period, err := time.ParseDuration(periodStr)
+	if err != nil {
+		return 0, err
+	}
+	genesis := time.Now().Add(period)
+	return genesis.Unix(), nil
+}
 func groupReshareCmd(c *cli.Context) error {
 	// check if transition time is specified, otherwise we can't go on
-	if !c.IsSet(transitionFlag.Name) {
-		fatal("For a creating a group from a current group, transition time flag is required")
+	transitionTime, err := getStartIn(c)
+	if err != nil {
+		if !c.IsSet(transitionFlag.Name) {
+			fatal("For a creating a group from a current group, transition time flag is required")
+		}
+		transitionTime = c.Int64(transitionFlag.Name)
 	}
-	fmt.Println("Creating a new group for resharing...")
+	if transitionTime <= time.Now().Unix() {
+		fatal("transition time in the past/current")
+	}
+
+	fmt.Printf("Creating a new group for resharing at time %s\n", time.Unix(transitionTime, 0).String())
 	oldGroupPath := c.String(fromGroupFlag.Name)
 	group := new(key.Group)
 	if err := key.Load(oldGroupPath, group); err != nil {

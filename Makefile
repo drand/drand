@@ -19,7 +19,7 @@ linter:
 	}
 
 demo:
-	cd test/full && go build && ./full -build 
+	cd demo && go build && ./demo -build 
 	#cd demo && sudo ./run.sh
 
 # create the "drand" binary and install it in $GOBIN
