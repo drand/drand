@@ -25,6 +25,16 @@ type Group struct {
 	Period time.Duration
 	// List of identities forming this group
 	Nodes []*Identity
+	// Time at which the first round of the chain is mined
+	GenesisTime int64
+	// Seed of the genesis block. When doing a DKG from scratch, it will be
+	// populated directly from the list of nodes and other parameters. WHen
+	// doing a resharing, this seed is taken from the first group of the
+	// network.
+	GenesisSeed []byte
+	// In case of a resharing, this is the time at which the network will
+	// transition from the old network to the new network.
+	TransitionTime int64
 	// The distributed public key of this group. It is nil if the group has not
 	// ran a DKG protocol yet.
 	PublicKey *DistPublic
@@ -71,19 +81,24 @@ func (g *Group) Public(i int) *Identity {
 // same group for example). This may cause trouble in the future and may require
 // more thoughts.
 func (g *Group) Hash() (string, error) {
-	h := blake2b.New256()
+	buff, err := g.hashBytes()
+	return hex.EncodeToString(buff), err
+}
 
+func (g *Group) hashBytes() ([]byte, error) {
+	h := blake2b.New256()
 	// all nodes public keys and positions
 	for i, n := range g.Nodes {
 		binary.Write(h, binary.LittleEndian, uint32(i))
 		b, err := n.Key.MarshalBinary()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		h.Write(b)
 	}
 	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
-	return hex.EncodeToString(h.Sum(nil)), nil
+	binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
+	return h.Sum(nil), nil
 }
 
 // Points returns itself under the form of a list of kyber.Point
@@ -108,10 +123,13 @@ func (g *Group) String() string {
 
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
-	Threshold int
-	Period    string
-	Nodes     []*PublicTOML
-	PublicKey *DistPublicTOML
+	Threshold      int
+	Period         string
+	Nodes          []*PublicTOML
+	GenesisTime    int64
+	TransitionTime int64  `toml:omitempty`
+	GenesisSeed    string `toml:omitempty`
+	PublicKey      *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
@@ -143,7 +161,19 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		}
 	}
 	g.Period, err = time.ParseDuration(gt.Period)
-	return err
+	if err != nil {
+		return err
+	}
+	g.GenesisTime = gt.GenesisTime
+	if gt.TransitionTime != 0 {
+		g.TransitionTime = gt.TransitionTime
+	}
+	if gt.GenesisSeed != "" {
+		if g.GenesisSeed, err = hex.DecodeString(gt.GenesisSeed); err != nil {
+			return fmt.Errorf("group: decoding genesis seed %v", err)
+		}
+	}
+	return nil
 }
 
 // TOML returns a TOML-encodable version of the Group
@@ -160,7 +190,24 @@ func (g *Group) TOML() interface{} {
 		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
 	}
 	gtoml.Period = g.Period.String()
+	gtoml.GenesisTime = g.GenesisTime
+	if g.TransitionTime != 0 {
+		gtoml.TransitionTime = g.TransitionTime
+	}
+	gtoml.GenesisSeed = hex.EncodeToString(g.GetGenesisSeed())
 	return gtoml
+}
+
+func (g *Group) GetGenesisSeed() []byte {
+	if g.GenesisSeed != nil {
+		return g.GenesisSeed
+	}
+	buff, err := g.hashBytes()
+	if err != nil {
+		panic(err)
+	}
+	g.GenesisSeed = buff
+	return g.GenesisSeed
 }
 
 // TOMLValue returns an empty TOML-compatible value of the group
@@ -178,30 +225,31 @@ func (g *Group) MergeGroup(list []*Identity) *Group {
 	}
 	nl := append(g.Identities(), list...)
 	return &Group{
-		Nodes:     copyAndShuffle(nl),
+		Nodes:     copyAndSort(nl),
 		Threshold: thr,
 		Period:    g.Period,
 	}
 }
 
 // NewGroup returns a list of identities as a Group.
-func NewGroup(list []*Identity, threshold int) *Group {
+func NewGroup(list []*Identity, threshold int, genesis int64) *Group {
 	return &Group{
-		Nodes:     copyAndShuffle(list),
-		Threshold: threshold,
+		Nodes:       copyAndSort(list),
+		Threshold:   threshold,
+		GenesisTime: genesis,
 	}
 }
 
 // LoadGroup returns a group associated with a given public key
 func LoadGroup(list []*Identity, public *DistPublic, threshold int) *Group {
 	return &Group{
-		Nodes:     copyAndShuffle(list),
+		Nodes:     copyAndSort(list),
 		Threshold: threshold,
 		PublicKey: public,
 	}
 }
 
-func copyAndShuffle(list []*Identity) []*Identity {
+func copyAndSort(list []*Identity) []*Identity {
 	nl := make([]*Identity, len(list))
 	copy(nl, list)
 	sort.Sort(ByKey(nl))

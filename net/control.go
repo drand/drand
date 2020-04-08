@@ -101,7 +101,6 @@ func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string, e
 		Entropy:  entropy,
 	}
 	return c.client.InitDKG(context.Background(), request)
-
 }
 
 // Share returns the share of the remote node

@@ -2,7 +2,9 @@ package net
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -35,6 +37,10 @@ func NewRestClientFromCertManager(c *CertManager) PublicClient {
 	client := NewRestClient().(*restClient)
 	client.manager = c
 	return client
+}
+
+func (r *restClient) PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error) {
+	return nil, errors.New("stream on http client is not supported yet")
 }
 
 func (r *restClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {

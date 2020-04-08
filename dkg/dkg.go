@@ -3,6 +3,8 @@ package dkg
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -20,6 +21,7 @@ import (
 	"github.com/drand/kyber"
 	dkg "github.com/drand/kyber/share/dkg/pedersen"
 	vss "github.com/drand/kyber/share/vss/pedersen"
+	clock "github.com/jonboulle/clockwork"
 	"google.golang.org/grpc/peer"
 )
 
@@ -219,22 +221,25 @@ func (h *Handler) WaitExit() chan bool {
 // XXX Best to group that with the WaitShare channel.
 func (h *Handler) QualifiedGroup() *key.Group {
 	sharesIndex := h.state.QualifiedShares()
-	h.l.Info("share_indexes", intArray(sharesIndex))
 	newGroup := make([]*key.Identity, 0, len(sharesIndex))
 	ids := h.conf.NewNodes.Identities()
-
+	var addresses []string
 	for _, idx := range sharesIndex {
 		newGroup = append(newGroup, ids[idx])
+		addresses = append(addresses, ids[idx].Address())
 	}
-
+	addr := "[" + strings.Join(addresses, ",") + "]"
+	h.l.Info("qualified_idx", intArray(sharesIndex), "qual_addresses", addr)
 	return key.LoadGroup(newGroup, &key.DistPublic{Coefficients: h.share.Commits}, h.conf.NewNodes.Threshold)
 }
 
 func (h *Handler) startTimer() {
+	fmt.Printf(" DKG HANDLER TIMEOUT %s -> now %d -> will trigger at %d\n", h.conf.Key.Public.Address(), h.conf.Clock.Now().Unix(), h.conf.Clock.Now().Add(h.conf.Timeout).Unix())
 	select {
 	case <-h.conf.Clock.After(h.conf.Timeout):
 		h.Lock()
 		defer h.Unlock()
+		fmt.Printf("DKG HANDLER %s - %d - timeout triggered !\n", h.conf.Key.Public.Address(), h.nidx)
 		h.l.Info("timout", "triggered")
 		h.timeouted = true
 		h.state.SetTimeout()
@@ -260,7 +265,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 		},
 	}
 	defer h.processTmpResponses(deal)
-	localLog.Debug("from", h.dealerAddr(deal.Index), "processed", h.dealProcessed, "sent", h.sentDeals)
+	localLog.Debug("deal_from", h.dealerAddr(deal.Index), "processed", h.dealProcessed, "sent", h.sentDeals)
 	resp, err := h.state.ProcessDeal(deal)
 	if err != nil {
 		localLog.Error("kyber", err)
@@ -291,7 +296,7 @@ func (h *Handler) processDeal(p *peer.Peer, pdeal *dkg_proto.Deal) {
 			},
 		}
 		localLog.Debug("action", "broadcasting_responses")
-		go h.broadcast(out, true)
+		go h.broadcast(out, true, "response")
 	}
 }
 
@@ -350,7 +355,7 @@ func (h *Handler) processResponse(p *peer.Peer, presp *dkg_proto.Response) {
 				},
 			},
 		}
-		go h.broadcast(packet, true)
+		go h.broadcast(packet, true, "justification")
 	}
 
 	localLog.Debug("processed_resp", h.respProcessed, "processed_total", h.n*(h.n-1), "certified", h.state.Certified())
@@ -413,7 +418,10 @@ func (h *Handler) checkCertified() {
 	if fully {
 		t = "fully"
 	}
-	h.l.Info("certified", t, "share", share.PriShare().String())
+	hash := sha256.New()
+	buff, _ := share.PriShare().V.MarshalBinary()
+	hash.Write(buff)
+	h.l.Info("certified", t, "share_hash", hex.EncodeToString(hash.Sum(nil)[0:3]))
 	h.shareCh <- share
 }
 
@@ -455,9 +463,9 @@ func (h *Handler) sendDeals() error {
 					},
 				},
 			}
-			h.l.Debug("send_deal_to", i)
+			h.l.Debug("send_deal_to", i, "addr", id.Address())
 			if err := h.net.Send(id, packet); err != nil {
-				h.l.Error("send_deal", "fail to send deal to", fmt.Sprintf("%s: %s", id.Address(), err))
+				h.l.Error("send_deal_fail", err, "to", id.Address())
 				statusCh <- false
 			} else {
 				statusCh <- true
@@ -489,7 +497,7 @@ func (h *Handler) sendDeals() error {
 // - Responses are sent to to both new nodes and old nodes but *only once per
 // node*
 // - Justification are sent to the new nodes only
-func (h *Handler) broadcast(p *dkg_proto.Packet, toOldNodes bool) {
+func (h *Handler) broadcast(p *dkg_proto.Packet, toOldNodes bool, msgType string) {
 	var sent = make(map[string]bool)
 	var good, oldGood int
 	for i, id := range h.conf.NewNodes.Identities() {
@@ -500,10 +508,10 @@ func (h *Handler) broadcast(p *dkg_proto.Packet, toOldNodes bool) {
 			continue
 		}
 		if err := h.net.Send(id, p); err != nil {
-			h.l.Error("broadcast", err, "to", id.Address())
+			h.l.Error("broadcast", err, "to", id.Address(), "type", msgType)
 			continue
 		}
-		h.l.Debug("broadcast", "sucess", "to", id.Address())
+		h.l.Debug("broadcast", "sucess", "to", id.Address(), "type", msgType)
 		good++
 	}
 
@@ -515,15 +523,15 @@ func (h *Handler) broadcast(p *dkg_proto.Packet, toOldNodes bool) {
 				continue
 			}
 			if err := h.net.Send(id, p); err != nil {
-				h.l.Debug("broadcast", err, "to", id.Address(), "oldnodes")
+				h.l.Debug("broadcast_old", err, "to", id.Address(), "type", msgType)
 				continue
 			}
-			h.l.Debug("broadcast", "sucess", "to", id.Address(), "oldnodes")
+			h.l.Debug("broadcast_old", "sucess", "to", id.Address(), "type", msgType)
 			oldGood++
 		}
 
 	}
-	h.l.Debug("broadcast", "done")
+	h.l.Debug("broadcast", "done", "type", msgType)
 }
 
 func (h *Handler) addr() string {

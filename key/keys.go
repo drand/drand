@@ -305,8 +305,7 @@ func (d *DistPublic) Equal(d2 *DistPublic) bool {
 	for i := range d.Coefficients {
 		p1 := d.Coefficients[i]
 		p2 := d2.Coefficients[i]
-		// XXX to change: this is a naive comparison way
-		if p1.String() != p2.String() {
+		if !p1.Equal(p2) {
 			return false
 		}
 	}
@@ -364,7 +363,7 @@ func (b *BeaconSignature) RawSig() []byte {
 	return s
 }
 
-// DefaultThreshold return floor(n * 2/3) + 1
+// DefaultThreshold return floor(n / 2) + 1
 func DefaultThreshold(n int) int {
-	return int(math.Floor(float64((n*2))/3.0)) + 1
+	return int(math.Floor(float64(n)/2.0)) + 1
 }

@@ -3,10 +3,12 @@
 
 package dkg
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import vss "github.com/drand/drand/protobuf/crypto/vss"
+import (
+	fmt "fmt"
+	vss "github.com/drand/drand/protobuf/crypto/vss"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -17,7 +19,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Packet is a wrapper around the three different types of DKG messages
 type Packet struct {
@@ -33,16 +35,17 @@ func (m *Packet) Reset()         { *m = Packet{} }
 func (m *Packet) String() string { return proto.CompactTextString(m) }
 func (*Packet) ProtoMessage()    {}
 func (*Packet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_4ed6c9b8ccb6a245, []int{0}
+	return fileDescriptor_2cd2862d3a18e91b, []int{0}
 }
+
 func (m *Packet) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Packet.Unmarshal(m, b)
 }
 func (m *Packet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Packet.Marshal(b, m, deterministic)
 }
-func (dst *Packet) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Packet.Merge(dst, src)
+func (m *Packet) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Packet.Merge(m, src)
 }
 func (m *Packet) XXX_Size() int {
 	return xxx_messageInfo_Packet.Size(m)
@@ -96,16 +99,17 @@ func (m *Deal) Reset()         { *m = Deal{} }
 func (m *Deal) String() string { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()    {}
 func (*Deal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_4ed6c9b8ccb6a245, []int{1}
+	return fileDescriptor_2cd2862d3a18e91b, []int{1}
 }
+
 func (m *Deal) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Deal.Unmarshal(m, b)
 }
 func (m *Deal) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Deal.Marshal(b, m, deterministic)
 }
-func (dst *Deal) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Deal.Merge(dst, src)
+func (m *Deal) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Deal.Merge(m, src)
 }
 func (m *Deal) XXX_Size() int {
 	return xxx_messageInfo_Deal.Size(m)
@@ -153,16 +157,17 @@ func (m *Response) Reset()         { *m = Response{} }
 func (m *Response) String() string { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()    {}
 func (*Response) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_4ed6c9b8ccb6a245, []int{2}
+	return fileDescriptor_2cd2862d3a18e91b, []int{2}
 }
+
 func (m *Response) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Response.Unmarshal(m, b)
 }
 func (m *Response) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Response.Marshal(b, m, deterministic)
 }
-func (dst *Response) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Response.Merge(dst, src)
+func (m *Response) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Response.Merge(m, src)
 }
 func (m *Response) XXX_Size() int {
 	return xxx_messageInfo_Response.Size(m)
@@ -203,16 +208,17 @@ func (m *Justification) Reset()         { *m = Justification{} }
 func (m *Justification) String() string { return proto.CompactTextString(m) }
 func (*Justification) ProtoMessage()    {}
 func (*Justification) Descriptor() ([]byte, []int) {
-	return fileDescriptor_dkg_4ed6c9b8ccb6a245, []int{3}
+	return fileDescriptor_2cd2862d3a18e91b, []int{3}
 }
+
 func (m *Justification) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Justification.Unmarshal(m, b)
 }
 func (m *Justification) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Justification.Marshal(b, m, deterministic)
 }
-func (dst *Justification) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Justification.Merge(dst, src)
+func (m *Justification) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Justification.Merge(m, src)
 }
 func (m *Justification) XXX_Size() int {
 	return xxx_messageInfo_Justification.Size(m)
@@ -244,9 +250,11 @@ func init() {
 	proto.RegisterType((*Justification)(nil), "dkg.Justification")
 }
 
-func init() { proto.RegisterFile("github.com/drand/drand/protobuf/crypto/dkg/dkg.proto", fileDescriptor_dkg_4ed6c9b8ccb6a245) }
+func init() {
+	proto.RegisterFile("github.com/drand/drand/protobuf/crypto/dkg/dkg.proto", fileDescriptor_2cd2862d3a18e91b)
+}
 
-var fileDescriptor_dkg_4ed6c9b8ccb6a245 = []byte{
+var fileDescriptor_2cd2862d3a18e91b = []byte{
 	// 250 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x49, 0x2e, 0xaa, 0x2c,
 	0x28, 0xc9, 0xd7, 0x4f, 0xc9, 0x4e, 0x07, 0x61, 0xbd, 0x82, 0xa2, 0xfc, 0x92, 0x7c, 0x21, 0xe6,

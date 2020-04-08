@@ -45,7 +45,7 @@ func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empt
 	if !d.nextFirstReceived && d.nextOldPresent {
 		d.nextFirstReceived = true
 		// go routine since StartDKG requires the global lock
-		go d.StartDKG()
+		go d.StartDKG(d.nextConf)
 	}
 
 	if d.dkg == nil {
@@ -64,7 +64,7 @@ func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empt
 
 // NewBeacon methods receives a beacon generation requests and answers
 // with the partial signature from this drand node.
-func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -84,9 +84,9 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	var beacon *beacon.Beacon
 	var err error
 	if in.GetRound() == 0 {
-		beacon, err = d.beaconStore.Last()
+		beacon, err = d.beacon.Store().Last()
 	} else {
-		beacon, err = d.beaconStore.Get(in.GetRound())
+		beacon, err = d.beacon.Store().Get(in.GetRound())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
@@ -96,15 +96,36 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
 		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
 	}
-	h := RandomnessHash()
-	h.Write(beacon.GetSignature())
-	randomness := h.Sum(nil)
 	return &drand.PublicRandResponse{
-		Previous:   beacon.GetPreviousSig(),
-		Round:      beacon.Round,
-		Signature:  beacon.GetSignature(),
-		Randomness: randomness,
+		PreviousSignature: beacon.PreviousSig,
+		PreviousRound:     beacon.PreviousRound,
+		Round:             beacon.Round,
+		Signature:         beacon.Signature,
+		Randomness:        beacon.Randomness(),
 	}, nil
+}
+
+func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	peer, _ := peer.FromContext(stream.Context())
+	addr := peer.Addr.String()
+	done := make(chan error, 1)
+	d.log.Debug("request", "stream", "from", addr)
+	// register a callback for the duration of this stream
+	d.callbacks.AddCallback(addr, func(b *beacon.Beacon) {
+		err := stream.Send(&drand.PublicRandResponse{
+			Round:             b.Round,
+			Signature:         b.Signature,
+			PreviousRound:     b.PreviousRound,
+			PreviousSignature: b.PreviousSig,
+			Randomness:        b.Randomness(),
+		})
+		// if connection has a problem, we drop the callback
+		if err != nil {
+			d.callbacks.DelCallback(addr)
+			done <- err
+		}
+	})
+	return <-done
 }
 
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom

@@ -37,6 +37,9 @@ do
         --swagger_out=logtostderr=true:. \
         $dd/*.proto 
         sed -r -i 's:"crypto(.*):"github.com/drand/drand/protobuf/crypto\1:g' $dd/*go
+    cd $dd
+    go build
+    cd $curr
 done
 echo
 echo "Done!"

@@ -3,10 +3,10 @@ package test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
+	"github.com/stretchr/testify/require"
 )
 
 // SimulateDKG returns a list of private shares along with the list of

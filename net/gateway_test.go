@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -33,6 +34,9 @@ type testRandomnessServer struct {
 	round uint64
 }
 
+func (t *testRandomnessServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
+	return new(drand.Empty), errors.New("no beacon")
+}
 func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{Round: t.round}, nil
 }
@@ -65,6 +69,9 @@ func TestListener(t *testing.T) {
 	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
+
+	_, err = client.NewBeacon(peer1, &drand.BeaconPacket{})
+	require.Error(t, err)
 
 	rest := NewRestClient()
 	resp, err = rest.PublicRand(peer1, &drand.PublicRandRequest{})

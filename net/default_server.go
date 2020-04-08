@@ -11,6 +11,10 @@ var _ Service = (*EmptyServer)(nil)
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
 type EmptyServer struct{}
 
+func (s *EmptyServer) PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error {
+	return nil
+}
+
 // PublicRand ...
 func (s *EmptyServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return nil, nil
@@ -41,13 +45,17 @@ func (s *EmptyServer) Setup(context.Context, *drand.SetupPacket) (*drand.Empty, 
 	return nil, nil
 }
 
+func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error {
+	return nil
+}
+
 // Reshare ...
 func (s *EmptyServer) Reshare(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
 // NewBeacon ...
-func (s *EmptyServer) NewBeacon(context.Context, *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+func (s *EmptyServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
