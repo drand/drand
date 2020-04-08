@@ -1,13 +1,12 @@
 .PHONY: test test-unit test-integration demo deploy-local linter install build
 
-test: linter test-unit test-integration
+test: test-unit test-integration
 
 test-unit:
 	GO111MODULE=on go test -v ./...
 
 test-integration:
-	@echo "first makefile: Path is $$PATH"
-	PATH=$(PATH) GOPATH=$(GOPATH) $(MAKE) -C test/test-integration test
+	cd demo && go build && ./demo -build -test
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
@@ -20,7 +19,8 @@ linter:
 	}
 
 demo:
-	cd demo && sudo ./run.sh
+	cd demo && go build && ./demo -build 
+	#cd demo && sudo ./run.sh
 
 # create the "drand" binary and install it in $GOBIN
 install:

@@ -12,7 +12,7 @@ import (
 	control "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 // shareCmd decides whether the command is for a DKG or for a resharing and
@@ -73,6 +73,7 @@ func initDKG(c *cli.Context, groupPath string) error {
 
 	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name), entropyInfo)
 	if err != nil {
+		fmt.Println("init dkg", err)
 		fatal("drand: initdkg %s", err)
 	}
 	return nil
@@ -162,7 +163,6 @@ func showPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		fatal("drand: could not request drand.private: %s", err)
 	}
-
 	printJSON(resp)
 	return nil
 }
@@ -190,10 +190,11 @@ func showShareCmd(c *cli.Context) error {
 }
 
 func controlPort(c *cli.Context) string {
-	port := c.String("control")
+	port := c.String(controlFlag.Name)
 	if port == "" {
 		port = core.DefaultControlPort
 	}
+	fmt.Println(" --- controlport using ", port)
 	return port
 }
 

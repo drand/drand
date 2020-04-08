@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -18,6 +17,7 @@ import (
 	"github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	clock "github.com/jonboulle/clockwork"
 	"github.com/nikkolasg/slog"
 	"github.com/stretchr/testify/require"
 )
@@ -82,7 +82,7 @@ type node struct {
 type DKGTest struct {
 	total    int
 	keys     []string
-	clocks   map[string]*clock.Mock
+	clocks   map[string]clock.FakeClock
 	timeout  time.Duration
 	newGroup *key.Group
 	newNodes map[string]*node
@@ -97,11 +97,11 @@ type DKGTest struct {
 func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration, r io.Reader, onlyUser bool) *DKGTest {
 	privs := test.GenerateIDs(n)
 	pubs := test.ListFromPrivates(privs)
-	newGroup := key.NewGroup(pubs, thr)
+	newGroup := key.NewGroup(pubs, thr, 0)
 	newNodes := make(map[string]*node)
 	nets := testNets(n, true)
 	keys := make([]string, n)
-	clocks := make(map[string]*clock.Mock)
+	clocks := make(map[string]clock.FakeClock)
 	conf := Config{
 		Suite:          key.KeyGroup.(Suite),
 		NewNodes:       newGroup,
@@ -112,7 +112,7 @@ func NewDKGTest(t *testing.T, n, thr int, timeout time.Duration, r io.Reader, on
 	for i := 0; i < n; i++ {
 		c := conf
 		c.Key = privs[i]
-		clock := clock.NewMock()
+		clock := clock.NewFakeClock()
 		c.Clock = clock
 		clocks[c.Key.Public.Address()] = clock
 		var err error
@@ -155,7 +155,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	oldToRemove := oldN - common
 	totalDKGs := oldN + newToAdd
 	nets := testNets(totalDKGs, false)
-	clocks := make(map[string]*clock.Mock)
+	clocks := make(map[string]clock.FakeClock)
 	addPrivs := test.GenerateIDs(newToAdd)
 	//addPubs := test.ListFromPrivates(addPrivs)
 
@@ -171,7 +171,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 		newPrivs = append(newPrivs, p)
 		newPubs = append(newPubs, p.Public)
 	}
-	newGroup := key.NewGroup(newPubs, newT)
+	newGroup := key.NewGroup(newPubs, newT, 0)
 
 	oldNodes := make(map[string]*node)
 	keys := make([]string, totalDKGs)
@@ -185,7 +185,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	for i := 0; i < oldToRemove; i++ {
 		c := conf
 		c.Key = oldPrivs[i]
-		clock := clock.NewMock()
+		clock := clock.NewFakeClock()
 		c.Clock = clock
 		clocks[c.Key.Public.Address()] = clock
 		groupIndex, ok := oldGroup.Index(c.Key.Public)
@@ -214,7 +214,7 @@ func NewDKGTestResharing(t *testing.T, oldN, oldT, newN, newT, common int, timeo
 	for i := 0; i < newN; i++ {
 		c := conf
 		c.Key = newPrivs[i]
-		clock := clock.NewMock()
+		clock := clock.NewFakeClock()
 		c.Clock = clock
 		clocks[c.Key.Public.Address()] = clock
 
@@ -423,11 +423,11 @@ func (d *DKGTest) StopDKG(id string) {
 func (d *DKGTest) MoveTime(t time.Duration) {
 	added := 0
 	for id := range d.newNodes {
-		d.clocks[id].Add(t)
+		d.clocks[id].Advance(t)
 		added++
 	}
 	for id := range d.oldNodes {
-		d.clocks[id].Add(t)
+		d.clocks[id].Advance(t)
 		added++
 	}
 	time.Sleep(time.Duration(10*added) * time.Millisecond)

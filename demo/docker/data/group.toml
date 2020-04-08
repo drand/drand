@@ -1,0 +1,28 @@
+Threshold = 3
+Period = "10s"
+
+[[Nodes]]
+Address = "172.16.238.2:8082"
+Key = "a6238b6f917867a554c55406726fbd110bcdfe91293de7ff2f8cda43b8d9bf31e63f8fdec19ae121a3dce152d61ab214"
+TLS = false
+
+[[Nodes]]
+Address = "172.16.238.3:8083"
+Key = "a4e876c4fd5b2bdcd9abfb8cb2e4d824364f37f95b3f3a983bec04a4334c473da44223c2111fbc7911b49b0a590f001d"
+TLS = false
+
+[[Nodes]]
+Address = "172.16.238.5:8080"
+Key = "ad76ee2d050668ba5d84b15aa5c19c8681df68f93af0658f93f2be917aedd69699e52f7485685776ec33ecb556ead0d2"
+TLS = false
+
+[[Nodes]]
+Address = "172.16.238.4:8081"
+Key = "a6945f07c32710625eb8c3942284f2ee0e0e53befb247f3af59817dd0a68023fa3b912c4ca686593a3b58539f70b43db"
+TLS = false
+
+[[Nodes]]
+Address = "172.16.238.6:8084"
+Key = "af9e658b200dd3aa2bbd8619968a71f7a667a51484ac8ba1beb38e0c53b2e3c527d96c82cbe12c879ba103f1ff9a5602"
+TLS = false
+

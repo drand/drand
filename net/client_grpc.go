@@ -2,7 +2,8 @@ package net
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"io"
 	"strings"
 	"sync"
 	"time"
@@ -57,9 +58,11 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 	return c
 }
 
-func getTimeoutContext(timeout time.Duration) (context.Context, context.CancelFunc) {
-	clientDeadline := time.Now().Add(timeout)
-	return context.WithDeadline(context.Background(), clientDeadline)
+func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	g.Lock()
+	defer g.Unlock()
+	clientDeadline := time.Now().Add(g.timeout)
+	return context.WithDeadline(ctx, clientDeadline)
 }
 
 func (g *grpcClient) SetTimeout(p time.Duration) {
@@ -70,147 +73,177 @@ func (g *grpcClient) SetTimeout(p time.Duration) {
 
 func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	var resp *drand.PublicRandResponse
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewPublicClient(c)
-		ctx, _ := getTimeoutContext(g.timeout)
-		resp, err = client.PublicRand(ctx, in)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
+	client := drand.NewPublicClient(c)
+	ctx, _ := g.getTimeoutContext(context.Background())
+	resp, err = client.PublicRand(ctx, in)
+	return resp, err
+}
+
+func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error) {
+	var outCh = make(chan *drand.PublicRandResponse, 10)
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewPublicClient(c)
+	ctx, _ = g.getTimeoutContext(ctx)
+	stream, err := client.PublicRandStream(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err == io.EOF {
+				close(outCh)
+				return
+			}
+			if err != nil {
+				// XXX should probably do stg different here but since we are
+				// continuously stream, if stream stops, it means stg went
+				// wrong; it should never EOF
+				close(outCh)
+				return
+			}
+			select {
+			case outCh <- resp:
+			case <-ctx.Done():
+				close(outCh)
+				return
+			}
+		}
+	}()
+	return outCh, nil
 }
 
 func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	var resp *drand.PrivateRandResponse
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewPublicClient(c)
-		ctx, _ := getTimeoutContext(g.timeout)
-		resp, err = client.PrivateRand(ctx, in)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
+	client := drand.NewPublicClient(c)
+	ctx, _ := g.getTimeoutContext(context.Background())
+	resp, err = client.PrivateRand(ctx, in)
+	return resp, err
 }
 
 func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
 	var resp *drand.GroupResponse
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewPublicClient(c)
-		ctx, _ := getTimeoutContext(g.timeout)
-		resp, err = client.Group(ctx, in)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
+	client := drand.NewPublicClient(c)
+	ctx, _ := g.getTimeoutContext(context.Background())
+	resp, err = client.Group(ctx, in)
+	return resp, err
 }
 func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	var resp *drand.DistKeyResponse
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewPublicClient(c)
-		resp, err = client.DistKey(context.Background(), in)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
+	client := drand.NewPublicClient(c)
+	resp, err = client.DistKey(context.Background(), in)
+	return resp, err
 }
 
 func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error) {
 	var resp *drand.Empty
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewProtocolClient(c)
-		// give more time for DKG we are not in a hurry
-		ctx, _ := getTimeoutContext(g.timeout * time.Duration(2))
-		resp, err = client.Setup(ctx, in, opts...)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
+	client := drand.NewProtocolClient(c)
+	ctx, _ := g.getTimeoutContext(context.Background())
+	resp, err = client.Setup(ctx, in, opts...)
+	return resp, err
 }
 
 func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
 	var resp *drand.Empty
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewProtocolClient(c)
-		// give more time for DKG we are not in a hurry
-		ctx, _ := getTimeoutContext(g.timeout * time.Duration(2))
-		resp, err = client.Reshare(ctx, in, opts...)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
+	client := drand.NewProtocolClient(c)
+	ctx, _ := g.getTimeoutContext(context.Background())
+	resp, err = client.Reshare(ctx, in, opts...)
+	return resp, err
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconRequest, opts ...CallOption) (*drand.BeaconResponse, error) {
-	var resp *drand.BeaconResponse
-	fn := func() error {
+func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error) {
+	do := func() (*drand.Empty, error) {
 		c, err := g.conn(p)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		client := drand.NewProtocolClient(c)
-		ctx, _ := getTimeoutContext(g.timeout)
-		resp, err = client.NewBeacon(ctx, in, opts...)
-		return err
+		ctx, _ := g.getTimeoutContext(context.Background())
+		return client.NewBeacon(ctx, in, opts...)
 	}
-	return resp, g.retryTLS(p, fn)
+	if resp, err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
+		g.deleteConn(p)
+		return do()
+		//return resp, err
+	} else {
+		return resp, err
+	}
+}
+
+const SyncBlockKey = "sync"
+
+func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.SyncResponse, error) {
+	resp := make(chan *drand.SyncResponse)
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewProtocolClient(c)
+	stream, err := client.SyncChain(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		defer close(resp)
+		for {
+			reply, err := stream.Recv()
+			if err == io.EOF {
+				fmt.Println(" --- STREAM EOF")
+				break
+			}
+			if err != nil {
+				fmt.Println(" --- STREAM ERR:", err)
+				break
+			}
+			select {
+			case <-ctx.Done():
+				fmt.Println(" --- STREAM CONTEXT DONE")
+				break
+			default:
+				resp <- reply
+			}
+		}
+	}()
+	return resp, nil
 }
 
 func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	var resp *drand.HomeResponse
-	fn := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewPublicClient(c)
-		ctx, _ := getTimeoutContext(g.timeout)
-		resp, err = client.Home(ctx, in)
-		return err
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
 	}
-	return resp, g.retryTLS(p, fn)
-
-}
-
-// retryTLS performs a manual reconnection in case there is an error with TLS
-// certificates. It's a hack for issue
-// https://github.com/grpc/grpc-go/issues/2394
-func (g *grpcClient) retryTLS(p Peer, fn func() error) error {
-	total := 1
-	for retry := 0; retry < total; retry++ {
-		err := fn()
-		if err == nil {
-			return nil
-		}
-		isTLS := strings.Contains(err.Error(), "tls:")
-		isX509 := strings.Contains(err.Error(), "x509:")
-		if isTLS || isX509 {
-			slog.Infof("drand: forced client reconnection due to TLS error to %s", p.Address())
-			g.deleteConn(p)
-			g.conn(p)
-		} else {
-			// not an TLS error
-			return err
-		}
-	}
-	return errors.New("grpc: can't connect to " + p.Address())
+	client := drand.NewPublicClient(c)
+	ctx, _ := g.getTimeoutContext(context.Background())
+	resp, err = client.Home(ctx, in)
+	return resp, err
 }
 
 func (g *grpcClient) deleteConn(p Peer) {

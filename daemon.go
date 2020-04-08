@@ -6,14 +6,13 @@ import (
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 	fs := key.NewFileStore(conf.ConfigFolder())
 	var drand *core.Drand
-
 	// determine if we already ran a DKG or not
 	_, errG := fs.LoadGroup()
 	_, errS := fs.LoadShare()
@@ -31,16 +30,16 @@ func startCmd(c *cli.Context) error {
 			fatal("drand: can't instantiate drand instance %s", err)
 		}
 	} else {
-		fmt.Print("drand: will already start running randomness beacon")
+		fmt.Println("drand: will already start running randomness beacon")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
 			fatal("drand: can't load drand instance %s", err)
 		}
 		// XXX make it configurable so that new share holder can still start if
 		// nobody started.
-		if err := drand.StartBeacon(!c.Bool(pushFlag.Name)); err != nil {
-			fatal("drand: starting beacon failed: %s", err)
-		}
+		//drand.StartBeacon(!c.Bool(pushFlag.Name))
+		catchup := true
+		drand.StartBeacon(catchup)
 	}
 	<-drand.WaitExit()
 

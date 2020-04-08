@@ -23,6 +23,16 @@ service Public {
             }
         };
     }
+
+    rpc PublicRandStream(PublicRandRequest) returns (stream PublicRandResponse) {
+        option (google.api.http) = {
+            get: "/api/public/stream"
+            additional_bindings {
+                get: "/api/public/stream/{round}"
+            }
+        };
+    }
+
     // PrivateRand is the method that returns the private randomness generated
     // by the drand node only.
     rpc PrivateRand(PrivateRandRequest) returns (PrivateRandResponse) {
@@ -70,9 +80,12 @@ message PublicRandRequest {
 // verification routine with the message "round || previous_rand".
 message PublicRandResponse {
     uint64 round = 1;
-    bytes previous = 2;
-    bytes signature = 3;
-    bytes randomness = 4;
+    bytes signature = 2;
+    uint64 previous_round = 3;
+    bytes previous_signature = 4;
+    // randomness is simply there to demonstrate - it is the hash of the
+    // signature. It should be computed locally.
+    bytes randomness = 5;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random

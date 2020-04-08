@@ -3,14 +3,15 @@
 
 package drand
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-import _ "google.golang.org/genproto/googleapis/api/annotations"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -22,7 +23,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // PublicRandRequest requests a public random value that has been generated in a
 // unbiasable way and verifiable.
@@ -39,16 +40,17 @@ func (m *PublicRandRequest) Reset()         { *m = PublicRandRequest{} }
 func (m *PublicRandRequest) String() string { return proto.CompactTextString(m) }
 func (*PublicRandRequest) ProtoMessage()    {}
 func (*PublicRandRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{0}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{0}
 }
+
 func (m *PublicRandRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicRandRequest.Unmarshal(m, b)
 }
 func (m *PublicRandRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PublicRandRequest.Marshal(b, m, deterministic)
 }
-func (dst *PublicRandRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PublicRandRequest.Merge(dst, src)
+func (m *PublicRandRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PublicRandRequest.Merge(m, src)
 }
 func (m *PublicRandRequest) XXX_Size() int {
 	return xxx_messageInfo_PublicRandRequest.Size(m)
@@ -71,10 +73,13 @@ func (m *PublicRandRequest) GetRound() uint64 {
 // DKG protocol and is unbiasable. The randomness can be verified using the BLS
 // verification routine with the message "round || previous_rand".
 type PublicRandResponse struct {
-	Round                uint64   `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
-	Previous             []byte   `protobuf:"bytes,2,opt,name=previous,proto3" json:"previous,omitempty"`
-	Signature            []byte   `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
-	Randomness           []byte   `protobuf:"bytes,4,opt,name=randomness,proto3" json:"randomness,omitempty"`
+	Round             uint64 `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
+	Signature         []byte `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	PreviousRound     uint64 `protobuf:"varint,3,opt,name=previous_round,json=previousRound,proto3" json:"previous_round,omitempty"`
+	PreviousSignature []byte `protobuf:"bytes,4,opt,name=previous_signature,json=previousSignature,proto3" json:"previous_signature,omitempty"`
+	// randomness is simply there to demonstrate - it is the hash of the
+	// signature. It should be computed locally.
+	Randomness           []byte   `protobuf:"bytes,5,opt,name=randomness,proto3" json:"randomness,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -84,16 +89,17 @@ func (m *PublicRandResponse) Reset()         { *m = PublicRandResponse{} }
 func (m *PublicRandResponse) String() string { return proto.CompactTextString(m) }
 func (*PublicRandResponse) ProtoMessage()    {}
 func (*PublicRandResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{1}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{1}
 }
+
 func (m *PublicRandResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PublicRandResponse.Unmarshal(m, b)
 }
 func (m *PublicRandResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PublicRandResponse.Marshal(b, m, deterministic)
 }
-func (dst *PublicRandResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PublicRandResponse.Merge(dst, src)
+func (m *PublicRandResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PublicRandResponse.Merge(m, src)
 }
 func (m *PublicRandResponse) XXX_Size() int {
 	return xxx_messageInfo_PublicRandResponse.Size(m)
@@ -111,16 +117,23 @@ func (m *PublicRandResponse) GetRound() uint64 {
 	return 0
 }
 
-func (m *PublicRandResponse) GetPrevious() []byte {
+func (m *PublicRandResponse) GetSignature() []byte {
 	if m != nil {
-		return m.Previous
+		return m.Signature
 	}
 	return nil
 }
 
-func (m *PublicRandResponse) GetSignature() []byte {
+func (m *PublicRandResponse) GetPreviousRound() uint64 {
 	if m != nil {
-		return m.Signature
+		return m.PreviousRound
+	}
+	return 0
+}
+
+func (m *PublicRandResponse) GetPreviousSignature() []byte {
+	if m != nil {
+		return m.PreviousSignature
 	}
 	return nil
 }
@@ -147,16 +160,17 @@ func (m *PrivateRandRequest) Reset()         { *m = PrivateRandRequest{} }
 func (m *PrivateRandRequest) String() string { return proto.CompactTextString(m) }
 func (*PrivateRandRequest) ProtoMessage()    {}
 func (*PrivateRandRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{2}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{2}
 }
+
 func (m *PrivateRandRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateRandRequest.Unmarshal(m, b)
 }
 func (m *PrivateRandRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PrivateRandRequest.Marshal(b, m, deterministic)
 }
-func (dst *PrivateRandRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PrivateRandRequest.Merge(dst, src)
+func (m *PrivateRandRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PrivateRandRequest.Merge(m, src)
 }
 func (m *PrivateRandRequest) XXX_Size() int {
 	return xxx_messageInfo_PrivateRandRequest.Size(m)
@@ -187,16 +201,17 @@ func (m *PrivateRandResponse) Reset()         { *m = PrivateRandResponse{} }
 func (m *PrivateRandResponse) String() string { return proto.CompactTextString(m) }
 func (*PrivateRandResponse) ProtoMessage()    {}
 func (*PrivateRandResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{3}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{3}
 }
+
 func (m *PrivateRandResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PrivateRandResponse.Unmarshal(m, b)
 }
 func (m *PrivateRandResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PrivateRandResponse.Marshal(b, m, deterministic)
 }
-func (dst *PrivateRandResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PrivateRandResponse.Merge(dst, src)
+func (m *PrivateRandResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PrivateRandResponse.Merge(m, src)
 }
 func (m *PrivateRandResponse) XXX_Size() int {
 	return xxx_messageInfo_PrivateRandResponse.Size(m)
@@ -227,16 +242,17 @@ func (m *ECIES) Reset()         { *m = ECIES{} }
 func (m *ECIES) String() string { return proto.CompactTextString(m) }
 func (*ECIES) ProtoMessage()    {}
 func (*ECIES) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{4}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{4}
 }
+
 func (m *ECIES) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ECIES.Unmarshal(m, b)
 }
 func (m *ECIES) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ECIES.Marshal(b, m, deterministic)
 }
-func (dst *ECIES) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ECIES.Merge(dst, src)
+func (m *ECIES) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ECIES.Merge(m, src)
 }
 func (m *ECIES) XXX_Size() int {
 	return xxx_messageInfo_ECIES.Size(m)
@@ -279,16 +295,17 @@ func (m *DistKeyRequest) Reset()         { *m = DistKeyRequest{} }
 func (m *DistKeyRequest) String() string { return proto.CompactTextString(m) }
 func (*DistKeyRequest) ProtoMessage()    {}
 func (*DistKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{5}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{5}
 }
+
 func (m *DistKeyRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistKeyRequest.Unmarshal(m, b)
 }
 func (m *DistKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DistKeyRequest.Marshal(b, m, deterministic)
 }
-func (dst *DistKeyRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DistKeyRequest.Merge(dst, src)
+func (m *DistKeyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DistKeyRequest.Merge(m, src)
 }
 func (m *DistKeyRequest) XXX_Size() int {
 	return xxx_messageInfo_DistKeyRequest.Size(m)
@@ -310,16 +327,17 @@ func (m *DistKeyResponse) Reset()         { *m = DistKeyResponse{} }
 func (m *DistKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*DistKeyResponse) ProtoMessage()    {}
 func (*DistKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{6}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{6}
 }
+
 func (m *DistKeyResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DistKeyResponse.Unmarshal(m, b)
 }
 func (m *DistKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_DistKeyResponse.Marshal(b, m, deterministic)
 }
-func (dst *DistKeyResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DistKeyResponse.Merge(dst, src)
+func (m *DistKeyResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DistKeyResponse.Merge(m, src)
 }
 func (m *DistKeyResponse) XXX_Size() int {
 	return xxx_messageInfo_DistKeyResponse.Size(m)
@@ -347,16 +365,17 @@ func (m *HomeRequest) Reset()         { *m = HomeRequest{} }
 func (m *HomeRequest) String() string { return proto.CompactTextString(m) }
 func (*HomeRequest) ProtoMessage()    {}
 func (*HomeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{7}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{7}
 }
+
 func (m *HomeRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HomeRequest.Unmarshal(m, b)
 }
 func (m *HomeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_HomeRequest.Marshal(b, m, deterministic)
 }
-func (dst *HomeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HomeRequest.Merge(dst, src)
+func (m *HomeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HomeRequest.Merge(m, src)
 }
 func (m *HomeRequest) XXX_Size() int {
 	return xxx_messageInfo_HomeRequest.Size(m)
@@ -378,16 +397,17 @@ func (m *HomeResponse) Reset()         { *m = HomeResponse{} }
 func (m *HomeResponse) String() string { return proto.CompactTextString(m) }
 func (*HomeResponse) ProtoMessage()    {}
 func (*HomeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{8}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{8}
 }
+
 func (m *HomeResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HomeResponse.Unmarshal(m, b)
 }
 func (m *HomeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_HomeResponse.Marshal(b, m, deterministic)
 }
-func (dst *HomeResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HomeResponse.Merge(dst, src)
+func (m *HomeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HomeResponse.Merge(m, src)
 }
 func (m *HomeResponse) XXX_Size() int {
 	return xxx_messageInfo_HomeResponse.Size(m)
@@ -415,16 +435,17 @@ func (m *GroupRequest) Reset()         { *m = GroupRequest{} }
 func (m *GroupRequest) String() string { return proto.CompactTextString(m) }
 func (*GroupRequest) ProtoMessage()    {}
 func (*GroupRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{9}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{9}
 }
+
 func (m *GroupRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GroupRequest.Unmarshal(m, b)
 }
 func (m *GroupRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GroupRequest.Marshal(b, m, deterministic)
 }
-func (dst *GroupRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GroupRequest.Merge(dst, src)
+func (m *GroupRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GroupRequest.Merge(m, src)
 }
 func (m *GroupRequest) XXX_Size() int {
 	return xxx_messageInfo_GroupRequest.Size(m)
@@ -452,16 +473,17 @@ func (m *GroupResponse) Reset()         { *m = GroupResponse{} }
 func (m *GroupResponse) String() string { return proto.CompactTextString(m) }
 func (*GroupResponse) ProtoMessage()    {}
 func (*GroupResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{10}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{10}
 }
+
 func (m *GroupResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GroupResponse.Unmarshal(m, b)
 }
 func (m *GroupResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_GroupResponse.Marshal(b, m, deterministic)
 }
-func (dst *GroupResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GroupResponse.Merge(dst, src)
+func (m *GroupResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GroupResponse.Merge(m, src)
 }
 func (m *GroupResponse) XXX_Size() int {
 	return xxx_messageInfo_GroupResponse.Size(m)
@@ -514,16 +536,17 @@ func (m *Node) Reset()         { *m = Node{} }
 func (m *Node) String() string { return proto.CompactTextString(m) }
 func (*Node) ProtoMessage()    {}
 func (*Node) Descriptor() ([]byte, []int) {
-	return fileDescriptor_api_bf4cd4e3457fd002, []int{11}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{11}
 }
+
 func (m *Node) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Node.Unmarshal(m, b)
 }
 func (m *Node) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Node.Marshal(b, m, deterministic)
 }
-func (dst *Node) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Node.Merge(dst, src)
+func (m *Node) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Node.Merge(m, src)
 }
 func (m *Node) XXX_Size() int {
 	return xxx_messageInfo_Node.Size(m)
@@ -570,13 +593,63 @@ func init() {
 	proto.RegisterType((*Node)(nil), "drand.Node")
 }
 
+func init() {
+	proto.RegisterFile("drand/api.proto", fileDescriptor_c0cff3fc81cf7d79)
+}
+
+var fileDescriptor_c0cff3fc81cf7d79 = []byte{
+	// 663 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0xdd, 0x6e, 0xd3, 0x4a,
+	0x10, 0x96, 0x9b, 0xbf, 0x66, 0xe2, 0xb4, 0xcd, 0xa4, 0xed, 0x49, 0xad, 0xe8, 0x28, 0xc7, 0x07,
+	0xaa, 0x50, 0x89, 0x06, 0x85, 0x1b, 0x84, 0x40, 0x48, 0xd0, 0x0a, 0x50, 0x11, 0xaa, 0x36, 0x5c,
+	0x15, 0x21, 0xe4, 0xd6, 0x4b, 0x62, 0x91, 0x78, 0xcd, 0xee, 0xa6, 0xa2, 0x42, 0xdc, 0x94, 0x47,
+	0xe0, 0x79, 0xe0, 0x25, 0x78, 0x05, 0x1e, 0x04, 0xed, 0x78, 0x1d, 0x3b, 0x6d, 0xaf, 0xb8, 0xdb,
+	0xf9, 0x66, 0xbe, 0x6f, 0x7e, 0x3c, 0x63, 0x58, 0x0f, 0x65, 0x10, 0x87, 0x83, 0x20, 0x89, 0xf6,
+	0x13, 0x29, 0xb4, 0xc0, 0x0a, 0x01, 0x5e, 0x77, 0x2c, 0xc4, 0x78, 0xca, 0x8d, 0x63, 0x10, 0xc4,
+	0xb1, 0xd0, 0x81, 0x8e, 0x44, 0xac, 0xd2, 0x20, 0xff, 0x0e, 0xb4, 0x8e, 0xe7, 0xa7, 0xd3, 0xe8,
+	0x8c, 0x05, 0x71, 0xc8, 0xf8, 0xa7, 0x39, 0x57, 0x1a, 0x37, 0xa1, 0x22, 0xc5, 0x3c, 0x0e, 0x3b,
+	0x4e, 0xcf, 0xe9, 0x97, 0x59, 0x6a, 0xf8, 0x3f, 0x1d, 0xc0, 0x62, 0xac, 0x4a, 0x44, 0xac, 0xf8,
+	0xcd, 0xc1, 0xd8, 0x85, 0xba, 0x8a, 0xc6, 0x71, 0xa0, 0xe7, 0x92, 0x77, 0x56, 0x7a, 0x4e, 0xdf,
+	0x65, 0x39, 0x80, 0xb7, 0x61, 0x2d, 0x91, 0xfc, 0x3c, 0x12, 0x73, 0xf5, 0x3e, 0x25, 0x97, 0x88,
+	0xdc, 0xcc, 0x50, 0x46, 0x22, 0x77, 0x01, 0x17, 0x61, 0xb9, 0x5a, 0x99, 0xd4, 0x5a, 0x99, 0x67,
+	0xb4, 0x50, 0xfd, 0x17, 0xc0, 0x74, 0x2c, 0x66, 0x31, 0x57, 0xaa, 0x53, 0xa1, 0xb0, 0x02, 0xe2,
+	0x3f, 0x02, 0x3c, 0x96, 0xd1, 0x79, 0xa0, 0x79, 0xb1, 0xd9, 0x5d, 0xa8, 0xc9, 0xf4, 0x49, 0x75,
+	0x36, 0x86, 0xee, 0x3e, 0x0d, 0x6e, 0xff, 0xf0, 0xd9, 0xcb, 0xc3, 0x11, 0xcb, 0x9c, 0xfe, 0x13,
+	0x68, 0x2f, 0xb1, 0x6d, 0xfb, 0x7d, 0x58, 0x95, 0xf6, 0x4d, 0x13, 0xb8, 0xca, 0x5f, 0x78, 0xfd,
+	0xb7, 0x50, 0x21, 0xc8, 0xcc, 0x86, 0x27, 0x13, 0x3e, 0xe3, 0x32, 0x98, 0x12, 0xc7, 0x65, 0x39,
+	0x60, 0xba, 0x38, 0x8b, 0x92, 0x09, 0x97, 0x9a, 0x7f, 0xd6, 0x76, 0x74, 0x05, 0xc4, 0xcc, 0x3b,
+	0x16, 0xf1, 0x19, 0xa7, 0x91, 0xb9, 0x2c, 0x35, 0xfc, 0x0d, 0x58, 0x3b, 0x88, 0x94, 0x3e, 0xe2,
+	0x17, 0xb6, 0x2f, 0xff, 0x7f, 0x58, 0x5f, 0x20, 0xb6, 0xd6, 0x0d, 0x28, 0x7d, 0xe4, 0x17, 0x56,
+	0xd3, 0x3c, 0xfd, 0x26, 0x34, 0x5e, 0x88, 0x19, 0xcf, 0x38, 0xbb, 0xe0, 0xa6, 0xa6, 0x25, 0x6c,
+	0x43, 0x55, 0xe9, 0x40, 0xcf, 0x15, 0x95, 0x59, 0x67, 0xd6, 0xf2, 0xd7, 0xc0, 0x7d, 0x2e, 0xc5,
+	0x3c, 0xc9, 0x78, 0x97, 0x0e, 0x34, 0x2d, 0x60, 0x99, 0x5d, 0xa8, 0xeb, 0x89, 0xe4, 0x6a, 0x22,
+	0xa6, 0x21, 0x25, 0x6c, 0xb2, 0x1c, 0x30, 0xba, 0x09, 0x97, 0x91, 0x48, 0xbf, 0x7b, 0x93, 0x59,
+	0x0b, 0xff, 0x33, 0xbd, 0x85, 0x5c, 0x75, 0xca, 0xbd, 0x52, 0xbf, 0x31, 0x6c, 0xd8, 0x49, 0xbe,
+	0x16, 0x21, 0x67, 0xa9, 0x07, 0x3b, 0x50, 0x0b, 0x23, 0xa5, 0x4d, 0x1f, 0x95, 0x5e, 0xa9, 0x5f,
+	0x67, 0x99, 0xe9, 0x1f, 0x40, 0xd9, 0x04, 0x9a, 0x88, 0x20, 0x0c, 0xa5, 0xd9, 0x81, 0xb4, 0xea,
+	0xcc, 0x2c, 0xf6, 0x5f, 0xa7, 0xfe, 0x0d, 0xf2, 0xe6, 0xd5, 0x88, 0xaa, 0x58, 0x65, 0xe6, 0x39,
+	0xfc, 0x51, 0x86, 0x6a, 0xba, 0xe5, 0x38, 0x03, 0xc8, 0xf7, 0x1d, 0x3b, 0xb6, 0x98, 0x6b, 0xe7,
+	0xe2, 0xed, 0xdc, 0xe0, 0xb1, 0xdf, 0x7c, 0xef, 0xf2, 0xd7, 0xef, 0xef, 0x2b, 0xb7, 0xb0, 0x41,
+	0xe7, 0x97, 0x50, 0xc0, 0xc9, 0x16, 0xb6, 0x0b, 0xe6, 0xe0, 0x0b, 0x5d, 0xc0, 0x57, 0xfc, 0xe6,
+	0xc0, 0x46, 0x2e, 0x31, 0xd2, 0x92, 0x07, 0xb3, 0xbf, 0xcb, 0xfa, 0x80, 0xb2, 0x0e, 0x11, 0x8b,
+	0x69, 0x14, 0x09, 0x9e, 0x74, 0xd1, 0xbb, 0x8e, 0x66, 0x35, 0xdc, 0x73, 0xf0, 0x1d, 0x34, 0x0a,
+	0x6b, 0x8e, 0x8b, 0x2c, 0xd7, 0x0e, 0xc7, 0xf3, 0x6e, 0x72, 0xd9, 0x0a, 0xfe, 0xa1, 0x0a, 0x5a,
+	0xbe, 0x9b, 0xe6, 0x4a, 0x23, 0x1e, 0x3a, 0x7b, 0x78, 0x04, 0x15, 0x5a, 0x14, 0x6c, 0x5b, 0x76,
+	0x71, 0x8f, 0xbc, 0xcd, 0x65, 0x70, 0x59, 0x0c, 0xd7, 0x49, 0x2c, 0x8a, 0x3f, 0x88, 0xc1, 0x98,
+	0x34, 0x46, 0x50, 0xb3, 0x2b, 0x8e, 0x5b, 0x96, 0xb9, 0x7c, 0x04, 0xde, 0xf6, 0x55, 0xd8, 0x4a,
+	0xee, 0x90, 0x64, 0x1b, 0x5b, 0xb9, 0xa4, 0x5d, 0x23, 0x7c, 0x0c, 0x65, 0x73, 0x03, 0x88, 0x96,
+	0x5a, 0xb8, 0x0f, 0xaf, 0xbd, 0x84, 0x59, 0x2d, 0x97, 0xb4, 0xaa, 0x58, 0x36, 0x5a, 0x4f, 0x6b,
+	0x27, 0xe9, 0x7f, 0xf7, 0xb4, 0x4a, 0x3f, 0xd8, 0xfb, 0x7f, 0x02, 0x00, 0x00, 0xff, 0xff, 0xe4,
+	0xd3, 0xc9, 0x67, 0x98, 0x05, 0x00, 0x00,
+}
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // PublicClient is the client API for Public service.
 //
@@ -585,6 +658,7 @@ type PublicClient interface {
 	// PublicRand is the method that returns the publicly verifiable randomness
 	// generated by the drand network.
 	PublicRand(ctx context.Context, in *PublicRandRequest, opts ...grpc.CallOption) (*PublicRandResponse, error)
+	PublicRandStream(ctx context.Context, in *PublicRandRequest, opts ...grpc.CallOption) (Public_PublicRandStreamClient, error)
 	// PrivateRand is the method that returns the private randomness generated
 	// by the drand node only.
 	PrivateRand(ctx context.Context, in *PrivateRandRequest, opts ...grpc.CallOption) (*PrivateRandResponse, error)
@@ -598,10 +672,10 @@ type PublicClient interface {
 }
 
 type publicClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewPublicClient(cc *grpc.ClientConn) PublicClient {
+func NewPublicClient(cc grpc.ClientConnInterface) PublicClient {
 	return &publicClient{cc}
 }
 
@@ -612,6 +686,38 @@ func (c *publicClient) PublicRand(ctx context.Context, in *PublicRandRequest, op
 		return nil, err
 	}
 	return out, nil
+}
+
+func (c *publicClient) PublicRandStream(ctx context.Context, in *PublicRandRequest, opts ...grpc.CallOption) (Public_PublicRandStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Public_serviceDesc.Streams[0], "/drand.Public/PublicRandStream", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &publicPublicRandStreamClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Public_PublicRandStreamClient interface {
+	Recv() (*PublicRandResponse, error)
+	grpc.ClientStream
+}
+
+type publicPublicRandStreamClient struct {
+	grpc.ClientStream
+}
+
+func (x *publicPublicRandStreamClient) Recv() (*PublicRandResponse, error) {
+	m := new(PublicRandResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *publicClient) PrivateRand(ctx context.Context, in *PrivateRandRequest, opts ...grpc.CallOption) (*PrivateRandResponse, error) {
@@ -655,6 +761,7 @@ type PublicServer interface {
 	// PublicRand is the method that returns the publicly verifiable randomness
 	// generated by the drand network.
 	PublicRand(context.Context, *PublicRandRequest) (*PublicRandResponse, error)
+	PublicRandStream(*PublicRandRequest, Public_PublicRandStreamServer) error
 	// PrivateRand is the method that returns the private randomness generated
 	// by the drand node only.
 	PrivateRand(context.Context, *PrivateRandRequest) (*PrivateRandResponse, error)
@@ -665,6 +772,29 @@ type PublicServer interface {
 	DistKey(context.Context, *DistKeyRequest) (*DistKeyResponse, error)
 	// Home is a simple endpoint
 	Home(context.Context, *HomeRequest) (*HomeResponse, error)
+}
+
+// UnimplementedPublicServer can be embedded to have forward compatible implementations.
+type UnimplementedPublicServer struct {
+}
+
+func (*UnimplementedPublicServer) PublicRand(ctx context.Context, req *PublicRandRequest) (*PublicRandResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PublicRand not implemented")
+}
+func (*UnimplementedPublicServer) PublicRandStream(req *PublicRandRequest, srv Public_PublicRandStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method PublicRandStream not implemented")
+}
+func (*UnimplementedPublicServer) PrivateRand(ctx context.Context, req *PrivateRandRequest) (*PrivateRandResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PrivateRand not implemented")
+}
+func (*UnimplementedPublicServer) Group(ctx context.Context, req *GroupRequest) (*GroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Group not implemented")
+}
+func (*UnimplementedPublicServer) DistKey(ctx context.Context, req *DistKeyRequest) (*DistKeyResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DistKey not implemented")
+}
+func (*UnimplementedPublicServer) Home(ctx context.Context, req *HomeRequest) (*HomeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Home not implemented")
 }
 
 func RegisterPublicServer(s *grpc.Server, srv PublicServer) {
@@ -687,6 +817,27 @@ func _Public_PublicRand_Handler(srv interface{}, ctx context.Context, dec func(i
 		return srv.(PublicServer).PublicRand(ctx, req.(*PublicRandRequest))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _Public_PublicRandStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(PublicRandRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(PublicServer).PublicRandStream(m, &publicPublicRandStreamServer{stream})
+}
+
+type Public_PublicRandStreamServer interface {
+	Send(*PublicRandResponse) error
+	grpc.ServerStream
+}
+
+type publicPublicRandStreamServer struct {
+	grpc.ServerStream
+}
+
+func (x *publicPublicRandStreamServer) Send(m *PublicRandResponse) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _Public_PrivateRand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -786,50 +937,12 @@ var _Public_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Public_Home_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "PublicRandStream",
+			Handler:       _Public_PublicRandStream_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "drand/api.proto",
-}
-
-func init() { proto.RegisterFile("drand/api.proto", fileDescriptor_api_bf4cd4e3457fd002) }
-
-var fileDescriptor_api_bf4cd4e3457fd002 = []byte{
-	// 606 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x54, 0xdd, 0x6e, 0xd3, 0x4c,
-	0x10, 0x95, 0x9b, 0xbf, 0x66, 0xec, 0xb4, 0xcd, 0xa4, 0xed, 0xe7, 0x5a, 0xd1, 0xa7, 0x60, 0x50,
-	0x15, 0x7a, 0x91, 0x48, 0xe1, 0x0e, 0x81, 0x90, 0xa0, 0x15, 0xa0, 0x22, 0x54, 0x6d, 0xb8, 0x2a,
-	0xe2, 0xc2, 0x8d, 0x97, 0xc4, 0x22, 0xd9, 0x35, 0xbb, 0xeb, 0x8a, 0x0a, 0x71, 0x53, 0xf1, 0x06,
-	0x3c, 0x0c, 0x0f, 0xc2, 0x2b, 0xf0, 0x20, 0x68, 0xd7, 0xeb, 0xc4, 0x69, 0x73, 0xb7, 0x73, 0x66,
-	0xe6, 0xec, 0x9c, 0x9d, 0x63, 0xc3, 0x6e, 0x2c, 0x22, 0x16, 0x0f, 0xa3, 0x34, 0x19, 0xa4, 0x82,
-	0x2b, 0x8e, 0x35, 0x03, 0x04, 0xdd, 0x29, 0xe7, 0xd3, 0x39, 0xd5, 0x89, 0x61, 0xc4, 0x18, 0x57,
-	0x91, 0x4a, 0x38, 0x93, 0x79, 0x51, 0xf8, 0x18, 0xda, 0x17, 0xd9, 0xd5, 0x3c, 0x99, 0x90, 0x88,
-	0xc5, 0x84, 0x7e, 0xcd, 0xa8, 0x54, 0xb8, 0x0f, 0x35, 0xc1, 0x33, 0x16, 0xfb, 0x4e, 0xcf, 0xe9,
-	0x57, 0x49, 0x1e, 0x84, 0x3f, 0x1d, 0xc0, 0x72, 0xad, 0x4c, 0x39, 0x93, 0x74, 0x73, 0x31, 0x06,
-	0xb0, 0x9d, 0x0a, 0x7a, 0x9d, 0xf0, 0x4c, 0xfa, 0x5b, 0x3d, 0xa7, 0xef, 0x91, 0x65, 0x8c, 0x5d,
-	0x68, 0xca, 0x64, 0xca, 0x22, 0x95, 0x09, 0xea, 0x57, 0x4c, 0x72, 0x05, 0xe0, 0xff, 0x00, 0x7a,
-	0x6e, 0xbe, 0x60, 0x54, 0x4a, 0xbf, 0x6a, 0xd2, 0x25, 0x24, 0x7c, 0x06, 0x78, 0x21, 0x92, 0xeb,
-	0x48, 0xd1, 0xf2, 0xc8, 0xc7, 0xd0, 0x10, 0xf9, 0xd1, 0x5c, 0xe7, 0x8e, 0xbc, 0x81, 0x91, 0x3f,
-	0x38, 0x7b, 0xf5, 0xf6, 0x6c, 0x4c, 0x8a, 0x64, 0xf8, 0x02, 0x3a, 0x6b, 0xdd, 0x56, 0x44, 0x1f,
-	0xb6, 0x85, 0x3d, 0x1b, 0x1d, 0x77, 0xfb, 0x97, 0xd9, 0xf0, 0x23, 0xd4, 0x0c, 0xa4, 0x55, 0xd0,
-	0x74, 0x46, 0x17, 0x54, 0x44, 0x73, 0xd3, 0xe3, 0x91, 0x15, 0xa0, 0x55, 0x4c, 0x92, 0x74, 0x46,
-	0x85, 0xa2, 0xdf, 0x94, 0x7d, 0x81, 0x12, 0xa2, 0x5f, 0x8d, 0x71, 0x36, 0x29, 0xf4, 0xe7, 0x41,
-	0xb8, 0x07, 0x3b, 0xa7, 0x89, 0x54, 0xe7, 0xf4, 0xc6, 0xea, 0x0a, 0x1f, 0xc2, 0xee, 0x12, 0xb1,
-	0xb3, 0xee, 0x41, 0xe5, 0x0b, 0xbd, 0xb1, 0x9c, 0xfa, 0x18, 0xb6, 0xc0, 0x7d, 0xc3, 0x17, 0xb4,
-	0xe8, 0x39, 0x06, 0x2f, 0x0f, 0x6d, 0xc3, 0x21, 0xd4, 0xa5, 0x8a, 0x54, 0x26, 0xcd, 0x98, 0x4d,
-	0x62, 0xa3, 0x70, 0x07, 0xbc, 0xd7, 0x82, 0x67, 0x69, 0xd1, 0x77, 0xeb, 0x40, 0xcb, 0x02, 0xb6,
-	0xb3, 0x0b, 0x4d, 0x35, 0x13, 0x54, 0xce, 0xf8, 0x3c, 0x36, 0x17, 0xb6, 0xc8, 0x0a, 0xd0, 0xbc,
-	0x29, 0x15, 0x09, 0x8f, 0x8d, 0x88, 0x16, 0xb1, 0x11, 0x3e, 0xd0, 0xda, 0x62, 0xaa, 0x97, 0x57,
-	0xe9, 0xbb, 0x23, 0xd7, 0xbe, 0xe4, 0x7b, 0x1e, 0x53, 0x92, 0x67, 0xd0, 0x87, 0x46, 0x9c, 0x48,
-	0xa5, 0x75, 0xd4, 0x7a, 0x95, 0x7e, 0x93, 0x14, 0x61, 0x78, 0x0a, 0x55, 0x5d, 0xa8, 0x2b, 0xa2,
-	0x38, 0x16, 0xda, 0x03, 0xf9, 0xd4, 0x45, 0x58, 0xd6, 0xdf, 0x34, 0xfa, 0x35, 0xf2, 0xe1, 0xdd,
-	0xd8, 0x4c, 0xb1, 0x4d, 0xf4, 0x71, 0xf4, 0xbb, 0x02, 0xf5, 0xdc, 0xab, 0xb8, 0x00, 0x58, 0xb9,
-	0x16, 0x7d, 0x3b, 0xcc, 0x3d, 0xd3, 0x07, 0x47, 0x1b, 0x32, 0x76, 0xe7, 0x27, 0xb7, 0x7f, 0xfe,
-	0xfe, 0xda, 0x7a, 0x84, 0xae, 0xf9, 0x88, 0x52, 0x53, 0x70, 0x79, 0x80, 0x9d, 0x52, 0x38, 0xfc,
-	0x6e, 0x7c, 0xff, 0x03, 0x3f, 0x81, 0x5b, 0x32, 0x18, 0x2e, 0x59, 0xef, 0x59, 0x36, 0x08, 0x36,
-	0xa5, 0xec, 0x8d, 0xff, 0x99, 0x1b, 0xdb, 0xa1, 0x97, 0x5f, 0x91, 0x57, 0x3c, 0x75, 0x4e, 0xf0,
-	0x1c, 0x6a, 0x66, 0x45, 0xd8, 0xb1, 0xdd, 0xe5, 0x0d, 0x06, 0xfb, 0xeb, 0xe0, 0x3a, 0x19, 0xee,
-	0x1a, 0xb2, 0x84, 0x7d, 0xe6, 0xc3, 0xa9, 0xe1, 0x18, 0x43, 0xc3, 0x9a, 0x0b, 0x0f, 0x6c, 0xe7,
-	0xba, 0xfd, 0x82, 0xc3, 0xbb, 0xb0, 0xa5, 0x3c, 0x32, 0x94, 0x1d, 0x6c, 0xaf, 0x28, 0xed, 0x02,
-	0xf1, 0x39, 0x54, 0xb5, 0xfb, 0x10, 0x6d, 0x6b, 0xc9, 0x99, 0x41, 0x67, 0x0d, 0xb3, 0x5c, 0x9e,
-	0xe1, 0xaa, 0x63, 0x55, 0x73, 0xbd, 0x6c, 0x5c, 0xe6, 0xff, 0xad, 0xab, 0xba, 0xf9, 0x41, 0x3d,
-	0xf9, 0x17, 0x00, 0x00, 0xff, 0xff, 0x7a, 0xda, 0x3d, 0x0c, 0xd8, 0x04, 0x00, 0x00,
 }

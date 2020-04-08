@@ -162,8 +162,7 @@ func Save(path string, t Tomler, secure bool) error {
 		fd, err = os.Create(path)
 	}
 	if err != nil {
-		fmt.Printf("config: can't save %s to %s: %s\n", reflect.TypeOf(t).String(), path, err)
-		return err
+		return fmt.Errorf("config: can't save %s to %s: %s\n", reflect.TypeOf(t).String(), path, err)
 	}
 	defer fd.Close()
 	return toml.NewEncoder(fd).Encode(t.TOML())

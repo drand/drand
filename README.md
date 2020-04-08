@@ -140,16 +140,16 @@ a secure ephemeral key pair for ECIES encryption without a good (local) source
 of randomness.
 
 ## Local demo
-To deploy several drand nodes locally, make sure that you have a working
-[Docker](https://docs.docker.com/engine/installation/) +
-[Docker-compose setup](https://docs.docker.com/compose/install/).
 
-Then execute (it will ask you for root since it deals with docker containers):
+To run a local demo, you can simply run:
 ```bash
-make deploy-local
+make demo
 ```
-The script spins up 5 local drand nodes using Docker and produces fresh
-[randomness every 10 seconds](https://github.com/drand/drand/tree/master/demo).
+
+The script spins up a few drand local processes, performe resharing and other
+operations and will continue to print out new randomness every Xs (currently
+6s).
+For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
 
 ## Installation
 ### Official release
@@ -250,17 +250,43 @@ setup. In case you need non-secured channel, you can pass the `--tls-disable`
 flag.
 
 #### Group Configuration
+
 All informations regarding a group of drand nodes necessary for drand to
 function properly are located inside a group.toml configuration file. To run a
 DKG protocol, one needs to generate this group configuration file from all
 individual long-term keys generated in the previous step. One can do so with:
 ```
-drand group <pk1> <pk2> ... <pkn>
+drand group <pk1> <pk2> ... <pkn> [--genesis <TS>] [--transition <TS>]
+[--start-in <duration>]
 ```
 where `<pki>` is the public key file `drand_id.public` of the i-th participant.
 The group file is generated in the current directory under `group.toml`.
-**NOTE:** At this stage, this group file MUST be distributed to all
-participants!
+The rules for the flag are the following:
+* For a new setup phase from scratch, use either `--genesis` or `--start-in`
+* For a resharing phase, use either `--transition` or `--start-in`
+* `start-in` just takes a duration and will set the time at
+  `time.Now().Add(duration)`. A valid entry can be for example `20m` for 20
+  minutes from now.
+**We recommend using the `start-in` flag for simplicity**. Nonetheless, please read the following sections to understand the different options.
+
+**Genesis time**: When creating a new network, the chain of randomness will start at 
+a specified time defined in the group file. That `GenesisTime` field must be given to 
+the command line via the flag `--genesis`. The flag expects a valid Unix timestamp in 
+the future. This allows to perform the setup phase well enough in advance and to
+get a consistent time-to-rounds mapping.
+
+**Transition time**: When performing a resharing, the nodes will switch to the
+new network at a specific time defined in the group file of the new network. In
+such cases, the `TransitionTime` must be given to the command line via the
+`--transition` flag. It must be a valid Unix timestamp in the future.
+
+**Start-in flag**: Instead of specifying a fixed time in Unix format, which can
+be annoying, one can specify a duration in which the randomness generation time
+should start (it could be either for a network from scratch or for a resharing).
+This flag is parsed using `time.ParseDuration()` so anything recognized by this
+function can be used there. A few examples: `20m`, `30m12s` or `1h40m`.
+
+**NOTE:** This group file MUST be distributed to all participants!
 
 ##### Randomness Beacon Period
 drand updates the configuration file after the DKG protocol finishes, with the
@@ -270,7 +296,7 @@ generated every minute. If you wish to change the period, you must include that
 information **inside** the group configuration file. You can do by appending a
 flag to the command such as :
 ```
-drand group --period 2m <pk1> <pk2> ... <pkn>
+drand group --period 2m <pk1> <pk2> ... <pkn> --genesis <timestamp>
 ```
 
 Or simply by editing manually the group file afterwards: it's a TOML
@@ -389,14 +415,35 @@ best gathered from a trusted drand operator and then embedded in any
 applications using drand.
 
 ### Randomness Generation
-After a successful setup, drand switches automatically to the randomness
-generation mode, where each node broadcasts randomness shares at regular
-intervals. Once a node has collected a threshold of shares in the current
-phase, it computes the public random value and stores it in its local instance
-of [BoltDB](https://github.com/coreos/bbolt).
 
+After a successful setup phase, drand will switch to the randomness generation
+mode *at the genesis time* specified in the group file. At that time, each node
+broadcasts randomness shares at regular intervals. Once a node has collected a
+threshold of shares in the current phase, it computes the public random value
+and stores it in its local instance of
+[BoltDB](https://github.com/coreos/bbolt).
+
+**Timings of randomness generation**: At each new period, each node will try to
+broadcast their partial signatures for the corresponding round and try to generate 
+a full randomness from the partial signatures. The corresponding round is the
+number of rounds elapsed from the genesis time. That means there is a 1-1
+mapping between a given time and a drand round.
 The default interval is one minute. If you wish to change that, you need to
 do so while generating the group file before the DKG.
+
+**Daemon downtime & Chain Sync**: Due to the threshold nature of drand, a drand
+network can support some numbers of nodes offline at any given point. This
+number is determined by the threshold: `max_offline = group_len - threshold`.
+When a drand node goes back up, it will sync rapidly with the other nodes to
+catch up its local chain and participate in the next upcoming drand round.
+
+**Drand network failure**: If for some reason drand goes down for some time and
+then backs up, the new randomn beacon will be built over the *last successfully
+generated beacon*. For example, if the network goes down at round 10 (i.e. last
+beacon generated contained `round: 10`), and back up again at round 20 (i.e.
+field `round: 20`), then this new randomness contains the field
+`previous_round:10`. 
+
 
 ### Control Functionalities
 Drand's local administrator interface provides further functionality, e.g., to
@@ -471,10 +518,11 @@ The JSON-formatted output produced by drand is of the following form:
 ```json
 {
     "round": 2,
-    "previous": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a2
 d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
     "signature": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
 2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
+    "previous_signature": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a22a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
+    "previous_round": 1,
     "randomness": "ee9e1aeba4a946ce2ac2bd42ab04439c959d8538546ea637418394c99c522eec2
     92bbbfac2605cbfe3734e40a5d3cc762428583b243151b2a84418e376ea0af6"
 }
@@ -542,9 +590,19 @@ The main advantage of this method is that the distributed public key stays the
 public key is embedded inside the application using drand, and hence is
 difficult to update.
 
-Updating is simple in drand, it uses the same command as for the DKG:
+**Creating the new group**: First stage is to create the new group file,
+containing all the keys of the members of the new network. To do so, run:
+```
+drand group [--transition <TIMESTAMP>] [--start-in <duration> ] <pk1> <pk2> ... <pkn>
+```
+Either `--transition` or `--start-in` must be used. For simplicity, we recommend
+using the `--start-in` flag by specifying a time from now at which point the
+resharing takes place. For example `--start-in 20m`. Alternatively, you can use
+the `--transition` flag that requires a specific Unix timestamp. 
+
+**Resharing**: To run the resharing, drand uses the same command as for the DKG:
 ```bash
-drand share --from old-group.toml new-group.toml
+drand share --from old-group.toml new-group.toml 
 ```
 for new nodes joining the system. The old group toml is fetched as shown above,
 and the new group toml is created the usual way (`drand group ....`).
@@ -559,14 +617,11 @@ As usual, a leader must start the protocol by indicating the `--leader` flag.
 
 After the protocol is finished, each node listed in the new-group.toml file,
 will have a new share corresponding to the same distributed public key. The
-randomness generation starts immediately after the resharing protocol using the
-new shares.
-
-Here `rnd` is the 32-byte base64-encoded private random value produced by the
-contacted drand node. If the encryption is not correct, the command outputs an
-error instead.
+randomness generation starts only at the specified transition time specified in
+the new group file.
 
 ## DrandJS
+
 To facilitate the use of drand's randomness in JavaScript-based applications,
 we provide [DrandJS](https://github.com/drand/drandjs). The main method
 `fetchAndVerify` of this JavaScript library fetches from a drand node the
@@ -583,7 +638,7 @@ Here is a list of all documentation related to drand:
 
 * For a high level presentation of motivations and background, here are some public
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
-  about drand.
+  about drand or online [video](https://www.youtube.com/watch?v=6BgT-T0wA3U&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=2&t=0s).
 * The client-side API documentation of of drand:
   [link](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
 * The drand *operator guide* documentation:
@@ -673,6 +728,7 @@ Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.ch)
 for letting me work on this project and helping me grow it.
 
 ## Coverage
+
 - EPFL blog [post](https://actu.epfl.ch/news/epfl-helps-launch-globally-distributed-randomness-/)
 - Cloudflare crypto week [introduction
   post](https://new.blog.cloudflare.com/league-of-entropy/) and the more

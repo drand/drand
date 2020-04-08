@@ -19,22 +19,19 @@ service Protocol {
     // Reshare performs the resharing phase
     rpc Reshare(ResharePacket) returns (drand.Empty);
     // NewBeacon asks for a partial signature to another node
-    rpc NewBeacon(BeaconRequest) returns (BeaconResponse);
+    rpc NewBeacon(BeaconPacket) returns (drand.Empty);
+    rpc SyncChain(SyncRequest) returns (stream SyncResponse);
 }
 
-// BeaconRequest holds a link to a previous signature, a timestamp and the
-// partial signature for this beacon. All participants send and collects many of
-// theses partial beacon packets to recreate locally one beacon
-message BeaconRequest {
+message BeaconPacket {
+    // Round is the round for which the beacon will be created from the partial
+    // signatures
     uint64 round = 1;
-    bytes previous_sig = 2;
-    // To prove the issuer comes from a valid node in the group
-    // It is a group point prefixed by the index of the issuer
+    // PreviousRound is the round for which the beacon is building on top of
+    // from.
+    uint64 previous_round = 2;
     bytes partial_sig = 3;
-}
-
-message BeaconResponse {
-    bytes partial_sig = 1;
+    bytes previous_sig = 4;
 }
 
 message SetupPacket {
@@ -48,4 +45,18 @@ message SetupPacket {
 message ResharePacket {
     dkg.Packet dkg = 1;
     string group_hash = 2;
+}
+
+// SyncRequest is from a node that needs to sync up with the current head of the
+// chain
+message SyncRequest {
+    uint64 from_round = 1;
+}
+
+// SyncResponse is basically a chain of beacon response
+message SyncResponse {
+    uint64 previous_round = 1;
+    bytes previous_sig = 2;
+    uint64 round = 3;
+    bytes signature = 4;
 }

@@ -19,7 +19,7 @@ script:
     - make test-unit
     - docker build -t $IMAGE . #docker-compose should be self-sufficient, but fails on travis...
     # keep environnement variable for sudo
-    - sudo -E env "PATH=$PATH" make test-integration
+    - make test-integration
 
 before_deploy:
     - docker tag $IMAGE $IMAGE:$COMMIT;
