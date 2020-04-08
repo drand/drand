@@ -116,7 +116,7 @@ func (e *Orchestrator) startNodes(nodes []*Node) {
 func (e *Orchestrator) CheckGroup() {
 	args := []string{"check-group"}
 	args = append(args, pair("--certs-dir", e.certFolder)...)
-	args = append(args, e.groupPath)
+	args = append(args, pair("--group", e.groupPath)...)
 	cmd := exec.Command("drand", args...)
 	runCommand(cmd)
 }
