@@ -342,9 +342,10 @@ func TestBeaconSimple(t *testing.T) {
 	counter.Add(n)
 	myCallBack := func(b *Beacon) {
 		// verify partial sig
-		msg := Message(b.PreviousSig, b.PreviousRound, b.Round)
-		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
-		require.NoError(t, err)
+		require.NoError(t, VerifyBeacon(bt.dpublic, b))
+		//msg := Message(b.PreviousSig, b.PreviousRound, b.Round)
+		//err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
+		//require.NoError(t, err)
 		counter.Done()
 	}
 

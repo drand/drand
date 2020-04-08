@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"github.com/drand/drand/key"
+	"github.com/drand/kyber"
 )
 
 // Beacon holds the randomness as well as the info to verify it.
@@ -53,6 +56,18 @@ func RandomnessFromSignature(sig []byte) []byte {
 
 func (b *Beacon) String() string {
 	return fmt.Sprintf("{ round: %d, sig: %s, prevRound: %d, prevSig: %s }", b.Round, shortSigStr(b.Signature), b.PreviousRound, shortSigStr(b.PreviousSig))
+}
+
+// VerifyBeacon returns an error if the given beacon does not verify given the
+// public key. The public key "point" can be obtained from the
+// `key.DistPublic.Key()` method. The distributed public is the one written in
+// the configuration file of the network.
+func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
+	prevSig := b.PreviousSig
+	prevRound := b.PreviousRound
+	round := b.Round
+	msg := Message(prevSig, prevRound, round)
+	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
