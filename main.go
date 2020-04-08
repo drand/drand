@@ -170,6 +170,11 @@ var startInFlag = &cli.StringFlag{
 	Usage: "Duration to parse in which the setup or resharing phase will start. This flags sets the `GenesisTime` or `TransitionTime` in `start-in` period from now.",
 }
 
+var groupFlag = &cli.StringFlag{
+	Name:  "group",
+	Usage: "Test connections to nodes listed in the group",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -245,7 +250,7 @@ func main() {
 		&cli.Command{
 			Name:  "check-group",
 			Usage: "Check node in the group for accessibility over the gRPC communication",
-			Flags: toArray(certsDirFlag),
+			Flags: toArray(groupFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return checkGroup(c)
@@ -637,22 +642,39 @@ func getPublicKeys(c *cli.Context) []*key.Identity {
 	return publics
 }
 func checkGroup(c *cli.Context) error {
-	if !c.Args().Present() {
-		fatal("drand: check-group expects a group argument")
+	var ids []*key.Identity
+	if c.IsSet(groupFlag.Name) {
+		testEmptyGroup(c.String(groupFlag.Name))
+		group := new(key.Group)
+		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
+			fatal("drand: loading group failed")
+		}
+		ids = group.Identities()
+	} else if c.Args().Present() {
+		for _, idPath := range c.Args().Slice() {
+			var id = new(key.Identity)
+			if err := key.Load(idPath, id); err != nil {
+				fatal(fmt.Sprintf("identity file %s: error %v", idPath, err))
+			}
+			ids = append(ids, id)
+		}
+	} else {
+		fatal(fmt.Sprintf("drand: check-group expects a list of identities or %s flag", groupFlag.Name))
 	}
 	conf := contextToConfig(c)
-	testEmptyGroup(c.Args().First())
-	group := new(key.Group)
-	if err := key.Load(c.Args().First(), group); err != nil {
-		fatal("drand: loading group failed")
-	}
+
+	var isVerbose = c.IsSet(verboseFlag.Name)
 	var allGood = true
 	var invalidIds []string
-	for _, id := range group.Nodes {
+	for _, id := range ids {
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
 		_, err := client.Home(id, &drand.HomeRequest{})
 		if err != nil {
-			fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)
+			if isVerbose {
+				fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)
+			} else {
+				fmt.Printf("drand: error checking id %s\n", id.Address())
+			}
 			allGood = false
 			invalidIds = append(invalidIds, id.Address())
 			continue
@@ -660,7 +682,7 @@ func checkGroup(c *cli.Context) error {
 		fmt.Printf("drand: id %s answers correctly\n", id.Address())
 	}
 	if !allGood {
-		return fmt.Errorf("Following nodes don't answer: %s", strings.Join(invalidIds, " ,"))
+		return fmt.Errorf("Following nodes don't answer: %s", strings.Join(invalidIds, ","))
 	}
 	return nil
 }

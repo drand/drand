@@ -194,6 +194,9 @@ func WithTLS(certPath, keyPath string) ConfigOption {
 // to trust them. Mostly useful for testing.
 func WithTrustedCerts(certPaths ...string) ConfigOption {
 	return func(d *Config) {
+		if len(certPaths) < 1 {
+			return
+		}
 		if d.certmanager == nil {
 			d.certmanager = net.NewCertManager()
 		}

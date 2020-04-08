@@ -203,9 +203,10 @@ func (n *Node) Stop() {
 	}
 	stopCmd := exec.Command("drand", "stop", "--control", n.ctrl)
 	stopCmd.Run()
-	killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))
-	killPid.Run()
-
+	if n.startCmd != nil {
+		killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))
+		killPid.Run()
+	}
 	for i := 0; i < 3; i++ {
 		if n.Ping() {
 			time.Sleep(500 * time.Millisecond)

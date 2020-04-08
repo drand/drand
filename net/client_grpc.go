@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"strings"
@@ -263,11 +264,17 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 		if !p.IsTLS() {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 		} else {
-			opts := g.opts
+			var opts []grpc.DialOption
+			for _, o := range g.opts {
+				opts = append(opts, o)
+			}
 			if g.manager != nil {
 				pool := g.manager.Pool()
 				creds := credentials.NewClientTLSFromCert(pool, "")
-				opts = append(g.opts, grpc.WithTransportCredentials(creds))
+				opts = append(opts, grpc.WithTransportCredentials(creds))
+			} else {
+				config := &tls.Config{}
+				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(config)))
 			}
 			c, err = grpc.Dial(p.Address(), opts...)
 		}
