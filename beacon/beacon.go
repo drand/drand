@@ -367,7 +367,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 	ticker := h.conf.Clock.NewTicker(period)
 	for {
 		if goToNextRound {
-			fmt.Printf("\nnode %d - %p - goToNextRound %d!\n\n", h.index, h, currentRound)
+			//fmt.Printf("\nnode %d - %p - goToNextRound %d!\n\n", h.index, h, currentRound)
 			// we launch the next round and close the previous operations if
 			// still running
 			close(winCh)

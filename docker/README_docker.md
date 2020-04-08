@@ -85,7 +85,7 @@ This guide will continue focusing on drand; jump to the end of this guide to con
 Now, let's generate keys for drand:
 
 ```bash
-go get -u github.com/dedis/drand
+go get -u github.com/drand/drand
 drand generate-keypair <address>
 ```
 

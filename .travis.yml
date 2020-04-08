@@ -18,13 +18,13 @@ install: true
 script:
     - make test-unit
     # keep environnement variable for sudo
-    - docker build -t drand-it . #docker-compose should be self-sufficient, but fails on travis...
+    - docker build -t drandorg/go-drand . #docker-compose should be self-sufficient, but fails on travis...
     - make test-integration
 
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
         sudo docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-        sudo docker push dedis/drand:latest;
+        sudo docker push drandorg/go-drand:latest;
     fi
 
 before_deploy:
