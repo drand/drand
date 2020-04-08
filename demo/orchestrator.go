@@ -422,7 +422,7 @@ func (e *Orchestrator) StartNode(i int) {
 		}
 		time.Sleep(1 * time.Second)
 	}
-	panic(fmt.Errorf("[-] Could not start node %s ... \n"))
+	panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.addr))
 }
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
