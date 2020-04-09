@@ -167,7 +167,7 @@ var userEntropyOnlyFlag = &cli.BoolFlag{
 
 var startInFlag = &cli.StringFlag{
 	Name:  "start-in",
-	Usage: "Duration to parse in which the setup or resharing phase will start. This flags sets the `GenesisTime` or `TransitionTime` in `start-in` period from now.",
+	Usage: "Duration to parse in which the setup or resharing phase will start. This flags sets the genesis time  or transition time in 'start-in' period from now.",
 }
 
 var groupFlag = &cli.StringFlag{
