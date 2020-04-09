@@ -105,10 +105,37 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	var b *beacon.Handler
+	d.state.Lock()
+	if d.beacon == nil {
+		return errors.New("beacon has not started on this node yet")
+	}
+	b = d.beacon
+	d.state.Unlock()
+	lastb, err := b.Store().Last()
+	if err != nil {
+		return err
+	}
 	peer, _ := peer.FromContext(stream.Context())
 	addr := peer.Addr.String()
 	done := make(chan error, 1)
-	d.log.Debug("request", "stream", "from", addr)
+	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
+	if req.GetRound() <= lastb.Round {
+		// we need to stream from store first
+		var err error
+		b.Store().Cursor(func(c beacon.Cursor) {
+			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
+				if err = stream.Send(beaconToProto(bb)); err != nil {
+					d.log.Debug("stream", err)
+					return
+				}
+			}
+		})
+		if err != nil {
+			return err
+		}
+	}
+	// then we can stream from any new rounds
 	// register a callback for the duration of this stream
 	d.callbacks.AddCallback(addr, func(b *beacon.Beacon) {
 		err := stream.Send(&drand.PublicRandResponse{
@@ -211,4 +238,14 @@ func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) 
 	// reply with the group, the receiver will start the DKG
 	protoGroup := groupToProto(group)
 	return protoGroup, nil
+}
+
+func beaconToProto(b *beacon.Beacon) *drand.PublicRandResponse {
+	return &drand.PublicRandResponse{
+		Round:             b.Round,
+		Signature:         b.Signature,
+		PreviousRound:     b.PreviousRound,
+		PreviousSignature: b.PreviousSig,
+		Randomness:        b.Randomness(),
+	}
 }
