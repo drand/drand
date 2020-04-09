@@ -5,3 +5,5 @@ dist/
 web/static/js/drandjs
 !web/static/js/drandjs/dist/drandjs.js
 *swagger.json
+demo/demo
+test/full/full

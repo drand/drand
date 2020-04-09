@@ -1,4 +1,4 @@
-FROM golang:1.12.4-alpine
+FROM golang:1.14-alpine
 
 MAINTAINER Nicolas GAILLY <nikkolasg@gmail.com>
 
