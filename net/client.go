@@ -19,8 +19,8 @@ type Client interface {
 type ProtocolClient interface {
 	SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.SyncResponse, error)
 	NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error)
-	Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error)
-	Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error)
+	Setup(ctx context.Context, p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error)
+	Reshare(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error)
 	SetTimeout(time.Duration)
 }
 
@@ -28,9 +28,9 @@ type ProtocolClient interface {
 // `protobuf/drand/public.proto` for more information.
 type PublicClient interface {
 	PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error)
-	PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
-	PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
-	DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
-	Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error)
-	Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
+	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
+	PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
+	DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
+	Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error)
+	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
 }

@@ -72,14 +72,15 @@ func (g *grpcClient) SetTimeout(p time.Duration) {
 	g.timeout = p
 }
 
-func (g *grpcClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	var resp *drand.PublicRandResponse
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
 	resp, err = client.PublicRand(ctx, in)
 	return resp, err
 }
@@ -121,60 +122,67 @@ func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.Pub
 	return outCh, nil
 }
 
-func (g *grpcClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+func (g *grpcClient) PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	var resp *drand.PrivateRandResponse
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
+
 	resp, err = client.PrivateRand(ctx, in)
 	return resp, err
 }
 
-func (g *grpcClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
 	var resp *drand.GroupResponse
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
 	resp, err = client.Group(ctx, in)
 	return resp, err
 }
-func (g *grpcClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+func (g *grpcClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	var resp *drand.DistKeyResponse
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	resp, err = client.DistKey(context.Background(), in)
+	resp, err = client.DistKey(ctx, in)
 	return resp, err
 }
 
-func (g *grpcClient) Setup(p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error) {
+func (g *grpcClient) Setup(ctx context.Context, p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error) {
 	var resp *drand.Empty
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
+
 	resp, err = client.Setup(ctx, in, opts...)
 	return resp, err
 }
 
-func (g *grpcClient) Reshare(p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
+func (g *grpcClient) Reshare(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
 	var resp *drand.Empty
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
+
 	resp, err = client.Reshare(ctx, in, opts...)
 	return resp, err
 }
@@ -235,14 +243,15 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 	return resp, nil
 }
 
-func (g *grpcClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+func (g *grpcClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	var resp *drand.HomeResponse
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ := g.getTimeoutContext(context.Background())
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
 	resp, err = client.Home(ctx, in)
 	return resp, err
 }

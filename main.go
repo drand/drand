@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -668,7 +669,7 @@ func checkGroup(c *cli.Context) error {
 	var invalidIds []string
 	for _, id := range ids {
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
-		_, err := client.Home(id, &drand.HomeRequest{})
+		_, err := client.Home(context.Background(), id, &drand.HomeRequest{})
 		if err != nil {
 			if isVerbose {
 				fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)

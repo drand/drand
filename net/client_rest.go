@@ -43,7 +43,7 @@ func (r *restClient) PublicRandStream(ctx context.Context, p Peer, in *drand.Pub
 	return nil, errors.New("stream on http client is not supported yet")
 }
 
-func (r *restClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+func (r *restClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	base := restAddr(p)
 	var req *http.Request
 	var err error
@@ -62,7 +62,7 @@ func (r *restClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.Pub
 	if err != nil {
 		return nil, err
 	}
-	respBody, err := r.doRequest(p, req)
+	respBody, err := r.doRequest(p, req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (r *restClient) PublicRand(p Peer, in *drand.PublicRandRequest) (*drand.Pub
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
-func (r *restClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+func (r *restClient) PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	base := restAddr(p)
 	buff, err := r.marshaller.Marshal(in)
 	if err != nil {
@@ -81,7 +81,7 @@ func (r *restClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.P
 	if err != nil {
 		return nil, err
 	}
-	respBody, err := r.doRequest(p, req)
+	respBody, err := r.doRequest(p, req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +89,7 @@ func (r *restClient) PrivateRand(p Peer, in *drand.PrivateRandRequest) (*drand.P
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
-func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+func (r *restClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	base := restAddr(p)
 	buff, err := r.marshaller.Marshal(in)
 	if err != nil {
@@ -100,6 +100,7 @@ func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyRe
 	if err != nil {
 		return nil, err
 	}
+	req = req.WithContext(ctx)
 	respBody, err := r.doRequest(p, req)
 	if err != nil {
 		return nil, err
@@ -108,7 +109,7 @@ func (r *restClient) DistKey(p Peer, in *drand.DistKeyRequest) (*drand.DistKeyRe
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
-func (r *restClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (r *restClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
 	base := restAddr(p)
 	buff, err := r.marshaller.Marshal(in)
 	if err != nil {
@@ -119,7 +120,7 @@ func (r *restClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 	if err != nil {
 		return nil, err
 	}
-	respBody, err := r.doRequest(p, req)
+	respBody, err := r.doRequest(p, req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +128,7 @@ func (r *restClient) Group(p Peer, in *drand.GroupRequest) (*drand.GroupResponse
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
-func (r *restClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+func (r *restClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	base := restAddr(p)
 	buff, err := r.marshaller.Marshal(in)
 	if err != nil {
@@ -138,7 +139,7 @@ func (r *restClient) Home(p Peer, in *drand.HomeRequest) (*drand.HomeResponse, e
 	if err != nil {
 		return nil, err
 	}
-	respBody, err := r.doRequest(p, req)
+	respBody, err := r.doRequest(p, req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}

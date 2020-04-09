@@ -54,9 +54,9 @@ type testNet struct {
 func (t *testNet) Send(p net.Peer, d *dkg.Packet) error {
 	var err error
 	if t.fresh {
-		_, err = t.ProtocolClient.Setup(p, &drand.SetupPacket{Dkg: d})
+		_, err = t.ProtocolClient.Setup(context.TODO(), p, &drand.SetupPacket{Dkg: d})
 	} else {
-		_, err = t.ProtocolClient.Reshare(p, &drand.ResharePacket{Dkg: d})
+		_, err = t.ProtocolClient.Reshare(context.TODO(), p, &drand.ResharePacket{Dkg: d})
 	}
 	return err
 }
