@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -167,7 +168,7 @@ var userEntropyOnlyFlag = &cli.BoolFlag{
 
 var startInFlag = &cli.StringFlag{
 	Name:  "start-in",
-	Usage: "Duration to parse in which the setup or resharing phase will start. This flags sets the `GenesisTime` or `TransitionTime` in `start-in` period from now.",
+	Usage: "Duration to parse in which the setup or resharing phase will start. This flags sets the genesis time  or transition time in 'start-in' period from now.",
 }
 
 var groupFlag = &cli.StringFlag{
@@ -668,7 +669,7 @@ func checkGroup(c *cli.Context) error {
 	var invalidIds []string
 	for _, id := range ids {
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
-		_, err := client.Home(id, &drand.HomeRequest{})
+		_, err := client.Home(context.Background(), id, &drand.HomeRequest{})
 		if err != nil {
 			if isVerbose {
 				fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)

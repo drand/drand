@@ -54,6 +54,7 @@ func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand
 }
 
 func TestListener(t *testing.T) {
+	ctx := context.Background()
 	addr1 := "127.0.0.1:4000"
 	peer1 := &testPeer{addr1, false}
 	//addr2 := "127.0.0.1:4001"
@@ -65,7 +66,7 @@ func TestListener(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	client := NewGrpcClient()
-	resp, err := client.PublicRand(peer1, &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
@@ -74,7 +75,7 @@ func TestListener(t *testing.T) {
 	require.Error(t, err)
 
 	rest := NewRestClient()
-	resp, err = rest.PublicRand(peer1, &drand.PublicRandRequest{})
+	resp, err = rest.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
@@ -86,6 +87,7 @@ func TestListenerTLS(t *testing.T) {
 		fmt.Println("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
 	}
+	ctx := context.Background()
 	addr1 := "127.0.0.1:4000"
 	peer1 := &testPeer{addr1, true}
 
@@ -113,13 +115,13 @@ func TestListenerTLS(t *testing.T) {
 	certManager.Add(certPath)
 
 	client := NewGrpcClientFromCertManager(certManager)
-	resp, err := client.PublicRand(peer1, &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
 	require.Nil(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 
 	rest := NewRestClientFromCertManager(certManager)
-	resp, err = rest.PublicRand(peer1, &drand.PublicRandRequest{})
+	resp, err = rest.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())

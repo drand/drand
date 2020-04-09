@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	gnet "net"
@@ -19,6 +20,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+
 	//"github.com/drand/kyber"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/kabukky/httpscerts"
@@ -496,7 +498,7 @@ func (d *DrandTest) TestBeaconLength(length int, ids ...string) {
 func (d *DrandTest) TestPublicBeacon(id string) {
 	dr := d.GetDrand(id)
 	client := net.NewGrpcClientFromCertManager(dr.opts.certmanager, dr.opts.grpcOpts...)
-	resp, err := client.PublicRand(test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
 }
@@ -542,7 +544,7 @@ func TestDrandPublicGroup(t *testing.T) {
 			}
 			require.True(t, found)
 		}
-		restGroup, err := rest.Group(d.priv.Public, &drand.GroupRequest{})
+		restGroup, err := rest.Group(context.TODO(), d.priv.Public, &drand.GroupRequest{})
 		require.NoError(t, err)
 		require.Equal(t, groupResp, restGroup)
 	}

@@ -217,7 +217,7 @@ func (d *Drand) startResharingAsLeader(dkgConf *dkg.Config, oidx int) {
 		id := p
 		// XXX find way to just have a small RPC timeout if one is down.
 		//fmt.Printf("drand leader %s -> signal to %s\n", d.priv.Public.Addr, id.Addr)
-		if _, err := d.gateway.ProtocolClient.Reshare(id, msg); err != nil {
+		if _, err := d.gateway.ProtocolClient.Reshare(context.TODO(), id, msg); err != nil {
 			//if _, err := d.gateway.InternalClient.Reshare(id, msg, grpc.FailFast(true)); err != nil {
 			d.log.With("module", "control").Error("leader_reshare", err)
 		}
