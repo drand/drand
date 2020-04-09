@@ -1,0 +1,54 @@
+Threshold = 6
+Period = "30s"
+GenesisTime = 1586453675
+GenesisSeed = "d38c85d91c72cf2df12ba511ff08ff3fcc1f1033a8c64b6f2d3b9916ff999b20"
+
+[[Nodes]]
+  Address = "drand.clabs.co:443"
+  Key = "8e02866a6521ae1bbf1a7471b2d16b7141698a7777a4837e9cdb14fcfd16e4d8d8a3d63c6411b1c97768eb29c79cc7cd"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.nikkolasg.xyz:8888"
+  Key = "910f06a7de508b7a8f31ac465d6eecbfac9f5d9ada730804084081e0133663de3dbed40056e7fef91d8c73ba40bd89f5"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.cloudflare.com:8080"
+  Key = "9252037c5beb23a8e439837f65ebf692caa2b62504a7471e3728d3231397d7834c7e486376d5e79a336fb67bf722fe4b"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.c4dt.org:1234"
+  Key = "9541e3fd228386b5d95b9f66f3119f0e4d01ed1775f17d7b043a2cab9985a2aadb38c1fd228096845a556e00dc1ad6d6"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.protocol.ai:8080"
+  Key = "a27276608f15ebd06fee9987951d119dbd8a45c3a007c3a5489df4d943f3030a4201424d86d1a5d00dbec906d2b3c658"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.zerobyte.io:8765"
+  Key = "a5a7fbb57eeb2b03e838b7085dec85d6a0829ffa6b1d3f1424761f46f2d19d9afd94a08d337914c1895ceea2a91f0fa7"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand2.kudelskisecurity.com:443"
+  Key = "a9632463ed42b5cd31c75460611c20a4f4bb68b17d322a6e9503d8da6b6572da6ce1bb55d150099e4485f2344071414e"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.cothority.net:7070"
+  Key = "ad3f3bc2e87ca6f3cfe77cba6c9fc0a9ec98f2897239b216a1df11507f765e9d0d971d8c5f7a4165b695ed9fc3382f0d"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.lbarman.ch:443"
+  Key = "b1ee618894d8ad837a4500bcdd7690b7951ffa613eeb3cfa780482131a19980ca8ea35afd8778247aed1e88b471949e4"
+  TLS = true
+
+[[Nodes]]
+  Address = "ln.soc1024.com:8888"
+  Key = "b6c1b5896cf460984e5fc3f840828252feb1552ae24961ff030113da0b247049ab9d5e3ebc65ef4930a88c2008d3e823"
+  TLS = true
