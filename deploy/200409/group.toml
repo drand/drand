@@ -1,16 +1,12 @@
 Threshold = 6
 Period = "30s"
-GenesisTime = 1586453675
-GenesisSeed = "d38c85d91c72cf2df12ba511ff08ff3fcc1f1033a8c64b6f2d3b9916ff999b20"
+GenesisTime = 1586454463
+TransitionTime = 0
+GenesisSeed = "770f3c2578a95387b358e02aba5d5008a53ce40047a1fa326dde0dfd0b482a8e"
 
 [[Nodes]]
   Address = "drand.clabs.co:443"
   Key = "8e02866a6521ae1bbf1a7471b2d16b7141698a7777a4837e9cdb14fcfd16e4d8d8a3d63c6411b1c97768eb29c79cc7cd"
-  TLS = true
-
-[[Nodes]]
-  Address = "drand.nikkolasg.xyz:8888"
-  Key = "910f06a7de508b7a8f31ac465d6eecbfac9f5d9ada730804084081e0133663de3dbed40056e7fef91d8c73ba40bd89f5"
   TLS = true
 
 [[Nodes]]
@@ -46,6 +42,11 @@ GenesisSeed = "d38c85d91c72cf2df12ba511ff08ff3fcc1f1033a8c64b6f2d3b9916ff999b20"
 [[Nodes]]
   Address = "drand.lbarman.ch:443"
   Key = "b1ee618894d8ad837a4500bcdd7690b7951ffa613eeb3cfa780482131a19980ca8ea35afd8778247aed1e88b471949e4"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.nikkolasg.xyz:8888"
+  Key = "b500a3351556eae3530cd5ff021f1c483dec1ba602ba49e508a49535db725ee4be135845164ab8ec06b2a999670f2dc6"
   TLS = true
 
 [[Nodes]]
