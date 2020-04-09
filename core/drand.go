@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -345,7 +346,7 @@ func (d *Drand) beaconCallback(b *beacon.Beacon) {
 // instead of offloading that to an external struct without any vision of drand
 // internals, or implementing a big "Send" method directly on drand.
 func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.Packet) error {
-	_, err := d.gateway.ProtocolClient.Setup(p, &drand.SetupPacket{Dkg: pack})
+	_, err := d.gateway.ProtocolClient.Setup(context.TODO(), p, &drand.SetupPacket{Dkg: pack})
 	return err
 }
 
@@ -355,7 +356,7 @@ func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.Packet) error {
 		Dkg:       pack,
 		GroupHash: d.nextGroupHash,
 	}
-	_, err := d.gateway.ProtocolClient.Reshare(p, reshare)
+	_, err := d.gateway.ProtocolClient.Reshare(context.TODO(), p, reshare)
 	return err
 }
 
