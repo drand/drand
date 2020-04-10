@@ -314,15 +314,17 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		return lastBeacon, nil
 	}
 	// only reason why trying multiple times is when the syncing takes too much
-	// time and then we miss the current round, hence 2 times should be fine.
-	for trial := 0; trial < 2; trial++ {
+	// time and then we miss the current round. But if network is down we want
+	// to build on what we can have best so it starts again. Hence we try two
+	// times so first time can fail (because we finished syncing just after the
+	// new round time so we're still one round behind) so the second time will
+	// be quick and then network as usual.
+	maxTrial := 2
+	for trial := 0; trial < maxTrial; trial++ {
 		// there is a gap - we need to sync with other peers
-		currRound := lastBeacon.Round
-		currSig := lastBeacon.Signature
-		//fmt.Printf("\n node %d LAUNCHING SYNC from round %d -- previousBeacon.Round %d\n\n", h.index, currRound, previousBeacon.Round)
-		lastBeacon, err := h.syncFrom(to, currRound, currSig)
+		lastBeacon, err := h.syncFrom(to, lastBeacon)
 		if err != nil {
-			h.l.Error("sync", "failed", "from", currRound, "last_beacon", lastBeacon.Round)
+			h.l.Error("sync", "failed", "from", lastBeacon.Round)
 		}
 		if lastBeacon != nil {
 			nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -337,7 +339,7 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		}
 		// not to aggressive
 		sleepPeriod := 2 * time.Second
-		h.l.Debug("sync_incomplete", "try_again")
+		h.l.Debug("sync_incomplete", "try_again", fmt.Sprintf("%d/%d", trial, maxTrial))
 		h.conf.Clock.Sleep(sleepPeriod)
 	}
 	h.l.Error("sync", "failed", "network_down_or_BUG")
@@ -537,11 +539,12 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 }
 
 // initRound & initSignature are the round & signature this node has
-func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature []byte) (*Beacon, error) {
-	currentRound := initRound
+func (h *Handler) syncFrom(to []*key.Identity, lastBeacon *Beacon) (*Beacon, error) {
+	initRound := lastBeacon.Round
+	currentRound := lastBeacon.Round
 	//fmt.Printf("\n node %d runs SYNCFROM --- currentRound %d\n\n", h.index, currentRound)
-	currentSig := initSignature
-	var currentBeacon *Beacon
+	currentSig := lastBeacon.Signature
+	var currentBeacon = lastBeacon
 	for _, id := range to {
 		if h.addr == id.Addr {
 			continue
@@ -598,8 +601,8 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 			h.store.Put(beacon)
 
 			currentBeacon = beacon
-			currentRound = syncReply.GetRound()
-			currentSig = syncReply.GetSignature()
+			currentRound = beacon.Round
+			currentSig = beacon.Signature
 			// we check each time that we haven't advanced a round in the
 			// syncing process
 			nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
