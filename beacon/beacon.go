@@ -419,6 +419,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 			break
 		case <-h.manager.ProbablyNeedSync():
 			// in this case we need to quit this main loop and start as in the catchup node
+			h.l.Info("need_sync", "leaving_main_loop")
 			go h.Catchup()
 			return
 		case <-h.close:
