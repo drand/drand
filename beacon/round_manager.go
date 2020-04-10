@@ -108,10 +108,10 @@ func (r *roundManager) run() {
 				if partial.GetRound() > currRound.round {
 					// we are late behind what the other nodes are doing
 					// we keep in the meantime until we are synced in
-					if len(tmpPartials) < maxLookAheadQueue {
+					if len(tmpPartials) > maxLookAheadQueue {
 						tmpPartials = tmpPartials[1:]
-						tmpPartials = append(tmpPartials, partial)
 					}
+					tmpPartials = append(tmpPartials, partial)
 					continue
 				}
 			}
