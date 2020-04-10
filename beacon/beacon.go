@@ -366,6 +366,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 	winCh := make(chan *Beacon)
 	closingCh := make(chan bool)
 	ticker := h.conf.Clock.NewTicker(period)
+	defer ticker.Stop()
 	for {
 		if goToNextRound {
 			//fmt.Printf("\nnode %d - %p - goToNextRound %d!\n\n", h.index, h, currentRound)
@@ -417,10 +418,13 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 			h.applyCallbacks(beacon)
 			//fmt.Printf("\n FINISHED node %d - round %d\n\n", h.index, prevRound)
 			break
+		case <-h.manager.ProbablyNeedSync():
+			// in this case we need to quit this main loop and start as in the catchup node
+			go h.Catchup()
+			return
 		case <-h.close:
 			//fmt.Printf("\n\t --- Beacon LOOP OUT - node pointer %p\n", h)
 			h.l.Debug("beacon_loop", "finished")
-			ticker.Stop()
 			return
 		}
 		//}
@@ -471,7 +475,8 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 	}
 	// wait for a threshold of replies or if the timeout occured
 	var partials [][]byte
-	for len(partials) < h.conf.Group.Threshold {
+	var finalSig []byte
+	for {
 		select {
 		case partial := <-incomings:
 			partials = append(partials, partial)
@@ -483,18 +488,23 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 			h.l.Error("beacon_round", currentRound, "quitting prematurely", "problem with short period or beacon nodes")
 			return
 		}
-	}
-	h.l.Debug("beacon_round", currentRound, "got_all_sig", fmt.Sprintf("%d/%d", len(partials), h.conf.Group.Threshold))
-	//fmt.Printf("\n%d - %s got ALL signatures #1\n\n", h.index, h.conf.Private.Public.Address())
-	finalSig, err := h.conf.Scheme.Recover(h.pub, msg, partials, h.group.Threshold, h.group.Len())
-	if err != nil {
-		h.l.Error("beacon_round", currentRound, "no final beacon", err)
-		return
-	}
+		if len(partials) < h.conf.Group.Threshold {
+			continue
+		}
+		h.l.Debug("beacon_round", currentRound, "got_all_sig", fmt.Sprintf("%d/%d", len(partials), h.conf.Group.Threshold))
+		//fmt.Printf("\n%d - %s got ALL signatures #1\n\n", h.index, h.conf.Private.Public.Address())
+		finalSig, err = h.conf.Scheme.Recover(h.pub, msg, partials, h.group.Threshold, h.group.Len())
+		if err != nil {
+			h.l.Error("beacon_round", currentRound, "final-beacon-err", err)
+			return
+		}
 
-	if err := h.conf.Scheme.VerifyRecovered(h.pub.Commit(), msg, finalSig); err != nil {
-		h.l.Error("beacon_round", currentRound, "invalid beacon signature", err)
-		return
+		if err := h.conf.Scheme.VerifyRecovered(h.pub.Commit(), msg, finalSig); err != nil {
+			h.l.Error("beacon_round", currentRound, "invalid beacon signature", err)
+			return
+		}
+		// all is good
+		break
 	}
 
 	beacon := &Beacon{

@@ -15,6 +15,7 @@ type roundManager struct {
 	expected  int
 	sign      sign.ThresholdScheme
 	l         log.Logger
+	needSync  chan bool
 }
 
 func newRoundManager(l log.Logger, thr int, s sign.ThresholdScheme) *roundManager {
@@ -22,6 +23,7 @@ func newRoundManager(l log.Logger, thr int, s sign.ThresholdScheme) *roundManage
 		newRound:  make(chan roundBundle, 1),
 		newBeacon: make(chan *drand.BeaconPacket, thr),
 		stop:      make(chan bool, 1),
+		needSync:  make(chan bool, 1),
 		expected:  thr,
 		sign:      s,
 		l:         l,
@@ -44,6 +46,9 @@ func (r *roundManager) run() {
 			if p.GetPreviousRound() < currRound.lastRound {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
+			} else {
+				// need to advertise we probably need a sync
+				r.needSync <- true
 			}
 			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
 			return false
@@ -104,6 +109,7 @@ func (r *roundManager) run() {
 					// we are late behind what the other nodes are doing
 					// we keep in the meantime until we are synced in
 					if len(tmpPartials) < maxLookAheadQueue {
+						tmpPartials = tmpPartials[1:]
 						tmpPartials = append(tmpPartials, partial)
 					}
 					continue
@@ -136,6 +142,10 @@ func (r *roundManager) NewRound(prev, curr uint64) chan []byte {
 	}
 	r.newRound <- rb
 	return rb.partialCh
+}
+
+func (r *roundManager) ProbablyNeedSync() chan bool {
+	return r.needSync
 }
 
 func (r *roundManager) Stop() {
