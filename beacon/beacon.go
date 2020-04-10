@@ -275,7 +275,7 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 
 			break
 		}
-		fmt.Printf("\t TransitionSYNC: lastRound %d - target time is %d target round is %d\n", lastBeacon.Round, tTime, tRound)
+		//fmt.Printf("\t TransitionSYNC: lastRound %d - target time is %d target round is %d\n", lastBeacon.Round, tTime, tRound)
 		h.l.Debug("transition_sync", "wait", "head", lastBeacon.Round, "want", tRound-1)
 		// we have some rounds to go before we arrive at the transition time
 		// we sleep a period and then get back the next round afterwards
@@ -322,7 +322,7 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		//fmt.Printf("\n node %d LAUNCHING SYNC from round %d -- previousBeacon.Round %d\n\n", h.index, currRound, previousBeacon.Round)
 		lastBeacon, err := h.syncFrom(to, currRound, currSig)
 		if err != nil {
-			h.l.Error("sync", "failed", "from", currRound)
+			h.l.Error("sync", "failed", "from", currRound, "last_beacon", lastBeacon.Round)
 		}
 		if lastBeacon != nil {
 			nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -559,11 +559,11 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 		respCh, err := h.client.SyncChain(ctx, id, request)
 		if err != nil {
 			h.l.Error("sync_from", currentRound, "error", err, "from", id.Address())
-			fmt.Println(" CAN NOT SYNC TO ", id.Address())
+			//fmt.Println(" CAN NOT SYNC TO ", id.Address())
 			continue
 		}
 
-		fmt.Println(" LISTENING TO SYNC CHANNEL FROM ", id.Address())
+		//fmt.Println(" LISTENING TO SYNC CHANNEL FROM ", id.Address())
 		for syncReply := range respCh {
 			// we only sync for increasing round numbers
 			// there might be gaps so we dont check for sequentiality but our
