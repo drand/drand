@@ -1,7 +1,6 @@
 package core
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
@@ -243,7 +241,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	}
 
 	// verify things are all in order
-	group, err := protoToGroup(groupPacket)
+	group, err := ProtoToGroup(groupPacket)
 	if err != nil {
 		return nil, fmt.Errorf("group from leader invalid: %s", err)
 	}
@@ -323,7 +321,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 
 	// verify things are all in order
-	newGroup, err := protoToGroup(groupPacket)
+	newGroup, err := ProtoToGroup(groupPacket)
 	if err != nil {
 		return nil, fmt.Errorf("group from leader invalid: %s", err)
 	}
@@ -526,20 +524,14 @@ func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*c
 }
 
 // GroupFile replies with the distributed key in the response
-func (d *Drand) GroupFile(ctx context.Context, in *control.GroupTOMLRequest) (*control.GroupTOMLResponse, error) {
+func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*control.GroupPacket, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	gtoml := d.group.TOML()
-	var buff bytes.Buffer
-	err := toml.NewEncoder(&buff).Encode(gtoml)
-	if err != nil {
-		return nil, fmt.Errorf("drand: error encoding group to TOML: %s", err)
-	}
-	groupStr := buff.String()
-	return &drand.GroupTOMLResponse{GroupToml: groupStr}, nil
+	protoGroup := groupToProto(d.group)
+	return protoGroup, nil
 }
 
 func (d *Drand) Shutdown(ctx context.Context, in *control.ShutdownRequest) (*control.ShutdownResponse, error) {

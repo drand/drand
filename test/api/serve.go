@@ -34,14 +34,14 @@ func newServer(d *Data) *Server {
 }
 
 // Group implements net.Service
-func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupResponse, error) {
-	return &drand.GroupResponse{
+func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
+	return &drand.GroupPacket{
 		Threshold: 1,
 		Period:    60,
-		Nodes: []*drand.Node{&drand.Node{
+		Nodes: []*drand.Identity{&drand.Identity{
 			Address: serve,
 			Key:     s.d.Public,
-			TLS:     false,
+			Tls:     false,
 		}},
 	}, nil
 }
@@ -67,12 +67,12 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 func (s *Server) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
 	fmt.Println("distkey called")
 	return &drand.DistKeyResponse{
-		Key: decodeHex(s.d.Public),
+		Key: s.d.Public,
 	}, nil
 }
 
 func testValid(d *Data) {
-	pub := decodeHex(d.Public)
+	pub := d.Public
 	pubPoint := key.KeyGroup.Point()
 	if err := pubPoint.UnmarshalBinary(pub); err != nil {
 		panic(err)
@@ -101,7 +101,7 @@ func decodeHex(s string) []byte {
 
 // Data of signing
 type Data struct {
-	Public            string
+	Public            []byte
 	Signature         string
 	Round             int
 	PreviousSignature string
@@ -126,8 +126,9 @@ func generateData() *Data {
 	}
 	tshare := tbls.SigShare(tsig)
 	sig := tshare.Value()
+	publicBuff, _ := public.MarshalBinary()
 	d := &Data{
-		Public:            key.PointToString(public),
+		Public:            publicBuff,
 		Signature:         hex.EncodeToString(sig),
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
@@ -152,7 +153,7 @@ func main() {
 		panic(err)
 	}
 	tjson := &TestJSON{
-		Public: d.Public,
+		Public: hex.EncodeToString(d.Public),
 		API:    resp,
 	}
 	s, _ := json.MarshalIndent(tjson, "", "    ")

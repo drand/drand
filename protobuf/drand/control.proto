@@ -9,7 +9,7 @@ package drand;
 /*option go_package = "github.com/drand/drand/protobuf/drand";*/
 option go_package = "drand";
 
-import "drand/protocol.proto";
+import "drand/common.proto";
 
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
@@ -30,7 +30,7 @@ service Control {
     // GroupFile returns the TOML-encoded group file
     // similar to public.Group method but needed for ease of use of the
     // control functionalities
-    rpc GroupFile(GroupTOMLRequest) returns (GroupTOMLResponse) { }
+    rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) { }
 
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 }
@@ -128,10 +128,6 @@ message CokeyRequest {
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
   bytes coKey = 2;
-}
-
-message GroupTOMLRequest {
-
 }
 
 message GroupTOMLResponse {

@@ -35,12 +35,12 @@ type testDKGServer struct {
 	h *Handler
 }
 
-func (t *testDKGServer) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
+func (t *testDKGServer) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	t.h.Process(c, in.Dkg)
 	return &drand.Empty{}, nil
 }
 
-func (t *testDKGServer) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
+func (t *testDKGServer) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
 	t.h.Process(c, in.Dkg)
 	return &drand.Empty{}, nil
 }
@@ -54,9 +54,9 @@ type testNet struct {
 func (t *testNet) Send(p net.Peer, d *dkg.Packet) error {
 	var err error
 	if t.fresh {
-		_, err = t.ProtocolClient.Setup(context.TODO(), p, &drand.SetupPacket{Dkg: d})
+		_, err = t.ProtocolClient.FreshDKG(context.TODO(), p, &drand.DKGPacket{Dkg: d})
 	} else {
-		_, err = t.ProtocolClient.Reshare(context.TODO(), p, &drand.ResharePacket{Dkg: d})
+		_, err = t.ProtocolClient.ReshareDKG(context.TODO(), p, &drand.ResharePacket{Dkg: d})
 	}
 	return err
 }

@@ -13,7 +13,6 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -253,7 +252,7 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
 		if err != nil {
 			panic(err)
 		}
-		g, err := protoToGroup(finalGroup)
+		g, err := ProtoToGroup(finalGroup)
 		if err != nil {
 			panic(err)
 		}
@@ -355,9 +354,9 @@ func (d *DrandTest) RunDKG() *key.Group {
 	require.NoError(d.t, err)
 	// first run the leader and then run the other nodes
 	go func() {
-		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, testBeaconOffset, testDkgTimeout, nil, secret)
+		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, testDkgTimeout, nil, secret)
 		require.NoError(d.t, err)
-		g, err := protoToGroup(finalGroup)
+		g, err := ProtoToGroup(finalGroup)
 		if err != nil {
 			panic(err)
 		}
@@ -385,18 +384,16 @@ func (d *DrandTest) RunDKG() *key.Group {
 	finalGroup := <-groupCh
 	// verification
 	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", d.ids[0])
-	resp, err := controlClient.GroupFile()
+	groupProto, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
-	group := new(key.Group)
-	groupToml := new(key.GroupTOML)
-	_, err = toml.Decode(resp.GetGroupToml(), groupToml)
+	group, err := ProtoToGroup(groupProto)
 	require.NoError(d.t, err)
-	require.NoError(d.t, group.FromTOML(groupToml))
 	d.group = group
 	require.Equal(d.t, d.thr, d.group.Threshold)
 	for _, drand := range d.drands {
 		require.True(d.t, d.group.Contains(drand.priv.Public))
 	}
+	fmt.Println("group:", d.group.String())
 	require.Len(d.t, d.group.PublicKey.Coefficients, d.thr)
 	require.NoError(d.t, key.Save(d.groupPath, d.group, false))
 
@@ -542,42 +539,38 @@ func TestDrandPublicGroup(t *testing.T) {
 	//genesisTime := clock.NewFakeClock().Now().Unix()
 	dt := NewDrandTest(t, n, thr, p)
 	defer dt.Cleanup()
-	dt.RunDKG()
+	group := dt.RunDKG()
 	//client := NewGrpcClient()
 	cm := dt.drands[dt.ids[0]].opts.certmanager
 	client := NewGrpcClientFromCert(cm)
 	rest := net.NewRestClientFromCertManager(cm)
-	var group *drand.GroupResponse
 	for i, id := range dt.ids {
 		d := dt.drands[id]
 		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
 		require.NoError(t, err, fmt.Sprintf("idx %d: addr %s", i, id))
-		if group == nil {
-			group = groupResp
-		}
-		require.Equal(t, uint32(group.Period), groupResp.Period)
-		require.Equal(t, uint32(group.Threshold), groupResp.Threshold)
-		require.Equal(t, group.Distkey, groupResp.Distkey)
-		require.Len(t, groupResp.Nodes, len(group.Nodes))
-
-		nodes := groupResp.GetNodes()
-		for addr, d := range dt.drands {
-			var found bool
-			for _, n := range nodes {
-				sameAddr := n.GetAddress() == addr
-				sameKey := n.GetKey() == key.PointToString(d.priv.Public.Key)
-				sameTLS := n.GetTLS() == d.priv.Public.TLS
-				if sameAddr && sameKey && sameTLS {
-					found = true
-					break
-				}
-			}
-			require.True(t, found)
-		}
-		restGroup, err := rest.Group(context.TODO(), d.priv.Public, &drand.GroupRequest{})
+		received, err := ProtoToGroup(groupResp)
 		require.NoError(t, err)
-		require.Equal(t, groupResp, restGroup)
+		require.True(t, group.Equal(received))
 	}
+	for addr, d := range dt.drands {
+		var found bool
+		for _, n := range group.Nodes {
+			sameAddr := n.Address() == addr
+			sameKey := n.Key.Equal(d.priv.Public.Key)
+			sameTLS := n.IsTLS() == d.priv.Public.TLS
+			if sameAddr && sameKey && sameTLS {
+				found = true
+				break
+			}
+		}
+		require.True(t, found)
+	}
+
+	restGroup, err := rest.Group(context.TODO(), dt.drands[dt.ids[0]].priv.Public, &drand.GroupRequest{})
+	require.NoError(t, err)
+	received, err := ProtoToGroup(restGroup)
+	require.NoError(t, err)
+	require.True(t, group.Equal(received))
 }
 
 // BatchNewDrand returns n drands, using TLS or not, with the given

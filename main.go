@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -15,7 +14,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/core"
@@ -50,11 +48,6 @@ var folderFlag = &cli.StringFlag{
 	Name:  "folder",
 	Value: core.DefaultConfigFolder(),
 	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
-}
-
-var leaderFlag = &cli.BoolFlag{
-	Name:  "leader",
-	Usage: "Set this node as the initator of the distributed key generation process.",
 }
 
 var verboseFlag = &cli.BoolFlag{
@@ -119,22 +112,46 @@ var outFlag = &cli.StringFlag{
 
 var periodFlag = &cli.StringFlag{
 	Name:  "period",
-	Usage: "period to write in the group.toml file",
+	Usage: "period to set when doing a setup",
 }
 
 var thresholdFlag = &cli.IntFlag{
-	Name:  "threshold",
-	Usage: "threshold to set on the group file",
+	Name:     "threshold",
+	Required: true,
+	Usage:    "threshold to use for the DKG",
 }
 
-var genesisFlag = &cli.Int64Flag{
-	Name:  "genesis",
-	Usage: "genesis time to set on the group file - unix time",
+var shareNodeFlag = &cli.IntFlag{
+	Name:     "nodes",
+	Required: true,
+	Usage:    "number of nodes expected",
 }
 
-var transitionFlag = &cli.Int64Flag{
+var transitionFlag = &cli.BoolFlag{
 	Name:  "transition",
-	Usage: "transition time from the current network to the new network",
+	Usage: "When set, this flag indicates the share operation is a resharing. The node will use the currently stored group as the basis for the resharing",
+}
+
+// secret flag is the "manual" security when the "leader"/coordinator creates the
+// group: every participant must know this secret. It is not a consensus, not
+// perfect, but since all members are known after the protocol, and members can
+// decide to redo the setup, it works in practice well enough.
+// XXX Add a manual check when the group is created so the user manually ACK.
+var secretFlag = &cli.StringFlag{
+	Name:     "secret",
+	Required: true,
+	Usage:    "Specify the secret to use when doing the share so the leader knows you are an eligible potential participant",
+}
+
+var connectFlag = &cli.StringFlag{
+	Name:     "connect",
+	Required: true,
+	Usage:    "Address of the coordinator that will assemble the public keys and start the DKG",
+}
+
+var leaderFlag = &cli.BoolFlag{
+	Name:  "leader",
+	Usage: "Specify if this node should act as the leader for setting up the group",
 }
 
 // XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
@@ -208,17 +225,11 @@ func main() {
 			},
 		},
 		&cli.Command{
-			Name: "share",
-			Usage: "Launch a sharing protocol. If one group is given as " +
-				"argument, drand launches a DKG protocol to create a distributed " +
-				"keypair between all participants listed in the group. An " +
-				"existing group can also issue new shares to a new group: use " +
-				"the flag --from to specify the current group and give " +
-				"the new group as argument. Specify the --leader flag to make " +
-				"this daemon start the protocol\n",
+			Name:      "share",
+			Usage:     "Launch a sharing protocol.",
 			ArgsUsage: "<group.toml> group file",
 			Flags: toArray(folderFlag, insecureFlag, controlFlag,
-				leaderFlag, oldGroupFlag, timeoutFlag, sourceFlag, userEntropyOnlyFlag),
+				oldGroupFlag, timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag, periodFlag, shareNodeFlag, thresholdFlag, connectFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return shareCmd(c)
@@ -235,26 +246,14 @@ func main() {
 				return keygenCmd(c)
 			},
 		},
+
 		&cli.Command{
-			Name: "group",
-			Usage: "Merge the given list of whitespace-separated drand.public " +
-				"keys into the group.toml file if one is provided, if not, create " +
-				"a new group.toml file with the given identites.\n",
-			ArgsUsage: "<key1 key2 key3...> must be the identities of the group " +
-				"to create/to insert into the group",
-			Flags: toArray(folderFlag, outFlag, periodFlag, thresholdFlag, genesisFlag, transitionFlag, fromGroupFlag, startInFlag),
-			Action: func(c *cli.Context) error {
-				banner()
-				return groupCmd(c)
-			},
-		},
-		&cli.Command{
-			Name:  "check-group",
+			Name:  "check-key",
 			Usage: "Check node in the group for accessibility over the gRPC communication",
 			Flags: toArray(groupFlag, certsDirFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return checkGroup(c)
+				return checkKey(c)
 			},
 		},
 		{
@@ -515,91 +514,6 @@ func keygenCmd(c *cli.Context) error {
 	return nil
 }
 
-func groupCmd(c *cli.Context) error {
-	isResharing := c.IsSet(fromGroupFlag.Name)
-	if !c.Args().Present() || (c.NArg() < 3 && !isResharing) {
-		fatal("drand: group command take at least 3 keys as arguments")
-	}
-	if isResharing {
-		// separate the logic
-		return groupReshareCmd(c)
-	}
-	threshold := getThreshold(c)
-	publics := getPublicKeys(c)
-	var period = core.DefaultBeaconPeriod
-	var err error
-	if c.IsSet(periodFlag.Name) {
-		period, err = time.ParseDuration(c.String(periodFlag.Name))
-		if err != nil {
-			fatal("drand: invalid period time given %s", err)
-		}
-	}
-	genesis, err := getStartIn(c)
-	if err != nil {
-		if !c.IsSet(genesisFlag.Name) {
-			fatal("no start-in flag nor genesis flag specified")
-		}
-		genesis = c.Int64(genesisFlag.Name)
-	}
-	if genesis <= time.Now().Unix() {
-		fatal("drand: genesis time in the past or not specified")
-	}
-	fmt.Printf("Creating the new group file at time %s\n", time.Unix(genesis, 0).String())
-	group := key.NewGroup(publics, threshold, genesis)
-	group.Period = period
-	groupOut(c, group)
-	return nil
-}
-
-func getStartIn(c *cli.Context) (int64, error) {
-	if !c.IsSet(startInFlag.Name) {
-		return 0, errors.New("no start-in flag specified")
-	}
-	periodStr := c.String(startInFlag.Name)
-	period, err := time.ParseDuration(periodStr)
-	if err != nil {
-		return 0, err
-	}
-	genesis := time.Now().Add(period)
-	return genesis.Unix(), nil
-}
-func groupReshareCmd(c *cli.Context) error {
-	// check if transition time is specified, otherwise we can't go on
-	transitionTime, err := getStartIn(c)
-	if err != nil {
-		if !c.IsSet(transitionFlag.Name) {
-			fatal("For a creating a group from a current group, transition time flag is required")
-		}
-		transitionTime = c.Int64(transitionFlag.Name)
-	}
-	if transitionTime <= time.Now().Unix() {
-		fatal("transition time in the past/current")
-	}
-
-	fmt.Printf("Creating a new group for resharing at time %s\n", time.Unix(transitionTime, 0).String())
-	oldGroupPath := c.String(fromGroupFlag.Name)
-	group := new(key.Group)
-	if err := key.Load(oldGroupPath, group); err != nil {
-		return err
-	}
-	if len(group.GenesisSeed) == 0 {
-		return errors.New("old group has an empty genesis seed")
-	}
-	newT := getThreshold(c)
-	newNodes := getPublicKeys(c)
-
-	// XXX Refactor that logic into group
-	newGroup := key.NewGroup(newNodes, newT, group.GenesisTime)
-	// NOTE: for now we keep the same period as the old group, changing period
-	// for the same group is not implemented yet
-	newGroup.Period = group.Period
-	newGroup.GenesisSeed = group.GetGenesisSeed()
-	newGroup.TransitionTime = c.Int64(transitionFlag.Name)
-
-	groupOut(c, newGroup)
-	return nil
-}
-
 func groupOut(c *cli.Context, group *key.Group) {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
@@ -612,8 +526,7 @@ func groupOut(c *cli.Context, group *key.Group) {
 			fatal("drand: can't encode group to TOML: %v", err)
 		}
 		buff.WriteString("\n")
-		fmt.Printf("Copy the following snippet into a new group.toml file " +
-			"and distribute it to all the participants:\n")
+		fmt.Printf("Copy the following snippet into a new group.toml file\n")
 		fmt.Printf(buff.String())
 	}
 }
@@ -642,7 +555,7 @@ func getPublicKeys(c *cli.Context) []*key.Identity {
 	}
 	return publics
 }
-func checkGroup(c *cli.Context) error {
+func checkKey(c *cli.Context) error {
 	var ids []*key.Identity
 	if c.IsSet(groupFlag.Name) {
 		testEmptyGroup(c.String(groupFlag.Name))

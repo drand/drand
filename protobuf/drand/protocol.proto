@@ -11,10 +11,10 @@ package drand;
 option go_package = "drand";
 
 import "crypto/dkg/dkg.proto";
-import "drand/empty.proto";
+import "drand/common.proto";
 
 service Protocol {
-    rpc PrepareDKGGroup(PrepareDKGPacket) returns (GroupPacket);
+    rpc PrepareDKGGroup(PrepareDKGPacket) returns (drand.GroupPacket);
     // Setup is doing the DKG setup phase
     rpc FreshDKG(DKGPacket) returns (drand.Empty);
     // Reshare performs the resharing phase
@@ -22,12 +22,6 @@ service Protocol {
     // NewBeacon asks for a partial signature to another node
     rpc NewBeacon(BeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream SyncResponse);
-}
-
-message Identity {
-    string address = 1;
-    bytes key = 2;
-    bool tls = 3;
 }
 
 // PrepareDKGPacket is the packet nodes send to a coordinator that collects all
@@ -47,16 +41,6 @@ message PrepareDKGPacket {
     // XXX uint32 period could be added to make sure nodes agree on the beacon
     // frequency but it's not bringing real security on the table so leave it
     // for now.
-}
-
-// GroupPacket represents a group 
-message GroupPacket {
-    repeated Identity nodes = 1; 
-    uint32 threshold = 2;
-    // period in seconds
-    uint32 period = 3;
-    uint64 genesis_time = 4;
-    uint64 transition_time = 5;
 }
 
 message BeaconPacket {

@@ -26,7 +26,7 @@ func (s *EmptyServer) PrivateRand(context.Context, *drand.PrivateRandRequest) (*
 }
 
 // Group ...
-func (s *EmptyServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (s *EmptyServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 
@@ -100,7 +100,7 @@ func (s *EmptyServer) CollectiveKey(context.Context, *drand.CokeyRequest) (*dran
 }
 
 // GroupFile ...
-func (s *EmptyServer) GroupFile(context.Context, *drand.GroupTOMLRequest) (*drand.GroupTOMLResponse, error) {
+func (s *EmptyServer) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 

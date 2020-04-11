@@ -122,6 +122,42 @@ func (g *Group) String() string {
 	return b.String()
 }
 
+func (g *Group) Equal(g2 *Group) bool {
+	if g.Threshold != g2.Threshold {
+		return false
+	}
+	if g.Period.String() != g2.Period.String() {
+		return false
+	}
+	if g.Len() != g2.Len() {
+		return false
+	}
+	if !bytes.Equal(g.GetGenesisSeed(), g2.GetGenesisSeed()) {
+		return false
+	}
+	if g.TransitionTime != g2.TransitionTime {
+		return false
+	}
+	for i := 0; i < g.Len(); i++ {
+		if !g.Nodes[i].Equal(g2.Nodes[i]) {
+			return false
+		}
+	}
+	if g.PublicKey != nil {
+		if g2.PublicKey != nil {
+			// both keys aren't nil so we verify
+			return g.PublicKey.Equal(g2.PublicKey)
+		} else {
+			// g is not nil g2 is nil
+			return false
+		}
+	} else if g2.PublicKey != nil {
+		// g is nil g2 is not nil
+		return false
+	}
+	return true
+}
+
 // GroupTOML is the representation of a Group TOML compatible
 type GroupTOML struct {
 	Threshold      int

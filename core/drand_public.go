@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/ecies"
@@ -170,31 +169,13 @@ func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeRespo
 
 // Group replies with the current group of this drand node in a TOML encoded
 // format
-func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	gtoml := d.group.TOML().(*key.GroupTOML)
-	var resp = new(drand.GroupResponse)
-	resp.Nodes = make([]*drand.Node, len(gtoml.Nodes))
-	for i, n := range gtoml.Nodes {
-		resp.Nodes[i] = &drand.Node{
-			Address: n.Address,
-			Key:     n.Key,
-			TLS:     n.TLS,
-		}
-	}
-	resp.Threshold = uint32(gtoml.Threshold)
-	// take the period in second -> ms. grouptoml already transforms it to toml
-	ms := uint32(d.group.Period / time.Millisecond)
-	resp.Period = ms
-	if gtoml.PublicKey != nil {
-		resp.Distkey = make([]string, len(gtoml.PublicKey.Coefficients))
-		copy(resp.Distkey, gtoml.PublicKey.Coefficients)
-	}
-	return resp, nil
+	return groupToProto(d.group), nil
 }
 
 func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {

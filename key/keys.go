@@ -44,6 +44,19 @@ func (i *Identity) String() string {
 	return fmt.Sprintf("{%s - %s}", i.Address(), i.Key.String())
 }
 
+func (i *Identity) Equal(i2 *Identity) bool {
+	if i.Addr != i2.Addr {
+		return false
+	}
+	if i.TLS != i2.TLS {
+		return false
+	}
+	if !i.Key.Equal(i2.Key) {
+		return false
+	}
+	return true
+}
+
 // NewKeyPair returns a freshly created private / public key pair. The group is
 // decided by the group variable by default. Currently, drand only supports
 // bn256.
@@ -108,11 +121,6 @@ func (p *Pair) FromTOML(i interface{}) error {
 // TOMLValue returns an empty TOML-compatible interface value
 func (p *Pair) TOMLValue() interface{} {
 	return &PairTOML{}
-}
-
-// Equal returns true if the cryptographic public key of p equals p2's
-func (i *Identity) Equal(p2 *Identity) bool {
-	return i.Key.Equal(p2.Key)
 }
 
 // FromTOML loads reads the TOML description of the public key

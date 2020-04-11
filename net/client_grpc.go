@@ -136,8 +136,8 @@ func (g *grpcClient) PrivateRand(ctx context.Context, p Peer, in *drand.PrivateR
 	return resp, err
 }
 
-func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
-	var resp *drand.GroupResponse
+func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error) {
+	var resp *drand.GroupPacket
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -179,8 +179,8 @@ func (g *grpcClient) FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, 
 	client := drand.NewProtocolClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
-
 	resp, err = client.FreshDKG(ctx, in, opts...)
+	fmt.Println("--fresh dkg resp: ", resp, " --- err", err)
 	return resp, err
 }
 

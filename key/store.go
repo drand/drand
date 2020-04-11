@@ -186,4 +186,5 @@ func Delete(path string) error {
 
 // ResetOption is an option to allow for fine-grained reset
 // operations
+// XXX TODO
 type ResetOption int

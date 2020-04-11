@@ -109,7 +109,7 @@ func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout s
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Duration, beaconOffset string, timeout string, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Duration, timeout string, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:     uint32(nodes),
@@ -160,9 +160,10 @@ func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
 	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
 }
 
-// GroupFile returns the TOML-encoded group file
-func (c ControlClient) GroupFile() (*control.GroupTOMLResponse, error) {
-	return c.client.GroupFile(context.Background(), &control.GroupTOMLRequest{})
+// GroupFile returns the group file that the drand instance uses at the current
+// time
+func (c ControlClient) GroupFile() (*control.GroupPacket, error) {
+	return c.client.GroupFile(context.Background(), &control.GroupRequest{})
 }
 
 // Shutdown stops the daemon

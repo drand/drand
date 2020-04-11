@@ -32,6 +32,6 @@ type PublicClient interface {
 	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 	DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
-	Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error)
+	Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
 }
