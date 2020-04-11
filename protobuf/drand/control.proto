@@ -35,12 +35,27 @@ service Control {
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 }
 
-message InitDKGPacket {
-    GroupInfo dkg_group = 1;
-    bool is_leader = 2;
+message PreparePacket {
+    bool leader = 1;
+    // LeaderAddress is only used by non-leader
+    string leader_address = 2;
+    // LeaderTls is only used by non-leader
+    bool leader_tls = 3;
+    uint32 nodes = 4;
+    uint32 threshold = 5;
+    // timeout of the dkg
     // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 3;
-    EntropyInfo entropy = 4;
+    string timeout = 6;
+    // time after which the beacon chain will start; relative offset from the
+    // time the dkg finished.
+    // duration as pased by Golang time duration.
+    string start_in = 7;
+    string secret = 8;
+}
+
+message InitDKGPacket {
+    PreparePacket info = 1;
+    EntropyInfo entropy = 2;
 }
 
 // EntropyInfo contains information about external entropy sources

@@ -14,13 +14,43 @@ import "crypto/dkg/dkg.proto";
 import "drand/empty.proto";
 
 service Protocol {
+    rpc PrepareDKGGroup(PrepareDKGPacket) returns (GroupPacket);
     // Setup is doing the DKG setup phase
-    rpc Setup(SetupPacket) returns (drand.Empty);
+    rpc FreshDKG(DKGPacket) returns (drand.Empty);
     // Reshare performs the resharing phase
-    rpc Reshare(ResharePacket) returns (drand.Empty);
+    rpc ReshareDKG(ResharePacket) returns (drand.Empty);
     // NewBeacon asks for a partial signature to another node
     rpc NewBeacon(BeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream SyncResponse);
+}
+
+message Identity {
+    string address = 1;
+    bytes key = 2;
+    bool tls = 3;
+}
+
+// PrepareDKGPacket is the packet nodes send to a coordinator that collects all
+// keys and setups the group and sends them back to the nodes such that they can
+// start the DKG automatically.
+message PrepareDKGPacket {
+    Identity node = 1;
+    // following parameters are helpful if leader and participants did not run
+    // with the same parameters, so the leader can reply if it's not consistent.
+    uint32 expected = 2;
+    uint32 threshold = 3;
+    uint64 dkg_timeout = 4;
+    string secret_proof = 5;
+}
+
+// GroupPacket represents a group 
+message GroupPacket {
+    repeated Identity nodes = 1; 
+    uint32 threshold = 2;
+    // period in seconds
+    uint32 period = 3;
+    uint64 genesis_time = 4;
+    uint64 transition_time = 5;
 }
 
 message BeaconPacket {
@@ -34,7 +64,7 @@ message BeaconPacket {
     bytes previous_sig = 4;
 }
 
-message SetupPacket {
+message DKGPacket {
     dkg.Packet dkg = 1;
 }
 

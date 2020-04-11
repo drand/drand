@@ -40,6 +40,10 @@ func (i *Identity) IsTLS() bool {
 	return i.TLS
 }
 
+func (i *Identity) String() string {
+	return fmt.Sprintf("{%s - %s}", i.Address(), i.Key.String())
+}
+
 // NewKeyPair returns a freshly created private / public key pair. The group is
 // decided by the group variable by default. Currently, drand only supports
 // bn256.

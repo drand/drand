@@ -40,8 +40,13 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 	return nil, nil
 }
 
+// FreshDKG ...
+func (s *EmptyServer) PrepareDKGGroup(context.Context, *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
+	return nil, nil
+}
+
 // Setup ...
-func (s *EmptyServer) Setup(context.Context, *drand.SetupPacket) (*drand.Empty, error) {
+func (s *EmptyServer) FreshDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
@@ -50,7 +55,7 @@ func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServ
 }
 
 // Reshare ...
-func (s *EmptyServer) Reshare(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
+func (s *EmptyServer) ReshareDKG(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
 	return nil, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -254,4 +255,8 @@ func copyAndSort(list []*Identity) []*Identity {
 	copy(nl, list)
 	sort.Sort(ByKey(nl))
 	return nl
+}
+
+func MinimumT(n int) int {
+	return int(math.Floor(float64(n)/2.0) + 1)
 }

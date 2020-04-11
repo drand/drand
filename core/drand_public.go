@@ -15,7 +15,7 @@ import (
 )
 
 // Setup is the public method to call during a DKG protocol.
-func (d *Drand) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
+func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.dkgDone {
@@ -29,7 +29,7 @@ func (d *Drand) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, e
 }
 
 // Reshare is called when a resharing protocol is in progress
-func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
+func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 
@@ -195,4 +195,40 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 		copy(resp.Distkey, gtoml.PublicKey.Coefficients)
 	}
 	return resp, nil
+}
+
+func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	var receivers *groupReceiver
+	verif := func() error {
+		d.state.Lock()
+		defer d.state.Unlock()
+		if d.manager == nil {
+			return errors.New("no manager")
+		}
+		peer, ok := peer.FromContext(ctx)
+		if !ok {
+			return errors.New("no peer associated")
+		}
+		// manager will verify if information are correct
+		var err error
+		receivers, err = d.manager.ReceivedKey(peer.Addr.String(), p)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := verif(); err != nil {
+		return nil, err
+	}
+	defer func() { receivers.DoneCh <- true }()
+	// wait for the group to be ready,i.e. all other participants sent their
+	// keys as well. Channel is automatically close after a while.
+	group := <-receivers.WaitGroup
+	if group == nil {
+		return nil, errors.New("no valid group has been generated in time")
+	}
+	protoGroup := groupToProto(group)
+	return protoGroup, nil
 }

@@ -43,3 +43,11 @@ var RandomnessHash = sha256.New
 // DefaultWaitTime is the time beacon nodes wait before asking other nodes for
 // partial signature. Because time shifts can happen
 var DefaultWaitTime = 300 * time.Millisecond
+
+// DefaultStartIn is the default minimum time to wait for a DKG to start
+var DefaultStartIn = time.Duration(2*60) * time.Second
+
+// MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
+// can take. If the setup is still not finished after this time, it is
+// cancelled.
+var MaxWaitPrepareDKG = 24 * 7 * time.Hour

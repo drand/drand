@@ -4,8 +4,8 @@
 package vss
 
 import (
-	fmt "fmt"
 	crypto "github.com/drand/drand/protobuf/crypto"
+	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
 )
