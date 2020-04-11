@@ -35,7 +35,7 @@ service Control {
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 }
 
-message PreparePacket {
+message SetupInfoPacket {
     bool leader = 1;
     // LeaderAddress is only used by non-leader
     string leader_address = 2;
@@ -46,15 +46,16 @@ message PreparePacket {
     // timeout of the dkg
     // timeout as parsed by Golang's time.ParseDuration method.
     string timeout = 6;
+    string secret = 7;
     // time after which the beacon chain will start; relative offset from the
     // time the dkg finished.
     // duration as pased by Golang time duration.
-    string start_in = 7;
-    string secret = 8;
+    string beaconOffset = 8;
+    uint32 beaconPeriod = 9;
 }
 
 message InitDKGPacket {
-    PreparePacket info = 1;
+    SetupInfoPacket info = 1;
     EntropyInfo entropy = 2;
 }
 
@@ -74,10 +75,7 @@ message InitResharePacket {
     // load the group he belongs to at the moment, if any, and use it as the old
     // group.
     GroupInfo old = 1;
-    GroupInfo new = 2;
-    bool is_leader = 3;
-    // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 4;
+    SetupInfoPacket info = 2;
 }
 
 message GroupInfo {

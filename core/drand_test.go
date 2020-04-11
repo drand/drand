@@ -27,6 +27,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var testBeaconOffset = "2s"
+var testDkgTimeout = "2s"
+
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
 	beaconPeriod := 1 * time.Second
@@ -222,15 +225,7 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int, transitionTime int
 func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.drands), newRun, len(d.newIds))
 	var clientCounter = &sync.WaitGroup{}
-	runreshare := func(dr *Drand, leader bool) {
-		// instruct to be ready for a reshare
-		client, err := net.NewControlClient(dr.opts.controlPort)
-		require.NoError(d.t, err)
-		_, err = client.InitReshare(d.groupPath, d.newGroupPath, leader, timeout)
-		require.NoError(d.t, err)
-		fmt.Printf("\n\nDKG TEST: drand %s DONE RESHARING (leader? %v)\n", dr.priv.Public.Address(), leader)
-		clientCounter.Done()
-	}
+	var secret = "thisistheresharing"
 
 	// take list of old nodes present in new groups
 	var oldNodes []string
@@ -284,6 +279,16 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) {
 	allIds = append(allIds, oldNodes[0])
 	d.setDKGCallback(allIds)
 	d.reshareIds = allIds
+	runreshare := func(dr *Drand, leader bool) {
+		// instruct to be ready for a reshare
+		client, err := net.NewControlClient(dr.opts.controlPort)
+		require.NoError(d.t, err)
+		_, err = client.InitReshare(leader, len(allIds), d.newGroup.Threshold, testBeaconOffset, timeout, secret, d.groupPath)
+		require.NoError(d.t, err)
+		fmt.Printf("\n\nDKG TEST: drand %s DONE RESHARING (leader? %v)\n", dr.priv.Public.Address(), leader)
+		clientCounter.Done()
+	}
+
 	// run leader
 	leader := d.drands[oldNodes[0]]
 	idx, found := d.newGroup.Index(leader.priv.Public)

@@ -57,3 +57,6 @@ var MaxWaitPrepareDKG = 24 * 7 * time.Hour
 // the group file and launched their DKG. Since it is not a time critical
 // process, we can afford to wait here.
 var DefaultSyncTime = 10 * time.Second
+
+// DefaultMinPeriod is the minimum period of the beacon drand allows to run on.
+var DefaultMinPeriod = 5 * time.Second

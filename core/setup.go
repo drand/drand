@@ -38,7 +38,8 @@ type setupManager struct {
 	sync.Mutex
 	expected     int
 	thr          int
-	startIn      time.Duration
+	beaconOffset time.Duration
+	beaconPeriod time.Duration
 	dkgTimeout   uint64
 	clock        clock.Clock
 	received     []*key.Identity
@@ -47,26 +48,34 @@ type setupManager struct {
 	verifyKeys   func([]*key.Identity) bool
 	l            log.Logger
 
+	isResharing bool
+	oldGroup    *key.Group
+	oldHash     string
+
 	startDKG  chan *key.Group
 	pushKeyCh chan pushKey
 	doneCh    chan bool
 }
 
-func newSetupManager(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *control.InitDKGPacket) (*setupManager, error) {
+func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *control.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
 		return nil, err
 	}
 	// leader uses this only
-	start, err := time.ParseDuration(in.GetInfo().GetStartIn())
+	beaconOffset, err := time.ParseDuration(in.GetBeaconOffset())
 	if err != nil {
-		return nil, fmt.Errorf("invalid start-in: %v", err)
+		return nil, fmt.Errorf("invalid beacon offset: %v", err)
 	}
 	// leave at least 2mn
-	if start.Seconds() < DefaultStartIn.Seconds() {
-		return nil, fmt.Errorf("too small start-in: %d < %d (minimum)", start.Seconds(), DefaultStartIn.Seconds())
+	if beaconOffset.Seconds() < DefaultStartIn.Seconds() {
+		return nil, fmt.Errorf("too small start-in: %d < %d (minimum)", beaconOffset.Seconds(), DefaultStartIn.Seconds())
 	}
-	secret := in.GetInfo().GetSecret()
+	period := in.GetBeaconPeriod()
+	if period < uint32(DefaultMinPeriod.Seconds()) {
+		return nil, fmt.Errorf("too small beacon period: %d < %d (minimum)", period, DefaultMinPeriod.Seconds())
+	}
+	secret := in.GetSecret()
 	verifySecret := func(given string) bool {
 		// XXX reason for the function is that we might want to do more
 		// elaborate things later like a separate secret to each individual etc
@@ -79,9 +88,10 @@ func newSetupManager(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *c
 	}
 
 	sm := &setupManager{
-		startIn:      start,
+		beaconOffset: beaconOffset,
 		expected:     n,
 		thr:          thr,
+		beaconPeriod: time.Duration(period) * time.Second,
 		dkgTimeout:   uint64(dkgTimeout.Seconds()),
 		l:            l,
 		startDKG:     make(chan *key.Group, 1),
@@ -91,7 +101,24 @@ func newSetupManager(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *c
 		doneCh:       make(chan bool, 1),
 		clock:        c,
 	}
-	go sm.run()
+	return sm, nil
+}
+
+func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGroup *key.Group, in *control.SetupInfoPacket) (*setupManager, error) {
+	// period isn't included for resharing since we keep the same period
+	in.BeaconPeriod = uint32(oldGroup.Period.Seconds())
+	sm, err := newDKGSetup(l, c, leaderKey, in)
+	if err != nil {
+		return nil, err
+	}
+
+	sm.oldGroup = oldGroup
+	hash, err := oldGroup.Hash()
+	if err != nil {
+		return nil, err
+	}
+	sm.oldHash = hash
+	sm.isResharing = true
 	return sm, nil
 }
 
@@ -123,6 +150,11 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) (*gro
 
 	if !s.verifySecret(p.GetSecretProof()) {
 		return nil, errors.New("shared secret is incorrect")
+	}
+	if s.isResharing {
+		if s.oldHash != p.GetPreviousGroupHash() {
+			return nil, errors.New("inconsistent previous group hash")
+		}
 	}
 
 	newID, err := protoToIdentity(p.GetNode())
@@ -176,9 +208,9 @@ func (s *setupManager) run() {
 			if found {
 				break
 			}
-			s.l.Debug("setup", "added", "key", pk.id.String())
 			inKeys = append(inKeys, pk.id)
 			receivers = append(receivers, pk.channels)
+			s.l.Debug("setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
 			if len(s.received) == s.expected {
@@ -201,9 +233,19 @@ func (s *setupManager) run() {
 
 func (s *setupManager) createAndSend(keys []*key.Identity, receivers []groupReceiver) {
 	// create group
-	// genesis time is specified w.r.t. to the start in time
-	genesis := s.clock.Now().Add(s.startIn).Unix()
-	group := key.NewGroup(keys, s.thr, genesis)
+	var group *key.Group
+	if !s.isResharing {
+		// genesis time is specified w.r.t. to the start in time
+		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
+		group = key.NewGroup(keys, s.thr, genesis)
+	} else {
+		genesis := s.oldGroup.GenesisTime
+		transition := s.clock.Now().Add(s.beaconOffset).Unix()
+		group = key.NewGroup(keys, s.thr, genesis)
+		group.TransitionTime = transition
+		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
+	}
+	group.Period = s.beaconPeriod
 	s.l.Debug("setup", "created_group")
 	fmt.Printf("Generated group:\n%s\n", group.String())
 	// send to all connections that wait for the group
@@ -229,14 +271,14 @@ func (s *setupManager) StopPreemptively() {
 	s.doneCh <- true
 }
 
-func validInitPacket(in *control.InitDKGPacket) (n int, thr int, dkg time.Duration, err error) {
-	n = int(in.GetInfo().GetNodes())
-	thr = int(in.GetInfo().GetThreshold())
+func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Duration, err error) {
+	n = int(in.GetNodes())
+	thr = int(in.GetThreshold())
 	if thr < key.MinimumT(n) {
 		err = fmt.Errorf("invalid thr: need %d got %d", thr, key.MinimumT(n))
 		return
 	}
-	dkg, err = time.ParseDuration(in.GetInfo().GetTimeout())
+	dkg, err = time.ParseDuration(in.GetTimeout())
 	if err != nil {
 		err = fmt.Errorf("invalid dkg timeout: %v", err)
 		return

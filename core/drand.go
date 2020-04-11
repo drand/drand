@@ -175,7 +175,7 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	// XXX change that whole schenanigan
+	// XXX change that whole messup - too easy to forget things
 	d.group = d.dkg.QualifiedGroup()
 	d.group.Period = conf.NewNodes.Period
 	d.group.GenesisTime = conf.NewNodes.GenesisTime

@@ -73,16 +73,19 @@ func (c *ControlClient) Ping() error {
 // start the protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeout string) (*control.Empty, error) {
+func (c *ControlClient) InitReshare(leader bool, nodes, threshold int, beaconOffset string, timeout string, secret string, oldPath string) (*control.Empty, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
 		},
-		New: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{Path: newPath},
+		Info: &control.SetupInfoPacket{
+			Nodes:        uint32(nodes),
+			Threshold:    uint32(threshold),
+			Leader:       leader,
+			Timeout:      timeout,
+			Secret:       secret,
+			BeaconOffset: beaconOffset,
 		},
-		IsLeader: leader,
-		Timeout:  timeout,
 	}
 	return c.client.InitReshare(context.Background(), request)
 }
@@ -91,15 +94,16 @@ func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeou
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKG(leader bool, nodes, threshold int, startIn string, timeout string, entropy *control.EntropyInfo, secret string) (*control.Empty, error) {
+func (c *ControlClient) InitDKG(leader bool, nodes, threshold int, beaconPeriod int, beaconOffset string, timeout string, entropy *control.EntropyInfo, secret string) (*control.Empty, error) {
 	request := &control.InitDKGPacket{
-		Info: &control.PreparePacket{
-			Nodes:     uint32(nodes),
-			Threshold: uint32(threshold),
-			Leader:    leader,
-			Timeout:   timeout,
-			Secret:    secret,
-			StartIn:   startIn,
+		Info: &control.SetupInfoPacket{
+			Nodes:        uint32(nodes),
+			Threshold:    uint32(threshold),
+			Leader:       leader,
+			Timeout:      timeout,
+			Secret:       secret,
+			BeaconOffset: beaconOffset,
+			BeaconPeriod: uint32(beaconPeriod),
 		},
 		Entropy: entropy,
 	}
