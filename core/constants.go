@@ -51,3 +51,9 @@ var DefaultStartIn = time.Duration(2*60) * time.Second
 // can take. If the setup is still not finished after this time, it is
 // cancelled.
 var MaxWaitPrepareDKG = 24 * 7 * time.Hour
+
+// DefaultSyncTime is the time the leader waits after sending the group file to
+// all participants. It gives a bit of time to make sure every node has received
+// the group file and launched their DKG. Since it is not a time critical
+// process, we can afford to wait here.
+var DefaultSyncTime = 10 * time.Second

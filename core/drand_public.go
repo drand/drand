@@ -229,6 +229,7 @@ func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) 
 	if group == nil {
 		return nil, errors.New("no valid group has been generated in time")
 	}
+	// reply with the group, the receiver will start the DKG
 	protoGroup := groupToProto(group)
 	return protoGroup, nil
 }

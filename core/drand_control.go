@@ -20,8 +20,6 @@ import (
 	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
-var syncTime = 500 * time.Millisecond
-
 // InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
@@ -71,6 +69,8 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		return nil, errors.New("time outs: no key received")
 	}
 
+	d.log.Info("init_dkg", "sync_time", "sleep_sec", DefaultSyncTime.Seconds())
+	d.opts.clock.Sleep(DefaultSyncTime)
 	err = d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
