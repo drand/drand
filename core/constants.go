@@ -44,8 +44,9 @@ var RandomnessHash = sha256.New
 // partial signature. Because time shifts can happen
 var DefaultWaitTime = 300 * time.Millisecond
 
-// DefaultStartIn is the default minimum time to wait for a DKG to start
-var DefaultStartIn = time.Duration(2*60) * time.Second
+// DefaultBeaconOffset is the default minimum time to wait form the time the DKG
+// is launched to the time the beacon chain starts.
+var DefaultBeaconOffset = time.Duration(2*60) * time.Second
 
 // MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
 // can take. If the setup is still not finished after this time, it is
@@ -56,7 +57,16 @@ var MaxWaitPrepareDKG = 24 * 7 * time.Hour
 // all participants. It gives a bit of time to make sure every node has received
 // the group file and launched their DKG. Since it is not a time critical
 // process, we can afford to wait here.
-var DefaultSyncTime = 10 * time.Second
+var DefaultSyncTime = 5 * time.Second
 
-// DefaultMinPeriod is the minimum period of the beacon drand allows to run on.
-var DefaultMinPeriod = 5 * time.Second
+// DefaultGenesisOffset is the time that the leader adds to the current time
+// to compute the genesis time. It computes the genesis time *before* sending
+// the group to the nodes and before running the DKG so it must be sufficiently
+// high enough (at the very least superior than DefaultSyncTime + dkg timeout).
+var DefaultGenesisOffset = 2 * time.Minute
+
+// DefaultResharingOff is the time the leader adds to the current time to set
+// the TransitionTime field in the group file when setting up a resharing. This
+// time will be rounded up to the next round time of the beacon, since a beacon
+// has to keep the same period.
+var DefaultResharingOffset = 1 * time.Minute

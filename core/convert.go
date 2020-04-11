@@ -49,6 +49,7 @@ func groupToProto(g *key.Group) *proto.GroupPacket {
 			Key:     key,
 		}
 	}
+	out.Nodes = ids
 	out.Period = uint32(g.Period.Seconds())
 	out.Threshold = uint32(g.Threshold)
 	out.GenesisTime = uint64(g.GenesisTime)

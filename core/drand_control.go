@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"strings"
 	"time"
 
@@ -23,17 +22,23 @@ import (
 // InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
-func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.Empty, error) {
-	d.log.Info("init_dkg", "begin")
+func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.GroupPacket, error) {
 	isLeader := in.GetInfo().GetLeader()
+	d.state.Lock()
+	if d.dkgDone {
+		d.state.Unlock()
+		return nil, errors.New("dkg phase already done - call reshare")
+	}
+	d.state.Unlock()
 	if !isLeader {
 		// different logic for leader than the rest
 		return d.setupAutomaticDKG(c, in)
 	}
+	d.log.Info("init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
 
 	// setup the manager
 	newSetup := func() (*setupManager, error) {
-		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetInfo())
+		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetInfo())
 	}
 
 	group, err := d.leaderRunSetup(in.GetInfo(), newSetup)
@@ -42,12 +47,15 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	}
 
 	d.log.Info("init_dkg", "sync_time", "sleep_sec", DefaultSyncTime.Seconds())
-	d.opts.clock.Sleep(DefaultSyncTime)
-	err = d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
+	// XXX not using the opts.Clock since that's something that happens anyway
+	// to use opts.Clock we need to have callbacks when the group is finished
+	// and then move on the clock of this time
+	time.Sleep(DefaultSyncTime)
+	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
 	}
-	return &control.Empty{}, nil
+	return groupToProto(finalGroup), nil
 }
 
 func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*setupManager, error)) (*key.Group, error) {
@@ -56,11 +64,6 @@ func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*se
 	if d.manager != nil {
 		return nil, errors.New("drand: setup dkg already in progress")
 	}
-	if d.dkgDone == true {
-		d.state.Unlock()
-		return nil, errors.New("drand: dkg phase already done. Can't run 2 init DKG")
-	}
-
 	manager, err := newSetup()
 	if err != nil {
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
@@ -78,6 +81,7 @@ func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*se
 
 	// wait to receive the keys & send them to the other nodes
 	var group *key.Group
+	fmt.Println(" LEADER CLOCK TIME: ", d.opts.clock.Now().Unix())
 	select {
 	case group = <-d.manager.WaitForGroupSent():
 		var addr []string
@@ -93,7 +97,7 @@ func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*se
 	return group, nil
 }
 
-func (d *Drand) runDKG(leader bool, group *key.Group, timeout string, entropy *control.EntropyInfo) error {
+func (d *Drand) runDKG(leader bool, group *key.Group, timeout string, entropy *control.EntropyInfo) (*key.Group, error) {
 	reader, user := extractEntropy(entropy)
 	dkgConfig := &dkg.Config{
 		Suite:          key.KeyGroup.(dkg.Suite),
@@ -104,7 +108,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout string, entropy *c
 		Clock:          d.opts.clock,
 	}
 	if err := setTimeout(dkgConfig, timeout); err != nil {
-		return fmt.Errorf("drand: invalid timeout: %s", err)
+		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
 	d.state.Lock()
 	d.nextConf = dkgConfig
@@ -113,20 +117,21 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout string, entropy *c
 	if leader {
 		d.log.Info("init_dkg", "start_dkg_leader")
 		if err := d.StartDKG(dkgConfig); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	d.log.Info("init_dkg", "wait_dkg_end")
-	if err := d.WaitDKG(dkgConfig); err != nil {
-		return fmt.Errorf("drand: err during DKG: %v", err)
+	finalGroup, err := d.WaitDKG(dkgConfig)
+	if err != nil {
+		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
 	// beacon will start at the genesis time specified
 	d.StartBeacon(false)
-	return nil
+	return finalGroup, nil
 }
 
-func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout string) error {
+func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout string) (*key.Group, error) {
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
 	_, newPresent := newGroup.Index(d.priv.Public)
 	dkgConfig := &dkg.Config{
@@ -137,7 +142,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		Clock:    d.opts.clock,
 	}
 	if err := setTimeout(dkgConfig, timeout); err != nil {
-		return fmt.Errorf("drand: invalid timeout: %s", err)
+		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
 
 	err := func() error {
@@ -166,7 +171,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		return nil
 	}()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if leader {
@@ -175,28 +180,28 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	d.log.Info("init_dkg", "wait_dkg_end")
-	if err := d.WaitDKG(dkgConfig); err != nil {
-		return fmt.Errorf("drand: err during DKG: %v", err)
+	finalGroup, err := d.WaitDKG(dkgConfig)
+	if err != nil {
+		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
 	d.log.Info("dkg_reshare", "finished")
 	// runs the transition of the beacon
 	go d.transition(oldGroup, oldPresent, newPresent)
-	return nil
+
+	return finalGroup, nil
 }
 
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
-func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) (*control.Empty, error) {
+func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) (*control.GroupPacket, error) {
+	d.log.Info("init_dkg", "begin", "leader", false)
 	n, thr, dkgTimeout, err := validInitPacket(in.GetInfo())
 	if err != nil {
 		return nil, err
 	}
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	if _, _, err := net.SplitHostPort(laddr); err != nil {
-		return nil, fmt.Errorf("invalid leader address: %s", err)
-	}
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.waitAutomatic {
@@ -230,6 +235,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	nc, cancel := context.WithTimeout(c, MaxWaitPrepareDKG)
 	defer cancel()
 
+	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
 	// expect group
 	groupPacket, err := d.gateway.ProtocolClient.PrepareDKGGroup(nc, lpeer, prep)
 	if err != nil {
@@ -245,8 +251,10 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 		d.log.Error("genesis", "invalid", "given", group.GenesisTime, "now", d.opts.clock.Now().Unix())
 		return nil, errors.New("control: group with genesis time in the past")
 	}
+
 	index, found := group.Index(d.priv.Public)
 	if !found {
+		fmt.Println("priv is ", d.priv.Public.String(), " but received group is ", group.String())
 		return nil, errors.New("drand: public key not found in group")
 	}
 	d.state.Lock()
@@ -254,16 +262,16 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	d.state.Unlock()
 
 	// run the dkg !
-	err = d.runDKG(false, group, in.GetInfo().GetTimeout(), in.GetEntropy())
+	finalGroup, err := d.runDKG(false, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
 	}
-	return new(drand.Empty), nil
+	return groupToProto(finalGroup), nil
 }
 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
-func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, in *control.InitResharePacket) (*control.Empty, error) {
+func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, in *control.InitResharePacket) (*control.GroupPacket, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in.GetInfo())
 	if err != nil {
 		return nil, err
@@ -274,9 +282,6 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	if _, _, err := net.SplitHostPort(laddr); err != nil {
-		return nil, fmt.Errorf("invalid leader address: %s", err)
-	}
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.waitAutomatic {
@@ -341,17 +346,16 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.state.Unlock()
 
 	// run the dkg !
-	err = d.runResharing(false, oldGroup, newGroup, in.GetInfo().GetTimeout())
+	finalGroup, err := d.runResharing(false, oldGroup, newGroup, in.GetInfo().GetTimeout())
 	if err != nil {
 		return nil, err
 	}
-	return new(drand.Empty), nil
+	return groupToProto(finalGroup), nil
 }
 
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol.
-func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*control.Empty, error) {
-	d.log.Info("init_reshare", "begin")
+func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*control.GroupPacket, error) {
 	var oldGroup *key.Group
 	var err error
 
@@ -368,11 +372,13 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	d.state.Unlock()
 
 	if !in.GetInfo().GetLeader() {
+		d.log.Info("init_reshare", "begin", "leader", false)
 		return d.setupAutomaticResharing(c, oldGroup, in)
 	}
+	d.log.Info("init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
 
 	newSetup := func() (*setupManager, error) {
-		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in.GetInfo())
+		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in)
 	}
 
 	newGroup, err := d.leaderRunSetup(in.GetInfo(), newSetup)
@@ -386,6 +392,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	}
 
 	if oldGroup.GenesisTime > d.opts.clock.Now().Unix() {
+		fmt.Printf(" clock now: %d vs genesis time %d\n\n", d.opts.clock.Now().Unix(), oldGroup.GenesisTime)
 		return nil, errors.New("control: genesis time is in the future")
 	}
 
@@ -397,11 +404,11 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, errors.New("control: group with transition time in the past")
 	}
 
-	err = d.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
+	finalGroup, err := d.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
 	if err != nil {
 		return nil, err
 	}
-	return &control.Empty{}, nil
+	return groupToProto(finalGroup), nil
 }
 
 func (d *Drand) startResharingAsLeader(dkgConf *dkg.Config, oidx int) {

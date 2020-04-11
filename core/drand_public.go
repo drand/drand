@@ -198,8 +198,6 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 }
 
 func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
-	d.state.Lock()
-	defer d.state.Unlock()
 	var receivers *groupReceiver
 	verif := func() error {
 		d.state.Lock()

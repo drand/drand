@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	control "github.com/drand/drand/protobuf/drand"
@@ -42,7 +43,6 @@ type setupManager struct {
 	beaconPeriod time.Duration
 	dkgTimeout   uint64
 	clock        clock.Clock
-	received     []*key.Identity
 	leaderKey    *key.Identity
 	verifySecret func(string) bool
 	verifyKeys   func([]*key.Identity) bool
@@ -57,23 +57,10 @@ type setupManager struct {
 	doneCh    chan bool
 }
 
-func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *control.SetupInfoPacket) (*setupManager, error) {
+func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPeriod uint32, in *control.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
 		return nil, err
-	}
-	// leader uses this only
-	beaconOffset, err := time.ParseDuration(in.GetBeaconOffset())
-	if err != nil {
-		return nil, fmt.Errorf("invalid beacon offset: %v", err)
-	}
-	// leave at least 2mn
-	if beaconOffset.Seconds() < DefaultStartIn.Seconds() {
-		return nil, fmt.Errorf("too small start-in: %d < %d (minimum)", beaconOffset.Seconds(), DefaultStartIn.Seconds())
-	}
-	period := in.GetBeaconPeriod()
-	if period < uint32(DefaultMinPeriod.Seconds()) {
-		return nil, fmt.Errorf("too small beacon period: %d < %d (minimum)", period, DefaultMinPeriod.Seconds())
 	}
 	secret := in.GetSecret()
 	verifySecret := func(given string) bool {
@@ -88,10 +75,9 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *contr
 	}
 
 	sm := &setupManager{
-		beaconOffset: beaconOffset,
 		expected:     n,
 		thr:          thr,
-		beaconPeriod: time.Duration(period) * time.Second,
+		beaconPeriod: time.Duration(beaconPeriod) * time.Second,
 		dkgTimeout:   uint64(dkgTimeout.Seconds()),
 		l:            l,
 		startDKG:     make(chan *key.Group, 1),
@@ -100,14 +86,16 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, in *contr
 		verifyKeys:   verifyKeys,
 		doneCh:       make(chan bool, 1),
 		clock:        c,
+		leaderKey:    leaderKey,
 	}
+	fmt.Println(" ||| beacon period: ", sm.beaconPeriod.Seconds())
 	return sm, nil
 }
 
-func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGroup *key.Group, in *control.SetupInfoPacket) (*setupManager, error) {
+func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGroup *key.Group, in *control.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
-	in.BeaconPeriod = uint32(oldGroup.Period.Seconds())
-	sm, err := newDKGSetup(l, c, leaderKey, in)
+	beaconPeriod := uint32(oldGroup.Period.Seconds())
+	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, in.GetInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +129,10 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) (*gro
 		return nil, fmt.Errorf("expected nodes %d vs given %d", s.expected, p.GetExpected())
 	}
 	if s.thr != int(p.GetThreshold()) {
-		return nil, fmt.Errorf("expected threshold %s vs given %d", s.thr, p.GetThreshold())
+		return nil, fmt.Errorf("expected threshold %d vs given %d", s.thr, p.GetThreshold())
 	}
+	// nodes need to agree on this otherwise they risk having inconsistent views
+	// at the end of the dkg
 	dkgTimeout := p.GetDkgTimeout()
 	if s.dkgTimeout != dkgTimeout {
 		return nil, fmt.Errorf("expected dkg timeout %d vs given %d", s.dkgTimeout, dkgTimeout)
@@ -162,6 +152,8 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) (*gro
 		s.l.Info("setup", "error_decoding", "id", addr, err)
 		return nil, fmt.Errorf("invalid id: %v", err)
 	}
+
+	s.l.Debug("setup", "received_new_key", "id", newID.String())
 
 	receiver := groupReceiver{
 		WaitGroup: make(chan *key.Group, 1),
@@ -192,6 +184,7 @@ func (s *setupManager) run() {
 		case pk := <-s.pushKeyCh:
 			// verify it's not in the list we have
 			var found bool
+			fmt.Println(" new keys pushed -- ", inKeys)
 			for _, id := range inKeys {
 				sameAddr := id.Address() == pk.id.Address()
 				// lazy eval
@@ -213,10 +206,11 @@ func (s *setupManager) run() {
 			s.l.Debug("setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
-			if len(s.received) == s.expected {
-				if s.verifyKeys(s.received) {
+			if len(inKeys) == s.expected {
+				if s.verifyKeys(inKeys) {
 					// we dont want to receive others
 					s.doneCh <- true
+					// we dont want to receive others
 					// go send the keys back to all participants
 					s.createAndSend(inKeys, receivers)
 					// job is done
@@ -235,12 +229,15 @@ func (s *setupManager) createAndSend(keys []*key.Identity, receivers []groupRece
 	// create group
 	var group *key.Group
 	if !s.isResharing {
-		// genesis time is specified w.r.t. to the start in time
-		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
+		genesis := s.clock.Now().Add(DefaultGenesisOffset).Unix()
 		group = key.NewGroup(keys, s.thr, genesis)
 	} else {
 		genesis := s.oldGroup.GenesisTime
-		transition := s.clock.Now().Add(s.beaconOffset).Unix()
+		atLeast := s.clock.Now().Add(DefaultResharingOffset).Unix()
+		// transitionning to the next round time that is at least
+		// "DefaultResharingOffset" time from now.
+		_, transition := beacon.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
+		fmt.Println(" GENERATING GROUP FOR RESHARING !!!!", genesis, s.beaconOffset.String(), transition, s.clock.Now().Unix())
 		group = key.NewGroup(keys, s.thr, genesis)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()

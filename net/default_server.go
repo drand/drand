@@ -70,12 +70,12 @@ func (s *EmptyServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error
 }
 
 // InitDKG ...
-func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.Empty, error) {
+func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 
 // InitReshare ...
-func (s *EmptyServer) InitReshare(context.Context, *drand.InitResharePacket) (*drand.Empty, error) {
+func (s *EmptyServer) InitReshare(context.Context, *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 

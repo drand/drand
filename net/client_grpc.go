@@ -164,8 +164,8 @@ func (g *grpcClient) PrepareDKGGroup(ctx context.Context, p Peer, in *drand.Prep
 		return nil, err
 	}
 	client := drand.NewProtocolClient(c)
-	ctx, cancel := g.getTimeoutContext(ctx)
-	defer cancel()
+	//ctx, cancel := g.getTimeoutContext(ctx)
+	//defer cancel()
 	return client.PrepareDKGGroup(ctx, in, opts...)
 
 }

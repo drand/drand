@@ -151,9 +151,9 @@ func (d *Drand) StartDKG(conf *dkg.Config) error {
 // WaitDKG waits on the running dkg protocol. In case of an error, it returns
 // it. In case of a finished DKG protocol, it saves the dist. public  key and
 // private share. These should be loadable by the store.
-func (d *Drand) WaitDKG(conf *dkg.Config) error {
+func (d *Drand) WaitDKG(conf *dkg.Config) (*key.Group, error) {
 	if err := d.createDKG(conf); err != nil {
-		return err
+		return nil, err
 	}
 
 	d.state.Lock()
@@ -167,7 +167,7 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 		s := key.Share(share)
 		d.share = &s
 	case err := <-errCh:
-		return fmt.Errorf("drand: error from dkg: %v", err)
+		return nil, fmt.Errorf("drand: error from dkg: %v", err)
 	}
 
 	d.state.Lock()
@@ -188,7 +188,7 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 	d.dkgDone = true
 	d.dkg = nil
 	d.nextConf = nil
-	return nil
+	return d.group, nil
 }
 
 // createDKG create the new dkg handler according to the nextConf field. If the
