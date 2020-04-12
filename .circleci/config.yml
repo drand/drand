@@ -28,5 +28,5 @@ jobs:
           command: |
             docker build -t drand-org/go-drand:latest .
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
-            docker push drand-org/go-drand:latest
+            docker push drandorg/go-drand:latest
  
