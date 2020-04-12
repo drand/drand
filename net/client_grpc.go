@@ -180,7 +180,6 @@ func (g *grpcClient) FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, 
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
 	resp, err = client.FreshDKG(ctx, in, opts...)
-	fmt.Println("--fresh dkg resp: ", resp, " --- err", err)
 	return resp, err
 }
 

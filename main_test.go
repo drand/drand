@@ -209,10 +209,10 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err, string(out))
 
 	fakeStr := key.PointToString(fakeKey)
-	cokeyCmd := exec.Command("drand", "get", "cokey", "--tls-disable", groupPath)
+	cokeyCmd := exec.Command("drand", "get", "cokey", "--tls-disable", priv.Public.Address())
 	out, err = cokeyCmd.CombinedOutput()
+	require.NoError(t, err, string(out))
 	require.True(t, strings.Contains(string(out), fakeStr))
-	require.NoError(t, err)
 
 	shareCmd := exec.Command("drand", "show", "share", "--control", ctrlPort2)
 	out, err = shareCmd.CombinedOutput()
@@ -332,7 +332,7 @@ func TestClientTLS(t *testing.T) {
 	//fmt.Println(string(out))
 	//require.NoError(t, err)
 
-	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, "--nodes", addr, groupPath)
+	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
 	//fmt.Println(string(out))
 

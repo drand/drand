@@ -35,6 +35,7 @@ func shareCmd(c *cli.Context) error {
 	if c.IsSet(timeoutFlag.Name) {
 		timeout = c.String(timeoutFlag.Name)
 	}
+
 	conf := contextToConfig(c)
 	client, err := net.NewControlClient(conf.ControlPort())
 	if err != nil {
@@ -42,6 +43,7 @@ func shareCmd(c *cli.Context) error {
 	}
 
 	var groupP *control.GroupPacket
+	var shareErr error
 	if !isResharing {
 		if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
 			fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
@@ -56,9 +58,17 @@ func shareCmd(c *cli.Context) error {
 			if err != nil {
 				fatal("period given is invalid: %v", err)
 			}
-			groupP, err = client.InitDKGLeader(nodes, thr, period, timeout, entropyInfo, secret)
+
+			offset := int(core.DefaultGenesisOffset.Seconds())
+			if c.IsSet(beaconOffset.Name) {
+				offset = c.Int(beaconOffset.Name)
+			}
+			fmt.Println("Initiating the DKG as a leader")
+			groupP, shareErr = client.InitDKGLeader(nodes, thr, period, timeout, entropyInfo, secret, offset)
+			fmt.Println(" --- got err", shareErr, "group", groupP)
 		} else {
-			groupP, err = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
+			fmt.Println("Participating to the setup of the DKG")
+			groupP, shareErr = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
 		}
 	} else {
 		// resharing case needs the previous group
@@ -75,12 +85,18 @@ func shareCmd(c *cli.Context) error {
 		}
 
 		if isLeader {
-			groupP, err = client.InitReshareLeader(nodes, thr, timeout, secret, oldPath)
+			offset := int(core.DefaultResharingOffset.Seconds())
+			if c.IsSet(beaconOffset.Name) {
+				offset = c.Int(beaconOffset.Name)
+			}
+			fmt.Println("Initiating the resharing as a leader")
+			groupP, shareErr = client.InitReshareLeader(nodes, thr, timeout, secret, oldPath, offset)
 		} else {
-			groupP, err = client.InitReshare(connectPeer, nodes, thr, timeout, secret, oldPath)
+			fmt.Println("Participating to the resharing")
+			groupP, shareErr = client.InitReshare(connectPeer, nodes, thr, timeout, secret, oldPath)
 		}
 	}
-	if err != nil {
+	if shareErr != nil {
 		fatal("error setting up the network: %v", err)
 	}
 	group, err := core.ProtoToGroup(groupP)

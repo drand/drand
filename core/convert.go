@@ -43,6 +43,9 @@ func ProtoToGroup(g *proto.GroupPacket) (*key.Group, error) {
 	// XXX Change the group creation methods to avoid this
 	group.Period = period
 	group.TransitionTime = int64(g.GetTransitionTime())
+	if g.GetGenesisSeed() != nil {
+		group.GenesisSeed = g.GetGenesisSeed()
+	}
 	if len(dist.Coefficients) > 0 {
 		group.PublicKey = dist
 	}
@@ -65,6 +68,7 @@ func groupToProto(g *key.Group) *proto.GroupPacket {
 	out.Threshold = uint32(g.Threshold)
 	out.GenesisTime = uint64(g.GenesisTime)
 	out.TransitionTime = uint64(g.TransitionTime)
+	out.GenesisSeed = g.GetGenesisSeed()
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))
 		for i, c := range g.PublicKey.Coefficients {

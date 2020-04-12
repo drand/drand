@@ -69,4 +69,4 @@ var DefaultGenesisOffset = 2 * time.Minute
 // the TransitionTime field in the group file when setting up a resharing. This
 // time will be rounded up to the next round time of the beacon, since a beacon
 // has to keep the same period.
-var DefaultResharingOffset = 1 * time.Minute
+var DefaultResharingOffset = 30 * time.Second

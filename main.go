@@ -105,9 +105,8 @@ var certsDirFlag = &cli.StringFlag{
 }
 
 var outFlag = &cli.StringFlag{
-	Name: "out",
-	Usage: "save the requested information into a separate file" +
-		" instead of stdout",
+	Name:  "out",
+	Usage: "save the group file into a separate file instead of stdout",
 }
 
 var periodFlag = &cli.StringFlag{
@@ -144,14 +143,18 @@ var secretFlag = &cli.StringFlag{
 }
 
 var connectFlag = &cli.StringFlag{
-	Name:     "connect",
-	Required: true,
-	Usage:    "Address of the coordinator that will assemble the public keys and start the DKG",
+	Name:  "connect",
+	Usage: "Address of the coordinator that will assemble the public keys and start the DKG",
 }
 
 var leaderFlag = &cli.BoolFlag{
 	Name:  "leader",
 	Usage: "Specify if this node should act as the leader for setting up the group",
+}
+
+var beaconOffset = &cli.IntFlag{
+	Name:  "beacon-delay",
+	Usage: "Leader uses this flag to specify the genesis time or transition time as a delay from when group is ready to run the share protocol",
 }
 
 // XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
@@ -228,8 +231,10 @@ func main() {
 			Name:      "share",
 			Usage:     "Launch a sharing protocol.",
 			ArgsUsage: "<group.toml> group file",
-			Flags: toArray(folderFlag, insecureFlag, controlFlag,
-				oldGroupFlag, timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag, periodFlag, shareNodeFlag, thresholdFlag, connectFlag),
+			Flags: toArray(folderFlag, insecureFlag, controlFlag, oldGroupFlag,
+				timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
+				periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
+				leaderFlag, beaconOffset, transitionFlag),
 			Action: func(c *cli.Context) error {
 				banner()
 				return shareCmd(c)
@@ -295,9 +300,8 @@ func main() {
 					Name: "cokey",
 					Usage: "Get distributed public key generated during the " +
 						"DKG step.",
-					ArgsUsage: "<group.toml> provides the group informations of " +
-						"the node that we are trying to contact.",
-					Flags: toArray(tlsCertFlag, insecureFlag, nodeFlag),
+					ArgsUsage: "`ADDRESS` provides the address of the node",
+					Flags:     toArray(tlsCertFlag, insecureFlag),
 					Action: func(c *cli.Context) error {
 						return getCokeyCmd(c)
 					},

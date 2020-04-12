@@ -26,7 +26,8 @@ message GroupPacket {
     uint32 period = 3;
     uint64 genesis_time = 4;
     uint64 transition_time = 5;
-    repeated bytes dist_key = 6;
+    bytes genesis_seed = 6;
+    repeated bytes dist_key = 7;
 }
 message GroupRequest {
 

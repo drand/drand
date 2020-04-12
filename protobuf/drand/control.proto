@@ -50,6 +50,7 @@ message SetupInfoPacket {
     // timeout as parsed by Golang's time.ParseDuration method.
     string timeout = 6;
     string secret = 7;
+    uint32 beaconOffset = 8;
 }
 
 message InitDKGPacket {

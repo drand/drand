@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -335,6 +336,10 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
 
+	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
+		return nil, errors.New("control: old and new group have different genesis seed")
+	}
+
 	index, found := newGroup.Index(d.priv.Public)
 	if !found {
 		return nil, errors.New("drand: public key not found in group received from leader")
@@ -388,18 +393,18 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
 		return nil, errors.New("control: old and new group have different genesis time")
 	}
-
 	if oldGroup.GenesisTime > d.opts.clock.Now().Unix() {
 		fmt.Printf(" clock now: %d vs genesis time %d\n\n", d.opts.clock.Now().Unix(), oldGroup.GenesisTime)
 		return nil, errors.New("control: genesis time is in the future")
 	}
-
 	if oldGroup.Period != newGroup.Period {
 		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
-
 	if newGroup.TransitionTime < d.opts.clock.Now().Unix() {
 		return nil, errors.New("control: group with transition time in the past")
+	}
+	if !bytes.Equal(newGroup.GetGenesisSeed(), oldGroup.GetGenesisSeed()) {
+		return nil, errors.New("control: old and new group have different genesis seed")
 	}
 
 	finalGroup, err := d.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())

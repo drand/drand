@@ -30,7 +30,7 @@ func init() {
 	DefaultSyncTime = 3 * time.Second
 }
 
-var testBeaconOffset = "2s"
+var testBeaconOffset = int((2 * time.Second).Seconds())
 var testDkgTimeout = "2s"
 
 func TestDrandDKGFresh(t *testing.T) {
@@ -248,7 +248,7 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
 		fmt.Printf("Launching reshare on (old) root %d - %s\n", idx, oldNodes[0])
 		client, err := net.NewControlClient(leader.opts.controlPort)
 		require.NoError(d.t, err)
-		finalGroup, err := client.InitReshareLeader(d.newGroup.Len(), d.newGroup.Threshold, timeout, secret, d.groupPath)
+		finalGroup, err := client.InitReshareLeader(d.newGroup.Len(), d.newGroup.Threshold, timeout, secret, d.groupPath, testBeaconOffset)
 		if err != nil {
 			panic(err)
 		}
@@ -354,7 +354,7 @@ func (d *DrandTest) RunDKG() *key.Group {
 	require.NoError(d.t, err)
 	// first run the leader and then run the other nodes
 	go func() {
-		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, testDkgTimeout, nil, secret)
+		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, testDkgTimeout, nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
 		g, err := ProtoToGroup(finalGroup)
 		if err != nil {

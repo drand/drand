@@ -73,10 +73,15 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 		// keys..
 		return true
 	}
+	offset := time.Duration(in.GetBeaconOffset()) * time.Second
+	if offset == 0 {
+		offset = DefaultGenesisOffset
+	}
 
 	sm := &setupManager{
 		expected:     n,
 		thr:          thr,
+		beaconOffset: offset,
 		beaconPeriod: time.Duration(beaconPeriod) * time.Second,
 		dkgTimeout:   uint64(dkgTimeout.Seconds()),
 		l:            l,
@@ -88,7 +93,6 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 		clock:        c,
 		leaderKey:    leaderKey,
 	}
-	fmt.Println(" ||| beacon period: ", sm.beaconPeriod.Seconds())
 	return sm, nil
 }
 
@@ -107,6 +111,10 @@ func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGr
 	}
 	sm.oldHash = hash
 	sm.isResharing = true
+	offset := time.Duration(in.GetInfo().GetBeaconOffset()) * time.Second
+	if offset == 0 {
+		offset = DefaultResharingOffset
+	}
 	return sm, nil
 }
 
@@ -184,7 +192,6 @@ func (s *setupManager) run() {
 		case pk := <-s.pushKeyCh:
 			// verify it's not in the list we have
 			var found bool
-			fmt.Println(" new keys pushed -- ", inKeys)
 			for _, id := range inKeys {
 				sameAddr := id.Address() == pk.id.Address()
 				// lazy eval
@@ -229,15 +236,14 @@ func (s *setupManager) createAndSend(keys []*key.Identity, receivers []groupRece
 	// create group
 	var group *key.Group
 	if !s.isResharing {
-		genesis := s.clock.Now().Add(DefaultGenesisOffset).Unix()
+		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
 		group = key.NewGroup(keys, s.thr, genesis)
 	} else {
 		genesis := s.oldGroup.GenesisTime
-		atLeast := s.clock.Now().Add(DefaultResharingOffset).Unix()
+		atLeast := s.clock.Now().Add(s.beaconOffset).Unix()
 		// transitionning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := beacon.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
-		fmt.Println(" GENERATING GROUP FOR RESHARING !!!!", genesis, s.beaconOffset.String(), transition, s.clock.Now().Unix())
 		group = key.NewGroup(keys, s.thr, genesis)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
