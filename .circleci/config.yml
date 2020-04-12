@@ -26,7 +26,7 @@ jobs:
       - run:
           name: Build and push Docker image
           command: |
-            docker build -t drand-org/go-drand:latest
+            docker build -t drand-org/go-drand:latest .
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --pasword-stdin
             docker push drand-org/go-drand:latest
  
