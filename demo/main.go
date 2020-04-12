@@ -33,6 +33,7 @@ func main() {
 	if *testF {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
+	nRound := 2
 	n := 6
 	thr := 4
 	period := "6s"
@@ -53,14 +54,14 @@ func main() {
 	orch.CheckGroup()
 	orch.RunDKG("2s")
 	orch.WaitGenesis()
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon()
 	}
 	// stop a node and look if the beacon still continues
 	nodeToStop := 3
 	orch.StopNode(nodeToStop)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
@@ -74,7 +75,7 @@ func main() {
 	orch.StartCurrentNodes(nodeToStop)
 	// leave time to network to sync
 	orch.Wait(time.Duration(2) * periodD)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
@@ -84,7 +85,7 @@ func main() {
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
 	// at this point node should have catched up
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon()
 	}

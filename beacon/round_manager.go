@@ -46,8 +46,13 @@ func (r *roundManager) run() {
 			if p.GetPreviousRound() < currRound.lastRound {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
-			} else {
-				// need to advertise we probably need a sync
+			} else if p.GetPreviousRound() > currRound.round {
+				// this checks if a beacon we have received builds on something
+				// farther than the current round.
+				// If it builds on the current round, that is just a packet that
+				// is maybe a bit in advance or we are a bit late.
+				// But if it builds on something further ahead, then we need a
+				// sync since we are clearly behind.
 				r.needSync <- true
 			}
 			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
