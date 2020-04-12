@@ -16,7 +16,7 @@ jobs:
         - run: make test-integration
         - setup_remote_docker:
             docker_layer_caching: true
-         - run:
+        - run:
             name: Build and push Docker image
             command: |
                 docker build -t drand-org/go-drand:latest
