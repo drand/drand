@@ -74,21 +74,29 @@ func (n *Node) setup() {
 	fullAddr := host + ":" + freePort
 	n.addr = fullAddr
 	ctrlPort := test.FreePort()
-	// generate certificate
-	n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
-	n.keyPath = path.Join(n.base, fmt.Sprintf("server-%d.key", n.i))
-	func() {
-		log.SetOutput(new(bytes.Buffer))
-		// XXX how to get rid of that annoying creating cert..
-		err = httpscerts.Generate(n.certPath, n.keyPath, host)
-		if err != nil {
-			panic(err)
-		}
-	}()
+	if n.tls {
+		// generate certificate
+		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
+		n.keyPath = path.Join(n.base, fmt.Sprintf("server-%d.key", n.i))
+		func() {
+			log.SetOutput(new(bytes.Buffer))
+			// XXX how to get rid of that annoying creating cert..
+			err = httpscerts.Generate(n.certPath, n.keyPath, host)
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+	}
 
 	// call drand binary
 	n.priv = key.NewKeyPair(fullAddr)
-	newKey := exec.Command("drand", "generate-keypair", "--folder", n.base, fullAddr)
+	args := []string{"generate-keypair", "--folder", n.base}
+	if !n.tls {
+		args = append(args, "--tls-disable")
+	}
+	args = append(args, fullAddr)
+	newKey := exec.Command("drand", args...)
 	runCommand(newKey)
 
 	// verify it's done
@@ -110,9 +118,13 @@ func (n *Node) Start(certFolder string) {
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--control", n.ctrl)...)
-	args = append(args, pair("--tls-cert", n.certPath)...)
-	args = append(args, pair("--tls-key", n.keyPath)...)
-	args = append(args, []string{"--certs-dir", certFolder}...)
+	if n.tls {
+		args = append(args, pair("--tls-cert", n.certPath)...)
+		args = append(args, pair("--tls-key", n.keyPath)...)
+		args = append(args, []string{"--certs-dir", certFolder}...)
+	} else {
+		args = append(args, "--tls-disable")
+	}
 	args = append(args, "--verbose")
 	ctx, cancel := context.WithCancel(context.Background())
 	n.cancel = cancel
@@ -201,12 +213,15 @@ func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leade
 
 func (n *Node) GetCokey(group string) bool {
 	args := []string{"get", "cokey"}
-	args = append(args, pair("--tls-cert", n.certPath)...)
+	if n.tls {
+		args = append(args, pair("--tls-cert", n.certPath)...)
+	}
 	args = append(args, n.addr)
+
 	cmd := exec.Command("drand", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("get cokey%s err: %v:\n\tout:%s\n", n.addr, err, string(out))
+		fmt.Printf("get cokey %s : %s: err: %v:\n\tout:%s\n", n.addr, args, err, string(out))
 		return false
 	}
 	var r = new(drand.DistKeyResponse)
@@ -234,7 +249,10 @@ func (n *Node) Ping() bool {
 }
 
 func (n *Node) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
-	args := []string{"get", "public", "--tls-cert", n.certPath}
+	args := []string{"get", "public"}
+	if n.tls {
+		args = append(args, pair("--tls-cert", n.certPath)...)
+	}
 	args = append(args, pair("--nodes", n.addr)...)
 	args = append(args, pair("--round", strconv.Itoa(int(round)))...)
 	args = append(args, groupPath)
@@ -246,7 +264,9 @@ func (n *Node) GetBeacon(groupPath string, round uint64) (*drand.PublicRandRespo
 }
 
 func (n *Node) WriteCertificate(path string) {
-	runCommand(exec.Command("cp", n.certPath, path))
+	if n.tls {
+		runCommand(exec.Command("cp", n.certPath, path))
+	}
 }
 
 func (n *Node) WritePublic(path string) {

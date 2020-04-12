@@ -254,9 +254,13 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 	var printed bool
 	for _, node := range nodes {
 		args := []string{"-k", "-s"}
-		args = append(args, pair("--cacert", node.certPath)...)
+		http := "http"
+		if e.tls {
+			args = append(args, pair("--cacert", node.certPath)...)
+			http = http + "s"
+		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		args = append(args, "https://"+node.addr+"/api/public")
+		args = append(args, http+"://"+node.addr+"/api/public")
 		cmd := exec.Command("curl", args...)
 		if !printed {
 			fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))

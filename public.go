@@ -48,9 +48,11 @@ func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
 		slog.Fatal("Get public command takes a group file as argument.")
 	}
-	defaultManager := net.NewCertManager()
+	client := core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
+		defaultManager := net.NewCertManager()
 		defaultManager.Add(c.String(tlsCertFlag.Name))
+		client = core.NewGrpcClientFromCert(defaultManager)
 	}
 
 	ids := getNodes(c)
@@ -60,16 +62,14 @@ func getPublicRandomness(c *cli.Context) error {
 	}
 
 	public := group.PublicKey
-	client := core.NewGrpcClientFromCert(defaultManager)
-	isTLS := !c.Bool("tls-disable")
 	var resp *drand.PublicRandResponse
 	var err error
 	var foundCorrect bool
 	for _, id := range ids {
 		if c.IsSet(roundFlag.Name) {
-			resp, err = client.Public(id.Addr, public, isTLS, c.Int(roundFlag.Name))
+			resp, err = client.Public(id.Addr, public, id.TLS, c.Int(roundFlag.Name))
 		} else {
-			resp, err = client.LastPublic(id.Addr, public, isTLS)
+			resp, err = client.LastPublic(id.Addr, public, id.TLS)
 		}
 		if err == nil {
 			foundCorrect = true
