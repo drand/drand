@@ -1,0 +1,32 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
+jobs:
+  build:
+    docker:
+      # specify the version
+      - image: circleci/golang:latest
+      
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    steps:
+      - checkout
+      - run: 
+          command: |
+            echo 'export GO111MODULE=on' >> $BASH_ENV # Redirect MY_ENV_VAR into $BASH_ENV
+      # specify any bash command here prefixed with `run: `
+      - run: go get -v -t -d ./...
+      - run: make test-unit
+      - run: make test-integration
+      - setup_remote_docker
+      - run:
+          name: Build and push Docker image
+          command: |
+            docker build -t drandorg/go-drand:latest .
+            echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker push drandorg/go-drand:latest
+ 
