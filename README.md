@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/drand/drand.svg?branch=master)](https://travis-ci.org/drand/drand)
+[![CircleCI](https://circleci.com/gh/drand/drand.svg?style=svg)](https://circleci.com/gh/drand/drand)
 
 # Drand - A Distributed Randomness Beacon Daemon
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
