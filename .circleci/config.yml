@@ -22,7 +22,7 @@ jobs:
       - run: go get -v -t -d ./...
       - run: make test-unit
       - run: make test-integration
-      - setup_remote_deocker:
+      - setup_remote_docker:
           docker_layer_caching: true
       - run:
           name: Build and push Docker image
