@@ -4,21 +4,30 @@
 version: 2
 jobs:
   build:
-  docker:
-  # specify the version
-  - image: circleci/golang:latest
+    docker:
+      # specify the version
+      - image: circleci/golang:latest
+      
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
 
-  working_directory: /go/src/github.com/drand/drand
     steps:
       - checkout
+      - run: 
+          command: |
+            echo 'export GO111MODULE=on' >> $BASH_ENV # Redirect MY_ENV_VAR into $BASH_ENV
+      # specify any bash command here prefixed with `run: `
       - run: go get -v -t -d ./...
       - run: make test-unit
       - run: make test-integration
-      - setup_remote_docker:
-        docker_layer_caching: true
+      - setup_remote_deocker:
+          docker_layer_caching: true
       - run:
-        name: Build and push Docker image
-        command: |
-          docker build -t drand-org/go-drand:latest
-          echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
-          docker push drand-org/go-drand:latest
+          name: Build and push Docker image
+          command: |
+            docker build -t drand-org/go-drand:latest
+            echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --pasword-stdin
+            docker push drand-org/go-drand:latest
+ 
