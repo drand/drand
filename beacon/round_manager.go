@@ -42,11 +42,12 @@ func (r *roundManager) run() {
 	checkPartial := func(p *drand.BeaconPacket) bool {
 		nowPrevious := p.GetPreviousRound() == currRound.lastRound
 		if !nowPrevious {
-			msgs := []string{"check_for", "sync"}
+			msgs := []string{"potential", "late_or_behind"}
 			if p.GetPreviousRound() < currRound.lastRound {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
 			} else if p.GetPreviousRound() > currRound.round {
+				msgs = []string{"check_for", "sync"}
 				// this checks if a beacon we have received builds on something
 				// farther than the current round.
 				// If it builds on the current round, that is just a packet that

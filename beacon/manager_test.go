@@ -50,10 +50,12 @@ func TestManager(t *testing.T) {
 	prev = 10
 	partials = rm.NewRound(prev, curr)
 	rm.NewBeacon(&drand.BeaconPacket{
-		PreviousRound: prev + 1,
-		Round:         curr,
-		PreviousSig:   []byte("l'ingratitude"),
-		PartialSig:    []byte("est mere de tout vice"),
+		// previous round must be different and +2 over current round
+		PreviousRound: curr + 2,
+		// this beacon is rounds round after and the manager is two rounds behind
+		Round:       curr + 3,
+		PreviousSig: []byte("l'ingratitude"),
+		PartialSig:  []byte("est mere de tout vice"),
 	})
 	select {
 	case <-rm.ProbablyNeedSync():
