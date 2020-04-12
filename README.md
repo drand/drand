@@ -331,11 +331,11 @@ drand show group --out group.toml
 
 
 **Secret**: For participants to be included in the group, they need to have a
-secret string shared by all. This method is not offering some basic security
+secret string shared by all. This method is offering some basic security
 however drand will provide more manual checks later-on and/or different secrets
-for each participants. If it shows that the group configuration contains some
-unwanted nodes (this file is public and consistent accross all participants),
-the honest nodes can setup a new network again.
+for each participants. However, since the set of participants is public and consistent 
+accross all participants after a setup, nodes can detect if there are some unwanted nodes
+after the setup and in that case, setup a new network again.
 
 **Custom entropy source**: By default drand takes its entropy for the setup
 phase from the OS's entropy source (`/dev/urandom` on Unix systems). However,
