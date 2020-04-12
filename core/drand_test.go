@@ -573,6 +573,23 @@ func TestDrandPublicGroup(t *testing.T) {
 	require.True(t, group.Equal(received))
 }
 
+/*func TestDrandPublicStream(t *testing.T) {*/
+//n := 4
+//thr := key.DefaultThreshold(n)
+//p := 1 * time.Second
+////genesisTime := clock.NewFakeClock().Now().Unix()
+//dt := NewDrandTest(t, n, thr, p)
+//defer dt.Cleanup()
+//group := dt.RunDKG()
+//root := dt.ids[0]
+
+//dt.Move
+//cm := dt.drands[dt.ids[0]].opts.certmanager
+//client := NewGrpcClientFromCert(cm)
+//rest := net.NewRestClientFromCertManager(cm)
+
+//}
+
 // BatchNewDrand returns n drands, using TLS or not, with the given
 // options. It returns the list of Drand structures, the group created,
 // the folder where db, certificates, etc are stored. It is the folder

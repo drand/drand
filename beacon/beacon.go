@@ -420,6 +420,8 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 		case <-h.manager.ProbablyNeedSync():
 			// in this case we need to quit this main loop and start as in the catchup node
 			h.l.Info("need_sync", "leaving_main_loop")
+			// notify the current round we need to sync
+			close(closingCh)
 			go h.Catchup()
 			return
 		case <-h.close:
@@ -542,6 +544,7 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 	//fmt.Printf("\n node %d runs SYNCFROM --- currentRound %d\n\n", h.index, currentRound)
 	currentSig := initSignature
 	var currentBeacon *Beacon
+
 	for _, id := range to {
 		if h.addr == id.Addr {
 			continue
@@ -606,7 +609,7 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 			// if it gave us the round just before the next one, then we are
 			// synced!
 			if currentRound+1 == nextRound {
-				h.l.Debug("sync", "finished", "round", currentRound, "sig", shortSigStr(currentSig))
+				h.l.Debug("sync", "to_head", "round", currentRound, "sig", shortSigStr(currentSig))
 				cancel()
 				return currentBeacon, nil
 			}
