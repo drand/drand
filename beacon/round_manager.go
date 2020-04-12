@@ -42,12 +42,19 @@ func (r *roundManager) run() {
 	checkPartial := func(p *drand.BeaconPacket) bool {
 		nowPrevious := p.GetPreviousRound() == currRound.lastRound
 		if !nowPrevious {
-			msgs := []string{"check_for", "sync"}
+			msgs := []string{"potential", "early_packet"}
 			if p.GetPreviousRound() < currRound.lastRound {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
-			} else {
-				// need to advertise we probably need a sync
+			} else if p.GetPreviousRound() > currRound.round {
+				// Normally we check if is useful at the next round but that got
+				// received a bit early, so there should be only one round
+				// difference, so the previous round is equal to current round.
+				// However in this case, the previous round is more than the
+				// current round so there is at least a delta two of difference.
+				// In this case we ask to sync again.
+				msgs[0] = "indication_of"
+				msgs[1] = "require_sync"
 				r.needSync <- true
 			}
 			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
