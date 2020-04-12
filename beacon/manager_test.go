@@ -50,8 +50,8 @@ func TestManager(t *testing.T) {
 	prev = 10
 	partials = rm.NewRound(prev, curr)
 	rm.NewBeacon(&drand.BeaconPacket{
-		PreviousRound: prev + 1,
-		Round:         curr,
+		PreviousRound: curr + 2,
+		Round:         curr + 3,
 		PreviousSig:   []byte("l'ingratitude"),
 		PartialSig:    []byte("est mere de tout vice"),
 	})
