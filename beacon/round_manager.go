@@ -50,9 +50,12 @@ func (r *roundManager) run() {
 				// this checks if a beacon we have received builds on something
 				// farther than the current round.
 				// If it builds on the current round, that is just a packet that
-				// is maybe a bit in advance or we are a bit late.
+				// is a bit in advance or we are a bit late.
 				// But if it builds on something further ahead, then we need a
-				// sync since we are clearly behind.
+				// sync since we are clearly behind. If it is the former case
+				// and that we can't generate this round properly while network
+				// is still up, we're gonna end up in the case at the next round
+				// probably.
 				r.needSync <- true
 			}
 			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
