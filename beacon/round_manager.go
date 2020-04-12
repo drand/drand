@@ -116,6 +116,7 @@ func (r *roundManager) run() {
 					// we are late behind what the other nodes are doing
 					// we keep in the meantime until we are synced in
 					if len(tmpPartials) > maxLookAheadQueue {
+						// rotate the partials
 						tmpPartials = tmpPartials[1:]
 					}
 					tmpPartials = append(tmpPartials, partial)
