@@ -314,9 +314,9 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		// next round will build on the one we have - no need to sync
 		return lastBeacon, nil
 	}
-	// only reason why trying multiple times is when the syncing takes too much
-	// time and then we miss the current round, hence 2 times should be fine.
-	for trial := 0; trial < 2; trial++ {
+	// Reason to try multiple times is when syncing, we might leave the sync
+	// after the targeted time. It shouldn't happen though often.
+	for trial := 0; trial < SyncRetrial; trial++ {
 		// there is a gap - we need to sync with other peers
 		currRound := lastBeacon.Round
 		currSig := lastBeacon.Signature
@@ -337,9 +337,8 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 			h.l.Error("after_sync", "nil_beacon")
 		}
 		// not to aggressive
-		sleepPeriod := 2 * time.Second
-		h.l.Debug("sync_incomplete", "try_again")
-		h.conf.Clock.Sleep(sleepPeriod)
+		h.l.Debug("sync_incomplete", "try_again", "sleep", SyncRetrialWait)
+		h.conf.Clock.Sleep(SyncRetrialWait)
 	}
 	h.l.Error("sync", "failed", "network_down_or_BUG")
 	return lastBeacon, errors.New("impossible to sync to current round: network is down?")
@@ -420,6 +419,7 @@ func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int
 			break
 		case <-h.manager.ProbablyNeedSync():
 			// in this case we need to quit this main loop and start as in the catchup node
+			h.l.Info("need_sync", "leaving_main_loop")
 			go h.Catchup()
 			return
 		case <-h.close:
