@@ -59,8 +59,8 @@ func main() {
 	}
 	// stop a node and look if the beacon still continues
 	nodeToStop := 3
-	orch.StopNode(nodeToStop)
-	for i := 0; i < 4; i++ {
+	orch.StopNodes(nodeToStop)
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
@@ -80,9 +80,17 @@ func main() {
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
 
-	fmt.Println("[+] Trying to fetch beacon from all nodes again")
-	// start the node again and expects him to catch up
+	// stop only more than a threshold of the network, wait a bit and see if it
+	// can restart at the right round correctly
+	nodesToStop := []int{1, 2}
+	fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
+	orch.StopNodes(nodesToStop...)
+	orch.WaitPeriod()
+	orch.WaitPeriod()
+	fmt.Printf("[+] Trying to start them again and check beacons\n")
+	orch.StartNode(nodesToStop...)
 	orch.StartNode(nodeToStop)
+	orch.WaitPeriod()
 	orch.WaitPeriod()
 	// at this point node should have catched up
 	for i := 0; i < nRound; i++ {

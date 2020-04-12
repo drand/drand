@@ -47,12 +47,15 @@ func (r *roundManager) run() {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
 			} else if p.GetPreviousRound() > currRound.round {
-				// Normally we check if is useful at the next round but that got
-				// received a bit early, so there should be only one round
-				// difference, so the previous round is equal to current round.
-				// However in this case, the previous round is more than the
-				// current round so there is at least a delta two of difference.
-				// In this case we ask to sync again.
+				// this checks if a beacon we have received builds on something
+				// farther than the current round.
+				// If it builds on the current round, that is just a packet that
+				// is a bit in advance or we are a bit late.
+				// But if it builds on something further ahead, then we need a
+				// sync since we are clearly behind. If it is the former case
+				// and that we can't generate this round properly while network
+				// is still up, we're gonna end up in the case at the next round
+				// probably.
 				msgs[0] = "indication_of"
 				msgs[1] = "require_sync"
 				r.needSync <- true
