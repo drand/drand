@@ -3,14 +3,22 @@
 # Check https://circleci.com/docs/2.0/language-go/ for more details
 version: 2
 jobs:
-  build:
+    build:
     docker:
       # specify the version
-      - image: circleci/golang:latest
+        - image: circleci/golang:latest
 
     working_directory: /go/src/github.com/drand/drand
     steps:
-      - checkout
-      - run: go get -v -t -d ./...
-      - run: make test-unit
-      - run: make test-integration
+        - checkout
+        - run: go get -v -t -d ./...
+        - run: make test-unit
+        - run: make test-integration
+        - setup_remote_docker:
+            docker_layer_caching: true
+         - run:
+            name: Build and push Docker image
+            command: |
+                docker build -t drand-org/go-drand:latest
+                echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+                docker push drand-org/go-drand:latest
