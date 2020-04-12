@@ -185,7 +185,6 @@ func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leade
 	args = append(args, pair("--timeout", timeout)...)
 	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
 	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
-	args = append(args, pair("--period", n.period)...)
 	args = append(args, pair("--secret", secretReshare)...)
 	if n.reshared {
 		// only append if we are a new node

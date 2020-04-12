@@ -64,6 +64,10 @@ func shareCmd(c *cli.Context) error {
 				offset = c.Int(beaconOffset.Name)
 			}
 			fmt.Println("Initiating the DKG as a leader")
+			fmt.Println("You can stop the command at any point. If so, the group " +
+				"file will not be written out to the specified output. To get the" +
+				"group file once the setup phase is done, you can run the `drand show" +
+				"group` command")
 			groupP, shareErr = client.InitDKGLeader(nodes, thr, period, timeout, entropyInfo, secret, offset)
 			fmt.Println(" --- got err", shareErr, "group", groupP)
 		} else {

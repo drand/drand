@@ -224,6 +224,7 @@ The `--listen` flag tells drand to listen on the given address instead of the
 public address generated during the setup phase (see below).
 
 ## Usage
+
 This section explains in details the workflow to have a working group of drand
 nodes generate randomness. On a high-level, the workflow looks like this:
 + **Setup**: generation of individual long-term key pair and the group file and
@@ -234,11 +235,15 @@ nodes generate randomness. On a high-level, the workflow looks like this:
   as the DKG protocol is finished.
 
 ### Setup
-The setup process for a drand node consists of two steps:
+
+The setup process for a drand node consists of the following steps:
 1. Generate the long-term key pair for each node
-2. Setup the group configuration file
+2. Each node starts their daemon
+2. Leader starts the command as a coordinator & every participant connect to the
+   coordinator to setup the network
 
 #### Long-Term Key
+
 To generate the long-term key pair `drand_id.{secret,public}` of the drand
 daemon, execute
 ```
@@ -249,61 +254,8 @@ address must be reachable over a TLS connection directly or via a reverse proxy
 setup. In case you need non-secured channel, you can pass the `--tls-disable`
 flag.
 
-#### Group Configuration
+#### Starting drand daemon
 
-All informations regarding a group of drand nodes necessary for drand to
-function properly are located inside a group.toml configuration file. To run a
-DKG protocol, one needs to generate this group configuration file from all
-individual long-term keys generated in the previous step. One can do so with:
-```
-drand group <pk1> <pk2> ... <pkn> [--genesis <TS>] [--transition <TS>]
-[--start-in <duration>]
-```
-where `<pki>` is the public key file `drand_id.public` of the i-th participant.
-The group file is generated in the current directory under `group.toml`.
-The rules for the flag are the following:
-* For a new setup phase from scratch, use either `--genesis` or `--start-in`
-* For a resharing phase, use either `--transition` or `--start-in`
-* `start-in` just takes a duration and will set the time at
-  `time.Now().Add(duration)`. A valid entry can be for example `20m` for 20
-  minutes from now.
-**We recommend using the `start-in` flag for simplicity**. Nonetheless, please read the following sections to understand the different options.
-
-**Genesis time**: When creating a new network, the chain of randomness will start at 
-a specified time defined in the group file. That `GenesisTime` field must be given to 
-the command line via the flag `--genesis`. The flag expects a valid Unix timestamp in 
-the future. This allows to perform the setup phase well enough in advance and to
-get a consistent time-to-rounds mapping.
-
-**Transition time**: When performing a resharing, the nodes will switch to the
-new network at a specific time defined in the group file of the new network. In
-such cases, the `TransitionTime` must be given to the command line via the
-`--transition` flag. It must be a valid Unix timestamp in the future.
-
-**Start-in flag**: Instead of specifying a fixed time in Unix format, which can
-be annoying, one can specify a duration in which the randomness generation time
-should start (it could be either for a network from scratch or for a resharing).
-This flag is parsed using `time.ParseDuration()` so anything recognized by this
-function can be used there. A few examples: `20m`, `30m12s` or `1h40m`.
-
-**NOTE:** This group file MUST be distributed to all participants!
-
-##### Randomness Beacon Period
-drand updates the configuration file after the DKG protocol finishes, with the
-distributed public key and automatically starts running the randomness beacon.
-By default, a randomness beacon has a period of 1mn, I.E. new randomness is
-generated every minute. If you wish to change the period, you must include that
-information **inside** the group configuration file. You can do by appending a
-flag to the command such as :
-```
-drand group --period 2m <pk1> <pk2> ... <pkn> --genesis <timestamp>
-```
-
-Or simply by editing manually the group file afterwards: it's a TOML
-configuration file. The period must be readable by the
-[time](https://golang.org/pkg/time/#ParseDuration) package.
-
-### Starting drand daemon
 The daemon does not go automatically in background, so you must run it with ` &
 ` in your terminal, within a screen / tmux session, or with the `-d` option
 enabled for the docker commands. Once the daemon is running, the way to issue
@@ -314,7 +266,7 @@ administrators can issue command to their drand daemons.
 There are two ways to run a drand daemon: using TLS or using plain old regular
 unencrypted connections. Drand by default tries to use TLS connections.
 
-#### With TLS
+##### With TLS
 Drand nodes attempt to communicate by default over TLS-protected connections.
 Therefore, you need to point your node to the TLS certificate chain and
 corresponding private key you wish to use via:
@@ -328,37 +280,62 @@ To get TLS certificates for free you can use, for example, [Let's
 Encrypt](https://letsencrypt.org/) with its official CLI tool [EFF's
 certbot](https://certbot.eff.org/).
 
-#### Without TLS
+##### Without TLS
+
 Although we **do not recommend** it, you can always disable TLS in drand via:
 ```bash
 drand start --tls-disable
 ```
 
-### Distributed Key Generation
-After running all drand daemons, each operator needs to issue a command to
-start the DKG protocol, using the group file generated before. One can do so
-using the control client with:
+#### Run the setup phase
+
+To setup a new network, drand uses the notion the of a coordinator that collects
+the public key of the participants, setups the group configuration once all keys
+are received and then start the distributed key generation phase. Once the DKG
+phase is performed, the participants can see the list of members in the group
+configuration file
+
+**Coordinator**: The designated coordinator node must run the following command
+**before** everyone else:
 ```
-drand share <group-file>  --timeout 10s
+drand share --leader --nodes 10 --threshold 6 --secret mysecret --period 30s
 ```
 
-One of the nodes has to function as the leader to initiate the DKG protocol (no
-additional trust assumptions), he can do so with:
+**Rest of participants**: Once the coordinator has run the previous command, the 
+rest of the participants must run the following command:
 ```
-drand share --leader <group-file>
+drand share --connect <leaderaddress> --nodes 10 --threshold 6 --secret mysecret
 ```
 
-Once running, the leader initiates the distributed key generation protocol to
-compute the distributed public key (`dist_key.public`) and the private key
-shares (`dist_key.private`) together with the participants specified in
-`drand_group.toml`. Once the DKG has finished, the keys are stored as
-`$HOME/.drand/groups/dist_key.{public,private}`.
+The flags usage is as follow:
+* `--leader` indicates this node is a coordinator, `
+* `--nodes` indicates how many nodes do we expect to form the network
+* `--threshold` indicates the threshold the network should use, i.e. how many
+  nodes amongst the total needs to be online for the network to be live at any
+  point.
+* `--period` indicates the period of the randomness beacon to use. It must be
+  valid duration as parsed by Golang's `[time.ParseDuration]`(https://golang.org/pkg/time/#ParseDuration)  method.
+* `--secret` indicates the secret that the coordinator uses to authentify the
+  nodes that wants to participate to the network.
+* `--connect` is the `host:port` address of the leader. By default, drand will
+  connect to the leader by using tls. If you are not using tls, use the
+  `--tls-disable` flag.
 
-The timeout is an optional parameter indicating the maximum timeout the DKG
-protocol will wait. If there are some failed nodes during the DKG, then the DKG
-will finish only after the given timeout. The default value is set to 10s (see
-[`core/constants.go`](https://github.com/dedis/drand/blob/master/core/constants.go)
-file).
+**Interactive command**: The command will run as long as the DKG is not finished
+yet. You can quit the command, the DKG will proceed but the group file will not
+be written down. In that case, once the DKG is done, you get the group file by
+running:
+```
+drand show group --out group.toml
+```
+
+
+**Secret**: For participants to be included in the group, they need to have a
+secret string shared by all. This method is not offering some basic security
+however drand will provide more manual checks later-on and/or different secrets
+for each participants. If it shows that the group configuration contains some
+unwanted nodes (this file is public and consistent accross all participants),
+the honest nodes can setup a new network again.
 
 **Custom entropy source**: By default drand takes its entropy for the setup
 phase from the OS's entropy source (`/dev/urandom` on Unix systems). However,
@@ -366,24 +343,25 @@ it is possible for a participant to inject their own entropy source into the
 creation of their secret. To do so, one must have an executable that produces
 random data when called and pass the name of that executable to drand:
 ```
-drand share <group-file> --source <entropy-exec>
+drand share <regular options> --source <entropy-exec>
 ```
 where `<entropy-exec>` is the path to the executable which produces the user's
-random data on STDOUT.
-
-As a precaution, the user's randomness is mixed by default with `crypto/rand`
-to create a random stream. In order to introduce reproducibility, the flag
-`user-source-only` can be set to impose that only the user-specified entropy
-source is used. Its use should be limited to testing.
+random data on STDOUT.  As a precaution, the user's randomness is mixed by
+default with `crypto/rand` to create a random stream. In order to introduce
+reproducibility, the flag `user-source-only` can be set to impose that only the
+user-specified entropy source is used. Its use should be limited to testing.
 ```
 drand share <group-file> --source <entropy-exec> --user-source-only
 ```
 
-**Group File**: Once the DKG phase is done, the group file is updated with the
-newly created distributed public key. That updated group file needed by drand
-to securely contact drand nodes on their public interface to gather private or
-public randomness. A drand administrator can get the updated group file it via
-the following:
+### Distributed Key Generation
+
+Once the DKG phase is done, each node has both a private share and a group file
+containing the distributed public key. Using the previous commands shown, the
+group file will be written to `group.toml`. That updated group file is needed by
+drand to securely contact drand nodes on their public interface to gather
+private or public randomness. A drand administrator can get the updated group
+file it via the following:
 ```bash
 drand show group
 ```
@@ -401,7 +379,7 @@ drand show cokey
 Otherwise, you can contact an external drand node to ask him for its current
 distributed public key:
 ```bash
-drand get cokey --nodes <address> <group.toml>
+drand get cokey <address>
 ```
 where `<group.toml>` is the group file identity file of a drand node. You can
 use the flag `--nodes <address(es)>` to indicate which node you want to contact
@@ -428,8 +406,6 @@ broadcast their partial signatures for the corresponding round and try to genera
 a full randomness from the partial signatures. The corresponding round is the
 number of rounds elapsed from the genesis time. That means there is a 1-1
 mapping between a given time and a drand round.
-The default interval is one minute. If you wish to change that, you need to
-do so while generating the group file before the DKG.
 
 **Daemon downtime & Chain Sync**: Due to the threshold nature of drand, a drand
 network can support some numbers of nodes offline at any given point. This
@@ -446,6 +422,7 @@ field `round: 20`), then this new randomness contains the field
 
 
 ### Control Functionalities
+
 Drand's local administrator interface provides further functionality, e.g., to
 update group details or retrieve secret information. By default, the daemon
 listens on `127.0.0.1:8888`, but you can specify another control port when
@@ -575,6 +552,7 @@ curl <address>/api/public
 file.**
 
 ### Updating Drand Group
+
 Drand allows for "semi-dynamic" group update with a *resharing* protocol that
 offers the following:
 
@@ -590,35 +568,31 @@ The main advantage of this method is that the distributed public key stays the
 public key is embedded inside the application using drand, and hence is
 difficult to update.
 
-**Creating the new group**: First stage is to create the new group file,
-containing all the keys of the members of the new network. To do so, run:
+**Setting up the coordinator**: The coordinator must be a member of the current
+network. To run the coordinator, run the following:
 ```
-drand group [--transition <TIMESTAMP>] [--start-in <duration> ] <pk1> <pk2> ... <pkn>
-```
-Either `--transition` or `--start-in` must be used. For simplicity, we recommend
-using the `--start-in` flag by specifying a time from now at which point the
-resharing takes place. For example `--start-in 20m`. Alternatively, you can use
-the `--transition` flag that requires a specific Unix timestamp. 
-
-**Resharing**: To run the resharing, drand uses the same command as for the DKG:
-```bash
-drand share --from old-group.toml new-group.toml 
-```
-for new nodes joining the system. The old group toml is fetched as shown above,
-and the new group toml is created the usual way (`drand group ....`).
-
-For nodes already in current the group, there is actually a shortcut (the
-previous command works also) where there is no need to specify the old group:
-```bash
-drand share <newGroup.toml>
+drand share --leader --transition --nodes 15 --treshold 10 --secret mysecret2 --out
+group2.toml
 ```
 
-As usual, a leader must start the protocol by indicating the `--leader` flag.
+**Setting up the current members for the resharing**: The current members can
+simply run the following command:
+```
+drand share --transition --nodes 15 --threshold 10 --secret mysecret2 --out
+group2.toml
+```
 
-After the protocol is finished, each node listed in the new-group.toml file,
-will have a new share corresponding to the same distributed public key. The
-randomness generation starts only at the specified transition time specified in
-the new group file.
+**Setting up the new members**: The new members need the current group file to
+proceed. Check how to get the group file in the "Using the drand daemon"
+section. Then run the command:
+```
+drand share --from group.toml --nodes 15 --threshold 10 --secret mysecret2 --out
+group2.toml
+```
+
+After the protocol is finished, each node will have the new group file written
+out as `group2.toml`. The randomness generation starts only at the specified
+transition time specified in the new group file.
 
 ## DrandJS
 

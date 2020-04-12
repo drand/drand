@@ -228,9 +228,8 @@ func main() {
 			},
 		},
 		&cli.Command{
-			Name:      "share",
-			Usage:     "Launch a sharing protocol.",
-			ArgsUsage: "<group.toml> group file",
+			Name:  "share",
+			Usage: "Launch a sharing protocol.",
 			Flags: toArray(folderFlag, insecureFlag, controlFlag, oldGroupFlag,
 				timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 				periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
