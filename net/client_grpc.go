@@ -20,7 +20,7 @@ var _ Client = (*grpcClient)(nil)
 //var defaultJSONMarshaller = &runtime.JSONBuiltin{}
 var defaultJSONMarshaller = &HexJSON{}
 
-// grpcClient implements both InternalClient and ExternalClient functionalities
+// grpcClient implements both Protocol and Control functionalities
 // using gRPC as its underlying mechanism
 type grpcClient struct {
 	sync.Mutex
@@ -136,8 +136,8 @@ func (g *grpcClient) PrivateRand(ctx context.Context, p Peer, in *drand.PrivateR
 	return resp, err
 }
 
-func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
-	var resp *drand.GroupResponse
+func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error) {
+	var resp *drand.GroupPacket
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -158,8 +158,19 @@ func (g *grpcClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyReque
 	resp, err = client.DistKey(ctx, in)
 	return resp, err
 }
+func (g *grpcClient) PrepareDKGGroup(ctx context.Context, p Peer, in *drand.PrepareDKGPacket, opts ...CallOption) (*drand.GroupPacket, error) {
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewProtocolClient(c)
+	//ctx, cancel := g.getTimeoutContext(ctx)
+	//defer cancel()
+	return client.PrepareDKGGroup(ctx, in, opts...)
 
-func (g *grpcClient) Setup(ctx context.Context, p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error) {
+}
+
+func (g *grpcClient) FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error) {
 	var resp *drand.Empty
 	c, err := g.conn(p)
 	if err != nil {
@@ -168,12 +179,11 @@ func (g *grpcClient) Setup(ctx context.Context, p Peer, in *drand.SetupPacket, o
 	client := drand.NewProtocolClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
-
-	resp, err = client.Setup(ctx, in, opts...)
+	resp, err = client.FreshDKG(ctx, in, opts...)
 	return resp, err
 }
 
-func (g *grpcClient) Reshare(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
+func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
 	var resp *drand.Empty
 	c, err := g.conn(p)
 	if err != nil {
@@ -183,7 +193,7 @@ func (g *grpcClient) Reshare(ctx context.Context, p Peer, in *drand.ResharePacke
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
 
-	resp, err = client.Reshare(ctx, in, opts...)
+	resp, err = client.ReshareDKG(ctx, in, opts...)
 	return resp, err
 }
 

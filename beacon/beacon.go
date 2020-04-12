@@ -183,10 +183,11 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 			}
 			nRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 			l, _ := h.store.Last()
-			fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d -- last beacon %s\n\n", h.index, fromRound, reply.Round, nRound-1, l)
-			h.l.Debug("sync_chain_reply", peer.Addr.String(), "from", fromRound, "to", reply.Round, "head", nRound-1)
+			//fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d -- last beacon %s\n\n", h.index, fromRound, reply.Round, nRound-1, l)
+			h.l.Debug("sync_chain_reply", peer.Addr.String(), "from", fromRound, "to", reply.Round, "head", nRound-1, "last_beacon", l.String())
 			if err = p.Send(reply); err != nil {
-				fmt.Println(" ERROR SYNC CHAIN SERVER SIDE:", err)
+				//fmt.Println(" ERROR SYNC CHAIN SERVER SIDE:", err)
+				h.l.Debug("sync_chain_reply", "err", err)
 				return
 			}
 			fromRound = reply.Round
@@ -251,7 +252,7 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 	tRound = tRound - 1
 	if tTime != targetTime {
 		fmt.Printf("node %d - %s : next time %d vs transition time %d\n", h.index, h.conf.Private.Public.Address(), tTime, targetTime)
-		h.l.Fatal("transition_time", "invalid")
+		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
 	ids := shuffleNodes(prevNodes)
@@ -275,7 +276,7 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 
 			break
 		}
-		fmt.Printf("\t TransitionSYNC: lastRound %d - target time is %d target round is %d\n", lastBeacon.Round, tTime, tRound)
+		//fmt.Printf("\t TransitionSYNC: lastRound %d - target time is %d target round is %d\n", lastBeacon.Round, tTime, tRound)
 		h.l.Debug("transition_sync", "wait", "head", lastBeacon.Round, "want", tRound-1)
 		// we have some rounds to go before we arrive at the transition time
 		// we sleep a period and then get back the next round afterwards

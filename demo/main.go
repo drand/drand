@@ -25,6 +25,9 @@ var build = flag.Bool("build", false, "build the drand binary first")
 var testF = flag.Bool("test", false, "run it as a test that finishes")
 var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
 
+// 10s after dkg finishes, (new or reshared) beacon starts
+var beaconOffset = 10
+
 func main() {
 	flag.Parse()
 	if *build {
@@ -33,12 +36,12 @@ func main() {
 	if *testF {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
+	nRound := 2
 	n := 6
 	thr := 4
 	period := "6s"
 	newThr := 5
-	periodD, _ := time.ParseDuration(period)
-	orch := NewOrchestrator(n, thr, period, *tls)
+	orch := NewOrchestrator(n, thr, period, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
@@ -47,13 +50,10 @@ func main() {
 	orch.SetupNewNodes(3)
 	defer orch.Shutdown()
 	setSignal(orch)
-	genesis := time.Now().Add(6 * time.Second).Unix()
-	orch.CreateGroup(genesis)
 	orch.StartCurrentNodes()
-	orch.CheckGroup()
 	orch.RunDKG("2s")
 	orch.WaitGenesis()
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon()
 	}
@@ -73,8 +73,9 @@ func main() {
 	// start all but the one still down
 	orch.StartCurrentNodes(nodeToStop)
 	// leave time to network to sync
+	periodD, _ := time.ParseDuration(period)
 	orch.Wait(time.Duration(2) * periodD)
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
@@ -84,19 +85,17 @@ func main() {
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
 	// at this point node should have catched up
-	for i := 0; i < 4; i++ {
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon()
 	}
 
 	/// --- RESHARING PART ---
 	orch.StartNewNodes()
-	// leave some time (6s) for new nodes to sync
-	// TODO: make them sync before the resharing happens
-	transition := findTransitionTime(periodD, genesis, 6)
 	// exclude first node
-	orch.CreateResharingGroup(1, newThr, transition)
+	orch.CreateResharingGroup(1, newThr)
 	orch.RunResharing("2s")
+	orch.WaitTransition()
 	limit := 10000
 	if *testF {
 		limit = 4

@@ -43,7 +43,7 @@ func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequ
 func (t *testRandomnessServer) PrivateRand(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
 	return &drand.PrivateRandResponse{}, nil
 }
-func (t *testRandomnessServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (t *testRandomnessServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 func (t *testRandomnessServer) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {

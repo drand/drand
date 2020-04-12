@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-	"fmt"
+	gonet "net"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
@@ -87,24 +87,25 @@ func getPublicRandomness(c *cli.Context) error {
 }
 
 func getCokeyCmd(c *cli.Context) error {
-	ids := getNodes(c)
-	client := core.NewGrpcClient()
+	var client = core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
-		fmt.Println(" USING TLS !!!")
 		defaultManager := net.NewCertManager()
 		certPath := c.String(tlsCertFlag.Name)
 		defaultManager.Add(certPath)
 		client = core.NewGrpcClientFromCert(defaultManager)
 	}
 	var dkey *drand.DistKeyResponse
-	var err error
-	for _, id := range ids {
-		dkey, err = client.DistKey(id.Addr, id.TLS)
+	for _, addr := range c.Args().Slice() {
+		_, _, err := gonet.SplitHostPort(addr)
+		if err != nil {
+			fatal("invalid address given: %s", err)
+		}
+		dkey, err = client.DistKey(addr, !c.Bool("tls-disable"))
 		if err == nil {
 			break
 		}
 		slog.Printf("drand: error fetching distributed key from %s : %s",
-			id.Addr, err)
+			addr, err)
 	}
 	if dkey == nil {
 		slog.Fatalf("drand: can't retrieve dist. key from all nodes")

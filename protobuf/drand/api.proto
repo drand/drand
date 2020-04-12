@@ -11,6 +11,7 @@ package drand;
 option go_package = "drand";
 
 import "google/api/annotations.proto";
+import "drand/common.proto";
 
 service Public {
     // PublicRand is the method that returns the publicly verifiable randomness
@@ -44,7 +45,7 @@ service Public {
 
     // Group is the method that returns the group descrition that the drand
     // endpoint belongs to
-    rpc Group(GroupRequest) returns (GroupResponse) {
+    rpc Group(drand.GroupRequest) returns (drand.GroupPacket) {
       option (google.api.http) =  {
           get: "/api/info/group"
       };
@@ -121,20 +122,6 @@ message HomeRequest {
 
 message HomeResponse {
     string status = 1;
-}
-
-message GroupRequest {
-
-}
-
-// GroupResponse contains the Group information currently used by the drand node
-// in HEXADECIMAL the same format as the group.toml file.
-message GroupResponse {
-    uint32 threshold = 2;
-    // in ms
-    uint32 period = 3;
-    repeated Node nodes = 4;
-    repeated string distkey = 5;
 }
 
 // Node represents the information about a drand's node

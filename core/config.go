@@ -238,6 +238,13 @@ func WithWaitTime(wait time.Duration) ConfigOption {
 	}
 }
 
+// test option to feed a fake clock
+func withClock(c clock.Clock) ConfigOption {
+	return func(d *Config) {
+		d.clock = c
+	}
+}
+
 func getPeriod(g *key.Group) time.Duration {
 	if g.Period == time.Duration(0) {
 		return DefaultBeaconPeriod

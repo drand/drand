@@ -20,10 +20,15 @@ import (
 	"github.com/kabukky/httpscerts"
 )
 
+var secretDKG = "dkgsecret"
+var secretReshare = "sharesecret"
+
 type Node struct {
-	base     string
-	i        int
-	certPath string
+	base       string
+	i          int
+	period     string
+	publicPath string
+	certPath   string
 	// certificate key
 	keyPath string
 	// where all public certs are stored
@@ -37,18 +42,24 @@ type Node struct {
 	ctrl       string
 	reshared   bool
 	tls        bool
+	groupPath  string
 }
 
-func NewNode(i int, base string, tls bool) *Node {
+func NewNode(i int, period string, base string, tls bool) *Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
+	publicPath := path.Join(nbase, "public.toml")
+	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
 	n := &Node{
-		base:    nbase,
-		i:       i,
-		logPath: logPath,
-		tls:     tls,
+		tls:        tls,
+		base:       nbase,
+		i:          i,
+		logPath:    logPath,
+		publicPath: publicPath,
+		groupPath:  groupPath,
+		period:     period,
 	}
 	n.setup()
 	return n
@@ -94,6 +105,7 @@ func (n *Node) setup() {
 	if n.priv.Public.Address() != fullAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), fullAddr, n.base))
 	}
+	checkErr(key.Save(n.publicPath, n.priv.Public, false))
 	n.ctrl = ctrlPort
 	checkErr(err)
 }
@@ -129,33 +141,73 @@ func (n *Node) Start(certFolder string) {
 	}()
 }
 
-func (n *Node) RunDKG(group string, timeout string, leader bool) {
-	args := []string{"share", "--control", n.ctrl, "--timeout", timeout}
-	if n.tls {
-		args = append(args, pair("--folder", n.base)...)
-	}
+func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string) *key.Group {
+	args := []string{"share", "--control", n.ctrl}
+	args = append(args, pair("--folder", n.base)...)
+	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
+	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
+	args = append(args, pair("--timeout", timeout)...)
+	args = append(args, pair("--period", n.period)...)
+	args = append(args, pair("--out", n.groupPath)...)
+	args = append(args, pair("--secret", secretDKG)...)
 	if leader {
 		args = append(args, "--leader")
+		// make genesis time offset
+		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
+	} else {
+		args = append(args, pair("--connect", leaderAddr)...)
+		if !n.tls {
+			args = append(args, "--tls-disable")
+		}
 	}
-	args = append(args, group)
 	cmd := exec.Command("drand", args...)
 	runCommand(cmd)
+	group := new(key.Group)
+	checkErr(key.Load(n.groupPath, group))
+	return group
 }
 
-func (n *Node) RunReshare(oldGroup string, newGroup string, timeout string, leader bool) {
+func (n *Node) GetGroup() *key.Group {
+	args := []string{"show", "group", "--control", n.ctrl}
+	args = append(args, pair("--out", n.groupPath)...)
+	cmd := exec.Command("drand", args...)
+	runCommand(cmd)
+	group := new(key.Group)
+	checkErr(key.Load(n.groupPath, group))
+	return group
+}
+
+func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string) *key.Group {
 	args := []string{"share"}
 	args = append(args, pair("--folder", n.base)...)
+	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
 	args = append(args, pair("--timeout", timeout)...)
+	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
+	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
+	args = append(args, pair("--secret", secretReshare)...)
 	if n.reshared {
+		// only append if we are a new node
 		args = append(args, pair("--from", oldGroup)...)
+	} else {
+		// previous node only need to say it's a transition/resharing
+		args = append(args, "--transition")
 	}
 	if leader {
 		args = append(args, "--leader")
+		// make transition time offset
+		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
+	} else {
+		args = append(args, pair("--connect", leaderAddr)...)
+		if !n.tls {
+			args = append(args, "--tls-disable")
+		}
 	}
-	args = append(args, newGroup)
 	cmd := exec.Command("drand", args...)
 	runCommand(cmd, fmt.Sprintf("drand node %s", n.addr))
+	group := new(key.Group)
+	checkErr(key.Load(n.groupPath, group))
+	return group
 }
 
 func (n *Node) GetCokey(group string) bool {
@@ -163,8 +215,8 @@ func (n *Node) GetCokey(group string) bool {
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
 	}
-	args = append(args, pair("--nodes", n.addr)...)
-	args = append(args, group)
+	args = append(args, n.addr)
+
 	cmd := exec.Command("drand", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -179,11 +231,11 @@ func (n *Node) GetCokey(group string) bool {
 	return true
 }
 
-func (n *Node) GetGroup() *key.Group {
-	group, err := n.store.LoadGroup()
-	checkErr(err)
-	return group
-}
+/*func (n *Node) GetGroup() *key.Group {*/
+//group, err := n.store.LoadGroup()
+//checkErr(err)
+//return group
+/*}*/
 
 func (n *Node) Ping() bool {
 	cmd := exec.Command("drand", "ping", "--control", n.ctrl)

@@ -41,6 +41,10 @@ type Drand struct {
 	// dkg public key. Can be nil if dkg not finished yet.
 	pub     *key.DistPublic
 	dkgDone bool
+	// manager is created and destroyed during a setup phase
+	manager *setupManager
+	// is set to true while waiting for an automatic setup
+	waitAutomatic bool
 
 	// proposed next group hash for a resharing operation
 	nextGroupHash     string
@@ -147,9 +151,9 @@ func (d *Drand) StartDKG(conf *dkg.Config) error {
 // WaitDKG waits on the running dkg protocol. In case of an error, it returns
 // it. In case of a finished DKG protocol, it saves the dist. public  key and
 // private share. These should be loadable by the store.
-func (d *Drand) WaitDKG(conf *dkg.Config) error {
+func (d *Drand) WaitDKG(conf *dkg.Config) (*key.Group, error) {
 	if err := d.createDKG(conf); err != nil {
-		return err
+		return nil, err
 	}
 
 	d.state.Lock()
@@ -163,7 +167,7 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 		s := key.Share(share)
 		d.share = &s
 	case err := <-errCh:
-		return fmt.Errorf("drand: error from dkg: %v", err)
+		return nil, fmt.Errorf("drand: error from dkg: %v", err)
 	}
 
 	d.state.Lock()
@@ -171,7 +175,7 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	// XXX change that whole schenanigan
+	// XXX change that whole messup - too easy to forget things
 	d.group = d.dkg.QualifiedGroup()
 	d.group.Period = conf.NewNodes.Period
 	d.group.GenesisTime = conf.NewNodes.GenesisTime
@@ -184,7 +188,7 @@ func (d *Drand) WaitDKG(conf *dkg.Config) error {
 	d.dkgDone = true
 	d.dkg = nil
 	d.nextConf = nil
-	return nil
+	return d.group, nil
 }
 
 // createDKG create the new dkg handler according to the nextConf field. If the
@@ -346,7 +350,7 @@ func (d *Drand) beaconCallback(b *beacon.Beacon) {
 // instead of offloading that to an external struct without any vision of drand
 // internals, or implementing a big "Send" method directly on drand.
 func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.Packet) error {
-	_, err := d.gateway.ProtocolClient.Setup(context.TODO(), p, &drand.SetupPacket{Dkg: pack})
+	_, err := d.gateway.ProtocolClient.FreshDKG(context.TODO(), p, &drand.DKGPacket{Dkg: pack})
 	return err
 }
 
@@ -356,7 +360,7 @@ func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.Packet) error {
 		Dkg:       pack,
 		GroupHash: d.nextGroupHash,
 	}
-	_, err := d.gateway.ProtocolClient.Reshare(context.TODO(), p, reshare)
+	_, err := d.gateway.ProtocolClient.ReshareDKG(context.TODO(), p, reshare)
 	return err
 }
 

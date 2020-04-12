@@ -109,7 +109,7 @@ func (r *restClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyReque
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 
-func (r *restClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (r *restClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error) {
 	base := restAddr(p)
 	buff, err := r.marshaller.Marshal(in)
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *restClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) 
 	if err != nil {
 		return nil, err
 	}
-	drandResponse := new(drand.GroupResponse)
+	drandResponse := new(drand.GroupPacket)
 	return drandResponse, r.marshaller.Unmarshal(respBody, drandResponse)
 }
 

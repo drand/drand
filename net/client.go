@@ -19,8 +19,9 @@ type Client interface {
 type ProtocolClient interface {
 	SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.SyncResponse, error)
 	NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error)
-	Setup(ctx context.Context, p Peer, in *drand.SetupPacket, opts ...CallOption) (*drand.Empty, error)
-	Reshare(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error)
+	FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error)
+	ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error)
+	PrepareDKGGroup(context.Context, Peer, *drand.PrepareDKGPacket, ...CallOption) (*drand.GroupPacket, error)
 	SetTimeout(time.Duration)
 }
 
@@ -31,6 +32,6 @@ type PublicClient interface {
 	PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error)
 	PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 	DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
-	Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupResponse, error)
+	Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
 }

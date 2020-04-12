@@ -15,7 +15,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/core"
-	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
@@ -63,129 +62,6 @@ func TestKeyGen(t *testing.T) {
 }
 
 //tests valid commands and then invalid commands
-func TestGroup(t *testing.T) {
-	n := 5
-	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0740)
-	defer os.RemoveAll(tmpPath)
-
-	names := make([]string, n, n)
-	privs := make([]*key.Pair, n, n)
-	for i := 0; i < n; i++ {
-		names[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", i))
-		privs[i] = key.NewKeyPair("127.0.0.1")
-		require.NoError(t, key.Save(names[i], privs[i].Public, false))
-		if yes, err := fs.Exists(names[i]); !yes || err != nil {
-			t.Fatal(err.Error())
-		}
-	}
-
-	//test not enough keys
-	cmd := exec.Command("drand", "group", "--folder", tmpPath, names[0])
-	out, err := cmd.CombinedOutput()
-	expectedOut := "group command take at least 3 keys as arguments"
-	fmt.Println(string(out))
-	require.True(t, strings.Contains(string(out), expectedOut))
-	require.Error(t, err)
-
-	// test invalid genesis time
-	invalidGenesis := strconv.Itoa(int(time.Now().Unix() - 10))
-	args := []string{"drand", "group", "--genesis", invalidGenesis, "--folder", tmpPath}
-	args = append(args, names...)
-	cmd = exec.Command(args[0], args[1:]...)
-	_, err = cmd.CombinedOutput()
-	require.Error(t, err)
-
-	//test valid creation
-	groupPath := path.Join(tmpPath, "group1.toml")
-	genesis := int(time.Now().Unix() + 10)
-	args = []string{"drand", "group", "--genesis", strconv.Itoa(genesis), "--folder", tmpPath, "--out", groupPath}
-	args = append(args, names...)
-	cmd = exec.Command(args[0], args[1:]...)
-	out, err = cmd.CombinedOutput()
-	// check it read all names given
-	for _, name := range names {
-		require.True(t, strings.Contains(string(out), name), string(out))
-	}
-	require.NoError(t, err, string(out))
-
-	loadedGroup := new(key.Group)
-	require.NoError(t, key.Load(groupPath, loadedGroup))
-	// expect a genesis seed
-	require.True(t, len(loadedGroup.GenesisSeed) != 0)
-	require.Equal(t, int64(genesis), loadedGroup.GenesisTime)
-	for _, priv := range privs {
-		_, found := loadedGroup.Index(priv.Public)
-		require.True(t, found)
-	}
-
-	// test valid creation with `start-in`
-	startIn := "1m"
-	startInD, err := time.ParseDuration(startIn)
-	require.NoError(t, err)
-	expGenesis := time.Now().Add(startInD).Unix()
-	args = []string{"drand", "group", "--start-in", startIn, "--folder", tmpPath, "--out", groupPath}
-	args = append(args, names...)
-	cmd = exec.Command(args[0], args[1:]...)
-	out, err = cmd.CombinedOutput()
-	// check it read all names given
-	for _, name := range names {
-		require.True(t, strings.Contains(string(out), name), string(out))
-	}
-	require.NoError(t, err, string(out))
-
-	loadedGroup = new(key.Group)
-	require.NoError(t, key.Load(groupPath, loadedGroup))
-	// expect a genesis seed
-	require.True(t, len(loadedGroup.GenesisSeed) != 0)
-	require.True(t, loadedGroup.GenesisTime >= expGenesis)
-	for _, priv := range privs {
-		_, found := loadedGroup.Index(priv.Public)
-		require.True(t, found)
-	}
-
-	// test resharing from the previous group
-	// create new keys
-	newNames := make([]string, n, n)
-	newPrivs := make([]*key.Pair, n, n)
-	for i := 0; i < n; i++ {
-		newNames[i] = path.Join(tmpPath, fmt.Sprintf("drand-%d.public", n+i))
-		newPrivs[i] = key.NewKeyPair("127.0.0.1:443")
-		require.NoError(t, key.Save(newNames[i], newPrivs[i].Public, false))
-		if yes, err := fs.Exists(newNames[i]); !yes || err != nil {
-			t.Fatal(err.Error())
-		}
-	}
-	// decide a transition time
-	transitionTime := time.Now().Add(100 * time.Second).Unix()
-	transitionStr := strconv.Itoa(int(transitionTime))
-
-	newGroupPath := path.Join(tmpPath, key.GroupFolderName)
-	newArgs := []string{"drand", "group", "--folder", tmpPath, "--from", groupPath, "--transition", transitionStr, "--out", newGroupPath}
-	newArgs = append(newArgs, newNames...)
-	newCmd := exec.Command(newArgs[0], newArgs[1:]...)
-	out, err = newCmd.CombinedOutput()
-	// check it read all names given
-	for _, name := range newNames {
-		require.True(t, strings.Contains(string(out), name), string(out))
-	}
-	require.NoError(t, err, string(out))
-	fmt.Println(string(out))
-
-	// load and verify new information is correct
-	newLoadedGroup := new(key.Group)
-	require.NoError(t, key.Load(newGroupPath, newLoadedGroup))
-	// expect the same genesis seed, period
-	require.Equal(t, loadedGroup.GetGenesisSeed(), newLoadedGroup.GetGenesisSeed())
-	require.Equal(t, loadedGroup.Period, newLoadedGroup.Period)
-	require.Equal(t, transitionTime, newLoadedGroup.TransitionTime)
-	for _, priv := range newPrivs {
-		_, found := newLoadedGroup.Index(priv.Public)
-		require.True(t, found)
-	}
-
-}
-
 func TestStartAndStop(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
@@ -278,10 +154,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	fmt.Println(" DRAND SHARE ---")
 	initDKGCmd := exec.Command("drand", "share", "--control", ctrlPort1)
 	out, err := initDKGCmd.Output()
-	expectedErr := "needs at least one group.toml file argument"
-	output := string(out)
 	require.Error(t, err)
-	require.True(t, strings.Contains(output, expectedErr))
 	lcancel()
 
 	fmt.Println(" --- DRAND GROUP ---")
@@ -336,10 +209,10 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err, string(out))
 
 	fakeStr := key.PointToString(fakeKey)
-	cokeyCmd := exec.Command("drand", "get", "cokey", "--tls-disable", groupPath)
+	cokeyCmd := exec.Command("drand", "get", "cokey", "--tls-disable", priv.Public.Address())
 	out, err = cokeyCmd.CombinedOutput()
+	require.NoError(t, err, string(out))
 	require.True(t, strings.Contains(string(out), fakeStr))
-	require.NoError(t, err)
 
 	shareCmd := exec.Command("drand", "show", "share", "--control", ctrlPort2)
 	out, err = shareCmd.CombinedOutput()
@@ -459,7 +332,7 @@ func TestClientTLS(t *testing.T) {
 	//fmt.Println(string(out))
 	//require.NoError(t, err)
 
-	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, "--nodes", addr, groupPath)
+	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
 	//fmt.Println(string(out))
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/ecies"
@@ -15,7 +14,7 @@ import (
 )
 
 // Setup is the public method to call during a DKG protocol.
-func (d *Drand) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
+func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.dkgDone {
@@ -29,7 +28,7 @@ func (d *Drand) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, e
 }
 
 // Reshare is called when a resharing protocol is in progress
-func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
+func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 
@@ -170,29 +169,46 @@ func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeRespo
 
 // Group replies with the current group of this drand node in a TOML encoded
 // format
-func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	gtoml := d.group.TOML().(*key.GroupTOML)
-	var resp = new(drand.GroupResponse)
-	resp.Nodes = make([]*drand.Node, len(gtoml.Nodes))
-	for i, n := range gtoml.Nodes {
-		resp.Nodes[i] = &drand.Node{
-			Address: n.Address,
-			Key:     n.Key,
-			TLS:     n.TLS,
+	return groupToProto(d.group), nil
+}
+
+func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
+	var receivers *groupReceiver
+	verif := func() error {
+		d.state.Lock()
+		defer d.state.Unlock()
+		if d.manager == nil {
+			return errors.New("no manager")
 		}
+		peer, ok := peer.FromContext(ctx)
+		if !ok {
+			return errors.New("no peer associated")
+		}
+		// manager will verify if information are correct
+		var err error
+		receivers, err = d.manager.ReceivedKey(peer.Addr.String(), p)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
-	resp.Threshold = uint32(gtoml.Threshold)
-	// take the period in second -> ms. grouptoml already transforms it to toml
-	ms := uint32(d.group.Period / time.Millisecond)
-	resp.Period = ms
-	if gtoml.PublicKey != nil {
-		resp.Distkey = make([]string, len(gtoml.PublicKey.Coefficients))
-		copy(resp.Distkey, gtoml.PublicKey.Coefficients)
+	if err := verif(); err != nil {
+		return nil, err
 	}
-	return resp, nil
+	defer func() { receivers.DoneCh <- true }()
+	// wait for the group to be ready,i.e. all other participants sent their
+	// keys as well. Channel is automatically close after a while.
+	group := <-receivers.WaitGroup
+	if group == nil {
+		return nil, errors.New("no valid group has been generated in time")
+	}
+	// reply with the group, the receiver will start the DKG
+	protoGroup := groupToProto(group)
+	return protoGroup, nil
 }

@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
@@ -20,6 +19,7 @@ import (
 type Orchestrator struct {
 	n            int
 	thr          int
+	newThr       int
 	period       string
 	periodD      time.Duration
 	basePath     string
@@ -48,37 +48,23 @@ func NewOrchestrator(n int, thr int, period string, tls bool) *Orchestrator {
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
 	checkErr(os.MkdirAll(certFolder, 0740))
-	nodes, paths := createNodes(n, 1, basePath, certFolder, tls)
+	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls)
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
-		n:          n,
-		thr:        thr,
-		basePath:   basePath,
-		groupPath:  path.Join(basePath, "group.toml"),
-		period:     period,
-		periodD:    periodD,
-		nodes:      nodes,
-		paths:      paths,
-		certFolder: certFolder,
-		tls:        tls,
+		n:            n,
+		thr:          thr,
+		basePath:     basePath,
+		groupPath:    path.Join(basePath, "group.toml"),
+		newGroupPath: path.Join(basePath, "group2.toml"),
+		period:       period,
+		periodD:      periodD,
+		nodes:        nodes,
+		paths:        paths,
+		certFolder:   certFolder,
+		tls:          tls,
 	}
 	return e
-}
-
-func (e *Orchestrator) CreateGroup(genesis int64) {
-	e.genesis = genesis
-	// call drand to create the group file
-	args := []string{"group", "--out", e.groupPath}
-	args = append(args, "--period", e.period)
-	args = append(args, "--genesis", strconv.Itoa(int(e.genesis)))
-	args = append(args, e.paths...)
-	newGroup := exec.Command("drand", args...)
-	runCommand(newGroup)
-	// load group
-	_, err := ioutil.ReadFile(e.groupPath)
-	checkErr(err)
-	fmt.Printf("[+] Group file stored at %s\n", e.groupPath)
 }
 
 func (e *Orchestrator) StartCurrentNodes(toExclude ...int) {
@@ -115,30 +101,32 @@ func (e *Orchestrator) startNodes(nodes []*Node) {
 	}
 }
 
-func (e *Orchestrator) CheckGroup() {
-	args := []string{"check-group"}
-	if e.tls {
-		args = append(args, pair("--certs-dir", e.certFolder)...)
-	}
-	args = append(args, pair("--group", e.groupPath)...)
-	cmd := exec.Command("drand", args...)
-	runCommand(cmd)
-}
-
 func (e *Orchestrator) RunDKG(timeout string) {
 	fmt.Println("[+] Running DKG for all nodes")
-	for _, node := range e.nodes[1:] {
-		fmt.Printf("\t- Running DKG for node %s\n", node.addr)
-		go node.RunDKG(e.groupPath, timeout, false)
-	}
 	time.Sleep(100 * time.Millisecond)
 	leader := e.nodes[0]
-	fmt.Printf("\t- Running DKG for leader node %s\n", leader.addr)
-	leader.RunDKG(e.groupPath, timeout, true)
+	var wg sync.WaitGroup
+	wg.Add(len(e.nodes))
+	go func() {
+		fmt.Printf("\t- Running DKG for leader node %s\n", leader.addr)
+		leader.RunDKG(e.n, e.thr, timeout, true, "")
+		wg.Done()
+	}()
+	time.Sleep(200 * time.Millisecond)
+	for _, node := range e.nodes[1:] {
+		fmt.Printf("\t- Running DKG for node %s\n", node.addr)
+		go func(n *Node) {
+			n.RunDKG(e.n, e.thr, timeout, false, leader.addr)
+			wg.Done()
+		}(node)
+	}
+	wg.Wait()
+	fmt.Println("[+] Nodes finished running DKG. Checking keys...")
 	// we pass the current group path
 	g := e.checkDKGNodes(e.nodes, e.groupPath)
 	// overwrite group to group path
 	e.group = g
+	e.genesis = g.GenesisTime
 	checkErr(key.Save(e.groupPath, e.group, false))
 	fmt.Println("\t- Overwrite group with distributed key to ", e.groupPath)
 }
@@ -185,6 +173,15 @@ func (e *Orchestrator) WaitGenesis() {
 	time.Sleep(to)
 	relax := 3 * time.Second
 	fmt.Printf("[+] Sleeping %s after genesis - leaving some time for rounds \n", relax)
+	time.Sleep(relax)
+}
+
+func (e *Orchestrator) WaitTransition() {
+	to := time.Until(time.Unix(e.transition, 0))
+	fmt.Printf("[+] Sleeping %s until transition happens\n", to)
+	time.Sleep(to)
+	relax := 3 * time.Second
+	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", relax)
 	time.Sleep(relax)
 }
 
@@ -291,7 +288,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.basePath, e.certFolder, e.tls)
+	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls)
 	for _, node := range e.newNodes {
 		// just specify here since we use the short command for old node and new
 		// nodes have a longer command - not necessary but this is the
@@ -300,8 +297,8 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 	}
 }
 
-func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int, transitionTime int64) {
-	fmt.Println("[+] Creating new resharing group")
+func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {
+	fmt.Println("[+] Setting up the nodes for the resharing")
 	// create paths that contains old node + new nodes
 	for _, node := range e.nodes[oldToRemove:] {
 		fmt.Printf("\t- Adding current node %s\n", node.addr)
@@ -315,22 +312,7 @@ func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int, transiti
 	}
 	e.resharePaths = append(e.resharePaths, e.paths[oldToRemove:]...)
 	e.resharePaths = append(e.resharePaths, e.newPaths...)
-
-	e.transition = transitionTime
-	e.reshareThr = threshold
-	e.newGroupPath = path.Join(e.basePath, "new_group.toml")
-	args := []string{"group", "--out", e.newGroupPath}
-	// specifiy the previous group file
-	args = append(args, pair("--from", e.groupPath)...)
-	args = append(args, pair("--threshold", strconv.Itoa(e.reshareThr))...)
-	args = append(args, pair("--transition", strconv.Itoa(int(e.transition)))...)
-	args = append(args, e.resharePaths...)
-	newGroup := exec.Command("drand", args...)
-	runCommand(newGroup)
-	// load group
-	_, err := ioutil.ReadFile(e.newGroupPath)
-	checkErr(err)
-	fmt.Printf("[+] Group file stored at %s\n", e.newGroupPath)
+	e.newThr = threshold
 	fmt.Printf("[+] Stopping old nodes\n")
 	for _, node := range e.nodes {
 		var found bool
@@ -345,22 +327,30 @@ func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int, transiti
 			node.Stop()
 		}
 	}
-
 }
 
 func (e *Orchestrator) RunResharing(timeout string) {
 	fmt.Println("[+] Running DKG for resharing nodes")
+	nodes := len(e.reshareNodes)
+	thr := e.newThr
+	groupCh := make(chan *key.Group, 1)
+	leader := e.reshareNodes[0]
+	go func() {
+		fmt.Printf("\t- Running DKG for leader node %s\n", leader.addr)
+		group := leader.RunReshare(nodes, thr, e.groupPath, timeout, true, "")
+		groupCh <- group
+	}()
+	time.Sleep(100 * time.Millisecond)
+
 	for _, node := range e.reshareNodes[1:] {
 		fmt.Printf("\t- Running DKG for node %s\n", node.addr)
-		go node.RunReshare(e.groupPath, e.newGroupPath, timeout, false)
+		go node.RunReshare(nodes, thr, e.groupPath, timeout, false, leader.addr)
 	}
-	time.Sleep(100 * time.Millisecond)
-	leader := e.reshareNodes[0]
-	fmt.Printf("\t- Running DKG for leader node %s\n", leader.addr)
-	leader.RunReshare(e.groupPath, e.newGroupPath, timeout, true)
+	<-groupCh
 	// we pass the new group file
 	g := e.checkDKGNodes(e.reshareNodes, e.newGroupPath)
 	e.newGroup = g
+	e.transition = g.TransitionTime
 	checkErr(key.Save(e.newGroupPath, e.newGroup, false))
 	fmt.Println("\t- Overwrite reshared group with distributed key to ", e.newGroupPath)
 	fmt.Println("[+] Check previous distributed key is the same as the new one")
@@ -373,14 +363,12 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}
 }
 
-func createNodes(n int, offset int, basePath, certFolder string, tls bool) ([]*Node, []string) {
+func createNodes(n int, offset int, period, basePath, certFolder string, tls bool) ([]*Node, []string) {
 	var nodes []*Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
-		n := NewNode(idx, basePath, tls)
-		if tls {
-			n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
-		}
+		n := NewNode(idx, period, basePath, tls)
+		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
 		fmt.Printf("\t- Created node %s at %s\n", n.addr, n.base)
 	}

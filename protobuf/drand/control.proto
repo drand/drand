@@ -9,16 +9,16 @@ package drand;
 /*option go_package = "github.com/drand/drand/protobuf/drand";*/
 option go_package = "drand";
 
-import "drand/empty.proto";
+import "drand/common.proto";
 
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
     rpc PingPong(Ping) returns (Pong) { }
     // InitDKG sends information to daemon to start a fresh DKG protocol 
-    rpc InitDKG(InitDKGPacket) returns (drand.Empty) { }
+    rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
-    rpc InitReshare(InitResharePacket) returns (drand.Empty) { }
+    rpc InitReshare(InitResharePacket) returns (drand.GroupPacket) { }
     // Share returns the current private share used by the node 
     rpc Share(ShareRequest) returns (ShareResponse) { }
     // PublicKey returns the longterm public key of the drand node
@@ -30,17 +30,35 @@ service Control {
     // GroupFile returns the TOML-encoded group file
     // similar to public.Group method but needed for ease of use of the
     // control functionalities
-    rpc GroupFile(GroupTOMLRequest) returns (GroupTOMLResponse) { }
+    rpc GroupFile(drand.GroupRequest) returns (drand.GroupPacket) { }
 
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 }
 
-message InitDKGPacket {
-    GroupInfo dkg_group = 1;
-    bool is_leader = 2;
+// SetupInfoPacket contains all information necessary to run an "automatic"
+// setup phase where the designated leader acts as a coordinator as to what is
+// the group file and when does the chain starts.
+message SetupInfoPacket {
+    bool leader = 1;
+    // LeaderAddress is only used by non-leader
+    string leader_address = 2;
+    // LeaderTls is only used by non-leader
+    bool leader_tls = 3;
+    uint32 nodes = 4;
+    uint32 threshold = 5;
+    // timeout of the dkg
     // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 3;
-    EntropyInfo entropy = 4;
+    string timeout = 6;
+    string secret = 7;
+    uint32 beaconOffset = 8;
+}
+
+message InitDKGPacket {
+    SetupInfoPacket info = 1;
+    EntropyInfo entropy = 2;
+    // the period time of the beacon;
+    // used only in a fresh dkg
+    uint32 beacon_period = 3;
 }
 
 // EntropyInfo contains information about external entropy sources
@@ -59,10 +77,7 @@ message InitResharePacket {
     // load the group he belongs to at the moment, if any, and use it as the old
     // group.
     GroupInfo old = 1;
-    GroupInfo new = 2;
-    bool is_leader = 3;
-    // timeout as parsed by Golang's time.ParseDuration method.
-    string timeout = 4;
+    SetupInfoPacket info = 2;
 }
 
 message GroupInfo {
@@ -114,10 +129,6 @@ message CokeyRequest {
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
   bytes coKey = 2;
-}
-
-message GroupTOMLRequest {
-
 }
 
 message GroupTOMLResponse {

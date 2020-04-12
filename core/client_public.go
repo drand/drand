@@ -100,7 +100,7 @@ func (c *Client) DistKey(addr string, secure bool) (*drand.DistKeyResponse, erro
 }
 
 // Group returns the group file used by the node in a JSON encoded format
-func (c *Client) Group(addr string, secure bool) (*drand.GroupResponse, error) {
+func (c *Client) Group(addr string, secure bool) (*drand.GroupPacket, error) {
 	return c.client.Group(context.TODO(), &peerAddr{addr, secure}, &drand.GroupRequest{})
 }
 
