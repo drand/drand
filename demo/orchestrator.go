@@ -38,16 +38,17 @@ type Orchestrator struct {
 	reshareIndex []int
 	reshareThr   int
 	reshareNodes []*Node
+	tls          bool
 }
 
-func NewOrchestrator(n int, thr int, period string) *Orchestrator {
+func NewOrchestrator(n int, thr int, period string, tls bool) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
 	checkErr(os.MkdirAll(certFolder, 0740))
-	nodes, paths := createNodes(n, 1, basePath, certFolder)
+	nodes, paths := createNodes(n, 1, basePath, certFolder, tls)
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
@@ -60,6 +61,7 @@ func NewOrchestrator(n int, thr int, period string) *Orchestrator {
 		nodes:      nodes,
 		paths:      paths,
 		certFolder: certFolder,
+		tls:        tls,
 	}
 	return e
 }
@@ -115,7 +117,9 @@ func (e *Orchestrator) startNodes(nodes []*Node) {
 
 func (e *Orchestrator) CheckGroup() {
 	args := []string{"check-group"}
-	args = append(args, pair("--certs-dir", e.certFolder)...)
+	if e.tls {
+		args = append(args, pair("--certs-dir", e.certFolder)...)
+	}
 	args = append(args, pair("--group", e.groupPath)...)
 	cmd := exec.Command("drand", args...)
 	runCommand(cmd)
@@ -253,9 +257,13 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 	var printed bool
 	for _, node := range nodes {
 		args := []string{"-k", "-s"}
-		args = append(args, pair("--cacert", node.certPath)...)
+		http := "http"
+		if e.tls {
+			args = append(args, pair("--cacert", node.certPath)...)
+			http = http + "s"
+		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		args = append(args, "https://"+node.addr+"/api/public")
+		args = append(args, http+"://"+node.addr+"/api/public")
 		cmd := exec.Command("curl", args...)
 		if !printed {
 			fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
@@ -283,7 +291,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.basePath, e.certFolder)
+	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.basePath, e.certFolder, e.tls)
 	for _, node := range e.newNodes {
 		// just specify here since we use the short command for old node and new
 		// nodes have a longer command - not necessary but this is the
@@ -365,12 +373,14 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}
 }
 
-func createNodes(n int, offset int, basePath, certFolder string) ([]*Node, []string) {
+func createNodes(n int, offset int, basePath, certFolder string, tls bool) ([]*Node, []string) {
 	var nodes []*Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
-		n := NewNode(idx, basePath)
-		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
+		n := NewNode(idx, basePath, tls)
+		if tls {
+			n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
+		}
 		nodes = append(nodes, n)
 		fmt.Printf("\t- Created node %s at %s\n", n.addr, n.base)
 	}
