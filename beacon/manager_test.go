@@ -45,19 +45,4 @@ func TestManager(t *testing.T) {
 		}
 	}
 
-	// check the "need sync" feature
-	curr = 13
-	prev = 10
-	partials = rm.NewRound(prev, curr)
-	rm.NewBeacon(&drand.BeaconPacket{
-		PreviousRound: curr + 2,
-		Round:         curr + 3,
-		PreviousSig:   []byte("l'ingratitude"),
-		PartialSig:    []byte("est mere de tout vice"),
-	})
-	select {
-	case <-rm.ProbablyNeedSync():
-	case <-time.After(100 * time.Millisecond):
-		require.False(t, true, "too late")
-	}
 }
