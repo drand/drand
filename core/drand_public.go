@@ -75,6 +75,10 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Emp
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	// first try the cache
+	if b, ok := d.cache.GetBeacon(in.GetRound()); ok {
+		return beaconToProto(b), nil
+	}
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -95,13 +99,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
 		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
 	}
-	return &drand.PublicRandResponse{
-		PreviousSignature: beacon.PreviousSig,
-		PreviousRound:     beacon.PreviousRound,
-		Round:             beacon.Round,
-		Signature:         beacon.Signature,
-		Randomness:        beacon.Randomness(),
-	}, nil
+	return beaconToProto(beacon), nil
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
@@ -238,14 +236,4 @@ func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) 
 	// reply with the group, the receiver will start the DKG
 	protoGroup := groupToProto(group)
 	return protoGroup, nil
-}
-
-func beaconToProto(b *beacon.Beacon) *drand.PublicRandResponse {
-	return &drand.PublicRandResponse{
-		Round:             b.Round,
-		Signature:         b.Signature,
-		PreviousRound:     b.PreviousRound,
-		PreviousSignature: b.PreviousSig,
-		Randomness:        b.Randomness(),
-	}
 }

@@ -664,9 +664,12 @@ func (h *Handler) AddCallback(fn func(*Beacon)) {
 func (h *Handler) applyCallbacks(b *Beacon) {
 	h.Lock()
 	defer h.Unlock()
-	for _, fn := range h.callbacks {
-		go fn(b)
-	}
+	callbacks := h.callbacks
+	go func() {
+		for _, fn := range callbacks {
+			fn(b)
+		}
+	}()
 }
 
 func shortSigStr(sig []byte) string {

@@ -70,3 +70,10 @@ var DefaultGenesisOffset = 2 * time.Minute
 // time will be rounded up to the next round time of the beacon, since a beacon
 // has to keep the same period.
 var DefaultResharingOffset = 30 * time.Second
+
+// Keep the most recents beacons
+var DefaultBeaconCacheLength = 10
+
+// IDs for callback when beacon appears
+const callbackID = "callbackID"
+const cacheID = "cacheID"
