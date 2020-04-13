@@ -65,8 +65,9 @@ type Handler struct {
 	started bool
 	stopped bool
 
-	callbacks []func(*Beacon)
-	syncing   bool
+	callbacks  []func(*Beacon)
+	syncing    bool
+	transition chan transitionInfo
 
 	l log.Logger
 }
@@ -91,17 +92,18 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 	addr := conf.Private.Public.Address()
 	logger := l.With("index", idx)
 	handler := &Handler{
-		conf:    conf,
-		client:  c,
-		group:   conf.Group,
-		share:   conf.Share,
-		pub:     conf.Share.PubPoly(),
-		index:   idx,
-		addr:    addr,
-		store:   s,
-		close:   make(chan bool),
-		l:       logger,
-		manager: newRoundManager(l, conf.Group.Threshold, conf.Scheme),
+		conf:       conf,
+		client:     c,
+		group:      conf.Group,
+		share:      conf.Share,
+		pub:        conf.Share.PubPoly(),
+		index:      idx,
+		addr:       addr,
+		store:      s,
+		close:      make(chan bool),
+		transition: make(chan transitionInfo, 1),
+		l:          logger,
+		manager:    newRoundManager(l, conf.Group.Threshold, conf.Scheme),
 	}
 	// genesis block at round 0, next block at round 1
 	// THIS is to change when one network wants to build on top of another
@@ -152,15 +154,12 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconPacket) (*prot
 	msg := Message(p.GetPreviousSig(), p.GetPreviousRound(), p.GetRound())
 	// verify if request is valid
 	if err := h.conf.Scheme.VerifyPartial(h.pub, msg, p.GetPartialSig()); err != nil {
-		//shortPub := h.pub.Eval(1).V.String()[14:19]
-		//fmt.Printf(" || FAIL index %d : pointer %p : shortPub: %s\n", h.index, h, shortPub)
 		h.l.Error("process_request", err, "from", peer.Addr.String(), "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg))
 		return nil, err
 	}
 	idx, _ := h.conf.Scheme.IndexOf(p.GetPartialSig())
 	if idx == h.index {
-		h.l.Error("process_request", "same_index", "got", idx, "our", h.index)
-		return nil, errors.New("same index as this node")
+		h.l.Error("process_request", "same_index", "got", idx, "our", h.index, "inadvance_packet?")
 	}
 	h.manager.NewBeacon(p)
 	return new(proto.Empty), nil
@@ -300,6 +299,40 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 	return nil
 }
 
+func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
+	// sleep until the transition time
+	targetTime := newGroup.TransitionTime
+	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	h.l.Debug("transition", "new_group", "at_round", tRound)
+	// tTime is the time of the next round -
+	// we want to compare the actual roudn
+	// XXX simplify this by implementing a "RoundOfTime" method
+	tTime = tTime - int64(h.conf.Group.Period.Seconds())
+	tRound = tRound - 1
+	if tTime != targetTime {
+		fmt.Printf("node %d - %s : next time %d vs transition time %d\n", h.index, h.conf.Private.Public.Address(), tTime, targetTime)
+		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+	}
+	// send the new group and share to the main loop so it can switch at the
+	// right time
+	h.transition <- transitionInfo{
+		share:        newShare,
+		group:        newGroup,
+		idx:          newShare.Share.I,
+		startAtRound: tRound,
+		startAtTime:  tTime,
+	}
+}
+
+type transitionInfo struct {
+	share *key.Share
+	group *key.Group
+	idx   int
+	// round number
+	startAtRound uint64
+	startAtTime  int64
+}
+
 // Sync will try to sync to the given identities
 func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 	h.Lock()
@@ -345,7 +378,7 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		} else {
 			h.l.Error("after_sync", "nil_beacon")
 		}
-		h.l.Debug("sync_incomplete", "try_again", "sleep", SyncRetrialWait)
+		h.l.Debug("sync_incomplete", "try_again", fmt.Sprintf("%d/%d", trial, SyncRetrial))
 		//h.conf.Clock.Sleep(SyncRetrialWait)
 	}
 	h.l.Error("sync", "failed", "network_down_or_BUG")
@@ -374,6 +407,7 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 	var period = h.conf.Group.Period
 	winCh := make(chan *Beacon)
 	closingCh := make(chan bool)
+	var transition *transitionInfo
 	ticker := h.conf.Clock.NewTicker(period)
 	defer ticker.Stop()
 	for {
@@ -408,9 +442,24 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 			// the ticker is king so we always start a new round at each
 			// tick
 			goToNextRound = true
-			//fmt.Printf("\n <<- node %d : NEW TICK round %d -  %d \n\n", h.index, currentRound, h.conf.Clock.Now().Unix())
+			//  we look if there is a transition to do at this round
+			// if it hasn't been done when previous beacon created, it means
+			// network is down but transition should still happen.
+			if transition != nil && transition.startAtRound == currentRound {
+				h.l.Info("transition", "happenning", "round", currentRound, "time", transition.startAtTime)
+				h.setTransition(transition)
+				transition = nil
+			}
 			break
 		case beacon := <-winCh:
+			// we already switch to the new share since next round will build
+			// upon the new share - needed if we receive some signature just a
+			// bit in advance of the ticker.
+			if transition != nil && transition.startAtRound == currentRound+1 {
+				h.l.Info("transition", "next_round", "round", currentRound, "time", transition.startAtTime)
+				h.setTransition(transition)
+				transition = nil
+			}
 			if beacon.Round != currentRound {
 				// an old round that finishes later than supposed to, we need to
 				// make sure to not build upon it as other nodes may be already
@@ -427,6 +476,10 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 			h.applyCallbacks(beacon)
 			//fmt.Printf("\n FINISHED node %d - round %d\n\n", h.index, prevRound)
 			break
+		case newInfo := <-h.transition:
+			// setup the transition info so at the right round, it shifts to
+			// using new group
+			transition = &newInfo
 		case <-h.close:
 			//fmt.Printf("\n\t --- Beacon LOOP OUT - node pointer %p\n", h)
 			h.l.Debug("beacon_loop", "finished")
@@ -436,15 +489,22 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 }
 
 func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh chan *Beacon, closeCh chan bool) {
+	h.Lock()
+	share := h.share
+	nodes := h.group.Nodes
+	threshold := h.group.Threshold
+	pub := h.pub
+	h.Unlock()
+
 	incomings := h.manager.NewRound(prevRound, currentRound)
 	// we sign for the new current round
 	msg := Message(prevSig, prevRound, currentRound)
-	currSig, err := h.conf.Scheme.Sign(h.share.PrivateShare(), msg)
+	currSig, err := h.conf.Scheme.Sign(share.PrivateShare(), msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", currentRound)
 		return
 	}
-	shortPub := h.pub.Eval(1).V.String()[14:19]
+	shortPub := pub.Eval(1).V.String()[14:19]
 	h.l.Debug("start_round", currentRound, "time", h.conf.Clock.Now(), "from_sig", shortSigStr(prevSig), "from_round", prevRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "handler", fmt.Sprintf("%p", h), "addr", h.conf.Private.Public.Address())
 	packet := &proto.BeaconPacket{
 		Round:         currentRound,
@@ -459,7 +519,7 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 	time.Sleep(h.conf.WaitTime)
 	// send all requests in parallel
 	h.client.SetTimeout(1 * time.Second)
-	for _, id := range h.conf.Group.Nodes {
+	for _, id := range nodes {
 		if h.addr == id.Address() {
 			continue
 		}
@@ -492,18 +552,18 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 			h.l.Error("beacon_round", currentRound, "quitting prematurely", "problem with short period or beacon nodes")
 			return
 		}
-		if len(partials) < h.conf.Group.Threshold {
+		if len(partials) < threshold {
 			continue
 		}
-		h.l.Debug("beacon_round", currentRound, "got_all_sig", fmt.Sprintf("%d/%d", len(partials), h.conf.Group.Threshold))
+		h.l.Debug("beacon_round", currentRound, "got_all_sig", fmt.Sprintf("%d/%d", len(partials), threshold))
 		//fmt.Printf("\n%d - %s got ALL signatures #1\n\n", h.index, h.conf.Private.Public.Address())
-		finalSig, err = h.conf.Scheme.Recover(h.pub, msg, partials, h.group.Threshold, h.group.Len())
+		finalSig, err = h.conf.Scheme.Recover(pub, msg, partials, threshold, len(nodes))
 		if err != nil {
 			h.l.Error("beacon_round", currentRound, "final-beacon-err", err)
 			return
 		}
 
-		if err := h.conf.Scheme.VerifyRecovered(h.pub.Commit(), msg, finalSig); err != nil {
+		if err := h.conf.Scheme.VerifyRecovered(pub.Commit(), msg, finalSig); err != nil {
 			h.l.Error("beacon_round", currentRound, "invalid beacon signature", err)
 			return
 		}
@@ -543,10 +603,14 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 
 // initRound & initSignature are the round & signature this node has
 func (h *Handler) syncFrom(to []*key.Identity, lastBeacon *Beacon) (*Beacon, error) {
+	h.Lock()
+	pub := h.pub
+	h.Unlock()
 	currentRound := lastBeacon.Round
 	currentSig := lastBeacon.Signature
 	var currentBeacon = lastBeacon
 	initRound := currentRound
+
 	for _, id := range to {
 		if h.addr == id.Addr {
 			continue
@@ -588,7 +652,7 @@ func (h *Handler) syncFrom(to []*key.Identity, lastBeacon *Beacon) (*Beacon, err
 				break
 			}
 			msg := Message(prevSig, prevRound, syncReply.GetRound())
-			if err := h.conf.Scheme.VerifyRecovered(h.pub.Commit(), msg, syncReply.GetSignature()); err != nil {
+			if err := h.conf.Scheme.VerifyRecovered(pub.Commit(), msg, syncReply.GetSignature()); err != nil {
 				h.l.Error("sync_round", currentRound, "invalid_sig", err, "from", id.Address())
 				cancel()
 				break
@@ -674,6 +738,15 @@ func (h *Handler) applyCallbacks(b *Beacon) {
 	}()
 }
 
+func (h *Handler) setTransition(t *transitionInfo) {
+	h.Lock()
+	defer h.Unlock()
+	h.share = t.share
+	h.group = t.group
+	h.pub = t.share.PubPoly()
+	h.index = t.idx
+
+}
 func shortSigStr(sig []byte) string {
 	max := 3
 	if len(sig) < max {

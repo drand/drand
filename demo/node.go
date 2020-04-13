@@ -145,7 +145,6 @@ func (n *Node) Start(certFolder string) {
 
 func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string) *key.Group {
 	args := []string{"share", "--control", n.ctrl}
-	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
 	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 	args = append(args, pair("--timeout", timeout)...)
@@ -181,7 +180,6 @@ func (n *Node) GetGroup() *key.Group {
 
 func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string) *key.Group {
 	args := []string{"share"}
-	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
 	args = append(args, pair("--timeout", timeout)...)
