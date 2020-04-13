@@ -114,7 +114,8 @@ func (n *Node) setup() {
 func (n *Node) Start(certFolder string) {
 	// create log file
 	//logFile, err := os.Create(n.logPath)
-	logFile, err := os.OpenFile(n.logPath, os.O_RDWR|os.O_CREATE, 0777)
+	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
+	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	checkErr(err)
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)

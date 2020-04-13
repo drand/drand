@@ -24,6 +24,7 @@ func installDrand() {
 var build = flag.Bool("build", false, "build the drand binary first")
 var testF = flag.Bool("test", false, "run it as a test that finishes")
 var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
+var debug = flag.Bool("debut", false, "prints the log when panic occurs")
 
 // 10s after dkg finishes, (new or reshared) beacon starts
 var beaconOffset = 10
@@ -45,7 +46,7 @@ func main() {
 	nRound := 2
 	n := 6
 	thr := 4
-	period := "7s"
+	period := "6s"
 	newThr := 5
 	orch := NewOrchestrator(n, thr, period, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
@@ -58,7 +59,9 @@ func main() {
 	defer func() {
 		// print logs in case things panic
 		if err := recover(); err != nil {
-			orch.PrintLogs()
+			if *debug {
+				orch.PrintLogs()
+			}
 			os.Exit(1)
 		}
 	}()

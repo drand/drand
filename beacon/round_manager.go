@@ -47,18 +47,8 @@ func (r *roundManager) run() {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
 			} else if p.GetPreviousRound() > currRound.round {
-				// this checks if a beacon we have received builds on something
-				// farther than the current round.
-				// If it builds on the current round, that is just a packet that
-				// is a bit in advance or we are a bit late.
-				// But if it builds on something further ahead, then we need a
-				// sync since we are clearly behind. If it is the former case
-				// and that we can't generate this round properly while network
-				// is still up, we're gonna end up in the case at the next round
-				// probably.
 				msgs[0] = "indication_of"
 				msgs[1] = "require_sync"
-				r.needSync <- true
 			}
 			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
 			return false
@@ -74,6 +64,7 @@ func (r *roundManager) run() {
 		select {
 		case nRound := <-r.newRound:
 			if currRound.partialCh != nil {
+				// notify current round we moved on
 				close(currRound.partialCh)
 			}
 			currRound = nRound
@@ -112,6 +103,12 @@ func (r *roundManager) run() {
 
 			}
 		case partial := <-r.newBeacon:
+			if currRound.round == 0 {
+				// round should start at 1 - it can happen we are still syncing
+				// when doing catchup for example, we dont want
+				r.l.Debug("round_manager", "not_yet_started")
+				continue
+			}
 			if !checkPartial(partial) {
 				// if not for the current round this node thinks it is,
 				// then look if we can store it for later
@@ -123,8 +120,23 @@ func (r *roundManager) run() {
 						tmpPartials = tmpPartials[1:]
 					}
 					tmpPartials = append(tmpPartials, partial)
-					continue
 				}
+				if currRound.round != 0 && partial.GetPreviousRound() > currRound.round {
+					// this checks if a beacon we have received builds on something
+					// farther than the current round.
+					// If it builds on the current round, that is just a packet that
+					// is a bit in advance or we are a bit late.
+					// But if it builds on something further ahead, then we need a
+					// sync since we are clearly behind. If it is the former case
+					// and that we can't generate this round properly while network
+					// is still up, we're gonna end up in the case at the next round
+					// probably.
+					// special case for current round == 0 means we're just
+					// catching up or started, or syncing. no need to sync up
+					// yet.
+					//r.needSync <- true
+				}
+				continue
 			}
 
 			index, _ := r.sign.IndexOf(partial.GetPartialSig())

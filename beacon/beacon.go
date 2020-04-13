@@ -66,6 +66,7 @@ type Handler struct {
 	stopped bool
 
 	callbacks []func(*Beacon)
+	syncing   bool
 
 	l log.Logger
 }
@@ -122,8 +123,13 @@ var errOutOfRound = "out-of-round beacon request"
 // 2- the partial signature in the embedded response is valid. This proves that
 // the requests comes from a qualified node from the DKG phase.
 func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconPacket) (*proto.Empty, error) {
+	h.Lock()
+	defer h.Unlock()
+	if h.syncing {
+		return nil, errors.New("node is syncing")
+	}
 	peer, _ := peer.FromContext(c)
-	h.l.Debug("received", "request", "from", peer.Addr.String())
+	h.l.Debug("received", "request", "from", peer.Addr.String(), "round", p.GetRound())
 
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
@@ -212,7 +218,7 @@ func (h *Handler) Start() error {
 	if err != nil {
 		return errors.New("no genesis block found in store")
 	}
-	go h.run(genesis.Signature, genesis.Round, genesis.Round+1, h.conf.Group.GenesisTime)
+	go h.run(genesis, genesis.Round+1, h.conf.Group.GenesisTime)
 	return nil
 }
 
@@ -229,10 +235,8 @@ func (h *Handler) Catchup() {
 		h.l.Error("syncing", err)
 	}
 	nextRound, nextTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-	previousSig := prevBeacon.Signature
-	previousRound := prevBeacon.Round
 	//fmt.Printf("\nSYNCING DONE: prevRound %d prevSig %s - nextRound %d nextTime %d\n\n", previousRound, shortSigStr(previousSig), nextRound, nextTime)
-	h.run(previousSig, previousRound, nextRound, nextTime)
+	h.run(prevBeacon, nextRound, nextTime)
 }
 
 // Transition makes this beacon continuously sync until the time written in the
@@ -292,12 +296,20 @@ func (h *Handler) Transition(prevNodes []*key.Identity) error {
 		h.l.Error("transition", "too-many-failures", "nerrors", nErr)
 		return errors.New("can't sync to transition time")
 	}
-	h.run(lastBeacon.Signature, lastBeacon.Round, tRound, tTime)
+	h.run(lastBeacon, tRound, tTime)
 	return nil
 }
 
 // Sync will try to sync to the given identities
 func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
+	h.Lock()
+	h.syncing = true
+	h.Unlock()
+	defer func() {
+		h.Lock()
+		h.syncing = false
+		h.Unlock()
+	}()
 	var nextRound uint64
 	var nextTime int64
 	var err error
@@ -318,12 +330,9 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 	// after the targeted time. It shouldn't happen though often.
 	for trial := 0; trial < SyncRetrial; trial++ {
 		// there is a gap - we need to sync with other peers
-		currRound := lastBeacon.Round
-		currSig := lastBeacon.Signature
-		//fmt.Printf("\n node %d LAUNCHING SYNC from round %d -- previousBeacon.Round %d\n\n", h.index, currRound, previousBeacon.Round)
-		lastBeacon, err := h.syncFrom(to, currRound, currSig)
+		lastBeacon, err := h.syncFrom(to, lastBeacon)
 		if err != nil {
-			h.l.Error("sync", "failed", "from", currRound)
+			h.l.Error("sync", "failed", "from", lastBeacon.Round)
 		}
 		if lastBeacon != nil {
 			nextRound, nextTime = NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -336,9 +345,8 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 		} else {
 			h.l.Error("after_sync", "nil_beacon")
 		}
-		// not to aggressive
 		h.l.Debug("sync_incomplete", "try_again", "sleep", SyncRetrialWait)
-		h.conf.Clock.Sleep(SyncRetrialWait)
+		//h.conf.Clock.Sleep(SyncRetrialWait)
 	}
 	h.l.Error("sync", "failed", "network_down_or_BUG")
 	return lastBeacon, errors.New("impossible to sync to current round: network is down?")
@@ -347,7 +355,9 @@ func (h *Handler) Sync(to []*key.Identity) (*Beacon, error) {
 // Run starts the TBLS protocol: it will start the round "nextRound" that is
 // building over the given initSig & the initRound. It sleeps until the starting
 // time specified has kicked in.
-func (h *Handler) run(initSig []byte, initRound, nextRound uint64, startTime int64) {
+func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
+	initSig := lastBeacon.Signature
+	initRound := lastBeacon.Round
 	// sleep until beginning of next round
 	now := h.conf.Clock.Now().Unix()
 	sleepTime := startTime - now
@@ -539,12 +549,11 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 }
 
 // initRound & initSignature are the round & signature this node has
-func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature []byte) (*Beacon, error) {
-	currentRound := initRound
-	//fmt.Printf("\n node %d runs SYNCFROM --- currentRound %d\n\n", h.index, currentRound)
-	currentSig := initSignature
-	var currentBeacon *Beacon
-
+func (h *Handler) syncFrom(to []*key.Identity, lastBeacon *Beacon) (*Beacon, error) {
+	currentRound := lastBeacon.Round
+	currentSig := lastBeacon.Signature
+	var currentBeacon = lastBeacon
+	initRound := currentRound
 	for _, id := range to {
 		if h.addr == id.Addr {
 			continue
@@ -552,7 +561,7 @@ func (h *Handler) syncFrom(to []*key.Identity, initRound uint64, initSignature [
 		//fmt.Println(" TRYING TO SYNC TO ", id.Address())
 		// if node doesn't answer quickly, we move on
 		//h.client.SetTimeout(1 * time.Second)
-		h.l.Debug("sync_from", "try_sync", "to", id.Addr, "from_round", currentRound+1)
+		h.l.Debug("sync_from", "try_sync", "to", id.Addr, "from_round", currentRound)
 		//ctx, cancel := context.WithCancel(context.Background())
 		ctx, cancel := context.Background(), func() {}
 		request := &proto.SyncRequest{
