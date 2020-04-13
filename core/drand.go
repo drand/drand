@@ -33,6 +33,8 @@ type Drand struct {
 
 	// handle all callbacks when a new beacon is found
 	callbacks *callbackManager
+	// stores recent entries in memory
+	cache *beaconCache
 
 	dkg    *dkg.Handler
 	beacon *beacon.Handler
@@ -93,9 +95,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		log:       logger,
 		exitCh:    make(chan bool, 1),
 		callbacks: newCallbackManager(),
+		cache:     newBeaconCache(logger),
 	}
 	// every new beacon will be passed through the opts callbacks
 	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
+	d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
 	a := c.ListenAddress(priv.Public.Address())
 	if c.insecure {
@@ -236,22 +240,6 @@ func (d *Drand) StartBeacon(catchup bool) {
 // old node that fails during the time the resharing is done and the new network
 // comes up have to wait for the new network to comes in - that is to be fixed
 func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
-	replaceBeacon := func() *beacon.Handler {
-		d.state.Lock()
-		defer d.state.Unlock()
-		var err error
-		d.beacon, err = d.newBeacon()
-		if err != nil {
-			d.log.Fatal("new_beacon", err)
-		}
-		var found bool
-		d.index, found = d.group.Index(d.priv.Public)
-		if !found {
-			d.log.Fatal("transition_index", "absent")
-		}
-		d.beacon.AddCallback(d.callbacks.NewBeacon)
-		return d.beacon
-	}
 	// the node should stop a bit before the new round to avoid starting it at
 	// the same time as the new node
 	// NOTE: this limits the round time of drand - for now it is not a use
@@ -267,25 +255,21 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 		}
 		return
 	}
+
+	d.state.Lock()
+	newGroup := d.group
+	newShare := d.share
+	d.state.Unlock()
+
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
-		// get reference to last beacon and init the new one
-		d.state.Lock()
-		currentBeacon := d.beacon
-		//share := d.share
-		d.state.Unlock()
-		currentBeacon.StopAt(timeToStop)
-		nbeacon := replaceBeacon()
-		//lbeacon, _ := nbeacon.Store().Last()
-		//fmt.Printf(" TRANSITION OLD NODE done: node %s - %p : current %d : will stop at %d --> pub %s \n", d.priv.Public.Address(), nbeacon, d.opts.clock.Now().Unix(), timeToStop, share.PubPoly().Eval(1).V.String()[14:19])
-		nbeacon.Transition(oldGroup.Nodes)
-		d.log.Info("transition_old", "done")
+		d.beacon.TransitionNewGroup(newShare, newGroup)
 	} else {
-		// tell the new node that has "nothing" stored to sync in the meantime
-		// and then to start at the time of the new network
-		newBeacon := replaceBeacon()
-		//fmt.Printf(" TRANSITION NEW NODE: node %d: %s - %p calling transition pub %s\n\n", d.index, d.priv.Public.Address(), d.beacon, d.share.PubPoly().Eval(1).V.String()[14:19])
-		if err := newBeacon.Transition(oldGroup.Nodes); err != nil {
+		beacon, err := d.newBeacon()
+		if err != nil {
+			d.log.Fatal("transition", "new_node", "err", err)
+		}
+		if err := beacon.Transition(oldGroup.Nodes); err != nil {
 			d.log.Error("sync_before", err)
 		}
 		d.log.Info("transition_new", "done")
@@ -332,6 +316,7 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	conf := &beacon.Config{
 		Group:   d.group,
 		Private: d.priv,
@@ -339,7 +324,13 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Scheme:  key.Scheme,
 		Clock:   d.opts.clock,
 	}
-	return beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)
+	beacon, err := beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)
+	if err != nil {
+		return nil, err
+	}
+	d.beacon = beacon
+	d.beacon.AddCallback(d.callbacks.NewBeacon)
+	return d.beacon, nil
 }
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {
@@ -380,5 +371,3 @@ type dkgNetwork struct {
 func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.Packet) error {
 	return d.send(p, pack)
 }
-
-const callbackID = "callbackID"

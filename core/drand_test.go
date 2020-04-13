@@ -573,6 +573,59 @@ func TestDrandPublicGroup(t *testing.T) {
 	require.True(t, group.Equal(received))
 }
 
+func TestDrandPublicStream(t *testing.T) {
+	n := 4
+	thr := key.DefaultThreshold(n)
+	p := 1 * time.Second
+	//genesisTime := clock.NewFakeClock().Now().Unix()
+	dt := NewDrandTest(t, n, thr, p)
+	defer dt.Cleanup()
+	group := dt.RunDKG()
+	root := dt.drands[dt.ids[0]]
+	rootID := root.priv.Public
+
+	dt.MoveToTime(group.GenesisTime)
+	// do a few periods
+	for i := 0; i < 3; i++ {
+		dt.MoveTime(group.Period)
+	}
+
+	cm := root.opts.certmanager
+	client := net.NewGrpcClientFromCertManager(cm)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// get last round first
+	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+
+	//  run streaming and expect responses
+	req := &drand.PublicRandRequest{Round: resp.GetRound()}
+	respCh, err := client.PublicRandStream(ctx, root.priv.Public, req)
+	require.NoError(t, err)
+	// expect first round now since node already has it
+	select {
+	case beacon := <-respCh:
+		require.Equal(t, beacon.GetRound(), resp.GetRound())
+	case <-time.After(100 * time.Millisecond):
+		require.True(t, false, "too late")
+	}
+	nTry := 4
+	// we expect the next one now
+	initRound := resp.Round + 1
+	maxRound := initRound + uint64(nTry)
+	fmt.Println("Streaming for future rounds starting from", initRound)
+	for round := initRound; round < maxRound; round++ {
+		// move time to next period
+		dt.MoveTime(group.Period)
+		select {
+		case beacon := <-respCh:
+			require.Equal(t, beacon.GetRound(), round)
+		case <-time.After(1 * time.Second):
+			require.True(t, false, "too late for streaming, round %d didn't reply in time", round)
+		}
+	}
+}
+
 // BatchNewDrand returns n drands, using TLS or not, with the given
 // options. It returns the list of Drand structures, the group created,
 // the folder where db, certificates, etc are stored. It is the folder

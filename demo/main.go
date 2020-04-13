@@ -24,9 +24,16 @@ func installDrand() {
 var build = flag.Bool("build", false, "build the drand binary first")
 var testF = flag.Bool("test", false, "run it as a test that finishes")
 var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
+var debug = flag.Bool("debut", false, "prints the log when panic occurs")
 
 // 10s after dkg finishes, (new or reshared) beacon starts
 var beaconOffset = 10
+
+// how much should we wait before checking if the randomness is present. This is
+// mostly due to the fact we run on localhost on cheap machine with CI so we
+// need some delays to make sure *all* nodes that we check have gathered the
+// randomness.
+var afterPeriodWait = 4 * time.Second
 
 func main() {
 	flag.Parse()
@@ -49,6 +56,15 @@ func main() {
 	// the drand nodes will load all of them already.
 	orch.SetupNewNodes(3)
 	defer orch.Shutdown()
+	defer func() {
+		// print logs in case things panic
+		if err := recover(); err != nil {
+			if *debug {
+				orch.PrintLogs()
+			}
+			os.Exit(1)
+		}
+	}()
 	setSignal(orch)
 	orch.StartCurrentNodes()
 	orch.RunDKG("2s")
@@ -59,8 +75,8 @@ func main() {
 	}
 	// stop a node and look if the beacon still continues
 	nodeToStop := 3
-	orch.StopNode(nodeToStop)
-	for i := 0; i < 4; i++ {
+	orch.StopNodes(nodeToStop)
+	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
@@ -80,9 +96,17 @@ func main() {
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
 
-	fmt.Println("[+] Trying to fetch beacon from all nodes again")
-	// start the node again and expects him to catch up
+	// stop only more than a threshold of the network, wait a bit and see if it
+	// can restart at the right round correctly
+	nodesToStop := []int{1, 2}
+	fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
+	orch.StopNodes(nodesToStop...)
+	orch.WaitPeriod()
+	orch.WaitPeriod()
+	fmt.Printf("[+] Trying to start them again and check beacons\n")
+	orch.StartNode(nodesToStop...)
 	orch.StartNode(nodeToStop)
+	orch.WaitPeriod()
 	orch.WaitPeriod()
 	// at this point node should have catched up
 	for i := 0; i < nRound; i++ {
@@ -125,6 +149,7 @@ func setSignal(orch *Orchestrator) {
 	go func() {
 		s := <-sigc
 		fmt.Println("[+] Received signal ", s.String())
+		orch.PrintLogs()
 		orch.Shutdown()
 	}()
 }

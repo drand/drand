@@ -157,7 +157,7 @@ func (b *boltStore) Get(round uint64) (*Beacon, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%v:\n%s", err, printStore(b))
+		return nil, err
 	}
 	return beacon, err
 }

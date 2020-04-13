@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -180,9 +181,8 @@ func (e *Orchestrator) WaitTransition() {
 	to := time.Until(time.Unix(e.transition, 0))
 	fmt.Printf("[+] Sleeping %s until transition happens\n", to)
 	time.Sleep(to)
-	relax := 3 * time.Second
-	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", relax)
-	time.Sleep(relax)
+	fmt.Printf("[+] Sleeping %s after transition - leaving some time for nodes\n", afterPeriodWait)
+	time.Sleep(afterPeriodWait)
 }
 
 func (e *Orchestrator) Wait(t time.Duration) {
@@ -192,7 +192,7 @@ func (e *Orchestrator) Wait(t time.Duration) {
 
 func (e *Orchestrator) WaitPeriod() {
 	nRound, nTime := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
-	until := time.Until(time.Unix(nTime, 0).Add(3 * time.Second))
+	until := time.Until(time.Unix(nTime, 0).Add(afterPeriodWait))
 
 	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
 	time.Sleep(until)
@@ -260,7 +260,11 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 			http = http + "s"
 		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		args = append(args, http+"://"+node.addr+"/api/public")
+		url := http + "://" + node.addr + "/api/public/"
+		// add the round to make sure we don't ask for a later block if we're
+		// behind
+		url += strconv.Itoa(int(currRound))
+		args = append(args, url)
 		cmd := exec.Command("curl", args...)
 		if !printed {
 			fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
@@ -382,11 +386,13 @@ func createNodes(n int, offset int, period, basePath, certFolder string, tls boo
 	return nodes, paths
 }
 
-func (e *Orchestrator) StopNode(i int) {
+func (e *Orchestrator) StopNodes(idxs ...int) {
 	for _, node := range e.nodes {
-		if node.i == i {
-			fmt.Printf("[+] Stopping node %s to simulate a node failure\n", node.addr)
-			node.Stop()
+		for _, idx := range idxs {
+			if node.i == idx {
+				fmt.Printf("[+] Stopping node %s to simulate a node failure\n", node.addr)
+				node.Stop()
+			}
 		}
 	}
 }
@@ -395,32 +401,48 @@ func (e *Orchestrator) StopAllNodes(toExclude ...int) {
 	filtered := filterNodes(e.nodes, toExclude...)
 	fmt.Printf("[+] Stopping the rest (%d nodes) for a complete failure\n", len(filtered))
 	for _, node := range filtered {
-		e.StopNode(node.i)
+		e.StopNodes(node.i)
 	}
 }
 
-func (e *Orchestrator) StartNode(i int) {
-	var foundNode *Node
-	for _, node := range e.nodes {
-		if node.i == i {
-			foundNode = node
+func (e *Orchestrator) StartNode(idxs ...int) {
+	for _, idx := range idxs {
+		var foundNode *Node
+		for _, node := range e.nodes {
+			if node.i == idx {
+				foundNode = node
+			}
 		}
-	}
-	if foundNode == nil {
-		panic("node to start doesn't exist")
-	}
+		if foundNode == nil {
+			panic("node to start doesn't exist")
+		}
 
-	fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.addr)
-	foundNode.Start(e.certFolder)
-	trial := 0
-	for trial < 5 {
-		if foundNode.Ping() {
-			fmt.Printf("\t- Node %s started correctly\n", foundNode.addr)
-			return
+		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.addr)
+		foundNode.Start(e.certFolder)
+		trial := 0
+		var started bool
+		for trial < 5 {
+			if foundNode.Ping() {
+				fmt.Printf("\t- Node %s started correctly\n", foundNode.addr)
+				started = true
+				break
+			}
+			time.Sleep(1 * time.Second)
 		}
-		time.Sleep(1 * time.Second)
+		if !started {
+			panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.addr))
+		}
 	}
-	panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.addr))
+}
+
+func (e *Orchestrator) PrintLogs() {
+	fmt.Println("[+] Printing logs for debugging on CI")
+	for _, node := range e.nodes {
+		node.PrintLog()
+	}
+	for _, node := range e.newNodes {
+		node.PrintLog()
+	}
 }
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")

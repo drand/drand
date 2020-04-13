@@ -36,14 +36,16 @@ func (r *roundManager) run() {
 	var currRound roundBundle
 	var seenPartials = make(map[int]bool)
 	var tmpPartials []*drand.BeaconPacket
-
 	checkPartial := func(p *drand.BeaconPacket) bool {
 		nowPrevious := p.GetPreviousRound() == currRound.lastRound
 		if !nowPrevious {
-			msgs := []string{"check_for", "sync"}
+			msgs := []string{"potential", "early_packet"}
 			if p.GetPreviousRound() < currRound.lastRound {
 				msgs[0] = "late_node_diff"
 				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
+			} else if p.GetPreviousRound() > currRound.round {
+				msgs[0] = "potential"
+				msgs[1] = "sync_needed"
 			}
 			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
 			return false
@@ -59,6 +61,7 @@ func (r *roundManager) run() {
 		select {
 		case nRound := <-r.newRound:
 			if currRound.partialCh != nil {
+				// notify current round we moved on
 				close(currRound.partialCh)
 			}
 			currRound = nRound
@@ -103,13 +106,14 @@ func (r *roundManager) run() {
 				if partial.GetRound() > currRound.round {
 					// we are late behind what the other nodes are doing
 					// we keep in the meantime until we are synced in
-					if len(tmpPartials) < maxLookAheadQueue {
-						tmpPartials = append(tmpPartials, partial)
+					if len(tmpPartials) > maxLookAheadQueue {
+						// rotate the partials
+						tmpPartials = tmpPartials[1:]
 					}
-					continue
+					tmpPartials = append(tmpPartials, partial)
 				}
+				continue
 			}
-
 			index, _ := r.sign.IndexOf(partial.GetPartialSig())
 			if seen := seenPartials[index]; seen {
 				r.l.Debug("round_manager", "seen_index", index, currRound.round)

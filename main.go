@@ -230,7 +230,7 @@ func main() {
 		&cli.Command{
 			Name:  "share",
 			Usage: "Launch a sharing protocol.",
-			Flags: toArray(folderFlag, insecureFlag, controlFlag, oldGroupFlag,
+			Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 				timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 				periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
 				leaderFlag, beaconOffset, transitionFlag),

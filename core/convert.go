@@ -5,7 +5,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
@@ -94,4 +96,14 @@ func protoToIdentity(n *proto.Identity) (*key.Identity, error) {
 		TLS:  n.Tls,
 		Key:  public,
 	}, nil
+}
+
+func beaconToProto(b *beacon.Beacon) *drand.PublicRandResponse {
+	return &drand.PublicRandResponse{
+		Round:             b.Round,
+		Signature:         b.Signature,
+		PreviousRound:     b.PreviousRound,
+		PreviousSignature: b.PreviousSig,
+		Randomness:        b.Randomness(),
+	}
 }

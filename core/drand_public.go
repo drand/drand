@@ -75,40 +75,68 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Emp
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	// first try the cache
+	if b, ok := d.cache.GetBeacon(in.GetRound()); ok {
+		return beaconToProto(b), nil
+	}
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon generation not started yet")
 	}
-	var beacon *beacon.Beacon
+	var r *beacon.Beacon
 	var err error
 	if in.GetRound() == 0 {
-		beacon, err = d.beacon.Store().Last()
+		r, err = d.beacon.Store().Last()
 	} else {
-		beacon, err = d.beacon.Store().Get(in.GetRound())
+		// fetch the correct entry or the next one if not found
+		d.beacon.Store().Cursor(func(c beacon.Cursor) {
+			r = c.Seek(in.GetRound())
+		})
 	}
-	if err != nil {
+	if err != nil || r == nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
 	peer, ok := peer.FromContext(c)
 	if ok {
-		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
-		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
+		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", r.Round)
+		d.log.Info("public rand", peer.Addr.String(), "round", r.Round)
 	}
-	return &drand.PublicRandResponse{
-		PreviousSignature: beacon.PreviousSig,
-		PreviousRound:     beacon.PreviousRound,
-		Round:             beacon.Round,
-		Signature:         beacon.Signature,
-		Randomness:        beacon.Randomness(),
-	}, nil
+	return beaconToProto(r), nil
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	var b *beacon.Handler
+	d.state.Lock()
+	if d.beacon == nil {
+		return errors.New("beacon has not started on this node yet")
+	}
+	b = d.beacon
+	d.state.Unlock()
+	lastb, err := b.Store().Last()
+	if err != nil {
+		return err
+	}
 	peer, _ := peer.FromContext(stream.Context())
 	addr := peer.Addr.String()
 	done := make(chan error, 1)
-	d.log.Debug("request", "stream", "from", addr)
+	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
+	if req.GetRound() <= lastb.Round {
+		// we need to stream from store first
+		var err error
+		b.Store().Cursor(func(c beacon.Cursor) {
+			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
+				if err = stream.Send(beaconToProto(bb)); err != nil {
+					d.log.Debug("stream", err)
+					return
+				}
+			}
+		})
+		if err != nil {
+			return err
+		}
+	}
+	// then we can stream from any new rounds
 	// register a callback for the duration of this stream
 	d.callbacks.AddCallback(addr, func(b *beacon.Beacon) {
 		err := stream.Send(&drand.PublicRandResponse{

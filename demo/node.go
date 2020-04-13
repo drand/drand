@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -113,7 +114,8 @@ func (n *Node) setup() {
 func (n *Node) Start(certFolder string) {
 	// create log file
 	//logFile, err := os.Create(n.logPath)
-	logFile, err := os.OpenFile(n.logPath, os.O_RDWR|os.O_CREATE, 0777)
+	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
+	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	checkErr(err)
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
@@ -143,7 +145,6 @@ func (n *Node) Start(certFolder string) {
 
 func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string) *key.Group {
 	args := []string{"share", "--control", n.ctrl}
-	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
 	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 	args = append(args, pair("--timeout", timeout)...)
@@ -179,7 +180,6 @@ func (n *Node) GetGroup() *key.Group {
 
 func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string) *key.Group {
 	args := []string{"share"}
-	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
 	args = append(args, pair("--timeout", timeout)...)
@@ -290,6 +290,17 @@ func (n *Node) Stop() {
 		return
 	}
 	panic("node should have stopped but is still running")
+}
+
+func (n *Node) PrintLog() {
+	fmt.Printf("[-] Printing logs of node %s:\n", n.addr)
+	buff, err := ioutil.ReadFile(n.logPath)
+	if err != nil {
+		fmt.Printf("[-] Can't read logs !\n\n")
+		return
+	}
+	os.Stdout.Write([]byte(buff))
+	fmt.Println()
 }
 
 func pair(k, v string) []string {
