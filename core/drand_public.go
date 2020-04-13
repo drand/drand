@@ -84,22 +84,25 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon generation not started yet")
 	}
-	var beacon *beacon.Beacon
+	var r *beacon.Beacon
 	var err error
 	if in.GetRound() == 0 {
-		beacon, err = d.beacon.Store().Last()
+		r, err = d.beacon.Store().Last()
 	} else {
-		beacon, err = d.beacon.Store().Get(in.GetRound())
+		// fetch the correct entry or the next one if not found
+		d.beacon.Store().Cursor(func(c beacon.Cursor) {
+			r = c.Seek(in.GetRound())
+		})
 	}
-	if err != nil {
+	if err != nil || r == nil {
 		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
 	}
 	peer, ok := peer.FromContext(c)
 	if ok {
-		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
-		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
+		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", r.Round)
+		d.log.Info("public rand", peer.Addr.String(), "round", r.Round)
 	}
-	return beaconToProto(beacon), nil
+	return beaconToProto(r), nil
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
