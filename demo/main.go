@@ -55,6 +55,13 @@ func main() {
 	// the drand nodes will load all of them already.
 	orch.SetupNewNodes(3)
 	defer orch.Shutdown()
+	defer func() {
+		// print logs in case things panic
+		if err := recover(); err != nil {
+			orch.PrintLogs()
+			os.Exit(1)
+		}
+	}()
 	setSignal(orch)
 	orch.StartCurrentNodes()
 	orch.RunDKG("2s")
