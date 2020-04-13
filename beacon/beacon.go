@@ -427,19 +427,11 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 			h.applyCallbacks(beacon)
 			//fmt.Printf("\n FINISHED node %d - round %d\n\n", h.index, prevRound)
 			break
-		case <-h.manager.ProbablyNeedSync():
-			// in this case we need to quit this main loop and start as in the catchup node
-			h.l.Info("need_sync", "leaving_main_loop")
-			// notify the current round we need to sync
-			close(closingCh)
-			go h.Catchup()
-			return
 		case <-h.close:
 			//fmt.Printf("\n\t --- Beacon LOOP OUT - node pointer %p\n", h)
 			h.l.Debug("beacon_loop", "finished")
 			return
 		}
-		//}
 	}
 }
 
@@ -527,10 +519,7 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 	}
 	//slog.Debugf("beacon: %s round %d -> SAVING beacon in store ", h.addr, round)
 	// we can always store it even if it is too late, since it is valid anyway
-	if err := h.store.Put(beacon); err != nil {
-		h.l.Error("beacon_round", currentRound, "storing beacon", err)
-		return
-	}
+
 	//slog.Debugf("beacon: %s round %d -> saved beacon in store sucessfully", h.addr, round)
 	//slog.Infof("beacon: %s round %d finished: %x", h.addr, round, finalSig)
 	shortSig := shortSigStr(finalSig)
@@ -540,11 +529,15 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 	select {
 	case <-closeCh:
 		// round is already time'd out
-		// XXX what do we do with the beacon just saved ? he is a valid one but
-		// is a "fork"
 		return
 	default:
 		winCh <- beacon
+		// only store it if it's still the correct time so we have no
+		// consistency issues if there is ever a late beacon created
+		if err := h.store.Put(beacon); err != nil {
+			h.l.Fatal("beacon_round", currentRound, "storing beacon", err)
+			return
+		}
 	}
 }
 
