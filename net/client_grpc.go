@@ -85,6 +85,7 @@ func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRan
 	return resp, err
 }
 
+// XXX move that to core/ client
 func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error) {
 	var outCh = make(chan *drand.PublicRandResponse, 10)
 	c, err := g.conn(p)

@@ -1,8 +1,9 @@
 package core
 
 import (
-	"github.com/drand/drand/beacon"
 	"sync"
+
+	"github.com/drand/drand/beacon"
 )
 
 type callbackManager struct {

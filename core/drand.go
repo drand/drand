@@ -217,6 +217,7 @@ func (d *Drand) StartBeacon(catchup bool) {
 		d.log.Error("init_beacon", err)
 		return
 	}
+	d.beacon.AddCallback(d.callbacks.NewBeacon)
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
 		go d.beacon.Catchup()
