@@ -434,6 +434,16 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 		}
 	}
 }
+
+func (e *Orchestrator) PrintLogs() {
+	fmt.Println("[+] Printing logs for debugging on CI")
+	for _, node := range e.nodes {
+		node.PrintLog()
+	}
+	for _, node := range e.newNodes {
+		node.PrintLog()
+	}
+}
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
 	for _, node := range e.nodes {

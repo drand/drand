@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -290,6 +291,17 @@ func (n *Node) Stop() {
 		return
 	}
 	panic("node should have stopped but is still running")
+}
+
+func (n *Node) PrintLog() {
+	fmt.Printf("[-] Printing logs of node %s:\n", n.addr)
+	buff, err := ioutil.ReadFile(n.logPath)
+	if err != nil {
+		fmt.Printf("[-] Can't read logs !\n\n")
+		return
+	}
+	os.Stdout.Write([]byte(buff))
+	fmt.Println()
 }
 
 func pair(k, v string) []string {
