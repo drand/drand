@@ -51,7 +51,7 @@ var DefaultBeaconOffset = time.Duration(2*60) * time.Second
 // MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
 // can take. If the setup is still not finished after this time, it is
 // cancelled.
-var MaxWaitPrepareDKG = 24 * 7 * time.Hour
+var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 
 // DefaultSyncTime is the time the leader waits after sending the group file to
 // all participants. It gives a bit of time to make sure every node has received
