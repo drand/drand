@@ -76,9 +76,10 @@ func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Emp
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	// first try the cache
-	if b, ok := d.cache.GetBeacon(in.GetRound()); ok {
-		return beaconToProto(b), nil
-	}
+	// XXX disabled for now
+	/*if b, ok := d.cache.GetBeacon(in.GetRound()); ok {*/
+	//return beaconToProto(b), nil
+	/*}*/
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {

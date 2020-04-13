@@ -573,6 +573,45 @@ func TestDrandPublicGroup(t *testing.T) {
 	require.True(t, group.Equal(received))
 }
 
+func TestDrandPublicRand(t *testing.T) {
+	n := 4
+	thr := key.DefaultThreshold(n)
+	p := 1 * time.Second
+	//genesisTime := clock.NewFakeClock().Now().Unix()
+	dt := NewDrandTest(t, n, thr, p)
+	defer dt.Cleanup()
+	group := dt.RunDKG()
+	root := dt.drands[dt.ids[0]]
+	rootID := root.priv.Public
+
+	dt.MoveToTime(group.GenesisTime)
+	// do a few periods
+	for i := 0; i < 3; i++ {
+		dt.MoveTime(group.Period)
+	}
+
+	cm := root.opts.certmanager
+	client := net.NewGrpcClientFromCertManager(cm)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// get last round first
+	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+
+	//  run streaming and expect responses
+	initRound := resp.Round + 1
+	max := initRound + 4
+	for i := initRound; i < max; i++ {
+		dt.MoveTime(group.Period)
+		req := new(drand.PublicRandRequest)
+		req.Round = i
+		resp, err := client.PublicRand(ctx, rootID, req)
+		require.NoError(t, err)
+		require.Equal(t, i, resp.Round)
+		fmt.Println("REQUEST ROUND ", i, " GOT ROUND ", resp.Round)
+	}
+}
+
 func TestDrandPublicStream(t *testing.T) {
 	n := 4
 	thr := key.DefaultThreshold(n)

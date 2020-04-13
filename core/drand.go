@@ -34,7 +34,7 @@ type Drand struct {
 	// handle all callbacks when a new beacon is found
 	callbacks *callbackManager
 	// stores recent entries in memory
-	cache *beaconCache
+	//cache *beaconCache
 
 	dkg    *dkg.Handler
 	beacon *beacon.Handler
@@ -95,11 +95,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		log:       logger,
 		exitCh:    make(chan bool, 1),
 		callbacks: newCallbackManager(),
-		cache:     newBeaconCache(logger),
+		//cache:     newBeaconCache(logger),
 	}
 	// every new beacon will be passed through the opts callbacks
 	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
-	d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
+	//d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
 	a := c.ListenAddress(priv.Public.Address())
 	if c.insecure {
