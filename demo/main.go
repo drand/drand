@@ -139,6 +139,7 @@ func setSignal(orch *Orchestrator) {
 	go func() {
 		s := <-sigc
 		fmt.Println("[+] Received signal ", s.String())
+		orch.PrintLogs()
 		orch.Shutdown()
 	}()
 }
