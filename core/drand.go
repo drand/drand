@@ -44,9 +44,8 @@ type Drand struct {
 	pub     *key.DistPublic
 	dkgDone bool
 	// manager is created and destroyed during a setup phase
-	manager *setupManager
-	// is set to true while waiting for an automatic setup
-	waitAutomatic bool
+	manager  *setupManager
+	receiver *setupReceiver
 
 	// proposed next group hash for a resharing operation
 	nextGroupHash     string

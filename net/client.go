@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/protobuf/drand"
+	"google.golang.org/grpc"
 )
 
 // Client implements methods to call on the protocol API and the public API of a
@@ -21,7 +22,8 @@ type ProtocolClient interface {
 	NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error)
 	FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error)
 	ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error)
-	PrepareDKGGroup(context.Context, Peer, *drand.PrepareDKGPacket, ...CallOption) (*drand.GroupPacket, error)
+	PrepareDKGGroup(ctx context.Context, p Peer, in *drand.PrepareDKGPacket, opts ...CallOption) error
+	PushDKGGroup(ctx context.Context, p Peer, in *drand.PushGroupPacket, opts ...grpc.CallOption) error
 	SetTimeout(time.Duration)
 }
 

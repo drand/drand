@@ -207,37 +207,34 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 	return groupToProto(d.group), nil
 }
 
-func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
-	var receivers *groupReceiver
-	verif := func() error {
-		d.state.Lock()
-		defer d.state.Unlock()
-		if d.manager == nil {
-			return errors.New("no manager")
-		}
-		peer, ok := peer.FromContext(ctx)
-		if !ok {
-			return errors.New("no peer associated")
-		}
-		// manager will verify if information are correct
-		var err error
-		receivers, err = d.manager.ReceivedKey(peer.Addr.String(), p)
-		if err != nil {
-			return err
-		}
-		return nil
+func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.Empty, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.manager == nil {
+		return nil, errors.New("no manager")
 	}
-	if err := verif(); err != nil {
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("no peer associated")
+	}
+	// manager will verify if information are correct
+	err := d.manager.ReceivedKey(peer.Addr.String(), p)
+	if err != nil {
 		return nil, err
 	}
-	defer func() { receivers.DoneCh <- true }()
-	// wait for the group to be ready,i.e. all other participants sent their
-	// keys as well. Channel is automatically close after a while.
-	group := <-receivers.WaitGroup
-	if group == nil {
-		return nil, errors.New("no valid group has been generated in time")
+	return new(drand.Empty), nil
+}
+
+func (d *Drand) PushDKGGroup(ctx context.Context, in *drand.PushGroupPacket) (*drand.Empty, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.receiver == nil {
+		return nil, errors.New("no receiver setup")
 	}
-	// reply with the group, the receiver will start the DKG
-	protoGroup := groupToProto(group)
-	return protoGroup, nil
+	d.log.Info("push_group", "received_new")
+	err := d.receiver.ReceivedGroup(in)
+	if err != nil {
+		return nil, err
+	}
+	return new(drand.Empty), nil
 }

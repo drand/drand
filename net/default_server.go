@@ -41,7 +41,11 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 }
 
 // FreshDKG ...
-func (s *EmptyServer) PrepareDKGGroup(context.Context, *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
+func (s *EmptyServer) PrepareDKGGroup(context.Context, *drand.PrepareDKGPacket) (*drand.Empty, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) PushDKGGroup(context.Context, *drand.PushGroupPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
