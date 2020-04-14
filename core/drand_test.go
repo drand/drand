@@ -663,6 +663,23 @@ func TestDrandPublicStream(t *testing.T) {
 			require.True(t, false, "too late for streaming, round %d didn't reply in time", round)
 		}
 	}
+	// try fetching with round 0 -> get latest
+	respCh, err = client.PublicRandStream(ctx, root.priv.Public, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+	select {
+	case <-respCh:
+		require.False(t, true, "shouldn't get an entry if time doesn't go by")
+	case <-time.After(50 * time.Millisecond):
+		// correct
+	}
+
+	dt.MoveTime(group.Period)
+	select {
+	case resp := <-respCh:
+		require.Equal(t, maxRound, resp.GetRound())
+	case <-time.After(50 * time.Millisecond):
+		// correct
+	}
 }
 
 // BatchNewDrand returns n drands, using TLS or not, with the given

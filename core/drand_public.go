@@ -122,7 +122,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	addr := peer.Addr.String()
 	done := make(chan error, 1)
 	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
-	if req.GetRound() <= lastb.Round {
+	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
 		// we need to stream from store first
 		var err error
 		b.Store().Cursor(func(c beacon.Cursor) {
