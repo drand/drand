@@ -14,7 +14,8 @@ import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
 
 service Protocol {
-    rpc PrepareDKGGroup(PrepareDKGPacket) returns (drand.GroupPacket);
+    rpc PrepareDKGGroup(PrepareDKGPacket) returns (drand.Empty);
+    rpc PushDKGGroup(PushGroupPacket) returns (drand.Empty);
     // Setup is doing the DKG setup phase
     rpc FreshDKG(DKGPacket) returns (drand.Empty);
     // Reshare performs the resharing phase
@@ -41,6 +42,11 @@ message PrepareDKGPacket {
     // XXX uint32 period could be added to make sure nodes agree on the beacon
     // frequency but it's not bringing real security on the table so leave it
     // for now.
+}
+
+message PushGroupPacket {
+    drand.GroupPacket new_group = 1;
+    string secret_proof = 2;
 }
 
 message BeaconPacket {

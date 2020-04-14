@@ -9,6 +9,7 @@ import (
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 	clock "github.com/jonboulle/clockwork"
@@ -119,9 +120,8 @@ func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGr
 }
 
 type pushKey struct {
-	addr     string
-	id       *key.Identity
-	channels groupReceiver
+	addr string
+	id   *key.Identity
 }
 
 // ReceivedKey takes a newly received identity and return two channels:
@@ -129,50 +129,45 @@ type pushKey struct {
 // receiver.DoneCh to notify the setup manager the group is sent. This last
 // channel is to make sure the group is sent to every registered participants
 // before notifying the leader to start the dkg.
-func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) (*groupReceiver, error) {
+func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
 	// verify informations are correct
 	if s.expected != int(p.GetExpected()) {
-		return nil, fmt.Errorf("expected nodes %d vs given %d", s.expected, p.GetExpected())
+		return fmt.Errorf("expected nodes %d vs given %d", s.expected, p.GetExpected())
 	}
 	if s.thr != int(p.GetThreshold()) {
-		return nil, fmt.Errorf("expected threshold %d vs given %d", s.thr, p.GetThreshold())
+		return fmt.Errorf("expected threshold %d vs given %d", s.thr, p.GetThreshold())
 	}
 	// nodes need to agree on this otherwise they risk having inconsistent views
 	// at the end of the dkg
 	dkgTimeout := p.GetDkgTimeout()
 	if s.dkgTimeout != dkgTimeout {
-		return nil, fmt.Errorf("expected dkg timeout %d vs given %d", s.dkgTimeout, dkgTimeout)
+		return fmt.Errorf("expected dkg timeout %d vs given %d", s.dkgTimeout, dkgTimeout)
 	}
 
 	if !s.verifySecret(p.GetSecretProof()) {
-		return nil, errors.New("shared secret is incorrect")
+		return errors.New("shared secret is incorrect")
 	}
 	if s.isResharing {
 		if s.oldHash != p.GetPreviousGroupHash() {
-			return nil, errors.New("inconsistent previous group hash")
+			return errors.New("inconsistent previous group hash")
 		}
 	}
 
 	newID, err := protoToIdentity(p.GetNode())
 	if err != nil {
 		s.l.Info("setup", "error_decoding", "id", addr, err)
-		return nil, fmt.Errorf("invalid id: %v", err)
+		return fmt.Errorf("invalid id: %v", err)
 	}
 
 	s.l.Debug("setup", "received_new_key", "id", newID.String())
 
-	receiver := groupReceiver{
-		WaitGroup: make(chan *key.Group, 1),
-		DoneCh:    make(chan bool, 1),
-	}
 	s.pushKeyCh <- pushKey{
-		addr:     addr,
-		id:       newID,
-		channels: receiver,
+		addr: addr,
+		id:   newID,
 	}
-	return &receiver, nil
+	return nil
 }
 
 type groupReceiver struct {
@@ -185,8 +180,6 @@ type groupReceiver struct {
 func (s *setupManager) run() {
 	var inKeys = make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
-	// - 1 because leader doesn't wait on the same channel
-	var receivers = make([]groupReceiver, 0, s.expected-1)
 	for {
 		select {
 		case pk := <-s.pushKeyCh:
@@ -199,8 +192,6 @@ func (s *setupManager) run() {
 				if sameAddr || sameKey() {
 					found = true
 					s.l.Debug("setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
-					// notify the waiter that it's not working
-					close(pk.channels.WaitGroup)
 					break
 				}
 			}
@@ -209,7 +200,6 @@ func (s *setupManager) run() {
 				break
 			}
 			inKeys = append(inKeys, pk.id)
-			receivers = append(receivers, pk.channels)
 			s.l.Debug("setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
@@ -219,7 +209,7 @@ func (s *setupManager) run() {
 					s.doneCh <- true
 					// we dont want to receive others
 					// go send the keys back to all participants
-					s.createAndSend(inKeys, receivers)
+					s.createAndSend(inKeys)
 					// job is done
 					return
 				}
@@ -232,7 +222,7 @@ func (s *setupManager) run() {
 
 }
 
-func (s *setupManager) createAndSend(keys []*key.Identity, receivers []groupReceiver) {
+func (s *setupManager) createAndSend(keys []*key.Identity) {
 	// create group
 	var group *key.Group
 	if !s.isResharing {
@@ -251,20 +241,11 @@ func (s *setupManager) createAndSend(keys []*key.Identity, receivers []groupRece
 	group.Period = s.beaconPeriod
 	s.l.Debug("setup", "created_group")
 	fmt.Printf("Generated group:\n%s\n", group.String())
-	// send to all connections that wait for the group
-	for _, receiver := range receivers {
-		receiver.WaitGroup <- group
-	}
-	// wait that leader has sent to all connections
-	for _, receiver := range receivers {
-		<-receiver.DoneCh
-	}
 	// signal the leader it's ready to run the DKG
 	s.startDKG <- group
-	// job is done
 }
 
-func (s *setupManager) WaitForGroupSent() chan *key.Group {
+func (s *setupManager) WaitGroup() chan *key.Group {
 	return s.startDKG
 }
 
@@ -287,4 +268,35 @@ func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Dura
 		return
 	}
 	return
+}
+
+type setupReceiver struct {
+	ch     chan *drand.GroupPacket
+	l      log.Logger
+	secret string
+}
+
+func newSetupReceiver(l log.Logger, in *control.SetupInfoPacket) *setupReceiver {
+	return &setupReceiver{
+		ch:     make(chan *drand.GroupPacket, 1),
+		l:      l,
+		secret: in.GetSecret(),
+	}
+}
+
+func (r *setupReceiver) ReceivedGroup(pg *drand.PushGroupPacket) error {
+	if pg.GetSecretProof() != r.secret {
+		r.l.Debug("received", "invalid_secret_proof")
+		return errors.New("invalid secret")
+	}
+	r.ch <- pg.GetNewGroup()
+	return nil
+}
+
+func (r *setupReceiver) WaitGroup() chan *drand.GroupPacket {
+	return r.ch
+}
+
+func (r *setupReceiver) stop() {
+	close(r.ch)
 }

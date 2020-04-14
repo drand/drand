@@ -59,6 +59,10 @@ var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 // process, we can afford to wait here.
 var DefaultSyncTime = 5 * time.Second
 
+// DefaultPushDKGTimeout is the time the leader waits for when pushing the
+// packet
+var DefaultPushDKGTimeout = 1 * time.Minute
+
 // DefaultGenesisOffset is the time that the leader adds to the current time
 // to compute the genesis time. It computes the genesis time *before* sending
 // the group to the nodes and before running the DKG so it must be sufficiently
