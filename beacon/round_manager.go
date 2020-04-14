@@ -1,8 +1,6 @@
 package beacon
 
 import (
-	"strconv"
-
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/sign"
@@ -39,15 +37,14 @@ func (r *roundManager) run() {
 	checkPartial := func(p *drand.BeaconPacket) bool {
 		nowPrevious := p.GetPreviousRound() == currRound.lastRound
 		if !nowPrevious {
-			msgs := []string{"potential", "early_packet"}
+			idx, _ := r.sign.IndexOf(p.GetPartialSig())
 			if p.GetPreviousRound() < currRound.lastRound {
-				msgs[0] = "late_node_diff"
-				msgs[1] = strconv.Itoa(int(currRound.lastRound - p.GetPreviousRound()))
+				r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), "node_late_idx", idx)
 			} else if p.GetPreviousRound() > currRound.round {
-				msgs[0] = "potential"
-				msgs[1] = "sync_needed"
+				r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), "potential", "need_sync", "node_idx", idx)
+			} else {
+				r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), "potential", "early_packet")
 			}
-			r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), msgs[0], msgs[1])
 			return false
 		}
 		notCurrent := p.GetRound() != currRound.round
