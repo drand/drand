@@ -8,4 +8,4 @@ var SyncRetrialWait = 2 * time.Second
 
 // How much time a node tries to sync before running the beacon on what he has
 // best.
-var SyncRetrial = 2
+var SyncRetrial = 1
