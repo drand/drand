@@ -545,7 +545,7 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 		case partial := <-incomings:
 			partials = append(partials, partial)
 			idx, _ := key.Scheme.IndexOf(partial)
-			h.l.Debug("beacon_round", currentRound, "partial_get", len(partials), "partial_want", h.group.Threshold, "from_node", nodes[idx].Address())
+			h.l.Debug("beacon_round", currentRound, "partial_get", len(partials), "partial_want", h.group.Threshold, "from_node", idx)
 		case <-closeCh:
 			// it's already time to go to the next, there has been not
 			// enough time or nodes are too slow. In any case it's a
