@@ -7,3 +7,5 @@ web/static/js/drandjs
 *swagger.json
 demo/demo
 test/full/full
+gh-md-toc
+web/public/
