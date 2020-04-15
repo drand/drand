@@ -63,8 +63,8 @@ func (s *EmptyServer) ReshareDKG(context.Context, *drand.ResharePacket) (*drand.
 	return nil, nil
 }
 
-// NewBeacon ...
-func (s *EmptyServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
+// PartialBeacon ...
+func (s *EmptyServer) PartialBeacon(context.Context, *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 

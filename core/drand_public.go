@@ -63,13 +63,13 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 
 // NewBeacon methods receives a beacon generation requests and answers
 // with the partial signature from this drand node.
-func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Empty, error) {
+func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon not setup yet")
 	}
-	return d.beacon.ProcessBeacon(c, in)
+	return d.beacon.ProcessPartialBeacon(c, in)
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round

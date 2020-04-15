@@ -30,8 +30,8 @@ type testBeaconServer struct {
 	h *Handler
 }
 
-func (t *testBeaconServer) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Empty, error) {
-	return t.h.ProcessBeacon(c, in)
+func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
+	return t.h.ProcessPartialBeacon(c, in)
 }
 
 func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {

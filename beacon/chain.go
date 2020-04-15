@@ -72,11 +72,12 @@ func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
 
 // Verify is similar to verify beacon but doesn't require to get the full beacon
 // structure.
-func Verify(pubkey kyber.Point, prevSig []byte, prevRound, currRound uint64) error {
+func Verify(pubkey kyber.Point, prevSig, signature []byte, prevRound, round uint64) error {
 	return VerifyBeacon(pubkey, &Beacon{
 		PreviousRound: prevRound,
-		Round:         currRound,
+		Round:         round,
 		PreviousSig:   prevSig,
+		Signature:     signature,
 	})
 }
 

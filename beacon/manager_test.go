@@ -30,7 +30,7 @@ func TestManager(t *testing.T) {
 		}
 		sig, err := key.Scheme.Sign(privShare, []byte("le temps est cher, a l'amour comme a la guerre"))
 		require.NoError(t, err)
-		rm.NewBeacon(&drand.BeaconPacket{
+		rm.NewPartialBeacon(&drand.PartialBeaconPacket{
 			PreviousRound: prev,
 			Round:         curr,
 			PreviousSig:   []byte("le temps est cher"),
@@ -43,6 +43,24 @@ func TestManager(t *testing.T) {
 		case <-time.After(100 * time.Millisecond):
 			require.False(t, true, "too late")
 		}
+	}
+
+	curr = 15
+	prev = 13
+	var realPrev uint64 = prev + 1
+	// input before because we dont want to trigger a sync as soon as a partial
+	// comes into because we dont know if the previous signature is valid or not
+	rm.NewPartialBeacon(&drand.PartialBeaconPacket{
+		PreviousRound: realPrev,
+		Round:         curr,
+		PreviousSig:   []byte("ain't nothing like the real thing"),
+		PartialSig:    []byte("angers destroy your soul"),
+	})
+	partials = rm.NewRound(prev, curr)
+	select {
+	case <-rm.WaitSync():
+	case <-time.After(100 * time.Millisecond):
+		require.False(t, true, "too late")
 	}
 
 }

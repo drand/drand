@@ -4,6 +4,7 @@
 version: 2
 jobs:
   build:
+    working_directory: /go/src/github.com/drand/drand
     docker:
       # specify the version
       - image: circleci/golang:latest
@@ -15,10 +16,6 @@ jobs:
 
     steps:
       - checkout
-      - run: 
-          command: |
-            echo 'export GO111MODULE=on' >> $BASH_ENV # Redirect MY_ENV_VAR into $BASH_ENV
-      # specify any bash command here prefixed with `run: `
       - run: go get -v -t -d ./...
       - run: make test-unit
       - run: make test-integration

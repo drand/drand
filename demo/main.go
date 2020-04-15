@@ -24,7 +24,7 @@ func installDrand() {
 var build = flag.Bool("build", false, "build the drand binary first")
 var testF = flag.Bool("test", false, "run it as a test that finishes")
 var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
-var debug = flag.Bool("debut", false, "prints the log when panic occurs")
+var debug = flag.Bool("debug", false, "prints the log when panic occurs")
 
 // 10s after dkg finishes, (new or reshared) beacon starts
 var beaconOffset = 10
