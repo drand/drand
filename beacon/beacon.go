@@ -13,6 +13,7 @@ import (
 
 	//"github.com/benbjohnson/clock"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign"
@@ -83,11 +84,6 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 		return nil, errors.New("beacon: keypair not included in the given group")
 	}
 
-	//if conf.WaitTime == time.Duration(0) {
-	//conf.WaitTime = 100 * time.Millisecond
-	//}
-	//conf.WaitTime = 0 * time.Millisecond
-
 	addr := conf.Private.Public.Address()
 	logger := l.With("index", idx)
 	handler := &Handler{
@@ -102,8 +98,8 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 		close:      make(chan bool),
 		transition: make(chan transitionInfo, 1),
 		l:          logger,
-		manager:    newRoundManager(l, conf.Group.Threshold, conf.Scheme),
 	}
+	handler.manager = newRoundManager(l, conf.Clock, conf.Group.Threshold, handler.fetchHeads)
 	// genesis block at round 0, next block at round 1
 	// THIS is to change when one network wants to build on top of another
 	// network's chain. Note that if present it overwrites.
@@ -174,7 +170,7 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 		if err != nil {
 			return err
 		}
-		return p.Send(beaconToSyncResponse(last))
+		return p.Send(beaconToProto(last))
 	}
 	var err error
 	peer, _ := peer.FromContext(p.Context())
@@ -182,7 +178,7 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 
 	h.store.Cursor(func(c Cursor) {
 		for beacon := c.Seek(fromRound); beacon != nil; beacon = c.Next() {
-			reply := beaconToSyncResponse(beacon)
+			reply := beaconToProto(beacon)
 			nRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 			l, _ := h.store.Last()
 			//fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d -- last beacon %s\n\n", h.index, fromRound, reply.Round, nRound-1, l)
@@ -491,11 +487,13 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 				continue
 			}
 			go h.Catchup()
+			close(closingCh)
 			h.l.Info("sync_signal", "accepted", "got_prev", prevRound, "received", better.previous, "launch", "sync")
 			return
 		case <-h.close:
 			//fmt.Printf("\n\t --- Beacon LOOP OUT - node pointer %p\n", h)
 			h.l.Debug("beacon_loop", "finished")
+			close(closingCh)
 			return
 		}
 	}
@@ -641,11 +639,10 @@ func (h *Handler) syncFrom(to []*key.Identity, lastBeacon *Beacon) (*Beacon, err
 		respCh, err := h.client.SyncChain(ctx, id, request)
 		if err != nil {
 			h.l.Error("sync_from", currentRound, "error", err, "from", id.Address())
-			fmt.Println(" CAN NOT SYNC TO ", id.Address())
 			continue
 		}
 
-		fmt.Println(" LISTENING TO SYNC CHANNEL FROM ", id.Address())
+		h.l.Debug("sync_round", currentRound, "listening", "channel")
 		for syncReply := range respCh {
 			// we only sync for increasing round numbers
 			// there might be gaps so we dont check for sequentiality but our
@@ -759,6 +756,45 @@ func (h *Handler) setTransition(t *transitionInfo) {
 	h.index = t.idx
 
 }
+
+func (h *Handler) getGroup() *key.Group {
+	h.Lock()
+	defer h.Unlock()
+	return h.group
+}
+
+func (h *Handler) fetchHeads(ctx context.Context) (int, chan *drand.BeaconPacket) {
+	group := h.getGroup()
+	pub := group.PublicKey.Key()
+	request := &proto.SyncRequest{
+		FromRound: 0, // latest one
+	}
+	var allResponses = make(chan *drand.BeaconPacket, group.Len()-1)
+	for _, node := range group.Nodes {
+		if node.Address() == h.addr {
+			continue
+		}
+		go func(id *key.Identity) {
+			respCh, err := h.client.SyncChain(ctx, node, request)
+			if err != nil {
+				return
+			}
+			select {
+			case last := <-respCh:
+				err := Verify(pub, last.GetPreviousSig(), last.GetSignature(), last.GetPreviousRound(), last.GetRound())
+				if err != nil {
+					allResponses <- last
+				} else {
+					allResponses <- nil
+				}
+			case <-ctx.Done():
+				return
+			}
+		}(node)
+	}
+	return group.Len() - 1, allResponses
+}
+
 func shortSigStr(sig []byte) string {
 	max := 3
 	if len(sig) < max {

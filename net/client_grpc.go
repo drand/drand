@@ -232,8 +232,8 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 
 const SyncBlockKey = "sync"
 
-func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.SyncResponse, error) {
-	resp := make(chan *drand.SyncResponse)
+func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
+	resp := make(chan *drand.BeaconPacket)
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err

@@ -22,7 +22,7 @@ service Protocol {
     rpc ReshareDKG(ResharePacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
-    rpc SyncChain(SyncRequest) returns (stream SyncResponse);
+    rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 }
 
 // PrepareDKGPacket is the packet nodes send to a coordinator that collects all
@@ -79,8 +79,7 @@ message SyncRequest {
     uint64 from_round = 1;
 }
 
-// SyncResponse is basically a chain of beacon response
-message SyncResponse {
+message BeaconPacket {
     uint64 previous_round = 1;
     bytes previous_sig = 2;
     uint64 round = 3;

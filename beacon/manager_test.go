@@ -1,6 +1,8 @@
 package beacon
 
 import (
+	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -9,14 +11,15 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 )
 
 func TestManager(t *testing.T) {
 	l := log.NewLogger(log.LogDebug)
 	thr := 4
-	s := key.Scheme
-	rm := newRoundManager(l, thr, s)
+	clock := clock.NewFakeClock()
+	rm := newRoundManager(l, clock, thr, nil)
 
 	// first input a given round + prev round
 	var curr uint64 = 10
@@ -45,7 +48,7 @@ func TestManager(t *testing.T) {
 		}
 	}
 
-	curr = 15
+	curr = 16
 	prev = 13
 	var realPrev uint64 = prev + 1
 	// input before because we dont want to trigger a sync as soon as a partial
@@ -63,4 +66,29 @@ func TestManager(t *testing.T) {
 		require.False(t, true, "too late")
 	}
 
+	fmt.Println(" trying periodical sync")
+	curr = 20
+	prev = 16
+	rm.NewRound(prev, curr)
+	expPacket := &drand.BeaconPacket{
+		PreviousRound: prev + 1,
+		Round:         curr,
+	}
+	ch := make(chan *drand.BeaconPacket, 1)
+	ch <- expPacket
+	rm.getheads = func(ctx context.Context) (int, chan *drand.BeaconPacket) {
+		return 1, ch
+	}
+	select {
+	case <-rm.WaitSync():
+		require.False(t, true, "shouldn't happen")
+	case <-time.After(100 * time.Millisecond):
+	}
+	clock.Advance(CheckSyncPeriod)
+	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-rm.WaitSync():
+	case <-time.After(100 * time.Millisecond):
+		require.False(t, true, "shouldn't happen")
+	}
 }
