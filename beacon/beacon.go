@@ -88,7 +88,6 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 	//}
 	//conf.WaitTime = 0 * time.Millisecond
 
-	c.SetTimeout(1 * time.Second)
 	addr := conf.Private.Public.Address()
 	logger := l.With("index", idx)
 	handler := &Handler{
@@ -118,13 +117,9 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 
 var errOutOfRound = "out-of-round beacon request"
 
-// ProcessBeacon receives a request for a beacon partial signature. It replies
-// successfully with a valid partial signature over the given beacon packet
-// information if the following is true:
-// 1- the round for the request is not different than the current round by a certain threshold
-// 2- the partial signature in the embedded response is valid. This proves that
-// the requests comes from a qualified node from the DKG phase.
-func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconPacket) (*proto.Empty, error) {
+// ProcessPartialBeacon receives a request for a beacon partial signature. It
+// forwards it to the round manager if it is a valid beacon.
+func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	h.Lock()
 	defer h.Unlock()
 	if h.syncing {
@@ -161,7 +156,7 @@ func (h *Handler) ProcessBeacon(c context.Context, p *proto.BeaconPacket) (*prot
 	if idx == h.index {
 		h.l.Error("process_request", "same_index", "got", idx, "our", h.index, "inadvance_packet?")
 	}
-	h.manager.NewBeacon(p)
+	h.manager.NewPartialBeacon(p)
 	return new(proto.Empty), nil
 }
 
@@ -480,6 +475,22 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 			// setup the transition info so at the right round, it shifts to
 			// using new group
 			transition = &newInfo
+		case better := <-h.manager.WaitSync():
+			// -- The sync should happen here only in case there is an outage
+			// if there has been an outage and maybe we missed the last correct
+			// round we try
+			if better.previous <= prevRound {
+				h.l.Debug("sync_signal", "ignored", "got_prev", prevRound, "received", better.previous)
+				continue
+			}
+			// since current round is the truth it has to match
+			if better.current != currentRound {
+				h.l.Debug("sync_signal", "ignored", "got_current", currentRound, "received", better.current)
+				continue
+			}
+			go h.Catchup()
+			h.l.Info("sync_signal", "accepted", "got_prev", prevRound, "received", better.previous, "launch", "sync")
+			return
 		case <-h.close:
 			//fmt.Printf("\n\t --- Beacon LOOP OUT - node pointer %p\n", h)
 			h.l.Debug("beacon_loop", "finished")
@@ -506,19 +517,17 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 	}
 	shortPub := pub.Eval(1).V.String()[14:19]
 	h.l.Debug("start_round", currentRound, "time", h.conf.Clock.Now(), "from_sig", shortSigStr(prevSig), "from_round", prevRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "handler", fmt.Sprintf("%p", h), "addr", h.conf.Private.Public.Address())
-	packet := &proto.BeaconPacket{
+	packet := &proto.PartialBeaconPacket{
 		Round:         currentRound,
 		PreviousRound: prevRound,
 		PreviousSig:   prevSig,
 		PartialSig:    currSig,
 	}
-	h.manager.NewBeacon(packet)
+	h.manager.NewPartialBeacon(packet)
 
-	// NOTE: sleep a while to not ask nodes too fast - they may have a slight bias
-	// in time
-	time.Sleep(h.conf.WaitTime)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// send all requests in parallel
-	h.client.SetTimeout(1 * time.Second)
 	for _, id := range nodes {
 		if h.addr == id.Address() {
 			continue
@@ -527,7 +536,7 @@ func (h *Handler) runRound(currentRound, prevRound uint64, prevSig []byte, winCh
 		// return assuming there's a timeout on the connection
 		go func(i *key.Identity) {
 			h.l.Debug("beacon_round", currentRound, "send_to", i.Address())
-			_, err := h.client.NewBeacon(i, packet)
+			err := h.client.PartialBeacon(ctx, i, packet)
 			if err != nil {
 				h.l.Error("beacon_round", currentRound, "err_request", err, "from", i.Address())
 				if strings.Contains(err.Error(), errOutOfRound) {

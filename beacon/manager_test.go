@@ -30,7 +30,7 @@ func TestManager(t *testing.T) {
 		}
 		sig, err := key.Scheme.Sign(privShare, []byte("le temps est cher, a l'amour comme a la guerre"))
 		require.NoError(t, err)
-		rm.NewBeacon(&drand.BeaconPacket{
+		rm.NewPartialBeacon(&drand.PartialBeaconPacket{
 			PreviousRound: prev,
 			Round:         curr,
 			PreviousSig:   []byte("le temps est cher"),

@@ -20,8 +20,8 @@ service Protocol {
     rpc FreshDKG(DKGPacket) returns (drand.Empty);
     // Reshare performs the resharing phase
     rpc ReshareDKG(ResharePacket) returns (drand.Empty);
-    // NewBeacon asks for a partial signature to another node
-    rpc NewBeacon(BeaconPacket) returns (drand.Empty);
+    // PartialBeacon sends its partial beacon to another node
+    rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream SyncResponse);
 }
 
@@ -49,7 +49,7 @@ message PushGroupPacket {
     string secret_proof = 2;
 }
 
-message BeaconPacket {
+message PartialBeaconPacket {
     // Round is the round for which the beacon will be created from the partial
     // signatures
     uint64 round = 1;

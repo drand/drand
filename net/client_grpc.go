@@ -211,22 +211,22 @@ func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePa
 	return resp, err
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error) {
-	do := func() (*drand.Empty, error) {
+func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
+	do := func() error {
 		c, err := g.conn(p)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		client := drand.NewProtocolClient(c)
-		ctx, _ := g.getTimeoutContext(context.Background())
-		return client.NewBeacon(ctx, in, opts...)
+		ctx, _ := g.getTimeoutContext(ctx)
+		_, err = client.PartialBeacon(ctx, in, opts...)
+		return err
 	}
-	if resp, err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
+	if err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
 		g.deleteConn(p)
 		return do()
-		//return resp, err
 	} else {
-		return resp, err
+		return err
 	}
 }
 
