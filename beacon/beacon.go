@@ -134,7 +134,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	// check what we receive is for the current round
 	if p.GetRound() != currentRound {
 		// request is not for current round
-		h.l.Error("request_round", p.GetRound(), "current_round", currentRound, "now", h.conf.Clock.Now().Unix(), "clock_pointer", fmt.Sprintf("%p", h.conf.Clock), "node_pointer", fmt.Sprintf("%p", h))
+		h.l.Error("process_partial", p.GetRound(), "current_round", currentRound, "now", h.conf.Clock.Now().Unix(), "clock_pointer", fmt.Sprintf("%p", h.conf.Clock))
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), nextRound-1)
 	}
 
@@ -142,7 +142,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	// XXX Try to find a way to check if it's really the round we want instead
 	// of relying on the cache manager
 	if p.GetPreviousRound() >= currentRound {
-		h.l.Error("request_round", currentRound, "previous_round", p.GetPreviousRound())
+		h.l.Error("process_partial", currentRound, "got_previous_round", p.GetPreviousRound())
 		return nil, fmt.Errorf("invalid previous round: %d > current %d", p.GetPreviousRound(), currentRound)
 	}
 
@@ -169,18 +169,20 @@ func (h *Handler) Store() Store {
 // client requesting the syncing.
 func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error {
 	fromRound := req.GetFromRound()
+	if fromRound == 0 {
+		last, err := h.store.Last()
+		if err != nil {
+			return err
+		}
+		return p.Send(beaconToSyncResponse(last))
+	}
 	var err error
 	peer, _ := peer.FromContext(p.Context())
 	h.l.Debug("received", "request", "from", peer.Addr.String())
 
 	h.store.Cursor(func(c Cursor) {
 		for beacon := c.Seek(fromRound); beacon != nil; beacon = c.Next() {
-			reply := &proto.SyncResponse{
-				PreviousRound: beacon.PreviousRound,
-				PreviousSig:   beacon.PreviousSig,
-				Round:         beacon.Round,
-				Signature:     beacon.Signature,
-			}
+			reply := beaconToSyncResponse(beacon)
 			nRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 			l, _ := h.store.Last()
 			//fmt.Printf("\nnode %d - reply sync from round %d to %d - head at %d -- last beacon %s\n\n", h.index, fromRound, reply.Round, nRound-1, l)
