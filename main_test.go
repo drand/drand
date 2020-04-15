@@ -135,6 +135,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	addr := "127.0.0.1:" + strconv.Itoa(port1)
 	ctrlPort1 := test.FreePort()
 	ctrlPort2 := test.FreePort()
+	metricsPort := test.FreePort()
 
 	priv := key.NewKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
@@ -148,7 +149,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	lctx, lcancel := context.WithCancel(context.Background())
-	start1 := exec.CommandContext(lctx, "drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1)
+	start1 := exec.CommandContext(lctx, "drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort)
 	go start1.Run()
 
 	fmt.Println(" DRAND SHARE ---")
@@ -256,6 +257,7 @@ func TestClientTLS(t *testing.T) {
 
 	addr := "127.0.0.1:8085"
 	ctrlPort := "9091"
+	metricsPort := test.FreePort()
 
 	priv := key.NewTLSKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
@@ -294,7 +296,7 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath}
+	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort}
 	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
 	go startCmd.Run()
 

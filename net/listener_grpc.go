@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
 	"github.com/soheilhy/cmux"
@@ -42,6 +44,8 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	mux := cmux.New(l)
 
 	// grpc API
+	opts = append(opts, grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor))
+	opts = append(opts, grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
 	grpcServer := grpc.NewServer(opts...)
 
 	// REST api
@@ -75,6 +79,7 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	}
 	drand.RegisterProtocolServer(g.grpcServer, g.Service)
 	drand.RegisterPublicServer(g.grpcServer, g.Service)
+	grpc_prometheus.Register(g.grpcServer)
 	return g
 }
 
@@ -120,6 +125,9 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	if err != nil {
 		return nil, err
 	}
+	opts = append(opts, grpc.Creds(grpcCreds))
+	opts = append(opts, grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor))
+	opts = append(opts, grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
 	serverOpts := append(opts, grpc.Creds(grpcCreds))
 	grpcServer := grpc.NewServer(serverOpts...)
 	drand.RegisterPublicServer(grpcServer, s)
@@ -175,6 +183,7 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 		grpcServer: grpcServer,
 		l:          tlsListener,
 	}
+	grpc_prometheus.Register(g.grpcServer)
 	return g, nil
 }
 
@@ -236,6 +245,22 @@ func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Ha
 		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 			grpcServer.ServeHTTP(w, r)
 		} else {
+			// record metrics for HTTP API endpoints
+			switch r.URL.Path {
+			case "/api":
+				metrics.APICallCounter.WithLabelValues("home").Inc()
+			case "/api/private":
+				metrics.APICallCounter.WithLabelValues("private").Inc()
+			case "/api/info/distkey":
+				metrics.APICallCounter.WithLabelValues("distkey").Inc()
+			case "/api/info/group":
+				metrics.APICallCounter.WithLabelValues("group").Inc()
+			default:
+				// api/public can have additional path ServerParameters
+				if strings.Contains(r.URL.Path, "/api/public") {
+					metrics.APICallCounter.WithLabelValues("public").Inc()
+				}
+			}
 			otherHandler.ServeHTTP(w, r)
 		}
 	})
