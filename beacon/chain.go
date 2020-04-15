@@ -49,6 +49,13 @@ func (b *Beacon) Randomness() []byte {
 	return RandomnessFromSignature(b.Signature)
 }
 
+func (b *Beacon) GetPreviousRound() uint64 {
+	return b.PreviousRound
+}
+func (b *Beacon) GetRound() uint64 {
+	return b.Round
+}
+
 func RandomnessFromSignature(sig []byte) []byte {
 	out := sha256.Sum256(sig)
 	return out[:]

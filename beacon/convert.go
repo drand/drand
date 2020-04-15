@@ -1,12 +1,11 @@
 package beacon
 
 import (
-	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-func beaconToSyncResponse(b *Beacon) *drand.SyncResponse {
-	return &proto.SyncResponse{
+func beaconToProto(b *Beacon) *proto.BeaconPacket {
+	return &proto.BeaconPacket{
 		PreviousRound: b.PreviousRound,
 		PreviousSig:   b.PreviousSig,
 		Round:         b.Round,

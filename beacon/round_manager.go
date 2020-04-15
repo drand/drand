@@ -1,9 +1,13 @@
 package beacon
 
 import (
+	"context"
+
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/sign"
+	clock "github.com/jonboulle/clockwork"
 )
 
 type roundManager struct {
@@ -14,17 +18,23 @@ type roundManager struct {
 	expected   int
 	sign       sign.ThresholdScheme
 	l          log.Logger
+	getheads   GetHeads
+	clock      clock.Clock
 }
 
-func newRoundManager(l log.Logger, thr int, s sign.ThresholdScheme) *roundManager {
+type GetHeads func(context.Context) (int, chan *drand.BeaconPacket)
+
+func newRoundManager(l log.Logger, c clock.Clock, thr int, gh GetHeads) *roundManager {
 	r := &roundManager{
 		newRound:   make(chan roundBundle, 1),
 		newPartial: make(chan *drand.PartialBeaconPacket, thr),
 		stop:       make(chan bool, 1),
 		syncCh:     make(chan roundPair, 1),
 		expected:   thr,
-		sign:       s,
+		sign:       key.Scheme,
 		l:          l,
+		getheads:   gh,
+		clock:      c,
 	}
 	go r.run()
 	return r
@@ -35,6 +45,10 @@ const maxLookAheadQueue = 1024
 func (r *roundManager) run() {
 	var currRound roundBundle
 	var tmpPartials []*drand.PartialBeaconPacket
+	var syncTick = r.clock.NewTicker(CheckSyncPeriod)
+	defer syncTick.Stop()
+	var highestRes = make(chan *drand.BeaconPacket, 1)
+	var syncSignal bool
 	for {
 		select {
 		case nRound := <-r.newRound:
@@ -43,12 +57,12 @@ func (r *roundManager) run() {
 				close(currRound.partialCh)
 			}
 			currRound = nRound
+			syncSignal = false
 			// we incorporate every tmp partials that corresponds to
 			// this round and we flush every "old" partials or inconsistent
 			// partials
 			npartials := tmpPartials[:0]
 			var toSend []*drand.PartialBeaconPacket
-			var syncSignal bool
 			for _, partial := range tmpPartials {
 				if r.checkIfForCurrent(currRound, partial) {
 					// we have some partials for the round
@@ -102,6 +116,19 @@ func (r *roundManager) run() {
 			}
 			currRound.seen[index] = true
 			currRound.partialCh <- partial.GetPartialSig()
+		case <-syncTick.Chan():
+			// run a safety sync
+			go func() {
+				highestRes <- r.fetchBestHead()
+			}()
+		case bestSeen := <-highestRes:
+			if r.checkIfSyncNeeded(currRound, bestSeen) && !syncSignal {
+				syncSignal = true
+				r.syncCh <- roundPair{
+					previous: bestSeen.GetPreviousRound(),
+					current:  bestSeen.GetRound(),
+				}
+			}
 		case <-r.stop:
 			return
 		}
@@ -138,9 +165,14 @@ func (r *roundManager) checkIfForCurrent(currRound roundBundle, p *drand.Partial
 	return sameRound && samePrevious
 }
 
+type beaconLike interface {
+	GetPreviousRound() uint64
+	GetRound() uint64
+}
+
 // this packet is already not for the current round but we look if it is an
 // indicator that we should sync with others
-func (r *roundManager) checkIfSyncNeeded(currRound roundBundle, p *drand.PartialBeaconPacket) bool {
+func (r *roundManager) checkIfSyncNeeded(currRound roundBundle, p beaconLike) bool {
 	if p.GetPreviousRound() > currRound.lastRound {
 		r.l.Debug("round_manager", "invalid_previous", "want", currRound.lastRound, "got", p.GetPreviousRound(), "sync", "launch")
 		return true
@@ -168,6 +200,44 @@ func (r *roundManager) checkIfStoreForLater(currRound roundBundle, p *drand.Part
 
 func (r *roundManager) Stop() {
 	close(r.stop)
+}
+
+func (r *roundManager) fetchBestHead() *drand.BeaconPacket {
+	ctx, cancel := context.WithTimeout(context.Background(), PeriodSyncTimeout)
+	defer cancel()
+	expected, respCh := r.getheads(ctx)
+	var highest *drand.BeaconPacket
+	var got int
+	for {
+		select {
+		case beacon := <-respCh:
+			got++
+			if beacon != nil && highest == nil {
+				highest = beacon
+			} else if beacon != nil {
+				highest = choice(highest, beacon)
+			}
+			if got == expected {
+				return highest
+			}
+		case <-ctx.Done():
+			return highest
+		}
+	}
+}
+
+func choice(b1, b2 *drand.BeaconPacket) *drand.BeaconPacket {
+	if b1.GetRound() > b2.GetRound() {
+		return b1
+	} else if b2.GetRound() > b1.GetRound() {
+		return b2
+	}
+	if b1.GetPreviousRound() > b2.GetPreviousRound() {
+		return b1
+	} else if b2.GetPreviousRound() > b1.GetPreviousRound() {
+		return b2
+	}
+	return b1
 }
 
 type roundBundle struct {
