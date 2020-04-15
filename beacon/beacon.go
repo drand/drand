@@ -491,11 +491,13 @@ func (h *Handler) run(lastBeacon *Beacon, nextRound uint64, startTime int64) {
 				continue
 			}
 			go h.Catchup()
+			close(closingCh)
 			h.l.Info("sync_signal", "accepted", "got_prev", prevRound, "received", better.previous, "launch", "sync")
 			return
 		case <-h.close:
 			//fmt.Printf("\n\t --- Beacon LOOP OUT - node pointer %p\n", h)
 			h.l.Debug("beacon_loop", "finished")
+			close(closingCh)
 			return
 		}
 	}
