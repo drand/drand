@@ -12,3 +12,12 @@ func beaconToProto(b *Beacon) *proto.BeaconPacket {
 		Signature:     b.Signature,
 	}
 }
+
+func protoToBeacon(p *proto.BeaconPacket) *Beacon {
+	return &Beacon{
+		Round:         p.GetRound(),
+		PreviousRound: p.GetPreviousRound(),
+		Signature:     p.GetSignature(),
+		PreviousSig:   p.GetPreviousSig(),
+	}
+}

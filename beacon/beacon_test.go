@@ -2,7 +2,9 @@ package beacon
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -26,19 +28,26 @@ import (
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
+	disable bool
 	*net.EmptyServer
 	h *Handler
 }
 
 func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
+	if t.disable {
+		return nil, errors.New("disabled server")
+	}
 	return t.h.ProcessPartialBeacon(c, in)
 }
 
 func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {
+	if t.disable {
+		return errors.New("disabled server")
+	}
 	return t.h.SyncChain(req, p)
 }
 
-func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
+func dkgShares(n, t int) ([]*key.Share, []kyber.Point) {
 	var priPoly *share.PriPoly
 	var pubPoly *share.PubPoly
 	var err error
@@ -89,10 +98,8 @@ func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
 		panic(err)
 	}
 	//fmt.Println(pubPoly.Commit())
-	return dkgShares, pubPoly.Commit()
+	return dkgShares, commits
 }
-
-const prefixBeaconTest = "beaconTest"
 
 type node struct {
 	index    int // group index
@@ -103,6 +110,7 @@ type node struct {
 	listener net.Listener
 	clock    clock.FakeClock
 	started  bool
+	server   *testBeaconServer
 }
 
 type BeaconTest struct {
@@ -117,17 +125,22 @@ type BeaconTest struct {
 	dpublic kyber.Point
 	nodes   map[int]*node
 	time    clock.FakeClock
+	prefix  string
 }
 
 func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconTest {
-	paths := createBoltStores(prefixBeaconTest, n)
-	shares, public := dkgShares(n, thr)
+	prefix, err := ioutil.TempDir("", "beacon-test")
+	checkErr(err)
+	paths := createBoltStores(prefix, n)
+	shares, commits := dkgShares(n, thr)
 	privs, group := test.BatchIdentities(n)
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
+	group.PublicKey = &key.DistPublic{commits}
 
 	bt := &BeaconTest{
+		prefix:  prefix,
 		n:       n,
 		privs:   privs,
 		thr:     thr,
@@ -135,7 +148,7 @@ func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconT
 		paths:   paths,
 		shares:  shares,
 		group:   group,
-		dpublic: public,
+		dpublic: group.PublicKey.PubPoly().Commit(),
 		nodes:   make(map[int]*node),
 		time:    clock.NewFakeClock(),
 	}
@@ -172,30 +185,25 @@ func (b *BeaconTest) CreateNode(i int) {
 		if err != nil {
 			panic(err)
 		}
-		store = NewCallbackStore(store, func(b *Beacon) {
-			if node.callback != nil {
-				node.callback(b)
-			}
-		})
 		node.clock = clock.NewFakeClockAt(b.time.Now())
 		conf := &Config{
-			Group:    b.group,
-			Private:  p,
-			Share:    share,
-			Scheme:   key.Scheme,
-			Clock:    node.clock,
-			WaitTime: 100 * time.Millisecond,
+			Group:   b.group,
+			Private: p,
+			Share:   share,
+			Clock:   node.clock,
 		}
 
 		node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
 		checkErr(err)
+		if node.callback != nil {
+			node.handler.callbacks.AddCallback(node.callback)
+		}
+
 		if node.handler.addr != node.private.Public.Address() {
 			panic("Oh Oh")
 		}
-		if node.handler.index != idx {
-			panic("aie aie")
-		}
-		currSig, err := node.handler.conf.Scheme.Sign(node.handler.share.PrivateShare(), []byte("hello"))
+
+		currSig, err := key.Scheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
 		checkErr(err)
 		sigIndex, _ := key.Scheme.IndexOf(currSig)
 		if sigIndex != idx {
@@ -216,24 +224,11 @@ func (b *BeaconTest) CreateNode(i int) {
 	}
 }
 
-func (b *BeaconTest) CallbackFor(i int, fn func(*Beacon)) {
-	j := b.searchNode(i)
-	b.nodes[j].handler.AddCallback(fn)
-}
-
-func (b *BeaconTest) searchNode(i int) int {
-	for j, n := range b.nodes {
-		if n.index == i {
-			return j
-		}
-	}
-	panic("no such index")
-}
-
 func (b *BeaconTest) ServeBeacon(i int) {
 	j := b.searchNode(i)
-	beaconServer := testBeaconServer{h: b.nodes[j].handler}
-	b.nodes[j].listener = net.NewTCPGrpcListener(b.nodes[j].private.Public.Address(), &beaconServer)
+	beaconServer := &testBeaconServer{h: b.nodes[j].handler}
+	b.nodes[j].server = beaconServer
+	b.nodes[j].listener = net.NewTCPGrpcListener(b.nodes[j].private.Public.Address(), beaconServer)
 	fmt.Printf("\n || Serve Beacon for node %d - %p --> %s\n", j, b.nodes[j].handler, b.nodes[j].private.Public.Address())
 	go b.nodes[j].listener.Start()
 }
@@ -256,6 +251,14 @@ func (b *BeaconTest) StartBeacon(i int, catchup bool) {
 	}
 }
 
+func (b *BeaconTest) searchNode(i int) int {
+	for j, n := range b.nodes {
+		if n.index == i {
+			return j
+		}
+	}
+	panic("no such index")
+}
 func (b *BeaconTest) MoveTime(t time.Duration) {
 	for _, n := range b.nodes {
 		before := n.clock.Now().Unix()
@@ -288,8 +291,20 @@ func (b *BeaconTest) StopAll() {
 }
 
 func (b *BeaconTest) CleanUp() {
-	deleteBoltStores(prefixBeaconTest)
+	deleteBoltStores(b.prefix)
 	b.StopAll()
+}
+
+func (b *BeaconTest) DisableReception(count int) {
+	for i := 0; i < count; i++ {
+		b.nodes[i].server.disable = true
+	}
+}
+
+func (b *BeaconTest) EnableReception(count int) {
+	for i := 0; i < count; i++ {
+		b.nodes[i].server.disable = false
+	}
 }
 
 func checkErr(e error) {
@@ -323,9 +338,69 @@ func checkWait(counter *sync.WaitGroup) {
 	case <-doneCh:
 		break
 	case <-time.After(1 * time.Second):
-		fmt.Println(" TOO LATE ")
 		panic("outdated beacon time")
 	}
+}
+
+func TestBeaconSync(t *testing.T) {
+	n := 5
+	thr := n/2 + 1
+	period := 2 * time.Second
+
+	var genesisTime int64 = clock.NewFakeClock().Now().Unix() + 2
+	bt := NewBeaconTest(n, thr, period, genesisTime)
+	defer bt.CleanUp()
+	var counter = &sync.WaitGroup{}
+	counter.Add(n)
+	myCallBack := func(b *Beacon) {
+		require.NoError(t, VerifyBeacon(bt.dpublic, b))
+		counter.Done()
+	}
+
+	doRound := func(count int) {
+		counter.Add(count)
+		bt.MoveTime(period)
+		checkWait(counter)
+	}
+
+	for i := 0; i < n; i++ {
+		bt.CallbackFor(i, myCallBack)
+		bt.ServeBeacon(i)
+	}
+
+	bt.StartBeacons(n)
+	// move clock to genesis time
+	bt.MoveTime(period)
+	// do some rounds
+	for i := 0; i < 2; i++ {
+		doRound(n)
+		doRound(n)
+	}
+
+	// disable reception of all nodes but one
+	bt.DisableReception(n - 1)
+	// check that at least one node got the beacon
+	doRound(1)
+	fmt.Printf("\n\n-- BEFORE ENABLING RECEPTION AGAIN -- \n\n")
+	// enable reception again of all nodes
+	bt.EnableReception(n - 1)
+	// at this point, all but one nodes should build on an empty round
+	doRound(n - 1)
+	// at this point, same as before since the beacon is already built
+	doRound(n - 1)
+	//lindex := bt.nodes[n-1].index
+	/*fmt.Printf("\n\n-- BEFORE RESETING LAST NODE %d--\n\n", lindex)*/
+	//// simulate that he never saw the last round he got, so he'll have
+	//// to sync up with others
+	//store := bt.nodes[n-1].handler.chain
+	//last, err := store.Last()
+	//require.NoError(t, err)
+	//store.del(last.Round)
+	//// at this round, the late node will see it needs a sync, it'll run
+	//// it and be uptodate at the next round
+	//doRound(n - 1)
+	//fmt.Printf("\n\n-- BEFORE ALL GOOD ROUND %d-- \n\n", lindex)
+	/*doRound(n)*/
 }
 func TestBeaconSimple(t *testing.T) {
 	n := 3
@@ -369,13 +444,11 @@ func TestBeaconSimple(t *testing.T) {
 	// move clock to genesis time
 	bt.MoveTime(1 * time.Second)
 
-	fmt.Println(" CHECKING ROUND 1 ")
 	// check 1 period
 	checkWait(counter)
-	fmt.Println(" CHECKING ROUND 2 ")
 	// check 2 period
 	counter.Add(n)
-	bt.MoveTime(2 * time.Second)
+	bt.MoveTime(period)
 	checkWait(counter)
 }
 
@@ -436,12 +509,12 @@ func TestBeaconThreshold(t *testing.T) {
 	makeRounds(nRounds, n-1)
 
 	// launch the last one
-	bt.CallbackFor(n-1, myCallBack(n-1))
 	bt.ServeBeacon(n - 1)
 	bt.StartBeacon(n-1, true)
 	fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
 	// wait a bit for syncing to take place
 	time.Sleep(100 * time.Millisecond)
+	bt.CallbackFor(n-1, myCallBack(n-1))
 	fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
 	// and then run a few rounds
 	makeRounds(nRounds, n)
@@ -463,4 +536,9 @@ func TestBeaconThreshold(t *testing.T) {
 	fmt.Printf("\n | MOVE TIME WITH ALL NODES  | \n\n")
 	// expect lastnode to have catch up
 	makeRounds(nRounds, n)
+}
+
+func (b *BeaconTest) CallbackFor(i int, fn func(*Beacon)) {
+	j := b.searchNode(i)
+	b.nodes[j].handler.callbacks.AddCallback(fn)
 }

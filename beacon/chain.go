@@ -110,6 +110,14 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	return genesis + int64((round-1)*uint64(period.Seconds()))
 }
 
+func CurrentRound(now int64, period time.Duration, genesis int64) uint64 {
+	nextRound, _ := NextRound(now, period, genesis)
+	if nextRound <= 1 {
+		return nextRound
+	}
+	return nextRound - 1
+}
+
 // NextRound returns the next upcoming round and its UNIX time given the genesis
 // time and the period.
 // round at time genesis = round 1. Round 0 is fixed.

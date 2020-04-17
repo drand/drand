@@ -249,16 +249,16 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 			reply, err := stream.Recv()
 			if err == io.EOF {
 				fmt.Println(" --- STREAM EOF")
-				break
+				return
 			}
 			if err != nil {
 				fmt.Println(" --- STREAM ERR:", err)
-				break
+				return
 			}
 			select {
 			case <-ctx.Done():
 				fmt.Println(" --- STREAM CONTEXT DONE")
-				break
+				return
 			default:
 				resp <- reply
 			}
