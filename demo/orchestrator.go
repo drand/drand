@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -222,6 +223,9 @@ func filterNodes(list []*Node, exclude ...int) []*Node {
 			filtered = append(filtered, n)
 		}
 	}
+	rand.Shuffle(len(filtered), func(i, j int) {
+		filtered[i], filtered[j] = filtered[j], filtered[i]
+	})
 	return filtered
 }
 

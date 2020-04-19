@@ -80,6 +80,13 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	/*if b, ok := d.cache.GetBeacon(in.GetRound()); ok {*/
 	//return beaconToProto(b), nil
 	/*}*/
+	var addr string
+	peer, ok := peer.FromContext(c)
+	if ok {
+		addr = peer.Addr.String()
+	} else {
+		addr = "<unknown>"
+	}
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -91,18 +98,13 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		r, err = d.beacon.Store().Last()
 	} else {
 		// fetch the correct entry or the next one if not found
-		d.beacon.Store().Cursor(func(c beacon.Cursor) {
-			r = c.Seek(in.GetRound())
-		})
+		r, err = d.beacon.Store().Get(in.GetRound())
 	}
 	if err != nil || r == nil {
-		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
+		d.log.Debug("public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
+		return nil, fmt.Errorf("can't retrieve beacon: %s %s", err, r)
 	}
-	peer, ok := peer.FromContext(c)
-	if ok {
-		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", r.Round)
-		d.log.Info("public rand", peer.Addr.String(), "round", r.Round)
-	}
+	d.log.Info("public_rand", addr, "round", r.Round, "reply", r.String())
 	return beaconToProto(r), nil
 }
 

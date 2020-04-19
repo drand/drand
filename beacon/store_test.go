@@ -9,6 +9,49 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestStoreBoltOrder(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drandtest")
+	require.NoError(t, os.MkdirAll(tmp, 0755))
+	path := tmp
+	defer os.RemoveAll(tmp)
+	store, err := NewBoltStore(path, nil)
+	require.NoError(t, err)
+
+	b1 := &Beacon{
+		PreviousSig: []byte("a magnificient signature"),
+		Round:       145,
+		Signature:   []byte("one signature to"),
+	}
+
+	b2 := &Beacon{
+		PreviousSig: []byte("is not worth an invalid one"),
+		Round:       146,
+		Signature:   []byte("govern them all"),
+	}
+
+	require.NoError(t, store.Put(b1))
+	require.Equal(t, 1, store.Len())
+	eb1, err := store.Last()
+	require.NoError(t, err)
+	require.Equal(t, b1, eb1)
+	require.NoError(t, store.Put(b2))
+	eb2, err := store.Last()
+	require.NoError(t, err)
+	require.Equal(t, b2, eb2)
+	b2.PreviousRound = 43
+	require.NoError(t, store.Put(b2))
+	eb2, err = store.Last()
+	require.NoError(t, err)
+	require.Equal(t, b2, eb2)
+	// change b1 and check b2 is still the last returned
+	b1.PreviousRound = 24
+	require.NoError(t, store.Put(b1))
+	eb2, err = store.Last()
+	require.NoError(t, err)
+	require.Equal(t, eb2, b2)
+
+}
+
 func TestStoreBolt(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drandtest")
 	require.NoError(t, os.MkdirAll(tmp, 0755))
@@ -56,8 +99,9 @@ func TestStoreBolt(t *testing.T) {
 		require.Equal(t, b1, b)
 		doneCh <- true
 	}
-	store = NewCallbackStore(store, callback)
-	go store.Put(b1)
+	cbStore := NewCallbackStore(store)
+	cbStore.AddCallback(callback)
+	go cbStore.Put(b1)
 	select {
 	case <-doneCh:
 		return
