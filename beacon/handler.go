@@ -198,8 +198,8 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 	}
 
 	h.safe.SetInfo(nil, h.conf.Private.Public, prevGroup)
-	h.chain.RunSync(context.Background())
 	go h.run(targetTime)
+	h.chain.RunSync(context.Background())
 	return nil
 }
 
@@ -284,7 +284,7 @@ func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 		return
 	}
 	if info.share == nil {
-		h.l.Fatal("no_share", currentRound, "BUG")
+		h.l.Error("no_share", currentRound, "BUG", h.safe.String(), "not_synced_yet?")
 		return
 	}
 	msg := Message(last.Signature, last.Round, currentRound)
@@ -423,5 +423,16 @@ func (c *cryptoSafe) GetInfo(round uint64) (*cryptoInfo, error) {
 			return info, nil
 		}
 	}
+	fmt.Printf("failed infos for round %d: %+v\n", round, c.infos)
 	return nil, fmt.Errorf("no group info for round %d", round)
+}
+
+func (c *cryptoSafe) String() string {
+	c.Lock()
+	defer c.Unlock()
+	var out string
+	for _, info := range c.infos {
+		out += fmt.Sprintf(" {startAt: %d, sharenil? %v} ", info.startAt, info.share == nil)
+	}
+	return out
 }
