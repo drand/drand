@@ -108,17 +108,15 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
-	// check what we receive is for the current round
-	if p.GetRound() != currentRound {
-		// request is not for current round
-		h.l.Error("process_partial", addr, "invalid_current_round", p.GetRound(), "current_round", currentRound)
+	if p.GetRound() > currentRound {
+		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
 	// check that the previous is really a previous round
-	if p.GetPreviousRound() >= p.GetRound() {
+	if p.GetPreviousRound() != p.GetRound()-1 {
 		h.l.Error("process_partial", addr, "invalid_previous_round", p.GetRound(), "partial_previous_round", p.GetPreviousRound())
-		return nil, fmt.Errorf("invalid previous round: %d > current %d", p.GetPreviousRound(), p.GetRound())
+		return nil, fmt.Errorf("invalid previous round: %d vs current %d", p.GetPreviousRound(), p.GetRound())
 	}
 
 	msg := Message(p.GetPreviousSig(), p.GetPreviousRound(), p.GetRound())
