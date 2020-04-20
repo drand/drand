@@ -222,11 +222,46 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
+	var current roundInfo
+	needCatchup := func(b *Beacon) bool {
+		if b.Round < current.round {
+			return true
+		}
+		return false
+	}
 	for {
 		select {
-		case ri := <-chanTick:
-			h.l.Debug("beacon_loop", "new_round", "round", ri.round)
-			h.tryBroadcastCurrentPartial(ri.round)
+		case current = <-chanTick:
+			lastBeacon, err := h.chain.Last()
+			if err != nil {
+				h.l.Error("beacon_loop", "loading_last", "err", err)
+				break
+			}
+			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
+			h.broadcastNextPartial(lastBeacon)
+			if needCatchup(lastBeacon) {
+				// We also launch a sync with the other nodes. If there is one node
+				// that has a higher beacon, we'll build on it next epoch. If
+				// nobody has a higher beacon, then this one will be next if the
+				// network conditions allow for it.
+				// XXX find a way to start the catchup as soon as the runsync is
+				// done. Not critical but leads to faster network recovery.
+				h.l.Debug("beacon_loop", "run_sync", "potential_catchup")
+				go h.chain.RunSync(context.Background())
+			}
+		case b := <-h.chain.AppendedBeaconNoSync():
+			if needCatchup(b) {
+				// When network is down, all alive nodes will broadcast their
+				// signatures periodically with the same period. As soon as one
+				// new beacon is created,i.e. network is up again, this channel
+				// will be triggered and we enter fast mode here.
+				// Since that last node is late, nodes must now hurry up to do
+				// the next beacons in time -> we run the next beacon now
+				// already. If that next beacon is created soon after, this
+				// channel will trigger again etc until we arrive at the correct
+				// round.
+				h.broadcastNextPartial(b)
+			}
 		case <-h.close:
 			h.l.Debug("beacon_loop", "finished")
 			return
@@ -234,7 +269,7 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) tryBroadcastCurrentPartial(currentRound uint64) {
+func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 	ctx := context.Background()
 	// get last beacon at each tick
 	last, err := h.chain.Last()
@@ -242,10 +277,7 @@ func (h *Handler) tryBroadcastCurrentPartial(currentRound uint64) {
 		h.l.Error("load_last", "fail", "err", err)
 		return
 	}
-	if last.Round >= currentRound {
-		h.l.Error("last_beacon", "already_got", "CHECK_CLOCK")
-		return
-	}
+	currentRound := last.Round + 1
 	info, err := h.safe.GetInfo(currentRound)
 	if err != nil {
 		h.l.Error("no_info", currentRound, "BUG")
