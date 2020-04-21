@@ -10,7 +10,7 @@ import (
 
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
-	dkg "github.com/drand/kyber/share/dkg/pedersen"
+	dkg "github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
 
@@ -196,12 +196,8 @@ func (s *Share) Public() *DistPublic {
 func (s *Share) TOML() interface{} {
 	dtoml := &ShareTOML{}
 	dtoml.Commits = make([]string, len(s.Commits))
-	dtoml.PrivatePoly = make([]string, len(s.PrivatePoly))
 	for i, c := range s.Commits {
 		dtoml.Commits[i] = PointToString(c)
-	}
-	for i, c := range s.PrivatePoly {
-		dtoml.PrivatePoly[i] = ScalarToString(c)
 	}
 	dtoml.Share = ScalarToString(s.Share.V)
 	dtoml.Index = s.Share.I
@@ -223,14 +219,6 @@ func (s *Share) FromTOML(i interface{}) error {
 		s.Commits[i] = p
 	}
 
-	s.PrivatePoly = make([]kyber.Scalar, len(t.PrivatePoly))
-	for i, c := range t.PrivatePoly {
-		coeff, err := StringToScalar(KeyGroup, c)
-		if err != nil {
-			return fmt.Errorf("share.PrivatePoly[%d] corrupted: %s", i, err)
-		}
-		s.PrivatePoly[i] = coeff
-	}
 	sshare, err := StringToScalar(KeyGroup, t.Share)
 	if err != nil {
 		return fmt.Errorf("share.Share corrupted: %s", err)
@@ -273,6 +261,16 @@ func (d *DistPublic) PubPoly() *share.PubPoly {
 // to verify signatures issued by the distributed key.
 func (d *DistPublic) Key() kyber.Point {
 	return d.Coefficients[0]
+}
+
+// Hash computes the hash of this distributed key.
+func (d *DistPublic) Hash() []byte {
+	h := hashFunc()
+	for _, c := range d.Coefficients {
+		buff, _ := c.MarshalBinary()
+		h.Write(buff)
+	}
+	return h.Sum(nil)
 }
 
 // DistPublicTOML is a TOML compatible value of a DistPublic

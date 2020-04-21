@@ -10,7 +10,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/drand/drand/key"
@@ -24,9 +23,6 @@ import (
 	clock "github.com/jonboulle/clockwork"
 	"google.golang.org/grpc/peer"
 )
-
-// Suite is the suite used by the crypto dkg package
-type Suite = dkg.Suite
 
 // DefaultTimeout is the timeout used by default when unspecified in the config
 const DefaultTimeout = time.Duration(1) * time.Minute
@@ -51,32 +47,11 @@ type Share = dkg.DistKeyShare
 
 // Handler is the stateful struct that runs a DKG with the peers
 type Handler struct {
-	net           Network     // network to send data out
-	conf          *Config     // configuration given at init time
-	cdkg          *dkg.Config // dkg config
-	private       *key.Pair   // private key
-	nidx          int         // the index of the private/public key pair in the new list
-	oidx          int
-	newNode       bool                       // true if this node belongs in the new group or not
-	oldNode       bool                       // true if this node belongs to the oldNode list
-	state         *dkg.DistKeyGenerator      // dkg stateful struct
-	n             int                        // number of participants
-	tmpResponses  map[uint32][]*dkg.Response // temporary buffer of responses
-	sentDeals     bool                       // true if the deals have been sent already
-	dealProcessed int                        // how many deals have we processed so far
-	respProcessed int                        // how many responses have we processed so far
-	done          bool                       // is the protocol done
-	shareCh       chan Share                 // share gets sent over shareCh when ready
-	errCh         chan error                 // any fatal error for the protocol gets sent over
-	exitCh        chan bool                  // any old node not in the new group will signal the end of the protocol through this channel
-
-	sync.Mutex
-	share           *dkg.DistKeyShare // the final share generated
-	sendDeal        bool              // true if this DKG should be expected to send a deal
-	timerCh         chan bool         // closed when timer should stop waiting
-	timeouted       bool              // true if timeout occured
-	timeoutLaunched bool              // true if timeout has launched already
-	l               log.Logger
+	net     Network     // network to send data out
+	conf    *Config     // configuration given at init time
+	cdkg    *dkg.Config // dkg config
+	private *key.Pair   // private key
+	l       log.Logger
 }
 
 // NewHandler returns a fresh dkg handler using this private key.
@@ -111,32 +86,6 @@ func NewHandler(n Network, c *Config, l log.Logger) (*Handler, error) {
 	if c.OldNodes != nil {
 		cdkg.OldNodes = c.OldNodes.Points()
 		cdkg.OldThreshold = c.OldNodes.Threshold
-	}
-	state, err := dkg.NewDistKeyHandler(cdkg)
-	if err != nil {
-		return nil, fmt.Errorf("dkg: error using dkg library: %s", err)
-	}
-
-	var newNode, oldNode bool
-	var nidx, oidx int
-	var found bool
-	nidx, found = c.NewNodes.Index(c.Key.Public)
-	if found {
-		newNode = true
-	}
-	if c.OldNodes != nil {
-		oidx, found = c.OldNodes.Index(c.Key.Public)
-		if found {
-			oldNode = true
-		}
-	}
-	var shouldSendDeal bool
-	if newNode && c.OldNodes == nil {
-		// fresh dkg case
-		shouldSendDeal = true
-	} else if oldNode && c.OldNodes != nil {
-		// resharing case
-		shouldSendDeal = true
 	}
 	handler := &Handler{
 		conf:         c,
