@@ -79,6 +79,11 @@ var controlFlag = &cli.StringFlag{
 	Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
 }
 
+var metricsFlag = &cli.IntFlag{
+	Name:  "metrics",
+	Usage: "Launch a metrics server at the specified port.",
+}
+
 var listenFlag = &cli.StringFlag{
 	Name:  "listen",
 	Usage: "Set the listening (binding) address. Useful if you have some kind of proxy.",
@@ -211,7 +216,7 @@ func main() {
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, controlFlag, listenFlag,
+				insecureFlag, controlFlag, listenFlag, metricsFlag,
 				certsDirFlag, pushFlag, verboseFlag),
 			Action: func(c *cli.Context) error {
 				banner()
