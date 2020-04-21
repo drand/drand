@@ -7,6 +7,6 @@ services:
       - ./data:/root/.drand
     ports:
       - "0.0.0.0:1234:8080"
-    entrypoint: drand 
+    entrypoint: /drand
     command: start --verbose --listen 0.0.0.0:8080 --tls-cert "/root/.drand/cert.pem" --tls-key "/root/.drand/key.pem"
     restart: always

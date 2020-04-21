@@ -24,7 +24,7 @@ func installDrand() {
 var build = flag.Bool("build", false, "build the drand binary first")
 var testF = flag.Bool("test", false, "run it as a test that finishes")
 var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
-var debug = flag.Bool("debut", false, "prints the log when panic occurs")
+var debug = flag.Bool("debug", false, "prints the log when panic occurs")
 
 // 10s after dkg finishes, (new or reshared) beacon starts
 var beaconOffset = 10
@@ -60,6 +60,7 @@ func main() {
 		// print logs in case things panic
 		if err := recover(); err != nil {
 			if *debug {
+				fmt.Println(err)
 				orch.PrintLogs()
 			}
 			os.Exit(1)
@@ -83,18 +84,18 @@ func main() {
 
 	// stop the whole network, wait a bit and see if it can restart at the right
 	// round
-	orch.StopAllNodes(nodeToStop)
-	orch.WaitPeriod()
-	orch.WaitPeriod()
-	// start all but the one still down
-	orch.StartCurrentNodes(nodeToStop)
-	// leave time to network to sync
-	periodD, _ := time.ParseDuration(period)
-	orch.Wait(time.Duration(2) * periodD)
-	for i := 0; i < nRound; i++ {
-		orch.WaitPeriod()
-		orch.CheckCurrentBeacon(nodeToStop)
-	}
+	/*orch.StopAllNodes(nodeToStop)*/
+	//orch.WaitPeriod()
+	//orch.WaitPeriod()
+	//// start all but the one still down
+	//orch.StartCurrentNodes(nodeToStop)
+	//// leave time to network to sync
+	//periodD, _ := time.ParseDuration(period)
+	//orch.Wait(time.Duration(2) * periodD)
+	//for i := 0; i < nRound; i++ {
+	//orch.WaitPeriod()
+	//orch.CheckCurrentBeacon(nodeToStop)
+	//}
 
 	// stop only more than a threshold of the network, wait a bit and see if it
 	// can restart at the right round correctly

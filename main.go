@@ -29,7 +29,7 @@ import (
 // Automatically set through -ldflags
 // Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "dev"
+	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )

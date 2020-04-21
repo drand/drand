@@ -159,16 +159,29 @@ func (g *grpcClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyReque
 	resp, err = client.DistKey(ctx, in)
 	return resp, err
 }
-func (g *grpcClient) PrepareDKGGroup(ctx context.Context, p Peer, in *drand.PrepareDKGPacket, opts ...CallOption) (*drand.GroupPacket, error) {
+
+func (g *grpcClient) PushDKGGroup(ctx context.Context, p Peer, in *drand.PushGroupPacket, opts ...grpc.CallOption) error {
 	c, err := g.conn(p)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	client := drand.NewProtocolClient(c)
 	//ctx, cancel := g.getTimeoutContext(ctx)
 	//defer cancel()
-	return client.PrepareDKGGroup(ctx, in, opts...)
+	_, err = client.PushDKGGroup(ctx, in, opts...)
+	return err
 
+}
+func (g *grpcClient) PrepareDKGGroup(ctx context.Context, p Peer, in *drand.PrepareDKGPacket, opts ...CallOption) error {
+	c, err := g.conn(p)
+	if err != nil {
+		return err
+	}
+	client := drand.NewProtocolClient(c)
+	//ctx, cancel := g.getTimeoutContext(ctx)
+	//defer cancel()
+	_, err = client.PrepareDKGGroup(ctx, in, opts...)
+	return err
 }
 
 func (g *grpcClient) FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error) {
@@ -198,29 +211,29 @@ func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePa
 	return resp, err
 }
 
-func (g *grpcClient) NewBeacon(p Peer, in *drand.BeaconPacket, opts ...CallOption) (*drand.Empty, error) {
-	do := func() (*drand.Empty, error) {
+func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
+	do := func() error {
 		c, err := g.conn(p)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		client := drand.NewProtocolClient(c)
-		ctx, _ := g.getTimeoutContext(context.Background())
-		return client.NewBeacon(ctx, in, opts...)
+		ctx, _ := g.getTimeoutContext(ctx)
+		_, err = client.PartialBeacon(ctx, in, opts...)
+		return err
 	}
-	if resp, err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
+	if err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
 		g.deleteConn(p)
 		return do()
-		//return resp, err
 	} else {
-		return resp, err
+		return err
 	}
 }
 
 const SyncBlockKey = "sync"
 
-func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.SyncResponse, error) {
-	resp := make(chan *drand.SyncResponse)
+func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
+	resp := make(chan *drand.BeaconPacket)
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -236,16 +249,16 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 			reply, err := stream.Recv()
 			if err == io.EOF {
 				fmt.Println(" --- STREAM EOF")
-				break
+				return
 			}
 			if err != nil {
 				fmt.Println(" --- STREAM ERR:", err)
-				break
+				return
 			}
 			select {
 			case <-ctx.Done():
 				fmt.Println(" --- STREAM CONTEXT DONE")
-				break
+				return
 			default:
 				resp <- reply
 			}

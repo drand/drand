@@ -63,13 +63,13 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 
 // NewBeacon methods receives a beacon generation requests and answers
 // with the partial signature from this drand node.
-func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconPacket) (*drand.Empty, error) {
+func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon not setup yet")
 	}
-	return d.beacon.ProcessBeacon(c, in)
+	return d.beacon.ProcessPartialBeacon(c, in)
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
@@ -80,6 +80,13 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	/*if b, ok := d.cache.GetBeacon(in.GetRound()); ok {*/
 	//return beaconToProto(b), nil
 	/*}*/
+	var addr string
+	peer, ok := peer.FromContext(c)
+	if ok {
+		addr = peer.Addr.String()
+	} else {
+		addr = "<unknown>"
+	}
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -91,18 +98,13 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		r, err = d.beacon.Store().Last()
 	} else {
 		// fetch the correct entry or the next one if not found
-		d.beacon.Store().Cursor(func(c beacon.Cursor) {
-			r = c.Seek(in.GetRound())
-		})
+		r, err = d.beacon.Store().Get(in.GetRound())
 	}
 	if err != nil || r == nil {
-		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
+		d.log.Debug("public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
+		return nil, fmt.Errorf("can't retrieve beacon: %s %s", err, r)
 	}
-	peer, ok := peer.FromContext(c)
-	if ok {
-		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", r.Round)
-		d.log.Info("public rand", peer.Addr.String(), "round", r.Round)
-	}
+	d.log.Info("public_rand", addr, "round", r.Round, "reply", r.String())
 	return beaconToProto(r), nil
 }
 
@@ -122,7 +124,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	addr := peer.Addr.String()
 	done := make(chan error, 1)
 	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
-	if req.GetRound() <= lastb.Round {
+	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
 		// we need to stream from store first
 		var err error
 		b.Store().Cursor(func(c beacon.Cursor) {
@@ -207,37 +209,34 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 	return groupToProto(d.group), nil
 }
 
-func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.GroupPacket, error) {
-	var receivers *groupReceiver
-	verif := func() error {
-		d.state.Lock()
-		defer d.state.Unlock()
-		if d.manager == nil {
-			return errors.New("no manager")
-		}
-		peer, ok := peer.FromContext(ctx)
-		if !ok {
-			return errors.New("no peer associated")
-		}
-		// manager will verify if information are correct
-		var err error
-		receivers, err = d.manager.ReceivedKey(peer.Addr.String(), p)
-		if err != nil {
-			return err
-		}
-		return nil
+func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.Empty, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.manager == nil {
+		return nil, errors.New("no manager")
 	}
-	if err := verif(); err != nil {
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("no peer associated")
+	}
+	// manager will verify if information are correct
+	err := d.manager.ReceivedKey(peer.Addr.String(), p)
+	if err != nil {
 		return nil, err
 	}
-	defer func() { receivers.DoneCh <- true }()
-	// wait for the group to be ready,i.e. all other participants sent their
-	// keys as well. Channel is automatically close after a while.
-	group := <-receivers.WaitGroup
-	if group == nil {
-		return nil, errors.New("no valid group has been generated in time")
+	return new(drand.Empty), nil
+}
+
+func (d *Drand) PushDKGGroup(ctx context.Context, in *drand.PushGroupPacket) (*drand.Empty, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.receiver == nil {
+		return nil, errors.New("no receiver setup")
 	}
-	// reply with the group, the receiver will start the DKG
-	protoGroup := groupToProto(group)
-	return protoGroup, nil
+	d.log.Info("push_group", "received_new")
+	err := d.receiver.ReceivedGroup(in)
+	if err != nil {
+		return nil, err
+	}
+	return new(drand.Empty), nil
 }

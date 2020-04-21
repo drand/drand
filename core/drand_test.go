@@ -55,8 +55,9 @@ func TestDrandDKGFresh(t *testing.T) {
 	diff := beaconStart - now
 	dt.MoveTime(time.Duration(diff) * time.Second)
 	// two = genesis + 1st round (happens at genesis)
-	dt.TestBeaconLength(2, dt.ids[:n-1]...)
 	fmt.Println(" --- Test BEACON LENGTH --- ")
+	dt.TestBeaconLength(2, dt.ids[:n-1]...)
+	fmt.Println(" --- START LAST DRAND ---")
 	// start last one
 	dt.StartDrand(lastID, true)
 	// leave some room to do the catchup
@@ -117,6 +118,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
 	time.Sleep(getSleepDuration())
+	dt.TestBeaconLength(4, dt.reshareIds...)
 }
 
 type DrandTest struct {
@@ -662,6 +664,23 @@ func TestDrandPublicStream(t *testing.T) {
 		case <-time.After(1 * time.Second):
 			require.True(t, false, "too late for streaming, round %d didn't reply in time", round)
 		}
+	}
+	// try fetching with round 0 -> get latest
+	respCh, err = client.PublicRandStream(ctx, root.priv.Public, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+	select {
+	case <-respCh:
+		require.False(t, true, "shouldn't get an entry if time doesn't go by")
+	case <-time.After(50 * time.Millisecond):
+		// correct
+	}
+
+	dt.MoveTime(group.Period)
+	select {
+	case resp := <-respCh:
+		require.Equal(t, maxRound, resp.GetRound())
+	case <-time.After(50 * time.Millisecond):
+		// correct
 	}
 }
 

@@ -111,7 +111,54 @@ func (m *PrepareDKGPacket) GetPreviousGroupHash() string {
 	return ""
 }
 
-type BeaconPacket struct {
+type PushGroupPacket struct {
+	NewGroup             *GroupPacket `protobuf:"bytes,1,opt,name=new_group,json=newGroup,proto3" json:"new_group,omitempty"`
+	SecretProof          string       `protobuf:"bytes,2,opt,name=secret_proof,json=secretProof,proto3" json:"secret_proof,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
+	XXX_unrecognized     []byte       `json:"-"`
+	XXX_sizecache        int32        `json:"-"`
+}
+
+func (m *PushGroupPacket) Reset()         { *m = PushGroupPacket{} }
+func (m *PushGroupPacket) String() string { return proto.CompactTextString(m) }
+func (*PushGroupPacket) ProtoMessage()    {}
+func (*PushGroupPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e344a98fea1e2f3a, []int{1}
+}
+
+func (m *PushGroupPacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PushGroupPacket.Unmarshal(m, b)
+}
+func (m *PushGroupPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PushGroupPacket.Marshal(b, m, deterministic)
+}
+func (m *PushGroupPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PushGroupPacket.Merge(m, src)
+}
+func (m *PushGroupPacket) XXX_Size() int {
+	return xxx_messageInfo_PushGroupPacket.Size(m)
+}
+func (m *PushGroupPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_PushGroupPacket.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PushGroupPacket proto.InternalMessageInfo
+
+func (m *PushGroupPacket) GetNewGroup() *GroupPacket {
+	if m != nil {
+		return m.NewGroup
+	}
+	return nil
+}
+
+func (m *PushGroupPacket) GetSecretProof() string {
+	if m != nil {
+		return m.SecretProof
+	}
+	return ""
+}
+
+type PartialBeaconPacket struct {
 	// Round is the round for which the beacon will be created from the partial
 	// signatures
 	Round uint64 `protobuf:"varint,1,opt,name=round,proto3" json:"round,omitempty"`
@@ -125,53 +172,53 @@ type BeaconPacket struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *BeaconPacket) Reset()         { *m = BeaconPacket{} }
-func (m *BeaconPacket) String() string { return proto.CompactTextString(m) }
-func (*BeaconPacket) ProtoMessage()    {}
-func (*BeaconPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e344a98fea1e2f3a, []int{1}
+func (m *PartialBeaconPacket) Reset()         { *m = PartialBeaconPacket{} }
+func (m *PartialBeaconPacket) String() string { return proto.CompactTextString(m) }
+func (*PartialBeaconPacket) ProtoMessage()    {}
+func (*PartialBeaconPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e344a98fea1e2f3a, []int{2}
 }
 
-func (m *BeaconPacket) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_BeaconPacket.Unmarshal(m, b)
+func (m *PartialBeaconPacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PartialBeaconPacket.Unmarshal(m, b)
 }
-func (m *BeaconPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_BeaconPacket.Marshal(b, m, deterministic)
+func (m *PartialBeaconPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PartialBeaconPacket.Marshal(b, m, deterministic)
 }
-func (m *BeaconPacket) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BeaconPacket.Merge(m, src)
+func (m *PartialBeaconPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PartialBeaconPacket.Merge(m, src)
 }
-func (m *BeaconPacket) XXX_Size() int {
-	return xxx_messageInfo_BeaconPacket.Size(m)
+func (m *PartialBeaconPacket) XXX_Size() int {
+	return xxx_messageInfo_PartialBeaconPacket.Size(m)
 }
-func (m *BeaconPacket) XXX_DiscardUnknown() {
-	xxx_messageInfo_BeaconPacket.DiscardUnknown(m)
+func (m *PartialBeaconPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_PartialBeaconPacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_BeaconPacket proto.InternalMessageInfo
+var xxx_messageInfo_PartialBeaconPacket proto.InternalMessageInfo
 
-func (m *BeaconPacket) GetRound() uint64 {
+func (m *PartialBeaconPacket) GetRound() uint64 {
 	if m != nil {
 		return m.Round
 	}
 	return 0
 }
 
-func (m *BeaconPacket) GetPreviousRound() uint64 {
+func (m *PartialBeaconPacket) GetPreviousRound() uint64 {
 	if m != nil {
 		return m.PreviousRound
 	}
 	return 0
 }
 
-func (m *BeaconPacket) GetPartialSig() []byte {
+func (m *PartialBeaconPacket) GetPartialSig() []byte {
 	if m != nil {
 		return m.PartialSig
 	}
 	return nil
 }
 
-func (m *BeaconPacket) GetPreviousSig() []byte {
+func (m *PartialBeaconPacket) GetPreviousSig() []byte {
 	if m != nil {
 		return m.PreviousSig
 	}
@@ -189,7 +236,7 @@ func (m *DKGPacket) Reset()         { *m = DKGPacket{} }
 func (m *DKGPacket) String() string { return proto.CompactTextString(m) }
 func (*DKGPacket) ProtoMessage()    {}
 func (*DKGPacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e344a98fea1e2f3a, []int{2}
+	return fileDescriptor_e344a98fea1e2f3a, []int{3}
 }
 
 func (m *DKGPacket) XXX_Unmarshal(b []byte) error {
@@ -233,7 +280,7 @@ func (m *ResharePacket) Reset()         { *m = ResharePacket{} }
 func (m *ResharePacket) String() string { return proto.CompactTextString(m) }
 func (*ResharePacket) ProtoMessage()    {}
 func (*ResharePacket) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e344a98fea1e2f3a, []int{3}
+	return fileDescriptor_e344a98fea1e2f3a, []int{4}
 }
 
 func (m *ResharePacket) XXX_Unmarshal(b []byte) error {
@@ -281,7 +328,7 @@ func (m *SyncRequest) Reset()         { *m = SyncRequest{} }
 func (m *SyncRequest) String() string { return proto.CompactTextString(m) }
 func (*SyncRequest) ProtoMessage()    {}
 func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e344a98fea1e2f3a, []int{4}
+	return fileDescriptor_e344a98fea1e2f3a, []int{5}
 }
 
 func (m *SyncRequest) XXX_Unmarshal(b []byte) error {
@@ -309,8 +356,7 @@ func (m *SyncRequest) GetFromRound() uint64 {
 	return 0
 }
 
-// SyncResponse is basically a chain of beacon response
-type SyncResponse struct {
+type BeaconPacket struct {
 	PreviousRound        uint64   `protobuf:"varint,1,opt,name=previous_round,json=previousRound,proto3" json:"previous_round,omitempty"`
 	PreviousSig          []byte   `protobuf:"bytes,2,opt,name=previous_sig,json=previousSig,proto3" json:"previous_sig,omitempty"`
 	Round                uint64   `protobuf:"varint,3,opt,name=round,proto3" json:"round,omitempty"`
@@ -320,53 +366,53 @@ type SyncResponse struct {
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *SyncResponse) Reset()         { *m = SyncResponse{} }
-func (m *SyncResponse) String() string { return proto.CompactTextString(m) }
-func (*SyncResponse) ProtoMessage()    {}
-func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e344a98fea1e2f3a, []int{5}
+func (m *BeaconPacket) Reset()         { *m = BeaconPacket{} }
+func (m *BeaconPacket) String() string { return proto.CompactTextString(m) }
+func (*BeaconPacket) ProtoMessage()    {}
+func (*BeaconPacket) Descriptor() ([]byte, []int) {
+	return fileDescriptor_e344a98fea1e2f3a, []int{6}
 }
 
-func (m *SyncResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SyncResponse.Unmarshal(m, b)
+func (m *BeaconPacket) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BeaconPacket.Unmarshal(m, b)
 }
-func (m *SyncResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SyncResponse.Marshal(b, m, deterministic)
+func (m *BeaconPacket) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BeaconPacket.Marshal(b, m, deterministic)
 }
-func (m *SyncResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SyncResponse.Merge(m, src)
+func (m *BeaconPacket) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BeaconPacket.Merge(m, src)
 }
-func (m *SyncResponse) XXX_Size() int {
-	return xxx_messageInfo_SyncResponse.Size(m)
+func (m *BeaconPacket) XXX_Size() int {
+	return xxx_messageInfo_BeaconPacket.Size(m)
 }
-func (m *SyncResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SyncResponse.DiscardUnknown(m)
+func (m *BeaconPacket) XXX_DiscardUnknown() {
+	xxx_messageInfo_BeaconPacket.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SyncResponse proto.InternalMessageInfo
+var xxx_messageInfo_BeaconPacket proto.InternalMessageInfo
 
-func (m *SyncResponse) GetPreviousRound() uint64 {
+func (m *BeaconPacket) GetPreviousRound() uint64 {
 	if m != nil {
 		return m.PreviousRound
 	}
 	return 0
 }
 
-func (m *SyncResponse) GetPreviousSig() []byte {
+func (m *BeaconPacket) GetPreviousSig() []byte {
 	if m != nil {
 		return m.PreviousSig
 	}
 	return nil
 }
 
-func (m *SyncResponse) GetRound() uint64 {
+func (m *BeaconPacket) GetRound() uint64 {
 	if m != nil {
 		return m.Round
 	}
 	return 0
 }
 
-func (m *SyncResponse) GetSignature() []byte {
+func (m *BeaconPacket) GetSignature() []byte {
 	if m != nil {
 		return m.Signature
 	}
@@ -375,11 +421,12 @@ func (m *SyncResponse) GetSignature() []byte {
 
 func init() {
 	proto.RegisterType((*PrepareDKGPacket)(nil), "drand.PrepareDKGPacket")
-	proto.RegisterType((*BeaconPacket)(nil), "drand.BeaconPacket")
+	proto.RegisterType((*PushGroupPacket)(nil), "drand.PushGroupPacket")
+	proto.RegisterType((*PartialBeaconPacket)(nil), "drand.PartialBeaconPacket")
 	proto.RegisterType((*DKGPacket)(nil), "drand.DKGPacket")
 	proto.RegisterType((*ResharePacket)(nil), "drand.ResharePacket")
 	proto.RegisterType((*SyncRequest)(nil), "drand.SyncRequest")
-	proto.RegisterType((*SyncResponse)(nil), "drand.SyncResponse")
+	proto.RegisterType((*BeaconPacket)(nil), "drand.BeaconPacket")
 }
 
 func init() {
@@ -387,41 +434,44 @@ func init() {
 }
 
 var fileDescriptor_e344a98fea1e2f3a = []byte{
-	// 541 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x53, 0x4d, 0x6f, 0xd3, 0x40,
-	0x14, 0x94, 0xf3, 0x51, 0xe2, 0xe7, 0x84, 0x96, 0x4d, 0x24, 0xac, 0xa8, 0x55, 0x43, 0x10, 0x52,
-	0x54, 0x21, 0xb7, 0x2a, 0x12, 0x47, 0x0e, 0xa5, 0x10, 0x50, 0x05, 0x8a, 0x1c, 0x4e, 0x5c, 0x2c,
-	0xe3, 0x7d, 0xb5, 0xad, 0x24, 0x5e, 0xb3, 0xbb, 0x06, 0xf2, 0x1f, 0x90, 0xe0, 0x4f, 0xf2, 0x3f,
-	0xd0, 0x7e, 0x24, 0x4e, 0x43, 0x0f, 0x1c, 0x22, 0x65, 0x67, 0xe6, 0xad, 0xfc, 0x66, 0x66, 0x61,
-	0x40, 0x79, 0x5c, 0xd0, 0xf3, 0x92, 0x33, 0xc9, 0x12, 0xb6, 0x0c, 0xf4, 0x1f, 0xd2, 0xd6, 0xe8,
-	0x70, 0x90, 0xf0, 0x75, 0x29, 0xd9, 0x39, 0x5d, 0xa4, 0xea, 0x67, 0xc8, 0x21, 0x31, 0x23, 0x09,
-	0x5b, 0xad, 0x58, 0x61, 0xb0, 0xf1, 0x1f, 0x07, 0x8e, 0x66, 0x1c, 0xcb, 0x98, 0xe3, 0xf5, 0xcd,
-	0x74, 0x16, 0x27, 0x0b, 0x94, 0xe4, 0x29, 0xb4, 0x0a, 0x46, 0xd1, 0x77, 0x46, 0xce, 0xc4, 0xbb,
-	0x3c, 0x0c, 0xf4, 0x5c, 0xf0, 0x9e, 0x62, 0x21, 0x73, 0xb9, 0x0e, 0x35, 0x49, 0x86, 0xd0, 0xc1,
-	0x1f, 0x25, 0x26, 0x12, 0xa9, 0xdf, 0x18, 0x39, 0x93, 0x5e, 0xb8, 0x3d, 0x93, 0x63, 0x70, 0x65,
-	0xc6, 0x51, 0x64, 0x6c, 0x49, 0xfd, 0xa6, 0x26, 0x6b, 0x80, 0x9c, 0x82, 0x47, 0x17, 0x69, 0x24,
-	0xf3, 0x15, 0xb2, 0x4a, 0xfa, 0xad, 0x91, 0x33, 0x69, 0x85, 0x40, 0x17, 0xe9, 0x27, 0x83, 0x90,
-	0x27, 0xd0, 0x15, 0x98, 0x70, 0x94, 0x51, 0xc9, 0x19, 0xbb, 0xf5, 0xdb, 0x23, 0x67, 0xe2, 0x86,
-	0x9e, 0xc1, 0x66, 0x0a, 0x22, 0x01, 0xf4, 0x4b, 0x8e, 0xdf, 0x72, 0x56, 0x89, 0x28, 0xe5, 0xac,
-	0x2a, 0xa3, 0x2c, 0x16, 0x99, 0x7f, 0xa0, 0x95, 0x8f, 0x36, 0xd4, 0x54, 0x31, 0xef, 0x62, 0x91,
-	0x8d, 0x7f, 0x39, 0xd0, 0xbd, 0xc2, 0x38, 0x61, 0x85, 0xdd, 0x71, 0x00, 0x6d, 0xce, 0xaa, 0x82,
-	0xea, 0x25, 0x5b, 0xa1, 0x39, 0x90, 0x67, 0xf0, 0x70, 0x7b, 0xad, 0xa1, 0x1b, 0x9a, 0xee, 0x6d,
-	0xd0, 0x50, 0xcb, 0x4e, 0xc1, 0x2b, 0x63, 0x2e, 0xf3, 0x78, 0x19, 0x89, 0x3c, 0xd5, 0x1b, 0x76,
-	0x43, 0xb0, 0xd0, 0x3c, 0x4f, 0xd5, 0x06, 0xdb, 0x7b, 0x94, 0xa2, 0xa5, 0x15, 0xde, 0x06, 0x9b,
-	0xe7, 0xe9, 0xf8, 0x0c, 0xdc, 0xda, 0xf1, 0x13, 0x68, 0xd2, 0x45, 0x6a, 0x0d, 0xf7, 0x02, 0x95,
-	0x99, 0x61, 0x42, 0x85, 0x8f, 0x3f, 0x40, 0x2f, 0x44, 0x91, 0xc5, 0x1c, 0xff, 0x4b, 0x4f, 0x4e,
-	0x00, 0x76, 0x4c, 0x69, 0x68, 0x53, 0xdc, 0x74, 0x6b, 0xc6, 0x73, 0xf0, 0xe6, 0xeb, 0x22, 0x09,
-	0xf1, 0x6b, 0x85, 0x42, 0x5d, 0x06, 0xb7, 0x9c, 0xad, 0xa2, 0x5d, 0x3f, 0x5c, 0x85, 0xe8, 0x65,
-	0xc7, 0x3f, 0x1d, 0xe8, 0x1a, 0xb9, 0x28, 0x59, 0x21, 0xf0, 0x1e, 0x93, 0x9c, 0xfb, 0x4c, 0xda,
-	0xf7, 0xa0, 0xf1, 0x8f, 0x07, 0x75, 0x08, 0xcd, 0xdd, 0x10, 0x8e, 0xc1, 0x15, 0x79, 0x5a, 0xc4,
-	0xb2, 0xe2, 0x68, 0x9d, 0xab, 0x81, 0xcb, 0xdf, 0x0d, 0xe8, 0xcc, 0x6c, 0xeb, 0xc9, 0x2b, 0x38,
-	0xac, 0xdb, 0xab, 0xd3, 0x26, 0x8f, 0x6d, 0x5d, 0xf7, 0x5b, 0x3d, 0x24, 0x96, 0xd0, 0x32, 0xeb,
-	0xe3, 0x19, 0x74, 0xde, 0xaa, 0x5a, 0x5e, 0xdf, 0x4c, 0xc9, 0x91, 0xe5, 0xeb, 0x89, 0xae, 0x45,
-	0xde, 0xac, 0x4a, 0xb9, 0x26, 0x17, 0x00, 0x36, 0x04, 0xa5, 0x1e, 0x58, 0xee, 0x4e, 0x2e, 0x7b,
-	0x13, 0x01, 0xb8, 0x1f, 0xf1, 0xbb, 0xa9, 0x1d, 0xe9, 0x5b, 0x6a, 0xb7, 0x85, 0x7b, 0xfa, 0x97,
-	0xe0, 0x2a, 0xa3, 0x5f, 0x67, 0x71, 0x5e, 0x90, 0xcd, 0xe7, 0xee, 0x24, 0x35, 0xec, 0xdf, 0xc1,
-	0x4c, 0x1c, 0x17, 0xce, 0xd5, 0x83, 0xcf, 0xe6, 0xdd, 0x7f, 0x39, 0xd0, 0x8f, 0xfa, 0xc5, 0xdf,
-	0x00, 0x00, 0x00, 0xff, 0xff, 0xf3, 0xcc, 0xcc, 0x98, 0x1d, 0x04, 0x00, 0x00,
+	// 584 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xdd, 0x8a, 0xd3, 0x40,
+	0x14, 0x26, 0xfd, 0x59, 0x9b, 0x93, 0xd6, 0xae, 0xd3, 0xa2, 0x21, 0xec, 0xb2, 0x35, 0x22, 0x94,
+	0x45, 0xda, 0x65, 0x15, 0xd1, 0xdb, 0x75, 0xb5, 0xca, 0x22, 0x84, 0xd4, 0x2b, 0x6f, 0x42, 0x4c,
+	0x66, 0x93, 0xd0, 0x76, 0x26, 0x4e, 0x26, 0xae, 0x7d, 0x07, 0xaf, 0x7d, 0x29, 0x9f, 0xc3, 0xf7,
+	0x90, 0xf9, 0x49, 0x9b, 0xb6, 0x0a, 0x5e, 0x14, 0x3a, 0xdf, 0x77, 0xce, 0xcc, 0x39, 0xdf, 0x77,
+	0x4e, 0x60, 0x18, 0xb3, 0x90, 0xc4, 0xd3, 0x9c, 0x51, 0x4e, 0x23, 0xba, 0x9c, 0xc8, 0x3f, 0xa8,
+	0x2d, 0x51, 0x67, 0x18, 0xb1, 0x75, 0xce, 0xe9, 0x34, 0x5e, 0x24, 0xe2, 0xa7, 0x48, 0x07, 0xa9,
+	0x94, 0x88, 0xae, 0x56, 0x94, 0x28, 0xcc, 0xfd, 0x6d, 0xc0, 0xb1, 0xc7, 0x70, 0x1e, 0x32, 0x7c,
+	0x7d, 0x33, 0xf3, 0xc2, 0x68, 0x81, 0x39, 0x7a, 0x02, 0x2d, 0x42, 0x63, 0x6c, 0x1b, 0x23, 0x63,
+	0x6c, 0x5d, 0xf6, 0x27, 0x32, 0x6f, 0xf2, 0x21, 0xc6, 0x84, 0x67, 0x7c, 0xed, 0x4b, 0x12, 0x39,
+	0xd0, 0xc1, 0xdf, 0x73, 0x1c, 0x71, 0x1c, 0xdb, 0x8d, 0x91, 0x31, 0xee, 0xf9, 0x9b, 0x33, 0x3a,
+	0x01, 0x93, 0xa7, 0x0c, 0x17, 0x29, 0x5d, 0xc6, 0x76, 0x53, 0x92, 0x5b, 0x00, 0x9d, 0x81, 0x15,
+	0x2f, 0x92, 0x80, 0x67, 0x2b, 0x4c, 0x4b, 0x6e, 0xb7, 0x46, 0xc6, 0xb8, 0xe5, 0x43, 0xbc, 0x48,
+	0x3e, 0x29, 0x04, 0x3d, 0x86, 0x6e, 0x81, 0x23, 0x86, 0x79, 0x90, 0x33, 0x4a, 0x6f, 0xed, 0xf6,
+	0xc8, 0x18, 0x9b, 0xbe, 0xa5, 0x30, 0x4f, 0x40, 0x68, 0x02, 0x83, 0x9c, 0xe1, 0x6f, 0x19, 0x2d,
+	0x8b, 0x20, 0x61, 0xb4, 0xcc, 0x83, 0x34, 0x2c, 0x52, 0xfb, 0x48, 0x46, 0x3e, 0xa8, 0xa8, 0x99,
+	0x60, 0xde, 0x87, 0x45, 0xea, 0x62, 0xe8, 0x7b, 0x65, 0x91, 0x4a, 0x40, 0x77, 0x39, 0x05, 0x93,
+	0xe0, 0x3b, 0x95, 0xad, 0x5b, 0x45, 0xba, 0xd5, 0x5a, 0x98, 0xdf, 0x21, 0xf8, 0x4e, 0x9e, 0x0f,
+	0xca, 0x6a, 0x1c, 0x94, 0xe5, 0xfe, 0x34, 0x60, 0xe0, 0x85, 0x8c, 0x67, 0xe1, 0xf2, 0x0a, 0x87,
+	0x11, 0x25, 0xfa, 0xad, 0x21, 0xb4, 0x19, 0x2d, 0x49, 0x2c, 0xdf, 0x69, 0xf9, 0xea, 0x80, 0x9e,
+	0xc2, 0xfd, 0x4d, 0x13, 0x8a, 0x6e, 0x48, 0xba, 0x57, 0xa1, 0xbe, 0x0c, 0x3b, 0x03, 0x2b, 0x57,
+	0x77, 0x06, 0x45, 0x96, 0x48, 0x3d, 0xbb, 0x3e, 0x68, 0x68, 0x9e, 0x25, 0xa2, 0xb0, 0xcd, 0x3d,
+	0x22, 0xa2, 0x25, 0x23, 0xac, 0x0a, 0x9b, 0x67, 0x89, 0x7b, 0x0e, 0xe6, 0xd6, 0xdf, 0x53, 0x68,
+	0xc6, 0x8b, 0x44, 0xf7, 0x6c, 0x4d, 0xc4, 0x84, 0xe8, 0x66, 0x05, 0xee, 0x7e, 0x84, 0x9e, 0x8f,
+	0x8b, 0x34, 0x64, 0xf8, 0xbf, 0xe2, 0xd1, 0x29, 0x40, 0xcd, 0x02, 0xa5, 0x8a, 0x99, 0x6c, 0xa4,
+	0x7f, 0x06, 0xd6, 0x7c, 0x4d, 0x22, 0x1f, 0x7f, 0x2d, 0x71, 0x21, 0x2e, 0x83, 0x5b, 0x46, 0x57,
+	0x41, 0x5d, 0x0f, 0x53, 0x20, 0xb2, 0x59, 0xf7, 0x87, 0x01, 0xdd, 0x1d, 0xe9, 0x0e, 0x45, 0x32,
+	0xfe, 0x26, 0xd2, 0xbe, 0x06, 0x8d, 0x03, 0x0d, 0xb6, 0x26, 0x34, 0xeb, 0x26, 0x9c, 0x80, 0x59,
+	0x64, 0x09, 0x09, 0x79, 0xc9, 0xb0, 0x56, 0x6e, 0x0b, 0x5c, 0xfe, 0x6a, 0x40, 0xc7, 0xd3, 0x3b,
+	0x86, 0x5e, 0x41, 0x7f, 0xbb, 0x2b, 0x6a, 0x26, 0x1e, 0xe9, 0x89, 0xd9, 0xdf, 0x21, 0xa7, 0xab,
+	0x89, 0xb7, 0xab, 0x9c, 0xaf, 0xd1, 0x0b, 0xe8, 0x8a, 0xf1, 0xdb, 0xa4, 0x3d, 0xac, 0xd2, 0x76,
+	0x67, 0x72, 0x2f, 0xeb, 0x1c, 0x3a, 0xef, 0xc4, 0xd2, 0x5c, 0xdf, 0xcc, 0xd0, 0xb1, 0x66, 0xfe,
+	0xf5, 0xc2, 0x05, 0x80, 0x36, 0x4d, 0x44, 0x0f, 0x35, 0xb7, 0xe3, 0xe3, 0x5e, 0xc6, 0x6b, 0xe8,
+	0xed, 0x8c, 0x2a, 0x72, 0xaa, 0xa2, 0x0e, 0x07, 0x78, 0x2f, 0xf5, 0x25, 0x98, 0xc2, 0xd2, 0x37,
+	0x69, 0x98, 0x11, 0x54, 0x2d, 0x4d, 0xcd, 0x64, 0x67, 0xa0, 0xb1, 0xfa, 0x1d, 0x17, 0xc6, 0xd5,
+	0xbd, 0xcf, 0xea, 0x03, 0xf5, 0xe5, 0x48, 0x7e, 0x7d, 0x9e, 0xff, 0x09, 0x00, 0x00, 0xff, 0xff,
+	0x6f, 0xb7, 0xeb, 0x9e, 0xc6, 0x04, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -436,13 +486,14 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type ProtocolClient interface {
-	PrepareDKGGroup(ctx context.Context, in *PrepareDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error)
+	PrepareDKGGroup(ctx context.Context, in *PrepareDKGPacket, opts ...grpc.CallOption) (*Empty, error)
+	PushDKGGroup(ctx context.Context, in *PushGroupPacket, opts ...grpc.CallOption) (*Empty, error)
 	// Setup is doing the DKG setup phase
 	FreshDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error)
 	// Reshare performs the resharing phase
 	ReshareDKG(ctx context.Context, in *ResharePacket, opts ...grpc.CallOption) (*Empty, error)
-	// NewBeacon asks for a partial signature to another node
-	NewBeacon(ctx context.Context, in *BeaconPacket, opts ...grpc.CallOption) (*Empty, error)
+	// PartialBeacon sends its partial beacon to another node
+	PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error)
 	SyncChain(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (Protocol_SyncChainClient, error)
 }
 
@@ -454,9 +505,18 @@ func NewProtocolClient(cc grpc.ClientConnInterface) ProtocolClient {
 	return &protocolClient{cc}
 }
 
-func (c *protocolClient) PrepareDKGGroup(ctx context.Context, in *PrepareDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error) {
-	out := new(GroupPacket)
+func (c *protocolClient) PrepareDKGGroup(ctx context.Context, in *PrepareDKGPacket, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/drand.Protocol/PrepareDKGGroup", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *protocolClient) PushDKGGroup(ctx context.Context, in *PushGroupPacket, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, "/drand.Protocol/PushDKGGroup", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -481,9 +541,9 @@ func (c *protocolClient) ReshareDKG(ctx context.Context, in *ResharePacket, opts
 	return out, nil
 }
 
-func (c *protocolClient) NewBeacon(ctx context.Context, in *BeaconPacket, opts ...grpc.CallOption) (*Empty, error) {
+func (c *protocolClient) PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/drand.Protocol/NewBeacon", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/drand.Protocol/PartialBeacon", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +566,7 @@ func (c *protocolClient) SyncChain(ctx context.Context, in *SyncRequest, opts ..
 }
 
 type Protocol_SyncChainClient interface {
-	Recv() (*SyncResponse, error)
+	Recv() (*BeaconPacket, error)
 	grpc.ClientStream
 }
 
@@ -514,8 +574,8 @@ type protocolSyncChainClient struct {
 	grpc.ClientStream
 }
 
-func (x *protocolSyncChainClient) Recv() (*SyncResponse, error) {
-	m := new(SyncResponse)
+func (x *protocolSyncChainClient) Recv() (*BeaconPacket, error) {
+	m := new(BeaconPacket)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -524,13 +584,14 @@ func (x *protocolSyncChainClient) Recv() (*SyncResponse, error) {
 
 // ProtocolServer is the server API for Protocol service.
 type ProtocolServer interface {
-	PrepareDKGGroup(context.Context, *PrepareDKGPacket) (*GroupPacket, error)
+	PrepareDKGGroup(context.Context, *PrepareDKGPacket) (*Empty, error)
+	PushDKGGroup(context.Context, *PushGroupPacket) (*Empty, error)
 	// Setup is doing the DKG setup phase
 	FreshDKG(context.Context, *DKGPacket) (*Empty, error)
 	// Reshare performs the resharing phase
 	ReshareDKG(context.Context, *ResharePacket) (*Empty, error)
-	// NewBeacon asks for a partial signature to another node
-	NewBeacon(context.Context, *BeaconPacket) (*Empty, error)
+	// PartialBeacon sends its partial beacon to another node
+	PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error)
 	SyncChain(*SyncRequest, Protocol_SyncChainServer) error
 }
 
@@ -538,8 +599,11 @@ type ProtocolServer interface {
 type UnimplementedProtocolServer struct {
 }
 
-func (*UnimplementedProtocolServer) PrepareDKGGroup(ctx context.Context, req *PrepareDKGPacket) (*GroupPacket, error) {
+func (*UnimplementedProtocolServer) PrepareDKGGroup(ctx context.Context, req *PrepareDKGPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PrepareDKGGroup not implemented")
+}
+func (*UnimplementedProtocolServer) PushDKGGroup(ctx context.Context, req *PushGroupPacket) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PushDKGGroup not implemented")
 }
 func (*UnimplementedProtocolServer) FreshDKG(ctx context.Context, req *DKGPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FreshDKG not implemented")
@@ -547,8 +611,8 @@ func (*UnimplementedProtocolServer) FreshDKG(ctx context.Context, req *DKGPacket
 func (*UnimplementedProtocolServer) ReshareDKG(ctx context.Context, req *ResharePacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReshareDKG not implemented")
 }
-func (*UnimplementedProtocolServer) NewBeacon(ctx context.Context, req *BeaconPacket) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method NewBeacon not implemented")
+func (*UnimplementedProtocolServer) PartialBeacon(ctx context.Context, req *PartialBeaconPacket) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PartialBeacon not implemented")
 }
 func (*UnimplementedProtocolServer) SyncChain(req *SyncRequest, srv Protocol_SyncChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method SyncChain not implemented")
@@ -572,6 +636,24 @@ func _Protocol_PrepareDKGGroup_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProtocolServer).PrepareDKGGroup(ctx, req.(*PrepareDKGPacket))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Protocol_PushDKGGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PushGroupPacket)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProtocolServer).PushDKGGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/drand.Protocol/PushDKGGroup",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProtocolServer).PushDKGGroup(ctx, req.(*PushGroupPacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -612,20 +694,20 @@ func _Protocol_ReshareDKG_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Protocol_NewBeacon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BeaconPacket)
+func _Protocol_PartialBeacon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PartialBeaconPacket)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProtocolServer).NewBeacon(ctx, in)
+		return srv.(ProtocolServer).PartialBeacon(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/drand.Protocol/NewBeacon",
+		FullMethod: "/drand.Protocol/PartialBeacon",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProtocolServer).NewBeacon(ctx, req.(*BeaconPacket))
+		return srv.(ProtocolServer).PartialBeacon(ctx, req.(*PartialBeaconPacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -639,7 +721,7 @@ func _Protocol_SyncChain_Handler(srv interface{}, stream grpc.ServerStream) erro
 }
 
 type Protocol_SyncChainServer interface {
-	Send(*SyncResponse) error
+	Send(*BeaconPacket) error
 	grpc.ServerStream
 }
 
@@ -647,7 +729,7 @@ type protocolSyncChainServer struct {
 	grpc.ServerStream
 }
 
-func (x *protocolSyncChainServer) Send(m *SyncResponse) error {
+func (x *protocolSyncChainServer) Send(m *BeaconPacket) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -660,6 +742,10 @@ var _Protocol_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Protocol_PrepareDKGGroup_Handler,
 		},
 		{
+			MethodName: "PushDKGGroup",
+			Handler:    _Protocol_PushDKGGroup_Handler,
+		},
+		{
 			MethodName: "FreshDKG",
 			Handler:    _Protocol_FreshDKG_Handler,
 		},
@@ -668,8 +754,8 @@ var _Protocol_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Protocol_ReshareDKG_Handler,
 		},
 		{
-			MethodName: "NewBeacon",
-			Handler:    _Protocol_NewBeacon_Handler,
+			MethodName: "PartialBeacon",
+			Handler:    _Protocol_PartialBeacon_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -116,6 +116,7 @@ func (n *Node) Start(certFolder string) {
 	//logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
+	logFile.Write([]byte("\n\nNEW LOG\n\n"))
 	checkErr(err)
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)

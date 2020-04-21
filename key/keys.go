@@ -265,6 +265,10 @@ type DistPublic struct {
 	Coefficients []kyber.Point
 }
 
+func (d *DistPublic) PubPoly() *share.PubPoly {
+	return share.NewPubPoly(KeyGroup, KeyGroup.Point().Base(), d.Coefficients)
+}
+
 // Key returns the first coefficient as representing the public key to be used
 // to verify signatures issued by the distributed key.
 func (d *DistPublic) Key() kyber.Point {

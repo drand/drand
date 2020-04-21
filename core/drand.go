@@ -44,9 +44,8 @@ type Drand struct {
 	pub     *key.DistPublic
 	dkgDone bool
 	// manager is created and destroyed during a setup phase
-	manager *setupManager
-	// is set to true while waiting for an automatic setup
-	waitAutomatic bool
+	manager  *setupManager
+	receiver *setupReceiver
 
 	// proposed next group hash for a resharing operation
 	nextGroupHash     string
@@ -223,7 +222,7 @@ func (d *Drand) StartBeacon(catchup bool) {
 	}
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
-		go d.beacon.Catchup()
+		d.beacon.Catchup()
 	} else {
 		if err := d.beacon.Start(); err != nil {
 			d.log.Error("beacon_start", err)
@@ -269,7 +268,7 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 		if err != nil {
 			d.log.Fatal("transition", "new_node", "err", err)
 		}
-		if err := beacon.Transition(oldGroup.Nodes); err != nil {
+		if err := beacon.Transition(oldGroup); err != nil {
 			d.log.Error("sync_before", err)
 		}
 		d.log.Info("transition_new", "done")
@@ -321,7 +320,6 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Group:   d.group,
 		Private: d.priv,
 		Share:   d.share,
-		Scheme:  key.Scheme,
 		Clock:   d.opts.clock,
 	}
 	beacon, err := beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)

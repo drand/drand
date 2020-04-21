@@ -6,7 +6,7 @@ test-unit:
 	GO111MODULE=on go test -v ./...
 
 test-integration:
-	cd demo && go build && ./demo -build -test
+	cd demo && go build && ./demo -build -test -debug
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"

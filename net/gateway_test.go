@@ -71,7 +71,7 @@ func TestListener(t *testing.T) {
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 
-	_, err = client.NewBeacon(peer1, &drand.BeaconPacket{})
+	err = client.PartialBeacon(ctx, peer1, &drand.PartialBeaconPacket{})
 	require.Error(t, err)
 
 	rest := NewRestClient()

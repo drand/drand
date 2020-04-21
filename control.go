@@ -73,6 +73,7 @@ func shareCmd(c *cli.Context) error {
 		} else {
 			fmt.Println("Participating to the setup of the DKG")
 			groupP, shareErr = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
+			fmt.Println(" --- got err", shareErr, "group", groupP)
 		}
 	} else {
 		// resharing case needs the previous group
