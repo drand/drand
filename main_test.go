@@ -255,8 +255,9 @@ func TestClientTLS(t *testing.T) {
 	certPath := path.Join(tmpPath, "server.pem")
 	keyPath := path.Join(tmpPath, "key.pem")
 
-	addr := "127.0.0.1:8085"
-	ctrlPort := "9091"
+	freePort := test.FreePort()
+	addr := "127.0.0.1:" + freePort
+	ctrlPort := test.FreePort()
 	metricsPort := test.FreePort()
 
 	priv := key.NewTLSKeyPair(addr)
@@ -298,6 +299,8 @@ func TestClientTLS(t *testing.T) {
 
 	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort}
 	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
+	startCmd.Stdout = os.Stdout
+	startCmd.Stderr = os.Stderr
 	go startCmd.Run()
 
 	installCmd := exec.Command("go", "install")
