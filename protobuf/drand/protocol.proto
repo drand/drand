@@ -64,13 +64,8 @@ message DKGPacket {
     dkg.Packet dkg = 1;
 }
 
-// Reshare is a wrapper around a Setup packet for resharing operation that
-// serves two purposes: - indicate to non-leader old nodes that they should
-// generate and send their deals - indicate to which new group are we resharing.
-// drand should keep a list of new ready-to-operate groups allowed.
 message ResharePacket {
     dkg.Packet dkg = 1;
-    string group_hash = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the

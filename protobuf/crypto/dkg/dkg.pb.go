@@ -4,7 +4,6 @@
 package dkg
 
 import (
-	vss "github.com/drand/drand/protobuf/crypto/vss"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
@@ -23,12 +22,15 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Packet is a wrapper around the three different types of DKG messages
 type Packet struct {
-	Deal                 *Deal          `protobuf:"bytes,1,opt,name=deal,proto3" json:"deal,omitempty"`
-	Response             *Response      `protobuf:"bytes,2,opt,name=response,proto3" json:"response,omitempty"`
-	Justification        *Justification `protobuf:"bytes,3,opt,name=justification,proto3" json:"justification,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	// Types that are valid to be assigned to Bundle:
+	//	*Packet_Deal
+	//	*Packet_Response
+	//	*Packet_Justification
+	Bundle               isPacket_Bundle `protobuf_oneof:"Bundle"`
+	Signature            []byte          `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
 }
 
 func (m *Packet) Reset()         { *m = Packet{} }
@@ -56,40 +58,138 @@ func (m *Packet) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Packet proto.InternalMessageInfo
 
-func (m *Packet) GetDeal() *Deal {
+type isPacket_Bundle interface {
+	isPacket_Bundle()
+}
+
+type Packet_Deal struct {
+	Deal *DealBundle `protobuf:"bytes,1,opt,name=deal,proto3,oneof"`
+}
+
+type Packet_Response struct {
+	Response *ResponseBundle `protobuf:"bytes,2,opt,name=response,proto3,oneof"`
+}
+
+type Packet_Justification struct {
+	Justification *JustifBundle `protobuf:"bytes,3,opt,name=justification,proto3,oneof"`
+}
+
+func (*Packet_Deal) isPacket_Bundle() {}
+
+func (*Packet_Response) isPacket_Bundle() {}
+
+func (*Packet_Justification) isPacket_Bundle() {}
+
+func (m *Packet) GetBundle() isPacket_Bundle {
 	if m != nil {
-		return m.Deal
+		return m.Bundle
 	}
 	return nil
 }
 
-func (m *Packet) GetResponse() *Response {
-	if m != nil {
-		return m.Response
+func (m *Packet) GetDeal() *DealBundle {
+	if x, ok := m.GetBundle().(*Packet_Deal); ok {
+		return x.Deal
 	}
 	return nil
 }
 
-func (m *Packet) GetJustification() *Justification {
+func (m *Packet) GetResponse() *ResponseBundle {
+	if x, ok := m.GetBundle().(*Packet_Response); ok {
+		return x.Response
+	}
+	return nil
+}
+
+func (m *Packet) GetJustification() *JustifBundle {
+	if x, ok := m.GetBundle().(*Packet_Justification); ok {
+		return x.Justification
+	}
+	return nil
+}
+
+func (m *Packet) GetSignature() []byte {
 	if m != nil {
-		return m.Justification
+		return m.Signature
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Packet) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*Packet_Deal)(nil),
+		(*Packet_Response)(nil),
+		(*Packet_Justification)(nil),
+	}
+}
+
+// DealBundle is a packet issued by a dealer that contains each individual
+// deals, as well as the coefficients of the public polynomial he used.
+type DealBundle struct {
+	// Index of the dealer that issues these deals
+	DealerIndex uint32 `protobuf:"varint,1,opt,name=dealer_index,json=dealerIndex,proto3" json:"dealer_index,omitempty"`
+	// Coefficients of the public polynomial that is created from the
+	// private polynomial from which the shares are derived.
+	Commits [][]byte `protobuf:"bytes,2,rep,name=commits,proto3" json:"commits,omitempty"`
+	// list of deals for each individual share holders.
+	Deals                []*Deal  `protobuf:"bytes,3,rep,name=deals,proto3" json:"deals,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DealBundle) Reset()         { *m = DealBundle{} }
+func (m *DealBundle) String() string { return proto.CompactTextString(m) }
+func (*DealBundle) ProtoMessage()    {}
+func (*DealBundle) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2cd2862d3a18e91b, []int{1}
+}
+
+func (m *DealBundle) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DealBundle.Unmarshal(m, b)
+}
+func (m *DealBundle) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DealBundle.Marshal(b, m, deterministic)
+}
+func (m *DealBundle) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DealBundle.Merge(m, src)
+}
+func (m *DealBundle) XXX_Size() int {
+	return xxx_messageInfo_DealBundle.Size(m)
+}
+func (m *DealBundle) XXX_DiscardUnknown() {
+	xxx_messageInfo_DealBundle.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DealBundle proto.InternalMessageInfo
+
+func (m *DealBundle) GetDealerIndex() uint32 {
+	if m != nil {
+		return m.DealerIndex
+	}
+	return 0
+}
+
+func (m *DealBundle) GetCommits() [][]byte {
+	if m != nil {
+		return m.Commits
+	}
+	return nil
+}
+
+func (m *DealBundle) GetDeals() []*Deal {
+	if m != nil {
+		return m.Deals
 	}
 	return nil
 }
 
 // Deal contains a share for a participant.
 type Deal struct {
-	// index of the dealer, the issuer of the share
-	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	// encrypted version of the deal
-	Deal *vss.EncryptedDeal `protobuf:"bytes,2,opt,name=deal,proto3" json:"deal,omitempty"`
-	// signature of the whole deal
-	// NOTE: this is almost duplicated data, since the vss deal already includes
-	// a signature. However it does not include the index of the dealer that
-	// issue this deal, so another one is required. Best would be to merge vss
-	// and dkg so we could use only one field of signature. For future work...
-	// :)
-	Signature            []byte   `protobuf:"bytes,3,opt,name=signature,proto3" json:"signature,omitempty"`
+	ShareIndex uint32 `protobuf:"varint,1,opt,name=share_index,json=shareIndex,proto3" json:"share_index,omitempty"`
+	// encryption of the share using ECIES
+	EncryptedShare       []byte   `protobuf:"bytes,2,opt,name=encrypted_share,json=encryptedShare,proto3" json:"encrypted_share,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -99,7 +199,7 @@ func (m *Deal) Reset()         { *m = Deal{} }
 func (m *Deal) String() string { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()    {}
 func (*Deal) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cd2862d3a18e91b, []int{1}
+	return fileDescriptor_2cd2862d3a18e91b, []int{2}
 }
 
 func (m *Deal) XXX_Unmarshal(b []byte) error {
@@ -120,23 +220,65 @@ func (m *Deal) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Deal proto.InternalMessageInfo
 
-func (m *Deal) GetIndex() uint32 {
+func (m *Deal) GetShareIndex() uint32 {
 	if m != nil {
-		return m.Index
+		return m.ShareIndex
 	}
 	return 0
 }
 
-func (m *Deal) GetDeal() *vss.EncryptedDeal {
+func (m *Deal) GetEncryptedShare() []byte {
 	if m != nil {
-		return m.Deal
+		return m.EncryptedShare
 	}
 	return nil
 }
 
-func (m *Deal) GetSignature() []byte {
+// ResponseBundle is a packet issued by a share holder that contains all the
+// responses (complaint and/or success) to broadcast.
+type ResponseBundle struct {
+	ShareIndex           uint32      `protobuf:"varint,1,opt,name=share_index,json=shareIndex,proto3" json:"share_index,omitempty"`
+	Responses            []*Response `protobuf:"bytes,2,rep,name=responses,proto3" json:"responses,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *ResponseBundle) Reset()         { *m = ResponseBundle{} }
+func (m *ResponseBundle) String() string { return proto.CompactTextString(m) }
+func (*ResponseBundle) ProtoMessage()    {}
+func (*ResponseBundle) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2cd2862d3a18e91b, []int{3}
+}
+
+func (m *ResponseBundle) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ResponseBundle.Unmarshal(m, b)
+}
+func (m *ResponseBundle) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ResponseBundle.Marshal(b, m, deterministic)
+}
+func (m *ResponseBundle) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResponseBundle.Merge(m, src)
+}
+func (m *ResponseBundle) XXX_Size() int {
+	return xxx_messageInfo_ResponseBundle.Size(m)
+}
+func (m *ResponseBundle) XXX_DiscardUnknown() {
+	xxx_messageInfo_ResponseBundle.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ResponseBundle proto.InternalMessageInfo
+
+func (m *ResponseBundle) GetShareIndex() uint32 {
 	if m != nil {
-		return m.Signature
+		return m.ShareIndex
+	}
+	return 0
+}
+
+func (m *ResponseBundle) GetResponses() []*Response {
+	if m != nil {
+		return m.Responses
 	}
 	return nil
 }
@@ -145,19 +287,20 @@ func (m *Deal) GetSignature() []byte {
 // received a deal.
 type Response struct {
 	// index of the dealer for which this response is for
-	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	// response from the participant which received a deal
-	Response             *vss.Response `protobuf:"bytes,2,opt,name=response,proto3" json:"response,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
-	XXX_unrecognized     []byte        `json:"-"`
-	XXX_sizecache        int32         `json:"-"`
+	DealerIndex uint32 `protobuf:"varint,1,opt,name=dealer_index,json=dealerIndex,proto3" json:"dealer_index,omitempty"`
+	// Status represents a complaint if set to false, a success if set to
+	// true.
+	Status               bool     `protobuf:"varint,2,opt,name=status,proto3" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Response) Reset()         { *m = Response{} }
 func (m *Response) String() string { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()    {}
 func (*Response) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cd2862d3a18e91b, []int{2}
+	return fileDescriptor_2cd2862d3a18e91b, []int{4}
 }
 
 func (m *Response) XXX_Unmarshal(b []byte) error {
@@ -178,16 +321,65 @@ func (m *Response) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Response proto.InternalMessageInfo
 
-func (m *Response) GetIndex() uint32 {
+func (m *Response) GetDealerIndex() uint32 {
 	if m != nil {
-		return m.Index
+		return m.DealerIndex
 	}
 	return 0
 }
 
-func (m *Response) GetResponse() *vss.Response {
+func (m *Response) GetStatus() bool {
 	if m != nil {
-		return m.Response
+		return m.Status
+	}
+	return false
+}
+
+// JustifBundle is a packet that holds all justifications a dealer must
+// produce
+type JustifBundle struct {
+	DealerIndex          uint32           `protobuf:"varint,1,opt,name=dealer_index,json=dealerIndex,proto3" json:"dealer_index,omitempty"`
+	Justifications       []*Justification `protobuf:"bytes,2,rep,name=justifications,proto3" json:"justifications,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
+}
+
+func (m *JustifBundle) Reset()         { *m = JustifBundle{} }
+func (m *JustifBundle) String() string { return proto.CompactTextString(m) }
+func (*JustifBundle) ProtoMessage()    {}
+func (*JustifBundle) Descriptor() ([]byte, []int) {
+	return fileDescriptor_2cd2862d3a18e91b, []int{5}
+}
+
+func (m *JustifBundle) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_JustifBundle.Unmarshal(m, b)
+}
+func (m *JustifBundle) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_JustifBundle.Marshal(b, m, deterministic)
+}
+func (m *JustifBundle) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_JustifBundle.Merge(m, src)
+}
+func (m *JustifBundle) XXX_Size() int {
+	return xxx_messageInfo_JustifBundle.Size(m)
+}
+func (m *JustifBundle) XXX_DiscardUnknown() {
+	xxx_messageInfo_JustifBundle.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_JustifBundle proto.InternalMessageInfo
+
+func (m *JustifBundle) GetDealerIndex() uint32 {
+	if m != nil {
+		return m.DealerIndex
+	}
+	return 0
+}
+
+func (m *JustifBundle) GetJustifications() []*Justification {
+	if m != nil {
+		return m.Justifications
 	}
 	return nil
 }
@@ -195,20 +387,20 @@ func (m *Response) GetResponse() *vss.Response {
 // Justification holds the justification from a dealer after a participant
 // issued a complaint response because of a supposedly invalid deal.
 type Justification struct {
-	// index of the dealer who is issuing this justification
-	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
-	// justification from the dealer
-	Justification        *vss.Justification `protobuf:"bytes,2,opt,name=justification,proto3" json:"justification,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	// represents for who share holder this justification is
+	ShareIndex uint32 `protobuf:"varint,1,opt,name=share_index,json=shareIndex,proto3" json:"share_index,omitempty"`
+	// plaintext share so everyone can see it correct
+	Share                []byte   `protobuf:"bytes,2,opt,name=share,proto3" json:"share,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Justification) Reset()         { *m = Justification{} }
 func (m *Justification) String() string { return proto.CompactTextString(m) }
 func (*Justification) ProtoMessage()    {}
 func (*Justification) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2cd2862d3a18e91b, []int{3}
+	return fileDescriptor_2cd2862d3a18e91b, []int{6}
 }
 
 func (m *Justification) XXX_Unmarshal(b []byte) error {
@@ -229,24 +421,27 @@ func (m *Justification) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Justification proto.InternalMessageInfo
 
-func (m *Justification) GetIndex() uint32 {
+func (m *Justification) GetShareIndex() uint32 {
 	if m != nil {
-		return m.Index
+		return m.ShareIndex
 	}
 	return 0
 }
 
-func (m *Justification) GetJustification() *vss.Justification {
+func (m *Justification) GetShare() []byte {
 	if m != nil {
-		return m.Justification
+		return m.Share
 	}
 	return nil
 }
 
 func init() {
 	proto.RegisterType((*Packet)(nil), "dkg.Packet")
+	proto.RegisterType((*DealBundle)(nil), "dkg.DealBundle")
 	proto.RegisterType((*Deal)(nil), "dkg.Deal")
+	proto.RegisterType((*ResponseBundle)(nil), "dkg.ResponseBundle")
 	proto.RegisterType((*Response)(nil), "dkg.Response")
+	proto.RegisterType((*JustifBundle)(nil), "dkg.JustifBundle")
 	proto.RegisterType((*Justification)(nil), "dkg.Justification")
 }
 
@@ -255,21 +450,29 @@ func init() {
 }
 
 var fileDescriptor_2cd2862d3a18e91b = []byte{
-	// 250 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x49, 0x2e, 0xaa, 0x2c,
-	0x28, 0xc9, 0xd7, 0x4f, 0xc9, 0x4e, 0x07, 0x61, 0xbd, 0x82, 0xa2, 0xfc, 0x92, 0x7c, 0x21, 0xe6,
-	0x94, 0xec, 0x74, 0x29, 0x98, 0x54, 0x59, 0x71, 0x31, 0x08, 0x43, 0xa4, 0x94, 0x7a, 0x18, 0xb9,
-	0xd8, 0x02, 0x12, 0x93, 0xb3, 0x53, 0x4b, 0x84, 0x64, 0xb9, 0x58, 0x52, 0x52, 0x13, 0x73, 0x24,
-	0x18, 0x15, 0x18, 0x35, 0xb8, 0x8d, 0x38, 0xf5, 0x40, 0xfa, 0x5d, 0x52, 0x13, 0x73, 0x82, 0xc0,
-	0xc2, 0x42, 0x9a, 0x5c, 0x1c, 0x45, 0xa9, 0xc5, 0x05, 0xf9, 0x79, 0xc5, 0xa9, 0x12, 0x4c, 0x60,
-	0x25, 0xbc, 0x60, 0x25, 0x41, 0x50, 0xc1, 0x20, 0xb8, 0xb4, 0x90, 0x05, 0x17, 0x6f, 0x56, 0x69,
-	0x71, 0x49, 0x66, 0x5a, 0x66, 0x72, 0x62, 0x49, 0x66, 0x7e, 0x9e, 0x04, 0x33, 0x58, 0xbd, 0x10,
-	0x58, 0xbd, 0x17, 0xb2, 0x4c, 0x10, 0xaa, 0x42, 0xa5, 0x24, 0x2e, 0x16, 0x90, 0x95, 0x42, 0x22,
-	0x5c, 0xac, 0x99, 0x79, 0x29, 0xa9, 0x15, 0x60, 0xc7, 0xf0, 0x06, 0x41, 0x38, 0x42, 0x6a, 0x50,
-	0x17, 0x32, 0x41, 0x8d, 0x03, 0x79, 0xc3, 0x35, 0x0f, 0xec, 0xaf, 0xd4, 0x14, 0x24, 0xa7, 0xca,
-	0x70, 0x71, 0x16, 0x67, 0xa6, 0xe7, 0x25, 0x96, 0x94, 0x16, 0xa5, 0x82, 0xed, 0xe6, 0x09, 0x42,
-	0x08, 0x28, 0x79, 0x73, 0x71, 0xc0, 0xdc, 0x8c, 0xc3, 0x1e, 0x6c, 0x5e, 0x05, 0xd9, 0x85, 0xe9,
-	0x55, 0xa5, 0x78, 0x2e, 0x5e, 0x14, 0x0f, 0xe1, 0x30, 0x11, 0x23, 0x44, 0x90, 0xbd, 0x80, 0x2f,
-	0x44, 0x9c, 0x58, 0xa3, 0x40, 0xb1, 0x97, 0xc4, 0x06, 0x8e, 0x2e, 0x63, 0x40, 0x00, 0x00, 0x00,
-	0xff, 0xff, 0x01, 0x82, 0x40, 0x8e, 0xe1, 0x01, 0x00, 0x00,
+	// 372 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x92, 0xbf, 0x4e, 0xc3, 0x30,
+	0x10, 0xc6, 0x49, 0xd3, 0x86, 0xf4, 0x92, 0xb4, 0xc2, 0x54, 0xc8, 0x03, 0x52, 0x83, 0x25, 0x44,
+	0x24, 0xa4, 0x22, 0xca, 0x04, 0x63, 0x05, 0x08, 0x98, 0x2a, 0xb3, 0x31, 0x50, 0x99, 0xc4, 0x94,
+	0xf4, 0x4f, 0x52, 0xc5, 0x8e, 0x04, 0x0f, 0xc8, 0x7b, 0x21, 0x3b, 0x4d, 0xda, 0xb0, 0xb4, 0x83,
+	0x87, 0xfb, 0xdd, 0x77, 0xf6, 0xf9, 0xbb, 0x83, 0x5e, 0x98, 0xfd, 0xac, 0x64, 0x7a, 0x15, 0xcd,
+	0xa7, 0xea, 0x0c, 0x56, 0x59, 0x2a, 0x53, 0x64, 0x46, 0xf3, 0x29, 0xf9, 0x35, 0xc0, 0x1a, 0xb3,
+	0x70, 0xce, 0x25, 0x3a, 0x87, 0x66, 0xc4, 0xd9, 0x02, 0x1b, 0xbe, 0x11, 0x38, 0xc3, 0xee, 0x40,
+	0x29, 0xef, 0x39, 0x5b, 0x8c, 0xf2, 0x24, 0x5a, 0xf0, 0xa7, 0x03, 0xaa, 0xd3, 0xe8, 0x1a, 0xec,
+	0x8c, 0x8b, 0x55, 0x9a, 0x08, 0x8e, 0x1b, 0x5a, 0x7a, 0xac, 0xa5, 0x74, 0x0d, 0x2b, 0x79, 0x25,
+	0x43, 0xb7, 0xe0, 0xcd, 0x72, 0x21, 0xe3, 0xcf, 0x38, 0x64, 0x32, 0x4e, 0x13, 0x6c, 0xea, 0xba,
+	0x23, 0x5d, 0xf7, 0xa2, 0x33, 0x55, 0x55, 0x5d, 0x89, 0x4e, 0xa1, 0x2d, 0xe2, 0x69, 0xc2, 0x64,
+	0x9e, 0x71, 0xdc, 0xf4, 0x8d, 0xc0, 0xa5, 0x1b, 0x30, 0xb2, 0xc1, 0x2a, 0x0a, 0xc9, 0x0c, 0x60,
+	0xd3, 0x2b, 0x3a, 0x03, 0x57, 0xf5, 0xca, 0xb3, 0x49, 0x9c, 0x44, 0xfc, 0x5b, 0x7f, 0xc9, 0xa3,
+	0x4e, 0xc1, 0x9e, 0x15, 0x42, 0x18, 0x0e, 0xc3, 0x74, 0xb9, 0x8c, 0xa5, 0xc0, 0x0d, 0xdf, 0x0c,
+	0x5c, 0x5a, 0x86, 0xa8, 0x0f, 0x2d, 0x25, 0x14, 0xd8, 0xf4, 0xcd, 0xc0, 0x19, 0xb6, 0x2b, 0x23,
+	0x68, 0xc1, 0xc9, 0x18, 0x9a, 0x2a, 0x44, 0x7d, 0x70, 0xc4, 0x17, 0xcb, 0x78, 0xed, 0x11, 0xd0,
+	0xa8, 0x78, 0xe3, 0x02, 0xba, 0x3c, 0xd1, 0xde, 0xf3, 0x68, 0xa2, 0xb9, 0x76, 0xcc, 0xa5, 0x9d,
+	0x0a, 0xbf, 0x2a, 0x4a, 0xde, 0xa1, 0x53, 0xb7, 0x6f, 0xf7, 0xdd, 0x97, 0xd0, 0x2e, 0xfd, 0x2d,
+	0x7e, 0xe0, 0x0c, 0xbd, 0xda, 0x1c, 0xe8, 0x26, 0x4f, 0x1e, 0xc0, 0x2e, 0xf1, 0x3e, 0xde, 0x9c,
+	0x80, 0x25, 0x24, 0x93, 0xb9, 0xd0, 0xed, 0xda, 0x74, 0x1d, 0x91, 0x25, 0xb8, 0xdb, 0xd3, 0xda,
+	0xe7, 0xaa, 0x3b, 0xe8, 0xd4, 0x06, 0x5a, 0xf6, 0x8a, 0xb6, 0x66, 0xbf, 0x4e, 0xd1, 0x7f, 0x4a,
+	0xf2, 0x08, 0x5e, 0x4d, 0xb0, 0xdb, 0x94, 0x1e, 0xb4, 0xb6, 0x6d, 0x2e, 0x82, 0x51, 0xeb, 0x4d,
+	0xad, 0xfa, 0x87, 0xa5, 0xd7, 0xfe, 0xe6, 0x2f, 0x00, 0x00, 0xff, 0xff, 0x9a, 0xf0, 0x16, 0x93,
+	0x0e, 0x03, 0x00, 0x00,
 }
