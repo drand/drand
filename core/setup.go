@@ -227,6 +227,9 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 	var group *key.Group
 	if !s.isResharing {
 		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
+		// round the genesis time to a period modulo
+		ps := int64(s.beaconPeriod.Seconds())
+		genesis = genesis + (ps - genesis%ps)
 		group = key.NewGroup(keys, s.thr, genesis)
 	} else {
 		genesis := s.oldGroup.GenesisTime
