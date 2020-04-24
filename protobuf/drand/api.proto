@@ -82,11 +82,10 @@ message PublicRandRequest {
 message PublicRandResponse {
     uint64 round = 1;
     bytes signature = 2;
-    uint64 previous_round = 3;
-    bytes previous_signature = 4;
+    bytes previous_signature = 3;
     // randomness is simply there to demonstrate - it is the hash of the
     // signature. It should be computed locally.
-    bytes randomness = 5;
+    bytes randomness = 4;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random

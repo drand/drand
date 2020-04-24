@@ -92,7 +92,7 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 							return
 						}
 
-						l.Debug("sync_from", addr, "from_round", fromRound, "got_round", proto.GetRound(), "got_prev", proto.GetPreviousRound())
+						l.Debug("sync_from", addr, "from_round", fromRound, "got_round", proto.GetRound())
 						newBeacon := protoToBeacon(proto)
 						if !isAppendable(lastBeacon, newBeacon) {
 							l.Error("sync_from", addr, "from_round", fromRound, "want_round", lastBeacon.Round+1, "got_round", newBeacon.Round)

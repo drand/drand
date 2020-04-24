@@ -219,7 +219,6 @@ func (s *setupManager) run() {
 			return
 		}
 	}
-
 }
 
 func (s *setupManager) createAndSend(keys []*key.Identity) {

@@ -80,8 +80,7 @@ message SyncRequest {
 }
 
 message BeaconPacket {
-    uint64 previous_round = 1;
-    bytes previous_sig = 2;
-    uint64 round = 3;
-    bytes signature = 4;
+    bytes previous_sig = 1;
+    uint64 round = 2;
+    bytes signature = 3;
 }
