@@ -52,6 +52,7 @@ con-daemon)
             * [Fetching Private Randomness](#fetching-private-randomness)
             * [Using HTTP endpoints](#using-http-endpoints)
          * [Updating Drand Group](#updating-drand-group)
+      * [Metrics](#metrics)
       * [DrandJS](#drandjs)
       * [Documentation](#documentation)
       * [What's Next?](#whats-next)
@@ -60,6 +61,7 @@ con-daemon)
       * [Acknowledgments](#acknowledgments)
       * [Coverage](#coverage)
       * [Supporting](#supporting)
+
 
 
 ## Goal and Overview
@@ -597,6 +599,19 @@ group2.toml
 After the protocol is finished, each node will have the new group file written
 out as `group2.toml`. The randomness generation starts only at the specified
 transition time specified in the new group file.
+
+## Metrics
+
+The `--metrics <metrics-port>` flag may be used to launch a metrics server at
+the given port serving [pprof](https://golang.org/pkg/net/http/pprof/) runtime
+profiling data at `<metrics-port>/debug/pprof` and
+[prometheus](https://prometheus.io/docs/guides/go-application/) metrics at
+`<metrics-port>:/metrics`. Prometheus counters track the number of gRPC
+requests sent and received by the drand node, as well as the number of HTTP API
+requests. This endpoint should not be exposed publicly. If desired, prometheus
+metrics can be used as a data source for [grafana
+dashboards](https://grafana.com/docs/grafana/latest/features/datasources/prometheus/)
+or other monitoring services.
 
 ## DrandJS
 
