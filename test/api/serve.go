@@ -133,8 +133,6 @@ func generateData() *Data {
 		PreviousRound:     int(prevRound),
 		Round:             round,
 	}
-	//s, _ := json.MarshalIndent(d, "", "    ")
-	//fmt.Println(string(s))
 	return d
 }
 
