@@ -146,12 +146,11 @@ func (c *chainStore) runAggregator() {
 			}
 			cache.done = true
 			newBeacon := &Beacon{
-				Round:         cache.round,
-				PreviousRound: cache.previous,
-				PreviousSig:   cache.previousSig,
-				Signature:     finalSig,
+				Round:       cache.round,
+				PreviousSig: cache.previousSig,
+				Signature:   finalSig,
 			}
-			c.l.Info("aggregated_beacon", newBeacon.Round, "previous_round", newBeacon.PreviousRound)
+			c.l.Info("aggregated_beacon", newBeacon.Round)
 			c.newBeaconCh <- newBeacon
 			break
 		}
@@ -219,10 +218,10 @@ func isAppendable(lastBeacon, newBeacon *Beacon) bool {
 
 type likeBeacon interface {
 	GetRound() uint64
-	GetPreviousRound() uint64
 }
 
 func (c *chainStore) shouldSync(last *Beacon, newB likeBeacon) bool {
+	// we should sync if we are two blocks late
 	return newB.GetRound() > last.GetRound()+1
 }
 
@@ -299,7 +298,7 @@ func (r *roundCache) Len() int {
 }
 
 func (r *roundCache) Msg() []byte {
-	return Message(r.previousSig, r.previous, r.round)
+	return Message(r.round, r.previousSig)
 }
 
 func (r *roundCache) Partials() [][]byte {

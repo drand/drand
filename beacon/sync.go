@@ -105,7 +105,7 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 						}
 						err = VerifyBeacon(info.pub.Commit(), newBeacon)
 						if err != nil {
-							l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", newBeacon.Round, "prev", newBeacon.PreviousRound)
+							l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", newBeacon.Round)
 							return
 						}
 						lastBeacon = newBeacon

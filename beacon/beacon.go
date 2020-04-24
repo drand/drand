@@ -14,11 +14,6 @@ import (
 
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
-	// PreviousRound is the round that is pointed to by this beacon. The beacon
-	// chain can have gaps if the network has been down for a while. The rule
-	// here is that one round corresponds to one exact time given a genesis
-	// time.
-	PreviousRound uint64
 	// PreviousSig is the previous signature generated
 	PreviousSig []byte
 	// Round is the round number this beacon is tied to
@@ -28,8 +23,7 @@ type Beacon struct {
 }
 
 func (b *Beacon) Equal(b2 *Beacon) bool {
-	return b.PreviousRound == b2.PreviousRound &&
-		bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
+	return bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
 		b.Round == b2.Round &&
 		bytes.Equal(b.Signature, b2.Signature)
 
@@ -49,9 +43,6 @@ func (b *Beacon) Randomness() []byte {
 	return RandomnessFromSignature(b.Signature)
 }
 
-func (b *Beacon) GetPreviousRound() uint64 {
-	return b.PreviousRound
-}
 func (b *Beacon) GetRound() uint64 {
 	return b.Round
 }
@@ -62,7 +53,7 @@ func RandomnessFromSignature(sig []byte) []byte {
 }
 
 func (b *Beacon) String() string {
-	return fmt.Sprintf("{ round: %d, sig: %s, prevRound: %d, prevSig: %s }", b.Round, shortSigStr(b.Signature), b.PreviousRound, shortSigStr(b.PreviousSig))
+	return fmt.Sprintf("{ round: %d, sig: %s, prevSig: %s }", b.Round, shortSigStr(b.Signature), shortSigStr(b.PreviousSig))
 }
 
 // VerifyBeacon returns an error if the given beacon does not verify given the
@@ -71,9 +62,8 @@ func (b *Beacon) String() string {
 // the configuration file of the network.
 func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
 	prevSig := b.PreviousSig
-	prevRound := b.PreviousRound
 	round := b.Round
-	msg := Message(prevSig, prevRound, round)
+	msg := Message(round, prevSig)
 	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
 }
 
@@ -81,19 +71,17 @@ func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
 // structure.
 func Verify(pubkey kyber.Point, prevSig, signature []byte, prevRound, round uint64) error {
 	return VerifyBeacon(pubkey, &Beacon{
-		PreviousRound: prevRound,
-		Round:         round,
-		PreviousSig:   prevSig,
-		Signature:     signature,
+		Round:       round,
+		PreviousSig: prevSig,
+		Signature:   signature,
 	})
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
 // H ( prevRound || prevSig || currRound)
-func Message(prevSig []byte, prevRound, currRound uint64) []byte {
+func Message(currRound uint64, prevSig []byte) []byte {
 	var buff bytes.Buffer
-	buff.Write(roundToBytes(prevRound))
 	buff.Write(prevSig)
 	buff.Write(roundToBytes(currRound))
 	h := sha256.New()

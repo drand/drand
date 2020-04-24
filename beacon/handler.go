@@ -119,7 +119,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid previous round: %d vs current %d", p.GetPreviousRound(), p.GetRound())
 	}
 
-	msg := Message(p.GetPreviousSig(), p.GetPreviousRound(), p.GetRound())
+	msg := Message(p.GetRound(), p.GetPreviousSig())
 	info, err := h.safe.GetInfo(p.GetRound())
 	if err != nil {
 		h.l.Error("process_partial", addr, "no_info_for_round", p.GetRound())
@@ -285,7 +285,7 @@ func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 		h.l.Error("no_share", currentRound, "BUG", h.safe.String(), "not_synced_yet?")
 		return
 	}
-	msg := Message(last.Signature, last.Round, currentRound)
+	msg := Message(currentRound, last.Signature)
 	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", currentRound)
