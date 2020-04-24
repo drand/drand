@@ -5,8 +5,8 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
+	"github.com/dedis/drand/dkg"
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
