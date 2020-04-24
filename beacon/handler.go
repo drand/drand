@@ -108,20 +108,18 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
-	// check what we receive is for the current round
-	if p.GetRound() != currentRound {
-		// request is not for current round
-		h.l.Error("process_partial", addr, "invalid_current_round", p.GetRound(), "current_round", currentRound)
+	if p.GetRound() > currentRound {
+		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
 	// check that the previous is really a previous round
-	if p.GetPreviousRound() >= p.GetRound() {
+	if p.GetPreviousRound() != p.GetRound()-1 {
 		h.l.Error("process_partial", addr, "invalid_previous_round", p.GetRound(), "partial_previous_round", p.GetPreviousRound())
-		return nil, fmt.Errorf("invalid previous round: %d > current %d", p.GetPreviousRound(), p.GetRound())
+		return nil, fmt.Errorf("invalid previous round: %d vs current %d", p.GetPreviousRound(), p.GetRound())
 	}
 
-	msg := Message(p.GetPreviousSig(), p.GetPreviousRound(), p.GetRound())
+	msg := Message(p.GetRound(), p.GetPreviousSig())
 	info, err := h.safe.GetInfo(p.GetRound())
 	if err != nil {
 		h.l.Error("process_partial", addr, "no_info_for_round", p.GetRound())
@@ -198,8 +196,8 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 	}
 
 	h.safe.SetInfo(nil, h.conf.Private.Public, prevGroup)
-	h.chain.RunSync(context.Background())
 	go h.run(targetTime)
+	h.chain.RunSync(context.Background())
 	return nil
 }
 
@@ -222,11 +220,46 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
+	var current roundInfo
+	needCatchup := func(b *Beacon) bool {
+		if b.Round < current.round {
+			return true
+		}
+		return false
+	}
 	for {
 		select {
-		case ri := <-chanTick:
-			h.l.Debug("beacon_loop", "new_round", "round", ri.round)
-			h.tryBroadcastCurrentPartial(ri.round)
+		case current = <-chanTick:
+			lastBeacon, err := h.chain.Last()
+			if err != nil {
+				h.l.Error("beacon_loop", "loading_last", "err", err)
+				break
+			}
+			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
+			h.broadcastNextPartial(lastBeacon)
+			if needCatchup(lastBeacon) {
+				// We also launch a sync with the other nodes. If there is one node
+				// that has a higher beacon, we'll build on it next epoch. If
+				// nobody has a higher beacon, then this one will be next if the
+				// network conditions allow for it.
+				// XXX find a way to start the catchup as soon as the runsync is
+				// done. Not critical but leads to faster network recovery.
+				h.l.Debug("beacon_loop", "run_sync", "potential_catchup")
+				go h.chain.RunSync(context.Background())
+			}
+		case b := <-h.chain.AppendedBeaconNoSync():
+			if needCatchup(b) {
+				// When network is down, all alive nodes will broadcast their
+				// signatures periodically with the same period. As soon as one
+				// new beacon is created,i.e. network is up again, this channel
+				// will be triggered and we enter fast mode here.
+				// Since that last node is late, nodes must now hurry up to do
+				// the next beacons in time -> we run the next beacon now
+				// already. If that next beacon is created soon after, this
+				// channel will trigger again etc until we arrive at the correct
+				// round.
+				h.broadcastNextPartial(b)
+			}
 		case <-h.close:
 			h.l.Debug("beacon_loop", "finished")
 			return
@@ -234,7 +267,7 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) tryBroadcastCurrentPartial(currentRound uint64) {
+func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 	ctx := context.Background()
 	// get last beacon at each tick
 	last, err := h.chain.Last()
@@ -242,20 +275,17 @@ func (h *Handler) tryBroadcastCurrentPartial(currentRound uint64) {
 		h.l.Error("load_last", "fail", "err", err)
 		return
 	}
-	if last.Round >= currentRound {
-		h.l.Error("last_beacon", "already_got", "CHECK_CLOCK")
-		return
-	}
+	currentRound := last.Round + 1
 	info, err := h.safe.GetInfo(currentRound)
 	if err != nil {
 		h.l.Error("no_info", currentRound, "BUG")
 		return
 	}
 	if info.share == nil {
-		h.l.Fatal("no_share", currentRound, "BUG")
+		h.l.Error("no_share", currentRound, "BUG", h.safe.String(), "not_synced_yet?")
 		return
 	}
-	msg := Message(last.Signature, last.Round, currentRound)
+	msg := Message(currentRound, last.Signature)
 	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", currentRound)
@@ -391,5 +421,16 @@ func (c *cryptoSafe) GetInfo(round uint64) (*cryptoInfo, error) {
 			return info, nil
 		}
 	}
+	fmt.Printf("failed infos for round %d: %+v\n", round, c.infos)
 	return nil, fmt.Errorf("no group info for round %d", round)
+}
+
+func (c *cryptoSafe) String() string {
+	c.Lock()
+	defer c.Unlock()
+	var out string
+	for _, info := range c.infos {
+		out += fmt.Sprintf(" {startAt: %d, sharenil? %v} ", info.startAt, info.share == nil)
+	}
+	return out
 }

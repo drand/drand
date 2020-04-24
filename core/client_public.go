@@ -106,9 +106,8 @@ func (c *Client) Group(addr string, secure bool) (*drand.GroupPacket, error) {
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
 	prevSig := resp.GetPreviousSignature()
-	prevRound := resp.GetPreviousRound()
 	round := resp.GetRound()
-	msg := beacon.Message(prevSig, prevRound, round)
+	msg := beacon.Message(round, prevSig)
 	rand := resp.GetRandomness()
 	if rand == nil {
 		return errors.New("drand: no randomness found")

@@ -38,14 +38,9 @@ func TestStoreBoltOrder(t *testing.T) {
 	eb2, err := store.Last()
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
-	b2.PreviousRound = 43
-	require.NoError(t, store.Put(b2))
 	eb2, err = store.Last()
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
-	// change b1 and check b2 is still the last returned
-	b1.PreviousRound = 24
-	require.NoError(t, store.Put(b1))
 	eb2, err = store.Last()
 	require.NoError(t, err)
 	require.Equal(t, eb2, b2)

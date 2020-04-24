@@ -6,18 +6,16 @@ import (
 
 func beaconToProto(b *Beacon) *proto.BeaconPacket {
 	return &proto.BeaconPacket{
-		PreviousRound: b.PreviousRound,
-		PreviousSig:   b.PreviousSig,
-		Round:         b.Round,
-		Signature:     b.Signature,
+		PreviousSig: b.PreviousSig,
+		Round:       b.Round,
+		Signature:   b.Signature,
 	}
 }
 
 func protoToBeacon(p *proto.BeaconPacket) *Beacon {
 	return &Beacon{
-		Round:         p.GetRound(),
-		PreviousRound: p.GetPreviousRound(),
-		Signature:     p.GetSignature(),
-		PreviousSig:   p.GetPreviousSig(),
+		Round:       p.GetRound(),
+		Signature:   p.GetSignature(),
+		PreviousSig: p.GetPreviousSig(),
 	}
 }
