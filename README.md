@@ -52,6 +52,7 @@ con-daemon)
             * [Fetching Private Randomness](#fetching-private-randomness)
             * [Using HTTP endpoints](#using-http-endpoints)
          * [Updating Drand Group](#updating-drand-group)
+      * [Metrics](#metrics)
       * [DrandJS](#drandjs)
       * [Documentation](#documentation)
       * [What's Next?](#whats-next)
@@ -60,6 +61,7 @@ con-daemon)
       * [Acknowledgments](#acknowledgments)
       * [Coverage](#coverage)
       * [Supporting](#supporting)
+
 
 
 ## Goal and Overview
@@ -504,7 +506,6 @@ d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
     "signature": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
 2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
     "previous_signature": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a22a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
-    "previous_round": 1,
     "randomness": "ee9e1aeba4a946ce2ac2bd42ab04439c959d8538546ea637418394c99c522eec2
     92bbbfac2605cbfe3734e40a5d3cc762428583b243151b2a84418e376ea0af6"
 }
@@ -598,6 +599,19 @@ group2.toml
 After the protocol is finished, each node will have the new group file written
 out as `group2.toml`. The randomness generation starts only at the specified
 transition time specified in the new group file.
+
+## Metrics
+
+The `--metrics <metrics-port>` flag may be used to launch a metrics server at
+the given port serving [pprof](https://golang.org/pkg/net/http/pprof/) runtime
+profiling data at `<metrics-port>/debug/pprof` and
+[prometheus](https://prometheus.io/docs/guides/go-application/) metrics at
+`<metrics-port>:/metrics`. Prometheus counters track the number of gRPC
+requests sent and received by the drand node, as well as the number of HTTP API
+requests. This endpoint should not be exposed publicly. If desired, prometheus
+metrics can be used as a data source for [grafana
+dashboards](https://grafana.com/docs/grafana/latest/features/datasources/prometheus/)
+or other monitoring services.
 
 ## DrandJS
 

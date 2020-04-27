@@ -1,7 +1,6 @@
 package beacon
 
 import (
-	"fmt"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
@@ -84,7 +83,6 @@ func (t *ticker) Start() {
 	var tround uint64
 	for {
 		if sendTicks {
-			fmt.Printf(" NEW TICK %+v\n", channels)
 			sendTicks = false
 			info := roundInfo{
 				round: tround,
@@ -106,9 +104,7 @@ func (t *ticker) Start() {
 			tround = CurrentRound(nt.Unix(), t.period, t.genesis)
 			ttime = nt.Unix()
 			sendTicks = true
-			fmt.Println(" NEW TICK NEW TICKER ")
 		case newChan := <-t.newCh:
-			fmt.Println(" TICKER NEW CHAN", newChan)
 			channels = append(channels, newChan)
 		case <-t.stop:
 			for _, ch := range channels {

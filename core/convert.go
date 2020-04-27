@@ -105,7 +105,6 @@ func beaconToProto(b *beacon.Beacon) *drand.PublicRandResponse {
 	return &drand.PublicRandResponse{
 		Round:             b.Round,
 		Signature:         b.Signature,
-		PreviousRound:     b.PreviousRound,
 		PreviousSignature: b.PreviousSig,
 		Randomness:        b.Randomness(),
 	}

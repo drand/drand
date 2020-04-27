@@ -60,7 +60,7 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 		l.Error("sync_no_round_info", fromRound)
 		return nil, errors.New("no round info")
 	}
-	currRound := fromRound
+	var lastBeacon = from
 	ids := shuffleNodes(info.group.Nodes)
 	go func() {
 		defer close(outCh)
@@ -69,7 +69,7 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 				continue
 			}
 			request := &proto.SyncRequest{
-				FromRound: currRound + 1,
+				FromRound: lastBeacon.Round + 1,
 			}
 			l.Debug("sync_from", "try_sync", "to", id.Addr, "from_round", fromRound+1)
 			cctx, ccancel := context.WithCancel(context.Background())
@@ -78,42 +78,47 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 				l.Error("sync_from", fromRound+1, "error", err, "from", id.Address())
 				continue
 			}
-			finished := func() bool {
+			func() {
 				addr := id.Address()
 				defer ccancel()
 				for {
 					select {
 					case proto := <-respCh:
-						l.Debug("sync_from", addr, "from_round", fromRound, "got_round", proto.GetRound(), "got_prev", proto.GetPreviousRound())
-						// verify beacons are linked each other
-						if proto.GetPreviousRound() != currRound {
-							l.Error("sync_from", addr, "from_round", fromRound, "ignore", "future_packets", "want_round", from, "got_round", proto.GetRound())
-							return false
+						if proto == nil {
+							// because of the "select" behavior, sync returns an
+							// default proto beacon - that means channel is down
+							// so we log that as so
+							l.Debug("sync_from", addr, "from_round", fromRound, "sync_stopped")
+							return
 						}
-						info, err := safe.GetInfo(proto.GetRound())
+
+						l.Debug("sync_from", addr, "from_round", fromRound, "got_round", proto.GetRound())
+						newBeacon := protoToBeacon(proto)
+						if !isAppendable(lastBeacon, newBeacon) {
+							l.Error("sync_from", addr, "from_round", fromRound, "want_round", lastBeacon.Round+1, "got_round", newBeacon.Round)
+							return
+						}
+						info, err := safe.GetInfo(newBeacon.Round)
 						if err != nil {
-							l.Error("sync_from", addr, "invalid_round_info", proto.GetRound())
-							return false
+							l.Error("sync_from", addr, "invalid_round_info", newBeacon.Round)
+							return
 						}
-						err = Verify(info.pub.Commit(), proto.GetPreviousSig(), proto.GetSignature(), proto.GetPreviousRound(), proto.GetRound())
+						err = VerifyBeacon(info.pub.Commit(), newBeacon)
 						if err != nil {
-							l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", proto.GetRound(), "prev", proto.GetPreviousRound())
-							return false
+							l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", newBeacon.Round)
+							return
 						}
-						currRound = proto.GetRound()
-						outCh <- protoToBeacon(proto)
-						if currRound == toRound {
-							return true
-						}
+						lastBeacon = newBeacon
+						outCh <- newBeacon
+
 					case <-time.After(MaxSyncWaitTime):
-						return false
+						return
 					case <-ctx.Done():
-						// we only quit when we're told or if we exhausted all peers
-						return true
+						return
 					}
 				}
 			}()
-			if finished {
+			if lastBeacon.Round == toRound {
 				return
 			}
 		}

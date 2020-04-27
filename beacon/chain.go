@@ -15,31 +15,31 @@ import (
 // needed and arranges the head
 type chainStore struct {
 	Store
-	l                log.Logger
-	client           net.ProtocolClient
-	safe             *cryptoSafe
-	ticker           *ticker
-	done             chan bool
-	newPartials      chan partialInfo
-	newAggregated    chan *Beacon
-	newBeaconNetwork chan *Beacon
-	newBeaconSync    chan *Beacon
-	lastInserted     chan *Beacon
+	l             log.Logger
+	client        net.ProtocolClient
+	safe          *cryptoSafe
+	ticker        *ticker
+	done          chan bool
+	newPartials   chan partialInfo
+	newBeaconCh   chan *Beacon
+	lastInserted  chan *Beacon
+	requestSync   chan likeBeacon
+	nonSyncBeacon chan *Beacon
 }
 
 func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s Store, ticker *ticker) *chainStore {
 	chain := &chainStore{
-		l:                l,
-		client:           client,
-		safe:             safe,
-		Store:            s,
-		done:             make(chan bool, 1),
-		ticker:           ticker,
-		newPartials:      make(chan partialInfo, 10),
-		newAggregated:    make(chan *Beacon, 1),
-		newBeaconNetwork: make(chan *Beacon, 100),
-		lastInserted:     make(chan *Beacon, 1),
-		newBeaconSync:    make(chan *Beacon, 100),
+		l:             l,
+		client:        client,
+		safe:          safe,
+		Store:         s,
+		done:          make(chan bool, 1),
+		ticker:        ticker,
+		newPartials:   make(chan partialInfo, 10),
+		newBeaconCh:   make(chan *Beacon, 100),
+		requestSync:   make(chan likeBeacon, 10),
+		lastInserted:  make(chan *Beacon, 1),
+		nonSyncBeacon: make(chan *Beacon, 1),
 	}
 	// TODO maybe look if it's worth having multiple workers there
 	go chain.runChainLoop()
@@ -55,7 +55,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) NewBeacon(addr string, proto *drand.BeaconPacket) {
-	c.newBeaconNetwork <- protoToBeacon(proto)
+	c.newBeaconCh <- protoToBeacon(proto)
 }
 
 func (c *chainStore) Stop() {
@@ -63,33 +63,43 @@ func (c *chainStore) Stop() {
 	close(c.done)
 }
 
+// we store partials that are up to this amount of rounds more than the last
+// beacon we have - it is useful to store partials that may come in advance,
+// especially in case of a quick catchup.
+var partialCacheStoreLimit = 3
+
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	var caches []*roundCache
-	newRound := c.ticker.Channel()
 	lastBeacon, _ := c.Store.Last()
-	var currRound = roundInfo{
-		round: c.ticker.CurrentRound(),
+	var caches = []*roundCache{
+		newRoundCache(lastBeacon.Round+1, lastBeacon.Round, lastBeacon.Signature),
 	}
 	for {
 		select {
 		case <-c.done:
 			return
 		case lastBeacon = <-c.lastInserted:
-			break
-		case currRound = <-newRound:
-			// remove all caches that are previous to this round
-			var filtered []*roundCache
+			// filter all caches inferior to this beacon
+			var newCaches []*roundCache
 			for _, cache := range caches {
-				if cache.round < currRound.round {
+				if cache.round <= lastBeacon.Round {
 					continue
 				}
-				filtered = append(filtered, cache)
+				newCaches = append(newCaches, cache)
 			}
-			c.l.Debug("tick_new_round", currRound.round, "filtered_cache", fmt.Sprintf("%d/%d", len(filtered), len(caches)))
-			caches = filtered
+			caches = newCaches
+			break
 		case partial := <-c.newPartials:
+			// look if we have info for this round first
+			pRound := partial.p.GetRound()
+			ginfo, err := c.safe.GetInfo(pRound)
+			if err != nil {
+				c.l.Error("no_info_for", partial.p.GetRound())
+				break
+			}
+
+			// look if we are already have a cache for this round
 			var cache *roundCache
 			for _, c := range caches {
 				if !c.tryAppend(partial.p) {
@@ -98,18 +108,6 @@ func (c *chainStore) runAggregator() {
 				cache = c
 			}
 
-			ginfo, err := c.safe.GetInfo(partial.p.GetRound())
-			if err != nil {
-				c.l.Error("no_info_for", partial.p.GetRound())
-				continue
-			}
-			// +1 is because depending on clock skew, this node may not have
-			// passed yet to the new round for which he receives a partial.
-			shouldStore := partial.p.GetRound() == currRound.round || partial.p.GetRound() == currRound.round+1
-			if !shouldStore {
-				c.l.Error("ignoring_partial", partial.p.GetRound(), "current_round", currRound.round)
-				continue
-			}
 			if cache == nil {
 				cache = newRoundCache(partial.p.GetRound(), partial.p.GetPreviousRound(), partial.p.GetPreviousSig())
 				caches = append(caches, cache)
@@ -120,137 +118,111 @@ func (c *chainStore) runAggregator() {
 				c.l.Debug("store_partial", "ignored", "round", cache.round, "already_reconstructed")
 				break
 			}
+
 			thr := ginfo.group.Threshold
 			c.l.Debug("store_partial", partial.addr, "round", cache.round, "len_partials", fmt.Sprintf("%d/%d", cache.Len(), thr), "prev_round", partial.p.GetPreviousRound())
-
+			// look if we want to store ths partial anyway
+			shouldStore := pRound >= lastBeacon.Round+1 && pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
 			// check if we can reconstruct
-			if cache.Len() < thr {
-				// check if it doesn't correspond to what we want, we may want to
-				// sync. 2 because we dont want to sync as soon as we get one,
-				// it may be a random one - aritrarily chosen XXX put more
-				// thoughts into that.
-				if lastBeacon != nil && cache.Len() >= 2 {
-					c.maybeRunSync(currRound, lastBeacon, partial.p)
-				}
+			if !shouldStore {
+				c.l.Error("ignoring_partial", partial.p.GetRound(), "last_beacon_stored", lastBeacon.Round)
 				break
 			}
+			if cache.Len() < thr {
+				break
+			}
+
 			pub := ginfo.pub
 			n := ginfo.group.Len()
 			msg := cache.Msg()
 			finalSig, err := key.Scheme.Recover(pub, msg, cache.Partials(), thr, n)
 			if err != nil {
-				c.l.Debug("invalid_recovery", err, "round", partial.p.GetRound(), "got", fmt.Sprintf("%d/%d", cache.Len(), n))
+				c.l.Debug("invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", cache.Len(), n))
 				break
 			}
 			if err := key.Scheme.VerifyRecovered(pub.Commit(), msg, finalSig); err != nil {
-				c.l.Error("invalid_sig", err, "round", partial.p.GetRound(), "prev", partial.p.GetPreviousRound())
-				return
+				c.l.Error("invalid_sig", err, "round", pRound, "prev", partial.p.GetPreviousRound())
+				break
 			}
 			cache.done = true
 			newBeacon := &Beacon{
-				Round:         cache.round,
-				PreviousRound: cache.previous,
-				PreviousSig:   cache.previousSig,
-				Signature:     finalSig,
+				Round:       cache.round,
+				PreviousSig: cache.previousSig,
+				Signature:   finalSig,
 			}
-			c.l.Info("aggregated_beacon", newBeacon.Round, "previous_round", newBeacon.PreviousRound)
-			c.newAggregated <- newBeacon
+			c.l.Info("aggregated_beacon", newBeacon.Round)
+			c.newBeaconCh <- newBeacon
 			break
 		}
 	}
 }
 
 func (c *chainStore) runChainLoop() {
+	var syncing bool
+	var syncingDone = make(chan bool, 1)
 	lastBeacon, err := c.Store.Last()
 	if err != nil {
 		c.l.Fatal("store_last_init", err)
-	}
-	newRound := c.ticker.Channel()
-	var currRound = roundInfo{
-		round: c.ticker.CurrentRound(),
 	}
 	insert := func(newB *Beacon) {
 		if err := c.Store.Put(newB); err != nil {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
+		c.l.Info("NEW_BEACON_STORED", newB.String())
 		c.lastInserted <- newB
-		c.l.Info("NEWBEACON_STORE", newB.String())
+		if !syncing {
+			// during syncing we don't do a fast sync
+			select {
+			// only send if it's not full already
+			case c.nonSyncBeacon <- newB:
+			default:
+			}
+		}
 	}
 	for {
 		select {
-		case newBeacon := <-c.newAggregated:
-			if c.isReorg(lastBeacon, newBeacon) {
-				// TODO write depending on the final specs
+		case newBeacon := <-c.newBeaconCh:
+			if isAppendable(lastBeacon, newBeacon) {
+				insert(newBeacon)
 				break
 			}
-			if !c.isAppendable(lastBeacon, newBeacon) {
-				c.l.Debug("new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
-				c.maybeRunSync(currRound, lastBeacon, newBeacon)
-				break
+			// XXX store them for lfutur usage if it's a later round than what
+			// we have
+			c.l.Debug("new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
+			if c.shouldSync(lastBeacon, newBeacon) {
+				c.requestSync <- newBeacon
 			}
-			insert(newBeacon)
-		case newBeacon := <-c.newBeaconNetwork:
-			if lastBeacon.Equal(newBeacon) {
-				// we dont even verify it
-				break
+		case seen := <-c.requestSync:
+			if !c.shouldSync(lastBeacon, seen) || syncing {
+				continue
 			}
-			if c.isReorg(lastBeacon, newBeacon) {
-				// TODO write depending on the final specs
-				break
-			}
-			if newBeacon.Round < lastBeacon.Round {
-				break
-			}
-			if !c.isAppendable(lastBeacon, newBeacon) {
-				// if it's not appendable directly, we may need to sync with
-				// other nodes
-				c.maybeRunSync(currRound, lastBeacon, newBeacon)
-				break
-			}
-			insert(newBeacon)
-		case info := <-newRound:
-			currRound = info
+			syncing = true
+			go func() {
+				// XXX Could do something smarter with context and cancellation
+				// if we got to the right round
+				c.RunSync(context.Background())
+				syncingDone <- true
+			}()
+		case <-syncingDone:
+			syncing = false
 		case <-c.done:
 			return
 		}
 	}
 }
 
-func (c *chainStore) isReorg(last, newb *Beacon) bool {
-	// TODO
-	return false
-}
-
-func (c *chainStore) isAppendable(lastBeacon, newBeacon *Beacon) bool {
-	if lastBeacon.Round >= newBeacon.Round {
-		c.l.Debug("invalid_new_round", newBeacon.Round, "last_beacon_round", lastBeacon.Round, "new>last?", lastBeacon.Round >= newBeacon.Round)
-		return false
-	}
-
-	if lastBeacon.Round != newBeacon.PreviousRound {
-		c.l.Debug("invalid_previous_round", newBeacon.Round, "last_beacon_previous_round", lastBeacon.Round)
-		return false
-	}
-
-	if !bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig) {
-		c.l.Debug("invalid_previous_signature", shortSigStr(newBeacon.Signature), "last_beacon_signature", shortSigStr(lastBeacon.Signature))
-		return false
-	}
-	return true
+func isAppendable(lastBeacon, newBeacon *Beacon) bool {
+	return newBeacon.Round == lastBeacon.Round+1
 }
 
 type likeBeacon interface {
 	GetRound() uint64
-	GetPreviousRound() uint64
 }
 
-// This MUST be called only if isAppendable returns false
-func (c *chainStore) maybeRunSync(curr roundInfo, last *Beacon, newB likeBeacon) {
-	if newB.GetPreviousRound() > last.GetRound() {
-		// run sync !
-		go c.RunSync(context.Background())
-	}
+func (c *chainStore) shouldSync(last *Beacon, newB likeBeacon) bool {
+	// we should sync if we are two blocks late
+	return newB.GetRound() > last.GetRound()+1
 }
 
 // RunSync is a blocking call that tries to sync chain to the highest height
@@ -263,11 +235,14 @@ func (c *chainStore) RunSync(ctx context.Context) {
 		c.l.Error("error_sync", err)
 		return
 	}
-
 	for newB := range outCh {
-		c.newBeaconNetwork <- newB
+		c.newBeaconCh <- newB
 	}
 	return
+}
+
+func (c *chainStore) AppendedBeaconNoSync() chan *Beacon {
+	return c.nonSyncBeacon
 }
 
 type partialInfo struct {
@@ -323,7 +298,7 @@ func (r *roundCache) Len() int {
 }
 
 func (r *roundCache) Msg() []byte {
-	return Message(r.previousSig, r.previous, r.round)
+	return Message(r.round, r.previousSig)
 }
 
 func (r *roundCache) Partials() [][]byte {

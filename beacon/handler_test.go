@@ -353,10 +353,12 @@ func TestBeaconSync(t *testing.T) {
 	bt := NewBeaconTest(n, thr, period, genesisTime)
 	defer bt.CleanUp()
 	var counter = &sync.WaitGroup{}
-	myCallBack := func(b *Beacon) {
-		require.NoError(t, VerifyBeacon(bt.dpublic, b))
-		fmt.Printf("\nROUND DONE\n\n")
-		counter.Done()
+	myCallBack := func(i int) func(*Beacon) {
+		return func(b *Beacon) {
+			require.NoError(t, VerifyBeacon(bt.dpublic, b))
+			fmt.Printf("\nROUND %d DONE for %s\n\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
+			counter.Done()
+		}
 	}
 
 	doRound := func(count int, move time.Duration) {
@@ -366,7 +368,7 @@ func TestBeaconSync(t *testing.T) {
 	}
 
 	for i := 0; i < n; i++ {
-		bt.CallbackFor(i, myCallBack)
+		bt.CallbackFor(i, myCallBack(i))
 		bt.ServeBeacon(i)
 	}
 	bt.StartBeacons(n)
@@ -382,29 +384,21 @@ func TestBeaconSync(t *testing.T) {
 	}
 
 	// disable reception of all nodes but one
-	bt.DisableReception(n - 1)
+	online := 2
+	bt.DisableReception(n - online)
 	// check that at least one node got the beacon
-	doRound(1, period)
+	doRound(online, period)
 	fmt.Printf("\n\n-- BEFORE ENABLING RECEPTION AGAIN -- \n\n")
 	// enable reception again of all nodes
-	bt.EnableReception(n - 1)
-	// at this point, all but one nodes should build on an empty round
-	doRound(n-1, period)
-	// at this point, same as before since the beacon is already built
-	doRound(n-1, period)
-	//lindex := bt.nodes[n-1].index
-	/*fmt.Printf("\n\n-- BEFORE RESETING LAST NODE %d--\n\n", lindex)*/
-	//// simulate that he never saw the last round he got, so he'll have
-	//// to sync up with others
-	//store := bt.nodes[n-1].handler.chain
-	//last, err := store.Last()
-	//require.NoError(t, err)
-	//store.del(last.Round)
-	//// at this round, the late node will see it needs a sync, it'll run
-	//// it and be uptodate at the next round
-	//doRound(n - 1)
-	//fmt.Printf("\n\n-- BEFORE ALL GOOD ROUND %d-- \n\n", lindex)
-	/*doRound(n)*/
+	bt.EnableReception(n - online)
+	// we advance the clock, all "resucitated nodes" will transmit a wrong
+	// beacon, but they will see the beacon they send is late w.r.t. the round
+	// they should be, so they will sync with the "safe online" nodes. They
+	// will get the latest beacon and then directly run the right round
+	//bt.MoveTime(period
+	// n for the new round
+	// n - online for the previous round that the others catch up
+	doRound(n+n-online, period)
 }
 func TestBeaconSimple(t *testing.T) {
 	n := 3
@@ -472,7 +466,7 @@ func TestBeaconThreshold(t *testing.T) {
 		return func(b *Beacon) {
 			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
-			msg := Message(b.PreviousSig, b.PreviousRound, b.Round)
+			msg := Message(b.Round, b.PreviousSig)
 			err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 			require.NoError(t, err)
 			// callbacks are called for syncing up as well so we only decrease

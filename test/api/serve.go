@@ -57,7 +57,6 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 	return &drand.PublicRandResponse{
 		Round:             uint64(s.d.Round),
 		PreviousSignature: prev,
-		PreviousRound:     uint64(s.d.PreviousRound),
 		Signature:         signature,
 		Randomness:        randomness,
 	}, nil
@@ -79,11 +78,11 @@ func testValid(d *Data) {
 	}
 	sig := decodeHex(d.Signature)
 	prev := decodeHex(d.PreviousSignature)
-	msg := beacon.Message(prev, uint64(d.PreviousRound), uint64(d.Round))
+	msg := beacon.Message(uint64(d.Round), prev)
 	if err := key.Scheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
 		panic(err)
 	}
-	invMsg := beacon.Message(prev, uint64(d.PreviousRound), uint64(d.Round-1))
+	invMsg := beacon.Message(uint64(d.Round-1), prev)
 	if err := key.Scheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
 		panic("should be invalid signature")
 	}
@@ -117,7 +116,7 @@ func generateData() *Data {
 	}
 	round := 1969
 	prevRound := uint64(1968)
-	msg := beacon.Message(previous[:], prevRound, uint64(round))
+	msg := beacon.Message(uint64(round), previous[:])
 	fmt.Println("msg: ", hex.EncodeToString(msg))
 	sshare := share.PriShare{I: 0, V: secret}
 	tsig, err := key.Scheme.Sign(&sshare, msg)
@@ -134,8 +133,6 @@ func generateData() *Data {
 		PreviousRound:     int(prevRound),
 		Round:             round,
 	}
-	//s, _ := json.MarshalIndent(d, "", "    ")
-	//fmt.Println(string(s))
 	return d
 }
 

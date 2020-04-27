@@ -115,9 +115,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	}
 	fmt.Println(" RESHARED GROUP:", resharedGroup)
 	dt.TestBeaconLength(3, dt.ids...)
+	fmt.Println(" --- AFTER RESHARED ROUND ---")
+	fmt.Println(" --- dt.ids ", dt.ids)
+	fmt.Println(" --- dt.reshared ", dt.reshareIds)
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
 	time.Sleep(getSleepDuration())
+	fmt.Println(" --- AFTER RESHARED ROUND  SLEEEPING ---")
 	dt.TestBeaconLength(4, dt.reshareIds...)
 }
 

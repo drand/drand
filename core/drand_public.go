@@ -145,7 +145,6 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 		err := stream.Send(&drand.PublicRandResponse{
 			Round:             b.Round,
 			Signature:         b.Signature,
-			PreviousRound:     b.PreviousRound,
 			PreviousSignature: b.PreviousSig,
 			Randomness:        b.Randomness(),
 		})

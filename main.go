@@ -15,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 
+	gonet "net"
+
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
@@ -77,6 +79,11 @@ var insecureFlag = &cli.BoolFlag{
 var controlFlag = &cli.StringFlag{
 	Name:  "control",
 	Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
+}
+
+var metricsFlag = &cli.IntFlag{
+	Name:  "metrics",
+	Usage: "Launch a metrics server at the specified port.",
 }
 
 var listenFlag = &cli.StringFlag{
@@ -211,7 +218,7 @@ func main() {
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, controlFlag, listenFlag,
+				insecureFlag, controlFlag, listenFlag, metricsFlag,
 				certsDirFlag, pushFlag, verboseFlag),
 			Action: func(c *cli.Context) error {
 				banner()
@@ -252,12 +259,15 @@ func main() {
 		},
 
 		&cli.Command{
-			Name:  "check-key",
-			Usage: "Check node in the group for accessibility over the gRPC communication",
-			Flags: toArray(groupFlag, certsDirFlag),
+			Name: "check",
+			Usage: "Check node at the given `ADDRESS` (you can put multiple ones)" +
+				" in the group for accessibility over the gRPC communication. If the node " +
+				" is not running behind TLS, you need to pass the tls-disable flag. You can " +
+				"also check a whole group's connectivity with the group flag.",
+			Flags: toArray(groupFlag, certsDirFlag, insecureFlag),
 			Action: func(c *cli.Context) error {
 				banner()
-				return checkKey(c)
+				return checkConnection(c)
 			},
 		},
 		{
@@ -481,7 +491,7 @@ func keygenCmd(c *cli.Context) error {
 		addr = addr + ":" + askPort()
 	}
 	var priv *key.Pair
-	if c.Bool("tls-disable") {
+	if c.IsSet(insecureFlag.Name) {
 		fmt.Println("Generating private / public key pair without TLS.")
 		priv = key.NewKeyPair(addr)
 	} else {
@@ -558,22 +568,24 @@ func getPublicKeys(c *cli.Context) []*key.Identity {
 	}
 	return publics
 }
-func checkKey(c *cli.Context) error {
-	var ids []*key.Identity
+func checkConnection(c *cli.Context) error {
+	var names []string
 	if c.IsSet(groupFlag.Name) {
 		testEmptyGroup(c.String(groupFlag.Name))
 		group := new(key.Group)
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
 			fatal("drand: loading group failed")
 		}
-		ids = group.Identities()
+		for _, id := range group.Identities() {
+			names = append(names, id.Address())
+		}
 	} else if c.Args().Present() {
-		for _, idPath := range c.Args().Slice() {
-			var id = new(key.Identity)
-			if err := key.Load(idPath, id); err != nil {
-				fatal(fmt.Sprintf("identity file %s: error %v", idPath, err))
+		for _, serverAddr := range c.Args().Slice() {
+			_, _, err := gonet.SplitHostPort(serverAddr)
+			if err != nil {
+				fatal("error for address %s: %s", serverAddr, err)
 			}
-			ids = append(ids, id)
+			names = append(names, serverAddr)
 		}
 	} else {
 		fatal(fmt.Sprintf("drand: check-group expects a list of identities or %s flag", groupFlag.Name))
@@ -583,20 +595,21 @@ func checkKey(c *cli.Context) error {
 	var isVerbose = c.IsSet(verboseFlag.Name)
 	var allGood = true
 	var invalidIds []string
-	for _, id := range ids {
+	for _, address := range names {
+		peer := net.CreatePeer(address, !c.Bool(insecureFlag.Name))
 		client := net.NewGrpcClientFromCertManager(conf.Certs())
-		_, err := client.Home(context.Background(), id, &drand.HomeRequest{})
+		_, err := client.Home(context.Background(), peer, &drand.HomeRequest{})
 		if err != nil {
 			if isVerbose {
-				fmt.Printf("drand: error checking id %s: %s\n", id.Address(), err)
+				fmt.Printf("drand: error checking id %s: %s\n", peer.Address(), err)
 			} else {
-				fmt.Printf("drand: error checking id %s\n", id.Address())
+				fmt.Printf("drand: error checking id %s\n", peer.Address())
 			}
 			allGood = false
-			invalidIds = append(invalidIds, id.Address())
+			invalidIds = append(invalidIds, peer.Address())
 			continue
 		}
-		fmt.Printf("drand: id %s answers correctly\n", id.Address())
+		fmt.Printf("drand: id %s answers correctly\n", peer.Address())
 	}
 	if !allGood {
 		return fmt.Errorf("Following nodes don't answer: %s", strings.Join(invalidIds, ","))

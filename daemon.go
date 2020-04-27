@@ -6,6 +6,7 @@ import (
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/metrics"
 	"github.com/urfave/cli/v2"
 )
 
@@ -40,6 +41,10 @@ func startCmd(c *cli.Context) error {
 		//drand.StartBeacon(!c.Bool(pushFlag.Name))
 		catchup := true
 		drand.StartBeacon(catchup)
+	}
+	// Start metrics server
+	if c.IsSet(metricsFlag.Name) {
+		go metrics.Start(c.Int(metricsFlag.Name))
 	}
 	<-drand.WaitExit()
 
