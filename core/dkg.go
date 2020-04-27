@@ -11,22 +11,16 @@ import (
 	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
-	clock "github.com/jonboulle/clockwork"
 	"google.golang.org/grpc/peer"
 )
 
-type dkgHandler struct {
-	l      log.Logger
-	board  *dkgBoard
-	phaser *dkg.Phaser
-	conf   *dkg.Config
-	clock  clock.Clock
-}
-
-func newDkgHandler(l log.Logger, client net.ProtocolClient, clock clock.Clock, conf *dkg.Config) *dkgHandler {
-	board := newBoard(l, client)
-
-	phaser := dkg.NewTimePhaserFunc()
+type dkgInfo struct {
+	target  *key.Group
+	board   *dkgBoard
+	phaser  *dkg.Phaser
+	conf    *dkg.Config
+	proto   *dkg.Protocol
+	started bool
 }
 
 // dkgBoard is a struct that implements a dkg.Board: it is the interface between
@@ -62,7 +56,7 @@ func (b *dkgBoard) FreshDKG(c context.Context, p *proto.DKGPacket) (*proto.Empty
 }
 
 func (b *dkgBoard) ReshareDKG(c context.Context, p *proto.ResharePacket) (*proto.Empty, error) {
-	b.dispatch(c, p.Dkg)
+	return new(proto.Empty), b.dispatch(c, p.Dkg)
 }
 
 func (b *dkgBoard) PushDeals(bundle AuthDealBundle) {
@@ -140,6 +134,11 @@ func (b *dkgBoard) dispatchJustification(p string, b *pdkg.JustifBundle, sig []b
 	b.justCh <- authBundle
 }
 
+// broadcastPacket broads the given packet to ALL nodes in the list of ids he's
+// has.
+// NOTE: For simplficity, there is a minor cost here that it sends our own
+// packet via a connection instead of using channel. Could be changed later on
+// if required.
 func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet) {
 	if b.isReshare {
 		packet := proto.ResharePacket{

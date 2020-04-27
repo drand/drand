@@ -140,57 +140,46 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	return d, nil
 }
 
-// StartDKG starts the DKG protocol by sending the first packet of the DKG
-// protocol to every other node in the group. It returns nil if the DKG protocol
-// finished successfully or an error otherwise.
-func (d *Drand) StartDKG(conf *dkg.Config) error {
-	if err := d.createDKG(conf); err != nil {
-		return err
-	}
-	d.dkg.Start()
-	return nil
-}
-
 // WaitDKG waits on the running dkg protocol. In case of an error, it returns
 // it. In case of a finished DKG protocol, it saves the dist. public  key and
 // private share. These should be loadable by the store.
-func (d *Drand) WaitDKG(conf *dkg.Config) (*key.Group, error) {
-	if err := d.createDKG(conf); err != nil {
-		return nil, err
-	}
-
+func (d *Drand) WaitDKG() (*key.Group, error) {
 	d.state.Lock()
-	waitCh := d.dkg.WaitShare()
-	errCh := d.dkg.WaitError()
+	waitCh := d.dkgInfo.WaitEnd()
 	d.state.Unlock()
 
 	d.log.Debug("dkg_start", time.Now().String())
-	select {
-	case share := <-waitCh:
-		s := key.Share(share)
-		d.share = &s
-	case err := <-errCh:
+	res := <-waitCh
+	if res.Error {
 		return nil, fmt.Errorf("drand: error from dkg: %v", err)
 	}
 
 	d.state.Lock()
 	defer d.state.Unlock()
+	// filter the nodes that are not present in the target group
+	var qualNodes []*key.Node
+	for _, node := range d.dkgInfo.target.Nodes {
+		for _, qualNode := range res.QUAL {
+			if qualNode.Index == node.Index {
+				qualNodes = append(qualNodes, node)
+			}
+		}
+	}
 
+	s := Share(res.Key)
+	d.share = &s
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	// XXX change that whole messup - too easy to forget things
-	d.group = d.dkg.QualifiedGroup()
-	d.group.Period = conf.NewNodes.Period
-	d.group.GenesisTime = conf.NewNodes.GenesisTime
-	d.group.TransitionTime = conf.NewNodes.TransitionTime
-	d.group.GenesisSeed = conf.NewNodes.GetGenesisSeed()
-
+	targetGroup := d.dkgInfo.target
+	// only keep the qualified ones
+	targetGroup.Nodes = qualNodes
+	// setup the dist. public key
+	targetGroup.PublicKey = d.share.Public()
+	d.group = targetGroup
 	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
 	d.store.SaveGroup(d.group)
 	d.opts.applyDkgCallback(d.share)
-	d.dkgDone = true
-	d.dkg = nil
-	d.nextConf = nil
+	d.dkgInfo = nil
 	return d.group, nil
 }
 

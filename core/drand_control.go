@@ -110,30 +110,46 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout string, entropy *c
 	time.Sleep(DefaultSyncTime)
 
 	reader, user := extractEntropy(entropy)
-	dkgConfig := &dkg.Config{
+	dkgConfig := &dkg.DkgConfig{
 		Suite:          key.KeyGroup.(dkg.Suite),
 		NewNodes:       group,
 		Key:            d.priv,
 		Reader:         reader,
 		UserReaderOnly: user,
-		Clock:          d.opts.clock,
+		FastSync:       true,
 	}
-	if err := setTimeout(dkgConfig, timeout); err != nil {
+	phaser, err = getPhaser(timeout)
+	if err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
+	board := newBoard(d.log, d.gateway)
+	protoConf := &dkg.Config{
+		DkgConfig:  dkgConfig,
+		AuthScheme: key.AuthScheme,
+	}
+	dkgProto, err := dkg.NewProto(protoConf, board, phaser)
+	if err != nil {
+		return err
+	}
+
 	d.state.Lock()
-	d.nextConf = dkgConfig
-	d.state.Unlock()
+	d.dkgInfo = &dkgInfo{
+		target: group,
+		board:  board,
+		phaser: phaser,
+		conf:   protoConf,
+		proto:  dkgProto,
+	}
 
 	if leader {
 		d.log.Info("init_dkg", "start_dkg_leader")
-		if err := d.StartDKG(dkgConfig); err != nil {
-			return nil, err
-		}
+		go d.dkgInfo.phaser.Start()
+		d.dkgInfo.started = true
 	}
+	d.state.Unlock()
 
 	d.log.Info("init_dkg", "waiting_end_dkg")
-	finalGroup, err := d.WaitDKG(dkgConfig)
+	finalGroup, err := d.WaitDKG()
 	if err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
@@ -146,14 +162,16 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout string, entropy *c
 func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout string) (*key.Group, error) {
 	oldIdx, oldPresent := oldGroup.Index(d.priv.Public)
 	_, newPresent := newGroup.Index(d.priv.Public)
-	dkgConfig := &dkg.Config{
+
+	dkgConfig := &dkg.DkgConfig{
 		Suite:    key.KeyGroup.(dkg.Suite),
 		NewNodes: newGroup,
 		OldNodes: oldGroup,
 		Key:      d.priv,
 		Clock:    d.opts.clock,
 	}
-	if err := setTimeout(dkgConfig, timeout); err != nil {
+	phaser, err = getPhaser(timeout)
+	if err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
 
@@ -162,7 +180,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		defer d.state.Unlock()
 		// gives the share to the dkg if we are a current node
 		if oldPresent {
-			if !d.dkgDone {
+			if d.dkgInfo != nil {
 				return errors.New("control: can't reshare from old node when DKG not finished first")
 			}
 			if d.share == nil {
@@ -184,6 +202,22 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}()
 	if err != nil {
 		return nil, err
+	}
+	board := newBoard(d.log, d.gateway)
+	protoConf := &dkg.Config{
+		DkgConfig:  dkgConfig,
+		AuthScheme: key.AuthScheme,
+	}
+	dkgProto, err := dkg.NewProto(protoConf, board, phaser)
+	if err != nil {
+		return err
+	}
+	info := &dkgInfo{
+		target: newGroup,
+		board:  board,
+		phaser: phaser,
+		config: protoConf,
+		proto:  dkgProto,
 	}
 
 	if leader {
@@ -618,7 +652,6 @@ func extractGroup(i *control.GroupInfo) (*key.Group, error) {
 	if g.Threshold < vss.MinimumT(g.Len()) {
 		return nil, errors.New("control: threshold of new group too low ")
 	}
-
 	return g, nil
 }
 
@@ -631,7 +664,7 @@ func extractEntropy(i *control.EntropyInfo) (io.Reader, bool) {
 	return r, user
 }
 
-func setTimeout(c *dkg.Config, timeoutStr string) error {
+func getPhaser(timeoutStr string) (dkg.Phaser, error) {
 	// try parsing the timeout
 	timeout, err := time.ParseDuration(timeoutStr)
 	if err != nil {
@@ -640,8 +673,9 @@ func setTimeout(c *dkg.Config, timeoutStr string) error {
 		}
 		timeout, _ = time.ParseDuration(DefaultDKGTimeout)
 	}
-	c.Timeout = timeout
-	return nil
+	return dkg.NewTimePhaserFunc(func() {
+		d.opts.clock.Sleep(timeout)
+	}), nil
 }
 
 func (d *Drand) pushGroup(to []*key.Identity, packet *drand.PushGroupPacket) error {

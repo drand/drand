@@ -28,3 +28,7 @@ var SigGroup = Pairing.G2()
 // Scheme is the signature scheme used, defining over which curve the signature
 // and keys respectively are.
 var Scheme = tbls.NewThresholdSchemeOnG2(Pairing)
+
+// AuthScheme is the signature scheme used during the DKG phase to authenticate
+// the deals.
+var AuthScheme = bls.NewSchemeOnG2(Pairing)

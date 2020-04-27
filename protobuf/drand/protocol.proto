@@ -14,12 +14,9 @@ import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
 
 service Protocol {
-    rpc PrepareDKGGroup(PrepareDKGPacket) returns (drand.Empty);
-    rpc PushDKGGroup(PushGroupPacket) returns (drand.Empty);
-    // Setup is doing the DKG setup phase
-    rpc FreshDKG(DKGPacket) returns (drand.Empty);
-    // Reshare performs the resharing phase
-    rpc ReshareDKG(ResharePacket) returns (drand.Empty);
+    rpc SignalDKGParticipant(SignalDKGPacket) returns (drand.Empty);
+    rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
+    rpc ProcessDKG(DKGPacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
@@ -28,7 +25,7 @@ service Protocol {
 // PrepareDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
 // start the DKG automatically.
-message PrepareDKGPacket {
+message DKGInfoPacket {
     Identity node = 1;
     // following parameters are helpful if leader and participants did not run
     // with the same parameters, so the leader can reply if it's not consistent.
@@ -42,9 +39,12 @@ message PrepareDKGPacket {
     // XXX uint32 period could be added to make sure nodes agree on the beacon
     // frequency but it's not bringing real security on the table so leave it
     // for now.
+    // dkg_start is the time where the DKG starts for everyone - every
+    // participants will start  at the given UNIX time in seconds
+    int64 dkg_start = 7;
 }
 
-message PushGroupPacket {
+message SignalDKGPacket {
     drand.GroupPacket new_group = 1;
     string secret_proof = 2;
 }
