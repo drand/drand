@@ -31,7 +31,7 @@ const DefaultControlPort = "8888"
 
 // DefaultDKGTimeout is the time the DKG timeouts by default. See
 // kyber/share/dkg/pedersen for more information.
-const DefaultDKGTimeout = "1m"
+const DefaultDKGTimeout = 60 * time.Second
 
 // DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
 var DefaultDialTimeout = 10 * time.Second
@@ -53,21 +53,11 @@ var DefaultBeaconOffset = time.Duration(2*60) * time.Second
 // cancelled.
 var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 
-// DefaultSyncTime is the time the leader waits after sending the group file to
-// all participants. It gives a bit of time to make sure every node has received
-// the group file and launched their DKG. Since it is not a time critical
-// process, we can afford to wait here.
-var DefaultSyncTime = 5 * time.Second
-
-// DefaultPushDKGTimeout is the time the leader waits for when pushing the
-// packet
-var DefaultPushDKGTimeout = 1 * time.Minute
-
 // DefaultGenesisOffset is the time that the leader adds to the current time
 // to compute the genesis time. It computes the genesis time *before* sending
 // the group to the nodes and before running the DKG so it must be sufficiently
 // high enough (at the very least superior than DefaultSyncTime + dkg timeout).
-var DefaultGenesisOffset = 2 * time.Minute
+var DefaultGenesisOffset = 1 * time.Minute
 
 // DefaultResharingOff is the time the leader adds to the current time to set
 // the TransitionTime field in the group file when setting up a resharing. This
@@ -76,7 +66,19 @@ var DefaultGenesisOffset = 2 * time.Minute
 var DefaultResharingOffset = 30 * time.Second
 
 // Keep the most recents beacons
+// XXX unused for now
 var DefaultBeaconCacheLength = 10
+
+// DefaultDKGOffset is the default value of of the dkg offset. It's a valud that
+// is used to set the time for which nodes should start the DKG.
+// To avoid any concurrency / networking effect where nodes start the DKG
+// while some others still haven't received the group configuration, the
+// coordinator do this in two steps: first, send the group configuration to
+// every node, and then every node start at the specified time. This offset
+// is set to be sufficiently large such that with high confidence all nodes
+// received the group file by then. The coordinator simply does time.Now() +
+// DKGOffset.
+var DefaultDKGOffset = 5 * time.Second
 
 // IDs for callback when beacon appears
 const callbackID = "callbackID"

@@ -93,7 +93,6 @@ func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.Pub
 		return nil, err
 	}
 	client := drand.NewPublicClient(c)
-	ctx, _ = g.getTimeoutContext(ctx)
 	stream, err := client.PublicRandStream(ctx, in)
 	if err != nil {
 		return nil, err

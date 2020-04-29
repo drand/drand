@@ -14,18 +14,27 @@ import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
 
 service Protocol {
+    // SignalDKGParticipant is called by non-coordinators nodes that sends their
+    // public keys and secret proof they have to the coordinator so that he can
+    // create the group.
     rpc SignalDKGParticipant(SignalDKGPacket) returns (drand.Empty);
+    // PushDKGInfo is called by the coordinator to push the group he created
+    // from all received keys and as well other information such as the time of
+    // starting the DKG.
     rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
-    rpc ProcessDKG(DKGPacket) returns (drand.Empty);
+    // Setup is doing the DKG setup phase
+    rpc FreshDKG(DKGPacket) returns (drand.Empty);
+    // Reshare performs the resharing phase
+    rpc ReshareDKG(ResharePacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 }
 
-// PrepareDKGPacket is the packet nodes send to a coordinator that collects all
+// SignalDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
 // start the DKG automatically.
-message DKGInfoPacket {
+message SignalDKGPacket {
     Identity node = 1;
     // following parameters are helpful if leader and participants did not run
     // with the same parameters, so the leader can reply if it's not consistent.
@@ -39,14 +48,16 @@ message DKGInfoPacket {
     // XXX uint32 period could be added to make sure nodes agree on the beacon
     // frequency but it's not bringing real security on the table so leave it
     // for now.
-    // dkg_start is the time where the DKG starts for everyone - every
-    // participants will start  at the given UNIX time in seconds
-    int64 dkg_start = 7;
 }
 
-message SignalDKGPacket {
+// PushDKGInfor is the packet the coordinator sends that contains the group over
+// which to run the DKG on, the secret proof (to prove it's he's part of the
+// expected group, and it's not a random packet) and as well the time at which
+// every node should start the DKG.
+message DKGInfoPacket {
     drand.GroupPacket new_group = 1;
     string secret_proof = 2;
+    int64 dkg_start_time = 3;
 }
 
 message PartialBeaconPacket {
@@ -64,8 +75,13 @@ message DKGPacket {
     dkg.Packet dkg = 1;
 }
 
+// Reshare is a wrapper around a Setup packet for resharing operation that
+// serves two purposes: - indicate to non-leader old nodes that they should
+// generate and send their deals - indicate to which new group are we resharing.
+// drand should keep a list of new ready-to-operate groups allowed.
 message ResharePacket {
     dkg.Packet dkg = 1;
+    string group_hash = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the

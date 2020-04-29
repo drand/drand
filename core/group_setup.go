@@ -272,30 +272,33 @@ func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Dura
 	return
 }
 
+// setupReceiver is a simple struct that expects to receive a group information
+// to setup a new DKG. When it receives it from the coordinator, it pass it
+// along the to the logic waiting to start the DKG.
 type setupReceiver struct {
-	ch     chan *drand.GroupPacket
+	ch     chan *drand.DKGInfoPacket
 	l      log.Logger
 	secret string
 }
 
-func newSetupReceiver(l log.Logger, in *control.SetupInfoPacket) *setupReceiver {
+func newSetupReceiver(l log.Logger, in *control.DKGInfoPacket) *setupReceiver {
 	return &setupReceiver{
-		ch:     make(chan *drand.GroupPacket, 1),
+		ch:     make(chan *drand.DKGInfoPacket, 1),
 		l:      l,
 		secret: in.GetSecret(),
 	}
 }
 
-func (r *setupReceiver) ReceivedGroup(pg *drand.PushGroupPacket) error {
+func (r *setupReceiver) ReceivedGroup(pg *drand.DKGInfoPacket) error {
 	if pg.GetSecretProof() != r.secret {
 		r.l.Debug("received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
-	r.ch <- pg.GetNewGroup()
+	r.ch <- pg
 	return nil
 }
 
-func (r *setupReceiver) WaitGroup() chan *drand.GroupPacket {
+func (r *setupReceiver) WaitGroup() chan *drand.DKGInfoPacket {
 	return r.ch
 }
 

@@ -15,12 +15,11 @@ import (
 )
 
 type dkgInfo struct {
-	target  *key.Group
-	board   *dkgBoard
-	phaser  *dkg.Phaser
-	conf    *dkg.Config
-	proto   *dkg.Protocol
-	started bool
+	target *key.Group
+	board  *dkgBoard
+	phaser *dkg.Phaser
+	conf   *dkg.Config
+	proto  *dkg.Protocol
 }
 
 // dkgBoard is a struct that implements a dkg.Board: it is the interface between

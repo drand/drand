@@ -20,10 +20,10 @@ func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, 
 	if d.dkgDone {
 		return nil, errors.New("drand: dkg finished already")
 	}
-	if d.dkg == nil {
+	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
-	d.dkg.Process(c, in.Dkg)
+	d.dkgInfo.board.FreshDKG(c, in.Dkg)
 	return new(drand.Empty), nil
 }
 
@@ -32,32 +32,11 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 	d.state.Lock()
 	defer d.state.Unlock()
 
-	if d.nextGroupHash == "" {
-		return nil, fmt.Errorf("drand %s: can't reshare because InitReshare has not been called", d.priv.Public.Addr)
-	}
-
-	// check that we are resharing to the new group that we expect
-	if in.GroupHash != d.nextGroupHash {
-		return nil, errors.New("drand: can't reshare to new group: incompatible hashes")
-	}
-
-	if !d.nextFirstReceived && d.nextOldPresent {
-		d.nextFirstReceived = true
-		// go routine since StartDKG requires the global lock
-		go d.StartDKG(d.nextConf)
-	}
-
-	if d.dkg == nil {
+	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg setup yet")
 	}
 
-	d.nextFirstReceived = true
-	if in.Dkg != nil {
-		// first packet from the "leader" contains a nil packet for
-		// nodes that are in the old list that must broadcast their
-		// deals.
-		d.dkg.Process(c, in.Dkg)
-	}
+	d.dkgInfo.board.ReshareDKG(c, in.Dkg)
 	return new(drand.Empty), nil
 }
 

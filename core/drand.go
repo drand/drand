@@ -47,13 +47,9 @@ type Drand struct {
 	manager  *setupManager
 	receiver *setupReceiver
 
-	// proposed next group hash for a resharing operation
-	nextGroupHash     string
-	nextGroup         *key.Group
-	nextConf          *dkg.Config
-	nextOldPresent    bool // true if we are in the old group
-	nextFirstReceived bool // false til receive 1st reshare packet
-
+	// dkgInfo contains all the information related to an upcoming or in
+	// progress dkg protocol. It is nil for the rest of the time.
+	dkgInfo *dkgInfo
 	// general logger
 	log log.Logger
 
