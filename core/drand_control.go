@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	dnet "github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
 	clock "github.com/jonboulle/clockwork"
 )
@@ -534,16 +534,6 @@ func (d *Drand) startResharingAsLeader(dkgConf *dkg.Config, oidx int) {
 	d.state.Unlock()
 	d.log.With("module", "control").Debug("leader_reshare", "start DKG")
 	d.StartDKG(dkgConf)
-}
-
-func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
-	d.state.Lock()
-	beacon := d.beacon
-	d.state.Unlock()
-	if beacon != nil {
-		beacon.SyncChain(req, stream)
-	}
-	return nil
 }
 
 // DistKey returns the distributed key corresponding to the current group

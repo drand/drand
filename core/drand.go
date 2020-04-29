@@ -1,20 +1,16 @@
 package core
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	dkg_proto "github.com/drand/drand/protobuf/crypto/dkg"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -36,7 +32,6 @@ type Drand struct {
 	// stores recent entries in memory
 	//cache *beaconCache
 
-	dkg    *dkg.Handler
 	beacon *beacon.Handler
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
@@ -179,21 +174,6 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	return d.group, nil
 }
 
-// createDKG create the new dkg handler according to the nextConf field. If the
-// dkg is not nil, it does not do anything.
-func (d *Drand) createDKG(conf *dkg.Config) error {
-	d.state.Lock()
-	defer d.state.Unlock()
-	if d.dkg != nil {
-		return nil
-	}
-	var err error
-	if d.dkg, err = dkg.NewHandler(d.dkgNetwork(conf), conf, d.log); err != nil {
-		return err
-	}
-	return nil
-}
-
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (d *Drand) StartBeacon(catchup bool) {
@@ -318,39 +298,4 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {
 	d.opts.callbacks(b)
-}
-
-// little trick to be able to capture when drand is using the DKG methods,
-// instead of offloading that to an external struct without any vision of drand
-// internals, or implementing a big "Send" method directly on drand.
-func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.Packet) error {
-	_, err := d.gateway.ProtocolClient.FreshDKG(context.TODO(), p, &drand.DKGPacket{Dkg: pack})
-	return err
-}
-
-func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.Packet) error {
-	// no concurrency to get nextHash since this is only used within a locked drand
-	reshare := &drand.ResharePacket{
-		Dkg:       pack,
-		GroupHash: d.nextGroupHash,
-	}
-	_, err := d.gateway.ProtocolClient.ReshareDKG(context.TODO(), p, reshare)
-	return err
-}
-
-func (d *Drand) dkgNetwork(conf *dkg.Config) *dkgNetwork {
-	// simple test to check if we are in a resharing mode or in a fresh dkg mode
-	// that will lead to two different outer protobuf structures
-	if conf.OldNodes == nil {
-		return &dkgNetwork{d.sendDkgPacket}
-	}
-	return &dkgNetwork{d.sendResharePacket}
-}
-
-type dkgNetwork struct {
-	send func(net.Peer, *dkg_proto.Packet) error
-}
-
-func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.Packet) error {
-	return d.send(p, pack)
 }

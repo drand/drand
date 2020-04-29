@@ -205,16 +205,30 @@ func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) 
 	return new(drand.Empty), nil
 }
 
-func (d *Drand) PushDKGGroup(ctx context.Context, in *drand.PushGroupPacket) (*drand.Empty, error) {
+func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.receiver == nil {
 		return nil, errors.New("no receiver setup")
 	}
 	d.log.Info("push_group", "received_new")
-	err := d.receiver.ReceivedGroup(in)
+	// the control routine will receive this info and start the dkg at the right
+	// time - if that is the right secret.
+	err := d.receiver.PushDKGInfo(in)
 	if err != nil {
 		return nil, err
 	}
 	return new(drand.Empty), nil
+}
+
+// SyncChain is a inter-node protocol that replies to a syncing request from a
+// given round
+func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
+	d.state.Lock()
+	beacon := d.beacon
+	d.state.Unlock()
+	if beacon != nil {
+		beacon.SyncChain(req, stream)
+	}
+	return nil
 }

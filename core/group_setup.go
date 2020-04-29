@@ -289,7 +289,7 @@ func newSetupReceiver(l log.Logger, in *control.DKGInfoPacket) *setupReceiver {
 	}
 }
 
-func (r *setupReceiver) ReceivedGroup(pg *drand.DKGInfoPacket) error {
+func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	if pg.GetSecretProof() != r.secret {
 		r.l.Debug("received", "invalid_secret_proof")
 		return errors.New("invalid secret")
@@ -298,7 +298,7 @@ func (r *setupReceiver) ReceivedGroup(pg *drand.DKGInfoPacket) error {
 	return nil
 }
 
-func (r *setupReceiver) WaitGroup() chan *drand.DKGInfoPacket {
+func (r *setupReceiver) WaitDKGInfo() chan *drand.DKGInfoPacket {
 	return r.ch
 }
 

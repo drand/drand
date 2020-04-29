@@ -22,8 +22,8 @@ type ProtocolClient interface {
 	PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error
 	FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error)
 	ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error)
-	PrepareDKGGroup(ctx context.Context, p Peer, in *drand.PrepareDKGPacket, opts ...CallOption) error
-	PushDKGGroup(ctx context.Context, p Peer, in *drand.PushGroupPacket, opts ...grpc.CallOption) error
+	SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error
+	PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoPacket, opts ...grpc.CallOption) error
 	SetTimeout(time.Duration)
 }
 

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	bolt "github.com/coreos/bbolt"
-	"github.com/dedis/drand/dkg"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -50,7 +49,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 			//grpc.FailOnNonTempDialError(true),
 			/*grpc.WithTimeout(DefaultDialTimeout),*/
 		},
-		dkgTimeout: dkg.DefaultTimeout,
+		dkgTimeout: DefaultDKGTimeout,
 		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
