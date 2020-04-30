@@ -18,6 +18,7 @@ import (
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -258,18 +259,6 @@ func main() {
 			},
 		},
 
-		&cli.Command{
-			Name: "check",
-			Usage: "Check node at the given `ADDRESS` (you can put multiple ones)" +
-				" in the group for accessibility over the gRPC communication. If the node " +
-				" is not running behind TLS, you need to pass the tls-disable flag. You can " +
-				"also check a whole group's connectivity with the group flag.",
-			Flags: toArray(groupFlag, certsDirFlag, insecureFlag),
-			Action: func(c *cli.Context) error {
-				banner()
-				return checkConnection(c)
-			},
-		},
 		{
 			Name: "get",
 			Usage: "get allows for public information retrieval from a remote " +
@@ -318,19 +307,45 @@ func main() {
 			},
 		},
 		{
-			Name:  "ping",
-			Usage: "pings the daemon checking its state\n",
-			Flags: toArray(controlFlag),
-			Action: func(c *cli.Context) error {
-				return pingpongCmd(c)
-			},
-		},
-		{
-			Name:  "reset",
-			Usage: "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
-			Flags: toArray(folderFlag, controlFlag),
-			Action: func(c *cli.Context) error {
-				return resetCmd(c)
+			Name:  "util",
+			Usage: "Multiple commands of utility functions, such as reseting a state, checking the connection of a peer...",
+			Subcommands: []*cli.Command{
+				&cli.Command{
+					Name: "check",
+					Usage: "Check node at the given `ADDRESS` (you can put multiple ones)" +
+						" in the group for accessibility over the gRPC communication. If the node " +
+						" is not running behind TLS, you need to pass the tls-disable flag. You can " +
+						"also check a whole group's connectivity with the group flag.",
+					Flags: toArray(groupFlag, certsDirFlag, insecureFlag),
+					Action: func(c *cli.Context) error {
+						banner()
+						return checkConnection(c)
+					},
+				},
+				{
+					Name:  "ping",
+					Usage: "pings the daemon checking its state\n",
+					Flags: toArray(controlFlag),
+					Action: func(c *cli.Context) error {
+						return pingpongCmd(c)
+					},
+				},
+				{
+					Name:  "reset",
+					Usage: "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
+					Flags: toArray(folderFlag, controlFlag),
+					Action: func(c *cli.Context) error {
+						return resetCmd(c)
+					},
+				},
+				{
+					Name:  "del-beacon",
+					Usage: "Delete all beacons from the given `ROUND` number until the head of the chain. You MUST restart the daemon after that command.",
+					Flags: toArray(folderFlag),
+					Action: func(c *cli.Context) error {
+						return deleteBeaconCmd(c)
+					},
+				},
 			},
 		},
 		{
@@ -613,6 +628,43 @@ func checkConnection(c *cli.Context) error {
 	}
 	if !allGood {
 		return fmt.Errorf("Following nodes don't answer: %s", strings.Join(invalidIds, ","))
+	}
+	return nil
+}
+
+// deleteBeaconCmd deletes all beacon in the database from the given round until
+// the head of the chain
+func deleteBeaconCmd(c *cli.Context) error {
+	conf := contextToConfig(c)
+	startRoundStr := c.Args().First()
+	sr, err := strconv.Atoi(startRoundStr)
+	if err != nil {
+		return fmt.Errorf("given round not valid: %d", sr)
+	}
+	startRound := uint64(sr)
+	store, err := beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	if err != nil {
+		return fmt.Errorf("invalid bolt store creation: %s", err)
+	}
+	defer store.Close()
+	lastBeacon, err := store.Last()
+	if err != nil {
+		return fmt.Errorf("can't fetch last beacon: %s", err)
+	}
+	if startRound > lastBeacon.Round {
+		return fmt.Errorf("given round is ahead of the chain: %d", lastBeacon.Round)
+	}
+	if c.IsSet(verboseFlag.Name) {
+		fmt.Println("Planning to delete ", lastBeacon.Round-startRound, " beacons")
+	}
+	for round := startRound; round <= lastBeacon.Round; round++ {
+		err := store.Del(round)
+		if err != nil {
+			return fmt.Errorf("Error deleting round %d: %s\n", round, err)
+		}
+		if c.IsSet(verboseFlag.Name) {
+			fmt.Println("- Deleted beacon round ", round)
+		}
 	}
 	return nil
 }

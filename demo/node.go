@@ -239,7 +239,7 @@ func (n *Node) GetCokey(group string) bool {
 /*}*/
 
 func (n *Node) Ping() bool {
-	cmd := exec.Command("drand", "ping", "--control", n.ctrl)
+	cmd := exec.Command("drand", "util", "ping", "--control", n.ctrl)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		//fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.addr, err, string(out))

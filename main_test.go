@@ -14,7 +14,9 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
@@ -33,6 +35,57 @@ func TestMain(m *testing.M) {
 	}
 	code := m.Run()
 	os.Exit(code)
+}
+
+func TestDeleteBeacon(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	var opt = core.WithConfigFolder(tmp)
+	conf := core.NewConfig(opt)
+	fs.CreateSecureFolder(conf.DBFolder())
+	store, err := beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	require.NoError(t, err)
+	store.Put(&beacon.Beacon{
+		Round:     1,
+		Signature: []byte("Hello"),
+	})
+	store.Put(&beacon.Beacon{
+		Round:     2,
+		Signature: []byte("Hello"),
+	})
+	store.Put(&beacon.Beacon{
+		Round:     3,
+		Signature: []byte("Hello"),
+	})
+	store.Put(&beacon.Beacon{
+		Round:     4,
+		Signature: []byte("hello"),
+	})
+	// try to fetch round 3 and 4
+	b, err := store.Get(3)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	b, err = store.Get(4)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+
+	store.Close()
+	// that commmand should delete round 3 and 4
+	cmd := exec.Command("drand", "util", "del-beacon", "--folder", tmp, "3")
+	out, err := cmd.CombinedOutput()
+	require.NoError(t, err, string(out))
+	store, err = beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	require.NoError(t, err)
+
+	// try to fetch round 3 and 4 - it should now fail
+	b, err = store.Get(3)
+	require.Error(t, err)
+	require.Nil(t, b)
+	b, err = store.Get(4)
+	require.Error(t, err)
+	require.Nil(t, b)
+
 }
 
 func TestKeyGen(t *testing.T) {
@@ -194,7 +247,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println(" + running PING command with ", ctrlPort2)
-	ping := exec.Command("drand", "ping", "--control", ctrlPort2)
+	ping := exec.Command("drand", "util", "ping", "--control", ctrlPort2)
 	out, err = ping.CombinedOutput()
 	require.NoError(t, err, string(out))
 
@@ -226,7 +279,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	// reset state
-	resetCmd := exec.Command("drand", "reset", "--folder", tmpPath)
+	resetCmd := exec.Command("drand", "util", "reset", "--folder", tmpPath)
 	var in bytes.Buffer
 	in.WriteString("y\n")
 	resetCmd.Stdin = &in

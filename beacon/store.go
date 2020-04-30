@@ -25,9 +25,8 @@ type Store interface {
 	Last() (*Beacon, error)
 	Get(round uint64) (*Beacon, error)
 	Cursor(func(Cursor))
-	// XXX Misses a delete function
 	Close()
-	del(rount uint64)
+	Del(round uint64) error
 }
 
 // Iterate over items in sorted key order. This starts from the
@@ -163,8 +162,8 @@ func (b *boltStore) Get(round uint64) (*Beacon, error) {
 	return beacon, err
 }
 
-func (b *boltStore) del(round uint64) {
-	b.db.Update(func(tx *bolt.Tx) error {
+func (b *boltStore) Del(round uint64) error {
+	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
 		return bucket.Delete(roundToBytes(round))
 	})
