@@ -2,6 +2,8 @@ package key
 
 import (
 	bls "github.com/drand/bls12-381"
+
+	sign "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/sign/tbls"
 )
 
@@ -31,4 +33,4 @@ var Scheme = tbls.NewThresholdSchemeOnG2(Pairing)
 
 // AuthScheme is the signature scheme used during the DKG phase to authenticate
 // the deals.
-var AuthScheme = bls.NewSchemeOnG2(Pairing)
+var AuthScheme = sign.NewSchemeOnG2(Pairing)

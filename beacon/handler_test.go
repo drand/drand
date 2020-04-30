@@ -155,6 +155,7 @@ func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconT
 
 	for i := 0; i < n; i++ {
 		bt.CreateNode(i)
+		fmt.Println(" YOOLO ", i, n)
 	}
 	return bt
 }
@@ -168,50 +169,50 @@ func (b *BeaconTest) CreateNode(i int) {
 		}
 		panic("we should always get a share")
 	}
-	for _, p := range b.privs {
-		idx, _ := b.group.Index(p.Public)
-		if idx != i {
-			continue
-		}
-		node := &node{}
-		if n, ok := b.nodes[idx]; ok {
-			node = n
-		}
-		node.index = idx
-		node.private = p
-		share := findShare(idx)
-		node.shares = share
-		store, err := NewBoltStore(b.paths[idx], nil)
-		if err != nil {
-			panic(err)
-		}
-		node.clock = clock.NewFakeClockAt(b.time.Now())
-		conf := &Config{
-			Group:   b.group,
-			Private: p,
-			Share:   share,
-			Clock:   node.clock,
-		}
-
-		node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
-		checkErr(err)
-		if node.callback != nil {
-			node.handler.callbacks.AddCallback(node.callback)
-		}
-
-		if node.handler.addr != node.private.Public.Address() {
-			panic("Oh Oh")
-		}
-
-		currSig, err := key.Scheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
-		checkErr(err)
-		sigIndex, _ := key.Scheme.IndexOf(currSig)
-		if sigIndex != idx {
-			panic("invalid index")
-		}
-		b.nodes[idx] = node
-		fmt.Printf("\n NODE index %d --> Listens on %s || Clock pointer %p\n", idx, p.Public.Address(), b.nodes[idx].handler.conf.Clock)
+	priv := b.privs[i]
+	knode := b.group.Find(priv.Public)
+	if knode == nil {
+		panic("we should always get a private key")
 	}
+	idx := int(knode.Index)
+	node := &node{}
+	if n, ok := b.nodes[idx]; ok {
+		node = n
+	}
+	node.index = idx
+	node.private = priv
+	share := findShare(idx)
+	node.shares = share
+	store, err := NewBoltStore(b.paths[idx], nil)
+	if err != nil {
+		panic(err)
+	}
+	node.clock = clock.NewFakeClockAt(b.time.Now())
+	conf := &Config{
+		Group:  b.group,
+		Public: knode,
+		Share:  share,
+		Clock:  node.clock,
+	}
+
+	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
+	checkErr(err)
+	if node.callback != nil {
+		node.handler.callbacks.AddCallback(node.callback)
+	}
+
+	if node.handler.addr != node.private.Public.Address() {
+		panic("Oh Oh")
+	}
+
+	currSig, err := key.Scheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
+	checkErr(err)
+	sigIndex, _ := key.Scheme.IndexOf(currSig)
+	if sigIndex != idx {
+		panic("invalid index")
+	}
+	b.nodes[idx] = node
+	fmt.Printf("\n NODE index %d --> Listens on %s || Clock pointer %p\n", idx, priv.Public.Address(), b.nodes[idx].handler.conf.Clock)
 	for i, n := range b.nodes {
 		for j, n2 := range b.nodes {
 			if i == j {
@@ -350,7 +351,9 @@ func TestBeaconSync(t *testing.T) {
 
 	var genesisOffset = 2 * time.Second
 	var genesisTime int64 = clock.NewFakeClock().Now().Add(genesisOffset).Unix()
+	fmt.Println(" HERE TEST 10")
 	bt := NewBeaconTest(n, thr, period, genesisTime)
+	fmt.Println(" HERE TEST 11")
 	defer bt.CleanUp()
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) func(*Beacon) {
@@ -367,11 +370,14 @@ func TestBeaconSync(t *testing.T) {
 		checkWait(counter)
 	}
 
+	fmt.Println(" HERE TEST")
 	for i := 0; i < n; i++ {
 		bt.CallbackFor(i, myCallBack(i))
 		bt.ServeBeacon(i)
 	}
+	fmt.Println(" HERE TEST 2")
 	bt.StartBeacons(n)
+	fmt.Println(" HERE TEST 3")
 
 	// move clock to genesis time
 	fmt.Printf("\n\n --- BEFORE GENESIS --- \n\n")

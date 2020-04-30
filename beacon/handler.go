@@ -26,13 +26,17 @@ import (
 // Config holds the different cryptographc informations necessary to run the
 // randomness beacon.
 type Config struct {
-	// XXX Think of removing uncessary access to keypair - only given for index
-	Private        *key.Pair
-	Share          *key.Share
-	Group          *key.Group
-	Clock          clock.Clock
-	WaitBeforeSend time.Duration
-	Callback       func(*Beacon)
+	// Public key of this node
+	Public *key.Node
+	// Share of this node in the network
+	Share *key.Share
+	// Group listing all nodes and public key of the network
+	Group *key.Group
+	// Clock to use - useful to testing
+	Clock clock.Clock
+	// Callback to use when a new beacon is created - can be nil and new
+	// callbacks can be added afterwards to the beacon
+	Callback func(*Beacon)
 }
 
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
@@ -59,18 +63,20 @@ type Handler struct {
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
 func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Handler, error) {
-	if conf.Private == nil || conf.Share == nil || conf.Group == nil {
+	if conf.Share == nil || conf.Group == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}
-	idx, exists := conf.Group.Index(conf.Private.Public)
-	if !exists {
+	// Checking we are in the group
+	node := conf.Group.Find(conf.Public.Identity)
+	if node == nil {
 		return nil, errors.New("beacon: keypair not included in the given group")
 	}
-	addr := conf.Private.Public.Address()
+	idx := node.Index
+	addr := conf.Public.Address()
 	// XXX change logging because of resharing
 	logger := l.With("index", idx)
 	safe := newCryptoSafe()
-	safe.SetInfo(conf.Share, conf.Private.Public, conf.Group)
+	safe.SetInfo(conf.Share, node, conf.Group)
 	// genesis block at round 0, next block at round 1
 	// THIS is to change when one network wants to build on top of another
 	// network's chain. Note that if present it overwrites.
@@ -133,8 +139,8 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, err
 	}
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if idx == info.idx {
-		h.l.Error("process_partial", addr, "same_index", "got", idx, "our", info.idx, "inadvance_packet?")
+	if uint32(idx) == info.id.Index {
+		h.l.Error("process_partial", addr, "same_index", "got", idx, "our", info.id.Index, "inadvance_packet?")
 		return new(proto.Empty), nil
 	}
 	h.chain.NewValidPartial(peer.Addr.String(), p)
@@ -195,7 +201,7 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 		return nil
 	}
 
-	h.safe.SetInfo(nil, h.conf.Private.Public, prevGroup)
+	h.safe.SetInfo(nil, h.conf.Public, prevGroup)
 	go h.run(targetTime)
 	h.chain.RunSync(context.Background())
 	return nil
@@ -213,7 +219,7 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 	}
-	h.safe.SetInfo(newShare, h.conf.Private.Public, newGroup)
+	h.safe.SetInfo(newShare, h.conf.Public, newGroup)
 }
 
 // run will wait until it is supposed to start
@@ -314,7 +320,7 @@ func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 				}
 				return
 			}
-		}(id)
+		}(id.Identity)
 	}
 }
 
@@ -362,8 +368,8 @@ func shortSigStr(sig []byte) string {
 	return hex.EncodeToString(sig[0:max])
 }
 
-func shuffleNodes(nodes []*key.Identity) []*key.Identity {
-	ids := make([]*key.Identity, 0, len(nodes))
+func shuffleNodes(nodes []*key.Node) []*key.Node {
+	ids := make([]*key.Node, 0, len(nodes))
 	for _, id := range nodes {
 		ids = append(ids, id)
 	}
@@ -375,9 +381,8 @@ type cryptoInfo struct {
 	group   *key.Group
 	share   *key.Share
 	pub     *share.PubPoly
-	idx     int
 	startAt uint64
-	id      *key.Identity
+	id      *key.Node
 }
 
 type cryptoSafe struct {
@@ -389,7 +394,7 @@ func newCryptoSafe() *cryptoSafe {
 	return &cryptoSafe{}
 }
 
-func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Identity, group *key.Group) {
+func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Node, group *key.Group) {
 	c.Lock()
 	defer c.Unlock()
 	info := new(cryptoInfo)
@@ -397,7 +402,6 @@ func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Identity, group *key.Grou
 	info.group = group
 	info.pub = group.PublicKey.PubPoly()
 	if share != nil {
-		info.idx = share.Share.I
 		info.share = share
 	}
 	if group.TransitionTime != 0 {

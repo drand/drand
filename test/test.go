@@ -7,6 +7,7 @@ import (
 	n "net"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -108,7 +109,7 @@ func GenerateIDs(n int) []*key.Pair {
 func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
-	group := key.LoadGroup(ListFromPrivates(privs), &key.DistPublic{Coefficients: []kyber.Point{fakeKey}}, key.DefaultThreshold(n))
+	group := key.LoadGroup(ListFromPrivates(privs), 1, &key.DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0)
 	return privs, group
 }
 
@@ -122,11 +123,14 @@ func BatchTLSIdentities(n int) ([]*key.Pair, *key.Group) {
 }
 
 // ListFromPrivates returns a list of Identity from a list of Pair keys.
-func ListFromPrivates(keys []*key.Pair) []*key.Identity {
+func ListFromPrivates(keys []*key.Pair) []*key.Node {
 	n := len(keys)
-	list := make([]*key.Identity, n, n)
+	list := make([]*key.Node, n, n)
 	for i := range keys {
-		list[i] = keys[i].Public
+		list[i] = &key.Node{
+			Index:    uint32(i),
+			Identity: keys[i].Public,
+		}
 	}
 	return list
 
