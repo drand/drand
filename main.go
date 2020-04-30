@@ -506,7 +506,7 @@ func keygenCmd(c *cli.Context) error {
 		addr = addr + ":" + askPort()
 	}
 	var priv *key.Pair
-	if c.IsSet(insecureFlag.Name) {
+	if c.Bool(insecureFlag.Name) {
 		fmt.Println("Generating private / public key pair without TLS.")
 		priv = key.NewKeyPair(addr)
 	} else {
