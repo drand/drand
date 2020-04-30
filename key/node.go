@@ -34,7 +34,7 @@ func (n *Node) Equal(n2 *Node) bool {
 }
 
 func (n *Node) TOML() interface{} {
-	return NodeTOML{
+	return &NodeTOML{
 		PublicTOML: n.Identity.TOML().(*PublicTOML),
 		Index:      n.Index,
 	}

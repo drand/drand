@@ -26,12 +26,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	DefaultSyncTime = 3 * time.Second
-}
-
 var testBeaconOffset = int((2 * time.Second).Seconds())
-var testDkgTimeout = "2s"
+var testDkgTimeout = 2 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
@@ -73,8 +69,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	newN := 4
 	oldThr := 3
 	newThr := 3
-	timeoutStr := "1s"
-	timeout, _ := time.ParseDuration(timeoutStr)
+	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 	offline := 1
 
@@ -98,12 +93,9 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group)
 	go func() {
-		group := dt.RunReshare(toKeep, toAdd, timeoutStr)
+		group := dt.RunReshare(toKeep, toAdd, uint32(timeout.Seconds()))
 		doneReshare <- group
 	}()
-	fmt.Printf("\n ---- Sleeping to let time to DKG to setup ---\n")
-	time.Sleep(DefaultSyncTime)
-	time.Sleep(getSleepDuration())
 	// advance time to the timeout
 	fmt.Printf("\n -- Move to timeout time !! -- \n")
 	dt.MoveTime(timeout)
@@ -192,7 +184,7 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
 
 	d.newIds = newAddr
 
-	d.newGroup = key.NewGroup(ids, newThr, d.group.GenesisTime)
+	d.newGroup = key.NewGroup(ids, newThr, d.group.GenesisTime, d.period)
 	d.newGroup.Period = d.period
 	//d.newGroup.TransitionTime = transitionTime
 	d.newGroup.GenesisSeed = d.group.GenesisSeed
@@ -202,7 +194,7 @@ func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
 	return newAddr
 }
 
-func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
+func (d *DrandTest) RunReshare(oldRun, newRun int, timeout uint32) *key.Group {
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.drands), newRun, len(d.newIds))
 	var clientCounter = &sync.WaitGroup{}
 	var secret = "thisistheresharing"
@@ -212,7 +204,7 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
 	var oldLeaving []string
 	for _, id := range d.ids {
 		drand := d.drands[id]
-		if d.newGroup.Contains(drand.priv.Public) {
+		if node := d.newGroup.Find(drand.priv.Public); node == nil {
 			oldNodes = append(oldNodes, drand.priv.Public.Address())
 		} else {
 			oldLeaving = append(oldLeaving, id)
@@ -247,11 +239,11 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
 	// leader and then the leader will answer back with the new group
 	groupCh := make(chan *key.Group, 1)
 	go func() {
-		idx, found := d.newGroup.Index(leader.priv.Public)
-		if !found {
+		node := d.newGroup.Find(leader.priv.Public)
+		if node == nil {
 			panic("leader not found")
 		}
-		fmt.Printf("Launching reshare on (old) root %d - %s\n", idx, oldNodes[0])
+		fmt.Printf("Launching reshare on (old) root %d - %s\n", node.Index, oldNodes[0])
 		client, err := net.NewControlClient(leader.opts.controlPort)
 		require.NoError(d.t, err)
 		finalGroup, err := client.InitReshareLeader(d.newGroup.Len(), d.newGroup.Threshold, timeout, secret, d.groupPath, testBeaconOffset)
@@ -271,11 +263,11 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
 	clientCounter.Add(oldRun - 1)
 	for _, id := range oldNodes[1:oldRun] {
 		dr := d.drands[id]
-		idx, found := d.newGroup.Index(dr.priv.Public)
-		if !found {
+		node := d.newGroup.Find(dr.priv.Public)
+		if node == nil {
 			panic("old drand not found")
 		}
-		fmt.Printf("Launching reshare on old %d - %s\n", idx, id)
+		fmt.Printf("Launching reshare on old %d - %s\n", node.Index, id)
 		go runreshare(dr)
 		allIds = append(allIds, id)
 	}
@@ -284,11 +276,11 @@ func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
 	clientCounter.Add(newRun)
 	for _, id := range d.newIds[:newRun] {
 		dr := d.newDrands[id]
-		idx, found := d.newGroup.Index(dr.priv.Public)
-		if !found {
+		node := d.newGroup.Find(dr.priv.Public)
+		if node == nil {
 			panic("new drand not found")
 		}
-		fmt.Printf("Launching reshare on new  %d - %s\n", idx, id)
+		fmt.Printf("Launching reshare on new  %d - %s\n", node.Index, id)
 		go runreshare(dr)
 		allIds = append(allIds, id)
 	}
@@ -360,7 +352,7 @@ func (d *DrandTest) RunDKG() *key.Group {
 	require.NoError(d.t, err)
 	// first run the leader and then run the other nodes
 	go func() {
-		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, testDkgTimeout, nil, secret, testBeaconOffset)
+		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, uint32(testDkgTimeout.Seconds()), nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
 		g, err := ProtoToGroup(finalGroup)
 		if err != nil {
@@ -379,7 +371,7 @@ func (d *DrandTest) RunDKG() *key.Group {
 		go func(dd *Drand) {
 			client, err := net.NewControlClient(dd.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(leaderAddr, d.group.Len(), d.group.Threshold, testDkgTimeout, nil, secret)
+			_, err = client.InitDKG(leaderAddr, d.group.Len(), d.group.Threshold, uint32(testDkgTimeout.Seconds()), nil, secret)
 			require.NoError(d.t, err)
 			wg.Done()
 			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", dd.priv.Public.Address())
@@ -397,7 +389,7 @@ func (d *DrandTest) RunDKG() *key.Group {
 	d.group = group
 	require.Equal(d.t, d.thr, d.group.Threshold)
 	for _, drand := range d.drands {
-		require.True(d.t, d.group.Contains(drand.priv.Public))
+		require.NotNil(d.t, d.group.Find(drand.priv.Public))
 	}
 	fmt.Println("group:", d.group.String())
 	require.Len(d.t, d.group.PublicKey.Coefficients, d.thr)

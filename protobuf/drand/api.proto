@@ -122,10 +122,3 @@ message HomeRequest {
 message HomeResponse {
     string status = 1;
 }
-
-// Node represents the information about a drand's node
-message Node {
-    string address = 1;
-    string key = 2; // public key of the node
-    bool TLS = 3;
-}

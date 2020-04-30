@@ -14,38 +14,70 @@ import (
 	"google.golang.org/grpc/peer"
 )
 
+// dkgInfo is a simpler wrapper that keeps the relevant config and logic
+// necessary during the DKG protocol.
 type dkgInfo struct {
-	target *key.Group
-	board  *dkgBoard
-	phaser *dkg.Phaser
-	conf   *dkg.Config
-	proto  *dkg.Protocol
+	target  *key.Group
+	board   *dkgBoard
+	phaser  *dkg.TimePhaser
+	conf    *dkg.Config
+	proto   *dkg.Protocol
+	started bool
 }
 
 // dkgBoard is a struct that implements a dkg.Board: it is the interface between
 // the network and the crypto library whose main taks is to convert dkg packets
 // from/to protobuf structures and send/receive packets from network.
 type dkgBoard struct {
-	l      log.Logger
-	dealCh chan *dkg.AuthDealBundle
-	respCh chan *dkg.AuthResponseBundle
-	justCh chan *dkg.AuthJustifBundle
-	client net.ProtocolClient
+	l         log.Logger
+	dealCh    chan dkg.AuthDealBundle
+	respCh    chan dkg.AuthResponseBundle
+	justCh    chan dkg.AuthJustifBundle
+	client    net.ProtocolClient
+	nodes     []*key.Node
+	isReshare bool
 }
 
-func newBoard(l log.Logger, client net.ProtocolClient) *dkgBoard {
+// newBoard is to be used when starting a new DKG protocol from scratch
+func newBoard(l log.Logger, client net.ProtocolClient, group *key.Group) *dkgBoard {
+	return initBoard(l, client, group.Nodes)
+}
+
+func initBoard(l log.Logger, client net.ProtocolClient, nodes []*key.Node) *dkgBoard {
 	return &dkgBoard{
 		l:      l,
-		dealCh: make(chan *dkg.AuthDealBundle, 10),
-		respCh: make(chan *dkg.AuthResponseBundle, 10),
-		justCh: make(chan *dkg.AuthJustifBundle, 10),
+		dealCh: make(chan dkg.AuthDealBundle, len(nodes)),
+		respCh: make(chan dkg.AuthResponseBundle, len(nodes)),
+		justCh: make(chan dkg.AuthJustifBundle, len(nodes)),
 		client: client,
 		nodes:  nodes,
 	}
 }
 
-func newReshareBoard(l log.Logger, client net.ProtocolClient, nodes []*key.Identity) *dkgBoard {
-	board := newBoard(l, client, nodes)
+// newReshareBoard is to be used when running a resharing protocol
+func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup *key.Group) *dkgBoard {
+	// takes all nodes and new nodes, without duplicates
+	var nodes []*key.Node
+	tryAppend := func(n *key.Node) {
+		var found bool
+		for _, seen := range nodes {
+			if seen.Equal(n) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			nodes = append(nodes, n)
+		}
+	}
+	for _, n := range oldGroup.Nodes {
+		tryAppend(n)
+	}
+	for _, n := range newGroup.Nodes {
+		tryAppend(n)
+	}
+
+	board := initBoard(l, client, nodes)
 	board.isReshare = true
 	return board
 }
@@ -58,39 +90,37 @@ func (b *dkgBoard) ReshareDKG(c context.Context, p *proto.ResharePacket) (*proto
 	return new(proto.Empty), b.dispatch(c, p.Dkg)
 }
 
-func (b *dkgBoard) PushDeals(bundle AuthDealBundle) {
+func (b *dkgBoard) PushDeals(bundle dkg.AuthDealBundle) {
 	pdeal := dealToProto(&bundle)
 	go b.broadcastPacket(pdeal)
 }
 
-func (b *dkgBoard) PushResponses(bundle AuthResponseBundle) {
+func (b *dkgBoard) PushResponses(bundle dkg.AuthResponseBundle) {
 	presp := respToProto(&bundle)
 	go b.broadcastPacket(presp)
 }
 
-func (b *dkgBoard) PushJustifications(bundle AuthJustifBundle) {
-	pjust := justToProto(&bundle)
+func (b *dkgBoard) PushJustifications(bundle dkg.AuthJustifBundle) {
+	pjust := justifToProto(&bundle)
 	go b.broadcastPacket(pjust)
 }
 
-func (b *dkgBoard) dispatch(c context.Context, p *pdkg.Packet) {
+func (b *dkgBoard) dispatch(c context.Context, p *pdkg.Packet) error {
 	var addr = "unknown"
 	peer, ok := peer.FromContext(c)
 	if ok {
 		addr = peer.Addr.String()
 	}
 	var err error
-	switch bundle := p.GetBundle().(type) {
+	switch packet := p.GetBundle().(type) {
 	case *pdkg.Packet_Deal:
-		err = b.dispatchDeal(addr, bundle, p.GetSignature())
+		err = b.dispatchDeal(addr, packet.Deal, p.GetSignature())
 	case *pdkg.Packet_Response:
-		err = b.dispatchResponse(addr, bundle, p.GetSignature())
+		b.dispatchResponse(addr, packet.Response, p.GetSignature())
 	case *pdkg.Packet_Justification:
-		err = b.dispatchJustification(addr, bundle, p.GetSignature())
-	case nil:
-		fallthrough
+		err = b.dispatchJustification(addr, packet.Justification, p.GetSignature())
 	default:
-		b.l.Debug("board", "invalid_packet", "from", addr)
+		b.l.Debug("board", "invalid_packet", "from", addr, "packet", fmt.Sprintf("%+v", p))
 		err = errors.New("invalid_packet")
 	}
 	return err
@@ -102,35 +132,49 @@ func (b *dkgBoard) dispatchDeal(p string, d *pdkg.DealBundle, sig []byte) error 
 		b.l.Debug("board", "invalid_deal", "from", p, "err", err)
 		return fmt.Errorf("invalid deal: %s", err)
 	}
-	authBundle := &dkg.AuthDealBundle{
+	authBundle := dkg.AuthDealBundle{
 		Bundle:    bundle,
 		Signature: sig,
 	}
 	b.l.Debug("board", "received_deal", "from", p, "dealer_index", bundle.DealerIndex)
 	b.dealCh <- authBundle
+	return nil
 }
 
-func (b *dkgBoard) dispatchResponse(p string, b *pdkg.ResponseBundle, sig []byte) {
-	authBundle := &dkg.AuthResponseBundle{
-		Bundle:    protoToResp(b),
+func (b *dkgBoard) dispatchResponse(p string, r *pdkg.ResponseBundle, sig []byte) {
+	authBundle := dkg.AuthResponseBundle{
+		Bundle:    protoToResp(r),
 		Signature: sig,
 	}
-	b.l.Debug("board", "received_responses", "from", p, "share_index", bundle.ShareIndex)
+	b.l.Debug("board", "received_responses", "from", p, "share_index", authBundle.Bundle.ShareIndex)
 	b.respCh <- authBundle
 }
 
-func (b *dkgBoard) dispatchJustification(p string, b *pdkg.JustifBundle, sig []byte) error {
-	bundle, err := protoToJustif(b)
+func (b *dkgBoard) dispatchJustification(p string, j *pdkg.JustifBundle, sig []byte) error {
+	bundle, err := protoToJustif(j)
 	if err != nil {
 		b.l.Debug("board", "invalid_justif", "from", p, "err", err)
 		return fmt.Errorf("invalid justif: %s", err)
 	}
-	authBundle := &dkg.AuthJustifBundle{
+	authBundle := dkg.AuthJustifBundle{
 		Bundle:    bundle,
 		Signature: sig,
 	}
-	b.l.Debug("board", "received_justifications", "from", p, "dealer_index", bundle.DealerIndex)
+	b.l.Debug("board", "received_justifications", "from", p, "dealer_index", authBundle.Bundle.DealerIndex)
 	b.justCh <- authBundle
+	return nil
+}
+
+func (b *dkgBoard) IncomingDeal() <-chan dkg.AuthDealBundle {
+	return b.dealCh
+}
+
+func (b *dkgBoard) IncomingResponse() <-chan dkg.AuthResponseBundle {
+	return b.respCh
+}
+
+func (b *dkgBoard) IncomingJustification() <-chan dkg.AuthJustifBundle {
+	return b.justCh
 }
 
 // broadcastPacket broads the given packet to ALL nodes in the list of ids he's
@@ -140,11 +184,11 @@ func (b *dkgBoard) dispatchJustification(p string, b *pdkg.JustifBundle, sig []b
 // if required.
 func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet) {
 	if b.isReshare {
-		packet := proto.ResharePacket{
+		rpacket := &proto.ResharePacket{
 			Dkg: packet,
 		}
-		for _node := range b.nodes {
-			err := b.client.ReshareDKG(context.Backgroun(), id, packet)
+		for _, node := range b.nodes {
+			_, err := b.client.ReshareDKG(context.Background(), node, rpacket)
 			if err != nil {
 				b.l.Debug("board_reshare", "broadcast_packet", "to", node.Address(), "err", err)
 				continue
@@ -152,11 +196,11 @@ func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet) {
 			b.l.Debug("board_reshare", "broadcast_packet", "to", node.Address(), "success")
 		}
 	} else {
-		packet := proto.DKGPacket{
+		rpacket := &proto.DKGPacket{
 			Dkg: packet,
 		}
 		for _, node := range b.nodes {
-			err := b.client.FreshDKG(context.Background(), id, packet)
+			_, err := b.client.FreshDKG(context.Background(), node, rpacket)
 			if err != nil {
 				b.l.Debug("board", "broadcast_packet", "to", node.Address(), "err", err)
 				continue

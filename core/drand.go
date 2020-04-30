@@ -136,13 +136,17 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 // private share. These should be loadable by the store.
 func (d *Drand) WaitDKG() (*key.Group, error) {
 	d.state.Lock()
-	waitCh := d.dkgInfo.WaitEnd()
+	if d.dkgInfo == nil {
+		d.state.Unlock()
+		return nil, errors.New("no dkg info set")
+	}
+	waitCh := d.dkgInfo.proto.WaitEnd()
 	d.state.Unlock()
 
 	d.log.Debug("dkg_start", time.Now().String())
 	res := <-waitCh
-	if res.Error {
-		return nil, fmt.Errorf("drand: error from dkg: %v", err)
+	if res.Error != nil {
+		return nil, fmt.Errorf("drand: error from dkg: %v", res.Error)
 	}
 
 	d.state.Lock()
@@ -150,14 +154,14 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	// filter the nodes that are not present in the target group
 	var qualNodes []*key.Node
 	for _, node := range d.dkgInfo.target.Nodes {
-		for _, qualNode := range res.QUAL {
+		for _, qualNode := range res.Result.QUAL {
 			if qualNode.Index == node.Index {
 				qualNodes = append(qualNodes, node)
 			}
 		}
 	}
 
-	s := Share(res.Key)
+	s := key.Share(*res.Result.Key)
 	d.share = &s
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
@@ -275,17 +279,24 @@ func (d *Drand) isDKGDone() bool {
 }
 
 func (d *Drand) newBeacon() (*beacon.Handler, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
 	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {
 		return nil, err
 	}
 
+	pub := d.priv.Public
+	node := d.group.Find(pub)
+	if node == nil {
+		return nil, errors.New("public key not found in group")
+	}
 	conf := &beacon.Config{
-		Group:   d.group,
-		Private: d.priv,
-		Share:   d.share,
-		Clock:   d.opts.clock,
+		Public: node,
+		Group:  d.group,
+		Share:  d.share,
+		Clock:  d.opts.clock,
 	}
 	beacon, err := beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)
 	if err != nil {

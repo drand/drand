@@ -67,6 +67,19 @@ func (g *Group) Node(i Index) *Node {
 	return nil
 }
 
+// DKGNodes return the slice of nodes of this group that is consumable by the
+// dkg library: only the public key and index are used.
+func (g *Group) DKGNodes() []dkg.Node {
+	dnodes := make([]dkg.Node, len(g.Nodes))
+	for i, node := range g.Nodes {
+		dnodes[i] = dkg.Node{
+			Index:  node.Index,
+			Public: node.Identity.Key,
+		}
+	}
+	return dnodes
+}
+
 func (g *Group) Hash() []byte {
 	h := hashFunc()
 	// all nodes public keys and positions
@@ -152,7 +165,7 @@ func (g *Group) Equal(g2 *Group) bool {
 type GroupTOML struct {
 	Threshold      int
 	Period         string
-	Nodes          []*PublicTOML
+	Nodes          []*NodeTOML
 	GenesisTime    int64
 	TransitionTime int64           `toml:omitempty`
 	GenesisSeed    string          `toml:omitempty`
@@ -208,9 +221,9 @@ func (g *Group) TOML() interface{} {
 	gtoml := &GroupTOML{
 		Threshold: g.Threshold,
 	}
-	gtoml.Nodes = make([]*PublicTOML, g.Len())
-	for i, p := range g.Nodes {
-		gtoml.Nodes[i] = p.TOML().(*PublicTOML)
+	gtoml.Nodes = make([]*NodeTOML, g.Len())
+	for i, n := range g.Nodes {
+		gtoml.Nodes[i] = n.TOML().(*NodeTOML)
 	}
 
 	if g.PublicKey != nil {
@@ -240,7 +253,8 @@ func (g *Group) TOMLValue() interface{} {
 }
 
 // NewGroup returns a group from the given information to be used as a new group
-// in a setup or resharing phase.
+// in a setup or resharing phase. Every identity is map to a Node struct whose
+// index is the position in the list of identity.
 func NewGroup(list []*Identity, threshold int, genesis int64, period time.Duration) *Group {
 	return &Group{
 		Nodes:       copyAndSort(list),

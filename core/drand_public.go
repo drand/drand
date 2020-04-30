@@ -23,7 +23,16 @@ func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, 
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
-	d.dkgInfo.board.FreshDKG(c, in.Dkg)
+	p, ok := peer.FromContext(c)
+	addr := "<unknown>"
+	if ok {
+		addr = p.Addr.String()
+	}
+	if !d.dkgInfo.started {
+		d.log.Info("init_dkg", "start", "signal_leader", addr)
+		go d.dkgInfo.phaser.Start()
+	}
+	d.dkgInfo.board.FreshDKG(c, in)
 	return new(drand.Empty), nil
 }
 
@@ -35,8 +44,17 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg setup yet")
 	}
+	p, ok := peer.FromContext(c)
+	addr := "<unknown>"
+	if ok {
+		addr = p.Addr.String()
+	}
+	if !d.dkgInfo.started {
+		d.log.Info("init_reshare", "start", "signal_leader", addr)
+		go d.dkgInfo.phaser.Start()
+	}
 
-	d.dkgInfo.board.ReshareDKG(c, in.Dkg)
+	d.dkgInfo.board.ReshareDKG(c, in)
 	return new(drand.Empty), nil
 }
 
@@ -187,7 +205,7 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 	return groupToProto(d.group), nil
 }
 
-func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.Empty, error) {
+func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.manager == nil {
