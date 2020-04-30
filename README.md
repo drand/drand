@@ -294,6 +294,16 @@ Although we **do not recommend** it, you can always disable TLS in drand via:
 drand start --tls-disable
 ```
 
+#### Test the connection to a node
+
+In order to test if your node is reachable from the internet and your setup is
+correct, you can run the following command:
+```
+drand util check <address>
+```
+where address is the address as listed in the public key. If you disabled TLS,
+you need to add the `--tls-disable` flag.
+
 #### Run the setup phase
 
 To setup a new network, drand uses the notion the of a coordinator that collects

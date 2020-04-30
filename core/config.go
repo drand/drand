@@ -141,6 +141,11 @@ func WithBoltOptions(opts *bolt.Options) ConfigOption {
 	}
 }
 
+// BoltOptions returns the options given to the bolt db
+func (c *Config) BoltOptions() *bolt.Options {
+	return c.boltOpts
+}
+
 // WithDbFolder sets the path folder for the db file. This path is NOT relative
 // to the DrandFolder path if set.
 func WithDbFolder(folder string) ConfigOption {
