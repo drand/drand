@@ -79,7 +79,7 @@ func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
-// H ( prevRound || prevSig || currRound)
+// H ( prevSig || currRound)
 func Message(currRound uint64, prevSig []byte) []byte {
 	var buff bytes.Buffer
 	buff.Write(prevSig)
