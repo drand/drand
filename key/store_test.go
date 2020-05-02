@@ -43,7 +43,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, group.Threshold, loadedGroup.Threshold)
 	// TODO remove that ordering thing it's useless
-	for _, lid := range loadedGroup.Identities() {
+	for _, lid := range loadedGroup.Nodes {
 		var found bool
 		for _, k := range ps {
 			if lid.Addr != k.Public.Addr {

@@ -217,8 +217,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	priv.Public.TLS = false
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
-	group.Nodes[0] = priv.Public
-	group.Nodes[1] = priv.Public
+	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
+	group.Nodes[1] = &key.Node{Identity: priv.Public, Index: 1}
 	groupPath := path.Join(tmpPath, "drand_group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 	// save it also to somewhere drand will find it
@@ -330,7 +330,7 @@ func TestClientTLS(t *testing.T) {
 
 	// fake group
 	_, group := test.BatchTLSIdentities(5)
-	group.Nodes[0] = priv.Public
+	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
 	group.Period = 2 * time.Minute
 	groupPath = path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
 	fs.SaveGroup(group)

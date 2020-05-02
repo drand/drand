@@ -29,45 +29,31 @@ const DefaultBeaconPeriod time.Duration = 1 * time.Minute
 // DefaultControlPort is the default port the functionnality control port communicate on.
 const DefaultControlPort = "8888"
 
-// DefaultDKGTimeout is the time the DKG timeouts by default. See
-// kyber/share/dkg/pedersen for more information.
-const DefaultDKGTimeout = "1m"
+// DefaultDKGTimeout is the default time of each DKG period by default. Note
+// that by default, DKG uses the "fast sync" mode that shorten the first phase
+// and the second phase, "as fast as possible" when the protocol runs smoothly
+// (there is no malicious party).
+const DefaultDKGTimeout = 10 * time.Second
 
 // DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
 var DefaultDialTimeout = 10 * time.Second
 
 // RandomnessHash is the hash function used to produce the final randomness from
-// the signature
+// the signature. NOTE: this is a proposition by drand but user can choose any
+// secure hash function to derive the final randomness from the sig:
+// rand = H(sig)
 var RandomnessHash = sha256.New
-
-// DefaultWaitTime is the time beacon nodes wait before asking other nodes for
-// partial signature. Because time shifts can happen
-var DefaultWaitTime = 300 * time.Millisecond
-
-// DefaultBeaconOffset is the default minimum time to wait form the time the DKG
-// is launched to the time the beacon chain starts.
-var DefaultBeaconOffset = time.Duration(2*60) * time.Second
 
 // MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
 // can take. If the setup is still not finished after this time, it is
 // cancelled.
 var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 
-// DefaultSyncTime is the time the leader waits after sending the group file to
-// all participants. It gives a bit of time to make sure every node has received
-// the group file and launched their DKG. Since it is not a time critical
-// process, we can afford to wait here.
-var DefaultSyncTime = 5 * time.Second
-
-// DefaultPushDKGTimeout is the time the leader waits for when pushing the
-// packet
-var DefaultPushDKGTimeout = 1 * time.Minute
-
-// DefaultGenesisOffset is the time that the leader adds to the current time
-// to compute the genesis time. It computes the genesis time *before* sending
-// the group to the nodes and before running the DKG so it must be sufficiently
-// high enough (at the very least superior than DefaultSyncTime + dkg timeout).
-var DefaultGenesisOffset = 2 * time.Minute
+// DefaultGenesisOffset is the time that the leader adds to the current time to
+// compute the genesis time. It computes the genesis time *before* sending the
+// group to the nodes and before running the DKG so it must be sufficiently high
+// enough (at the very least superior than the time DKG is taking).
+var DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(3)
 
 // DefaultResharingOff is the time the leader adds to the current time to set
 // the TransitionTime field in the group file when setting up a resharing. This
@@ -76,6 +62,7 @@ var DefaultGenesisOffset = 2 * time.Minute
 var DefaultResharingOffset = 30 * time.Second
 
 // Keep the most recents beacons
+// XXX unused for now
 var DefaultBeaconCacheLength = 10
 
 // IDs for callback when beacon appears

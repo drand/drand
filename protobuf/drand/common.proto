@@ -11,16 +11,24 @@ option go_package = "drand";
 message Empty {
 
 }
-// Identity holds the necessary information to contact a drand node
+
 message Identity {
     string address = 1;
     bytes key = 2;
     bool tls = 3;
 }
 
-// GroupPacket represents a group 
+// Node holds the information related to a server in a group that forms a drand
+// network
+message Node {
+    Identity public = 1;
+    uint32 index = 2;
+}
+
+// GroupPacket represents a group that is running a drand network (or is in the
+// process of creating one or performing a resharing).
 message GroupPacket {
-    repeated Identity nodes = 1; 
+    repeated Node nodes = 1; 
     uint32 threshold = 2;
     // period in seconds
     uint32 period = 3;

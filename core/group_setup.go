@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sync"
@@ -51,7 +52,7 @@ type setupManager struct {
 
 	isResharing bool
 	oldGroup    *key.Group
-	oldHash     string
+	oldHash     []byte
 
 	startDKG  chan *key.Group
 	pushKeyCh chan pushKey
@@ -106,16 +107,13 @@ func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGr
 	}
 
 	sm.oldGroup = oldGroup
-	hash, err := oldGroup.Hash()
-	if err != nil {
-		return nil, err
-	}
-	sm.oldHash = hash
+	sm.oldHash = oldGroup.Hash()
 	sm.isResharing = true
 	offset := time.Duration(in.GetInfo().GetBeaconOffset()) * time.Second
 	if offset == 0 {
 		offset = DefaultResharingOffset
 	}
+	sm.beaconOffset = offset
 	return sm, nil
 }
 
@@ -129,7 +127,7 @@ type pushKey struct {
 // receiver.DoneCh to notify the setup manager the group is sent. This last
 // channel is to make sure the group is sent to every registered participants
 // before notifying the leader to start the dkg.
-func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) error {
+func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
 	// verify informations are correct
@@ -150,7 +148,7 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.PrepareDKGPacket) error
 		return errors.New("shared secret is incorrect")
 	}
 	if s.isResharing {
-		if s.oldHash != p.GetPreviousGroupHash() {
+		if !bytes.Equal(s.oldHash, p.GetPreviousGroupHash()) {
 			return errors.New("inconsistent previous group hash")
 		}
 	}
@@ -229,18 +227,17 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
 		genesis = genesis + (ps - genesis%ps)
-		group = key.NewGroup(keys, s.thr, genesis)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)
 	} else {
 		genesis := s.oldGroup.GenesisTime
 		atLeast := s.clock.Now().Add(s.beaconOffset).Unix()
 		// transitionning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := beacon.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
-		group = key.NewGroup(keys, s.thr, genesis)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
-	group.Period = s.beaconPeriod
 	s.l.Debug("setup", "created_group")
 	fmt.Printf("Generated group:\n%s\n", group.String())
 	// signal the leader it's ready to run the DKG
@@ -261,41 +258,40 @@ func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Dura
 	n = int(in.GetNodes())
 	thr = int(in.GetThreshold())
 	if thr < key.MinimumT(n) {
-		err = fmt.Errorf("invalid thr: need %d got %d", thr, key.MinimumT(n))
+		err = fmt.Errorf("invalid thr: %d nodes, need thr %d got %d", n, thr, key.MinimumT(n))
 		return
 	}
-	dkg, err = time.ParseDuration(in.GetTimeout())
-	if err != nil {
-		err = fmt.Errorf("invalid dkg timeout: %v", err)
-		return
-	}
+	dkg = time.Duration(in.GetTimeout()) * time.Second
 	return
 }
 
+// setupReceiver is a simple struct that expects to receive a group information
+// to setup a new DKG. When it receives it from the coordinator, it pass it
+// along the to the logic waiting to start the DKG.
 type setupReceiver struct {
-	ch     chan *drand.GroupPacket
+	ch     chan *drand.DKGInfoPacket
 	l      log.Logger
 	secret string
 }
 
 func newSetupReceiver(l log.Logger, in *control.SetupInfoPacket) *setupReceiver {
 	return &setupReceiver{
-		ch:     make(chan *drand.GroupPacket, 1),
+		ch:     make(chan *drand.DKGInfoPacket, 1),
 		l:      l,
 		secret: in.GetSecret(),
 	}
 }
 
-func (r *setupReceiver) ReceivedGroup(pg *drand.PushGroupPacket) error {
+func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	if pg.GetSecretProof() != r.secret {
 		r.l.Debug("received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
-	r.ch <- pg.GetNewGroup()
+	r.ch <- pg
 	return nil
 }
 
-func (r *setupReceiver) WaitGroup() chan *drand.GroupPacket {
+func (r *setupReceiver) WaitDKGInfo() chan *drand.DKGInfoPacket {
 	return r.ch
 }
 

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -20,10 +21,20 @@ func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, 
 	if d.dkgDone {
 		return nil, errors.New("drand: dkg finished already")
 	}
-	if d.dkg == nil {
+	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
-	d.dkg.Process(c, in.Dkg)
+	p, ok := peer.FromContext(c)
+	addr := "<unknown>"
+	if ok {
+		addr = p.Addr.String()
+	}
+	if !d.dkgInfo.started {
+		d.log.Info("init_dkg", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.dkgInfo.started = true
+		go d.dkgInfo.phaser.Start()
+	}
+	d.dkgInfo.board.FreshDKG(c, in)
 	return new(drand.Empty), nil
 }
 
@@ -32,32 +43,21 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 	d.state.Lock()
 	defer d.state.Unlock()
 
-	if d.nextGroupHash == "" {
-		return nil, fmt.Errorf("drand %s: can't reshare because InitReshare has not been called", d.priv.Public.Addr)
-	}
-
-	// check that we are resharing to the new group that we expect
-	if in.GroupHash != d.nextGroupHash {
-		return nil, errors.New("drand: can't reshare to new group: incompatible hashes")
-	}
-
-	if !d.nextFirstReceived && d.nextOldPresent {
-		d.nextFirstReceived = true
-		// go routine since StartDKG requires the global lock
-		go d.StartDKG(d.nextConf)
-	}
-
-	if d.dkg == nil {
+	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg setup yet")
 	}
-
-	d.nextFirstReceived = true
-	if in.Dkg != nil {
-		// first packet from the "leader" contains a nil packet for
-		// nodes that are in the old list that must broadcast their
-		// deals.
-		d.dkg.Process(c, in.Dkg)
+	p, ok := peer.FromContext(c)
+	addr := "<unknown>"
+	if ok {
+		addr = p.Addr.String()
 	}
+	if !d.dkgInfo.started {
+		d.dkgInfo.started = true
+		d.log.Info("init_reshare", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()), "target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
+		go d.dkgInfo.phaser.Start()
+	}
+
+	d.dkgInfo.board.ReshareDKG(c, in)
 	return new(drand.Empty), nil
 }
 
@@ -208,7 +208,7 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 	return groupToProto(d.group), nil
 }
 
-func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) (*drand.Empty, error) {
+func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.manager == nil {
@@ -226,16 +226,30 @@ func (d *Drand) PrepareDKGGroup(ctx context.Context, p *drand.PrepareDKGPacket) 
 	return new(drand.Empty), nil
 }
 
-func (d *Drand) PushDKGGroup(ctx context.Context, in *drand.PushGroupPacket) (*drand.Empty, error) {
+func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.receiver == nil {
 		return nil, errors.New("no receiver setup")
 	}
 	d.log.Info("push_group", "received_new")
-	err := d.receiver.ReceivedGroup(in)
+	// the control routine will receive this info and start the dkg at the right
+	// time - if that is the right secret.
+	err := d.receiver.PushDKGInfo(in)
 	if err != nil {
 		return nil, err
 	}
 	return new(drand.Empty), nil
+}
+
+// SyncChain is a inter-node protocol that replies to a syncing request from a
+// given round
+func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
+	d.state.Lock()
+	beacon := d.beacon
+	d.state.Unlock()
+	if beacon != nil {
+		beacon.SyncChain(req, stream)
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	gnet "net"
@@ -26,25 +27,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	DefaultSyncTime = 3 * time.Second
-}
-
-var testBeaconOffset = int((2 * time.Second).Seconds())
-var testDkgTimeout = "2s"
+var testBeaconOffset = int((3 * time.Second).Seconds())
+var testDkgTimeout = 1 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
 	beaconPeriod := 1 * time.Second
 	//var offsetGenesis = 1 * time.Second
 	//genesis := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	dt := NewDrandTest(t, n, key.DefaultThreshold(n), beaconPeriod)
+	dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod)
 	defer dt.Cleanup()
 	finalGroup := dt.RunDKG()
 	fmt.Println(" --- DKG FINISHED ---")
 	// make the last node fail
-	lastID := dt.ids[n-1]
-	dt.StopDrand(lastID)
+	lastID := dt.nodes[n-1].addr
+	dt.StopDrand(lastID, false)
 	//lastOne.Stop()
 	fmt.Printf("\n--- lastOne STOPPED --- \n\n")
 
@@ -56,57 +53,67 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.MoveTime(time.Duration(diff) * time.Second)
 	// two = genesis + 1st round (happens at genesis)
 	fmt.Println(" --- Test BEACON LENGTH --- ")
-	dt.TestBeaconLength(2, dt.ids[:n-1]...)
+	dt.TestBeaconLength(2, false, dt.Ids(n-1, false)...)
 	fmt.Println(" --- START LAST DRAND ---")
 	// start last one
-	dt.StartDrand(lastID, true)
+	dt.StartDrand(lastID, true, false)
 	// leave some room to do the catchup
 	time.Sleep(100 * time.Millisecond)
 	fmt.Println(" --- STARTED BEACON DRAND ---")
 	dt.MoveTime(beaconPeriod)
-	dt.TestBeaconLength(3, dt.ids...)
-	dt.TestPublicBeacon(dt.ids[0])
+	dt.TestBeaconLength(3, false, dt.Ids(n, false)...)
+	dt.TestPublicBeacon(lastID, false)
 }
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
-	oldN := 4
+	oldN := 3
 	newN := 4
-	oldThr := 3
+	oldThr := 2
 	newThr := 3
-	timeoutStr := "1s"
-	timeout, _ := time.ParseDuration(timeoutStr)
+	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 	offline := 1
 
-	dt := NewDrandTest(t, oldN, oldThr, beaconPeriod)
+	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
 	defer dt.Cleanup()
 	group1 := dt.RunDKG()
 	dt.MoveToTime(group1.GenesisTime)
 	// move to genesis time - so nodes start to make a round
 	//dt.MoveTime(offsetGenesis)
 	// two = genesis + 1st round (happens at genesis)
-	dt.TestBeaconLength(2, dt.ids...)
+	dt.TestBeaconLength(2, false, dt.Ids(oldN, false)...)
 	// so nodes think they are going forward with round 2
 	dt.MoveTime(1 * time.Second)
 
 	// + offline makes sure t
 	toKeep := oldN - offline
 	toAdd := newN - toKeep
-	dt.SetupReshare(toKeep, toAdd, newThr)
+	dt.SetupNewNodes(toAdd)
 
 	fmt.Println("SETUP RESHARE DONE")
 	// run the resharing
 	var doneReshare = make(chan *key.Group)
 	go func() {
-		group := dt.RunReshare(toKeep, toAdd, timeoutStr)
+		group := dt.RunReshare(toKeep, toAdd, newThr, timeout)
 		doneReshare <- group
 	}()
-	fmt.Printf("\n ---- Sleeping to let time to DKG to setup ---\n")
-	time.Sleep(DefaultSyncTime)
-	time.Sleep(getSleepDuration())
-	// advance time to the timeout
-	fmt.Printf("\n -- Move to timeout time !! -- \n")
+	time.Sleep(3 * time.Second)
+	fmt.Printf("\n -- Move to Response phase !! -- \n")
 	dt.MoveTime(timeout)
+	// at this point in time, nodes should have gotten all deals and send back
+	// their responses to all nodes
+	time.Sleep(getSleepDuration())
+	fmt.Printf("\n -- Move to Justif phase !! -- \n")
+	dt.MoveTime(timeout)
+	// at this time, all nodes received the responses of each other nodes but
+	// there is one node missing so they expect justifications
+	time.Sleep(getSleepDuration())
+	fmt.Printf("\n -- Move to Finish phase !! -- \n")
+	dt.MoveTime(timeout)
+	time.Sleep(getSleepDuration())
+	// at this time they received no justification from the missing node so he's
+	// exlucded of the group and the dkg should finish
+	//time.Sleep(10 * time.Second)
 	var resharedGroup *key.Group
 	select {
 	case resharedGroup = <-doneReshare:
@@ -114,345 +121,195 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		require.True(t, false)
 	}
 	fmt.Println(" RESHARED GROUP:", resharedGroup)
-	dt.TestBeaconLength(3, dt.ids...)
-	fmt.Println(" --- AFTER RESHARED ROUND ---")
-	fmt.Println(" --- dt.ids ", dt.ids)
-	fmt.Println(" --- dt.reshared ", dt.reshareIds)
+	target := resharedGroup.TransitionTime
+	now := dt.Now().Unix()
+	// get rounds from first node in the "old" group - since he's the leader for
+	// the new group, he's alive
+	lastRound := dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+	// move to the transition time period by period - do not skip potential
+	// periods as to emulate the normal time behavior
+	for now < target {
+		dt.MoveTime(beaconPeriod)
+		lastRound = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+		now = dt.Now().Unix()
+	}
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
 	time.Sleep(getSleepDuration())
-	fmt.Println(" --- AFTER RESHARED ROUND  SLEEEPING ---")
-	dt.TestBeaconLength(4, dt.reshareIds...)
+	//fmt.Println(" --- AFTER RESHARED ROUND  SLEEEPING ---")
+	dt.TestBeaconLength(int(lastRound+1), true, dt.Ids(newN, true)...)
 }
 
-type DrandTest struct {
+type Node struct {
+	addr  string
+	drand *Drand
+	clock clock.FakeClock
+}
+
+type DrandTest2 struct {
 	sync.Mutex
-	t            *testing.T
-	n            int
-	thr          int
+	t *testing.T
+	// tmp dir for certificates, keys etc
 	dir          string
 	newDir       string
-	drands       map[string]*Drand
-	newDrands    map[string]*Drand
-	group        *key.Group
-	newGroup     *key.Group
-	groupPath    string
-	newGroupPath string
-	period       time.Duration
-	genesis      int64
-	ids          []string
-	newIds       []string
-	reshareIds   []string
-	shares       map[string]*key.Share
-	myClock      clock.FakeClock
 	certPaths    []string
 	newCertPaths []string
+	// global clock on which all drand's clock are synchronized
+	clock clock.FakeClock
+
+	n      int
+	thr    int
+	newN   int
+	newThr int
+	period time.Duration
+	// only set after the DKG
+	group *key.Group
+	// needed to give the group to new nodes during a resharing - only set after
+	// a successfull DKG
+	groupPath string
+	// only set after the resharing
+	newGroup *key.Group
+	// nodes that are created for running a first DKG
+	nodes []*Node
+	// new additional nodes that are created for running a resharing
+	newNodes []*Node
+	// nodes that actually ran the resharing phase - it's a combination of nodes
+	// and new nodes. These are the one that should appear in the newGroup
+	resharedNodes []*Node
 }
 
-func (d *DrandTest) Cleanup() {
-	os.RemoveAll(d.dir)
-	os.RemoveAll(d.newDir)
-}
-
-func (d *DrandTest) GetBeacon(id string, round int) (*beacon.Beacon, error) {
-	dd, ok := d.drands[id]
-	require.True(d.t, ok)
-
-	return dd.beacon.Store().Get(uint64(round))
-}
-
-// returns new ids generated
-func (d *DrandTest) SetupReshare(keepOld, addNew, newThr int) []string {
-	newN := keepOld + addNew
-	ids := make([]*key.Identity, 0, newN)
-	newAddr := make([]string, addNew)
-	newDrands, _, newDir, newCertPaths := BatchNewDrand(addNew, false,
-		WithCallOption(grpc.FailFast(true)), WithLogLevel(log.LogDebug))
-	d.newDir = newDir
-	d.newDrands = make(map[string]*Drand)
-	// add old participants
-	for _, id := range d.ids[:keepOld] {
-		drand := d.drands[id]
-		ids = append(ids, drand.priv.Public)
-		for _, cp := range newCertPaths {
-			drand.opts.certmanager.Add(cp)
-		}
-
-	}
-	// add new participants
-	for i, drand := range newDrands {
-		ids = append(ids, drand.priv.Public)
-		newAddr[i] = drand.priv.Public.Address()
-		d.newDrands[drand.priv.Public.Address()] = drand
-		d.setClock(newAddr[i])
-		for _, cp := range d.certPaths {
-			drand.opts.certmanager.Add(cp)
-		}
-	}
-
-	d.newIds = newAddr
-
-	d.newGroup = key.NewGroup(ids, newThr, d.group.GenesisTime)
-	d.newGroup.Period = d.period
-	//d.newGroup.TransitionTime = transitionTime
-	d.newGroup.GenesisSeed = d.group.GenesisSeed
-	fmt.Println("RESHARE GROUP:\n", d.newGroup.String())
-	d.newGroupPath = path.Join(newDir, "newgroup.toml")
-	require.NoError(d.t, key.Save(d.newGroupPath, d.newGroup, false))
-	return newAddr
-}
-
-func (d *DrandTest) RunReshare(oldRun, newRun int, timeout string) *key.Group {
-	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.drands), newRun, len(d.newIds))
-	var clientCounter = &sync.WaitGroup{}
-	var secret = "thisistheresharing"
-
-	// take list of old nodes present in new groups
-	var oldNodes []string
-	var oldLeaving []string
-	for _, id := range d.ids {
-		drand := d.drands[id]
-		if d.newGroup.Contains(drand.priv.Public) {
-			oldNodes = append(oldNodes, drand.priv.Public.Address())
-		} else {
-			oldLeaving = append(oldLeaving, id)
-		}
-	}
-
-	var allIds []string
-	// stop the old nodes that we want offline during the resharing
-	for _, id := range oldNodes[oldRun:] {
-		fmt.Printf("Stopping old-new node %d - %s\n", d.drands[id].index, id)
-		d.drands[id].Stop()
-	}
-	// stop the old nodes that are leaving the group
-	for _, id := range oldLeaving {
-		fmt.Printf("Stopping old-leaving node %d - %s\n", d.drands[id].index, id)
-		d.drands[id].Stop()
-	}
-
-	leader := d.drands[oldNodes[0]]
-	leaderAddr := leader.priv.Public
-	runreshare := func(dr *Drand) {
-		// instruct to be ready for a reshare
-		client, err := net.NewControlClient(dr.opts.controlPort)
-		require.NoError(d.t, err)
-		_, err = client.InitReshare(leaderAddr, d.newGroup.Len(), d.newGroup.Threshold, timeout, secret, d.groupPath)
-		require.NoError(d.t, err)
-		fmt.Printf("\n\nDKG TEST: drand %s DONE RESHARING (leader? %v)\n", dr.priv.Public.Address(), leader)
-		clientCounter.Done()
-	}
-
-	// first run the leader, then the other nodes will send their PK to the
-	// leader and then the leader will answer back with the new group
-	groupCh := make(chan *key.Group, 1)
-	go func() {
-		idx, found := d.newGroup.Index(leader.priv.Public)
-		if !found {
-			panic("leader not found")
-		}
-		fmt.Printf("Launching reshare on (old) root %d - %s\n", idx, oldNodes[0])
-		client, err := net.NewControlClient(leader.opts.controlPort)
-		require.NoError(d.t, err)
-		finalGroup, err := client.InitReshareLeader(d.newGroup.Len(), d.newGroup.Threshold, timeout, secret, d.groupPath, testBeaconOffset)
-		if err != nil {
-			panic(err)
-		}
-		g, err := ProtoToGroup(finalGroup)
-		if err != nil {
-			panic(err)
-		}
-		groupCh <- g
-	}()
-
-	// leave some time to make sure leader is listening
-	time.Sleep(1 * time.Second)
-	// run the old ones
-	clientCounter.Add(oldRun - 1)
-	for _, id := range oldNodes[1:oldRun] {
-		dr := d.drands[id]
-		idx, found := d.newGroup.Index(dr.priv.Public)
-		if !found {
-			panic("old drand not found")
-		}
-		fmt.Printf("Launching reshare on old %d - %s\n", idx, id)
-		go runreshare(dr)
-		allIds = append(allIds, id)
-	}
-
-	// run the new ones
-	clientCounter.Add(newRun)
-	for _, id := range d.newIds[:newRun] {
-		dr := d.newDrands[id]
-		idx, found := d.newGroup.Index(dr.priv.Public)
-		if !found {
-			panic("new drand not found")
-		}
-		fmt.Printf("Launching reshare on new  %d - %s\n", idx, id)
-		go runreshare(dr)
-		allIds = append(allIds, id)
-	}
-	allIds = append(allIds, oldNodes[0])
-	d.setDKGCallback(allIds)
-	d.reshareIds = allIds
-	// run leader
-
-	// wait for the return of the clients
-	fmt.Println("\n\n -- Waiting COUNTER for ", oldRun-1+newRun+1, " nodes --")
-	checkWait(clientCounter)
-	fmt.Println("\n\n - Waiting group from leader -- ")
-	finalGroup := <-groupCh
-	fmt.Printf("\n\n -- TEST FINISHED ALL RESHARE DKG --\n\n")
-	return finalGroup
-}
-
-func checkWait(counter *sync.WaitGroup) {
-	var doneCh = make(chan bool, 1)
-	go func() {
-		counter.Wait()
-		doneCh <- true
-	}()
-	select {
-	case <-doneCh:
-		break
-	case <-time.After(11 * time.Second):
-		panic("outdated beacon time")
-	}
-}
-func NewDrandTest(t *testing.T, n, thr int, period time.Duration) *DrandTest {
-	drands, group, dir, certPaths := BatchNewDrand(n, false,
+// NewDrandTest creates a drand test scenario with initial n nodes and ready to
+// run a DKG for the given threshold that will then launch the beacon with the
+// specified period
+func NewDrandTest2(t *testing.T, n, thr int, period time.Duration) *DrandTest2 {
+	dt := new(DrandTest2)
+	drands, _, dir, certPaths := BatchNewDrand(n, false,
 		WithCallOption(grpc.FailFast(true)),
 	)
-	group.Period = period
-	//group.GenesisTime = genesis
-	groupPath := path.Join(dir, "dkggroup.toml")
-	require.NoError(t, key.Save(groupPath, group, false))
-	myClock := clock.NewFakeClock()
-	ids := make([]string, n)
-	mDrands := make(map[string]*Drand, n)
-	for i, d := range drands {
-		ids[i] = d.priv.Public.Address()
-		mDrands[ids[i]] = d
+	dt.t = t
+	dt.dir = dir
+	dt.certPaths = certPaths
+	dt.n = n
+	dt.thr = thr
+	dt.period = period
+	dt.clock = clock.NewFakeClock()
+	dt.nodes = make([]*Node, 0, n)
+	for _, drand := range drands {
+		node := dt.newNode(drand)
+		dt.nodes = append(dt.nodes, node)
 	}
-	return &DrandTest{
-		t:         t,
-		n:         n,
-		thr:       thr,
-		drands:    mDrands,
-		group:     group,
-		groupPath: groupPath,
-		period:    period,
-		ids:       ids,
-		shares:    make(map[string]*key.Share),
-		myClock:   myClock,
-		certPaths: certPaths,
-	}
+	dt.groupPath = path.Join(dt.dir, "group.toml")
+	return dt
 }
 
-func (d *DrandTest) RunDKG() *key.Group {
+// Ids returns the list of the first n ids given the newGroup parameter (either
+// in the original group or the reshared one)
+func (d *DrandTest2) Ids(n int, newGroup bool) []string {
+	nodes := d.nodes
+	if newGroup {
+		nodes = d.resharedNodes
+	}
+	var ids []string
+	for _, node := range nodes[:n] {
+		ids = append(ids, node.addr)
+	}
+	return ids
+}
+
+// RunDKG runs the DKG with the initial nodes created during NewDrandTest
+func (d *DrandTest2) RunDKG() *key.Group {
+	// common secret between participants
 	secret := "thisisdkg"
-	groupCh := make(chan *key.Group, 1)
-	root := d.drands[d.ids[0]]
-	d.setClock(d.ids...)
-	d.setDKGCallback(d.ids)
-	leaderAddr := root.priv.Public
-	controlClient, err := net.NewControlClient(root.opts.controlPort)
+	root := d.nodes[0]
+	controlClient, err := net.NewControlClient(root.drand.opts.controlPort)
 	require.NoError(d.t, err)
+	// the root node will return the group over this channel
+	var wg sync.WaitGroup
+	wg.Add(d.n)
 	// first run the leader and then run the other nodes
 	go func() {
-		finalGroup, err := controlClient.InitDKGLeader(d.group.Len(), d.group.Threshold, d.group.Period, testDkgTimeout, nil, secret, testBeaconOffset)
+		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, testDkgTimeout, nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
-		g, err := ProtoToGroup(finalGroup)
-		if err != nil {
-			panic(err)
-		}
-		groupCh <- g
+		fmt.Printf("\n\nTEST LEADER FINISHED\n\n")
+		wg.Done()
 	}()
 
-	// make sure the leader is waiting
+	// make sure the leader is up and running to start the setup
 	time.Sleep(1 * time.Second)
 	// all other nodes will send their PK to the leader that will create the
 	// group
-	var wg sync.WaitGroup
-	wg.Add(d.n - 1)
-	for _, id := range d.ids[1:] {
-		go func(dd *Drand) {
-			client, err := net.NewControlClient(dd.opts.controlPort)
+	for _, node := range d.nodes[1:] {
+		go func(n *Node) {
+			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(leaderAddr, d.group.Len(), d.group.Threshold, testDkgTimeout, nil, secret)
+			_, err = client.InitDKG(root.drand.priv.Public, d.n, d.thr, testDkgTimeout, nil, secret)
+			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			require.NoError(d.t, err)
 			wg.Done()
-			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", dd.priv.Public.Address())
-		}(d.drands[id])
+			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", n.addr)
+		}(node)
 	}
 
+	// wait for all to return
 	wg.Wait()
-	finalGroup := <-groupCh
-	// verification
-	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", d.ids[0])
+	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", root.addr)
+	// we check that we can fetch the group using control functionalities on the root node
 	groupProto, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
 	group, err := ProtoToGroup(groupProto)
 	require.NoError(d.t, err)
+	// we check all nodes are included in the group
+	for _, node := range d.nodes {
+		require.NotNil(d.t, group.Find(node.drand.priv.Public))
+	}
+	// we check the group has the right threshold
+	require.Len(d.t, group.PublicKey.Coefficients, d.thr)
+	require.Equal(d.t, d.thr, group.Threshold)
+	require.NoError(d.t, key.Save(d.groupPath, group, false))
 	d.group = group
-	require.Equal(d.t, d.thr, d.group.Threshold)
-	for _, drand := range d.drands {
-		require.True(d.t, d.group.Contains(drand.priv.Public))
+	fmt.Println("setup dkg group:", d.group.String())
+	return group
+}
+
+func (d *DrandTest2) Cleanup() {
+	os.RemoveAll(d.dir)
+	os.RemoveAll(d.newDir)
+}
+
+// GetBeacon returns the beacon of the given round for the specified drand id
+func (d *DrandTest2) GetBeacon(id string, round int, newGroup bool) (*beacon.Beacon, error) {
+	nodes := d.nodes
+	if newGroup {
+		nodes = d.resharedNodes
 	}
-	fmt.Println("group:", d.group.String())
-	require.Len(d.t, d.group.PublicKey.Coefficients, d.thr)
-	require.NoError(d.t, key.Save(d.groupPath, d.group, false))
-
-	return finalGroup
-}
-
-func (d *DrandTest) tryBoth(id string, fn func(d *Drand)) {
-	if dr, ok := d.drands[id]; ok {
-		fn(dr)
-	} else if dr, ok = d.newDrands[id]; ok {
-		fn(dr)
-	} else {
-		panic("that should not happen")
+	for _, node := range nodes {
+		if node.addr != id {
+			continue
+		}
+		return node.drand.beacon.Store().Get(uint64(round))
 	}
+	return nil, errors.New("that should not happen")
 }
 
-func (d *DrandTest) setClock(ids ...string) {
-	now := d.myClock.Now()
-	for _, id := range ids {
-		d.tryBoth(id, func(dr *Drand) {
-			addr := dr.priv.Public.Address()
-			clock := clock.NewFakeClockAt(now)
-			dr.opts.clock = clock
-			dr.opts.dkgCallback = func(s *key.Share) {
-				d.shares[addr] = s
-				fmt.Printf("\n\n\n  --- DKG %s FINISHED ---\n\n\n", addr)
-			}
-		})
+// GetDrand returns the node associated with this address, either in the new
+// group or the current group.
+func (d *DrandTest2) GetDrand(id string, newGroup bool) *Node {
+	nodes := d.nodes
+	if newGroup {
+		nodes = d.resharedNodes
 	}
-}
-
-// first wait for all dkg callbacks to trigger, then update the clock of every
-// ids
-func (d *DrandTest) setDKGCallback(ids []string) {
-	for _, id := range ids {
-		d.tryBoth(id, func(dr *Drand) {
-			dr.opts.dkgCallback = func(s *key.Share) {
-				d.Lock()
-				id := dr.priv.Public.Address()
-				d.shares[id] = s
-				d.Unlock()
-				//fmt.Printf("\n\nDKG DONE for %d - %s\n\n", dr.index, id)
-			}
-		})
+	for _, node := range nodes {
+		if node.addr == id {
+			return node
+		}
 	}
+	panic("no nodes found at this id")
 }
 
-func (d *DrandTest) GetDrand(id string) *Drand {
-	return d.drands[id]
-}
-
-func (d *DrandTest) StopDrand(id string) {
-	dr := d.drands[id]
+// StopDrand stops a node from the first group
+func (d *DrandTest2) StopDrand(id string, newGroup bool) {
+	node := d.GetDrand(id, newGroup)
+	dr := node.drand
 	dr.Stop()
 	pinger, err := net.NewControlClient(dr.opts.controlPort)
 	require.NoError(d.t, err)
@@ -469,52 +326,62 @@ func (d *DrandTest) StopDrand(id string) {
 	fmt.Println(" DRAND ", dr.priv.Public.Address(), " STOPPED")
 }
 
-func (d *DrandTest) StartDrand(id string, catchup bool) {
-	dr, ok := d.drands[id]
-	require.True(d.t, ok)
-	var err error
-	dr, err = LoadDrand(dr.store, dr.opts)
+// StartDrand fetches the drand given the id, in the respective group given the
+// newGroup parameter and runs the beacon
+func (d *DrandTest2) StartDrand(id string, catchup bool, newGroup bool) {
+	node := d.GetDrand(id, newGroup)
+	dr := node.drand
+	// we load it from scratch as if the operator restarted its node
+	newDrand, err := LoadDrand(dr.store, dr.opts)
 	require.NoError(d.t, err)
-	d.drands[id] = dr
-	d.setClock(id)
+	node.drand = newDrand
+	newDrand.opts.clock = node.clock
 	fmt.Println("--- JUST BEFORE STARTBEACON---")
-	dr.StartBeacon(catchup)
+	newDrand.StartBeacon(catchup)
 	fmt.Println("--- JUST AFTER STARTBEACON---")
 }
 
-func (d *DrandTest) Now() time.Time {
-	return d.myClock.Now()
+func (d *DrandTest2) Now() time.Time {
+	return d.clock.Now()
 }
 
-func (d *DrandTest) MoveToTime(target int64) {
-	now := d.myClock.Now().Unix()
-	d.MoveTime(time.Duration(target-now) * time.Second)
+// MoveToTime sets the clock of all drands to the designated unix timestamp in
+// seconds
+func (d *DrandTest2) MoveToTime(target int64) {
+	now := d.Now().Unix()
+	if now < target {
+		d.MoveTime(time.Duration(target-now) * time.Second)
+	}
 }
 
-func (d *DrandTest) MoveTime(p time.Duration) {
-	for _, d := range d.drands {
-		c := d.opts.clock.(clock.FakeClock)
-		c.Advance(p)
+// MoveTime advance the clock of all drand of the given duration
+func (d *DrandTest2) MoveTime(p time.Duration) {
+	for _, node := range d.nodes {
+		node.clock.Advance(p)
 	}
-	for _, d := range d.newDrands {
-		c := d.opts.clock.(clock.FakeClock)
-		c.Advance(p)
+	for _, node := range d.newNodes {
+		node.clock.Advance(p)
 	}
-	d.myClock.Advance(p)
-	fmt.Printf(" --- MoveTime: new time is %d \n", d.myClock.Now().Unix())
+	d.clock.Advance(p)
+	fmt.Printf(" --- MoveTime: new time is %d \n", d.Now().Unix())
 	time.Sleep(getSleepDuration())
 }
 
-func (d *DrandTest) TestBeaconLength(length int, ids ...string) {
-	fmt.Printf("\n BEACON LENGTH tests (should be %d):\n", length)
+// TestBeaconLength looks if the beacon chain on the given ids is of the
+// expected length
+func (d *DrandTest2) TestBeaconLength(length int, newGroup bool, ids ...string) {
+	nodes := d.nodes
+	if newGroup {
+		nodes = d.resharedNodes
+	}
 	for _, id := range ids {
-		d.tryBoth(id, func(drand *Drand) {
+		for _, node := range nodes {
+			if node.addr != id {
+				continue
+			}
+			drand := node.drand
 			drand.state.Lock()
 			defer drand.state.Unlock()
-			if drand.beacon == nil {
-				// this drand has stopped for a reason
-				return
-			}
 			fmt.Printf("\n\tTest %s (beacon %p)\n", id, drand.beacon)
 			howMany := 0
 			drand.beacon.Store().Cursor(func(c beacon.Cursor) {
@@ -524,17 +391,164 @@ func (d *DrandTest) TestBeaconLength(length int, ids ...string) {
 				}
 			})
 			require.Equal(d.t, length, drand.beacon.Store().Len(), "id %s - howMany is %d vs Len() %d", id, howMany, drand.beacon.Store().Len())
-		})
-	}
 
+		}
+	}
 }
 
-func (d *DrandTest) TestPublicBeacon(id string) {
-	dr := d.GetDrand(id)
+// TestPublicBeacon looks if we can get the latest beacon on this node
+func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) uint64 {
+	node := d.GetDrand(id, newGroup)
+	dr := node.drand
 	client := net.NewGrpcClientFromCertManager(dr.opts.certmanager, dr.opts.grpcOpts...)
 	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
+	return resp.Round
+}
+
+// SetupNewNodes creates new additional nodes that can participate during the
+// resharing
+func (d *DrandTest2) SetupNewNodes(newNodes int) {
+	newDrands, _, newDir, newCertPaths := BatchNewDrand(newNodes, false,
+		WithCallOption(grpc.FailFast(true)), WithLogLevel(log.LogDebug))
+	d.newCertPaths = newCertPaths
+	d.newDir = newDir
+	d.newNodes = make([]*Node, newNodes)
+	// add certificates of new nodes to the old nodes
+	for _, node := range d.nodes {
+		drand := node.drand
+		for _, cp := range newCertPaths {
+			drand.opts.certmanager.Add(cp)
+		}
+
+	}
+	// store new part. and add certificate path of current nodes to the new
+	d.newNodes = make([]*Node, 0, newNodes)
+	for _, drand := range newDrands {
+		node := d.newNode(drand)
+		d.newNodes = append(d.newNodes, node)
+		for _, cp := range d.certPaths {
+			drand.opts.certmanager.Add(cp)
+		}
+	}
+}
+
+// RunReshare runs the resharing procedure with only "oldRun" current nodes
+// running, and "newRun" new nodes running (the ones created via SetupNewNodes).
+// It sets the given threshold to the group.
+// It stops the nodes excluded first.
+func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration) *key.Group {
+	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.nodes), newRun, len(d.newNodes))
+	var clientCounter = new(sync.WaitGroup)
+	var secret = "thisistheresharing"
+	total := oldRun + newRun
+	// stop the exluded nodes
+	for _, node := range d.nodes[oldRun:] {
+		fmt.Printf("-- Running RESHARE - STOPPING old node %s - %s\n", node.addr, node.drand.priv.Public.Key)
+		d.StopDrand(node.addr, false)
+	}
+	for _, node := range d.newNodes[newRun:] {
+		fmt.Printf("-- Running RESHARE - STOPPING new node %s - %s\n", node.addr, node.drand.priv.Public.Key)
+		d.StopDrand(node.addr, true)
+	}
+
+	d.newN = total
+	d.newThr = newThr
+	leader := d.nodes[0]
+	// function that each non-leader runs to start the resharing
+	runreshare := func(n *Node, newNode bool) {
+		dr := n.drand
+		// instruct to be ready for a reshare
+		client, err := net.NewControlClient(dr.opts.controlPort)
+		require.NoError(d.t, err)
+		_, err = client.InitReshare(leader.drand.priv.Public, total, d.newThr, timeout, secret, d.groupPath)
+		require.NoError(d.t, err, "non-leader node (new?%v) error during reshare ", newNode)
+		fmt.Printf("\n\nRESHARING TEST: non-leader drand %s DONE RESHARING - %s\n", dr.priv.Public.Address(), dr.priv.Public.Key)
+		clientCounter.Done()
+	}
+
+	clientCounter.Add(1)
+	groupCh := make(chan *key.Group, 1)
+	// first run the leader, then the other nodes will send their PK to the
+	// leader and then the leader will answer back with the new group
+	go func() {
+		oldNode := d.group.Find(leader.drand.priv.Public)
+		if oldNode == nil {
+			panic("leader not found in old group")
+		}
+		fmt.Printf("\n\nRESHARING TEST: LAUNCH (old) root %d - %s - %s \n", oldNode.Index, leader.addr, leader.drand.priv.Public.Key)
+		client, err := net.NewControlClient(leader.drand.opts.controlPort)
+		require.NoError(d.t, err)
+		finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, secret, "", testBeaconOffset)
+		fmt.Printf("\n\nRESHARING TEST: LEADER root DONE RESHARING %d - %s - %s \n", oldNode.Index, leader.addr, leader.drand.priv.Public.Key)
+		if err != nil {
+			panic(err)
+		}
+		clientCounter.Done()
+		fg, err := ProtoToGroup(finalGroup)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("\n\nRESHARING TEST: LEADER root DONE RESHARING ###2222 %d - %s - %s \n", oldNode.Index, leader.addr, leader.drand.priv.Public.Key)
+		groupCh <- fg
+	}()
+	d.resharedNodes = append(d.resharedNodes, leader)
+	// leave some time to make sure leader is listening
+	time.Sleep(1 * time.Second)
+
+	// run the current nodes
+	for _, node := range d.nodes[1:oldRun] {
+		fmt.Printf("Launching reshare on old %s\n", node.addr)
+		d.resharedNodes = append(d.resharedNodes, node)
+		clientCounter.Add(1)
+		go runreshare(node, false)
+	}
+
+	// run the new ones
+	for _, node := range d.newNodes[:newRun] {
+		fmt.Printf("Launching reshare on new  %s\n", node.addr)
+		d.resharedNodes = append(d.resharedNodes, node)
+		clientCounter.Add(1)
+		go runreshare(node, true)
+	}
+	// wait for the return of the clients
+	fmt.Println("\n\n -- WAITING COUNTER for ", total, " nodes --")
+	checkWait(clientCounter)
+	fmt.Printf("\n\n\n OUWOUWOUWOUWOUWOUWUWOUW\n\n\n\n")
+	fmt.Println("\n\n - WAITING group from leader -- ")
+	finalGroup := <-groupCh
+	fmt.Printf("\n\n -- TEST FINISHED ALL RESHARE DKG --\n\n")
+	d.newGroup = finalGroup
+	return finalGroup
+}
+
+// newNode creates a node struct from a drand and sets the clock according to
+// the drand test clock.
+func (d *DrandTest2) newNode(dr *Drand) *Node {
+	id := dr.priv.Public.Address()
+	now := d.clock.Now()
+	clock := clock.NewFakeClockAt(now)
+	dr.opts.clock = clock
+	return &Node{
+		addr:  id,
+		drand: dr,
+		clock: clock,
+	}
+}
+
+func checkWait(counter *sync.WaitGroup) {
+	var doneCh = make(chan bool, 1)
+	go func() {
+		counter.Wait()
+		doneCh <- true
+	}()
+	select {
+	case <-doneCh:
+		break
+	case <-time.After(11 * time.Second):
+		panic("outdated beacon time")
+	}
 }
 
 // Check they all have same public group file after dkg
@@ -543,27 +557,29 @@ func TestDrandPublicGroup(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	//genesisTime := clock.NewFakeClock().Now().Unix()
-	dt := NewDrandTest(t, n, thr, p)
+	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
 	//client := NewGrpcClient()
-	cm := dt.drands[dt.ids[0]].opts.certmanager
+	cm := dt.nodes[0].drand.opts.certmanager
 	client := NewGrpcClientFromCert(cm)
 	rest := net.NewRestClientFromCertManager(cm)
-	for i, id := range dt.ids {
-		d := dt.drands[id]
+	for _, node := range dt.nodes {
+		d := node.drand
 		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
-		require.NoError(t, err, fmt.Sprintf("idx %d: addr %s", i, id))
+		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))
 		received, err := ProtoToGroup(groupResp)
 		require.NoError(t, err)
 		require.True(t, group.Equal(received))
 	}
-	for addr, d := range dt.drands {
+	for _, node := range dt.nodes {
 		var found bool
+		addr := node.addr
+		public := node.drand.priv.Public
 		for _, n := range group.Nodes {
 			sameAddr := n.Address() == addr
-			sameKey := n.Key.Equal(d.priv.Public.Key)
-			sameTLS := n.IsTLS() == d.priv.Public.TLS
+			sameKey := n.Key.Equal(public.Key)
+			sameTLS := n.IsTLS() == public.TLS
 			if sameAddr && sameKey && sameTLS {
 				found = true
 				break
@@ -572,22 +588,23 @@ func TestDrandPublicGroup(t *testing.T) {
 		require.True(t, found)
 	}
 
-	restGroup, err := rest.Group(context.TODO(), dt.drands[dt.ids[0]].priv.Public, &drand.GroupRequest{})
+	restGroup, err := rest.Group(context.TODO(), dt.nodes[0].drand.priv.Public, &drand.GroupRequest{})
 	require.NoError(t, err)
 	received, err := ProtoToGroup(restGroup)
 	require.NoError(t, err)
 	require.True(t, group.Equal(received))
 }
 
+// Test if the we can correctly fetch the rounds after a DKG using the
+// PublicRand RPC call
 func TestDrandPublicRand(t *testing.T) {
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
-	//genesisTime := clock.NewFakeClock().Now().Unix()
-	dt := NewDrandTest(t, n, thr, p)
+	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
-	root := dt.drands[dt.ids[0]]
+	root := dt.nodes[0].drand
 	rootID := root.priv.Public
 
 	dt.MoveToTime(group.GenesisTime)
@@ -604,7 +621,6 @@ func TestDrandPublicRand(t *testing.T) {
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
 
-	//  run streaming and expect responses
 	initRound := resp.Round + 1
 	max := initRound + 4
 	for i := initRound; i < max; i++ {
@@ -618,16 +634,18 @@ func TestDrandPublicRand(t *testing.T) {
 	}
 }
 
+// Test if the we can correctly fetch the rounds after a DKG using the
+// PublicRandStream RPC call
 func TestDrandPublicStream(t *testing.T) {
 	n := 4
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 	//genesisTime := clock.NewFakeClock().Now().Unix()
-	dt := NewDrandTest(t, n, thr, p)
+	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
-	root := dt.drands[dt.ids[0]]
-	rootID := root.priv.Public
+	root := dt.nodes[0]
+	rootID := root.drand.priv.Public
 
 	dt.MoveToTime(group.GenesisTime)
 	// do a few periods
@@ -635,7 +653,7 @@ func TestDrandPublicStream(t *testing.T) {
 		dt.MoveTime(group.Period)
 	}
 
-	cm := root.opts.certmanager
+	cm := root.drand.opts.certmanager
 	client := net.NewGrpcClientFromCertManager(cm)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -645,7 +663,7 @@ func TestDrandPublicStream(t *testing.T) {
 
 	//  run streaming and expect responses
 	req := &drand.PublicRandRequest{Round: resp.GetRound()}
-	respCh, err := client.PublicRandStream(ctx, root.priv.Public, req)
+	respCh, err := client.PublicRandStream(ctx, root.drand.priv.Public, req)
 	require.NoError(t, err)
 	// expect first round now since node already has it
 	select {
@@ -670,7 +688,7 @@ func TestDrandPublicStream(t *testing.T) {
 		}
 	}
 	// try fetching with round 0 -> get latest
-	respCh, err = client.PublicRandStream(ctx, root.priv.Public, new(drand.PublicRandRequest))
+	respCh, err = client.PublicRandStream(ctx, root.drand.priv.Public, new(drand.PublicRandRequest))
 	require.NoError(t, err)
 	select {
 	case <-respCh:

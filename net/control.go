@@ -71,7 +71,7 @@ func (c *ControlClient) Ping() error {
 // InitReshare sets up the node to be ready for a resharing protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout string, secret string, oldPath string, offset int) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Duration, secret string, oldPath string, offset int) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -80,7 +80,7 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout string, 
 			Nodes:        uint32(nodes),
 			Threshold:    uint32(threshold),
 			Leader:       true,
-			Timeout:      timeout,
+			Timeout:      uint32(timeout.Seconds()),
 			Secret:       secret,
 			BeaconOffset: uint32(offset),
 		},
@@ -88,7 +88,7 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout string, 
 	return c.client.InitReshare(context.Background(), request)
 }
 
-func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout string, secret string, oldPath string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout time.Duration, secret string, oldPath string) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -99,7 +99,7 @@ func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout s
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Timeout:       timeout,
+			Timeout:       uint32(timeout.Seconds()),
 			Secret:        secret,
 		},
 	}
@@ -110,13 +110,13 @@ func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout s
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Duration, timeout string, entropy *control.EntropyInfo, secret string, offset int) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Duration, timeout time.Duration, entropy *control.EntropyInfo, secret string, offset int) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
 			Threshold:    uint32(threshold),
 			Leader:       true,
-			Timeout:      timeout,
+			Timeout:      uint32(timeout.Seconds()),
 			Secret:       secret,
 			BeaconOffset: uint32(offset),
 		},
@@ -126,7 +126,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Du
 	return c.client.InitDKG(context.Background(), request)
 }
 
-func (c *ControlClient) InitDKG(leader Peer, nodes, threshold int, timeout string, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKG(leader Peer, nodes, threshold int, timeout time.Duration, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:         uint32(nodes),
@@ -134,7 +134,7 @@ func (c *ControlClient) InitDKG(leader Peer, nodes, threshold int, timeout strin
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Timeout:       timeout,
+			Timeout:       uint32(timeout.Seconds()),
 			Secret:        secret,
 		},
 		Entropy: entropy,

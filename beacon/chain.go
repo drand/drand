@@ -228,7 +228,11 @@ func (c *chainStore) shouldSync(last *Beacon, newB likeBeacon) bool {
 // RunSync is a blocking call that tries to sync chain to the highest height
 // found
 func (c *chainStore) RunSync(ctx context.Context) {
-	l, _ := c.Store.Last()
+	l, err := c.Store.Last()
+	if err != nil {
+		c.l.Error("run_sync", "load", "last_beacon", err)
+		return
+	}
 	currRound := c.ticker.CurrentRound()
 	outCh, err := syncChain(ctx, c.l, c.safe, l, currRound, c.client)
 	if err != nil {

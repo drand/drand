@@ -159,7 +159,7 @@ func (g *grpcClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyReque
 	return resp, err
 }
 
-func (g *grpcClient) PushDKGGroup(ctx context.Context, p Peer, in *drand.PushGroupPacket, opts ...grpc.CallOption) error {
+func (g *grpcClient) PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoPacket, opts ...grpc.CallOption) error {
 	c, err := g.conn(p)
 	if err != nil {
 		return err
@@ -167,11 +167,11 @@ func (g *grpcClient) PushDKGGroup(ctx context.Context, p Peer, in *drand.PushGro
 	client := drand.NewProtocolClient(c)
 	//ctx, cancel := g.getTimeoutContext(ctx)
 	//defer cancel()
-	_, err = client.PushDKGGroup(ctx, in, opts...)
+	_, err = client.PushDKGInfo(ctx, in, opts...)
 	return err
 
 }
-func (g *grpcClient) PrepareDKGGroup(ctx context.Context, p Peer, in *drand.PrepareDKGPacket, opts ...CallOption) error {
+func (g *grpcClient) SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error {
 	c, err := g.conn(p)
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (g *grpcClient) PrepareDKGGroup(ctx context.Context, p Peer, in *drand.Prep
 	client := drand.NewProtocolClient(c)
 	//ctx, cancel := g.getTimeoutContext(ctx)
 	//defer cancel()
-	_, err = client.PrepareDKGGroup(ctx, in, opts...)
+	_, err = client.SignalDKGParticipant(ctx, in, opts...)
 	return err
 }
 

@@ -24,7 +24,7 @@ func getPrivateCmd(c *cli.Context) error {
 	var resp []byte
 	var err error
 	for _, public := range ids {
-		resp, err = client.Private(public)
+		resp, err = client.Private(public.Identity)
 		if err == nil {
 			slog.Infof("drand: successfully retrieved private randomness "+
 				"from %s", public.Addr)

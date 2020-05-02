@@ -27,7 +27,7 @@ var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
 var debug = flag.Bool("debug", false, "prints the log when panic occurs")
 
 // 10s after dkg finishes, (new or reshared) beacon starts
-var beaconOffset = 10
+var beaconOffset = 8
 
 // how much should we wait before checking if the randomness is present. This is
 // mostly due to the fact we run on localhost on cheap machine with CI so we
