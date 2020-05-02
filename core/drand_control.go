@@ -33,7 +33,6 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	if !isLeader {
 		// different logic for leader than the rest
 		out, err := d.setupAutomaticDKG(c, in)
-		fmt.Printf("\n\n DKG FINISHED FOR NON LEADER #2\n\n")
 		return out, err
 	}
 	d.log.Info("init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
@@ -64,7 +63,6 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("\n\n LEADER DKG FINISHED\n\n")
 	return groupToProto(finalGroup), nil
 }
 
@@ -277,9 +275,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	d.state.Unlock()
 
 	defer func() {
-		fmt.Printf("\n\n DKG %s FINISHED FOR NON LEADER BEFORE LOCK\n\n", d.priv.Public.Address())
 		d.state.Lock()
-		fmt.Printf("\n\n DKG %s FINISHED FOR NON LEADER BEFORE AFTER LOCK\n\n", d.priv.Public.Address())
 		d.receiver.stop()
 		d.receiver = nil
 		d.state.Unlock()
@@ -328,7 +324,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 
 	node := group.Find(d.priv.Public)
 	if node == nil {
-		fmt.Println("priv is ", d.priv.Public.String(), " but received group is ", group.String())
+		d.log.Error("init_dkg", "absent_public_key_in_received_group")
 		return nil, errors.New("drand: public key not found in group")
 	}
 	d.state.Lock()
@@ -340,7 +336,6 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("\n\n DKG %s FINISHED FOR NON LEADER #1\n\n", d.priv.Public.Address())
 	return groupToProto(finalGroup), nil
 }
 
@@ -487,7 +482,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, errors.New("control: old and new group have different genesis time")
 	}
 	if oldGroup.GenesisTime > d.opts.clock.Now().Unix() {
-		fmt.Printf(" clock now: %d vs genesis time %d\n\n", d.opts.clock.Now().Unix(), oldGroup.GenesisTime)
 		return nil, errors.New("control: genesis time is in the future")
 	}
 	if oldGroup.Period != newGroup.Period {
