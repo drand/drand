@@ -568,6 +568,7 @@ func getPublicKeys(c *cli.Context) []*key.Identity {
 	}
 	return publics
 }
+
 func checkConnection(c *cli.Context) error {
 	var names []string
 	if c.IsSet(groupFlag.Name) {
@@ -576,7 +577,7 @@ func checkConnection(c *cli.Context) error {
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
 			fatal("drand: loading group failed")
 		}
-		for _, id := range group.Identities() {
+		for _, id := range group.Nodes {
 			names = append(names, id.Address())
 		}
 	} else if c.Args().Present() {
@@ -633,10 +634,10 @@ func getGroup(c *cli.Context) *key.Group {
 
 // keyIDFromAddr looks at every node in the group file to retrieve to *key.Identity
 func keyIDFromAddr(addr string, group *key.Group) *key.Identity {
-	ids := group.Identities()
+	ids := group.Nodes
 	for _, id := range ids {
 		if id.Address() == addr {
-			return id
+			return id.Identity
 		}
 	}
 	fatal("Could not retrive the node you are trying to contact in the group file.")
@@ -683,10 +684,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 	return conf
 }
 
-func getNodes(c *cli.Context) []*key.Identity {
+func getNodes(c *cli.Context) []*key.Node {
 	group := getGroup(c)
-	var ids []*key.Identity
-	gids := group.Identities()
+	var ids []*key.Node
+	gids := group.Nodes
 	if c.IsSet("nodes") {
 		// search nodes listed on the flag in the group
 		for _, addr := range strings.Split(c.String("nodes"), ",") {

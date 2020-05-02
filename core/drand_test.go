@@ -94,7 +94,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group)
 	go func() {
-		group := dt.RunReshare(toKeep, toAdd, newThr, uint32(timeout.Seconds()))
+		group := dt.RunReshare(toKeep, toAdd, newThr, timeout)
 		doneReshare <- group
 	}()
 	time.Sleep(3 * time.Second)
@@ -228,7 +228,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	wg.Add(d.n)
 	// first run the leader and then run the other nodes
 	go func() {
-		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, uint32(testDkgTimeout.Seconds()), nil, secret, testBeaconOffset)
+		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, testDkgTimeout, nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
 		fmt.Printf("\n\nTEST LEADER FINISHED\n\n")
 		wg.Done()
@@ -242,7 +242,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 		go func(n *Node) {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(root.drand.priv.Public, d.n, d.thr, uint32(testDkgTimeout.Seconds()), nil, secret)
+			_, err = client.InitDKG(root.drand.priv.Public, d.n, d.thr, testDkgTimeout, nil, secret)
 			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			require.NoError(d.t, err)
 			wg.Done()
@@ -438,7 +438,7 @@ func (d *DrandTest2) SetupNewNodes(newNodes int) {
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
-func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout uint32) *key.Group {
+func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration) *key.Group {
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.nodes), newRun, len(d.newNodes))
 	var clientCounter = new(sync.WaitGroup)
 	var secret = "thisistheresharing"

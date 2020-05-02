@@ -33,7 +33,12 @@ func shareCmd(c *cli.Context) error {
 	secret := c.String(secretFlag.Name)
 	var timeout = core.DefaultDKGTimeout
 	if c.IsSet(timeoutFlag.Name) {
-		timeout = c.String(timeoutFlag.Name)
+		var err error
+		str := c.String(timeoutFlag.Name)
+		timeout, err = time.ParseDuration(str)
+		if err != nil {
+			fatal("dkg timeout duration incorrect:", err)
+		}
 	}
 
 	conf := contextToConfig(c)

@@ -33,7 +33,7 @@ const DefaultControlPort = "8888"
 // that by default, DKG uses the "fast sync" mode that shorten the first phase
 // and the second phase, "as fast as possible" when the protocol runs smoothly
 // (there is no malicious party).
-const DefaultDKGTimeout = 30 * time.Second
+const DefaultDKGTimeout = 10 * time.Second
 
 // DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
 var DefaultDialTimeout = 10 * time.Second
@@ -49,10 +49,10 @@ var RandomnessHash = sha256.New
 // cancelled.
 var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 
-// DefaultGenesisOffset is the time that the leader adds to the current time
-// to compute the genesis time. It computes the genesis time *before* sending
-// the group to the nodes and before running the DKG so it must be sufficiently
-// high enough (at the very least superior than the time DKG is taking).
+// DefaultGenesisOffset is the time that the leader adds to the current time to
+// compute the genesis time. It computes the genesis time *before* sending the
+// group to the nodes and before running the DKG so it must be sufficiently high
+// enough (at the very least superior than the time DKG is taking).
 var DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(3)
 
 // DefaultResharingOff is the time the leader adds to the current time to set

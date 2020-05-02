@@ -171,7 +171,7 @@ func (e *Orchestrator) checkDKGNodes(nodes []*Node, groupPath string) *key.Group
 
 func (e *Orchestrator) WaitGenesis() {
 	to := time.Until(time.Unix(e.genesis, 0))
-	fmt.Printf("[+] Sleeping %s until genesis happens\n", to)
+	fmt.Printf("[+] Sleeping %d until genesis happens\n", int(to.Seconds()))
 	time.Sleep(to)
 	relax := 3 * time.Second
 	fmt.Printf("[+] Sleeping %s after genesis - leaving some time for rounds \n", relax)
