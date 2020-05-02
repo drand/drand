@@ -38,11 +38,15 @@ func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket
 	return &drand.GroupPacket{
 		Threshold: 1,
 		Period:    60,
-		Nodes: []*drand.Identity{&drand.Identity{
-			Address: serve,
-			Key:     s.d.Public,
-			Tls:     false,
-		}},
+		Nodes: []*drand.Node{
+			{
+				Index: 0,
+				Public: &drand.Identity{
+					Address: serve,
+					Key:     s.d.Public,
+					Tls:     false,
+				},
+			}},
 	}, nil
 }
 
