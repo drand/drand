@@ -113,6 +113,7 @@ func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGr
 	if offset == 0 {
 		offset = DefaultResharingOffset
 	}
+	sm.beaconOffset = offset
 	return sm, nil
 }
 
@@ -257,7 +258,7 @@ func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Dura
 	n = int(in.GetNodes())
 	thr = int(in.GetThreshold())
 	if thr < key.MinimumT(n) {
-		err = fmt.Errorf("invalid thr: need %d got %d", thr, key.MinimumT(n))
+		err = fmt.Errorf("invalid thr: %d nodes, need thr %d got %d", n, thr, key.MinimumT(n))
 		return
 	}
 	dkg = time.Duration(in.GetTimeout()) * time.Second

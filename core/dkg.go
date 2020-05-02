@@ -36,6 +36,8 @@ type dkgBoard struct {
 	client    net.ProtocolClient
 	nodes     []*key.Node
 	isReshare bool
+	// TODO XXX simply for debugging
+	pub *key.Identity
 }
 
 // newBoard is to be used when starting a new DKG protocol from scratch
@@ -55,13 +57,13 @@ func initBoard(l log.Logger, client net.ProtocolClient, nodes []*key.Node) *dkgB
 }
 
 // newReshareBoard is to be used when running a resharing protocol
-func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup *key.Group) *dkgBoard {
+func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup *key.Group, pub *key.Identity) *dkgBoard {
 	// takes all nodes and new nodes, without duplicates
 	var nodes []*key.Node
 	tryAppend := func(n *key.Node) {
 		var found bool
 		for _, seen := range nodes {
-			if seen.Equal(n) {
+			if seen.Identity.Equal(n.Identity) {
 				found = true
 				break
 			}
@@ -79,6 +81,7 @@ func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup
 
 	board := initBoard(l, client, nodes)
 	board.isReshare = true
+	board.pub = pub
 	return board
 }
 
@@ -92,17 +95,18 @@ func (b *dkgBoard) ReshareDKG(c context.Context, p *proto.ResharePacket) (*proto
 
 func (b *dkgBoard) PushDeals(bundle dkg.AuthDealBundle) {
 	pdeal := dealToProto(&bundle)
-	go b.broadcastPacket(pdeal)
+	fmt.Printf("-- PUSHING Deal: index %d - pub %s - hash %x - sig: %x\n", bundle.Bundle.DealerIndex, b.pub, bundle.Bundle.Hash(), bundle.Signature)
+	go b.broadcastPacket(pdeal, "deal")
 }
 
 func (b *dkgBoard) PushResponses(bundle dkg.AuthResponseBundle) {
 	presp := respToProto(&bundle)
-	go b.broadcastPacket(presp)
+	go b.broadcastPacket(presp, "response")
 }
 
 func (b *dkgBoard) PushJustifications(bundle dkg.AuthJustifBundle) {
 	pjust := justifToProto(&bundle)
-	go b.broadcastPacket(pjust)
+	go b.broadcastPacket(pjust, "justification")
 }
 
 func (b *dkgBoard) dispatch(c context.Context, p *pdkg.Packet) error {
@@ -179,10 +183,10 @@ func (b *dkgBoard) IncomingJustification() <-chan dkg.AuthJustifBundle {
 
 // broadcastPacket broads the given packet to ALL nodes in the list of ids he's
 // has.
-// NOTE: For simplficity, there is a minor cost here that it sends our own
+// NOTE: For simplicity, there is a minor cost here that it sends our own
 // packet via a connection instead of using channel. Could be changed later on
 // if required.
-func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet) {
+func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet, t string) {
 	if b.isReshare {
 		rpacket := &proto.ResharePacket{
 			Dkg: packet,
@@ -193,7 +197,7 @@ func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet) {
 				b.l.Debug("board_reshare", "broadcast_packet", "to", node.Address(), "err", err)
 				continue
 			}
-			b.l.Debug("board_reshare", "broadcast_packet", "to", node.Address(), "success")
+			b.l.Debug("board_reshare", "broadcast_packet", "to", node.Address(), "type", t)
 		}
 	} else {
 		rpacket := &proto.DKGPacket{
@@ -205,7 +209,7 @@ func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet) {
 				b.l.Debug("board", "broadcast_packet", "to", node.Address(), "err", err)
 				continue
 			}
-			b.l.Debug("board", "broadcast_packet", "to", node.Address(), "success")
+			b.l.Debug("board", "broadcast_packet", "to", node.Address(), "type", t)
 		}
 	}
 }

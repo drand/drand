@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -143,7 +144,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	waitCh := d.dkgInfo.proto.WaitEnd()
 	d.state.Unlock()
 
-	d.log.Debug("dkg_start", time.Now().String())
+	d.log.Debug("waiting_dkg_end", time.Now())
 	res := <-waitCh
 	if res.Error != nil {
 		return nil, fmt.Errorf("drand: error from dkg: %v", res.Error)
@@ -171,7 +172,11 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	// setup the dist. public key
 	targetGroup.PublicKey = d.share.Public()
 	d.group = targetGroup
-	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
+	var output []string
+	for _, node := range qualNodes {
+		output = append(output, fmt.Sprintf("{addr: %s, idx: %d, pub: %s}", node.Address(), node.Index, node.Key))
+	}
+	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
 	d.store.SaveGroup(d.group)
 	d.opts.applyDkgCallback(d.share)
 	d.dkgInfo = nil
@@ -181,19 +186,17 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (d *Drand) StartBeacon(catchup bool) {
-	d.state.Lock()
-	defer d.state.Unlock()
-	var err error
-	d.beacon, err = d.newBeacon()
+	beacon, err := d.newBeacon()
 	if err != nil {
 		d.log.Error("init_beacon", err)
 		return
 	}
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
-		d.beacon.Catchup()
+		go beacon.Catchup()
+
 	} else {
-		if err := d.beacon.Start(); err != nil {
+		if err := beacon.Start(); err != nil {
 			d.log.Error("beacon_start", err)
 		}
 	}
@@ -290,7 +293,7 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	pub := d.priv.Public
 	node := d.group.Find(pub)
 	if node == nil {
-		return nil, errors.New("public key not found in group")
+		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
 	conf := &beacon.Config{
 		Public: node,

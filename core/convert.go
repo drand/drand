@@ -140,10 +140,10 @@ func protoToDeal(d *pdkg.DealBundle) (*dkg.DealBundle, error) {
 	}
 	bundle.Public = publics
 	deals := make([]dkg.Deal, 0, len(d.Deals))
-	for _, d := range d.Deals {
+	for _, dd := range d.Deals {
 		deal := dkg.Deal{
-			EncryptedShare: d.EncryptedShare,
-			ShareIndex:     d.ShareIndex,
+			EncryptedShare: dd.EncryptedShare,
+			ShareIndex:     dd.ShareIndex,
 		}
 		deals = append(deals, deal)
 	}
@@ -194,6 +194,12 @@ func dealToProto(d *dkg.AuthDealBundle) *pdkg.Packet {
 			EncryptedShare: deal.EncryptedShare,
 		}
 		bundle.Deals[i] = pdeal
+	}
+
+	bundle.Commits = make([][]byte, len(d.Bundle.Public))
+	for i, coeff := range d.Bundle.Public {
+		cbuff, _ := coeff.MarshalBinary()
+		bundle.Commits[i] = cbuff
 	}
 	packet.Signature = d.Signature
 	packet.Bundle = &pdkg.Packet_Deal{Deal: bundle}

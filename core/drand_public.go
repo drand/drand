@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -29,7 +30,8 @@ func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, 
 		addr = p.Addr.String()
 	}
 	if !d.dkgInfo.started {
-		d.log.Info("init_dkg", "start", "signal_leader", addr)
+		d.log.Info("init_dkg", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}
 	d.dkgInfo.board.FreshDKG(c, in)
@@ -50,7 +52,8 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 		addr = p.Addr.String()
 	}
 	if !d.dkgInfo.started {
-		d.log.Info("init_reshare", "start", "signal_leader", addr)
+		d.dkgInfo.started = true
+		d.log.Info("init_reshare", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()), "target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
 		go d.dkgInfo.phaser.Start()
 	}
 

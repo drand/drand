@@ -110,6 +110,7 @@ func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	group := key.LoadGroup(ListFromPrivates(privs), 1, &key.DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0)
+	group.Threshold = key.MinimumT(n)
 	return privs, group
 }
 
