@@ -641,7 +641,7 @@ Here is a list of all documentation related to drand:
 
 * For a high level presentation of motivations and background, here are some public
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
-  about drand or online [video](https://www.youtube.com/watch?v=6BgT-T0wA3U&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=2&t=0s).
+  about drand or online [video](https://www.youtube.com/watch?v=ydwW2HFFxNI&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=3).
 * The client-side API documentation of of drand:
   [link](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
 * The drand *operator guide* documentation:
