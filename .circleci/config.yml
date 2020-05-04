@@ -19,12 +19,50 @@ jobs:
       - run: go get -v -t -d ./...
       - run: make test-unit
       - run: make test-integration
+
+  deploy:
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
       - setup_remote_docker
       - run:
           name: Build and push Docker image
           command: |
-            make build
-            docker build -t drandorg/go-drand:latest .
+            docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
             echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
             docker push drandorg/go-drand:latest
- 
+  tagged-deploy:
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build and push tagged Docker image
+          command: |
+            docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
+            echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker push drandorg/go-drand:`git describe --tags`
+
+workflows:
+  version: 2
+  build-deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+  tagged-build:
+    jobs:
+      - tagged-deploy:
+          filters:
+            # ignore any commit on any branch by default
+            branches:
+              ignore: /.*/
+            # only act on version tags
+            tags:
+              only: /^v[0-9]+(\.[0-9]+)*$/
