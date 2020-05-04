@@ -35,7 +35,7 @@ func CreateSecureFolder(folder string) string {
 		}
 		perm := int(info.Mode().Perm())
 		if perm != int(0740) {
-			fmt.Println("Folder different permission: ", perm, " vs ", 0740)
+			fmt.Printf("Folder different permission: %#o vs %#o \n", perm, 0740)
 			return folder
 		}
 	}
