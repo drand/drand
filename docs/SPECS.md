@@ -467,9 +467,9 @@ type Beacon struct {
 This structure makes it so that each beacon created is building on the previous
 one therefor forming a randomness chain.
 
-**Protocol**: At each new round, a node creates a `PartialBeacon` with the
-current round number, the previous signature and the partial signature over the
-message: 
+**Partial Beacon Creation**: At each new round, a node creates a `PartialBeacon`
+with the current round number, the previous signature and the partial signature
+over the message: 
 ```go
 func Message(currRound uint64, prevSig []byte) []byte {
 	h := sha256.New()
@@ -478,29 +478,118 @@ func Message(currRound uint64, prevSig []byte) []byte {
 	return h.Sum(nil)
 }
 ```
-Each node then calls the following RPC call with the following protobuf packet:
-```protobuf
+To determine the "current round" and the "previous signature", the node loads it
+last generated beacon and sets the following:
+```
+currentRound = lastBeacon.Round + 1
+previousSignature = lastBeacon.Signature
+```
+It is important to note that the current round may not be necessarily the round
+of the current time. More information in the following section.
 
+**Partial Beacon Broadcast**:Each node then calls the following RPC call with
+the following protobuf packet: XXX: protobuf shown is assuming [issue
+256](https://github.com/drand/drand/issues/256)is fixed.
+```protobuf
 rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
 
 message PartialBeaconPacket {
     // Round is the round for which the beacon will be created from the partial
     // signatures
     uint64 round = 1;
-    // PreviousRound is the round for which the beacon is building on top of
-    // from.
-    uint64 previous_round = 2;
-    bytes partial_sig = 3;
-    bytes previous_sig = 4;
+    bytes partial_sig = 2;
+    // previous sig the signature of the beacon generated at round `round-1`
+    bytes previous_sig = 3;
+}
+```
+**Final Beacon Creation**: For each incoming partial beacon packet, a
+node must first verify it, using the partial signature verification routine and
+then stores it in a temporary cache if it is valid.  As soon as there is at
+least a threshold of valid partial signatures, the node can aggregate them to
+create the final signature. 
+
+**Validation of beacon and storage**: Once the new beacon is created, the node
+verifies its signature, loads the last saved beacom from the database and checks
+if the following routine returns true:
+```go
+func isAppendable(lastBeacon, newBeacon *Beacon) bool {
+	return newBeacon.Round == lastBeacon.Round+1 &&
+		bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
+}
+```
+There should never be any gaps in the rounds.
+A node can now save the beacon locally in its database and exposes it to the
+external API.
+
+
+#### Catchup mode
+
+Nodes must have a ticker that kicks in every period of time (started at the
+genesis time). At each kicks, a node loads its last beacon generated and runs
+the protocol as shown above. Under normal circumstances, the `Round` field
+should be the round that corresponds to the current time.
+
+**Network halting**: However, it may happen that there is not enough partial
+beacon being broadcasted at one time therefore there will not be any random
+beacon created for this round. Under these circumstances, nodes can enter a
+"catchup" mode.
+
+To detect if the network is stalled, each node at each new tick must verify that
+the `lastBeacon.Round + 1` equals the current round given by their local clock.
+If that is not the case, that means there wasn't a random beacon generated in
+time in the previous round OR this node didn't receive enoug partial beacons for
+some reasons.
+
+If that condition is true, nodes must first try to sync with each other: each node
+asks the other nodes if they have a random beacon at the round `lastBeacon.Round
++ 1` AND higher beacons as well. If a node receives a valid beacon for the
+requested round, that means the network is still producing randomness but for
+some networking reasons, he didn't receive correctly the partial beacons. In
+this case, if the last beacon received corresponds to the current round, the
+node must wait on the next tick and continue as usual.
+
+If the sync didn't return any more recent valid beacons, that probably means the
+network is stalled. In that case, nodes must continue to broadcast the same
+partial beacon as usual at every tick. 
+
+**Network Catchup**: At some point, there will be enough honest & alive nodes to
+broadcast their partial signatures such that a new beacon can be aggregated, for
+the round R.  However, that round R does not correspond to the current round
+given their local clock. In this situation, each node must produce their partial
+beacons until the current round as fast as possible.  More concretely, each node
+broadcasts their new partial beacon from the last generated beacon until they
+reach the current round according to the local clock. As soon as a new beacon is
+aggregated, nodes look if the round corresponds to the current round, and if
+not, prepare to broadcast their next partial signatures.
+
+#### Syncing
+
+When a drand node is offline, restarted or detects a halt in the chain's
+progress (previous section), a node should sync to all other nodes in the
+network. A node indicates the last beacon saved in its database and calls the
+following RPC:
+```protobuf
+rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
+// SyncRequest is from a node that needs to sync up with the current head of the
+// chain
+message SyncRequest {
+    uint64 from_round = 1;
+}
+
+message BeaconPacket {
+    bytes previous_sig = 1;
+    uint64 round = 2;
+    bytes signature = 3;
 }
 ```
 
+**Client side**: For each incoming `BeaconPacket`, the node runs the regular
+beacon verification routine as usual. The client stops the syncing process
+(closes the RPC call) when the last valid beacon's round returned is equal to
+the current round.
 
-#### Timing of the randomness generation
-
-Nodes must have a ticker that kicks in every period of time (started at the
-genesis time). At each kicks, a node loads its last beacon generated and
-partially signs the 
+**Server side**: For sync request, the node must load the beacon which has the
+given round requested and sends back all subsequent beacons until the last one.
 
 ## External API
 
