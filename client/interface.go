@@ -1,9 +1,8 @@
 package client
 
 import (
+	"context"
 	"encoding"
-
-	"github.com/libp2p/go-libp2p-core/event"
 )
 
 // Client represents the drand Client interface.
@@ -13,9 +12,8 @@ type Client interface {
 	// to restore Client state.
 	encoding.TextMarshaler
 
-	// Get returns a the randomness at `round` or an error over a result channel.
-	// One result will be returned, with exactly one of Err or Data populated.
-	func Get(ctx context.Context, round uint64) <-chan Result
+	// Get returns a the randomness at `round` or an error.
+	func Get(ctx context.Context, round uint64) (Result, error)
 
 	// RoundAt will return the most recent round of randomness that will be available
 	// at time for the current client.
@@ -24,10 +22,9 @@ type Client interface {
 
 // Result represents the randomness for a single drand round.
 type Result struct {
-	Err error
 	Round uint64
-	Data []byte
+	Signature []byte
 }
 
-// New creates a new Client, or a non-nill error if the input state cannot be parsed.
+// New creates a new Client, or a non-nil error if the input state cannot be parsed.
 func New(state []byte) (Client, error)
