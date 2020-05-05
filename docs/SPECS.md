@@ -17,11 +17,13 @@ type Node struct {
 ```
 A node can be referenced by its hash as follows:
 ```go
+func (n *Node) Hash() []byte {
     h := blake2b.New(nil)
     h.Write([]byte(n.Addr))
 	binary.Write(h, binary.LittleEndian, n.Index)
     h.Write(n.Key)
     return h.Sum(nil)
+}
 ```
 
 ### Drand beacon
@@ -59,6 +61,7 @@ The group configuration can be uniquely referenced via its canonical hash.
 The hash is derived using the blake2b hash function.
 The Go procedure works as follow:
 ```
+func (g *Group) Hash() []byte {
     h, _ := blake2b.New256(nil)
     // sort all nodes entries by their index
 	sort.Slice(nodes, func(i, j int) bool {
@@ -77,6 +80,7 @@ The Go procedure works as follow:
 		h.Write(g.PublicKey.Hash())
 	}
 	return h.Sum(nil)
+}
 ```
 
 ## Drand Curve
@@ -89,17 +93,21 @@ All points on the curve are sent using the compressed form.
 The implementation that drand uses is located in the
 [bls12-381](https://github.com/drand/bls12-381) repo.
 
-## Networking & exposed API
+## Wireformat & API
 
 Drand currently uses [gRPC](https://grpc.io/) as the networking protocol. All
-exposed services and protobuf definitions are in the [protocol.proto](https://github.com/drand/drand/blob/master/protobuf/drand/protocol.proto) file for the intra-nodes protocols and in the [api.proto](https://github.com/drand/drand/blob/master/protobuf/drand/api.proto) file.
+exposed services and protobuf definitions are in the
+[protocol.proto](https://github.com/drand/drand/blob/master/protobuf/drand/protocol.proto)
+file for the intra-nodes protocols and in the
+[api.proto](https://github.com/drand/drand/blob/master/protobuf/drand/api.proto)
+file.
 
-## Drand Protocols
+## Drand Modules
 
 Generating public randomness is the primary functionality of drand. Public
 randomness is generated collectively by drand nodes and publicly available. The
 A drand network is composed of a distributed set of nodes and has two
-phases:
+phases / modules:
 
 * Setup: The nodes perform a distributed key generation (DKG) protocol to create
   the collective public key and one private key share per node. The participants
@@ -112,9 +120,9 @@ phases:
   (BLS) signature scheme with their respective private key shares. Once any node
   (or third-party observer) has gathered t partial signatures, it can
   reconstruct the full BLS signature, that can be verified against the
-  collective public key.  The signature is then simply the hash of that
+  distributed public key.  The signature is then simply the hash of that
   signature, to ensure that there is no bias in the byte representation of the
-  final output.  against the collective public key.
+  final output. 
 
 ### Setup phase
 
@@ -191,8 +199,13 @@ message GroupPacket {
 }
 ```
 
-After the coordinator has successfully sent the group to all participants, he
-starts sending the first packet of the distributed key generation.
+As soon as a participant receives this information from the coordinator, then he
+must be ready to accept DKG packets, but he does not start immediatly sending
+his packet.  After the coordinator has successfully sent the group to all
+participants, he starts sending the first packet of the distributed key
+generation. All nodes that receive the first packet of the DKG from the
+coordinator (or else, due to network shifts) must send their first packet of the
+DKG as well and start the ticker as explained below.
 
 ### Distributed Key Generation
 
@@ -221,19 +234,56 @@ message Packet {
 ```
 All messages of the DKG have a canonical hash representation and each node signs
 that hash before sending out the packet, therefore providing authentication of
-the messages.
+the messages. The signature scheme is the regular BLS signature as explained in
+the [cryptography](#cryptography) section.
 
-**Phase transitions**: This protocol runs in _at most_ 3 phases: `DealPhase`,
-`ResponsePhase` and `JustificationPhase`. However, it can finish after the first
-two phases if there is malicious interference or offline nodes during the first
-phase. 
+#### Phase transitions
 
-The phases are described in the following sections.
+The protocol runs in _at most_ 3 phases: `DealPhase`, `ResponsePhase` and
+`JustificationPhase`. The `FinishPhase` is an additiona local phase where nodes
+compute their local private share. However, it can finish after the first two
+phases if there is malicious interference or offline nodes during the first
+phase.
+
+The way the protocol transition works is via time-outs. As soon as a node starts
+the DKG protocol, it starts a ticker that triggers each transition phase.
+Example:
+* DKG timeout is set to 30s
+* Node 1 starts the DKG at time T, so he is in `DealPhase` and sends its deals
+  to every other node.
+* Node 1's ticker ticks at time T+30s, and node 1 enters the `ResponsePhase` and
+  sends its responses to every other node. Each `Response` can be a complaint or a
+  success depending on the deal the node received at the previous step.
+* Node 1's ticker ticks at time T+60s, and node 1 enters the
+  `JustificationPhase` _if there was no complaint response received_ OR in
+  `FinishPhase` otherwise.
+
+**Fast Sync**: Drand uses a *fast sync* mode that allows to make the setup
+phase proceeds faster at the cost of higher bandwidth usage. Given the
+relatively low size of the network, the latter is not a concern. The general
+idea is to move to the next step before the ticker kicks in if we received the
+messages of the phase from all other nodes already. In more details:
+* nodes go into the `ResponsePhase` as soon as they received deals from
+  everybody else OR when the ticker kicks in.
+* nodes go into the `FinishPhase` as soon as they received "success" responses
+  from all other nodes (i.e. all deals were correct) OR
+* nodes go into the `JustificationPhase` as soon as they received all responses
+  from all other nodes, where at least one of the responses is a complaint. 
+* The transition from the `JustificationPhase` to the `FinishPhase` is done
+  locally: when a node received all justifications or when the ticker kicks in,
+  the nodes compute their final share. The beacon chain is starting at a
+  pre-defined time so it doesn't impact how nodes are handling this last phase.
+
+The phases and the respective messages are described in more details in the
+following sections.
 
 #### Deal Phase
 
-Nodes produce their share to send to the other nodes in an encrypted form as
-well as the public polynomial from which those shares are derived.
+In this first phase, nodes sends their "deal" containing their encrypted share
+to the other nodes as well as the public polynomial from which those shares are
+derived. The share is encrypted via ECIES using the public key of the recipient
+share holder.  A node bundles all its deals into a `DealBundle` that is
+signed.Here is the protobuf wire specification of the deals:
 
 ```protobuf
 // DealBundle is a packet issued by a dealer that contains each individual
@@ -256,11 +306,201 @@ message Deal {
 }
 ```
 
+Each `DealBundle` is authentificated so a node can know when they received all
+expected `DealBundle`, one from each node, by looking at the
+`dealer_index` field of all `DealBundle. If that is the case, the node can
+directly transition to the `ResponsePhase`. Otherwise, the node needs to wait
+until the ticker kicks in for the next timeouts, before entering the
+`ResponsePhase`.
+
 #### Response Phase
+
+In this second phase, each node first process all their deals received during
+the previous phase. Each nodes then sends a Response for each shares they have
+received and _should_ have received: if there is a missing share for a node,
+this node will send a response for it as well.  A `Response` contains both the
+"share holder" index and the "dealer index" as well as a status. If the share
+holder found its share from that dealer invalid, the status is set as a
+complaint (`false`) and if the share was valid, the status is set as a success
+(`true`).
+A node bundles all its responses into a `ResponseBundle` that is signed. Here is
+the protobuf description:
+
+```protobuf
+// ResponseBundle is a packet issued by a share holder that contains all the 
+// responses (complaint and/or success) to broadcast.
+message ResponseBundle {
+    uint32 share_index = 1;
+    repeated Response responses = 2;
+}
+
+// Response holds the response that a participant broadcast after having
+// received a deal.
+message Response {
+    // index of the dealer for which this response is for
+    uint32 dealer_index = 1;
+    // Status represents a complaint if set to false, a success if set to 
+    // true.
+    bool status = 2;
+}
+```
+
+When a node received all expected `ResponseBundle` from each node OR when the
+ticker kicks in, the node decides to which phase to proceed to:
+* If all `Response.status` from each `ResponseBundle` are set to true, the node
+  can directly go into the `FinishPhase` and compute their final share.
+* If not, then the node needs to go into the `JustificationPhase`.
 
 #### Justification Phase
 
-### Beacon Chain
+For each "complaint" responses (i.e. `status == false`) whose`dealer_index` is
+equal to their index, a node sends a `Justification` packet that contains the
+non-encrypted share that the share holder should have received. The goal here is
+that every node will be able to verify the validity of the share now that is
+unencrypted.
+A node bundles all its `Justifications` into a `JustificationBundle` that is
+signed. Here is the protobuf description:
+
+```protobuf
+// JustifBundle is a packet that holds all justifications a dealer must 
+// produce
+message JustifBundle {
+    uint32 dealer_index = 1;
+    repeated Justification justifications = 2;
+}
+
+// Justification holds the justification from a dealer after a participant
+// issued a complaint response because of a supposedly invalid deal.
+message Justification {
+    // represents for who share holder this justification is
+    uint32 share_index = 1;
+    // plaintext share so everyone can see it correct
+    bytes share = 2;
+}
+```
+A node can silently waits until it receives all justification expected or the
+ticker kicks in to go into the `FinishPhase`.
+
+#### Finish Phase
+
+In the `FinishPhase`, each node locally look at the shares they received and
+compute both their final share and the distributed public key. For the DKG to be
+sucessful, there must be at least more than a threshold of valid shares. For
+more detail, see the [cryptography](#cryptography) section.
+Each node must save the group configuration file augmented with the distributed
+key. This configuration file is now representative of functional current drand network.
+
+Each node must start generating randomness at the time specified in the
+`GenesisTime` of the group configuration file.
+
+### Randomness generation 
+
+#### Overiew
+
+The randomness generation protocol works in its simple form by having each node
+periodically broadcasts a "partial" signature over a common input. Each nodes
+waits to receive these partial signatures, and as soon as one has a subset of at
+least a "threshold" (parameter given in the group configuration file) of those,
+this node can reconstruct the final signature. The final signature is a regular
+BLS signature that can be verified against the distributed public key. If that
+signature is correct, then the randomness is simply the hash of it: 
+```go
+rand := sha256.Sum256(signature)
+```
+Note here that the hash function shown here is simply an example, a suggestion.
+An application is free to hash the signature using any secure hash function. The
+important point is to verify to validity of the signature.
+
+#### Randomness Generation Period
+
+The drand network outputs a new random beacon every period and associates a
+beacon "round" to a specific time. The mapping between a time and a round allows
+to exactly determine the round number for any given time in the past or future.
+The relation to determine this mapping is as follow:
+```go
+// Parameters:
+// * now: UNIX timestamp in seconds
+// * genesis: UNIX timestamp in seconds
+// * period: period in seconds
+// Returns:
+// * round: the round number at which the drand network is at
+// * the time at which this round started
+func CurrentRound(now, genesis int64, period uint32) (round uint64, time int64){
+	if now < genesis {
+        // round 0 is the genesis block: signature is the genesis seed
+		return 0
+	}
+	fromGenesis := now - genesis
+	// we take the time from genesis divided by the periods in seconds, that
+	// gives us the number of periods since genesis.  We add +1 because round 1 
+    // starts at genesis time.
+	round = uint64(math.Floor(float64(fromGenesis)/period)) + 1
+	time = genesis + int64(nextRound*uint64(period.Seconds()))
+    return
+}
+```
+
+Each node starts sending their partial signature for a given round when it is
+time to do so, according to the above function. Given the threat model, there
+is always enough honest nodes such that the chain advances at the correct speed.
+In case this is not true at some point in time, please refer to the [catchup
+section](#catchup) for more information.
+
+#### Beacon Chain
+
+Drand binds the different random beacon together so they form a chain of random
+beacons. Remember a drand beacon is structured as follow:
+```go
+type Beacon struct {
+    Round uint64
+    PreviousSignature []byte 
+    Signature []byte
+}
+```
+* The `Round` is the round at which the beacon was created, as explained in the
+  previous section.
+* The `PreviousSignature` is the signature of the beacon that was created at
+  round `Round - 1`
+* `Signature` is the final BLS signature created by aggregating at least
+  `Threshold` of partial signatures from nodes.
+
+This structure makes it so that each beacon created is building on the previous
+one therefor forming a randomness chain.
+
+**Protocol**: At each new round, a node creates a `PartialBeacon` with the
+current round number, the previous signature and the partial signature over the
+message: 
+```go
+func Message(currRound uint64, prevSig []byte) []byte {
+	h := sha256.New()
+	h.Write(prevSig)
+	h.Write(roundToBytes(currRound))
+	return h.Sum(nil)
+}
+```
+Each node then calls the following RPC call with the following protobuf packet:
+```protobuf
+
+rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
+
+message PartialBeaconPacket {
+    // Round is the round for which the beacon will be created from the partial
+    // signatures
+    uint64 round = 1;
+    // PreviousRound is the round for which the beacon is building on top of
+    // from.
+    uint64 previous_round = 2;
+    bytes partial_sig = 3;
+    bytes previous_sig = 4;
+}
+```
+
+
+#### Timing of the randomness generation
+
+Nodes must have a ticker that kicks in every period of time (started at the
+genesis time). At each kicks, a node loads its last beacon generated and
+partially signs the 
 
 ## External API
 
