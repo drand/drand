@@ -37,10 +37,6 @@ var ErrStoreFile = errors.New("store file issues")
 // ErrAbsent returns
 var ErrAbsent = errors.New("store can't find requested object")
 
-// ConfigFolderFlag holds the name of the flag to set using the CLI to change
-// the default configuration folder of drand. It mimicks the gpg flag option.
-const ConfigFolderFlag = "homedir"
-
 // KeyFolderName is the name of the folder where drand keeps its keys
 const KeyFolderName = "key"
 
@@ -54,6 +50,8 @@ const shareFileName = "dist_key.private"
 const distKeyFileName = "dist_key.public"
 
 // Tomler represents any struct that can be (un)marshalled into/from toml format
+// XXX surely golang reflect package can automatically return the TOMLValue()
+// for us
 type Tomler interface {
 	TOML() interface{}
 	FromTOML(i interface{}) error
@@ -162,8 +160,7 @@ func Save(path string, t Tomler, secure bool) error {
 		fd, err = os.Create(path)
 	}
 	if err != nil {
-		fmt.Printf("config: can't save %s to %s: %s\n", reflect.TypeOf(t).String(), path, err)
-		return err
+		return fmt.Errorf("config: can't save %s to %s: %s\n", reflect.TypeOf(t).String(), path, err)
 	}
 	defer fd.Close()
 	return toml.NewEncoder(fd).Encode(t.TOML())
@@ -187,4 +184,5 @@ func Delete(path string) error {
 
 // ResetOption is an option to allow for fine-grained reset
 // operations
+// XXX TODO
 type ResetOption int

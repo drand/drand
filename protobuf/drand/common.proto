@@ -1,0 +1,44 @@
+/*
+ * Protobuf file containing empty message definition
+ */
+syntax = "proto3";
+
+package drand;
+
+/*option go_package = "github.com/drand/drand/protobuf/drand";*/
+option go_package = "drand";
+
+message Empty {
+
+}
+
+message Identity {
+    string address = 1;
+    bytes key = 2;
+    bool tls = 3;
+}
+
+// Node holds the information related to a server in a group that forms a drand
+// network
+message Node {
+    Identity public = 1;
+    uint32 index = 2;
+}
+
+// GroupPacket represents a group that is running a drand network (or is in the
+// process of creating one or performing a resharing).
+message GroupPacket {
+    repeated Node nodes = 1; 
+    uint32 threshold = 2;
+    // period in seconds
+    uint32 period = 3;
+    uint64 genesis_time = 4;
+    uint64 transition_time = 5;
+    bytes genesis_seed = 6;
+    repeated bytes dist_key = 7;
+}
+message GroupRequest {
+
+}
+
+

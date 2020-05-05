@@ -72,7 +72,7 @@ func TestKeyDistributedPublic(t *testing.T) {
 func TestKeyGroup(t *testing.T) {
 	n := 5
 	_, group := BatchIdentities(n)
-	ids := group.Identities()
+	ids := group.Nodes
 	for _, p := range ids {
 		require.True(t, p.TLS)
 	}
@@ -86,18 +86,16 @@ func TestShare(t *testing.T) {
 	n := 5
 	s := new(Share)
 	s.Commits = make([]kyber.Point, n, n)
-	s.PrivatePoly = make([]kyber.Scalar, n, n)
 	for i := 0; i < n; i++ {
 		s.Commits[i] = KeyGroup.Point().Pick(random.New())
-		s.PrivatePoly[i] = KeyGroup.Scalar().Pick(random.New())
 	}
 	s.Share = &share.PriShare{V: KeyGroup.Scalar().Pick(random.New()), I: 0}
 
 	stoml := s.TOML()
 	s2 := new(Share)
 	require.NoError(t, s2.FromTOML(stoml))
-	poly1 := s.PrivatePoly
-	poly2 := s2.PrivatePoly
+	poly1 := s.Commits
+	poly2 := s2.Commits
 	require.Equal(t, len(poly1), len(poly2))
 	for i := range poly1 {
 		require.Equal(t, poly1[i].String(), poly2[i].String())
@@ -108,12 +106,15 @@ func BatchIdentities(n int) ([]*Pair, *Group) {
 	startPort := 8000
 	startAddr := "127.0.0.1:"
 	privs := make([]*Pair, n)
-	pubs := make([]*Identity, n)
+	pubs := make([]*Node, n)
 	for i := 0; i < n; i++ {
 		port := strconv.Itoa(startPort + i)
 		addr := startAddr + port
 		privs[i] = NewTLSKeyPair(addr)
-		pubs[i] = privs[i].Public
+		pubs[i] = &Node{
+			Index:    uint32(i),
+			Identity: privs[i].Public,
+		}
 	}
 	fakeDistKey := KeyGroup.Point().Pick(random.New())
 	distKey := &DistPublic{[]kyber.Point{fakeDistKey}}

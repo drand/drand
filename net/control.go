@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	control "github.com/drand/drand/protobuf/drand"
 
@@ -68,21 +69,39 @@ func (c *ControlClient) Ping() error {
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-// oldPath and newPath represents the paths in the filesystems of the old group
-// and the new group respectively. Leader is true if the destination node should
-// start the protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeout string) (*control.Empty, error) {
+func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Duration, secret string, oldPath string, offset int) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
 		},
-		New: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{Path: newPath},
+		Info: &control.SetupInfoPacket{
+			Nodes:        uint32(nodes),
+			Threshold:    uint32(threshold),
+			Leader:       true,
+			Timeout:      uint32(timeout.Seconds()),
+			Secret:       secret,
+			BeaconOffset: uint32(offset),
 		},
-		IsLeader: leader,
-		Timeout:  timeout,
+	}
+	return c.client.InitReshare(context.Background(), request)
+}
+
+func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout time.Duration, secret string, oldPath string) (*control.GroupPacket, error) {
+	request := &control.InitResharePacket{
+		Old: &control.GroupInfo{
+			Location: &control.GroupInfo_Path{Path: oldPath},
+		},
+		Info: &control.SetupInfoPacket{
+			Nodes:         uint32(nodes),
+			Threshold:     uint32(threshold),
+			Leader:        false,
+			LeaderAddress: leader.Address(),
+			LeaderTls:     leader.IsTLS(),
+			Timeout:       uint32(timeout.Seconds()),
+			Secret:        secret,
+		},
 	}
 	return c.client.InitReshare(context.Background(), request)
 }
@@ -91,17 +110,36 @@ func (c *ControlClient) InitReshare(oldPath, newPath string, leader bool, timeou
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKG(groupPath string, leader bool, timeout string, entropy *control.EntropyInfo) (*control.Empty, error) {
+func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Duration, timeout time.Duration, entropy *control.EntropyInfo, secret string, offset int) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
-		DkgGroup: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{Path: groupPath},
+		Info: &control.SetupInfoPacket{
+			Nodes:        uint32(nodes),
+			Threshold:    uint32(threshold),
+			Leader:       true,
+			Timeout:      uint32(timeout.Seconds()),
+			Secret:       secret,
+			BeaconOffset: uint32(offset),
 		},
-		IsLeader: leader,
-		Timeout:  timeout,
-		Entropy:  entropy,
+		Entropy:      entropy,
+		BeaconPeriod: uint32(beaconPeriod.Seconds()),
 	}
 	return c.client.InitDKG(context.Background(), request)
+}
 
+func (c *ControlClient) InitDKG(leader Peer, nodes, threshold int, timeout time.Duration, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+	request := &control.InitDKGPacket{
+		Info: &control.SetupInfoPacket{
+			Nodes:         uint32(nodes),
+			Threshold:     uint32(threshold),
+			Leader:        false,
+			LeaderAddress: leader.Address(),
+			LeaderTls:     leader.IsTLS(),
+			Timeout:       uint32(timeout.Seconds()),
+			Secret:        secret,
+		},
+		Entropy: entropy,
+	}
+	return c.client.InitDKG(context.Background(), request)
 }
 
 // Share returns the share of the remote node
@@ -124,9 +162,10 @@ func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
 	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
 }
 
-// GroupFile returns the TOML-encoded group file
-func (c ControlClient) GroupFile() (*control.GroupTOMLResponse, error) {
-	return c.client.GroupFile(context.Background(), &control.GroupTOMLRequest{})
+// GroupFile returns the group file that the drand instance uses at the current
+// time
+func (c ControlClient) GroupFile() (*control.GroupPacket, error) {
+	return c.client.GroupFile(context.Background(), &control.GroupRequest{})
 }
 
 // Shutdown stops the daemon

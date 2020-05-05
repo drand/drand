@@ -3,17 +3,15 @@ package core
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	dkg_proto "github.com/drand/drand/protobuf/crypto/dkg"
-	"github.com/drand/drand/protobuf/drand"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -24,29 +22,30 @@ type Drand struct {
 	priv *key.Pair
 	// current group this drand node is using
 	group *key.Group
-	// index in the current group
-	idx int
+	index int
 
 	store   key.Store
 	gateway net.Gateway
 	control net.ControlListener
 
-	dkg         *dkg.Handler
-	beacon      *beacon.Handler
-	beaconStore beacon.Store
+	// handle all callbacks when a new beacon is found
+	callbacks *callbackManager
+	// stores recent entries in memory
+	//cache *beaconCache
+
+	beacon *beacon.Handler
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
 	// dkg public key. Can be nil if dkg not finished yet.
 	pub     *key.DistPublic
 	dkgDone bool
+	// manager is created and destroyed during a setup phase
+	manager  *setupManager
+	receiver *setupReceiver
 
-	// proposed next group hash for a resharing operation
-	nextGroupHash     string
-	nextGroup         *key.Group
-	nextConf          *dkg.Config
-	nextOldPresent    bool // true if we are in the old group
-	nextFirstReceived bool // false til receive 1st reshare packet
-
+	// dkgInfo contains all the information related to an upcoming or in
+	// progress dkg protocol. It is nil for the rest of the time.
+	dkgInfo *dkgInfo
 	// general logger
 	log log.Logger
 
@@ -81,17 +80,24 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	// identity. If there is an option to set the address, it will override the
 	// default set here..
 	d := &Drand{
-		store:  s,
-		priv:   priv,
-		opts:   c,
-		log:    logger,
-		exitCh: make(chan bool, 1),
+		store:     s,
+		priv:      priv,
+		opts:      c,
+		log:       logger,
+		exitCh:    make(chan bool, 1),
+		callbacks: newCallbackManager(),
+		//cache:     newBeaconCache(logger),
 	}
+	// every new beacon will be passed through the opts callbacks
+	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
+	//d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
 	a := c.ListenAddress(priv.Public.Address())
 	if c.insecure {
+		d.log.Info("network", "tls-disable")
 		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
 	} else {
+		d.log.Info("network", "tls-enabled")
 		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
 	}
 	p := c.ControlPort()
@@ -121,98 +127,124 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.log.Debug("drand: loaded and serving at %s", d.priv.Public.Address())
+	d.log.Debug("serving", d.priv.Public.Address())
+	d.dkgDone = true
 	return d, nil
-}
-
-// StartDKG starts the DKG protocol by sending the first packet of the DKG
-// protocol to every other node in the group. It returns nil if the DKG protocol
-// finished successfully or an error otherwise.
-func (d *Drand) StartDKG() error {
-	if err := d.createDKG(); err != nil {
-		return err
-	}
-	d.dkg.Start()
-	return nil
 }
 
 // WaitDKG waits on the running dkg protocol. In case of an error, it returns
 // it. In case of a finished DKG protocol, it saves the dist. public  key and
 // private share. These should be loadable by the store.
-func (d *Drand) WaitDKG() error {
-	if err := d.createDKG(); err != nil {
-		return err
-	}
-
+func (d *Drand) WaitDKG() (*key.Group, error) {
 	d.state.Lock()
-	waitCh := d.dkg.WaitShare()
-	errCh := d.dkg.WaitError()
+	if d.dkgInfo == nil {
+		d.state.Unlock()
+		return nil, errors.New("no dkg info set")
+	}
+	waitCh := d.dkgInfo.proto.WaitEnd()
 	d.state.Unlock()
 
-	d.log.Debug("dkg_start", time.Now().String())
-	select {
-	case share := <-waitCh:
-		s := key.Share(share)
-		d.share = &s
-	case err := <-errCh:
-		return fmt.Errorf("drand: error from dkg: %v", err)
+	d.log.Debug("waiting_dkg_end", time.Now())
+	res := <-waitCh
+	if res.Error != nil {
+		return nil, fmt.Errorf("drand: error from dkg: %v", res.Error)
 	}
 
 	d.state.Lock()
 	defer d.state.Unlock()
+	// filter the nodes that are not present in the target group
+	var qualNodes []*key.Node
+	for _, node := range d.dkgInfo.target.Nodes {
+		for _, qualNode := range res.Result.QUAL {
+			if qualNode.Index == node.Index {
+				qualNodes = append(qualNodes, node)
+			}
+		}
+	}
 
+	s := key.Share(*res.Result.Key)
+	d.share = &s
 	d.store.SaveShare(d.share)
 	d.store.SaveDistPublic(d.share.Public())
-	d.group = d.dkg.QualifiedGroup()
-	// need to save the period before since dkg returns a *new* fresh group, it
-	// does not know about the period.
-	d.group.Period = d.nextConf.NewNodes.Period
-	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len())
+	targetGroup := d.dkgInfo.target
+	// only keep the qualified ones
+	targetGroup.Nodes = qualNodes
+	// setup the dist. public key
+	targetGroup.PublicKey = d.share.Public()
+	d.group = targetGroup
+	var output []string
+	for _, node := range qualNodes {
+		output = append(output, fmt.Sprintf("{addr: %s, idx: %d, pub: %s}", node.Address(), node.Index, node.Key))
+	}
+	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
 	d.store.SaveGroup(d.group)
 	d.opts.applyDkgCallback(d.share)
-	d.dkgDone = true
-	d.dkg = nil
-	d.nextConf = nil
-	return nil
+	d.dkgInfo = nil
+	return d.group, nil
 }
 
-// createDKG create the new dkg handler according to the nextConf field. If the
-// dkg is not nil, it does not do anything.
-func (d *Drand) createDKG() error {
-	d.state.Lock()
-	defer d.state.Unlock()
-	if d.dkg != nil {
-		return nil
+// StartBeacon initializes the beacon if needed and launch a go
+// routine that runs the generation loop.
+func (d *Drand) StartBeacon(catchup bool) {
+	beacon, err := d.newBeacon()
+	if err != nil {
+		d.log.Error("init_beacon", err)
+		return
 	}
-	if d.nextConf == nil {
-		return errors.New("drand: invalid state: no next configuration")
-	}
-	var err error
-	c := d.nextConf
-	if d.dkg, err = dkg.NewHandler(d.dkgNetwork(c), c, d.log); err != nil {
-		return err
-	}
-	return nil
-}
-
-// DefaultSeed is the message signed during the first beacon generation,
-// alongside with the round number 0.
-var DefaultSeed = []byte("Truth is like the sun. You can shut it out for a time, but it ain't goin' away.")
-
-// StartBeacon initializes the beacon if needed and launch a go routine that
-// runs the generation loop.
-func (d *Drand) StartBeacon(catchup bool) error {
-	d.state.Lock()
-	defer d.state.Unlock()
-	if d.beacon == nil {
-		d.state.Unlock()
-		d.initBeacon()
-		d.state.Lock()
-	}
-	period := getPeriod(d.group)
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
-	go d.beacon.Run(period, catchup)
-	return nil
+	if catchup {
+		go beacon.Catchup()
+
+	} else {
+		if err := beacon.Start(); err != nil {
+			d.log.Error("beacon_start", err)
+		}
+	}
+}
+
+// transition between an "old" group and a new group. This method is called
+// *after* a resharing dkg has proceed.
+// the new beacon syncs before the new network starts
+// and will start once the new network time kicks in. The old beacon will stop
+// just before the time of the new network.
+// TODO: due to current WaitDKG behavior, the old group is overwritten, so an
+// old node that fails during the time the resharing is done and the new network
+// comes up have to wait for the new network to comes in - that is to be fixed
+func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
+	// the node should stop a bit before the new round to avoid starting it at
+	// the same time as the new node
+	// NOTE: this limits the round time of drand - for now it is not a use
+	// case to go that fast
+	timeToStop := d.group.TransitionTime - 1
+	if !newPresent {
+		//fmt.Printf(" OLD NODE STOPping %s\n", d.priv.Public.Address())
+		// an old node is leaving the network
+		if err := d.beacon.StopAt(timeToStop); err != nil {
+			d.log.Error("leaving_group", err)
+		} else {
+			d.log.Info("leaving_group", "done", "time", d.opts.clock.Now())
+		}
+		return
+	}
+
+	d.state.Lock()
+	newGroup := d.group
+	newShare := d.share
+	d.state.Unlock()
+
+	// tell the current beacon to stop just before the new network starts
+	if oldPresent {
+		d.beacon.TransitionNewGroup(newShare, newGroup)
+	} else {
+		beacon, err := d.newBeacon()
+		if err != nil {
+			d.log.Fatal("transition", "new_node", "err", err)
+		}
+		if err := beacon.Transition(oldGroup); err != nil {
+			d.log.Error("sync_before", err)
+		}
+		d.log.Info("transition_new", "done")
+	}
 }
 
 // StopBeacon stops the beacon generation process and resets it.
@@ -249,65 +281,35 @@ func (d *Drand) isDKGDone() bool {
 	return d.dkgDone
 }
 
-func (d *Drand) initBeacon() error {
+func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	if d.beacon != nil {
-		return nil
-	}
 	fs.CreateSecureFolder(d.opts.DBFolder())
 	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	d.beaconStore = beacon.NewCallbackStore(store, d.beaconCallback)
+
+	pub := d.priv.Public
+	node := d.group.Find(pub)
+	if node == nil {
+		return nil, fmt.Errorf("public key %s not found in group", pub)
+	}
 	conf := &beacon.Config{
-		Group:   d.group,
-		Private: d.priv,
-		Share:   d.share,
-		Seed:    DefaultSeed,
-		Scheme:  key.Scheme,
-		Clock:   d.opts.clock,
+		Public: node,
+		Group:  d.group,
+		Share:  d.share,
+		Clock:  d.opts.clock,
 	}
-	d.beacon, err = beacon.NewHandler(d.gateway.ProtocolClient, d.beaconStore, conf, d.log)
-	return err
+	beacon, err := beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)
+	if err != nil {
+		return nil, err
+	}
+	d.beacon = beacon
+	d.beacon.AddCallback(d.callbacks.NewBeacon)
+	return d.beacon, nil
 }
 
 func (d *Drand) beaconCallback(b *beacon.Beacon) {
 	d.opts.callbacks(b)
-}
-
-// little trick to be able to capture when drand is using the DKG methods,
-// instead of offloading that to an external struct without any vision of drand
-// internals, or implementing a big "Send" method directly on drand.
-func (d *Drand) sendDkgPacket(p net.Peer, pack *dkg_proto.Packet) error {
-	_, err := d.gateway.ProtocolClient.Setup(p, &drand.SetupPacket{Dkg: pack})
-	return err
-}
-
-func (d *Drand) sendResharePacket(p net.Peer, pack *dkg_proto.Packet) error {
-	// no concurrency to get nextHash since this is only used within a locked drand
-	reshare := &drand.ResharePacket{
-		Dkg:       pack,
-		GroupHash: d.nextGroupHash,
-	}
-	_, err := d.gateway.ProtocolClient.Reshare(p, reshare)
-	return err
-}
-
-func (d *Drand) dkgNetwork(conf *dkg.Config) *dkgNetwork {
-	// simple test to check if we are in a resharing mode or in a fresh dkg mode
-	// that will lead to two different outer protobuf structures
-	if conf.OldNodes == nil {
-		return &dkgNetwork{d.sendDkgPacket}
-	}
-	return &dkgNetwork{d.sendResharePacket}
-}
-
-type dkgNetwork struct {
-	send func(net.Peer, *dkg_proto.Packet) error
-}
-
-func (d *dkgNetwork) Send(p net.Peer, pack *dkg_proto.Packet) error {
-	return d.send(p, pack)
 }

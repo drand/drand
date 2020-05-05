@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path/filepath"
+	"time"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -12,98 +11,109 @@ import (
 	control "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 )
 
-// shareCmd decides whether the command is for a DKG or for a resharing and
-// dispatch to the respective sub-commands.
 func shareCmd(c *cli.Context) error {
-	if !c.Args().Present() {
-		fatal("drand: needs at least one group.toml file argument")
-	}
-	groupPath := c.Args().First()
-	groupPath, err := filepath.Abs(groupPath)
-	if err != nil {
-		fatal("can't open group path absolute path from %s", c.Args().First())
-	}
-	testEmptyGroup(groupPath)
+	isResharing := c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name)
+	isLeader := c.Bool(leaderFlag.Name)
 
-	if c.IsSet(oldGroupFlag.Name) {
-		testEmptyGroup(c.String(oldGroupFlag.Name))
-		fmt.Println("drand: old group file given for resharing protocol")
-		return initReshare(c, groupPath)
+	var connectPeer net.Peer
+	if !isLeader {
+		if !c.IsSet(connectFlag.Name) {
+			fatal("need to the address of the coordinator to create the group file")
+		}
+		coordAddress := c.String(connectFlag.Name)
+		isTls := !c.IsSet(insecureFlag.Name)
+		connectPeer = net.CreatePeer(coordAddress, isTls)
 	}
 
-	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
-	_, errG := fs.LoadGroup()
-	_, errS := fs.LoadShare()
-	_, errD := fs.LoadDistPublic()
-	// XXX place that logic inside core/ directly with only one method
-	freshRun := errG != nil || errS != nil || errD != nil
-	if freshRun {
-		fmt.Println("drand: no current distributed key -> running DKG protocol.")
-		err = initDKG(c, groupPath)
-	} else {
-		fmt.Println("drand: found distributed key -> running resharing protocol.")
-		err = initReshare(c, groupPath)
+	nodes := c.Int(shareNodeFlag.Name)
+	thr := c.Int(thresholdFlag.Name)
+	secret := c.String(secretFlag.Name)
+	var timeout = core.DefaultDKGTimeout
+	if c.IsSet(timeoutFlag.Name) {
+		var err error
+		str := c.String(timeoutFlag.Name)
+		timeout, err = time.ParseDuration(str)
+		if err != nil {
+			fatal("dkg timeout duration incorrect:", err)
+		}
 	}
-	return err
-}
 
-// initDKG indicates to the daemon to start the DKG protocol, as a leader or
-// not. The method waits until the DKG protocol finishes or an error occured.
-// If the DKG protocol finishes successfully, the beacon randomness loop starts.
-func initDKG(c *cli.Context, groupPath string) error {
-	// still trying to load it ourself now for the moment
-	// just to test if it's a valid thing or not
 	conf := contextToConfig(c)
 	client, err := net.NewControlClient(conf.ControlPort())
 	if err != nil {
-		fatal("drand: error creating control client: %s", err)
+		fatal("could not create client: %v", err)
 	}
 
-	if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
-		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
+	var groupP *control.GroupPacket
+	var shareErr error
+	if !isResharing {
+		if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
+			fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
+		}
+		entropyInfo := entropyInfoFromReader(c)
+		if isLeader {
+			if !c.IsSet(periodFlag.Name) {
+				fatal("leader flag indicated requires the beacon period flag as well")
+			}
+			periodStr := c.String(periodFlag.Name)
+			period, err := time.ParseDuration(periodStr)
+			if err != nil {
+				fatal("period given is invalid: %v", err)
+			}
+
+			offset := int(core.DefaultGenesisOffset.Seconds())
+			if c.IsSet(beaconOffset.Name) {
+				offset = c.Int(beaconOffset.Name)
+			}
+			fmt.Println("Initiating the DKG as a leader")
+			fmt.Println("You can stop the command at any point. If so, the group " +
+				"file will not be written out to the specified output. To get the" +
+				"group file once the setup phase is done, you can run the `drand show" +
+				"group` command")
+			groupP, shareErr = client.InitDKGLeader(nodes, thr, period, timeout, entropyInfo, secret, offset)
+			fmt.Println(" --- got err", shareErr, "group", groupP)
+		} else {
+			fmt.Println("Participating to the setup of the DKG")
+			groupP, shareErr = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
+			fmt.Println(" --- got err", shareErr, "group", groupP)
+		}
+	} else {
+		// resharing case needs the previous group
+		var oldPath string
+		if c.IsSet(transitionFlag.Name) {
+			// daemon will try to the load the one stored
+			oldPath = ""
+		} else if c.IsSet(oldGroupFlag.Name) {
+			var oldGroup = new(key.Group)
+			if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
+				fatal("could not load drand from path", err)
+			}
+			oldPath = c.String(oldGroupFlag.Name)
+		}
+
+		if isLeader {
+			offset := int(core.DefaultResharingOffset.Seconds())
+			if c.IsSet(beaconOffset.Name) {
+				offset = c.Int(beaconOffset.Name)
+			}
+			fmt.Println("Initiating the resharing as a leader")
+			groupP, shareErr = client.InitReshareLeader(nodes, thr, timeout, secret, oldPath, offset)
+		} else {
+			fmt.Println("Participating to the resharing")
+			groupP, shareErr = client.InitReshare(connectPeer, nodes, thr, timeout, secret, oldPath)
+		}
 	}
-	entropyInfo := entropyInfoFromReader(c)
-
-	fmt.Print("drand: waiting the end of DKG protocol ... " +
-		"(you can CTRL-C to not quit waiting)")
-
-	_, err = client.InitDKG(groupPath, c.Bool(leaderFlag.Name), c.String(timeoutFlag.Name), entropyInfo)
+	if shareErr != nil {
+		fatal("error setting up the network: %v", err)
+	}
+	group, err := core.ProtoToGroup(groupP)
 	if err != nil {
-		fatal("drand: initdkg %s", err)
+		fatal("error interpreting the group from protobuf: %v", err)
 	}
-	return nil
-}
-
-// initReshare indicates to the daemon to start the resharing protocol, as a
-// leader or not. The method waits until the resharing protocol finishes or
-// an error occured. TInfofhe "old group" toml is inferred either from the local
-// informations that the drand node is keeping (saved in filesystem), and can be
-// superseeded by the command line flag "old-group".
-// If the DKG protocol finishes successfully, the beacon randomness loop starts.
-// NOTE: If the contacted node is not present in the new list of nodes, the
-// waiting *can* be infinite in some cases. It's an issue that is low priority
-// though.
-func initReshare(c *cli.Context, newGroupPath string) error {
-	var isLeader = c.Bool(leaderFlag.Name)
-	var oldGroupPath string
-
-	if c.IsSet(oldGroupFlag.Name) {
-		oldGroupPath = c.String(oldGroupFlag.Name)
-	}
-	if oldGroupPath == "" {
-		fmt.Print("drand: old group path not specified. Using daemon's own group if possible.")
-	}
-
-	client := controlClient(c)
-	fmt.Println("drand: initiating resharing protocol. Waiting to the end ...")
-	_, err := client.InitReshare(oldGroupPath, newGroupPath, isLeader, c.String(timeoutFlag.Name))
-	if err != nil {
-		fatal("drand: error resharing: %s", err)
-	}
+	groupOut(c, group)
 	return nil
 }
 
@@ -132,17 +142,11 @@ func showGroupCmd(c *cli.Context) error {
 	if err != nil {
 		fatal("drand: fetching group file error: %s", err)
 	}
-
-	if c.IsSet(outFlag.Name) {
-		filePath := c.String(outFlag.Name)
-		err := ioutil.WriteFile(filePath, []byte(r.GroupToml), 0750)
-		if err != nil {
-			fatal("drand: can't write to file: %s", err)
-		}
-		fmt.Printf("group file written to %s", filePath)
-	} else {
-		fmt.Printf("\n\n%s", r.GroupToml)
+	group, err := core.ProtoToGroup(r)
+	if err != nil {
+		return err
 	}
+	groupOut(c, group)
 	return nil
 }
 
@@ -162,7 +166,6 @@ func showPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		fatal("drand: could not request drand.private: %s", err)
 	}
-
 	printJSON(resp)
 	return nil
 }
@@ -190,10 +193,11 @@ func showShareCmd(c *cli.Context) error {
 }
 
 func controlPort(c *cli.Context) string {
-	port := c.String("control")
+	port := c.String(controlFlag.Name)
 	if port == "" {
 		port = core.DefaultControlPort
 	}
+	fmt.Println(" --- controlport using ", port)
 	return port
 }
 

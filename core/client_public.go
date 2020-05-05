@@ -2,8 +2,10 @@ package core
 
 import (
 	"bytes"
-	"crypto/sha512"
+	"context"
+	"encoding/hex"
 	"errors"
+	"fmt"
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/ecies"
@@ -51,7 +53,7 @@ func NewRESTClientFromCert(c *net.CertManager) *Client {
 // returns it if the randomness is valid. Secure indicates that the request
 // must be made over a TLS protected channel.
 func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.PublicRand(&peerAddr{addr, secure}, &drand.PublicRandRequest{})
+	resp, err := c.client.PublicRand(context.TODO(), &peerAddr{addr, secure}, &drand.PublicRandRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +64,7 @@ func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*dra
 // returns it if the randomness is valid. Secure indicates that the request
 // must be made over a TLS protected channel.
 func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.PublicRand(&peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
+	resp, err := c.client.PublicRand(context.TODO(), &peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.PrivateRand(id, &drand.PrivateRandRequest{Request: obj})
+	resp, err := c.client.PrivateRand(context.TODO(), id, &drand.PrivateRandRequest{Request: obj})
 	if err != nil {
 		return nil, err
 	}
@@ -93,17 +95,19 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 
 // DistKey returns the distributed key the node at this address is holding.
 func (c *Client) DistKey(addr string, secure bool) (*drand.DistKeyResponse, error) {
-	resp, err := c.client.DistKey(&peerAddr{addr, secure}, &drand.DistKeyRequest{})
+	resp, err := c.client.DistKey(context.TODO(), &peerAddr{addr, secure}, &drand.DistKeyRequest{})
 	return resp, err
 }
 
 // Group returns the group file used by the node in a JSON encoded format
-func (c *Client) Group(addr string, secure bool) (*drand.GroupResponse, error) {
-	return c.client.Group(&peerAddr{addr, secure}, &drand.GroupRequest{})
+func (c *Client) Group(addr string, secure bool) (*drand.GroupPacket, error) {
+	return c.client.Group(context.TODO(), &peerAddr{addr, secure}, &drand.GroupRequest{})
 }
 
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
-	msg := beacon.Message(resp.GetPrevious(), resp.GetRound())
+	prevSig := resp.GetPreviousSignature()
+	round := resp.GetRound()
+	msg := beacon.Message(round, prevSig)
 	rand := resp.GetRandomness()
 	if rand == nil {
 		return errors.New("drand: no randomness found")
@@ -112,17 +116,13 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if ver != nil {
 		return ver
 	}
-	hash := sha512.New()
-	hash.Write(resp.GetSignature())
-	randExpected := hash.Sum(nil)
-	if !bytes.Equal(randExpected, rand) {
-		return errors.New("randomness is incorrect")
+	expect := beacon.RandomnessFromSignature(resp.GetSignature())
+	if !bytes.Equal(expect, rand) {
+		exp := hex.EncodeToString(expect)[10:14]
+		got := hex.EncodeToString(rand)[10:14]
+		return fmt.Errorf("randomness: got %s , expected %s", got, exp)
 	}
 	return nil
-}
-
-func (c *Client) peer(addr string) {
-
 }
 
 type peerAddr struct {

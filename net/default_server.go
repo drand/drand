@@ -11,6 +11,10 @@ var _ Service = (*EmptyServer)(nil)
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
 type EmptyServer struct{}
 
+func (s *EmptyServer) PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error {
+	return nil
+}
+
 // PublicRand ...
 func (s *EmptyServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return nil, nil
@@ -22,7 +26,7 @@ func (s *EmptyServer) PrivateRand(context.Context, *drand.PrivateRandRequest) (*
 }
 
 // Group ...
-func (s *EmptyServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (s *EmptyServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 
@@ -36,18 +40,31 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 	return nil, nil
 }
 
-// Setup ...
-func (s *EmptyServer) Setup(context.Context, *drand.SetupPacket) (*drand.Empty, error) {
+// FreshDKG ...
+func (s *EmptyServer) SignalDKGParticipant(context.Context, *drand.SignalDKGPacket) (*drand.Empty, error) {
 	return nil, nil
+}
+
+func (s *EmptyServer) PushDKGInfo(context.Context, *drand.DKGInfoPacket) (*drand.Empty, error) {
+	return nil, nil
+}
+
+// Setup ...
+func (s *EmptyServer) FreshDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error {
+	return nil
 }
 
 // Reshare ...
-func (s *EmptyServer) Reshare(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
+func (s *EmptyServer) ReshareDKG(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
-// NewBeacon ...
-func (s *EmptyServer) NewBeacon(context.Context, *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+// PartialBeacon ...
+func (s *EmptyServer) PartialBeacon(context.Context, *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
@@ -57,12 +74,12 @@ func (s *EmptyServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error
 }
 
 // InitDKG ...
-func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.Empty, error) {
+func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 
 // InitReshare ...
-func (s *EmptyServer) InitReshare(context.Context, *drand.InitResharePacket) (*drand.Empty, error) {
+func (s *EmptyServer) InitReshare(context.Context, *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 
@@ -87,7 +104,7 @@ func (s *EmptyServer) CollectiveKey(context.Context, *drand.CokeyRequest) (*dran
 }
 
 // GroupFile ...
-func (s *EmptyServer) GroupFile(context.Context, *drand.GroupTOMLRequest) (*drand.GroupTOMLResponse, error) {
+func (s *EmptyServer) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	return nil, nil
 }
 

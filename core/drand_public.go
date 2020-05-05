@@ -2,9 +2,9 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/ecies"
@@ -15,96 +15,146 @@ import (
 )
 
 // Setup is the public method to call during a DKG protocol.
-func (d *Drand) Setup(c context.Context, in *drand.SetupPacket) (*drand.Empty, error) {
+func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.dkgDone {
 		return nil, errors.New("drand: dkg finished already")
 	}
-	if d.dkg == nil {
+	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
-	d.dkg.Process(c, in.Dkg)
+	p, ok := peer.FromContext(c)
+	addr := "<unknown>"
+	if ok {
+		addr = p.Addr.String()
+	}
+	if !d.dkgInfo.started {
+		d.log.Info("init_dkg", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.dkgInfo.started = true
+		go d.dkgInfo.phaser.Start()
+	}
+	d.dkgInfo.board.FreshDKG(c, in)
 	return new(drand.Empty), nil
 }
 
 // Reshare is called when a resharing protocol is in progress
-func (d *Drand) Reshare(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
+func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 
-	if d.nextGroupHash == "" {
-		return nil, fmt.Errorf("drand %s: can't reshare because InitReshare has not been called", d.priv.Public.Addr)
-	}
-
-	// check that we are resharing to the new group that we expect
-	if in.GroupHash != d.nextGroupHash {
-		return nil, errors.New("drand: can't reshare to new group: incompatible hashes")
-	}
-
-	if !d.nextFirstReceived && d.nextOldPresent {
-		d.nextFirstReceived = true
-		// go routine since StartDKG requires the global lock
-		go d.StartDKG()
-	}
-
-	if d.dkg == nil {
+	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg setup yet")
 	}
-
-	d.nextFirstReceived = true
-	if in.Dkg != nil {
-		// first packet from the "leader" contains a nil packet for
-		// nodes that are in the old list that must broadcast their
-		// deals.
-		d.dkg.Process(c, in.Dkg)
+	p, ok := peer.FromContext(c)
+	addr := "<unknown>"
+	if ok {
+		addr = p.Addr.String()
 	}
+	if !d.dkgInfo.started {
+		d.dkgInfo.started = true
+		d.log.Info("init_reshare", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()), "target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
+		go d.dkgInfo.phaser.Start()
+	}
+
+	d.dkgInfo.board.ReshareDKG(c, in)
 	return new(drand.Empty), nil
 }
 
 // NewBeacon methods receives a beacon generation requests and answers
 // with the partial signature from this drand node.
-func (d *Drand) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
+func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon not setup yet")
 	}
-	return d.beacon.ProcessBeacon(c, in)
+	return d.beacon.ProcessPartialBeacon(c, in)
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	// first try the cache
+	// XXX disabled for now
+	/*if b, ok := d.cache.GetBeacon(in.GetRound()); ok {*/
+	//return beaconToProto(b), nil
+	/*}*/
+	var addr string
+	peer, ok := peer.FromContext(c)
+	if ok {
+		addr = peer.Addr.String()
+	} else {
+		addr = "<unknown>"
+	}
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon generation not started yet")
 	}
-	var beacon *beacon.Beacon
+	var r *beacon.Beacon
 	var err error
 	if in.GetRound() == 0 {
-		beacon, err = d.beaconStore.Last()
+		r, err = d.beacon.Store().Last()
 	} else {
-		beacon, err = d.beaconStore.Get(in.GetRound())
+		// fetch the correct entry or the next one if not found
+		r, err = d.beacon.Store().Get(in.GetRound())
 	}
+	if err != nil || r == nil {
+		d.log.Debug("public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
+		return nil, fmt.Errorf("can't retrieve beacon: %s %s", err, r)
+	}
+	d.log.Info("public_rand", addr, "round", r.Round, "reply", r.String())
+	return beaconToProto(r), nil
+}
+
+func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	var b *beacon.Handler
+	d.state.Lock()
+	if d.beacon == nil {
+		return errors.New("beacon has not started on this node yet")
+	}
+	b = d.beacon
+	d.state.Unlock()
+	lastb, err := b.Store().Last()
 	if err != nil {
-		return nil, fmt.Errorf("can't retrieve beacon: %s", err)
+		return err
 	}
-	peer, ok := peer.FromContext(c)
-	if ok {
-		d.log.With("module", "public").Info("public_rand", peer.Addr.String(), "round", beacon.Round)
-		d.log.Info("public rand", peer.Addr.String(), "round", beacon.Round)
+	peer, _ := peer.FromContext(stream.Context())
+	addr := peer.Addr.String()
+	done := make(chan error, 1)
+	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
+	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
+		// we need to stream from store first
+		var err error
+		b.Store().Cursor(func(c beacon.Cursor) {
+			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
+				if err = stream.Send(beaconToProto(bb)); err != nil {
+					d.log.Debug("stream", err)
+					return
+				}
+			}
+		})
+		if err != nil {
+			return err
+		}
 	}
-	h := RandomnessHash()
-	h.Write(beacon.GetSignature())
-	randomness := h.Sum(nil)
-	return &drand.PublicRandResponse{
-		Previous:   beacon.GetPreviousSig(),
-		Round:      beacon.Round,
-		Signature:  beacon.GetSignature(),
-		Randomness: randomness,
-	}, nil
+	// then we can stream from any new rounds
+	// register a callback for the duration of this stream
+	d.callbacks.AddCallback(addr, func(b *beacon.Beacon) {
+		err := stream.Send(&drand.PublicRandResponse{
+			Round:             b.Round,
+			Signature:         b.Signature,
+			PreviousSignature: b.PreviousSig,
+			Randomness:        b.Randomness(),
+		})
+		// if connection has a problem, we drop the callback
+		if err != nil {
+			d.callbacks.DelCallback(addr)
+			done <- err
+		}
+	})
+	return <-done
 }
 
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
@@ -149,29 +199,57 @@ func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeRespo
 
 // Group replies with the current group of this drand node in a TOML encoded
 // format
-func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupResponse, error) {
+func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	gtoml := d.group.TOML().(*key.GroupTOML)
-	var resp = new(drand.GroupResponse)
-	resp.Nodes = make([]*drand.Node, len(gtoml.Nodes))
-	for i, n := range gtoml.Nodes {
-		resp.Nodes[i] = &drand.Node{
-			Address: n.Address,
-			Key:     n.Key,
-			TLS:     n.TLS,
-		}
+	return groupToProto(d.group), nil
+}
+
+func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.manager == nil {
+		return nil, errors.New("no manager")
 	}
-	resp.Threshold = uint32(gtoml.Threshold)
-	// take the period in second -> ms. grouptoml already transforms it to toml
-	ms := uint32(d.group.Period / time.Millisecond)
-	resp.Period = ms
-	if gtoml.PublicKey != nil {
-		resp.Distkey = make([]string, len(gtoml.PublicKey.Coefficients))
-		copy(resp.Distkey, gtoml.PublicKey.Coefficients)
+	peer, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, errors.New("no peer associated")
 	}
-	return resp, nil
+	// manager will verify if information are correct
+	err := d.manager.ReceivedKey(peer.Addr.String(), p)
+	if err != nil {
+		return nil, err
+	}
+	return new(drand.Empty), nil
+}
+
+func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+	if d.receiver == nil {
+		return nil, errors.New("no receiver setup")
+	}
+	d.log.Info("push_group", "received_new")
+	// the control routine will receive this info and start the dkg at the right
+	// time - if that is the right secret.
+	err := d.receiver.PushDKGInfo(in)
+	if err != nil {
+		return nil, err
+	}
+	return new(drand.Empty), nil
+}
+
+// SyncChain is a inter-node protocol that replies to a syncing request from a
+// given round
+func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
+	d.state.Lock()
+	beacon := d.beacon
+	d.state.Unlock()
+	if beacon != nil {
+		beacon.SyncChain(req, stream)
+	}
+	return nil
 }

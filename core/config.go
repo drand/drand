@@ -4,13 +4,12 @@ import (
 	"path"
 	"time"
 
-	"github.com/benbjohnson/clock"
 	bolt "github.com/coreos/bbolt"
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/dkg"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	clock "github.com/jonboulle/clockwork"
 	"google.golang.org/grpc"
 )
 
@@ -49,11 +48,11 @@ func NewConfig(opts ...ConfigOption) *Config {
 			//grpc.FailOnNonTempDialError(true),
 			/*grpc.WithTimeout(DefaultDialTimeout),*/
 		},
-		dkgTimeout: dkg.DefaultTimeout,
+		dkgTimeout: DefaultDKGTimeout,
 		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
-		clock:       clock.New(),
+		clock:       clock.NewRealClock(),
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
 	for i := range opts {
@@ -139,6 +138,11 @@ func WithBoltOptions(opts *bolt.Options) ConfigOption {
 	}
 }
 
+// BoltOptions returns the options given to the bolt db
+func (c *Config) BoltOptions() *bolt.Options {
+	return c.boltOpts
+}
+
 // WithDbFolder sets the path folder for the db file. This path is NOT relative
 // to the DrandFolder path if set.
 func WithDbFolder(folder string) ConfigOption {
@@ -192,6 +196,9 @@ func WithTLS(certPath, keyPath string) ConfigOption {
 // to trust them. Mostly useful for testing.
 func WithTrustedCerts(certPaths ...string) ConfigOption {
 	return func(d *Config) {
+		if len(certPaths) < 1 {
+			return
+		}
 		if d.certmanager == nil {
 			d.certmanager = net.NewCertManager()
 		}
@@ -224,6 +231,13 @@ func WithControlPort(port string) ConfigOption {
 func WithLogLevel(level int) ConfigOption {
 	return func(d *Config) {
 		d.logger = log.NewLogger(level)
+	}
+}
+
+// test option to feed a fake clock
+func withClock(c clock.Clock) ConfigOption {
+	return func(d *Config) {
+		d.clock = c
 	}
 }
 

@@ -1,300 +1,43 @@
 package beacon
 
 import (
-	"context"
-	"fmt"
-	"os"
-	"path"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/benbjohnson/clock"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/util/random"
+	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 )
 
-// TODO make beacon tests not dependant on key.Scheme
+func TestChainNextRound(t *testing.T) {
+	clock := clock.NewFakeClock()
+	// start in one second
+	genesis := clock.Now().Add(1 * time.Second).Unix()
+	period := 2 * time.Second
+	// move to genesis round
+	// genesis block is fixed, first round happens at genesis time
+	clock.Advance(1 * time.Second)
+	round, roundTime := NextRound(clock.Now().Unix(), period, genesis)
+	require.Equal(t, uint64(2), round)
+	expTime := genesis + int64(period.Seconds())
+	require.Equal(t, expTime, roundTime)
 
-// testBeaconServer implements a barebone service to be plugged in a net.DefaultService
-type testBeaconServer struct {
-	*net.EmptyServer
-	h *Handler
-}
+	time1 := TimeOfRound(period, genesis, 2)
+	require.Equal(t, expTime, time1)
 
-func (t *testBeaconServer) NewBeacon(c context.Context, in *drand.BeaconRequest) (*drand.BeaconResponse, error) {
-	return t.h.ProcessBeacon(c, in)
-}
+	// move to one second
+	clock.Advance(1 * time.Second)
+	nround, nroundTime := NextRound(clock.Now().Unix(), period, genesis)
+	require.Equal(t, round, nround)
+	require.Equal(t, roundTime, nroundTime)
 
-func dkgShares(n, t int) ([]*key.Share, kyber.Point) {
-	var priPoly *share.PriPoly
-	var pubPoly *share.PubPoly
-	var err error
-	for i := 0; i < n; i++ {
-		pri := share.NewPriPoly(key.KeyGroup, t, key.KeyGroup.Scalar().Pick(random.New()), random.New())
-		pub := pri.Commit(key.KeyGroup.Point().Base())
-		if priPoly == nil {
-			priPoly = pri
-			pubPoly = pub
-			continue
-		}
-		priPoly, err = priPoly.Add(pri)
-		if err != nil {
-			panic(err)
-		}
-		pubPoly, err = pubPoly.Add(pub)
-		if err != nil {
-			panic(err)
-		}
-	}
-	shares := priPoly.Shares(n)
-	secret, err := share.RecoverSecret(key.KeyGroup, shares, t, n)
-	if err != nil {
-		panic(err)
-	}
-	if !secret.Equal(priPoly.Secret()) {
-		panic("secret not equal")
-	}
-	msg := []byte("Hello world")
-	sigs := make([][]byte, n, n)
-	_, commits := pubPoly.Info()
-	dkgShares := make([]*key.Share, n, n)
-	for i := 0; i < n; i++ {
-		sigs[i], err = key.Scheme.Sign(shares[i], msg)
-		if err != nil {
-			panic(err)
-		}
-		dkgShares[i] = &key.Share{
-			Share:   shares[i],
-			Commits: commits,
-		}
-	}
-	sig, err := key.Scheme.Recover(pubPoly, msg, sigs, t, n)
-	if err != nil {
-		panic(err)
-	}
-	if err := key.Scheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
-		panic(err)
-	}
-	//fmt.Println(pubPoly.Commit())
-	return dkgShares, pubPoly.Commit()
-}
+	// move to next round
+	clock.Advance(1 * time.Second)
+	round, roundTime = NextRound(clock.Now().Unix(), period, genesis)
+	require.Equal(t, round, uint64(3))
+	expTime2 := genesis + int64(period.Seconds())*2
+	require.Equal(t, expTime2, roundTime)
 
-const prefixBeaconTest = "beaconTest"
+	time2 := TimeOfRound(period, genesis, 3)
+	require.Equal(t, expTime2, time2)
 
-type BeaconTest struct {
-	paths     []string
-	n         int
-	thr       int
-	period    time.Duration
-	group     *key.Group
-	privates  []*key.Pair
-	shares    []*key.Share
-	dpublic   kyber.Point
-	callbacks []func(*Beacon)
-	clock     *clock.Mock
-	handlers  []*Handler
-	listeners []net.Listener
-}
-
-func NewBeaconTest(n, thr int, period time.Duration) *BeaconTest {
-	paths := createBoltStores(prefixBeaconTest, n)
-	shares, public := dkgShares(n, thr)
-	privs, group := test.BatchIdentities(n)
-	group.Threshold = thr
-	group.Period = period
-
-	return &BeaconTest{
-		n:         n,
-		thr:       thr,
-		period:    period,
-		paths:     paths,
-		clock:     clock.NewMock(),
-		privates:  privs,
-		group:     group,
-		shares:    shares,
-		dpublic:   public,
-		callbacks: make([]func(*Beacon), n),
-		handlers:  make([]*Handler, n),
-		listeners: make([]net.Listener, n),
-	}
-}
-
-func (b *BeaconTest) CallbackFor(i int, fn func(*Beacon)) {
-	b.callbacks[i] = fn
-}
-
-func (b *BeaconTest) ServeBeacon(i int) {
-	seed := []byte("Sunshine in a bottle")
-	store, err := NewBoltStore(b.paths[i], nil)
-	if err != nil {
-		panic(err)
-	}
-	if cb := b.callbacks[i]; cb != nil {
-		store = NewCallbackStore(store, b.callbacks[i])
-	}
-	conf := &Config{
-		Group:   b.group,
-		Private: b.privates[i],
-		Share:   b.shares[i],
-		Seed:    seed,
-		Scheme:  key.Scheme,
-		Clock:   b.clock,
-	}
-
-	b.handlers[i], err = NewHandler(net.NewGrpcClient(), store, conf, log.DefaultLogger)
-	checkErr(err)
-	beaconServer := testBeaconServer{h: b.handlers[i]}
-	b.listeners[i] = net.NewTCPGrpcListener(b.privates[i].Public.Addr, &beaconServer)
-	go b.listeners[i].Start()
-	time.Sleep(10 * time.Millisecond)
-}
-
-func (b *BeaconTest) StartBeacon(i int, catchup bool) {
-	go b.handlers[i].Run(b.period, catchup)
-}
-
-func (b *BeaconTest) MovePeriod(p int) {
-	for i := 0; i < p; i++ {
-		b.clock.Add(b.period)
-		// give each handlers time to perform their duty
-		time.Sleep(time.Duration(b.n*50) * time.Millisecond)
-	}
-	time.Sleep(100 * time.Millisecond)
-}
-
-func (b *BeaconTest) StopBeacon(i int) {
-	if l := b.listeners[i]; l != nil {
-		l.Stop()
-	}
-	if h := b.handlers[i]; h != nil {
-		h.Stop()
-	}
-}
-
-func (b *BeaconTest) StopAll() {
-	for i := 0; i < b.n; i++ {
-		b.StopBeacon(i)
-	}
-}
-
-func (b *BeaconTest) CleanUp() {
-	deleteBoltStores(prefixBeaconTest)
-	b.StopAll()
-}
-
-func checkErr(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func createBoltStores(prefix string, n int) []string {
-	paths := make([]string, n, n)
-	for i := 0; i < n; i++ {
-		paths[i] = path.Join(prefix, fmt.Sprintf("drand-%d", i))
-		if err := os.MkdirAll(paths[i], 0755); err != nil {
-			panic(err)
-		}
-	}
-	return paths
-}
-
-func deleteBoltStores(prefix string) {
-	os.RemoveAll(prefix)
-}
-
-func checkWait(counter *sync.WaitGroup) {
-	var doneCh = make(chan bool, 1)
-	go func() {
-		counter.Wait()
-		doneCh <- true
-	}()
-	select {
-	case <-doneCh:
-		break
-	case <-time.After(1 * time.Second):
-		panic("outdated beacon time")
-	}
-}
-func TestBeaconSimple(t *testing.T) {
-	n := 5
-	thr := 5/2 + 1
-	period := time.Duration(1000) * time.Millisecond
-
-	bt := NewBeaconTest(n, thr, period)
-	defer bt.CleanUp()
-
-	var counter = &sync.WaitGroup{}
-	counter.Add(n)
-	myCallBack := func(b *Beacon) {
-		// verify partial sig
-		msg := Message(b.PreviousSig, b.Round)
-		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
-		require.NoError(t, err)
-		counter.Done()
-	}
-
-	for i := 0; i < n; i++ {
-		bt.CallbackFor(i, myCallBack)
-		// first serve all beacons
-		bt.ServeBeacon(i)
-	}
-
-	for i := 0; i < n; i++ {
-		bt.StartBeacon(i, false)
-	}
-
-	// check 1 period
-	bt.MovePeriod(1)
-	checkWait(counter)
-
-	// check 2 period
-	counter.Add(n)
-	bt.MovePeriod(1)
-	checkWait(counter)
-}
-
-func TestBeaconThreshold(t *testing.T) {
-	n := 5
-	thr := 5/2 + 1
-	period := time.Duration(1000) * time.Millisecond
-
-	bt := NewBeaconTest(n, thr, period)
-	defer bt.CleanUp()
-
-	var counter = &sync.WaitGroup{}
-	myCallBack := func(b *Beacon) {
-		// verify partial sig
-		msg := Message(b.PreviousSig, b.Round)
-		err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
-		require.NoError(t, err)
-		counter.Done()
-	}
-
-	for i := 0; i < n; i++ {
-		bt.CallbackFor(i, myCallBack)
-		// first serve all beacons
-		bt.ServeBeacon(i)
-	}
-
-	for i := 0; i < n-1; i++ {
-		bt.StartBeacon(i, false)
-	}
-
-	counter.Add(n - 1)
-	bt.MovePeriod(1)
-	checkWait(counter)
-
-	bt.StartBeacon(n-1, true)
-	counter.Add(n)
-	bt.MovePeriod(1)
-	checkWait(counter)
 }

@@ -1,0 +1,53 @@
+Threshold = 6
+Period = "30s"
+GenesisTime = 1586454463
+TransitionTime = 0
+GenesisSeed = "770f3c2578a95387b358e02aba5d5008a53ce40047a1fa326dde0dfd0b482a8e"
+
+[[Nodes]]
+  Address = "drand.cloudflare.com:8080"
+  Key = "9252037c5beb23a8e439837f65ebf692caa2b62504a7471e3728d3231397d7834c7e486376d5e79a336fb67bf722fe4b"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.c4dt.org:1234"
+  Key = "9541e3fd228386b5d95b9f66f3119f0e4d01ed1775f17d7b043a2cab9985a2aadb38c1fd228096845a556e00dc1ad6d6"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.protocol.ai:8080"
+  Key = "a27276608f15ebd06fee9987951d119dbd8a45c3a007c3a5489df4d943f3030a4201424d86d1a5d00dbec906d2b3c658"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.zerobyte.io:8765"
+  Key = "a5a7fbb57eeb2b03e838b7085dec85d6a0829ffa6b1d3f1424761f46f2d19d9afd94a08d337914c1895ceea2a91f0fa7"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand2.kudelskisecurity.com:443"
+  Key = "a9632463ed42b5cd31c75460611c20a4f4bb68b17d322a6e9503d8da6b6572da6ce1bb55d150099e4485f2344071414e"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.cothority.net:7070"
+  Key = "ad3f3bc2e87ca6f3cfe77cba6c9fc0a9ec98f2897239b216a1df11507f765e9d0d971d8c5f7a4165b695ed9fc3382f0d"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.lbarman.ch:443"
+  Key = "b1ee618894d8ad837a4500bcdd7690b7951ffa613eeb3cfa780482131a19980ca8ea35afd8778247aed1e88b471949e4"
+  TLS = true
+
+[[Nodes]]
+  Address = "drand.nikkolasg.xyz:8888"
+  Key = "b500a3351556eae3530cd5ff021f1c483dec1ba602ba49e508a49535db725ee4be135845164ab8ec06b2a999670f2dc6"
+  TLS = true
+
+[[Nodes]]
+  Address = "ln.soc1024.com:8888"
+  Key = "b6c1b5896cf460984e5fc3f840828252feb1552ae24961ff030113da0b247049ab9d5e3ebc65ef4930a88c2008d3e823"
+  TLS = true
+
+[PublicKey]
+  Coefficients = ["b3dcdb887fa8b0852bfebed878fed15f4aa2c39d63eb5585f10152f461d82f94801b2985d79668fe2369de202e2439c2", "a44a1e436738760002f58910fdb23cc9c56602a744f66a717a488bc09d9e15a93d787b8800285537537d51310d69f1c6", "8c8ba83d5100cbaba1b618a47e18b105b7f5ed9c62b722bfb77f6fd1cd558a50f3e0733b4e96a2ec560bb7ef97667234", "b0d93e5d5f52f106cb5c1f5e432d6fa44fb06bef172220326f3816728681a4442f4a1fa7ad057af67bc44a542cbc02e5", "a685f1dc01a459586f2831857b32ce6c7fb592e61cedc111c3d45b47542b9eb344d502d4d4aec74a4c2b9b2ee9a91fe0", "8dd0263d0ac077ce9b141ada2e95bf91c2562ae8fb60452c6bdbb60c0901f23ecef15c6d819b529c2103b78029950692"]

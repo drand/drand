@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/drand/drand.svg?branch=master)](https://travis-ci.org/drand/drand)
+[![CircleCI](https://circleci.com/gh/drand/drand.svg?style=svg)](https://circleci.com/gh/drand/drand)
 
 # Drand - A Distributed Randomness Beacon Daemon
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
@@ -17,45 +17,52 @@ is now under the drand organization.
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 
-## Table of Contents
-* [Goal and Overview](#goal-and-ovierview)
-   * [Public Randomness](#public-randomness)
-   * [Private Randomness](#private-randomness)
-* [Local demo](#local-demo)
-* [Installation](#installation)
-   * [Official release](#official-release)
-   * [Manual installation](#manual-installation)
-      * [Via Golang](#via-golang)
-      * [Via Docker](#via-docker)
-   * [TLS setup: Nginx with Let's Encrypt](#tls-setup-nginx-with-lets-encrypt)
-* [Usage](#usage)
-   * [Setup](#setup)
-      * [Long-Term Key](#long-term-key)
-      * [Group Configuration](#group-configuration)
-         * [Randomness Beacon Period](#randomness-beacon-period)
-   * [Starting drand daemon](#starting-drand-daemon)
-      * [With TLS](#with-tls)
-      * [Without TLS](#without-tls)
-   * [Distributed Key Generation](#distributed-key-generation)
-   * [Randomness Generation](#randomness-generation)
-   * [Control Functionalities](#control-functionalities)
-      * [Long-Term Private Key](#long-term-private-key)
-      * [Long-Term Public Key](#long-term-public-key)
-      * [Private Key Share](#private-key-share)
-      * [Distributed Key](#distributed-key)
-   * [Using Drand](#using-drand)
-   * [Fetching Public Randomness](#fetching-public-randomness)
-      * [Fetching Private Randomness](#fetching-private-randomness)
-      * [Using HTTP endpoints](#using-http-endpoints)
-   * [Updating Drand Group](#updating-drand-group)
-* [DrandJS](#drandjs)
-* [Documentation](#documentation)
-* [What's Next?](#whats-next)
-* [License](#license)
-* [Contributors](#contributors)
-* [Acknowledgments](#acknowledgments)
-* [Coverage](#coverage)
-* [Supporting](#supporting)
+# Table of Contents
+
+   * [Drand - A Distributed Randomness Beacon Daemon](#drand---a-distributed-randomness-bea
+con-daemon)
+         * [Disclaimer](#disclaimer)
+      * [Table of Contents](#table-of-contents)
+      * [Goal and Overview](#goal-and-overview)
+         * [Public Randomness](#public-randomness)
+         * [Private Randomness](#private-randomness)
+      * [Local demo](#local-demo)
+      * [Installation](#installation)
+         * [Official release](#official-release)
+         * [Manual installation](#manual-installation)
+            * [Via Golang](#via-golang)
+            * [Via Docker](#via-docker)
+         * [TLS setup: Nginx with Let's Encrypt](#tls-setup-nginx-with-lets-encrypt)
+      * [Usage](#usage)
+         * [Setup](#setup)
+            * [Long-Term Key](#long-term-key)
+            * [Starting drand daemon](#starting-drand-daemon)
+               * [With TLS](#with-tls)
+               * [Without TLS](#without-tls)
+            * [Run the setup phase](#run-the-setup-phase)
+         * [Distributed Key Generation](#distributed-key-generation)
+         * [Randomness Generation](#randomness-generation)
+         * [Control Functionalities](#control-functionalities)
+            * [Long-Term Private Key](#long-term-private-key)
+            * [Long-Term Public Key](#long-term-public-key)
+            * [Private Key Share](#private-key-share)
+            * [Distributed Key](#distributed-key)
+         * [Using Drand](#using-drand)
+         * [Fetching Public Randomness](#fetching-public-randomness)
+            * [Fetching Private Randomness](#fetching-private-randomness)
+            * [Using HTTP endpoints](#using-http-endpoints)
+         * [Updating Drand Group](#updating-drand-group)
+      * [Metrics](#metrics)
+      * [DrandJS](#drandjs)
+      * [Documentation](#documentation)
+      * [What's Next?](#whats-next)
+      * [License](#license)
+      * [Contributors](#contributors)
+      * [Acknowledgments](#acknowledgments)
+      * [Coverage](#coverage)
+      * [Supporting](#supporting)
+
+
 
 ## Goal and Overview
 The need for digital randomness is paramount in multiple digital applications
@@ -140,16 +147,16 @@ a secure ephemeral key pair for ECIES encryption without a good (local) source
 of randomness.
 
 ## Local demo
-To deploy several drand nodes locally, make sure that you have a working
-[Docker](https://docs.docker.com/engine/installation/) +
-[Docker-compose setup](https://docs.docker.com/compose/install/).
 
-Then execute (it will ask you for root since it deals with docker containers):
+To run a local demo, you can simply run:
 ```bash
-make deploy-local
+make demo
 ```
-The script spins up 5 local drand nodes using Docker and produces fresh
-[randomness every 10 seconds](https://github.com/drand/drand/tree/master/demo).
+
+The script spins up a few drand local processes, performe resharing and other
+operations and will continue to print out new randomness every Xs (currently
+6s).
+For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
 
 ## Installation
 ### Official release
@@ -224,6 +231,7 @@ The `--listen` flag tells drand to listen on the given address instead of the
 public address generated during the setup phase (see below).
 
 ## Usage
+
 This section explains in details the workflow to have a working group of drand
 nodes generate randomness. On a high-level, the workflow looks like this:
 + **Setup**: generation of individual long-term key pair and the group file and
@@ -234,11 +242,15 @@ nodes generate randomness. On a high-level, the workflow looks like this:
   as the DKG protocol is finished.
 
 ### Setup
-The setup process for a drand node consists of two steps:
+
+The setup process for a drand node consists of the following steps:
 1. Generate the long-term key pair for each node
-2. Setup the group configuration file
+2. Each node starts their daemon
+2. Leader starts the command as a coordinator & every participant connect to the
+   coordinator to setup the network
 
 #### Long-Term Key
+
 To generate the long-term key pair `drand_id.{secret,public}` of the drand
 daemon, execute
 ```
@@ -249,35 +261,8 @@ address must be reachable over a TLS connection directly or via a reverse proxy
 setup. In case you need non-secured channel, you can pass the `--tls-disable`
 flag.
 
-#### Group Configuration
-All informations regarding a group of drand nodes necessary for drand to
-function properly are located inside a group.toml configuration file. To run a
-DKG protocol, one needs to generate this group configuration file from all
-individual long-term keys generated in the previous step. One can do so with:
-```
-drand group <pk1> <pk2> ... <pkn>
-```
-where `<pki>` is the public key file `drand_id.public` of the i-th participant.
-The group file is generated in the current directory under `group.toml`.
-**NOTE:** At this stage, this group file MUST be distributed to all
-participants!
+#### Starting drand daemon
 
-##### Randomness Beacon Period
-drand updates the configuration file after the DKG protocol finishes, with the
-distributed public key and automatically starts running the randomness beacon.
-By default, a randomness beacon has a period of 1mn, I.E. new randomness is
-generated every minute. If you wish to change the period, you must include that
-information **inside** the group configuration file. You can do by appending a
-flag to the command such as :
-```
-drand group --period 2m <pk1> <pk2> ... <pkn>
-```
-
-Or simply by editing manually the group file afterwards: it's a TOML
-configuration file. The period must be readable by the
-[time](https://golang.org/pkg/time/#ParseDuration) package.
-
-### Starting drand daemon
 The daemon does not go automatically in background, so you must run it with ` &
 ` in your terminal, within a screen / tmux session, or with the `-d` option
 enabled for the docker commands. Once the daemon is running, the way to issue
@@ -288,7 +273,7 @@ administrators can issue command to their drand daemons.
 There are two ways to run a drand daemon: using TLS or using plain old regular
 unencrypted connections. Drand by default tries to use TLS connections.
 
-#### With TLS
+##### With TLS
 Drand nodes attempt to communicate by default over TLS-protected connections.
 Therefore, you need to point your node to the TLS certificate chain and
 corresponding private key you wish to use via:
@@ -302,37 +287,72 @@ To get TLS certificates for free you can use, for example, [Let's
 Encrypt](https://letsencrypt.org/) with its official CLI tool [EFF's
 certbot](https://certbot.eff.org/).
 
-#### Without TLS
+##### Without TLS
+
 Although we **do not recommend** it, you can always disable TLS in drand via:
 ```bash
 drand start --tls-disable
 ```
 
-### Distributed Key Generation
-After running all drand daemons, each operator needs to issue a command to
-start the DKG protocol, using the group file generated before. One can do so
-using the control client with:
+#### Test the connection to a node
+
+In order to test if your node is reachable from the internet and your setup is
+correct, you can run the following command:
 ```
-drand share <group-file>  --timeout 10s
+drand util check <address>
+```
+where address is the address as listed in the public key. If you disabled TLS,
+you need to add the `--tls-disable` flag.
+
+#### Run the setup phase
+
+To setup a new network, drand uses the notion the of a coordinator that collects
+the public key of the participants, setups the group configuration once all keys
+are received and then start the distributed key generation phase. Once the DKG
+phase is performed, the participants can see the list of members in the group
+configuration file
+
+**Coordinator**: The designated coordinator node must run the following command
+**before** everyone else:
+```
+drand share --leader --nodes 10 --threshold 6 --secret mysecret --period 30s
 ```
 
-One of the nodes has to function as the leader to initiate the DKG protocol (no
-additional trust assumptions), he can do so with:
+**Rest of participants**: Once the coordinator has run the previous command, the 
+rest of the participants must run the following command:
 ```
-drand share --leader <group-file>
+drand share --connect <leaderaddress> --nodes 10 --threshold 6 --secret mysecret
 ```
 
-Once running, the leader initiates the distributed key generation protocol to
-compute the distributed public key (`dist_key.public`) and the private key
-shares (`dist_key.private`) together with the participants specified in
-`drand_group.toml`. Once the DKG has finished, the keys are stored as
-`$HOME/.drand/groups/dist_key.{public,private}`.
+The flags usage is as follow:
+* `--leader` indicates this node is a coordinator, `
+* `--nodes` indicates how many nodes do we expect to form the network
+* `--threshold` indicates the threshold the network should use, i.e. how many
+  nodes amongst the total needs to be online for the network to be live at any
+  point.
+* `--period` indicates the period of the randomness beacon to use. It must be
+  valid duration as parsed by Golang's `[time.ParseDuration]`(https://golang.org/pkg/time/#ParseDuration)  method.
+* `--secret` indicates the secret that the coordinator uses to authentify the
+  nodes that wants to participate to the network.
+* `--connect` is the `host:port` address of the leader. By default, drand will
+  connect to the leader by using tls. If you are not using tls, use the
+  `--tls-disable` flag.
 
-The timeout is an optional parameter indicating the maximum timeout the DKG
-protocol will wait. If there are some failed nodes during the DKG, then the DKG
-will finish only after the given timeout. The default value is set to 10s (see
-[`core/constants.go`](https://github.com/dedis/drand/blob/master/core/constants.go)
-file).
+**Interactive command**: The command will run as long as the DKG is not finished
+yet. You can quit the command, the DKG will proceed but the group file will not
+be written down. In that case, once the DKG is done, you get the group file by
+running:
+```
+drand show group --out group.toml
+```
+
+
+**Secret**: For participants to be included in the group, they need to have a
+secret string shared by all. This method is offering some basic security
+however drand will provide more manual checks later-on and/or different secrets
+for each participants. However, since the set of participants is public and consistent 
+accross all participants after a setup, nodes can detect if there are some unwanted nodes
+after the setup and in that case, setup a new network again.
 
 **Custom entropy source**: By default drand takes its entropy for the setup
 phase from the OS's entropy source (`/dev/urandom` on Unix systems). However,
@@ -340,24 +360,25 @@ it is possible for a participant to inject their own entropy source into the
 creation of their secret. To do so, one must have an executable that produces
 random data when called and pass the name of that executable to drand:
 ```
-drand share <group-file> --source <entropy-exec>
+drand share <regular options> --source <entropy-exec>
 ```
 where `<entropy-exec>` is the path to the executable which produces the user's
-random data on STDOUT.
-
-As a precaution, the user's randomness is mixed by default with `crypto/rand`
-to create a random stream. In order to introduce reproducibility, the flag
-`user-source-only` can be set to impose that only the user-specified entropy
-source is used. Its use should be limited to testing.
+random data on STDOUT.  As a precaution, the user's randomness is mixed by
+default with `crypto/rand` to create a random stream. In order to introduce
+reproducibility, the flag `user-source-only` can be set to impose that only the
+user-specified entropy source is used. Its use should be limited to testing.
 ```
 drand share <group-file> --source <entropy-exec> --user-source-only
 ```
 
-**Group File**: Once the DKG phase is done, the group file is updated with the
-newly created distributed public key. That updated group file needed by drand
-to securely contact drand nodes on their public interface to gather private or
-public randomness. A drand administrator can get the updated group file it via
-the following:
+### Distributed Key Generation
+
+Once the DKG phase is done, each node has both a private share and a group file
+containing the distributed public key. Using the previous commands shown, the
+group file will be written to `group.toml`. That updated group file is needed by
+drand to securely contact drand nodes on their public interface to gather
+private or public randomness. A drand administrator can get the updated group
+file it via the following:
 ```bash
 drand show group
 ```
@@ -375,7 +396,7 @@ drand show cokey
 Otherwise, you can contact an external drand node to ask him for its current
 distributed public key:
 ```bash
-drand get cokey --nodes <address> <group.toml>
+drand get cokey <address>
 ```
 where `<group.toml>` is the group file identity file of a drand node. You can
 use the flag `--nodes <address(es)>` to indicate which node you want to contact
@@ -389,16 +410,36 @@ best gathered from a trusted drand operator and then embedded in any
 applications using drand.
 
 ### Randomness Generation
-After a successful setup, drand switches automatically to the randomness
-generation mode, where each node broadcasts randomness shares at regular
-intervals. Once a node has collected a threshold of shares in the current
-phase, it computes the public random value and stores it in its local instance
-of [BoltDB](https://github.com/coreos/bbolt).
 
-The default interval is one minute. If you wish to change that, you need to
-do so while generating the group file before the DKG.
+After a successful setup phase, drand will switch to the randomness generation
+mode *at the genesis time* specified in the group file. At that time, each node
+broadcasts randomness shares at regular intervals. Once a node has collected a
+threshold of shares in the current phase, it computes the public random value
+and stores it in its local instance of
+[BoltDB](https://github.com/coreos/bbolt).
+
+**Timings of randomness generation**: At each new period, each node will try to
+broadcast their partial signatures for the corresponding round and try to generate 
+a full randomness from the partial signatures. The corresponding round is the
+number of rounds elapsed from the genesis time. That means there is a 1-1
+mapping between a given time and a drand round.
+
+**Daemon downtime & Chain Sync**: Due to the threshold nature of drand, a drand
+network can support some numbers of nodes offline at any given point. This
+number is determined by the threshold: `max_offline = group_len - threshold`.
+When a drand node goes back up, it will sync rapidly with the other nodes to
+catch up its local chain and participate in the next upcoming drand round.
+
+**Drand network failure**: If for some reason drand goes down for some time and
+then backs up, the new randomn beacon will be built over the *last successfully
+generated beacon*. For example, if the network goes down at round 10 (i.e. last
+beacon generated contained `round: 10`), and back up again at round 20 (i.e.
+field `round: 20`), then this new randomness contains the field
+`previous_round:10`. 
+
 
 ### Control Functionalities
+
 Drand's local administrator interface provides further functionality, e.g., to
 update group details or retrieve secret information. By default, the daemon
 listens on `127.0.0.1:8888`, but you can specify another control port when
@@ -471,10 +512,10 @@ The JSON-formatted output produced by drand is of the following form:
 ```json
 {
     "round": 2,
-    "previous": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a2
 d8a74d4d3b3664a90409f7ec575f7211f06502001561b00e036d0fbd42d2b",
     "signature": "357562670af7e67f3534f5a5a6e01269f3f9e86a7b833591b0ec2a51faa7c11111
 2a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
+    "previous_signature": "5e59b03c65a82c9f2be39a7fd23e8e8249fd356c4fd7d146700fc428ac80ec3f7a22a1dc1baea73926c1822bc5135469cc1c304adc6ccc942dac7c3a52977a342",
     "randomness": "ee9e1aeba4a946ce2ac2bd42ab04439c959d8538546ea637418394c99c522eec2
     92bbbfac2605cbfe3734e40a5d3cc762428583b243151b2a84418e376ea0af6"
 }
@@ -527,6 +568,7 @@ curl <address>/api/public
 file.**
 
 ### Updating Drand Group
+
 Drand allows for "semi-dynamic" group update with a *resharing* protocol that
 offers the following:
 
@@ -542,31 +584,47 @@ The main advantage of this method is that the distributed public key stays the
 public key is embedded inside the application using drand, and hence is
 difficult to update.
 
-Updating is simple in drand, it uses the same command as for the DKG:
-```bash
-drand share --from old-group.toml new-group.toml
+**Setting up the coordinator**: The coordinator must be a member of the current
+network. To run the coordinator, run the following:
 ```
-for new nodes joining the system. The old group toml is fetched as shown above,
-and the new group toml is created the usual way (`drand group ....`).
-
-For nodes already in current the group, there is actually a shortcut (the
-previous command works also) where there is no need to specify the old group:
-```bash
-drand share <newGroup.toml>
+drand share --leader --transition --nodes 15 --treshold 10 --secret mysecret2 --out
+group2.toml
 ```
 
-As usual, a leader must start the protocol by indicating the `--leader` flag.
+**Setting up the current members for the resharing**: The current members can
+simply run the following command:
+```
+drand share --transition --nodes 15 --threshold 10 --secret mysecret2 --out
+group2.toml
+```
 
-After the protocol is finished, each node listed in the new-group.toml file,
-will have a new share corresponding to the same distributed public key. The
-randomness generation starts immediately after the resharing protocol using the
-new shares.
+**Setting up the new members**: The new members need the current group file to
+proceed. Check how to get the group file in the "Using the drand daemon"
+section. Then run the command:
+```
+drand share --from group.toml --nodes 15 --threshold 10 --secret mysecret2 --out
+group2.toml
+```
 
-Here `rnd` is the 32-byte base64-encoded private random value produced by the
-contacted drand node. If the encryption is not correct, the command outputs an
-error instead.
+After the protocol is finished, each node will have the new group file written
+out as `group2.toml`. The randomness generation starts only at the specified
+transition time specified in the new group file.
+
+## Metrics
+
+The `--metrics <metrics-port>` flag may be used to launch a metrics server at
+the given port serving [pprof](https://golang.org/pkg/net/http/pprof/) runtime
+profiling data at `<metrics-port>/debug/pprof` and
+[prometheus](https://prometheus.io/docs/guides/go-application/) metrics at
+`<metrics-port>:/metrics`. Prometheus counters track the number of gRPC
+requests sent and received by the drand node, as well as the number of HTTP API
+requests. This endpoint should not be exposed publicly. If desired, prometheus
+metrics can be used as a data source for [grafana
+dashboards](https://grafana.com/docs/grafana/latest/features/datasources/prometheus/)
+or other monitoring services.
 
 ## DrandJS
+
 To facilitate the use of drand's randomness in JavaScript-based applications,
 we provide [DrandJS](https://github.com/drand/drandjs). The main method
 `fetchAndVerify` of this JavaScript library fetches from a drand node the
@@ -583,7 +641,7 @@ Here is a list of all documentation related to drand:
 
 * For a high level presentation of motivations and background, here are some public
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
-  about drand.
+  about drand or online [video](https://www.youtube.com/watch?v=ydwW2HFFxNI&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=3).
 * The client-side API documentation of drand:
   [link](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
 * The drand *operator guide* documentation:
@@ -673,6 +731,7 @@ Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.ch)
 for letting me work on this project and helping me grow it.
 
 ## Coverage
+
 - EPFL blog [post](https://actu.epfl.ch/news/epfl-helps-launch-globally-distributed-randomness-/)
 - Cloudflare crypto week [introduction
   post](https://new.blog.cloudflare.com/league-of-entropy/) and the more
@@ -686,6 +745,7 @@ for letting me work on this project and helping me grow it.
   [post](https://science.slashdot.org/story/19/06/17/1921224/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
 - Duo
   [post](https://duo.com/decipher/the-league-of-entropy-forms-to-offer-acts-of-public-randomness)
+- [Liftr](https://liftrinsights.com/liftr-cloud-look-ahead-cloudflare-introduces-the-league-of-entropy-googles-solution-to-keep-data-sets-private-and-more/)
 - (French)
   [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.html)
 

@@ -30,11 +30,13 @@ func CreateSecureFolder(folder string) string {
 		//the folder exists already
 		info, err := os.Lstat(folder)
 		if err != nil {
+			fmt.Println("Error checking stat folder: ", err)
 			return ""
 		}
 		perm := int(info.Mode().Perm())
 		if perm != int(0740) {
-			return ""
+			fmt.Printf("Folder different permission: %#o vs %#o \n", perm, 0740)
+			return folder
 		}
 	}
 	return folder

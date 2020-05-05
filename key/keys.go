@@ -10,7 +10,7 @@ import (
 
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
-	dkg "github.com/drand/kyber/share/dkg/pedersen"
+	dkg "github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
 
@@ -38,6 +38,23 @@ func (i *Identity) Address() string {
 // IsTLS returns true if this address is reachable over TLS.
 func (i *Identity) IsTLS() bool {
 	return i.TLS
+}
+
+func (i *Identity) String() string {
+	return fmt.Sprintf("{%s - %s}", i.Address(), i.Key.String())
+}
+
+func (i *Identity) Equal(i2 *Identity) bool {
+	if i.Addr != i2.Addr {
+		return false
+	}
+	if i.TLS != i2.TLS {
+		return false
+	}
+	if !i.Key.Equal(i2.Key) {
+		return false
+	}
+	return true
 }
 
 // NewKeyPair returns a freshly created private / public key pair. The group is
@@ -104,11 +121,6 @@ func (p *Pair) FromTOML(i interface{}) error {
 // TOMLValue returns an empty TOML-compatible interface value
 func (p *Pair) TOMLValue() interface{} {
 	return &PairTOML{}
-}
-
-// Equal returns true if the cryptographic public key of p equals p2's
-func (i *Identity) Equal(p2 *Identity) bool {
-	return i.Key.Equal(p2.Key)
 }
 
 // FromTOML loads reads the TOML description of the public key
@@ -184,12 +196,8 @@ func (s *Share) Public() *DistPublic {
 func (s *Share) TOML() interface{} {
 	dtoml := &ShareTOML{}
 	dtoml.Commits = make([]string, len(s.Commits))
-	dtoml.PrivatePoly = make([]string, len(s.PrivatePoly))
 	for i, c := range s.Commits {
 		dtoml.Commits[i] = PointToString(c)
-	}
-	for i, c := range s.PrivatePoly {
-		dtoml.PrivatePoly[i] = ScalarToString(c)
 	}
 	dtoml.Share = ScalarToString(s.Share.V)
 	dtoml.Index = s.Share.I
@@ -211,14 +219,6 @@ func (s *Share) FromTOML(i interface{}) error {
 		s.Commits[i] = p
 	}
 
-	s.PrivatePoly = make([]kyber.Scalar, len(t.PrivatePoly))
-	for i, c := range t.PrivatePoly {
-		coeff, err := StringToScalar(KeyGroup, c)
-		if err != nil {
-			return fmt.Errorf("share.PrivatePoly[%d] corrupted: %s", i, err)
-		}
-		s.PrivatePoly[i] = coeff
-	}
 	sshare, err := StringToScalar(KeyGroup, t.Share)
 	if err != nil {
 		return fmt.Errorf("share.Share corrupted: %s", err)
@@ -253,10 +253,24 @@ type DistPublic struct {
 	Coefficients []kyber.Point
 }
 
+func (d *DistPublic) PubPoly() *share.PubPoly {
+	return share.NewPubPoly(KeyGroup, KeyGroup.Point().Base(), d.Coefficients)
+}
+
 // Key returns the first coefficient as representing the public key to be used
 // to verify signatures issued by the distributed key.
 func (d *DistPublic) Key() kyber.Point {
 	return d.Coefficients[0]
+}
+
+// Hash computes the hash of this distributed key.
+func (d *DistPublic) Hash() []byte {
+	h := hashFunc()
+	for _, c := range d.Coefficients {
+		buff, _ := c.MarshalBinary()
+		h.Write(buff)
+	}
+	return h.Sum(nil)
 }
 
 // DistPublicTOML is a TOML compatible value of a DistPublic
@@ -305,8 +319,7 @@ func (d *DistPublic) Equal(d2 *DistPublic) bool {
 	for i := range d.Coefficients {
 		p1 := d.Coefficients[i]
 		p2 := d2.Coefficients[i]
-		// XXX to change: this is a naive comparison way
-		if p1.String() != p2.String() {
+		if !p1.Equal(p2) {
 			return false
 		}
 	}
@@ -364,7 +377,7 @@ func (b *BeaconSignature) RawSig() []byte {
 	return s
 }
 
-// DefaultThreshold return floor(n * 2/3) + 1
+// DefaultThreshold return floor(n / 2) + 1
 func DefaultThreshold(n int) int {
-	return int(math.Floor(float64((n*2))/3.0)) + 1
+	return int(math.Floor(float64(n)/2.0)) + 1
 }

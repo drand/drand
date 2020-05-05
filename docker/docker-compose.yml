@@ -2,11 +2,11 @@ version: '3'
 
 services:
   drand:
-    image: dedis/drand:latest
+    image: drandorg/go-drand:latest
     volumes:
       - ./data:/root/.drand
     ports:
       - "0.0.0.0:1234:8080"
-    entrypoint: drand 
-    command: --verbose 2 start --listen 0.0.0.0:8080 --tls-cert "/root/.drand/cert.pem" --tls-key "/root/.drand/key.pem"
+    entrypoint: /drand
+    command: start --verbose --listen 0.0.0.0:8080 --tls-cert "/root/.drand/cert.pem" --tls-key "/root/.drand/key.pem"
     restart: always

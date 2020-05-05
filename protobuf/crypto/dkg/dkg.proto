@@ -8,45 +8,66 @@ package dkg;
 
 /*option go_package = "github.com/drand/drand/protobuf/crypto/dkg";*/
 option go_package = "dkg";
-import "crypto/vss/vss.proto";
 
 // Packet is a wrapper around the three different types of DKG messages
 message Packet {
-    Deal deal = 1;
-    Response response = 2;
-    Justification justification = 3;
+    oneof Bundle {
+        DealBundle deal = 1;
+        ResponseBundle response = 2;
+        JustifBundle justification = 3;
+    }
+    bytes signature = 4;
 }
 
 
+// DealBundle is a packet issued by a dealer that contains each individual
+// deals, as well as the coefficients of the public polynomial he used.
+message DealBundle {
+    // Index of the dealer that issues these deals
+    uint32 dealer_index = 1;
+    // Coefficients of the public polynomial that is created from the 
+    // private polynomial from which the shares are derived.
+    repeated bytes commits = 2;
+    // list of deals for each individual share holders.
+    repeated Deal deals = 3;
+}
+
 // Deal contains a share for a participant.
 message Deal {
-    // index of the dealer, the issuer of the share
-    uint32 index = 1;
-    // encrypted version of the deal
-    vss.EncryptedDeal deal = 2;
-    // signature of the whole deal 
-    // NOTE: this is almost duplicated data, since the vss deal already includes
-    // a signature. However it does not include the index of the dealer that
-    // issue this deal, so another one is required. Best would be to merge vss
-    // and dkg so we could use only one field of signature. For future work...
-    // :)
-    bytes signature = 3;
+    uint32 share_index = 1;
+    // encryption of the share using ECIES
+    bytes encrypted_share = 2;
+}
+
+// ResponseBundle is a packet issued by a share holder that contains all the 
+// responses (complaint and/or success) to broadcast.
+message ResponseBundle {
+    uint32 share_index = 1;
+    repeated Response responses = 2;
 }
 
 // Response holds the response that a participant broadcast after having
 // received a deal.
 message Response {
     // index of the dealer for which this response is for
-    uint32 index = 1;
-    // response from the participant which received a deal
-    vss.Response response = 2;
+    uint32 dealer_index = 1;
+    // Status represents a complaint if set to false, a success if set to 
+    // true.
+    bool status = 2;
+}
+
+// JustifBundle is a packet that holds all justifications a dealer must 
+// produce
+message JustifBundle {
+    uint32 dealer_index = 1;
+    repeated Justification justifications = 2;
 }
 
 // Justification holds the justification from a dealer after a participant
 // issued a complaint response because of a supposedly invalid deal.
 message Justification {
-    // index of the dealer who is issuing this justification
-    uint32 index = 1;
-    // justification from the dealer
-    vss.Justification justification = 2;
+    // represents for who share holder this justification is
+    uint32 share_index = 1;
+    // plaintext share so everyone can see it correct
+    bytes share = 2;
 }

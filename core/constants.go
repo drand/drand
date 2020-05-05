@@ -29,13 +29,42 @@ const DefaultBeaconPeriod time.Duration = 1 * time.Minute
 // DefaultControlPort is the default port the functionnality control port communicate on.
 const DefaultControlPort = "8888"
 
-// DefaultDKGTimeout is the time the DKG timeouts by default. See
-// kyber/share/dkg/pedersen for more information.
-const DefaultDKGTimeout = "1m"
+// DefaultDKGTimeout is the default time of each DKG period by default. Note
+// that by default, DKG uses the "fast sync" mode that shorten the first phase
+// and the second phase, "as fast as possible" when the protocol runs smoothly
+// (there is no malicious party).
+const DefaultDKGTimeout = 10 * time.Second
 
 // DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
 var DefaultDialTimeout = 10 * time.Second
 
 // RandomnessHash is the hash function used to produce the final randomness from
-// the signature
+// the signature. NOTE: this is a proposition by drand but user can choose any
+// secure hash function to derive the final randomness from the sig:
+// rand = H(sig)
 var RandomnessHash = sha256.New
+
+// MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
+// can take. If the setup is still not finished after this time, it is
+// cancelled.
+var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
+
+// DefaultGenesisOffset is the time that the leader adds to the current time to
+// compute the genesis time. It computes the genesis time *before* sending the
+// group to the nodes and before running the DKG so it must be sufficiently high
+// enough (at the very least superior than the time DKG is taking).
+var DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(3)
+
+// DefaultResharingOff is the time the leader adds to the current time to set
+// the TransitionTime field in the group file when setting up a resharing. This
+// time will be rounded up to the next round time of the beacon, since a beacon
+// has to keep the same period.
+var DefaultResharingOffset = 30 * time.Second
+
+// Keep the most recents beacons
+// XXX unused for now
+var DefaultBeaconCacheLength = 10
+
+// IDs for callback when beacon appears
+const callbackID = "callbackID"
+const cacheID = "cacheID"
