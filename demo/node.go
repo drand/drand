@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -121,6 +122,8 @@ func (n *Node) Start(certFolder string) {
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--control", n.ctrl)...)
+	_, p, _ := net.SplitHostPort(n.addr)
+	args = append(args, pair("--listen", "0.0.0.0:"+p)...)
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
 		args = append(args, pair("--tls-key", n.keyPath)...)
