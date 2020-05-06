@@ -232,15 +232,6 @@ func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
 	var current roundInfo
-	needCatchup := func(b *Beacon) bool {
-		// if the next round of the last beacon we generated is not the round we
-		// are now, that means there is a gap between the two rounds. In other
-		// words, the chain has halted for that amount of rounds.
-		if b.Round+1 < current.round {
-			return true
-		}
-		return false
-	}
 	for {
 		select {
 		case current = <-chanTick:
@@ -251,7 +242,12 @@ func (h *Handler) run(startTime int64) {
 			}
 			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
 			h.broadcastNextPartial(lastBeacon)
-			if needCatchup(lastBeacon) {
+			// if the next round of the last beacon we generated is not the round we
+			// are now, that means there is a gap between the two rounds. In other
+			// words, the chain has halted for that amount of rounds or our
+			// network is not functionning properly.
+			if lastBeacon.Round+1 < current.round {
+
 				// We also launch a sync with the other nodes. If there is one node
 				// that has a higher beacon, we'll build on it next epoch. If
 				// nobody has a higher beacon, then this one will be next if the
@@ -262,7 +258,7 @@ func (h *Handler) run(startTime int64) {
 				go h.chain.RunSync(context.Background())
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
-			if needCatchup(b) {
+			if b.Round < current.round {
 				// When network is down, all alive nodes will broadcast their
 				// signatures periodically with the same period. As soon as one
 				// new beacon is created,i.e. network is up again, this channel
