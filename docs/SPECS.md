@@ -8,6 +8,42 @@ also serve locally-generated private randomness to clients.
 
 This document is a specification of the drand protocols.
 
+## Table of Contents
+* [Notations](#notations)
+   * [Drand node](#drand-node)
+   * [Drand beacon](#drand-beacon)
+   * [Group configuration](#group-configuration)
+      * [Group Configuration Hash](#group-configuration-hash)
+* [Wireformat &amp; API](#wireformat--api)
+* [Drand Modules](#drand-modules)
+   * [Setup phase](#setup-phase)
+      * [Collecting the keys of the participants](#collecting-the-keys-of-the
+cipants)
+      * [Coordinator pushing the new group configuration](#coordinator-pushin
+new-group-configuration)
+   * [Distributed Key Generation](#distributed-key-generation)
+      * [Phase transitions](#phase-transitions)
+      * [Deal Phase](#deal-phase)
+      * [Response Phase](#response-phase)
+      * [Justification Phase](#justification-phase)
+      * [Finish Phase](#finish-phase)
+   * [Randomness generation](#randomness-generation)
+      * [Overiew](#overiew)
+      * [Randomness Generation Period](#randomness-generation-period)
+      * [Beacon Chain](#beacon-chain)
+      * [Catchup mode](#catchup-mode)
+      * [Syncing](#syncing)
+* [Cryptographic specification](#cryptographic-specification)
+   * [Drand Curve](#drand-curve)
+   * [Distributed Public Key](#distributed-public-key)
+   * [Beacon Signature](#beacon-signature)
+   * [Partial Beacon Signature](#partial-beacon-signature)
+* [External API](#external-api)
+* [Control API](#control-api)
+* [THINGS TO REVIEW](#things-to-review)
+
+
+
 ## Notations
 
 ### Drand node
@@ -17,7 +53,7 @@ distributed key generations phases, in the randomness generation and that can
 reply to public request API. A Go struct representation is as follow:
 ```go
 type Node struct {
-	Key  []byte // public key
+	Key  []byte // public key on bls12-381 G1 
 	Addr string // publicly reachable address of the node
 	TLS  bool // reachable via TLS 
     Index  uint32 // index of the node w.r.t. to the network
@@ -33,6 +69,9 @@ func (n *Node) Hash() []byte {
     return h.Sum(nil)
 }
 ```
+
+**Public Key**: Public keys of drand nodes are points on the G1 group of the
+BLS12-381 curve. See the [curve](#drand-curve) section for more information.
 
 ### Drand beacon
 
@@ -55,9 +94,9 @@ about nodes that form a drand network:
 * GenesisSeed: A generic slice of bytes that is the input for nodes that create
   the first beacon. This seed is the hash of the initial group configuration, as
   shown below.
-* Distributed public key: the public key which must be used to verify the
-  random beacons created by the network. This field is nil if the network hasn't
-  ran the setup phase yet.
+* Distributed public key: A list of points used to verify the partial and final
+  beacons created by the network. This field is nil if the network hasn't ran
+  the setup phase yet. Each point lies on the group G1 of the BLS12-381 curve. 
 * TransitionTime: An UNIX timestamp in seconds that represents the time the
   network denoted by this group configuration took over a previous network. This
   field is empty is the network has never reshared yet. See TODO for more
@@ -90,16 +129,6 @@ func (g *Group) Hash() []byte {
 	return h.Sum(nil)
 }
 ```
-
-## Drand Curve
-
-Drand uses the pairing curve
-[BLS12-381](https://hackmd.io/@benjaminion/bls12-381). The hash-to-curve
-algorithm is derived from the [RFC
-v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07). 
-All points on the curve are sent using the compressed form.
-The implementation that drand uses is located in the
-[bls12-381](https://github.com/drand/bls12-381) repo.
 
 ## Wireformat & API
 
@@ -614,6 +643,9 @@ network. A node indicates the last beacon saved in its database and calls the
 following RPC:
 ```protobuf
 rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
+```
+with the following protobuf packet:
+```protobuf
 // SyncRequest is from a node that needs to sync up with the current head of the
 // chain
 message SyncRequest {
@@ -634,6 +666,89 @@ the current round.
 
 **Server side**: For sync request, the node must load the beacon which has the
 given round requested and sends back all subsequent beacons until the last one.
+
+## Cryptographic specification
+
+### Drand Curve
+
+Drand uses the pairing curve
+[BLS12-381](https://hackmd.io/@benjaminion/bls12-381). All points on the curve are sent using the compressed form.
+
+The implementation that drand uses is located in the
+[bls12-381](https://github.com/drand/bls12-381) repo.
+**Hash to curve**:The hash-to-curve algorithm is derived from the [RFC
+v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07). 
+
+### Distributed Public Key
+
+The distributed public key is a list of BLS12-381 G1 points that represents the
+public polynomial created during the DKG protocol.
+```go
+// DistPublic represents the distributed public key generated during a DKG. This
+// is the information that can be safely exported to end users verifying a
+// drand signature. It is the list of all commitments of the coefficients of the
+// private distributed polynomial.
+type DistPublic struct {
+    // points on the BLS12-381 G1 curve
+	Coefficients [][]byte 
+}
+```
+The coefficients are needed to verify partial beacon signatures. 
+The first coefficient is needed to verify the final beacon signature.
+
+### Beacon Signature
+
+A beacon signature is a regular [BLS signature](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf) over the message:
+```go
+func Message(currRound uint64, prevSig []byte) []byte {
+	h := sha256.New()
+	h.Write(prevSig)
+	h.Write(roundToBytes(currRound))
+	return h.Sum(nil)
+}
+```
+The ciphersuite used is:
+```go
+var Domain = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_")
+```
+
+It can be verified using the first coefficient of the distributed public key
+stored in the group configuration:
+
+### Partial Beacon Signature
+
+A partial beacon signature is created over the same input as the beacon
+signature. However, the node's index is prefixed on the first two bytes to the
+signature.
+```go
+func concatenate(signature []byte, index uint16) []byte {
+    var buffer bytes.Buffer
+    binary.Write(buffer, binary.BigEndian, index)
+    buffer.Write(sig)
+    return buffer.Bytes()
+}
+```
+
+**Verifying**: The public key to validate a partial signature is derived from
+the distributed public key. Namely, the public key is the evaluation of the
+polynomial whose coefficients are the points of the distributed key, at the
+index of the signer + 1. We need to increment the signer's index since the
+evaluation point 0 corresponds to the public key but no nodes posseses the
+private key. More on that in the DKG sections below.
+To evaluate the polynomial, one can use the following routine:
+```go
+// i is the index of the signer
+// commits are the points of the distributed public key
+func Eval(i int,commits []Point) Point {
+	xi := Scalar().SetInt64(1 + int64(i)) // x-coordinate of this share
+	v := Point().Null()
+	for j := p.Threshold() - 1; j >= 0; j-- {
+		v.Mul(xi, v)
+		v.Add(v, commits[j])
+	}
+	return v
+}
+```
 
 ## External API
 
