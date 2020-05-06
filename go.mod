@@ -12,6 +12,7 @@ require (
 	github.com/golang/protobuf v1.3.5
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
+	github.com/ipfs/go-log/v2 v2.0.7
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 	github.com/nikkolasg/hexjson v0.0.0-20181101101858-78e39397e00c
