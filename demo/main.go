@@ -33,7 +33,7 @@ var beaconOffset = 12
 // mostly due to the fact we run on localhost on cheap machine with CI so we
 // need some delays to make sure *all* nodes that we check have gathered the
 // randomness.
-var afterPeriodWait = 4 * time.Second
+var afterPeriodWait = 5 * time.Second
 
 func main() {
 	flag.Parse()

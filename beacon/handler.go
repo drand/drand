@@ -233,7 +233,10 @@ func (h *Handler) run(startTime int64) {
 	h.l.Debug("run_round", "wait", "until", startTime)
 	var current roundInfo
 	needCatchup := func(b *Beacon) bool {
-		if b.Round < current.round {
+		// if the next round of the last beacon we generated is not the round we
+		// are now, that means there is a gap between the two rounds. In other
+		// words, the chain has halted for that amount of rounds.
+		if b.Round+1 < current.round {
 			return true
 		}
 		return false
