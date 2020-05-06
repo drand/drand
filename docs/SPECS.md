@@ -1,6 +1,14 @@
 # Drand Specifications
 
-## Notation
+Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
+in Golang. Servers running drand can be linked with each other to produce
+collective, publicly verifiable, unbiased, unpredictable random values at fixed
+intervals using bilinear pairings and threshold cryptography. Drand nodes can
+also serve locally-generated private randomness to clients.
+
+This document is a specification of the drand protocols.
+
+## Notations
 
 ### Drand node
 
@@ -60,7 +68,7 @@ about nodes that form a drand network:
 The group configuration can be uniquely referenced via its canonical hash. 
 The hash is derived using the blake2b hash function.
 The Go procedure works as follow:
-```
+```go
 func (g *Group) Hash() []byte {
     h, _ := blake2b.New256(nil)
     // sort all nodes entries by their index
@@ -139,10 +147,13 @@ in the new group configuration.
 
 #### Collecting the keys of the participants
 
-Each non-coordinator participant sends their information via the following RPC:
+Each non-coordinator participant sends their information via the following RPC
+call:
 ```protobuf
 rpc SignalDKGParticipant(SignalDKGPacket) returns (drand.Empty);
-
+```
+The relevant protobuf packets are the following:
+```protobuf
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
 // start the DKG automatically.
@@ -176,8 +187,10 @@ The coordinator then pushes the group configuration to the participants via the
 following RPC call:
 ```protobuf
 rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
-
-// PushDKGInfor is the packet the coordinator sends that contains the group over
+```
+with the relevant protobuf packets as follow:
+```protobuf
+// PushDKGInfo is the packet the coordinator sends that contains the group over
 // which to run the DKG on, the secret proof (to prove it's he's part of the
 // expected group, and it's not a random packet) and as well the time at which
 // every node should start the DKG.
@@ -195,7 +208,9 @@ message GroupPacket {
     uint64 genesis_time = 4;
     uint64 transition_time = 5;
     bytes genesis_seed = 6;
-    repeated bytes dist_key = 7;
+    // is nil in this case, since the network
+    // hasn't run the setup phase yet
+    repeated bytes dist_key = 7; 
 }
 ```
 
@@ -217,7 +232,9 @@ described from [Gennaro's paper](https://www.researchgate.net/publication/225722
 using the following RPC call:
 ```protobuf
 rpc FreshDKG(DKGPacket) returns (drand.Empty);
-
+```
+and the following protobuf packets:
+```protobuf
 message DKGPacket {
     dkg.Packet dkg = 1;
 }
@@ -386,12 +403,14 @@ ticker kicks in to go into the `FinishPhase`.
 In the `FinishPhase`, each node locally look at the shares they received and
 compute both their final share and the distributed public key. For the DKG to be
 sucessful, there must be at least more than a threshold of valid shares. For
-more detail, see the [cryptography](#cryptography) section.
-Each node must save the group configuration file augmented with the distributed
-key. This configuration file is now representative of functional current drand network.
+more detail, see the [cryptography](#cryptography) section.  Each node must save
+the group configuration file augmented with the distributed key. This
+configuration file is now representative of functional current drand network.
 
-Each node must start generating randomness at the time specified in the
-`GenesisTime` of the group configuration file.
+When a node stored the new group file, it switches to the randomness generation
+protocol. Given there might be slight time delays, it must already be ready to
+accept packets for this. However, the node must only start generating randomness
+at the time specified in the `GenesisTime` of the group configuration file.
 
 ### Randomness generation 
 
@@ -487,12 +506,13 @@ previousSignature = lastBeacon.Signature
 It is important to note that the current round may not be necessarily the round
 of the current time. More information in the following section.
 
-**Partial Beacon Broadcast**:Each node then calls the following RPC call with
-the following protobuf packet: XXX: protobuf shown is assuming [issue
-256](https://github.com/drand/drand/issues/256)is fixed.
+**Partial Beacon Broadcast**:Each node then calls the following RPC call 
 ```protobuf
 rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
-
+```
+with the following protobuf packets:
+XXX: protobuf shown is assuming [issue 256](https://github.com/drand/drand/issues/256)is fixed.
+```protobuf
 message PartialBeaconPacket {
     // Round is the round for which the beacon will be created from the partial
     // signatures
@@ -502,6 +522,7 @@ message PartialBeaconPacket {
     bytes previous_sig = 3;
 }
 ```
+
 **Final Beacon Creation**: For each incoming partial beacon packet, a
 node must first verify it, using the partial signature verification routine and
 then stores it in a temporary cache if it is valid.  As soon as there is at
@@ -529,7 +550,7 @@ genesis time). At each kicks, a node loads its last beacon generated and runs
 the protocol as shown above. Under normal circumstances, the `Round` field
 should be the round that corresponds to the current time.
 
-**Network halting**: However, it may happen that there is not enough partial
+**Network Halting**: However, it may happen that there is not enough partial
 beacon being broadcasted at one time therefore there will not be any random
 beacon created for this round. Under these circumstances, nodes can enter a
 "catchup" mode.
@@ -561,6 +582,29 @@ broadcasts their new partial beacon from the last generated beacon until they
 reach the current round according to the local clock. As soon as a new beacon is
 aggregated, nodes look if the round corresponds to the current round, and if
 not, prepare to broadcast their next partial signatures.
+
+**Example**:
+* Period is 30s, genesis time = 10
+* Beacon for round 1 generated at T = 10
+* Beacon for round 2 generated at T = 40
+* Outage of multiple honest nodes for 70s
+* When the honest nodes are back online, it's time T = 40+70 = 110
+  + Beacons round 3 (T=70), round 4 (T=100) should have been generated in the
+    meantime
+* When the nodes come back online, they try to sync with each other
+  + They all see all nodes only have the beacon round 2 as the "head" of the
+    chain
+  + Therefore, they go into "catchup mode"
+* Nodes send a partial beacon for round 3 at time T = 100 (+ some delta for
+  syncing)
+* As soon as a node has enough partial beacon for round 3, he creates the final
+  beacon for round 4
+  + It then moves to the next round automatically, since round 4 is still in the
+    past
+* All nodes continue on this mode until all have the round 4 as their heads and
+  as long the the current time is less than T=130, since that corresponds to
+  round 5
+* All nodes wait for the round 5 as usual.
 
 #### Syncing
 
