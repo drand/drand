@@ -114,7 +114,10 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
-	if p.GetRound() > currentRound {
+	// we allow one round off in the future because of small clock drifts
+	// possible, if a node receives a packet very fast just before his local
+	// clock passed to the next round
+	if p.GetRound() > nextRound {
 		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
@@ -132,6 +135,8 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, errors.New("no info for this round")
 	}
 
+	// XXX Remove that evaluation - find another way to show the current dist.
+	// key being used
 	shortPub := info.pub.Eval(1).V.String()[14:19]
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(info.pub, msg, p.GetPartialSig()); err != nil {
