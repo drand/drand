@@ -46,7 +46,7 @@ func main() {
 	nRound := 2
 	n := 6
 	thr := 4
-	period := "7s"
+	period := "8s"
 	newThr := 5
 	orch := NewOrchestrator(n, thr, period, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
@@ -68,7 +68,7 @@ func main() {
 	}()
 	setSignal(orch)
 	orch.StartCurrentNodes()
-	orch.RunDKG("2s")
+	orch.RunDKG("3s")
 	orch.WaitGenesis()
 	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
