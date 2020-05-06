@@ -20,7 +20,7 @@ critical at this point.**
 # Table of Contents
 
    * [Drand - A Distributed Randomness Beacon Daemon](#drand---a-distributed-randomness-beacon-daemon)
-         * [Disclaimer](#disclaimer)
+      * [Disclaimer](#disclaimer)
       * [Table of Contents](#table-of-contents)
       * [Goal and Overview](#goal-and-overview)
          * [Public Randomness](#public-randomness)
