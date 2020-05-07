@@ -71,10 +71,8 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 	if node == nil {
 		return nil, errors.New("beacon: keypair not included in the given group")
 	}
-	idx := node.Index
 	addr := conf.Public.Address()
-	// XXX change logging because of resharing
-	logger := l.With("index", idx)
+	logger := l
 	safe := newCryptoSafe()
 	safe.SetInfo(conf.Share, node, conf.Group)
 	// genesis block at round 0, next block at round 1
@@ -146,6 +144,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if uint32(idx) == info.id.Index {
 		h.l.Error("process_partial", addr, "same_index", "got", idx, "our", info.id.Index, "inadvance_packet?")
+		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
 	h.chain.NewValidPartial(peer.Addr.String(), p)
@@ -195,17 +194,15 @@ func (h *Handler) Catchup() {
 // defined, best to use streaming.
 func (h *Handler) Transition(prevGroup *key.Group) error {
 	targetTime := h.conf.Group.TransitionTime
-	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	// tTime is the time of the next round -
-	// we want to compare the actual roudn
-	// XXX simplify this by implementing a "RoundOfTime" method
-	tTime = tTime - int64(h.conf.Group.Period.Seconds())
-	tRound = tRound - 1
+	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
 
+	// register the previous group as well in case it needs to verify the
+	// previous entries
 	h.safe.SetInfo(nil, h.conf.Public, prevGroup)
 	go h.run(targetTime)
 	h.chain.RunSync(context.Background())
@@ -214,16 +211,13 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
-	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	h.l.Debug("transition", "new_group", "at_round", tRound)
-	// tTime is the time of the next round -
-	// we want to compare the actual roudn
-	// XXX simplify this by implementing a "RoundOfTime" method
-	tTime = tTime - int64(h.conf.Group.Period.Seconds())
-	tRound = tRound - 1
+	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		return
 	}
+	h.l.Debug("transition", "new_group", "at_round", tRound)
 	h.safe.SetInfo(newShare, h.conf.Public, newGroup)
 }
 
@@ -241,6 +235,10 @@ func (h *Handler) run(startTime int64) {
 				break
 			}
 			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
+			if lastBeacon.Round == current.round {
+				h.l.Debug("beacon_loop", "skip_broadcast", "last_beacon", lastBeacon.Round, "current_round", current.round)
+				continue
+			}
 			h.broadcastNextPartial(lastBeacon)
 			// if the next round of the last beacon we generated is not the round we
 			// are now, that means there is a gap between the two rounds. In other
@@ -302,7 +300,7 @@ func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 		return
 	}
 	shortPub := info.pub.Eval(1).V.String()[14:19]
-	h.l.Debug("start_round", currentRound, "from_sig", shortSigStr(last.Signature), "from_round", last.Round, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+	h.l.Debug("broadcast_partial", currentRound, "from_sig", shortSigStr(last.Signature), "from_round", last.Round, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
 	packet := &proto.PartialBeaconPacket{
 		Round:         currentRound,
 		PreviousRound: last.Round,
@@ -410,8 +408,7 @@ func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Node, group *key.Group) {
 	}
 	if group.TransitionTime != 0 {
 		time := group.TransitionTime
-		nRound, _ := NextRound(time, group.Period, group.GenesisTime)
-		info.startAt = nRound - 1
+		info.startAt = CurrentRound(time, group.Period, group.GenesisTime)
 	} else {
 		// group started at genesis time
 		info.startAt = 0
