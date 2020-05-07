@@ -71,7 +71,10 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	lastBeacon, _ := c.Store.Last()
+	lastBeacon, err := c.Store.Last()
+	if err != nil {
+		c.l.Fatal("chain_aggregator", "loading", "last_beacon", err)
+	}
 	var caches = []*roundCache{
 		newRoundCache(lastBeacon.Round+1, lastBeacon.Round, lastBeacon.Signature),
 	}

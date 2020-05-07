@@ -83,6 +83,10 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 		Round:     0,
 	}
 	s.Put(b)
+	// sleep 10ms to make sure at least the first beacon is in the store
+	// on CI server it sometimes happen that the beacon is not even stored
+	// before loading the last beacon
+	time.Sleep(10 * time.Millisecond)
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	callbacks := NewCallbackStore(s)
 	chain := newChainStore(logger, c, safe, callbacks, ticker)
