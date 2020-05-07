@@ -205,7 +205,7 @@ func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.Group
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	return groupToProto(d.group), nil
+	return d.group.ToProto(), nil
 }
 
 func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {

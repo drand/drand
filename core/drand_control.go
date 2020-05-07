@@ -48,7 +48,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 
-	protoGroup := groupToProto(group)
+	protoGroup := group.ToProto()
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    protoGroup,
 		SecretProof: in.GetInfo().GetSecret(),
@@ -63,7 +63,7 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	if err != nil {
 		return nil, err
 	}
-	return groupToProto(finalGroup), nil
+	return finalGroup.ToProto(), nil
 }
 
 func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*setupManager, error)) (*key.Group, error) {
@@ -281,10 +281,10 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 		d.state.Unlock()
 	}()
 	// send public key to leader
-	key, _ := d.priv.Public.Key.MarshalBinary()
+	pubKey, _ := d.priv.Public.Key.MarshalBinary()
 	id := &drand.Identity{
 		Address: d.priv.Public.Address(),
-		Key:     key,
+		Key:     pubKey,
 		Tls:     d.priv.Public.IsTLS(),
 	}
 	prep := &drand.SignalDKGPacket{
@@ -312,7 +312,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	}
 
 	// verify things are all in order
-	group, err := ProtoToGroup(dkgInfo.NewGroup)
+	group, err := key.GroupFromProto(dkgInfo.NewGroup)
 	if err != nil {
 		return nil, fmt.Errorf("group from leader invalid: %s", err)
 	}
@@ -336,7 +336,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	if err != nil {
 		return nil, err
 	}
-	return groupToProto(finalGroup), nil
+	return finalGroup.ToProto(), nil
 }
 
 // similar to setupAutomaticDKG but with additional verification and information
@@ -366,10 +366,10 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		d.state.Unlock()
 	}()
 	// send public key to leader
-	key, _ := d.priv.Public.Key.MarshalBinary()
+	pubKey, _ := d.priv.Public.Key.MarshalBinary()
 	id := &drand.Identity{
 		Address: d.priv.Public.Address(),
-		Key:     key,
+		Key:     pubKey,
 		Tls:     d.priv.Public.IsTLS(),
 	}
 	prep := &drand.SignalDKGPacket{
@@ -401,7 +401,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 
 	// verify things are all in order
-	newGroup, err := ProtoToGroup(dkgInfo.NewGroup)
+	newGroup, err := key.GroupFromProto(dkgInfo.NewGroup)
 	if err != nil {
 		return nil, fmt.Errorf("group from leader invalid: %s", err)
 	}
@@ -442,7 +442,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	if err != nil {
 		return nil, err
 	}
-	return groupToProto(finalGroup), nil
+	return finalGroup.ToProto(), nil
 }
 
 // InitReshare receives information about the old and new group from which to
@@ -511,7 +511,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		to = append(to, node)
 	}
 
-	protoGroup := groupToProto(newGroup)
+	protoGroup := newGroup.ToProto()
 	packet := &drand.DKGInfoPacket{
 		SecretProof: in.GetInfo().GetSecret(),
 		NewGroup:    protoGroup,
@@ -526,7 +526,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	if err != nil {
 		return nil, err
 	}
-	return groupToProto(finalGroup), nil
+	return finalGroup.ToProto(), nil
 }
 
 // DistKey returns the distributed key corresponding to the current group
@@ -617,7 +617,7 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*contr
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	protoGroup := groupToProto(d.group)
+	protoGroup := d.group.ToProto()
 	return protoGroup, nil
 }
 

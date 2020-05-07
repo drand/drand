@@ -256,7 +256,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	// we check that we can fetch the group using control functionalities on the root node
 	groupProto, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
-	group, err := ProtoToGroup(groupProto)
+	group, err := key.GroupFromProto(groupProto)
 	require.NoError(d.t, err)
 	// we check all nodes are included in the group
 	for _, node := range d.nodes {
@@ -486,7 +486,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 			panic(err)
 		}
 		clientCounter.Done()
-		fg, err := ProtoToGroup(finalGroup)
+		fg, err := key.GroupFromProto(finalGroup)
 		if err != nil {
 			panic(err)
 		}
@@ -568,7 +568,7 @@ func TestDrandPublicGroup(t *testing.T) {
 		d := node.drand
 		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
 		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))
-		received, err := ProtoToGroup(groupResp)
+		received, err := key.GroupFromProto(groupResp)
 		require.NoError(t, err)
 		require.True(t, group.Equal(received))
 	}
@@ -590,7 +590,7 @@ func TestDrandPublicGroup(t *testing.T) {
 
 	restGroup, err := rest.Group(context.TODO(), dt.nodes[0].drand.priv.Public, &drand.GroupRequest{})
 	require.NoError(t, err)
-	received, err := ProtoToGroup(restGroup)
+	received, err := key.GroupFromProto(restGroup)
 	require.NoError(t, err)
 	require.True(t, group.Equal(received))
 }
