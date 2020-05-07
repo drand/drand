@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testBeaconOffset = int((3 * time.Second).Seconds())
+var testBeaconOffset = int((5 * time.Second).Seconds())
 var testDkgTimeout = 1 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
@@ -38,6 +38,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod)
 	defer dt.Cleanup()
 	finalGroup := dt.RunDKG()
+	time.Sleep(getSleepDuration())
 	fmt.Println(" --- DKG FINISHED ---")
 	// make the last node fail
 	lastID := dt.nodes[n-1].addr
@@ -77,6 +78,9 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
 	defer dt.Cleanup()
 	group1 := dt.RunDKG()
+	// make sure all nodes had enough time to run their go routines to start the
+	// beacon handler - related to CI problems
+	time.Sleep(getSleepDuration())
 	dt.MoveToTime(group1.GenesisTime)
 	// move to genesis time - so nodes start to make a round
 	//dt.MoveTime(offsetGenesis)
@@ -125,19 +129,19 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	now := dt.Now().Unix()
 	// get rounds from first node in the "old" group - since he's the leader for
 	// the new group, he's alive
-	lastRound := dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+	lastBeacon := dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 	// move to the transition time period by period - do not skip potential
 	// periods as to emulate the normal time behavior
 	for now < target {
 		dt.MoveTime(beaconPeriod)
-		lastRound = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+		lastBeacon = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 		now = dt.Now().Unix()
 	}
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
 	time.Sleep(getSleepDuration())
 	//fmt.Println(" --- AFTER RESHARED ROUND  SLEEEPING ---")
-	dt.TestBeaconLength(int(lastRound+1), true, dt.Ids(newN, true)...)
+	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)
 }
 
 type Node struct {
@@ -256,7 +260,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	// we check that we can fetch the group using control functionalities on the root node
 	groupProto, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
-	group, err := ProtoToGroup(groupProto)
+	group, err := key.GroupFromProto(groupProto)
 	require.NoError(d.t, err)
 	// we check all nodes are included in the group
 	for _, node := range d.nodes {
@@ -397,14 +401,14 @@ func (d *DrandTest2) TestBeaconLength(length int, newGroup bool, ids ...string) 
 }
 
 // TestPublicBeacon looks if we can get the latest beacon on this node
-func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) uint64 {
+func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) *drand.PublicRandResponse {
 	node := d.GetDrand(id, newGroup)
 	dr := node.drand
 	client := net.NewGrpcClientFromCertManager(dr.opts.certmanager, dr.opts.grpcOpts...)
 	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
-	return resp.Round
+	return resp
 }
 
 // SetupNewNodes creates new additional nodes that can participate during the
@@ -486,7 +490,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 			panic(err)
 		}
 		clientCounter.Done()
-		fg, err := ProtoToGroup(finalGroup)
+		fg, err := key.GroupFromProto(finalGroup)
 		if err != nil {
 			panic(err)
 		}
@@ -568,7 +572,7 @@ func TestDrandPublicGroup(t *testing.T) {
 		d := node.drand
 		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
 		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))
-		received, err := ProtoToGroup(groupResp)
+		received, err := key.GroupFromProto(groupResp)
 		require.NoError(t, err)
 		require.True(t, group.Equal(received))
 	}
@@ -590,7 +594,7 @@ func TestDrandPublicGroup(t *testing.T) {
 
 	restGroup, err := rest.Group(context.TODO(), dt.nodes[0].drand.priv.Public, &drand.GroupRequest{})
 	require.NoError(t, err)
-	received, err := ProtoToGroup(restGroup)
+	received, err := key.GroupFromProto(restGroup)
 	require.NoError(t, err)
 	require.True(t, group.Equal(received))
 }
@@ -604,6 +608,7 @@ func TestDrandPublicRand(t *testing.T) {
 	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
+	time.Sleep(getSleepDuration())
 	root := dt.nodes[0].drand
 	rootID := root.priv.Public
 
@@ -644,6 +649,7 @@ func TestDrandPublicStream(t *testing.T) {
 	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
+	time.Sleep(getSleepDuration())
 	root := dt.nodes[0]
 	rootID := root.drand.priv.Public
 
@@ -782,8 +788,9 @@ func CloseAllDrands(drands []*Drand) {
 }
 
 func getSleepDuration() time.Duration {
-	if os.Getenv("TRAVIS_BRANCH") != "" {
-		return time.Duration(3000) * time.Millisecond
+	if os.Getenv("CIRCLE_CI") != "" {
+		fmt.Println("--- Sleeping on CIRCLECI")
+		return time.Duration(1000) * time.Millisecond
 	}
 	return time.Duration(500) * time.Millisecond
 }

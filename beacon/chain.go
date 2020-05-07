@@ -71,9 +71,12 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	lastBeacon, _ := c.Store.Last()
+	lastBeacon, err := c.Store.Last()
+	if err != nil {
+		c.l.Fatal("chain_aggregator", "loading", "last_beacon", err)
+	}
 	var caches = []*roundCache{
-		newRoundCache(lastBeacon.Round+1, lastBeacon.Round, lastBeacon.Signature),
+		newRoundCache(lastBeacon.Round+1, lastBeacon.Signature),
 	}
 	for {
 		select {
@@ -109,7 +112,7 @@ func (c *chainStore) runAggregator() {
 			}
 
 			if cache == nil {
-				cache = newRoundCache(partial.p.GetRound(), partial.p.GetPreviousRound(), partial.p.GetPreviousSig())
+				cache = newRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
 				caches = append(caches, cache)
 				if !cache.tryAppend(partial.p) {
 					c.l.Fatal("bug_cache_partial")
@@ -120,7 +123,7 @@ func (c *chainStore) runAggregator() {
 			}
 
 			thr := ginfo.group.Threshold
-			c.l.Debug("store_partial", partial.addr, "round", cache.round, "len_partials", fmt.Sprintf("%d/%d", cache.Len(), thr), "prev_round", partial.p.GetPreviousRound())
+			c.l.Debug("store_partial", partial.addr, "round", cache.round, "len_partials", fmt.Sprintf("%d/%d", cache.Len(), thr))
 			// look if we want to store ths partial anyway
 			shouldStore := pRound >= lastBeacon.Round+1 && pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
 			// check if we can reconstruct
@@ -141,7 +144,7 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			if err := key.Scheme.VerifyRecovered(pub.Commit(), msg, finalSig); err != nil {
-				c.l.Error("invalid_sig", err, "round", pRound, "prev", partial.p.GetPreviousRound())
+				c.l.Error("invalid_sig", err, "round", pRound)
 				break
 			}
 			cache.done = true
@@ -268,10 +271,9 @@ type roundCache struct {
 	done        bool
 }
 
-func newRoundCache(round, prev uint64, prevSig []byte) *roundCache {
+func newRoundCache(round uint64, prevSig []byte) *roundCache {
 	return &roundCache{
 		round:       round,
-		previous:    prev,
 		previousSig: prevSig,
 		seens:       make(map[int]bool),
 	}
@@ -279,7 +281,6 @@ func newRoundCache(round, prev uint64, prevSig []byte) *roundCache {
 
 func (cache *roundCache) tryAppend(p *drand.PartialBeaconPacket) bool {
 	round := p.GetRound()
-	prevRound := p.GetPreviousRound()
 	prevSig := p.GetPreviousSig()
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if _, seen := cache.seens[idx]; seen {
@@ -287,9 +288,8 @@ func (cache *roundCache) tryAppend(p *drand.PartialBeaconPacket) bool {
 	}
 
 	sameRound := round == cache.round
-	samePrevR := prevRound == cache.previous
 	samePrevS := bytes.Equal(prevSig, cache.previousSig)
-	if sameRound && samePrevR && samePrevS {
+	if sameRound && samePrevS {
 		cache.sigs = append(cache.sigs, p.GetPartialSig())
 		cache.seens[idx] = true
 		return true

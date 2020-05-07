@@ -71,10 +71,8 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 	if node == nil {
 		return nil, errors.New("beacon: keypair not included in the given group")
 	}
-	idx := node.Index
 	addr := conf.Public.Address()
-	// XXX change logging because of resharing
-	logger := l.With("index", idx)
+	logger := l
 	safe := newCryptoSafe()
 	safe.SetInfo(conf.Share, node, conf.Group)
 	// genesis block at round 0, next block at round 1
@@ -109,20 +107,17 @@ var errOutOfRound = "out-of-round beacon request"
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	peer, _ := peer.FromContext(c)
 	addr := peer.Addr.String()
-	h.l.Debug("received", "request", "from", addr, "round", p.GetRound(), "prevround", p.GetPreviousRound())
+	h.l.Debug("received", "request", "from", addr, "round", p.GetRound())
 
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
-	if p.GetRound() > currentRound {
+	// we allow one round off in the future because of small clock drifts
+	// possible, if a node receives a packet very fast just before his local
+	// clock passed to the next round
+	if p.GetRound() > nextRound {
 		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
-	}
-
-	// check that the previous is really a previous round
-	if p.GetPreviousRound() != p.GetRound()-1 {
-		h.l.Error("process_partial", addr, "invalid_previous_round", p.GetRound(), "partial_previous_round", p.GetPreviousRound())
-		return nil, fmt.Errorf("invalid previous round: %d vs current %d", p.GetPreviousRound(), p.GetRound())
 	}
 
 	msg := Message(p.GetRound(), p.GetPreviousSig())
@@ -132,15 +127,19 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, errors.New("no info for this round")
 	}
 
+	// XXX Remove that evaluation - find another way to show the current dist.
+	// key being used
 	shortPub := info.pub.Eval(1).V.String()[14:19]
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(info.pub, msg, p.GetPartialSig()); err != nil {
-		h.l.Error("process_partial", addr, "err", err, "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+		h.l.Error("process_partial", addr, "err", err, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
 		return nil, err
 	}
+	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if uint32(idx) == info.id.Index {
-		h.l.Error("process_partial", addr, "same_index", "got", idx, "our", info.id.Index, "inadvance_packet?")
+	if idx == info.index {
+		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.index, "advance_packet?", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
+		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
 	h.chain.NewValidPartial(peer.Addr.String(), p)
@@ -160,12 +159,12 @@ func (h *Handler) Store() Store {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start() error {
-	h.l.Info("beacon", "start")
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Error("genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
 	_, tTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	h.l.Info("beacon", "start")
 	go h.run(tTime)
 	return nil
 }
@@ -190,17 +189,15 @@ func (h *Handler) Catchup() {
 // defined, best to use streaming.
 func (h *Handler) Transition(prevGroup *key.Group) error {
 	targetTime := h.conf.Group.TransitionTime
-	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	// tTime is the time of the next round -
-	// we want to compare the actual roudn
-	// XXX simplify this by implementing a "RoundOfTime" method
-	tTime = tTime - int64(h.conf.Group.Period.Seconds())
-	tRound = tRound - 1
+	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
 
+	// register the previous group as well in case it needs to verify the
+	// previous entries
 	h.safe.SetInfo(nil, h.conf.Public, prevGroup)
 	go h.run(targetTime)
 	h.chain.RunSync(context.Background())
@@ -209,16 +206,13 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
-	tRound, tTime := NextRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	h.l.Debug("transition", "new_group", "at_round", tRound)
-	// tTime is the time of the next round -
-	// we want to compare the actual roudn
-	// XXX simplify this by implementing a "RoundOfTime" method
-	tTime = tTime - int64(h.conf.Group.Period.Seconds())
-	tRound = tRound - 1
+	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		return
 	}
+	h.l.Debug("transition", "new_group", "at_round", tRound)
 	h.safe.SetInfo(newShare, h.conf.Public, newGroup)
 }
 
@@ -227,12 +221,6 @@ func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
 	var current roundInfo
-	needCatchup := func(b *Beacon) bool {
-		if b.Round < current.round {
-			return true
-		}
-		return false
-	}
 	for {
 		select {
 		case current = <-chanTick:
@@ -242,8 +230,13 @@ func (h *Handler) run(startTime int64) {
 				break
 			}
 			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
-			h.broadcastNextPartial(lastBeacon)
-			if needCatchup(lastBeacon) {
+			h.broadcastNextPartial(current, lastBeacon)
+			// if the next round of the last beacon we generated is not the round we
+			// are now, that means there is a gap between the two rounds. In other
+			// words, the chain has halted for that amount of rounds or our
+			// network is not functionning properly.
+			if lastBeacon.Round+1 < current.round {
+
 				// We also launch a sync with the other nodes. If there is one node
 				// that has a higher beacon, we'll build on it next epoch. If
 				// nobody has a higher beacon, then this one will be next if the
@@ -251,10 +244,12 @@ func (h *Handler) run(startTime int64) {
 				// XXX find a way to start the catchup as soon as the runsync is
 				// done. Not critical but leads to faster network recovery.
 				h.l.Debug("beacon_loop", "run_sync", "potential_catchup")
+				// XXX Find a way to not run sync again before another has
+				// finished - maybe merge with chain sync mechanism
 				go h.chain.RunSync(context.Background())
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
-			if needCatchup(b) {
+			if b.Round < current.round {
 				// When network is down, all alive nodes will broadcast their
 				// signatures periodically with the same period. As soon as one
 				// new beacon is created,i.e. network is up again, this channel
@@ -264,7 +259,7 @@ func (h *Handler) run(startTime int64) {
 				// already. If that next beacon is created soon after, this
 				// channel will trigger again etc until we arrive at the correct
 				// round.
-				h.broadcastNextPartial(b)
+				h.broadcastNextPartial(current, b)
 			}
 		case <-h.close:
 			h.l.Debug("beacon_loop", "finished")
@@ -273,37 +268,40 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) broadcastNextPartial(beacon *Beacon) {
+func (h *Handler) broadcastNextPartial(current roundInfo, upon *Beacon) {
 	ctx := context.Background()
-	// get last beacon at each tick
-	last, err := h.chain.Last()
-	if err != nil {
-		h.l.Error("load_last", "fail", "err", err)
-		return
+	previousSig := upon.Signature
+	round := upon.Round + 1
+	if current.round == upon.Round {
+		// we already have the beacon of the current round for some reasons - on
+		// CI it happens due to time shifts -
+		// the spec says we should broadcast the current round at the correct
+		// tick so we still broadcast a partial signature over it - even though
+		// drand guarantees a threshold of nodes already have it
+		previousSig = upon.PreviousSig
+		round = current.round
 	}
-	currentRound := last.Round + 1
-	info, err := h.safe.GetInfo(currentRound)
+	info, err := h.safe.GetInfo(round)
 	if err != nil {
-		h.l.Error("no_info", currentRound, "BUG")
+		h.l.Error("no_info", round, "BUG")
 		return
 	}
 	if info.share == nil {
-		h.l.Error("no_share", currentRound, "BUG", h.safe.String(), "not_synced_yet?")
+		h.l.Error("no_share", round, "BUG", h.safe.String(), "not_synced_yet?")
 		return
 	}
-	msg := Message(currentRound, last.Signature)
+	msg := Message(round, previousSig)
 	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
 	if err != nil {
-		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", currentRound)
+		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", round)
 		return
 	}
 	shortPub := info.pub.Eval(1).V.String()[14:19]
-	h.l.Debug("start_round", currentRound, "from_sig", shortSigStr(last.Signature), "from_round", last.Round, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg), "short_pub", shortPub)
 	packet := &proto.PartialBeaconPacket{
-		Round:         currentRound,
-		PreviousRound: last.Round,
-		PreviousSig:   last.Signature,
-		PartialSig:    currSig,
+		Round:       round,
+		PreviousSig: previousSig,
+		PartialSig:  currSig,
 	}
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range info.group.Nodes {
@@ -311,12 +309,12 @@ func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 			continue
 		}
 		go func(i *key.Identity) {
-			h.l.Debug("beacon_round", currentRound, "send_to", i.Address())
+			h.l.Debug("beacon_round", round, "send_to", i.Address())
 			err := h.client.PartialBeacon(ctx, i, packet)
 			if err != nil {
-				h.l.Error("beacon_round", currentRound, "err_request", err, "from", i.Address())
+				h.l.Error("beacon_round", round, "err_request", err, "from", i.Address())
 				if strings.Contains(err.Error(), errOutOfRound) {
-					h.l.Error("beacon_round", currentRound, "node", i.Addr, "reply", "out-of-round")
+					h.l.Error("beacon_round", round, "node", i.Addr, "reply", "out-of-round")
 				}
 				return
 			}
@@ -383,6 +381,7 @@ type cryptoInfo struct {
 	pub     *share.PubPoly
 	startAt uint64
 	id      *key.Node
+	index   int
 }
 
 type cryptoSafe struct {
@@ -403,11 +402,13 @@ func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Node, group *key.Group) {
 	info.pub = group.PublicKey.PubPoly()
 	if share != nil {
 		info.share = share
+		info.index = share.Share.I
+	} else {
+		info.index = int(id.Index)
 	}
 	if group.TransitionTime != 0 {
 		time := group.TransitionTime
-		nRound, _ := NextRound(time, group.Period, group.GenesisTime)
-		info.startAt = nRound - 1
+		info.startAt = CurrentRound(time, group.Period, group.GenesisTime)
 	} else {
 		// group started at genesis time
 		info.startAt = 0
@@ -434,7 +435,12 @@ func (c *cryptoSafe) String() string {
 	defer c.Unlock()
 	var out string
 	for _, info := range c.infos {
-		out += fmt.Sprintf(" {startAt: %d, sharenil? %v} ", info.startAt, info.share == nil)
+		var index = -1
+		if info.share != nil {
+			index = int(info.share.Share.I)
+		}
+		shortPub := info.pub.Eval(1).V.String()[14:19]
+		out += fmt.Sprintf(" {startAt: %d, index: %d, pub: %s} ", info.startAt, index, shortPub)
 	}
 	return out
 }
