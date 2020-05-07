@@ -163,12 +163,12 @@ func (h *Handler) Store() Store {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start() error {
-	h.l.Info("beacon", "start")
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Error("genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
 	_, tTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	h.l.Info("beacon", "start")
 	go h.run(tTime)
 	return nil
 }

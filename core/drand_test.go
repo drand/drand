@@ -27,7 +27,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testBeaconOffset = int((3 * time.Second).Seconds())
+var testBeaconOffset = int((5 * time.Second).Seconds())
 var testDkgTimeout = 1 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
@@ -77,6 +77,9 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
 	defer dt.Cleanup()
 	group1 := dt.RunDKG()
+	// make sure all nodes had enough time to run their go routines to start the
+	// beacon handler - related to CI problems
+	time.Sleep(getSleepDuration())
 	dt.MoveToTime(group1.GenesisTime)
 	// move to genesis time - so nodes start to make a round
 	//dt.MoveTime(offsetGenesis)
