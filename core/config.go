@@ -4,12 +4,12 @@ import (
 	"path"
 	"time"
 
-	bolt "github.com/coreos/bbolt"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	clock "github.com/jonboulle/clockwork"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
 
