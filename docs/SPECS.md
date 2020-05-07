@@ -679,6 +679,12 @@ The implementation that drand uses is located in the
 **Hash to curve**:The hash-to-curve algorithm is derived from the [RFC
 v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07). 
 
+**Groups**: This document uses the notation G1 and G2 as commonly used in
+pairing equipped curves. The BLS12-381 specification specifies a base point, or
+generator for both group, that drand uses.
+
+**Scalar** A scalar of the field is serialized in 32 bytes in big endian format.
+
 ### Distributed Public Key
 
 The distributed public key is a list of BLS12-381 G1 points that represents the
@@ -750,6 +756,138 @@ func Eval(i int,commits []Point) Point {
 }
 ```
 
+### Distributed Key Generation
+
+This sections presents the cryptographic operations and safety checks each node
+must perform during the three phases of the DKG.
+
+**Notation**: For the sake of readability, this section uses the term "dealer"
+to designate a node that produces a share and a "share holder" to designate a
+node that receives a share from a dealer. In the case of a fresh DKG, a node is
+a both a dealer and a share holder at the same time.
+
+#### Input
+
+The input are:
+* The list of public keys of all participants
+* The longterm private key of the node
+* The designated index of this node
+* The threshold to use during the DKG
+
+For a fresh distributed key generation, the index of each node is set as the
+index of its public key in the list of participants.
+
+#### Authentication
+
+Each packet of each phases is authenticated using a regular BLS signature with
+the private key of the issuer of the packet over the hash of the packet. You can
+find the complete description of the packets in the [Appendix A](#appendix-a).
+
+#### Setup
+
+Each node creates the following two polynomials as a setup to the first phase:
+
+**Private Polynomial**:In order to create the shares, Each node locally creates
+random polynomial with a `threshold` number of coefficients. In other words, the
+node creates a list of size `threshold` of random scalars from the prime order
+field of the BLS12-381 curve. 
+
+**Public Polynomial**: Each nodes compute then the public commitment of this
+polynomial simply by multiplying each coefficients with the base points of G1.
+
+**Share Status**: Each node must maintain a matrix of "status" of each share
+distributed by each dealer. A status is either "valid" or "invalid". At the
+end of the protocol, all dealers whose all shares are marked as valid in this
+matrix are qualified to be in the group. For a fresh DKG, this matrix is a NxN
+matrix since there are as many dealers as share holders. 
+The matrix must be initialized as having only incorrect shares for all dealers
+at the beginning. This effectively forces all share holders to explicitely
+broadcast that the shares they receives are correct.
+
+#### Deal Phase
+
+During this phase, each node must create a valid encrypted "share" to each other
+node. A share is simply the evaluation of the private polynomial at the index of
+the recipient target node.  To encrypt the share, one use the ECIES encryption
+algorithm described [below](#ecies) in the document, with the public key of the
+share holder and the share serialized as in described in the curve section.
+A pseudo algorithm describes the operation:
+```
+// for a given node whose index is i
+shares = []
+for n in listNodes:
+  - share = private_polynomial.Eval(node.Index)
+    - if n.Index == i 
+        - mark as valid the share i for the dealer i in the status matrix
+        - continue to next node
+  - encryption = ECIES(node.PublicKey, share)
+  - append(shares, { encrypted: encryption, index: node.Index })
+return shares
+```
+
+After generating the encrypted shares, each node attaches their public polynomial to the encrypted shares in the same packet `DealBundle`. 
+Then each node must signs the packet and embeds the signature in a
+`AuthDealBundle` packet.
+
+#### Response Phase
+
+**Processing of the shares**:
+At the beginning of this phase, the node must first process all published deals
+during the previous phase. 
+The logic is as follow:
+```
+For each deal bundle:
+ - check signature of the packet
+    - if invalid, pass to next bundle
+ - check if the dealer index is one index in the group
+    - if false, pass to the next bundle
+ - check if polynomial exists
+    - if false, pass to the next bundle
+ - check if polynomial is of length "threshold"
+    - if false, mark all dealer's shares as invalid
+ - For each share inside the bundle:
+    - check if share index is an index in the group
+        - if false, pass to next deal
+    - check if share index is equal to our node's index
+        - if false, pass to next share
+    - try decrypting the share with the node's public key
+        - if decryption fails, pass to the next deal
+    - evaluate the public polynomial in the bundle to the index of the share
+        - expectedCommitShare = publicPoly.Eval(share.Index)
+    - evaluate a commitment of the share, by multiplying it with the base point
+        - commitShare = share * G1.Base
+    - check if "expectedCommitShare == commitShare"
+        - if true, mark as valid the share "share.ShareIndex" from the dealer
+          "bundle.DealerIndex"
+```
+
+**Creation of the responses**:
+Each node sends a response for each of the shares he has or should have
+received. In other words, each node at index i looks at all share's index i for
+all dealers and create a response with the same status. Each node bundles these
+responses into a `ResponseBundle`, signs it and wraps it into a
+`AuthResponseBundle` and broadcasts that packet.
+
+#### Justification Phase
+
+**Processing of the responses**: For each responses received, each node sets the
+status of the share index from the dealer index as designated in the response.
+```
+For each response bundle "bundle":
+    - check if the bundle.ShareIndex is a valid index in the group
+        - if false, set all share's of that ShareIndex as invalid
+        - continue to next bundle
+    - for each response "resp"
+        - check if the resp.DealerIndex is a valid index in the group
+            - if false, set all share's of that ShareIndex as invalid
+            - continue to next bundle
+    - set matrix[bundle.DealerIndex][resp.ShareIndex] = resp.Status
+```
+
+**Deciding upon next phase**: There is a simple rule to decide if a node can go
+into the `FinishPhase` already at this point: If all shares of all dealers are
+"valid", then the node can go into the `FinishPhase`.
+
 ## External API
 
 ## Control API
@@ -768,3 +906,127 @@ func Eval(i int,commits []Point) Point {
   configuration again to participants and start the DKG. Another slightly
   different model is to simply say that a participate could refuse to run the
   DKG if the group configuration is deemed invalid.
+
+## Appendix A. DKG packets
+
+Here are the the DKG packets with their authentication wrapper adding the
+signature:
+```go
+// Deal holds the Deal for one participant as well as the index of the issuing
+// Dealer.
+type Deal struct {
+	// Index of the share holder
+	ShareIndex uint32
+	// encrypted share issued to the share holder
+	EncryptedShare []byte
+}
+
+type DealBundle struct {
+	DealerIndex uint32
+	Deals       []Deal
+	// Public coefficients of the public polynomial used to create the shares
+	Public []kyber.Point
+}
+
+// Hash hashes the index, public coefficients and deals
+func (d *DealBundle) Hash() []byte {
+	// first order the deals in a  stable order
+	sort.Slice(d.Deals, func(i, j int) bool {
+		return d.Deals[i].ShareIndex < d.Deals[j].ShareIndex
+	})
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, d.DealerIndex)
+	for _, c := range d.Public {
+		cbuff, _ := c.MarshalBinary()
+		h.Write(cbuff)
+	}
+	for _, deal := range d.Deals {
+		binary.Write(h, binary.BigEndian, deal.ShareIndex)
+		h.Write(deal.EncryptedShare)
+	}
+	return h.Sum(nil)
+}
+
+// Response holds the Response from another participant as well as the index of
+// the target Dealer.
+type Response struct {
+	// Index of the Dealer for which this response is for
+	DealerIndex uint32
+	Status      bool
+}
+
+type ResponseBundle struct {
+	// Index of the share holder for which these reponses are for
+	ShareIndex uint32
+	Responses  []Response
+}
+
+// Hash hashes the share index and responses
+func (r *ResponseBundle) Hash() []byte {
+	// first order the response slice in a canonical order
+	sort.Slice(r.Responses, func(i, j int) bool {
+		return r.Responses[i].DealerIndex < r.Responses[j].DealerIndex
+	})
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, r.ShareIndex)
+	for _, resp := range r.Responses {
+		binary.Write(h, binary.BigEndian, resp.DealerIndex)
+		if resp.Status {
+			binary.Write(h, binary.BigEndian, byte(1))
+		} else {
+			binary.Write(h, binary.BigEndian, byte(0))
+		}
+	}
+	return h.Sum(nil)
+}
+
+func (b *ResponseBundle) String() string {
+	var s = fmt.Sprintf("ShareHolder %d: ", b.ShareIndex)
+	var arr []string
+	for _, resp := range b.Responses {
+		arr = append(arr, fmt.Sprintf("{dealer %d, status %v}", resp.DealerIndex, resp.Status))
+	}
+	s += "[" + strings.Join(arr, ",") + "]"
+	return s
+}
+
+type JustificationBundle struct {
+	DealerIndex    uint32
+	Justifications []Justification
+}
+
+type Justification struct {
+	ShareIndex uint32
+	Share      kyber.Scalar
+}
+
+func (j *JustificationBundle) Hash() []byte {
+	// sort them in a canonical order
+	sort.Slice(j.Justifications, func(a, b int) bool {
+		return j.Justifications[a].ShareIndex < j.Justifications[b].ShareIndex
+	})
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, j.DealerIndex)
+	for _, just := range j.Justifications {
+		binary.Write(h, binary.BigEndian, just.ShareIndex)
+		sbuff, _ := just.Share.MarshalBinary()
+		h.Write(sbuff)
+	}
+	return h.Sum(nil)
+}
+
+type AuthDealBundle struct {
+	Bundle    *DealBundle
+	Signature []byte
+}
+
+type AuthResponseBundle struct {
+	Bundle    *ResponseBundle
+	Signature []byte
+}
+
+type AuthJustifBundle struct {
+	Bundle    *JustificationBundle
+	Signature []byte
+}
+```
