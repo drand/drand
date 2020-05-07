@@ -8,6 +8,9 @@ jobs:
     docker:
       # specify the version
       - image: circleci/golang:latest
+    environment:
+        # special env for tests to wait a bit longer between phases 
+        CIRCLE_CI: on
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
