@@ -435,7 +435,12 @@ func (c *cryptoSafe) String() string {
 	defer c.Unlock()
 	var out string
 	for _, info := range c.infos {
-		out += fmt.Sprintf(" {startAt: %d, sharenil? %v} ", info.startAt, info.share == nil)
+		var index = -1
+		if info.share != nil {
+			index = int(info.share.Share.I)
+		}
+		shortPub := info.pub.Eval(1).V.String()[14:19]
+		out += fmt.Sprintf(" {startAt: %d, index: %d, pub: %s} ", info.startAt, index, shortPub)
 	}
 	return out
 }
