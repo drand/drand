@@ -3,7 +3,7 @@
 test: test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -v ./...
+	GO111MODULE=on go test -race -v ./...
 
 test-integration:
 	cd demo && go build && ./demo -build -test -debug
