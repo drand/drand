@@ -782,8 +782,8 @@ func CloseAllDrands(drands []*Drand) {
 }
 
 func getSleepDuration() time.Duration {
-	if os.Getenv("TRAVIS_BRANCH") != "" {
-		return time.Duration(3000) * time.Millisecond
+	if os.Getenv("CIRCLE_CI") != "" {
+		return time.Duration(1000) * time.Millisecond
 	}
 	return time.Duration(500) * time.Millisecond
 }

@@ -17,7 +17,7 @@ jobs:
     steps:
       - checkout
       - run: go get -v -t -d ./...
-      - run: make test-unit
+      - run: CIRCLE_CI=on make test-unit
       - run: make test-integration
 
   deploy:
