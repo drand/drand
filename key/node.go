@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 
 	dkg "github.com/drand/kyber/share/dkg"
+
+	proto "github.com/drand/drand/protobuf/drand"
 )
 
 type Index = dkg.Index
@@ -54,4 +56,16 @@ func (n *Node) TOMLValue() interface{} {
 type NodeTOML struct {
 	*PublicTOML
 	Index Index
+}
+
+// NodeFromProto creates a node from its wire representation
+func NodeFromProto(n *proto.Node) (*Node, error) {
+	id, err := IdentityFromProto(n.Public)
+	if err != nil {
+		return nil, err
+	}
+	return &Node{
+		Index:    n.Index,
+		Identity: id,
+	}, nil
 }

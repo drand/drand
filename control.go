@@ -109,7 +109,7 @@ func shareCmd(c *cli.Context) error {
 	if shareErr != nil {
 		fatal("error setting up the network: %v", err)
 	}
-	group, err := core.ProtoToGroup(groupP)
+	group, err := key.GroupFromProto(groupP)
 	if err != nil {
 		fatal("error interpreting the group from protobuf: %v", err)
 	}
@@ -142,7 +142,7 @@ func showGroupCmd(c *cli.Context) error {
 	if err != nil {
 		fatal("drand: fetching group file error: %s", err)
 	}
-	group, err := core.ProtoToGroup(r)
+	group, err := key.GroupFromProto(r)
 	if err != nil {
 		return err
 	}
