@@ -143,7 +143,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if uint32(idx) == info.id.Index {
-		h.l.Error("process_partial", addr, "same_index", "got", idx, "our", info.id.Index, "inadvance_packet?", "safe", h.safe.String())
+		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.id.Index, "advance_packet?", p.GetRound(), "safe", h.safe.String())
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
