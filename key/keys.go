@@ -7,11 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	dkg "github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
+
+	proto "github.com/drand/drand/protobuf/drand"
 )
 
 // Pair is a wrapper around a random scalar  and the corresponding public
@@ -169,6 +172,23 @@ func (b ByKey) Less(i, j int) bool {
 	is, _ := (b)[i].Key.MarshalBinary()
 	js, _ := (b)[j].Key.MarshalBinary()
 	return bytes.Compare(is, js) < 0
+}
+
+// IdentityFromProto creates an identity from its wire representation
+func IdentityFromProto(n *proto.Identity) (*Identity, error) {
+	_, _, err := net.SplitHostPort(n.GetAddress())
+	if err != nil {
+		return nil, err
+	}
+	public := KeyGroup.Point()
+	if err := public.UnmarshalBinary(n.GetKey()); err != nil {
+		return nil, err
+	}
+	return &Identity{
+		Addr: n.GetAddress(),
+		TLS:  n.Tls,
+		Key:  public,
+	}, nil
 }
 
 // Share represents the private information that a node holds after a successful

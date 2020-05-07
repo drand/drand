@@ -114,7 +114,10 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
-	if p.GetRound() > currentRound {
+	// we allow one round off in the future because of small clock drifts
+	// possible, if a node receives a packet very fast just before his local
+	// clock passed to the next round
+	if p.GetRound() > nextRound {
 		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
@@ -132,6 +135,8 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, errors.New("no info for this round")
 	}
 
+	// XXX Remove that evaluation - find another way to show the current dist.
+	// key being used
 	shortPub := info.pub.Eval(1).V.String()[14:19]
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(info.pub, msg, p.GetPartialSig()); err != nil {
@@ -227,12 +232,6 @@ func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
 	var current roundInfo
-	needCatchup := func(b *Beacon) bool {
-		if b.Round < current.round {
-			return true
-		}
-		return false
-	}
 	for {
 		select {
 		case current = <-chanTick:
@@ -243,7 +242,12 @@ func (h *Handler) run(startTime int64) {
 			}
 			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
 			h.broadcastNextPartial(lastBeacon)
-			if needCatchup(lastBeacon) {
+			// if the next round of the last beacon we generated is not the round we
+			// are now, that means there is a gap between the two rounds. In other
+			// words, the chain has halted for that amount of rounds or our
+			// network is not functionning properly.
+			if lastBeacon.Round+1 < current.round {
+
 				// We also launch a sync with the other nodes. If there is one node
 				// that has a higher beacon, we'll build on it next epoch. If
 				// nobody has a higher beacon, then this one will be next if the
@@ -254,7 +258,7 @@ func (h *Handler) run(startTime int64) {
 				go h.chain.RunSync(context.Background())
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
-			if needCatchup(b) {
+			if b.Round < current.round {
 				// When network is down, all alive nodes will broadcast their
 				// signatures periodically with the same period. As soon as one
 				// new beacon is created,i.e. network is up again, this channel

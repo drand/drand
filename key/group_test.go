@@ -63,3 +63,25 @@ func TestGroupSaveLoad(t *testing.T) {
 	require.Equal(t, genesis, loaded.GenesisTime)
 	require.Equal(t, transition, loaded.TransitionTime)
 }
+
+// BatchIdentities generates n insecure identities
+func makeGroup(t *testing.T) *Group {
+	t.Helper()
+
+	fakeKey := KeyGroup.Point().Pick(random.New())
+	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0)
+	group.Threshold = MinimumT(0)
+	return group
+}
+
+func TestConvertGroup(t *testing.T) {
+	group := makeGroup(t)
+	group.Period = 5 * time.Second
+	group.TransitionTime = time.Now().Unix()
+	group.GenesisTime = time.Now().Unix()
+
+	proto := group.ToProto()
+	received, err := GroupFromProto(proto)
+	require.NoError(t, err)
+	require.True(t, received.Equal(group))
+}
