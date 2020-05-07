@@ -143,8 +143,8 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if uint32(idx) == info.id.Index {
-		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.id.Index, "advance_packet?", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
+	if idx == info.index {
+		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.index, "advance_packet?", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
@@ -386,6 +386,7 @@ type cryptoInfo struct {
 	pub     *share.PubPoly
 	startAt uint64
 	id      *key.Node
+	index   int
 }
 
 type cryptoSafe struct {
@@ -406,6 +407,9 @@ func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Node, group *key.Group) {
 	info.pub = group.PublicKey.PubPoly()
 	if share != nil {
 		info.share = share
+		info.index = share.Share.I
+	} else {
+		info.index = int(id.Index)
 	}
 	if group.TransitionTime != 0 {
 		time := group.TransitionTime
