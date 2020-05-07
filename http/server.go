@@ -88,7 +88,6 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	roundExpectedTime := beacon.TimeOfRound(h.groupInfo.Period, h.groupInfo.GenesisTime, roundN)
 
 	http.ServeContent(w, r, "rand.json", time.Unix(roundExpectedTime, 0), bytes.NewReader(data))
-	h.log.Infof("%s %d - %s", r.RemoteAddr, http.StatusOK, url.PathEscape(r.URL.Path))
 }
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +119,6 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	if remaining > 0 && remaining < h.groupInfo.Period {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
-		h.log.Infof("%s %d - %s", r.RemoteAddr, http.StatusOK, url.PathEscape(r.URL.Path))
 	} else {
 		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusPartialContent, url.PathEscape(r.URL.Path), remaining)
 	}
@@ -140,5 +138,4 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeContent(w, r, "group.json", time.Unix(h.groupInfo.GenesisTime, 0), bytes.NewReader(data))
-	h.log.Infof("%s %d - %s", r.RemoteAddr, http.StatusOK, url.PathEscape(r.URL.Path))
 }
