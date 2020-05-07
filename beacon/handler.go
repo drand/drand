@@ -141,9 +141,10 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		h.l.Error("process_partial", addr, "err", err, "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
 		return nil, err
 	}
+	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if uint32(idx) == info.id.Index {
-		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.id.Index, "advance_packet?", p.GetRound(), "safe", h.safe.String())
+		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.id.Index, "advance_packet?", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
