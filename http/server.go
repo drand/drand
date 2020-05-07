@@ -15,9 +15,13 @@ import (
 	"github.com/ipfs/go-log/v2"
 
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
+)
+
+var (
+	// Timeout for how long to wait for the drand.PublicClient before timing out
+	reqTimeout = 5 * time.Second
 )
 
 // New creates an HTTP handler for the public Drand API
@@ -29,12 +33,12 @@ func New(ctx context.Context, client drand.PublicClient) (http.Handler, error) {
 	if pkt == nil {
 		return nil, fmt.Errorf("Failed to retrieve valid GroupPacket")
 	}
-	parsedPkt, err := core.ProtoToGroup(pkt)
+	parsedPkt, err := key.GroupFromProto(pkt)
 	if err != nil {
 		return nil, err
 	}
 
-	handler := handler{ctx, client, parsedPkt, log.Logger("http")}
+	handler := handler{reqTimeout, client, parsedPkt, log.Logger("http")}
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
@@ -45,7 +49,7 @@ func New(ctx context.Context, client drand.PublicClient) (http.Handler, error) {
 }
 
 type handler struct {
-	ctx       context.Context
+	timeout   time.Duration
 	client    drand.PublicClient
 	groupInfo *key.Group
 	log       log.StandardLogger
@@ -53,7 +57,9 @@ type handler struct {
 
 func (h *handler) getRand(round uint64) ([]byte, error) {
 	req := drand.PublicRandRequest{Round: round}
-	resp, err := h.client.PublicRand(h.ctx, &req)
+	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	defer cancel()
+	resp, err := h.client.PublicRand(ctx, &req)
 
 	if err != nil {
 		return nil, err
@@ -87,7 +93,10 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	req := drand.PublicRandRequest{Round: 0}
-	resp, err := h.client.PublicRand(h.ctx, &req)
+	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	defer cancel()
+
+	resp, err := h.client.PublicRand(ctx, &req)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -103,8 +112,11 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	roundTime := time.Unix(beacon.TimeOfRound(h.groupInfo.Period, h.groupInfo.GenesisTime, resp.Round), 0)
-	nextTime := roundTime.Add(h.groupInfo.Period)
-	remaining := nextTime.Sub(time.Now())
+
+	currUnix := time.Now().Unix()
+	_, nextTime := beacon.NextRound(currUnix, h.groupInfo.Period, h.groupInfo.GenesisTime)
+
+	remaining := time.Duration(nextTime-currUnix) * time.Second
 	if remaining > 0 && remaining < h.groupInfo.Period {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
@@ -114,7 +126,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/json")
-	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
+	w.Header().Set("Expires", time.Unix(nextTime, 0).Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
 	w.Write(data)
 }
