@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,6 +30,11 @@ var certFlag = &cli.StringFlag{
 	Usage: "file containing GRPC transport credentials of peer",
 }
 
+var insecureFlag = &cli.BoolFlag{
+	Name:  "insecure",
+	Usage: "Allow non-tls connections to GRPC server",
+}
+
 // Relay a GRPC connection to an HTTP server.
 func Relay(c *cli.Context) error {
 	if !c.IsSet(connectFlag.Name) {
@@ -39,8 +45,10 @@ func Relay(c *cli.Context) error {
 	if c.IsSet(certFlag.Name) {
 		creds, _ := credentials.NewClientTLSFromFile(c.String(certFlag.Name), "")
 		opts = append(opts, grpc.WithTransportCredentials(creds))
-	} else {
+	} else if c.Bool(insecureFlag.Name) {
 		opts = append(opts, grpc.WithInsecure())
+	} else {
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 	}
 	conn, err := grpc.Dial(c.String(connectFlag.Name), opts...)
 	if err != nil {
@@ -67,7 +75,7 @@ func main() {
 	app := &cli.App{
 		Name:   "relay",
 		Usage:  "Relay a Drand group to a public HTTP Rest API",
-		Flags:  []cli.Flag{listenFlag, connectFlag, certFlag},
+		Flags:  []cli.Flag{listenFlag, connectFlag, certFlag, insecureFlag},
 		Action: Relay,
 	}
 
