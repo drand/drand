@@ -64,6 +64,6 @@ VOLUME $DRAND_HOME
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
 # Defaults for ipfs-cluster-service go here
-CMD ["start", "--tls-disable", "--control 8888", "--listen 127.0.0.1:4444"]
+CMD ["start", "--tls-disable", "--control 8888", "--listen 0.0.0.0:4444"]
 
 
