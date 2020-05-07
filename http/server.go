@@ -39,7 +39,7 @@ func New(ctx context.Context, client drand.PublicClient) (http.Handler, error) {
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
 	mux.HandleFunc("/public/latest", handler.LatestRand)
-	mux.HandleFunc("/public", handler.PublicRand)
+	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/group", handler.Group)
 	return mux, nil
 }
@@ -75,7 +75,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	data, err := h.getRand(roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
 		return
 	}
 
@@ -91,14 +91,14 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
 		return
 	}
 
 	data, err := json.Marshal(resp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
 		return
 	}
 
@@ -110,7 +110,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
 		h.log.Infof("%s %d - %s", r.RemoteAddr, http.StatusOK, url.PathEscape(r.URL.Path))
 	} else {
-		h.log.Warn("%s %d - %s %v", r.RemoteAddr, http.StatusPartialContent, url.PathEscape(r.URL.Path), remaining)
+		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusPartialContent, url.PathEscape(r.URL.Path), remaining)
 	}
 
 	w.Header().Set("Content-Type", "text/json")
@@ -123,7 +123,7 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(h.groupInfo)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
 		return
 	}
 
