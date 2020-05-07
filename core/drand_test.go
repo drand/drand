@@ -38,6 +38,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod)
 	defer dt.Cleanup()
 	finalGroup := dt.RunDKG()
+	time.Sleep(getSleepDuration())
 	fmt.Println(" --- DKG FINISHED ---")
 	// make the last node fail
 	lastID := dt.nodes[n-1].addr
@@ -607,6 +608,7 @@ func TestDrandPublicRand(t *testing.T) {
 	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
+	time.Sleep(getSleepDuration())
 	root := dt.nodes[0].drand
 	rootID := root.priv.Public
 
@@ -647,6 +649,7 @@ func TestDrandPublicStream(t *testing.T) {
 	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
+	time.Sleep(getSleepDuration())
 	root := dt.nodes[0]
 	rootID := root.drand.priv.Public
 
