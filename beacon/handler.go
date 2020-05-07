@@ -111,7 +111,7 @@ var errOutOfRound = "out-of-round beacon request"
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
 	peer, _ := peer.FromContext(c)
 	addr := peer.Addr.String()
-	h.l.Debug("received", "request", "from", addr, "round", p.GetRound(), "prevround", p.GetPreviousRound())
+	h.l.Debug("received", "request", "from", addr, "round", p.GetRound())
 
 	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
@@ -122,12 +122,6 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	if p.GetRound() > nextRound {
 		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
-	}
-
-	// check that the previous is really a previous round
-	if p.GetPreviousRound() != p.GetRound()-1 {
-		h.l.Error("process_partial", addr, "invalid_previous_round", p.GetRound(), "partial_previous_round", p.GetPreviousRound())
-		return nil, fmt.Errorf("invalid previous round: %d vs current %d", p.GetPreviousRound(), p.GetRound())
 	}
 
 	msg := Message(p.GetRound(), p.GetPreviousSig())
@@ -142,10 +136,10 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	shortPub := info.pub.Eval(1).V.String()[14:19]
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(info.pub, msg, p.GetPartialSig()); err != nil {
-		h.l.Error("process_partial", addr, "err", err, "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+		h.l.Error("process_partial", addr, "err", err, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
 		return nil, err
 	}
-	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "prev_round", p.GetPreviousRound(), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
+	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == info.index {
 		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.index, "advance_packet?", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
@@ -240,11 +234,7 @@ func (h *Handler) run(startTime int64) {
 				break
 			}
 			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
-			if lastBeacon.Round == current.round {
-				h.l.Debug("beacon_loop", "skip_broadcast", "last_beacon", lastBeacon.Round, "current_round", current.round)
-				continue
-			}
-			h.broadcastNextPartial(lastBeacon)
+			h.broadcastNextPartial(current, lastBeacon)
 			// if the next round of the last beacon we generated is not the round we
 			// are now, that means there is a gap between the two rounds. In other
 			// words, the chain has halted for that amount of rounds or our
@@ -258,6 +248,8 @@ func (h *Handler) run(startTime int64) {
 				// XXX find a way to start the catchup as soon as the runsync is
 				// done. Not critical but leads to faster network recovery.
 				h.l.Debug("beacon_loop", "run_sync", "potential_catchup")
+				// XXX Find a way to not run sync again before another has
+				// finished - maybe merge with chain sync mechanism
 				go h.chain.RunSync(context.Background())
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
@@ -271,7 +263,7 @@ func (h *Handler) run(startTime int64) {
 				// already. If that next beacon is created soon after, this
 				// channel will trigger again etc until we arrive at the correct
 				// round.
-				h.broadcastNextPartial(b)
+				h.broadcastNextPartial(current, b)
 			}
 		case <-h.close:
 			h.l.Debug("beacon_loop", "finished")
@@ -280,37 +272,40 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) broadcastNextPartial(beacon *Beacon) {
+func (h *Handler) broadcastNextPartial(current roundInfo, upon *Beacon) {
 	ctx := context.Background()
-	// get last beacon at each tick
-	last, err := h.chain.Last()
-	if err != nil {
-		h.l.Error("load_last", "fail", "err", err)
-		return
+	previousSig := upon.Signature
+	round := upon.Round + 1
+	if current.round == upon.Round {
+		// we already have the beacon of the current round for some reasons - on
+		// CI it happens due to time shifts -
+		// the spec says we should broadcast the current round at the correct
+		// tick so we still broadcast a partial signature over it - even though
+		// drand guarantees a threshold of nodes already have it
+		previousSig = upon.PreviousSig
+		round = current.round
 	}
-	currentRound := last.Round + 1
-	info, err := h.safe.GetInfo(currentRound)
+	info, err := h.safe.GetInfo(round)
 	if err != nil {
-		h.l.Error("no_info", currentRound, "BUG")
+		h.l.Error("no_info", round, "BUG")
 		return
 	}
 	if info.share == nil {
-		h.l.Error("no_share", currentRound, "BUG", h.safe.String(), "not_synced_yet?")
+		h.l.Error("no_share", round, "BUG", h.safe.String(), "not_synced_yet?")
 		return
 	}
-	msg := Message(currentRound, last.Signature)
+	msg := Message(round, previousSig)
 	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
 	if err != nil {
-		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", currentRound)
+		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", round)
 		return
 	}
 	shortPub := info.pub.Eval(1).V.String()[14:19]
-	h.l.Debug("broadcast_partial", currentRound, "from_sig", shortSigStr(last.Signature), "from_round", last.Round, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg), "short_pub", shortPub)
 	packet := &proto.PartialBeaconPacket{
-		Round:         currentRound,
-		PreviousRound: last.Round,
-		PreviousSig:   last.Signature,
-		PartialSig:    currSig,
+		Round:       round,
+		PreviousSig: previousSig,
+		PartialSig:  currSig,
 	}
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range info.group.Nodes {
@@ -318,12 +313,12 @@ func (h *Handler) broadcastNextPartial(beacon *Beacon) {
 			continue
 		}
 		go func(i *key.Identity) {
-			h.l.Debug("beacon_round", currentRound, "send_to", i.Address())
+			h.l.Debug("beacon_round", round, "send_to", i.Address())
 			err := h.client.PartialBeacon(ctx, i, packet)
 			if err != nil {
-				h.l.Error("beacon_round", currentRound, "err_request", err, "from", i.Address())
+				h.l.Error("beacon_round", round, "err_request", err, "from", i.Address())
 				if strings.Contains(err.Error(), errOutOfRound) {
-					h.l.Error("beacon_round", currentRound, "node", i.Addr, "reply", "out-of-round")
+					h.l.Error("beacon_round", round, "node", i.Addr, "reply", "out-of-round")
 				}
 				return
 			}

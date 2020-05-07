@@ -783,6 +783,7 @@ func CloseAllDrands(drands []*Drand) {
 
 func getSleepDuration() time.Duration {
 	if os.Getenv("CIRCLE_CI") != "" {
+		fmt.Println("--- Sleeping on CIRCLECI")
 		return time.Duration(1000) * time.Millisecond
 	}
 	return time.Duration(500) * time.Millisecond
