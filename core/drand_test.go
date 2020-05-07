@@ -125,19 +125,19 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	now := dt.Now().Unix()
 	// get rounds from first node in the "old" group - since he's the leader for
 	// the new group, he's alive
-	lastRound := dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+	lastBeacon := dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 	// move to the transition time period by period - do not skip potential
 	// periods as to emulate the normal time behavior
 	for now < target {
 		dt.MoveTime(beaconPeriod)
-		lastRound = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+		lastBeacon = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 		now = dt.Now().Unix()
 	}
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
 	time.Sleep(getSleepDuration())
 	//fmt.Println(" --- AFTER RESHARED ROUND  SLEEEPING ---")
-	dt.TestBeaconLength(int(lastRound+1), true, dt.Ids(newN, true)...)
+	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)
 }
 
 type Node struct {
@@ -397,14 +397,14 @@ func (d *DrandTest2) TestBeaconLength(length int, newGroup bool, ids ...string) 
 }
 
 // TestPublicBeacon looks if we can get the latest beacon on this node
-func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) uint64 {
+func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) *drand.PublicRandResponse {
 	node := d.GetDrand(id, newGroup)
 	dr := node.drand
 	client := net.NewGrpcClientFromCertManager(dr.opts.certmanager, dr.opts.grpcOpts...)
 	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
-	return resp.Round
+	return resp
 }
 
 // SetupNewNodes creates new additional nodes that can participate during the
