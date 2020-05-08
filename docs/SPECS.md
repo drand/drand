@@ -254,10 +254,43 @@ DKG as well and start the ticker as explained below.
 ### Distributed Key Generation
 
 The distributed key generation protocol implements the Pedersen's protocol, best
-described from [Gennaro's paper](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems):
-> Distributed key generation (DKG) is a main component of threshold cryptosystems. It allows a set of n servers to generate jointly a pair of public and private keys without assuming any trusted party. A DKG may be run in the presence of a malicious adversary who corrupts a fraction (or threshold) of the parties and forces them to follow an arbitrary protocol of their choice. 
+described from [Gennaro's
+paper](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems):
+> Distributed key generation (DKG) is a main component of threshold
+> cryptosystems. It allows a set of n servers to generate jointly a pair of
+> public and private keys without assuming any trusted party. A DKG may be run
+> in the presence of a malicious adversary who corrupts a fraction (or
+> threshold) of the parties and forces them to follow an arbitrary protocol of
+> their choice. 
 
-**Network level packets**: For a new setup, nodes exchanges the DKG packets
+Note that the nodes that finish the protocol successfully, called "qualified
+nodes" may be a subset of the nodes that started it: there can be nodes offline
+and nodes malicious during the protocol that will get excluded unless they act
+accordingly to the protocol.
+
+#### Types of distributed key generation
+
+Drand supports two operations with respect to setting up a distributed key:
+* Fresh setup: nodes have no prior shares and want to run the protocol from
+  scratch
+* Resharing: Resharing enables to _remove_ and _add_ new nodes to a group, while
+  keeping the same public facing information, namely the distributed key. There
+  is already a first group of nodes A that have ran the DKG protocol and have
+  shares of a distributed private key. This group wants to "re-share their
+  shares" to a second group of nodes B. Nodes of group B has no prior shares and
+  only the knowledge of the longterm public keys of nodes in group A. After the
+  resharing, nodes in group B will be able to use their new shares to produce
+  randomness and nodes in group A will not be able to participate in randomness
+  generation with the nodes in group B. the Note that a node can be in group A
+  and B as well. 
+
+The rest of this section highlights the network level operations that are valid
+for both types of DKG. Even though the main logic is similar for the two types,
+the cryptography section explains in details the difference between the two.
+
+#### Network level packets
+
+For a new setup, nodes exchanges the DKG packets
 using the following RPC call:
 ```protobuf
 rpc FreshDKG(DKGPacket) returns (drand.Empty);
@@ -823,21 +856,25 @@ the recipient target node.  To encrypt the share, one use the ECIES encryption
 algorithm described [below](#ecies) in the document, with the public key of the
 share holder and the share serialized as in described in the curve section.
 A pseudo algorithm describes the operation:
+
 ```
-// for a given node whose index is i
+// Node running the following has the following properties:
+//  - its index as a dealer (in the group A) DealerIndex di, 
+//  - a flag "isHolder" denoting if the node is a member of the group B
+//  - its index as a share holder ShareIndex si - if isHolder is true
 shares = []
-for n in listNodes:
-  - share = private_polynomial.Eval(node.Index)
-    - if n.Index == i 
-        - mark as valid the share i for the dealer i in the status matrix
+for n in shareHolders:
+  - share = private_polynomial.Eval(n.Index)
+  - mark as valid the share ShareIndex for the dealer DealerIndex in the status matrix
+  - if shareHolder && n.Index == ShareIndex 
         - continue to next node
   - encryption = ECIES(node.PublicKey, share)
-  - append(shares, { encrypted: encryption, index: node.Index })
+  - append(shares, { encrypted: encryption, index: n.Index })
 return shares
 ```
 
 After generating the encrypted shares, each node attaches their public
-polynomial to the encrypted shares in the same packet `DealBundle`.  Then each
+polynomial to the encrypted shares in the same packet `DealBundle`. Then each
 node must signs the packet and embeds the signature in a `AuthDealBundle`
 packet.
 
@@ -901,7 +938,7 @@ For each response bundle "bundle":
 **Deciding upon next phase**: There is a simple rule to decide if a node can go
 into the `FinishPhase` already at this point: If all shares of all dealers are
 "valid", then the node can go into the `FinishPhase`. Otherwise, a node needs to
-run the following logics.
+run the following logic.
 
 **Validating Justifications**: Each node runs the following logic on all
 received `AuthJustifBundle`:
@@ -925,14 +962,14 @@ For each bundle:
         - check if expected == seen
             - if true, mark as valid the share "justification.ShareIndex" of the
               dealer "bundle.DealerIndex"
+            - if true, save the share for later usage
             - if false, pass to next justification
-        - if true, save the share for later usage
 ```
 
 After processing the justifications, each node can pass into the `FinishPhase`
 logic.
 
-#### FinishPhase
+#### Finish Phase
 
 In the finish phase, each node locally computes their final share and the
 distributed public key. At the end, each node can distribute the public key and
@@ -965,26 +1002,273 @@ to a _new_ group of nodes such that:
 * the distributed public polynomial changes but not the free coefficient which
   is the public key used to verify a random beacon
 
+There are few differences in the logic w.r.t to a fresh DKG as explained in the
+previous section.
 
+#### Setup
+
+**Private Polynomial**: Each dealer creates its private polynomial from the
+**share of the node** that the node generated in group A. Namely, the free
+coefficient of the private polynomial is the share:
+```
+f(x) = share + c_1 * x + ... + c_{t-1} * x^{t-1}
+```
+**NOTE**:The length of the polynomial is set to the threshold of the new group, of the
+group B.
+
+**Public Polynomial**: This is created the same way as in the fresh dkg, by
+commiting the private polynomial.
+
+#### Distinction of Roles
+
+In the resharing case, there is a group A and a group B of nodes which can be
+completely disjoint. Each node in group A has a specific index and each node in
+group B has another specific index for that group.  We say the group A wants to
+reshare to group B. In that case, the nodes in the group A are the dealers and
+the nodes in the group B are the share holders.  Dealers are the nodes producing
+the deals and justifications. Share holders are the nodes producing the
+responses and the final shares at the end of the protocol.  The matrix that was
+presented in the regular DKG section is now a matrix NxM where N is the number
+of dealers and M in the number of share holders.
+
+Note a node can now have two indexes if it belongs to the group A and group B.
+We call theses indexes DealerIndex and ShareIndex as consistent with the
+previous notation in the DKG case. 
+
+#### Deal Phase
+
+The deal phase is essentially the same except for the index where the node
+evaluate the private polynomial. A dealer evaluates its private polynomial on 
+the indexes of the share holders.
+
+```
+// Node running the following has the following properties:
+//  - its index as a dealer (in the group A) DealerIndex di, 
+//  - a flag "isHolder" denoting if the node is a member of the group B
+//  - its index as a share holder ShareIndex si - if isHolder is true
+shares = []
+for n in shareHolders:
+  - share = private_polynomial.Eval(n.Index)
+  - mark as valid the share ShareIndex for the dealer DealerIndex in the status matrix
+  - if shareHolder && n.Index == ShareIndex 
+        - continue to next node
+  - encryption = ECIES(node.PublicKey, share)
+  - append(shares, { encrypted: encryption, index: n.Index })
+return shares
+```
+
+#### Response Phase
+
+
+There are two main differences with respect to the responses phase in a fresh
+dkg:
+1. A node must be able to verify that the free coefficient of the public
+   polynomial of the dealer is the same as the commitment of the share of the
+   dealer. That check ensures that the dealer is indeed creating a private
+   polynomial from its share and not from a random scalar.
+2. A node that is only in group A, i.e. a node that is leaving the network,
+   doesn't need to process the deals at all (since he is not gonna be part of
+   the new network, no shares is meant for it).
+
+**Processing of the shares**:
+At the beginning of this phase, the node must first process all published deals
+during the previous phase. 
+The logic is as follow:
+```
+// INPUT: 
+//  - public polynomial of the current group A: polyA
+//  - deals bundle
+//  - node ShareIndex
+For each bundle:
+ - check signature of the packet
+    - if invalid, pass to next bundle
+ - check if the dealer index is one index in the group
+    - if false, pass to the next bundle
+ - check if polynomial "public" in the bundle exists
+    - if false, pass to the next bundle
+ - check if polynomial is of length "threshold"
+    - if false, mark all dealer's shares as invalid
+ - STORE the polynomial from this dealer for future usage
+ - For each share inside the bundle:
+    - check if share index is an index in the group
+        - if false, pass to next deal
+    - check if share index is equal to our node's index
+        - if false, pass to next share
+    - try decrypting the share with the node's public key
+        - if decryption fails, pass to the next deal
+
+    # checking if share is consistent with polynomial
+    - evaluate the public polynomial in the bundle at the index of the share
+        - expectedCommitShare = public.Eval(share.Index)
+    - evaluate a commitment of the share, by multiplying it with the base point
+        - commitShare = share * G1.Base
+    - check if "expectedCommitShare == commitShare"
+        - if false, pass to the next deal
+
+    # checking if share is consistent with share of dealer from polynomial of
+    # group A
+    - dealShareCommit = polyA.Eval(bundle.DealerIndex)
+    - expShareCommit = public.Eval(0)
+    if dealShareCommit == expShareCommit
+        - mark as valid the share "share.ShareIndex" from the dealer "bundle.DealerIndex"
+        - STORE the share from this dealer for future usage
+```
+
+**Creation of the responses**: In this setting, the ShareIndex field must be
+filled with the index of the share holder index, whereas in the fresh DKG, the
+index is the same as DealerIndex.
+
+#### Justification Phase
+
+At this point, nodes that are only in group A and not in group B, i.e. leaving
+the network can abort the protocol now: their contribution is not needed
+anymore. For the rest of the nodes, the steps follow mostly the same logic:
+
+**Processing of the responses**: This step is exactly the same as in the fresh
+DKG case.
+
+**Deciding upon next phase**: It is the same step as in the fresh DKG case.
+
+**Validating Justifications**: The logic is mostly the same, except that each
+node needs also to validate that the dealer is indeed "re-sharing its share":
+the dealer used the commitment of its share as the free coefficient of the
+public polynomial he advertised during the deal phase.
+
+```
+// INPUT:
+//  - polyA: public polynomial of the group A
+//  - list of response bundles
+For each bundle:
+    - check if the bundle.DealerIndex is one index in the group
+        - if false, pass to next bundle
+    - check if the signature is valid,
+        - if false, mark all shares of the dealer bundle.DealerIndex invalid
+    - check if we have a public polynomial received in the DealPhase from this
+      dealer
+        - if not, pass to next bundle
+        - if yet, save it as "public"
+    - For each justifications from that dealer:
+        - check if the justification.ShareIndex is in the group 
+            - if false, mark all shares of the dealer bundle.DealerIndex invalid
+        - evaluate the public polynomial at the justification.ShareIndex
+            - expected = public.Eval(justification.ShareIndex)
+        - evaluate the commitment of the justification.Share
+            - seen = justification.Share * G1.Base()
+        - check if expected == seen
+            - if false, pass to next justification
+
+        # Resharing check
+        - dealShareCommit = polyA.Eval(bundle.DealerIndex)
+        - expShareCommit = public.Eval(0)
+        if dealShareCommit == expShareCommit
+            - STORE the share from this dealer for future usage
+            - mark as valid the share "justification.ShareIndex" of the
+              dealer "bundle.DealerIndex"
+```
+
+#### Finish Phase
+
+The finish phase in case of a resharing is where the the major differences rises
+with respect to a fresh DKG protocol.
+* On the algebra side, instead of simply summing up valid shares received, each
+  node has to interpolate (using Lagrange interpolation) the valid shares
+  received to be able to construct a new share. That is valid too for the public
+  polynomials received: each node needs to interpolate the coefficients of all
+  valid polynomials column-wise.
+* On the protocol side, each node make sure to output a qualified set of nodes
+  from only the share holders that replied correctly during the response phases.
+
+**Aggregation of the shares**: In a resharing context, each node needs to treat the
+valid shares they received as the evaluation points of a polynomial. The final
+share of the node is the secret coefficient of that polynomial. 
+The logic is as follows:
+```
+// INPUT
+//  - list of shares stored (dealerIndex, value)
+//  - ShareIndex: node index
+//  - threshold parameter of the group A
+// OUTPUT:
+//  - final share of the node
+// 
+// temp_points is a list of tuples (x_i,y_i) evaluation points of a polynomial 
+temp_points = []
+For each share:
+  - check if all shares for share.dealerIndex are marked as valid
+    - if false, pass to next share
+  - append(temp_shares, (share.dealerIndex, value))
+
+Sort temp_points by the index of the dealers
+temp_points = temp_points[0:threshold]
+private_poly = interpolation of the polynomial using Lagrange interpolation on the temp_points
+finalShare = private_poly.Eval(0)
+```
+
+**Aggregation of the public polynomials**: In a resharing context, each node
+needs to treat all valid public polynomials as a matrix where each row is one
+valid public polynomial. Each node needs to interpolate the public coefficients
+column-wise of that matrix to create one by one the public coefficients of the
+new public polynomial. The first coefficient is still the same as the previous
+group; in other words, the distributed key doesn't change.
+
+```
+// INPUT:
+//  - thresholdA: threshold of the group A
+//  - thresholdB: threshold of the group B
+//  - all valid public polynomials (dealerIndex, polynomial)
+//      - each public polynomial is of length thresholdB 
+//
+// OUTPUT:
+//  - public polynomial of the group B
+// 
+
+// list of coefficients that will form the new public polynomial
+new_coeffs = []
+For i in 0..thresholdB:
+    // list of evaluation points (index, point on G1) 
+    tmp_coeffs = []  
+    for each polynomials p:
+        - append(tmp_coeffs, p.Coefficient(i)
+
+    sort(tmp_coeffs) via indexes
+    # only take the first thresholdA points since the groupA is running with
+    # this threshold so only a thresholdA number of nodes a necessary
+    tmp_coeffs = tmp_coeffs[0:thresholdA]
+    tmp_poly = Lagrange interpolation of the tmp_coeffs pairs
+
+    # get the free coefficient of that interpolated polynomial
+    append(new_coeffs, temp_poly.Eval(0)
+return new_coeffs
+```
+
+**Qualified Nodes Selection**: We need to augment the normal selection rule from
+the fresh DKG case with a new rule to exclude absent new nodes from group B.
+```
+// INPUT:
+//  - status matrix 
+//  - newNodes: list of nodes indexes in group B
+// OUTPUT:
+//  - indexes of the qualified nodes in group B 
+
+valid_dealers = []
+quals = []
+For each dealer in statuses:
+    - check all shares are marked as valid for that dealer in statuses
+        - if true, append(valid_dealers, dealer)
+
+For each node in newNodes:
+    - isValid = true
+    - for each dealer in valid_dealers:
+        - check if share's index node.Index from dealer dealer.Index is valid
+            - if not, mark isValid as false
+    - if isValid is true
+        - append(quals, node.Index)
+
+return quals
+```
 
 ## External API
 
 ## Control API
-
-## THINGS TO REVIEW
-
-* Setup phase: now it doesn't require any manual downloading from operators, and
-  it's a huge win given the manual errors we've seen previously. But the
-  coordinator is trusted to setup the group correctly. 
-  Given the setup phase is done in a controlled fashion, it hasn't been a been a
-  practical problem but we should think about a best practice here.
-  One idea is to add an additional step such that a participant can inspect the
-  group file and accept or reject it, manually. Depending on that, the node can
-  either sign the new group configuration, and when the leader has received
-  all the signatures on the group file, he can push that signed group
-  configuration again to participants and start the DKG. Another slightly
-  different model is to simply say that a participate could refuse to run the
-  DKG if the group configuration is deemed invalid.
 
 ## Appendix A. DKG packets
 
@@ -1109,3 +1393,28 @@ type AuthJustifBundle struct {
 	Signature []byte
 }
 ```
+
+## THINGS TO REVIEW
+
+* Setup phase: now it doesn't require any manual downloading from operators, and
+  it's a huge win given the manual errors we've seen previously. But the
+  coordinator is trusted to setup the group correctly. 
+  Given the setup phase is done in a controlled fashion, it hasn't been a been a
+  practical problem but we should think about a best practice here.
+  One idea is to add an additional step such that a participant can inspect the
+  group file and accept or reject it, manually. Depending on that, the node can
+  either sign the new group configuration, and when the leader has received
+  all the signatures on the group file, he can push that signed group
+  configuration again to participants and start the DKG. Another slightly
+  different model is to simply say that a participate could refuse to run the
+  DKG if the group configuration is deemed invalid.
+
+* DKG Resharing potential optimzation: the check that a dealer must have used
+  the commitment of its share is done twice in the response phase and in the
+  justification phase.  However, dealers that don't provide a regular valid
+  polynomial in the response phase are already excluded. That means we could
+  move the check about resharing already before looking at the shares of a deal.
+  If we do so, we only need to run the check once there, and not during
+  justification phase. In case a dealer does not reshare its share, in the
+  justification phase, honest nodes will already have the dealer excluded
+  because its polynomial was invalid.
