@@ -113,8 +113,8 @@ type grpcTLSListener struct {
 	l net.Listener
 }
 
-// NewRESTListenerForPublicWithTLS creates a new listener for the Public API over HTTP/JSON with TLS.
-func NewRESTListenerForPublicWithTLS(bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+// NewRESTListenerWithTLS creates a new listener for the Public API over HTTP/JSON with TLS.
+func NewRESTListenerWithTLS(bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
 		return nil, err

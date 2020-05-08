@@ -52,7 +52,7 @@ func NewGrpcGatewayInsecure(listen string, s Service, opts ...grpc.DialOption) G
 // NewGrpcGatewayFromCertManager returns a grpc gateway using the TLS
 // certificate manager
 func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) Gateway {
-	l, err := NewRESTListenerForPublicWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+	l, err := NewRESTListenerWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
 		panic(err)
 	}
