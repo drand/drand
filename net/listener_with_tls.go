@@ -50,7 +50,7 @@ func NewGRPCListenerForPublicAndProtocolWithTLS(bindingAddr string, certPath, ke
 	return g, nil
 }
 
-// XXX
+// NewRESTListenerForPublicWithTLS creates a new listener for the Public API over REST with TLS.
 func NewRESTListenerForPublicWithTLS(bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
