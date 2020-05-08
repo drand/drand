@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	bolt "github.com/coreos/bbolt"
 	"github.com/nikkolasg/slog"
+	bolt "go.etcd.io/bbolt"
 )
 
 // store contains all the definitions and implementation of the logic that
