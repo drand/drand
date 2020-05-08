@@ -1,0 +1,13 @@
+coverage:
+  range: "50...100"
+
+  status:
+    project:
+      default:
+        threshold: 0.2%
+
+    patch:
+      default:
+        threshold: 2%
+
+comment: off
