@@ -339,7 +339,6 @@ func (d *DrandTest2) StartDrand(id string, catchup bool, newGroup bool) {
 	newDrand, err := LoadDrand(dr.store, dr.opts)
 	require.NoError(d.t, err)
 	node.drand = newDrand
-	newDrand.opts.clock = node.clock
 	fmt.Println("--- JUST BEFORE STARTBEACON---")
 	newDrand.StartBeacon(catchup)
 	fmt.Println("--- JUST AFTER STARTBEACON---")
