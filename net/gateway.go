@@ -29,6 +29,7 @@ type Listener interface {
 	Service
 	Start()
 	Stop()
+	Addr() string
 }
 
 // Service holds all functionalities that a drand node should implement

@@ -83,6 +83,10 @@ func NewTCPGrpcListener(addr string, s Service, opts ...grpc.ServerOption) Liste
 	return g
 }
 
+func (g *grpcInsecureListener) Addr() string {
+	return g.lis.Addr().String()
+}
+
 func (g *grpcInsecureListener) Start() {
 	// see https://github.com/grpc/grpc-go/issues/2406
 	grpcL := g.mux.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
@@ -185,6 +189,10 @@ func NewTLSGrpcListener(bindingAddr string, certPath, keyPath string, s Service,
 	}
 	grpc_prometheus.Register(g.grpcServer)
 	return g, nil
+}
+
+func (g *grpcTLSListener) Addr() string {
+	return g.l.Addr().String()
 }
 
 func (g *grpcTLSListener) Start() {
