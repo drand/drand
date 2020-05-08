@@ -20,8 +20,9 @@ jobs:
     steps:
       - checkout
       - run: go get -v -t -d ./...
-      - run: make test-unit
+      - run: make test-unit-cover
       - run: make test-integration
+      - run: bash <(curl -s https://codecov.io/bash)
 
   deploy:
     docker:
