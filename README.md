@@ -1,4 +1,5 @@
-[![CircleCI](https://circleci.com/gh/drand/drand.svg?style=svg)](https://circleci.com/gh/drand/drand)
+[![CircleCI](https://circleci.com/gh/drand/drand.svg?style=shield)](https://circleci.com/gh/drand/drand)
+[![Coverage](https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg)](https://codecov.io/gh/drand/drand)
 
 # Drand - A Distributed Randomness Beacon Daemon
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
@@ -13,7 +14,7 @@ https://github.com/dedis), and as of December 2019,
 is now under the drand organization.
 
 ### Disclaimer
-**This software is considered experimental and has NOT received a third-party
+⚠️ **This software is considered experimental and has NOT received a third-party
 audit yet. Therefore, DO NOT USE it in production or for anything security
 critical at this point.**
 

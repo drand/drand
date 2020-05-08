@@ -63,11 +63,12 @@ message PartialBeaconPacket {
     // Round is the round for which the beacon will be created from the partial
     // signatures
     uint64 round = 1;
-    // PreviousRound is the round for which the beacon is building on top of
-    // from.
-    uint64 previous_round = 2;
+    // signature of the previous round - could be removed at some point but now
+    // is used to verify the signature even before accessing the store
+    bytes previous_sig = 2;
+    // partial signature - a threshold of them needs to be aggregated to produce
+    // the final beacon at the given round.
     bytes partial_sig = 3;
-    bytes previous_sig = 4;
 }
 
 message DKGPacket {

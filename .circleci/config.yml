@@ -8,6 +8,9 @@ jobs:
     docker:
       # specify the version
       - image: circleci/golang:latest
+    environment:
+        # special env for tests to wait a bit longer between phases 
+        CIRCLE_CI: on
       
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -18,7 +21,9 @@ jobs:
       - checkout
       - run: go get -v -t -d ./...
       - run: make test-unit
+      - run: make test-unit-cover
       - run: make test-integration
+      - run: bash <(curl -s https://codecov.io/bash)
 
   deploy:
     docker:

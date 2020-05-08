@@ -110,7 +110,6 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 						}
 						lastBeacon = newBeacon
 						outCh <- newBeacon
-
 					case <-time.After(MaxSyncWaitTime):
 						return
 					case <-ctx.Done():
