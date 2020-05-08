@@ -685,6 +685,17 @@ generator for both group, that drand uses.
 
 **Scalar** A scalar of the field is serialized in 32 bytes in big endian format.
 
+**Polynomial**: This document refers to polynomials as a list of points lying in
+the group G1 of BLS12-381. The first point in the list is the free coefficient
+of the polynomial,i.e.:
+```
+f(x) = c_0 + c_1 * x + ... + c_{t-1} * x^{t-1}
+```
+Two polynomials can be added in the following way:
+```
+f(x) + g(x) = (f_0 + g_0) + (f_1 + g_1) * x + ... 
+```
+
 ### Distributed Public Key
 
 The distributed public key is a list of BLS12-381 G1 points that represents the
@@ -718,7 +729,7 @@ The ciphersuite used is:
 var Domain = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_")
 ```
 
-It can be verified using the first coefficient of the distributed public key
+A beacon signature can be verified using the first coefficient of the distributed public key
 stored in the group configuration:
 
 ### Partial Beacon Signature
@@ -825,9 +836,10 @@ for n in listNodes:
 return shares
 ```
 
-After generating the encrypted shares, each node attaches their public polynomial to the encrypted shares in the same packet `DealBundle`. 
-Then each node must signs the packet and embeds the signature in a
-`AuthDealBundle` packet.
+After generating the encrypted shares, each node attaches their public
+polynomial to the encrypted shares in the same packet `DealBundle`.  Then each
+node must signs the packet and embeds the signature in a `AuthDealBundle`
+packet.
 
 #### Response Phase
 
@@ -845,6 +857,7 @@ For each deal bundle:
     - if false, pass to the next bundle
  - check if polynomial is of length "threshold"
     - if false, mark all dealer's shares as invalid
+ - STORE the polynomial from this dealer for future usage
  - For each share inside the bundle:
     - check if share index is an index in the group
         - if false, pass to next deal
@@ -859,6 +872,7 @@ For each deal bundle:
     - check if "expectedCommitShare == commitShare"
         - if true, mark as valid the share "share.ShareIndex" from the dealer
           "bundle.DealerIndex"
+    - STORE the share from this dealer for future usage
 ```
 
 **Creation of the responses**:
@@ -886,7 +900,72 @@ For each response bundle "bundle":
 
 **Deciding upon next phase**: There is a simple rule to decide if a node can go
 into the `FinishPhase` already at this point: If all shares of all dealers are
-"valid", then the node can go into the `FinishPhase`.
+"valid", then the node can go into the `FinishPhase`. Otherwise, a node needs to
+run the following logics.
+
+**Validating Justifications**: Each node runs the following logic on all
+received `AuthJustifBundle`:
+```
+For each bundle:
+    - check if the bundle.DealerIndex is one index in the group
+        - if false, pass to next bundle
+    - check if the signature is valid,
+        - if false, mark all shares of the dealer bundle.DealerIndex invalid
+    - check if we have a public polynomial received in the DealPhase from this
+      dealer
+        - if not, pass to next bundle
+        - if yet, save it as "public"
+    - For each justifications from that dealer:
+        - check if the justification.ShareIndex is in the group 
+            - if false, mark all shares of the dealer bundle.DealerIndex invalid
+        - evaluate the public polynomial at the justification.ShareIndex
+            - expected = public.Eval(justification.ShareIndex)
+        - evaluate the commitment of the justification.Share
+            - seen = justification.Share * G1.Base()
+        - check if expected == seen
+            - if true, mark as valid the share "justification.ShareIndex" of the
+              dealer "bundle.DealerIndex"
+            - if false, pass to next justification
+        - if true, save the share for later usage
+```
+
+After processing the justifications, each node can pass into the `FinishPhase`
+logic.
+
+#### FinishPhase
+
+In the finish phase, each node locally computes their final share and the
+distributed public key. At the end, each node can distribute the public key and
+use the share to create partial beacon.
+The logic is as follows:
+```
+// INPUT: i: node's index
+// OUTPUT: (share, distributedkey)
+// scalar in the BLS12-381 curve
+finalShare :Scalar
+// polynomial with coefficients on G1 on the BLS12-381 curve
+finalPublic :Polynomial
+For each dealer index:
+  - check if all shares from that dealer are marked as valid
+  - if false, pass to next dealer
+  - add the dealer's share with the index equal to the node's index to "scalar"
+    - scalar += dealer.shares[node.index]
+  - add the dealer's public polynomial to the "finalPublic"
+    - finalPublic = finalPublic + dealer.public
+return (finalShare,finalPublic)
+```
+
+### Resharing
+
+Resharing is a mechanism that allows an established group to give _new_ shares
+to a _new_ group of nodes such that:
+* the new group of nodes can now uses their share to produce partial beacon
+  signatures
+* the old shares can not be validated anymore within the new group
+* the distributed public polynomial changes but not the free coefficient which
+  is the public key used to verify a random beacon
+
+
 
 ## External API
 
