@@ -9,6 +9,7 @@ also serve locally-generated private randomness to clients.
 This document is a specification of the drand protocols.
 
 ## Table of Contents
+
 * [Notations](#notations)
    * [Drand node](#drand-node)
    * [Drand beacon](#drand-beacon)
@@ -17,11 +18,11 @@ This document is a specification of the drand protocols.
 * [Wireformat &amp; API](#wireformat--api)
 * [Drand Modules](#drand-modules)
    * [Setup phase](#setup-phase)
-      * [Collecting the keys of the participants](#collecting-the-keys-of-the
-cipants)
-      * [Coordinator pushing the new group configuration](#coordinator-pushin
-new-group-configuration)
+      * [Collecting the keys of the participants](#collecting-the-keys-of-the-participants)
+      * [Coordinator pushing the new group configuration](#coordinator-pushing-the-new-group-configuration)
    * [Distributed Key Generation](#distributed-key-generation)
+      * [Types of distributed key generation](#types-of-distributed-key-generation)
+      * [Network level packets](#network-level-packets)
       * [Phase transitions](#phase-transitions)
       * [Deal Phase](#deal-phase)
       * [Response Phase](#response-phase)
@@ -38,11 +39,25 @@ new-group-configuration)
    * [Distributed Public Key](#distributed-public-key)
    * [Beacon Signature](#beacon-signature)
    * [Partial Beacon Signature](#partial-beacon-signature)
+   * [Distributed Key Generation](#distributed-key-generation-1)
+      * [Input](#input)
+      * [Authentication](#authentication)
+      * [Setup](#setup)
+      * [Deal Phase](#deal-phase-1)
+      * [Response Phase](#response-phase-1)
+      * [Justification Phase](#justification-phase-1)
+      * [Finish Phase](#finish-phase-1)
+   * [Resharing](#resharing)
+      * [Setup](#setup-1)
+      * [Distinction of Roles](#distinction-of-roles)
+      * [Deal Phase](#deal-phase-2)
+      * [Response Phase](#response-phase-2)
+      * [Justification Phase](#justification-phase-2)
+      * [Finish Phase](#finish-phase-2)
 * [External API](#external-api)
 * [Control API](#control-api)
+* [Appendix A. DKG packets](#appendix-a-dkg-packets)
 * [THINGS TO REVIEW](#things-to-review)
-
-
 
 ## Notations
 
