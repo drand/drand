@@ -104,7 +104,7 @@ func TestListenerTLS(t *testing.T) {
 
 	randServer := &testRandomnessServer{round: 42}
 
-	lis1, err := NewTLSGrpcListener(addr1, certPath, keyPath, randServer)
+	lis1, err := NewRESTListenerForPublicWithTLS(addr1, certPath, keyPath, randServer)
 	require.NoError(t, err)
 	go lis1.Start()
 	defer lis1.Stop()
