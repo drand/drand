@@ -12,9 +12,9 @@ import (
 	"github.com/drand/drand/cmd/drand-gossip-relay/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/golang/protobuf/proto"
+	"github.com/ipfs/go-datastore"
 	bds "github.com/ipfs/go-ds-badger2"
 	logging "github.com/ipfs/go-log/v2"
-	peer "github.com/libp2p/go-libp2p-core/peer"
 	crypto "github.com/libp2p/go-libp2p-crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
@@ -46,9 +46,20 @@ func main() {
 	}
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("error: %+v", err)
+		fmt.Printf("error: %+v\n", err)
 		os.Exit(1)
 	}
+}
+func parseMultiaddrSlice(peer []string) ([]ma.Multiaddr, error) {
+	out := make([]ma.Multiaddr, len(peer))
+	for i, peer := range peer {
+		m, err := ma.NewMultiaddr(peer)
+		if err != nil {
+			return nil, xerrors.Errorf("parsing multiaddr\"%s\": %w", peer, err)
+		}
+		out[i] = m
+	}
+	return out, nil
 }
 
 var runCmd = &cli.Command{
@@ -71,9 +82,18 @@ var runCmd = &cli.Command{
 			Usage: "listen addr for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
+		&cli.StringSliceFlag{
+			Name:  "peer-with",
+			Usage: "list of peers to connect with",
+		},
 	},
 
 	Action: func(cctx *cli.Context) error {
+		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice("peer-with"))
+		if err != nil {
+			return xerrors.Errorf("parsing peer-with: %w", err)
+		}
+
 		ds, err := bds.NewDatastore("./datastore", nil)
 		if err != nil {
 			return xerrors.Errorf("opening datastore: %w", err)
@@ -84,15 +104,11 @@ var runCmd = &cli.Command{
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
 
-		h, _, err := lp2p.ConstructHost(priv, cctx.String("listen"))
+		h, _, ps, err := lp2p.ConstructHost(ds, priv, cctx.String("listen"), bootstrap)
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		ps, err := lp2p.ConstructPubSub(h)
-		if err != nil {
-			return xerrors.Errorf("constructing pubsub: %w", err)
-		}
 		addrs, err := h.Network().InterfaceListenAddresses()
 		if err != nil {
 			return xerrors.Errorf("getting InterfaceListenAddresses: %w", err)
@@ -125,6 +141,7 @@ var runCmd = &cli.Command{
 			if err != nil {
 				log.Warnf("error connecting to grpc: %+v", err)
 				time.Sleep(5 * time.Second)
+				continue
 			}
 			client := drand.NewPublicClient(conn)
 			err = workRelay(client, t)
@@ -177,37 +194,27 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 var clientCmd = &cli.Command{
 	Name: "client",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name: "connect-to",
+		&cli.StringSliceFlag{
+			Name:  "peer-with",
+			Usage: "list of peers to connect with",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
+		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice("peer-with"))
+		if err != nil {
+			return xerrors.Errorf("parsing peer-with: %w", err)
+		}
+
 		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 		if err != nil {
 			return xerrors.Errorf("generating ed25519 key: %w", err)
 		}
 
-		h, _, err := lp2p.ConstructHost(priv, "/ip4/0.0.0.0/tcp/0")
+		_, _, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap)
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
 		}
-		ps, err := lp2p.ConstructPubSub(h)
-		if err != nil {
-			return xerrors.Errorf("constructing pubsub: %w", err)
-		}
 
-		addr, err := ma.NewMultiaddr(cctx.String("connect-to"))
-		if err != nil {
-			return xerrors.Errorf("parsing connect-to addr: %w", err)
-		}
-		pi, err := peer.AddrInfoFromP2pAddr(addr)
-		if err != nil {
-			return xerrors.Errorf("constructing peer info: %w", err)
-		}
-		err = h.Connect(context.Background(), *pi)
-		if err != nil {
-			return xerrors.Errorf("could not connect: %w", err)
-		}
 		c, err := client.NewWithPubsub(ps, cctx.String("network-name"))
 		if err != nil {
 			return xerrors.Errorf("constructing client: %w", err)
