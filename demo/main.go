@@ -27,13 +27,13 @@ var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
 var debug = flag.Bool("debug", false, "prints the log when panic occurs")
 
 // 10s after dkg finishes, (new or reshared) beacon starts
-var beaconOffset = 11
+var beaconOffset = 12
 
 // how much should we wait before checking if the randomness is present. This is
 // mostly due to the fact we run on localhost on cheap machine with CI so we
 // need some delays to make sure *all* nodes that we check have gathered the
 // randomness.
-var afterPeriodWait = 4 * time.Second
+var afterPeriodWait = 5 * time.Second
 
 func main() {
 	flag.Parse()
@@ -46,7 +46,7 @@ func main() {
 	nRound := 2
 	n := 6
 	thr := 4
-	period := "8s"
+	period := "10s"
 	newThr := 5
 	orch := NewOrchestrator(n, thr, period, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
@@ -68,7 +68,7 @@ func main() {
 	}()
 	setSignal(orch)
 	orch.StartCurrentNodes()
-	orch.RunDKG("3s")
+	orch.RunDKG("4s")
 	orch.WaitGenesis()
 	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()

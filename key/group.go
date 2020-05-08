@@ -17,6 +17,8 @@ import (
 	kyber "github.com/drand/kyber"
 	dkg "github.com/drand/kyber/share/dkg"
 	"golang.org/x/crypto/blake2b"
+
+	proto "github.com/drand/drand/protobuf/drand"
 )
 
 // XXX new256 returns an error so we make a wrapper around
@@ -241,6 +243,7 @@ func (g *Group) TOML() interface{} {
 	return gtoml
 }
 
+// GetGenesisSeed exposes the hash of the genesis seed for the group
 func (g *Group) GetGenesisSeed() []byte {
 	if g.GenesisSeed != nil {
 		return g.GenesisSeed
@@ -267,7 +270,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period time.Durati
 	}
 }
 
-// NewQualifiedGroup returns a group that contains all information with respect
+// LoadGroup returns a group that contains all information with respect
 // to a QUALified set of nodes that ran successfully a setup or reshare phase.
 // The threshold is automatically guessed from the length of the distributed
 // key.
@@ -296,6 +299,86 @@ func copyAndSort(list []*Identity) []*Node {
 	return nodes
 }
 
+// MinimumT calculates the threshold needed for the group to produce sufficient shares to decode
 func MinimumT(n int) int {
 	return int(math.Floor(float64(n)/2.0) + 1)
+}
+
+// GroupFromProto convertes a protobuf group into a local Group object
+func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
+	var nodes = make([]*Node, 0, len(g.GetNodes()))
+	for _, id := range g.GetNodes() {
+		kid, err := NodeFromProto(id)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, kid)
+	}
+	n := len(nodes)
+	thr := int(g.GetThreshold())
+	if thr < MinimumT(n) {
+		return nil, fmt.Errorf("invalid threshold: %d vs %d (minimum)", thr, MinimumT(n))
+	}
+	genesisTime := int64(g.GetGenesisTime())
+	if genesisTime == 0 {
+		return nil, fmt.Errorf("genesis time zero")
+	}
+	period := time.Duration(g.GetPeriod()) * time.Second
+	if period == time.Duration(0) {
+		return nil, fmt.Errorf("period time is zero")
+	}
+	var dist = new(DistPublic)
+	for _, coeff := range g.DistKey {
+		c := KeyGroup.Point()
+		if err := c.UnmarshalBinary(coeff); err != nil {
+			return nil, fmt.Errorf("invalid distributed key coefficients:%v", err)
+		}
+		dist.Coefficients = append(dist.Coefficients, c)
+	}
+	//group := key.NewGroup(nodes, thr, genesisTime)
+	group := new(Group)
+	group.Nodes = nodes
+	group.Threshold = thr
+	group.GenesisTime = genesisTime
+	group.Period = period
+	group.TransitionTime = int64(g.GetTransitionTime())
+	if g.GetGenesisSeed() != nil {
+		group.GenesisSeed = g.GetGenesisSeed()
+	}
+	if len(dist.Coefficients) > 0 {
+		group.PublicKey = dist
+	}
+	return group, nil
+}
+
+// ToProto encodes a local group object into its wire format
+func (g *Group) ToProto() *proto.GroupPacket {
+	var out = new(proto.GroupPacket)
+	var ids = make([]*proto.Node, len(g.Nodes))
+	for i, id := range g.Nodes {
+		key, _ := id.Key.MarshalBinary()
+		ids[i] = &proto.Node{
+			Public: &proto.Identity{
+				Address: id.Address(),
+				Tls:     id.IsTLS(),
+				Key:     key,
+			},
+			Index: id.Index,
+		}
+	}
+	out.Nodes = ids
+	out.Period = uint32(g.Period.Seconds())
+	out.Threshold = uint32(g.Threshold)
+	out.GenesisTime = uint64(g.GenesisTime)
+	out.TransitionTime = uint64(g.TransitionTime)
+	out.GenesisSeed = g.GetGenesisSeed()
+	if g.PublicKey != nil {
+		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))
+		for i, c := range g.PublicKey.Coefficients {
+			buff, _ := c.MarshalBinary()
+			coeffs[i] = buff
+		}
+		out.DistKey = coeffs
+	}
+	return out
 }
