@@ -5,6 +5,9 @@ test: test-unit test-integration
 test-unit:
 	GO111MODULE=on go test -v ./...
 
+test-unit-cover:
+	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic ./...
+
 test-integration:
 	cd demo && go build && ./demo -build -test -debug
 
