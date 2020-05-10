@@ -121,13 +121,16 @@ from other drand nodes based on their IP addresses seems the most efficient way
 to deal with DDoS attacks.
 
 **Potential additional defense mechanism**: Assuming the last criteria is not
-met, there still needs to be at least one drand nodes that is not under attack
-to aggregate the partial beacons. To increase the chance of reconstructing the
-final random beacon from the partial beacons that "leaks" out from drand nodes
-under attack, it could also be possible to setup aggregator nodes which are
-under heavy protection, potentially with a more centralized governance, whose
-job is only collects the different partial beacons and aggregates them to
-deliver them to the relay network.
+met (it seems to be quite difficult to put in practice), there still needs to be
+at least one drand nodes that is not under attack to aggregate the partial
+beacons. To increase the chance of reconstructing the final random beacon from
+the partial beacons that "leaks" out from drand nodes under attack, it could
+also be possible to setup aggregator nodes. Such nodes could be under heavy
+protection, potentially with a more centralized governance, whose job is only
+collects the different partial beacons and aggregates them to deliver them to
+the relay network. There could be many such aggregators nodes such that the
+chance of getting at least one of these received enough threshold beacon
+drastically increases.
 
 #### DDoS the relay network
 
