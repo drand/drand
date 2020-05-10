@@ -1,10 +1,28 @@
 # Security Model of drand
 
+## Table of Contents
+
+* [Notations](#notations)
+* [Model](#model)
+   * [Distributed Key Generation security model](#distributed-key-generation-se
+-model)
+   * [Randomness generation model](#randomness-generation-model)
+* [Attacks](#attacks)
+   * [Randomness Generation](#randomness-generation)
+      * [DDoS the drand network](#ddos-the-drand-network)
+      * [Corruption of the drand network](#corruption-of-the-drand-network)
+   * [Distributed Key Generation](#distributed-key-generation)
+      * [DDoS attacks](#ddos-attacks)
+      * [Corruption attacks](#corruption-attacks)
+      * [Broadcast Channel Assumption](#broadcast-channel-assumption)
+* [TO REVIEW:](#to-review)
+
 ## Notations
 
 **Drand node**: a node that is running the drand daemon and participating to the
-creation of the randomness. The drand network is the set of drand nodes
-connected with each other.
+creation of the randomness. Each drand node have a longterm public key and a
+private share (after running the setup/resharing phase). The drand network is
+the set of drand nodes connected with each other.
 
 **Relay node**: a node that is connected to a drand daemon and exposing a
 Internet-facing interface allowing to fetch the public randomness. The relay
@@ -25,7 +43,6 @@ document tries to clarify in which context when relevant.
 
 **Alive node**: a node which is running the binary and sends packets out to the
 inernet.
-
 
 ## Model
 
@@ -50,6 +67,32 @@ usage of timeouts during the DKG protocol.
 nodes, each other node is guaranteed to receive the same exact packet after some
 bounded amount of time. This assumption is not strictly realized by drand
 currently. See [DKG attacks](#dkg-attacks) section to understand the impact.
+
+**Authenticated Channel**: Every communication between nodes must be
+authenticated. Drand achieves this by signing every outgoing DKG packets with
+a BLS signature on the longterm public key of the sender node.
+
+**Public Group**: Every nodes willing to run the DKG must know the group
+formation before starting the DKG, including the longterm public keys of each
+node. During the DKG, there might be some nods offline or misbehaving. The set
+of nodes that _successfully_ passed the DKG are called the _qualified_ set of
+nodes (QUAL). These nodes only have a valid shares and are able to produce
+partial beacons that can be successfully validated with respect to the
+distributed public key.
+
+**DKG's biasability in signatures**: Pedersen's DKG is known to exhibit a
+weakness in the biasability in the distribution of the distributed private key.
+However, the same authors (Gennaro et al.) that proved the latter also proved
+this bias is not relevant in the setting of using the DKG to perform digital
+signatures, which offers other strong properties -
+[paper](https://pdfs.semanticscholar.org/642b/d1bbc86c7750cef9fa770e9e4ba86bd49eb9.pdf).
+In particular, the paper mentions discrete log based systems. However, it is not
+yet strictly proven that system using computation co-CDH assumptions as required
+for threshold BLS signatures are secure in the model of Gennaro.  However, it is
+believed that this assumptions holds in this context as well and is being worked
+on.  Note that using threshold BLS signatures as a source of randomness _is_
+formally proven secured in this [paper](https://eprint.iacr.org/2020/096.pdf)
+from Galindo et al. 
 
 ### Randomness generation model
 
@@ -132,10 +175,6 @@ the relay network. There could be many such aggregators nodes such that the
 chance of getting at least one of these received enough threshold beacon
 drastically increases.
 
-#### DDoS the relay network
-
-?? 
-
 #### Corruption of the drand network
 
 **Scenario #1**: Corruption of less than threshold of nodes
@@ -156,7 +195,7 @@ not _unpredictable_ anymore from the point of view of the attacker.  However,
 the drand randomness stays _unbiasable_: attacker is not able to change the
 randomness in any way.
 
-**Mitigations**: Proactive resharing allows both to 
+**Mitigation**: Proactive resharing allows both to 
 1. Let a new group of nodes take over the randomness generation, potentially
    with more nodes and higher threshold. 
 2. Refresh shares for nodes that participate in the resharing in the new group:
@@ -174,3 +213,65 @@ the initial group now.
 
 As such, it is recommended to reshare often, _even if_ between the same nodes,
 as it creates new shares.
+
+### Distributed Key Generation
+
+#### DDoS attacks
+
+If during the DKG, some nodes are DDoS attacked, then these nodes might not be
+able to receive the deals (shares) in time and / or reply in the second phase in
+time. Given the necessity of time for achieving the synchronous network
+assumption, that means these nodes risk getting excluded from the final group
+that gets shares at the end.
+
+#### Corruption attacks
+
+**Scenario 1**: An attacker only "controls" less than a threshold of nodes. The
+attacker can choose the private polynomial used to create the shares. Attacker can
+influence the distribution of the private share but is believed to not being
+able to bias the distribution of the randomness later on. 
+
+**Scenario 2**: An attacker controls more than a threshold of nodes during the
+DKG. This scenario is similar to the scenario 2 for the randomness generation
+since even before the DKG: attacker can know before the end of the DKG the whole
+randomness chain (since he can see the honest shares before sending them).
+
+#### Broadcast Channel Assumption
+
+Attacker is at least one node in the group and broadcasts inconsistent shares
+and public polynomial to different parties. Given drand does not use a
+_reliable_ broadcast channel, the attacker is able to send any shares over
+different polynomials for example - see
+[here](https://www.jcraige.com/vss-forgery) for one example of such an attack.
+Note attacker could try to partition the set of honest nodes in two such that
+each half would have consistent shares within itself but inconsistent with
+respect to the other half.
+
+**Consequence**: Shares can be inconsistent with each other, and in such cases,
+nodes will not be able to verify partial beacons during the randomness
+generation phase. Another more subtil scenario is that nodes finish the DKG
+with half of the honest nodes having a distributed public key different than the
+other half, a "split".
+
+**Practical Observation**: After a DKG is setup, nodes (1) publish the
+distributed public key they have and (2) start the randomness generation rounds.
+The first step enables any third party to verify the distributed public keys are
+the same (it is in fact sufficient to verify a threshold of them have the same).
+In (2), the chain will not be able to advance and therefore it becomes clear
+that the DKG step went wrong.  Given the DKG phase is run once in a while, it is
+reasonable to assume nodes can restart the DKG phase in case things have gone
+wrong.
+
+**Remediation to keep assumption true - TODO**: A practical step towards ensuring non
+equivocation during the DKG phase is to move to a gossiping approach.  Indeed,
+an attacker that would send different public polynomials is likely to end up as
+not a qualified dealer since honest nodes would relay its packet and find the
+inconsistency.
+
+## TO REVIEW:
+
+* drand must make sure that if a DKG went "wrong" during a resharing because of
+  the broadcast channel assumption being violated, it keeps the previous share
+  to be able to start a new DKG again. Currently it erases the previous share
+  when DKG finishes. For a fresh DKG it is fine since nodes can restart from
+  scratch as before.
