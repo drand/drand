@@ -139,11 +139,34 @@ to generate randomness.
 There can be multiple ways of attacking the drand network during the randomness
 generation phase, each with different consequences.
 
+#### Front Running 
+
+**Scenario**: An attacker that is able to listen passively on the traffic
+between nodes (if TLS is not used - which is not a recommened setup) OR that is
+able to listen to plaintext traffic from the network of a threshold of nodes might be
+able to see a threshold number of partial beacons before any other honest nodes.
+
+**Consequence**: The attacker in such position is able to aggregate the final
+beacon of the current round before any other drand nodes. The attacker doesn't
+have to submit the beacon to the relay node and can already use the beacon for
+the application that uses drand. The delay between the time the attacker has the
+final beacon and the other nodes have it depends on the network connectivity
+between the drand nodes. Under normal circumstances, given a global passive listener
+attacker (which is arguably a strong model), the delay between the time the
+attacker computes the final beacon and the application's end users receive it
+from the relay network is on the order of hundreds of ms: the time that at least
+a drand nodes computes the final beacon plus the time it sends it to a relay
+node plus the relay network distribute it to the end-users. Applications using
+drand should be using the round number as a marker and not the time accuracy
+which may not be granular enough for some applications.
+
 #### DDoS the drand network
 
 **Scenario**: There is a DDoS attacks on multiple drand nodes and at least a
 threshold of honest drand nodes are now considered offline and can't get other's
-partial beacons. The attack is substained for a duration X.
+partial beacons. The attack is substained for a duration X. The threshold of
+nodes to DDoS is the threshold from the group configuration as defined during
+the DKG phase.
 
 **Consequence**: The chain halts for as long as the DDoS attack is substained on
 the drand nodes OR for as long as the drand operators didn't move their drand
@@ -223,6 +246,12 @@ able to receive the deals (shares) in time and / or reply in the second phase in
 time. Given the necessity of time for achieving the synchronous network
 assumption, that means these nodes risk getting excluded from the final group
 that gets shares at the end.
+
+Practical Remediation: At the end of a DKG, the nodes that successfully ran the
+DKG are the one listed on the final configuration file, noted as "qualified".
+Given the low frequency of drand nodes having to run a DKG, manual observation
+of which node is in the final group can lead to decide whether to re-run a DKG /
+resharing or not.
 
 #### Corruption attacks
 
