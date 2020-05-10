@@ -74,9 +74,9 @@ a BLS signature on the longterm public key of the sender node.
 
 **Public Group**: Every nodes willing to run the DKG must know the group
 formation before starting the DKG, including the longterm public keys of each
-node. During the DKG, there might be some nods offline or misbehaving. The set
+node. During the DKG, there might be some nodes offline or misbehaving. The set
 of nodes that _successfully_ passed the DKG are called the _qualified_ set of
-nodes (QUAL). These nodes only have a valid shares and are able to produce
+nodes (QUAL). Only these nodes have valid shares and are able to produce
 partial beacons that can be successfully validated with respect to the
 distributed public key.
 
