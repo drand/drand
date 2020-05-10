@@ -80,6 +80,15 @@ shares of each drand node change but the chain remains the same as well. If the
 same set of nodes perform a new fresh DKG, it will create a new chain from
 scratch.
 
+**Resharing**: During a resharing, a drand network A (with threshold
+`tA`)creates new shares for a drand network B (with threshold `tB`) which can be
+disjoinct from A, such the drand network B is now responsible to continue
+creating drand beacons, while that the distributed public key doesn't change.
+For this to happen, there needs to be at least `tA` nodes from network A and
+`tB` nodes alive and honest during the resharing. At the end of the protocol,
+there is gonna be at least `tB` nodes that are qualified and have private shares
+to generate randomness.
+
 ## Attacks
 
 ### Randomness Generation
@@ -87,9 +96,7 @@ scratch.
 There can be multiple ways of attacking the drand network during the randomness
 generation phase, each with different consequences.
 
-### DDoS Attacks
-
-#### Attacking the drand network
+#### DDoS the drand network
 
 **Scenario**: There is a DDoS attacks on multiple drand nodes and at least a
 threshold of honest drand nodes are now considered offline and can't get other's
@@ -122,20 +129,45 @@ under heavy protection, potentially with a more centralized governance, whose
 job is only collects the different partial beacons and aggregates them to
 deliver them to the relay network.
 
-#### Attacking the relay network
+#### DDoS the relay network
 
 ?? 
 
-### Corruption attacks
+#### Corruption of the drand network
 
-#### Corruption of less than threshold of nodes
+**Scenario #1**: Corruption of less than threshold of nodes
 
-In this scenario, the attacker gets ahold of the cryptographic material of
-_less_ than a threshold of drand nodes.
-
-**Immediate consequence**: The attacker is _not_ able to derive any meaningful
+In this scenario, the attacker corrupts _less_ than a threshold of drand nodes.
+_Consequence_: The attacker is _not_ able to derive any meaningful
 information with respect to beacon chain (i.e. he can't derive future beacons).
 However, it is assumed it has now access to the long term private key of each
 compromised node.
 
-**Longterm consequence**: 
+**Scenario #2**: Corruption of more than a threshold of nodes
+
+In this scenario, the threat model of drand is now violated and thus is the
+scenario to avoid at all costs: the attacker corrupts _at least_ a threshold of
+drand nodes.  _Consequence_: The attacker is now able to derive the whole chain,
+i.e. it can derive any given random beacon of the chain. The drand randomness is
+not _unpredictable_ anymore from the point of view of the attacker.  However,
+the drand randomness stays _unbiasable_: attacker is not able to change the
+randomness in any way.
+
+**Mitigations**: Proactive resharing allows both to 
+1. Let a new group of nodes take over the randomness generation, potentially
+   with more nodes and higher threshold. 
+2. Refresh shares for nodes that participate in the resharing in the new group:
+   partial beacons created from an old share is not validated by the members of
+   the new group.
+
+Given a "periodical" resharing with more nodes, it makes it harder for the
+attacker to maintain the grasp on the shares of the drand nodes since he must
+have continuous control over the drand node itself. If the operator of a
+corrupted drand node recovers from the attacker's intrusion, after a resharing,
+the attacker's share is invalid. Moreover, a resharing with more nodes highers
+the bar for the attacker to attain the second scenario both because of the
+previous argument and because attacker needs now to corrupts more nodes than in
+the initial group now.
+
+As such, it is recommended to reshare often, _even if_ between the same nodes,
+as it creates new shares.
