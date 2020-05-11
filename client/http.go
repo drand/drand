@@ -10,21 +10,23 @@ import (
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	drand "github.com/drand/drand/protobuf/drand"
 )
 
-// HTTPClient is an interface for the exercised methods of an `http.Client`,
+// HTTPGetter is an interface for the exercised methods of an `http.Client`,
 // or equivalent alternative.
-type HTTPClient interface {
+type HTTPGetter interface {
 	Do(req *http.Request) (*http.Response, error)
 	Get(url string) (resp *http.Response, err error)
 }
 
 // NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, groupHash []byte, client HTTPClient) (Client, error) {
+func NewHTTPClient(url string, groupHash []byte, client HTTPGetter) (Client, error) {
 	c := &httpClient{
 		root:   url,
 		client: client,
+		l:      log.DefaultLogger,
 	}
 	group, err := c.FetchGroupInfo(groupHash)
 	if err != nil {
@@ -36,11 +38,12 @@ func NewHTTPClient(url string, groupHash []byte, client HTTPClient) (Client, err
 }
 
 // NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
-func NewHTTPClientWithGroup(url string, group *key.Group, client HTTPClient) (Client, error) {
+func NewHTTPClientWithGroup(url string, group *key.Group, client HTTPGetter) (Client, error) {
 	c := &httpClient{
 		root:   url,
 		group:  group,
 		client: client,
+		l:      log.DefaultLogger,
 	}
 	return c, nil
 }
@@ -48,8 +51,9 @@ func NewHTTPClientWithGroup(url string, group *key.Group, client HTTPClient) (Cl
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
 	root   string
-	client HTTPClient
+	client HTTPGetter
 	group  *key.Group
+	l      log.Logger
 }
 
 // FetchGroupInfo attempts to initialize an httpClient when
@@ -74,6 +78,9 @@ func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
 		return nil, fmt.Errorf("Group does not have a valid key for validation")
 	}
 
+	if groupHash == nil {
+		h.l.Warn("http_client", "instantiated without trustroot", "groupKey", grp.PublicKey)
+	}
 	if groupHash != nil && !bytes.Equal(grp.Hash(), groupHash) {
 		return nil, fmt.Errorf("%s does not advertise the expected drand group", h.root)
 	}
@@ -125,6 +132,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 		Signature:   randResp.Signature,
 	}
 	if err := beacon.VerifyBeacon(h.group.PublicKey.Key(), &b); err != nil {
+		h.l.Warn("http_client", "failed to verify value", "err", err)
 		return nil, err
 	}
 
@@ -137,6 +145,7 @@ func (h *httpClient) Watch(ctx context.Context) <-chan Result {
 	r := h.RoundAt(time.Now())
 	val, err := h.Get(ctx, r)
 	if err != nil {
+		h.l.Error("http_client", "failed to watch", "err", err)
 		close(ch)
 		return ch
 	}
@@ -156,6 +165,8 @@ func (h *httpClient) Watch(ctx context.Context) <-chan Result {
 		r, err := h.Get(ctx, h.RoundAt(time.Now()))
 		if err == nil {
 			ch <- r
+		} else {
+			h.l.Error("http_client", "failed to watch", "err", err)
 		}
 
 		// Then tick each period.
@@ -167,6 +178,8 @@ func (h *httpClient) Watch(ctx context.Context) <-chan Result {
 				r, err := h.Get(ctx, h.RoundAt(time.Now()))
 				if err == nil {
 					ch <- r
+				} else {
+					h.l.Error("http_client", "failed to watch", "err", err)
 				}
 				// TODO: keep trying on errors?
 			case <-ctx.Done():
