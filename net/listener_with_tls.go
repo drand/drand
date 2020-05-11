@@ -136,6 +136,10 @@ type tlsListener struct {
 	l          net.Listener
 }
 
+func (g *tlsListener) Addr() string {
+	return g.l.Addr().String()
+}
+
 func (g *tlsListener) Start() {
 	g.httpServer.Serve(g.l)
 }

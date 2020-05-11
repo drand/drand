@@ -37,6 +37,10 @@ type grpcListener struct {
 	lis        net.Listener
 }
 
+func (g *grpcListener) Addr() string {
+	return g.lis.Addr().String()
+}
+
 func (g *grpcListener) Start() {
 	go g.grpcServer.Serve(g.lis)
 }
@@ -85,6 +89,10 @@ type restListener struct {
 	grpcServer *grpc.Server
 	restServer *http.Server
 	lis        net.Listener
+}
+
+func (g *restListener) Addr() string {
+	return g.lis.Addr().String()
 }
 
 func (g *restListener) Start() {
