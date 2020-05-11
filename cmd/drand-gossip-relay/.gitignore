@@ -1,2 +1,3 @@
 ./drand-gossip-relay
 datastore
+identity.key

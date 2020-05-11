@@ -104,7 +104,7 @@ var runCmd = &cli.Command{
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
 
-		h, _, ps, err := lp2p.ConstructHost(ds, priv, cctx.String("listen"), bootstrap)
+		h, ps, err := lp2p.ConstructHost(ds, priv, cctx.String("listen"), bootstrap)
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
 		}
@@ -210,7 +210,7 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("generating ed25519 key: %w", err)
 		}
 
-		_, _, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap)
+		_, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap)
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
 		}
