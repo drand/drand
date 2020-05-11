@@ -54,27 +54,35 @@ func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand
 
 func TestListener(t *testing.T) {
 	ctx := context.Background()
-	addr1 := "127.0.0.1:4000"
-	peer1 := &testPeer{addr1, false}
-	//addr2 := "127.0.0.1:4001"
+	hostAddr := "127.0.0.1"
+	addrGRPC := hostAddr + ":4000"
+	peerGRPC := &testPeer{addrGRPC, false}
+	addrREST := hostAddr + ":4001"
+	peerREST := &testPeer{addrREST, false}
 	randServer := &testRandomnessServer{round: 42}
 
-	lis1 := NewTCPGrpcListener(addr1, randServer)
-	go lis1.Start()
-	defer lis1.Stop()
+	lisGRPC := NewGRPCListenerForPublicAndProtocol(addrGRPC, randServer)
+	lisREST := NewRESTListenerForPublic(addrREST, randServer)
+	go lisGRPC.Start()
+	defer lisGRPC.Stop()
+	go lisREST.Start()
+	defer lisREST.Stop()
 	time.Sleep(100 * time.Millisecond)
 
+	// GRPC
 	client := NewGrpcClient()
-	resp, err := client.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 
-	err = client.PartialBeacon(ctx, peer1, &drand.PartialBeaconPacket{})
+	//XXX: Why is this producing error logs.
+	err = client.PartialBeacon(ctx, peerGRPC, &drand.PartialBeaconPacket{})
 	require.Error(t, err)
 
+	// REST
 	rest := NewRestClient()
-	resp, err = rest.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
+	resp, err = rest.PublicRand(ctx, peerREST, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
