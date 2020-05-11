@@ -44,6 +44,10 @@ var DefaultDialTimeout = 10 * time.Second
 // rand = H(sig)
 var RandomnessHash = sha256.New
 
+// EciesHash is the hash function used for the ECIES encryption used in the
+// private randomness feature.
+var EciesHash = sha256.New
+
 // MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
 // can take. If the setup is still not finished after this time, it is
 // cancelled.

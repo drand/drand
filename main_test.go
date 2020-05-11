@@ -239,7 +239,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort1)
 
-	start2 := exec.CommandContext(ctx, "drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose")
+	start2 := exec.CommandContext(ctx, "drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand")
 	start2.Stdout = os.Stdout
 	start2.Stderr = os.Stderr
 	go start2.Run()
@@ -350,7 +350,7 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort}
+	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
 	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
 	startCmd.Stdout = os.Stdout
 	startCmd.Stderr = os.Stderr
@@ -363,32 +363,7 @@ func TestClientTLS(t *testing.T) {
 	cmd := exec.Command("drand", "get", "private", "--tls-cert", certPath, groupPath)
 	out, err := cmd.CombinedOutput()
 	fmt.Println("get private = ", string(out))
-	require.NoError(t, err)
-
-	// XXX Commented out test since we can't "fake" anymore in the same way
-	// a dist public key. One would need to use the real fs path of the daemon
-	// to save the group at the right place
-	//
-	/*cmd = exec.Command("drand", "fetch", "dist_key", "--tls-cert", certPath, addr)*/
-	//out, err = cmd.CombinedOutput()
-	//require.True(t, strings.Contains(string(out), keyStr))
-	//require.NoError(t, err)
-
-	//cmd = exec.Command("drand", "control", "share")
-	//out, err = cmd.CombinedOutput()
-	//if err != nil {
-	//t.Fatalf("could not run the command : %s", err.Error())
-	//}
-	//expectedOutput := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE="
-	//require.True(t, strings.Contains(string(out), expectedOutput))
-	/*require.NoError(t, err)*/
-
-	// XXX Can't test public randomness without launching an actual DKG / beacon
-	// process...
-	/*cmd = exec.Command("drand", "get", "public", "--tls-cert", certPath, "--nodes", addr, groupPath)*/
-	//out, err = cmd.CombinedOutput()
-	//fmt.Println(string(out))
-	//require.NoError(t, err)
+	require.NoError(t, err, string(out))
 
 	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
