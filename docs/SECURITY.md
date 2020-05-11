@@ -26,12 +26,12 @@
 
 **Drand node**: a node that is running the drand daemon and participating to the
 creation of the randomness. Each drand node have a longterm public key and a
-private share (after running the setup/resharing phase). The drand network is
+private share (after running the setup/resharing phase). The **drand network** is
 the set of drand nodes connected with each other.
 
 **Relay node**: a node that is connected to a drand daemon and exposing a
-Internet-facing interface allowing to fetch the public randomness. The relay
-network is the set of relay nodes, partially / potentially connected with each
+Internet-facing interface allowing to fetch the public randomness. The **relay
+network** is the set of relay nodes, partially / potentially connected with each
 other.
 
 When the type of the node is not specified in the document, it is assumed from
@@ -47,7 +47,7 @@ can be offline from the point of view of another drand node or a relay node. The
 document tries to clarify in which context when relevant.
 
 **Alive node**: a node which is running the binary (drand or relay depending on
-the context) and sends packets out to the inernet that are correctly received by
+the context) and sends packets out to the Internet that are correctly received by
 the endpoint(s).
 
 ## Security Model
@@ -58,17 +58,14 @@ or assumptions taken.
 
 ### Distributed Key Generation security model
 
-The DKG protocol model follows the one from the Pedersen's protocol. The [paper
-description](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems)
-linked is from Gennaro's paper that explains the protocol and its assumptions in
-clean way.
+The DKG protocol model follows the one from the Pedersen's protocol. [Gennaro's paper](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems) explains the protocol and its assumptions.
 
 **Synchronous Network**: A packet sent from an alive node reaches its
-destination in a bounded amount of time. Drand realizes this assumptions by the
+destination in a bounded amount of time. Drand realizes this assumption by the
 usage of timeouts during the DKG protocol.
 
 **Synchronized Clocks**: All nodes must have roughly synchronized clocks (less
-than one 1s of drift).
+than one 1s of offset).
 
 **Reliable Broadcast Channel**: When a node broadcasts a packet to all other
 nodes, each other node is guaranteed to receive the same exact packet after some
@@ -79,7 +76,7 @@ currently. See [DKG attacks](#dkg-attacks) section to understand the impact.
 authenticated. Drand achieves this by signing every outgoing DKG packets with
 a BLS signature on the longterm public key of the sender node.
 
-**Public Group**: Every nodes willing to run the DKG must know the group
+**Public Group**: Every node willing to run the DKG must know the group
 formation before starting the DKG, including the longterm public keys of each
 node. During the DKG, there might be some nodes offline or misbehaving. The set
 of nodes that _successfully_ passed the DKG are called the _qualified_ set of
@@ -94,11 +91,11 @@ this bias is not relevant in the setting of using the DKG to perform digital
 signatures, which offers other strong properties -
 [paper](https://pdfs.semanticscholar.org/642b/d1bbc86c7750cef9fa770e9e4ba86bd49eb9.pdf).
 In particular, the paper mentions discrete log based systems. However, it is not
-yet strictly proven that system using computation co-CDH assumptions as required
+yet strictly proven that systems using computational Diffie–Hellman assumptions as required
 for threshold BLS signatures are secure in the model of Gennaro.  However, it is
 believed that this assumptions holds in this context as well and is being worked
 on.  Note that using threshold BLS signatures as a source of randomness _is_
-formally proven secured in this [paper](https://eprint.iacr.org/2020/096.pdf)
+formally proven secure in this [paper](https://eprint.iacr.org/2020/096.pdf)
 from Galindo et al. 
 
 ### Randomness generation model
@@ -108,10 +105,10 @@ the network bounds. As soon as packet comes in, node processes them and the
 chain advances if conditions are there (enough partial beacon and time for a new round).
 
 **Synchronized Clocks**: All nodes must have roughly synchronized clocks to
-start the rounds at the same time. The precision of the synchronicity between
+start the rounds at the same time. The accuracy of the synchronicity between
 clocks only needs to be at the order the round frequency (order of tens of
-seconds), which is much higher than the reality of server's clock (NTP-synced
-servers have drifts of under a second over the globe). XXX need source.
+seconds), which is much higher than the reality of the server's clock (NTP-synced
+servers achieve [offsets of under a second over the globe](https://www.eecis.udel.edu/~mills/database/reports/ntp-survey99-minar.pdf)). 
 
 **Broadcast channel**: The randomness generation models only needs a regular
 broadcast channel. It does **not** need to be reliable given the deterministic
@@ -136,7 +133,7 @@ disjoinct from A, such the drand network B is now responsible to continue
 creating drand beacons, while that the distributed public key doesn't change.
 For this to happen, there needs to be at least `tA` nodes from network A and
 `tB` nodes alive and honest during the resharing. At the end of the protocol,
-there is gonna be at least `tB` nodes that are qualified and have private shares
+there are going to be at least `tB` nodes that are qualified and have private shares
 to generate randomness.
 
 ## Attacks
