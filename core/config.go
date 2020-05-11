@@ -18,22 +18,23 @@ type ConfigOption func(*Config)
 
 // Config holds all relevant information for a drand node to run.
 type Config struct {
-	configFolder string
-	dbFolder     string
-	listenAddr   string
-	controlPort  string
-	grpcOpts     []grpc.DialOption
-	callOpts     []grpc.CallOption
-	dkgTimeout   time.Duration
-	boltOpts     *bolt.Options
-	beaconCbs    []func(*beacon.Beacon)
-	dkgCallback  func(*key.Share)
-	insecure     bool
-	certPath     string
-	keyPath      string
-	certmanager  *net.CertManager
-	logger       log.Logger
-	clock        clock.Clock
+	configFolder  string
+	dbFolder      string
+	listenAddr    string
+	controlPort   string
+	grpcOpts      []grpc.DialOption
+	callOpts      []grpc.CallOption
+	dkgTimeout    time.Duration
+	boltOpts      *bolt.Options
+	beaconCbs     []func(*beacon.Beacon)
+	dkgCallback   func(*key.Share)
+	insecure      bool
+	certPath      string
+	keyPath       string
+	certmanager   *net.CertManager
+	logger        log.Logger
+	clock         clock.Clock
+	enablePrivate bool
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -246,4 +247,12 @@ func getPeriod(g *key.Group) time.Duration {
 		return DefaultBeaconPeriod
 	}
 	return g.Period
+}
+
+// WithPrivateRandomness enables the private randomness feature on the drand
+// logic. When the feature is not enabled, the call returns an error.
+func WithPrivateRandomness() ConfigOption {
+	return func(d *Config) {
+		d.enablePrivate = true
+	}
 }
