@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/http"
 
@@ -42,7 +41,7 @@ func NewGRPCListenerForPublicAndProtocolWithTLS(bindingAddr string, certPath, ke
 	httpServer := buildTLSServer(grpcServer, x509KeyPair)
 	g := &tlsListener{
 		Service:    s,
-		server:     httpServer,
+		httpServer: httpServer,
 		grpcServer: grpcServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
@@ -72,7 +71,6 @@ func NewRESTListenerForPublicWithTLS(bindingAddr string, certPath, keyPath strin
 	serverOpts := append(opts, grpc.Creds(grpcCreds))
 	grpcServer := grpc.NewServer(serverOpts...)
 	drand.RegisterPublicServer(grpcServer, s)
-	drand.RegisterProtocolServer(grpcServer, s) //XXX
 
 	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
 	gwMux := runtime.NewServeMux(o)
@@ -88,7 +86,7 @@ func NewRESTListenerForPublicWithTLS(bindingAddr string, certPath, keyPath strin
 	httpServer := buildTLSServer(grpcHandlerFunc(grpcServer, mux), x509KeyPair)
 	g := &tlsListener{
 		Service:    s,
-		server:     httpServer,
+		httpServer: httpServer,
 		grpcServer: grpcServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
@@ -96,9 +94,9 @@ func NewRESTListenerForPublicWithTLS(bindingAddr string, certPath, keyPath strin
 	return g, nil
 }
 
-func buildTLSServer(grpcServer http.Handler, x509KeyPair tls.Certificate) *http.Server {
+func buildTLSServer(httpHandler http.Handler, x509KeyPair tls.Certificate) *http.Server {
 	return &http.Server{
-		Handler: grpcServer, // grpcHandlerFunc(grpcServer, mux),
+		Handler: httpHandler, // grpcHandlerFunc(httpHandler, mux),
 		TLSConfig: &tls.Config{
 			// From https://blog.cloudflare.com/exposing-go-on-the-internet/
 
@@ -133,23 +131,21 @@ func buildTLSServer(grpcServer http.Handler, x509KeyPair tls.Certificate) *http.
 
 type tlsListener struct {
 	Service
-	server     *http.Server
+	httpServer *http.Server
 	grpcServer *grpc.Server
 	l          net.Listener
 }
 
 func (g *tlsListener) Start() {
-	if err := g.server.Serve(g.l); err != nil {
-		fmt.Printf("grpc: tls listener start failed: %s", err)
-	}
+	g.httpServer.Serve(g.l)
 }
 
 func (g *tlsListener) Stop() {
 	// Graceful stop not supported with HTTP Server
 	// https://github.com/grpc/grpc-go/issues/1384
-	if err := g.server.Shutdown(context.TODO()); err != nil {
+	if err := g.httpServer.Shutdown(context.TODO()); err != nil {
 		slog.Debugf("grpc: tls listener shutdown failed: %s\n", err)
 	}
-	g.grpcServer.Stop()
+	// g.grpcServer.Stop()
 	g.l.Close()
 }
