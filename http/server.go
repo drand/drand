@@ -130,7 +130,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
-	data, err := json.Marshal(h.groupInfo)
+	data, err := json.Marshal(h.groupInfo.ToProto())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)

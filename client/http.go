@@ -10,38 +10,74 @@ import (
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
+	drand "github.com/drand/drand/protobuf/drand"
 )
 
+// HTTPClient is an interface for the exercised methods of an `http.Client`,
+// or equivlanet alternative.
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+	Get(url string) (resp *http.Response, err error)
+}
+
 // NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, groupHash []byte, client *http.Client) (Client, error) {
+func NewHTTPClient(url string, groupHash []byte, client HTTPClient) (Client, error) {
 	c := &httpClient{
 		root:   url,
 		client: client,
 	}
-	// fetch the `Group` to validate connectivity.
-	groupResp, err := client.Get(fmt.Sprintf("%s/group", url))
+	group, err := c.FetchGroupInfo(groupHash)
 	if err != nil {
 		return nil, err
 	}
+	c.group = group
 
-	grp := key.Group{}
-	if err := json.NewDecoder(groupResp.Body).Decode(&grp); err != nil {
-		return nil, err
+	return c, nil
+}
+
+// NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
+func NewHTTPClientWithGroup(url string, group *key.Group, client *http.Client) (Client, error) {
+	c := &httpClient{
+		root:   url,
+		group:  group,
+		client: client,
 	}
-	c.group = &grp
-
-	if !bytes.Equal(grp.PublicKey.Hash(), groupHash) {
-		return nil, fmt.Errorf("%s does not advertise the expected drand group", url)
-	}
-
 	return c, nil
 }
 
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
 	root   string
-	client *http.Client
+	client HTTPClient
 	group  *key.Group
+}
+
+// FetchGroupInfo attempts to initialize an httpClient when
+// it does not know the full group paramters for a drand group.
+func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
+	// fetch the `Group` to validate connectivity.
+	groupResp, err := h.client.Get(fmt.Sprintf("%s/group", h.root))
+	if err != nil {
+		return nil, err
+	}
+
+	protoGrp := drand.GroupPacket{}
+	if err := json.NewDecoder(groupResp.Body).Decode(&protoGrp); err != nil {
+		return nil, err
+	}
+	grp, err := key.GroupFromProto(&protoGrp)
+	if err != nil {
+		return nil, err
+	}
+
+	if grp.PublicKey == nil {
+		return nil, fmt.Errorf("Group does not have a valid key for validation")
+	}
+
+	if groupHash != nil && !bytes.Equal(grp.Hash(), groupHash) {
+		return nil, fmt.Errorf("%s does not advertise the expected drand group", h.root)
+	}
+	return grp, nil
 }
 
 // Implement textMarshaller
@@ -67,6 +103,9 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
 		return Result{}, err
 	}
+	if len(randResp.Signature) == 0 || len(randResp.PreviousSignature) == 0 {
+		return Result{}, fmt.Errorf("insufficent response")
+	}
 
 	b := beacon.Beacon{
 		PreviousSig: randResp.PreviousSignature,
@@ -77,8 +116,37 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 		return Result{}, err
 	}
 
-	// XXX: is this the right transition?
-	return Result{Round: randResp.Round, Signature: randResp.Randomness}, nil
+	return Result{Round: randResp.Round, Signature: randResp.Signature}, nil
+}
+
+// Watch returns new randomness as it becomes available.
+func (h *httpClient) Watch(ctx context.Context) <-chan Result {
+	ch := make(chan Result, 1)
+	r := h.RoundAt(time.Now())
+	val, err := h.Get(ctx, r)
+	if err != nil {
+		ch <- val
+	} else {
+		close(ch)
+		return ch
+	}
+	time.AfterFunc(time.Unix(beacon.TimeOfRound(h.group.Period, h.group.GenesisTime, r+1), 0).Sub(time.Now()), func() {
+		t := time.NewTicker(h.group.Period)
+		for {
+			select {
+			case <-t.C:
+				r, err := h.Get(ctx, h.RoundAt(time.Now()))
+				if err != nil {
+					ch <- r
+				}
+				// TODO: keep trying on errors?
+			case <-ctx.Done():
+				close(ch)
+				return
+			}
+		}
+	})
+	return ch
 }
 
 // RoundAt will return the most recent round of randomness that will be available

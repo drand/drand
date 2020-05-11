@@ -14,7 +14,12 @@ type Client interface {
 	encoding.TextMarshaler
 
 	// Get returns a the randomness at `round` or an error.
+	// Requesting round = 0 will return randomness for the most
+	// recent known round, bounded at a minimum to the `RoundAt(time.Now())`
 	Get(ctx context.Context, round uint64) (Result, error)
+
+	// Watch returns new randomness as it becomes available.
+	Watch(ctx context.Context) <-chan Result
 
 	// RoundAt will return the most recent round of randomness that will be available
 	// at time for the current client.
