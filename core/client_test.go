@@ -8,11 +8,10 @@ import (
 )
 
 func TestClientPrivate(t *testing.T) {
-	drands, _, dir, _ := BatchNewDrand(5, false)
+	drands, _, dir, _ := BatchNewDrand(5, false, WithPrivateRandomness())
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 
-	drands[0].opts.enablePrivate = true
 	pub := drands[0].priv.Public
 	client := NewGrpcClientFromCert(drands[0].opts.certmanager)
 	buff, err := client.Private(pub)
