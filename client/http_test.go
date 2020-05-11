@@ -29,7 +29,7 @@ func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := dhttp.New(ctx, client)
+	handler, err := dhttp.New(ctx, client, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
