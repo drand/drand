@@ -76,6 +76,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			return string(hash[:])
 		}),
 		pubsub.WithDirectPeers(addrInfos),
+		pubsub.WithFloodPublish(true),
 	)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing pubsub: %d", err)
