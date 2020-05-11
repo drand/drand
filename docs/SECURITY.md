@@ -2,20 +2,25 @@
 
 ## Table of Contents
 
-* [Notations](#notations)
-* [Model](#model)
-   * [Distributed Key Generation security model](#distributed-key-generation-se
--model)
-   * [Randomness generation model](#randomness-generation-model)
-* [Attacks](#attacks)
-   * [Randomness Generation](#randomness-generation)
-      * [DDoS the drand network](#ddos-the-drand-network)
-      * [Corruption of the drand network](#corruption-of-the-drand-network)
-   * [Distributed Key Generation](#distributed-key-generation)
-      * [DDoS attacks](#ddos-attacks)
-      * [Corruption attacks](#corruption-attacks)
-      * [Broadcast Channel Assumption](#broadcast-channel-assumption)
-* [TO REVIEW:](#to-review)
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+
+- [Notations](#notations)
+- [Model](#model)
+  - [Distributed Key Generation security model](#distributed-key-generation-security-model)
+  - [Randomness generation model](#randomness-generation-model)
+- [Attacks](#attacks)
+  - [Randomness Generation](#randomness-generation)
+    - [Front Running](#front-running)
+    - [DDoS the drand network](#ddos-the-drand-network)
+    - [Corruption of the drand network](#corruption-of-the-drand-network)
+  - [Distributed Key Generation](#distributed-key-generation)
+    - [DDoS attacks](#ddos-attacks)
+    - [Corruption attacks](#corruption-attacks)
+    - [Broadcast Channel Assumption](#broadcast-channel-assumption)
+- [TO REVIEW:](#to-review)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Notations
 
