@@ -98,7 +98,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 	return h, p, nil
 }
 
-func LoadOrCreatePrivKey(ds datastore.Datastore) (crypto.PrivKey, error) {
+func LoadOrCreatePrivKey() (crypto.PrivKey, error) {
 	privBytes, err := ioutil.ReadFile(privFile)
 
 	var priv crypto.PrivKey

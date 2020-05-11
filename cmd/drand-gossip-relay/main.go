@@ -99,7 +99,7 @@ var runCmd = &cli.Command{
 			return xerrors.Errorf("opening datastore: %w", err)
 		}
 
-		priv, err := lp2p.LoadOrCreatePrivKey(ds)
+		priv, err := lp2p.LoadOrCreatePrivKey()
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
