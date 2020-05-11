@@ -80,7 +80,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			addrInfos[i], addrInfos[j] = addrInfos[j], addrInfos[i]
 		})
 		for _, ai := range addrInfos {
-			ctx, cancel := context.WithDeadline(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {

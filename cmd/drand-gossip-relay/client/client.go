@@ -18,6 +18,7 @@ var (
 
 type Client struct {
 	cancel func()
+	latest uint64
 
 	subs struct {
 		sync.Mutex
@@ -67,6 +68,11 @@ func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 			}
 
 			// TODO: verification, need to pass drand network public key in
+
+			if c.latest >= rand.Round {
+				continue
+			}
+			c.latest = rand.Round
 
 			c.subs.Lock()
 			for _, ch := range c.subs.M {
