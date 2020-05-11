@@ -159,6 +159,9 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
 func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
+	if !d.opts.enablePrivate {
+		return nil, errors.New("private randomness is disabled")
+	}
 	msg, err := ecies.Decrypt(key.KeyGroup, d.priv.Key, priv.GetRequest(), EciesHash)
 	if err != nil {
 		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err.Error())

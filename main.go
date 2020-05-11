@@ -204,6 +204,11 @@ var groupFlag = &cli.StringFlag{
 	Usage: "Test connections to nodes listed in the group",
 }
 
+var enablePrivateRand = &cli.BoolFlag{
+	Name:  "private-rand",
+	Usage: "Enables the private randomness feature on the daemon. By default, this feature is disabled.",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -220,7 +225,7 @@ func main() {
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 				insecureFlag, controlFlag, listenFlag, metricsFlag,
-				certsDirFlag, pushFlag, verboseFlag),
+				certsDirFlag, pushFlag, verboseFlag, enablePrivateRand),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -731,6 +736,9 @@ func contextToConfig(c *cli.Context) *core.Config {
 			panic(err)
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
+	}
+	if c.Bool(enablePrivateRand.Name) {
+		opts = append(opts, core.WithPrivateRandomness())
 	}
 	conf := core.NewConfig(opts...)
 	return conf

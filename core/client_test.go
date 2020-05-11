@@ -12,6 +12,7 @@ func TestClientPrivate(t *testing.T) {
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 
+	drands[0].opts.enablePrivate = true
 	pub := drands[0].priv.Public
 	client := NewGrpcClientFromCert(drands[0].opts.certmanager)
 	buff, err := client.Private(pub)
@@ -24,4 +25,10 @@ func TestClientPrivate(t *testing.T) {
 	require.Nil(t, err)
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)
+
+	drands[0].opts.enablePrivate = false
+	client = NewGrpcClientFromCert(drands[0].opts.certmanager)
+	buff, err = client.Private(pub)
+	require.Error(t, err)
+	require.Nil(t, buff)
 }
