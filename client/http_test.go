@@ -64,11 +64,45 @@ func TestHTTPClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Signature) == 0 {
-		t.Fatal("no signature provided.")
+	if len(result.Randomness()) == 0 {
+		t.Fatal("no randomness provided")
+	}
+	full, ok := (result).(*RandomData)
+	if !ok {
+		t.Fatal("Should be able to restore concrete type")
+	}
+	if len(full.Signature) == 0 {
+		t.Fatal("no signature provided")
 	}
 
-	if _, err := httpClient.Get(ctx, result.Round+1); err == nil {
+	if _, err := httpClient.Get(ctx, full.Rnd+1); err == nil {
 		t.Fatal("round n+1 should have an invalid signature")
+	}
+}
+
+func TestHTTPWatch(t *testing.T) {
+	addr, hash, cancel := withServer(t)
+	defer cancel()
+
+	httpClient, err := NewHTTPClient("http://"+addr, hash, &http.Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	result := httpClient.Watch(ctx)
+	first, ok := <-result
+	if !ok {
+		t.Fatal("Should get a result from watching")
+	}
+	if len(first.Randomness()) == 0 {
+		t.Fatal("should get randomness from watching")
+	}
+	_, ok = <-result
+	if ok {
+		// Note. there is a second value polled for by the client, but it will
+		// be invalid per the mocked grpc backing server.
+		t.Fatal("second result should fail per context timeout")
 	}
 }

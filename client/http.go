@@ -14,7 +14,7 @@ import (
 )
 
 // HTTPClient is an interface for the exercised methods of an `http.Client`,
-// or equivlanet alternative.
+// or equivalent alternative.
 type HTTPClient interface {
 	Do(req *http.Request) (*http.Response, error)
 	Get(url string) (resp *http.Response, err error)
@@ -36,7 +36,7 @@ func NewHTTPClient(url string, groupHash []byte, client HTTPClient) (Client, err
 }
 
 // NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
-func NewHTTPClientWithGroup(url string, group *key.Group, client *http.Client) (Client, error) {
+func NewHTTPClientWithGroup(url string, group *key.Group, client HTTPClient) (Client, error) {
 	c := &httpClient{
 		root:   url,
 		group:  group,
@@ -85,38 +85,50 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 	return json.Marshal(h)
 }
 
-type randData struct {
-	Round             uint64 `json:"round,omitempty"`
+// RandomData holds the full random response from the server, including data needed
+// for validation.
+type RandomData struct {
+	Rnd               uint64 `json:"round,omitempty"`
+	Random            []byte `json:"randomness,omitempty"`
 	Signature         []byte `json:"signature,omitempty"`
 	PreviousSignature []byte `json:"previous_signature,omitempty"`
-	Randomness        []byte `json:"randomness,omitempty"`
+}
+
+// Round provides access to the round associatted with this random data.
+func (r *RandomData) Round() uint64 {
+	return r.Rnd
+}
+
+// Randomness exports the randomness
+func (r *RandomData) Randomness() []byte {
+	return r.Random
 }
 
 // Get returns a the randomness at `round` or an error.
 func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	randResponse, err := h.client.Get(fmt.Sprintf("%s/public/%d", h.root, round))
 	if err != nil {
-		return Result{}, err
+		return nil, err
 	}
 
-	randResp := randData{}
+	randResp := RandomData{}
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
-		return Result{}, err
+		return nil, err
 	}
 	if len(randResp.Signature) == 0 || len(randResp.PreviousSignature) == 0 {
-		return Result{}, fmt.Errorf("insufficent response")
+		return nil, fmt.Errorf("insufficent response")
 	}
 
 	b := beacon.Beacon{
 		PreviousSig: randResp.PreviousSignature,
-		Round:       randResp.Round,
+		Round:       randResp.Rnd,
 		Signature:   randResp.Signature,
 	}
 	if err := beacon.VerifyBeacon(h.group.PublicKey.Key(), &b); err != nil {
-		return Result{}, err
+		return nil, err
 	}
 
-	return Result{Round: randResp.Round, Signature: randResp.Signature}, nil
+	return &randResp, nil
 }
 
 // Watch returns new randomness as it becomes available.
@@ -125,27 +137,44 @@ func (h *httpClient) Watch(ctx context.Context) <-chan Result {
 	r := h.RoundAt(time.Now())
 	val, err := h.Get(ctx, r)
 	if err != nil {
-		ch <- val
-	} else {
 		close(ch)
 		return ch
 	}
-	time.AfterFunc(time.Unix(beacon.TimeOfRound(h.group.Period, h.group.GenesisTime, r+1), 0).Sub(time.Now()), func() {
+	ch <- val
+
+	go func() {
+		defer close(ch)
+
+		// Initially, wait to synchronize to the round boundary.
+		_, nextTime := beacon.NextRound(time.Now().Unix(), h.group.Period, h.group.GenesisTime)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Duration(nextTime-time.Now().Unix()) * time.Second):
+		}
+
+		r, err := h.Get(ctx, h.RoundAt(time.Now()))
+		if err == nil {
+			ch <- r
+		}
+
+		// Then tick each period.
 		t := time.NewTicker(h.group.Period)
+		defer t.Stop()
 		for {
 			select {
 			case <-t.C:
 				r, err := h.Get(ctx, h.RoundAt(time.Now()))
-				if err != nil {
+				if err == nil {
 					ch <- r
 				}
 				// TODO: keep trying on errors?
 			case <-ctx.Done():
-				close(ch)
 				return
 			}
 		}
-	})
+	}()
+
 	return ch
 }
 

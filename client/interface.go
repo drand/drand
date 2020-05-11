@@ -2,17 +2,11 @@ package client
 
 import (
 	"context"
-	"encoding"
 	"time"
 )
 
 // Client represents the drand Client interface.
 type Client interface {
-	// TextMarshaler (the 'MarshalText' method) allows serialization of the client
-	// state for subsequent restoration. The marshalled value can be passed to `New`
-	// to restore Client state.
-	encoding.TextMarshaler
-
 	// Get returns a the randomness at `round` or an error.
 	// Requesting round = 0 will return randomness for the most
 	// recent known round, bounded at a minimum to the `RoundAt(time.Now())`
@@ -27,7 +21,7 @@ type Client interface {
 }
 
 // Result represents the randomness for a single drand round.
-type Result struct {
-	Round     uint64
-	Signature []byte
+type Result interface {
+	Round() uint64
+	Randomness() []byte
 }
