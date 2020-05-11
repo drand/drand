@@ -1,5 +1,8 @@
 [![CircleCI](https://circleci.com/gh/drand/drand.svg?style=shield)](https://circleci.com/gh/drand/drand)
 [![Coverage](https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg)](https://codecov.io/gh/drand/drand)
+[![Go Report Card](https://goreportcard.com/badge/github.com/drand/drand)](https://goreportcard.com/report/github.com/drand/drand)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/drand/drand)
+[![golang version](https://img.shields.io/badge/golang-%3E%3D1.14-orange.svg)](https://golang.org/)
 
 # Drand - A Distributed Randomness Beacon Daemon
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written

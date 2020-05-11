@@ -7,10 +7,10 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/ecies"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/encrypt/ecies"
 	"google.golang.org/grpc/peer"
 )
 
@@ -159,12 +159,10 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
 func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	protoPoint := priv.GetRequest().GetEphemeral()
-	point := key.KeyGroup.Point()
-	if err := point.UnmarshalBinary(protoPoint); err != nil {
-		return nil, err
+	if !d.opts.enablePrivate {
+		return nil, errors.New("private randomness is disabled")
 	}
-	msg, err := ecies.Decrypt(key.KeyGroup, ecies.DefaultHash, d.priv.Key, priv.GetRequest())
+	msg, err := ecies.Decrypt(key.KeyGroup, d.priv.Key, priv.GetRequest(), EciesHash)
 	if err != nil {
 		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err.Error())
 		return nil, errors.New("invalid ECIES request")
@@ -181,7 +179,7 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 		return nil, fmt.Errorf("error gathering randomness: expected 32 bytes, got %d", len(randomness))
 	}
 
-	obj, err := ecies.Encrypt(key.KeyGroup, ecies.DefaultHash, clientKey, randomness[:])
+	obj, err := ecies.Encrypt(key.KeyGroup, clientKey, randomness[:], EciesHash)
 	return &drand.PrivateRandResponse{Response: obj}, err
 }
 
