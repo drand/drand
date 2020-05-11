@@ -49,7 +49,7 @@ document tries to clarify in which context when relevant.
 **Alive node**: a node which is running the binary and sends packets out to the
 inernet.
 
-## Model
+## Security Model
 
 In drand, there are two phases which do not require the same security
 assumptions. This section highlights both models and the practical realization
@@ -252,7 +252,7 @@ time. Given the necessity of time for achieving the synchronous network
 assumption, that means these nodes risk getting excluded from the final group
 that gets shares at the end.
 
-Practical Remediation: At the end of a DKG, the nodes that successfully ran the
+**Practical Remediation**: At the end of a DKG, the nodes that successfully ran the
 DKG are the one listed on the final configuration file, noted as "qualified".
 Given the low frequency of drand nodes having to run a DKG, manual observation
 of which node is in the final group can lead to decide whether to re-run a DKG /
