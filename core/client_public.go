@@ -8,11 +8,11 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/ecies"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
+	"github.com/drand/kyber/encrypt/ecies"
 	"google.golang.org/grpc"
 )
 
@@ -82,7 +82,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	obj, err := ecies.Encrypt(key.KeyGroup, ecies.DefaultHash, id.Key, ephBuff)
+	obj, err := ecies.Encrypt(key.KeyGroup, id.Key, ephBuff, EciesHash)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ecies.Decrypt(key.KeyGroup, ecies.DefaultHash, ephScalar, resp.GetResponse())
+	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
 }
 
 // DistKey returns the distributed key the node at this address is holding.
