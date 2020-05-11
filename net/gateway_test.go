@@ -76,10 +76,6 @@ func TestListener(t *testing.T) {
 	expected := &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 
-	//XXX: Why is this producing error logs.
-	err = client.PartialBeacon(ctx, peerGRPC, &drand.PartialBeaconPacket{})
-	require.Error(t, err)
-
 	// REST
 	rest := NewRestClient()
 	resp, err = rest.PublicRand(ctx, peerREST, &drand.PublicRandRequest{})
