@@ -3,10 +3,7 @@ package net
 import (
 	"context"
 	"errors"
-	"net/http"
-	"strings"
 
-	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
 )
@@ -39,37 +36,4 @@ func (d *drandProxy) Home(c context.Context, r *drand.HomeRequest, opts ...grpc.
 }
 func (d *drandProxy) Group(c context.Context, r *drand.GroupRequest, opts ...grpc.CallOption) (*drand.GroupPacket, error) {
 	return d.r.Group(c, r)
-}
-
-// grpcHandlerFunc returns an http.Handler that delegates to grpcServer on
-// incoming gRPC connections or otherHandler otherwise. Copied from cockroachdb.
-// taken from https://github.com/philips/grpc-gateway-example
-func grpcHandlerFunc(grpcServer *grpc.Server, otherHandler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		// TODO(tamird): point to merged gRPC code rather than a PR.
-		// This is a partial recreation of gRPC's internal checks https://github.com/grpc/grpc-go/pull/514/files#diff-95e9a25b738459a2d3030e1e6fa2a718R61
-		if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
-			grpcServer.ServeHTTP(w, r)
-		} else {
-			// record metrics for HTTP API endpoints
-			switch r.URL.Path {
-			case "/api":
-				metrics.APICallCounter.WithLabelValues("home").Inc()
-			case "/api/private":
-				metrics.APICallCounter.WithLabelValues("private").Inc()
-			case "/api/info/distkey":
-				metrics.APICallCounter.WithLabelValues("distkey").Inc()
-			case "/api/info/group":
-				metrics.APICallCounter.WithLabelValues("group").Inc()
-			default:
-				// api/public can have additional path ServerParameters
-				if strings.Contains(r.URL.Path, "/api/public") {
-					metrics.APICallCounter.WithLabelValues("public").Inc()
-				}
-			}
-			otherHandler.ServeHTTP(w, r)
-		}
-	})
 }

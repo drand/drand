@@ -96,6 +96,8 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
 	//d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
+	// Set the private API address to the command-line flag, if given.
+	// Otherwise, set it to the address associated with stored private key.
 	privAddr := c.PrivateListenAddress(priv.Public.Address())
 	pubAddr := c.PublicListenAddress("")
 	if c.insecure {

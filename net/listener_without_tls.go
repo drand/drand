@@ -56,36 +56,27 @@ func NewRESTListenerForPublic(ctx context.Context, addr string, s Service, opts 
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor))
-	opts = append(opts, grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
-	grpcServer := grpc.NewServer(opts...)
-	// REST api
 	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("*", defaultJSONMarshaller))
-	proxyClient := &drandProxy{s}
-	if err := drand.RegisterPublicHandlerClient(ctx, gwMux, proxyClient); err != nil {
+	if err := drand.RegisterPublicHandlerClient(ctx, gwMux, &drandProxy{s}); err != nil {
 		panic(err)
 	}
 	restRouter := http.NewServeMux()
 	restRouter.Handle("/", gwMux)
 	restServer := &http.Server{
 		Addr:    addr,
-		Handler: grpcHandlerFunc(grpcServer, restRouter),
+		Handler: restRouter,
 	}
 
 	g := &restListener{
 		Service:    s,
-		grpcServer: grpcServer,
 		restServer: restServer,
 		lis:        l,
 	}
-	drand.RegisterPublicServer(g.grpcServer, g.Service)
-	grpc_prometheus.Register(g.grpcServer)
 	return g, nil
 }
 
 type restListener struct {
 	Service
-	grpcServer *grpc.Server
 	restServer *http.Server
 	lis        net.Listener
 }

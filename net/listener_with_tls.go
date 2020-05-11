@@ -42,10 +42,9 @@ func NewGRPCListenerForPublicAndProtocolWithTLS(ctx context.Context, bindingAddr
 	g := &tlsListener{
 		Service:    s,
 		httpServer: httpServer,
-		grpcServer: grpcServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
-	grpc_prometheus.Register(g.grpcServer)
+	grpc_prometheus.Register(grpcServer)
 	return g, nil
 }
 
@@ -61,21 +60,8 @@ func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, ce
 		return nil, err
 	}
 
-	grpcCreds, err := credentials.NewServerTLSFromFile(certPath, keyPath)
-	if err != nil {
-		return nil, err
-	}
-	opts = append(opts, grpc.Creds(grpcCreds))
-	opts = append(opts, grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor))
-	opts = append(opts, grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
-	serverOpts := append(opts, grpc.Creds(grpcCreds))
-	grpcServer := grpc.NewServer(serverOpts...)
-	drand.RegisterPublicServer(grpcServer, s)
-
-	o := runtime.WithMarshalerOption("*", defaultJSONMarshaller)
-	gwMux := runtime.NewServeMux(o)
-	proxy := &drandProxy{s}
-	err = drand.RegisterPublicHandlerClient(context.Background(), gwMux, proxy)
+	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("*", defaultJSONMarshaller))
+	err = drand.RegisterPublicHandlerClient(ctx, gwMux, &drandProxy{s})
 	if err != nil {
 		return nil, err
 	}
@@ -83,20 +69,18 @@ func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, ce
 	mux := http.NewServeMux()
 	mux.Handle("/", gwMux)
 
-	httpServer := buildTLSServer(grpcHandlerFunc(grpcServer, mux), x509KeyPair)
+	httpServer := buildTLSServer(mux, x509KeyPair)
 	g := &tlsListener{
 		Service:    s,
 		httpServer: httpServer,
-		grpcServer: grpcServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
-	grpc_prometheus.Register(g.grpcServer)
 	return g, nil
 }
 
 func buildTLSServer(httpHandler http.Handler, x509KeyPair tls.Certificate) *http.Server {
 	return &http.Server{
-		Handler: httpHandler, // grpcHandlerFunc(httpHandler, mux),
+		Handler: httpHandler,
 		TLSConfig: &tls.Config{
 			// From https://blog.cloudflare.com/exposing-go-on-the-internet/
 
@@ -132,7 +116,6 @@ func buildTLSServer(httpHandler http.Handler, x509KeyPair tls.Certificate) *http
 type tlsListener struct {
 	Service
 	httpServer *http.Server
-	grpcServer *grpc.Server
 	l          net.Listener
 }
 
