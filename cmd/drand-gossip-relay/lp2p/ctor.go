@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
+	"io/ioutil"
 	mrand "math/rand"
+	"os"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -24,8 +26,8 @@ import (
 )
 
 var (
-	log       = logging.Logger("lp2p")
-	privDsKey = datastore.NewKey("p2pPrivKey")
+	log      = logging.Logger("lp2p")
+	privFile = "identity.key"
 )
 
 func PubSubTopic(nn string) string {
@@ -42,7 +44,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
-	ctx := context.TODO()
+	ctx := context.Background()
 	h, err := libp2p.New(ctx,
 		libp2p.ListenAddrStrings(listenAddr),
 		libp2p.Identity(priv),
@@ -50,7 +52,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
 			var err error
 			idht, err = dht.New(ctx, h,
-				dht.Mode(dht.ModeServer),
+				dht.Mode(dht.ModeAutoServer),
 				dht.Datastore(dhtDs),
 				dht.Validator(record.NamespacedValidator{
 					"pk": record.PublicKeyValidator{},
@@ -70,7 +72,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}
 
-	p, err := pubsub.NewGossipSub(context.TODO(), h)
+	p, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, nil, nil, xerrors.Errorf("constructing pubsub: %d", err)
 	}
@@ -80,7 +82,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			addrInfos[i], addrInfos[j] = addrInfos[j], addrInfos[i]
 		})
 		for _, ai := range addrInfos {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {
@@ -92,7 +94,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 }
 
 func LoadOrCreatePrivKey(ds datastore.Datastore) (crypto.PrivKey, error) {
-	privBytes, err := ds.Get(privDsKey)
+	privBytes, err := ioutil.ReadFile(privFile)
 
 	var priv crypto.PrivKey
 	switch {
@@ -104,11 +106,20 @@ func LoadOrCreatePrivKey(ds datastore.Datastore) (crypto.PrivKey, error) {
 		}
 		log.Infof("loaded private key")
 
-	case xerrors.Is(err, datastore.ErrNotFound):
+	case xerrors.Is(err, os.ErrNotExist):
 		priv, _, err = crypto.GenerateEd25519Key(rand.Reader)
 		if err != nil {
 			return nil, xerrors.Errorf("generating private key: %w", err)
 		}
+		b, err := priv.Bytes()
+		if err != nil {
+			return nil, xerrors.Errorf("marshaling private key: %w", err)
+		}
+		err = ioutil.WriteFile(privFile, b, 0600)
+		if err != nil {
+			return nil, xerrors.Errorf("writing identity fiel: %w", err)
+		}
+
 	default:
 		return nil, xerrors.Errorf("getting private key: %w", err)
 	}
