@@ -4,13 +4,12 @@ go 1.14
 
 require (
 	github.com/BurntSushi/toml v0.3.1
-	go.etcd.io/bbolt v1.3.4
 	github.com/drand/bls12-381 v0.3.2
 	github.com/drand/kyber v1.0.1-0.20200502215402-daa30f0ec4f8
 	github.com/go-kit/kit v0.9.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/golang/protobuf v1.3.5
-	github.com/gorilla/handlers v1.4.2 // indirect
+	github.com/gorilla/handlers v1.4.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/ipfs/go-log/v2 v2.0.7
@@ -22,7 +21,7 @@ require (
 	github.com/soheilhy/cmux v0.1.4
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli/v2 v2.2.0
-	go.etcd.io/bbolt v1.3.3 // indirect
+	go.etcd.io/bbolt v1.3.4
 	golang.org/x/crypto v0.0.0-20200427165652-729f1e841bcc
 	golang.org/x/net v0.0.0-20200114155413-6afb5195e5aa // indirect
 	golang.org/x/sys v0.0.0-20200427175716-29b57079015a // indirect
