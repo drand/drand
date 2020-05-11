@@ -5,17 +5,18 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+
 - [Notations](#notations)
-- [Model](#model)
+- [Security Model](#security-model)
   - [Distributed Key Generation security model](#distributed-key-generation-security-model)
   - [Randomness generation model](#randomness-generation-model)
 - [Attacks](#attacks)
   - [Randomness Generation](#randomness-generation)
     - [Front Running](#front-running)
-    - [DDoS the drand network](#ddos-the-drand-network)
+    - [DoS the drand network](#dos-the-drand-network)
     - [Corruption of the drand network](#corruption-of-the-drand-network)
-  - [Distributed Key Generation](#distributed-key-generation)
-    - [DDoS attacks](#ddos-attacks)
+  - [Distributed Key Generation Ceremony](#distributed-key-generation-ceremony)
+    - [DoS attacks](#dos-attacks)
     - [Corruption attacks](#corruption-attacks)
     - [Broadcast Channel Assumption](#broadcast-channel-assumption)
 - [TO REVIEW:](#to-review)
@@ -46,7 +47,7 @@ an attacker has a direct connection to a drand node.
 can be offline from the point of view of another drand node or a relay node. The
 document tries to clarify in which context when relevant.
 
-**Alive node**: a node which is running the binary (drand or relay depending on
+**Online node**: a node which is running the binary (drand or relay depending on
 the context) and sends packets out to the Internet that are correctly received by
 the endpoint(s).
 
@@ -60,7 +61,7 @@ or assumptions taken.
 
 The DKG protocol model follows the one from the Pedersen's protocol. [Gennaro's paper](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems) explains the protocol and its assumptions.
 
-**Synchronous Network**: A packet sent from an alive node reaches its
+**Synchronous Network**: A packet sent from an online node reaches its
 destination in a bounded amount of time. Drand realizes this assumption by the
 usage of timeouts during the DKG protocol.
 
@@ -132,7 +133,7 @@ scratch.
 disjoinct from A, such the drand network B is now responsible to continue
 creating drand beacons, while that the distributed public key doesn't change.
 For this to happen, there needs to be at least `tA` nodes from network A and
-`tB` nodes alive and honest during the resharing. At the end of the protocol,
+`tB` nodes online and honest during the resharing. At the end of the protocol,
 there are going to be at least `tB` nodes that are qualified and have private shares
 to generate randomness.
 
@@ -167,20 +168,20 @@ adversary. Applications using
 drand should be using the round number as a marker and not the time accuracy
 which may not be granular enough for some applications.
 
-#### DDoS the drand network
+#### DoS the drand network
 
-**Scenario**: There is a DDoS attacks on multiple drand nodes and at least a
+**Scenario**: There is a DoS attacks on multiple drand nodes and at least a
 threshold of honest drand nodes are now considered offline and can't get other's
 partial beacons. The attack is substained for a duration X. The threshold of
-nodes to DDoS is the threshold from the group configuration as defined during
+nodes to DoS is the threshold from the group configuration as defined during
 the DKG phase.
 
-**Consequence**: The chain halts for as long as the DDoS attack is substained on
+**Consequence**: The chain halts for as long as the DoS attack is substained on
 the drand nodes OR for as long as the drand operators didn't move their drand
 node to another IP / network not under attacked. That means there will not be
 any new drand beacon for the number of rounds contained in X.
 
-**Criteria for success**: The DDoS attack must bring completely down the network
+**Criteria for success**: The DoS attack must bring completely down the network
 around a threshold of nodes. Completely means there is not a _single_ outgoing
 partial beacon that leaves the drand's node network. That is a _critical
 distinction_ to make since, otherwise, a drand node could still collect the
@@ -188,10 +189,10 @@ partial beacons of under-attacked drand nodes, one by one. As soon as this node
 gets a threhsold of them, it can reconstruct the final beacon and broadcast it
 to the relay network. 
 
-**Defense mechanism**: To counter DDoS attacks, the drand nodes must block the
+**Defense mechanism**: To counter DoS attacks, the drand nodes must block the
 incoming traffic as early as possible. To achieve that, allowing traffic only
 from other drand nodes based on their IP addresses seems the most efficient way
-to deal with DDoS attacks.
+to deal with DoS attacks.
 
 **Potential additional defense mechanism**: Assuming the last criteria is not
 met (it seems to be quite difficult to put in practice), there still needs to be
@@ -244,11 +245,11 @@ the initial group now.
 As such, it is recommended to reshare often, _even if_ between the same nodes,
 as it creates new shares.
 
-### Distributed Key Generation
+### Distributed Key Generation Ceremony
 
-#### DDoS attacks
+#### DoS attacks
 
-If during the DKG, some nodes are DDoS attacked, then these nodes might not be
+If during the DKG, some nodes are DoS attacked, then these nodes might not be
 able to receive the deals (shares) in time and / or reply in the second phase in
 time. Given the necessity of time for achieving the synchronous network
 assumption, that means these nodes risk getting excluded from the final group
