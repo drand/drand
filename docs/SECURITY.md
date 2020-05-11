@@ -46,8 +46,9 @@ an attacker has a direct connection to a drand node.
 can be offline from the point of view of another drand node or a relay node. The
 document tries to clarify in which context when relevant.
 
-**Alive node**: a node which is running the binary and sends packets out to the
-inernet.
+**Alive node**: a node which is running the binary (drand or relay depending on
+the context) and sends packets out to the inernet that are correctly received by
+the endpoint(s).
 
 ## Model
 
@@ -66,7 +67,8 @@ clean way.
 destination in a bounded amount of time. Drand realizes this assumptions by the
 usage of timeouts during the DKG protocol.
 
-**Synchronized Clocks**: All nodes must have roughly synchronized clocks. 
+**Synchronized Clocks**: All nodes must have roughly synchronized clocks (less
+than one 1s of drift).
 
 **Reliable Broadcast Channel**: When a node broadcasts a packet to all other
 nodes, each other node is guaranteed to receive the same exact packet after some
@@ -161,7 +163,10 @@ attacker (which is arguably a strong model), the delay between the time the
 attacker computes the final beacon and the application's end users receive it
 from the relay network is on the order of hundreds of ms: the time that at least
 a drand nodes computes the final beacon plus the time it sends it to a relay
-node plus the relay network distribute it to the end-users. Applications using
+node plus the relay network distribute it to the end-users. 
+Given the relative low frequency of randomness generation rounds (e.g. ~15s,
+30s...), such a relatively small delay should not given any advantage to an
+adversary. Applications using
 drand should be using the round number as a marker and not the time accuracy
 which may not be granular enough for some applications.
 
