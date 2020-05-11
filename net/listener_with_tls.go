@@ -15,7 +15,7 @@ import (
 )
 
 // NewGRPCListenerForPublicAndProtocolWithTLS creates a new listener for the Public and Protocol APIs over GRPC with TLS.
-func NewGRPCListenerForPublicAndProtocolWithTLS(bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+func NewGRPCListenerForPublicAndProtocolWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func NewGRPCListenerForPublicAndProtocolWithTLS(bindingAddr string, certPath, ke
 }
 
 // NewRESTListenerForPublicWithTLS creates a new listener for the Public API over REST with TLS.
-func NewRESTListenerForPublicWithTLS(bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
 		return nil, err
@@ -144,12 +144,11 @@ func (g *tlsListener) Start() {
 	g.httpServer.Serve(g.l)
 }
 
-func (g *tlsListener) Stop() {
+func (g *tlsListener) Stop(ctx context.Context) {
+	g.l.Close()
 	// Graceful stop not supported with HTTP Server
 	// https://github.com/grpc/grpc-go/issues/1384
-	if err := g.httpServer.Shutdown(context.TODO()); err != nil {
+	if err := g.httpServer.Shutdown(ctx); err != nil {
 		slog.Debugf("grpc: tls listener shutdown failed: %s\n", err)
 	}
-	// g.grpcServer.Stop()
-	g.l.Close()
 }

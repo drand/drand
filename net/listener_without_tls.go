@@ -12,10 +12,10 @@ import (
 )
 
 // NewGRPCListenerForPublicAndProtocol creates a new listener for the Public and Protocol APIs over GRPC with no TLS.
-func NewGRPCListenerForPublicAndProtocol(addr string, s Service, opts ...grpc.ServerOption) Listener {
+func NewGRPCListenerForPublicAndProtocol(ctx context.Context, addr string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		panic("tcp listener: " + err.Error())
+		return nil, err
 	}
 	opts = append(opts, grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor))
 	opts = append(opts, grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
@@ -28,7 +28,7 @@ func NewGRPCListenerForPublicAndProtocol(addr string, s Service, opts ...grpc.Se
 	drand.RegisterProtocolServer(g.grpcServer, g.Service)
 	drand.RegisterPublicServer(g.grpcServer, g.Service)
 	grpc_prometheus.Register(g.grpcServer)
-	return g
+	return g, nil
 }
 
 type grpcListener struct {
@@ -45,16 +45,16 @@ func (g *grpcListener) Start() {
 	go g.grpcServer.Serve(g.lis)
 }
 
-func (g *grpcListener) Stop() {
+func (g *grpcListener) Stop(ctx context.Context) {
 	g.lis.Close()
 	g.grpcServer.Stop()
 }
 
 // NewRESTListenerForPublic creates a new listener for the Public API over HTTP/JSON without TLS.
-func NewRESTListenerForPublic(addr string, s Service, opts ...grpc.ServerOption) Listener {
+func NewRESTListenerForPublic(ctx context.Context, addr string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		panic("tcp listener: " + err.Error())
+		return nil, err
 	}
 	opts = append(opts, grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor))
 	opts = append(opts, grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
@@ -62,7 +62,6 @@ func NewRESTListenerForPublic(addr string, s Service, opts ...grpc.ServerOption)
 	// REST api
 	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("*", defaultJSONMarshaller))
 	proxyClient := &drandProxy{s}
-	ctx := context.TODO()
 	if err := drand.RegisterPublicHandlerClient(ctx, gwMux, proxyClient); err != nil {
 		panic(err)
 	}
@@ -81,7 +80,7 @@ func NewRESTListenerForPublic(addr string, s Service, opts ...grpc.ServerOption)
 	}
 	drand.RegisterPublicServer(g.grpcServer, g.Service)
 	grpc_prometheus.Register(g.grpcServer)
-	return g
+	return g, nil
 }
 
 type restListener struct {
@@ -99,7 +98,7 @@ func (g *restListener) Start() {
 	g.restServer.Serve(g.lis)
 }
 
-func (g *restListener) Stop() {
+func (g *restListener) Stop(ctx context.Context) {
 	g.lis.Close()
-	g.restServer.Shutdown(context.Background())
+	g.restServer.Shutdown(ctx)
 }

@@ -222,11 +222,9 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 		return err
 	}
 	if err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
-		println("XXX", err)
 		g.deleteConn(p)
 		return do()
 	} else {
-		println("YYY", err.Error())
 		return err
 	}
 }

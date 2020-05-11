@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,6 +19,7 @@ import (
 // can start the DKG, read/write shars to files and can initiate/respond to TBlS
 // signature requests.
 type Drand struct {
+	ctx  context.Context
 	opts *Config
 	priv *key.Pair
 	// current group this drand node is using
@@ -81,6 +83,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	// identity. If there is an option to set the address, it will override the
 	// default set here..
 	d := &Drand{
+		ctx:       context.Background(),
 		store:     s,
 		priv:      priv,
 		opts:      c,
@@ -96,17 +99,27 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	privAddr := c.PrivateListenAddress(priv.Public.Address())
 	pubAddr := c.PublicListenAddress("")
 	if c.insecure {
+		var err error
 		d.log.Info("network", "tls-disable")
 		if pubAddr != "" {
-			d.pubGateway = net.NewRESTPublicGatewayWithoutTLS(pubAddr, d, d.opts.grpcOpts...)
+			if d.pubGateway, err = net.NewRESTPublicGatewayWithoutTLS(d.ctx, pubAddr, d, d.opts.grpcOpts...); err != nil {
+				return nil, err
+			}
 		}
-		d.privGateway = net.NewGRPCPrivateGatewayWithoutTLS(privAddr, d, d.opts.grpcOpts...)
+		if d.privGateway, err = net.NewGRPCPrivateGatewayWithoutTLS(d.ctx, privAddr, d, d.opts.grpcOpts...); err != nil {
+			return nil, err
+		}
 	} else {
+		var err error
 		d.log.Info("network", "tls-enabled")
 		if pubAddr != "" {
-			d.pubGateway = net.NewRESTPublicGatewayWithTLS(pubAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+			if d.pubGateway, err = net.NewRESTPublicGatewayWithTLS(d.ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...); err != nil {
+				return nil, err
+			}
 		}
-		d.privGateway = net.NewGRPCPrivateGatewayWithTLS(privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+		if d.privGateway, err = net.NewGRPCPrivateGatewayWithTLS(d.ctx, privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...); err != nil {
+			return nil, err
+		}
 	}
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
@@ -274,9 +287,9 @@ func (d *Drand) Stop() {
 	d.StopBeacon()
 	d.state.Lock()
 	if d.pubGateway != nil {
-		d.pubGateway.StopAll()
+		d.pubGateway.StopAll(d.ctx)
 	}
-	d.privGateway.StopAll()
+	d.privGateway.StopAll(d.ctx)
 	d.control.Stop()
 	d.state.Unlock()
 	d.exitCh <- true

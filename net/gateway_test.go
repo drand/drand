@@ -61,12 +61,14 @@ func TestListener(t *testing.T) {
 	peerREST := &testPeer{addrREST, false}
 	randServer := &testRandomnessServer{round: 42}
 
-	lisGRPC := NewGRPCListenerForPublicAndProtocol(addrGRPC, randServer)
-	lisREST := NewRESTListenerForPublic(addrREST, randServer)
+	lisGRPC, err := NewGRPCListenerForPublicAndProtocol(ctx, addrGRPC, randServer)
+	require.NoError(t, err)
+	lisREST, err := NewRESTListenerForPublic(ctx, addrREST, randServer)
+	require.NoError(t, err)
 	go lisGRPC.Start()
-	defer lisGRPC.Stop()
+	defer lisGRPC.Stop(ctx)
 	go lisREST.Start()
-	defer lisREST.Stop()
+	defer lisREST.Stop(ctx)
 	time.Sleep(100 * time.Millisecond)
 
 	// GRPC
@@ -86,6 +88,7 @@ func TestListener(t *testing.T) {
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
 func TestListenerTLS(t *testing.T) {
+	ctx := context.Background()
 	if run.GOOS == "windows" {
 		fmt.Println("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
@@ -107,15 +110,15 @@ func TestListenerTLS(t *testing.T) {
 
 	randServer := &testRandomnessServer{round: 42}
 
-	lisGRPC, err := NewGRPCListenerForPublicAndProtocolWithTLS(addrGRPC, certPath, keyPath, randServer)
+	lisGRPC, err := NewGRPCListenerForPublicAndProtocolWithTLS(ctx, addrGRPC, certPath, keyPath, randServer)
 	require.NoError(t, err)
-	lisREST, err := NewRESTListenerForPublicWithTLS(addrREST, certPath, keyPath, randServer)
+	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, addrREST, certPath, keyPath, randServer)
 	require.NoError(t, err)
 
 	go lisGRPC.Start()
-	defer lisGRPC.Stop()
+	defer lisGRPC.Stop(ctx)
 	go lisREST.Start()
-	defer lisREST.Stop()
+	defer lisREST.Stop(ctx)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -124,7 +127,6 @@ func TestListenerTLS(t *testing.T) {
 	certManager := NewCertManager()
 	certManager.Add(certPath)
 
-	ctx := context.Background()
 	// test GRPC variant
 	client := NewGrpcClientFromCertManager(certManager)
 	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})

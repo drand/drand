@@ -1,6 +1,7 @@
 package net
 
 import (
+	"context"
 	"time"
 
 	"google.golang.org/grpc"
@@ -27,8 +28,8 @@ func (g *PrivateGateway) StartAll() {
 }
 
 // StopAll stops the control and public functionalities of the node
-func (g *PrivateGateway) StopAll() {
-	g.Listener.Stop()
+func (g *PrivateGateway) StopAll(ctx context.Context) {
+	g.Listener.Stop(ctx)
 }
 
 // CallOption is simply a wrapper around the grpc options
@@ -38,7 +39,7 @@ type CallOption = grpc.CallOption
 type Listener interface {
 	Service
 	Start()
-	Stop()
+	Stop(ctx context.Context)
 	Addr() string
 }
 
@@ -52,24 +53,28 @@ type Service interface {
 // NewGRPCPrivateGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewGRPCPrivateGatewayWithoutTLS(listen string, s Service, opts ...grpc.DialOption) *PrivateGateway {
+func NewGRPCPrivateGatewayWithoutTLS(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
+	l, err := NewGRPCListenerForPublicAndProtocol(ctx, listen, s)
+	if err != nil {
+		return nil, err
+	}
 	return &PrivateGateway{
 		ProtocolClient: NewGrpcClient(opts...),
-		Listener:       NewGRPCListenerForPublicAndProtocol(listen, s),
-	}
+		Listener:       l,
+	}, nil
 }
 
 // NewGRPCPrivateGatewayWithTLS returns a grpc gateway using the TLS
 // certificate manager
-func NewGRPCPrivateGatewayWithTLS(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) *PrivateGateway {
-	l, err := NewGRPCListenerForPublicAndProtocolWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+func NewGRPCPrivateGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
+	l, err := NewGRPCListenerForPublicAndProtocolWithTLS(ctx, listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return &PrivateGateway{
 		ProtocolClient: NewGrpcClientFromCertManager(certs, opts...),
 		Listener:       l,
-	}
+	}, nil
 }
 
 // PublicGateway is the main interface to communicate to users.
@@ -84,27 +89,27 @@ func (g *PublicGateway) StartAll() {
 }
 
 // StopAll stops the control and public functionalities of the node
-func (g *PublicGateway) StopAll() {
-	g.Listener.Stop()
+func (g *PublicGateway) StopAll(ctx context.Context) {
+	g.Listener.Stop(ctx)
 }
 
 // NewRESTPublicGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewRESTPublicGatewayWithoutTLS(listen string, s Service, opts ...grpc.DialOption) *PublicGateway {
-	return &PublicGateway{
-		Listener: NewRESTListenerForPublic(listen, s),
+func NewRESTPublicGatewayWithoutTLS(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublic(ctx, listen, s)
+	if err != nil {
+		return nil, err
 	}
+	return &PublicGateway{Listener: l}, nil
 }
 
 // NewRESTPublicGatewayWithTLS returns a grpc gateway using the TLS
 // certificate manager
-func NewRESTPublicGatewayWithTLS(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) *PublicGateway {
-	l, err := NewRESTListenerForPublicWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+func NewRESTPublicGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublicWithTLS(ctx, listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return &PublicGateway{
-		Listener: l,
-	}
+	return &PublicGateway{Listener: l}, nil
 }
