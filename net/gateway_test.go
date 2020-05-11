@@ -52,12 +52,17 @@ func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand
 	return nil, nil
 }
 
-func TestListener(t *testing.T) {
+func TestListeners(t *testing.T) {
+	t.Run("without-tls", func(t *testing.T) { testListener(t, 4000, 4001) })
+	t.Run("with-tls", func(t *testing.T) { testListenerTLS(t, 4000, 4001) })
+}
+
+func testListener(t *testing.T, grpcPort, restPort int) {
 	ctx := context.Background()
 	hostAddr := "127.0.0.1"
-	addrGRPC := hostAddr + ":4000"
+	addrGRPC := fmt.Sprintf("%s:%d", hostAddr, grpcPort)
 	peerGRPC := &testPeer{addrGRPC, false}
-	addrREST := hostAddr + ":4001"
+	addrREST := fmt.Sprintf("%s:%d", hostAddr, restPort)
 	peerREST := &testPeer{addrREST, false}
 	randServer := &testRandomnessServer{round: 42}
 
@@ -87,16 +92,16 @@ func TestListener(t *testing.T) {
 }
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
-func TestListenerTLS(t *testing.T) {
+func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 	ctx := context.Background()
 	if run.GOOS == "windows" {
 		fmt.Println("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
 	}
 	hostAddr := "127.0.0.1"
-	addrGRPC := hostAddr + ":4000"
+	addrGRPC := fmt.Sprintf("%s:%d", hostAddr, grpcPort)
 	peerGRPC := &testPeer{addrGRPC, true}
-	addrREST := hostAddr + ":4001"
+	addrREST := fmt.Sprintf("%s:%d", hostAddr, restPort)
 	peerREST := &testPeer{addrREST, true}
 
 	tmpDir := path.Join(os.TempDir(), "drand-net")
