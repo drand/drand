@@ -24,9 +24,10 @@ type Drand struct {
 	group *key.Group
 	index int
 
-	store   key.Store
-	gateway net.Gateway
-	control net.ControlListener
+	store       key.Store
+	privGateway *net.PrivateGateway
+	pubGateway  *net.PublicGateway
+	control     net.ControlListener
 
 	// handle all callbacks when a new beacon is found
 	callbacks *callbackManager
@@ -92,19 +93,29 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
 	//d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
-	a := c.ListenAddress(priv.Public.Address())
+	privAddr := c.PrivateListenAddress(priv.Public.Address())
+	pubAddr := c.PublicListenAddress("")
 	if c.insecure {
 		d.log.Info("network", "tls-disable")
-		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
+		if pubAddr != "" {
+			d.pubGateway = net.NewRESTPublicGatewayWithoutTLS(pubAddr, d, d.opts.grpcOpts...)
+		}
+		d.privGateway = net.NewGRPCPrivateGatewayWithoutTLS(privAddr, d, d.opts.grpcOpts...)
 	} else {
 		d.log.Info("network", "tls-enabled")
-		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+		if pubAddr != "" {
+			d.pubGateway = net.NewRESTPublicGatewayWithTLS(pubAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+		}
+		d.privGateway = net.NewGRPCPrivateGatewayWithTLS(privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
 	}
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Info("network_listen", a, "control_port", c.ControlPort())
-	d.gateway.StartAll()
+	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr)
+	d.privGateway.StartAll()
+	if d.pubGateway != nil {
+		d.pubGateway.StartAll()
+	}
 	return d, nil
 }
 
@@ -262,7 +273,10 @@ func (d *Drand) StopBeacon() {
 func (d *Drand) Stop() {
 	d.StopBeacon()
 	d.state.Lock()
-	d.gateway.StopAll()
+	if d.pubGateway != nil {
+		d.pubGateway.StopAll()
+	}
+	d.privGateway.StopAll()
 	d.control.Stop()
 	d.state.Unlock()
 	d.exitCh <- true
@@ -301,7 +315,7 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	beacon, err := beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)
+	beacon, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
 	if err != nil {
 		return nil, err
 	}

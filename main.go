@@ -710,10 +710,15 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithLogLevel(log.LogInfo))
 	}
 
-	listen := c.String("listen")
-	if listen != "" {
-		opts = append(opts, core.WithListenAddress(listen))
+	publicListen := c.String("public-listen")
+	if publicListen != "" {
+		opts = append(opts, core.WithPublicListenAddress(publicListen))
 	}
+	privateListen := c.String("private-listen")
+	if privateListen != "" {
+		opts = append(opts, core.WithPrivateListenAddress(privateListen))
+	}
+
 	port := c.String(controlFlag.Name)
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))

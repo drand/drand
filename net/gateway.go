@@ -12,13 +12,23 @@ import (
 
 //var DefaultTimeout = time.Duration(30) * time.Second
 
-// Gateway is the main interface to communicate to other drand nodes. It
+// PrivateGateway is the main interface to communicate to other drand nodes. It
 // acts as a listener to receive incoming requests and acts a client connecting
 // to drand particpants.
 // The gateway fixes all drand functionalities offered by drand.
-type Gateway struct {
+type PrivateGateway struct {
 	Listener
 	ProtocolClient
+}
+
+// StartAll starts the control and public functionalities of the node
+func (g *PrivateGateway) StartAll() {
+	go g.Listener.Start()
+}
+
+// StopAll stops the control and public functionalities of the node
+func (g *PrivateGateway) StopAll() {
+	g.Listener.Stop()
 }
 
 // CallOption is simply a wrapper around the grpc options
@@ -39,35 +49,62 @@ type Service interface {
 	drand.ProtocolServer
 }
 
-// NewGrpcGatewayInsecure returns a grpc Gateway listening on "listen" for the
+// NewGRPCPrivateGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewGrpcGatewayInsecure(listen string, s Service, opts ...grpc.DialOption) Gateway {
-	return Gateway{
+func NewGRPCPrivateGatewayWithoutTLS(listen string, s Service, opts ...grpc.DialOption) *PrivateGateway {
+	return &PrivateGateway{
 		ProtocolClient: NewGrpcClient(opts...),
-		Listener:       NewTCPGrpcListener(listen, s),
+		Listener:       NewGRPCListenerForPublicAndProtocol(listen, s),
 	}
 }
 
-// NewGrpcGatewayFromCertManager returns a grpc gateway using the TLS
+// NewGRPCPrivateGatewayWithTLS returns a grpc gateway using the TLS
 // certificate manager
-func NewGrpcGatewayFromCertManager(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) Gateway {
-	l, err := NewRESTListenerWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+func NewGRPCPrivateGatewayWithTLS(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) *PrivateGateway {
+	l, err := NewGRPCListenerForPublicAndProtocolWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
 		panic(err)
 	}
-	return Gateway{
+	return &PrivateGateway{
 		ProtocolClient: NewGrpcClientFromCertManager(certs, opts...),
 		Listener:       l,
 	}
 }
 
+// PublicGateway is the main interface to communicate to users.
+// The gateway fixes all drand functionalities offered by drand.
+type PublicGateway struct {
+	Listener
+}
+
 // StartAll starts the control and public functionalities of the node
-func (g Gateway) StartAll() {
+func (g *PublicGateway) StartAll() {
 	go g.Listener.Start()
 }
 
 // StopAll stops the control and public functionalities of the node
-func (g Gateway) StopAll() {
+func (g *PublicGateway) StopAll() {
 	g.Listener.Stop()
+}
+
+// NewRESTPublicGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
+// public methods, listening on "port" for the control methods, using the given
+// Service s with the given options.
+func NewRESTPublicGatewayWithoutTLS(listen string, s Service, opts ...grpc.DialOption) *PublicGateway {
+	return &PublicGateway{
+		Listener: NewRESTListenerForPublic(listen, s),
+	}
+}
+
+// NewRESTPublicGatewayWithTLS returns a grpc gateway using the TLS
+// certificate manager
+func NewRESTPublicGatewayWithTLS(listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) *PublicGateway {
+	l, err := NewRESTListenerForPublicWithTLS(listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+	if err != nil {
+		panic(err)
+	}
+	return &PublicGateway{
+		Listener: l,
+	}
 }
