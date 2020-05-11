@@ -26,7 +26,7 @@ type Client struct {
 	}
 }
 
-// NewWtihPubsub creates a gossip randomenss client.
+// NewWtihPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 	t, err := ps.Join(lp2p.PubSubTopic(networkName))
 	if err != nil {
@@ -65,6 +65,7 @@ func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 			err = proto.Unmarshal(msg.Data, &rand)
 			if err != nil {
 				log.Warnf("unmarshaling randomness: %+v", err)
+				continue
 			}
 
 			// TODO: verification, need to pass drand network public key in

@@ -122,7 +122,7 @@ func LoadOrCreatePrivKey(ds datastore.Datastore) (crypto.PrivKey, error) {
 		}
 		err = ioutil.WriteFile(privFile, b, 0600)
 		if err != nil {
-			return nil, xerrors.Errorf("writing identity fiel: %w", err)
+			return nil, xerrors.Errorf("writing identity file: %w", err)
 		}
 
 	default:
