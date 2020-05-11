@@ -16,12 +16,12 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
-	dht "github.com/libp2p/go-libp2p-kad-dht"
+	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	record "github.com/libp2p/go-libp2p-record"
-	routing "github.com/libp2p/go-libp2p-routing"
+	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	ma "github.com/multiformats/go-multiaddr"
+	"golang.org/x/crypto/blake2b"
 	xerrors "golang.org/x/xerrors"
 )
 
@@ -34,47 +34,51 @@ func PubSubTopic(nn string) string {
 	return fmt.Sprintf("/drand/pubsub/v0.0.0/%s", nn)
 }
 
-func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr string, bootstrap []ma.Multiaddr) (host.Host, *dht.IpfsDHT, *pubsub.PubSub, error) {
-	var idht *dht.IpfsDHT
-	dhtDs := namespace.Wrap(ds, datastore.NewKey("/dht"))
+func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr string,
+	bootstrap []ma.Multiaddr) (host.Host, *pubsub.PubSub, error) {
+	ctx := context.Background()
+
+	pstoreDs := namespace.Wrap(ds, datastore.NewKey("/peerstore"))
+	pstore, err := pstoreds.NewPeerstore(ctx, pstoreDs, pstoreds.DefaultOpts())
+	if err != nil {
+		return nil, nil, xerrors.Errorf("creating peerstore: %w", err)
+	}
+	peerId, err := peer.IDFromPrivateKey(priv)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("computing peerid: %w", err)
+	}
+	err = pstore.AddPrivKey(peerId, priv)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
+	}
 
 	addrInfos, err := peer.AddrInfosFromP2pAddrs(bootstrap...)
 	if err != nil {
 		fmt.Printf("%+v", bootstrap)
-		return nil, nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
+		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
-	ctx := context.Background()
 	h, err := libp2p.New(ctx,
 		libp2p.ListenAddrStrings(listenAddr),
 		libp2p.Identity(priv),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
-		libp2p.Routing(func(h host.Host) (routing.PeerRouting, error) {
-			var err error
-			idht, err = dht.New(ctx, h,
-				dht.Mode(dht.ModeAutoServer),
-				dht.Datastore(dhtDs),
-				dht.Validator(record.NamespacedValidator{
-					"pk": record.PublicKeyValidator{},
-				}),
-				dht.QueryFilter(dht.PublicQueryFilter),
-				dht.RoutingTableFilter(dht.PublicRoutingTableFilter),
-				dht.DisableProviders(),
-				dht.DisableValues(),
-				dht.BootstrapPeers(bootstrap...),
-				dht.ProtocolPrefix("/drand/"),
-			)
-			return idht, err
-		}),
 		libp2p.DisableRelay(),
+		libp2p.Peerstore(pstore),
 	)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("constructing host: %w", err)
+		return nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}
 
-	p, err := pubsub.NewGossipSub(ctx, h)
+	p, err := pubsub.NewGossipSub(ctx, h,
+		pubsub.WithPeerExchange(true),
+		pubsub.WithMessageIdFn(func(pmsg *pubsubpb.Message) string {
+			hash := blake2b.Sum256(pmsg.Data)
+			return string(hash[:])
+		}),
+		pubsub.WithDirectPeers(addrInfos),
+	)
 	if err != nil {
-		return nil, nil, nil, xerrors.Errorf("constructing pubsub: %d", err)
+		return nil, nil, xerrors.Errorf("constructing pubsub: %d", err)
 	}
 
 	go func() {
@@ -90,7 +94,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			}
 		}
 	}()
-	return h, idht, p, nil
+	return h, p, nil
 }
 
 func LoadOrCreatePrivKey(ds datastore.Datastore) (crypto.PrivKey, error) {
