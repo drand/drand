@@ -115,7 +115,7 @@ func LoadOrCreatePrivKey(ds datastore.Datastore) (crypto.PrivKey, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("generating private key: %w", err)
 		}
-		b, err := priv.Bytes()
+		b, err := priv.Raw()
 		if err != nil {
 			return nil, xerrors.Errorf("marshaling private key: %w", err)
 		}
