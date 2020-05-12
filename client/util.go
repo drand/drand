@@ -9,6 +9,10 @@ import (
 	"github.com/drand/drand/log"
 )
 
+// How long to wait after the period begins to ask for the randomness from that period.
+// TODO: ongoing re-calibration of this value.
+const slack = time.Second
+
 // pollingWatcher generalizes the `Watch` interface for clients which learn new values
 // by asking for them once each group period.
 func pollingWatcher(ctx context.Context, client Client, group *key.Group, log log.Logger) <-chan Result {
@@ -30,7 +34,7 @@ func pollingWatcher(ctx context.Context, client Client, group *key.Group, log lo
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(nextTime-time.Now().Unix()) * time.Second):
+		case <-time.After(time.Duration(nextTime-time.Now().Unix())*time.Second + slack):
 		}
 
 		r, err := client.Get(ctx, client.RoundAt(time.Now()))
