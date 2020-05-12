@@ -76,6 +76,7 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 			respCh, err := client.SyncChain(cctx, id, request)
 			if err != nil {
 				l.Error("sync_from", fromRound+1, "error", err, "from", id.Address())
+				ccancel()
 				continue
 			}
 			func() {

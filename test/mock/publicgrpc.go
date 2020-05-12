@@ -37,6 +37,7 @@ func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket
 		Threshold:   1,
 		Period:      60,
 		GenesisTime: uint64(time.Now().Second()),
+		DistKey:     [][]byte{s.d.Public},
 		Nodes: []*drand.Node{
 			{
 				Index: 0,
@@ -138,6 +139,7 @@ func generateData() *Data {
 	return d
 }
 
+// NewGRPCPublicServer creates a listener that provides valid single-node randomness.
 func NewGRPCPublicServer(bind string) (net.Listener, net.Service) {
 	d := generateData()
 	testValid(d)

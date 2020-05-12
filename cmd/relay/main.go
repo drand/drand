@@ -3,11 +3,11 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
 	dhttp "github.com/drand/drand/http"
+	"github.com/drand/drand/log"
 	drand "github.com/drand/drand/protobuf/drand"
 
 	"github.com/gorilla/handlers"
@@ -63,7 +63,7 @@ func Relay(c *cli.Context) error {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := dhttp.New(c.Context, client)
+	handler, err := dhttp.New(c.Context, client, log.DefaultLogger.With("binary", "relay"))
 	if err != nil {
 		return fmt.Errorf("Failed to create rest handler: %w", err)
 	}
@@ -96,6 +96,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		log.DefaultLogger.Fatal("binary", "relay", "err", err)
 	}
 }

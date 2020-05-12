@@ -28,7 +28,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := New(ctx, client)
+	handler, err := New(ctx, client, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,5 +55,19 @@ func TestHTTPRelay(t *testing.T) {
 
 	if _, ok := body["signature"]; !ok {
 		t.Fatal("expected signature in random response.")
+	}
+
+	resp, err = http.Get(fmt.Sprintf("http://%s/public/latest", listener.Addr().String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body = make(map[string]interface{})
+
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := body["round"]; !ok {
+		t.Fatal("expected signature in latest response.")
 	}
 }
