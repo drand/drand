@@ -146,27 +146,33 @@ generation phase, each with different consequences.
 
 #### Front Running 
 
-**Scenario**: An attacker that is able to listen passively on the traffic
-between nodes (if TLS is not used - which is not a recommened setup) OR that is
+1. **Passive Adversary Scenario**
+
+An attacker that is able to listen passively on the traffic
+between nodes (**if** TLS is not used - which is not a recommended setup) OR that is
 able to listen to plaintext traffic from the network of a threshold of nodes might be
 able to see a threshold number of partial beacons before any other honest nodes.
 
-**Consequence**: The attacker in such position is able to aggregate the final
-beacon of the current round before any other drand nodes. The attacker doesn't
-have to submit the beacon to the relay node and can already use the beacon for
-the application that uses drand. The delay between the time the attacker has the
-final beacon and the other nodes have it depends on the network connectivity
-between the drand nodes. Under normal circumstances, given a global passive listener
-attacker (which is arguably a strong model), the delay between the time the
-attacker computes the final beacon and the application's end users receive it
-from the relay network is on the order of hundreds of ms: the time that at least
-a drand nodes computes the final beacon plus the time it sends it to a relay
-node plus the relay network distribute it to the end-users. 
-Given the relative low frequency of randomness generation rounds (e.g. ~15s,
-30s...), such a relatively small delay should not given any advantage to an
-adversary. Applications using
-drand should be using the round number as a marker and not the time accuracy
-which may not be granular enough for some applications.
+Consequence: The attacker in such position is able to aggregate the final
+beacon of the current round before any other drand nodes. However, the advantage
+should as most as half of the RTT of the slowest of the link between the honest
+drand nodes. Drand end users should be using the round number as a marker and
+not the time accuracy which may not be granular enough for some applications.
+
+2. **Active Adversary Scenario**: 
+
+Assuming the threshold is 50%+1, an adversary tries to "take down" N/2 drand
+nodes by either running a DoS on those, or block outgoing traffic from these
+drand nodes.
+
+Consequence: The adversary becomes the node that can decide whether to aggregate
+the final beacon of the current round or not, because the rest of the still
+alive nodes will send their partal beacons to the adversary but the adversary
+does not send its, effectively becoming the last "missing piece" to create the
+final beacon. The adversary has the choice to release now or later the final
+beacon and the adversary can already use the final beacon for the application
+while the rest of the network does not know it yet.
+
 
 #### DoS the drand network
 
