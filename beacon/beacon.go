@@ -81,11 +81,9 @@ func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
 // alongside a beacon signature.
 // H ( prevSig || currRound)
 func Message(currRound uint64, prevSig []byte) []byte {
-	var buff bytes.Buffer
-	buff.Write(prevSig)
-	buff.Write(roundToBytes(currRound))
 	h := sha256.New()
-	h.Write(buff.Bytes())
+	h.Write(prevSig)
+	h.Write(roundToBytes(currRound))
 	return h.Sum(nil)
 }
 

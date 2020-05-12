@@ -137,7 +137,7 @@ func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconT
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
-	group.PublicKey = &key.DistPublic{commits}
+	group.PublicKey = &key.DistPublic{Coefficients: commits}
 
 	bt := &BeaconTest{
 		prefix:  prefix,

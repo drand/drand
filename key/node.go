@@ -24,7 +24,6 @@ type Node struct {
 
 func (n *Node) Hash() []byte {
 	h := hashFunc()
-	h.Write([]byte(n.Identity.Address()))
 	binary.Write(h, binary.LittleEndian, n.Index)
 	buff, _ := n.Identity.Key.MarshalBinary()
 	h.Write(buff)
