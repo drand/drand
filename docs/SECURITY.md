@@ -174,7 +174,7 @@ which may not be granular enough for some applications.
 threshold of honest drand nodes are now considered offline and can't get other's
 partial beacons. The attack is substained for a duration X. The threshold of
 nodes to DoS is the threshold from the group configuration as defined during
-the DKG phase.
+the DKG phase (threshot must strictly be more than 50% of the nodes).
 
 **Consequence**: The chain halts for as long as the DoS attack is substained on
 the drand nodes OR for as long as the drand operators didn't move their drand
