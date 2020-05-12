@@ -122,8 +122,8 @@ the final random beacon. See the attack section to know what are the
 consequences when that is not the case.
 
 **Determinism of the chain**: The chain is deterministic with respect to a fresh
-DKG phase. It means, if a trust party gathered a threshold of private shares, it
-could generate any beacon of the chain. When a resharing occurs, the individual
+DKG phase. This means that if an actor collects over a threshold of private shares, it
+can generate all future chain beacons. When a resharing occurs, the individual
 shares of each drand node change but the chain remains the same as well. If the
 same set of nodes perform a new fresh DKG, it will create a new chain from
 scratch.
