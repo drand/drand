@@ -28,7 +28,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := New(ctx, client)
+	handler, err := New(ctx, client, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

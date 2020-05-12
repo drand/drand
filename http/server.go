@@ -12,10 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ipfs/go-log/v2"
-
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -25,7 +24,7 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client drand.PublicClient) (http.Handler, error) {
+func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (http.Handler, error) {
 	pkt, err := client.Group(ctx, &drand.GroupRequest{})
 	if err != nil {
 		return nil, err
@@ -38,7 +37,10 @@ func New(ctx context.Context, client drand.PublicClient) (http.Handler, error) {
 		return nil, err
 	}
 
-	handler := handler{reqTimeout, client, parsedPkt, log.Logger("http")}
+	if logger == nil {
+		logger = log.DefaultLogger
+	}
+	handler := handler{reqTimeout, client, parsedPkt, logger}
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
@@ -52,7 +54,7 @@ type handler struct {
 	timeout   time.Duration
 	client    drand.PublicClient
 	groupInfo *key.Group
-	log       log.StandardLogger
+	log       log.Logger
 }
 
 func (h *handler) getRand(round uint64) ([]byte, error) {
@@ -74,14 +76,14 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	roundN, err := strconv.ParseUint(round, 10, 64)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		h.log.Warnf("%s %d - %s", r.RemoteAddr, http.StatusBadRequest, url.PathEscape(r.URL.Path))
+		h.log.Warn("http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
 	data, err := h.getRand(roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
@@ -99,14 +101,14 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
 	data, err := json.Marshal(resp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warn("http_server", "failed to marshal randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
@@ -120,7 +122,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
 	} else {
-		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusPartialContent, url.PathEscape(r.URL.Path), remaining)
+		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
 	w.Header().Set("Content-Type", "text/json")
@@ -133,7 +135,7 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 	data, err := json.Marshal(h.groupInfo.ToProto())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warnf("%s %d - %s %v", r.RemoteAddr, http.StatusInternalServerError, url.PathEscape(r.URL.Path), err)
+		h.log.Warn("http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
