@@ -81,7 +81,7 @@ func (e *Orchestrator) StartNewNodes() {
 func (e *Orchestrator) startNodes(nodes []*Node) {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, node := range nodes {
-		fmt.Printf("\t- Starting node %s\n", node.addr)
+		fmt.Printf("\t- Starting node %s\n", node.privAddr)
 		node.Start(e.certFolder)
 	}
 	time.Sleep(1 * time.Second)
@@ -110,15 +110,15 @@ func (e *Orchestrator) RunDKG(timeout string) {
 	var wg sync.WaitGroup
 	wg.Add(len(e.nodes))
 	go func() {
-		fmt.Printf("\t- Running DKG for leader node %s\n", leader.addr)
+		fmt.Printf("\t- Running DKG for leader node %s\n", leader.privAddr)
 		leader.RunDKG(e.n, e.thr, timeout, true, "")
 		wg.Done()
 	}()
 	time.Sleep(200 * time.Millisecond)
 	for _, node := range e.nodes[1:] {
-		fmt.Printf("\t- Running DKG for node %s\n", node.addr)
+		fmt.Printf("\t- Running DKG for node %s\n", node.privAddr)
 		go func(n *Node) {
-			n.RunDKG(e.n, e.thr, timeout, false, leader.addr)
+			n.RunDKG(e.n, e.thr, timeout, false, leader.privAddr)
 			wg.Done()
 		}(node)
 	}
@@ -159,11 +159,11 @@ func (e *Orchestrator) checkDKGNodes(nodes []*Node, groupPath string) *key.Group
 		group := node.GetGroup()
 		if g == nil {
 			g = group
-			lastNode = node.addr
+			lastNode = node.privAddr
 			continue
 		}
 		if !g.PublicKey.Equal(group.PublicKey) {
-			panic(fmt.Errorf("- Node %s has different cokey than %s\n", node.addr, lastNode))
+			panic(fmt.Errorf("- Node %s has different cokey than %s\n", node.privAddr, lastNode))
 		}
 	}
 	return g
@@ -264,7 +264,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 			http = http + "s"
 		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		url := http + "://" + node.addr + "/api/public/"
+		url := http + "://" + node.privAddr + "/api/public/"
 		// add the round to make sure we don't ask for a later block if we're
 		// behind
 		url += strconv.Itoa(int(currRound))
@@ -309,12 +309,12 @@ func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {
 	fmt.Println("[+] Setting up the nodes for the resharing")
 	// create paths that contains old node + new nodes
 	for _, node := range e.nodes[oldToRemove:] {
-		fmt.Printf("\t- Adding current node %s\n", node.addr)
+		fmt.Printf("\t- Adding current node %s\n", node.privAddr)
 		e.reshareIndex = append(e.reshareIndex, node.i)
 		e.reshareNodes = append(e.reshareNodes, node)
 	}
 	for _, node := range e.newNodes {
-		fmt.Printf("\t- Adding new node %s\n", node.addr)
+		fmt.Printf("\t- Adding new node %s\n", node.privAddr)
 		e.reshareIndex = append(e.reshareIndex, node.i)
 		e.reshareNodes = append(e.reshareNodes, node)
 	}
@@ -331,7 +331,7 @@ func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {
 			}
 		}
 		if !found {
-			fmt.Printf("\t- Stopping old node %s\n", node.addr)
+			fmt.Printf("\t- Stopping old node %s\n", node.privAddr)
 			node.Stop()
 		}
 	}
@@ -344,15 +344,15 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	groupCh := make(chan *key.Group, 1)
 	leader := e.reshareNodes[0]
 	go func() {
-		fmt.Printf("\t- Running DKG for leader node %s\n", leader.addr)
+		fmt.Printf("\t- Running DKG for leader node %s\n", leader.privAddr)
 		group := leader.RunReshare(nodes, thr, e.groupPath, timeout, true, "")
 		groupCh <- group
 	}()
 	time.Sleep(100 * time.Millisecond)
 
 	for _, node := range e.reshareNodes[1:] {
-		fmt.Printf("\t- Running DKG for node %s\n", node.addr)
-		go node.RunReshare(nodes, thr, e.groupPath, timeout, false, leader.addr)
+		fmt.Printf("\t- Running DKG for node %s\n", node.privAddr)
+		go node.RunReshare(nodes, thr, e.groupPath, timeout, false, leader.privAddr)
 	}
 	<-groupCh
 	// we pass the new group file
@@ -378,7 +378,7 @@ func createNodes(n int, offset int, period, basePath, certFolder string, tls boo
 		n := NewNode(idx, period, basePath, tls)
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
-		fmt.Printf("\t- Created node %s at %s\n", n.addr, n.base)
+		fmt.Printf("\t- Created node %s at %s\n", n.privAddr, n.base)
 	}
 	// write public keys from all nodes
 	var paths []string
@@ -394,7 +394,7 @@ func (e *Orchestrator) StopNodes(idxs ...int) {
 	for _, node := range e.nodes {
 		for _, idx := range idxs {
 			if node.i == idx {
-				fmt.Printf("[+] Stopping node %s to simulate a node failure\n", node.addr)
+				fmt.Printf("[+] Stopping node %s to simulate a node failure\n", node.privAddr)
 				node.Stop()
 			}
 		}
@@ -421,20 +421,20 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 			panic("node to start doesn't exist")
 		}
 
-		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.addr)
+		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.privAddr)
 		foundNode.Start(e.certFolder)
 		trial := 0
 		var started bool
 		for trial < 5 {
 			if foundNode.Ping() {
-				fmt.Printf("\t- Node %s started correctly\n", foundNode.addr)
+				fmt.Printf("\t- Node %s started correctly\n", foundNode.privAddr)
 				started = true
 				break
 			}
 			time.Sleep(1 * time.Second)
 		}
 		if !started {
-			panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.addr))
+			panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.privAddr))
 		}
 	}
 }
@@ -451,11 +451,11 @@ func (e *Orchestrator) PrintLogs() {
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
 	for _, node := range e.nodes {
-		fmt.Printf("\t- Stop old node %s\n", node.addr)
+		fmt.Printf("\t- Stop old node %s\n", node.privAddr)
 		node.Stop()
 	}
 	for _, node := range e.newNodes {
-		fmt.Printf("\t- Stop new node %s\n", node.addr)
+		fmt.Printf("\t- Stop new node %s\n", node.privAddr)
 		node.Stop()
 	}
 }
