@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"fmt"
 
 	"github.com/drand/drand/key"
 )
@@ -11,7 +12,7 @@ import (
 func New(options ...Option) (Client, error) {
 	cfg := clientConfig{}
 	for _, opt := range options {
-		if err := opt(cfg); err != nil {
+		if err := opt(&cfg); err != nil {
 			return nil, err
 		}
 	}
@@ -22,6 +23,7 @@ func New(options ...Option) (Client, error) {
 // makeClient creates a client from a configuration.
 func makeClient(cfg clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.groupHash == nil && cfg.group == nil {
+		fmt.Printf("%#v\n", cfg)
 		return nil, errors.New("No root of trust specified")
 	}
 	if len(cfg.urls) == 0 {
@@ -33,11 +35,19 @@ func makeClient(cfg clientConfig) (Client, error) {
 	for _, url := range cfg.urls {
 		if cfg.group != nil {
 			c, err = NewHTTPClientWithGroup(url, cfg.group, cfg.getter)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			c, err = NewHTTPClient(url, cfg.groupHash, cfg.getter)
-		}
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
+			group, err := c.(*httpClient).FetchGroupInfo(cfg.groupHash)
+			if err != nil {
+				return nil, err
+			}
+			cfg.group = group
 		}
 		clients = append(clients, c)
 	}
@@ -61,11 +71,11 @@ type clientConfig struct {
 }
 
 // Option is an option configuring a client.
-type Option func(cfg clientConfig) error
+type Option func(cfg *clientConfig) error
 
 // WithHTTPEndpoints configures the client to use the provided URLs.
 func WithHTTPEndpoints(urls []string) Option {
-	return func(cfg clientConfig) error {
+	return func(cfg *clientConfig) error {
 		if cfg.insecure {
 			return errors.New("Cannot mix secure and insecure URLs")
 		}
@@ -77,7 +87,7 @@ func WithHTTPEndpoints(urls []string) Option {
 // WithHTTPGetter specifies the HTTP Client (or mocked equivalent) for fetching
 // randomness from an HTTP endpoint.
 func WithHTTPGetter(getter HTTPGetter) Option {
-	return func(cfg clientConfig) error {
+	return func(cfg *clientConfig) error {
 		cfg.getter = getter
 		return nil
 	}
@@ -86,7 +96,7 @@ func WithHTTPGetter(getter HTTPGetter) Option {
 // WithInsecureHTTPEndpoints configures the client to pull randomness from
 // provided URLs without validating the group trust root.
 func WithInsecureHTTPEndpoints(urls []string) Option {
-	return func(cfg clientConfig) error {
+	return func(cfg *clientConfig) error {
 		if len(cfg.urls) != 0 && !cfg.insecure {
 			return errors.New("Cannot mix secure and insecure URLs")
 		}
@@ -99,7 +109,7 @@ func WithInsecureHTTPEndpoints(urls []string) Option {
 // WithGroupHash configures the client to root trust with a given drand group
 // hash, the group parameters will be fetched from an HTTP endpoint.
 func WithGroupHash(grouphash []byte) Option {
-	return func(cfg clientConfig) error {
+	return func(cfg *clientConfig) error {
 		if cfg.group != nil && !bytes.Equal(cfg.group.Hash(), grouphash) {
 			return errors.New("refusing to override group with non-matching hash")
 		}
@@ -110,7 +120,7 @@ func WithGroupHash(grouphash []byte) Option {
 
 // WithGroup configures the client to root trust in the given group information
 func WithGroup(group *key.Group) Option {
-	return func(cfg clientConfig) error {
+	return func(cfg *clientConfig) error {
 		cfg.group = group
 		cfg.groupHash = nil
 		return nil

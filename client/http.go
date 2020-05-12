@@ -23,6 +23,9 @@ type HTTPGetter interface {
 
 // NewHTTPClient creates a new client pointing to an HTTP endpoint
 func NewHTTPClient(url string, groupHash []byte, client HTTPGetter) (Client, error) {
+	if client == nil {
+		client = &http.Client{}
+	}
 	c := &httpClient{
 		root:   url,
 		client: client,
@@ -39,6 +42,9 @@ func NewHTTPClient(url string, groupHash []byte, client HTTPGetter) (Client, err
 
 // NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
 func NewHTTPClientWithGroup(url string, group *key.Group, client HTTPGetter) (Client, error) {
+	if client == nil {
+		client = &http.Client{}
+	}
 	c := &httpClient{
 		root:   url,
 		group:  group,
