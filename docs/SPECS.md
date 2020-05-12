@@ -65,7 +65,9 @@ This document is a specification of the drand protocols.
 
 A drand node is a server that runs the drand code, that participates in the
 distributed key generations phases, in the randomness generation and that can
-reply to public request API. A Go struct representation is as follow:
+reply to public request API. 
+The following representation is what gets embedded in group configuration file,
+what drand nodes knows about other drand nodes:
 ```go
 type Node struct {
 	Key  []byte // public key on bls12-381 G1 
@@ -78,7 +80,6 @@ A node can be referenced by its hash as follows:
 ```go
 func (n *Node) Hash() []byte {
     h := blake2b.New(nil)
-    h.Write([]byte(n.Addr))
 	binary.Write(h, binary.LittleEndian, n.Index)
     h.Write(n.Key)
     return h.Sum(nil)
@@ -99,9 +100,10 @@ chain](#beacon-chain) section for more information.
 
 Group configuration: A structure that contains all the necessary information
 about nodes that form a drand network:
-* Nodes: A list of nodes information that represents all nodes on the network
+* Nodes: A list of nodes information that represents all nodes on the network.
 * Threshold: The number of nodes that are necessary to participate to a
-  randomness generation round to produce a new random value
+  randomness generation round to produce a new random value. Given the security
+  model of Drand, the threshold must be superior to 50% of the number of nodes.
 * Period: The period at which the network creates new random value
 * GenesisTime: An UNIX timestamp in seconds that represents the time at which
   the first round of the drand chain starts. See the [beacon
