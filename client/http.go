@@ -59,6 +59,10 @@ type httpClient struct {
 // FetchGroupInfo attempts to initialize an httpClient when
 // it does not know the full group paramters for a drand group.
 func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
+	if h.group != nil {
+		return h.group, nil
+	}
+
 	// fetch the `Group` to validate connectivity.
 	groupResp, err := h.client.Get(fmt.Sprintf("%s/group", h.root))
 	if err != nil {
@@ -141,54 +145,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 
 // Watch returns new randomness as it becomes available.
 func (h *httpClient) Watch(ctx context.Context) <-chan Result {
-	ch := make(chan Result, 1)
-	r := h.RoundAt(time.Now())
-	val, err := h.Get(ctx, r)
-	if err != nil {
-		h.l.Error("http_client", "failed to watch", "err", err)
-		close(ch)
-		return ch
-	}
-	ch <- val
-
-	go func() {
-		defer close(ch)
-
-		// Initially, wait to synchronize to the round boundary.
-		_, nextTime := beacon.NextRound(time.Now().Unix(), h.group.Period, h.group.GenesisTime)
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Duration(nextTime-time.Now().Unix()) * time.Second):
-		}
-
-		r, err := h.Get(ctx, h.RoundAt(time.Now()))
-		if err == nil {
-			ch <- r
-		} else {
-			h.l.Error("http_client", "failed to watch", "err", err)
-		}
-
-		// Then tick each period.
-		t := time.NewTicker(h.group.Period)
-		defer t.Stop()
-		for {
-			select {
-			case <-t.C:
-				r, err := h.Get(ctx, h.RoundAt(time.Now()))
-				if err == nil {
-					ch <- r
-				} else {
-					h.l.Error("http_client", "failed to watch", "err", err)
-				}
-				// TODO: keep trying on errors?
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return ch
+	return pollingWatcher(ctx, h, h.group, h.l)
 }
 
 // RoundAt will return the most recent round of randomness that will be available
