@@ -29,7 +29,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
-	cmd := exec.Command("go", "install")
+	cmd := exec.Command("go", "build")
 	if err := cmd.Run(); err != nil {
 		slog.Fatalf("test failing: %s", err)
 	}
@@ -72,7 +72,7 @@ func TestDeleteBeacon(t *testing.T) {
 
 	store.Close()
 	// that commmand should delete round 3 and 4
-	cmd := exec.Command("drand", "util", "del-beacon", "--folder", tmp, "3")
+	cmd := exec.Command("./drand", "util", "del-beacon", "--folder", tmp, "3")
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 	store, err = beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
@@ -91,7 +91,7 @@ func TestDeleteBeacon(t *testing.T) {
 func TestKeyGen(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
-	cmd := exec.Command("drand", "generate-keypair", "--folder", tmp, "127.0.0.1:8081")
+	cmd := exec.Command("./drand", "generate-keypair", "--folder", tmp, "127.0.0.1:8081")
 	out, err := cmd.Output()
 	require.Nil(t, err)
 	fmt.Println(string(out))
@@ -103,7 +103,7 @@ func TestKeyGen(t *testing.T) {
 
 	tmp2 := path.Join(os.TempDir(), "drand2")
 	defer os.RemoveAll(tmp2)
-	cmd = exec.Command("drand", "generate-keypair", "--folder", tmp2)
+	cmd = exec.Command("./drand", "generate-keypair", "--folder", tmp2)
 	out, err = cmd.Output()
 	require.Error(t, err)
 	fmt.Println(string(out))
@@ -124,11 +124,11 @@ func TestStartAndStop(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	cmd := exec.Command("drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath)
+	cmd := exec.Command("./drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath)
 	require.NoError(t, cmd.Run())
 	startCh := make(chan bool)
 	go func() {
-		cmd = exec.Command("drand", "start", "--tls-disable", "--folder", tmpPath)
+		cmd = exec.Command("./drand", "start", "--tls-disable", "--folder", tmpPath)
 		startCh <- true
 		cmd.Run()
 		startCh <- true
@@ -143,8 +143,8 @@ func TestStartAndStop(t *testing.T) {
 	}()
 	<-startCh
 	time.Sleep(50 * time.Millisecond)
-	cmd = exec.Command("drand", "stop")
-	buff, err := cmd.CombinedOutput()
+	stopCmd := exec.Command("./drand", "stop")
+	buff, err := stopCmd.CombinedOutput()
 	require.NoError(t, err, string(buff))
 	select {
 	case <-startCh:
@@ -163,7 +163,7 @@ func TestStartBeacon(t *testing.T) {
 	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	cmd := exec.Command("drand", "start", "--tls-disable", "--folder", tmpPath)
+	cmd := exec.Command("./drand", "start", "--tls-disable", "--folder", tmpPath)
 	cmd.Env = append(os.Environ(), varEnv+"=1")
 	out, err := cmd.Output()
 	fmt.Print(string(out))
@@ -197,16 +197,16 @@ func TestStartWithoutGroup(t *testing.T) {
 	fs := key.NewFileStore(config.ConfigFolder())
 	require.NoError(t, fs.SaveKeyPair(priv))
 
-	installCmd := exec.Command("go", "install")
+	installCmd := exec.Command("go", "build")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
 	lctx, lcancel := context.WithCancel(context.Background())
-	start1 := exec.CommandContext(lctx, "drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort)
+	start1 := exec.CommandContext(lctx, "./drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort)
 	go start1.Run()
 
 	fmt.Println(" DRAND SHARE ---")
-	initDKGCmd := exec.Command("drand", "share", "--control", ctrlPort1)
+	initDKGCmd := exec.Command("./drand", "share", "--control", ctrlPort1)
 	out, err := initDKGCmd.Output()
 	require.Error(t, err)
 	lcancel()
@@ -239,15 +239,15 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort1)
 
-	start2 := exec.CommandContext(ctx, "drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand")
+	start2 := exec.CommandContext(ctx, "./drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand")
 	start2.Stdout = os.Stdout
 	start2.Stderr = os.Stderr
 	go start2.Run()
-	defer exec.Command("drand", "stop", "--control", ctrlPort2).Run()
+	defer exec.Command("./drand", "stop", "--control", ctrlPort2).Run()
 	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println(" + running PING command with ", ctrlPort2)
-	ping := exec.Command("drand", "util", "ping", "--control", ctrlPort2)
+	ping := exec.Command("./drand", "util", "ping", "--control", ctrlPort2)
 	out, err = ping.CombinedOutput()
 	require.NoError(t, err, string(out))
 
@@ -258,17 +258,17 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, key.Load(groupPath, loadedGroup))
 	fmt.Printf("%s", loadedGroup.String())
 
-	getCmd := exec.Command("drand", "get", "private", "--tls-disable", groupPath)
+	getCmd := exec.Command("./drand", "get", "private", "--tls-disable", groupPath)
 	out, err = getCmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 
 	fakeStr := key.PointToString(fakeKey)
-	cokeyCmd := exec.Command("drand", "get", "cokey", "--tls-disable", priv.Public.Address())
+	cokeyCmd := exec.Command("./drand", "get", "cokey", "--tls-disable", priv.Public.Address())
 	out, err = cokeyCmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 	require.True(t, strings.Contains(string(out), fakeStr))
 
-	shareCmd := exec.Command("drand", "show", "share", "--control", ctrlPort2)
+	shareCmd := exec.Command("./drand", "show", "share", "--control", ctrlPort2)
 	out, err = shareCmd.CombinedOutput()
 	if err != nil {
 		fmt.Println(string(out))
@@ -279,7 +279,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err)
 
 	// reset state
-	resetCmd := exec.Command("drand", "util", "reset", "--folder", tmpPath)
+	resetCmd := exec.Command("./drand", "util", "reset", "--folder", tmpPath)
 	var in bytes.Buffer
 	in.WriteString("y\n")
 	resetCmd.Stdin = &in
@@ -350,22 +350,22 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
+	startArgs := []string{"./drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
 	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
 	startCmd.Stdout = os.Stdout
 	startCmd.Stderr = os.Stderr
 	go startCmd.Run()
 
-	installCmd := exec.Command("go", "install")
+	installCmd := exec.Command("go", "build")
 	_, err := installCmd.Output()
 	require.NoError(t, err)
 
-	cmd := exec.Command("drand", "get", "private", "--tls-cert", certPath, groupPath)
+	cmd := exec.Command("./drand", "get", "private", "--tls-cert", certPath, groupPath)
 	out, err := cmd.CombinedOutput()
 	fmt.Println("get private = ", string(out))
 	require.NoError(t, err, string(out))
 
-	cmd = exec.Command("drand", "get", "cokey", "--tls-cert", certPath, addr)
+	cmd = exec.Command("./drand", "get", "cokey", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
 	//fmt.Println(string(out))
 
@@ -376,7 +376,7 @@ func TestClientTLS(t *testing.T) {
 	require.Contains(t, string(out), expectedOutput)
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "share", "--control", ctrlPort)
+	cmd = exec.Command("./drand", "show", "share", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
@@ -384,17 +384,17 @@ func TestClientTLS(t *testing.T) {
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "public", "--control", ctrlPort)
+	cmd = exec.Command("./drand", "show", "public", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "private", "--control", ctrlPort)
+	cmd = exec.Command("./drand", "show", "private", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	require.NoError(t, err)
 
-	cmd = exec.Command("drand", "show", "cokey", "--control", ctrlPort)
+	cmd = exec.Command("./drand", "show", "cokey", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
 	fmt.Println(string(out))
 	expectedOutput = keyStr
