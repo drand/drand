@@ -14,8 +14,8 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// NewGRPCListenerForPublicAndProtocolWithTLS creates a new listener for the Public and Protocol APIs over GRPC with TLS.
-func NewGRPCListenerForPublicAndProtocolWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+// NewGRPCListenerForPrivateWithTLS creates a new listener for the Public and Protocol APIs over GRPC with TLS.
+func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
 		return nil, err

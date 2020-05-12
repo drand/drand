@@ -59,17 +59,17 @@ func TestListeners(t *testing.T) {
 
 func testListener(t *testing.T, grpcPort, restPort int) {
 	ctx := context.Background()
-	hostAddr := "127.0.0.1"
-	addrGRPC := fmt.Sprintf("%s:%d", hostAddr, grpcPort)
-	peerGRPC := &testPeer{addrGRPC, false}
-	addrREST := fmt.Sprintf("%s:%d", hostAddr, restPort)
-	peerREST := &testPeer{addrREST, false}
 	randServer := &testRandomnessServer{round: 42}
+	hostAddr := "127.0.0.1"
 
-	lisGRPC, err := NewGRPCListenerForPublicAndProtocol(ctx, addrGRPC, randServer)
+	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", randServer)
 	require.NoError(t, err)
-	lisREST, err := NewRESTListenerForPublic(ctx, addrREST, randServer)
+	lisREST, err := NewRESTListenerForPublic(ctx, hostAddr+":", randServer)
 	require.NoError(t, err)
+
+	peerGRPC := &testPeer{lisGRPC.Addr(), false}
+	peerREST := &testPeer{lisREST.Addr(), false}
+
 	go lisGRPC.Start()
 	defer lisGRPC.Stop(ctx)
 	go lisREST.Start()
@@ -99,10 +99,6 @@ func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 		t.Skip("crypto/x509: system root pool is not available on Windows")
 	}
 	hostAddr := "127.0.0.1"
-	addrGRPC := fmt.Sprintf("%s:%d", hostAddr, grpcPort)
-	peerGRPC := &testPeer{addrGRPC, true}
-	addrREST := fmt.Sprintf("%s:%d", hostAddr, restPort)
-	peerREST := &testPeer{addrREST, true}
 
 	tmpDir := path.Join(os.TempDir(), "drand-net")
 	require.NoError(t, os.MkdirAll(tmpDir, 0766))
@@ -115,10 +111,13 @@ func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 
 	randServer := &testRandomnessServer{round: 42}
 
-	lisGRPC, err := NewGRPCListenerForPublicAndProtocolWithTLS(ctx, addrGRPC, certPath, keyPath, randServer)
+	lisGRPC, err := NewGRPCListenerForPrivateWithTLS(ctx, hostAddr+":", certPath, keyPath, randServer)
 	require.NoError(t, err)
-	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, addrREST, certPath, keyPath, randServer)
+	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, hostAddr+":", certPath, keyPath, randServer)
 	require.NoError(t, err)
+
+	peerGRPC := &testPeer{lisGRPC.Addr(), true}
+	peerREST := &testPeer{lisREST.Addr(), true}
 
 	go lisGRPC.Start()
 	defer lisGRPC.Stop(ctx)
@@ -127,8 +126,6 @@ func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	require.Equal(t, peerGRPC.Address(), addrGRPC)
-	require.Equal(t, peerREST.Address(), addrREST)
 	certManager := NewCertManager()
 	certManager.Add(certPath)
 

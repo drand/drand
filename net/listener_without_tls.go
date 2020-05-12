@@ -11,8 +11,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// NewGRPCListenerForPublicAndProtocol creates a new listener for the Public and Protocol APIs over GRPC with no TLS.
-func NewGRPCListenerForPublicAndProtocol(ctx context.Context, addr string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+// NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC with no TLS.
+func NewGRPCListenerForPrivate(ctx context.Context, addr string, s Service, opts ...grpc.ServerOption) (Listener, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err

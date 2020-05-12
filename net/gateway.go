@@ -54,7 +54,7 @@ type Service interface {
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
 func NewGRPCPrivateGatewayWithoutTLS(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
-	l, err := NewGRPCListenerForPublicAndProtocol(ctx, listen, s)
+	l, err := NewGRPCListenerForPrivate(ctx, listen, s)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func NewGRPCPrivateGatewayWithoutTLS(ctx context.Context, listen string, s Servi
 // NewGRPCPrivateGatewayWithTLS returns a grpc gateway using the TLS
 // certificate manager
 func NewGRPCPrivateGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
-	l, err := NewGRPCListenerForPublicAndProtocolWithTLS(ctx, listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+	l, err := NewGRPCListenerForPrivateWithTLS(ctx, listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
 	if err != nil {
 		return nil, err
 	}
