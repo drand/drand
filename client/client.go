@@ -121,8 +121,10 @@ func WithGroupHash(grouphash []byte) Option {
 // WithGroup configures the client to root trust in the given group information
 func WithGroup(group *key.Group) Option {
 	return func(cfg *clientConfig) error {
+		if cfg.groupHash != nil && !bytes.Equal(cfg.groupHash, group.Hash()) {
+			return errors.New("refusing to override hash with non-matching group")
+		}
 		cfg.group = group
-		cfg.groupHash = nil
 		return nil
 	}
 }
