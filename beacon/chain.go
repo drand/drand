@@ -216,7 +216,8 @@ func (c *chainStore) runChainLoop() {
 }
 
 func isAppendable(lastBeacon, newBeacon *Beacon) bool {
-	return newBeacon.Round == lastBeacon.Round+1
+	return newBeacon.Round == lastBeacon.Round+1 &&
+		bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
 }
 
 type likeBeacon interface {
