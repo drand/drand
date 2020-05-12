@@ -80,7 +80,7 @@ func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 				select {
 				case ch <- rand:
 				default:
-					log.Infof("randomness notification dropped due to a full channel")
+					log.Warn("randomness notification dropped due to a full channel")
 				}
 			}
 			c.subs.Unlock()
