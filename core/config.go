@@ -18,22 +18,24 @@ type ConfigOption func(*Config)
 
 // Config holds all relevant information for a drand node to run.
 type Config struct {
-	configFolder string
-	dbFolder     string
-	listenAddr   string
-	controlPort  string
-	grpcOpts     []grpc.DialOption
-	callOpts     []grpc.CallOption
-	dkgTimeout   time.Duration
-	boltOpts     *bolt.Options
-	beaconCbs    []func(*beacon.Beacon)
-	dkgCallback  func(*key.Share)
-	insecure     bool
-	certPath     string
-	keyPath      string
-	certmanager  *net.CertManager
-	logger       log.Logger
-	clock        clock.Clock
+	configFolder      string
+	dbFolder          string
+	privateListenAddr string
+	publicListenAddr  string
+	controlPort       string
+	grpcOpts          []grpc.DialOption
+	callOpts          []grpc.CallOption
+	dkgTimeout        time.Duration
+	boltOpts          *bolt.Options
+	beaconCbs         []func(*beacon.Beacon)
+	dkgCallback       func(*key.Share)
+	insecure          bool
+	certPath          string
+	keyPath           string
+	certmanager       *net.CertManager
+	logger            log.Logger
+	clock             clock.Clock
+	enablePrivate     bool
 }
 
 // NewConfig returns the config to pass to drand with the default options set
