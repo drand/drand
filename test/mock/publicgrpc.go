@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
@@ -21,6 +22,7 @@ import (
 type Server struct {
 	addr string
 	*net.EmptyServer
+	l sync.Mutex
 	d *Data
 }
 
@@ -52,18 +54,50 @@ func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket
 
 // PublicRand implements net.Service
 func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	s.l.Lock()
+	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
 	if in.GetRound() == uint64(s.d.Round+1) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
 	randomness := sha256Hash(signature)
-	return &drand.PublicRandResponse{
+	resp := drand.PublicRandResponse{
 		Round:             uint64(s.d.Round),
 		PreviousSignature: prev,
 		Signature:         signature,
 		Randomness:        randomness,
-	}, nil
+	}
+	s.d.Round++
+	return &resp, nil
+}
+
+// PublicRandStream is part of the public drand service.
+func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	done := make(chan error, 1)
+
+	go func() {
+		for {
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			defer func() { done <- stream.Context().Err() }()
+			select {
+			case <-stream.Context().Done():
+				return
+			case <-ticker.C:
+				resp, err := s.PublicRand(stream.Context(), req)
+				if err != nil {
+					done <- err
+					return
+				}
+				if err = stream.Send(resp); err != nil {
+					done <- err
+					return
+				}
+			}
+		}
+	}()
+	return <-done
 }
 
 // DistKey implements net.Service

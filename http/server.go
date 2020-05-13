@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
@@ -40,7 +41,17 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
-	handler := handler{reqTimeout, client, parsedPkt, logger}
+	handler := handler{
+		reqTimeout,
+		client,
+		parsedPkt,
+		logger,
+		sync.RWMutex{},
+		make([]chan []byte, 0),
+		0,
+	}
+
+	go handler.Watch(ctx)
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
@@ -55,9 +66,72 @@ type handler struct {
 	client    drand.PublicClient
 	groupInfo *key.Group
 	log       log.Logger
+
+	// synchronization for blocking writes until randomness available.
+	pendingLk   sync.RWMutex
+	pending     []chan []byte
+	latestRound uint64
+}
+
+func (h *handler) Watch(ctx context.Context) {
+RESET:
+	stream, err := h.client.PublicRandStream(context.Background(), &drand.PublicRandRequest{})
+	if err != nil {
+		return
+	}
+
+	for {
+		next, err := stream.Recv()
+		if err != nil {
+			h.log.Warn("http_server", "random stream round failed", "err", err)
+			goto RESET
+		}
+
+		bytes, err := json.Marshal(next)
+
+		h.pendingLk.Lock()
+		if h.latestRound+1 != next.Round {
+			// we missed a round, or similar. don't send bad data to peers.
+			bytes = []byte{}
+		}
+		h.latestRound = next.Round
+		pending := h.pending
+		h.pending = make([]chan []byte, 0)
+		h.pendingLk.Unlock()
+
+		for _, waiter := range pending {
+			waiter <- bytes
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
 }
 
 func (h *handler) getRand(round uint64) ([]byte, error) {
+	// First see if we should get on the synchronized 'wait for next release' bandwagon.
+	block := false
+	h.pendingLk.RLock()
+	block = (h.latestRound+1 == round)
+	h.pendingLk.RUnlock()
+	// If so, prepare, and if we're still sync'd, add ourselves to the list of waiters.
+	if block {
+		ch := make(chan []byte)
+		h.pendingLk.Lock()
+		block = (h.latestRound+1 == round)
+		if block {
+			h.pending = append(h.pending, ch)
+		}
+		h.pendingLk.Unlock()
+		// If that was successful, we can now block until we're notified.
+		if block {
+			return <-ch, nil
+		}
+	}
+
 	req := drand.PublicRandRequest{Round: round}
 	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
 	defer cancel()
