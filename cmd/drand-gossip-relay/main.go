@@ -34,9 +34,9 @@ func main() {
 	logging.SetLogLevel("beacon-relay", "info")
 
 	app := &cli.App{
-		Name:        "beacon-relay",
-		Version:     "0.0.1",
-		Description: "pubsub relay for randomness beacon",
+		Name:    "beacon-relay",
+		Version: "0.0.1",
+		Usage:   "pubsub relay for randomness beacon",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:    "network-name",
