@@ -86,9 +86,9 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundExpectedTime := h.groupInfo.GenesisTime + h.groupInfo.Period*roundN
+	roundExpectedTime := time.Unix(h.groupInfo.GenesisTime, 0).Add(h.groupInfo.Period * time.Duration(roundN))
 
-	http.ServeContent(w, r, "rand.json", time.Unix(roundExpectedTime, 0), bytes.NewReader(data))
+	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
@@ -111,12 +111,11 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := time.Unix(h.groupInfo.GenesisTime+h.groupInfo.Period*resp.Round, 0)
+	roundTime := time.Unix(h.groupInfo.GenesisTime, 0).Add(h.groupInfo.Period * time.Duration(resp.Round))
 
-	currUnix := time.Now().Unix()
-	nextTime := roundTime + h.groupInfo.Period*time.Second
+	nextTime := roundTime.Add(h.groupInfo.Period)
 
-	remaining := time.Duration(nextTime-currUnix) * time.Second
+	remaining := nextTime.Sub(time.Now())
 	if remaining > 0 && remaining < h.groupInfo.Period {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
@@ -125,7 +124,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/json")
-	w.Header().Set("Expires", time.Unix(nextTime, 0).Format(http.TimeFormat))
+	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
 	w.Write(data)
 }

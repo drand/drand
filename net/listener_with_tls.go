@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 
-	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/nikkolasg/slog"
@@ -40,7 +39,6 @@ func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, c
 
 	httpServer := buildTLSServer(grpcServer, x509KeyPair)
 	g := &tlsListener{
-		Service:    s,
 		httpServer: httpServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
@@ -49,7 +47,7 @@ func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, c
 }
 
 // NewRESTListenerForPublicWithTLS creates a new listener for the Public API over REST with TLS.
-func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, handler http.Handler) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
 		return nil, err
@@ -60,14 +58,8 @@ func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, ce
 		return nil, err
 	}
 
-	handler, err := dhttp.New(ctx, &drandProxy{s})
-	if err != nil {
-		return nil, err
-	}
-
 	httpServer := buildTLSServer(handler, x509KeyPair)
 	g := &tlsListener{
-		Service:    s,
 		httpServer: httpServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
@@ -110,7 +102,6 @@ func buildTLSServer(httpHandler http.Handler, x509KeyPair tls.Certificate) *http
 }
 
 type tlsListener struct {
-	Service
 	httpServer *http.Server
 	l          net.Listener
 }

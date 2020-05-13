@@ -14,7 +14,7 @@ import (
 )
 
 func TestHTTPRelay(t *testing.T) {
-	l, _ := mock.NewGRPCPublicServer(":0")
+	l, _ := mock.NewMockGRPCPublicServer(":0")
 	lAddr := l.Addr()
 	go l.Start()
 
