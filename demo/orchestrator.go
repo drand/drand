@@ -266,7 +266,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 			http = http + "s"
 		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		url := http + "://" + node.pubAddr + "/public/latest"
+		url := http + "://" + node.pubAddr + "/public/"
 		// add the round to make sure we don't ask for a later block if we're
 		// behind
 		url += strconv.Itoa(int(currRound))
@@ -280,7 +280,6 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 			// curl returns weird error code
 			out, _ := cmd.CombinedOutput()
 			out = append(out, []byte("\n")...)
-			fmt.Printf("curl response: %v\n", out)
 			var r = new(drand.PublicRandResponse)
 			checkErr(json.Unmarshal(out, r), string(out))
 			if r.GetRound() != rand.GetRound() {

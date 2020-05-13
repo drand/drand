@@ -144,7 +144,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
-	w.Header().Set("Content-Type", "text/json")
+	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
 	w.Write(data)
