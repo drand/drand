@@ -5,9 +5,9 @@ import (
 	"net"
 	"net/http"
 
+	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 )
 
@@ -56,15 +56,13 @@ func NewRESTListenerForPublic(ctx context.Context, addr string, s Service, opts 
 	if err != nil {
 		return nil, err
 	}
-	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("*", defaultJSONMarshaller))
-	if err := drand.RegisterPublicHandlerClient(ctx, gwMux, &drandProxy{s}); err != nil {
-		panic(err)
+	handler, err := dhttp.New(ctx, &drandProxy{s})
+	if err != nil {
+		return nil, err
 	}
-	restRouter := http.NewServeMux()
-	restRouter.Handle("/", gwMux)
 	restServer := &http.Server{
 		Addr:    addr,
-		Handler: restRouter,
+		Handler: handler,
 	}
 
 	g := &restListener{
