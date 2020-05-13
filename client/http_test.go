@@ -16,7 +16,7 @@ import (
 
 func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 	t.Helper()
-	l, _ := mock.NewGRPCPublicServer(":0")
+	l, s := mock.NewMockGRPCPublicServer(":0")
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -34,7 +34,7 @@ func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 		t.Fatal(err)
 	}
 
-	protoGroup, _ := l.Group(ctx, &drand.GroupRequest{})
+	protoGroup, _ := s.Group(ctx, &drand.GroupRequest{})
 	realGroup, _ := key.GroupFromProto(protoGroup)
 	hash := realGroup.Hash()
 
