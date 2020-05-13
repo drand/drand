@@ -196,7 +196,7 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 
 var clientCmd = &cli.Command{
 	Name:  "client",
-	Flags: []cli.Flag{},
+	Flags: []cli.Flag{peerWithFlag},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {

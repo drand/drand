@@ -1,3 +1,4 @@
 ./drand-gossip-relay
 datastore
 identity.key
+drand-gossip-relay
