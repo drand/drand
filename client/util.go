@@ -34,7 +34,7 @@ func pollingWatcher(ctx context.Context, client Client, group *key.Group, log lo
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(nextTime-time.Now().Unix())*time.Second + slack):
+		case <-time.After(time.Duration(nextTime-time.Now().Unix())*time.Second + math.Min(slack, group.Period)):
 		}
 
 		r, err := client.Get(ctx, client.RoundAt(time.Now()))
