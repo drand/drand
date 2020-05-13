@@ -622,7 +622,7 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*contr
 }
 
 func (d *Drand) Shutdown(ctx context.Context, in *control.ShutdownRequest) (*control.ShutdownResponse, error) {
-	d.Stop()
+	d.Stop(ctx)
 	return nil, nil
 }
 

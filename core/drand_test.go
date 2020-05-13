@@ -314,7 +314,7 @@ func (d *DrandTest2) GetDrand(id string, newGroup bool) *Node {
 func (d *DrandTest2) StopDrand(id string, newGroup bool) {
 	node := d.GetDrand(id, newGroup)
 	dr := node.drand
-	dr.Stop()
+	dr.Stop(context.Background())
 	pinger, err := net.NewControlClient(dr.opts.controlPort)
 	require.NoError(d.t, err)
 	var counter = 1
@@ -781,7 +781,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 // CloseAllDrands closes all drands
 func CloseAllDrands(drands []*Drand) {
 	for i := 0; i < len(drands); i++ {
-		drands[i].Stop()
+		drands[i].Stop(context.Background())
 		//os.RemoveAll(drands[i].opts.dbFolder)
 	}
 }
