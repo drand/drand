@@ -42,13 +42,13 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 		logger = log.DefaultLogger
 	}
 	handler := handler{
-		reqTimeout,
-		client,
-		parsedPkt,
-		logger,
-		sync.RWMutex{},
-		make([]chan []byte, 0),
-		0,
+		timeout:     reqTimeout,
+		client:      client,
+		groupInfo:   parsedPkt,
+		log:         logger,
+		pendingLk:   sync.RWMutex{},
+		pending:     make([]chan []byte, 0),
+		latestRound: 0,
 	}
 
 	go handler.Watch(ctx)
