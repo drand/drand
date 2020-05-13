@@ -57,7 +57,7 @@ In drand, there are two phases which do not require the same security
 assumptions. This section highlights both models and the practical realization
 or assumptions taken.
 
-### Distributed Key Generation security model
+### Distributed Key Generation Ceremony (setup phase)
 
 The DKG protocol model follows the one from the Pedersen's protocol. [Gennaro's paper](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems) explains the protocol and its assumptions.
 
