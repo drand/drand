@@ -31,10 +31,14 @@ func pollingWatcher(ctx context.Context, client Client, group *key.Group, log lo
 
 		// Initially, wait to synchronize to the round boundary.
 		_, nextTime := beacon.NextRound(time.Now().Unix(), group.Period, group.GenesisTime)
+		effectiveSlack := slack
+		if group.Period < effectiveSlack {
+			effectiveSlack = group.Period
+		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(nextTime-time.Now().Unix())*time.Second + math.Min(slack, group.Period)):
+		case <-time.After(time.Duration(nextTime-time.Now().Unix())*time.Second + effectiveSlack):
 		}
 
 		r, err := client.Get(ctx, client.RoundAt(time.Now()))
