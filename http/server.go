@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -87,7 +86,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundExpectedTime := beacon.TimeOfRound(h.groupInfo.Period, h.groupInfo.GenesisTime, roundN)
+	roundExpectedTime := h.groupInfo.GenesisTime + h.groupInfo.Period*roundN
 
 	http.ServeContent(w, r, "rand.json", time.Unix(roundExpectedTime, 0), bytes.NewReader(data))
 }
@@ -112,10 +111,10 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := time.Unix(beacon.TimeOfRound(h.groupInfo.Period, h.groupInfo.GenesisTime, resp.Round), 0)
+	roundTime := time.Unix(h.groupInfo.GenesisTime+h.groupInfo.Period*resp.Round, 0)
 
 	currUnix := time.Now().Unix()
-	_, nextTime := beacon.NextRound(currUnix, h.groupInfo.Period, h.groupInfo.GenesisTime)
+	nextTime := roundTime + h.groupInfo.Period*time.Second
 
 	remaining := time.Duration(nextTime-currUnix) * time.Second
 	if remaining > 0 && remaining < h.groupInfo.Period {
