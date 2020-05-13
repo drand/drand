@@ -73,7 +73,7 @@ var runCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "connect",
-			Usage: "host:port to dial to a GRPC drand public API",
+			Usage: "host:port to dial to a drand gRPC PI",
 		},
 		&cli.StringFlag{
 			Name:  "cert",
