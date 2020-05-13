@@ -137,7 +137,7 @@ For this to happen, there needs to be at least `tA` nodes from network A and
 there are going to be at least `tB` nodes that are qualified and have private shares
 to generate randomness.
 
-## Attacks
+## Attack Vectors
 
 ### Randomness Generation
 
