@@ -8,9 +8,9 @@
 
 - [Notations](#notations)
 - [Security Model](#security-model)
-  - [Distributed Key Generation security model](#distributed-key-generation-security-model)
+  - [Distributed Key Generation Ceremony (setup phase)](#distributed-key-generation-ceremony-setup-phase)
   - [Randomness generation model](#randomness-generation-model)
-- [Attacks](#attacks)
+- [Attack Vectors](#attack-vectors)
   - [Randomness Generation](#randomness-generation)
     - [Front Running](#front-running)
     - [DoS the drand network](#dos-the-drand-network)
