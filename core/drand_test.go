@@ -314,7 +314,7 @@ func (d *DrandTest2) GetDrand(id string, newGroup bool) *Node {
 func (d *DrandTest2) StopDrand(id string, newGroup bool) {
 	node := d.GetDrand(id, newGroup)
 	dr := node.drand
-	dr.Stop()
+	dr.Stop(context.Background())
 	pinger, err := net.NewControlClient(dr.opts.controlPort)
 	require.NoError(d.t, err)
 	var counter = 1
@@ -566,7 +566,6 @@ func TestDrandPublicGroup(t *testing.T) {
 	//client := NewGrpcClient()
 	cm := dt.nodes[0].drand.opts.certmanager
 	client := NewGrpcClientFromCert(cm)
-	rest := net.NewRestClientFromCertManager(cm)
 	for _, node := range dt.nodes {
 		d := node.drand
 		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
@@ -591,11 +590,12 @@ func TestDrandPublicGroup(t *testing.T) {
 		require.True(t, found)
 	}
 
-	restGroup, err := rest.Group(context.TODO(), dt.nodes[0].drand.priv.Public, &drand.GroupRequest{})
-	require.NoError(t, err)
-	received, err := key.GroupFromProto(restGroup)
-	require.NoError(t, err)
-	require.True(t, group.Equal(received))
+	// rest := net.NewRestClientFromCertManager(cm)
+	// restGroup, err := rest.Group(context.TODO(), dt.nodes[0].drand.priv.Public, &drand.GroupRequest{})
+	// require.NoError(t, err)
+	// received, err := key.GroupFromProto(restGroup)
+	// require.NoError(t, err)
+	// require.True(t, group.Equal(received))
 }
 
 // Test if the we can correctly fetch the rounds after a DKG using the
@@ -781,7 +781,7 @@ func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) ([]*Drand, *key.G
 // CloseAllDrands closes all drands
 func CloseAllDrands(drands []*Drand) {
 	for i := 0; i < len(drands); i++ {
-		drands[i].Stop()
+		drands[i].Stop(context.Background())
 		//os.RemoveAll(drands[i].opts.dbFolder)
 	}
 }

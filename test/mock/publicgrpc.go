@@ -144,7 +144,10 @@ func NewGRPCPublicServer(bind string) (net.Listener, net.Service) {
 	d := generateData()
 	testValid(d)
 	server := newServer(d)
-	listener := net.NewTCPGrpcListener(bind, server)
+	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, server)
+	if err != nil {
+		panic(err)
+	}
 	server.addr = listener.Addr()
 	return listener, server
 }

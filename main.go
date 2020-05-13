@@ -87,9 +87,14 @@ var metricsFlag = &cli.IntFlag{
 	Usage: "Launch a metrics server at the specified port.",
 }
 
-var listenFlag = &cli.StringFlag{
-	Name:  "listen",
-	Usage: "Set the listening (binding) address. Useful if you have some kind of proxy.",
+var privListenFlag = &cli.StringFlag{
+	Name:  "private-listen",
+	Usage: "Set the listening (binding) address of the private API. Useful if you have some kind of proxy.",
+}
+
+var pubListenFlag = &cli.StringFlag{
+	Name:  "public-listen",
+	Usage: "Set the listening (binding) address of the public API. Useful if you have some kind of proxy.",
 }
 
 var nodeFlag = &cli.StringFlag{
@@ -224,7 +229,7 @@ func main() {
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, controlFlag, listenFlag, metricsFlag,
+				insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
 				certsDirFlag, pushFlag, verboseFlag, enablePrivateRand),
 			Action: func(c *cli.Context) error {
 				banner()
@@ -710,10 +715,13 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithLogLevel(log.LogInfo))
 	}
 
-	listen := c.String("listen")
-	if listen != "" {
-		opts = append(opts, core.WithListenAddress(listen))
+	if c.IsSet(pubListenFlag.Name) {
+		opts = append(opts, core.WithPublicListenAddress(c.String(pubListenFlag.Name)))
 	}
+	if c.IsSet(privListenFlag.Name) {
+		opts = append(opts, core.WithPrivateListenAddress(c.String(privListenFlag.Name)))
+	}
+
 	port := c.String(controlFlag.Name)
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
