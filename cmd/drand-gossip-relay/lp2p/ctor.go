@@ -26,8 +26,7 @@ import (
 )
 
 var (
-	log      = logging.Logger("lp2p")
-	privFile = "identity.key"
+	log = logging.Logger("lp2p")
 )
 
 func PubSubTopic(nn string) string {
@@ -98,8 +97,8 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 	return h, p, nil
 }
 
-func LoadOrCreatePrivKey() (crypto.PrivKey, error) {
-	privBytes, err := ioutil.ReadFile(privFile)
+func LoadOrCreatePrivKey(identityPath string) (crypto.PrivKey, error) {
+	privBytes, err := ioutil.ReadFile(identityPath)
 
 	var priv crypto.PrivKey
 	switch {
@@ -120,7 +119,7 @@ func LoadOrCreatePrivKey() (crypto.PrivKey, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("marshaling private key: %w", err)
 		}
-		err = ioutil.WriteFile(privFile, b, 0600)
+		err = ioutil.WriteFile(identityPath, b, 0600)
 		if err != nil {
 			return nil, xerrors.Errorf("writing identity file: %w", err)
 		}

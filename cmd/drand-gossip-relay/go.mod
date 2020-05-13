@@ -12,7 +12,6 @@ require (
 	github.com/ipfs/go-log/v2 v2.0.5
 	github.com/libp2p/go-libp2p v0.8.2
 	github.com/libp2p/go-libp2p-core v0.5.4-0.20200508062439-98b95a487749
-	github.com/libp2p/go-libp2p-crypto v0.1.0
 	github.com/libp2p/go-libp2p-peerstore v0.2.4-0.20200508064014-7a58f873f4df
 	github.com/libp2p/go-libp2p-pubsub v0.2.7-0.20200508182004-fedb87bd57ea
 	github.com/libp2p/go-libp2p-tls v0.1.3

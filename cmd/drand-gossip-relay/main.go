@@ -15,7 +15,8 @@ import (
 	"github.com/ipfs/go-datastore"
 	bds "github.com/ipfs/go-ds-badger2"
 	logging "github.com/ipfs/go-log/v2"
-	crypto "github.com/libp2p/go-libp2p-crypto"
+	crypto "github.com/libp2p/go-libp2p-core/crypto"
+	peer "github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli/v2"
@@ -62,6 +63,11 @@ func parseMultiaddrSlice(peer []string) ([]ma.Multiaddr, error) {
 	return out, nil
 }
 
+var peerWithFlag = &cli.StringSliceFlag{
+	Name:  "peer-with",
+	Usage: "list of peers to connect with",
+}
+
 var runCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
@@ -82,14 +88,11 @@ var runCmd = &cli.Command{
 			Usage: "listen addr for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
-		&cli.StringSliceFlag{
-			Name:  "peer-with",
-			Usage: "list of peers to connect with",
-		},
+		peerWithFlag, idFlag,
 	},
 
 	Action: func(cctx *cli.Context) error {
-		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice("peer-with"))
+		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
 			return xerrors.Errorf("parsing peer-with: %w", err)
 		}
@@ -99,7 +102,7 @@ var runCmd = &cli.Command{
 			return xerrors.Errorf("opening datastore: %w", err)
 		}
 
-		priv, err := lp2p.LoadOrCreatePrivKey()
+		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name))
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
@@ -192,15 +195,10 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 }
 
 var clientCmd = &cli.Command{
-	Name: "client",
-	Flags: []cli.Flag{
-		&cli.StringSliceFlag{
-			Name:  "peer-with",
-			Usage: "list of peers to connect with",
-		},
-	},
+	Name:  "client",
+	Flags: []cli.Flag{},
 	Action: func(cctx *cli.Context) error {
-		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice("peer-with"))
+		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
 			return xerrors.Errorf("parsing peer-with: %w", err)
 		}
@@ -232,6 +230,31 @@ var clientCmd = &cli.Command{
 		for rand := range notifChan {
 			fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Signature[:16])
 		}
+		return nil
+	},
+}
+
+var idFlag = &cli.StringFlag{
+	Name:  "identity",
+	Usage: "path to a file containing libp2p identity",
+	Value: "identity.key",
+}
+
+var idCmd = &cli.Command{
+	Name:  "peerid",
+	Usage: "prints libp2p peerid",
+
+	Flags: []cli.Flag{idFlag},
+	Action: func(cctx *cli.Context) error {
+		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name))
+		if err != nil {
+			return xerrors.Errorf("loading p2p key: %w", err)
+		}
+		peerId, err := peer.IDFromPrivateKey(priv)
+		if err != nil {
+			return xerrors.Errorf("computing peerid: %w", err)
+		}
+		fmt.Printf("%s\n", peerId)
 		return nil
 	},
 }
