@@ -122,7 +122,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, entropy *c
 	if err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
-	board := newBoard(d.log, d.gateway.ProtocolClient, group)
+	board := newBoard(d.log, d.privGateway.ProtocolClient, group)
 	protoConf := &dkg.Config{
 		DkgConfig: dkgConfig,
 		Auth:      key.AuthScheme,
@@ -206,7 +206,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		return nil, err
 	}
-	board := newReshareBoard(d.log, d.gateway.ProtocolClient, oldGroup, newGroup, d.priv.Public)
+	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, oldGroup, newGroup, d.priv.Public)
 	protoConf := &dkg.Config{
 		DkgConfig: dkgConfig,
 		Auth:      key.AuthScheme,
@@ -296,7 +296,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
-	err = d.gateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
+	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
 	if err != nil {
 		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
 	}
@@ -386,7 +386,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	defer cancel()
 
 	d.log.Info("setup_reshare", "signalling_key_to_leader")
-	err = d.gateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
+	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
 		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
 	}
@@ -622,7 +622,7 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*contr
 }
 
 func (d *Drand) Shutdown(ctx context.Context, in *control.ShutdownRequest) (*control.ShutdownResponse, error) {
-	d.Stop()
+	d.Stop(ctx)
 	return nil, nil
 }
 
@@ -678,7 +678,7 @@ func (d *Drand) pushDKGInfo(to []*key.Node, packet *drand.DKGInfoPacket) error {
 			continue
 		}
 		go func(i *key.Identity) {
-			err := d.gateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
+			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
 			if err != nil {
 				d.log.Error("push_dkg", err, "to", i.Address())
 			} else {
