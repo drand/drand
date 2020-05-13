@@ -306,7 +306,7 @@ reasonable to assume nodes can restart the DKG phase in case things have gone
 wrong.
 
 **Remediation to keep assumption true - (not implemented yet)**: A practical step towards ensuring non
-equivocation during the DKG phase is to move to a gossiping approach.  Indeed,
+equivocation during the DKG phase is to move to a libp2p pubsub overlay to be close to the reliable broadcast assumption.  Indeed,
 an attacker that would send different public polynomials is likely to end up as
 not a qualified dealer since honest nodes would relay its packet and find the
 inconsistency.
