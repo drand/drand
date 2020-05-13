@@ -24,22 +24,10 @@ var (
 
 // New creates an HTTP handler for the public Drand API
 func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (http.Handler, error) {
-	pkt, err := client.Group(ctx, &drand.GroupRequest{})
-	if err != nil {
-		return nil, err
-	}
-	if pkt == nil {
-		return nil, fmt.Errorf("Failed to retrieve valid GroupPacket")
-	}
-	parsedPkt, err := key.GroupFromProto(pkt)
-	if err != nil {
-		return nil, err
-	}
-
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
-	handler := handler{reqTimeout, client, parsedPkt, logger}
+	handler := handler{reqTimeout, client, nil, logger}
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
@@ -54,6 +42,31 @@ type handler struct {
 	client    drand.PublicClient
 	groupInfo *key.Group
 	log       log.Logger
+}
+
+func (h *handler) group() *key.Group {
+	if h.groupInfo != nil {
+		return h.groupInfo
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	defer cancel()
+	pkt, err := h.client.Group(ctx, &drand.GroupRequest{})
+	if err != nil {
+		h.log.Warn("msg", "group fetch failed", "err", err)
+		return nil
+	}
+	if pkt == nil {
+		h.log.Warn("msg", "group fetch didn't return group info")
+		return nil
+	}
+	parsedPkt, err := key.GroupFromProto(pkt)
+	if err != nil {
+		h.log.Warn("msg", "invalid group fetch", "err", err)
+		return nil
+	}
+	h.groupInfo = parsedPkt
+	return parsedPkt
 }
 
 func (h *handler) getRand(round uint64) ([]byte, error) {
@@ -86,7 +99,11 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundExpectedTime := time.Unix(h.groupInfo.GenesisTime, 0).Add(h.groupInfo.Period * time.Duration(roundN))
+	grp := h.group()
+	roundExpectedTime := time.Now()
+	if grp != nil {
+		roundExpectedTime = time.Unix(grp.GenesisTime, 0).Add(grp.Period * time.Duration(roundN))
+	}
 
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
@@ -111,9 +128,13 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := time.Unix(h.groupInfo.GenesisTime, 0).Add(h.groupInfo.Period * time.Duration(resp.Round))
-
-	nextTime := roundTime.Add(h.groupInfo.Period)
+	grp := h.group()
+	roundTime := time.Now()
+	nextTime := time.Now()
+	if grp != nil {
+		roundTime = time.Unix(grp.GenesisTime, 0).Add(grp.Period * time.Duration(resp.Round))
+		nextTime = roundTime.Add(h.groupInfo.Period)
+	}
 
 	remaining := nextTime.Sub(time.Now())
 	if remaining > 0 && remaining < h.groupInfo.Period {
@@ -130,7 +151,13 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
-	data, err := json.Marshal(h.groupInfo.ToProto())
+	grp := h.group()
+	if grp == nil {
+		w.WriteHeader(http.StatusNoContent)
+		h.log.Warn("http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		return
+	}
+	data, err := json.Marshal(grp.ToProto())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
