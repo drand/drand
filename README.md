@@ -31,24 +31,25 @@ is now under the drand organization.
 - [Goal and Overview](#goal-and-overview)
   - [Public Randomness](#public-randomness)
   - [Private Randomness](#private-randomness)
-- [Try it for yourself](#try-it-for-yourself)
-  - [Installation](#installation)
-    - [Official release](#official-release)
-    - [Manual installation](#manual-installation)
-    - [Via Golang](#via-golang)
-    - [Via Docker](#via-docker)
-  - [Usage](#usage)
-    - [Fetching Public Randomness](#fetching-public-randomness)
-    - [Fetching Private Randomness](#fetching-private-randomness)
-    - [Using HTTP endpoints](#using-http-endpoints)
-    - [DrandJS](#drandjs)
+- [Installation](#installation)
+  - [Official release](#official-release)
+  - [Manual installation](#manual-installation)
+  - [Via Golang](#via-golang)
+  - [Via Docker](#via-docker)
+- [Usage](#usage)
+  - [Run Drand locally](#run-drand-locally)
+  - [Create a Drand deployment](#create-a-drand-deployment)
+  - [Fetching Public Randomness](#fetching-public-randomness)
+  - [Fetching Private Randomness](#fetching-private-randomness)
+  - [Using HTTP endpoints](#using-http-endpoints)
+  - [DrandJS](#drandjs)
 - [Documentation](#documentation)
 - [What's Next?](#whats-next)
-- [License](#license)
+- [Supporting](#supporting)
 - [Contributors](#contributors)
 - [Acknowledgments](#acknowledgments)
 - [Coverage](#coverage)
-- [Supporting](#supporting)
+- [License](#license)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -134,30 +135,18 @@ we run into the chicken-and-egg problem of how to produce on the client's side
 a secure ephemeral key pair for ECIES encryption without a good (local) source
 of randomness.
 
-## Try it for yourself 
+## Installation
 
-To run a local demo, you can simply run:
-```bash
-make demo
-```
-
-The script spins up a few drand local processes, performe resharing and other
-operations and will continue to print out new randomness every Xs (currently
-6s).
-For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
-
-### Installation
-
-#### Official release
+### Official release
 Please go use the latest drand binary in the [release page](https://github.com/drand/drand/releases).
 
-#### Manual installation
+### Manual installation
 Drand can be installed via [Golang](https://golang.org/) or
 [Docker](https://www.docker.com/). By default, drand saves the configuration
 files such as the long-term key pair, the group file, and the collective public
 key in the directory `$HOME/.drand/`.
 
-#### Via Golang
+### Via Golang
 Make sure that you have a working [Golang
 installation](https://golang.org/doc/install) and that your
 [GOPATH](https://golang.org/doc/code.html#GOPATH) is set.
@@ -169,12 +158,24 @@ cd drand
 make install
 ```
 
-#### Via Docker
+### Via Docker
 The setup is explained in
 [README\_docker.md](https://github.com/drand/drand/tree/master/docker/README_docker.md).
 
+## Usage
 
-### Usage
+### Run Drand locally
+
+To run a local demo, you can simply run:
+```bash
+make demo
+```
+
+The script spins up a few drand local processes, performe resharing and other
+operations and will continue to print out new randomness every Xs (currently
+6s).
+For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
+
 
 A drand beacon provides several public services to clients. A drand node
 exposes its public services on a gRPC endpoint as well as a REST JSON endpoint,
@@ -183,7 +184,12 @@ randomness from a JavaScript application.  Communication is protected through
 TLS by default. If the contacted node is using a self-signed certificate, the
 client can use the `--tls-cert` flag to specify the server's certificate.
 
-#### Fetching Public Randomness
+### Create a Drand deployment
+
+Consult full instructions at [DEPLOYMENT](./docs/DEPLOYMENT.md)
+
+### Fetching Public Randomness
+
 To get the latest public random value, run
 ```bash
 drand get public --round <i> <group.toml>
@@ -214,7 +220,7 @@ concatenation of the round number treated as a `uint64` and the previous
 signature. At the moment, we are only using BLS signatures on the BN256 curves
 and the signature is made over G1.
 
-#### Fetching Private Randomness
+### Fetching Private Randomness
 To get a private random value, run the following:
 
 ```bash
@@ -232,7 +238,7 @@ The command outputs a 32-byte hex-encoded random value generated from the local
 randomness engine of the contacted server. If the encryption is not correct,
 the command outputs an error instead.
 
-#### Using HTTP endpoints
+### Using HTTP endpoints
 One may want get the distributed key or public randomness by issuing a GET to a
 HTTP endpoint instead of using a gRPC client. Here is a basic example on how to
 do so with curl.
@@ -252,7 +258,7 @@ curl <address>/api/public
 file.**
 
 
-#### DrandJS
+### DrandJS
 
 To facilitate the use of drand's randomness in JavaScript-based applications,
 we provide [DrandJS](https://github.com/drand/drandjs). The main method
@@ -266,6 +272,7 @@ Note this library is still a proof of concept and uses a rather slow pairing
 based library in JavaScript.
 
 ## Documentation
+
 Here is a list of all documentation related to drand: 
 
 - To learn more about the protocol, the motivation and its backgronund
@@ -330,12 +337,12 @@ please note like, this is still currently a side project! Contact me on
 [twitter](https://twitter.com/nikkolasg1) for more information about the
 project.
 
-## License
-
-The drand source code is released under MIT license originated at the DEDIS lab,
-see the file [LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for
-the full text. All modifications brought to this repository are as well under
-an MIT license.
+## Supporting 
+Drand is an open source project, currently as a side project. If you believe in
+the project, your financial help would be very valuable. Please contact me on
+[twitter](https://twitter.com/nikkolasg1) to know more about the project and
+its continuation and how to fund it. More documentation on that front will
+arrive.
 
 ## Contributors
 Here's the list of people that contributed to drand:
@@ -382,9 +389,9 @@ for letting me work on this project and helping me grow it.
 - (French)
   [nextimpact](https://www.nextinpact.com/brief/cloudflare-presente-la-league-of-entropy--pour-obtenir-des-nombres-aleatoires-9074.html)
 
-## Supporting 
-Drand is an open source project, currently as a side project. If you believe in
-the project, your financial help would be very valuable. Please contact me on
-[twitter](https://twitter.com/nikkolasg1) to know more about the project and
-its continuation and how to fund it. More documentation on that front will
-arrive.
+## License
+
+The drand source code is released under MIT license originated at the DEDIS lab,
+see the file [LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for
+the full text. All modifications brought to this repository are as well under
+an MIT license.
