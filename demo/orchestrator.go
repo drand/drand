@@ -280,6 +280,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 			// curl returns weird error code
 			out, _ := cmd.CombinedOutput()
 			out = append(out, []byte("\n")...)
+			fmt.Printf("curl response: %v\n", out)
 			var r = new(drand.PublicRandResponse)
 			checkErr(json.Unmarshal(out, r), string(out))
 			if r.GetRound() != rand.GetRound() {
