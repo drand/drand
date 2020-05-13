@@ -105,7 +105,9 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		return nil, fmt.Errorf("can't retrieve beacon: %s %s", err, r)
 	}
 	d.log.Info("public_rand", addr, "round", r.Round, "reply", r.String())
-	return beaconToProto(r), nil
+	protoBeacon := beaconToProto(r)
+	protoBeacon.Timestamp = beacon.TimeOfRound(d.group.Period, d.group.GenesisTime, r.Round)
+	return protoBeacon, nil
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
@@ -129,7 +131,9 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 		var err error
 		b.Store().Cursor(func(c beacon.Cursor) {
 			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
-				if err = stream.Send(beaconToProto(bb)); err != nil {
+				protoBeacon := beaconToProto(bb)
+				protoBeacon.Timestamp = beacon.TimeOfRound(d.group.Period, d.group.GenesisTime, bb.Round)
+				if err = stream.Send(protoBeacon); err != nil {
 					d.log.Debug("stream", err)
 					return
 				}

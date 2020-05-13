@@ -634,6 +634,8 @@ func TestDrandPublicRand(t *testing.T) {
 		resp, err := client.PublicRand(ctx, rootID, req)
 		require.NoError(t, err)
 		require.Equal(t, i, resp.Round)
+		ts := beacon.TimeOfRound(group.Period, group.GenesisTime, resp.Round)
+		require.Equal(t, ts, resp.Timestamp)
 		fmt.Println("REQUEST ROUND ", i, " GOT ROUND ", resp.Round)
 	}
 }
@@ -672,8 +674,10 @@ func TestDrandPublicStream(t *testing.T) {
 	require.NoError(t, err)
 	// expect first round now since node already has it
 	select {
-	case beacon := <-respCh:
-		require.Equal(t, beacon.GetRound(), resp.GetRound())
+	case b := <-respCh:
+		require.Equal(t, b.GetRound(), resp.GetRound())
+		ts := beacon.TimeOfRound(group.Period, group.GenesisTime, resp.Round)
+		require.Equal(t, ts, b.Timestamp)
 	case <-time.After(100 * time.Millisecond):
 		require.True(t, false, "too late")
 	}

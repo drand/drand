@@ -86,6 +86,8 @@ message PublicRandResponse {
     // randomness is simply there to demonstrate - it is the hash of the
     // signature. It should be computed locally.
     bytes randomness = 4;
+    // timestamp of the round
+    int64 timestamp = 5;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random

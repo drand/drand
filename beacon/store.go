@@ -230,6 +230,8 @@ func (c *boltCursor) Last() *Beacon {
 	return b
 }
 
+// CallbackStore is a store that calls a registered list of methods each time
+// a new beacon is added.
 type CallbackStore struct {
 	Store
 	cbs []func(*Beacon)
