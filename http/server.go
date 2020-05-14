@@ -46,12 +46,12 @@ type handler struct {
 	log       log.Logger
 }
 
-func (h *handler) group() *key.Group {
+func (h *handler) group(ctx context.Context) *key.Group {
 	if h.groupInfo != nil {
 		return h.groupInfo
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 	pkt, err := h.client.Group(ctx, &drand.GroupRequest{})
 	if err != nil {
@@ -71,9 +71,9 @@ func (h *handler) group() *key.Group {
 	return parsedPkt
 }
 
-func (h *handler) getRand(round uint64) ([]byte, error) {
+func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
 	req := drand.PublicRandRequest{Round: round}
-	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 	resp, err := h.client.PublicRand(ctx, &req)
 
@@ -94,14 +94,14 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.getRand(roundN)
+	data, err := h.getRand(r.Context(), roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
-	grp := h.group()
+	grp := h.group(r.Context())
 	roundExpectedTime := time.Now()
 	if grp != nil {
 		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
@@ -116,7 +116,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	req := drand.PublicRandRequest{Round: 0}
-	ctx, cancel := context.WithTimeout(context.Background(), h.timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
 	resp, err := h.client.PublicRand(ctx, &req)
@@ -134,7 +134,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	grp := h.group()
+	grp := h.group(r.Context())
 	roundTime := time.Now()
 	nextTime := time.Now()
 	if grp != nil {
@@ -157,7 +157,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
-	grp := h.group()
+	grp := h.group(r.Context())
 	if grp == nil {
 		w.WriteHeader(http.StatusNoContent)
 		h.log.Warn("http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
