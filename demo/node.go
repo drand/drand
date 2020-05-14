@@ -46,9 +46,10 @@ type Node struct {
 	reshared   bool
 	tls        bool
 	groupPath  string
+	binary     string
 }
 
-func NewNode(i int, period string, base string, tls bool) *Node {
+func NewNode(i int, period string, base string, tls bool, binary string) *Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -63,6 +64,7 @@ func NewNode(i int, period string, base string, tls bool) *Node {
 		publicPath: publicPath,
 		groupPath:  groupPath,
 		period:     period,
+		binary:     binary,
 	}
 	n.setup()
 	return n
@@ -100,7 +102,7 @@ func (n *Node) setup() {
 		args = append(args, "--tls-disable")
 	}
 	args = append(args, n.privAddr)
-	newKey := exec.Command("drand", args...)
+	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
 	// verify it's done
@@ -139,7 +141,7 @@ func (n *Node) Start(certFolder string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	n.cancel = cancel
 	n.certFolder = certFolder
-	cmd := exec.CommandContext(ctx, "drand", args...)
+	cmd := exec.CommandContext(ctx, n.binary, args...)
 	n.startCmd = cmd
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
@@ -169,7 +171,7 @@ func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr st
 			args = append(args, "--tls-disable")
 		}
 	}
-	cmd := exec.Command("drand", args...)
+	cmd := exec.Command(n.binary, args...)
 	runCommand(cmd)
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
@@ -179,7 +181,7 @@ func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr st
 func (n *Node) GetGroup() *key.Group {
 	args := []string{"show", "group", "--control", n.ctrl}
 	args = append(args, pair("--out", n.groupPath)...)
-	cmd := exec.Command("drand", args...)
+	cmd := exec.Command(n.binary, args...)
 	runCommand(cmd)
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
@@ -211,7 +213,7 @@ func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leade
 			args = append(args, "--tls-disable")
 		}
 	}
-	cmd := exec.Command("drand", args...)
+	cmd := exec.Command(n.binary, args...)
 	runCommand(cmd, fmt.Sprintf("drand node %s", n.privAddr))
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
@@ -225,7 +227,7 @@ func (n *Node) GetCokey(group string) bool {
 	}
 	args = append(args, n.privAddr)
 
-	cmd := exec.Command("drand", args...)
+	cmd := exec.Command(n.binary, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Printf("get cokey %s : %s: err: %v:\n\tout:%s\n", n.privAddr, args, err, string(out))
@@ -246,7 +248,7 @@ func (n *Node) GetCokey(group string) bool {
 /*}*/
 
 func (n *Node) Ping() bool {
-	cmd := exec.Command("drand", "util", "ping", "--control", n.ctrl)
+	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		//fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.privAddr, err, string(out))
@@ -263,7 +265,7 @@ func (n *Node) GetBeacon(groupPath string, round uint64) (*drand.PublicRandRespo
 	args = append(args, pair("--nodes", n.privAddr)...)
 	args = append(args, pair("--round", strconv.Itoa(int(round)))...)
 	args = append(args, groupPath)
-	cmd := exec.Command("drand", args...)
+	cmd := exec.Command(n.binary, args...)
 	out := runCommand(cmd)
 	s := new(drand.PublicRandResponse)
 	checkErr(json.Unmarshal(out, s))
@@ -284,7 +286,7 @@ func (n *Node) Stop() {
 	if n.cancel != nil {
 		n.cancel()
 	}
-	stopCmd := exec.Command("drand", "stop", "--control", n.ctrl)
+	stopCmd := exec.Command(n.binary, "stop", "--control", n.ctrl)
 	stopCmd.Run()
 	if n.startCmd != nil {
 		killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))

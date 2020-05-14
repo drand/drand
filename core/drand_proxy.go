@@ -1,4 +1,4 @@
-package net
+package core
 
 import (
 	"context"
@@ -8,10 +8,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// drandProxy is used as a proxy between the REST API receiver and the gRPC
-// endpoint. Normally, one would need to make another HTTP request to the
-// grpc endpoint. Here we use a struct that directly calls the requested gRPC
-// method since both the REST API and gRPC API lives on the same endpoint.
+// drandProxy is used as a proxy between a Public service (e.g. the node as a server)
+// and a Public Client (the client consumed by the HTTP API)
 type drandProxy struct {
 	r drand.PublicServer
 }
