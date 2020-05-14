@@ -409,7 +409,10 @@ func TestClientTLS(t *testing.T) {
 	pubStr := hex.EncodeToString(pubBuff)
 	require.True(t, strings.Contains(string(out), pubStr), "key: %s, group: %s", pubStr, string(out))
 
+	cmd = exec.Command("./drand", "show", "group", "--control", ctrlPort, "--hash-only")
+	out, err = cmd.CombinedOutput()
+	require.NoError(t, err)
 	groupHash := hex.EncodeToString(group.Hash())
-	require.True(t, strings.Contains(string(out), groupHash))
+	require.Equal(t, strings.Trim(string(out), "\n"), groupHash, string(out))
 
 }
