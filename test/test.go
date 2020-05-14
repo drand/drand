@@ -54,15 +54,38 @@ func Addresses(n int) []string {
 // port= start.
 // TODO: This function is flaky.
 func Ports(n int) []string {
-	ports := make([]string, 0, n)
-	for i := 0; i < n; i++ {
-		ports = append(ports, FreePort())
+	intPorts, err := FreePorts(n)
+	if err != nil {
+		panic(err)
 	}
-	return ports
+	p := make([]string, len(intPorts))
+	for i := range intPorts {
+		p[i] = strconv.Itoa(intPorts[i])
+	}
+	return p
 }
 
 var allPorts []string
 var globalLock sync.Mutex
+
+// FreePorts asks the kernel for free open ports that are ready to use.
+func FreePorts(count int) ([]int, error) {
+	var ports []int
+	for i := 0; i < count; i++ {
+		addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
+		if err != nil {
+			return nil, err
+		}
+
+		l, err := n.ListenTCP("tcp", addr)
+		if err != nil {
+			return nil, err
+		}
+		defer l.Close()
+		ports = append(ports, l.Addr().(*n.TCPAddr).Port)
+	}
+	return ports, nil
+}
 
 // FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
