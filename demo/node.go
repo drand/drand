@@ -74,15 +74,11 @@ func (n *Node) setup() {
 	var err error
 	// find a free port
 	freePort := test.FreePort()
+	freePortREST := test.FreePort()
 	iStr := strconv.Itoa(n.i)
 	host := "127.0.0." + iStr
-	fullAddr := host + ":" + freePort
-	n.privAddr = fullAddr
-	freePortInt, err := strconv.Atoi(freePort)
-	if err != nil {
-		panic(err)
-	}
-	n.pubAddr = host + ":" + strconv.Itoa(freePortInt+1)
+	n.privAddr = host + ":" + freePort
+	n.pubAddr = host + ":" + freePortREST
 	ctrlPort := test.FreePort()
 	if n.tls {
 		// generate certificate
@@ -100,20 +96,20 @@ func (n *Node) setup() {
 	}
 
 	// call drand binary
-	n.priv = key.NewKeyPair(fullAddr)
+	n.priv = key.NewKeyPair(n.privAddr)
 	args := []string{"generate-keypair", "--folder", n.base}
 	if !n.tls {
 		args = append(args, "--tls-disable")
 	}
-	args = append(args, fullAddr)
+	args = append(args, n.privAddr)
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
 	// verify it's done
 	n.store = key.NewFileStore(n.base)
 	n.priv, err = n.store.LoadKeyPair()
-	if n.priv.Public.Address() != fullAddr {
-		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), fullAddr, n.base))
+	if n.priv.Public.Address() != n.privAddr {
+		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))
 	}
 	checkErr(key.Save(n.publicPath, n.priv.Public, false))
 	n.ctrl = ctrlPort
