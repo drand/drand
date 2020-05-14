@@ -61,6 +61,13 @@ commands to the daemon is to use the control functionalities.  The control
 client has to run on the same server as the drand daemon, so only drand
 administrators can issue command to their drand daemons.
 
+To choose where drand listens, use the `--private-listen` (and optionally
+`--public-listen`) flags. These allow specifying the interface and/or port
+for drand to listen on. `--private-listen` is the primary listener used
+to expose a GRPC service for inter-group-member communication.
+`--public-listen` exposes a public, limited HTTP service designed to be
+CDN friendly and providing information for drand users.
+
 There are two ways to run a drand daemon: using TLS or using plain old regular
 unencrypted connections. Drand by default tries to use TLS connections.
 
@@ -116,13 +123,17 @@ server {
 sudo certbot --nginx
 ```
 
-+ **Running** drand now requires to add the following options:
++ **Running** drand uses two ports: one for group member communication, and one for a public-facing API for distributing randomness. These ports, and interfaces should be specified with flags.
 ```bash
-drand start --tls-disable --listen 127.0.0.1:8080
+drand start --tls-disable --private-listen 127.0.0.1:4444 --public-listen 192.168.0.1:8080
 ```
 
-The `--listen` flag tells drand to listen on the given address instead of the
-public address generated during the setup phase (see below).
+The `--private-listen` flag tells drand to listen on the given address. The public facing address associated with this listener is given to other group members in the setup phase (see below).
+
+If no `private-listen` address is provided, it will default to the
+discovered public address of the drand node.
+
+If no `public-listen` flag is provided, drand will not expose a public HTTP interface.
 
 
 #### Without TLS

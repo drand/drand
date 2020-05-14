@@ -214,6 +214,11 @@ var enablePrivateRand = &cli.BoolFlag{
 	Usage: "Enables the private randomness feature on the daemon. By default, this feature is disabled.",
 }
 
+var hashOnly = &cli.BoolFlag{
+	Name:  "hash-only",
+	Usage: "Only print the hash of the group file",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -381,7 +386,7 @@ func main() {
 					Usage: "shows the current group.toml used. The group.toml " +
 						"may contain the distributed public key if the DKG has been " +
 						"ran already.\n",
-					Flags: toArray(outFlag, controlFlag),
+					Flags: toArray(outFlag, controlFlag, hashOnly),
 					Action: func(c *cli.Context) error {
 						return showGroupCmd(c)
 					},
@@ -558,6 +563,8 @@ func groupOut(c *cli.Context, group *key.Group) {
 		if err := key.Save(groupPath, group, false); err != nil {
 			fatal("drand: can't save group to specified file name: %v", err)
 		}
+	} else if c.Bool(hashOnly.Name) {
+		fmt.Printf("%x\n", group.Hash())
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
@@ -566,6 +573,7 @@ func groupOut(c *cli.Context, group *key.Group) {
 		buff.WriteString("\n")
 		fmt.Printf("Copy the following snippet into a new group.toml file\n")
 		fmt.Printf(buff.String())
+		fmt.Printf("\nHash of the group configuration: %x\n", group.Hash())
 	}
 }
 

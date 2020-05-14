@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	gnet "net"
 	"os"
@@ -300,8 +301,8 @@ func TestClientTLS(t *testing.T) {
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	//ctx, cancel := context.WithCancel(context.Background())
+	//defer cancel()
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	pubPath := path.Join(tmpPath, "pub.key")
@@ -351,10 +352,12 @@ func TestClientTLS(t *testing.T) {
 	fs.SaveShare(share)
 
 	startArgs := []string{"./drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
-	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
-	startCmd.Stdout = os.Stdout
-	startCmd.Stderr = os.Stderr
-	go startCmd.Run()
+	os.Args = startArgs
+	//startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
+	//startCmd.Stdout = os.Stdout
+	//startCmd.Stderr = os.Stderr
+	//go startCmd.Run()
+	go main()
 
 	installCmd := exec.Command("go", "build")
 	_, err := installCmd.Output()
@@ -400,4 +403,18 @@ func TestClientTLS(t *testing.T) {
 	expectedOutput = keyStr
 	require.True(t, strings.Contains(string(out), expectedOutput))
 	require.NoError(t, err)
+
+	cmd = exec.Command("./drand", "show", "group", "--control", ctrlPort)
+	out, err = cmd.CombinedOutput()
+	require.NoError(t, err)
+	pubBuff, _ := priv.Public.Key.MarshalBinary()
+	pubStr := hex.EncodeToString(pubBuff)
+	require.True(t, strings.Contains(string(out), pubStr), "key: %s, group: %s", pubStr, string(out))
+
+	cmd = exec.Command("./drand", "show", "group", "--control", ctrlPort, "--hash-only")
+	out, err = cmd.CombinedOutput()
+	require.NoError(t, err)
+	groupHash := hex.EncodeToString(group.Hash())
+	require.Equal(t, strings.Trim(string(out), "\n"), groupHash, string(out))
+
 }

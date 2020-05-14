@@ -197,7 +197,6 @@ func controlPort(c *cli.Context) string {
 	if port == "" {
 		port = core.DefaultControlPort
 	}
-	fmt.Println(" --- controlport using ", port)
 	return port
 }
 
