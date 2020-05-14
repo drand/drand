@@ -66,8 +66,27 @@ func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (c *cachingClient) distribute(in <-chan Result, cancel context.CancelFunc) {
-	for m := range in {
-		c.cache.Add(m.Round(), m)
+	defer cancel()
+	for {
+		var aCtx context.Context
+		c.subscriberLock.Lock()
+		if len(c.subscribers) == 0 {
+			c.subscriberLock.Unlock()
+			return
+		}
+		aCtx = c.subscribers[0].ctx
+		c.subscriberLock.Unlock()
+
+		var m Result
+		select {
+		case res, ok := <-in:
+			if !ok {
+				return
+			}
+			c.cache.Add(res.Round(), res)
+			m = res
+		case <-aCtx.Done():
+		}
 
 		c.subscriberLock.Lock()
 		curr := c.subscribers
@@ -76,21 +95,19 @@ func (c *cachingClient) distribute(in <-chan Result, cancel context.CancelFunc) 
 		for _, s := range curr {
 			if s.ctx.Err() == nil {
 				c.subscribers = append(c.subscribers, s)
-				select {
-				case s.c <- m:
-				default:
-					c.log.Warn("msg", "dropped watch message to subscriber. full channel")
+				if m != nil {
+					select {
+					case s.c <- m:
+					default:
+						c.log.Warn("msg", "dropped watch message to subscriber. full channel")
+					}
 				}
+			} else {
+				close(s.c)
 			}
-		}
-		if len(c.subscribers) == 0 {
-			cancel()
-			c.subscriberLock.Unlock()
-			return
 		}
 		c.subscriberLock.Unlock()
 	}
-	cancel()
 }
 
 // RoundAt will return the most recent round of randomness that will be available

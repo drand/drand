@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -34,7 +33,6 @@ func New(options ...Option) (Client, error) {
 // makeClient creates a client from a configuration.
 func makeClient(cfg clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.groupHash == nil && cfg.group == nil {
-		fmt.Printf("%#v\n", cfg)
 		return nil, errors.New("No root of trust specified")
 	}
 	if len(cfg.urls) == 0 {
