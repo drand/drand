@@ -12,7 +12,7 @@ import (
 // NewCachingClient is a meta client that stores an LRU cache of
 // recently fetched random values.
 func NewCachingClient(client Client, size int, log log.Logger) (Client, error) {
-	cache, err := lru.New(size)
+	cache, err := lru.NewARC(size)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func NewCachingClient(client Client, size int, log log.Logger) (Client, error) {
 
 type cachingClient struct {
 	backing Client
-	cache   *lru.Cache
+	cache   *lru.ARCCache
 	log     log.Logger
 
 	subscriberLock sync.Mutex
