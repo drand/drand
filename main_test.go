@@ -301,8 +301,8 @@ func TestClientTLS(t *testing.T) {
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	//ctx, cancel := context.WithCancel(context.Background())
+	//defer cancel()
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	pubPath := path.Join(tmpPath, "pub.key")
@@ -352,10 +352,12 @@ func TestClientTLS(t *testing.T) {
 	fs.SaveShare(share)
 
 	startArgs := []string{"./drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
-	startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
-	startCmd.Stdout = os.Stdout
-	startCmd.Stderr = os.Stderr
-	go startCmd.Run()
+	os.Args = startArgs
+	//startCmd := exec.CommandContext(ctx, startArgs[0], startArgs[1:]...)
+	//startCmd.Stdout = os.Stdout
+	//startCmd.Stderr = os.Stderr
+	//go startCmd.Run()
+	go main()
 
 	installCmd := exec.Command("go", "build")
 	_, err := installCmd.Output()
