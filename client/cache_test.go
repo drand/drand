@@ -78,6 +78,8 @@ func TestCacheWatch(t *testing.T) {
 	}
 	c1()
 	c2()
+	// give time for the routitine to select /handle these context events.
+	time.Sleep(10 * time.Millisecond)
 	// all clients should be gone.
 	rc <- &MockResult{rnd: 3, rand: []byte{3}}
 	// should now be full. verify by making sure no value is picked up for a bit.
