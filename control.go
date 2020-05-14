@@ -113,7 +113,7 @@ func shareCmd(c *cli.Context) error {
 	if err != nil {
 		fatal("error interpreting the group from protobuf: %v", err)
 	}
-	groupOut(c, group)
+	groupOut(c, group, false)
 	return nil
 }
 
@@ -146,7 +146,7 @@ func showGroupCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	groupOut(c, group)
+	groupOut(c, group, c.Bool(hashFlag.Name))
 	return nil
 }
 

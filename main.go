@@ -214,6 +214,11 @@ var enablePrivateRand = &cli.BoolFlag{
 	Usage: "Enables the private randomness feature on the daemon. By default, this feature is disabled.",
 }
 
+var hashFlag = &cli.BoolFlag{
+	Name:  "hash",
+	Usage: "Outputs the canonical hash representation of the group",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -381,7 +386,7 @@ func main() {
 					Usage: "shows the current group.toml used. The group.toml " +
 						"may contain the distributed public key if the DKG has been " +
 						"ran already.\n",
-					Flags: toArray(outFlag, controlFlag),
+					Flags: toArray(outFlag, controlFlag, hashFlag),
 					Action: func(c *cli.Context) error {
 						return showGroupCmd(c)
 					},
@@ -552,21 +557,24 @@ func keygenCmd(c *cli.Context) error {
 	return nil
 }
 
-func groupOut(c *cli.Context, group *key.Group) {
+func groupOut(c *cli.Context, group *key.Group, onlyHash bool) {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
 		if err := key.Save(groupPath, group, false); err != nil {
 			fatal("drand: can't save group to specified file name: %v", err)
 		}
 	} else {
-		var buff bytes.Buffer
-		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
-			fatal("drand: can't encode group to TOML: %v", err)
+		if !onlyHash {
+			var buff bytes.Buffer
+			if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
+				fatal("drand: can't encode group to TOML: %v", err)
+			}
+			buff.WriteString("\n")
+			fmt.Printf("Copy the following snippet into a new group.toml file\n")
+			fmt.Printf(buff.String())
 		}
-		buff.WriteString("\n")
-		fmt.Printf("Copy the following snippet into a new group.toml file\n")
-		fmt.Printf(buff.String())
 	}
+	fmt.Printf("\nHash of the group configuration: %x\n", group.Hash())
 }
 
 func getThreshold(c *cli.Context) int {
