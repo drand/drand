@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -103,9 +104,13 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	grp := h.group()
 	roundExpectedTime := time.Now()
 	if grp != nil {
-		roundExpectedTime = time.Unix(grp.GenesisTime, 0).Add(grp.Period * time.Duration(roundN))
+		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
 	}
 
+	// Headers per recommendation for static assets at
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
 
@@ -133,8 +138,8 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	roundTime := time.Now()
 	nextTime := time.Now()
 	if grp != nil {
-		roundTime = time.Unix(grp.GenesisTime, 0).Add(grp.Period * time.Duration(resp.Round))
-		nextTime = roundTime.Add(h.groupInfo.Period)
+		roundTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, resp.Round), 0)
+		nextTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, resp.Round+1), 0)
 	}
 
 	remaining := nextTime.Sub(time.Now())
@@ -165,5 +170,9 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Headers per recommendation for static assets at
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "group.json", time.Unix(h.groupInfo.GenesisTime, 0), bytes.NewReader(data))
 }
