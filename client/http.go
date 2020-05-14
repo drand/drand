@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -12,6 +11,8 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	drand "github.com/drand/drand/protobuf/drand"
+
+	json "github.com/nikkolasg/hexjson"
 )
 
 // HTTPGetter is an interface for the exercised methods of an `http.Client`,
