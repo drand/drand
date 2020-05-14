@@ -35,20 +35,6 @@ func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client 
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
 }
 
-// NewRESTClient returns a client that uses the HTTP Rest API delivered by drand
-// nodes
-func NewRESTClient() *Client {
-	return &Client{
-		client: net.NewRestClient(),
-	}
-}
-
-// NewRESTClientFromCert returns a client that uses the HTTP Rest API delivered
-// by drand nodes, using TLS connection for peers registered
-func NewRESTClientFromCert(c *net.CertManager) *Client {
-	return &Client{client: net.NewRestClientFromCertManager(c)}
-}
-
 // LastPublic returns the last randomness beacon from the server associated. It
 // returns it if the randomness is valid. Secure indicates that the request
 // must be made over a TLS protected channel.

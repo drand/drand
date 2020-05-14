@@ -41,16 +41,17 @@ type Orchestrator struct {
 	reshareThr   int
 	reshareNodes []*Node
 	tls          bool
+	binary       string
 }
 
-func NewOrchestrator(n int, thr int, period string, tls bool) *Orchestrator {
+func NewOrchestrator(n int, thr int, period string, tls bool, binary string) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
 	checkErr(os.MkdirAll(certFolder, 0740))
-	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls)
+	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary)
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
@@ -65,6 +66,7 @@ func NewOrchestrator(n int, thr int, period string, tls bool) *Orchestrator {
 		paths:        paths,
 		certFolder:   certFolder,
 		tls:          tls,
+		binary:       binary,
 	}
 	return e
 }
@@ -264,7 +266,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 			http = http + "s"
 		}
 		args = append(args, pair("-H", "Context-type: application/json")...)
-		url := http + "://" + node.pubAddr + "/api/public/"
+		url := http + "://" + node.pubAddr + "/public/"
 		// add the round to make sure we don't ask for a later block if we're
 		// behind
 		url += strconv.Itoa(int(currRound))
@@ -296,7 +298,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []*Node, group string) {
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls)
+	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary)
 	for _, node := range e.newNodes {
 		// just specify here since we use the short command for old node and new
 		// nodes have a longer command - not necessary but this is the
@@ -371,11 +373,11 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}
 }
 
-func createNodes(n int, offset int, period, basePath, certFolder string, tls bool) ([]*Node, []string) {
+func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string) ([]*Node, []string) {
 	var nodes []*Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
-		n := NewNode(idx, period, basePath, tls)
+		n := NewNode(idx, period, basePath, tls, binary)
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
 		fmt.Printf("\t- Created node %s at %s\n", n.privAddr, n.base)

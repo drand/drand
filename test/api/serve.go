@@ -19,7 +19,7 @@ type TestJSON struct {
 }
 
 func main() {
-	listener, server := mock.NewGRPCPublicServer(serve)
+	listener, server := mock.NewMockGRPCPublicServer(serve)
 	resp, err := server.PublicRand(context.TODO(), &drand.PublicRandRequest{})
 	if err != nil {
 		panic(err)

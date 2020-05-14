@@ -8,7 +8,6 @@ import (
 
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -40,7 +39,6 @@ func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, c
 
 	httpServer := buildTLSServer(grpcServer, x509KeyPair)
 	g := &tlsListener{
-		Service:    s,
 		httpServer: httpServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
@@ -49,7 +47,7 @@ func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, c
 }
 
 // NewRESTListenerForPublicWithTLS creates a new listener for the Public API over REST with TLS.
-func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, certPath, keyPath string, handler http.Handler) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
 	if err != nil {
 		return nil, err
@@ -60,18 +58,8 @@ func NewRESTListenerForPublicWithTLS(ctx context.Context, bindingAddr string, ce
 		return nil, err
 	}
 
-	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("*", defaultJSONMarshaller))
-	err = drand.RegisterPublicHandlerClient(ctx, gwMux, &drandProxy{s})
-	if err != nil {
-		return nil, err
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/", gwMux)
-
-	httpServer := buildTLSServer(mux, x509KeyPair)
+	httpServer := buildTLSServer(handler, x509KeyPair)
 	g := &tlsListener{
-		Service:    s,
 		httpServer: httpServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
@@ -114,7 +102,6 @@ func buildTLSServer(httpHandler http.Handler, x509KeyPair tls.Certificate) *http
 }
 
 type tlsListener struct {
-	Service
 	httpServer *http.Server
 	l          net.Listener
 }
