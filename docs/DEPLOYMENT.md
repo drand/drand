@@ -116,13 +116,12 @@ server {
 sudo certbot --nginx
 ```
 
-+ **Running** drand now requires to add the following options:
++ **Running** drand uses two ports: one for group member communication, and one for a public-facing API for distributing randomness. These ports, and interfaces should be specified with flags.
 ```bash
-drand start --tls-disable --listen 127.0.0.1:8080
+drand start --tls-disable --private-listen 127.0.0.1:4444 --public-listen 192.168.0.1:8080
 ```
 
-The `--listen` flag tells drand to listen on the given address instead of the
-public address generated during the setup phase (see below).
+The `--private-listen` flag tells drand to listen on the given address. The public facing address associated with this listener is given to other group members in the setup phase (see below).
 
 
 #### Without TLS
