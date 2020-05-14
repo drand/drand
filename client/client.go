@@ -6,18 +6,29 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 )
 
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
-	cfg := clientConfig{}
+	cfg := clientConfig{
+		cacheSize: 32,
+		log:       log.DefaultLogger,
+	}
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
 			return nil, err
 		}
 	}
 
-	return makeClient(cfg)
+	coreClient, err := makeClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.withoutCache {
+		return coreClient, nil
+	}
+	return NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
 }
 
 // makeClient creates a client from a configuration.
@@ -49,12 +60,13 @@ func makeClient(cfg clientConfig) (Client, error) {
 			}
 			cfg.group = group
 		}
+		c.(*httpClient).l = cfg.log
 		clients = append(clients, c)
 	}
 	if len(clients) == 1 {
 		return clients[0], nil
 	}
-	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group)
+	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log)
 }
 
 type clientConfig struct {
@@ -68,6 +80,12 @@ type clientConfig struct {
 	group *key.Group
 	// getter configures the http transport parameters used when fetching randomness.
 	getter HTTPGetter
+	// cache size - how larger of a cache to keep locally.
+	cacheSize int
+	// skip the cache layer of the client.
+	withoutCache bool
+	// customized client log.
+	log log.Logger
 }
 
 // Option is an option configuring a client.
@@ -89,6 +107,38 @@ func WithHTTPEndpoints(urls []string) Option {
 func WithHTTPGetter(getter HTTPGetter) Option {
 	return func(cfg *clientConfig) error {
 		cfg.getter = getter
+		return nil
+	}
+}
+
+// WithCacheSize specifies how large of a cache of randomness values should be
+// kept locally. Default 32
+func WithCacheSize(size int) Option {
+	return func(cfg *clientConfig) error {
+		cfg.cacheSize = size
+		return nil
+	}
+}
+
+// WithoutCache disables local caching.
+// This is different from `WithCacheSize(0)`, in that it also disables
+// aggregation of requests by consumers calling `Watch`. A zero-sized
+// cache will cause multiple `Watch()` calls to only trigger a single
+// HTTP poll, while by disabling the caching layer completely, multiple
+// calls to `Watch` will each use their own independent polling go routine.
+func WithoutCache() Option {
+	return func(cfg *clientConfig) error {
+		cfg.withoutCache = true
+		return nil
+	}
+}
+
+// WithLogger overrides the logging options for the client,
+// allowing specification of additional tags, or redirection / configuration
+// of logging level and output.
+func WithLogger(l log.Logger) Option {
+	return func(cfg *clientConfig) error {
+		cfg.log = l
 		return nil
 	}
 }

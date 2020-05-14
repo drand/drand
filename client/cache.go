@@ -1,0 +1,100 @@
+package client
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/drand/drand/log"
+	lru "github.com/hashicorp/golang-lru"
+)
+
+// NewCachingClient is a meta client that stores an LRU cache of
+// recently fetched random values.
+func NewCachingClient(client Client, size int, log log.Logger) (Client, error) {
+	cache, err := lru.New(size)
+	if err != nil {
+		return nil, err
+	}
+	return &cachingClient{
+		backing:     client,
+		cache:       cache,
+		log:         log,
+		subscribers: make([]subscriber, 0),
+	}, nil
+}
+
+type cachingClient struct {
+	backing Client
+	cache   *lru.Cache
+	log     log.Logger
+
+	subscriberLock sync.Mutex
+	subscribers    []subscriber
+}
+
+type subscriber struct {
+	ctx context.Context
+	c   chan Result
+}
+
+// Get returns a the randomness at `round` or an error.
+func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
+	if val, ok := c.cache.Get(round); ok {
+		return val.(Result), nil
+	}
+	val, err := c.backing.Get(ctx, round)
+	if err == nil && val != nil {
+		c.cache.Add(round, val)
+	}
+	return val, err
+}
+
+// Watch returns new randomness as it becomes available.
+func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
+	c.subscriberLock.Lock()
+	defer c.subscriberLock.Unlock()
+
+	sub := subscriber{ctx, make(chan Result, 5)}
+	c.subscribers = append(c.subscribers, sub)
+
+	if len(c.subscribers) == 1 {
+		ctx, cancel := context.WithCancel(context.Background())
+		go c.distribute(c.backing.Watch(ctx), cancel)
+	}
+	return sub.c
+}
+
+func (c *cachingClient) distribute(in <-chan Result, cancel context.CancelFunc) {
+	for m := range in {
+		c.cache.Add(m.Round(), m)
+
+		c.subscriberLock.Lock()
+		curr := c.subscribers
+		c.subscribers = c.subscribers[:0]
+
+		for _, s := range curr {
+			if s.ctx.Err() == nil {
+				c.subscribers = append(c.subscribers, s)
+				select {
+				case s.c <- m:
+				default:
+					c.log.Warn("msg", "dropped watch message to subscriber. full channel")
+				}
+			}
+		}
+		if len(c.subscribers) == 0 {
+			cancel()
+			c.subscriberLock.Unlock()
+			return
+		}
+		c.subscriberLock.Unlock()
+	}
+	cancel()
+}
+
+// RoundAt will return the most recent round of randomness that will be available
+// at time for the current client.
+func (c *cachingClient) RoundAt(time time.Time) uint64 {
+	return c.backing.RoundAt(time)
+}
