@@ -1,3 +1,0 @@
-# Drand Documentation
-
-

@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/drand/drand/client"
@@ -17,9 +16,14 @@ var urlFlag = &cli.StringFlag{
 	Usage: "root URL for fetching randomness",
 }
 
-var keyFlag = &cli.StringFlag{
-	Name:  "key",
-	Usage: "The distributed key for the group to follow",
+var hashFlag = &cli.StringFlag{
+	Name:  "hash",
+	Usage: "The hash (in hex) for the group to follow",
+}
+
+var insecureFlag = &cli.BoolFlag{
+	Name:  "insecure",
+	Usage: "Allow autodetection of the group key",
 }
 
 var watchFlag = &cli.BoolFlag{
@@ -36,7 +40,7 @@ func main() {
 	app := &cli.App{
 		Name:   "client",
 		Usage:  "CDN Drand client for loading randomness from an HTTP endpoint",
-		Flags:  []cli.Flag{urlFlag, keyFlag, watchFlag, roundFlag},
+		Flags:  []cli.Flag{urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag},
 		Action: Client,
 	}
 
@@ -52,15 +56,21 @@ func Client(c *cli.Context) error {
 		return fmt.Errorf("A URL is required to learn randomness from an HTTP endpoint")
 	}
 
-	hashBytes := []byte{}
-	if c.IsSet(keyFlag.Name) {
-		hex, err := hex.DecodeString(c.String(keyFlag.Name))
+	opts := []client.Option{}
+
+	if c.IsSet(hashFlag.Name) {
+		hex, err := hex.DecodeString(c.String(hashFlag.Name))
 		if err != nil {
 			return err
 		}
-		hashBytes = hex
+		opts = append(opts, client.WithGroupHash(hex))
 	}
-	client, err := client.NewHTTPClient(c.String(urlFlag.Name), hashBytes, &http.Client{})
+	if c.IsSet(insecureFlag.Name) {
+		opts = append(opts, client.WithInsecureHTTPEndpoints([]string{c.String(urlFlag.Name)}))
+	} else {
+		opts = append(opts, client.WithHTTPEndpoints([]string{c.String(urlFlag.Name)}))
+	}
+	client, err := client.New(opts...)
 	if err != nil {
 		return err
 	}
@@ -85,7 +95,7 @@ func Client(c *cli.Context) error {
 func Watch(c *cli.Context, client client.Client) error {
 	results := client.Watch(context.Background())
 	for r := range results {
-		fmt.Printf("%v\n", r)
+		fmt.Printf("%d\t%x\n", r.Round(), r.Randomness())
 	}
 	return nil
 }

@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
@@ -90,7 +91,7 @@ func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
 	}
 
 	if groupHash == nil {
-		h.l.Warn("http_client", "instantiated without trustroot", "groupKey", grp.PublicKey)
+		h.l.Warn("http_client", "instantiated without trustroot", "groupHash", hex.EncodeToString(grp.Hash()))
 	}
 	if groupHash != nil && !bytes.Equal(grp.Hash(), groupHash) {
 		return nil, fmt.Errorf("%s does not advertise the expected drand group", h.root)
