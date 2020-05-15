@@ -10,7 +10,7 @@ import (
 
 func TestCacheGet(t *testing.T) {
 	m := MockClientWithResults(1, 6)
-	c, err := NewCachingClient(m, 2, log.DefaultLogger)
+	c, err := NewCachingClient(m, 3, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +38,8 @@ func TestCacheGet(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(m.(*MockClient).Results) != 1 {
-		t.Fatal("unexpected cache size.")
+	if len(m.(*MockClient).Results) != 2 {
+		t.Fatalf("unexpected cache size. %d", len(m.(*MockClient).Results))
 	}
 }
 
