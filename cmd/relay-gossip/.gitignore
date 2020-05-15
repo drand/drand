@@ -1,0 +1,4 @@
+./relay-gossip
+datastore
+identity.key
+relay-gossip

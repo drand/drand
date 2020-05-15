@@ -70,15 +70,28 @@ Note: **only** do this if you intend to setup TLS with your reverse proxy. If yo
 In this case, replace the following line in the `docker-compose.yml` file:
 
 ```
-    command: --verbose 2 start --listen 0.0.0.0:8080 --cert-dir "/root/.drand/tls_certificates" --tls-cert "/root/.drand/tls_keypair/cert.pem" --tls-key "/root/.drand/tls_keypair/key.pem"
+    command: --verbose 2 start --private-listen 0.0.0.0:8080 --cert-dir "/root/.drand/tls_certificates" --tls-cert "/root/.drand/tls_keypair/cert.pem" --tls-key "/root/.drand/tls_keypair/key.pem"
 ```
 
 by:
 ```
-    command: --verbose 2 -tls-disable start --listen 0.0.0.0:8080
+    command: --verbose 2 -tls-disable start --private-listen 0.0.0.0:8080
 ```
 
 This guide will continue focusing on drand; jump to the end of this guide to configure the reverse proxy.
+
+## Public HTTP api
+
+The compose file also opens a public http API to be consumed by the clients. 
+This public endpoint is exposed on the 1235 port (private endpont + 1).
+If you wish to not expose the public http endpoint, you need to change the
+docker file to remove references to public port, as follow:
+```
+    ports:
+      - "0.0.0.0:1234:8080"
+    entrypoint: /drand
+    command: start --verbose --private-listen 0.0.0.0:8080 --tls-cert "/root/.drand/cert.pem" --tls-key "/root/.drand/key.pem"
+```
 
 ## Generate drand keys
 
@@ -137,7 +150,7 @@ docker exec -it 697e4766f8b2 /bin/sh
 Then, you're inside the container; tell drand to run the DKG like so:
 
 ```bash
-drand share /root/.drand/group.toml
+drand share --connect <leader address> --nodes <expected nodes> --threshold <expected threshold>
 ```
 
 **Notice the full path** `/root/.drand/group.toml` and not `group.toml` nor `./group.toml`
@@ -235,11 +248,15 @@ server {
   listen 443 ssl http2;
   ssl_protocols   SSLv3 TLSv1 TLSv1.1 TLSv1.2;
   ssl_ciphers   HIGH:!aNULL:!MD5;
+  
   location / {
+    // default --public-listen port specified in the docker compose
     grpc_pass grpc://localhost:1234;
   }
+
   location /api/ {
-    proxy_pass http://localhost:1234; 
+    // default --public-listen flag specified in the docker compose
+    proxy_pass http://localhost:1235; 
     proxy_set_header Host $host;
   }
   

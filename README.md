@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/drand/drand.svg?style=shield)](https://circleci.com/gh/drand/drand)
+[![CircleCI](https://circleci.com/gh/drand/drand/tree/master.svg?style=shield)](https://circleci.com/gh/drand/drand/tree/master)
 [![Coverage](https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg)](https://codecov.io/gh/drand/drand)
 [![Go Report Card](https://goreportcard.com/badge/github.com/drand/drand)](https://goreportcard.com/report/github.com/drand/drand)
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/drand/drand)
@@ -388,7 +388,7 @@ for letting me work on this project and helping me grow it.
 
 ## License
 
-The drand source code is released under MIT license originated at the DEDIS lab,
-see the file [LICENSE](https://github.com/dedis/drand/blob/master/LICENSE) for
-the full text. All modifications brought to this repository are as well under
-an MIT license.
+The drand project is dual-licensed under Apache 2.0 and MIT terms:
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](https://github.com/drand/drand/blob/master/LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- MIT license ([LICENSE-MIT](https://github.com/drand/drand/blob/master/LICENSE-MIT) or http://opensource.org/licenses/MIT)
