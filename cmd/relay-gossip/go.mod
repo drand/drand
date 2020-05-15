@@ -3,7 +3,8 @@ module github.com/drand/drand/cmd/relay-gossip
 go 1.14
 
 require (
-	github.com/drand/drand v0.8.2-0.20200508124210-33866c2232e3
+	github.com/coreos/bbolt v1.3.2 // indirect
+	github.com/drand/drand v0.8.2-0.20200515002823-48d9bc6def97
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.5
 	github.com/ipfs/go-cid v0.0.6-0.20200501230655-7c82f3b81c00 // indirect

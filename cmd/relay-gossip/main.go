@@ -8,13 +8,16 @@ import (
 	"os"
 	"time"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/client"
+	"github.com/drand/drand/cmd/relay-gossip/client/failover"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
+	"github.com/drand/drand/key"
+	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
 	bds "github.com/ipfs/go-ds-badger2"
-	logging "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -25,14 +28,9 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var (
-	log = logging.Logger("beacon-relay")
-)
+var log = dlog.DefaultLogger
 
 func main() {
-	logging.SetLogLevel("*", "info")
-	logging.SetLogLevel("beacon-relay", "info")
-
 	app := &cli.App{
 		Name:    "beacon-relay",
 		Version: "0.0.1",
@@ -121,7 +119,7 @@ var runCmd = &cli.Command{
 			fmt.Printf("%s/p2p/%s\n", a, h.ID())
 		}
 
-		t, err := ps.Join(lp2p.PubSubTopic(cctx.String("network-name")))
+		t, err := ps.Join(lp2p.PubSubTopic("drandGroup"))
 		if err != nil {
 			return xerrors.Errorf("joining topic: %w", err)
 		}
@@ -142,14 +140,14 @@ var runCmd = &cli.Command{
 		for {
 			conn, err := grpc.Dial(cctx.String("connect"), opts...)
 			if err != nil {
-				log.Warnf("error connecting to grpc: %+v", err)
+				log.Warn("error connecting to grpc:", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 			client := drand.NewPublicClient(conn)
 			err = workRelay(client, t)
 			if err != nil {
-				log.Warnf("error relaying: %+v", err)
+				log.Warn("error relaying: %+v", err)
 				time.Sleep(5 * time.Second)
 			}
 		}
@@ -166,7 +164,7 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 	if err != nil {
 		return xerrors.Errorf("getting initial round failed: %w", err)
 	}
-	log.Infof("got latest rand: %d", curr.Round)
+	log.Info("got latest rand:", curr.Round)
 
 	// context.Background() on purpose as this applies to whole, long lived stream
 	stream, err := client.PublicRandStream(context.Background(), &drand.PublicRandRequest{Round: curr.Round})
@@ -189,14 +187,24 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 		if err != nil {
 			return xerrors.Errorf("publishing on pubsub: %w", err)
 		}
-		log.Infof("Published randomness on pubsub, round: %d", rand.Round)
+		log.Info("Published randomness on pubsub, round:", rand.Round)
 	}
 
 }
 
 var clientCmd = &cli.Command{
-	Name:  "client",
-	Flags: []cli.Flag{peerWithFlag},
+	Name: "client",
+	Flags: []cli.Flag{
+		peerWithFlag,
+		&cli.StringFlag{
+			Name:  "failover-url",
+			Usage: "optional drand HTTP API URL(s) to use incase of gossipsub failure",
+		},
+		&cli.DurationFlag{
+			Name:  "failover-grace-period",
+			Usage: "grace period before the failover HTTP API is used when watching for randomness",
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
@@ -213,22 +221,35 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		c, err := client.NewWithPubsub(ps, cctx.String("network-name"))
+		// TODO fetch group from group hash
+		var group *key.Group
+
+		psc, err := client.NewWithPubsub(ps, group, log)
 		if err != nil {
-			return xerrors.Errorf("constructing client: %w", err)
+			return xerrors.Errorf("constructing pubsub client: %w", err)
 		}
 
-		var notifChan <-chan drand.PublicRandResponse
-		var unsub client.UnsubFunc
-		{
-			ch := make(chan drand.PublicRandResponse, 5)
-			notifChan = ch
-			unsub = c.Sub(ch)
+		cc, err := client.NewCachingClient(psc, 256, log)
+		if err != nil {
+			return xerrors.Errorf("constructing caching client: %w", err)
 		}
-		_ = unsub
 
-		for rand := range notifChan {
-			fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Signature[:16])
+		c := cc
+		if cctx.IsSet("failover-url") {
+			hc, err := dclient.New(dclient.WithHTTPEndpoints(cctx.StringSlice("failover-url")))
+			if err != nil {
+				return xerrors.Errorf("constructing HTTP client: %w", err)
+			}
+
+			watcher := failover.NewWatcher(psc, cctx.Duration("failover-grace-period"))
+			c, err = dclient.NewPrioritizingClient([]dclient.Client{c, hc}, group.Hash(), group, watcher, log)
+			if err != nil {
+				return xerrors.Errorf("constructing prioritizing client: %w", err)
+			}
+		}
+
+		for rand := range c.Watch(context.Background()) {
+			fmt.Printf("got randomness: Round %d: %X\n", rand.Round(), rand.Randomness()[:16])
 		}
 		return nil
 	},
