@@ -27,8 +27,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testBeaconOffset = int((5 * time.Second).Seconds())
-var testDkgTimeout = 1 * time.Second
+var testBeaconOffset = int((7 * time.Second).Seconds())
+var testDkgTimeout = 2 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
