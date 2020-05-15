@@ -1,4 +1,4 @@
-module github.com/drand/drand/cmd/drand-gossip-relay
+module github.com/drand/drand/cmd/relay-gossip
 
 go 1.14
 
