@@ -30,8 +30,19 @@ jobs:
       - run: make test-integration
       - store_test_results:
           path: /tmp/test-results
+  coverage:
+    working_directory: /go/src/github.com/drand/drand
+    docker:
+      # specify the version
+      - image: circleci/golang:latest
+    environment:
+        # special env for tests to wait a bit longer between phases 
+        CIRCLE_CI: on
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: make test-unit-cover
       - run: bash <(curl -s https://codecov.io/bash)
-
   deploy:
     docker:
       - image: circleci/golang:latest
@@ -62,6 +73,7 @@ workflows:
   build-deploy:
     jobs:
       - build
+      - coverage
       - deploy:
           requires:
             - build
