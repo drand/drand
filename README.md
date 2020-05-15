@@ -1,4 +1,4 @@
-[![CircleCI](https://circleci.com/gh/drand/drand.svg?style=shield)](https://circleci.com/gh/drand/drand)
+[![CircleCI](https://circleci.com/gh/drand/drand/tree/master.svg?style=shield)](https://circleci.com/gh/drand/drand/tree/master)
 [![Coverage](https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg)](https://codecov.io/gh/drand/drand)
 [![Go Report Card](https://goreportcard.com/badge/github.com/drand/drand)](https://goreportcard.com/report/github.com/drand/drand)
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/drand/drand)
