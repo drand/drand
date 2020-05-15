@@ -70,12 +70,12 @@ Note: **only** do this if you intend to setup TLS with your reverse proxy. If yo
 In this case, replace the following line in the `docker-compose.yml` file:
 
 ```
-    command: --verbose 2 start --listen 0.0.0.0:8080 --cert-dir "/root/.drand/tls_certificates" --tls-cert "/root/.drand/tls_keypair/cert.pem" --tls-key "/root/.drand/tls_keypair/key.pem"
+    command: --verbose 2 start --private-listen 0.0.0.0:8080 --cert-dir "/root/.drand/tls_certificates" --tls-cert "/root/.drand/tls_keypair/cert.pem" --tls-key "/root/.drand/tls_keypair/key.pem"
 ```
 
 by:
 ```
-    command: --verbose 2 -tls-disable start --listen 0.0.0.0:8080
+    command: --verbose 2 -tls-disable start --private-listen 0.0.0.0:8080
 ```
 
 This guide will continue focusing on drand; jump to the end of this guide to configure the reverse proxy.
@@ -137,7 +137,7 @@ docker exec -it 697e4766f8b2 /bin/sh
 Then, you're inside the container; tell drand to run the DKG like so:
 
 ```bash
-drand share /root/.drand/group.toml
+drand share --connect <leader address> --nodes <expected nodes> --threshold <expected threshold>
 ```
 
 **Notice the full path** `/root/.drand/group.toml` and not `group.toml` nor `./group.toml`
