@@ -271,9 +271,15 @@ func (b *BeaconTest) MoveTime(t time.Duration) {
 		fmt.Printf(" - %d increasing time of node %d - %s (pointer %p)- before: %d - current: %d - pointer clock %p\n", time.Now().Unix(), n.index, n.private.Public.Address(), n, before, n.clock.Now().Unix(), n.handler.conf.Clock)
 	}
 	b.time.Advance(t)
-	// give each handlers time to perform their duty
-	time.Sleep(time.Duration(b.n*100) * time.Millisecond)
-	//time.Sleep(100 * time.Millisecond)
+	time.Sleep(getSleepDuration())
+}
+
+func getSleepDuration() time.Duration {
+	if os.Getenv("CIRCLE_CI") != "" {
+		fmt.Printf("\n\n--- Sleeping on CIRCLECI\n\n")
+		return time.Duration(1000) * time.Millisecond
+	}
+	return time.Duration(500) * time.Millisecond
 }
 
 func (b *BeaconTest) StopBeacon(i int) {
@@ -342,6 +348,7 @@ func checkWait(counter *sync.WaitGroup) {
 	select {
 	case <-doneCh:
 		break
+
 	case <-time.After(3 * time.Second):
 		fmt.Println(" _------------- OUTDATED ----------------")
 		panic("outdated beacon time")
