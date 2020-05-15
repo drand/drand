@@ -37,7 +37,7 @@ func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket
 	return &drand.GroupPacket{
 		Threshold:   1,
 		Period:      60,
-		GenesisTime: uint64(time.Now().Second()),
+		GenesisTime: uint64(s.d.Genesis),
 		DistKey:     [][]byte{s.d.Public},
 		Nodes: []*drand.Node{
 			{
@@ -110,6 +110,7 @@ type Data struct {
 	Round             int
 	PreviousSignature string
 	PreviousRound     int
+	Genesis           int64
 }
 
 func generateMockData() *Data {
@@ -136,6 +137,7 @@ func generateMockData() *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
+		Genesis:           time.Now().Unix(),
 	}
 	return d
 }
