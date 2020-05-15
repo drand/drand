@@ -27,7 +27,6 @@ jobs:
             mkdir /tmp/test-results
             trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
             make test-unit | tee /tmp/test-results/go-test.out
-      - run: make test-unit-cover
       - run: make test-integration
       - store_test_results:
           path: /tmp/test-results
