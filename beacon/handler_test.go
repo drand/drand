@@ -229,7 +229,11 @@ func (b *BeaconTest) ServeBeacon(i int) {
 	j := b.searchNode(i)
 	beaconServer := &testBeaconServer{h: b.nodes[j].handler}
 	b.nodes[j].server = beaconServer
-	b.nodes[j].listener = net.NewTCPGrpcListener(b.nodes[j].private.Public.Address(), beaconServer)
+	var err error
+	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(context.Background(), b.nodes[j].private.Public.Address(), beaconServer)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("\n || Serve Beacon for node %d - %p --> %s\n", j, b.nodes[j].handler, b.nodes[j].private.Public.Address())
 	go b.nodes[j].listener.Start()
 }
@@ -267,9 +271,15 @@ func (b *BeaconTest) MoveTime(t time.Duration) {
 		fmt.Printf(" - %d increasing time of node %d - %s (pointer %p)- before: %d - current: %d - pointer clock %p\n", time.Now().Unix(), n.index, n.private.Public.Address(), n, before, n.clock.Now().Unix(), n.handler.conf.Clock)
 	}
 	b.time.Advance(t)
-	// give each handlers time to perform their duty
-	time.Sleep(time.Duration(b.n*100) * time.Millisecond)
-	//time.Sleep(100 * time.Millisecond)
+	time.Sleep(getSleepDuration())
+}
+
+func getSleepDuration() time.Duration {
+	if os.Getenv("CIRCLE_CI") != "" {
+		fmt.Printf("\n\n--- Sleeping on CIRCLECI\n\n")
+		return time.Duration(1000) * time.Millisecond
+	}
+	return time.Duration(500) * time.Millisecond
 }
 
 func (b *BeaconTest) StopBeacon(i int) {
@@ -278,7 +288,7 @@ func (b *BeaconTest) StopBeacon(i int) {
 		if !n.started {
 			return
 		}
-		n.listener.Stop()
+		n.listener.Stop(context.Background())
 		n.handler.Stop()
 		n.started = false
 	}
@@ -338,7 +348,8 @@ func checkWait(counter *sync.WaitGroup) {
 	select {
 	case <-doneCh:
 		break
-	case <-time.After(1 * time.Second):
+
+	case <-time.After(3 * time.Second):
 		fmt.Println(" _------------- OUTDATED ----------------")
 		panic("outdated beacon time")
 	}

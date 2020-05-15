@@ -52,6 +52,7 @@ func Addresses(n int) []string {
 
 // Ports returns a list of ports starting from the given
 // port= start.
+// TODO: This function is flaky.
 func Ports(n int) []string {
 	ports := make([]string, 0, n)
 	for i := 0; i < n; i++ {
@@ -108,9 +109,14 @@ func GenerateIDs(n int) []*key.Pair {
 // BatchIdentities generates n insecure identities
 func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
-	fakeKey := key.KeyGroup.Point().Pick(random.New())
-	group := key.LoadGroup(ListFromPrivates(privs), 1, &key.DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0)
-	group.Threshold = key.MinimumT(n)
+	thr := key.MinimumT(n)
+	var dpub []kyber.Point
+	for i := 0; i < thr; i++ {
+		dpub = append(dpub, key.KeyGroup.Point().Pick(random.New()))
+	}
+	dp := &key.DistPublic{Coefficients: dpub}
+	group := key.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0)
+	group.Threshold = thr
 	return privs, group
 }
 

@@ -19,12 +19,6 @@ func TestClientPrivate(t *testing.T) {
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)
 
-	client = NewRESTClientFromCert(drands[0].opts.certmanager)
-	buff, err = client.Private(pub)
-	require.Nil(t, err)
-	require.NotNil(t, buff)
-	require.Len(t, buff, 32)
-
 	drands[0].opts.enablePrivate = false
 	client = NewGrpcClientFromCert(drands[0].opts.certmanager)
 	buff, err = client.Private(pub)

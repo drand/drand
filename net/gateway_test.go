@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
+	"net/http"
 	"os"
 	"path"
 	run "runtime"
@@ -53,43 +53,47 @@ func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand
 	return nil, nil
 }
 
-func TestListener(t *testing.T) {
-	ctx := context.Background()
-	addr1 := "127.0.0.1:4000"
-	peer1 := &testPeer{addr1, false}
-	//addr2 := "127.0.0.1:4001"
-	randServer := &testRandomnessServer{round: 42}
+func TestListeners(t *testing.T) {
+	t.Run("without-tls", func(t *testing.T) { testListener(t, 4000, 4001) })
+	t.Run("with-tls", func(t *testing.T) { testListenerTLS(t, 4000, 4001) })
+}
 
-	lis1 := NewTCPGrpcListener(addr1, randServer)
-	go lis1.Start()
-	defer lis1.Stop()
+func testListener(t *testing.T, grpcPort, restPort int) {
+	ctx := context.Background()
+	randServer := &testRandomnessServer{round: 42}
+	hostAddr := "127.0.0.1"
+
+	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", randServer)
+	require.NoError(t, err)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
+	lisREST, err := NewRESTListenerForPublic(ctx, hostAddr+":", mux)
+	require.NoError(t, err)
+
+	peerGRPC := &testPeer{lisGRPC.Addr(), false}
+
+	go lisGRPC.Start()
+	defer lisGRPC.Stop(ctx)
+	go lisREST.Start()
+	defer lisREST.Stop(ctx)
 	time.Sleep(100 * time.Millisecond)
 
+	// GRPC
 	client := NewGrpcClient()
-	resp, err := client.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
-	require.Equal(t, expected.GetRound(), resp.GetRound())
-
-	err = client.PartialBeacon(ctx, peer1, &drand.PartialBeaconPacket{})
-	require.Error(t, err)
-
-	rest := NewRestClient()
-	resp, err = rest.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
-	require.NoError(t, err)
-	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
-func TestListenerTLS(t *testing.T) {
+func testListenerTLS(t *testing.T, grpcPort, restPort int) {
+	ctx := context.Background()
 	if run.GOOS == "windows" {
 		fmt.Println("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
 	}
-	ctx := context.Background()
-	addr1 := "127.0.0.1:4000"
-	peer1 := &testPeer{addr1, true}
+	hostAddr := "127.0.0.1"
 
 	tmpDir := path.Join(os.TempDir(), "drand-net")
 	require.NoError(t, os.MkdirAll(tmpDir, 0766))
@@ -97,32 +101,34 @@ func TestListenerTLS(t *testing.T) {
 	certPath := path.Join(tmpDir, "server.crt")
 	keyPath := path.Join(tmpDir, "server.key")
 	if httpscerts.Check(certPath, keyPath) != nil {
-		h, _, _ := net.SplitHostPort(addr1)
-		require.NoError(t, httpscerts.Generate(certPath, keyPath, h))
-		//require.NoError(t, httpscerts.Generate(certPath, keyPath, addr1))
+		require.NoError(t, httpscerts.Generate(certPath, keyPath, hostAddr))
 	}
 
 	randServer := &testRandomnessServer{round: 42}
 
-	lis1, err := NewTLSGrpcListener(addr1, certPath, keyPath, randServer)
+	lisGRPC, err := NewGRPCListenerForPrivateWithTLS(ctx, hostAddr+":", certPath, keyPath, randServer)
 	require.NoError(t, err)
-	go lis1.Start()
-	defer lis1.Stop()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
+	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, hostAddr+":", certPath, keyPath, mux)
+	require.NoError(t, err)
+
+	peerGRPC := &testPeer{lisGRPC.Addr(), true}
+
+	go lisGRPC.Start()
+	defer lisGRPC.Stop(ctx)
+	go lisREST.Start()
+	defer lisREST.Stop(ctx)
+
 	time.Sleep(100 * time.Millisecond)
 
-	require.Equal(t, peer1.Address(), addr1)
 	certManager := NewCertManager()
 	certManager.Add(certPath)
 
+	// test GRPC variant
 	client := NewGrpcClientFromCertManager(certManager)
-	resp, err := client.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.Nil(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
-	require.Equal(t, expected.GetRound(), resp.GetRound())
-
-	rest := NewRestClientFromCertManager(certManager)
-	resp, err = rest.PublicRand(ctx, peer1, &drand.PublicRandRequest{})
-	require.NoError(t, err)
-	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }

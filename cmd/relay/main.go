@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 
@@ -81,9 +82,12 @@ func Relay(c *cli.Context) error {
 	if c.IsSet(listenFlag.Name) {
 		bind = c.String(listenFlag.Name)
 	}
-	http.ListenAndServe(bind, handler)
-
-	return nil
+	listener, err := net.Listen("tcp", bind)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Listening at %s\n", listener.Addr())
+	return http.Serve(listener, handler)
 }
 
 func main() {

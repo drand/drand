@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -11,13 +10,15 @@ import (
 
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
+
+	json "github.com/nikkolasg/hexjson"
 	"google.golang.org/grpc"
 )
 
 func withClient(t *testing.T) drand.PublicClient {
 	t.Helper()
 
-	l, _ := mock.NewGRPCPublicServer(":0")
+	l, _ := mock.NewMockGRPCPublicServer(":0")
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -47,6 +48,7 @@ func TestHTTPRelay(t *testing.T) {
 	server := http.Server{Handler: handler}
 	go server.Serve(listener)
 	defer server.Shutdown(ctx)
+	time.Sleep(100 * time.Millisecond)
 
 	// Test exported interfaces.
 	u := fmt.Sprintf("http://%s/public/2", listener.Addr().String())
