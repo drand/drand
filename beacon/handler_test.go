@@ -137,7 +137,7 @@ func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconT
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
-	group.PublicKey = &key.DistPublic{commits}
+	group.PublicKey = &key.DistPublic{Coefficients: commits}
 
 	bt := &BeaconTest{
 		prefix:  prefix,
@@ -229,7 +229,11 @@ func (b *BeaconTest) ServeBeacon(i int) {
 	j := b.searchNode(i)
 	beaconServer := &testBeaconServer{h: b.nodes[j].handler}
 	b.nodes[j].server = beaconServer
-	b.nodes[j].listener = net.NewTCPGrpcListener(b.nodes[j].private.Public.Address(), beaconServer)
+	var err error
+	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(context.Background(), b.nodes[j].private.Public.Address(), beaconServer)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("\n || Serve Beacon for node %d - %p --> %s\n", j, b.nodes[j].handler, b.nodes[j].private.Public.Address())
 	go b.nodes[j].listener.Start()
 }
@@ -278,7 +282,7 @@ func (b *BeaconTest) StopBeacon(i int) {
 		if !n.started {
 			return
 		}
-		n.listener.Stop()
+		n.listener.Stop(context.Background())
 		n.handler.Stop()
 		n.started = false
 	}

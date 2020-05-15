@@ -84,6 +84,9 @@ func (g *Group) DKGNodes() []dkg.Node {
 
 func (g *Group) Hash() []byte {
 	h := hashFunc()
+	sort.Slice(g.Nodes, func(i, j int) bool {
+		return g.Nodes[i].Index < g.Nodes[j].Index
+	})
 	// all nodes public keys and positions
 	for _, n := range g.Nodes {
 		h.Write(n.Hash())

@@ -3,7 +3,10 @@
 test: test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -v ./...
+	GO111MODULE=on go test -race -v ./...
+
+test-unit-cover:
+	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic -coverpkg=all ./...
 
 test-integration:
 	cd demo && go build && ./demo -build -test -debug

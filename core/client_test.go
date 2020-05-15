@@ -8,7 +8,7 @@ import (
 )
 
 func TestClientPrivate(t *testing.T) {
-	drands, _, dir, _ := BatchNewDrand(5, false)
+	drands, _, dir, _ := BatchNewDrand(5, false, WithPrivateRandomness())
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 
@@ -19,9 +19,9 @@ func TestClientPrivate(t *testing.T) {
 	require.NotNil(t, buff)
 	require.Len(t, buff, 32)
 
-	client = NewRESTClientFromCert(drands[0].opts.certmanager)
+	drands[0].opts.enablePrivate = false
+	client = NewGrpcClientFromCert(drands[0].opts.certmanager)
 	buff, err = client.Private(pub)
-	require.Nil(t, err)
-	require.NotNil(t, buff)
-	require.Len(t, buff, 32)
+	require.Error(t, err)
+	require.Nil(t, buff)
 }

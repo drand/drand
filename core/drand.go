@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/fs"
+	"github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -24,9 +26,10 @@ type Drand struct {
 	group *key.Group
 	index int
 
-	store   key.Store
-	gateway net.Gateway
-	control net.ControlListener
+	store       key.Store
+	privGateway *net.PrivateGateway
+	pubGateway  *net.PublicGateway
+	control     net.ControlListener
 
 	// handle all callbacks when a new beacon is found
 	callbacks *callbackManager
@@ -92,19 +95,53 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
 	//d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
-	a := c.ListenAddress(priv.Public.Address())
+	// Set the private API address to the command-line flag, if given.
+	// Otherwise, set it to the address associated with stored private key.
+	privAddr := c.PrivateListenAddress(priv.Public.Address())
+	pubAddr := c.PublicListenAddress("")
+	// ctx is used to create the gateway below.
+	// Gateway constructors (specifically, the generated gateway stubs that require it)
+	// do not actually use it, so we are passing a background context to be safe.
+	ctx := context.Background()
 	if c.insecure {
+		var err error
 		d.log.Info("network", "tls-disable")
-		d.gateway = net.NewGrpcGatewayInsecure(a, d, d.opts.grpcOpts...)
+		if pubAddr != "" {
+			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			if err != nil {
+				return nil, err
+			}
+			if d.pubGateway, err = net.NewRESTPublicGatewayWithoutTLS(ctx, pubAddr, handler); err != nil {
+				return nil, err
+			}
+		}
+		if d.privGateway, err = net.NewGRPCPrivateGatewayWithoutTLS(ctx, privAddr, d, d.opts.grpcOpts...); err != nil {
+			return nil, err
+		}
 	} else {
+		var err error
 		d.log.Info("network", "tls-enabled")
-		d.gateway = net.NewGrpcGatewayFromCertManager(a, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+		if pubAddr != "" {
+			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			if err != nil {
+				return nil, err
+			}
+			if d.pubGateway, err = net.NewRESTPublicGatewayWithTLS(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler); err != nil {
+				return nil, err
+			}
+		}
+		if d.privGateway, err = net.NewGRPCPrivateGatewayWithTLS(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...); err != nil {
+			return nil, err
+		}
 	}
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Info("network_listen", a, "control_port", c.ControlPort())
-	d.gateway.StartAll()
+	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr)
+	d.privGateway.StartAll()
+	if d.pubGateway != nil {
+		d.pubGateway.StartAll()
+	}
 	return d, nil
 }
 
@@ -259,10 +296,13 @@ func (d *Drand) StopBeacon() {
 }
 
 // Stop simply stops all drand operations.
-func (d *Drand) Stop() {
+func (d *Drand) Stop(ctx context.Context) {
 	d.StopBeacon()
 	d.state.Lock()
-	d.gateway.StopAll()
+	if d.pubGateway != nil {
+		d.pubGateway.StopAll(ctx)
+	}
+	d.privGateway.StopAll(ctx)
 	d.control.Stop()
 	d.state.Unlock()
 	d.exitCh <- true
@@ -301,7 +341,7 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	beacon, err := beacon.NewHandler(d.gateway.ProtocolClient, store, conf, d.log)
+	beacon, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
 	if err != nil {
 		return nil, err
 	}

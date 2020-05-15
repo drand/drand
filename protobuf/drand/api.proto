@@ -91,21 +91,17 @@ message PublicRandResponse {
 // PrivateRandRequest is the message to send when requesting a private random
 // value.
 message PrivateRandRequest {
-    // Request must contains a public key towards which to encrypt the private
-    // randomness.
-    ECIES request = 2;
+    // Request is the ECIES encryption of an ephemereal public key towards which
+    // to encrypt the private randomness. The format of the bytes is denoted by
+    // the ECIES encryption used by drand.
+    bytes request = 1;
 }
 
 message PrivateRandResponse {
-    // Response contains the private randomness encrypted towards the client's
-    // request key.
-    ECIES response = 1;
-}
-
-message ECIES {
-    bytes ephemeral = 1;
-    bytes ciphertext = 2;
-    bytes nonce = 3;
+    // Responses is the ECIES encryption of the private randomness using the
+    // ephemereal public key sent in the request.  The format of the bytes is
+    // denoted by the ECIES  encryption used by drand.
+    bytes response = 1;
 }
 
 // DistKeyRequest requests the distributed public key used during the randomness generation process

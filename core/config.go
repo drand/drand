@@ -4,12 +4,12 @@ import (
 	"path"
 	"time"
 
-	bolt "github.com/coreos/bbolt"
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	clock "github.com/jonboulle/clockwork"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
 
@@ -18,22 +18,24 @@ type ConfigOption func(*Config)
 
 // Config holds all relevant information for a drand node to run.
 type Config struct {
-	configFolder string
-	dbFolder     string
-	listenAddr   string
-	controlPort  string
-	grpcOpts     []grpc.DialOption
-	callOpts     []grpc.CallOption
-	dkgTimeout   time.Duration
-	boltOpts     *bolt.Options
-	beaconCbs    []func(*beacon.Beacon)
-	dkgCallback  func(*key.Share)
-	insecure     bool
-	certPath     string
-	keyPath      string
-	certmanager  *net.CertManager
-	logger       log.Logger
-	clock        clock.Clock
+	configFolder      string
+	dbFolder          string
+	privateListenAddr string
+	publicListenAddr  string
+	controlPort       string
+	grpcOpts          []grpc.DialOption
+	callOpts          []grpc.CallOption
+	dkgTimeout        time.Duration
+	boltOpts          *bolt.Options
+	beaconCbs         []func(*beacon.Beacon)
+	dkgCallback       func(*key.Share)
+	insecure          bool
+	certPath          string
+	keyPath           string
+	certmanager       *net.CertManager
+	logger            log.Logger
+	clock             clock.Clock
+	enablePrivate     bool
 }
 
 // NewConfig returns the config to pass to drand with the default options set
@@ -77,11 +79,20 @@ func (d *Config) Certs() *net.CertManager {
 	return d.certmanager
 }
 
-// ListenAddress returns the given default address or the listen address stored
-// in the config thanks to WithListenAddress
-func (d *Config) ListenAddress(defaultAddr string) string {
-	if d.listenAddr != "" {
-		return d.listenAddr
+// PrivateListenAddress returns the given default address or the listen address stored
+// in the config thanks to WithPrivateListenAddress
+func (d *Config) PrivateListenAddress(defaultAddr string) string {
+	if d.privateListenAddr != "" {
+		return d.privateListenAddr
+	}
+	return defaultAddr
+}
+
+// PublicListenAddress returns the given default address or the listen address stored
+// in the config thanks to WithPublicListenAddress
+func (d *Config) PublicListenAddress(defaultAddr string) string {
+	if d.publicListenAddr != "" {
+		return d.publicListenAddr
 	}
 	return defaultAddr
 }
@@ -210,12 +221,21 @@ func WithTrustedCerts(certPaths ...string) ConfigOption {
 	}
 }
 
-// WithListenAddress specifies the address the drand instance should bind to. It
+// WithPublicListenAddress specifies the address the drand instance should bind to. It
 // is useful if you want to advertise a public proxy address and the drand
 // instance runs behind your network.
-func WithListenAddress(addr string) ConfigOption {
+func WithPublicListenAddress(addr string) ConfigOption {
 	return func(d *Config) {
-		d.listenAddr = addr
+		d.publicListenAddr = addr
+	}
+}
+
+// WithPrivateListenAddress specifies the address the drand instance should bind to. It
+// is useful if you want to advertise a public proxy address and the drand
+// instance runs behind your network.
+func WithPrivateListenAddress(addr string) ConfigOption {
+	return func(d *Config) {
+		d.privateListenAddr = addr
 	}
 }
 
@@ -246,4 +266,12 @@ func getPeriod(g *key.Group) time.Duration {
 		return DefaultBeaconPeriod
 	}
 	return g.Period
+}
+
+// WithPrivateRandomness enables the private randomness feature on the drand
+// logic. When the feature is not enabled, the call returns an error.
+func WithPrivateRandomness() ConfigOption {
+	return func(d *Config) {
+		d.enablePrivate = true
+	}
 }

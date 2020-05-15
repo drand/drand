@@ -8,11 +8,11 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/ecies"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
+	"github.com/drand/kyber/encrypt/ecies"
 	"google.golang.org/grpc"
 )
 
@@ -33,20 +33,6 @@ func NewGrpcClient(opts ...grpc.DialOption) *Client {
 // NewGrpcClientFromCert returns a client that contact its peer over TLS
 func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client {
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
-}
-
-// NewRESTClient returns a client that uses the HTTP Rest API delivered by drand
-// nodes
-func NewRESTClient() *Client {
-	return &Client{
-		client: net.NewRestClient(),
-	}
-}
-
-// NewRESTClientFromCert returns a client that uses the HTTP Rest API delivered
-// by drand nodes, using TLS connection for peers registered
-func NewRESTClientFromCert(c *net.CertManager) *Client {
-	return &Client{client: net.NewRestClientFromCertManager(c)}
 }
 
 // LastPublic returns the last randomness beacon from the server associated. It
@@ -82,7 +68,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	obj, err := ecies.Encrypt(key.KeyGroup, ecies.DefaultHash, id.Key, ephBuff)
+	obj, err := ecies.Encrypt(key.KeyGroup, id.Key, ephBuff, EciesHash)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +76,7 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return ecies.Decrypt(key.KeyGroup, ecies.DefaultHash, ephScalar, resp.GetResponse())
+	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
 }
 
 // DistKey returns the distributed key the node at this address is holding.

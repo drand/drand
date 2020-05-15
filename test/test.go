@@ -52,6 +52,7 @@ func Addresses(n int) []string {
 
 // Ports returns a list of ports starting from the given
 // port= start.
+// TODO: This function is flaky.
 func Ports(n int) []string {
 	ports := make([]string, 0, n)
 	for i := 0; i < n; i++ {

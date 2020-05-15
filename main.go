@@ -87,9 +87,14 @@ var metricsFlag = &cli.IntFlag{
 	Usage: "Launch a metrics server at the specified port.",
 }
 
-var listenFlag = &cli.StringFlag{
-	Name:  "listen",
-	Usage: "Set the listening (binding) address. Useful if you have some kind of proxy.",
+var privListenFlag = &cli.StringFlag{
+	Name:  "private-listen",
+	Usage: "Set the listening (binding) address of the private API. Useful if you have some kind of proxy.",
+}
+
+var pubListenFlag = &cli.StringFlag{
+	Name:  "public-listen",
+	Usage: "Set the listening (binding) address of the public API. Useful if you have some kind of proxy.",
 }
 
 var nodeFlag = &cli.StringFlag{
@@ -204,6 +209,16 @@ var groupFlag = &cli.StringFlag{
 	Usage: "Test connections to nodes listed in the group",
 }
 
+var enablePrivateRand = &cli.BoolFlag{
+	Name:  "private-rand",
+	Usage: "Enables the private randomness feature on the daemon. By default, this feature is disabled.",
+}
+
+var hashOnly = &cli.BoolFlag{
+	Name:  "hash-only",
+	Usage: "Only print the hash of the group file",
+}
+
 func main() {
 	app := cli.NewApp()
 
@@ -219,8 +234,8 @@ func main() {
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-				insecureFlag, controlFlag, listenFlag, metricsFlag,
-				certsDirFlag, pushFlag, verboseFlag),
+				insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
+				certsDirFlag, pushFlag, verboseFlag, enablePrivateRand),
 			Action: func(c *cli.Context) error {
 				banner()
 				return startCmd(c)
@@ -371,7 +386,7 @@ func main() {
 					Usage: "shows the current group.toml used. The group.toml " +
 						"may contain the distributed public key if the DKG has been " +
 						"ran already.\n",
-					Flags: toArray(outFlag, controlFlag),
+					Flags: toArray(outFlag, controlFlag, hashOnly),
 					Action: func(c *cli.Context) error {
 						return showGroupCmd(c)
 					},
@@ -548,6 +563,8 @@ func groupOut(c *cli.Context, group *key.Group) {
 		if err := key.Save(groupPath, group, false); err != nil {
 			fatal("drand: can't save group to specified file name: %v", err)
 		}
+	} else if c.Bool(hashOnly.Name) {
+		fmt.Printf("%x\n", group.Hash())
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
@@ -556,6 +573,7 @@ func groupOut(c *cli.Context, group *key.Group) {
 		buff.WriteString("\n")
 		fmt.Printf("Copy the following snippet into a new group.toml file\n")
 		fmt.Printf(buff.String())
+		fmt.Printf("\nHash of the group configuration: %x\n", group.Hash())
 	}
 }
 
@@ -705,10 +723,13 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithLogLevel(log.LogInfo))
 	}
 
-	listen := c.String("listen")
-	if listen != "" {
-		opts = append(opts, core.WithListenAddress(listen))
+	if c.IsSet(pubListenFlag.Name) {
+		opts = append(opts, core.WithPublicListenAddress(c.String(pubListenFlag.Name)))
 	}
+	if c.IsSet(privListenFlag.Name) {
+		opts = append(opts, core.WithPrivateListenAddress(c.String(privListenFlag.Name)))
+	}
+
 	port := c.String(controlFlag.Name)
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
@@ -731,6 +752,9 @@ func contextToConfig(c *cli.Context) *core.Config {
 			panic(err)
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
+	}
+	if c.Bool(enablePrivateRand.Name) {
+		opts = append(opts, core.WithPrivateRandomness())
 	}
 	conf := core.NewConfig(opts...)
 	return conf
