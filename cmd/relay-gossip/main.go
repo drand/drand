@@ -221,7 +221,7 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		// TODO fetch group from group hash
+		// TODO extract group from CLI args
 		var group *key.Group
 
 		psc, err := client.NewWithPubsub(ps, group, log)
@@ -229,23 +229,23 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing pubsub client: %w", err)
 		}
 
-		cc, err := client.NewCachingClient(psc, 256, log)
-		if err != nil {
-			return xerrors.Errorf("constructing caching client: %w", err)
-		}
-
-		c := cc
+		var c dclient.Client
 		if cctx.IsSet("failover-url") {
-			hc, err := dclient.New(dclient.WithHTTPEndpoints(cctx.StringSlice("failover-url")))
+			hc, err := dclient.New(
+				dclient.WithGroup(group),
+				dclient.WithHTTPEndpoints(cctx.StringSlice("failover-url")),
+				dclient.WithWatcher(failover.NewWatcher(psc, cctx.Duration("failover-grace-period"))),
+			)
 			if err != nil {
 				return xerrors.Errorf("constructing HTTP client: %w", err)
 			}
-
-			watcher := failover.NewWatcher(psc, cctx.Duration("failover-grace-period"))
-			c, err = dclient.NewPrioritizingClient([]dclient.Client{c, hc}, group.Hash(), group, watcher, log)
+			c = hc
+		} else {
+			cc, err := client.NewCachingClient(psc, 256, log)
 			if err != nil {
-				return xerrors.Errorf("constructing prioritizing client: %w", err)
+				return xerrors.Errorf("constructing caching client: %w", err)
 			}
+			c = cc
 		}
 
 		for rand := range c.Watch(context.Background()) {
