@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/protobuf/drand"
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
 	"github.com/stretchr/testify/require"
@@ -18,13 +19,86 @@ func newIds(n int) []*Node {
 			Index: uint32(i),
 			Identity: &Identity{
 				Key:  KeyGroup.Point().Mul(KeyGroup.Scalar().Pick(random.New()), nil),
-				Addr: "--",
+				Addr: "127.0.0.1:3000",
 			},
 		}
 	}
 	return ids
 }
 
+func TestGroupProtobuf(t *testing.T) {
+	type testVector struct {
+		group  *Group
+		change func(*drand.GroupPacket)
+		isErr  bool
+	}
+
+	var vectors []testVector
+	n := 9
+	thr := 5
+	ids := newIds(n)
+
+	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61)
+	group.Threshold = thr
+	group.Period = time.Second * 4
+	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
+	group.TransitionTime = time.Now().Add(10 * time.Second).Unix()
+	genesis := group.GenesisTime
+	transition := group.TransitionTime
+
+	vectors = append(vectors, testVector{
+		group:  group,
+		change: nil,
+		isErr:  true,
+	})
+
+	var dpub2 []kyber.Point
+	for i := 0; i < thr; i++ {
+		dpub2 = append(dpub2, KeyGroup.Point().Pick(random.New()))
+	}
+	group2 := *group
+	group2.PublicKey = &DistPublic{dpub2}
+	vectors = append(vectors, testVector{
+		group:  &group2,
+		change: nil,
+		isErr:  false,
+	})
+
+	group3 := *(&group2)
+	var nodes = make([]*Node, len(group3.Nodes))
+	copy(nodes, group3.Nodes)
+	nodes[0], nodes[1] = nodes[1], nodes[0]
+	group3.Nodes = nodes
+	vectors = append(vectors, testVector{
+		group:  &group3,
+		change: nil,
+		isErr:  false,
+	})
+
+	for i, tv := range vectors {
+		protoGroup := tv.group.ToProto()
+		if tv.change != nil {
+			tv.change(protoGroup)
+		}
+
+		loaded, err := GroupFromProto(protoGroup)
+		if tv.isErr {
+			require.Error(t, err)
+			continue
+		}
+		// load the seed after
+		seed := tv.group.GetGenesisSeed()
+		require.Equal(t, len(loaded.Nodes), len(tv.group.Nodes))
+		require.Equal(t, loaded.Threshold, tv.group.Threshold)
+		require.True(t, loaded.PublicKey.Equal(tv.group.PublicKey), "test %d: %v vs %v", i, loaded.PublicKey, group.PublicKey)
+		require.Equal(t, loaded.Period, tv.group.Period)
+		require.Equal(t, seed, loaded.GetGenesisSeed())
+		require.Equal(t, genesis, loaded.GenesisTime)
+		require.Equal(t, transition, loaded.TransitionTime)
+		require.Equal(t, tv.group.Hash(), loaded.Hash())
+	}
+}
 func TestGroupSaveLoad(t *testing.T) {
 	n := 3
 	ids := newIds(n)
@@ -62,6 +136,8 @@ func TestGroupSaveLoad(t *testing.T) {
 	require.Equal(t, seed, loaded.GetGenesisSeed())
 	require.Equal(t, genesis, loaded.GenesisTime)
 	require.Equal(t, transition, loaded.TransitionTime)
+
+	require.Equal(t, group.Hash(), loaded.Hash())
 }
 
 // BatchIdentities generates n insecure identities
