@@ -346,6 +346,9 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		group.GenesisSeed = g.GetGenesisSeed()
 	}
 	if len(dist.Coefficients) > 0 {
+		if len(dist.Coefficients) != group.Threshold {
+			return nil, fmt.Errorf("public coefficient length %d is not equal to threshold %d", len(dist.Coefficients), group.Threshold)
+		}
 		group.PublicKey = dist
 	}
 	return group, nil

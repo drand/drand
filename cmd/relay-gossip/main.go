@@ -8,8 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/drand/drand/cmd/drand-gossip-relay/client"
-	"github.com/drand/drand/cmd/drand-gossip-relay/lp2p"
+	"github.com/drand/drand/cmd/relay-gossip/client"
+	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
