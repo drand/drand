@@ -64,6 +64,6 @@ VOLUME $DRAND_HOME
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
 # Defaults for drand go here
-CMD ["start", "--tls-disable", "--control 8888", "--listen 0.0.0.0:4444"]
+CMD ["start", "--tls-disable", "--control 8888", "--private-listen 0.0.0.0:4444"]
 
 
