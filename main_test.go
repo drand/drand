@@ -406,7 +406,7 @@ func TestClientTLS(t *testing.T) {
 
 	cmd = exec.Command("./drand", "show", "group", "--control", ctrlPort)
 	out, err = cmd.CombinedOutput()
-	require.NoError(t, err)
+	require.NoError(t, err, string(out))
 	pubBuff, _ := priv.Public.Key.MarshalBinary()
 	pubStr := hex.EncodeToString(pubBuff)
 	require.True(t, strings.Contains(string(out), pubStr), "key: %s, group: %s", pubStr, string(out))
