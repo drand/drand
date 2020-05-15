@@ -78,8 +78,9 @@ RESET:
 		bytes, err := json.Marshal(next)
 
 		h.pendingLk.Lock()
-		if h.latestRound+1 != next.Round {
+		if h.latestRound+1 != next.Round && h.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
+			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round))
 			bytes = []byte{}
 		}
 		h.latestRound = next.Round
