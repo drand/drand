@@ -27,8 +27,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testBeaconOffset = int((5 * time.Second).Seconds())
-var testDkgTimeout = 1 * time.Second
+var testBeaconOffset = int((7 * time.Second).Seconds())
+var testDkgTimeout = 2 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
@@ -382,19 +382,17 @@ func (d *DrandTest2) TestBeaconLength(length int, newGroup bool, ids ...string) 
 			if node.addr != id {
 				continue
 			}
-			drand := node.drand
-			drand.state.Lock()
-			defer drand.state.Unlock()
-			fmt.Printf("\n\tTest %s (beacon %p)\n", id, drand.beacon)
-			howMany := 0
-			drand.beacon.Store().Cursor(func(c beacon.Cursor) {
-				for b := c.First(); b != nil; b = c.Next() {
-					howMany++
-					fmt.Printf("\t %d - %s: beacon %s\n", drand.index, drand.priv.Public.Address(), b)
+			var found bool
+			for i := 0; i < 3; i++ {
+				drand := node.drand
+				if length != drand.beacon.Store().Len() {
+					time.Sleep(getSleepDuration())
+					continue
 				}
-			})
-			require.Equal(d.t, length, drand.beacon.Store().Len(), "id %s - howMany is %d vs Len() %d", id, howMany, drand.beacon.Store().Len())
-
+				found = true
+				break
+			}
+			require.True(d.t, found, "node %d not have enough beacon", id)
 		}
 	}
 }
