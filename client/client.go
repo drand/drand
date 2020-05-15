@@ -30,10 +30,7 @@ func New(options ...Option) (Client, error) {
 			return nil, err
 		}
 	}
-	if !cfg.withoutAggregation {
-		coreClient = newWatchAggregator(coreClient, cfg.log)
-	}
-	return coreClient, nil
+	return newWatchAggregator(coreClient, cfg.log), nil
 }
 
 // makeClient creates a client from a configuration.
@@ -86,8 +83,6 @@ type clientConfig struct {
 	getter HTTPGetter
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
-	// don't aggregate calls to `watch`
-	withoutAggregation bool
 	// customized client log.
 	log log.Logger
 }
@@ -120,15 +115,6 @@ func WithHTTPGetter(getter HTTPGetter) Option {
 func WithCacheSize(size int) Option {
 	return func(cfg *clientConfig) error {
 		cfg.cacheSize = size
-		return nil
-	}
-}
-
-// WithoutAggregation disables multiple calls to `Watch` being served by
-// a single underlying http poll.
-func WithoutAggregation() Option {
-	return func(cfg *clientConfig) error {
-		cfg.withoutAggregation = true
 		return nil
 	}
 }
