@@ -94,7 +94,7 @@ func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
 		h.l.Warn("http_client", "instantiated without trustroot", "groupHash", hex.EncodeToString(grp.Hash()))
 	}
 	if groupHash != nil && !bytes.Equal(grp.Hash(), groupHash) {
-		return nil, fmt.Errorf("%s does not advertise the expected drand group", h.root)
+		return nil, fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, grp.Hash(), groupHash)
 	}
 	return grp, nil
 }
