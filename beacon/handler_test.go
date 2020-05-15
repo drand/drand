@@ -349,7 +349,7 @@ func checkWait(counter *sync.WaitGroup) {
 	case <-doneCh:
 		break
 
-	case <-time.After(10 * time.Second):
+	case <-time.After(20 * time.Second):
 		fmt.Println(" _------------- OUTDATED ----------------")
 		panic("outdated beacon time")
 	}
