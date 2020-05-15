@@ -34,15 +34,24 @@ func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 		t.Fatal(err)
 	}
 
-	protoGroup, err := s.Group(ctx, &drand.GroupRequest{})
-	if err != nil {
-		t.Fatal(err)
+	var hash []byte
+	for i := 0; i < 3; i++ {
+		protoGroup, err := s.Group(ctx, &drand.GroupRequest{})
+		if err != nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		realGroup, err := key.GroupFromProto(protoGroup)
+		if err != nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		hash = realGroup.Hash()
+		break
 	}
-	realGroup, err := key.GroupFromProto(protoGroup)
-	if err != nil {
-		t.Fatal(err)
+	if hash == nil {
+		t.Fatal("could not use server after 3 attempts.")
 	}
-	hash := realGroup.Hash()
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
