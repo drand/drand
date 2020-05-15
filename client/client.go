@@ -78,7 +78,7 @@ type clientConfig struct {
 	group *key.Group
 	// getter configures the http transport parameters used when fetching randomness.
 	getter HTTPGetter
-	// cache size - how larger of a cache to keep locally.
+	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// skip the cache layer of the client.
 	withoutCache bool

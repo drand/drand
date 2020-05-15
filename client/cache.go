@@ -38,7 +38,7 @@ type subscriber struct {
 	c   chan Result
 }
 
-// Get returns a the randomness at `round` or an error.
+// Get returns the randomness at `round` or an error.
 func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
 	if val, ok := c.cache.Get(round); ok {
 		return val.(Result), nil
