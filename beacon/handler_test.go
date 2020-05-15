@@ -392,7 +392,9 @@ func TestBeaconSync(t *testing.T) {
 
 	// move clock to genesis time
 	fmt.Printf("\n\n --- BEFORE GENESIS --- \n\n")
-	doRound(n, genesisOffset)
+	now := bt.time.Now().Unix()
+	toMove := genesisTime - now
+	doRound(n, time.Duration(toMove)*time.Second)
 	fmt.Printf("\n\n --- AFTER GENESIS --- \n\n")
 	// do some rounds
 	for i := 0; i < 2; i++ {
