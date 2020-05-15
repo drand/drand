@@ -88,7 +88,7 @@ func TestClientWithoutCache(t *testing.T) {
 	addr1, hash, cancel := withServer(t)
 	defer cancel()
 
-	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithGroupHash(hash), WithoutCache())
+	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithGroupHash(hash), WithCacheSize(0))
 	if e != nil {
 		t.Fatal(e)
 	}

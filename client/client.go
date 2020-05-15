@@ -24,10 +24,16 @@ func New(options ...Option) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	if cfg.withoutCache {
-		return coreClient, nil
+	if cfg.cacheSize > 0 {
+		coreClient, err = NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
+	if !cfg.withoutAggregation {
+		coreClient = newWatchAggregator(coreClient, cfg.log)
+	}
+	return coreClient, nil
 }
 
 // makeClient creates a client from a configuration.
@@ -80,8 +86,8 @@ type clientConfig struct {
 	getter HTTPGetter
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
-	// skip the cache layer of the client.
-	withoutCache bool
+	// don't aggregate calls to `watch`
+	withoutAggregation bool
 	// customized client log.
 	log log.Logger
 }
@@ -118,15 +124,11 @@ func WithCacheSize(size int) Option {
 	}
 }
 
-// WithoutCache disables local caching.
-// This is different from `WithCacheSize(0)`, in that it also disables
-// aggregation of requests by consumers calling `Watch`. A zero-sized
-// cache will cause multiple `Watch()` calls to only trigger a single
-// HTTP poll, while by disabling the caching layer completely, multiple
-// calls to `Watch` will each use their own independent polling go routine.
-func WithoutCache() Option {
+// WithoutAggregation disables multiple calls to `Watch` being served by
+// a single underlying http poll.
+func WithoutAggregation() Option {
 	return func(cfg *clientConfig) error {
-		cfg.withoutCache = true
+		cfg.withoutAggregation = true
 		return nil
 	}
 }

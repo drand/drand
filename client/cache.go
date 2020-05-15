@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/drand/drand/log"
@@ -17,10 +16,9 @@ func NewCachingClient(client Client, size int, log log.Logger) (Client, error) {
 		return nil, err
 	}
 	return &cachingClient{
-		backing:     client,
-		cache:       cache,
-		log:         log,
-		subscribers: make([]subscriber, 0),
+		backing: client,
+		cache:   cache,
+		log:     log,
 	}, nil
 }
 
@@ -28,14 +26,6 @@ type cachingClient struct {
 	backing Client
 	cache   *lru.ARCCache
 	log     log.Logger
-
-	subscriberLock sync.Mutex
-	subscribers    []subscriber
-}
-
-type subscriber struct {
-	ctx context.Context
-	c   chan Result
 }
 
 // Get returns the randomness at `round` or an error.
@@ -50,64 +40,9 @@ func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err 
 	return val, err
 }
 
-// Watch returns new randomness as it becomes available.
+// Watch will stream new results as they are discovered.
 func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
-	c.subscriberLock.Lock()
-	defer c.subscriberLock.Unlock()
-
-	sub := subscriber{ctx, make(chan Result, 5)}
-	c.subscribers = append(c.subscribers, sub)
-
-	if len(c.subscribers) == 1 {
-		ctx, cancel := context.WithCancel(context.Background())
-		go c.distribute(c.backing.Watch(ctx), cancel)
-	}
-	return sub.c
-}
-
-func (c *cachingClient) distribute(in <-chan Result, cancel context.CancelFunc) {
-	defer cancel()
-	for {
-		var aCtx context.Context
-		c.subscriberLock.Lock()
-		if len(c.subscribers) == 0 {
-			c.subscriberLock.Unlock()
-			return
-		}
-		aCtx = c.subscribers[0].ctx
-		c.subscriberLock.Unlock()
-
-		var m Result
-		select {
-		case res, ok := <-in:
-			if !ok {
-				return
-			}
-			c.cache.Add(res.Round(), res)
-			m = res
-		case <-aCtx.Done():
-		}
-
-		c.subscriberLock.Lock()
-		curr := c.subscribers
-		c.subscribers = c.subscribers[:0]
-
-		for _, s := range curr {
-			if s.ctx.Err() == nil {
-				c.subscribers = append(c.subscribers, s)
-				if m != nil {
-					select {
-					case s.c <- m:
-					default:
-						c.log.Warn("msg", "dropped watch message to subscriber. full channel")
-					}
-				}
-			} else {
-				close(s.c)
-			}
-		}
-		c.subscriberLock.Unlock()
-	}
+	return c.backing.Watch(ctx)
 }
 
 // RoundAt will return the most recent round of randomness that will be available

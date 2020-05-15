@@ -47,10 +47,8 @@ func TestCacheWatch(t *testing.T) {
 	m := MockClientWithResults(1, 6)
 	rc := make(chan Result, 1)
 	m.(*MockClient).WatchCh = rc
-	c, err := NewCachingClient(m, 2, log.DefaultLogger)
-	if err != nil {
-		t.Fatal(err)
-	}
+	cache, _ := NewCachingClient(m, 2, log.DefaultLogger)
+	c := newWatchAggregator(cache, log.DefaultLogger)
 	ctx, c1 := context.WithCancel(context.Background())
 	r1 := c.Watch(ctx)
 	rc <- &MockResult{rnd: 1, rand: []byte{1}}
@@ -59,11 +57,11 @@ func TestCacheWatch(t *testing.T) {
 		t.Fatal("results should propagate")
 	}
 
-	_, err = c.Get(context.Background(), 1)
+	_, err := c.Get(context.Background(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.(*MockClient).Results) != 5 {
+	if len(m.(*MockClient).Results) != 4 {
 		t.Fatal("getting should be served by cache.")
 	}
 
