@@ -17,6 +17,10 @@ var (
 		Name: "api_call_counter",
 		Help: "Number of API calls that we have received",
 	}, []string{"api_method"})
+	DialFailures = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "dial_failures",
+		Help: "Number of times there have been network connection issues",
+	}, []string{"peer_index"})
 )
 
 // Register metrics and custom debug endpoints.
