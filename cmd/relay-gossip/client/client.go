@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/drand/drand/cmd/drand-gossip-relay/lp2p"
+	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
