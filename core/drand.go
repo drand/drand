@@ -10,6 +10,7 @@ import (
 
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/fs"
+	"github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -106,7 +107,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-disable")
 		if pubAddr != "" {
-			if d.pubGateway, err = net.NewRESTPublicGatewayWithoutTLS(ctx, pubAddr, d, d.opts.grpcOpts...); err != nil {
+			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			if err != nil {
+				return nil, err
+			}
+			if d.pubGateway, err = net.NewRESTPublicGatewayWithoutTLS(ctx, pubAddr, handler); err != nil {
 				return nil, err
 			}
 		}
@@ -117,7 +122,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-enabled")
 		if pubAddr != "" {
-			if d.pubGateway, err = net.NewRESTPublicGatewayWithTLS(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...); err != nil {
+			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			if err != nil {
+				return nil, err
+			}
+			if d.pubGateway, err = net.NewRESTPublicGatewayWithTLS(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler); err != nil {
 				return nil, err
 			}
 		}

@@ -3,7 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"time"
@@ -12,6 +12,8 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	drand "github.com/drand/drand/protobuf/drand"
+
+	json "github.com/nikkolasg/hexjson"
 )
 
 // HTTPGetter is an interface for the exercised methods of an `http.Client`,
@@ -89,7 +91,7 @@ func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
 	}
 
 	if groupHash == nil {
-		h.l.Warn("http_client", "instantiated without trustroot", "groupKey", grp.PublicKey)
+		h.l.Warn("http_client", "instantiated without trustroot", "groupHash", hex.EncodeToString(grp.Hash()))
 	}
 	if groupHash != nil && !bytes.Equal(grp.Hash(), groupHash) {
 		return nil, fmt.Errorf("%s does not advertise the expected drand group", h.root)

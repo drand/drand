@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	run "runtime"
@@ -64,11 +65,12 @@ func testListener(t *testing.T, grpcPort, restPort int) {
 
 	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", randServer)
 	require.NoError(t, err)
-	lisREST, err := NewRESTListenerForPublic(ctx, hostAddr+":", randServer)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
+	lisREST, err := NewRESTListenerForPublic(ctx, hostAddr+":", mux)
 	require.NoError(t, err)
 
 	peerGRPC := &testPeer{lisGRPC.Addr(), false}
-	peerREST := &testPeer{lisREST.Addr(), false}
 
 	go lisGRPC.Start()
 	defer lisGRPC.Stop(ctx)
@@ -81,13 +83,6 @@ func testListener(t *testing.T, grpcPort, restPort int) {
 	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.NoError(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
-	require.Equal(t, expected.GetRound(), resp.GetRound())
-
-	// REST
-	rest := NewRestClient()
-	resp, err = rest.PublicRand(ctx, peerREST, &drand.PublicRandRequest{})
-	require.NoError(t, err)
-	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }
 
@@ -113,11 +108,12 @@ func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 
 	lisGRPC, err := NewGRPCListenerForPrivateWithTLS(ctx, hostAddr+":", certPath, keyPath, randServer)
 	require.NoError(t, err)
-	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, hostAddr+":", certPath, keyPath, randServer)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
+	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, hostAddr+":", certPath, keyPath, mux)
 	require.NoError(t, err)
 
 	peerGRPC := &testPeer{lisGRPC.Addr(), true}
-	peerREST := &testPeer{lisREST.Addr(), true}
 
 	go lisGRPC.Start()
 	defer lisGRPC.Stop(ctx)
@@ -134,12 +130,5 @@ func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 	resp, err := client.PublicRand(ctx, peerGRPC, &drand.PublicRandRequest{})
 	require.Nil(t, err)
 	expected := &drand.PublicRandResponse{Round: randServer.round}
-	require.Equal(t, expected.GetRound(), resp.GetRound())
-
-	// test REST variant
-	rest := NewRestClientFromCertManager(certManager)
-	resp, err = rest.PublicRand(ctx, peerREST, &drand.PublicRandRequest{})
-	require.NoError(t, err)
-	expected = &drand.PublicRandResponse{Round: randServer.round}
 	require.Equal(t, expected.GetRound(), resp.GetRound())
 }

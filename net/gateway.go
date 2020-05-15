@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"google.golang.org/grpc"
@@ -37,7 +38,6 @@ type CallOption = grpc.CallOption
 
 // Listener is the active listener for incoming requests.
 type Listener interface {
-	Service
 	Start()
 	Stop(ctx context.Context)
 	Addr() string
@@ -96,8 +96,8 @@ func (g *PublicGateway) StopAll(ctx context.Context) {
 // NewRESTPublicGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewRESTPublicGatewayWithoutTLS(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PublicGateway, error) {
-	l, err := NewRESTListenerForPublic(ctx, listen, s)
+func NewRESTPublicGatewayWithoutTLS(ctx context.Context, listen string, handler http.Handler) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublic(ctx, listen, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -106,8 +106,8 @@ func NewRESTPublicGatewayWithoutTLS(ctx context.Context, listen string, s Servic
 
 // NewRESTPublicGatewayWithTLS returns a grpc gateway using the TLS
 // certificate manager
-func NewRESTPublicGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) (*PublicGateway, error) {
-	l, err := NewRESTListenerForPublicWithTLS(ctx, listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
+func NewRESTPublicGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, handler http.Handler) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublicWithTLS(ctx, listen, certPath, keyPath, handler)
 	if err != nil {
 		return nil, err
 	}

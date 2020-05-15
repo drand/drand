@@ -2,19 +2,21 @@ package http
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
+
+	json "github.com/nikkolasg/hexjson"
 	"google.golang.org/grpc"
 )
 
 func TestHTTPRelay(t *testing.T) {
-	l, _ := mock.NewGRPCPublicServer(":0")
+	l, _ := mock.NewMockGRPCPublicServer(":0")
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -27,6 +29,7 @@ func TestHTTPRelay(t *testing.T) {
 	defer cancel()
 
 	client := drand.NewPublicClient(conn)
+	time.Sleep(100 * time.Millisecond)
 
 	handler, err := New(ctx, client, nil)
 	if err != nil {
@@ -40,6 +43,7 @@ func TestHTTPRelay(t *testing.T) {
 	server := http.Server{Handler: handler}
 	go server.Serve(listener)
 	defer server.Shutdown(ctx)
+	time.Sleep(100 * time.Millisecond)
 
 	// Test exported interfaces.
 	u := fmt.Sprintf("http://%s/public/1", listener.Addr().String())

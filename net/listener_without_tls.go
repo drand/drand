@@ -7,7 +7,6 @@ import (
 
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"google.golang.org/grpc"
 )
 
@@ -51,24 +50,17 @@ func (g *grpcListener) Stop(ctx context.Context) {
 }
 
 // NewRESTListenerForPublic creates a new listener for the Public API over HTTP/JSON without TLS.
-func NewRESTListenerForPublic(ctx context.Context, addr string, s Service, opts ...grpc.ServerOption) (Listener, error) {
+func NewRESTListenerForPublic(ctx context.Context, addr string, handler http.Handler) (Listener, error) {
 	l, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	gwMux := runtime.NewServeMux(runtime.WithMarshalerOption("*", defaultJSONMarshaller))
-	if err := drand.RegisterPublicHandlerClient(ctx, gwMux, &drandProxy{s}); err != nil {
-		panic(err)
-	}
-	restRouter := http.NewServeMux()
-	restRouter.Handle("/", gwMux)
 	restServer := &http.Server{
 		Addr:    addr,
-		Handler: restRouter,
+		Handler: handler,
 	}
 
 	g := &restListener{
-		Service:    s,
 		restServer: restServer,
 		lis:        l,
 	}
@@ -76,7 +68,6 @@ func NewRESTListenerForPublic(ctx context.Context, addr string, s Service, opts 
 }
 
 type restListener struct {
-	Service
 	restServer *http.Server
 	lis        net.Listener
 }

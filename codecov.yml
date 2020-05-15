@@ -11,3 +11,7 @@ coverage:
         threshold: 2%
 
 comment: off
+
+ignore:
+  - "demo"
+  - "protobuf"
