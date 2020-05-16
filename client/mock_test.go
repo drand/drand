@@ -8,6 +8,7 @@ import (
 
 // MockClient provide a mocked client interface
 type MockClient struct {
+	WatchCh chan Result
 	Results []MockResult
 }
 
@@ -23,6 +24,9 @@ func (m *MockClient) Get(ctx context.Context, round uint64) (Result, error) {
 
 // Watch returns new randomness as it becomes available.
 func (m *MockClient) Watch(ctx context.Context) <-chan Result {
+	if m.WatchCh != nil {
+		return m.WatchCh
+	}
 	ch := make(chan Result, 1)
 	r, _ := m.Get(ctx, 0)
 	ch <- r

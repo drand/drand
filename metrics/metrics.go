@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // adds default pprof endpoint at /debug/pprof
-	"runtime"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -22,15 +20,6 @@ var (
 		Help: "Number of times there have been network connection issues",
 	}, []string{"peer_index"})
 )
-
-// Register metrics and custom debug endpoints.
-func init() {
-	http.Handle("/metrics", promhttp.Handler())
-	http.HandleFunc("/debug/gc", func(w http.ResponseWriter, req *http.Request) {
-		runtime.GC()
-		fmt.Fprintf(w, "GC run complete")
-	})
-}
 
 // Start starts a prometheus metrics server with debug endpoints.
 func Start(metricsPort int) {

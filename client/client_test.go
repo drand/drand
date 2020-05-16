@@ -58,3 +58,47 @@ func TestClientWithGroup(t *testing.T) {
 		t.Fatal("bad urls should clearly not provide randomness.")
 	}
 }
+
+func TestClientCache(t *testing.T) {
+	addr1, hash, cancel := withServer(t)
+	defer cancel()
+
+	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithGroupHash(hash), WithCacheSize(1))
+	if e != nil {
+		t.Fatal(e)
+	}
+	_, e = c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	cancel()
+	_, e = c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	_, e = c.Get(context.Background(), 4)
+	if e == nil {
+		t.Fatal("non-cached results should fail.")
+	}
+
+}
+
+func TestClientWithoutCache(t *testing.T) {
+	addr1, hash, cancel := withServer(t)
+	defer cancel()
+
+	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithGroupHash(hash), WithCacheSize(0))
+	if e != nil {
+		t.Fatal(e)
+	}
+	_, e = c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	cancel()
+	_, e = c.Get(context.Background(), 0)
+	if e == nil {
+		t.Fatal("cache should be disabled.")
+	}
+}

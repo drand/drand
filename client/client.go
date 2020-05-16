@@ -3,27 +3,39 @@ package client
 import (
 	"bytes"
 	"errors"
-	"fmt"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 )
 
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
-	cfg := clientConfig{}
+	cfg := clientConfig{
+		cacheSize: 32,
+		log:       log.DefaultLogger,
+	}
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
 			return nil, err
 		}
 	}
 
-	return makeClient(cfg)
+	coreClient, err := makeClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.cacheSize > 0 {
+		coreClient, err = NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return newWatchAggregator(coreClient, cfg.log), nil
 }
 
 // makeClient creates a client from a configuration.
 func makeClient(cfg clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.groupHash == nil && cfg.group == nil {
-		fmt.Printf("%#v\n", cfg)
 		return nil, errors.New("No root of trust specified")
 	}
 	if len(cfg.urls) == 0 {
@@ -49,12 +61,13 @@ func makeClient(cfg clientConfig) (Client, error) {
 			}
 			cfg.group = group
 		}
+		c.(*httpClient).l = cfg.log
 		clients = append(clients, c)
 	}
 	if len(clients) == 1 {
 		return clients[0], nil
 	}
-	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group)
+	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log)
 }
 
 type clientConfig struct {
@@ -68,6 +81,10 @@ type clientConfig struct {
 	group *key.Group
 	// getter configures the http transport parameters used when fetching randomness.
 	getter HTTPGetter
+	// cache size - how large of a cache to keep locally.
+	cacheSize int
+	// customized client log.
+	log log.Logger
 }
 
 // Option is an option configuring a client.
@@ -89,6 +106,25 @@ func WithHTTPEndpoints(urls []string) Option {
 func WithHTTPGetter(getter HTTPGetter) Option {
 	return func(cfg *clientConfig) error {
 		cfg.getter = getter
+		return nil
+	}
+}
+
+// WithCacheSize specifies how large of a cache of randomness values should be
+// kept locally. Default 32
+func WithCacheSize(size int) Option {
+	return func(cfg *clientConfig) error {
+		cfg.cacheSize = size
+		return nil
+	}
+}
+
+// WithLogger overrides the logging options for the client,
+// allowing specification of additional tags, or redirection / configuration
+// of logging level and output.
+func WithLogger(l log.Logger) Option {
+	return func(cfg *clientConfig) error {
+		cfg.log = l
 		return nil
 	}
 }

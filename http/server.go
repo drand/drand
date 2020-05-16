@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
@@ -29,7 +30,16 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
-	handler := handler{reqTimeout, client, nil, logger}
+	handler := handler{
+		timeout:     reqTimeout,
+		client:      client,
+		groupInfo:   nil,
+		log:         logger,
+		pending:     make([]chan []byte, 0),
+		latestRound: 0,
+	}
+
+	go handler.Watch(ctx)
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
@@ -44,6 +54,50 @@ type handler struct {
 	client    drand.PublicClient
 	groupInfo *key.Group
 	log       log.Logger
+
+	// synchronization for blocking writes until randomness available.
+	pendingLk   sync.RWMutex
+	pending     []chan []byte
+	latestRound uint64
+}
+
+func (h *handler) Watch(ctx context.Context) {
+RESET:
+	stream, err := h.client.PublicRandStream(context.Background(), &drand.PublicRandRequest{})
+	if err != nil {
+		return
+	}
+
+	for {
+		next, err := stream.Recv()
+		if err != nil {
+			h.log.Warn("http_server", "random stream round failed", "err", err)
+			goto RESET
+		}
+
+		bytes, err := json.Marshal(next)
+
+		h.pendingLk.Lock()
+		if h.latestRound+1 != next.Round && h.latestRound != 0 {
+			// we missed a round, or similar. don't send bad data to peers.
+			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round))
+			bytes = []byte{}
+		}
+		h.latestRound = next.Round
+		pending := h.pending
+		h.pending = make([]chan []byte, 0)
+		h.pendingLk.Unlock()
+
+		for _, waiter := range pending {
+			waiter <- bytes
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+	}
 }
 
 func (h *handler) group(ctx context.Context) *key.Group {
@@ -72,6 +126,40 @@ func (h *handler) group(ctx context.Context) *key.Group {
 }
 
 func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
+	// First see if we should get on the synchronized 'wait for next release' bandwagon.
+	block := false
+	h.pendingLk.RLock()
+	block = (h.latestRound+1 == round)
+	h.pendingLk.RUnlock()
+	// If so, prepare, and if we're still sync'd, add ourselves to the list of waiters.
+	if block {
+		ch := make(chan []byte)
+		h.pendingLk.Lock()
+		block = (h.latestRound+1 == round)
+		if block {
+			h.pending = append(h.pending, ch)
+		}
+		h.pendingLk.Unlock()
+		// If that was successful, we can now block until we're notified.
+		if block {
+			select {
+			case r := <-ch:
+				return r, nil
+			case <-ctx.Done():
+				h.pendingLk.Lock()
+				defer h.pendingLk.Unlock()
+				for i, c := range h.pending {
+					if c == ch {
+						h.pending = append(h.pending[:i], h.pending[i+1:]...)
+						break
+					}
+				}
+				close(ch)
+				return nil, ctx.Err()
+			}
+		}
+	}
+
 	req := drand.PublicRandRequest{Round: round}
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
@@ -143,7 +231,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	remaining := nextTime.Sub(time.Now())
-	if remaining > 0 && remaining < h.groupInfo.Period {
+	if remaining > 0 && remaining < grp.Period {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
 	} else {
@@ -174,5 +262,5 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
-	http.ServeContent(w, r, "group.json", time.Unix(h.groupInfo.GenesisTime, 0), bytes.NewReader(data))
+	http.ServeContent(w, r, "group.json", time.Unix(grp.GenesisTime, 0), bytes.NewReader(data))
 }
