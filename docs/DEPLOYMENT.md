@@ -105,18 +105,23 @@ server {
   location / {
     grpc_pass grpc://localhost:8080;
   }
-  location /api/ {
-    proxy_pass http://localhost:8080;
+  location /public/ {
+    proxy_pass http://localhost:4444;
     proxy_set_header Host $host;
   }
+  location /group/ {
+    proxy_pass http://localhost:4444;
+    proxy_set_header Host $host;
+  }
+  # Add ssl certificates by running certbot --nginx
 }
 ```
 **Note**: you can change 
 1. the port on which you want drand to be accessible by changing the line
    `listen 443 ssl http2` to use any port.
 2. the port on which the drand binary will listen locally by changing the line
-   `proxy_pass http://localhost:8080; ` and ` grpc_pass grpc://localhost:8080;`
-   to use any local port.
+   ` grpc_pass grpc://localhost:8080;` to the private API port and
+   `proxy_pass http://localhost:8080;` to the public API port
 
 + Run certbot to get a TLS certificate:
 ```bash
