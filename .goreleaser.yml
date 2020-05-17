@@ -27,9 +27,3 @@ changelog:
     - '^docs:'
     - '^test:'
 
-dockers:
-  -
-    binaries:
-    - drand
-    image_templates:
-    - "drandorg/go-drand:{{ .Tag }}"
