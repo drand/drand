@@ -240,7 +240,7 @@ Typically, the TLS part of my VPS is managed by a single reverse proxy, which th
 
 There is one subtletly: you need to forward _both_ GRPC (used by drand "core") and web traffic (for the web interface). To forward GRPC, you need to have nginx `1.13.10` or above, it's a fairly recent addition.
 
-Then, you need to forward differently traffic to `/` and to `/api/`. Here's an example configuration for `nginx`:
+Then, you need to forward differently traffic to private API port and the HTTP public API port. Here's an example configuration for `nginx`:
 
 ```
 server {
@@ -254,15 +254,25 @@ server {
     grpc_pass grpc://localhost:1234;
   }
 
-  location /api/ {
+  location /group {
     // default --public-listen flag specified in the docker compose
     proxy_pass http://localhost:1235; 
     proxy_set_header Host $host;
   }
   
+  location /public/ {
+    // default --public-listen flag specified in the docker compose
+    proxy_pass http://localhost:1235; 
+    proxy_set_header Host $host;
+  }
+
   ssl_certificate /etc/letsencrypt/live/.../fullchain.pem; # managed by Certbot
   ssl_certificate_key /etc/letsencrypt/live/.../privkey.pem; # managed by Certbot
 }
 ```
+You can separate the entries in two in nginx by having two `server` blocks to
+apply different configurations.
 
-*Note:* to others, you'll still be using TLS (handled by your reverse proxy), so make sure you generate your drand-keys using an https address, and the flag `TLS=true`.
+*Note:* to others, you'll still be using TLS (handled by your reverse proxy), so
+make sure you generate your drand-keys using an https address, and the flag
+`TLS=true`.
