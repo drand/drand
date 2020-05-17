@@ -109,7 +109,7 @@ server {
     proxy_pass http://localhost:4444;
     proxy_set_header Host $host;
   }
-  location /group/ {
+  location /group {
     proxy_pass http://localhost:4444;
     proxy_set_header Host $host;
   }

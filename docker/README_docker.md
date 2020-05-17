@@ -254,7 +254,7 @@ server {
     grpc_pass grpc://localhost:1234;
   }
 
-  location /group/ {
+  location /group {
     // default --public-listen flag specified in the docker compose
     proxy_pass http://localhost:1235; 
     proxy_set_header Host $host;
