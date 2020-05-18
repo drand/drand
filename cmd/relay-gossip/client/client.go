@@ -45,7 +45,8 @@ func NewWithPubsub(ps *pubsub.PubSub, group *key.Group, options Options) (dclien
 	}
 
 	if len(options.HTTPEndpoints) == 0 {
-		return &basicClient{group: group, getNotifier: NewNotifier(t, log)}, nil
+		bc := basicClient{group: group, getNotifier: NewNotifier(t, log)}
+		return dclient.NewCachingClient(&bc, 32, log)
 	}
 
 	return dclient.New(
