@@ -206,7 +206,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		return nil, err
 	}
-	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, oldGroup, newGroup, d.priv.Public)
+	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, oldGroup, newGroup)
 	protoConf := &dkg.Config{
 		DkgConfig: dkgConfig,
 		Auth:      key.AuthScheme,

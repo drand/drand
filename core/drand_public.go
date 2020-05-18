@@ -75,11 +75,6 @@ func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) 
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	// first try the cache
-	// XXX disabled for now
-	/*if b, ok := d.cache.GetBeacon(in.GetRound()); ok {*/
-	//return beaconToProto(b), nil
-	/*}*/
 	var addr string
 	peer, ok := peer.FromContext(c)
 	if ok {
