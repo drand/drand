@@ -36,8 +36,6 @@ type dkgBoard struct {
 	client    net.ProtocolClient
 	nodes     []*key.Node
 	isReshare bool
-	// TODO XXX simply for debugging
-	pub *key.Identity
 }
 
 // newBoard is to be used when starting a new DKG protocol from scratch
@@ -57,7 +55,7 @@ func initBoard(l log.Logger, client net.ProtocolClient, nodes []*key.Node) *dkgB
 }
 
 // newReshareBoard is to be used when running a resharing protocol
-func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup *key.Group, pub *key.Identity) *dkgBoard {
+func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup *key.Group) *dkgBoard {
 	// takes all nodes and new nodes, without duplicates
 	var nodes []*key.Node
 	tryAppend := func(n *key.Node) {
@@ -81,7 +79,6 @@ func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup
 
 	board := initBoard(l, client, nodes)
 	board.isReshare = true
-	board.pub = pub
 	return board
 }
 
@@ -95,7 +92,7 @@ func (b *dkgBoard) ReshareDKG(c context.Context, p *proto.ResharePacket) (*proto
 
 func (b *dkgBoard) PushDeals(bundle dkg.AuthDealBundle) {
 	pdeal := dealToProto(&bundle)
-	fmt.Printf("-- PUSHING Deal: index %d - pub %s - hash %x - sig: %x\n", bundle.Bundle.DealerIndex, b.pub, bundle.Bundle.Hash(), bundle.Signature)
+	b.l.Info("push", "deal", "index", bundle.Bundle.DealerIndex, "hash", bundle.Bundle.Hash())
 	go b.broadcastPacket(pdeal, "deal")
 }
 
