@@ -14,7 +14,8 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// ErrNotAvailable is returned when Get is called using a basic client with no HTTP API configuration.
+// ErrNotAvailable is returned when Get is called using a basic client with no
+// HTTP API endpoints configured and value was not cached via gossip.
 var ErrNotAvailable = fmt.Errorf("not available")
 
 // Options are configuration options for the drand libp2p pubsub client
