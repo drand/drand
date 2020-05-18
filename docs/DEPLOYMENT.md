@@ -39,6 +39,10 @@ The setup process for a drand node consists of the following steps:
 2. Each node starts their daemon
 2. Leader starts the command as a coordinator & every participant connect to the
    coordinator to setup the network
+   
+This document explains how to do the setup with the drand binary itself. drand also offers 
+a docker image to run the setup. You can find the information for running with docker 
+[here](https://github.com/drand/drand/blob/master/docker/README.md).
 
 ### Long-Term Key
 
@@ -394,11 +398,14 @@ transition time specified in the new group file.
 
 ## Metrics
 
-The `--metrics <metrics-port>` flag may be used to launch a metrics server at
-the given port serving [pprof](https://golang.org/pkg/net/http/pprof/) runtime
-profiling data at `<metrics-port>/debug/pprof` and
+The `--metrics <metrics-address>` flag may be used to launch a metrics server at
+the provided address. The address may be specified as `127.0.0.1:port`, or as
+`:port` to bind to the default network interface.
+The web server at this port will serve [pprof](https://golang.org/pkg/net/http/pprof/)
+runtime profiling data at `<metrics>/debug/pprof`, allow triggering golang
+garbage collection at `<metrics>/debug/gc`, and will serve
 [prometheus](https://prometheus.io/docs/guides/go-application/) metrics at
-`<metrics-port>:/metrics`. Prometheus counters track the number of gRPC
+`<metrics>:/metrics`. Prometheus counters track the number of gRPC
 requests sent and received by the drand node, as well as the number of HTTP API
 requests. This endpoint should not be exposed publicly. If desired, prometheus
 metrics can be used as a data source for [grafana
