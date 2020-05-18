@@ -3,7 +3,6 @@ package metrics
 import (
 	"fmt"
 	"net/http"
-	pprof "net/http/pprof" // adds default pprof endpoint at /debug/pprof
 	"runtime"
 
 	"github.com/drand/drand/log"
@@ -35,6 +34,24 @@ var (
 		Help: "Number of peers with current GrpcClient connections",
 	})
 
+	// HTTPCallCounter (HTTP) how many http requests
+	HTTPCallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "http_call_counter",
+		Help: "Number of HTTP calls received",
+	}, []string{"code", "method"})
+	// HTTPLatency (HTTP) how long http request handling takes
+	HTTPLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:        "http_resopnse_duration",
+		Help:        "histogram of request latencies",
+		Buckets:     prometheus.DefBuckets,
+		ConstLabels: prometheus.Labels{"handler": "http"},
+	}, []string{"method"})
+	// HTTPInFlight (HTTP) how many http requests exist
+	HTTPInFlight = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "http_in_flight",
+		Help: "A gauge of requests currently being served.",
+	})
+
 	metricsBound = false
 )
 
@@ -58,10 +75,21 @@ func bindMetrics() {
 		GroupMetrics.Register(c)
 		PrivateMetrics.Register(c)
 	}
+
+	// HTTP metrics
+	http := []prometheus.Collector{
+		HTTPCallCounter,
+		HTTPLatency,
+		HTTPInFlight,
+	}
+	for _, c := range http {
+		HTTPMetrics.Register(c)
+		PrivateMetrics.Register(c)
+	}
 }
 
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string) {
+func Start(metricsBind string, pprof http.Handler) {
 	log.DefaultLogger.Debug("metrics", "private listener started", "at", metricsBind)
 	bindMetrics()
 
@@ -69,12 +97,9 @@ func Start(metricsBind string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 
-	// Warning: these are also registered on the default http serving mux as a side effect. no way to know if we should unregister them.
-	mux.HandleFunc("/debug/pprof", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	if pprof != nil {
+		mux.Handle("/debug/pprof", pprof)
+	}
 
 	mux.HandleFunc("/debug/gc", func(w http.ResponseWriter, req *http.Request) {
 		runtime.GC()

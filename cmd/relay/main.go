@@ -9,6 +9,8 @@ import (
 
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/metrics/pprof"
 	drand "github.com/drand/drand/protobuf/drand"
 
 	"github.com/gorilla/handlers"
@@ -17,9 +19,9 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-var listenFlag = &cli.StringFlag{
-	Name:  "bind",
-	Usage: "local host:port to bind the listener",
+var accessLogFlag = &cli.StringFlag{
+	Name:  "access-log",
+	Usage: "file to log http accesses to",
 }
 
 var connectFlag = &cli.StringFlag{
@@ -37,15 +39,24 @@ var insecureFlag = &cli.BoolFlag{
 	Usage: "Allow non-tls connections to GRPC server",
 }
 
-var accessLogFlag = &cli.StringFlag{
-	Name:  "access-log",
-	Usage: "file to log http accesses to",
+var listenFlag = &cli.StringFlag{
+	Name:  "bind",
+	Usage: "local host:port to bind the listener",
+}
+
+var metricsFlag = &cli.StringFlag{
+	Name:  "metrics",
+	Usage: "local host:port to bind a metrics servlet (optional)",
 }
 
 // Relay a GRPC connection to an HTTP server.
 func Relay(c *cli.Context) error {
 	if !c.IsSet(connectFlag.Name) {
 		return fmt.Errorf("A 'connect' host must be provided")
+	}
+
+	if c.IsSet(metricsFlag.Name) {
+		go metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile())
 	}
 
 	opts := []grpc.DialOption{}
@@ -94,7 +105,7 @@ func main() {
 	app := &cli.App{
 		Name:   "relay",
 		Usage:  "Relay a Drand group to a public HTTP Rest API",
-		Flags:  []cli.Flag{listenFlag, connectFlag, certFlag, insecureFlag, accessLogFlag},
+		Flags:  []cli.Flag{listenFlag, connectFlag, certFlag, insecureFlag, accessLogFlag, metricsFlag},
 		Action: Relay,
 	}
 

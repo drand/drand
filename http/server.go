@@ -15,7 +15,9 @@ import (
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	json "github.com/nikkolasg/hexjson"
 )
@@ -46,7 +48,15 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/group", handler.Group)
-	return mux, nil
+
+	instrumented := promhttp.InstrumentHandlerCounter(
+		metrics.HTTPCallCounter,
+		promhttp.InstrumentHandlerDuration(
+			metrics.HTTPLatency,
+			promhttp.InstrumentHandlerInFlight(
+				metrics.HTTPInFlight,
+				mux)))
+	return instrumented, nil
 }
 
 type handler struct {
