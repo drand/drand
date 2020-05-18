@@ -160,7 +160,7 @@ make install
 
 ### Via Docker
 The setup is explained in
-[README\_docker.md](https://github.com/drand/drand/tree/master/docker/README_docker.md).
+[docker/README.md](https://github.com/drand/drand/tree/master/docker/README.md).
 
 ## Usage
 
@@ -281,7 +281,6 @@ Here is a list of all documentation related to drand:
 - API documentation
   - [The client-side API documentation of drand](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
 - DevOps/Deployment documentation
-  - [The drand *operator guide* documentation](https://hackmd.io/@nikkolasg/Hkz2XFWa4) 
   - [Deployment instructions](./docs/DEPLOYMENT.md)
   - [Security Model](./docs/SECURITY_MODEL.md)
 
@@ -309,6 +308,7 @@ on public randomness, see DEDIS's academic paper [Scalable Bias-Resistant
 Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf).
 
 ## What's Next?
+
 Although being already functional, drand is still at an early development stage
 and there is a lot left to be done. The list of opened
 [issues](https://github.com/dedis/drand/issues) is a good place to start. On top
@@ -319,40 +319,15 @@ following:
   protocol](https://eprint.iacr.org/2012/377.pdf) or an approach based on
   verifiable succinct computations (zk-SNARKs, etc).
 + Use / implement a faster pairing based library in JavaScript
-+ implement "customizable" randomness, where input is chosen from the user
-  (drand would be acting as a distributed threshold
-  [oPRF](https://eprint.iacr.org/2018/733.pdf))
-+ expand the network
 + implemented ECIES private randomness in JavaScript (?)
 + Add more unit tests
-+ Reduce size of Docker
 + Add a systemd unit file
 + Support multiple drand instances within one node
 
-Feel free to submit feature requests or, even better, pull requests ;) But
-please note like, this is still currently a side project! Contact me on
-[twitter](https://twitter.com/nikkolasg1) for more information about the
-project.
-
-## Supporting 
-Drand is an open source project, currently as a side project. If you believe in
-the project, your financial help would be very valuable. Please contact me on
-[twitter](https://twitter.com/nikkolasg1) to know more about the project and
-its continuation and how to fund it. More documentation on that front will
-arrive.
-
-## Contributors
-Here's the list of people that contributed to drand:
-
-- Nicolas Gailly ([@nikkolasg1](https://twitter.com/nikkolasg1))
-- Philipp Jovanovic ([@daeinar](https://twitter.com/daeinar))
-- Mathilde Raynal ([@PizzaWhisperer](https://github.com/PizzaWhisperer))
-- Ludovic Barman ([@Lbarman](https://github.com/lbarman/))
-- Gabbi Fisher ([@gabbifish](https://github.com/gabbifish))
-- Linus Gasser ([@ineiti](https://github.com/ineiti))
-- Jeff Allen ([@jeffallen](https://github.com/jeffallen))
+Feel free to submit feature requests or, even better, pull requests ;) 
 
 ## Acknowledgments
+
 Thanks to [@herumi](https://github.com/herumi) for providing support on his
 optimized pairing-based cryptographic library used in the first version.
 

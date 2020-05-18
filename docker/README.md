@@ -1,6 +1,6 @@
 # Drand on docker
 
-The main readme for the drand project is [here](../README.md). This readme describes how to run a *production* version of `drand` based on `docker-compose`. 
+The main readme for the drand project is [here](../README.md). This readme describes how to run a *production* version of `drand` based on `docker-compose`.
 
 **Note:** this is meant as a production setup; it notably involves generating TLS certificates for your public-facing server. If you simply want a local demo of drand, run `make demo` in the root folder instead.
 
@@ -15,14 +15,14 @@ a VPS with the following software setup:
 
 ## First steps
 
-Copy/send the `deploy-example` folder on your server, then open a shell in it.
+Copy/send this folder on your server, then open a shell in it.
 You may place this directory where you want, e.g. `~/deploy-example`. Its name is irrelevant too, should you want to change it (just don't call it `~/.drand` which is used for the config files).
 
 At this point, your current working directory should look like this:
 
 ```bash
 $ pwd
-../drand/deploy-example
+/home/drand/deploy-example 
 ------------------------------------------------------------
 $ tree
 .
@@ -30,7 +30,7 @@ $ tree
 │   ├── tls_certificates
 │   └── tls_keypair
 ├── docker-compose.yml
-└── README_docker.md
+└── README.md
 ```
 
 Also make sure `data` is owned by your user, and have rights `740`:
@@ -82,7 +82,7 @@ This guide will continue focusing on drand; jump to the end of this guide to con
 
 ## Public HTTP api
 
-The compose file also opens a public http API to be consumed by the clients. 
+The compose file also opens a public http API to be consumed by the clients.
 This public endpoint is exposed on the 1235 port (private endpont + 1).
 If you wish to not expose the public http endpoint, you need to change the
 docker file to remove references to public port, as follow:
@@ -181,7 +181,7 @@ docker-compose up --build -d
 
 ### Reset the docker state (without losing the keys)
 
-This part is if you need to reset drand's internal state without loosing the keys. 
+This part is if you need to reset drand's internal state without loosing the keys.
 
 #### Method 1: using `drand clean`
 
@@ -240,7 +240,7 @@ Typically, the TLS part of my VPS is managed by a single reverse proxy, which th
 
 There is one subtletly: you need to forward _both_ GRPC (used by drand "core") and web traffic (for the web interface). To forward GRPC, you need to have nginx `1.13.10` or above, it's a fairly recent addition.
 
-Then, you need to forward differently traffic to `/` and to `/api/`. Here's an example configuration for `nginx`:
+Then, you need to forward differently traffic to private API port and the HTTP public API port. Here's an example configuration for `nginx`:
 
 ```
 server {
@@ -248,21 +248,31 @@ server {
   listen 443 ssl http2;
   ssl_protocols   SSLv3 TLSv1 TLSv1.1 TLSv1.2;
   ssl_ciphers   HIGH:!aNULL:!MD5;
-  
+
   location / {
     // default --public-listen port specified in the docker compose
     grpc_pass grpc://localhost:1234;
   }
 
-  location /api/ {
+  location /group {
     // default --public-listen flag specified in the docker compose
-    proxy_pass http://localhost:1235; 
+    proxy_pass http://localhost:1235;
     proxy_set_header Host $host;
   }
-  
+
+  location /public/ {
+    // default --public-listen flag specified in the docker compose
+    proxy_pass http://localhost:1235;
+    proxy_set_header Host $host;
+  }
+
   ssl_certificate /etc/letsencrypt/live/.../fullchain.pem; # managed by Certbot
   ssl_certificate_key /etc/letsencrypt/live/.../privkey.pem; # managed by Certbot
 }
 ```
+You can separate the entries in two in nginx by having two `server` blocks to
+apply different configurations.
 
-*Note:* to others, you'll still be using TLS (handled by your reverse proxy), so make sure you generate your drand-keys using an https address, and the flag `TLS=true`.
+*Note:* to others, you'll still be using TLS (handled by your reverse proxy), so
+make sure you generate your drand-keys using an https address, and the flag
+`TLS=true`.
