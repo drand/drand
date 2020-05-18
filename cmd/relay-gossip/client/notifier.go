@@ -15,6 +15,8 @@ import (
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
+const defaultFailoverGracePeriod = time.Second * 5
+
 type roundTracker struct {
 	sync.Mutex
 	current uint64
@@ -57,6 +59,10 @@ func NewNotifier(topic *pubsub.Topic, log log.Logger) dclient.GetNotifierFunc {
 func NewFailoverNotifier(topic *pubsub.Topic, gracePeriod time.Duration, log log.Logger) dclient.GetNotifierFunc {
 	latestRound := &roundTracker{}
 	getNotifier := newNotifier(topic, latestRound, log)
+
+	if gracePeriod == 0 {
+		gracePeriod = defaultFailoverGracePeriod
+	}
 
 	return func(ctx context.Context, client dclient.Client, group *key.Group) <-chan dclient.Result {
 		ch := make(chan dclient.Result, 5)

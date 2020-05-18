@@ -225,7 +225,7 @@ var clientCmd = &cli.Command{
 		options := client.Options{Logger: log}
 
 		if cctx.IsSet("http-endpoint") {
-			options.HTTPEndpoints = cctx.StringSlice("http-api-url")
+			options.HTTPEndpoints = cctx.StringSlice("http-endpoint")
 		}
 		if cctx.IsSet("failover-grace-period") {
 			options.FailoverGracePeriod = cctx.Duration("failover-grace-period")
