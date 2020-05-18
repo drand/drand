@@ -44,7 +44,7 @@ func startCmd(c *cli.Context) error {
 	}
 	// Start metrics server
 	if c.IsSet(metricsFlag.Name) {
-		go metrics.Start(c.Int(metricsFlag.Name))
+		go metrics.Start(c.String(metricsFlag.Name))
 	}
 	<-drand.WaitExit()
 
