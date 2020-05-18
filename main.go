@@ -82,9 +82,9 @@ var controlFlag = &cli.StringFlag{
 	Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
 }
 
-var metricsFlag = &cli.IntFlag{
+var metricsFlag = &cli.StringFlag{
 	Name:  "metrics",
-	Usage: "Launch a metrics server at the specified port.",
+	Usage: "Launch a metrics server at the specified (host:)port.",
 }
 
 var privListenFlag = &cli.StringFlag{

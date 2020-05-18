@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
 	"google.golang.org/grpc"
@@ -283,6 +284,7 @@ func (g *grpcClient) deleteConn(p Peer) {
 	g.Lock()
 	defer g.Unlock()
 	delete(g.conns, p.Address())
+	metrics.GroupConnections.Set(float64(len(g.conns)))
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one
@@ -295,6 +297,9 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 		slog.Debugf("grpc-client: attempting connection to %s (TLS %v)", p.Address(), p.IsTLS())
 		if !p.IsTLS() {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
+			if err != nil {
+				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
+			}
 		} else {
 			var opts []grpc.DialOption
 			for _, o := range g.opts {
@@ -309,8 +314,12 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(config)))
 			}
 			c, err = grpc.Dial(p.Address(), opts...)
+			if err != nil {
+				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
+			}
 		}
 		g.conns[p.Address()] = c
+		metrics.GroupConnections.Set(float64(len(g.conns)))
 	}
 	return c, err
 }
