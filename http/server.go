@@ -182,11 +182,14 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if roundN > h.latestRound+1 {
+	h.pendingLk.RLock()
+	if roundN > h.latestRound+1 && h.latestRound != 0 {
+		h.pendingLk.RUnlock()
 		w.WriteHeader(http.StatusNotFound)
 		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
+	h.pendingLk.RUnlock()
 
 	data, err := h.getRand(r.Context(), roundN)
 	if err != nil {

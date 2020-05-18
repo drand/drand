@@ -117,4 +117,14 @@ func TestHTTPWaiting(t *testing.T) {
 	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
 		t.Fatalf("unexpected timing to receive %v", body)
 	}
+
+	// watching sets latest round, future rounds should become inaccessible.
+	u := fmt.Sprintf("http://%s/public/2000", listener.Addr().String())
+	resp, err := http.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatal("response should fail on requests in the future")
+	}
 }
