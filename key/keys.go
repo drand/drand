@@ -2,7 +2,6 @@ package key
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -344,57 +343,6 @@ func (d *DistPublic) Equal(d2 *DistPublic) bool {
 		}
 	}
 	return true
-}
-
-// BeaconSignature is the final reconstructed BLS signature that is saved in the
-// filesystem.
-type BeaconSignature struct {
-	Timestamp   int64
-	PreviousSig string
-	Signature   string
-}
-
-// NewBeaconSignature initializes a beacon signature from
-// - a timestamp
-// - a previous sig. Can be nil if there is no previous signature
-// - a signature of the timestamp and the previous sig
-func NewBeaconSignature(timestamp int64, previousSig, signature []byte) *BeaconSignature {
-	hexSig := hex.EncodeToString(signature)
-	hexPrev := hex.EncodeToString(previousSig)
-	return &BeaconSignature{
-		Timestamp:   timestamp,
-		PreviousSig: hexPrev,
-		Signature:   hexSig,
-	}
-}
-
-// TOML returns a TOML-compatible version of this beacon signature
-func (b *BeaconSignature) TOML() interface{} {
-	return b
-}
-
-// FromTOML initializes b from a TOML-compatible version of a beacon signature
-func (b *BeaconSignature) FromTOML(i interface{}) error {
-	bb, ok := i.(*BeaconSignature)
-	if !ok {
-		return errors.New("beacon signature can't decode: wrong type")
-	}
-	*b = *bb
-	return nil
-}
-
-// TOMLValue returns an empty TOML-compatible version of a beacon signature
-func (b *BeaconSignature) TOMLValue() interface{} {
-	return &BeaconSignature{}
-}
-
-// RawSig returns the signature
-func (b *BeaconSignature) RawSig() []byte {
-	s, err := base64.StdEncoding.DecodeString(b.Signature)
-	if err != nil {
-		panic("beacon signature have invalid base64 encoded ! File corrupted ? Attack ? God ? Pesto ?")
-	}
-	return s
 }
 
 // DefaultThreshold return floor(n / 2) + 1
