@@ -160,7 +160,7 @@ make install
 
 ### Via Docker
 The setup is explained in
-[README\_docker.md](https://github.com/drand/drand/tree/master/docker/README_docker.md).
+[docker/README.md](https://github.com/drand/drand/tree/master/docker/README.md).
 
 ## Usage
 
