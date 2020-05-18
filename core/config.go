@@ -43,14 +43,7 @@ type Config struct {
 func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
-		//grpcOpts:     []grpc.DialOption{grpc.WithInsecure()},
-		grpcOpts: []grpc.DialOption{
-			/*grpc.WithBackoffMaxDelay(3 * time.Second),*/
-			//grpc.WithBlock(),
-			//grpc.FailOnNonTempDialError(true),
-			/*grpc.WithTimeout(DefaultDialTimeout),*/
-		},
-		dkgTimeout: DefaultDKGTimeout,
+		dkgTimeout:   DefaultDKGTimeout,
 		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger,
