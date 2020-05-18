@@ -35,15 +35,6 @@ const DefaultControlPort = "8888"
 // (there is no malicious party).
 const DefaultDKGTimeout = 10 * time.Second
 
-// DefaultDialTimeout is the timeout given to gRPC when dialling a remote server
-var DefaultDialTimeout = 10 * time.Second
-
-// RandomnessHash is the hash function used to produce the final randomness from
-// the signature. NOTE: this is a proposition by drand but user can choose any
-// secure hash function to derive the final randomness from the sig:
-// rand = H(sig)
-var RandomnessHash = sha256.New
-
 // EciesHash is the hash function used for the ECIES encryption used in the
 // private randomness feature.
 var EciesHash = sha256.New
@@ -65,10 +56,5 @@ var DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(3)
 // has to keep the same period.
 var DefaultResharingOffset = 30 * time.Second
 
-// Keep the most recents beacons
-// XXX unused for now
-var DefaultBeaconCacheLength = 10
-
 // IDs for callback when beacon appears
 const callbackID = "callbackID"
-const cacheID = "cacheID"

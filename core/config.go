@@ -254,13 +254,6 @@ func withClock(c clock.Clock) ConfigOption {
 	}
 }
 
-func getPeriod(g *key.Group) time.Duration {
-	if g.Period == time.Duration(0) {
-		return DefaultBeaconPeriod
-	}
-	return g.Period
-}
-
 // WithPrivateRandomness enables the private randomness feature on the drand
 // logic. When the feature is not enabled, the call returns an error.
 func WithPrivateRandomness() ConfigOption {

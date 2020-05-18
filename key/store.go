@@ -1,7 +1,6 @@
 package key
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -29,13 +28,6 @@ type Store interface {
 	LoadDistPublic() (*DistPublic, error)
 	Reset(...ResetOption) error
 }
-
-// ErrStoreFile returns an error in case the store can not save the requested
-// file
-var ErrStoreFile = errors.New("store file issues")
-
-// ErrAbsent returns
-var ErrAbsent = errors.New("store can't find requested object")
 
 // KeyFolderName is the name of the folder where drand keeps its keys
 const KeyFolderName = "key"
