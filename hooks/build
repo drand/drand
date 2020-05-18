@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Build hook for Docker Hub
+# See: https://docs.docker.com/docker-hub/builds/advanced/#build-hook-examples
+docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -f $DOCKERFILE_PATH -t $IMAGE_NAME .
