@@ -8,9 +8,7 @@ import (
 	"os"
 	"time"
 
-	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/client"
-	"github.com/drand/drand/cmd/relay-gossip/client/failover"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"
@@ -197,7 +195,7 @@ var clientCmd = &cli.Command{
 	Flags: []cli.Flag{
 		peerWithFlag,
 		&cli.StringFlag{
-			Name:  "failover-url",
+			Name:  "http-endpoint",
 			Usage: "optional drand HTTP API URL(s) to use incase of gossipsub failure",
 		},
 		&cli.DurationFlag{
@@ -224,28 +222,18 @@ var clientCmd = &cli.Command{
 		// TODO extract group from CLI args
 		var group *key.Group
 
-		psc, err := client.NewWithPubsub(ps, group, log)
-		if err != nil {
-			return xerrors.Errorf("constructing pubsub client: %w", err)
+		options := client.Options{Logger: log}
+
+		if cctx.IsSet("http-endpoint") {
+			options.HTTPEndpoints = cctx.StringSlice("http-api-url")
+		}
+		if cctx.IsSet("failover-grace-period") {
+			options.FailoverGracePeriod = cctx.Duration("failover-grace-period")
 		}
 
-		var c dclient.Client
-		if cctx.IsSet("failover-url") {
-			hc, err := dclient.New(
-				dclient.WithGroup(group),
-				dclient.WithHTTPEndpoints(cctx.StringSlice("failover-url")),
-				dclient.WithWatcher(failover.NewWatcher(psc, cctx.Duration("failover-grace-period"))),
-			)
-			if err != nil {
-				return xerrors.Errorf("constructing HTTP client: %w", err)
-			}
-			c = hc
-		} else {
-			cc, err := client.NewCachingClient(psc, 256, log)
-			if err != nil {
-				return xerrors.Errorf("constructing caching client: %w", err)
-			}
-			c = cc
+		c, err := client.NewWithPubsub(ps, group, client.Options{Logger: log})
+		if err != nil {
+			return xerrors.Errorf("constructing pubsub client: %w", err)
 		}
 
 		for rand := range c.Watch(context.Background()) {
@@ -271,11 +259,11 @@ var idCmd = &cli.Command{
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
-		peerId, err := peer.IDFromPrivateKey(priv)
+		peerID, err := peer.IDFromPrivateKey(priv)
 		if err != nil {
 			return xerrors.Errorf("computing peerid: %w", err)
 		}
-		fmt.Printf("%s\n", peerId)
+		fmt.Printf("%s\n", peerID)
 		return nil
 	},
 }
