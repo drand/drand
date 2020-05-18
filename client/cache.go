@@ -16,7 +16,7 @@ func NewCachingClient(client Client, size int, log log.Logger) (Client, error) {
 	}
 	return &cachingClient{
 		Client: client,
-		cache:  cache,
+		Cache:  cache,
 		log:    log,
 	}, nil
 }
@@ -24,18 +24,18 @@ func NewCachingClient(client Client, size int, log log.Logger) (Client, error) {
 type cachingClient struct {
 	Client
 
-	cache *lru.ARCCache
+	Cache *lru.ARCCache
 	log   log.Logger
 }
 
 // Get returns the randomness at `round` or an error.
 func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
-	if val, ok := c.cache.Get(round); ok {
+	if val, ok := c.Cache.Get(round); ok {
 		return val.(Result), nil
 	}
 	val, err := c.Client.Get(ctx, round)
 	if err == nil && val != nil {
-		c.cache.Add(round, val)
+		c.Cache.Add(round, val)
 	}
 	return val, err
 }

@@ -12,15 +12,19 @@ import (
 // NewPrioritizingClient is a meta client that asks each sub-client
 // in succession on requests until an answer is found. If a sub-client
 // fails, it is moved to the end of the list.
-func NewPrioritizingClient(clients []Client, groupHash []byte, group *key.Group, log log.Logger) (Client, error) {
-	return &prioritizingClient{clients, groupHash, group, log}, nil
+func NewPrioritizingClient(clients []Client, groupHash []byte, group *key.Group, log log.Logger, getNotifier GetNotifierFunc) (Client, error) {
+	if getNotifier == nil {
+		getNotifier = pollingWatcher(log)
+	}
+	return &prioritizingClient{clients, groupHash, group, log, getNotifier}, nil
 }
 
 type prioritizingClient struct {
-	Clients   []Client
-	groupHash []byte
-	group     *key.Group
-	log       log.Logger
+	Clients     []Client
+	groupHash   []byte
+	group       *key.Group
+	log         log.Logger
+	getNotifier GetNotifierFunc
 }
 
 // Get returns a the randomness at `round` or an error.
@@ -72,7 +76,7 @@ func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
 			return ch
 		}
 	}
-	return pollingWatcher(ctx, p, p.group, p.log)
+	return p.getNotifier(ctx, p, p.group)
 }
 
 // RoundAt will return the most recent round of randomness that will be available
