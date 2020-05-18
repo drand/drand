@@ -3,7 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
-	_ "net/http/pprof" // adds default pprof endpoint at /debug/pprof
+	pprof "net/http/pprof" // adds default pprof endpoint at /debug/pprof
 	"runtime"
 
 	"github.com/drand/drand/log"
@@ -68,6 +68,14 @@ func Start(metricsBind string) {
 	s := http.Server{Addr: metricsBind}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
+
+	// Warning: these are also registered on the default http serving mux as a side effect. no way to know if we should unregister them.
+	mux.HandleFunc("/debug/pprof", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
 	mux.HandleFunc("/debug/gc", func(w http.ResponseWriter, req *http.Request) {
 		runtime.GC()
 		fmt.Fprintf(w, "GC run complete")
