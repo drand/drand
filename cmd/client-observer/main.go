@@ -5,11 +5,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/drand/drand/key"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/urfave/cli/v2"
 )
 
@@ -29,6 +31,11 @@ var metricsFlag = &cli.StringFlag{
 	Value: ":8080",
 }
 
+var gatewayFlag = &cli.StringFlag{
+	Name:  "gateway",
+	Usage: "Push gateway for Prometheus metrics.",
+}
+
 var nameFlag = &cli.StringFlag{
 	Name:  "name",
 	Usage: "The name of this observer node in the metrics system.",
@@ -38,7 +45,7 @@ func main() {
 	app := &cli.App{
 		Name:   "observe",
 		Usage:  "Drand client for observing metrics",
-		Flags:  []cli.Flag{urlFlag, groupKeyFlag, metricsFlag, nameFlag},
+		Flags:  []cli.Flag{urlFlag, groupKeyFlag, metricsFlag, nameFlag, gatewayFlag},
 		Action: Observe,
 	}
 
@@ -70,6 +77,10 @@ func Observe(c *cli.Context) error {
 	} else {
 		cfg.MetricsAddr = ":8080"
 	}
+	// read metrics push gateay address
+	if c.IsSet(gatewayFlag.Name) {
+		cfg.MetricsGateway = c.String(gatewayFlag.Name)
+	}
 	// read name
 	if !c.IsSet(nameFlag.Name) {
 		return fmt.Errorf("observer node name not set")
@@ -86,6 +97,23 @@ func Observe(c *cli.Context) error {
 
 	go StartObserving(cfg, watchLatency)
 
-	http.Handle("/metrics", promhttp.Handler())
-	return http.ListenAndServe(cfg.MetricsAddr, nil)
+	if cfg.MetricsGateway != "" {
+		go pushObservations(cfg, watchLatency)
+	}
+	if cfg.MetricsAddr != "" {
+		http.Handle("/metrics", promhttp.Handler())
+		log.Fatal(http.ListenAndServe(cfg.MetricsAddr, nil))
+	}
+	<-(chan int)(nil)
+	return nil
+}
+
+func pushObservations(cfg *Config, watchLatency prometheus.Gauge) {
+	p := push.New(cfg.MetricsGateway, "drand_client_observations_push").Collector(watchLatency)
+	for {
+		time.Sleep(cfg.Group.Period)
+		if err := p.Push(); err != nil {
+			log.Printf("prometheus gateway push (%v)", err)
+		}
+	}
 }

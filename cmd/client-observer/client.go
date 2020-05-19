@@ -21,6 +21,8 @@ type Config struct {
 	URL []string
 	// MetricsAddr is the address where the metrics server binds.
 	MetricsAddr string
+	// MetricsGateway, if given, is the URL of a Prometheus push gateway
+	MetricsGateway string
 	// Name is the name under which this node will report metrics.
 	Name string
 }
