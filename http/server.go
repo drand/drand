@@ -182,26 +182,23 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.pendingLk.RLock()
-	if roundN > h.latestRound+1 && h.latestRound != 0 {
-		h.pendingLk.RUnlock()
+	grp := h.group(r.Context())
+	roundExpectedTime := time.Now()
+	if grp != nil {
+		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
+	}
+
+	if roundExpectedTime.After(time.Now().Add(grp.Period)) {
 		w.WriteHeader(http.StatusNotFound)
 		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
-	h.pendingLk.RUnlock()
 
 	data, err := h.getRand(r.Context(), roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
-	}
-
-	grp := h.group(r.Context())
-	roundExpectedTime := time.Now()
-	if grp != nil {
-		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
 	}
 
 	// Headers per recommendation for static assets at

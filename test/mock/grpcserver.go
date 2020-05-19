@@ -171,7 +171,7 @@ func generateMockData() *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Unix(),
+		Genesis:           time.Now().Add(60 * 1969 * time.Second * -1).Unix(),
 	}
 	return d
 }
