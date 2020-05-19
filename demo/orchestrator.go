@@ -394,7 +394,12 @@ func createNodes(n int, offset int, period, basePath, certFolder string, tls boo
 	var nodes []node.Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
-		n := node.NewNode(idx, period, basePath, tls, binary)
+		var n node.Node
+		if binary != "" {
+			n = node.NewNode(idx, period, basePath, tls, binary)
+		} else {
+			n = node.NewLocalNode(idx, period, basePath, tls)
+		}
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
 		fmt.Printf("\t- Created node %s at %s\n", n.PrivateAddr(), basePath)
