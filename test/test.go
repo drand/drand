@@ -59,19 +59,12 @@ func LocalHost() string {
 	return addr.IP.String()
 }
 
-// FreeBind provides an address for binding, either on a 0.0.0.0 or 127.0.0.1
-// interface.
-func FreeBind(external bool) string {
+// FreeBind provides an address for binding on provided address
+func FreeBind(a string) string {
 	globalLock.Lock()
 	defer globalLock.Unlock()
 	for {
-		var addr *n.TCPAddr
-		var err error
-		if external {
-			addr, err = n.ResolveTCPAddr("tcp", ":0")
-		} else {
-			addr, err = n.ResolveTCPAddr("tcp", "localhost:0")
-		}
+		addr, err := n.ResolveTCPAddr("tcp", a+":0")
 		if err != nil {
 			panic(err)
 		}

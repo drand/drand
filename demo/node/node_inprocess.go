@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -33,59 +34,73 @@ type LocalNode struct {
 	pubAddr    string
 	ctrlAddr   string
 	tls        bool
+	priv       *key.Pair
 
 	log log.Logger
 
 	daemon *core.Drand
 }
 
-func NewLocalNode(i int, period string, base string, tls bool) Node {
+func NewLocalNode(i int, period string, base string, tls bool, bindAddr string) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
 
 	// make certificates for the node.
 	err := httpscerts.Generate(
-		path.Join(base, fmt.Sprintf("server-%d.crt", i)),
-		path.Join(base, fmt.Sprintf("server-%d.key", i)),
-		test.LocalHost())
+		path.Join(nbase, fmt.Sprintf("server-%d.crt", i)),
+		path.Join(nbase, fmt.Sprintf("server-%d.key", i)),
+		bindAddr)
 	if err != nil {
 		return nil
 	}
-	return &LocalNode{
+	l := &LocalNode{
 		base:     nbase,
 		i:        i,
 		period:   period,
 		tls:      tls,
 		logPath:  logPath,
 		log:      log.DefaultLogger,
-		pubAddr:  test.FreeBind(true),
-		privAddr: test.FreeBind(true),
-		ctrlAddr: test.FreeBind(false),
+		pubAddr:  test.FreeBind(bindAddr),
+		privAddr: test.FreeBind(bindAddr),
+		ctrlAddr: test.FreeBind("localhost"),
 	}
+
+	var priv *key.Pair
+	if l.tls {
+		priv = key.NewTLSKeyPair(l.privAddr)
+	} else {
+		priv = key.NewKeyPair(l.privAddr)
+	}
+
+	l.priv = priv
+	return l
 }
 
 func (l *LocalNode) Start(certFolder string) error {
+	certs, err := fs.Files(certFolder)
+	if err != nil {
+		return err
+	}
 	opts := []core.ConfigOption{
+		core.WithLogLevel(log.LogDebug),
 		core.WithConfigFolder(l.base),
+		core.WithTrustedCerts(certs...),
 		core.WithPublicListenAddress(l.pubAddr),
 		core.WithPrivateListenAddress(l.privAddr),
 		core.WithControlPort(l.ctrlAddr),
 	}
-	var priv *key.Pair
 	if l.tls {
-		priv = key.NewTLSKeyPair(l.privAddr)
 		opts = append(opts, core.WithTLS(
 			path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)),
 			path.Join(l.base, fmt.Sprintf("server-%d.key", l.i))))
 	} else {
-		priv = key.NewKeyPair(l.privAddr)
 		opts = append(opts, core.WithInsecure())
 	}
 	conf := core.NewConfig(opts...)
 	fs := key.NewFileStore(conf.ConfigFolder())
-	fs.SaveKeyPair(priv)
-	key.Save(path.Join(l.base, "public.toml"), priv.Public, false)
+	fs.SaveKeyPair(l.priv)
+	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
 	drand, err := core.NewDrand(fs, conf)
 	if err != nil {
 		return err
@@ -227,12 +242,12 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 
 func (l *LocalNode) WriteCertificate(p string) {
 	if l.tls {
-		exec.Command("cp", path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)), p)
+		exec.Command("cp", path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)), p).Run()
 	}
 }
 
 func (l *LocalNode) WritePublic(p string) {
-	exec.Command("cp", path.Join(l.base, "public.toml"), p)
+	key.Save(p, l.priv.Public, false)
 }
 
 func (l *LocalNode) Stop() {

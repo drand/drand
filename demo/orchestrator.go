@@ -398,7 +398,7 @@ func createNodes(n int, offset int, period, basePath, certFolder string, tls boo
 		if binary != "" {
 			n = node.NewNode(idx, period, basePath, tls, binary)
 		} else {
-			n = node.NewLocalNode(idx, period, basePath, tls)
+			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1")
 		}
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
