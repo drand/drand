@@ -216,14 +216,6 @@ func printJSON(j interface{}) {
 	}
 	fmt.Println(string(buff))
 }
-func fileExists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
 
 func entropyInfoFromReader(c *cli.Context) *control.EntropyInfo {
 	if c.IsSet(sourceFlag.Name) {

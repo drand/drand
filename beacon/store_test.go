@@ -116,5 +116,18 @@ func TestStoreBolt(t *testing.T) {
 			require.True(t, expecteds[i].Equal(b))
 			i++
 		}
+
+		unknown := c.Seek(10000)
+		require.Nil(t, unknown)
 	})
+
+	store.Cursor(func(c Cursor) {
+		lb2 := c.Last()
+		require.NotNil(t, lb2)
+		require.Equal(t, b2, lb2)
+	})
+
+	unknown, err := store.Get(10000)
+	require.Nil(t, unknown)
+	require.Equal(t, ErrNoBeaconSaved, err)
 }
