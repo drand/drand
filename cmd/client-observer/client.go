@@ -1,8 +1,9 @@
-// Package client provides a Drand client which observes latencies and reports them via Prometheus.
-package client
+// Package client-observer provides a Drand client which observes latencies and reports them via Prometheus.
+package main
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/drand/drand/beacon"
@@ -11,19 +12,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	watchLatency = prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace: "drand_observe",
-		Subsystem: "from_client",
-		Name:      "watch_latency",
-		Help:      "Duration between time round received and time round expected.",
-	})
-)
-
-func init() {
-	prometheus.MustRegister(watchLatency)
-}
-
 // Config configures a client observer node.
 type Config struct {
 	// Group is the  group key for Drand.
@@ -31,22 +19,26 @@ type Config struct {
 	Group *key.Group
 	// URL is a list of REST endpoint URLs
 	URL []string
+	// MetricsAddr is the address where the metrics server binds.
+	MetricsAddr string
+	// Name is the name under which this node will report metrics.
+	Name string
 }
 
-func StartObserving(cfg *Config) error {
+// StartObserving listens to incoming randomness and records metrics.
+func StartObserving(cfg *Config, watchLatency prometheus.Gauge) {
 	c, err := client.New(
 		client.WithGroup(cfg.Group),
 		client.WithHTTPEndpoints(cfg.URL),
 	)
 	if err != nil {
-		return err
+		log.Fatalf("drand client init (%v)", err)
 	}
-	XXX // get group key from client
-	ctx, cancelCtx := context.WithCancel(context.Background())
-	go observeWatch(ctx, cfg, c)
+
+	observeWatch(context.Background(), cfg, c, watchLatency)
 }
 
-func observeWatch(ctx context.Context, cfg *Config, c client.Client) {
+func observeWatch(ctx context.Context, cfg *Config, c client.Client, watchLatency prometheus.Gauge) {
 	rch := c.Watch(ctx)
 	for {
 		select {
@@ -54,6 +46,7 @@ func observeWatch(ctx context.Context, cfg *Config, c client.Client) {
 			if !ok {
 				return
 			}
+			// compute the latency metric
 			actual := time.Now().Unix()
 			expected := beacon.TimeOfRound(cfg.Group.Period, cfg.Group.GenesisTime, result.Round())
 			watchLatency.Set(float64(expected - actual))
