@@ -8,6 +8,7 @@ import (
 
 	"github.com/drand/drand/key"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
 )
@@ -25,6 +26,7 @@ var groupKeyFlag = &cli.StringFlag{
 var metricsFlag = &cli.StringFlag{
 	Name:  "metrics",
 	Usage: "Server address for Prometheus metrics.",
+	Value: ":8080",
 }
 
 var nameFlag = &cli.StringFlag{
@@ -75,13 +77,12 @@ func Observe(c *cli.Context) error {
 	cfg.Name = c.String(nameFlag.Name)
 
 	// register prometheus metrics
-	watchLatency := prometheus.NewGauge(prometheus.GaugeOpts{
+	watchLatency := promauto.NewGauge(prometheus.GaugeOpts{
 		Namespace: "drand_client_observation",
 		Subsystem: cfg.Name,
 		Name:      "watch_latency",
 		Help:      "Duration between time round received and time round expected.",
 	})
-	prometheus.MustRegister(watchLatency)
 
 	go StartObserving(cfg, watchLatency)
 

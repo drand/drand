@@ -36,6 +36,7 @@ func StartObserving(cfg *Config, watchLatency prometheus.Gauge) {
 	}
 
 	observeWatch(context.Background(), cfg, c, watchLatency)
+	log.Fatalf("observer broken")
 }
 
 func observeWatch(ctx context.Context, cfg *Config, c client.Client, watchLatency prometheus.Gauge) {
