@@ -43,10 +43,11 @@ type Orchestrator struct {
 	reshareThr   int
 	reshareNodes []node.Node
 	tls          bool
+	withCurl     bool
 	binary       string
 }
 
-func NewOrchestrator(n int, thr int, period string, tls bool, binary string) *Orchestrator {
+func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
@@ -68,6 +69,7 @@ func NewOrchestrator(n int, thr int, period string, tls bool, binary string) *Or
 		paths:        paths,
 		certFolder:   certFolder,
 		tls:          tls,
+		withCurl:     withCurl,
 		binary:       binary,
 	}
 	return e
@@ -205,12 +207,12 @@ func (e *Orchestrator) WaitPeriod() {
 
 func (e *Orchestrator) CheckCurrentBeacon(exclude ...int) {
 	filtered := filterNodes(e.nodes, exclude...)
-	e.checkBeaconNodes(filtered, e.groupPath)
+	e.checkBeaconNodes(filtered, e.groupPath, e.withCurl)
 }
 
 func (e *Orchestrator) CheckNewBeacon(exclude ...int) {
 	filtered := filterNodes(e.reshareNodes, exclude...)
-	e.checkBeaconNodes(filtered, e.newGroupPath)
+	e.checkBeaconNodes(filtered, e.newGroupPath, e.withCurl)
 }
 
 func filterNodes(list []node.Node, exclude ...int) []node.Node {
@@ -233,7 +235,7 @@ func filterNodes(list []node.Node, exclude ...int) []node.Node {
 	return filtered
 }
 
-func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string) {
+func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl bool) {
 	nRound, _ := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	currRound := nRound - 1
 	fmt.Printf("[+] Checking randomness beacon for round %d via CLI\n", currRound)
@@ -258,7 +260,6 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string) {
 		}
 	}
 	fmt.Println("[+] Checking randomness via HTTP API using curl")
-	tryCurl := true
 	var printed bool
 	for _, n := range nodes {
 		args := []string{"-k", "-s"}
