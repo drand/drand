@@ -115,7 +115,7 @@ func (n *NodeProc) setup() {
 	checkErr(err)
 }
 
-func (n *NodeProc) Start(certFolder string) {
+func (n *NodeProc) Start(certFolder string) error {
 	// create log file
 	//logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
@@ -150,6 +150,7 @@ func (n *NodeProc) Start(certFolder string) {
 		// stopped
 		cmd.Run()
 	}()
+	return nil
 }
 
 func (n *NodeProc) PrivateAddr() string {

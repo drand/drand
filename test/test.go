@@ -50,6 +50,52 @@ func Addresses(n int) []string {
 	return addrs
 }
 
+// LocalHost returns the default local bind address: e.g. [::] or 127.0.0.1
+func LocalHost() string {
+	addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+	return addr.IP.String()
+}
+
+// FreeBind provides an address for binding, either on a 0.0.0.0 or 127.0.0.1
+// interface.
+func FreeBind(external bool) string {
+	globalLock.Lock()
+	defer globalLock.Unlock()
+	for {
+		var addr *n.TCPAddr
+		var err error
+		if external {
+			addr, err = n.ResolveTCPAddr("tcp", ":0")
+		} else {
+			addr, err = n.ResolveTCPAddr("tcp", "localhost:0")
+		}
+		if err != nil {
+			panic(err)
+		}
+
+		l, err := n.ListenTCP("tcp", addr)
+		if err != nil {
+			panic(err)
+		}
+		defer l.Close()
+		p := strconv.Itoa(l.Addr().(*n.TCPAddr).Port)
+		var found bool
+		for _, u := range allPorts {
+			if p == u {
+				found = true
+				break
+			}
+		}
+		if !found {
+			allPorts = append(allPorts, p)
+			return l.Addr().String()
+		}
+	}
+}
+
 // Ports returns a list of ports starting from the given
 // port= start.
 // TODO: This function is flaky.
