@@ -1,4 +1,4 @@
-package main
+package node
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ import (
 var secretDKG = "dkgsecret"
 var secretReshare = "sharesecret"
 
-type Node struct {
+type NodeProc struct {
 	base       string
 	i          int
 	period     string
@@ -43,20 +43,19 @@ type Node struct {
 	store      key.Store
 	cancel     context.CancelFunc
 	ctrl       string
-	reshared   bool
 	tls        bool
 	groupPath  string
 	binary     string
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string) *Node {
+func NewNode(i int, period string, base string, tls bool, binary string) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
 	publicPath := path.Join(nbase, "public.toml")
 	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
-	n := &Node{
+	n := &NodeProc{
 		tls:        tls,
 		base:       nbase,
 		i:          i,
@@ -70,7 +69,7 @@ func NewNode(i int, period string, base string, tls bool, binary string) *Node {
 	return n
 }
 
-func (n *Node) setup() {
+func (n *NodeProc) setup() {
 	var err error
 	// find a free port
 	freePort := test.FreePort()
@@ -116,7 +115,7 @@ func (n *Node) setup() {
 	checkErr(err)
 }
 
-func (n *Node) Start(certFolder string) {
+func (n *NodeProc) Start(certFolder string) {
 	// create log file
 	//logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
@@ -153,7 +152,19 @@ func (n *Node) Start(certFolder string) {
 	}()
 }
 
-func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string) *key.Group {
+func (n *NodeProc) PrivateAddr() string {
+	return n.privAddr
+}
+
+func (n *NodeProc) PublicAddr() string {
+	return n.pubAddr
+}
+
+func (n *NodeProc) Index() int {
+	return n.i
+}
+
+func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
 	args := []string{"share", "--control", n.ctrl}
 	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
 	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
@@ -178,7 +189,7 @@ func (n *Node) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr st
 	return group
 }
 
-func (n *Node) GetGroup() *key.Group {
+func (n *NodeProc) GetGroup() *key.Group {
 	args := []string{"show", "group", "--control", n.ctrl}
 	args = append(args, pair("--out", n.groupPath)...)
 	cmd := exec.Command(n.binary, args...)
@@ -188,7 +199,7 @@ func (n *Node) GetGroup() *key.Group {
 	return group
 }
 
-func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string) *key.Group {
+func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
 	args := []string{"share"}
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
@@ -196,7 +207,7 @@ func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leade
 	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
 	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 	args = append(args, pair("--secret", secretReshare)...)
-	if n.reshared {
+	if oldGroup != "" {
 		// only append if we are a new node
 		args = append(args, pair("--from", oldGroup)...)
 	} else {
@@ -220,7 +231,7 @@ func (n *Node) RunReshare(nodes, thr int, oldGroup string, timeout string, leade
 	return group
 }
 
-func (n *Node) GetCokey(group string) bool {
+func (n *NodeProc) GetCokey(group string) bool {
 	args := []string{"get", "cokey"}
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
@@ -247,7 +258,7 @@ func (n *Node) GetCokey(group string) bool {
 //return group
 /*}*/
 
-func (n *Node) Ping() bool {
+func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -257,7 +268,7 @@ func (n *Node) Ping() bool {
 	return true
 }
 
-func (n *Node) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
+func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
 	args := []string{"get", "public"}
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
@@ -272,17 +283,17 @@ func (n *Node) GetBeacon(groupPath string, round uint64) (*drand.PublicRandRespo
 	return s, strings.Join(cmd.Args, " ")
 }
 
-func (n *Node) WriteCertificate(path string) {
+func (n *NodeProc) WriteCertificate(path string) {
 	if n.tls {
 		runCommand(exec.Command("cp", n.certPath, path))
 	}
 }
 
-func (n *Node) WritePublic(path string) {
+func (n *NodeProc) WritePublic(path string) {
 	checkErr(key.Save(path, n.priv.Public, false))
 }
 
-func (n *Node) Stop() {
+func (n *NodeProc) Stop() {
 	if n.cancel != nil {
 		n.cancel()
 	}
@@ -302,7 +313,7 @@ func (n *Node) Stop() {
 	panic("node should have stopped but is still running")
 }
 
-func (n *Node) PrintLog() {
+func (n *NodeProc) PrintLog() {
 	fmt.Printf("[-] Printing logs of node %s:\n", n.privAddr)
 	buff, err := ioutil.ReadFile(n.logPath)
 	if err != nil {
@@ -315,4 +326,26 @@ func (n *Node) PrintLog() {
 
 func pair(k, v string) []string {
 	return []string{k, v}
+}
+
+func runCommand(c *exec.Cmd, add ...string) []byte {
+	out, err := c.CombinedOutput()
+	if err != nil {
+		if len(add) > 0 {
+			fmt.Printf("[-] Msg failed command: %s\n", add[0])
+		}
+		fmt.Printf("[-] Command \"%s\" gave\n%s\n", strings.Join(c.Args, " "), string(out))
+		panic(err)
+	}
+	return out
+}
+
+func checkErr(err error, out ...string) {
+	if err != nil {
+		if len(out) > 0 {
+			panic(fmt.Errorf("%s: %v", out[0], err))
+		} else {
+			panic(err)
+		}
+	}
 }
