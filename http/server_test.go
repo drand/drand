@@ -18,7 +18,7 @@ import (
 func withClient(t *testing.T) drand.PublicClient {
 	t.Helper()
 
-	l, _ := mock.NewMockGRPCPublicServer(":0")
+	l, _ := mock.NewMockGRPCPublicServer(":0", true)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -116,5 +116,15 @@ func TestHTTPWaiting(t *testing.T) {
 	// mock grpc server spits out new round every second on streaming interface.
 	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
 		t.Fatalf("unexpected timing to receive %v", body)
+	}
+
+	// watching sets latest round, future rounds should become inaccessible.
+	u := fmt.Sprintf("http://%s/public/2000", listener.Addr().String())
+	resp, err := http.Get(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatal("response should fail on requests in the future")
 	}
 }

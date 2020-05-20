@@ -15,7 +15,9 @@ import (
 	"github.com/drand/drand/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	json "github.com/nikkolasg/hexjson"
 )
@@ -46,7 +48,15 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/group", handler.Group)
-	return mux, nil
+
+	instrumented := promhttp.InstrumentHandlerCounter(
+		metrics.HTTPCallCounter,
+		promhttp.InstrumentHandlerDuration(
+			metrics.HTTPLatency,
+			promhttp.InstrumentHandlerInFlight(
+				metrics.HTTPInFlight,
+				mux)))
+	return instrumented, nil
 }
 
 type handler struct {
@@ -182,17 +192,23 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	grp := h.group(r.Context())
+	roundExpectedTime := time.Now()
+	if grp != nil {
+		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
+	}
+
+	if roundExpectedTime.After(time.Now().Add(grp.Period)) {
+		w.WriteHeader(http.StatusNotFound)
+		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		return
+	}
+
 	data, err := h.getRand(r.Context(), roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
-	}
-
-	grp := h.group(r.Context())
-	roundExpectedTime := time.Now()
-	if grp != nil {
-		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
 	}
 
 	// Headers per recommendation for static assets at

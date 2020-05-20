@@ -7,6 +7,7 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/metrics/pprof"
 	"github.com/urfave/cli/v2"
 )
 
@@ -44,7 +45,7 @@ func startCmd(c *cli.Context) error {
 	}
 	// Start metrics server
 	if c.IsSet(metricsFlag.Name) {
-		go metrics.Start(c.String(metricsFlag.Name))
+		go metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile())
 	}
 	<-drand.WaitExit()
 
