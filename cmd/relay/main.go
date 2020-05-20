@@ -87,6 +87,8 @@ func Relay(c *cli.Context) error {
 		}
 		defer logFile.Close()
 		handler = handlers.CombinedLoggingHandler(logFile, handler)
+	} else {
+		handler = handlers.CombinedLoggingHandler(os.Stdout, handler)
 	}
 
 	bind := ":0"
