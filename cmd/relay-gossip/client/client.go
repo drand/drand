@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
@@ -26,7 +27,19 @@ type Client struct {
 	}
 }
 
-// NewWtihPubsub creates a gossip randomness client.
+// WithPubsub provides an option for integrating pubsub notification
+// into a drand client.
+func WithPubsub(ps *pubsub.PubSub, networkName string) client.Option {
+	return client.WithNotifier(func(_ *key.Group) (client.Notifier, error) {
+		c, err := NewWithPubsub(ps, networkName)
+		if err != nil {
+			return nil, err
+		}
+		return c
+	})
+}
+
+// NewWithPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 	t, err := ps.Join(lp2p.PubSubTopic(networkName))
 	if err != nil {
@@ -113,6 +126,18 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 		close(ch)
 		c.subs.Unlock()
 	}
+}
+
+func (c*Client Watch(ctx context.Context) <-chan client.Result {
+	ch := make(chan client.Result, 5)
+	end := c.Sub(ch)
+
+	go func() {
+		<- ctx.Done()
+		end()
+	}()
+
+	return ch
 }
 
 // Close stops Client, cancels PubSub subscription and closes the topic.

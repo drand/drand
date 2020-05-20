@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
 
 	"github.com/drand/drand/key"
@@ -70,11 +71,22 @@ func makeClient(cfg clientConfig) (Client, error) {
 	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log)
 }
 
+// Notifier supplies only the `Watch` portion of the drand client interface.
+type Notifier interface {
+	Watch(ctx context.Context) <-chan Result
+	Close() error
+}
+
+// NotifierCtor creates a Notifier once a group is known
+type NotifierCtor func(group *key.Group) (Notifier, error)
+
 type clientConfig struct {
 	// URLs when specified will create an HTTP client.
 	urls []string
 	// Insecure will allow creating the HTTP client without a bound group.
 	insecure bool
+	// notifier
+	notifier NotifierCtor
 	// from `key.GroupInfo.Hash()` - serves as a root of trust.
 	groupHash []byte
 	// Full group information - serves as a root of trust.
@@ -106,6 +118,15 @@ func WithHTTPEndpoints(urls []string) Option {
 func WithHTTPGetter(getter HTTPGetter) Option {
 	return func(cfg *clientConfig) error {
 		cfg.getter = getter
+		return nil
+	}
+}
+
+// WithNotifier specifies a channel that can provide notifications of new
+// randomness bootstrappeed from the group information.
+func WithNotifier(n NotifierCtor) Option {
+	return func(cfg *clientConfig) error {
+		cfg.notifier = n
 		return nil
 	}
 }
