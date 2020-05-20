@@ -4,7 +4,9 @@ import (
 	"context"
 	"sync"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
@@ -26,7 +28,19 @@ type Client struct {
 	}
 }
 
-// NewWtihPubsub creates a gossip randomness client.
+// WithPubsub provides an option for integrating pubsub notification
+// into a drand client.
+func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
+	return dclient.WithWatcher(func(_ *key.Group) (dclient.Watcher, error) {
+		c, err := NewWithPubsub(ps, networkName)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
+	})
+}
+
+// NewWithPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 	t, err := ps.Join(lp2p.PubSubTopic(networkName))
 	if err != nil {
@@ -113,6 +127,45 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 		close(ch)
 		c.subs.Unlock()
 	}
+}
+
+func (c*Client Watch(ctx context.Context) <-chan client.Result {
+	innerCh := make(chan drand.PublicRandResponse)
+	outerCh := make(chan dclient.Result)
+	end := c.Sub(innerCh)
+
+	go func() {
+		for {
+			select {
+			case resp, ok := <- innerCh:
+				if !ok {
+					close(outerCh)
+					return
+				}
+				outerCh <- &result{resp.Round, resp.Randomness}
+			case <-ctx.Done():
+				close(outerCh)
+				end()
+				for _ := innerCh {} // drain leftover on innerCh
+				return
+			}
+		}
+	}()
+
+	return outerCh
+}
+
+type result struct {
+	round uint64
+	randomness []byte
+}
+
+func (r *result) Round() uint64 {
+	return r.round
+}
+
+func (r *result) Randomness() []byte {
+	return r.randomness
 }
 
 // Close stops Client, cancels PubSub subscription and closes the topic.
