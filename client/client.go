@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"time"
 
@@ -92,6 +93,8 @@ type clientConfig struct {
 	log log.Logger
 	// time after which a watcher will failover to using client.Get to get the latest randomness.
 	failoverGracePeriod time.Duration
+	// watcher
+	watcher WatcherCtor
 }
 
 // Option is an option configuring a client.
@@ -178,6 +181,23 @@ func WithChainInfo(chainInfo *chain.Info) Option {
 func WithFailoverGracePeriod(d time.Duration) Option {
 	return func(cfg *clientConfig) error {
 		cfg.failoverGracePeriod = d
+		return nil
+	}
+}
+
+// Watcher supplies the `Watch` portion of the drand client interface.
+type Watcher interface {
+	Watch(ctx context.Context) <-chan Result
+}
+
+// WatcherCtor creates a Watcher once a group is known.
+type WatcherCtor func(group *key.Group) (Watcher, error)
+
+// WithWatcher specifies a channel that can provide notifications of new
+// randomness bootstrappeed from the group information.
+func WithWatcher(wc WatcherCtor) Option {
+	return func(cfg *clientConfig) error {
+		cfg.watcher = wc
 		return nil
 	}
 }
