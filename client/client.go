@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
 
 	"github.com/drand/drand/key"
@@ -85,6 +86,8 @@ type clientConfig struct {
 	cacheSize int
 	// customized client log.
 	log log.Logger
+	// watcher
+	watcher WatcherCtor
 }
 
 // Option is an option configuring a client.
@@ -161,6 +164,23 @@ func WithGroup(group *key.Group) Option {
 			return errors.New("refusing to override hash with non-matching group")
 		}
 		cfg.group = group
+		return nil
+	}
+}
+
+// Watcher supplies the `Watch` portion of the drand client interface.
+type Watcher interface {
+	Watch(ctx context.Context) <-chan Result
+}
+
+// WatcherCtor creates a Watcher once a group is known.
+type WatcherCtor func(group *key.Group) (Watcher, error)
+
+// WithWatcher specifies a channel that can provide notifications of new
+// randomness bootstrappeed from the group information.
+func WithWatcher(wc WatcherCtor) Option {
+	return func(cfg *clientConfig) error {
+		cfg.watcher = wc
 		return nil
 	}
 }
