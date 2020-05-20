@@ -8,6 +8,7 @@ test-unit:
 test-unit-cover:
 	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic -coverpkg=all $(go list ./... | grep -v /demo/)
 	GO111MODULE=on go test -v -coverprofile=democoverage.txt -covermode=atomic -coverpkg=all ./demo
+	cat democoverage.txt >> coverage.txt && rm democoverage.txt
 
 test-integration:
 	go test -v ./demo
