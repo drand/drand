@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"time"
@@ -69,9 +70,17 @@ var peerWithFlag = &cli.StringSliceFlag{
 var runCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
+		&cli.PathFlag{
+			Name:  "group-conf",
+			Usage: "path to Drand group configuration TOML (required if group-hash is not set)",
+		},
+		&cli.StringFlag{
+			Name:  "group-hash",
+			Usage: "drand group hash (required if group-conf is not set)",
+		},
 		&cli.StringFlag{
 			Name:  "connect",
-			Usage: "host:port to dial to a drand gRPC PI",
+			Usage: "host:port to dial to a drand gRPC API",
 		},
 		&cli.StringFlag{
 			Name:  "cert",
@@ -119,7 +128,23 @@ var runCmd = &cli.Command{
 			fmt.Printf("%s/p2p/%s\n", a, h.ID())
 		}
 
-		t, err := ps.Join(lp2p.PubSubTopic(cctx.String("network-name")))
+		var groupHash string
+		if cctx.IsSet("group-hash") {
+			groupHash = cctx.String("group-hash")
+		} else if cctx.IsSet("group-conf") {
+			group, err := toGroup(cctx.Path("group-conf"))
+			if err != nil {
+				return xerrors.Errorf("reading group config: %w", err)
+			}
+			groupHash = hex.EncodeToString(group.Hash())
+		} else {
+			return xerrors.Errorf("missing required group hash or group configuration path")
+		}
+
+		topicName := lp2p.PubSubTopic(groupHash)
+		fmt.Printf("topic: %s\n", topicName)
+
+		t, err := ps.Join(topicName)
 		if err != nil {
 			return xerrors.Errorf("joining topic: %w", err)
 		}
@@ -164,7 +189,7 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 	if err != nil {
 		return xerrors.Errorf("getting initial round failed: %w", err)
 	}
-	log.Info("got latest rand:", curr.Round)
+	fmt.Printf("got latest rand round: %d\n", curr.Round)
 
 	// context.Background() on purpose as this applies to whole, long lived stream
 	stream, err := client.PublicRandStream(context.Background(), &drand.PublicRandRequest{Round: curr.Round})
@@ -187,9 +212,8 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 		if err != nil {
 			return xerrors.Errorf("publishing on pubsub: %w", err)
 		}
-		log.Info("Published randomness on pubsub, round:", rand.Round)
+		fmt.Printf("published randomness on pubsub, round: %d\n", rand.Round)
 	}
-
 }
 
 var clientCmd = &cli.Command{
@@ -201,7 +225,7 @@ var clientCmd = &cli.Command{
 			Required: true,
 		},
 		peerWithFlag,
-		&cli.StringFlag{
+		&cli.StringSliceFlag{
 			Name:     "http-endpoint",
 			Usage:    "drand HTTP API URL(s) to use incase of gossipsub failure",
 			Required: true,
@@ -227,22 +251,17 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		var groupTOML key.GroupTOML
-		_, err = toml.DecodeFile(cctx.Path("group-conf"), &groupTOML)
+		group, err := toGroup(cctx.Path("group-conf"))
 		if err != nil {
-			return xerrors.Errorf("decoding group configuration TOML: %w", err)
+			return xerrors.Errorf("reading group config: %w", err)
 		}
 
-		group := &key.Group{}
-		err = group.FromTOML(groupTOML)
-		if err != nil {
-			return xerrors.Errorf("converting group TOML to group: %w", err)
-		}
+		fmt.Printf("topic: %s\n", lp2p.PubSubTopic(hex.EncodeToString(group.Hash())))
 
-		options := []dclient.Option{dclient.WithLogger(log), dclient.WithGroup(group)}
-
-		if cctx.IsSet("http-endpoint") {
-			options = append(options, dclient.WithHTTPEndpoints(cctx.StringSlice("http-endpoint")))
+		options := []dclient.Option{
+			dclient.WithLogger(log),
+			dclient.WithGroup(group),
+			dclient.WithHTTPEndpoints(cctx.StringSlice("http-endpoint")),
 		}
 
 		c, err := dclient.New(options...)
@@ -287,4 +306,20 @@ var idCmd = &cli.Command{
 		fmt.Printf("%s\n", peerID)
 		return nil
 	},
+}
+
+func toGroup(confPath string) (*key.Group, error) {
+	var groupTOML key.GroupTOML
+	_, err := toml.DecodeFile(confPath, &groupTOML)
+	if err != nil {
+		return nil, xerrors.Errorf("decoding group configuration TOML: %w", err)
+	}
+
+	group := &key.Group{}
+	err = group.FromTOML(&groupTOML)
+	if err != nil {
+		return nil, xerrors.Errorf("converting group TOML to group: %w", err)
+	}
+
+	return group, nil
 }

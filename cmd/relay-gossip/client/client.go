@@ -40,7 +40,10 @@ func NewWithPubsub(core dclient.Client, ps *pubsub.PubSub, g *key.Group, l log.L
 		l = log.DefaultLogger
 	}
 
-	t, err := ps.Join(lp2p.PubSubTopic(hex.EncodeToString(g.Hash())))
+	topicName := lp2p.PubSubTopic(hex.EncodeToString(g.Hash()))
+	l.Info("client", "pubsub subscribe topic", "topic", topicName)
+
+	t, err := ps.Join(topicName)
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}

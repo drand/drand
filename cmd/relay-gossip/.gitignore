@@ -2,3 +2,4 @@
 datastore
 identity.key
 relay-gossip
+group.toml
