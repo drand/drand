@@ -18,7 +18,7 @@ import (
 func withClient(t *testing.T) drand.PublicClient {
 	t.Helper()
 
-	l, _ := mock.NewMockGRPCPublicServer(":0")
+	l, _ := mock.NewMockGRPCPublicServer(":0", true)
 	lAddr := l.Addr()
 	go l.Start()
 
