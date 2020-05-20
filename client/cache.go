@@ -45,7 +45,7 @@ func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
 	out := make(chan Result)
 	go func() {
 		for result := range in {
-			c.cache.Add(result.Round(), result.Randomness())
+			c.cache.Add(result.Round(), result)
 			out <- result
 		}
 		close(out)
