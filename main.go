@@ -1,9 +1,16 @@
 package main
 
 import (
+	"os"
+
 	"github.com/drand/drand/cmd/drand"
+	"github.com/nikkolasg/slog"
 )
 
 func main() {
-	drand.CLI()
+	app := drand.CLI()
+	if err := app.Run(os.Args); err != nil {
+		slog.Fatalf("drand: error running app: %s", err)
+	}
+
 }

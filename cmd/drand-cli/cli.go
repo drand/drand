@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -219,9 +220,9 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
-func CLI() {
+func CLI() *cli.App {
 	app := cli.NewApp()
-
+	app.Name = "drand"
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	}
@@ -420,12 +421,9 @@ func CLI() {
 	}
 	app.Flags = toArray(verboseFlag, folderFlag)
 	app.Before = func(c *cli.Context) error {
-		testWindows(c)
-		return nil
+		return testWindows(c)
 	}
-	if err := app.Run(os.Args); err != nil {
-		slog.Fatalf("drand: error running app: %s", err)
-	}
+	return app
 }
 
 func resetCmd(c *cli.Context) error {
@@ -497,22 +495,18 @@ func askPort() string {
 	}
 }
 
-func testWindows(c *cli.Context) {
+func testWindows(c *cli.Context) error {
 	//x509 not available on windows: must run without TLS
 	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
-		fatal("TLS is not available on Windows, please disable TLS")
+		return errors.New("TLS is not available on Windows, please disable TLS")
 	}
-}
-
-func fatal(str string, args ...interface{}) {
-	fmt.Printf(str+"\n", args...)
-	os.Exit(1)
+	return nil
 }
 
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {
-		fatal("Missing drand address in argument. Abort.")
+		return errors.New("Missing drand address in argument. Abort.")
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
@@ -537,12 +531,12 @@ func keygenCmd(c *cli.Context) error {
 		return nil
 	}
 	if err := fs.SaveKeyPair(priv); err != nil {
-		fatal("could not save key: ", err)
+		return fmt.Errorf("could not save key: %s", err)
 	}
 	fullpath := path.Join(config.ConfigFolder(), key.KeyFolderName)
 	absPath, err := filepath.Abs(fullpath)
 	if err != nil {
-		fatal("err getting full path: ", err)
+		return fmt.Errorf("err getting full path: %s", err)
 	}
 	fmt.Println("Generated keys at ", absPath)
 	fmt.Println("You can copy paste the following snippet to a common group.toml file:")
@@ -557,49 +551,50 @@ func keygenCmd(c *cli.Context) error {
 	return nil
 }
 
-func groupOut(c *cli.Context, group *key.Group) {
+func groupOut(c *cli.Context, group *key.Group) error {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
 		if err := key.Save(groupPath, group, false); err != nil {
-			fatal("drand: can't save group to specified file name: %v", err)
+			return fmt.Errorf("drand: can't save group to specified file name: %v", err)
 		}
 	} else if c.Bool(hashOnly.Name) {
 		fmt.Printf("%x\n", group.Hash())
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
-			fatal("drand: can't encode group to TOML: %v", err)
+			return fmt.Errorf("drand: can't encode group to TOML: %v", err)
 		}
 		buff.WriteString("\n")
 		fmt.Printf("Copy the following snippet into a new group.toml file\n")
 		fmt.Printf(buff.String())
 		fmt.Printf("\nHash of the group configuration: %x\n", group.Hash())
 	}
+	return nil
 }
 
-func getThreshold(c *cli.Context) int {
+func getThreshold(c *cli.Context) (int, error) {
 	var threshold = key.DefaultThreshold(c.NArg())
 	if c.IsSet(thresholdFlag.Name) {
 		var localThr = c.Int(thresholdFlag.Name)
 		if localThr < threshold {
-			fatal(fmt.Sprintf("drand: threshold specified too low %d/%d", localThr, threshold))
+			return 0, fmt.Errorf("drand: threshold specified too low %d/%d", localThr, threshold)
 		}
-		return localThr
+		return localThr, nil
 	}
-	return threshold
+	return threshold, nil
 }
 
-func getPublicKeys(c *cli.Context) []*key.Identity {
+func getPublicKeys(c *cli.Context) ([]*key.Identity, error) {
 	publics := make([]*key.Identity, c.NArg())
 	for i, str := range c.Args().Slice() {
 		pub := &key.Identity{}
 		fmt.Printf("drand: reading public identity from %s\n", str)
 		if err := key.Load(str, pub); err != nil {
-			fatal("drand: can't load key %d: %v", i, err)
+			return nil, fmt.Errorf("drand: can't load key %d: %v", i, err)
 		}
 		publics[i] = pub
 	}
-	return publics
+	return publics, nil
 }
 
 func checkConnection(c *cli.Context) error {
@@ -608,7 +603,7 @@ func checkConnection(c *cli.Context) error {
 		testEmptyGroup(c.String(groupFlag.Name))
 		group := new(key.Group)
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
-			fatal("drand: loading group failed")
+			return fmt.Errorf("loading group failed: %s", err)
 		}
 		for _, id := range group.Nodes {
 			names = append(names, id.Address())
@@ -617,12 +612,12 @@ func checkConnection(c *cli.Context) error {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
 			if err != nil {
-				fatal("error for address %s: %s", serverAddr, err)
+				return fmt.Errorf("error for address %s: %s", serverAddr, err)
 			}
 			names = append(names, serverAddr)
 		}
 	} else {
-		fatal(fmt.Sprintf("drand: check-group expects a list of identities or %s flag", groupFlag.Name))
+		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
 	conf := contextToConfig(c)
 
@@ -692,26 +687,25 @@ func toArray(flags ...cli.Flag) []cli.Flag {
 	return flags
 }
 
-func getGroup(c *cli.Context) *key.Group {
+func getGroup(c *cli.Context) (*key.Group, error) {
 	g := &key.Group{}
 	groupPath := c.Args().First()
 	testEmptyGroup(groupPath)
 	if err := key.Load(groupPath, g); err != nil {
-		fatal("drand: error loading group file: %s", err)
+		return nil, fmt.Errorf("drand: error loading group file: %s", err)
 	}
-	return g
+	return g, nil
 }
 
 // keyIDFromAddr looks at every node in the group file to retrieve to *key.Identity
-func keyIDFromAddr(addr string, group *key.Group) *key.Identity {
+func keyIDFromAddr(addr string, group *key.Group) (*key.Identity, error) {
 	ids := group.Nodes
 	for _, id := range ids {
 		if id.Address() == addr {
-			return id.Identity
+			return id.Identity, nil
 		}
 	}
-	fatal("Could not retrive the node you are trying to contact in the group file.")
-	return nil
+	return nil, errors.New("addresse not found in group")
 }
 
 func contextToConfig(c *cli.Context) *core.Config {
@@ -760,8 +754,11 @@ func contextToConfig(c *cli.Context) *core.Config {
 	return conf
 }
 
-func getNodes(c *cli.Context) []*key.Node {
-	group := getGroup(c)
+func getNodes(c *cli.Context) ([]*key.Node, error) {
+	group, err := getGroup(c)
+	if err != nil {
+		return nil, err
+	}
 	var ids []*key.Node
 	gids := group.Nodes
 	if c.IsSet("nodes") {
@@ -774,29 +771,30 @@ func getNodes(c *cli.Context) []*key.Node {
 			}
 		}
 		if len(ids) == 0 {
-			fatal("drand: addresses specified don't exist in group.toml")
+			return nil, errors.New("addresses specified don't exist in group.toml")
 		}
 	} else {
 		// select them all in order
 		ids = gids
 	}
 	if len(ids) == 0 {
-		fatal("drand: no nodes specified with --nodes are in the group file")
+		return nil, errors.New("no nodes specified with --nodes are in the group file")
 	}
-	return ids
+	return ids, nil
 }
 
-func testEmptyGroup(path string) {
+func testEmptyGroup(path string) error {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
-		fatal("drand: can't opern group path: %v", err)
+		return fmt.Errorf("can't open group path: %v", err)
 	}
 	fi, err := file.Stat()
 	if err != nil {
-		fatal("drand: can't open file info: %v", err)
+		return fmt.Errorf("can't open file info: %v", err)
 	}
 	if fi.Size() == 0 {
-		fatal("drand: group file empty")
+		return errors.New("group file empty")
 	}
+	return nil
 }
