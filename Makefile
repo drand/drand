@@ -6,9 +6,11 @@ test-unit:
 	GO111MODULE=on go test -race -v $(go list ./... | grep -v /demo/)
 
 test-unit-cover:
-	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic -coverpkg=all ./...
+	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic -coverpkg=all $(go list ./... | grep -v /demo/)
+	GO111MODULE=on go test -v -coverprofile=democoverage.txt -covermode=atomic -coverpkg=all ./demo
 
 test-integration:
+	go test -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
 linter:
