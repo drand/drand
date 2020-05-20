@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/drand/drand/cmd/drand"
+	"github.com/drand/drand/cmd/drand-cli"
 	"github.com/nikkolasg/slog"
 )
 
