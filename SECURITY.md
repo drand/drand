@@ -2,8 +2,8 @@
 
 ## Supported Versions
 
-The Drand team will be actively supporting the most recent minor version of drand.
-Upcoming major or minor releases will be announced with a prerelease at least one week in advance, and will be communicated through the leagueofentropy@googlegroups.com email list.
+The Drand team actively supports the most recent minor version of drand.
+Upcoming major or minor releases are announced with a prerelease at least one week in advance, and are communicated through the leagueofentropy@googlegroups.com email list.
 
 ## Reporting a Vulnerability
 
@@ -12,4 +12,4 @@ If you believe the issue is sensitive or can cause biasability, denial of servic
 please do not directly provide details, but instead provide a method for contacting you off-github, and the drand
 contributors will reach out to get details from you and work towards a resolution.
 
-We will commit to updating security issues filed on github in this way on at least a weekly basis to indicate their current status towards resolution.
+We commit to updating security issues filed on github in this way on a weekly basis to indicate their current status towards resolution.
