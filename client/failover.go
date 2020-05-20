@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"sync"
 	"time"
 
 	"github.com/drand/drand/beacon"
@@ -11,27 +10,6 @@ import (
 )
 
 const defaultFailoverGracePeriod = time.Second * 5
-
-type roundTracker struct {
-	sync.Mutex
-	current uint64
-}
-
-func (rt *roundTracker) Get() uint64 {
-	rt.Lock()
-	defer rt.Unlock()
-	return rt.current
-}
-
-func (rt *roundTracker) Set(r uint64) bool {
-	rt.Lock()
-	defer rt.Unlock()
-	if rt.current >= r {
-		return false
-	}
-	rt.current = r
-	return true
-}
 
 // NewFailoverWatcher creates a client whose Watch function will failover to
 // Get-ing new randomness if it does not receive it after the passed grace period.
@@ -57,10 +35,15 @@ type failoverWatcher struct {
 
 // Watch returns new randomness as it becomes available.
 func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
-	latestRound := &roundTracker{}
+	var latest uint64
 	ch := make(chan Result, 5)
 
 	sendResult := func(r Result) {
+		if latest >= r.Round() {
+			return
+		}
+		latest = r.Round()
+
 		select {
 		case ch <- r:
 		default:
@@ -96,10 +79,6 @@ func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
 				if err != nil {
 					c.log.Warn("failover_client", "failed to failover", "error", err)
 					continue
-				}
-				ok := latestRound.Set(res.Round())
-				if !ok {
-					continue // Not the latest round we've seen
 				}
 				sendResult(res)
 			case <-ctx.Done():

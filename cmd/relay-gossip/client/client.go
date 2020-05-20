@@ -61,6 +61,8 @@ func (c *gossipClient) Watch(ctx context.Context) <-chan dclient.Result {
 	}
 
 	go func() {
+		var latest uint64
+
 		defer func() {
 			s.Cancel()
 			close(ch)
@@ -91,6 +93,11 @@ func (c *gossipClient) Watch(ctx context.Context) <-chan dclient.Result {
 			if ok && !cc.Cache().Contains(res.Round()) {
 				cc.Cache().Add(res.Round(), res)
 			}
+
+			if latest >= res.Round() {
+				continue
+			}
+			latest = res.Round()
 
 			select {
 			case ch <- res:
