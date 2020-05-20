@@ -39,3 +39,25 @@ func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err 
 	}
 	return val, err
 }
+
+func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
+	in = c.Client.Watch(ctx)
+	out = make(chan Result)
+	go func() {
+		for {
+			select {
+			case result, ok := <-in:
+				if !ok {
+					close(out)
+					return
+				}
+				c.cache.Add(result.Round(), result.Randomness())
+				out <- result
+			case <-ctx.Done():
+				// context cancellation is visible by the owner of the in channel.
+				// here, we need to continue our loop until we drain the in channel.
+			}
+		}
+	}()
+	return out
+}
