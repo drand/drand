@@ -106,32 +106,9 @@ var globalLock sync.Mutex
 // FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
 func FreePort() string {
-	globalLock.Lock()
-	defer globalLock.Unlock()
-	for {
-		addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
-		if err != nil {
-			panic(err)
-		}
-
-		l, err := n.ListenTCP("tcp", addr)
-		if err != nil {
-			panic(err)
-		}
-		defer l.Close()
-		p := strconv.Itoa(l.Addr().(*n.TCPAddr).Port)
-		var found bool
-		for _, u := range allPorts {
-			if p == u {
-				found = true
-				break
-			}
-		}
-		if !found {
-			allPorts = append(allPorts, p)
-			return p
-		}
-	}
+	addr := FreeBind("localhost")
+	_, p, _ := n.SplitHostPort(addr)
+	return p
 }
 
 // GenerateIDs returns n keys with random port localhost addresses

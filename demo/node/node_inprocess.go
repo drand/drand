@@ -33,6 +33,7 @@ type LocalNode struct {
 	privAddr   string
 	pubAddr    string
 	ctrlAddr   string
+	ctrlClient *net.ControlClient
 	tls        bool
 	priv       *key.Pair
 
@@ -130,16 +131,25 @@ func (l *LocalNode) Index() int {
 	return l.i
 }
 
-func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
+func (l *LocalNode) ctrl() *net.ControlClient {
+	if l.ctrlClient != nil {
+		return l.ctrlClient
+	}
 	cl, err := net.NewControlClient(l.ctrlAddr)
 	if err != nil {
 		l.log.Error("drand", "can't instantiate control client", "err", err)
 		return nil
 	}
+	l.ctrlClient = cl
+	return cl
+}
 
+func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
+	cl := l.ctrl()
 	p, _ := time.ParseDuration(l.period)
 	t, _ := time.ParseDuration(timeout)
 	var grp *drand.GroupPacket
+	var err error
 	if leader {
 		grp, err = cl.InitDKGLeader(nodes, thr, p, t, nil, secretDKG, beaconOffset)
 	} else {
@@ -155,11 +165,8 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 }
 
 func (l *LocalNode) GetGroup() *key.Group {
-	cl, err := net.NewControlClient(l.ctrlAddr)
-	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
-		return nil
-	}
+	cl := l.ctrl()
+
 	grp, err := cl.GroupFile()
 	if err != nil {
 		l.log.Error("drand", "can't  get group", "err", err)
@@ -174,14 +181,11 @@ func (l *LocalNode) GetGroup() *key.Group {
 }
 
 func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
-	cl, err := net.NewControlClient(l.ctrlAddr)
-	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
-		return nil
-	}
+	cl := l.ctrl()
 
 	t, _ := time.ParseDuration(timeout)
 	var grp *drand.GroupPacket
+	var err error
 	if leader {
 		grp, err = cl.InitReshareLeader(nodes, thr, t, secretReshare, oldGroup, beaconOffset)
 	} else {
@@ -197,11 +201,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 }
 
 func (l *LocalNode) GetCokey(group string) bool {
-	cl, err := net.NewControlClient(l.ctrlAddr)
-	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
-		return false
-	}
+	cl := l.ctrl()
 	key, err := cl.CollectiveKey()
 	if err != nil {
 		l.log.Error("drand", "can't get cokey", "err", err)
@@ -213,11 +213,7 @@ func (l *LocalNode) GetCokey(group string) bool {
 }
 
 func (l *LocalNode) Ping() bool {
-	cl, err := net.NewControlClient(l.ctrlAddr)
-	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
-		return false
-	}
+	cl := l.ctrl()
 	if err := cl.Ping(); err != nil {
 		l.log.Error("drand", "can't ping", "err", err)
 		return false
@@ -264,12 +260,8 @@ func (l *LocalNode) WritePublic(p string) {
 }
 
 func (l *LocalNode) Stop() {
-	cl, err := net.NewControlClient(l.ctrlAddr)
-	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
-		return
-	}
-	_, err = cl.Shutdown()
+	cl := l.ctrl()
+	_, err := cl.Shutdown()
 	if err != nil {
 		l.log.Error("drand", "failed to shutdown", "err", err)
 	}
