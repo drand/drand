@@ -13,7 +13,7 @@ func TestPrioritizingGet(t *testing.T) {
 	c := MockClientWithResults(0, 5)
 	c2 := MockClientWithResults(6, 10)
 
-	p, err := NewPrioritizingClient([]Client{c, c2}, nil, nil, log.DefaultLogger)
+	p, err := NewPrioritizingClient(nil, []Client{c, c2}, nil, nil, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,14 +51,14 @@ func TestPrioritizingWatch(t *testing.T) {
 	c := MockClientWithResults(0, 5)
 	c2 := MockClientWithResults(6, 10)
 
-	p, _ := NewPrioritizingClient([]Client{c, c2}, nil, nil, log.DefaultLogger)
+	p, _ := NewPrioritizingClient(nil, []Client{c, c2}, nil, nil, log.DefaultLogger)
 	ch := p.Watch(context.Background())
 	r, ok := <-ch
 	if r != nil || ok {
 		t.Fatal("watch should fail without group provided")
 	}
 
-	p, _ = NewPrioritizingClient([]Client{c, c2}, nil, &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}, log.DefaultLogger)
+	p, _ = NewPrioritizingClient(nil, []Client{c, c2}, nil, &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}, log.DefaultLogger)
 	ch = p.Watch(context.Background())
 	r, ok = <-ch
 	if r == nil || !ok {
@@ -73,7 +73,7 @@ func TestPrioritizingWatchFromClient(t *testing.T) {
 	c := MockClientWithResults(0, 5)
 	c2, _ := NewHTTPClientWithGroup("", &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}, nil)
 
-	p, _ := NewPrioritizingClient([]Client{c, c2}, nil, nil, log.DefaultLogger)
+	p, _ := NewPrioritizingClient(nil, []Client{c, c2}, nil, nil, log.DefaultLogger)
 	ch := p.Watch(context.Background())
 	r, ok := <-ch
 	if r == nil || !ok {

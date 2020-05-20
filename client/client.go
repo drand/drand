@@ -67,7 +67,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(clients) == 1 {
 		return clients[0], nil
 	}
-	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log)
+	return NewPrioritizingClient(nil, clients, cfg.groupHash, cfg.group, cfg.log)
 }
 
 type clientConfig struct {
