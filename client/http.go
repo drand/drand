@@ -153,7 +153,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 
 // Watch returns new randomness as it becomes available.
 func (h *httpClient) Watch(ctx context.Context) <-chan Result {
-	return pollingWatcher(log.DefaultLogger)(ctx, h, h.group)
+	return pollingWatcher(ctx, h, h.group, log.DefaultLogger)
 }
 
 // RoundAt will return the most recent round of randomness that will be available

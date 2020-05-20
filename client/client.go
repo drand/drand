@@ -2,15 +2,11 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"errors"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 )
-
-// GetNotifierFunc is a function that returns a channel watching for new randomness.
-type GetNotifierFunc func(ctx context.Context, client Client, group *key.Group) <-chan Result
 
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
@@ -34,7 +30,7 @@ func New(options ...Option) (Client, error) {
 			return nil, err
 		}
 	}
-	return newWatchAggregator(coreClient, cfg.log), nil
+	return NewWatchAggregator(coreClient, cfg.log), nil
 }
 
 // makeClient creates a client from a configuration.
@@ -71,7 +67,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(clients) == 1 {
 		return clients[0], nil
 	}
-	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log, cfg.getNotifier)
+	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log)
 }
 
 type clientConfig struct {
@@ -89,8 +85,6 @@ type clientConfig struct {
 	cacheSize int
 	// customized client log.
 	log log.Logger
-	// getNotifier is a function that can be called to create a randomness notifier (a <-chan Result).
-	getNotifier GetNotifierFunc
 }
 
 // Option is an option configuring a client.
@@ -167,14 +161,6 @@ func WithGroup(group *key.Group) Option {
 			return errors.New("refusing to override hash with non-matching group")
 		}
 		cfg.group = group
-		return nil
-	}
-}
-
-// WithGetNotifierFunc configures a randomness notifier to be used by the client.
-func WithGetNotifierFunc(gn GetNotifierFunc) Option {
-	return func(cfg *clientConfig) error {
-		cfg.getNotifier = gn
 		return nil
 	}
 }
