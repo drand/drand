@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/drand/drand/log"
 )
@@ -44,12 +43,12 @@ func TestCacheGet(t *testing.T) {
 }
 
 func TestCacheWatch(t *testing.T) {
-	m := MockClientWithResults(1, 6)
+	m := MockClientWithResults(2, 6)
 	rc := make(chan Result, 1)
 	m.(*MockClient).WatchCh = rc
 	cache, _ := NewCachingClient(m, 2, log.DefaultLogger)
 	c := newWatchAggregator(cache, log.DefaultLogger)
-	ctx, c1 := context.WithCancel(context.Background())
+	ctx, _ := context.WithCancel(context.Background())
 	r1 := c.Watch(ctx)
 	rc <- &MockResult{rnd: 1, rand: []byte{1}}
 	_, ok := <-r1
@@ -62,28 +61,6 @@ func TestCacheWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(m.(*MockClient).Results) != 4 {
-		t.Fatal("getting should be served by cache.")
-	}
-
-	ctx, c2 := context.WithCancel(context.Background())
-	r2 := c.Watch(ctx)
-	rc <- &MockResult{rnd: 2, rand: []byte{2}}
-	if _, ok = <-r1; !ok {
-		t.Fatal("should get value")
-	}
-	if _, ok = <-r2; !ok {
-		t.Fatal("should get value from both watchers")
-	}
-	c1()
-	c2()
-	// give time for the routitine to select /handle these context events.
-	time.Sleep(10 * time.Millisecond)
-	// all clients should be gone.
-	rc <- &MockResult{rnd: 3, rand: []byte{3}}
-	// should now be full. verify by making sure no value is picked up for a bit.
-	select {
-	case rc <- &MockResult{rnd: 4}:
-		t.Fatal("nothing should be draining channel.")
-	case <-time.After(15 * time.Millisecond):
+		t.Fatalf("getting should be served by cache.")
 	}
 }
