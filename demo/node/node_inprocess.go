@@ -101,11 +101,20 @@ func (l *LocalNode) Start(certFolder string) error {
 	fs := key.NewFileStore(conf.ConfigFolder())
 	fs.SaveKeyPair(l.priv)
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
-	drand, err := core.NewDrand(fs, conf)
-	if err != nil {
-		return err
+	if l.daemon == nil {
+		drand, err := core.NewDrand(fs, conf)
+		if err != nil {
+			return err
+		}
+		l.daemon = drand
+	} else {
+		drand, err := core.LoadDrand(fs, conf)
+		if err != nil {
+			return err
+		}
+		drand.StartBeacon(true)
+		l.daemon = drand
 	}
-	l.daemon = drand
 	return nil
 }
 
@@ -225,6 +234,10 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	}
 
 	group := l.GetGroup()
+	if group == nil {
+		l.log.Error("drand", "can't get group")
+		return
+	}
 	pk := group.PublicKey
 
 	var err error

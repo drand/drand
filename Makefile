@@ -9,7 +9,7 @@ test-unit-cover:
 	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic -coverpkg=all ./...
 
 test-integration:
-	cd demo && go build && ./demo -test -binary "" -nocurl && ./demo -build -test -debug
+	cd demo && go build && ./demo -build -test -debug
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
