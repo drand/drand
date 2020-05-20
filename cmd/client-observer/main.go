@@ -74,8 +74,6 @@ func Observe(c *cli.Context) error {
 	// read metrics bind address
 	if c.IsSet(metricsFlag.Name) {
 		cfg.MetricsAddr = c.String(metricsFlag.Name)
-	} else {
-		cfg.MetricsAddr = ":8080"
 	}
 	// read metrics push gateay address
 	if c.IsSet(gatewayFlag.Name) {
