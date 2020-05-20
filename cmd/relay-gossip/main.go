@@ -223,7 +223,10 @@ var clientCmd = &cli.Command{
 		// TODO extract group from CLI args
 		var group *key.Group
 
-		options := []dclient.Option{dclient.WithLogger(log)}
+		options := []dclient.Option{
+			dclient.WithLogger(log),
+			dclient.WithGroup(group),
+		}
 
 		if cctx.IsSet("http-endpoint") {
 			options = append(options, dclient.WithHTTPEndpoints(cctx.StringSlice("http-endpoint")))
@@ -240,7 +243,6 @@ var clientCmd = &cli.Command{
 		}
 
 		c = dclient.NewFailoverWatcher(c, group, cctx.Duration("failover-grace-period"), log)
-		c = dclient.NewWatchAggregator(c, log)
 
 		for rand := range c.Watch(context.Background()) {
 			fmt.Printf("got randomness: Round %d: %X\n", rand.Round(), rand.Randomness()[:16])

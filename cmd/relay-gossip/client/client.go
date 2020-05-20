@@ -45,12 +45,8 @@ func NewWithPubsub(core dclient.Client, ps *pubsub.PubSub, g *key.Group, l log.L
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}
 
-	return &gossipClient{
-		Client: core,
-		group:  g,
-		topic:  t,
-		log:    l,
-	}, nil
+	gc := gossipClient{Client: core, group: g, topic: t, log: l}
+	return dclient.NewWatchAggregator(&gc, l), nil
 }
 
 // Watch returns new randomness as it becomes available.
