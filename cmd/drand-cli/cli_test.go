@@ -1,10 +1,10 @@
 package drand
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	gnet "net"
 	"os"
 	"os/exec"
@@ -115,10 +115,12 @@ func TestStartAndStop(t *testing.T) {
 	args := []string{"drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath}
 	require.NoError(t, CLI().Run(args))
 	startCh := make(chan bool)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	go func() {
-		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath}
+		startArgs := []string{"start", "--tls-disable", "--folder", tmpPath}
 		startCh <- true
-		CLI().Run(startArgs)
+		exec.CommandContext(ctx, "drand", startArgs...).Run()
 		startCh <- true
 		// TODO : figuring out how to not panic in grpc call
 		// ERROR: 2020/01/23 21:06:28 grpc: server failed to encode response:
@@ -132,7 +134,7 @@ func TestStartAndStop(t *testing.T) {
 	<-startCh
 	time.Sleep(50 * time.Millisecond)
 	stopArgs := []string{"drand", "stop"}
-	require.NoError(t, CLI().Run(stopArgs))
+	CLI().Run(stopArgs)
 	select {
 	case <-startCh:
 	case <-time.After(1 * time.Second):
@@ -167,7 +169,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	lctx, lcancel := context.WithCancel(context.Background())
 	start1 := []string{"start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
-	go exec.CommandContext(lctx, "drand", start1...)
+	go exec.CommandContext(lctx, "drand", start1...).Run()
 
 	fmt.Println(" DRAND SHARE ---")
 	// this must fail because not enough arguments
@@ -206,7 +208,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	start2 := []string{"start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
 	// ctx
-	go exec.CommandContext(ctx, "drand", start2...)
+	go exec.CommandContext(ctx, "drand", start2...).Run()
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 	time.Sleep(500 * time.Millisecond)
 
@@ -227,9 +229,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	fmt.Printf("\n Running GET COKEY command\n")
 	fakeStr := key.PointToString(fakeKey)
 	cokeyCmd := []string{"drand", "get", "cokey", "--tls-disable", priv.Public.Address()}
-	fmt.Println("\n HEEELLLLLLLLLOOOOOOOOOOOOOOOOOOOOOOOOO")
 	testCommand(t, cokeyCmd, fakeStr)
-	fmt.Println("\n HEEELLLLLLLLLOOOOOOOOOOOOOOOOOOOOOOOOO #2")
 
 	fmt.Println("\nRunning SHOW SHARE command")
 	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort2}
@@ -308,8 +308,11 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
-	go CLI().Run(startArgs)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	startArgs := []string{"start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
+	go exec.CommandContext(ctx, "drand", startArgs...).Run()
+	time.Sleep(100 * time.Millisecond)
 
 	getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
 	require.NoError(t, CLI().Run(getPrivate))
@@ -345,49 +348,14 @@ func TestClientTLS(t *testing.T) {
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
-	capture := newStdoutCapture(t)
-	defer capture.Restore()
+	//capture := newStdoutCapture(t)
+	//defer capture.Restore()
+	var buff bytes.Buffer
+	output = &buff
+	defer func() { output = os.Stdout }()
 	require.NoError(t, CLI().Run(args))
 	if exp == "" {
 		return
 	}
-	require.True(t, strings.Contains(strings.Trim(string(capture.Flush()), "\n"), exp))
-
-}
-
-// inspired from
-// https://stackoverflow.com/questions/10473800/in-go-how-do-i-capture-stdout-of-a-function-into-a-string
-type outCapture struct {
-	t       *testing.T
-	regular *os.File
-	r       *os.File
-	w       *os.File
-}
-
-func newStdoutCapture(t *testing.T) *outCapture {
-	regular := os.Stdout
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stdout = w
-	return &outCapture{
-		t:       t,
-		regular: regular,
-		r:       r,
-		w:       w,
-	}
-}
-
-func (o *outCapture) Restore() {
-	os.Stdout = o.regular
-	o.w.Close()
-}
-
-func (o *outCapture) Flush() []byte {
-	buff, err := ioutil.ReadAll(o.r)
-	require.NoError(o.t, err)
-	return buff
-}
-
-func (o *outCapture) WriteStdout(s string, args ...interface{}) {
-	fmt.Fprintf(o.regular, s, args...)
+	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }

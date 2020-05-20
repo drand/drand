@@ -71,17 +71,17 @@ func shareCmd(c *cli.Context) error {
 			if c.IsSet(beaconOffset.Name) {
 				offset = c.Int(beaconOffset.Name)
 			}
-			fmt.Println("Initiating the DKG as a leader")
-			fmt.Println("You can stop the command at any point. If so, the group " +
-				"file will not be written out to the specified output. To get the" +
-				"group file once the setup phase is done, you can run the `drand show" +
+			fmt.Fprintln(output, "Initiating the DKG as a leader")
+			fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
+				"file will not be written out to the specified output. To get the"+
+				"group file once the setup phase is done, you can run the `drand show"+
 				"group` command")
 			groupP, shareErr = client.InitDKGLeader(nodes, thr, period, timeout, entropyInfo, secret, offset)
-			fmt.Println(" --- got err", shareErr, "group", groupP)
+			fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 		} else {
-			fmt.Println("Participating to the setup of the DKG")
+			fmt.Fprintln(output, "Participating to the setup of the DKG")
 			groupP, shareErr = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
-			fmt.Println(" --- got err", shareErr, "group", groupP)
+			fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 		}
 	} else {
 		// resharing case needs the previous group
@@ -102,10 +102,10 @@ func shareCmd(c *cli.Context) error {
 			if c.IsSet(beaconOffset.Name) {
 				offset = c.Int(beaconOffset.Name)
 			}
-			fmt.Println("Initiating the resharing as a leader")
+			fmt.Fprintln(output, "Initiating the resharing as a leader")
 			groupP, shareErr = client.InitReshareLeader(nodes, thr, timeout, secret, oldPath, offset)
 		} else {
-			fmt.Println("Participating to the resharing")
+			fmt.Fprintln(output, "Participating to the resharing")
 			groupP, shareErr = client.InitReshare(connectPeer, nodes, thr, timeout, secret, oldPath)
 		}
 	}
@@ -139,7 +139,7 @@ func pingpongCmd(c *cli.Context) error {
 	if err := client.Ping(); err != nil {
 		return fmt.Errorf("drand: can't ping the daemon ... %s", err)
 	}
-	fmt.Printf("drand daemon is alive on port %s", controlPort(c))
+	fmt.Fprintf(output, "drand daemon is alive on port %s", controlPort(c))
 	return nil
 }
 
@@ -229,7 +229,7 @@ func printJSON(j interface{}) error {
 	if err != nil {
 		return fmt.Errorf("could not JSON marshal: %s", err)
 	}
-	fmt.Println(string(buff))
+	fmt.Fprintln(output, string(buff))
 	return nil
 }
 func fileExists(name string) bool {

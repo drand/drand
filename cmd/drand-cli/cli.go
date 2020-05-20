@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -30,6 +31,10 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// default output of the drand operational commands
+// the drand daemon use its own logging mechanism.
+var output io.Writer = os.Stdout
+
 // Automatically set through -ldflags
 // Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
@@ -43,9 +48,9 @@ const dpublic = "dist_key.public"
 const defaultPort = "8080"
 
 func banner() {
-	fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	s := "WARNING: this software has NOT received a full audit and must be used with caution and probably NOT in a production environment.\n"
-	fmt.Printf(s)
+	fmt.Fprintf(output, s)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -224,7 +229,7 @@ func CLI() *cli.App {
 	app := cli.NewApp()
 	app.Name = "drand"
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+		fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	}
 
 	app.Version = version
@@ -428,7 +433,7 @@ func CLI() *cli.App {
 
 func resetCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	fmt.Printf("You are about to delete your local share, group file and generated random beacons. Are you sure you wish to perform this operation? [y/N]")
+	fmt.Fprintf(output, "You are about to delete your local share, group file and generated random beacons. Are you sure you wish to perform this operation? [y/N]")
 	reader := bufio.NewReader(os.Stdin)
 	answer, err := reader.ReadString('\n')
 	if err != nil {
@@ -441,11 +446,11 @@ func resetCmd(c *cli.Context) error {
 	}
 	store := key.NewFileStore(conf.ConfigFolder())
 	if err := store.Reset(); err != nil {
-		fmt.Printf("drand: err reseting key store: %v\n", err)
+		fmt.Fprintf(output, "drand: err reseting key store: %v\n", err)
 		os.Exit(1)
 	}
 	if err := os.RemoveAll(conf.DBFolder()); err != nil {
-		fmt.Printf("drand: err reseting beacons database: %v\n", err)
+		fmt.Fprintf(output, "drand: err reseting beacons database: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Println("drand: database reset")
@@ -454,7 +459,7 @@ func resetCmd(c *cli.Context) error {
 
 func resetBeaconDB(config *core.Config) bool {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
-		fmt.Printf("INCONSISTENT STATE: A beacon database exists already.\n"+
+		fmt.Fprintf(output, "INCONSISTENT STATE: A beacon database exists already.\n"+
 			"drand support only one identity at the time and thus needs to delete "+
 			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+
 			"database ? [Y/n]: ", config.DBFolder())
@@ -527,7 +532,7 @@ func keygenCmd(c *cli.Context) error {
 	fs := key.NewFileStore(config.ConfigFolder())
 
 	if _, err := fs.LoadKeyPair(); err == nil {
-		fmt.Printf("Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolder())
+		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolder())
 		return nil
 	}
 	if err := fs.SaveKeyPair(priv); err != nil {
@@ -558,16 +563,16 @@ func groupOut(c *cli.Context, group *key.Group) error {
 			return fmt.Errorf("drand: can't save group to specified file name: %v", err)
 		}
 	} else if c.Bool(hashOnly.Name) {
-		fmt.Printf("%x\n", group.Hash())
+		fmt.Fprintf(output, "%x\n", group.Hash())
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
 			return fmt.Errorf("drand: can't encode group to TOML: %v", err)
 		}
 		buff.WriteString("\n")
-		fmt.Printf("Copy the following snippet into a new group.toml file\n")
-		fmt.Printf(buff.String())
-		fmt.Printf("\nHash of the group configuration: %x\n", group.Hash())
+		fmt.Fprintf(output, "Copy the following snippet into a new group.toml file\n")
+		fmt.Fprintf(output, buff.String())
+		fmt.Fprintf(output, "\nHash of the group configuration: %x\n", group.Hash())
 	}
 	return nil
 }
@@ -588,7 +593,7 @@ func getPublicKeys(c *cli.Context) ([]*key.Identity, error) {
 	publics := make([]*key.Identity, c.NArg())
 	for i, str := range c.Args().Slice() {
 		pub := &key.Identity{}
-		fmt.Printf("drand: reading public identity from %s\n", str)
+		fmt.Fprintf(output, "drand: reading public identity from %s\n", str)
 		if err := key.Load(str, pub); err != nil {
 			return nil, fmt.Errorf("drand: can't load key %d: %v", i, err)
 		}
@@ -630,15 +635,15 @@ func checkConnection(c *cli.Context) error {
 		_, err := client.Home(context.Background(), peer, &drand.HomeRequest{})
 		if err != nil {
 			if isVerbose {
-				fmt.Printf("drand: error checking id %s: %s\n", peer.Address(), err)
+				fmt.Fprintf(output, "drand: error checking id %s: %s\n", peer.Address(), err)
 			} else {
-				fmt.Printf("drand: error checking id %s\n", peer.Address())
+				fmt.Fprintf(output, "drand: error checking id %s\n", peer.Address())
 			}
 			allGood = false
 			invalidIds = append(invalidIds, peer.Address())
 			continue
 		}
-		fmt.Printf("drand: id %s answers correctly\n", peer.Address())
+		fmt.Fprintf(output, "drand: id %s answers correctly\n", peer.Address())
 	}
 	if !allGood {
 		return fmt.Errorf("Following nodes don't answer: %s", strings.Join(invalidIds, ","))
