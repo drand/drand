@@ -3,7 +3,7 @@
 test: test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -race -v ./...
+	GO111MODULE=on go test -race -v $(go list ./... | grep -v /demo/)
 
 test-unit-cover:
 	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=atomic -coverpkg=all ./...
