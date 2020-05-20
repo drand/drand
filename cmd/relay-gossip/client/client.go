@@ -2,73 +2,107 @@ package client
 
 import (
 	"context"
-	"fmt"
-	"time"
+	"encoding/hex"
 
-	"github.com/drand/drand/beacon"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/key"
-	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
+	"github.com/gogo/protobuf/proto"
+	lru "github.com/hashicorp/golang-lru"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
 )
 
-// ErrNotAvailable is returned when Get is called using a basic client with no
-// HTTP API endpoints configured and value was not cached via gossip.
-var ErrNotAvailable = fmt.Errorf("not available")
-
-// Options are configuration options for the drand libp2p pubsub client
-type Options struct {
-	// HTTPEndpoints are drand HTTP API URL(s) to use incase of gossipsub failure.
-	HTTPEndpoints []string
-	// FailoverGracePeriod is the period before the failover HTTP API is used when watching for randomness.
-	FailoverGracePeriod time.Duration
-	// Logger is a custom logger to use with the client
-	Logger dlog.Logger
+type gossipClient struct {
+	dclient.Client
+	group *key.Group
+	topic *pubsub.Topic
+	log   log.Logger
 }
 
-type basicClient struct {
-	group       *key.Group
-	getNotifier dclient.GetNotifierFunc
+type gossipResult struct {
+	res drand.PublicRandResponse
+}
+
+func (r *gossipResult) Round() uint64 {
+	return r.res.Round
+}
+
+func (r *gossipResult) Randomness() []byte {
+	return r.res.Randomness
 }
 
 // NewWithPubsub creates a new drand client that uses pubsub to receive randomness updates.
-func NewWithPubsub(ps *pubsub.PubSub, group *key.Group, options Options) (dclient.Client, error) {
-	t, err := ps.Join(lp2p.PubSubTopic(string(group.Hash())))
+func NewWithPubsub(core dclient.Client, ps *pubsub.PubSub, g *key.Group, l log.Logger) (dclient.Client, error) {
+	if l == nil {
+		l = log.DefaultLogger
+	}
+
+	t, err := ps.Join(lp2p.PubSubTopic(hex.EncodeToString(g.Hash())))
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}
 
-	log := options.Logger
-	if log == nil {
-		log = dlog.DefaultLogger
-	}
-
-	if len(options.HTTPEndpoints) == 0 {
-		bc := basicClient{group: group, getNotifier: NewNotifier(t, log)}
-		return dclient.NewCachingClient(&bc, 32, log)
-	}
-
-	return dclient.New(
-		dclient.WithGroup(group),
-		dclient.WithHTTPEndpoints(options.HTTPEndpoints),
-		dclient.WithGetNotifierFunc(NewFailoverNotifier(t, options.FailoverGracePeriod, log)),
-	)
-}
-
-// Get returns a the randomness at `round` or an error.
-func (c *basicClient) Get(ctx context.Context, round uint64) (dclient.Result, error) {
-	return nil, ErrNotAvailable
+	return &gossipClient{
+		Client: core,
+		group:  g,
+		topic:  t,
+		log:    l,
+	}, nil
 }
 
 // Watch returns new randomness as it becomes available.
-func (c *basicClient) Watch(ctx context.Context) <-chan dclient.Result {
-	return c.getNotifier(ctx, c, c.group)
-}
+func (c *gossipClient) Watch(ctx context.Context) <-chan dclient.Result {
+	ch := make(chan dclient.Result, 5)
 
-// RoundAt will return the most recent round of randomness that will be available
-// at time for the current client.
-func (c *basicClient) RoundAt(time time.Time) uint64 {
-	return beacon.CurrentRound(time.Unix(), c.group.Period, c.group.GenesisTime)
+	s, err := c.topic.Subscribe()
+	if err != nil {
+		c.log.Error("relay-gossip", "topic.Subscribe", "error", err)
+		close(ch)
+		return ch
+	}
+
+	go func() {
+		defer func() {
+			s.Cancel()
+			close(ch)
+		}()
+
+		for {
+			msg, err := s.Next(ctx)
+			if ctx.Err() != nil {
+				return
+			}
+			if err != nil {
+				c.log.Warn("relay-gossip", "subscription.Next", "error", err)
+				continue
+			}
+			var rand drand.PublicRandResponse
+			err = proto.Unmarshal(msg.Data, &rand)
+			if err != nil {
+				c.log.Warn("relay-gossip", "unmarshaling randomness", "error", err)
+				continue
+			}
+
+			// TODO: verification, need to pass drand network public key in
+
+			res := &gossipResult{res: rand}
+
+			// Cache this value if we have a caching client
+			cc, ok := c.Client.(interface{ Cache() *lru.ARCCache })
+			if ok && !cc.Cache().Contains(res.Round()) {
+				cc.Cache().Add(res.Round(), res)
+			}
+
+			select {
+			case ch <- res:
+			default:
+				c.log.Warn("relay-gossip", "randomness notification dropped due to a full channel")
+			}
+		}
+	}()
+
+	return ch
 }

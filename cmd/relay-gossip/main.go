@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/key"
@@ -117,7 +118,7 @@ var runCmd = &cli.Command{
 			fmt.Printf("%s/p2p/%s\n", a, h.ID())
 		}
 
-		t, err := ps.Join(lp2p.PubSubTopic("drandGroup"))
+		t, err := ps.Join(lp2p.PubSubTopic(cctx.String("network-name")))
 		if err != nil {
 			return xerrors.Errorf("joining topic: %w", err)
 		}
@@ -222,19 +223,24 @@ var clientCmd = &cli.Command{
 		// TODO extract group from CLI args
 		var group *key.Group
 
-		options := client.Options{Logger: log}
+		options := []dclient.Option{dclient.WithLogger(log)}
 
 		if cctx.IsSet("http-endpoint") {
-			options.HTTPEndpoints = cctx.StringSlice("http-endpoint")
-		}
-		if cctx.IsSet("failover-grace-period") {
-			options.FailoverGracePeriod = cctx.Duration("failover-grace-period")
+			options = append(options, dclient.WithHTTPEndpoints(cctx.StringSlice("http-endpoint")))
 		}
 
-		c, err := client.NewWithPubsub(ps, group, client.Options{Logger: log})
+		c, err := dclient.New(options...)
+		if err != nil {
+			return xerrors.Errorf("constructing drand client: %w", err)
+		}
+
+		c, err = client.NewWithPubsub(c, ps, group, log)
 		if err != nil {
 			return xerrors.Errorf("constructing pubsub client: %w", err)
 		}
+
+		c = dclient.NewFailoverWatcher(c, group, cctx.Duration("failover-grace-period"), log)
+		c = dclient.NewWatchAggregator(c, log)
 
 		for rand := range c.Watch(context.Background()) {
 			fmt.Printf("got randomness: Round %d: %X\n", rand.Round(), rand.Randomness()[:16])

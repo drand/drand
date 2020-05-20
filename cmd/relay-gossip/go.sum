@@ -73,6 +73,8 @@ github.com/drand/bls12-381 v0.3.2 h1:RImU8Wckmx8XQx1tp1q04OV73J9Tj6mmpQLYDP7V1XE
 github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqiniuAt4Y=
 github.com/drand/drand v0.9.2-0.20200518215258-d9659e9247b7 h1:iimAjCxWqBWblrpKV0TuUwgLrRv080XKfZS9/QGtbRE=
 github.com/drand/drand v0.9.2-0.20200518215258-d9659e9247b7/go.mod h1:ET6y8e8m1XgONnR3tL5v0JQLdY/otfj/2BbLkzaK4MM=
+github.com/drand/drand v0.9.2-0.20200520105237-d53b9a77ec60 h1:zPY3hnv3+6wcR1izVqIjibCWVZI5FVp5HB6NTF4UL6E=
+github.com/drand/drand v0.9.2-0.20200520105237-d53b9a77ec60/go.mod h1:ET6y8e8m1XgONnR3tL5v0JQLdY/otfj/2BbLkzaK4MM=
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.1-0.20200502215402-daa30f0ec4f8 h1:YtYT6e0l93FNNWnsya5fu9CYouLtevAOqthplH75pcE=
 github.com/drand/kyber v1.0.1-0.20200502215402-daa30f0ec4f8/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
