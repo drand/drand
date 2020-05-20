@@ -132,7 +132,7 @@ func TestStartAndStop(t *testing.T) {
 		//}
 	}()
 	<-startCh
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 	stopArgs := []string{"drand", "stop"}
 	CLI().Run(stopArgs)
 	select {
@@ -170,6 +170,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	lctx, lcancel := context.WithCancel(context.Background())
 	start1 := []string{"start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
 	go exec.CommandContext(lctx, "drand", start1...).Run()
+	time.Sleep(200 * time.Millisecond)
 
 	fmt.Println(" DRAND SHARE ---")
 	// this must fail because not enough arguments
@@ -209,8 +210,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	start2 := []string{"start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
 	// ctx
 	go exec.CommandContext(ctx, "drand", start2...).Run()
+	time.Sleep(300 * time.Millisecond)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
-	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println(" + running PING command with ", ctrlPort2)
 	ping := []string{"drand", "util", "ping", "--control", ctrlPort2}
@@ -312,7 +313,7 @@ func TestClientTLS(t *testing.T) {
 	defer cancel()
 	startArgs := []string{"start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
 	go exec.CommandContext(ctx, "drand", startArgs...).Run()
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
 	require.NoError(t, CLI().Run(getPrivate))
