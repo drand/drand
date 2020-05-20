@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
@@ -194,14 +195,20 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 var clientCmd = &cli.Command{
 	Name: "client",
 	Flags: []cli.Flag{
+		&cli.PathFlag{
+			Name:     "group-conf",
+			Usage:    "path to Drand group configuration TOML",
+			Required: true,
+		},
 		peerWithFlag,
 		&cli.StringFlag{
-			Name:  "http-endpoint",
-			Usage: "optional drand HTTP API URL(s) to use incase of gossipsub failure",
+			Name:     "http-endpoint",
+			Usage:    "drand HTTP API URL(s) to use incase of gossipsub failure",
+			Required: true,
 		},
 		&cli.DurationFlag{
 			Name:  "failover-grace-period",
-			Usage: "grace period before the failover HTTP API is used when watching for randomness",
+			Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
 		},
 	},
 	Action: func(cctx *cli.Context) error {
@@ -220,13 +227,19 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		// TODO extract group from CLI args
-		var group *key.Group
-
-		options := []dclient.Option{
-			dclient.WithLogger(log),
-			dclient.WithGroup(group),
+		var groupTOML key.GroupTOML
+		_, err = toml.DecodeFile(cctx.Path("group-conf"), &groupTOML)
+		if err != nil {
+			return xerrors.Errorf("decoding group configuration TOML: %w", err)
 		}
+
+		group := &key.Group{}
+		err = group.FromTOML(groupTOML)
+		if err != nil {
+			return xerrors.Errorf("converting group TOML to group: %w", err)
+		}
+
+		options := []dclient.Option{dclient.WithLogger(log), dclient.WithGroup(group)}
 
 		if cctx.IsSet("http-endpoint") {
 			options = append(options, dclient.WithHTTPEndpoints(cctx.StringSlice("http-endpoint")))
