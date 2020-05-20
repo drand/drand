@@ -41,8 +41,8 @@ func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err 
 }
 
 func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
-	in = c.Client.Watch(ctx)
-	out = make(chan Result)
+	in := c.Client.Watch(ctx)
+	out := make(chan Result)
 	go func() {
 		for result := range in {
 			c.cache.Add(result.Round(), result.Randomness())
