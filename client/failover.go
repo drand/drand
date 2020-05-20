@@ -13,6 +13,10 @@ const defaultFailoverGracePeriod = time.Second * 5
 
 // NewFailoverWatcher creates a client whose Watch function will failover to
 // Get-ing new randomness if it does not receive it after the passed grace period.
+//
+// Note that this client may skip rounds in some cases: e.g. if the group halts
+// for a bit and then catches up quickly, this could jump up to 'current round'
+// and not emit the intermediate values.
 func NewFailoverWatcher(core Client, group *key.Group, gracePeriod time.Duration, l log.Logger) Client {
 	if gracePeriod == 0 {
 		gracePeriod = defaultFailoverGracePeriod
