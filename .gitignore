@@ -10,4 +10,5 @@ test/full/full
 gh-md-toc
 web/public/
 drand
-coverage.txt
+!cmd/drand
+cover*
