@@ -220,7 +220,7 @@ func TestStartWithoutGroup(t *testing.T) {
 		if err == nil {
 			break
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
 	require.NoError(t, err)
 
@@ -329,9 +329,9 @@ func TestClientTLS(t *testing.T) {
 		if err == nil {
 			break
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 	}
-	require.NoError(t, err)
+	require.Nil(t, err)
 
 	getCokey := []string{"drand", "get", "cokey", "--tls-cert", certPath, addr}
 	expectedOutput := keyStr
