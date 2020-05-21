@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -65,10 +66,25 @@ func makeClient(cfg clientConfig) (Client, error) {
 		c.(*httpClient).l = cfg.log
 		clients = append(clients, c)
 	}
-	if len(clients) == 1 {
-		return clients[0], nil
+
+	var wc Client
+	if cfg.watcher != nil {
+		wc, err = newWatcherClient(clients[0], cfg.group, cfg.watcher)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return NewPrioritizingClient(nil, clients, cfg.groupHash, cfg.group, cfg.log)
+
+	pc, err := NewPrioritizingClient(wc, clients, cfg.groupHash, cfg.group, cfg.log)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.failoverGracePeriod > 0 {
+		return NewFailoverWatcher(pc, cfg.group, cfg.failoverGracePeriod, cfg.log), nil
+	}
+
+	return pc, nil
 }
 
 type clientConfig struct {
@@ -87,7 +103,8 @@ type clientConfig struct {
 	// customized client log.
 	log log.Logger
 	// watcher
-	watcher WatcherCtor
+	watcher             WatcherCtor
+	failoverGracePeriod time.Duration
 }
 
 // Option is an option configuring a client.
