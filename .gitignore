@@ -10,5 +10,4 @@ test/full/full
 gh-md-toc
 web/public/
 drand
-!cmd/drand
 cover*
