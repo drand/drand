@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"path"
 	"sync"
-	"time"
 
 	"github.com/nikkolasg/slog"
 	bolt "go.etcd.io/bbolt"
@@ -269,15 +267,4 @@ func roundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
 	binary.Write(&buff, binary.BigEndian, r)
 	return buff.Bytes()
-}
-
-func printStore(s Store) string {
-	time.Sleep(1 * time.Second)
-	var out = ""
-	s.Cursor(func(c Cursor) {
-		for b := c.First(); b != nil; b = c.Next() {
-			out += fmt.Sprintf("%s\n", b)
-		}
-	})
-	return out
 }
