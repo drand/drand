@@ -129,7 +129,7 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	}
 }
 
-func (c*Client Watch(ctx context.Context) <-chan client.Result {
+func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	innerCh := make(chan drand.PublicRandResponse)
 	outerCh := make(chan dclient.Result)
 	end := c.Sub(innerCh)
