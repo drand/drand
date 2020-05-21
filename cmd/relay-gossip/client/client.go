@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/client"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/key"
@@ -120,7 +121,6 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	c.subs.Lock()
 	c.subs.M[id] = ch
 	c.subs.Unlock()
-
 	return func() {
 		c.subs.Lock()
 		delete(c.subs.M, id)
@@ -137,7 +137,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	go func() {
 		for {
 			select {
-			case resp, ok := <- innerCh:
+			case resp, ok := <-innerCh:
 				if !ok {
 					close(outerCh)
 					return
@@ -146,7 +146,9 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 			case <-ctx.Done():
 				close(outerCh)
 				end()
-				for _ := innerCh {} // drain leftover on innerCh
+				// drain leftover on innerCh
+				for range innerCh {
+				}
 				return
 			}
 		}
@@ -156,7 +158,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 }
 
 type result struct {
-	round uint64
+	round      uint64
 	randomness []byte
 }
 
