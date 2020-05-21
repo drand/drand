@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/protobuf/drand"
@@ -34,7 +35,7 @@ func main() {
 	logging.SetLogLevel("beacon-relay", "info")
 
 	app := &cli.App{
-		Name:    "beacon-relay",
+		Name:    "relay-gossip",
 		Version: "0.0.1",
 		Usage:   "pubsub relay for randomness beacon",
 		Flags: []cli.Flag{
@@ -89,6 +90,10 @@ var runCmd = &cli.Command{
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
 		peerWithFlag, idFlag,
+		&cli.StringFlag{
+			Name:    "network-name",
+			Aliases: []string{"nn"},
+		},
 	},
 
 	Action: func(cctx *cli.Context) error {
@@ -195,8 +200,23 @@ func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
 }
 
 var clientCmd = &cli.Command{
-	Name:  "client",
-	Flags: []cli.Flag{peerWithFlag},
+	Name: "client",
+	Flags: []cli.Flag{
+		peerWithFlag,
+		&cli.StringSliceFlag{
+			Name:     "http-endpoint",
+			Usage:    "drand HTTP API URL(s) to use incase of gossipsub failure",
+			Required: true,
+		},
+		&cli.DurationFlag{
+			Name:  "failover-grace-period",
+			Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
+		},
+		&cli.StringFlag{
+			Name:    "network-name",
+			Aliases: []string{"nn"},
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
@@ -213,22 +233,47 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		c, err := client.NewWithPubsub(ps, cctx.String("network-name"))
-		if err != nil {
-			return xerrors.Errorf("constructing client: %w", err)
-		}
+		httpEndpoints := cctx.StringSlice("http-endpoint")
+		networkName := cctx.String("network-name")
 
-		var notifChan <-chan drand.PublicRandResponse
-		var unsub client.UnsubFunc
-		{
-			ch := make(chan drand.PublicRandResponse, 5)
-			notifChan = ch
-			unsub = c.Sub(ch)
-		}
-		_ = unsub
+		if len(httpEndpoints) > 0 {
+			failoverGracePeriod := cctx.Duration("failover-grace-period")
+			if failoverGracePeriod == 0 {
+				failoverGracePeriod = time.Second * 5
+			}
 
-		for rand := range notifChan {
-			fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Signature[:16])
+			options := []dclient.Option{
+				dclient.WithInsecureHTTPEndpoints(httpEndpoints),
+				client.WithPubsub(ps, networkName),
+				dclient.WithFailoverGracePeriod(failoverGracePeriod),
+			}
+
+			c, err := dclient.New(options...)
+			if err != nil {
+				return xerrors.Errorf("constructing drand client: %w", err)
+			}
+
+			for res := range c.Watch(context.Background()) {
+				fmt.Printf("got randomness: Round %d: %X\n", res.Round(), res.Randomness()[:16])
+			}
+		} else {
+			c, err := client.NewWithPubsub(ps, networkName)
+			if err != nil {
+				return xerrors.Errorf("constructing client: %w", err)
+			}
+
+			var notifChan <-chan drand.PublicRandResponse
+			var unsub client.UnsubFunc
+			{
+				ch := make(chan drand.PublicRandResponse, 5)
+				notifChan = ch
+				unsub = c.Sub(ch)
+			}
+			_ = unsub
+
+			for rand := range notifChan {
+				fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Signature[:16])
+			}
 		}
 		return nil
 	},
