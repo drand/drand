@@ -185,9 +185,6 @@ func (b *dkgBoard) IncomingJustification() <-chan dkg.AuthJustifBundle {
 
 // broadcastPacket broads the given packet to ALL nodes in the list of ids he's
 // has.
-// NOTE: For simplicity, there is a minor cost here that it sends our own
-// packet via a connection instead of using channel. Could be changed later on
-// if required.
 func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet, t string) {
 	if b.isReshare {
 		rpacket := &proto.ResharePacket{
