@@ -205,17 +205,24 @@ func TestStartWithoutGroup(t *testing.T) {
 	}
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
-	fmt.Println(" --- DRAND START --- control ", ctrlPort1)
+	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
 	start2 := []string{"start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
-	// ctx
 	go exec.CommandContext(ctx, "drand", start2...).Run()
 	time.Sleep(300 * time.Millisecond)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 
 	fmt.Println(" + running PING command with ", ctrlPort2)
-	ping := []string{"drand", "util", "ping", "--control", ctrlPort2}
-	require.NoError(t, CLI().Run(ping))
+	var err error
+	for i := 0; i < 3; i++ {
+		ping := []string{"drand", "util", "ping", "--control", ctrlPort2}
+		err = CLI().Run(ping)
+		if err == nil {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	require.NoError(t, err)
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
@@ -315,8 +322,16 @@ func TestClientTLS(t *testing.T) {
 	go exec.CommandContext(ctx, "drand", startArgs...).Run()
 	time.Sleep(200 * time.Millisecond)
 
-	getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
-	require.NoError(t, CLI().Run(getPrivate))
+	var err error
+	for i := 0; i < 3; i++ {
+		getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
+		err = CLI().Run(getPrivate)
+		if err == nil {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	require.NoError(t, err)
 
 	getCokey := []string{"drand", "get", "cokey", "--tls-cert", certPath, addr}
 	expectedOutput := keyStr
