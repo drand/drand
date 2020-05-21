@@ -129,7 +129,7 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	}
 }
 
-func (c*Client Watch(ctx context.Context) <-chan client.Result {
+func (c *Client) Watch(ctx context.Context) <-chan dclient.Result {
 	innerCh := make(chan drand.PublicRandResponse)
 	outerCh := make(chan dclient.Result)
 	end := c.Sub(innerCh)
@@ -137,7 +137,7 @@ func (c*Client Watch(ctx context.Context) <-chan client.Result {
 	go func() {
 		for {
 			select {
-			case resp, ok := <- innerCh:
+			case resp, ok := <-innerCh:
 				if !ok {
 					close(outerCh)
 					return
@@ -146,7 +146,9 @@ func (c*Client Watch(ctx context.Context) <-chan client.Result {
 			case <-ctx.Done():
 				close(outerCh)
 				end()
-				for _ := innerCh {} // drain leftover on innerCh
+				for range innerCh {
+					// drain leftover on innerCh
+				}
 				return
 			}
 		}
@@ -156,7 +158,7 @@ func (c*Client Watch(ctx context.Context) <-chan client.Result {
 }
 
 type result struct {
-	round uint64
+	round      uint64
 	randomness []byte
 }
 
