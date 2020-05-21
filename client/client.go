@@ -201,3 +201,11 @@ func WithWatcher(wc WatcherCtor) Option {
 		return nil
 	}
 }
+
+// WithFailoverGracePeriod enables failover and sets the grace period.
+func WithFailoverGracePeriod(d time.Duration) Option {
+	return func(cfg *clientConfig) error {
+		cfg.failoverGracePeriod = d
+		return nil
+	}
+}
