@@ -40,14 +40,9 @@ jobs:
         CIRCLE_CI: on
     steps:
       - checkout
-      - run: go get github.com/wadey/gocovmerge
+      - run: go get -u github.com/ory/go-acc
       - run: go get -v -t -d ./...
-      - run:
-          name: Tests with coverage
-          command: |
-            make test-unit-cover
-            gocovmerge coverage.txt democoverage.txt > coverage.txt
-            rm democoverage.txt
+      - run: go-acc ./...
       - run: bash <(curl -s https://codecov.io/bash)
   deploy:
     docker:

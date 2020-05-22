@@ -76,6 +76,7 @@ func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer groupResp.Body.Close()
 
 	protoGrp := drand.GroupPacket{}
 	if err := json.NewDecoder(groupResp.Body).Decode(&protoGrp); err != nil {
@@ -129,6 +130,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer randResponse.Body.Close()
 
 	randResp := RandomData{}
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
