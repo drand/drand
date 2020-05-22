@@ -29,6 +29,7 @@ require (
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.5
 	github.com/ipfs/go-datastore v0.4.4
+	github.com/ipfs/go-ds-badger2 v0.1.0
 	github.com/ipfs/go-log/v2 v2.0.8
 	github.com/libp2p/go-libp2p v0.9.2
 	github.com/libp2p/go-libp2p-core v0.5.6
@@ -39,4 +40,6 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+	google.golang.org/api v0.25.0 // indirect
+	google.golang.org/grpc v1.28.0
 )
