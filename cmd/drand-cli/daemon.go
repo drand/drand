@@ -1,4 +1,4 @@
-package main
+package drand
 
 import (
 	"fmt"
@@ -29,13 +29,13 @@ func startCmd(c *cli.Context) error {
 		fmt.Println("drand: will run as fresh install -> expect to run DKG.")
 		drand, err = core.NewDrand(fs, conf)
 		if err != nil {
-			fatal("drand: can't instantiate drand instance %s", err)
+			return fmt.Errorf("can't instantiate drand instance %s", err)
 		}
 	} else {
 		fmt.Println("drand: will already start running randomness beacon")
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
-			fatal("drand: can't load drand instance %s", err)
+			return fmt.Errorf("can't load drand instance %s", err)
 		}
 		// XXX make it configurable so that new share holder can still start if
 		// nobody started.
@@ -53,9 +53,12 @@ func startCmd(c *cli.Context) error {
 }
 
 func stopDaemon(c *cli.Context) error {
-	client := controlClient(c)
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
 	if _, err := client.Shutdown(); err != nil {
-		fmt.Printf("Error stopping drand daemon: %v\n", err)
+		return fmt.Errorf("Error stopping drand daemon: %v\n", err)
 	}
 	fmt.Println("drand daemon stopped correctly. Bye.")
 	return nil
