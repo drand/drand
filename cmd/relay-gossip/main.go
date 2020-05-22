@@ -208,9 +208,13 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("generating ed25519 key: %w", err)
 		}
 
-		_, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap)
+		h, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap)
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
+		}
+
+		if len(bootstrap) > 0 {
+			lp2p.SwarmBind(context.Background(), h, bootstrap, time.Second*5)
 		}
 
 		c, err := client.NewWithPubsub(ps, cctx.String("network-name"))
