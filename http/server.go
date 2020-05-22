@@ -28,7 +28,7 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, client drand.PublicClient, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
@@ -39,6 +39,7 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 		log:         logger,
 		pending:     make([]chan []byte, 0),
 		latestRound: 0,
+		version:     version,
 	}
 
 	go handler.Watch(ctx)
@@ -48,6 +49,7 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/group", handler.Group)
+	mux.HandleFunc("/version", handler.Version)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -69,6 +71,7 @@ type handler struct {
 	pendingLk   sync.RWMutex
 	pending     []chan []byte
 	latestRound uint64
+	version     string
 }
 
 func (h *handler) Watch(ctx context.Context) {
@@ -280,4 +283,10 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "group.json", time.Unix(grp.GenesisTime, 0), bytes.NewReader(data))
+}
+
+func (h *handler) Version(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
+	http.ServeContent(w, r, "version.txt", time.Time{}, bytes.NewReader([]byte(h.version)))
 }
