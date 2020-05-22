@@ -8,6 +8,7 @@
   - [Starting drand daemon](#starting-drand-daemon)
     - [With TLS](#with-tls)
     - [TLS setup: Nginx with Let's Encrypt](#tls-setup-nginx-with-lets-encrypt)
+    - [TLS setup: Apache for HTTP](#tls-setup-apache-for-http)
     - [Without TLS](#without-tls)
   - [Test the connection to a node](#test-the-connection-to-a-node)
   - [Run the setup phase](#run-the-setup-phase)
@@ -148,6 +149,19 @@ discovered public address of the drand node.
 
 If no `public-listen` flag is provided, drand will not expose a public HTTP interface.
 
+#### TLS setup: Apache for HTTP
+
+The equivalent Apache config block to the NGinX config above for forwarding HTTP requests back to the drand public port would be:
+```apache
+ProxyPreserveHost On
+SSLProxyEngine on
+SSLProxyCheckPeerCN off
+ProxyPass / https://127.0.0.1:8080/
+ProxyPassReverse / https://127.0.0.1:8080/
+<Proxy *>
+allow from all
+</Proxy>
+```
 
 #### Without TLS
 
