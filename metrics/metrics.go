@@ -108,3 +108,8 @@ func Start(metricsBind string, pprof http.Handler) {
 	s.Handler = mux
 	log.DefaultLogger.Warn("metrics", "listen finished", "err", s.ListenAndServe())
 }
+
+// GroupHandler provides metrics shared to other group members
+func GroupHandler() http.Handler {
+	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
+}
