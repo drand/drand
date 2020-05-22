@@ -97,8 +97,6 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	compare(t, next(t, watchC), &results[0])
 }
 
-var errGet = fmt.Errorf("client get error")
-
 // errOnGetClient sends it's error to an error channel when Get is called.
 type errOnGetClient struct {
 	MockClient
@@ -108,7 +106,7 @@ type errOnGetClient struct {
 
 func (c *errOnGetClient) Get(ctx context.Context, round uint64) (Result, error) {
 	c.errC <- c.err
-	return nil, errGet
+	return nil, c.err
 }
 
 func TestFailoverGetFail(t *testing.T) {
