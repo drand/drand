@@ -151,7 +151,7 @@ If no `public-listen` flag is provided, drand will not expose a public HTTP inte
 #### TLS setup: Apache for HTTP
 
 The equivalent Apache config block to the NGinX config above for forwarding HTTP requests back to the drand public port would be:
-```
+```apache
 ProxyPreserveHost On
 SSLProxyEngine on
 SSLProxyCheckPeerCN off
