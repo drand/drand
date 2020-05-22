@@ -2,12 +2,10 @@ package drand
 
 import (
 	"bytes"
-	"context"
 	"encoding/hex"
 	"fmt"
 	gnet "net"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -115,12 +113,10 @@ func TestStartAndStop(t *testing.T) {
 	args := []string{"drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath}
 	require.NoError(t, CLI().Run(args))
 	startCh := make(chan bool)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	go func() {
-		startArgs := []string{"start", "--tls-disable", "--folder", tmpPath}
+		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath}
 		startCh <- true
-		exec.CommandContext(ctx, "drand", startArgs...).Run()
+		CLI().Run(startArgs)
 		startCh <- true
 		// TODO : figuring out how to not panic in grpc call
 		// ERROR: 2020/01/23 21:06:28 grpc: server failed to encode response:
@@ -143,8 +139,6 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestStartWithoutGroup(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer func() {
@@ -167,17 +161,16 @@ func TestStartWithoutGroup(t *testing.T) {
 	fs := key.NewFileStore(config.ConfigFolder())
 	require.NoError(t, fs.SaveKeyPair(priv))
 
-	lctx, lcancel := context.WithCancel(context.Background())
-	start1 := []string{"start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
-	go exec.CommandContext(lctx, "drand", start1...).Run()
-	time.Sleep(200 * time.Millisecond)
+	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
+	go CLI().Run(startArgs)
+	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println(" DRAND SHARE ---")
 	// this must fail because not enough arguments
 	// TODO - test vectors testing on the inputs
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1}
 	require.Error(t, CLI().Run(initDKGArgs))
-	lcancel()
+	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
@@ -207,10 +200,10 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
-	start2 := []string{"start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
-	go exec.CommandContext(ctx, "drand", start2...).Run()
-	time.Sleep(300 * time.Millisecond)
+	start2 := []string{"drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
+	go CLI().Run(start2)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
+	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println(" + running PING command with ", ctrlPort2)
 	var err error
@@ -316,11 +309,10 @@ func TestClientTLS(t *testing.T) {
 	share := &key.Share{Share: s}
 	fs.SaveShare(share)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	startArgs := []string{"start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
-	go exec.CommandContext(ctx, "drand", startArgs...).Run()
-	time.Sleep(200 * time.Millisecond)
+	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
+	go CLI().Run(startArgs)
+	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
+	time.Sleep(500 * time.Millisecond)
 
 	var err error
 	for i := 0; i < 3; i++ {
@@ -361,6 +353,7 @@ func TestClientTLS(t *testing.T) {
 	showHash := []string{"drand", "show", "group", "--control", ctrlPort, "--hash-only"}
 	groupHash := hex.EncodeToString(group.Hash())
 	testCommand(t, showHash, groupHash)
+
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
