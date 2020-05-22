@@ -313,7 +313,7 @@ func CLI() *cli.App {
 				{
 					Name:      "chain-info",
 					Usage:     "Get the binding chain information that this nodes participates to",
-					ArgsUsage: "`ADDRESS` provides the address of the node",
+					ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
 					Flags:     toArray(tlsCertFlag, insecureFlag),
 					Action: func(c *cli.Context) error {
 						return getChainInfo(c)

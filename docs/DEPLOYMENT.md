@@ -3,6 +3,7 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
+
 - [Setup](#setup)
   - [Long-Term Key](#long-term-key)
   - [Starting drand daemon](#starting-drand-daemon)
@@ -18,7 +19,7 @@
   - [Long-Term Private Key](#long-term-private-key)
   - [Long-Term Public Key](#long-term-public-key)
   - [Private Key Share](#private-key-share)
-  - [Distributed Key](#distributed-key)
+  - [Chain Information](#chain-information)
 - [Updating Drand Group](#updating-drand-group)
 - [Metrics](#metrics)
 
@@ -261,8 +262,19 @@ drand show group
 It will print the group file in its regular TOML format. If you want to save it
 to a file, append the `--out <file>` flag.
 
+## Randomness Generation
+
+After a successful setup phase, drand will switch to the randomness generation
+mode *at the genesis time* specified in the group file they agreed to upon. At
+that time, each node broadcasts randomness shares at regular intervals. Every
+new random beacon is linked to the previous one in a chain of randomness. 
+Once a node has collected a threshold of shares in the current round, it
+computes the public random value and stores it in its local instance of
+[BoltDB](https://github.com/coreos/bbolt).
+
 **Chain Information**: More generally, for third party implementation of
-randomness beacon verification, one only needs the distributed public key. If
+randomness beacon verification, one only needs the distributed public key
+generated during the setup phase, the period and the genesis time of the chain.
 you are an administrator of a drand node, you can use the control port as the
 following:
 ```bash
@@ -272,27 +284,17 @@ drand show chain-info
 Otherwise, you can contact an external drand node to ask him for its current
 distributed public key:
 ```bash
-drand get cokey <address>
+drand get chain-info <address>
 ```
-where `<group.toml>` is the group file identity file of a drand node. You can
-use the flag `--nodes <address(es)>` to indicate which node you want to contact
-specifically (it is a white space separated list).
-Use the`--tls-cert` flag to specify the server's certificate if
-needed. The group toml does not need to be updated with the collective key.
+where `<address>` is the address of a drand node.  Use the`--tls-cert` flag to
+specify the server's certificate if needed. The group toml does not need to be
+updated with the collective key.
 
-**NOTE**: Using the last method (`get cokey`), a drand node *can* lie about the
+**NOTE**: Using the last method (`get chain-info`), a drand node *can* lie about the
 key if no out-of-band verification is performed. That information is usually
 best gathered from a trusted drand operator and then embedded in any
 applications using drand.
 
-## Randomness Generation
-
-After a successful setup phase, drand will switch to the randomness generation
-mode *at the genesis time* specified in the group file. At that time, each node
-broadcasts randomness shares at regular intervals. Once a node has collected a
-threshold of shares in the current phase, it computes the public random value
-and stores it in its local instance of
-[BoltDB](https://github.com/coreos/bbolt).
 
 **Timings of randomness generation**: At each new period, each node will try to
 broadcast their partial signatures for the corresponding round and try to generate 
@@ -360,11 +362,11 @@ scalar and points on the curve, even though scalars are the same on the three
 groups of BN256. The field is present already to be able to accommodate
 different curves later on.
 
-### Distributed Key
-To retrieve the collective key of the drand beacon our node is involved in,
-run:
+### Chain Information
+
+To retrieve the chain information this node participates to, run:
 ```bash
-drand show cokey
+drand show chain-info
 ```
 
 ## Updating Drand Group
