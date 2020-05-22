@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"time"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -29,6 +30,9 @@ func New(options ...Option) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	if cfg.failoverGracePeriod > 0 {
+		coreClient = NewFailoverWatcher(coreClient, cfg.group, cfg.failoverGracePeriod, cfg.log)
 	}
 	return newWatchAggregator(coreClient, cfg.log), nil
 }
@@ -67,7 +71,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(clients) == 1 {
 		return clients[0], nil
 	}
-	return NewPrioritizingClient(clients, cfg.groupHash, cfg.group, cfg.log)
+	return NewPrioritizingClient(nil, clients, cfg.groupHash, cfg.group, cfg.log)
 }
 
 type clientConfig struct {
@@ -85,6 +89,8 @@ type clientConfig struct {
 	cacheSize int
 	// customized client log.
 	log log.Logger
+	// time after which a watcher will failover to using client.Get to get the latest randomness.
+	failoverGracePeriod time.Duration
 }
 
 // Option is an option configuring a client.
@@ -161,6 +167,15 @@ func WithGroup(group *key.Group) Option {
 			return errors.New("refusing to override hash with non-matching group")
 		}
 		cfg.group = group
+		return nil
+	}
+}
+
+// WithFailoverGracePeriod enables failover if set and configures the time after
+// which a watcher will failover to using client.Get to get the latest randomness.
+func WithFailoverGracePeriod(d time.Duration) Option {
+	return func(cfg *clientConfig) error {
+		cfg.failoverGracePeriod = d
 		return nil
 	}
 }

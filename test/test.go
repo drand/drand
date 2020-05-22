@@ -50,27 +50,21 @@ func Addresses(n int) []string {
 	return addrs
 }
 
-// Ports returns a list of ports starting from the given
-// port= start.
-// TODO: This function is flaky.
-func Ports(n int) []string {
-	ports := make([]string, 0, n)
-	for i := 0; i < n; i++ {
-		ports = append(ports, FreePort())
+// LocalHost returns the default local bind address: e.g. [::] or 127.0.0.1
+func LocalHost() string {
+	addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		panic(err)
 	}
-	return ports
+	return addr.IP.String()
 }
 
-var allPorts []string
-var globalLock sync.Mutex
-
-// FreePort returns an free TCP port.
-// Taken from https://github.com/phayes/freeport/blob/master/freeport.go
-func FreePort() string {
+// FreeBind provides an address for binding on provided address
+func FreeBind(a string) string {
 	globalLock.Lock()
 	defer globalLock.Unlock()
 	for {
-		addr, err := n.ResolveTCPAddr("tcp", "localhost:0")
+		addr, err := n.ResolveTCPAddr("tcp", a+":0")
 		if err != nil {
 			panic(err)
 		}
@@ -90,9 +84,31 @@ func FreePort() string {
 		}
 		if !found {
 			allPorts = append(allPorts, p)
-			return p
+			return l.Addr().String()
 		}
 	}
+}
+
+// Ports returns a list of ports starting from the given
+// port= start.
+// TODO: This function is flaky.
+func Ports(n int) []string {
+	ports := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		ports = append(ports, FreePort())
+	}
+	return ports
+}
+
+var allPorts []string
+var globalLock sync.Mutex
+
+// FreePort returns an free TCP port.
+// Taken from https://github.com/phayes/freeport/blob/master/freeport.go
+func FreePort() string {
+	addr := FreeBind("localhost")
+	_, p, _ := n.SplitHostPort(addr)
+	return p
 }
 
 // GenerateIDs returns n keys with random port localhost addresses

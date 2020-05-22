@@ -36,14 +36,15 @@ type dkgBoard struct {
 	client    net.ProtocolClient
 	nodes     []*key.Node
 	isReshare bool
+	public    *key.Identity
 }
 
 // newBoard is to be used when starting a new DKG protocol from scratch
-func newBoard(l log.Logger, client net.ProtocolClient, group *key.Group) *dkgBoard {
-	return initBoard(l, client, group.Nodes)
+func newBoard(l log.Logger, client net.ProtocolClient, public *key.Identity, group *key.Group) *dkgBoard {
+	return initBoard(l, client, public, group.Nodes)
 }
 
-func initBoard(l log.Logger, client net.ProtocolClient, nodes []*key.Node) *dkgBoard {
+func initBoard(l log.Logger, client net.ProtocolClient, public *key.Identity, nodes []*key.Node) *dkgBoard {
 	return &dkgBoard{
 		l:      l,
 		dealCh: make(chan dkg.AuthDealBundle, len(nodes)),
@@ -51,11 +52,12 @@ func initBoard(l log.Logger, client net.ProtocolClient, nodes []*key.Node) *dkgB
 		justCh: make(chan dkg.AuthJustifBundle, len(nodes)),
 		client: client,
 		nodes:  nodes,
+		public: public,
 	}
 }
 
 // newReshareBoard is to be used when running a resharing protocol
-func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup *key.Group) *dkgBoard {
+func newReshareBoard(l log.Logger, client net.ProtocolClient, public *key.Identity, oldGroup, newGroup *key.Group) *dkgBoard {
 	// takes all nodes and new nodes, without duplicates
 	var nodes []*key.Node
 	tryAppend := func(n *key.Node) {
@@ -77,7 +79,7 @@ func newReshareBoard(l log.Logger, client net.ProtocolClient, oldGroup, newGroup
 		tryAppend(n)
 	}
 
-	board := initBoard(l, client, nodes)
+	board := initBoard(l, client, public, nodes)
 	board.isReshare = true
 	return board
 }
@@ -92,17 +94,20 @@ func (b *dkgBoard) ReshareDKG(c context.Context, p *proto.ResharePacket) (*proto
 
 func (b *dkgBoard) PushDeals(bundle dkg.AuthDealBundle) {
 	pdeal := dealToProto(&bundle)
-	b.l.Info("push", "deal", "index", bundle.Bundle.DealerIndex, "hash", bundle.Bundle.Hash())
+	b.l.Info("push", "deal", "index", bundle.Bundle.DealerIndex, "hash", fmt.Sprintf("%x", bundle.Bundle.Hash()))
+	b.dealCh <- bundle
 	go b.broadcastPacket(pdeal, "deal")
 }
 
 func (b *dkgBoard) PushResponses(bundle dkg.AuthResponseBundle) {
 	presp := respToProto(&bundle)
+	b.respCh <- bundle
 	go b.broadcastPacket(presp, "response")
 }
 
 func (b *dkgBoard) PushJustifications(bundle dkg.AuthJustifBundle) {
 	pjust := justifToProto(&bundle)
+	b.justCh <- bundle
 	go b.broadcastPacket(pjust, "justification")
 }
 
@@ -180,15 +185,15 @@ func (b *dkgBoard) IncomingJustification() <-chan dkg.AuthJustifBundle {
 
 // broadcastPacket broads the given packet to ALL nodes in the list of ids he's
 // has.
-// NOTE: For simplicity, there is a minor cost here that it sends our own
-// packet via a connection instead of using channel. Could be changed later on
-// if required.
 func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet, t string) {
 	if b.isReshare {
 		rpacket := &proto.ResharePacket{
 			Dkg: packet,
 		}
 		for _, node := range b.nodes {
+			if node.Address() == b.public.Address() {
+				continue
+			}
 			_, err := b.client.ReshareDKG(context.Background(), node, rpacket)
 			if err != nil {
 				b.l.Debug("board_reshare", "broadcast_packet", "to", node.Address(), "err", err)
@@ -201,6 +206,9 @@ func (b *dkgBoard) broadcastPacket(packet *pdkg.Packet, t string) {
 			Dkg: packet,
 		}
 		for _, node := range b.nodes {
+			if node.Address() == b.public.Address() {
+				continue
+			}
 			_, err := b.client.FreshDKG(context.Background(), node, rpacket)
 			if err != nil {
 				b.l.Debug("board", "broadcast_packet", "to", node.Address(), "err", err)
