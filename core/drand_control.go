@@ -122,7 +122,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, entropy *c
 	if err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
-	board := newBoard(d.log, d.privGateway.ProtocolClient, group)
+	board := newBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, group)
 	protoConf := &dkg.Config{
 		DkgConfig: dkgConfig,
 		Auth:      key.AuthScheme,
@@ -206,7 +206,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		return nil, err
 	}
-	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, oldGroup, newGroup)
+	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, oldGroup, newGroup)
 	protoConf := &dkg.Config{
 		DkgConfig: dkgConfig,
 		Auth:      key.AuthScheme,
