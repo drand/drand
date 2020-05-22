@@ -75,6 +75,7 @@ func (h *handler) Watch(ctx context.Context) {
 RESET:
 	stream, err := h.client.PublicRandStream(context.Background(), &drand.PublicRandRequest{})
 	if err != nil {
+		h.log.Error("http_server", "creation of random stream failed", "err", err)
 		return
 	}
 
@@ -138,13 +139,13 @@ func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
 	// First see if we should get on the synchronized 'wait for next release' bandwagon.
 	block := false
 	h.pendingLk.RLock()
-	block = (h.latestRound+1 == round)
+	block = (h.latestRound+1 == round) && h.latestRound != 0
 	h.pendingLk.RUnlock()
 	// If so, prepare, and if we're still sync'd, add ourselves to the list of waiters.
 	if block {
 		ch := make(chan []byte)
 		h.pendingLk.Lock()
-		block = (h.latestRound+1 == round)
+		block = (h.latestRound+1 == round) && h.latestRound != 0
 		if block {
 			h.pending = append(h.pending, ch)
 		}

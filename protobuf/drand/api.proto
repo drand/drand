@@ -7,8 +7,8 @@ syntax = "proto3";
 
 package drand;
 
-/*option go_package = "github.com/drand/drand/protobuf/drand";*/
 option go_package = "drand";
+import "drand/common.proto";
 
 service Public {
     // PublicRand is the method that returns the publicly verifiable randomness
@@ -23,7 +23,7 @@ service Public {
 
     // ChainInfo returns the information related to the chain this node
     // participates to
-    rpc ChainInfo(ChainInfoRequest) returns (ChainInfoPacket);
+    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket);
 
     // Home is a simple endpoint
     rpc Home(HomeRequest) returns (HomeResponse);
@@ -81,14 +81,4 @@ message HomeResponse {
     string status = 1;
 }
 
-message ChainInfoRequest {
-}
 
-message ChainInfoPacket {
-    // marshalled public key 
-    bytes public_key = 1;
-    // period in seconds
-    uint32 period = 2;
-    // genesis time of the chain
-    int64 genesis_time = 3;
-}

@@ -24,6 +24,7 @@ func TestPrioritizingGet(t *testing.T) {
 		if r.Round() >= 5 {
 			t.Fatal("wrong client prioritized")
 		}
+		r.(*MockResult).AssertValid(t)
 	}
 
 	r, err := p.Get(context.Background(), 0)
@@ -33,8 +34,9 @@ func TestPrioritizingGet(t *testing.T) {
 	if r.Round() != 6 {
 		t.Fatal("failed to switch priority")
 	}
+	r.(*MockResult).AssertValid(t)
 
-	c.(*MockClient).Results = []MockResult{MockResult{50, []byte{50}}}
+	c.Results = []MockResult{NewMockResult(50)}
 
 	r, err = p.Get(context.Background(), 0)
 	if err != nil {
@@ -43,6 +45,7 @@ func TestPrioritizingGet(t *testing.T) {
 	if r.Round() != 7 {
 		t.Fatal("failed client should remain deprioritized")
 	}
+	r.(*MockResult).AssertValid(t)
 }
 
 func TestPrioritizingWatch(t *testing.T) {

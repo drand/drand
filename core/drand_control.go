@@ -594,22 +594,6 @@ func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (
 	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
 }
 
-// CollectiveKey replies with the distributed key in the response
-func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
-	d.state.Lock()
-	defer d.state.Unlock()
-
-	key, err := d.store.LoadDistPublic()
-	if err != nil {
-		return nil, err
-	}
-	protoKey, err := key.Key().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &control.CokeyResponse{CoKey: protoKey}, nil
-}
-
 // GroupFile replies with the distributed key in the response
 func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*control.GroupPacket, error) {
 	d.state.Lock()

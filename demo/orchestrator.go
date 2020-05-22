@@ -198,7 +198,7 @@ func (e *Orchestrator) Wait(t time.Duration) {
 }
 
 func (e *Orchestrator) WaitPeriod() {
-	nRound, nTime := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, nTime := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(afterPeriodWait))
 
 	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
@@ -236,7 +236,7 @@ func filterNodes(list []node.Node, exclude ...int) []node.Node {
 }
 
 func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl bool) {
-	nRound, _ := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, _ := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	currRound := nRound - 1
 	fmt.Printf("[+] Checking randomness beacon for round %d via CLI\n", currRound)
 	var rand *drand.PublicRandResponse

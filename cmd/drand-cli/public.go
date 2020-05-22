@@ -1,7 +1,8 @@
-package main
+package drand
 
 import (
 	"errors"
+	"fmt"
 	gonet "net"
 
 	"github.com/drand/drand/chain"
@@ -20,10 +21,12 @@ func getPrivateCmd(c *cli.Context) error {
 	if c.IsSet("tls-cert") {
 		defaultManager.Add(c.String("tls-cert"))
 	}
-	ids := getNodes(c)
+	ids, err := getNodes(c)
+	if err != nil {
+		return err
+	}
 	client := core.NewGrpcClientFromCert(defaultManager)
 	var resp []byte
-	var err error
 	for _, public := range ids {
 		resp, err = client.Private(public.Identity)
 		if err == nil {
@@ -34,7 +37,7 @@ func getPrivateCmd(c *cli.Context) error {
 		slog.Infof("drand: error contacting node %s: %s", public.Addr, err)
 	}
 	if resp == nil {
-		slog.Fatalf("drand: zero successful contacts with nodes")
+		return errors.New("zero successful contacts with nodes")
 	}
 
 	type private struct {
@@ -56,15 +59,20 @@ func getPublicRandomness(c *cli.Context) error {
 		client = core.NewGrpcClientFromCert(defaultManager)
 	}
 
-	ids := getNodes(c)
-	group := getGroup(c)
+	ids, err := getNodes(c)
+	if err != nil {
+		return err
+	}
+	group, err := getGroup(c)
+	if err != nil {
+		return err
+	}
 	if group.PublicKey == nil {
-		slog.Fatalf("drand: group file must contain the distributed public key!")
+		return errors.New("drand: group file must contain the distributed public key!")
 	}
 
 	public := group.PublicKey
 	var resp *drand.PublicRandResponse
-	var err error
 	var foundCorrect bool
 	for _, id := range ids {
 		if c.IsSet(roundFlag.Name) {
@@ -99,7 +107,7 @@ func getChainInfo(c *cli.Context) error {
 	for _, addr := range c.Args().Slice() {
 		_, _, err := gonet.SplitHostPort(addr)
 		if err != nil {
-			fatal("invalid address given: %s", err)
+			return fmt.Errorf("invalid address given: %s", err)
 		}
 		ci, err = client.ChainInfo(net.CreatePeer(addr, !c.Bool("tls-disable")))
 		if err == nil {

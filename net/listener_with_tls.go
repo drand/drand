@@ -6,9 +6,13 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
+
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/nikkolasg/slog"
+	http_grpc "github.com/weaveworks/common/httpgrpc"
+	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -42,6 +46,7 @@ func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, c
 		httpServer: httpServer,
 		l:          tls.NewListener(lis, httpServer.TLSConfig),
 	}
+	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
 	grpc_prometheus.Register(grpcServer)
 	return g, nil
 }
