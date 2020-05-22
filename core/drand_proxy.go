@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 // drandProxy is used as a proxy between a Public service (e.g. the node as a server)
@@ -14,13 +15,97 @@ type drandProxy struct {
 	r drand.PublicServer
 }
 
+// streamProxy directly relays mesages of the PublicRandResponse stream.
+type streamProxy struct {
+	ctx      context.Context
+	incoming chan *drand.PublicRandResponse
+	outgoing chan *drand.PublicRandResponse
+}
+
+func newStreamProxy(ctx context.Context) *streamProxy {
+	s := streamProxy{
+		ctx:      ctx,
+		incoming: make(chan *drand.PublicRandResponse, 0),
+		outgoing: make(chan *drand.PublicRandResponse, 0),
+	}
+	return &s
+}
+
+func (s *streamProxy) Recv() (*drand.PublicRandResponse, error) {
+	next, ok := <-s.outgoing
+	if ok {
+		return next, nil
+	}
+	return nil, fmt.Errorf("stream closed")
+}
+
+func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
+	select {
+	case s.incoming <- next:
+		return nil
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	}
+}
+
+func (s *streamProxy) loop() {
+	for {
+		select {
+		case next := <-s.incoming:
+			select {
+			case s.outgoing <- next:
+			case <-s.ctx.Done():
+				return
+			}
+		case <-s.ctx.Done():
+			return
+		}
+	}
+}
+
+/* implement the grpc stream interface. not used since messages passed directly. */
+func (s *streamProxy) SetHeader(metadata.MD) error {
+	return nil
+}
+func (s *streamProxy) SendHeader(metadata.MD) error {
+	return nil
+}
+func (s *streamProxy) SetTrailer(metadata.MD) {}
+
+func (s *streamProxy) Context() context.Context {
+	return s.ctx
+}
+func (s *streamProxy) SendMsg(m interface{}) error {
+	return nil
+}
+func (s *streamProxy) RecvMsg(m interface{}) error {
+	return nil
+}
+
+func (s *streamProxy) Header() (metadata.MD, error) {
+	return nil, nil
+}
+
+func (s *streamProxy) Trailer() metadata.MD {
+	return nil
+}
+func (s *streamProxy) CloseSend() error {
+	return nil
+}
+
 var _ drand.PublicClient = (*drandProxy)(nil)
 
 func (d *drandProxy) PublicRand(c context.Context, r *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
 	return d.r.PublicRand(c, r)
 }
 func (d *drandProxy) PublicRandStream(ctx context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (drand.Public_PublicRandStreamClient, error) {
-	return nil, errors.New("streaming is not supported on HTTP endpoint")
+	srvr := newStreamProxy(ctx)
+
+	err := d.r.PublicRandStream(in, srvr)
+	if err != nil {
+		return nil, err
+	}
+	return srvr, nil
 }
 func (d *drandProxy) PrivateRand(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
 	return d.r.PrivateRand(c, r)
