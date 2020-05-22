@@ -67,7 +67,6 @@ type MockResult struct {
 	rnd  uint64
 	rand []byte
 	sig  []byte
-	_    struct{}
 }
 
 func (r *MockResult) Randomness() []byte {
