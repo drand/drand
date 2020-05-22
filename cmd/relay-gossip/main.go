@@ -57,6 +57,11 @@ var runCmd = &cli.Command{
 			Usage: "host:port to dial to a drand gRPC PI",
 		},
 		&cli.StringFlag{
+			Name:  "store",
+			Usage: "datastore directory",
+			Value: "./datastore",
+		},
+		&cli.StringFlag{
 			Name:  "cert",
 			Usage: "file containing GRPC transport credentials of peer",
 		},
@@ -77,7 +82,7 @@ var runCmd = &cli.Command{
 			Network:         cctx.String("network-name"),
 			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
 			Addr:            cctx.String("listen"),
-			DataDir:         "./datastore", //XXX
+			DataDir:         cctx.String("store"),
 			IdentityPath:    cctx.String(idFlag.Name),
 			CertPath:        cctx.String("cert"),
 			Insecure:        cctx.Bool("insecure"),

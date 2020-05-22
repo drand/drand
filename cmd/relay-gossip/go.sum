@@ -42,7 +42,6 @@ github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4 h1:Hs82Z41s6SdL1C
 github.com/alecthomas/units v0.0.0-20190717042225-c3de453c63f4/go.mod h1:ybxpYRFXyAe+OPACYpWeL0wqObRcbAqCMya13uyzqw0=
 github.com/antihax/optional v0.0.0-20180407024304-ca021399b1a6/go.mod h1:V8iCPQYkqmusNa815XgQio277wI47sdRh1dUOLdyC6Q=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
-github.com/benbjohnson/clock v1.0.1 h1:lVM1R/o5khtrr7t3qAr+sS6uagZOP+7iprc7gS3V9CE=
 github.com/benbjohnson/clock v1.0.1/go.mod h1:bGMdMPoPVvcYyt1gHDf4J2KE153Yf9BuiUKYMaxlTDM=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
@@ -102,10 +101,8 @@ github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 h1:tdlZCpZ/P9DhczC
 github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
 github.com/drand/bls12-381 v0.3.2 h1:RImU8Wckmx8XQx1tp1q04OV73J9Tj6mmpQLYDP7V1XE=
 github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqiniuAt4Y=
-github.com/drand/drand v0.8.2-0.20200508124210-33866c2232e3 h1:p5LGIjeOXruGLcR0GROyifT8jVtaLGMGyu7HFRKE0BU=
-github.com/drand/drand v0.8.2-0.20200508124210-33866c2232e3/go.mod h1:pX75MGTg1J5n6iJ9Jf1jFfl4TsiohiJqzhY0GHfQOnY=
-github.com/drand/drand v0.9.2-0.20200522121306-8d7e99a830a7 h1:8vjUZHEO1OEgqUvGkakV7ZvcToI020xKZsKm9xEC2dE=
-github.com/drand/drand v0.9.2-0.20200522121306-8d7e99a830a7/go.mod h1:zuCUxUrojIplLSHu47zvzPQdJvuzhcD9LXwmOiCCrEU=
+github.com/drand/drand/cmd/drand-gossip-relay v0.0.0-20200515153120-57a6056a24d4 h1:6pWtoRm0cMzG+E6TyPL54OW+CIXKweO7Hv+pF2444dA=
+github.com/drand/drand/cmd/drand-gossip-relay v0.0.0-20200515153120-57a6056a24d4/go.mod h1:80fl4F3wP8N3RlVTfrdiWBshRW2rJw2siXWFPDGOwL0=
 github.com/drand/drand/cmd/relay-gossip v0.0.0-20200515173025-07c732b552f9/go.mod h1:I0uunc7yfb1r4o1w/B3JBPGA9Vd82bdytHywMU9fyj8=
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.1-0.20200502215402-daa30f0ec4f8 h1:YtYT6e0l93FNNWnsya5fu9CYouLtevAOqthplH75pcE=
@@ -318,7 +315,6 @@ github.com/libp2p/go-libp2p-circuit v0.2.1 h1:BDiBcQxX/ZJJ/yDl3sqZt1bjj4PkZCEi7I
 github.com/libp2p/go-libp2p-circuit v0.2.1/go.mod h1:BXPwYDN5A8z4OEY9sOfr2DUQMLQvKt/6oku45YUmjIo=
 github.com/libp2p/go-libp2p-circuit v0.2.2 h1:87RLabJ9lrhoiSDDZyCJ80ZlI5TLJMwfyoGAaWXzWqA=
 github.com/libp2p/go-libp2p-circuit v0.2.2/go.mod h1:nkG3iE01tR3FoQ2nMm06IUrCpCyJp1Eo4A1xYdpjfs4=
-github.com/libp2p/go-libp2p-connmgr v0.2.3 h1:v7skKI9n+0obPpzMIO6aIlOSdQOmhxTf40cbpzqaGMQ=
 github.com/libp2p/go-libp2p-connmgr v0.2.3/go.mod h1:Gqjg29zI8CwXX21zRxy6gOg8VYu3zVerJRt2KyktzH4=
 github.com/libp2p/go-libp2p-core v0.0.1/go.mod h1:g/VxnTZ/1ygHxH3dKok7Vno1VfpvGcGip57wjTU4fco=
 github.com/libp2p/go-libp2p-core v0.0.4/go.mod h1:jyuCQP356gzfCFtRKyvAbNkyeuxb7OlyhWZ3nls5d2I=
@@ -338,7 +334,6 @@ github.com/libp2p/go-libp2p-core v0.5.4/go.mod h1:uN7L2D4EvPCvzSH5SrhR72UWbnSGpt
 github.com/libp2p/go-libp2p-core v0.5.5/go.mod h1:vj3awlOr9+GMZJFH9s4mpt9RHHgGqeHCopzbYKZdRjM=
 github.com/libp2p/go-libp2p-core v0.5.6 h1:IxFH4PmtLlLdPf4fF/i129SnK/C+/v8WEX644MxhC48=
 github.com/libp2p/go-libp2p-core v0.5.6/go.mod h1:txwbVEhHEXikXn9gfC7/UDDw7rkxuX0bJvM49Ykaswo=
-github.com/libp2p/go-libp2p-crypto v0.1.0 h1:k9MFy+o2zGDNGsaoZl0MA3iZ75qXxr9OOoAZF+sD5OQ=
 github.com/libp2p/go-libp2p-crypto v0.1.0/go.mod h1:sPUokVISZiy+nNuTTH/TY+leRSxnFj/2GLjtOTW90hI=
 github.com/libp2p/go-libp2p-discovery v0.2.0/go.mod h1:s4VGaxYMbw4+4+tsoQTqh7wfxg97AEdo4GYBt6BadWg=
 github.com/libp2p/go-libp2p-discovery v0.3.0/go.mod h1:o03drFnz9BVAZdzC/QUQ+NeQOu38Fu7LJGEOK2gQltw=
@@ -369,6 +364,7 @@ github.com/libp2p/go-libp2p-peerstore v0.2.4/go.mod h1:ss/TWTgHZTMpsU/oKVVPQCGuD
 github.com/libp2p/go-libp2p-pnet v0.2.0 h1:J6htxttBipJujEjz1y0a5+eYoiPcFHhSYHH6na5f0/k=
 github.com/libp2p/go-libp2p-pnet v0.2.0/go.mod h1:Qqvq6JH/oMZGwqs3N1Fqhv8NVhrdYcO0BW4wssv21LA=
 github.com/libp2p/go-libp2p-pubsub v0.2.7-0.20200508182004-fedb87bd57ea/go.mod h1:tFvkRgsW96JilTvYwe1X/lYqpruTXBqEatNXq3/MqBw=
+github.com/libp2p/go-libp2p-pubsub v0.2.7 h1:PBuK5+NfWsoaoEaAUZ7YQPETQh8UqBi8CbMJ1CZ5sNI=
 github.com/libp2p/go-libp2p-pubsub v0.2.7/go.mod h1:R4R0kH/6p2vu8O9xsue0HNSjEuXMEPBgg4h3nVDI15o=
 github.com/libp2p/go-libp2p-pubsub v0.3.0 h1:K5FSYyfcSrJWrGExgdbogCLMqwC3pQaXEVt2CaUy1SA=
 github.com/libp2p/go-libp2p-pubsub v0.3.0/go.mod h1:TxPOBuo1FPdsTjFnv+FGZbNbWYsp74Culx+4ViQpato=
@@ -419,7 +415,6 @@ github.com/libp2p/go-netroute v0.1.2/go.mod h1:jZLDV+1PE8y5XxBySEBgbuVAXbhtuHSdm
 github.com/libp2p/go-openssl v0.0.2/go.mod h1:v8Zw2ijCSWBQi8Pq5GAixw6DbFfa9u6VIYDXnvOXkc0=
 github.com/libp2p/go-openssl v0.0.3/go.mod h1:unDrJpgy3oFr+rqXsarWifmJuNnJR4chtO1HmaZjggc=
 github.com/libp2p/go-openssl v0.0.4/go.mod h1:unDrJpgy3oFr+rqXsarWifmJuNnJR4chtO1HmaZjggc=
-github.com/libp2p/go-openssl v0.0.5 h1:pQkejVhF0xp08D4CQUcw8t+BFJeXowja6RVcb5p++EA=
 github.com/libp2p/go-openssl v0.0.5/go.mod h1:unDrJpgy3oFr+rqXsarWifmJuNnJR4chtO1HmaZjggc=
 github.com/libp2p/go-reuseport v0.0.1 h1:7PhkfH73VXfPJYKQ6JwS5I/eVcoyYi9IMNGc6FWpFLw=
 github.com/libp2p/go-reuseport v0.0.1/go.mod h1:jn6RmB1ufnQwl0Q1f+YxAj8isJgDCQzaaxIFYDhcYEA=
@@ -427,7 +422,6 @@ github.com/libp2p/go-reuseport-transport v0.0.2/go.mod h1:YkbSDrvjUVDL6b8XqriyA2
 github.com/libp2p/go-reuseport-transport v0.0.3 h1:zzOeXnTooCkRvoH+bSXEfXhn76+LAiwoneM0gnXjF2M=
 github.com/libp2p/go-reuseport-transport v0.0.3/go.mod h1:Spv+MPft1exxARzP2Sruj2Wb5JSyHNncjf1Oi2dEbzM=
 github.com/libp2p/go-sockaddr v0.0.2/go.mod h1:syPvOmNs24S3dFVGJA1/mrqdeijPxLV2Le3BRLKd68k=
-github.com/libp2p/go-sockaddr v0.1.0 h1:Y4s3/jNoryVRKEBrkJ576F17CPOaMIzUeCsg7dlTDj0=
 github.com/libp2p/go-sockaddr v0.1.0/go.mod h1:syPvOmNs24S3dFVGJA1/mrqdeijPxLV2Le3BRLKd68k=
 github.com/libp2p/go-stream-muxer v0.0.1/go.mod h1:bAo8x7YkSpadMTbtTaxGVHWUQsR/l5MEaHbKaliuT14=
 github.com/libp2p/go-stream-muxer-multistream v0.2.0 h1:714bRJ4Zy9mdhyTLJ+ZKiROmAFwUHpeRidG+q7LTQOg=

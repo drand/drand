@@ -40,6 +40,7 @@ type GossipRelayNode struct {
 	ps        *pubsub.PubSub
 	t         *pubsub.Topic
 	opts      []grpc.DialOption
+	addr      []ma.Multiaddr
 	done      chan struct{}
 }
 
@@ -65,12 +66,12 @@ func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 		return nil, xerrors.Errorf("constructing host: %w", err)
 	}
 
-	addrs, err := h.Network().InterfaceListenAddresses()
+	addr, err := h.Network().InterfaceListenAddresses()
 	if err != nil {
 		return nil, xerrors.Errorf("getting InterfaceListenAddresses: %w", err)
 	}
 
-	for _, a := range addrs {
+	for _, a := range addr {
 		log.Infof("%s/p2p/%s\n", a, h.ID())
 	}
 
@@ -99,10 +100,15 @@ func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 		ps:        ps,
 		t:         t,
 		opts:      opts,
+		addr:      addr,
 		done:      make(chan struct{}),
 	}
 	go g.start(cfg.DrandPublicGRPC)
 	return g, nil
+}
+
+func (g *GossipRelayNode) Addr() []ma.Multiaddr {
+	return g.addr
 }
 
 // Shutdown stops the relay node.
