@@ -137,8 +137,8 @@ func (g *grpcClient) PrivateRand(ctx context.Context, p Peer, in *drand.PrivateR
 	return resp, err
 }
 
-func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error) {
-	var resp *drand.GroupPacket
+func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
+	var resp *drand.ChainInfoPacket
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -146,17 +146,7 @@ func (g *grpcClient) Group(ctx context.Context, p Peer, in *drand.GroupRequest) 
 	client := drand.NewPublicClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
-	resp, err = client.Group(ctx, in)
-	return resp, err
-}
-func (g *grpcClient) DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	var resp *drand.DistKeyResponse
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
-	}
-	client := drand.NewPublicClient(c)
-	resp, err = client.DistKey(ctx, in)
+	resp, err = client.ChainInfo(ctx, in)
 	return resp, err
 }
 
@@ -339,9 +329,6 @@ func (p *proxyClient) Public(c context.Context, in *drand.PublicRandRequest, opt
 }
 func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
 	return p.s.PrivateRand(c, in)
-}
-func (p *proxyClient) DistKey(c context.Context, in *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
-	return p.s.DistKey(c, in)
 }
 
 func (p *proxyClient) Home(c context.Context, in *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {

@@ -26,12 +26,9 @@ func (d *drandProxy) PrivateRand(c context.Context, r *drand.PrivateRandRequest,
 	return d.r.PrivateRand(c, r)
 }
 
-func (d *drandProxy) DistKey(c context.Context, r *drand.DistKeyRequest, opts ...grpc.CallOption) (*drand.DistKeyResponse, error) {
-	return d.r.DistKey(c, r)
-}
 func (d *drandProxy) Home(c context.Context, r *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {
 	return d.r.Home(c, r)
 }
-func (d *drandProxy) Group(c context.Context, r *drand.GroupRequest, opts ...grpc.CallOption) (*drand.GroupPacket, error) {
-	return d.r.Group(c, r)
+func (d *drandProxy) ChainInfo(c context.Context, r *drand.ChainInfoRequest, opts ...grpc.CallOption) (*drand.ChainInfoPacket, error) {
+	return d.r.ChainInfo(c, r)
 }

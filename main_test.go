@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -45,21 +45,21 @@ func TestDeleteBeacon(t *testing.T) {
 	var opt = core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
 	fs.CreateSecureFolder(conf.DBFolder())
-	store, err := beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err := chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	require.NoError(t, err)
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     1,
 		Signature: []byte("Hello"),
 	})
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     2,
 		Signature: []byte("Hello"),
 	})
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     3,
 		Signature: []byte("Hello"),
 	})
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     4,
 		Signature: []byte("hello"),
 	})
@@ -76,7 +76,7 @@ func TestDeleteBeacon(t *testing.T) {
 	cmd := exec.Command("./drand", "util", "del-beacon", "--folder", tmp, "3")
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, string(out))
-	store, err = beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err = chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail
@@ -264,8 +264,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err, string(out))
 
 	fakeStr := key.PointToString(fakeKey)
-	cokeyCmd := exec.Command("./drand", "get", "cokey", "--tls-disable", priv.Public.Address())
-	out, err = cokeyCmd.CombinedOutput()
+	chainInfoCmd := exec.Command("./drand", "get", "chain-info", "--tls-disable", priv.Public.Address())
+	out, err = chainInfoCmd.CombinedOutput()
 	require.NoError(t, err, string(out))
 	require.True(t, strings.Contains(string(out), fakeStr))
 
@@ -368,7 +368,7 @@ func TestClientTLS(t *testing.T) {
 	fmt.Println("get private = ", string(out))
 	require.NoError(t, err, string(out))
 
-	cmd = exec.Command("./drand", "get", "cokey", "--tls-cert", certPath, addr)
+	cmd = exec.Command("./drand", "get", "chain-info", "--tls-cert", certPath, addr)
 	out, err = cmd.CombinedOutput()
 	//fmt.Println(string(out))
 

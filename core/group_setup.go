@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -233,7 +233,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		atLeast := s.clock.Now().Add(s.beaconOffset).Unix()
 		// transitionning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
-		_, transition := beacon.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
+		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()

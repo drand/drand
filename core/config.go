@@ -4,7 +4,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -27,7 +27,7 @@ type Config struct {
 	callOpts          []grpc.CallOption
 	dkgTimeout        time.Duration
 	boltOpts          *bolt.Options
-	beaconCbs         []func(*beacon.Beacon)
+	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share)
 	insecure          bool
 	certPath          string
@@ -101,7 +101,7 @@ func (d *Config) Logger() log.Logger {
 	return d.logger
 }
 
-func (d *Config) callbacks(b *beacon.Beacon) {
+func (d *Config) callbacks(b *chain.Beacon) {
 	for _, fn := range d.beaconCbs {
 		fn(b)
 	}
@@ -165,7 +165,7 @@ func WithConfigFolder(folder string) ConfigOption {
 
 // WithBeaconCallback sets a function that is called each time a new random
 // beacon is generated.
-func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
+func WithBeaconCallback(fn func(*chain.Beacon)) ConfigOption {
 	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
 	}

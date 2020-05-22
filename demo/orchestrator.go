@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/demo/node"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"

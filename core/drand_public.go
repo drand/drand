@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -87,7 +87,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	if d.beacon == nil {
 		return nil, errors.New("drand: beacon generation not started yet")
 	}
-	var r *beacon.Beacon
+	var r *chain.Beacon
 	var err error
 	if in.GetRound() == 0 {
 		r, err = d.beacon.Store().Last()
@@ -104,7 +104,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
-	var b *beacon.Handler
+	var b *chain.Handler
 	d.state.Lock()
 	if d.beacon == nil {
 		return errors.New("beacon has not started on this node yet")
@@ -122,7 +122,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
 		// we need to stream from store first
 		var err error
-		b.Store().Cursor(func(c beacon.Cursor) {
+		b.Store().Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
 				if err = stream.Send(beaconToProto(bb)); err != nil {
 					d.log.Debug("stream", err)
@@ -136,7 +136,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	}
 	// then we can stream from any new rounds
 	// register a callback for the duration of this stream
-	d.callbacks.AddCallback(addr, func(b *beacon.Beacon) {
+	d.callbacks.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.PublicRandResponse{
 			Round:             b.Round,
 			Signature:         b.Signature,
@@ -190,15 +190,14 @@ func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeRespo
 	}, nil
 }
 
-// Group replies with the current group of this drand node in a TOML encoded
-// format
-func (d *Drand) Group(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
+// ChainInfo replies with the chain information this node participates to
+func (d *Drand) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
-	return d.group.ToProto(), nil
+	return chain.NewChainInfo(d.group).ToProto(), nil
 }
 
 func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {

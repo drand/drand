@@ -143,6 +143,7 @@ func (f *fileStore) Reset(...ResetOption) error {
 
 // Save the given Tomler interface to the given path. If secure is true, the
 // file will have a 0700 security.
+// TODO: move that to fs/
 func Save(path string, t Tomler, secure bool) error {
 	var fd *os.File
 	var err error

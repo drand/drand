@@ -18,7 +18,7 @@ import (
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -105,11 +105,6 @@ var nodeFlag = &cli.StringFlag{
 var roundFlag = &cli.IntFlag{
 	Name:  "round",
 	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
-}
-
-var fromGroupFlag = &cli.StringFlag{
-	Name:  "from",
-	Usage: "If you want to replace keys into an existing group.toml file to perform a resharing later on, run the group command and specify the existing group.toml file with this flag.",
 }
 
 var certsDirFlag = &cli.StringFlag{
@@ -310,13 +305,12 @@ func main() {
 					},
 				},
 				{
-					Name: "cokey",
-					Usage: "Get distributed public key generated during the " +
-						"DKG step.",
+					Name:      "chain-info",
+					Usage:     "Get the binding chain informations this nodes participates to",
 					ArgsUsage: "`ADDRESS` provides the address of the node",
 					Flags:     toArray(tlsCertFlag, insecureFlag),
 					Action: func(c *cli.Context) error {
-						return getCokeyCmd(c)
+						return getChainInfo(c)
 					},
 				},
 			},
@@ -661,7 +655,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 		return fmt.Errorf("given round not valid: %d", sr)
 	}
 	startRound := uint64(sr)
-	store, err := beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err := chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	if err != nil {
 		return fmt.Errorf("invalid bolt store creation: %s", err)
 	}

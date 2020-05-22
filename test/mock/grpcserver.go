@@ -35,21 +35,11 @@ func newMockServer(d *Data) *Server {
 }
 
 // Group implements net.Service
-func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
-	return &drand.GroupPacket{
-		Threshold:   1,
+func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
+	return &drand.ChainInfoPacket{
 		Period:      60,
-		GenesisTime: uint64(s.d.Genesis),
-		DistKey:     [][]byte{s.d.Public},
-		Nodes: []*drand.Node{
-			{
-				Index: 0,
-				Public: &drand.Identity{
-					Address: s.addr,
-					Key:     s.d.Public,
-					Tls:     false,
-				},
-			}},
+		GenesisTime: int64(s.d.Genesis),
+		PublicKey:   s.d.Public,
 	}, nil
 }
 

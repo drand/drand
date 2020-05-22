@@ -14,7 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -281,7 +281,7 @@ func (d *DrandTest2) Cleanup() {
 }
 
 // GetBeacon returns the beacon of the given round for the specified drand id
-func (d *DrandTest2) GetBeacon(id string, round int, newGroup bool) (*beacon.Beacon, error) {
+func (d *DrandTest2) GetBeacon(id string, round int, newGroup bool) (*chain.Beacon, error) {
 	nodes := d.nodes
 	if newGroup {
 		nodes = d.resharedNodes
@@ -552,8 +552,8 @@ func checkWait(counter *sync.WaitGroup) {
 	}
 }
 
-// Check they all have same public group file after dkg
-func TestDrandPublicGroup(t *testing.T) {
+// Check they all have same chain info
+func TestDrandPublicChainInfo(t *testing.T) {
 	n := 10
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -561,16 +561,15 @@ func TestDrandPublicGroup(t *testing.T) {
 	dt := NewDrandTest2(t, n, thr, p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
+	ci := chain.NewChainInfo(group)
 	//client := NewGrpcClient()
 	cm := dt.nodes[0].drand.opts.certmanager
 	client := NewGrpcClientFromCert(cm)
 	for _, node := range dt.nodes {
 		d := node.drand
-		groupResp, err := client.Group(d.priv.Public.Address(), d.priv.Public.TLS)
+		received, err := client.ChainInfo(d.priv.Public)
 		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))
-		received, err := key.GroupFromProto(groupResp)
-		require.NoError(t, err)
-		require.True(t, group.Equal(received))
+		require.True(t, ci.Equal(received))
 	}
 	for _, node := range dt.nodes {
 		var found bool

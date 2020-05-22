@@ -18,12 +18,12 @@ var urlFlag = &cli.StringFlag{
 
 var hashFlag = &cli.StringFlag{
 	Name:  "hash",
-	Usage: "The hash (in hex) for the group to follow",
+	Usage: "The hash (in hex) for the chain to follow",
 }
 
 var insecureFlag = &cli.BoolFlag{
 	Name:  "insecure",
-	Usage: "Allow autodetection of the group key",
+	Usage: "Allow autodetection of the chain information",
 }
 
 var watchFlag = &cli.BoolFlag{
@@ -63,7 +63,7 @@ func Client(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		opts = append(opts, client.WithGroupHash(hex))
+		opts = append(opts, client.WithChainHash(hex))
 	}
 	if c.IsSet(insecureFlag.Name) {
 		opts = append(opts, client.WithInsecureHTTPEndpoints([]string{c.String(urlFlag.Name)}))

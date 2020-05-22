@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -57,6 +57,15 @@ func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int
 	return resp, c.verify(pub.Key(), resp)
 }
 
+// TODO: make the other methods follow the "peer" approach
+func (c *Client) ChainInfo(p net.Peer) (*chain.Info, error) {
+	resp, err := c.client.ChainInfo(context.TODO(), p, &drand.ChainInfoRequest{})
+	if err != nil {
+		return nil, err
+	}
+	return chain.InfoFromProto(resp)
+}
+
 // Private retrieves a private random value from the server. It does that by
 // generating an ephemeral key pair, sends it encrypted to the remote server,
 // and decrypts the response, the randomness. Client will attempt a TLS
@@ -79,21 +88,10 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
 }
 
-// DistKey returns the distributed key the node at this address is holding.
-func (c *Client) DistKey(addr string, secure bool) (*drand.DistKeyResponse, error) {
-	resp, err := c.client.DistKey(context.TODO(), &peerAddr{addr, secure}, &drand.DistKeyRequest{})
-	return resp, err
-}
-
-// Group returns the group file used by the node in a JSON encoded format
-func (c *Client) Group(addr string, secure bool) (*drand.GroupPacket, error) {
-	return c.client.Group(context.TODO(), &peerAddr{addr, secure}, &drand.GroupRequest{})
-}
-
 func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
 	prevSig := resp.GetPreviousSignature()
 	round := resp.GetRound()
-	msg := beacon.Message(round, prevSig)
+	msg := chain.Message(round, prevSig)
 	rand := resp.GetRandomness()
 	if rand == nil {
 		return errors.New("drand: no randomness found")
@@ -102,7 +100,7 @@ func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) erro
 	if ver != nil {
 		return ver
 	}
-	expect := beacon.RandomnessFromSignature(resp.GetSignature())
+	expect := chain.RandomnessFromSignature(resp.GetSignature())
 	if !bytes.Equal(expect, rand) {
 		exp := hex.EncodeToString(expect)[10:14]
 		got := hex.EncodeToString(rand)[10:14]
