@@ -21,6 +21,7 @@ func (s *sPeer) IsTLS() bool {
 	return s.tls
 }
 
+// CreatePeer creates a peer from an address
 func CreatePeer(addr string, tls bool) Peer {
 	return &sPeer{
 		addr: addr,
