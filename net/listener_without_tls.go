@@ -5,8 +5,11 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	http_grpc "github.com/weaveworks/common/httpgrpc"
+	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
 	"google.golang.org/grpc"
 )
 
@@ -26,6 +29,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, addr string, s Service, opts
 	}
 	drand.RegisterProtocolServer(g.grpcServer, g.Service)
 	drand.RegisterPublicServer(g.grpcServer, g.Service)
+	http_grpc.RegisterHTTPServer(g.grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
 	grpc_prometheus.Register(g.grpcServer)
 	return g, nil
 }

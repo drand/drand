@@ -24,4 +24,5 @@ type Client interface {
 type Result interface {
 	Round() uint64
 	Randomness() []byte
+	Signature() []byte
 }

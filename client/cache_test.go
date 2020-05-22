@@ -13,15 +13,17 @@ func TestCacheGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, e := c.Get(context.Background(), 1)
+	res, e := c.Get(context.Background(), 1)
 	if e != nil {
 		t.Fatal(e)
 	}
+	res.(*MockResult).AssertValid(t)
+
 	_, e = c.Get(context.Background(), 1)
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(m.(*MockClient).Results) < 4 {
+	if len(m.Results) < 4 {
 		t.Fatal("multiple gets should cache.")
 	}
 	_, e = c.Get(context.Background(), 2)
@@ -37,15 +39,15 @@ func TestCacheGet(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if len(m.(*MockClient).Results) != 2 {
-		t.Fatalf("unexpected cache size. %d", len(m.(*MockClient).Results))
+	if len(m.Results) != 2 {
+		t.Fatalf("unexpected cache size. %d", len(m.Results))
 	}
 }
 
 func TestCacheWatch(t *testing.T) {
 	m := MockClientWithResults(2, 6)
 	rc := make(chan Result, 1)
-	m.(*MockClient).WatchCh = rc
+	m.WatchCh = rc
 	cache, _ := NewCachingClient(m, 2, log.DefaultLogger)
 	c := newWatchAggregator(cache, log.DefaultLogger)
 	ctx, _ := context.WithCancel(context.Background())
@@ -60,7 +62,7 @@ func TestCacheWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(m.(*MockClient).Results) != 4 {
+	if len(m.Results) != 4 {
 		t.Fatalf("getting should be served by cache.")
 	}
 }
