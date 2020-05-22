@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/nikkolasg/slog"
+	"github.com/weaveworks/common/httpgrpc"
+	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -322,6 +325,43 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 		metrics.GroupConnections.Set(float64(len(g.conns)))
 	}
 	return c, err
+}
+
+type httpHandler struct {
+	httpgrpc.HTTPClient
+}
+
+func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	req, err := httpgrpcserver.HTTPRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := h.Handle(r.Context(), req)
+	if err != nil {
+		var ok bool
+		resp, ok = httpgrpc.HTTPResponseFromError(err)
+
+		if !ok {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := httpgrpcserver.WriteResponse(w, resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (g *grpcClient) HandleHTTP(p Peer) (http.Handler, error) {
+	conn, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := httpgrpc.NewHTTPClient(conn)
+
+	return &httpHandler{client}, nil
 }
 
 // proxyClient is used by the gRPC json gateway to dispatch calls to the

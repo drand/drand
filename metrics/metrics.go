@@ -1,9 +1,12 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"runtime"
+	"strconv"
+	"strings"
 
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -88,14 +91,20 @@ func bindMetrics() {
 	}
 }
 
+type PeerHandler func(ctx context.Context) ([]http.Handler, error)
+
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler) {
+func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) {
 	log.DefaultLogger.Debug("metrics", "private listener started", "at", metricsBind)
 	bindMetrics()
 
 	s := http.Server{Addr: metricsBind}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
+
+	if peerHandler != nil {
+		mux.Handle("/peer", &lazyPeerHandler{peerHandler})
+	}
 
 	if pprof != nil {
 		mux.Handle("/debug/pprof", pprof)
@@ -113,4 +122,32 @@ func Start(metricsBind string, pprof http.Handler) {
 // This HTTP handler, which would typically be mounted at `/metrics` exposes `GroupMetrics`
 func GroupHandler() http.Handler {
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
+}
+
+// lazyPeerHandler is a structure that defers learning who current
+// group members are until an http request is received.
+type lazyPeerHandler struct {
+	peerHandler PeerHandler
+}
+
+func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	idx := strings.Replace(r.URL.Path, "/peer/", "", 1)
+	idxN, err := strconv.ParseUint(idx, 10, 64)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	handlers, err := l.peerHandler(r.Context())
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if uint64(len(handlers)) < idxN {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	r.URL.Path = "/metrics"
+	handlers[idxN].ServeHTTP(w, r)
 }

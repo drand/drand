@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/drand/drand/protobuf/drand"
@@ -13,6 +14,7 @@ import (
 type Client interface {
 	ProtocolClient
 	PublicClient
+	HTTPClient
 }
 
 // ProtocolClient holds all the methods of the protocol API that drand protocols
@@ -36,4 +38,9 @@ type PublicClient interface {
 	DistKey(ctx context.Context, p Peer, in *drand.DistKeyRequest) (*drand.DistKeyResponse, error)
 	Group(ctx context.Context, p Peer, in *drand.GroupRequest) (*drand.GroupPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
+}
+
+// HTTPClient is an optional extension to the protocol client allowing relay of metrics
+type HTTPClient interface {
+	HandleHTTP(p Peer) (http.Handler, error)
 }
