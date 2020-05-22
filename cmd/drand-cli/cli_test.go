@@ -378,7 +378,6 @@ func testCommand(t *testing.T, args []string, exp string) {
 	if exp == "" {
 		return
 	}
-	fmt.Println("OUTPUT:", buff.String())
 	fmt.Println("EXPECTED: ", exp)
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }
