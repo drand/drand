@@ -44,6 +44,7 @@ func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
 
 	sendResult := func(r Result) {
 		if latest >= r.Round() {
+			c.log.Warn("failover_client", "randomness notification dropped: out of date", "round", r.Round(), "latest", latest)
 			return
 		}
 		latest = r.Round()
@@ -51,7 +52,7 @@ func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
 		select {
 		case ch <- r:
 		default:
-			c.log.Warn("failover_client", "randomness notification dropped due to a full channel")
+			c.log.Warn("failover_client", "randomness notification dropped: full channel")
 		}
 	}
 
