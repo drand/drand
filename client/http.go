@@ -153,6 +153,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 		h.l.Warn("http_client", "failed to verify value", "err", err)
 		return nil, err
 	}
+	randResp.Random = beacon.RandomnessFromSignature(randResp.Sig)
 
 	return &randResp, nil
 }
