@@ -232,14 +232,6 @@ func printJSON(j interface{}) error {
 	fmt.Fprintln(output, string(buff))
 	return nil
 }
-func fileExists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
 
 func entropyInfoFromReader(c *cli.Context) (*control.EntropyInfo, error) {
 	if c.IsSet(sourceFlag.Name) {

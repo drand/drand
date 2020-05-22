@@ -59,7 +59,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
-	if in.GetRound() == uint64(s.d.Round+1) {
+	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round+1) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
 	randomness := sha256Hash(signature)
@@ -145,6 +145,7 @@ type Data struct {
 	PreviousSignature string
 	PreviousRound     int
 	Genesis           int64
+	BadSecondRound    bool
 }
 
 func generateMockData() *Data {
@@ -171,15 +172,17 @@ func generateMockData() *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Unix(),
+		Genesis:           time.Now().Add(60 * 1969 * time.Second * -1).Unix(),
+		BadSecondRound:    true,
 	}
 	return d
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(bind string) (net.Listener, net.Service) {
+func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, net.Service) {
 	d := generateMockData()
 	testValid(d)
+	d.BadSecondRound = badSecondRound
 	server := newMockServer(d)
 	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, server)
 	if err != nil {

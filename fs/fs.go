@@ -42,15 +42,6 @@ func CreateSecureFolder(folder string) string {
 	return folder
 }
 
-// Pwd returns the current directory. Useless for now.
-func Pwd() string {
-	s, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
 // Exists returns whether the given file or directory exists.
 func Exists(path string) (bool, error) {
 	_, err := os.Stat(path)

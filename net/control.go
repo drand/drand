@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	control "github.com/drand/drand/protobuf/drand"
@@ -174,6 +175,9 @@ func (c ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 }
 
 func controlListenAddr(port string) string {
+	if strings.Contains(port, ":") {
+		return port
+	}
 	return fmt.Sprintf("%s:%s", "localhost", port)
 }
 

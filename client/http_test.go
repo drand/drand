@@ -16,7 +16,7 @@ import (
 
 func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 	t.Helper()
-	l, s := mock.NewMockGRPCPublicServer(":0")
+	l, s := mock.NewMockGRPCPublicServer(":0", false)
 	lAddr := l.Addr()
 	go l.Start()
 
