@@ -45,7 +45,7 @@ type GossipRelayNode struct {
 
 // NewGossipRelayNode starts a new gossip relay node.
 func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
-	bootstrap, err := parseMultiaddrSlice(cfg.PeerWith)
+	bootstrap, err := ParseMultiaddrSlice(cfg.PeerWith)
 	if err != nil {
 		return nil, xerrors.Errorf("parsing peer-with: %w", err)
 	}
@@ -110,7 +110,7 @@ func (g *GossipRelayNode) Shutdown() {
 	close(g.done)
 }
 
-func parseMultiaddrSlice(peer []string) ([]ma.Multiaddr, error) {
+func ParseMultiaddrSlice(peer []string) ([]ma.Multiaddr, error) {
 	out := make([]ma.Multiaddr, len(peer))
 	for i, peer := range peer {
 		m, err := ma.NewMultiaddr(peer)
