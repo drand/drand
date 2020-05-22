@@ -45,7 +45,7 @@ func startCmd(c *cli.Context) error {
 	}
 	// Start metrics server
 	if c.IsSet(metricsFlag.Name) {
-		go metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), drand.PeerMetrics)
+		_ = metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), drand.PeerMetrics)
 	}
 	<-drand.WaitExit()
 

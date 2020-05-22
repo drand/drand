@@ -56,7 +56,8 @@ func Relay(c *cli.Context) error {
 	}
 
 	if c.IsSet(metricsFlag.Name) {
-		go metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
+		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
+		defer metricsListener.Close()
 	}
 
 	opts := []grpc.DialOption{}

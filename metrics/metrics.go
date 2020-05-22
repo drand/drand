@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -91,19 +92,25 @@ func bindMetrics() {
 	}
 }
 
+// PeerHandler abstracts a helper for relaying http requests to a group peer
 type PeerHandler func(ctx context.Context) ([]http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) {
+func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
 	log.DefaultLogger.Debug("metrics", "private listener started", "at", metricsBind)
 	bindMetrics()
 
-	s := http.Server{Addr: metricsBind}
+	l, err := net.Listen("tcp", metricsBind)
+	if err != nil {
+		log.DefaultLogger.Warn("metrics", "listen failed", "err", err)
+		return nil
+	}
+	s := http.Server{Addr: l.Addr().String()}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 
 	if peerHandler != nil {
-		mux.Handle("/peer", &lazyPeerHandler{peerHandler})
+		mux.Handle("/peer/", &lazyPeerHandler{peerHandler})
 	}
 
 	if pprof != nil {
@@ -115,7 +122,10 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) {
 		fmt.Fprintf(w, "GC run complete")
 	})
 	s.Handler = mux
-	log.DefaultLogger.Warn("metrics", "listen finished", "err", s.ListenAndServe())
+	go func() {
+		log.DefaultLogger.Warn("metrics", "listen finished", "err", s.Serve(l))
+	}()
+	return l
 }
 
 // GroupHandler provides metrics shared to other group members
@@ -143,7 +153,7 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if uint64(len(handlers)) < idxN {
+	if idxN >= uint64(len(handlers)) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
