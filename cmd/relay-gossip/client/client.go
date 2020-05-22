@@ -142,7 +142,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					close(outerCh)
 					return
 				}
-				outerCh <- &result{resp.Round, resp.Randomness}
+				outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}
 			case <-ctx.Done():
 				close(outerCh)
 				end()
@@ -160,6 +160,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 type result struct {
 	round      uint64
 	randomness []byte
+	signature  []byte
 }
 
 func (r *result) Round() uint64 {
@@ -168,6 +169,10 @@ func (r *result) Round() uint64 {
 
 func (r *result) Randomness() []byte {
 	return r.randomness
+}
+
+func (r *result) Signature() []byte {
+	return r.signature
 }
 
 // Close stops Client, cancels PubSub subscription and closes the topic.
