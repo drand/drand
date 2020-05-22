@@ -95,6 +95,28 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	compare(t, next(t, watchC), &results[0])
 }
 
+func TestFailoverMaxGrace(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	results := []MockResult{{rnd: 1, rand: []byte{1}}}
+	failC := make(chan Result)
+	mockClient := &MockClient{WatchCh: failC, Results: results}
+	period := time.Second * 2
+	group := &key.Group{Period: period, GenesisTime: time.Now().Unix() - 1}
+	gracePeriod := time.Minute
+	failoverClient := NewFailoverWatcher(mockClient, group, gracePeriod, log.DefaultLogger)
+	watchC := failoverClient.Watch(ctx)
+
+	now := time.Now()
+	// Should failover in ~period and _definitely_ within gracePeriod!
+	compare(t, next(t, watchC), &results[0])
+
+	if time.Now().Sub(now) > gracePeriod {
+		t.Fatal("grace period was not bounded to group period")
+	}
+}
+
 // errOnGetClient sends it's error to an error channel when Get is called.
 type errOnGetClient struct {
 	MockClient

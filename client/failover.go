@@ -16,9 +16,15 @@ const defaultFailoverGracePeriod = time.Second * 5
 // Note that this client may skip rounds in some cases: e.g. if the group halts
 // for a bit and then catches up quickly, this could jump up to 'current round'
 // and not emit the intermediate values.
+//
+// The passed grace period MUST be <= the group period. Values > the group period
+// will be adjusted to equal the group period.
 func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration, l log.Logger) Client {
 	if gracePeriod == 0 {
 		gracePeriod = defaultFailoverGracePeriod
+	}
+	if gracePeriod > group.Period {
+		gracePeriod = group.Period
 	}
 
 	return &failoverWatcher{
