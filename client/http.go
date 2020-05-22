@@ -110,13 +110,17 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 type RandomData struct {
 	Rnd               uint64 `json:"round,omitempty"`
 	Random            []byte `json:"randomness,omitempty"`
-	Signature         []byte `json:"signature,omitempty"`
+	Sig               []byte `json:"signature,omitempty"`
 	PreviousSignature []byte `json:"previous_signature,omitempty"`
 }
 
 // Round provides access to the round associatted with this random data.
 func (r *RandomData) Round() uint64 {
 	return r.Rnd
+}
+
+func (r *RandomData) Signature() []byte {
+	return r.Sig
 }
 
 // Randomness exports the randomness
@@ -136,14 +140,14 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
 		return nil, err
 	}
-	if len(randResp.Signature) == 0 || len(randResp.PreviousSignature) == 0 {
+	if len(randResp.Sig) == 0 || len(randResp.PreviousSignature) == 0 {
 		return nil, fmt.Errorf("insufficent response")
 	}
 
 	b := beacon.Beacon{
 		PreviousSig: randResp.PreviousSignature,
 		Round:       randResp.Rnd,
-		Signature:   randResp.Signature,
+		Signature:   randResp.Sig,
 	}
 	if err := beacon.VerifyBeacon(h.group.PublicKey.Key(), &b); err != nil {
 		h.l.Warn("http_client", "failed to verify value", "err", err)

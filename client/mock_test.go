@@ -43,7 +43,7 @@ func (m *MockClient) RoundAt(time time.Time) uint64 {
 func MockClientWithResults(n, m int) Client {
 	c := new(MockClient)
 	for i := n; i < m; i++ {
-		c.Results = append(c.Results, MockResult{uint64(i), []byte{byte(i)}})
+		c.Results = append(c.Results, MockResult{uint64(i), []byte{byte(i)}, []byte{byte(255 - i)}})
 	}
 	return c
 }
@@ -51,10 +51,14 @@ func MockClientWithResults(n, m int) Client {
 type MockResult struct {
 	rnd  uint64
 	rand []byte
+	sig  []byte
 }
 
 func (r *MockResult) Randomness() []byte {
 	return r.rand
+}
+func (r *MockResult) Signature() []byte {
+	return r.sig
 }
 
 func (r *MockResult) Round() uint64 {

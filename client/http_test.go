@@ -86,7 +86,7 @@ func TestHTTPClient(t *testing.T) {
 	if !ok {
 		t.Fatal("Should be able to restore concrete type")
 	}
-	if len(full.Signature) == 0 {
+	if len(full.Sig) == 0 {
 		t.Fatal("no signature provided")
 	}
 

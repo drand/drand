@@ -36,7 +36,7 @@ func TestPrioritizingGet(t *testing.T) {
 		t.Fatal("failed to switch priority")
 	}
 
-	c.(*MockClient).Results = []MockResult{MockResult{50, []byte{50}}}
+	c.(*MockClient).Results = []MockResult{{50, []byte{50}, []byte{255 - 1}}}
 
 	r, err = p.Get(context.Background(), 0)
 	if err != nil {
