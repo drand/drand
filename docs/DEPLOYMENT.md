@@ -8,6 +8,7 @@
   - [Starting drand daemon](#starting-drand-daemon)
     - [With TLS](#with-tls)
     - [TLS setup: Nginx with Let's Encrypt](#tls-setup-nginx-with-lets-encrypt)
+    - [TLS setup: Apache for HTTP](#tls-setup-apache-for-http)
     - [Without TLS](#without-tls)
   - [Test the connection to a node](#test-the-connection-to-a-node)
   - [Run the setup phase](#run-the-setup-phase)
