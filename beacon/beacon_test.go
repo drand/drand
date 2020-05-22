@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/test"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 )
@@ -39,5 +41,24 @@ func TestChainNextRound(t *testing.T) {
 
 	time2 := TimeOfRound(period, genesis, 3)
 	require.Equal(t, expTime2, time2)
+}
 
+func TestChainInfo(t *testing.T) {
+	_, g1 := test.BatchIdentities(5)
+	c1 := NewChainInfo(g1)
+	require.NotNil(t, c1)
+	h1 := c1.Hash()
+	require.NotNil(t, h1)
+	fake := &key.Group{
+		Period:      g1.Period,
+		GenesisTime: g1.GenesisTime,
+		PublicKey:   g1.PublicKey,
+	}
+	h12 := NewChainInfo(fake).Hash()
+	require.Equal(t, h1, h12)
+
+	_, g2 := test.BatchIdentities(5)
+	c2 := NewChainInfo(g2)
+	h2 := c2.Hash()
+	require.NotEqual(t, h1, h2)
 }

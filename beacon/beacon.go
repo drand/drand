@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -118,4 +119,32 @@ func NextRound(now int64, period time.Duration, genesis int64) (uint64, int64) {
 	nextRound := uint64(math.Floor(float64(fromGenesis)/period.Seconds())) + 1
 	nextTime := genesis + int64(nextRound*uint64(period.Seconds()))
 	return nextRound + 1, nextTime
+}
+
+// ChainInfo represents the public information that is necessary for a client to
+// very any beacon present in a randomness chain.
+type ChainInfo struct {
+	PublicKey   kyber.Point
+	Period      time.Duration
+	GenesisTime int64
+}
+
+func NewChainInfo(g *key.Group) *ChainInfo {
+	return &ChainInfo{
+		Period:      g.Period,
+		PublicKey:   g.PublicKey.Key(),
+		GenesisTime: g.GenesisTime,
+	}
+}
+
+// Hash returns the canonical hash representing the chain information. A hash is
+// consistent throughout the entirety of a chain, regardless of the network
+// composition, the actual nodes, generating the randomness.
+func (c *ChainInfo) Hash() []byte {
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
+	binary.Write(h, binary.BigEndian, int64(c.GenesisTime))
+	buff, _ := c.PublicKey.MarshalBinary()
+	h.Write(buff)
+	return h.Sum(nil)
 }
