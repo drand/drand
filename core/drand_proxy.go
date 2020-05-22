@@ -3,10 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 // drandProxy is used as a proxy between a Public service (e.g. the node as a server)
@@ -28,6 +30,7 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 		incoming: make(chan *drand.PublicRandResponse, 0),
 		outgoing: make(chan *drand.PublicRandResponse, 0),
 	}
+	go s.loop()
 	return &s
 }
 
@@ -49,9 +52,14 @@ func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
 }
 
 func (s *streamProxy) loop() {
+	defer close(s.outgoing)
+	defer close(s.incoming)
 	for {
 		select {
-		case next := <-s.incoming:
+		case next, ok := <-s.incoming:
+			if !ok {
+				return
+			}
 			select {
 			case s.outgoing <- next:
 			case <-s.ctx.Done():
@@ -73,7 +81,7 @@ func (s *streamProxy) SendHeader(metadata.MD) error {
 func (s *streamProxy) SetTrailer(metadata.MD) {}
 
 func (s *streamProxy) Context() context.Context {
-	return s.ctx
+	return peer.NewContext(s.ctx, &peer.Peer{Addr: &net.UnixAddr{}})
 }
 func (s *streamProxy) SendMsg(m interface{}) error {
 	return nil
