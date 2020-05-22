@@ -232,8 +232,8 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 	return group
 }
 
-func (n *NodeProc) GetCokey(group string) bool {
-	args := []string{"get", "cokey"}
+func (n *NodeProc) ChainInfo(group string) bool {
+	args := []string{"get", "chain-info"}
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
 	}
@@ -242,14 +242,14 @@ func (n *NodeProc) GetCokey(group string) bool {
 	cmd := exec.Command(n.binary, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Printf("get cokey %s : %s: err: %v:\n\tout:%s\n", n.privAddr, args, err, string(out))
+		fmt.Printf("get chain info %s : %s: err: %v:\n\tout:%s\n", n.privAddr, args, err, string(out))
 		return false
 	}
 	var r = new(drand.DistKeyResponse)
 	err = json.Unmarshal(out, r)
 	checkErr(err)
 	sdist := hex.EncodeToString(r.Key)
-	fmt.Printf("\t- Node %s has cokey %s\n", n.privAddr, sdist[10:14])
+	fmt.Printf("\t- Node %s has chain-info %s\n", n.privAddr, sdist[10:14])
 	return true
 }
 

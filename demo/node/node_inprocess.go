@@ -200,7 +200,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 	return kg
 }
 
-func (l *LocalNode) GetCokey(group string) bool {
+func (l *LocalNode) ChainInfo(group string) bool {
 	cl := l.ctrl()
 	ci, err := cl.ChainInfo()
 	if err != nil {
@@ -208,7 +208,7 @@ func (l *LocalNode) GetCokey(group string) bool {
 		return false
 	}
 	sdist := hex.EncodeToString(ci.PublicKey)
-	fmt.Printf("\t- Node %s has cokey %s\n", l.PrivateAddr(), sdist[10:14])
+	fmt.Printf("\t- Node %s has chain-info %s\n", l.PrivateAddr(), sdist[10:14])
 	return true
 }
 
