@@ -20,13 +20,16 @@ type drandProxy struct {
 // streamProxy directly relays mesages of the PublicRandResponse stream.
 type streamProxy struct {
 	ctx      context.Context
+	cancel   context.CancelFunc
 	incoming chan *drand.PublicRandResponse
 	outgoing chan *drand.PublicRandResponse
 }
 
 func newStreamProxy(ctx context.Context) *streamProxy {
+	ctx, cancel := context.WithCancel(ctx)
 	s := streamProxy{
 		ctx:      ctx,
+		cancel:   cancel,
 		incoming: make(chan *drand.PublicRandResponse, 0),
 		outgoing: make(chan *drand.PublicRandResponse, 1),
 	}
@@ -72,6 +75,11 @@ func (s *streamProxy) loop() {
 	}
 }
 
+func (s *streamProxy) Close(err error) {
+	s.cancel()
+	close(s.incoming)
+}
+
 /* implement the grpc stream interface. not used since messages passed directly. */
 func (s *streamProxy) SetHeader(metadata.MD) error {
 	return nil
@@ -110,7 +118,10 @@ func (d *drandProxy) PublicRand(c context.Context, r *drand.PublicRandRequest, o
 func (d *drandProxy) PublicRandStream(ctx context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (drand.Public_PublicRandStreamClient, error) {
 	srvr := newStreamProxy(ctx)
 
-	go d.r.PublicRandStream(in, srvr)
+	go func() {
+		err := d.r.PublicRandStream(in, srvr)
+		srvr.Close(err)
+	}()
 
 	return srvr, nil
 }
