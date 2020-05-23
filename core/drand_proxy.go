@@ -28,7 +28,7 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 	s := streamProxy{
 		ctx:      ctx,
 		incoming: make(chan *drand.PublicRandResponse, 0),
-		outgoing: make(chan *drand.PublicRandResponse, 0),
+		outgoing: make(chan *drand.PublicRandResponse, 1),
 	}
 	go s.loop()
 	return &s
@@ -47,13 +47,13 @@ func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
 	case s.incoming <- next:
 		return nil
 	case <-s.ctx.Done():
+		close(s.incoming)
 		return s.ctx.Err()
 	}
 }
 
 func (s *streamProxy) loop() {
 	defer close(s.outgoing)
-	defer close(s.incoming)
 	for {
 		select {
 		case next, ok := <-s.incoming:
@@ -64,6 +64,7 @@ func (s *streamProxy) loop() {
 			case s.outgoing <- next:
 			case <-s.ctx.Done():
 				return
+			default:
 			}
 		case <-s.ctx.Done():
 			return
@@ -109,10 +110,8 @@ func (d *drandProxy) PublicRand(c context.Context, r *drand.PublicRandRequest, o
 func (d *drandProxy) PublicRandStream(ctx context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (drand.Public_PublicRandStreamClient, error) {
 	srvr := newStreamProxy(ctx)
 
-	err := d.r.PublicRandStream(in, srvr)
-	if err != nil {
-		return nil, err
-	}
+	go d.r.PublicRandStream(in, srvr)
+
 	return srvr, nil
 }
 func (d *drandProxy) PrivateRand(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
