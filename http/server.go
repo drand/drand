@@ -231,6 +231,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
+	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
 
@@ -294,5 +295,6 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
+	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "group.json", time.Unix(grp.GenesisTime, 0), bytes.NewReader(data))
 }
