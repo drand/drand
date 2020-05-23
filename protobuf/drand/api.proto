@@ -66,13 +66,6 @@ message PrivateRandResponse {
     bytes response = 1;
 }
 
-// DistKeyRequest requests the distributed public key used during the randomness generation process
-message DistKeyRequest {
-}
-
-message DistKeyResponse {
-    bytes key = 2;
-}
 
 message HomeRequest {
 }

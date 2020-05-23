@@ -245,10 +245,10 @@ func (n *NodeProc) ChainInfo(group string) bool {
 		fmt.Printf("get chain info %s : %s: err: %v:\n\tout:%s\n", n.privAddr, args, err, string(out))
 		return false
 	}
-	var r = new(drand.DistKeyResponse)
+	var r = new(drand.ChainInfoPacket)
 	err = json.Unmarshal(out, r)
 	checkErr(err)
-	sdist := hex.EncodeToString(r.Key)
+	sdist := hex.EncodeToString(r.PublicKey)
 	fmt.Printf("\t- Node %s has chain-info %s\n", n.privAddr, sdist[10:14])
 	return true
 }
