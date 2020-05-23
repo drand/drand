@@ -83,6 +83,11 @@ RESET:
 		next, err := stream.Recv()
 		if err != nil {
 			h.log.Warn("http_server", "random stream round failed", "err", err)
+			h.pendingLk.Lock()
+			h.latestRound = 0
+			h.pendingLk.Unlock()
+			// backoff on failures a bit to not fall into a tight loop.
+			time.Sleep(50 * time.Millisecond)
 			goto RESET
 		}
 
