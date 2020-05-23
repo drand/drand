@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"sync"
 	"time"
 
@@ -89,14 +88,6 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 		}
 	}()
 	return <-done
-}
-
-// DistKey implements net.Service
-func (s *Server) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	fmt.Println("distkey called")
-	return &drand.DistKeyResponse{
-		Key: s.d.Public,
-	}, nil
 }
 
 func testValid(d *Data) {
