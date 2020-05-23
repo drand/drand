@@ -431,7 +431,7 @@ func resetCmd(c *cli.Context) error {
 	reader := bufio.NewReader(os.Stdin)
 	answer, err := reader.ReadString('\n')
 	if err != nil {
-		slog.Fatal("error reading: ", err)
+		return fmt.Errorf("error reading: %s", err)
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if answer != "y" {
@@ -451,7 +451,7 @@ func resetCmd(c *cli.Context) error {
 	return nil
 }
 
-func resetBeaconDB(config *core.Config) bool {
+func resetBeaconDB(config *core.Config) error {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		fmt.Fprintf(output, "INCONSISTENT STATE: A beacon database exists already.\n"+
 			"drand support only one identity at the time and thus needs to delete "+
@@ -460,20 +460,20 @@ func resetBeaconDB(config *core.Config) bool {
 		reader := bufio.NewReader(os.Stdin)
 		answer, err := reader.ReadString('\n')
 		if err != nil {
-			slog.Fatal("error reading: ", err)
+			return fmt.Errorf("error reading: %s", err)
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		if answer != "y" {
 			slog.Print("drand: not deleting the database.")
-			return true
+			return nil
 		}
 
 		if err := os.RemoveAll(config.DBFolder()); err != nil {
-			slog.Fatal(err)
+			return err
 		}
 		slog.Print("drand: removed existing beacon database.")
 	}
-	return false
+	return nil
 }
 
 func askPort() string {

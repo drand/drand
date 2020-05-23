@@ -15,7 +15,7 @@ import (
 
 func getPrivateCmd(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatal("Get private takes a group file as argument.")
+		return errors.New("Get private takes a group file as argument.")
 	}
 	defaultManager := net.NewCertManager()
 	if c.IsSet("tls-cert") {
@@ -50,7 +50,7 @@ func getPrivateCmd(c *cli.Context) error {
 
 func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatal("Get public command takes a group file as argument.")
+		return errors.New("Get public command takes a group file as argument.")
 	}
 	client := core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
@@ -117,7 +117,7 @@ func getChainInfo(c *cli.Context) error {
 			addr, err)
 	}
 	if ci == nil {
-		slog.Fatalf("drand: can't retrieve dist. key from all nodes")
+		return errors.New("drand: can't retrieve dist. key from all nodes")
 	}
 	printJSON(ci.ToProto())
 	return nil
