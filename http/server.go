@@ -49,7 +49,6 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/group", handler.Group)
-	mux.HandleFunc("/version", handler.Version)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -217,6 +216,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
@@ -258,6 +258,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
@@ -280,13 +281,8 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "group.json", time.Unix(grp.GenesisTime, 0), bytes.NewReader(data))
-}
-
-func (h *handler) Version(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
-	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
-	http.ServeContent(w, r, "version.txt", time.Time{}, bytes.NewReader([]byte(h.version)))
 }

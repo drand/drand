@@ -82,7 +82,7 @@ func Relay(c *cli.Context) error {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("%s/%s", version, gitCommit), log.DefaultLogger.With("binary", "relay"))
+	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger.With("binary", "relay"))
 	if err != nil {
 		return fmt.Errorf("Failed to create rest handler: %w", err)
 	}
