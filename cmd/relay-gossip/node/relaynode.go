@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
@@ -107,8 +108,17 @@ func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 	return g, nil
 }
 
+// Addr returns the gossipsub multiaddresses of this relay node.
 func (g *GossipRelayNode) Addr() []ma.Multiaddr {
-	return g.addr
+	b := make([]ma.Multiaddr, len(g.addr))
+	for i, a := range g.addr {
+		m, err := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", a, g.h.ID()))
+		if err != nil {
+			panic(err)
+		}
+		b[i] = m
+	}
+	return b
 }
 
 // Shutdown stops the relay node.

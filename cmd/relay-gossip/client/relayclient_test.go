@@ -26,7 +26,7 @@ func TestClient(t *testing.T) {
 	cfg := &node.GossipRelayConfig{
 		Network:         "test",
 		PeerWith:        nil,
-		Addr:            ":0",
+		Addr:            "/ip4/0.0.0.0/tcp/44544",
 		DataDir:         path.Join(os.TempDir(), "test-gossip-relay-node-datastore"),
 		IdentityPath:    path.Join(os.TempDir(), "test-gossip-relay-node-id"),
 		CertPath:        "",
@@ -68,7 +68,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, network string) (
 	_, ps, err := lp2p.ConstructHost(
 		ds,
 		priv,
-		":0",
+		"/ip4/0.0.0.0/tcp/44545",
 		relayMultiaddr,
 	)
 	if err != nil {
