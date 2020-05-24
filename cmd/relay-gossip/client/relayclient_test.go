@@ -9,6 +9,7 @@ import (
 
 	"github.com/drand/drand/cmd/drand-gossip-relay/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
+	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
 	bds "github.com/ipfs/go-ds-badger2"
 	ma "github.com/multiformats/go-multiaddr"
@@ -19,14 +20,14 @@ func TestClient(t *testing.T) {
 	grpcLis, grpcSvc := mock.NewMockGRPCPublicServer(":0", false)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
-	// defer grpcSvc.Shutdown(context.Background(), XXX)
+	defer grpcLis.Stop(context.Background())
 	_ = grpcSvc
 
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
 		Network:         "test",
 		PeerWith:        nil,
-		Addr:            "/ip4/0.0.0.0/tcp/44544",
+		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
 		DataDir:         path.Join(os.TempDir(), "test-gossip-relay-node-datastore"),
 		IdentityPath:    path.Join(os.TempDir(), "test-gossip-relay-node-id"),
 		CertPath:        "",
@@ -48,7 +49,7 @@ func TestClient(t *testing.T) {
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := c.Watch(ctx)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		fmt.Print(<-ch)
 	}
 	cancel()
@@ -68,7 +69,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, network string) (
 	_, ps, err := lp2p.ConstructHost(
 		ds,
 		priv,
-		"/ip4/0.0.0.0/tcp/44545",
+		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
 	)
 	if err != nil {
