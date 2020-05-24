@@ -107,7 +107,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-disable")
 		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), logger.With("server", "http"))
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +122,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-enabled")
 		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), logger.With("server", "http"))
 			if err != nil {
 				return nil, err
 			}
