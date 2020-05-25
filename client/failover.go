@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -18,11 +19,15 @@ const defaultFailoverGracePeriod = time.Second * 5
 // and not emit the intermediate values.
 //
 // If grace period is 0, it'll be set to 5s or the chain period / 2, whichever is smaller.
-func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration, l log.Logger) Client {
+func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration, l log.Logger) (Client, error) {
+	if chainInfo == nil {
+		return nil, errors.New("missing chain info")
+	}
+
 	if gracePeriod == 0 {
 		gracePeriod = defaultFailoverGracePeriod
 
-		if gracePeriod > chainInfo.Period / 2 {
+		if gracePeriod > chainInfo.Period/2 {
 			gracePeriod = chainInfo.Period / 2
 		}
 	}
@@ -32,7 +37,7 @@ func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Dur
 		chainInfo:   chainInfo,
 		gracePeriod: gracePeriod,
 		log:         l,
-	}
+	}, nil
 }
 
 type failoverWatcher struct {
