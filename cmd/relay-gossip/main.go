@@ -8,6 +8,7 @@ import (
 	"github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
+	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -88,7 +89,7 @@ var runCmd = &cli.Command{
 			Insecure:        cctx.Bool("insecure"),
 			DrandPublicGRPC: cctx.String("connect"),
 		}
-		if _, err := node.NewGossipRelayNode(cfg); err != nil {
+		if _, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg); err != nil {
 			return err
 		}
 		<-(chan int)(nil)

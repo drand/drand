@@ -93,7 +93,7 @@ type clientConfig struct {
 	log log.Logger
 	// time after which a watcher will failover to using client.Get to get the latest randomness.
 	failoverGracePeriod time.Duration
-	// watcher
+	// watcher is a constructor function that creates a new Watcher
 	watcher WatcherCtor
 }
 

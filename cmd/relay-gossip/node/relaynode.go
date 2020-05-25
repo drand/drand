@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	bds "github.com/ipfs/go-ds-badger2"
@@ -14,7 +15,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
-	"github.com/prometheus/common/log"
 	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -34,6 +34,7 @@ type GossipRelayConfig struct {
 
 // GossipRelayNode is a gossip relay runtime.
 type GossipRelayNode struct {
+	l         log.Logger
 	bootstrap []ma.Multiaddr
 	ds        *bds.Datastore
 	priv      crypto.PrivKey
@@ -41,12 +42,12 @@ type GossipRelayNode struct {
 	ps        *pubsub.PubSub
 	t         *pubsub.Topic
 	opts      []grpc.DialOption
-	addr      []ma.Multiaddr
+	addrs     []ma.Multiaddr
 	done      chan struct{}
 }
 
 // NewGossipRelayNode starts a new gossip relay node.
-func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
+func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 	bootstrap, err := ParseMultiaddrSlice(cfg.PeerWith)
 	if err != nil {
 		return nil, xerrors.Errorf("parsing peer-with: %w", err)
@@ -67,13 +68,13 @@ func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 		return nil, xerrors.Errorf("constructing host: %w", err)
 	}
 
-	addr, err := h.Network().InterfaceListenAddresses()
+	addrs, err := h.Network().InterfaceListenAddresses()
 	if err != nil {
 		return nil, xerrors.Errorf("getting InterfaceListenAddresses: %w", err)
 	}
 
-	for _, a := range addr {
-		log.Infof("%s/p2p/%s\n", a, h.ID())
+	for _, a := range addrs {
+		l.Info(fmt.Sprintf("%s/p2p/%s\n", a, h.ID()))
 	}
 
 	t, err := ps.Join(lp2p.PubSubTopic(cfg.Network))
@@ -94,6 +95,7 @@ func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 	}
 	g := &GossipRelayNode{
+		l:         l,
 		bootstrap: bootstrap,
 		ds:        ds,
 		priv:      priv,
@@ -101,17 +103,18 @@ func NewGossipRelayNode(cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 		ps:        ps,
 		t:         t,
 		opts:      opts,
-		addr:      addr,
+		addrs:     addrs,
 		done:      make(chan struct{}),
 	}
 	go g.start(cfg.DrandPublicGRPC)
 	return g, nil
 }
 
-// Addr returns the gossipsub multiaddresses of this relay node.
-func (g *GossipRelayNode) Addr() []ma.Multiaddr {
-	b := make([]ma.Multiaddr, len(g.addr))
-	for i, a := range g.addr {
+// Multiaddrs returns the gossipsub multiaddresses of this relay node.
+func (g *GossipRelayNode) Multiaddrs() []ma.Multiaddr {
+	base := g.h.Addrs()
+	b := make([]ma.Multiaddr, len(base))
+	for i, a := range base {
 		m, err := ma.NewMultiaddr(fmt.Sprintf("%s/p2p/%s", a, g.h.ID()))
 		if err != nil {
 			panic(err)
@@ -126,9 +129,9 @@ func (g *GossipRelayNode) Shutdown() {
 	close(g.done)
 }
 
-func ParseMultiaddrSlice(peer []string) ([]ma.Multiaddr, error) {
-	out := make([]ma.Multiaddr, len(peer))
-	for i, peer := range peer {
+func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
+	out := make([]ma.Multiaddr, len(peers))
+	for i, peer := range peers {
 		m, err := ma.NewMultiaddr(peer)
 		if err != nil {
 			return nil, xerrors.Errorf("parsing multiaddr\"%s\": %w", peer, err)
@@ -147,14 +150,14 @@ func (g *GossipRelayNode) start(drandPublicGRPC string) {
 		}
 		conn, err := grpc.Dial(drandPublicGRPC, g.opts...)
 		if err != nil {
-			log.Warnf("error connecting to grpc: %+v", err)
+			g.l.Warn(fmt.Sprintf("error connecting to grpc: %+v", err))
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		client := drand.NewPublicClient(conn)
 		err = g.workRelay(client)
 		if err != nil {
-			log.Warnf("error relaying: %+v", err)
+			g.l.Warn(fmt.Sprintf("error relaying: %+v", err))
 			time.Sleep(5 * time.Second)
 		}
 	}
@@ -168,7 +171,7 @@ func (g *GossipRelayNode) workRelay(client drand.PublicClient) error {
 	if err != nil {
 		return xerrors.Errorf("getting initial round failed: %w", err)
 	}
-	log.Infof("got latest rand: %d", curr.Round)
+	g.l.Info(fmt.Sprintf("got latest rand: %d", curr.Round))
 
 	// context.Background() on purpose as this applies to whole, long lived stream
 	stream, err := client.PublicRandStream(context.Background(), &drand.PublicRandRequest{Round: curr.Round})
@@ -196,6 +199,6 @@ func (g *GossipRelayNode) workRelay(client drand.PublicClient) error {
 		if err != nil {
 			return xerrors.Errorf("publishing on pubsub: %w", err)
 		}
-		log.Infof("Published randomness on pubsub, round: %d", rand.Round)
+		g.l.Info(fmt.Sprintf("Published randomness on pubsub, round: %d", rand.Round))
 	}
 }

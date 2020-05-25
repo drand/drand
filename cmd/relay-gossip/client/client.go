@@ -142,7 +142,11 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					close(outerCh)
 					return
 				}
-				outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}
+				select {
+				case outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}:
+				default:
+					log.Warn("randomness notification dropped due to a full channel")
+				}
 			case <-ctx.Done():
 				close(outerCh)
 				end()
