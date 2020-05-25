@@ -250,7 +250,12 @@ func TestStartWithoutGroup(t *testing.T) {
 	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 	testCommand(t, shareCmd, expectedOutput)
 
-	showChainInfo := []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort2}
+	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort2}
+	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	require.NoError(t, err)
+	testCommand(t, showChainInfo, string(buffCi))
+
+	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort2}
 	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	testCommand(t, showChainInfo, expectedOutput)
 
