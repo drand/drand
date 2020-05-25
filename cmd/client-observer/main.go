@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/json"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -66,14 +65,13 @@ func Observe(c *cli.Context) error {
 	if c.IsSet(urlFlag.Name) {
 		cfg.URL = []string{c.String(urlFlag.Name)}
 	}
-	var chainInfo *chain.Info
 	buff, err := ioutil.ReadFile(c.String(chainInfoFlag.Name))
 	if err != nil {
 		return fmt.Errorf("reading chain info file (%v)", err)
 	}
-	chainProto := new(drand.ChainInfoPacket)
-	if err := json.Unmarshal(buff, chainProto); err != nil {
-		return fmt.Errorf("reading group file (%v)", err)
+	chainInfo, err := chain.InfoFromJSON(bytes.NewBuffer(buff))
+	if err != nil {
+		return fmt.Errorf("invalid chain info: %s", err)
 	}
 	cfg.ChainInfo = chainInfo
 	// read metrics bind address

@@ -76,7 +76,7 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 		return true
 	}
 	offset := time.Duration(in.GetBeaconOffset()) * time.Second
-	if offset == 0 {
+	if in.GetBeaconOffset() == 0 {
 		offset = DefaultGenesisOffset
 	}
 

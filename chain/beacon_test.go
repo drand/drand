@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"bytes"
 	"testing"
 	"time"
 
@@ -64,4 +65,22 @@ func TestChainInfo(t *testing.T) {
 	h2 := c2.Hash()
 	require.NotEqual(t, h1, h2)
 	require.NotEqual(t, c1, c2)
+
+	c1Buff, err := c1.ToJSON()
+	require.NoError(t, err)
+	c12Buff, err := c12.ToJSON()
+	require.NoError(t, err)
+	require.Equal(t, c1Buff, c12Buff)
+
+	c2Buff, err := c2.ToJSON()
+	require.NoError(t, err)
+	require.NotEqual(t, c1Buff, c2Buff)
+
+	n, err := InfoFromJSON(bytes.NewBuffer([]byte{}))
+	require.Nil(t, n)
+	require.Error(t, err)
+	c13, err := InfoFromJSON(bytes.NewBuffer(c1Buff))
+	require.NoError(t, err)
+	require.NotNil(t, c13)
+	require.True(t, c1.Equal(c13))
 }
