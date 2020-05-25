@@ -1,6 +1,7 @@
 package drand
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	gonet "net"
@@ -118,6 +119,10 @@ func getChainInfo(c *cli.Context) error {
 	}
 	if ci == nil {
 		return errors.New("drand: can't retrieve dist. key from all nodes")
+	}
+	if c.Bool(hashOnly.Name) {
+		fmt.Fprintf(output, "%s\n", hex.EncodeToString(ci.Hash()))
+		return nil
 	}
 	printJSON(ci.ToProto())
 	return nil
