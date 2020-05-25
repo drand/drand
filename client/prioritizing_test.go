@@ -3,9 +3,7 @@ package client
 import (
 	"context"
 	"testing"
-	"time"
 
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 )
 
@@ -61,7 +59,7 @@ func TestPrioritizingWatch(t *testing.T) {
 		t.Fatal("watch should fail without group provided")
 	}
 
-	p, _ = NewPrioritizingClient(nil, []Client{c, c2}, nil, &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}, log.DefaultLogger)
+	p, _ = NewPrioritizingClient(nil, []Client{c, c2}, nil, fakeChainInfo(), log.DefaultLogger)
 	ch = p.Watch(context.Background())
 	r, ok = <-ch
 	if r == nil || !ok {
@@ -74,7 +72,7 @@ func TestPrioritizingWatch(t *testing.T) {
 
 func TestPrioritizingWatchFromClient(t *testing.T) {
 	c := MockClientWithResults(0, 5)
-	c2, _ := NewHTTPClientWithGroup("", &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}, nil)
+	c2, _ := NewHTTPClientWithInfo("", fakeChainInfo(), nil)
 
 	p, _ := NewPrioritizingClient(nil, []Client{c, c2}, nil, nil, log.DefaultLogger)
 	ch := p.Watch(context.Background())

@@ -89,18 +89,15 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Dur
 	return c.client.InitReshare(context.Background(), request)
 }
 
-func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout time.Duration, secret string, oldPath string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
 		},
 		Info: &control.SetupInfoPacket{
-			Nodes:         uint32(nodes),
-			Threshold:     uint32(threshold),
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Timeout:       uint32(timeout.Seconds()),
 			Secret:        secret,
 		},
 	}
@@ -127,15 +124,12 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Du
 	return c.client.InitDKG(context.Background(), request)
 }
 
-func (c *ControlClient) InitDKG(leader Peer, nodes, threshold int, timeout time.Duration, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
-			Nodes:         uint32(nodes),
-			Threshold:     uint32(threshold),
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Timeout:       uint32(timeout.Seconds()),
 			Secret:        secret,
 		},
 		Entropy: entropy,
@@ -159,8 +153,8 @@ func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
 }
 
 // CollectiveKey returns the collective key of the remote node
-func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
-	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
+func (c ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
+	return c.client.ChainInfo(context.Background(), &control.ChainInfoRequest{})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
@@ -215,10 +209,10 @@ func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.Private
 	return s.C.PrivateKey(c, in)
 }
 
-// CollectiveKey ...
-func (s *DefaultControlServer) CollectiveKey(c context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+// ChainInfo ...
+func (s *DefaultControlServer) ChainInfo(c context.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
 	if s.C == nil {
-		return &control.CokeyResponse{}, nil
+		return &control.ChainInfoPacket{}, nil
 	}
-	return s.C.CollectiveKey(c, in)
+	return s.C.ChainInfo(c, in)
 }

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/chain"
 	dhttp "github.com/drand/drand/http"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 	"google.golang.org/grpc"
@@ -29,24 +29,24 @@ func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := dhttp.New(ctx, client, nil)
+	handler, err := dhttp.New(ctx, client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var hash []byte
 	for i := 0; i < 3; i++ {
-		protoGroup, err := s.Group(ctx, &drand.GroupRequest{})
+		protoInfo, err := s.ChainInfo(ctx, &drand.ChainInfoRequest{})
 		if err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
-		realGroup, err := key.GroupFromProto(protoGroup)
+		chainInfo, err := chain.InfoFromProto(protoInfo)
 		if err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
 		}
-		hash = realGroup.Hash()
+		hash = chainInfo.Hash()
 		break
 	}
 	if hash == nil {

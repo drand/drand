@@ -24,10 +24,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	dk, err := server.DistKey(context.TODO(), &drand.DistKeyRequest{})
+	ci, err := server.ChainInfo(context.TODO(), &drand.ChainInfoRequest{})
 
 	tjson := &TestJSON{
-		Public: hex.EncodeToString(dk.Key),
+		Public: hex.EncodeToString(ci.PublicKey),
 		API:    resp,
 	}
 	s, _ := json.MarshalIndent(tjson, "", "    ")

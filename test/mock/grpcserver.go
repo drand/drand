@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
 	"sync"
 	"time"
 
@@ -35,21 +34,11 @@ func newMockServer(d *Data) *Server {
 }
 
 // Group implements net.Service
-func (s *Server) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
-	return &drand.GroupPacket{
-		Threshold:   1,
+func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
+	return &drand.ChainInfoPacket{
 		Period:      60,
-		GenesisTime: uint64(s.d.Genesis),
-		DistKey:     [][]byte{s.d.Public},
-		Nodes: []*drand.Node{
-			{
-				Index: 0,
-				Public: &drand.Identity{
-					Address: s.addr,
-					Key:     s.d.Public,
-					Tls:     false,
-				},
-			}},
+		GenesisTime: int64(s.d.Genesis),
+		PublicKey:   s.d.Public,
 	}, nil
 }
 
@@ -99,14 +88,6 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 		}
 	}()
 	return <-done
-}
-
-// DistKey implements net.Service
-func (s *Server) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	fmt.Println("distkey called")
-	return &drand.DistKeyResponse{
-		Key: s.d.Public,
-	}, nil
 }
 
 func testValid(d *Data) {

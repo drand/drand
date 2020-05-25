@@ -12,8 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
@@ -28,25 +27,26 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, client drand.PublicClient, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
 	handler := handler{
 		timeout:     reqTimeout,
 		client:      client,
-		groupInfo:   nil,
+		chainInfo:   nil,
 		log:         logger,
 		pending:     nil,
 		context:     ctx,
 		latestRound: 0,
+		version:     version,
 	}
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
-	mux.HandleFunc("/group", handler.Group)
+	mux.HandleFunc("/info", handler.ChainInfo)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -61,7 +61,7 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 type handler struct {
 	timeout   time.Duration
 	client    drand.PublicClient
-	groupInfo *key.Group
+	chainInfo *chain.Info
 	log       log.Logger
 
 	// synchronization for blocking writes until randomness available.
@@ -69,6 +69,7 @@ type handler struct {
 	pending     []chan []byte
 	context     context.Context
 	latestRound uint64
+	version     string
 }
 
 func (h *handler) Watch(ctx context.Context) {
@@ -116,29 +117,28 @@ RESET:
 	}
 }
 
-func (h *handler) group(ctx context.Context) *key.Group {
-	if h.groupInfo != nil {
-		return h.groupInfo
+func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
+	if h.chainInfo != nil {
+		return h.chainInfo
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	pkt, err := h.client.Group(ctx, &drand.GroupRequest{})
+	pkt, err := h.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
 	if err != nil {
-		h.log.Warn("msg", "group fetch failed", "err", err)
+		h.log.Warn("msg", "chain info fetch failed", "err", err)
 		return nil
 	}
 	if pkt == nil {
-		h.log.Warn("msg", "group fetch didn't return group info")
+		h.log.Warn("msg", "chain info fetch didn't return group info")
 		return nil
 	}
-	parsedPkt, err := key.GroupFromProto(pkt)
+	h.chainInfo, err = chain.InfoFromProto(pkt)
 	if err != nil {
-		h.log.Warn("msg", "invalid group fetch", "err", err)
+		h.log.Warn("msg", "chain info is invalid")
 		return nil
 	}
-	h.groupInfo = parsedPkt
-	return parsedPkt
+	return h.chainInfo
 }
 
 func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
@@ -208,16 +208,16 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	grp := h.group(r.Context())
+	info := h.getChainInfo(r.Context())
 	roundExpectedTime := time.Now()
-	if grp != nil {
-		roundExpectedTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, roundN), 0)
-	}
+	if info != nil {
+		roundExpectedTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
 
-	if roundExpectedTime.After(time.Now().Add(grp.Period)) {
-		w.WriteHeader(http.StatusNotFound)
-		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
-		return
+		if roundExpectedTime.After(time.Now().Add(info.Period)) {
+			w.WriteHeader(http.StatusNotFound)
+			h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+			return
+		}
 	}
 
 	data, err := h.getRand(r.Context(), roundN)
@@ -229,6 +229,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/json")
@@ -255,36 +256,38 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	grp := h.group(r.Context())
+	info := h.getChainInfo(r.Context())
 	roundTime := time.Now()
 	nextTime := time.Now()
-	if grp != nil {
-		roundTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, resp.Round), 0)
-		nextTime = time.Unix(beacon.TimeOfRound(grp.Period, grp.GenesisTime, resp.Round+1), 0)
+	if info != nil {
+		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round), 0)
+		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round+1), 0)
 	}
 
 	remaining := nextTime.Sub(time.Now())
-	if remaining > 0 && remaining < grp.Period {
+	if remaining > 0 && remaining < info.Period {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
 	} else {
 		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
 	w.Write(data)
 }
 
-func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
-	grp := h.group(r.Context())
-	if grp == nil {
+func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
+	info := h.getChainInfo(r.Context())
+	if info == nil {
 		w.WriteHeader(http.StatusNoContent)
 		h.log.Warn("http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
-	data, err := json.Marshal(grp.ToProto())
+	var chainBuff bytes.Buffer
+	err := info.ToJSON(&chainBuff)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
@@ -293,8 +296,10 @@ func (h *handler) Group(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/json")
-	http.ServeContent(w, r, "group.json", time.Unix(grp.GenesisTime, 0), bytes.NewReader(data))
+	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
+
 }

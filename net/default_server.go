@@ -26,12 +26,7 @@ func (s *EmptyServer) PrivateRand(context.Context, *drand.PrivateRandRequest) (*
 }
 
 // Group ...
-func (s *EmptyServer) Group(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
-	return nil, nil
-}
-
-// DistKey ...
-func (s *EmptyServer) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
+func (s *EmptyServer) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	return nil, nil
 }
 

@@ -222,77 +222,6 @@ func (m *PrivateRandResponse) GetResponse() []byte {
 	return nil
 }
 
-// DistKeyRequest requests the distributed public key used during the randomness generation process
-type DistKeyRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *DistKeyRequest) Reset()         { *m = DistKeyRequest{} }
-func (m *DistKeyRequest) String() string { return proto.CompactTextString(m) }
-func (*DistKeyRequest) ProtoMessage()    {}
-func (*DistKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c0cff3fc81cf7d79, []int{4}
-}
-
-func (m *DistKeyRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DistKeyRequest.Unmarshal(m, b)
-}
-func (m *DistKeyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DistKeyRequest.Marshal(b, m, deterministic)
-}
-func (m *DistKeyRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DistKeyRequest.Merge(m, src)
-}
-func (m *DistKeyRequest) XXX_Size() int {
-	return xxx_messageInfo_DistKeyRequest.Size(m)
-}
-func (m *DistKeyRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_DistKeyRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DistKeyRequest proto.InternalMessageInfo
-
-type DistKeyResponse struct {
-	Key                  []byte   `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *DistKeyResponse) Reset()         { *m = DistKeyResponse{} }
-func (m *DistKeyResponse) String() string { return proto.CompactTextString(m) }
-func (*DistKeyResponse) ProtoMessage()    {}
-func (*DistKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c0cff3fc81cf7d79, []int{5}
-}
-
-func (m *DistKeyResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DistKeyResponse.Unmarshal(m, b)
-}
-func (m *DistKeyResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DistKeyResponse.Marshal(b, m, deterministic)
-}
-func (m *DistKeyResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DistKeyResponse.Merge(m, src)
-}
-func (m *DistKeyResponse) XXX_Size() int {
-	return xxx_messageInfo_DistKeyResponse.Size(m)
-}
-func (m *DistKeyResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_DistKeyResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DistKeyResponse proto.InternalMessageInfo
-
-func (m *DistKeyResponse) GetKey() []byte {
-	if m != nil {
-		return m.Key
-	}
-	return nil
-}
-
 type HomeRequest struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -303,7 +232,7 @@ func (m *HomeRequest) Reset()         { *m = HomeRequest{} }
 func (m *HomeRequest) String() string { return proto.CompactTextString(m) }
 func (*HomeRequest) ProtoMessage()    {}
 func (*HomeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c0cff3fc81cf7d79, []int{6}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{4}
 }
 
 func (m *HomeRequest) XXX_Unmarshal(b []byte) error {
@@ -335,7 +264,7 @@ func (m *HomeResponse) Reset()         { *m = HomeResponse{} }
 func (m *HomeResponse) String() string { return proto.CompactTextString(m) }
 func (*HomeResponse) ProtoMessage()    {}
 func (*HomeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c0cff3fc81cf7d79, []int{7}
+	return fileDescriptor_c0cff3fc81cf7d79, []int{5}
 }
 
 func (m *HomeResponse) XXX_Unmarshal(b []byte) error {
@@ -368,8 +297,6 @@ func init() {
 	proto.RegisterType((*PublicRandResponse)(nil), "drand.PublicRandResponse")
 	proto.RegisterType((*PrivateRandRequest)(nil), "drand.PrivateRandRequest")
 	proto.RegisterType((*PrivateRandResponse)(nil), "drand.PrivateRandResponse")
-	proto.RegisterType((*DistKeyRequest)(nil), "drand.DistKeyRequest")
-	proto.RegisterType((*DistKeyResponse)(nil), "drand.DistKeyResponse")
 	proto.RegisterType((*HomeRequest)(nil), "drand.HomeRequest")
 	proto.RegisterType((*HomeResponse)(nil), "drand.HomeResponse")
 }
@@ -379,32 +306,29 @@ func init() {
 }
 
 var fileDescriptor_c0cff3fc81cf7d79 = []byte{
-	// 389 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x53, 0x4d, 0x4f, 0xea, 0x40,
-	0x14, 0x4d, 0xf9, 0x7c, 0x5c, 0x78, 0x0f, 0xb8, 0xbc, 0x47, 0xfa, 0x9a, 0x97, 0x17, 0x52, 0x13,
-	0x83, 0x0b, 0x0b, 0xea, 0xc6, 0xad, 0x86, 0x44, 0x8d, 0x1b, 0x52, 0x76, 0x6e, 0xcc, 0x40, 0x27,
-	0xa6, 0xc1, 0x76, 0xea, 0xcc, 0x94, 0x84, 0x5f, 0xe2, 0x6f, 0x75, 0x67, 0x98, 0x99, 0x7e, 0x20,
-	0xac, 0xdc, 0xcd, 0x39, 0xf7, 0xdc, 0xaf, 0x73, 0x33, 0xd0, 0x0d, 0x38, 0x89, 0x83, 0x09, 0x49,
-	0x42, 0x2f, 0xe1, 0x4c, 0x32, 0xac, 0x2b, 0xc2, 0x41, 0xcd, 0xaf, 0x58, 0x14, 0xb1, 0x58, 0x87,
-	0xdc, 0x33, 0xe8, 0xcf, 0xd3, 0xe5, 0x6b, 0xb8, 0xf2, 0x49, 0x1c, 0xf8, 0xf4, 0x2d, 0xa5, 0x42,
-	0xe2, 0x6f, 0xa8, 0x73, 0x96, 0xc6, 0x81, 0x6d, 0x8d, 0xac, 0x71, 0xcd, 0xd7, 0xc0, 0x7d, 0xb7,
-	0x00, 0xcb, 0x5a, 0x91, 0xb0, 0x58, 0xd0, 0xe3, 0x62, 0xfc, 0x07, 0x2d, 0x11, 0xbe, 0xc4, 0x44,
-	0xa6, 0x9c, 0xda, 0x95, 0x91, 0x35, 0xee, 0xf8, 0x05, 0x81, 0xe7, 0x80, 0x09, 0xa7, 0x9b, 0x90,
-	0xa5, 0xe2, 0xb9, 0x90, 0x55, 0x95, 0xac, 0x9f, 0x45, 0x16, 0xb9, 0xfc, 0x3f, 0xc0, 0x6e, 0x72,
-	0x16, 0xc5, 0x54, 0x08, 0xbb, 0xa6, 0x64, 0x25, 0xc6, 0xf5, 0x00, 0xe7, 0x3c, 0xdc, 0x10, 0x49,
-	0xcb, 0x5b, 0xd8, 0xd0, 0xe4, 0xfa, 0xa9, 0x46, 0xeb, 0xf8, 0x19, 0x74, 0x2f, 0x60, 0xb0, 0xa7,
-	0x37, 0x9b, 0x38, 0xf0, 0x83, 0x9b, 0xb7, 0xc9, 0xc8, 0xb1, 0xdb, 0x83, 0x5f, 0xb3, 0x50, 0xc8,
-	0x47, 0xba, 0x35, 0xe5, 0xdd, 0x13, 0xe8, 0xe6, 0x8c, 0x29, 0xd0, 0x83, 0xea, 0x9a, 0x6e, 0xcd,
-	0xba, 0xbb, 0xa7, 0xfb, 0x13, 0xda, 0xf7, 0x2c, 0xa2, 0x59, 0xce, 0x29, 0x74, 0x34, 0x34, 0x09,
-	0x43, 0x68, 0x08, 0x49, 0x64, 0x2a, 0x54, 0xbf, 0x96, 0x6f, 0xd0, 0xe5, 0x47, 0x05, 0x1a, 0xda,
-	0x6a, 0xbc, 0x01, 0x28, 0x4c, 0x47, 0xdb, 0x53, 0x37, 0xf4, 0x0e, 0x6e, 0xe6, 0xfc, 0x3d, 0x12,
-	0x31, 0x5d, 0x1e, 0xa0, 0x57, 0xb0, 0x0b, 0xc9, 0x29, 0x89, 0xbe, 0x55, 0x68, 0x6a, 0xe1, 0x0c,
-	0xda, 0x25, 0xe7, 0x30, 0xd7, 0x1e, 0xb8, 0xef, 0x38, 0xc7, 0x42, 0x66, 0xa0, 0x29, 0xd4, 0xef,
-	0x38, 0x4b, 0x13, 0x1c, 0x18, 0x91, 0x42, 0x59, 0x26, 0x96, 0xc9, 0x39, 0x59, 0xad, 0xa9, 0xc4,
-	0x6b, 0x68, 0x1a, 0xb3, 0xf1, 0x8f, 0x09, 0xef, 0x9f, 0xc3, 0x19, 0x7e, 0xa5, 0x4d, 0xaf, 0x09,
-	0xd4, 0x76, 0x96, 0x63, 0x56, 0xb5, 0x74, 0x0e, 0x67, 0xb0, 0xc7, 0xe9, 0x84, 0xdb, 0xe6, 0x93,
-	0xfe, 0x2e, 0xcb, 0x86, 0xfa, 0x21, 0x57, 0x9f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x60, 0x93, 0xb5,
-	0x64, 0x4f, 0x03, 0x00, 0x00,
+	// 348 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x52, 0x3b, 0x4f, 0xc3, 0x30,
+	0x10, 0x56, 0x4a, 0x1f, 0xf4, 0x5a, 0x04, 0xbd, 0xa2, 0x12, 0x22, 0x84, 0xaa, 0x0c, 0xa8, 0x0c,
+	0xa4, 0x3c, 0x56, 0x16, 0x1e, 0x03, 0xdd, 0xaa, 0x74, 0x63, 0x41, 0x6e, 0x63, 0x20, 0x82, 0xd8,
+	0xc1, 0x76, 0xfa, 0x57, 0xf8, 0x51, 0xfc, 0x29, 0x54, 0xdb, 0x4d, 0x52, 0x9a, 0x89, 0xcd, 0xdf,
+	0xe3, 0xce, 0xe7, 0xcf, 0x07, 0xfb, 0x91, 0x20, 0x2c, 0x1a, 0x93, 0x34, 0x0e, 0x52, 0xc1, 0x15,
+	0xc7, 0x86, 0x26, 0x3c, 0x34, 0xfc, 0x82, 0x27, 0x09, 0x67, 0x46, 0xf2, 0xcf, 0xa1, 0x37, 0xcd,
+	0xe6, 0x9f, 0xf1, 0x22, 0x24, 0x2c, 0x0a, 0xe9, 0x57, 0x46, 0xa5, 0xc2, 0x43, 0x68, 0x08, 0x9e,
+	0xb1, 0xc8, 0x75, 0x86, 0xce, 0xa8, 0x1e, 0x1a, 0xe0, 0x7f, 0x3b, 0x80, 0x65, 0xaf, 0x4c, 0x39,
+	0x93, 0xb4, 0xda, 0x8c, 0x27, 0xd0, 0x96, 0xf1, 0x1b, 0x23, 0x2a, 0x13, 0xd4, 0xad, 0x0d, 0x9d,
+	0x51, 0x37, 0x2c, 0x08, 0xbc, 0x00, 0x4c, 0x05, 0x5d, 0xc6, 0x3c, 0x93, 0x2f, 0x85, 0x6d, 0x47,
+	0xdb, 0x7a, 0x6b, 0x65, 0x96, 0xdb, 0x4f, 0x01, 0x56, 0x93, 0xf3, 0x84, 0x51, 0x29, 0xdd, 0xba,
+	0xb6, 0x95, 0x18, 0x3f, 0x00, 0x9c, 0x8a, 0x78, 0x49, 0x14, 0x2d, 0xbf, 0xc2, 0x85, 0x96, 0x30,
+	0x47, 0x3d, 0x5a, 0x37, 0x5c, 0x43, 0xff, 0x0a, 0xfa, 0x1b, 0x7e, 0xfb, 0x12, 0x0f, 0x76, 0x85,
+	0x3d, 0xdb, 0x8a, 0x1c, 0xfb, 0x7b, 0xd0, 0x79, 0xe2, 0x09, 0xb5, 0xbd, 0xfd, 0x33, 0xe8, 0x1a,
+	0x68, 0x4b, 0x07, 0xd0, 0x94, 0x8a, 0xa8, 0x4c, 0xea, 0xc2, 0x76, 0x68, 0xd1, 0xf5, 0x4f, 0x0d,
+	0x9a, 0x26, 0x33, 0xbc, 0x03, 0x28, 0xd2, 0x43, 0x37, 0xd0, 0x9f, 0x11, 0x6c, 0x85, 0xef, 0x1d,
+	0x57, 0x28, 0xf6, 0x96, 0x09, 0x1c, 0x14, 0xec, 0x4c, 0x09, 0x4a, 0x92, 0x7f, 0x35, 0xba, 0x74,
+	0xf0, 0x11, 0x3a, 0xa5, 0x08, 0x30, 0xf7, 0x6e, 0xc5, 0xe8, 0x79, 0x55, 0x92, 0x1d, 0xe8, 0x16,
+	0xda, 0x0f, 0xef, 0x24, 0x66, 0x13, 0xf6, 0xca, 0xf1, 0xc8, 0x1a, 0x73, 0x66, 0xdd, 0x61, 0xf0,
+	0x57, 0x98, 0x92, 0xc5, 0x07, 0x55, 0x38, 0x86, 0xfa, 0x2a, 0x44, 0x44, 0xab, 0x97, 0x02, 0xf6,
+	0xfa, 0x1b, 0x9c, 0xb9, 0xee, 0xbe, 0xf5, 0x6c, 0x36, 0x79, 0xde, 0xd4, 0xcb, 0x7b, 0xf3, 0x1b,
+	0x00, 0x00, 0xff, 0xff, 0xcb, 0xb8, 0x17, 0x8f, 0xea, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -426,11 +350,9 @@ type PublicClient interface {
 	// PrivateRand is the method that returns the private randomness generated
 	// by the drand node only.
 	PrivateRand(ctx context.Context, in *PrivateRandRequest, opts ...grpc.CallOption) (*PrivateRandResponse, error)
-	// Group is the method that returns the group descrition that the drand
-	// endpoint belongs to
-	Group(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error)
-	// DistKey returns the distributed key from which drand node endpoint get a share
-	DistKey(ctx context.Context, in *DistKeyRequest, opts ...grpc.CallOption) (*DistKeyResponse, error)
+	// ChainInfo returns the information related to the chain this node
+	// participates to
+	ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error)
 	// Home is a simple endpoint
 	Home(ctx context.Context, in *HomeRequest, opts ...grpc.CallOption) (*HomeResponse, error)
 }
@@ -493,18 +415,9 @@ func (c *publicClient) PrivateRand(ctx context.Context, in *PrivateRandRequest, 
 	return out, nil
 }
 
-func (c *publicClient) Group(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error) {
-	out := new(GroupPacket)
-	err := c.cc.Invoke(ctx, "/drand.Public/Group", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *publicClient) DistKey(ctx context.Context, in *DistKeyRequest, opts ...grpc.CallOption) (*DistKeyResponse, error) {
-	out := new(DistKeyResponse)
-	err := c.cc.Invoke(ctx, "/drand.Public/DistKey", in, out, opts...)
+func (c *publicClient) ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error) {
+	out := new(ChainInfoPacket)
+	err := c.cc.Invoke(ctx, "/drand.Public/ChainInfo", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -529,11 +442,9 @@ type PublicServer interface {
 	// PrivateRand is the method that returns the private randomness generated
 	// by the drand node only.
 	PrivateRand(context.Context, *PrivateRandRequest) (*PrivateRandResponse, error)
-	// Group is the method that returns the group descrition that the drand
-	// endpoint belongs to
-	Group(context.Context, *GroupRequest) (*GroupPacket, error)
-	// DistKey returns the distributed key from which drand node endpoint get a share
-	DistKey(context.Context, *DistKeyRequest) (*DistKeyResponse, error)
+	// ChainInfo returns the information related to the chain this node
+	// participates to
+	ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error)
 	// Home is a simple endpoint
 	Home(context.Context, *HomeRequest) (*HomeResponse, error)
 }
@@ -551,11 +462,8 @@ func (*UnimplementedPublicServer) PublicRandStream(req *PublicRandRequest, srv P
 func (*UnimplementedPublicServer) PrivateRand(ctx context.Context, req *PrivateRandRequest) (*PrivateRandResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PrivateRand not implemented")
 }
-func (*UnimplementedPublicServer) Group(ctx context.Context, req *GroupRequest) (*GroupPacket, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Group not implemented")
-}
-func (*UnimplementedPublicServer) DistKey(ctx context.Context, req *DistKeyRequest) (*DistKeyResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DistKey not implemented")
+func (*UnimplementedPublicServer) ChainInfo(ctx context.Context, req *ChainInfoRequest) (*ChainInfoPacket, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChainInfo not implemented")
 }
 func (*UnimplementedPublicServer) Home(ctx context.Context, req *HomeRequest) (*HomeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Home not implemented")
@@ -622,38 +530,20 @@ func _Public_PrivateRand_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Public_Group_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GroupRequest)
+func _Public_ChainInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChainInfoRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PublicServer).Group(ctx, in)
+		return srv.(PublicServer).ChainInfo(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/drand.Public/Group",
+		FullMethod: "/drand.Public/ChainInfo",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PublicServer).Group(ctx, req.(*GroupRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Public_DistKey_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DistKeyRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(PublicServer).DistKey(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Public/DistKey",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PublicServer).DistKey(ctx, req.(*DistKeyRequest))
+		return srv.(PublicServer).ChainInfo(ctx, req.(*ChainInfoRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -689,12 +579,8 @@ var _Public_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Public_PrivateRand_Handler,
 		},
 		{
-			MethodName: "Group",
-			Handler:    _Public_Group_Handler,
-		},
-		{
-			MethodName: "DistKey",
-			Handler:    _Public_DistKey_Handler,
+			MethodName: "ChainInfo",
+			Handler:    _Public_ChainInfo_Handler,
 		},
 		{
 			MethodName: "Home",

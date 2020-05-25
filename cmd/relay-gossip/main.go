@@ -1,28 +1,21 @@
 package main
 
 import (
-	"context"
 	"crypto/rand"
-	"crypto/tls"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
+	"github.com/drand/drand/cmd/relay-gossip/node"
+	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/golang/protobuf/proto"
 	"github.com/ipfs/go-datastore"
-	bds "github.com/ipfs/go-ds-badger2"
 	logging "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	ma "github.com/multiformats/go-multiaddr"
 	cli "github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -43,24 +36,13 @@ func main() {
 				Aliases: []string{"nn"},
 			},
 		},
-		Commands: []*cli.Command{runCmd, clientCmd},
+		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
 		fmt.Printf("error: %+v\n", err)
 		os.Exit(1)
 	}
-}
-func parseMultiaddrSlice(peer []string) ([]ma.Multiaddr, error) {
-	out := make([]ma.Multiaddr, len(peer))
-	for i, peer := range peer {
-		m, err := ma.NewMultiaddr(peer)
-		if err != nil {
-			return nil, xerrors.Errorf("parsing multiaddr\"%s\": %w", peer, err)
-		}
-		out[i] = m
-	}
-	return out, nil
 }
 
 var peerWithFlag = &cli.StringSliceFlag{
@@ -74,6 +56,11 @@ var runCmd = &cli.Command{
 		&cli.StringFlag{
 			Name:  "connect",
 			Usage: "host:port to dial to a drand gRPC PI",
+		},
+		&cli.StringFlag{
+			Name:  "store",
+			Usage: "datastore directory",
+			Value: "./datastore",
 		},
 		&cli.StringFlag{
 			Name:  "cert",
@@ -92,113 +79,29 @@ var runCmd = &cli.Command{
 	},
 
 	Action: func(cctx *cli.Context) error {
-		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
-		if err != nil {
-			return xerrors.Errorf("parsing peer-with: %w", err)
+		cfg := &node.GossipRelayConfig{
+			Network:         cctx.String("network-name"),
+			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
+			Addr:            cctx.String("listen"),
+			DataDir:         cctx.String("store"),
+			IdentityPath:    cctx.String(idFlag.Name),
+			CertPath:        cctx.String("cert"),
+			Insecure:        cctx.Bool("insecure"),
+			DrandPublicGRPC: cctx.String("connect"),
 		}
-
-		ds, err := bds.NewDatastore("./datastore", nil)
-		if err != nil {
-			return xerrors.Errorf("opening datastore: %w", err)
+		if _, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg); err != nil {
+			return err
 		}
-
-		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name))
-		if err != nil {
-			return xerrors.Errorf("loading p2p key: %w", err)
-		}
-
-		h, ps, err := lp2p.ConstructHost(ds, priv, cctx.String("listen"), bootstrap)
-		if err != nil {
-			return xerrors.Errorf("constructing host: %w", err)
-		}
-
-		addrs, err := h.Network().InterfaceListenAddresses()
-		if err != nil {
-			return xerrors.Errorf("getting InterfaceListenAddresses: %w", err)
-		}
-
-		for _, a := range addrs {
-			fmt.Printf("%s/p2p/%s\n", a, h.ID())
-		}
-
-		t, err := ps.Join(lp2p.PubSubTopic(cctx.String("network-name")))
-		if err != nil {
-			return xerrors.Errorf("joining topic: %w", err)
-		}
-
-		opts := []grpc.DialOption{}
-		if cctx.IsSet("cert") {
-			creds, err := credentials.NewClientTLSFromFile(cctx.String("cert"), "")
-			if err != nil {
-				return xerrors.Errorf("loading cert file: %w", err)
-			}
-			opts = append(opts, grpc.WithTransportCredentials(creds))
-		} else if cctx.Bool("insecure") {
-			opts = append(opts, grpc.WithInsecure())
-		} else {
-			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
-		}
-
-		for {
-			conn, err := grpc.Dial(cctx.String("connect"), opts...)
-			if err != nil {
-				log.Warnf("error connecting to grpc: %+v", err)
-				time.Sleep(5 * time.Second)
-				continue
-			}
-			client := drand.NewPublicClient(conn)
-			err = workRelay(client, t)
-			if err != nil {
-				log.Warnf("error relaying: %+v", err)
-				time.Sleep(5 * time.Second)
-			}
-		}
-
+		<-(chan int)(nil)
 		return nil
 	},
-}
-
-func workRelay(client drand.PublicClient, t *pubsub.Topic) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	curr, err := client.PublicRand(ctx, &drand.PublicRandRequest{Round: 0})
-	if err != nil {
-		return xerrors.Errorf("getting initial round failed: %w", err)
-	}
-	log.Infof("got latest rand: %d", curr.Round)
-
-	// context.Background() on purpose as this applies to whole, long lived stream
-	stream, err := client.PublicRandStream(context.Background(), &drand.PublicRandRequest{Round: curr.Round})
-	if err != nil {
-		return xerrors.Errorf("getting rand stream: %w", err)
-	}
-
-	for {
-		rand, err := stream.Recv()
-		if err != nil {
-			return xerrors.Errorf("receving on stream: %w", err)
-		}
-
-		randB, err := proto.Marshal(rand)
-		if err != nil {
-			return xerrors.Errorf("marshaling: %w", err)
-		}
-
-		err = t.Publish(context.TODO(), randB)
-		if err != nil {
-			return xerrors.Errorf("publishing on pubsub: %w", err)
-		}
-		log.Infof("Published randomness on pubsub, round: %d", rand.Round)
-	}
-
 }
 
 var clientCmd = &cli.Command{
 	Name:  "client",
 	Flags: []cli.Flag{peerWithFlag},
 	Action: func(cctx *cli.Context) error {
-		bootstrap, err := parseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
+		bootstrap, err := node.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
 			return xerrors.Errorf("parsing peer-with: %w", err)
 		}

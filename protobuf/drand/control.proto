@@ -26,7 +26,7 @@ service Control {
     // PrivateKey returns the longterm private key of the drand node
     rpc PrivateKey(PrivateKeyRequest) returns (PrivateKeyResponse) { }
     // CollectiveKey returns the distributed public key used by the node
-    rpc CollectiveKey(CokeyRequest) returns (CokeyResponse) { }
+    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket) { }
     // GroupFile returns the TOML-encoded group file
     // similar to public.Group method but needed for ease of use of the
     // control functionalities
