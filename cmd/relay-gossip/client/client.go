@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/protobuf/drand"
@@ -189,7 +188,7 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 }
 
 // Watch implements the dclient.Watcher interface
-func (c *Client) Watch(ctx context.Context) <-chan client.Result {
+func (c *Client) Watch(ctx context.Context) <-chan dclient.Result {
 	innerCh := make(chan drand.PublicRandResponse)
 	outerCh := make(chan dclient.Result)
 	end := c.Sub(innerCh)

@@ -3,9 +3,11 @@ package node
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"time"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -31,6 +33,8 @@ type GossipRelayConfig struct {
 	CertPath        string
 	Insecure        bool
 	DrandPublicGRPC string
+	// DrandPublicHTTP are drand public HTTP API URLs to relay
+	DrandPublicHTTP []string
 }
 
 // GossipRelayNode is a gossip relay runtime.
@@ -107,7 +111,15 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		addrs:     addrs,
 		done:      make(chan struct{}),
 	}
-	go g.start(cfg.DrandPublicGRPC)
+
+	if cfg.DrandPublicGRPC != "" {
+		go g.startGRPC(cfg.DrandPublicGRPC)
+	} else if len(cfg.DrandPublicHTTP) > 0 {
+		go g.startHTTP(cfg.DrandPublicHTTP)
+	} else {
+		return nil, errors.New("missing gRPC or HTTP API addresses")
+	}
+
 	return g, nil
 }
 
@@ -142,7 +154,7 @@ func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
 	return out, nil
 }
 
-func (g *GossipRelayNode) start(drandPublicGRPC string) {
+func (g *GossipRelayNode) startGRPC(drandPublicGRPC string) {
 	for {
 		select {
 		case <-g.done:
@@ -164,6 +176,47 @@ func (g *GossipRelayNode) start(drandPublicGRPC string) {
 				g.l.Warn(fmt.Sprintf("error while closing connection: %+v", err))
 			}
 			time.Sleep(5 * time.Second)
+		}
+	}
+}
+
+func (g *GossipRelayNode) startHTTP(urls []string) {
+	c, err := dclient.New(dclient.WithInsecureHTTPEndpoints(urls))
+	if err != nil {
+		g.l.Error("relaynode", "creating drand HTTP client", err)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := c.Watch(ctx)
+
+	for {
+		select {
+		case res, ok := <-ch:
+			if !ok {
+				return
+			}
+
+			randB, err := proto.Marshal(&drand.PublicRandResponse{
+				Round:      res.Round(),
+				Signature:  res.Signature(),
+				Randomness: res.Randomness(),
+			})
+			if err != nil {
+				g.l.Error("relaynode", "marshaling", err)
+				continue
+			}
+
+			err = g.t.Publish(ctx, randB)
+			if err != nil {
+				g.l.Error("relaynode", "publishing on pubsub", err)
+				continue
+			}
+
+			g.l.Info("relaynode", "Published randomness on pubsub", "round", res.Round())
+		case <-g.done:
+			return
 		}
 	}
 }
