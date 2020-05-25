@@ -2,6 +2,8 @@ module github.com/drand/drand
 
 go 1.14
 
+replace github.com/drand/drand/cmd/relay-gossip => /Users/petar/src/github.com/drand/drand/cmd/relay-gossip
+
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/drand/bls12-381 v0.3.2
