@@ -22,7 +22,7 @@ func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Dur
 	if gracePeriod == 0 {
 		gracePeriod = defaultFailoverGracePeriod
 
-		if gracePeriod > chainInfo.Period {
+		if gracePeriod > chainInfo.Period / 2 {
 			gracePeriod = chainInfo.Period / 2
 		}
 	}
