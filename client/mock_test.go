@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 )
 
 // MockClient provide a mocked client interface
@@ -59,7 +59,7 @@ func NewMockResult(round uint64) MockResult {
 	return MockResult{
 		rnd:  round,
 		sig:  sig,
-		rand: beacon.RandomnessFromSignature(sig),
+		rand: chain.RandomnessFromSignature(sig),
 	}
 }
 
@@ -85,7 +85,7 @@ func (r *MockResult) AssertValid(t *testing.T) {
 	if !bytes.Equal(r.sig, sigTarget) {
 		t.Fatalf("expected sig: %x, got %x", sigTarget, r.sig)
 	}
-	randTarget := beacon.RandomnessFromSignature(sigTarget)
+	randTarget := chain.RandomnessFromSignature(sigTarget)
 	if !bytes.Equal(r.rand, randTarget) {
 		t.Fatalf("expected rand: %x, got %x", randTarget, r.rand)
 	}

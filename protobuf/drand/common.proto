@@ -41,4 +41,14 @@ message GroupRequest {
 
 }
 
+message ChainInfoRequest {
+}
 
+message ChainInfoPacket {
+    // marshalled public key 
+    bytes public_key = 1;
+    // period in seconds
+    uint32 period = 2;
+    // genesis time of the chain
+    int64 genesis_time = 3;
+}

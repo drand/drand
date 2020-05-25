@@ -19,6 +19,13 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.gitCommit=`git rev-parse HEAD`"
+var (
+	version   = "master"
+	gitCommit = "none"
+)
+
 var accessLogFlag = &cli.StringFlag{
 	Name:  "access-log",
 	Usage: "file to log http accesses to",
@@ -76,7 +83,7 @@ func Relay(c *cli.Context) error {
 
 	client := drand.NewPublicClient(conn)
 
-	handler, err := dhttp.New(c.Context, client, log.DefaultLogger.With("binary", "relay"))
+	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger.With("binary", "relay"))
 	if err != nil {
 		return fmt.Errorf("Failed to create rest handler: %w", err)
 	}

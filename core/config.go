@@ -4,7 +4,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -20,6 +20,7 @@ type ConfigOption func(*Config)
 type Config struct {
 	configFolder      string
 	dbFolder          string
+	version           string
 	privateListenAddr string
 	publicListenAddr  string
 	controlPort       string
@@ -27,7 +28,7 @@ type Config struct {
 	callOpts          []grpc.CallOption
 	dkgTimeout        time.Duration
 	boltOpts          *bolt.Options
-	beaconCbs         []func(*beacon.Beacon)
+	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share)
 	insecure          bool
 	certPath          string
@@ -90,6 +91,11 @@ func (d *Config) PublicListenAddress(defaultAddr string) string {
 	return defaultAddr
 }
 
+// Version returns the configured version of the binary
+func (d *Config) Version() string {
+	return d.version
+}
+
 // ControlPort returns the port used for control port communications
 // which can be the default one or the port setup thanks to WithControlPort
 func (d *Config) ControlPort() string {
@@ -101,7 +107,7 @@ func (d *Config) Logger() log.Logger {
 	return d.logger
 }
 
-func (d *Config) callbacks(b *beacon.Beacon) {
+func (d *Config) callbacks(b *chain.Beacon) {
 	for _, fn := range d.beaconCbs {
 		fn(b)
 	}
@@ -165,7 +171,7 @@ func WithConfigFolder(folder string) ConfigOption {
 
 // WithBeaconCallback sets a function that is called each time a new random
 // beacon is generated.
-func WithBeaconCallback(fn func(*beacon.Beacon)) ConfigOption {
+func WithBeaconCallback(fn func(*chain.Beacon)) ConfigOption {
 	return func(d *Config) {
 		d.beaconCbs = append(d.beaconCbs, fn)
 	}
@@ -259,5 +265,12 @@ func withClock(c clock.Clock) ConfigOption {
 func WithPrivateRandomness() ConfigOption {
 	return func(d *Config) {
 		d.enablePrivate = true
+	}
+}
+
+// WithVersion sets a version for drand, a visible string to other peers.
+func WithVersion(version string) ConfigOption {
+	return func(d *Config) {
+		d.version = version
 	}
 }

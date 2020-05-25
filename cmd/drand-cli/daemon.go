@@ -23,7 +23,8 @@ func startCmd(c *cli.Context) error {
 	freshRun := errG != nil || errS != nil || errD != nil
 	var err error
 	if freshRun {
-		if exit := resetBeaconDB(conf); exit {
+		if err := resetBeaconDB(conf); err != nil {
+			fmt.Println(err)
 			os.Exit(0)
 		}
 		fmt.Println("drand: will run as fresh install -> expect to run DKG.")

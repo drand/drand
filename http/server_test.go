@@ -36,7 +36,7 @@ func TestHTTPRelay(t *testing.T) {
 	defer cancel()
 	client := withClient(t)
 
-	handler, err := New(ctx, client, nil)
+	handler, err := New(ctx, client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestHTTPWaiting(t *testing.T) {
 	defer cancel()
 	client := withClient(t)
 
-	handler, err := New(ctx, client, nil)
+	handler, err := New(ctx, client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

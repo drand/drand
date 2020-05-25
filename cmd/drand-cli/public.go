@@ -5,6 +5,7 @@ import (
 	"fmt"
 	gonet "net"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -14,7 +15,7 @@ import (
 
 func getPrivateCmd(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatal("Get private takes a group file as argument.")
+		return errors.New("Get private takes a group file as argument.")
 	}
 	defaultManager := net.NewCertManager()
 	if c.IsSet("tls-cert") {
@@ -49,7 +50,7 @@ func getPrivateCmd(c *cli.Context) error {
 
 func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
-		slog.Fatal("Get public command takes a group file as argument.")
+		return errors.New("Get public command takes a group file as argument.")
 	}
 	client := core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
@@ -94,7 +95,7 @@ func getPublicRandomness(c *cli.Context) error {
 	return nil
 }
 
-func getCokeyCmd(c *cli.Context) error {
+func getChainInfo(c *cli.Context) error {
 	var client = core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
 		defaultManager := net.NewCertManager()
@@ -102,21 +103,22 @@ func getCokeyCmd(c *cli.Context) error {
 		defaultManager.Add(certPath)
 		client = core.NewGrpcClientFromCert(defaultManager)
 	}
-	var dkey *drand.DistKeyResponse
+	var ci *chain.Info
 	for _, addr := range c.Args().Slice() {
 		_, _, err := gonet.SplitHostPort(addr)
 		if err != nil {
 			return fmt.Errorf("invalid address given: %s", err)
 		}
-		dkey, err = client.DistKey(addr, !c.Bool("tls-disable"))
+		ci, err = client.ChainInfo(net.CreatePeer(addr, !c.Bool("tls-disable")))
 		if err == nil {
 			break
 		}
 		slog.Printf("drand: error fetching distributed key from %s : %s",
 			addr, err)
 	}
-	if dkey == nil {
-		return errors.New("can't retrieve dist. key from all nodes")
+	if ci == nil {
+		return errors.New("drand: can't retrieve dist. key from all nodes")
 	}
-	return printJSON(dkey)
+	printJSON(ci.ToProto())
+	return nil
 }

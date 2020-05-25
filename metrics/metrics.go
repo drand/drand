@@ -45,7 +45,7 @@ var (
 	}, []string{"code", "method"})
 	// HTTPLatency (HTTP) how long http request handling takes
 	HTTPLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:        "http_resopnse_duration",
+		Name:        "http_response_duration",
 		Help:        "histogram of request latencies",
 		Buckets:     prometheus.DefBuckets,
 		ConstLabels: prometheus.Labels{"handler": "http"},
