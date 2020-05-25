@@ -97,7 +97,7 @@ RESET:
 			h.pendingLk.Unlock()
 			// backoff on failures a bit to not fall into a tight loop.
 			// TODO: tuning.
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(300 * time.Millisecond)
 			goto RESET
 		}
 
