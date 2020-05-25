@@ -102,18 +102,17 @@ func TestFailoverMaxGrace(t *testing.T) {
 	results := []MockResult{{rnd: 1, rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
-	period := time.Second * 2
+	period := defaultFailoverGracePeriod / 2
 	group := &key.Group{Period: period, GenesisTime: time.Now().Unix() - 1}
-	gracePeriod := time.Minute
-	failoverClient := NewFailoverWatcher(mockClient, group, gracePeriod, log.DefaultLogger)
+	failoverClient := NewFailoverWatcher(mockClient, group, 0, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	now := time.Now()
 	// Should failover in ~period and _definitely_ within gracePeriod!
 	compare(t, next(t, watchC), &results[0])
 
-	if time.Now().Sub(now) > gracePeriod {
-		t.Fatal("grace period was not bounded to group period")
+	if time.Now().Sub(now) >= defaultFailoverGracePeriod {
+		t.Fatal("grace period was not bounded to half group period")
 	}
 }
 
