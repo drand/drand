@@ -130,20 +130,6 @@ type pushKey struct {
 func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
-	// verify informations are correct
-	if s.expected != int(p.GetExpected()) {
-		return fmt.Errorf("expected nodes %d vs given %d", s.expected, p.GetExpected())
-	}
-	if s.thr != int(p.GetThreshold()) {
-		return fmt.Errorf("expected threshold %d vs given %d", s.thr, p.GetThreshold())
-	}
-	// nodes need to agree on this otherwise they risk having inconsistent views
-	// at the end of the dkg
-	dkgTimeout := p.GetDkgTimeout()
-	if s.dkgTimeout != dkgTimeout {
-		return fmt.Errorf("expected dkg timeout %d vs given %d", s.dkgTimeout, dkgTimeout)
-	}
-
 	if !s.verifySecret(p.GetSecretProof()) {
 		return errors.New("shared secret is incorrect")
 	}
