@@ -392,7 +392,7 @@ func CLI() *cli.App {
 				{
 					Name:  "chain-info",
 					Usage: "shows the chain information this node is participating to",
-					Flags: toArray(controlFlag),
+					Flags: toArray(controlFlag, hashOnly),
 					Action: func(c *cli.Context) error {
 						return showChainInfo(c)
 					},
