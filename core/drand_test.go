@@ -246,7 +246,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 		go func(n *Node) {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(root.drand.priv.Public, d.n, d.thr, testDkgTimeout, nil, secret)
+			_, err = client.InitDKG(root.drand.priv.Public, nil, secret)
 			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			require.NoError(d.t, err)
 			wg.Done()
@@ -463,7 +463,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 		// instruct to be ready for a reshare
 		client, err := net.NewControlClient(dr.opts.controlPort)
 		require.NoError(d.t, err)
-		_, err = client.InitReshare(leader.drand.priv.Public, total, d.newThr, timeout, secret, d.groupPath)
+		_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath)
 		require.NoError(d.t, err, "non-leader node (new?%v) error during reshare ", newNode)
 		fmt.Printf("\n\nRESHARING TEST: non-leader drand %s DONE RESHARING - %s\n", dr.priv.Public.Address(), dr.priv.Public.Key)
 		clientCounter.Done()

@@ -89,18 +89,15 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Dur
 	return c.client.InitReshare(context.Background(), request)
 }
 
-func (c *ControlClient) InitReshare(leader Peer, nodes, threshold int, timeout time.Duration, secret string, oldPath string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
 		},
 		Info: &control.SetupInfoPacket{
-			Nodes:         uint32(nodes),
-			Threshold:     uint32(threshold),
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Timeout:       uint32(timeout.Seconds()),
 			Secret:        secret,
 		},
 	}
@@ -127,15 +124,12 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Du
 	return c.client.InitDKG(context.Background(), request)
 }
 
-func (c *ControlClient) InitDKG(leader Peer, nodes, threshold int, timeout time.Duration, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
-			Nodes:         uint32(nodes),
-			Threshold:     uint32(threshold),
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Timeout:       uint32(timeout.Seconds()),
 			Secret:        secret,
 		},
 		Entropy: entropy,
