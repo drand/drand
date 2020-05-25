@@ -38,6 +38,7 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 }
 
 func (s *streamProxy) Recv() (*drand.PublicRandResponse, error) {
+	// s.outgoing closed on context close by loop().
 	next, ok := <-s.outgoing
 	if ok {
 		return next, nil

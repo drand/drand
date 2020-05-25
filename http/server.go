@@ -66,10 +66,18 @@ type handler struct {
 
 	// synchronization for blocking writes until randomness available.
 	pendingLk   sync.RWMutex
+	startOnce   sync.Once
 	pending     []chan []byte
 	context     context.Context
 	latestRound uint64
 	version     string
+}
+
+func (h *handler) start() {
+	h.pendingLk.Lock()
+	defer h.pendingLk.Unlock()
+	h.pending = make([]chan []byte, 0)
+	go h.Watch(h.context)
 }
 
 func (h *handler) Watch(ctx context.Context) {
@@ -88,6 +96,7 @@ RESET:
 			h.latestRound = 0
 			h.pendingLk.Unlock()
 			// backoff on failures a bit to not fall into a tight loop.
+			// TODO: tuning.
 			time.Sleep(50 * time.Millisecond)
 			goto RESET
 		}
@@ -142,19 +151,10 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 }
 
 func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
+	h.startOnce.Do(h.start)
 	// First see if we should get on the synchronized 'wait for next release' bandwagon.
 	block := false
 	h.pendingLk.RLock()
-	if h.pending == nil {
-		h.pendingLk.RUnlock()
-		h.pendingLk.Lock()
-		if h.pending == nil {
-			h.pending = make([]chan []byte, 0)
-			go h.Watch(h.context)
-		}
-		h.pendingLk.Unlock()
-		h.pendingLk.RLock()
-	}
 	block = (h.latestRound+1 == round) && h.latestRound != 0
 	h.pendingLk.RUnlock()
 	// If so, prepare, and if we're still sync'd, add ourselves to the list of waiters.
