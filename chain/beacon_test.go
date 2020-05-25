@@ -66,20 +66,23 @@ func TestChainInfo(t *testing.T) {
 	require.NotEqual(t, h1, h2)
 	require.NotEqual(t, c1, c2)
 
-	c1Buff, err := c1.ToJSON()
+	var c1Buff bytes.Buffer
+	var c12Buff bytes.Buffer
+	var c2Buff bytes.Buffer
+	err := c1.ToJSON(&c1Buff)
 	require.NoError(t, err)
-	c12Buff, err := c12.ToJSON()
+	err = c12.ToJSON(&c12Buff)
 	require.NoError(t, err)
-	require.Equal(t, c1Buff, c12Buff)
+	require.Equal(t, c1Buff.Bytes(), c12Buff.Bytes())
 
-	c2Buff, err := c2.ToJSON()
+	err = c2.ToJSON(&c2Buff)
 	require.NoError(t, err)
-	require.NotEqual(t, c1Buff, c2Buff)
+	require.NotEqual(t, c1Buff.Bytes(), c2Buff.Bytes())
 
 	n, err := InfoFromJSON(bytes.NewBuffer([]byte{}))
 	require.Nil(t, n)
 	require.Error(t, err)
-	c13, err := InfoFromJSON(bytes.NewBuffer(c1Buff))
+	c13, err := InfoFromJSON(&c1Buff)
 	require.NoError(t, err)
 	require.NotNil(t, c13)
 	require.True(t, c1.Equal(c13))

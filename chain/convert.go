@@ -1,10 +1,11 @@
 package chain
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"time"
+
+	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -64,7 +65,7 @@ func InfoFromJSON(buff io.Reader) (*Info, error) {
 	return chainInfo, nil
 }
 
-func (c *Info) ToJSON() ([]byte, error) {
+func (c *Info) ToJSON(w io.Writer) error {
 	proto := c.ToProto()
-	return json.Marshal(proto)
+	return json.NewEncoder(w).Encode(proto)
 }
