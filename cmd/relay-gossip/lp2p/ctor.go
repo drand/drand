@@ -29,6 +29,8 @@ import (
 
 var (
 	log = logging.Logger("lp2p")
+	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
+	userAgent = "drand-relay/0.0.0"
 )
 
 func PubSubTopic(nn string) string {
@@ -65,6 +67,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.DisableRelay(),
 		libp2p.Peerstore(pstore),
+		libp2p.UserAgent(userAgent),
 	)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
