@@ -3,10 +3,12 @@ package lp2p
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	mrand "math/rand"
 	"os"
+	"path"
 	"time"
 
 	"github.com/ipfs/go-datastore"
@@ -100,16 +102,20 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 	return h, p, nil
 }
 
+// LoadOrCreatePrivKey loads a base64 encoded libp2p private key from a file or creates one if it does not exist.
 func LoadOrCreatePrivKey(identityPath string) (crypto.PrivKey, error) {
-	privBytes, err := ioutil.ReadFile(identityPath)
+	privB64, err := ioutil.ReadFile(identityPath)
 
 	var priv crypto.PrivKey
 	switch {
 	case err == nil:
-		priv, err = crypto.UnmarshalEd25519PrivateKey(privBytes)
-
+		privBytes, err := base64.RawStdEncoding.DecodeString(string(privB64))
 		if err != nil {
-			return nil, xerrors.Errorf("decoding ed25519 key: %w", err)
+			return nil, xerrors.Errorf("decoding base64 key: %w", err)
+		}
+		priv, err = crypto.UnmarshalEd25519PrivateKey(privBytes)
+		if err != nil {
+			return nil, xerrors.Errorf("unmarshaling ed25519 key: %w", err)
 		}
 		log.Infof("loaded private key")
 
@@ -122,7 +128,11 @@ func LoadOrCreatePrivKey(identityPath string) (crypto.PrivKey, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("marshaling private key: %w", err)
 		}
-		err = ioutil.WriteFile(identityPath, b, 0600)
+		err = os.MkdirAll(path.Dir(identityPath), 0755)
+		if err != nil {
+			return nil, xerrors.Errorf("creating identity directory and parents: %w", err)
+		}
+		err = ioutil.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), 0600)
 		if err != nil {
 			return nil, xerrors.Errorf("writing identity file: %w", err)
 		}
