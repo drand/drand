@@ -198,7 +198,7 @@ drand share --leader --nodes 10 --threshold 6 --secret mysecret --period 30s
 **Rest of participants**: Once the coordinator has run the previous command, the 
 rest of the participants must run the following command:
 ```
-drand share --connect <leaderaddress> --nodes 10 --threshold 6 --secret mysecret
+drand share --connect <leaderaddress> --secret mysecret
 ```
 
 The flags usage is as follow:

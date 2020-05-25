@@ -129,15 +129,13 @@ var periodFlag = &cli.StringFlag{
 }
 
 var thresholdFlag = &cli.IntFlag{
-	Name:     "threshold",
-	Required: true,
-	Usage:    "threshold to use for the DKG",
+	Name:  "threshold",
+	Usage: "threshold to use for the DKG",
 }
 
 var shareNodeFlag = &cli.IntFlag{
-	Name:     "nodes",
-	Required: true,
-	Usage:    "number of nodes expected",
+	Name:  "nodes",
+	Usage: "number of nodes expected",
 }
 
 var transitionFlag = &cli.BoolFlag{

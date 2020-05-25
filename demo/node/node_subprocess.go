@@ -167,14 +167,14 @@ func (n *NodeProc) Index() int {
 
 func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
 	args := []string{"share", "--control", n.ctrl}
-	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
-	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
-	args = append(args, pair("--timeout", timeout)...)
-	args = append(args, pair("--period", n.period)...)
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--secret", secretDKG)...)
 	if leader {
 		args = append(args, "--leader")
+		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
+		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
+		args = append(args, pair("--timeout", timeout)...)
+		args = append(args, pair("--period", n.period)...)
 		// make genesis time offset
 		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
 	} else {
@@ -204,9 +204,6 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 	args := []string{"share"}
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
-	args = append(args, pair("--timeout", timeout)...)
-	args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
-	args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 	args = append(args, pair("--secret", secretReshare)...)
 	if oldGroup != "" {
 		// only append if we are a new node
@@ -217,6 +214,9 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 	}
 	if leader {
 		args = append(args, "--leader")
+		args = append(args, pair("--timeout", timeout)...)
+		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
+		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 		// make transition time offset
 		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
 	} else {
