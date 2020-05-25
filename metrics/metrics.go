@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"github.com/drand/drand/log"
@@ -93,7 +92,7 @@ func bindMetrics() {
 }
 
 // PeerHandler abstracts a helper for relaying http requests to a group peer
-type PeerHandler func(ctx context.Context) ([]http.Handler, error)
+type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
 func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
@@ -141,11 +140,9 @@ type lazyPeerHandler struct {
 }
 
 func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	idx := strings.Replace(r.URL.Path, "/peer/", "", 1)
-	idxN, err := strconv.ParseUint(idx, 10, 64)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	addr := strings.Replace(r.URL.Path, "/peer/", "", 1)
+	if strings.Contains(addr, "/") {
+		addr = addr[:strings.Index(addr, "/")]
 	}
 
 	handlers, err := l.peerHandler(r.Context())
@@ -153,11 +150,13 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if idxN >= uint64(len(handlers)) {
+
+	handler, ok := handlers[addr]
+	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	r.URL.Path = "/metrics"
-	handlers[idxN].ServeHTTP(w, r)
+	handler.ServeHTTP(w, r)
 }

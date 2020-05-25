@@ -8,10 +8,10 @@ import (
 )
 
 func TestMetricReshare(t *testing.T) {
-	mph := func(ctx context.Context) ([]http.Handler, error) {
-		return []http.Handler{
-			http.RedirectHandler("test", 303),
-		}, nil
+	mph := func(ctx context.Context) (map[string]http.Handler, error) {
+		m := make(map[string]http.Handler)
+		m["test.com"] = http.RedirectHandler("test", 303)
+		return m, nil
 	}
 
 	l := Start(":0", nil, mph)
@@ -30,7 +30,7 @@ func TestMetricReshare(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
-	resp, err = client.Get(fmt.Sprintf("http://%s/peer/0", addr.String()))
+	resp, err = client.Get(fmt.Sprintf("http://%s/peer/test.com/metrics", addr.String()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,19 +38,11 @@ func TestMetricReshare(t *testing.T) {
 		t.Fatal("lazy reshare didn't do its thing.")
 	}
 
-	resp, err = client.Get(fmt.Sprintf("http://%s/peer/1", addr.String()))
+	resp, err = client.Get(fmt.Sprintf("http://%s/peer/other.com/metrics", addr.String()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != 404 {
-		t.Fatal("lazy reshare didn't do its thing.")
-	}
-
-	resp, err = client.Get(fmt.Sprintf("http://%s/peer/-1", addr.String()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.StatusCode != 400 {
 		t.Fatal("lazy reshare didn't do its thing.")
 	}
 }
