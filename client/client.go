@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 )
 
@@ -73,7 +72,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 
 	var wc Client
 	if cfg.watcher != nil {
-		wc, err = newWatcherClient(clients[0], cfg.group, cfg.watcher)
+		wc, err = newWatcherClient(clients[0], cfg.chainInfo, cfg.watcher)
 		if err != nil {
 			return nil, err
 		}
@@ -82,10 +81,6 @@ func makeClient(cfg clientConfig) (Client, error) {
 	pc, err := NewPrioritizingClient(wc, clients, cfg.chainHash, cfg.chainInfo, cfg.log)
 	if err != nil {
 		return nil, err
-	}
-
-	if cfg.failoverGracePeriod > 0 {
-		return NewFailoverWatcher(pc, cfg.chainHash, cfg.failoverGracePeriod, cfg.log), nil
 	}
 
 	return pc, nil
@@ -110,8 +105,7 @@ type clientConfig struct {
 	// time after which a watcher will failover to using client.Get to get the latest randomness.
 	failoverGracePeriod time.Duration
 	// watcher
-	watcher             WatcherCtor
-	failoverGracePeriod time.Duration
+	watcher WatcherCtor
 }
 
 // Option is an option configuring a client.
@@ -208,7 +202,7 @@ type Watcher interface {
 }
 
 // WatcherCtor creates a Watcher once a group is known.
-type WatcherCtor func(group *key.Group) (Watcher, error)
+type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
 
 // WithWatcher specifies a channel that can provide notifications of new
 // randomness bootstrappeed from the group information.

@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 )
 
-func newWatcherClient(base Client, group *key.Group, ctor WatcherCtor) (Client, error) {
-	w, err := ctor(group)
+func newWatcherClient(base Client, chainInfo *chain.Info, ctor WatcherCtor) (Client, error) {
+	w, err := ctor(chainInfo)
 	if err != nil {
 		return nil, err
 	}
