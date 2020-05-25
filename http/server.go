@@ -27,7 +27,7 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, client drand.PublicClient, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
@@ -38,6 +38,7 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 		log:         logger,
 		pending:     make([]chan []byte, 0),
 		latestRound: 0,
+		version:     version,
 	}
 
 	go handler.Watch(ctx)
@@ -69,6 +70,7 @@ type handler struct {
 	pendingLk   sync.RWMutex
 	pending     []chan []byte
 	latestRound uint64
+	version     string
 }
 
 func (h *handler) Watch(ctx context.Context) {
@@ -213,6 +215,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/json")
@@ -255,6 +258,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
@@ -277,6 +281,7 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/json")

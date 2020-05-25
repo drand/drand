@@ -20,6 +20,7 @@ type ConfigOption func(*Config)
 type Config struct {
 	configFolder      string
 	dbFolder          string
+	version           string
 	privateListenAddr string
 	publicListenAddr  string
 	controlPort       string
@@ -88,6 +89,11 @@ func (d *Config) PublicListenAddress(defaultAddr string) string {
 		return d.publicListenAddr
 	}
 	return defaultAddr
+}
+
+// Version returns the configured version of the binary
+func (d *Config) Version() string {
+	return d.version
 }
 
 // ControlPort returns the port used for control port communications
@@ -259,5 +265,12 @@ func withClock(c clock.Clock) ConfigOption {
 func WithPrivateRandomness() ConfigOption {
 	return func(d *Config) {
 		d.enablePrivate = true
+	}
+}
+
+// WithVersion sets a version for drand, a visible string to other peers.
+func WithVersion(version string) ConfigOption {
+	return func(d *Config) {
+		d.version = version
 	}
 }

@@ -729,6 +729,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	}
 	config := c.String(folderFlag.Name)
 	opts = append(opts, core.WithConfigFolder(config))
+	opts = append(opts, core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
 
 	if c.Bool("tls-disable") {
 		opts = append(opts, core.WithInsecure())
