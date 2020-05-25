@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 )
 

@@ -4,14 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
 // pollingWatcher generalizes the `Watch` interface for clients which learn new values
 // by asking for them once each group period.
-func pollingWatcher(ctx context.Context, client Client, group *key.Group, log log.Logger) <-chan Result {
+func pollingWatcher(ctx context.Context, client Client, chainInfo *chain.Info, log log.Logger) <-chan Result {
 	ch := make(chan Result, 1)
 	r := client.RoundAt(time.Now())
 	val, err := client.Get(ctx, r)
@@ -26,7 +25,7 @@ func pollingWatcher(ctx context.Context, client Client, group *key.Group, log lo
 		defer close(ch)
 
 		// Initially, wait to synchronize to the round boundary.
-		_, nextTime := beacon.NextRound(time.Now().Unix(), group.Period, group.GenesisTime)
+		_, nextTime := chain.NextRound(time.Now().Unix(), chainInfo.Period, chainInfo.GenesisTime)
 		select {
 		case <-ctx.Done():
 			return
@@ -41,7 +40,7 @@ func pollingWatcher(ctx context.Context, client Client, group *key.Group, log lo
 		}
 
 		// Then tick each period.
-		t := time.NewTicker(group.Period)
+		t := time.NewTicker(chainInfo.Period)
 		defer t.Stop()
 		for {
 			select {
