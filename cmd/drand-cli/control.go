@@ -27,6 +27,9 @@ func shareCmd(c *cli.Context) error {
 		isTls := !c.IsSet(insecureFlag.Name)
 		connectPeer = net.CreatePeer(coordAddress, isTls)
 	}
+	if isLeader && (!c.IsSet(thresholdFlag.Name) || !c.IsSet(shareNodeFlag.Name)) {
+		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+	}
 
 	nodes := c.Int(shareNodeFlag.Name)
 	thr := c.Int(thresholdFlag.Name)
