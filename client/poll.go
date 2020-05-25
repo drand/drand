@@ -25,7 +25,7 @@ func pollingWatcher(ctx context.Context, client Client, chainInfo *chain.Info, l
 		defer close(ch)
 
 		// Initially, wait to synchronize to the round boundary.
-		_, nextTime := chain.NextRound(time.Now().Unix(), group.Period, group.GenesisTime)
+		_, nextTime := chain.NextRound(time.Now().Unix(), chainInfo.Period, chainInfo.GenesisTime)
 		select {
 		case <-ctx.Done():
 			return
@@ -40,7 +40,7 @@ func pollingWatcher(ctx context.Context, client Client, chainInfo *chain.Info, l
 		}
 
 		// Then tick each period.
-		t := time.NewTicker(group.Period)
+		t := time.NewTicker(chainInfo.Period)
 		defer t.Stop()
 		for {
 			select {
