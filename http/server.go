@@ -47,7 +47,6 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 	//TODO: aggregated bulk round responses.
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
-	// NOTE: group is being kept because of retro compatibility
 	mux.HandleFunc("/info", handler.ChainInfo)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
