@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"math"
 	"time"
 
+	json "github.com/nikkolasg/hexjson"
+
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 )
 
@@ -148,15 +148,6 @@ func (c *Info) Hash() []byte {
 	buff, _ := c.PublicKey.MarshalBinary()
 	h.Write(buff)
 	return h.Sum(nil)
-}
-
-func (c *Info) ToProto() *drand.ChainInfoPacket {
-	buff, _ := c.PublicKey.MarshalBinary()
-	return &drand.ChainInfoPacket{
-		PublicKey:   buff,
-		GenesisTime: c.GenesisTime,
-		Period:      uint32(c.Period.Seconds()),
-	}
 }
 
 func (c *Info) Equal(c2 *Info) bool {
