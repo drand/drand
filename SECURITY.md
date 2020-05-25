@@ -12,6 +12,5 @@ If you believe to have found a security issue that can cause biasability, denial
 
 To help us serving the drand ecosystem, we appreciate that your reports are as precise as possible, ideally containing a way to reproduce the vulnerability.
 
-For all other kinds of bugs, please fill an issue in this repo. 
-
+For all other kinds of bugs, please [file an issue in this repo](https://github.com/drand/drand/issues/new). 
 
