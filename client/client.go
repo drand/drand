@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 )
 
@@ -33,7 +32,16 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(cfg.urls) == 0 {
 		return nil, errors.New("No points of contact specified")
 	}
-	clients := []Client{}
+	// provision gossip client
+	var gossipClient Client
+	if cfg.watcher != nil {
+		var err error
+		if gossipClient, err = newWatcherClient(nil, nil, cfg.watcher); err != nil {
+			return nil, err
+		}
+	}
+	// provision REST clients
+	restClients := []Client{}
 	var c Client
 	var err error
 	for _, url := range cfg.urls {
@@ -54,16 +62,12 @@ func makeClient(cfg clientConfig) (Client, error) {
 			cfg.chainInfo = chainInfo
 		}
 		c.(*httpClient).l = cfg.log
-		clients = append(clients, c)
+		restClients = append(restClients, c)
 	}
 
-	if len(clients) == 1 {
-		c = clients[0]
-	} else {
-		c, err = NewPrioritizingClient(nil, clients, cfg.chainHash, cfg.chainInfo, cfg.log)
-		if err != nil {
-			return nil, err
-		}
+	c, err = NewPrioritizingClient(gossipClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+	if err != nil {
+		return nil, err
 	}
 
 	if cfg.cacheSize > 0 {
@@ -199,7 +203,7 @@ type Watcher interface {
 }
 
 // WatcherCtor creates a Watcher once a group is known.
-type WatcherCtor func(group *key.Group) (Watcher, error)
+type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
 
 // WithWatcher specifies a channel that can provide notifications of new
 // randomness bootstrappeed from the group information.

@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
@@ -32,7 +32,7 @@ type Client struct {
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
 func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
-	return dclient.WithWatcher(func(_ *key.Group) (dclient.Watcher, error) {
+	return dclient.WithWatcher(func(_ *chain.Info) (dclient.Watcher, error) {
 		c, err := NewWithPubsub(ps, networkName)
 		if err != nil {
 			return nil, err
