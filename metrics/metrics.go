@@ -147,6 +147,7 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handlers, err := l.peerHandler(r.Context())
 	if err != nil {
+		log.DefaultLogger.Warn("metrics", "failed to get peer handlers", "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -157,6 +158,10 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The request to make to the peer is for its "/metrics" endpoint
+	// Note that at present this shouldn't matter, since the only handler
+	// mounted for the other end of these requests is `GroupHandler()` above,
+	// so all paths / requests should see group metrics as a response.
 	r.URL.Path = "/metrics"
 	handler.ServeHTTP(w, r)
 }

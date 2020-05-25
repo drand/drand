@@ -39,7 +39,8 @@ type PublicClient interface {
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
 }
 
-// HTTPClient is an optional extension to the protocol client allowing relay of metrics
+// HTTPClient is an optional extension to the protocol client relaying of HTTP over the GRPC connection.
+// it is currently used for relaying metrics between group members.
 type HTTPClient interface {
 	HandleHTTP(p Peer) (http.Handler, error)
 }
