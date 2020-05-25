@@ -4,7 +4,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/client"
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
@@ -26,7 +29,19 @@ type Client struct {
 	}
 }
 
-// NewWtihPubsub creates a gossip randomness client.
+// WithPubsub provides an option for integrating pubsub notification
+// into a drand client.
+func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
+	return dclient.WithWatcher(func(_ *key.Group) (dclient.Watcher, error) {
+		c, err := NewWithPubsub(ps, networkName)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
+	})
+}
+
+// NewWithPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 	t, err := ps.Join(lp2p.PubSubTopic(networkName))
 	if err != nil {
@@ -106,13 +121,62 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	c.subs.Lock()
 	c.subs.M[id] = ch
 	c.subs.Unlock()
-
 	return func() {
 		c.subs.Lock()
 		delete(c.subs.M, id)
 		close(ch)
 		c.subs.Unlock()
 	}
+}
+
+func (c *Client) Watch(ctx context.Context) <-chan client.Result {
+	innerCh := make(chan drand.PublicRandResponse)
+	outerCh := make(chan dclient.Result)
+	end := c.Sub(innerCh)
+
+	go func() {
+		for {
+			select {
+			case resp, ok := <-innerCh:
+				if !ok {
+					close(outerCh)
+					return
+				}
+				select {
+				case outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}:
+				default:
+					log.Warn("randomness notification dropped due to a full channel")
+				}
+			case <-ctx.Done():
+				close(outerCh)
+				end()
+				// drain leftover on innerCh
+				for range innerCh {
+				}
+				return
+			}
+		}
+	}()
+
+	return outerCh
+}
+
+type result struct {
+	round      uint64
+	randomness []byte
+	signature  []byte
+}
+
+func (r *result) Round() uint64 {
+	return r.round
+}
+
+func (r *result) Randomness() []byte {
+	return r.randomness
+}
+
+func (r *result) Signature() []byte {
+	return r.signature
 }
 
 // Close stops Client, cancels PubSub subscription and closes the topic.
