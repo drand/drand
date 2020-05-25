@@ -31,9 +31,9 @@ type Client struct {
 
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
+func WithPubsub(ps *pubsub.PubSub, chainHash string) dclient.Option {
 	return dclient.WithWatcher(func(_ *key.Group) (dclient.Watcher, error) {
-		c, err := NewWithPubsub(ps, networkName)
+		c, err := NewWithPubsub(ps, chainHash)
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +42,8 @@ func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
 }
 
 // NewWithPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
-	t, err := ps.Join(lp2p.PubSubTopic(networkName))
+func NewWithPubsub(ps *pubsub.PubSub, chainHash string) (*Client, error) {
+	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}
