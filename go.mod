@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/drand/bls12-381 v0.3.2
-	github.com/drand/kyber v1.0.1-0.20200502215402-daa30f0ec4f8
+	github.com/drand/kyber v1.0.2
 	github.com/go-kit/kit v0.10.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/golang/protobuf v1.3.5
