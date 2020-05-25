@@ -71,7 +71,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 		return h.chainInfo, nil
 	}
 
-	infoBody, err := h.client.Get(fmt.Sprintf("%s/group", h.root))
+	infoBody, err := h.client.Get(fmt.Sprintf("%s/info", h.root))
 	if err != nil {
 		return nil, err
 	}

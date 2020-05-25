@@ -47,7 +47,7 @@ func New(ctx context.Context, client drand.PublicClient, logger log.Logger) (htt
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	// NOTE: group is being kept because of retro compatibility
-	mux.HandleFunc("/group", handler.ChainInfo)
+	mux.HandleFunc("/info", handler.ChainInfo)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
