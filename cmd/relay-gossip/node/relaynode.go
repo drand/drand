@@ -158,6 +158,8 @@ func (g *GossipRelayNode) start(drandPublicGRPC string) {
 		err = g.workRelay(client)
 		if err != nil {
 			g.l.Warn(fmt.Sprintf("error relaying: %+v", err))
+			err = conn.Close()
+			g.l.Warn(fmt.Sprintf("error while closing connection: %+v", err))
 			time.Sleep(5 * time.Second)
 		}
 	}
