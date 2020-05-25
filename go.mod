@@ -2,25 +2,29 @@ module github.com/drand/drand
 
 go 1.14
 
-replace github.com/drand/drand/cmd/relay-gossip => /Users/petar/src/github.com/drand/drand/cmd/relay-gossip
-
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/drand/bls12-381 v0.3.2
-	github.com/drand/drand/cmd/relay-gossip v0.0.0-20200525204809-6d99cf2d0a67
 	github.com/drand/kyber v1.0.2
 	github.com/go-kit/kit v0.10.0
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.3.5
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ds-badger2 v0.1.0
+	github.com/ipfs/go-log/v2 v2.0.5
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
+	github.com/libp2p/go-libp2p v0.9.2
+	github.com/libp2p/go-libp2p-core v0.5.6
+	github.com/libp2p/go-libp2p-peerstore v0.2.4
 	github.com/libp2p/go-libp2p-pubsub v0.3.0
+	github.com/libp2p/go-libp2p-tls v0.1.3
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/nikkolasg/hexjson v0.0.0-20181101101858-78e39397e00c
 	github.com/nikkolasg/slog v0.0.0-20170921200349-3c8d441d7a1e
@@ -33,6 +37,7 @@ require (
 	go.etcd.io/bbolt v1.3.4
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/genproto v0.0.0-20200406120821-33397c535dc2 // indirect
 	google.golang.org/grpc v1.28.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
