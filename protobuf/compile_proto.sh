@@ -31,10 +31,7 @@ do
     dd=$(echo $dir | sed "s|^\./||")
     echo " - compiling directory $dd"
     protoc -I. \
-        -I$GOPATH/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis \
         --go_out=plugins=grpc:. \
-        --grpc-gateway_out=logtostderr=true:. \
-        --swagger_out=logtostderr=true:. \
         $dd/*.proto 
         sed -r -i 's:"crypto(.*):"github.com/drand/drand/protobuf/crypto\1:g' $dd/*go
     cd $dd

@@ -27,6 +27,9 @@ func shareCmd(c *cli.Context) error {
 		isTls := !c.IsSet(insecureFlag.Name)
 		connectPeer = net.CreatePeer(coordAddress, isTls)
 	}
+	if isLeader && !(c.IsSet(thresholdFlag.Name) && c.IsSet(shareNodeFlag.Name)) {
+		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+	}
 
 	nodes := c.Int(shareNodeFlag.Name)
 	thr := c.Int(thresholdFlag.Name)
@@ -80,7 +83,7 @@ func shareCmd(c *cli.Context) error {
 			fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 		} else {
 			fmt.Fprintln(output, "Participating to the setup of the DKG")
-			groupP, shareErr = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
+			groupP, shareErr = client.InitDKG(connectPeer, entropyInfo, secret)
 			fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 		}
 	} else {
@@ -106,7 +109,7 @@ func shareCmd(c *cli.Context) error {
 			groupP, shareErr = client.InitReshareLeader(nodes, thr, timeout, secret, oldPath, offset)
 		} else {
 			fmt.Fprintln(output, "Participating to the resharing")
-			groupP, shareErr = client.InitReshare(connectPeer, nodes, thr, timeout, secret, oldPath)
+			groupP, shareErr = client.InitReshare(connectPeer, secret, oldPath)
 		}
 	}
 	if shareErr != nil {
