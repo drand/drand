@@ -22,7 +22,7 @@ func New(options ...Option) (Client, error) {
 		}
 	}
 
-	coreClient, err := makeClient(cfg)
+	coreClient, err := makeClient(&cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func New(options ...Option) (Client, error) {
 }
 
 // makeClient creates a client from a configuration.
-func makeClient(cfg clientConfig) (Client, error) {
+func makeClient(cfg *clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
 		return nil, errors.New("No root of trust specified")
 	}
