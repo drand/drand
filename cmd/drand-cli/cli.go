@@ -20,7 +20,7 @@ import (
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -111,11 +111,6 @@ var nodeFlag = &cli.StringFlag{
 var roundFlag = &cli.IntFlag{
 	Name:  "round",
 	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value, it returns an error. If not specified, the current randomness is returned.",
-}
-
-var fromGroupFlag = &cli.StringFlag{
-	Name:  "from",
-	Usage: "If you want to replace keys into an existing group.toml file to perform a resharing later on, run the group command and specify the existing group.toml file with this flag.",
 }
 
 var certsDirFlag = &cli.StringFlag{
@@ -316,13 +311,12 @@ func CLI() *cli.App {
 					},
 				},
 				{
-					Name: "cokey",
-					Usage: "Get distributed public key generated during the " +
-						"DKG step.",
-					ArgsUsage: "`ADDRESS` provides the address of the node",
+					Name:      "chain-info",
+					Usage:     "Get the binding chain information that this nodes participates to",
+					ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
 					Flags:     toArray(tlsCertFlag, insecureFlag),
 					Action: func(c *cli.Context) error {
-						return getCokeyCmd(c)
+						return getChainInfo(c)
 					},
 				},
 			},
@@ -398,11 +392,11 @@ func CLI() *cli.App {
 					},
 				},
 				{
-					Name:  "cokey",
-					Usage: "shows the collective key generated during DKG.\n",
+					Name:  "chain-info",
+					Usage: "shows the chain information this node is participating to",
 					Flags: toArray(controlFlag),
 					Action: func(c *cli.Context) error {
-						return showCokeyCmd(c)
+						return showChainInfo(c)
 					},
 				},
 				{
@@ -437,7 +431,7 @@ func resetCmd(c *cli.Context) error {
 	reader := bufio.NewReader(os.Stdin)
 	answer, err := reader.ReadString('\n')
 	if err != nil {
-		slog.Fatal("error reading: ", err)
+		return fmt.Errorf("error reading: %s", err)
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if answer != "y" {
@@ -457,7 +451,7 @@ func resetCmd(c *cli.Context) error {
 	return nil
 }
 
-func resetBeaconDB(config *core.Config) bool {
+func resetBeaconDB(config *core.Config) error {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
 		fmt.Fprintf(output, "INCONSISTENT STATE: A beacon database exists already.\n"+
 			"drand support only one identity at the time and thus needs to delete "+
@@ -466,20 +460,20 @@ func resetBeaconDB(config *core.Config) bool {
 		reader := bufio.NewReader(os.Stdin)
 		answer, err := reader.ReadString('\n')
 		if err != nil {
-			slog.Fatal("error reading: ", err)
+			return fmt.Errorf("error reading: %s", err)
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		if answer != "y" {
 			slog.Print("drand: not deleting the database.")
-			return true
+			return nil
 		}
 
 		if err := os.RemoveAll(config.DBFolder()); err != nil {
-			slog.Fatal(err)
+			return err
 		}
 		slog.Print("drand: removed existing beacon database.")
 	}
-	return false
+	return nil
 }
 
 func askPort() string {
@@ -661,7 +655,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 		return fmt.Errorf("given round not valid: %d", sr)
 	}
 	startRound := uint64(sr)
-	store, err := beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err := chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	if err != nil {
 		return fmt.Errorf("invalid bolt store creation: %s", err)
 	}

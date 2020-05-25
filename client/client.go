@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
@@ -32,14 +32,14 @@ func New(options ...Option) (Client, error) {
 		}
 	}
 	if cfg.failoverGracePeriod > 0 {
-		coreClient = NewFailoverWatcher(coreClient, cfg.group, cfg.failoverGracePeriod, cfg.log)
+		coreClient = NewFailoverWatcher(coreClient, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
 	}
 	return newWatchAggregator(coreClient, cfg.log), nil
 }
 
 // makeClient creates a client from a configuration.
 func makeClient(cfg clientConfig) (Client, error) {
-	if !cfg.insecure && cfg.groupHash == nil && cfg.group == nil {
+	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
 		return nil, errors.New("No root of trust specified")
 	}
 	if len(cfg.urls) == 0 {
@@ -49,21 +49,21 @@ func makeClient(cfg clientConfig) (Client, error) {
 	var c Client
 	var err error
 	for _, url := range cfg.urls {
-		if cfg.group != nil {
-			c, err = NewHTTPClientWithGroup(url, cfg.group, cfg.getter)
+		if cfg.chainInfo != nil {
+			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.getter)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			c, err = NewHTTPClient(url, cfg.groupHash, cfg.getter)
+			c, err = NewHTTPClient(url, cfg.chainHash, cfg.getter)
 			if err != nil {
 				return nil, err
 			}
-			group, err := c.(*httpClient).FetchGroupInfo(cfg.groupHash)
+			group, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
 			if err != nil {
 				return nil, err
 			}
-			cfg.group = group
+			cfg.chainInfo = group
 		}
 		c.(*httpClient).l = cfg.log
 		clients = append(clients, c)
@@ -71,7 +71,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(clients) == 1 {
 		return clients[0], nil
 	}
-	return NewPrioritizingClient(nil, clients, cfg.groupHash, cfg.group, cfg.log)
+	return NewPrioritizingClient(nil, clients, cfg.chainHash, cfg.chainInfo, cfg.log)
 }
 
 type clientConfig struct {
@@ -79,10 +79,11 @@ type clientConfig struct {
 	urls []string
 	// Insecure will allow creating the HTTP client without a bound group.
 	insecure bool
-	// from `key.GroupInfo.Hash()` - serves as a root of trust.
-	groupHash []byte
-	// Full group information - serves as a root of trust.
-	group *key.Group
+	// from `chainInfo.Hash()` - serves as a root of trust for a given
+	// randomness chain.
+	chainHash []byte
+	// Full chain information - serves as a root of trust.
+	chainInfo *chain.Info
 	// getter configures the http transport parameters used when fetching randomness.
 	getter HTTPGetter
 	// cache size - how large of a cache to keep locally.
@@ -148,25 +149,26 @@ func WithInsecureHTTPEndpoints(urls []string) Option {
 	}
 }
 
-// WithGroupHash configures the client to root trust with a given drand group
-// hash, the group parameters will be fetched from an HTTP endpoint.
-func WithGroupHash(grouphash []byte) Option {
+// WithChainHash configures the client to root trust with a given randomness
+// chain hash, the chain parameters will be fetched from an HTTP endpoint.
+func WithChainHash(chainHash []byte) Option {
 	return func(cfg *clientConfig) error {
-		if cfg.group != nil && !bytes.Equal(cfg.group.Hash(), grouphash) {
+		if cfg.chainInfo != nil && !bytes.Equal(cfg.chainInfo.Hash(), chainHash) {
 			return errors.New("refusing to override group with non-matching hash")
 		}
-		cfg.groupHash = grouphash
+		cfg.chainHash = chainHash
 		return nil
 	}
 }
 
-// WithGroup configures the client to root trust in the given group information
-func WithGroup(group *key.Group) Option {
+// WithChainInfo configures the client to root trust in the given randomness
+// chain information
+func WithChainInfo(chainInfo *chain.Info) Option {
 	return func(cfg *clientConfig) error {
-		if cfg.groupHash != nil && !bytes.Equal(cfg.groupHash, group.Hash()) {
+		if cfg.chainHash != nil && !bytes.Equal(cfg.chainHash, chainInfo.Hash()) {
 			return errors.New("refusing to override hash with non-matching group")
 		}
-		cfg.group = group
+		cfg.chainInfo = chainInfo
 		return nil
 	}
 }

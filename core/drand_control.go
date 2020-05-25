@@ -529,21 +529,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	return finalGroup.ToProto(), nil
 }
 
-// DistKey returns the distributed key corresponding to the current group
-func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	pt, err := d.store.LoadDistPublic()
-	if err != nil {
-		return nil, errors.New("drand: could not load dist. key")
-	}
-	buff, err := pt.Key().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &drand.DistKeyResponse{
-		Key: buff,
-	}, nil
-}
-
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (d *Drand) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
@@ -592,22 +577,6 @@ func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (
 		return nil, err
 	}
 	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
-}
-
-// CollectiveKey replies with the distributed key in the response
-func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
-	d.state.Lock()
-	defer d.state.Unlock()
-
-	key, err := d.store.LoadDistPublic()
-	if err != nil {
-		return nil, err
-	}
-	protoKey, err := key.Key().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &control.CokeyResponse{CoKey: protoKey}, nil
 }
 
 // GroupFile replies with the distributed key in the response

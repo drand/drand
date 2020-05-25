@@ -159,12 +159,12 @@ func showGroupCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
-func showCokeyCmd(c *cli.Context) error {
+func showChainInfo(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
 		return err
 	}
-	resp, err := client.CollectiveKey()
+	resp, err := client.ChainInfo()
 	if err != nil {
 		return fmt.Errorf("could not request drand.cokey: %s", err)
 	}

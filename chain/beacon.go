@@ -1,14 +1,16 @@
-package beacon
+package chain
 
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"math"
 	"time"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 )
 
@@ -118,4 +120,47 @@ func NextRound(now int64, period time.Duration, genesis int64) (uint64, int64) {
 	nextRound := uint64(math.Floor(float64(fromGenesis)/period.Seconds())) + 1
 	nextTime := genesis + int64(nextRound*uint64(period.Seconds()))
 	return nextRound + 1, nextTime
+}
+
+// Info represents the public information that is necessary for a client to
+// very any beacon present in a randomness chain.
+type Info struct {
+	PublicKey   kyber.Point   `json:"public_key"`
+	Period      time.Duration `json:"period"`
+	GenesisTime int64         `json:"genesis_time"`
+}
+
+func NewChainInfo(g *key.Group) *Info {
+	return &Info{
+		Period:      g.Period,
+		PublicKey:   g.PublicKey.Key(),
+		GenesisTime: g.GenesisTime,
+	}
+}
+
+// Hash returns the canonical hash representing the chain information. A hash is
+// consistent throughout the entirety of a chain, regardless of the network
+// composition, the actual nodes, generating the randomness.
+func (c *Info) Hash() []byte {
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
+	binary.Write(h, binary.BigEndian, int64(c.GenesisTime))
+	buff, _ := c.PublicKey.MarshalBinary()
+	h.Write(buff)
+	return h.Sum(nil)
+}
+
+func (c *Info) ToProto() *drand.ChainInfoPacket {
+	buff, _ := c.PublicKey.MarshalBinary()
+	return &drand.ChainInfoPacket{
+		PublicKey:   buff,
+		GenesisTime: c.GenesisTime,
+		Period:      uint32(c.Period.Seconds()),
+	}
+}
+
+func (c *Info) Equal(c2 *Info) bool {
+	return c.GenesisTime == c2.GenesisTime &&
+		c.Period == c2.Period &&
+		c.PublicKey.Equal(c2.PublicKey)
 }

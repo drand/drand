@@ -159,8 +159,8 @@ func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
 }
 
 // CollectiveKey returns the collective key of the remote node
-func (c ControlClient) CollectiveKey() (*control.CokeyResponse, error) {
-	return c.client.CollectiveKey(context.Background(), &control.CokeyRequest{})
+func (c ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
+	return c.client.ChainInfo(context.Background(), &control.ChainInfoRequest{})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
@@ -215,10 +215,10 @@ func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.Private
 	return s.C.PrivateKey(c, in)
 }
 
-// CollectiveKey ...
-func (s *DefaultControlServer) CollectiveKey(c context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
+// ChainInfo ...
+func (s *DefaultControlServer) ChainInfo(c context.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
 	if s.C == nil {
-		return &control.CokeyResponse{}, nil
+		return &control.ChainInfoPacket{}, nil
 	}
-	return s.C.CollectiveKey(c, in)
+	return s.C.ChainInfo(c, in)
 }

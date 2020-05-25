@@ -4,8 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
@@ -17,14 +16,14 @@ const defaultFailoverGracePeriod = time.Second * 5
 // Note that this client may skip rounds in some cases: e.g. if the group halts
 // for a bit and then catches up quickly, this could jump up to 'current round'
 // and not emit the intermediate values.
-func NewFailoverWatcher(core Client, group *key.Group, gracePeriod time.Duration, l log.Logger) Client {
+func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration, l log.Logger) Client {
 	if gracePeriod == 0 {
 		gracePeriod = defaultFailoverGracePeriod
 	}
 
 	return &failoverWatcher{
 		Client:      core,
-		group:       group,
+		chainInfo:   chainInfo,
 		gracePeriod: gracePeriod,
 		log:         l,
 	}
@@ -32,7 +31,7 @@ func NewFailoverWatcher(core Client, group *key.Group, gracePeriod time.Duration
 
 type failoverWatcher struct {
 	Client
-	group       *key.Group
+	chainInfo   *chain.Info
 	gracePeriod time.Duration
 	log         log.Logger
 }
@@ -65,7 +64,7 @@ func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
 		}()
 
 		for {
-			_, nextTime := beacon.NextRound(time.Now().Unix(), c.group.Period, c.group.GenesisTime)
+			_, nextTime := chain.NextRound(time.Now().Unix(), c.chainInfo.Period, c.chainInfo.GenesisTime)
 			remPeriod := time.Duration(nextTime-time.Now().Unix()) * time.Second
 			t = time.NewTimer(remPeriod + c.gracePeriod)
 

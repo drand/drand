@@ -1,13 +1,16 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -20,9 +23,10 @@ var urlFlag = &cli.StringFlag{
 	Usage: "Root URL for fetching randomness.",
 }
 
-var groupKeyFlag = &cli.StringFlag{
-	Name:  "group-key",
-	Usage: "Path to TOML file containing the group key.",
+var chainInfoFlag = &cli.StringFlag{
+	Name:     "chain-info",
+	Required: true,
+	Usage:    "Path to file containing the chain info in JSON format.",
 }
 
 var metricsFlag = &cli.StringFlag{
@@ -45,7 +49,7 @@ func main() {
 	app := &cli.App{
 		Name:   "observe",
 		Usage:  "Drand client for observing metrics",
-		Flags:  []cli.Flag{urlFlag, groupKeyFlag, metricsFlag, nameFlag, gatewayFlag},
+		Flags:  []cli.Flag{urlFlag, chainInfoFlag, metricsFlag, nameFlag, gatewayFlag},
 		Action: Observe,
 	}
 
@@ -62,15 +66,16 @@ func Observe(c *cli.Context) error {
 	if c.IsSet(urlFlag.Name) {
 		cfg.URL = []string{c.String(urlFlag.Name)}
 	}
-	// read group key from file
-	if !c.IsSet(groupKeyFlag.Name) {
-		return fmt.Errorf("group key file is not specified")
+	var chainInfo *chain.Info
+	buff, err := ioutil.ReadFile(c.String(chainInfoFlag.Name))
+	if err != nil {
+		return fmt.Errorf("reading chain info file (%v)", err)
 	}
-	var groupKey key.Group
-	if err := key.Load(c.String(groupKeyFlag.Name), &groupKey); err != nil {
+	chainProto := new(drand.ChainInfoPacket)
+	if err := json.Unmarshal(buff, chainProto); err != nil {
 		return fmt.Errorf("reading group file (%v)", err)
 	}
-	cfg.Group = &groupKey
+	cfg.ChainInfo = chainInfo
 	// read metrics bind address
 	if c.IsSet(metricsFlag.Name) {
 		cfg.MetricsAddr = c.String(metricsFlag.Name)
@@ -109,7 +114,7 @@ func Observe(c *cli.Context) error {
 func pushObservations(cfg *Config, watchLatency prometheus.Gauge) {
 	p := push.New(cfg.MetricsGateway, "drand_client_observations_push").Collector(watchLatency)
 	for {
-		time.Sleep(cfg.Group.Period)
+		time.Sleep(cfg.ChainInfo.Period)
 		if err := p.Push(); err != nil {
 			log.Printf("prometheus gateway push (%v)", err)
 		}
