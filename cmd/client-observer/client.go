@@ -6,17 +6,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/key"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // Config configures a client observer node.
 type Config struct {
-	// Group is the  group key for Drand.
-	// Group must be non-nil, so that the observer can compute the expected time of each round.
-	Group *key.Group
+	// ChainInfo contains the chain parameters
+	// It must be non-nil, so that the observer can compute the expected time of
+	// each round.
+	ChainInfo *chain.Info
 	// URL is a list of REST endpoint URLs
 	URL []string
 	// MetricsAddr is the address where the metrics server binds.
@@ -30,7 +30,7 @@ type Config struct {
 // StartObserving listens to incoming randomness and records metrics.
 func StartObserving(cfg *Config, watchLatency prometheus.Gauge) {
 	c, err := client.New(
-		client.WithGroup(cfg.Group),
+		client.WithChainInfo(cfg.ChainInfo),
 		client.WithHTTPEndpoints(cfg.URL),
 	)
 	if err != nil {
@@ -51,7 +51,7 @@ func observeWatch(ctx context.Context, cfg *Config, c client.Client, watchLatenc
 			}
 			// compute the latency metric
 			actual := time.Now().Unix()
-			expected := beacon.TimeOfRound(cfg.Group.Period, cfg.Group.GenesisTime, result.Round())
+			expected := chain.TimeOfRound(cfg.ChainInfo.Period, cfg.ChainInfo.GenesisTime, result.Round())
 			watchLatency.Set(float64(expected - actual))
 		case <-ctx.Done():
 			return

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/demo/node"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -141,19 +141,19 @@ func (e *Orchestrator) RunDKG(timeout string) {
 
 func (e *Orchestrator) checkDKGNodes(nodes []node.Node, groupPath string) *key.Group {
 	for {
-		fmt.Println("[+] Checking if distributed key is present on all nodes...")
+		fmt.Println("[+] Checking if chain info is present on all nodes...")
 		var allFound = true
 		for _, node := range nodes {
-			if !node.GetCokey(groupPath) {
+			if !node.ChainInfo(groupPath) {
 				allFound = false
 				break
 			}
 		}
 		if !allFound {
-			fmt.Println("[+] cokey not present on all nodes. Sleeping 3s...")
+			fmt.Println("[+] Chain info not present on all nodes. Sleeping 3s...")
 			time.Sleep(3 * time.Second)
 		} else {
-			fmt.Println("[+] Distributed key are present on all nodes. DKG finished.")
+			fmt.Println("[+] Chain info are present on all nodes. DKG finished.")
 			break
 		}
 	}
@@ -198,7 +198,7 @@ func (e *Orchestrator) Wait(t time.Duration) {
 }
 
 func (e *Orchestrator) WaitPeriod() {
-	nRound, nTime := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, nTime := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	until := time.Until(time.Unix(nTime, 0).Add(afterPeriodWait))
 
 	fmt.Printf("[+] Sleeping %ds to reach round %d + 3s\n", int(until.Seconds()), nRound)
@@ -236,7 +236,7 @@ func filterNodes(list []node.Node, exclude ...int) []node.Node {
 }
 
 func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl bool) {
-	nRound, _ := beacon.NextRound(time.Now().Unix(), e.periodD, e.genesis)
+	nRound, _ := chain.NextRound(time.Now().Unix(), e.periodD, e.genesis)
 	currRound := nRound - 1
 	fmt.Printf("[+] Checking randomness beacon for round %d via CLI\n", currRound)
 	var rand *drand.PublicRandResponse

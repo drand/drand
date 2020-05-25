@@ -8,10 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/drand/drand/beacon"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
-	drand "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
 )
@@ -24,7 +22,7 @@ type HTTPGetter interface {
 }
 
 // NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, groupHash []byte, client HTTPGetter) (Client, error) {
+func NewHTTPClient(url string, chainHash []byte, client HTTPGetter) (Client, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
@@ -33,71 +31,67 @@ func NewHTTPClient(url string, groupHash []byte, client HTTPGetter) (Client, err
 		client: client,
 		l:      log.DefaultLogger,
 	}
-	group, err := c.FetchGroupInfo(groupHash)
+	chainInfo, err := c.FetchChainInfo(chainHash)
 	if err != nil {
 		return nil, err
 	}
-	c.group = group
+	c.chainInfo = chainInfo
 
 	return c, nil
 }
 
 // NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
-func NewHTTPClientWithGroup(url string, group *key.Group, client HTTPGetter) (Client, error) {
+func NewHTTPClientWithInfo(url string, info *chain.Info, client HTTPGetter) (Client, error) {
 	if client == nil {
 		client = &http.Client{}
 	}
 	c := &httpClient{
-		root:   url,
-		group:  group,
-		client: client,
-		l:      log.DefaultLogger,
+		root:      url,
+		chainInfo: info,
+		client:    client,
+		l:         log.DefaultLogger,
 	}
 	return c, nil
 }
 
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
-	root   string
-	client HTTPGetter
-	group  *key.Group
-	l      log.Logger
+	root      string
+	client    HTTPGetter
+	chainInfo *chain.Info
+	l         log.Logger
 }
 
 // FetchGroupInfo attempts to initialize an httpClient when
-// it does not know the full group paramters for a drand group.
-func (h *httpClient) FetchGroupInfo(groupHash []byte) (*key.Group, error) {
-	if h.group != nil {
-		return h.group, nil
+// it does not know the full group paramters for a drand group. The chain hash
+// is the hash of the chain info.
+func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
+	if h.chainInfo != nil {
+		return h.chainInfo, nil
 	}
 
-	// fetch the `Group` to validate connectivity.
-	groupResp, err := h.client.Get(fmt.Sprintf("%s/group", h.root))
+	infoBody, err := h.client.Get(fmt.Sprintf("%s/info", h.root))
 	if err != nil {
 		return nil, err
 	}
-	defer groupResp.Body.Close()
+	defer infoBody.Body.Close()
 
-	protoGrp := drand.GroupPacket{}
-	if err := json.NewDecoder(groupResp.Body).Decode(&protoGrp); err != nil {
-		return nil, err
-	}
-	grp, err := key.GroupFromProto(&protoGrp)
+	chainInfo, err := chain.InfoFromJSON(infoBody.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	if grp.PublicKey == nil {
+	if chainInfo.PublicKey == nil {
 		return nil, fmt.Errorf("Group does not have a valid key for validation")
 	}
 
-	if groupHash == nil {
-		h.l.Warn("http_client", "instantiated without trustroot", "groupHash", hex.EncodeToString(grp.Hash()))
+	if chainHash == nil {
+		h.l.Warn("http_client", "instantiated without trustroot", "groupHash", hex.EncodeToString(chainInfo.Hash()))
 	}
-	if groupHash != nil && !bytes.Equal(grp.Hash(), groupHash) {
-		return nil, fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, grp.Hash(), groupHash)
+	if chainHash != nil && !bytes.Equal(chainInfo.Hash(), chainHash) {
+		return nil, fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)
 	}
-	return grp, nil
+	return chainInfo, nil
 }
 
 // Implement textMarshaller
@@ -144,27 +138,27 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 		return nil, fmt.Errorf("insufficent response")
 	}
 
-	b := beacon.Beacon{
+	b := chain.Beacon{
 		PreviousSig: randResp.PreviousSignature,
 		Round:       randResp.Rnd,
 		Signature:   randResp.Sig,
 	}
-	if err := beacon.VerifyBeacon(h.group.PublicKey.Key(), &b); err != nil {
+	if err := chain.VerifyBeacon(h.chainInfo.PublicKey, &b); err != nil {
 		h.l.Warn("http_client", "failed to verify value", "err", err)
 		return nil, err
 	}
-	randResp.Random = beacon.RandomnessFromSignature(randResp.Sig)
+	randResp.Random = chain.RandomnessFromSignature(randResp.Sig)
 
 	return &randResp, nil
 }
 
 // Watch returns new randomness as it becomes available.
 func (h *httpClient) Watch(ctx context.Context) <-chan Result {
-	return pollingWatcher(ctx, h, h.group, h.l)
+	return pollingWatcher(ctx, h, h.chainInfo, h.l)
 }
 
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
 func (h *httpClient) RoundAt(time time.Time) uint64 {
-	return beacon.CurrentRound(time.Unix(), h.group.Period, h.group.GenesisTime)
+	return chain.CurrentRound(time.Unix(), h.chainInfo.Period, h.chainInfo.GenesisTime)
 }

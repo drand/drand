@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/test"
 )
 
 // next reads the next result form the channel and fails the test if it closes before a value is read.
@@ -43,8 +44,7 @@ func TestFailover(t *testing.T) {
 
 	failC := make(chan Result, 1)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:3]}
-	group := &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}
-	failoverClient := NewFailoverWatcher(mockClient, group, time.Millisecond*50, log.DefaultLogger)
+	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -68,8 +68,7 @@ func TestFailoverDedupe(t *testing.T) {
 
 	failC := make(chan Result, 2)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:2]}
-	group := &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}
-	failoverClient := NewFailoverWatcher(mockClient, group, time.Millisecond*50, log.DefaultLogger)
+	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -90,11 +89,35 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	results := []MockResult{{rnd: 1, rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
-	group := &key.Group{Period: time.Second * 10, GenesisTime: time.Now().Unix() - 9}
-	failoverClient := NewFailoverWatcher(mockClient, group, 0, log.DefaultLogger)
+	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), 0, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	compare(t, next(t, watchC), &results[0])
+}
+
+func TestFailoverMaxGrace(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	results := []MockResult{{rnd: 1, rand: []byte{1}}}
+	failC := make(chan Result)
+	mockClient := &MockClient{WatchCh: failC, Results: results}
+	period := defaultFailoverGracePeriod / 2
+	chainInfo := &chain.Info{
+		Period:      period,
+		GenesisTime: time.Now().Unix() - 1,
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+	failoverClient := NewFailoverWatcher(mockClient, chainInfo, 0, log.DefaultLogger)
+	watchC := failoverClient.Watch(ctx)
+
+	now := time.Now()
+	// Should failover in ~period and _definitely_ within gracePeriod!
+	compare(t, next(t, watchC), &results[0])
+
+	if time.Now().Sub(now) >= defaultFailoverGracePeriod {
+		t.Fatal("grace period was not bounded to half group period")
+	}
 }
 
 // errOnGetClient sends it's error to an error channel when Get is called.
@@ -123,8 +146,8 @@ func TestFailoverGetFail(t *testing.T) {
 	getErrC := make(chan error, 1)
 
 	mockClient := &errOnGetClient{MockClient: MockClient{WatchCh: failC}, errC: getErrC, err: getErr}
-	group := &key.Group{Period: time.Second, GenesisTime: time.Now().Unix()}
-	failoverClient := NewFailoverWatcher(mockClient, group, time.Millisecond*50, log.DefaultLogger)
+
+	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -139,4 +162,12 @@ func TestFailoverGetFail(t *testing.T) {
 	// Write another result and ensure we recover
 	failC <- &results[1]
 	compare(t, next(t, watchC), &results[1])
+}
+
+func fakeChainInfo() *chain.Info {
+	return &chain.Info{
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix(),
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
 }

@@ -52,13 +52,13 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    protoGroup,
 		SecretProof: in.GetInfo().GetSecret(),
+		DkgTimeout:  in.GetInfo().GetTimeout(),
 	}
 	// send it to everyone in the group nodes
 	nodes := group.Nodes
 	if err := d.pushDKGInfo(nodes, packet); err != nil {
 		return nil, err
 	}
-
 	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
@@ -258,10 +258,6 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 // "waiting" mode, waiting for the leader to send the first packet.
 func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) (*control.GroupPacket, error) {
 	d.log.Info("init_dkg", "begin", "leader", false)
-	n, thr, dkgTimeout, err := validInitPacket(in.GetInfo())
-	if err != nil {
-		return nil, err
-	}
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
@@ -289,14 +285,11 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	}
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
-		Expected:    uint32(n),
-		Threshold:   uint32(thr),
-		DkgTimeout:  uint64(dkgTimeout.Seconds()),
 		SecretProof: in.GetInfo().GetSecret(),
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
-	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
+	err := d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
 	if err != nil {
 		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
 	}
@@ -332,7 +325,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	d.state.Unlock()
 
 	// run the dkg
-	finalGroup, err := d.runDKG(false, group, in.GetInfo().GetTimeout(), in.GetEntropy())
+	finalGroup, err := d.runDKG(false, group, dkgInfo.GetDkgTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
 	}
@@ -342,10 +335,6 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
 func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, in *control.InitResharePacket) (*control.GroupPacket, error) {
-	n, thr, dkgTimeout, err := validInitPacket(in.GetInfo())
-	if err != nil {
-		return nil, err
-	}
 	oldHash := oldGroup.Hash()
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -374,9 +363,6 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 	prep := &drand.SignalDKGPacket{
 		Node:              id,
-		Expected:          uint32(n),
-		Threshold:         uint32(thr),
-		DkgTimeout:        uint64(dkgTimeout.Seconds()),
 		SecretProof:       in.GetInfo().GetSecret(),
 		PreviousGroupHash: oldHash,
 	}
@@ -386,7 +372,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	defer cancel()
 
 	d.log.Info("setup_reshare", "signalling_key_to_leader")
-	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
+	err := d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
 		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
 	}
@@ -438,7 +424,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 
 	// run the dkg !
-	finalGroup, err := d.runResharing(false, oldGroup, newGroup, in.GetInfo().GetTimeout())
+	finalGroup, err := d.runResharing(false, oldGroup, newGroup, dkgInfo.GetDkgTimeout())
 	if err != nil {
 		return nil, err
 	}
@@ -514,6 +500,7 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 	protoGroup := newGroup.ToProto()
 	packet := &drand.DKGInfoPacket{
 		SecretProof: in.GetInfo().GetSecret(),
+		DkgTimeout:  in.GetInfo().GetTimeout(),
 		NewGroup:    protoGroup,
 	}
 	// send it to everyone in the group nodes
@@ -527,21 +514,6 @@ func (d *Drand) InitReshare(c context.Context, in *control.InitResharePacket) (*
 		return nil, err
 	}
 	return finalGroup.ToProto(), nil
-}
-
-// DistKey returns the distributed key corresponding to the current group
-func (d *Drand) DistKey(context.Context, *drand.DistKeyRequest) (*drand.DistKeyResponse, error) {
-	pt, err := d.store.LoadDistPublic()
-	if err != nil {
-		return nil, errors.New("drand: could not load dist. key")
-	}
-	buff, err := pt.Key().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &drand.DistKeyResponse{
-		Key: buff,
-	}, nil
 }
 
 // PingPong simply responds with an empty packet, proving that this drand node
@@ -592,22 +564,6 @@ func (d *Drand) PrivateKey(ctx context.Context, in *control.PrivateKeyRequest) (
 		return nil, err
 	}
 	return &control.PrivateKeyResponse{PriKey: protoKey}, nil
-}
-
-// CollectiveKey replies with the distributed key in the response
-func (d *Drand) CollectiveKey(ctx context.Context, in *control.CokeyRequest) (*control.CokeyResponse, error) {
-	d.state.Lock()
-	defer d.state.Unlock()
-
-	key, err := d.store.LoadDistPublic()
-	if err != nil {
-		return nil, err
-	}
-	protoKey, err := key.Key().MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	return &control.CokeyResponse{CoKey: protoKey}, nil
 }
 
 // GroupFile replies with the distributed key in the response
