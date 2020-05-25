@@ -43,7 +43,7 @@ func main() {
 				Aliases: []string{"nn"},
 			},
 		},
-		Commands: []*cli.Command{runCmd, clientCmd},
+		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
