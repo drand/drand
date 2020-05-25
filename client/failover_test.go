@@ -103,8 +103,12 @@ func TestFailoverMaxGrace(t *testing.T) {
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	period := defaultFailoverGracePeriod / 2
-	group := &key.Group{Period: period, GenesisTime: time.Now().Unix() - 1}
-	failoverClient := NewFailoverWatcher(mockClient, group, 0, log.DefaultLogger)
+	chainInfo := &chain.Info{
+		Period:      period,
+		GenesisTime: time.Now().Unix() - 1,
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+	failoverClient := NewFailoverWatcher(mockClient, chainInfo, 0, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	now := time.Now()
