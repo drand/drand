@@ -22,21 +22,7 @@ func New(options ...Option) (Client, error) {
 			return nil, err
 		}
 	}
-
-	coreClient, err := makeClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.cacheSize > 0 {
-		coreClient, err = NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if cfg.failoverGracePeriod > 0 {
-		coreClient = NewFailoverWatcher(coreClient, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
-	}
-	return newWatchAggregator(coreClient, cfg.log), nil
+	return makeClient(cfg)
 }
 
 // makeClient creates a client from a configuration.
@@ -61,19 +47,40 @@ func makeClient(cfg clientConfig) (Client, error) {
 			if err != nil {
 				return nil, err
 			}
-			group, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
+			chainInfo, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
 			if err != nil {
 				return nil, err
 			}
-			cfg.chainInfo = group
+			cfg.chainInfo = chainInfo
 		}
 		c.(*httpClient).l = cfg.log
 		clients = append(clients, c)
 	}
+
 	if len(clients) == 1 {
-		return clients[0], nil
+		c = clients[0]
+	} else {
+		c, err = NewPrioritizingClient(nil, clients, cfg.chainHash, cfg.chainInfo, cfg.log)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return NewPrioritizingClient(nil, clients, cfg.chainHash, cfg.chainInfo, cfg.log)
+
+	if cfg.cacheSize > 0 {
+		c, err = NewCachingClient(c, cfg.cacheSize, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.failoverGracePeriod > 0 {
+		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newWatchAggregator(c, cfg.log), nil
 }
 
 type clientConfig struct {

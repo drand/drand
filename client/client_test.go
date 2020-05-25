@@ -49,7 +49,7 @@ func TestClientMultiple(t *testing.T) {
 	}
 }
 
-func TestClientWithGroup(t *testing.T) {
+func TestClientWithChainInfo(t *testing.T) {
 	id := test.GenerateIDs(1)[0]
 	chainInfo := &chain.Info{
 		PublicKey:   id.Public.Key,
@@ -107,5 +107,20 @@ func TestClientWithoutCache(t *testing.T) {
 	_, e = c.Get(context.Background(), 0)
 	if e == nil {
 		t.Fatal("cache should be disabled.")
+	}
+}
+
+func TestClientWithFailover(t *testing.T) {
+	addr1, hash, cancel := withServer(t)
+	defer cancel()
+
+	// ensure a client with failover can be created successfully without error
+	_, err := New(
+		WithHTTPEndpoints([]string{"http://" + addr1}),
+		WithChainHash(hash),
+		WithFailoverGracePeriod(time.Second*5),
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
