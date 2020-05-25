@@ -73,6 +73,8 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}
 
+	pubsub.GossipSubDirectConnectTicks = 25 // TODO: from the group period, note 1 tick = 1 second
+
 	p, err := pubsub.NewGossipSub(ctx, h,
 		pubsub.WithPeerExchange(true),
 		pubsub.WithMessageIdFn(func(pmsg *pubsubpb.Message) string {
