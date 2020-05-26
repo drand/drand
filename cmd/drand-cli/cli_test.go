@@ -163,11 +163,11 @@ func TestStartWithoutGroup(t *testing.T) {
 	fs := key.NewFileStore(config.ConfigFolder())
 	require.NoError(t, fs.SaveKeyPair(priv))
 
-	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
+	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", "127.0.0.1:" + metricsPort}
 	go CLI().Run(startArgs)
 	time.Sleep(500 * time.Millisecond)
 
-	fmt.Println(" DRAND SHARE ---")
+	fmt.Println("--- DRAND SHARE --- (expected to fail)")
 	// this must fail because not enough arguments
 	// TODO - test vectors testing on the inputs
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1}
