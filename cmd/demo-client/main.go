@@ -85,7 +85,7 @@ var clientMetricsPushIntervalFlag = &cli.Int64Flag{
 }
 
 var clientMetricsIDFlag = &cli.StringFlag{
-	Name:  "id",
+	Name:  "client-metrics-id",
 	Usage: "Unique identifier for the client instance, used by the metrics system.",
 }
 
