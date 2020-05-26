@@ -83,7 +83,9 @@ func getPublicRandomness(c *cli.Context) error {
 		}
 		if err == nil {
 			foundCorrect = true
-			fmt.Fprintf(os.Stderr, "drand: public randomness retrieved from %s", id.Addr)
+			if c.Bool(verboseFlag.Name) {
+				fmt.Fprintf(os.Stderr, "drand: public randomness retrieved from %s", id.Addr)
+			}
 			break
 		}
 		fmt.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
