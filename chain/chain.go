@@ -98,7 +98,7 @@ func (c *chainStore) runAggregator() {
 			pRound := partial.p.GetRound()
 			ginfo, err := c.safe.GetInfo(pRound)
 			if err != nil {
-				c.l.Error("no_info_for", partial.p.GetRound())
+				c.l.Error("chain_aggregator", "partial", "no_info_for", partial.p.GetRound())
 				break
 			}
 
@@ -115,7 +115,7 @@ func (c *chainStore) runAggregator() {
 				cache = newRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
 				caches = append(caches, cache)
 				if !cache.tryAppend(partial.p) {
-					c.l.Fatal("bug_cache_partial")
+					c.l.Fatal("chain-aggregator", "bug_cache_partial")
 				}
 			} else if cache.done {
 				c.l.Debug("store_partial", "ignored", "round", cache.round, "already_reconstructed")
@@ -172,7 +172,7 @@ func (c *chainStore) runChainLoop() {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
-		c.l.Info("NEW_BEACON_STORED", newB.String())
+		c.l.Info("new_beacon_stored", newB.String())
 		c.lastInserted <- newB
 		if !syncing {
 			// during syncing we don't do a fast sync
@@ -298,14 +298,17 @@ func (cache *roundCache) tryAppend(p *drand.PartialBeaconPacket) bool {
 	return false
 }
 
-func (r *roundCache) Len() int {
-	return len(r.sigs)
+// Len shows how many items are in the cache
+func (cache *roundCache) Len() int {
+	return len(cache.sigs)
 }
 
-func (r *roundCache) Msg() []byte {
-	return Message(r.round, r.previousSig)
+// Msg provides the chain for the current round
+func (cache *roundCache) Msg() []byte {
+	return Message(cache.round, cache.previousSig)
 }
 
-func (r *roundCache) Partials() [][]byte {
-	return r.sigs
+// Partials provides all cached partial signatures
+func (cache *roundCache) Partials() [][]byte {
+	return cache.sigs
 }

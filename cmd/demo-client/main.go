@@ -38,7 +38,7 @@ var roundFlag = &cli.IntFlag{
 
 func main() {
 	app := &cli.App{
-		Name:   "client",
+		Name:   "demo-client",
 		Usage:  "CDN Drand client for loading randomness from an HTTP endpoint",
 		Flags:  []cli.Flag{urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag},
 		Action: Client,

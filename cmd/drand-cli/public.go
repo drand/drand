@@ -10,13 +10,12 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli/v2"
 )
 
 func getPrivateCmd(c *cli.Context) error {
 	if !c.Args().Present() {
-		return errors.New("Get private takes a group file as argument.")
+		return errors.New("get private takes a group file as argument")
 	}
 	defaultManager := net.NewCertManager()
 	if c.IsSet("tls-cert") {
@@ -31,11 +30,11 @@ func getPrivateCmd(c *cli.Context) error {
 	for _, public := range ids {
 		resp, err = client.Private(public.Identity)
 		if err == nil {
-			slog.Infof("drand: successfully retrieved private randomness "+
+			fmt.Printf("drand: successfully retrieved private randomness "+
 				"from %s", public.Addr)
 			break
 		}
-		slog.Infof("drand: error contacting node %s: %s", public.Addr, err)
+		fmt.Printf("drand: error contacting node %s: %s", public.Addr, err)
 	}
 	if resp == nil {
 		return errors.New("zero successful contacts with nodes")
@@ -51,7 +50,7 @@ func getPrivateCmd(c *cli.Context) error {
 
 func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
-		return errors.New("Get public command takes a group file as argument.")
+		return errors.New("get public command takes a group file as argument")
 	}
 	client := core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
@@ -69,7 +68,7 @@ func getPublicRandomness(c *cli.Context) error {
 		return err
 	}
 	if group.PublicKey == nil {
-		return errors.New("drand: group file must contain the distributed public key!")
+		return errors.New("drand: group file must contain the distributed public key")
 	}
 
 	public := group.PublicKey
@@ -83,10 +82,10 @@ func getPublicRandomness(c *cli.Context) error {
 		}
 		if err == nil {
 			foundCorrect = true
-			slog.Infof("drand: public randomness retrieved from %s", id.Addr)
+			fmt.Printf("drand: public randomness retrieved from %s", id.Addr)
 			break
 		}
-		slog.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
+		fmt.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
 	}
 	if !foundCorrect {
 		return errors.New("drand: could not verify randomness")
@@ -114,7 +113,7 @@ func getChainInfo(c *cli.Context) error {
 		if err == nil {
 			break
 		}
-		slog.Printf("drand: error fetching distributed key from %s : %s",
+		fmt.Printf("drand: error fetching distributed key from %s : %s",
 			addr, err)
 	}
 	if ci == nil {

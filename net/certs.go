@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/nikkolasg/slog"
+	"github.com/drand/drand/log"
 )
 
 // CertManager is used to managed certificates. It is most commonly used for
@@ -40,6 +40,6 @@ func (p *CertManager) Add(certPath string) error {
 	if !p.pool.AppendCertsFromPEM(b) {
 		return fmt.Errorf("peer cert: failed to append certificate %s", certPath)
 	}
-	slog.Infof("peer cert: storing server certificate %s", certPath)
+	log.DefaultLogger.Info("cert_manager", "add", "server cert path", certPath)
 	return nil
 }

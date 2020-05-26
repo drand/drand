@@ -39,7 +39,7 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 			l, _ := h.chain.Last()
 			h.l.Debug("sync_chain_reply", addr, "from", fromRound, "to", reply.Round, "head", nRound-1, "last_beacon", l.String())
 			if err = p.Send(reply); err != nil {
-				h.l.Debug("sync_chain_reply", "err", err)
+				h.l.Debug("sync_chain_reply", "error", "err", err)
 				return
 			}
 			fromRound = reply.Round

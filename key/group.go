@@ -47,7 +47,7 @@ type Group struct {
 	PublicKey *DistPublic
 }
 
-// Contains returns the Node that is equal to the given identity (without the
+// Find returns the Node that is equal to the given identity (without the
 // index). If the node is not found, Find returns nil.
 func (g *Group) Find(pub *Identity) *Node {
 	for _, pu := range g.Nodes {
@@ -82,6 +82,7 @@ func (g *Group) DKGNodes() []dkg.Node {
 	return dnodes
 }
 
+// Hash provides a compact hash of a group
 func (g *Group) Hash() []byte {
 	h := hashFunc()
 	sort.Slice(g.Nodes, func(i, j int) bool {
@@ -130,6 +131,7 @@ func (g *Group) String() string {
 	return b.String()
 }
 
+// Equal indicates if two groups are equal
 func (g *Group) Equal(g2 *Group) bool {
 	if g.Threshold != g2.Threshold {
 		return false
@@ -155,10 +157,9 @@ func (g *Group) Equal(g2 *Group) bool {
 		if g2.PublicKey != nil {
 			// both keys aren't nil so we verify
 			return g.PublicKey.Equal(g2.PublicKey)
-		} else {
-			// g is not nil g2 is nil
-			return false
 		}
+		// g is not nil g2 is nil
+		return false
 	} else if g2.PublicKey != nil {
 		// g is nil g2 is not nil
 		return false
@@ -172,9 +173,9 @@ type GroupTOML struct {
 	Period         string
 	Nodes          []*NodeTOML
 	GenesisTime    int64
-	TransitionTime int64           `toml:omitempty`
-	GenesisSeed    string          `toml:omitempty`
-	PublicKey      *DistPublicTOML `toml:omitempty`
+	TransitionTime int64           `toml:"omitempty"`
+	GenesisSeed    string          `toml:"omitempty"`
+	PublicKey      *DistPublicTOML `toml:"omitempty"`
 }
 
 // FromTOML decodes the group from the toml struct
