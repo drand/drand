@@ -8,9 +8,11 @@ Upcoming major or minor releases are announced with a prerelease at least one we
 
 ## Reporting a Vulnerability
 
-If you believe to have found a security issue that can cause biasability, denial of service, or compromise of the active network, please send us an email to security@drand.love. We'll make sure to get back to you ASAP, work towards verifying the issue, mitigating it and providing an update for our users. We commit to updating security issues filed on github in this way on a weekly basis to indicate their current status towards resolution.
+If you believe to have found a security issue that can cause biasability, denial of service, or compromise of the active network, please send us a private email to security@drand.love. Please DO NOT file a public issue. We'll make sure to get back to you ASAP, work towards verifying the issue, mitigating it and providing an update for our users. 
 
 To help us serving the drand ecosystem, we appreciate that your reports are as precise as possible, ideally containing a way to reproduce the vulnerability.
+
+If the issue is a protocol weakness that cannot be immediately exploited or something not yet deployed, feel welcome to discuss it openly in a [Github issue](https://github.com/drand/drand/issues/new).
 
 For all other kinds of bugs, please [file an issue in this repo](https://github.com/drand/drand/issues/new). 
 
