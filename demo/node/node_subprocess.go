@@ -283,7 +283,11 @@ func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandR
 	cmd := exec.Command(n.binary, args...)
 	out := runCommand(cmd)
 	s := new(drand.PublicRandResponse)
-	checkErr(json.Unmarshal(out, s))
+	err := json.Unmarshal(out, s)
+	if err != nil {
+		fmt.Printf("failed to unmarshal beacon response: %s\n", out)
+	}
+	checkErr(err)
 	return s, strings.Join(cmd.Args, " ")
 }
 
