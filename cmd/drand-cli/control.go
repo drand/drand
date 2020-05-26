@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -169,9 +170,13 @@ func showChainInfo(c *cli.Context) error {
 	}
 	resp, err := client.ChainInfo()
 	if err != nil {
-		return fmt.Errorf("could not request drand.cokey: %s", err)
+		return fmt.Errorf("could not request chain info: %s", err)
 	}
-	return printJSON(resp)
+	ci, err := chain.InfoFromProto(resp)
+	if err != nil {
+		return fmt.Errorf("could not get correct chain info: %s", err)
+	}
+	return printChainInfo(c, ci)
 }
 
 func showPrivateCmd(c *cli.Context) error {
