@@ -11,6 +11,7 @@ var _ Service = (*EmptyServer)(nil)
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
 type EmptyServer struct{}
 
+// PublicRandStream ...
 func (s *EmptyServer) PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error {
 	return nil
 }
@@ -25,7 +26,7 @@ func (s *EmptyServer) PrivateRand(context.Context, *drand.PrivateRandRequest) (*
 	return nil, nil
 }
 
-// Group ...
+// ChainInfo ...
 func (s *EmptyServer) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	return nil, nil
 }
@@ -35,25 +36,27 @@ func (s *EmptyServer) Home(context.Context, *drand.HomeRequest) (*drand.HomeResp
 	return nil, nil
 }
 
-// FreshDKG ...
+// SignalDKGParticipant ...
 func (s *EmptyServer) SignalDKGParticipant(context.Context, *drand.SignalDKGPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
+// PushDKGInfo ...
 func (s *EmptyServer) PushDKGInfo(context.Context, *drand.DKGInfoPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
-// Setup ...
+// FreshDKG ...
 func (s *EmptyServer) FreshDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
+// SyncChain ...
 func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error {
 	return nil
 }
 
-// Reshare ...
+// ReshareDKG ...
 func (s *EmptyServer) ReshareDKG(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
 	return nil, nil
 }

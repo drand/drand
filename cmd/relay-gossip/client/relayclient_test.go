@@ -7,7 +7,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/drand/drand/cmd/drand-gossip-relay/lp2p"
+	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/test"

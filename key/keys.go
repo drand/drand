@@ -46,6 +46,7 @@ func (i *Identity) String() string {
 	return fmt.Sprintf("{%s - %s}", i.Address(), i.Key.String())
 }
 
+// Equal indicates if two identities are equal
 func (i *Identity) Equal(i2 *Identity) bool {
 	if i.Addr != i2.Addr {
 		return false
@@ -272,6 +273,7 @@ type DistPublic struct {
 	Coefficients []kyber.Point
 }
 
+// PubPoly provides the public polynomial commitment
 func (d *DistPublic) PubPoly() *share.PubPoly {
 	return share.NewPubPoly(KeyGroup, KeyGroup.Point().Base(), d.Coefficients)
 }

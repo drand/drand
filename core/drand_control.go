@@ -300,7 +300,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	case dkgInfo = <-d.receiver.WaitDKGInfo():
 		d.log.Debug("init_dkg", "received_group")
 	case <-d.opts.clock.After(MaxWaitPrepareDKG):
-		d.log.Error("init_dkg", "wait_group", "timeout")
+		d.log.Error("init_dkg", "wait_group", "err", "timeout")
 		return nil, errors.New("wait_group timeouts from coordinator")
 	}
 
@@ -636,7 +636,7 @@ func (d *Drand) pushDKGInfo(to []*key.Node, packet *drand.DKGInfoPacket) error {
 		go func(i *key.Identity) {
 			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
 			if err != nil {
-				d.log.Error("push_dkg", err, "to", i.Address())
+				d.log.Error("push_dkg", "failed to push", "to", i.Address(), "err", err)
 			} else {
 				success <- i.Address()
 			}
@@ -654,6 +654,7 @@ func (d *Drand) pushDKGInfo(to []*key.Node, packet *drand.DKGInfoPacket) error {
 			return errors.New("push group timeout")
 		}
 	}
-	d.log.Info("push_dkg", "sending_group", "done")
+	d.log.Info("push_dkg", "sending_group", "status", "done")
+	cancel()
 	return nil
 }

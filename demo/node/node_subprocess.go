@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -20,6 +19,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
 )
 
 var secretDKG = "dkgsecret"
@@ -247,21 +247,19 @@ func (n *NodeProc) ChainInfo(group string) bool {
 	}
 	var r = new(drand.ChainInfoPacket)
 	err = json.Unmarshal(out, r)
+	if err != nil {
+		fmt.Printf("err json decoding %s\n", out)
+	}
 	checkErr(err)
 	sdist := hex.EncodeToString(r.PublicKey)
 	fmt.Printf("\t- Node %s has chain-info %s\n", n.privAddr, sdist[10:14])
 	return true
 }
 
-/*func (n *Node) GetGroup() *key.Group {*/
-//group, err := n.store.LoadGroup()
-//checkErr(err)
-//return group
-/*}*/
-
 func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
-	_, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	fmt.Printf(" -- ping output : %s - err %s\n", out, err)
 	if err != nil {
 		//fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.privAddr, err, string(out))
 		return false
@@ -280,7 +278,11 @@ func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandR
 	cmd := exec.Command(n.binary, args...)
 	out := runCommand(cmd)
 	s := new(drand.PublicRandResponse)
-	checkErr(json.Unmarshal(out, s))
+	err := json.Unmarshal(out, s)
+	if err != nil {
+		fmt.Printf("failed to unmarshal beacon response: %s\n", out)
+	}
+	checkErr(err)
 	return s, strings.Join(cmd.Args, " ")
 }
 
