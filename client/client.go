@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 )
 
@@ -22,21 +21,7 @@ func New(options ...Option) (Client, error) {
 			return nil, err
 		}
 	}
-
-	coreClient, err := makeClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.cacheSize > 0 {
-		coreClient, err = NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if cfg.failoverGracePeriod > 0 {
-		coreClient = NewFailoverWatcher(coreClient, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
-	}
-	return newWatchAggregator(coreClient, cfg.log), nil
+	return makeClient(cfg)
 }
 
 // makeClient creates a client from a configuration.
@@ -47,7 +32,16 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(cfg.urls) == 0 {
 		return nil, errors.New("No points of contact specified")
 	}
-	clients := []Client{}
+	// provision gossip client
+	var gossipClient Client
+	if cfg.watcher != nil {
+		var err error
+		if gossipClient, err = newWatcherClient(nil, nil, cfg.watcher); err != nil {
+			return nil, err
+		}
+	}
+	// provision REST clients
+	restClients := []Client{}
 	var c Client
 	var err error
 	for _, url := range cfg.urls {
@@ -61,19 +55,36 @@ func makeClient(cfg clientConfig) (Client, error) {
 			if err != nil {
 				return nil, err
 			}
-			group, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
+			chainInfo, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
 			if err != nil {
 				return nil, err
 			}
-			cfg.chainInfo = group
+			cfg.chainInfo = chainInfo
 		}
 		c.(*httpClient).l = cfg.log
-		clients = append(clients, c)
+		restClients = append(restClients, c)
 	}
-	if len(clients) == 1 {
-		return clients[0], nil
+
+	c, err = NewPrioritizingClient(gossipClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+	if err != nil {
+		return nil, err
 	}
-	return NewPrioritizingClient(nil, clients, cfg.chainHash, cfg.chainInfo, cfg.log)
+
+	if cfg.cacheSize > 0 {
+		c, err = NewCachingClient(c, cfg.cacheSize, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.failoverGracePeriod > 0 {
+		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newWatchAggregator(c, cfg.log), nil
 }
 
 type clientConfig struct {
@@ -192,7 +203,7 @@ type Watcher interface {
 }
 
 // WatcherCtor creates a Watcher once a group is known.
-type WatcherCtor func(group *key.Group) (Watcher, error)
+type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
 
 // WithWatcher specifies a channel that can provide notifications of new
 // randomness bootstrappeed from the group information.

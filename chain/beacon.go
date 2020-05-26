@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"math"
 	"time"
 
+	json "github.com/nikkolasg/hexjson"
+
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
 )
 
@@ -24,6 +24,7 @@ type Beacon struct {
 	Signature []byte
 }
 
+// Equal indicates if two beacons are equal
 func (b *Beacon) Equal(b2 *Beacon) bool {
 	return bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
 		b.Round == b2.Round &&
@@ -31,10 +32,12 @@ func (b *Beacon) Equal(b2 *Beacon) bool {
 
 }
 
+// Marshal provides a JSON encoding of a beacon
 func (b *Beacon) Marshal() ([]byte, error) {
 	return json.Marshal(b)
 }
 
+// Unmarshal decodes a beacon from JSON
 func (b *Beacon) Unmarshal(buff []byte) error {
 	return json.Unmarshal(buff, b)
 }
@@ -45,10 +48,12 @@ func (b *Beacon) Randomness() []byte {
 	return RandomnessFromSignature(b.Signature)
 }
 
+// GetRound provides the round of the beacon
 func (b *Beacon) GetRound() uint64 {
 	return b.Round
 }
 
+// RandomnessFromSignature derives the round randomness from its signature
 func RandomnessFromSignature(sig []byte) []byte {
 	out := sha256.Sum256(sig)
 	return out[:]
@@ -98,6 +103,7 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	return genesis + int64((round-1)*uint64(period.Seconds()))
 }
 
+// CurrentRound calculates the active round at `now`
 func CurrentRound(now int64, period time.Duration, genesis int64) uint64 {
 	nextRound, _ := NextRound(now, period, genesis)
 	if nextRound <= 1 {
@@ -130,6 +136,7 @@ type Info struct {
 	GenesisTime int64         `json:"genesis_time"`
 }
 
+// NewChainInfo makes a chain Info from a group
 func NewChainInfo(g *key.Group) *Info {
 	return &Info{
 		Period:      g.Period,
@@ -150,15 +157,7 @@ func (c *Info) Hash() []byte {
 	return h.Sum(nil)
 }
 
-func (c *Info) ToProto() *drand.ChainInfoPacket {
-	buff, _ := c.PublicKey.MarshalBinary()
-	return &drand.ChainInfoPacket{
-		PublicKey:   buff,
-		GenesisTime: c.GenesisTime,
-		Period:      uint32(c.Period.Seconds()),
-	}
-}
-
+// Equal indicates if two Chain Info objects are equivalent
 func (c *Info) Equal(c2 *Info) bool {
 	return c.GenesisTime == c2.GenesisTime &&
 		c.Period == c2.Period &&

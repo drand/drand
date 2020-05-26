@@ -163,11 +163,11 @@ func TestStartWithoutGroup(t *testing.T) {
 	fs := key.NewFileStore(config.ConfigFolder())
 	require.NoError(t, fs.SaveKeyPair(priv))
 
-	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
+	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", "127.0.0.1:" + metricsPort}
 	go CLI().Run(startArgs)
 	time.Sleep(500 * time.Millisecond)
 
-	fmt.Println(" DRAND SHARE ---")
+	fmt.Println("--- DRAND SHARE --- (expected to fail)")
 	// this must fail because not enough arguments
 	// TODO - test vectors testing on the inputs
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1}
@@ -233,17 +233,31 @@ func TestStartWithoutGroup(t *testing.T) {
 	getCmd := []string{"drand", "get", "private", "--tls-disable", groupPath}
 	require.NoError(t, CLI().Run(getCmd))
 
-	fmt.Printf("\n Running GET COKEY command\n")
+	fmt.Printf("\n Running CHAIN-INFO command\n")
 	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", priv.Public.Address()}
 	testCommand(t, chainInfoCmd, expectedOutput)
 
+	fmt.Printf("\n Running CHAIN-INFO --HASH command\n")
+	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", priv.Public.Address()}
+	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	testCommand(t, chainInfoCmdHash, expectedOutput)
+
 	fmt.Println("\nRunning SHOW SHARE command")
 	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort2}
 	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 	testCommand(t, shareCmd, expectedOutput)
+
+	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort2}
+	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	require.NoError(t, err)
+	testCommand(t, showChainInfo, string(buffCi))
+
+	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort2}
+	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state
 	resetCmd := []string{"drand", "util", "reset", "--folder", tmpPath}
@@ -363,7 +377,7 @@ func TestClientTLS(t *testing.T) {
 	showGroup := []string{"drand", "show", "group", "--control", ctrlPort}
 	testCommand(t, showGroup, "")
 
-	showHash := []string{"drand", "show", "group", "--control", ctrlPort, "--hash-only"}
+	showHash := []string{"drand", "show", "group", "--control", ctrlPort, "--hash"}
 	groupHash := hex.EncodeToString(group.Hash())
 	testCommand(t, showHash, groupHash)
 }
@@ -374,10 +388,14 @@ func testCommand(t *testing.T, args []string, exp string) {
 	var buff bytes.Buffer
 	output = &buff
 	defer func() { output = os.Stdout }()
+	fmt.Println("-------------_")
 	require.NoError(t, CLI().Run(args))
 	if exp == "" {
 		return
 	}
+	fmt.Println("RUNNING: ", args)
 	fmt.Println("EXPECTED: ", exp)
+	fmt.Println("GOT: ", strings.Trim(buff.String(), "\n"), " --")
+	fmt.Println("EQUAL: ", strings.Trim(buff.String(), "\n") == exp)
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }

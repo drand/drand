@@ -32,8 +32,8 @@ func main() {
 		Usage:   "pubsub relay for randomness beacon",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:    "network-name",
-				Aliases: []string{"nn"},
+				Name:     "chain-hash",
+				Required: true,
 			},
 		},
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
@@ -80,7 +80,7 @@ var runCmd = &cli.Command{
 
 	Action: func(cctx *cli.Context) error {
 		cfg := &node.GossipRelayConfig{
-			Network:         cctx.String("network-name"),
+			ChainHash:       cctx.String("chain-hash"),
 			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
 			Addr:            cctx.String("listen"),
 			DataDir:         cctx.String("store"),
@@ -116,7 +116,7 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		c, err := client.NewWithPubsub(ps, cctx.String("network-name"))
+		c, err := client.NewWithPubsub(ps, cctx.String("chain-hash"))
 		if err != nil {
 			return xerrors.Errorf("constructing client: %w", err)
 		}

@@ -10,7 +10,6 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
 )
@@ -41,7 +40,7 @@ func NewHTTPClient(url string, chainHash []byte, client HTTPGetter) (Client, err
 	return c, nil
 }
 
-// NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
+// NewHTTPClientWithInfo constructs an http client when the group parameters are already known.
 func NewHTTPClientWithInfo(url string, info *chain.Info, client HTTPGetter) (Client, error) {
 	if client == nil {
 		client = &http.Client{}
@@ -77,11 +76,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 	}
 	defer infoBody.Body.Close()
 
-	protoInfo := new(drand.ChainInfoPacket)
-	if err := json.NewDecoder(infoBody.Body).Decode(protoInfo); err != nil {
-		return nil, err
-	}
-	chainInfo, err := chain.InfoFromProto(protoInfo)
+	chainInfo, err := chain.InfoFromJSON(infoBody.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +113,7 @@ func (r *RandomData) Round() uint64 {
 	return r.Rnd
 }
 
+// Signature provides the signature over this round's randomness
 func (r *RandomData) Signature() []byte {
 	return r.Sig
 }

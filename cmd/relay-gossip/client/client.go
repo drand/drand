@@ -4,10 +4,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
@@ -19,6 +19,7 @@ var (
 	log = logging.Logger("drand-client")
 )
 
+// Client is a concrete pubsub client implementation
 type Client struct {
 	cancel func()
 	latest uint64
@@ -31,9 +32,9 @@ type Client struct {
 
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
-	return dclient.WithWatcher(func(_ *key.Group) (dclient.Watcher, error) {
-		c, err := NewWithPubsub(ps, networkName)
+func WithPubsub(ps *pubsub.PubSub, chainHash string) dclient.Option {
+	return dclient.WithWatcher(func(_ *chain.Info) (dclient.Watcher, error) {
+		c, err := NewWithPubsub(ps, chainHash)
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +43,8 @@ func WithPubsub(ps *pubsub.PubSub, networkName string) dclient.Option {
 }
 
 // NewWithPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
-	t, err := ps.Join(lp2p.PubSubTopic(networkName))
+func NewWithPubsub(ps *pubsub.PubSub, chainHash string) (*Client, error) {
+	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}
@@ -106,6 +107,7 @@ func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 	return c, nil
 }
 
+// UnsubFunc is a cancel function for pubsub subscription
 type UnsubFunc func()
 
 // Sub subscribes to notfications about new randomness.
@@ -129,6 +131,7 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	}
 }
 
+// Watch implements the dclient.Watcher interface
 func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	innerCh := make(chan drand.PublicRandResponse)
 	outerCh := make(chan dclient.Result)

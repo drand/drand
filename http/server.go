@@ -36,12 +36,11 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 		client:      client,
 		chainInfo:   nil,
 		log:         logger,
-		pending:     make([]chan []byte, 0),
+		pending:     nil,
+		context:     ctx,
 		latestRound: 0,
 		version:     version,
 	}
-
-	go handler.Watch(ctx)
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
@@ -67,9 +66,18 @@ type handler struct {
 
 	// synchronization for blocking writes until randomness available.
 	pendingLk   sync.RWMutex
+	startOnce   sync.Once
 	pending     []chan []byte
+	context     context.Context
 	latestRound uint64
 	version     string
+}
+
+func (h *handler) start() {
+	h.pendingLk.Lock()
+	defer h.pendingLk.Unlock()
+	h.pending = make([]chan []byte, 0)
+	go h.Watch(h.context)
 }
 
 func (h *handler) Watch(ctx context.Context) {
@@ -84,6 +92,12 @@ RESET:
 		next, err := stream.Recv()
 		if err != nil {
 			h.log.Warn("http_server", "random stream round failed", "err", err)
+			h.pendingLk.Lock()
+			h.latestRound = 0
+			h.pendingLk.Unlock()
+			// backoff on failures a bit to not fall into a tight loop.
+			// TODO: tuning.
+			time.Sleep(300 * time.Millisecond)
 			goto RESET
 		}
 
@@ -137,6 +151,7 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 }
 
 func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
+	h.startOnce.Do(h.start)
 	// First see if we should get on the synchronized 'wait for next release' bandwagon.
 	block := false
 	h.pendingLk.RLock()
@@ -271,7 +286,8 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
-	data, err := json.Marshal(info.ToProto())
+	var chainBuff bytes.Buffer
+	err := info.ToJSON(&chainBuff)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
@@ -284,6 +300,6 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	w.Header().Set("Content-Type", "application/json")
-	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(data))
+	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 
 }

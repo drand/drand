@@ -22,7 +22,8 @@ import (
 
 // GossipRelayConfig configures a gossip relay node.
 type GossipRelayConfig struct {
-	Network         string
+	// ChainHash is a hash that uniquely identifies the drand chain.
+	ChainHash       string
 	PeerWith        []string
 	Addr            string
 	DataDir         string
@@ -77,7 +78,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		l.Info(fmt.Sprintf("%s/p2p/%s\n", a, h.ID()))
 	}
 
-	t, err := ps.Join(lp2p.PubSubTopic(cfg.Network))
+	t, err := ps.Join(lp2p.PubSubTopic(cfg.ChainHash))
 	if err != nil {
 		return nil, xerrors.Errorf("joining topic: %w", err)
 	}
@@ -158,6 +159,10 @@ func (g *GossipRelayNode) start(drandPublicGRPC string) {
 		err = g.workRelay(client)
 		if err != nil {
 			g.l.Warn(fmt.Sprintf("error relaying: %+v", err))
+			err = conn.Close()
+			if err != nil {
+				g.l.Warn(fmt.Sprintf("error while closing connection: %+v", err))
+			}
 			time.Sleep(5 * time.Second)
 		}
 	}

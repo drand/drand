@@ -708,6 +708,52 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
+// Test if the we can correctly fetch the rounds through the local proxy
+func TestDrandPublicStreamProxy(t *testing.T) {
+	n := 4
+	thr := key.DefaultThreshold(n)
+	p := 1 * time.Second
+	//genesisTime := clock.NewFakeClock().Now().Unix()
+	dt := NewDrandTest2(t, n, thr, p)
+	defer dt.Cleanup()
+	group := dt.RunDKG()
+	time.Sleep(getSleepDuration())
+	root := dt.nodes[0]
+
+	dt.MoveToTime(group.GenesisTime)
+	// do a few periods
+	for i := 0; i < 3; i++ {
+		dt.MoveTime(group.Period)
+	}
+
+	client := &drandProxy{root.drand}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	// get last round first
+	resp, err := client.PublicRand(ctx, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+
+	//  run streaming and expect responses
+	req := &drand.PublicRandRequest{Round: resp.GetRound()}
+	respClient, err := client.PublicRandStream(ctx, req)
+	require.NoError(t, err)
+	// expect first round now since node already has it
+	beacon, err := respClient.Recv()
+	require.Equal(t, beacon.GetRound(), resp.GetRound())
+	nTry := 4
+	// we expect the next one now
+	initRound := resp.Round + 1
+	maxRound := initRound + uint64(nTry)
+	fmt.Println("Streaming for future rounds starting from", initRound)
+	for round := initRound; round < maxRound; round++ {
+		// move time to next period
+		dt.MoveTime(group.Period)
+		beacon, err = respClient.Recv()
+		require.Nil(t, err)
+		require.Equal(t, round, beacon.GetRound())
+	}
+}
+
 // BatchNewDrand returns n drands, using TLS or not, with the given
 // options. It returns the list of Drand structures, the group created,
 // the folder where db, certificates, etc are stored. It is the folder

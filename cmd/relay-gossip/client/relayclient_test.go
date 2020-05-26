@@ -7,7 +7,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/drand/drand/cmd/drand-gossip-relay/lp2p"
+	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/test"
@@ -25,7 +25,7 @@ func TestClient(t *testing.T) {
 
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
-		Network:         "test",
+		ChainHash:       "test",
 		PeerWith:        nil,
 		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
 		DataDir:         path.Join(os.TempDir(), "test-gossip-relay-node-datastore"),
@@ -60,7 +60,7 @@ func TestClient(t *testing.T) {
 	}
 }
 
-func newTestClient(name string, relayMultiaddr []ma.Multiaddr, network string) (*Client, error) {
+func newTestClient(name string, relayMultiaddr []ma.Multiaddr, chainHash string) (*Client, error) {
 	ds, err := bds.NewDatastore(path.Join(os.TempDir(), "client-"+name+"-datastore"), nil)
 	if err != nil {
 		return nil, err
@@ -78,5 +78,5 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, network string) (
 	if err != nil {
 		return nil, err
 	}
-	return NewWithPubsub(ps, network)
+	return NewWithPubsub(ps, chainHash)
 }

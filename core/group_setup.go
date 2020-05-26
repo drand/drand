@@ -76,7 +76,7 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 		return true
 	}
 	offset := time.Duration(in.GetBeaconOffset()) * time.Second
-	if offset == 0 {
+	if in.GetBeaconOffset() == 0 {
 		offset = DefaultGenesisOffset
 	}
 
@@ -141,7 +141,7 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error 
 
 	newID, err := key.IdentityFromProto(p.GetNode())
 	if err != nil {
-		s.l.Info("setup", "error_decoding", "id", addr, err)
+		s.l.Info("setup", "error_decoding", "id", addr, "err", err)
 		return fmt.Errorf("invalid id: %v", err)
 	}
 
