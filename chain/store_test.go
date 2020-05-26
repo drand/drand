@@ -18,7 +18,7 @@ func TestStoreBoltOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	b1 := &Beacon{
-		PreviousSig: []byte("a magnificient signature"),
+		PreviousSig: []byte("a magnificent signature"),
 		Round:       145,
 		Signature:   []byte("one signature to"),
 	}

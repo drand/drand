@@ -62,7 +62,7 @@ func TestDeleteBeacon(t *testing.T) {
 	require.NotNil(t, b)
 
 	store.Close()
-	// that commmand should delete round 3 and 4
+	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "3"}
 	app := CLI()
 	require.NoError(t, app.Run(args))

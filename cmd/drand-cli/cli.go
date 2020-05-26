@@ -232,7 +232,7 @@ func CLI() *cli.App {
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
 	app.Commands = []*cli.Command{
-		&cli.Command{
+		{
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
@@ -243,7 +243,7 @@ func CLI() *cli.App {
 				return startCmd(c)
 			},
 		},
-		&cli.Command{
+		{
 			Name:  "stop",
 			Usage: "Stop the drand daemon.\n",
 			Flags: toArray(controlFlag),
@@ -252,7 +252,7 @@ func CLI() *cli.App {
 				return stopDaemon(c)
 			},
 		},
-		&cli.Command{
+		{
 			Name:  "share",
 			Usage: "Launch a sharing protocol.",
 			Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
@@ -264,7 +264,7 @@ func CLI() *cli.App {
 				return shareCmd(c)
 			},
 		},
-		&cli.Command{
+		{
 			Name: "generate-keypair",
 			Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 				"for this node.\n",
@@ -326,7 +326,7 @@ func CLI() *cli.App {
 			Name:  "util",
 			Usage: "Multiple commands of utility functions, such as reseting a state, checking the connection of a peer...",
 			Subcommands: []*cli.Command{
-				&cli.Command{
+				{
 					Name: "check",
 					Usage: "Check node at the given `ADDRESS` (you can put multiple ones)" +
 						" in the group for accessibility over the gRPC communication. If the node " +

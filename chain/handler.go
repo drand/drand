@@ -235,7 +235,7 @@ func (h *Handler) run(startTime int64) {
 			// if the next round of the last beacon we generated is not the round we
 			// are now, that means there is a gap between the two rounds. In other
 			// words, the chain has halted for that amount of rounds or our
-			// network is not functionning properly.
+			// network is not functioning properly.
 			if lastBeacon.Round+1 < current.round {
 
 				// We also launch a sync with the other nodes. If there is one node
