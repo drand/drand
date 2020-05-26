@@ -247,6 +247,9 @@ func (n *NodeProc) ChainInfo(group string) bool {
 	}
 	var r = new(drand.ChainInfoPacket)
 	err = json.Unmarshal(out, r)
+	if err != nil {
+		fmt.Printf("err json decoding %s\n", out)
+	}
 	checkErr(err)
 	sdist := hex.EncodeToString(r.PublicKey)
 	fmt.Printf("\t- Node %s has chain-info %s\n", n.privAddr, sdist[10:14])
