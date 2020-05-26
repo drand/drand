@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -85,6 +86,10 @@ func (g *restListener) Start() {
 }
 
 func (g *restListener) Stop(ctx context.Context) {
-	g.lis.Close()
-	g.restServer.Shutdown(ctx)
+	if err := g.lis.Close(); err != nil {
+		log.DefaultLogger.Debug("grpc insecure listener", "grpc shutdown", "err", err)
+	}
+	if err := g.restServer.Shutdown(ctx); err != nil {
+		log.DefaultLogger.Debug("grpc insecure listener", "http shutdown", "err", err)
+	}
 }

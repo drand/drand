@@ -8,6 +8,7 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
+// Index is the index of the node
 type Index = dkg.Index
 
 // Node is a wrapper around identity that additionally includes the index that
@@ -22,6 +23,7 @@ type Node struct {
 	Index Index
 }
 
+// Hash is a compact representation of the node
 func (n *Node) Hash() []byte {
 	h := hashFunc()
 	binary.Write(h, binary.LittleEndian, n.Index)
@@ -30,10 +32,12 @@ func (n *Node) Hash() []byte {
 	return h.Sum(nil)
 }
 
+// Equal indicates if two nodes are equal
 func (n *Node) Equal(n2 *Node) bool {
 	return n.Index == n2.Index && n.Identity.Equal(n2.Identity)
 }
 
+// TOML is a toml representation of the node
 func (n *Node) TOML() interface{} {
 	return &NodeTOML{
 		PublicTOML: n.Identity.TOML().(*PublicTOML),
@@ -41,6 +45,7 @@ func (n *Node) TOML() interface{} {
 	}
 }
 
+// FromTOML unmarshals a node from TOML representation
 func (n *Node) FromTOML(t interface{}) error {
 	ntoml := t.(*NodeTOML)
 	n.Index = ntoml.Index
@@ -48,10 +53,12 @@ func (n *Node) FromTOML(t interface{}) error {
 	return n.Identity.FromTOML(ntoml.PublicTOML)
 }
 
+// TOMLValue is used in marshaling
 func (n *Node) TOMLValue() interface{} {
 	return new(NodeTOML)
 }
 
+// NodeTOML is the node's toml representation
 type NodeTOML struct {
 	*PublicTOML
 	Index Index

@@ -2,6 +2,6 @@ package chain
 
 import "time"
 
-// Once a connection is made, we should not wait too much to receive new beacons
+// MaxSyncWaitTime sets how long we'll wait after a new connection to receive new beacons
 // from one peer
 var MaxSyncWaitTime = 2 * time.Second
