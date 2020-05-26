@@ -16,7 +16,7 @@ func TestConvertJustification(t *testing.T) {
 	j.Bundle = new(dkg.JustificationBundle)
 	j.Bundle.DealerIndex = 32
 	j.Bundle.Justifications = []dkg.Justification{
-		dkg.Justification{
+		{
 			ShareIndex: 10,
 			Share:      key.KeyGroup.Scalar().Pick(random.New()),
 		},
