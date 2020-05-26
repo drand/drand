@@ -55,6 +55,14 @@ var (
 		Help: "A gauge of requests currently being served.",
 	})
 
+	// Client observation metrics
+
+	// ClientWatchLatency measures the latency of the watch channel from the client's perspective.
+	ClientWatchLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "client_watch_latency",
+		Help: "Duration between time round received and time round expected.",
+	}, []string{"client_id"})
+
 	metricsBound = false
 )
 
