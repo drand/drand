@@ -45,6 +45,7 @@ func newWatchLatencyMetricClient(id string, base Client, ctl *metricController) 
 	if err := c.ctl.Register(c.watchLatency); err != nil {
 		return nil, err
 	}
+	go c.startObserve(context.Background())
 	return c, nil
 }
 

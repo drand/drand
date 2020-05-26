@@ -99,6 +99,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 		if c, err = newWatchLatencyMetricClient(cfg.id, c, ctl); err != nil {
 			return nil, err
 		}
+		go ctl.Start()
 	}
 
 	return c, nil
