@@ -51,4 +51,7 @@ message ChainInfoPacket {
     uint32 period = 2;
     // genesis time of the chain
     int64 genesis_time = 3;
+    // hash is included for ease of use - not needing to have a drand client to
+    // compute its hash
+    bytes hash = 4;
 }
