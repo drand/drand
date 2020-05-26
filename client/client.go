@@ -95,8 +95,8 @@ func makeClient(cfg clientConfig) (Client, error) {
 		if cfg.chainInfo == nil {
 			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
 		}
-		ctl := newMetricController(cfg.chainInfo, cfg.prometheus)
-		if c, err = newWatchLatencyMetricClient(cfg.id, c, ctl); err != nil {
+		ctl := newMetricController(cfg.id, cfg.chainInfo, cfg.prometheus)
+		if c, err = newWatchLatencyMetricClient(c, ctl); err != nil {
 			return nil, err
 		}
 	}
