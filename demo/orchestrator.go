@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/demo/node"
@@ -293,7 +294,9 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 				panic("[-] Inconsistent round from curl vs CLI")
 			} else if !bytes.Equal(r.GetSignature(), rand.GetSignature()) {
 				fmt.Printf("curl output: %s\n", out)
-				fmt.Printf("cli output: %v\n", rand)
+				fmt.Printf("curl output rand: %x\n", r.GetSignature())
+				fmt.Printf("cli output: %s\n", rand)
+				fmt.Printf("cli output rand: %x\n", rand.GetSignature())
 				panic("[-] Inconsistent signature from curl vs CLI")
 			}
 		} else {
