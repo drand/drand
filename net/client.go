@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/drand/drand/protobuf/drand"
@@ -13,6 +14,7 @@ import (
 type Client interface {
 	ProtocolClient
 	PublicClient
+	HTTPClient
 }
 
 // ProtocolClient holds all the methods of the protocol API that drand protocols
@@ -35,4 +37,10 @@ type PublicClient interface {
 	PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error)
 	ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error)
 	Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error)
+}
+
+// HTTPClient is an optional extension to the protocol client relaying of HTTP over the GRPC connection.
+// it is currently used for relaying metrics between group members.
+type HTTPClient interface {
+	HandleHTTP(p Peer) (http.Handler, error)
 }
