@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	gonet "net"
+	"os"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
@@ -82,7 +83,7 @@ func getPublicRandomness(c *cli.Context) error {
 		}
 		if err == nil {
 			foundCorrect = true
-			fmt.Printf("drand: public randomness retrieved from %s", id.Addr)
+			fmt.Fprintf(os.Stderr, "drand: public randomness retrieved from %s", id.Addr)
 			break
 		}
 		fmt.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
