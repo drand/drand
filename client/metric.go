@@ -9,18 +9,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func newMetricController(p time.Duration, b PrometheusBridge) *metricController {
-	return &metricController{period: p, bridge: b}
+func newMetricController(chainInfo *chain.Info, b PrometheusBridge) *metricController {
+	return &metricController{chainInfo: chainInfo, bridge: b}
 }
 
 type metricController struct {
-	period time.Duration
-	bridge PrometheusBridge
+	chainInfo *chain.Info
+	bridge    PrometheusBridge
 }
 
 func (mc *metricController) Start() {
 	for {
-		time.Sleep(mc.period)
+		time.Sleep(mc.chainInfo.Period)
 		if err := mc.bridge.Push(); err != nil {
 			log.Printf("prometheus gateway push (%v)", err)
 		}
@@ -31,11 +31,10 @@ func (mc *metricController) Register(x prometheus.Collector) error {
 	return mc.bridge.Register(x)
 }
 
-func newWatchLatencyMetricClient(id string, base Client, ctl *metricController, chainInfo *chain.Info) (Client, error) {
+func newWatchLatencyMetricClient(id string, base Client, ctl *metricController) (Client, error) {
 	c := &watchLatencyMetricClient{
-		Client:    base,
-		ctl:       ctl,
-		chainInfo: chainInfo,
+		Client: base,
+		ctl:    ctl,
 		watchLatency: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: "drand_client_observation",
 			Subsystem: id,
@@ -52,7 +51,6 @@ func newWatchLatencyMetricClient(id string, base Client, ctl *metricController, 
 type watchLatencyMetricClient struct {
 	Client
 	ctl          *metricController
-	chainInfo    *chain.Info
 	watchLatency prometheus.Gauge
 }
 
@@ -66,7 +64,7 @@ func (c *watchLatencyMetricClient) startObserve(ctx context.Context) {
 			}
 			// compute the latency metric
 			actual := time.Now().Unix()
-			expected := chain.TimeOfRound(c.chainInfo.Period, c.chainInfo.GenesisTime, result.Round())
+			expected := chain.TimeOfRound(c.ctl.chainInfo.Period, c.ctl.chainInfo.GenesisTime, result.Round())
 			c.watchLatency.Set(float64(expected - actual))
 		case <-ctx.Done():
 			return

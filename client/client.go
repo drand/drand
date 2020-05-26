@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -85,7 +86,22 @@ func makeClient(cfg clientConfig) (Client, error) {
 		}
 	}
 
-	return newWatchAggregator(c, cfg.log), nil
+	c = newWatchAggregator(c, cfg.log)
+
+	if cfg.prometheus != nil {
+		if cfg.id == "" {
+			return nil, fmt.Errorf("prometheus enabled, but client has no id")
+		}
+		if cfg.chainInfo == nil {
+			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
+		}
+		ctl := newMetricController(cfg.chainInfo, cfg.prometheus)
+		if c, err = newWatchLatencyMetricClient(cfg.id, c, ctl); err != nil {
+			return nil, err
+		}
+	}
+
+	return c, nil
 }
 
 type clientConfig struct {
