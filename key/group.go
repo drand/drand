@@ -173,9 +173,9 @@ type GroupTOML struct {
 	Period         string
 	Nodes          []*NodeTOML
 	GenesisTime    int64
-	TransitionTime int64           `toml:",omitempty"`
-	GenesisSeed    string          `toml:",omitempty"`
-	PublicKey      *DistPublicTOML `toml:",omitempty"`
+	TransitionTime int64
+	GenesisSeed    string
+	PublicKey      *DistPublicTOML
 }
 
 // FromTOML decodes the group from the toml struct
