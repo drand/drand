@@ -89,13 +89,10 @@ func makeClient(cfg clientConfig) (Client, error) {
 	c = newWatchAggregator(c, cfg.log)
 
 	if cfg.prometheus != nil {
-		if cfg.id == "" {
-			return nil, fmt.Errorf("prometheus enabled, but client has no id")
-		}
 		if cfg.chainInfo == nil {
 			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
 		}
-		ctl := newMetricController(cfg.id, cfg.chainInfo, cfg.prometheus)
+		ctl := newMetricController(cfg.chainInfo, cfg.prometheus)
 		if c, err = newWatchLatencyMetricClient(c, ctl); err != nil {
 			return nil, err
 		}
@@ -124,8 +121,6 @@ type clientConfig struct {
 	failoverGracePeriod time.Duration
 	// watcher is a constructor function that creates a new Watcher
 	watcher WatcherCtor
-	// id is a unique identifier for this client instance
-	id string
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
 }
@@ -239,14 +234,6 @@ func WithWatcher(wc WatcherCtor) Option {
 func WithPrometheus(r prometheus.Registerer) Option {
 	return func(cfg *clientConfig) error {
 		cfg.prometheus = r
-		return nil
-	}
-}
-
-// WithID specifies a unique identifier for the client instance.
-func WithID(id string) Option {
-	return func(cfg *clientConfig) error {
-		cfg.id = id
 		return nil
 	}
 }
