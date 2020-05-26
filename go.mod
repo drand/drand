@@ -5,7 +5,6 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/drand/bls12-381 v0.3.2
-	github.com/drand/drand/cmd/drand-gossip-relay v0.0.0-20200515153120-57a6056a24d4
 	github.com/drand/kyber v1.0.2
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/protobuf v1.3.1
@@ -15,6 +14,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/ipfs/go-cid v0.0.6-0.20200501230655-7c82f3b81c00 // indirect
 	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ds-badger2 v0.1.0
 	github.com/ipfs/go-log/v2 v2.0.5
@@ -38,5 +38,6 @@ require (
 	go.etcd.io/bbolt v1.3.4
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
+	google.golang.org/genproto v0.0.0-20200406120821-33397c535dc2 // indirect
 	google.golang.org/grpc v1.28.0
 )
