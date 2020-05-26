@@ -284,11 +284,11 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *Beacon) {
 	}
 	info, err := h.safe.GetInfo(round)
 	if err != nil {
-		h.l.Error("no_info", round, "error", err)
+		h.l.Error("no_info", round, "BUG", h.safe.String())
 		return
 	}
 	if info.share == nil {
-		h.l.Error("no_share", round, "error", "nil share")
+		h.l.Error("no_share", round, "BUG", h.safe.String())
 		return
 	}
 	msg := Message(round, previousSig)

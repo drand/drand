@@ -31,11 +31,11 @@ func getPrivateCmd(c *cli.Context) error {
 	for _, public := range ids {
 		resp, err = client.Private(public.Identity)
 		if err == nil {
-			fmt.Printf("drand: successfully retrieved private randomness "+
+			fmt.Fprintf(output, "drand: successfully retrieved private randomness "+
 				"from %s", public.Addr)
 			break
 		}
-		fmt.Printf("drand: error contacting node %s: %s", public.Addr, err)
+		fmt.Fprintf(output, "drand: error contacting node %s: %s", public.Addr, err)
 	}
 	if resp == nil {
 		return errors.New("zero successful contacts with nodes")
@@ -84,11 +84,11 @@ func getPublicRandomness(c *cli.Context) error {
 		if err == nil {
 			foundCorrect = true
 			if c.Bool(verboseFlag.Name) {
-				fmt.Fprintf(os.Stderr, "drand: public randomness retrieved from %s", id.Addr)
+				fmt.Fprintf(output, "drand: public randomness retrieved from %s", id.Addr)
 			}
 			break
 		}
-		fmt.Printf("drand: could not get public randomness from %s: %s", id.Addr, err)
+		fmt.Fprintf(os.Stderr, "drand: could not get public randomness from %s: %s", id.Addr, err)
 	}
 	if !foundCorrect {
 		return errors.New("drand: could not verify randomness")
@@ -116,7 +116,7 @@ func getChainInfo(c *cli.Context) error {
 		if err == nil {
 			break
 		}
-		fmt.Printf("drand: error fetching distributed key from %s : %s",
+		fmt.Fprintf(os.Stderr, "drand: error fetching distributed key from %s : %s",
 			addr, err)
 	}
 	if ci == nil {

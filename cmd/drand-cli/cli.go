@@ -433,7 +433,7 @@ func resetCmd(c *cli.Context) error {
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if answer != "y" {
-		fmt.Fprintf(os.Stderr, "drand: not reseting the state.")
+		fmt.Fprintf(output, "drand: not reseting the state.")
 		return nil
 	}
 	store := key.NewFileStore(conf.ConfigFolder())
@@ -462,14 +462,14 @@ func resetBeaconDB(config *core.Config) error {
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		if answer != "y" {
-			fmt.Printf("drand: not deleting the database.")
+			fmt.Fprintf(output, "drand: not deleting the database.")
 			return nil
 		}
 
 		if err := os.RemoveAll(config.DBFolder()); err != nil {
 			return err
 		}
-		fmt.Printf("drand: removed existing beacon database.")
+		fmt.Fprintf(output, "drand: removed existing beacon database.")
 	}
 	return nil
 }
@@ -477,7 +477,7 @@ func resetBeaconDB(config *core.Config) error {
 func askPort() string {
 	for {
 		var port string
-		fmt.Printf("No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
+		fmt.Fprintf(output, "No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
 		if _, err := fmt.Scanf("%s\n", &port); err != nil {
 			continue
 		}

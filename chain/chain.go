@@ -172,7 +172,7 @@ func (c *chainStore) runChainLoop() {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
-		c.l.Info("new_beacon_stored", newB.String())
+		c.l.Info("NEW_BEACON_STORED", newB.String())
 		c.lastInserted <- newB
 		if !syncing {
 			// during syncing we don't do a fast sync
