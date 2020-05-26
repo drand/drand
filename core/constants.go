@@ -50,7 +50,7 @@ var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 // enough (at the very least superior than the time DKG is taking).
 var DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(3)
 
-// DefaultResharingOff is the time the leader adds to the current time to set
+// DefaultResharingOffset is the time the leader adds to the current time to set
 // the TransitionTime field in the group file when setting up a resharing. This
 // time will be rounded up to the next round time of the beacon, since a beacon
 // has to keep the same period.

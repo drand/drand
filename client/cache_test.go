@@ -50,7 +50,8 @@ func TestCacheWatch(t *testing.T) {
 	m.WatchCh = rc
 	cache, _ := NewCachingClient(m, 2, log.DefaultLogger)
 	c := newWatchAggregator(cache, log.DefaultLogger)
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	r1 := c.Watch(ctx)
 	rc <- &MockResult{rnd: 1, rand: []byte{1}}
 	_, ok := <-r1

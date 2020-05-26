@@ -40,7 +40,7 @@ func NewHTTPClient(url string, chainHash []byte, client HTTPGetter) (Client, err
 	return c, nil
 }
 
-// NewHTTPClientWithGroup constructs an http client when the group parameters are already known.
+// NewHTTPClientWithInfo constructs an http client when the group parameters are already known.
 func NewHTTPClientWithInfo(url string, info *chain.Info, client HTTPGetter) (Client, error) {
 	if client == nil {
 		client = &http.Client{}
@@ -113,6 +113,7 @@ func (r *RandomData) Round() uint64 {
 	return r.Rnd
 }
 
+// Signature provides the signature over this round's randomness
 func (r *RandomData) Signature() []byte {
 	return r.Sig
 }
