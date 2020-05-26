@@ -214,7 +214,7 @@ var enablePrivateRand = &cli.BoolFlag{
 }
 
 var hashOnly = &cli.BoolFlag{
-	Name:  "hash-only",
+	Name:  "hash",
 	Usage: "Only print the hash of the group file",
 }
 
@@ -312,7 +312,7 @@ func CLI() *cli.App {
 					Name:      "chain-info",
 					Usage:     "Get the binding chain information that this nodes participates to",
 					ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
-					Flags:     toArray(tlsCertFlag, insecureFlag),
+					Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly),
 					Action: func(c *cli.Context) error {
 						return getChainInfo(c)
 					},
@@ -392,7 +392,7 @@ func CLI() *cli.App {
 				{
 					Name:  "chain-info",
 					Usage: "shows the chain information this node is participating to",
-					Flags: toArray(controlFlag),
+					Flags: toArray(controlFlag, hashOnly),
 					Action: func(c *cli.Context) error {
 						return showChainInfo(c)
 					},

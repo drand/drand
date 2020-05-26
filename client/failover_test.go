@@ -44,7 +44,7 @@ func TestFailover(t *testing.T) {
 
 	failC := make(chan Result, 1)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:3]}
-	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -68,7 +68,7 @@ func TestFailoverDedupe(t *testing.T) {
 
 	failC := make(chan Result, 2)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:2]}
-	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -89,7 +89,7 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	results := []MockResult{{rnd: 1, rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
-	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), 0, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	compare(t, next(t, watchC), &results[0])
@@ -108,7 +108,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 		GenesisTime: time.Now().Unix() - 1,
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
-	failoverClient := NewFailoverWatcher(mockClient, chainInfo, 0, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, chainInfo, 0, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	now := time.Now()
@@ -147,7 +147,7 @@ func TestFailoverGetFail(t *testing.T) {
 
 	mockClient := &errOnGetClient{MockClient: MockClient{WatchCh: failC}, errC: getErrC, err: getErr}
 
-	failoverClient := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -169,5 +169,16 @@ func fakeChainInfo() *chain.Info {
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+}
+
+func TestFailoverMissingChainInfo(t *testing.T) {
+	mockClient := &MockClient{}
+	_, err := NewFailoverWatcher(mockClient, nil, 0, log.DefaultLogger)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if err.Error() != "missing chain info" {
+		t.Fatal("unexpected error", err)
 	}
 }

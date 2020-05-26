@@ -59,7 +59,6 @@ func (d *Drand) InitDKG(c context.Context, in *control.InitDKGPacket) (*control.
 	if err := d.pushDKGInfo(nodes, packet); err != nil {
 		return nil, err
 	}
-
 	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
