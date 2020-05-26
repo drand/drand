@@ -225,6 +225,10 @@ func CLI() *cli.App {
 		fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	}
 
+	app.ExitErrHandler = func(context *cli.Context, err error) {
+		fmt.Fprintf(os.Stderr, err.Error())
+		os.Exit(1)
+	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
 	// =====Commands=====

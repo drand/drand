@@ -264,7 +264,8 @@ func (n *NodeProc) ChainInfo(group string) bool {
 
 func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
-	_, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
+	fmt.Printf(" -- ping output : %s - err %s\n", out, err)
 	if err != nil {
 		//fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.privAddr, err, string(out))
 		return false
