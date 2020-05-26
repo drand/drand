@@ -9,7 +9,7 @@ import (
 
 	control "github.com/drand/drand/protobuf/drand"
 
-	"github.com/nikkolasg/slog"
+	"github.com/drand/drand/log"
 	"google.golang.org/grpc"
 )
 
@@ -23,7 +23,7 @@ type ControlListener struct {
 func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
 	lis, err := net.Listen("tcp", controlListenAddr(port))
 	if err != nil {
-		slog.Fatalf("grpc listener failure: %s", err)
+		log.DefaultLogger.Error("grpc listener", "failure", "err", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()
@@ -34,7 +34,7 @@ func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlList
 // Start the listener for the control commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
-		slog.Fatalf("failed to serve: %s", err)
+		log.DefaultLogger.Error("control listener", "serve ended", "err", err)
 	}
 }
 
@@ -56,7 +56,7 @@ func NewControlClient(port string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
 	conn, err := grpc.Dial(controlListenAddr(port), grpc.WithInsecure())
 	if err != nil {
-		slog.Fatalf("control: did not connect: %s", err)
+		log.DefaultLogger.Error("control client", "connect failure", "err", err)
 		return nil, err
 	}
 	c := control.NewControlClient(conn)
@@ -69,7 +69,7 @@ func (c *ControlClient) Ping() error {
 	return err
 }
 
-// InitReshare sets up the node to be ready for a resharing protocol.
+// InitReshareLeader sets up the node to be ready for a resharing protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
 func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Duration, secret string, oldPath string, offset int) (*control.GroupPacket, error) {
@@ -89,6 +89,7 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Dur
 	return c.client.InitReshare(context.Background(), request)
 }
 
+// InitReshare sets up the node to be ready for a resharing protocol.
 func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -104,7 +105,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) 
 	return c.client.InitReshare(context.Background(), request)
 }
 
-// InitDKG sets up the node to be ready for a first DKG protocol.
+// InitDKGLeader sets up the node to be ready for a first DKG protocol.
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
@@ -124,6 +125,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Du
 	return c.client.InitDKG(context.Background(), request)
 }
 
+// InitDKG sets up the node to be ready for a first DKG protocol.
 func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -152,7 +154,7 @@ func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
 	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{})
 }
 
-// CollectiveKey returns the collective key of the remote node
+// ChainInfo returns the collective key of the remote node
 func (c ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
 	return c.client.ChainInfo(context.Background(), &control.ChainInfoRequest{})
 }

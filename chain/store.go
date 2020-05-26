@@ -7,7 +7,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/nikkolasg/slog"
+	"github.com/drand/drand/log"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -27,7 +27,7 @@ type Store interface {
 	Del(round uint64) error
 }
 
-// Iterate over items in sorted key order. This starts from the
+// Cursor iterates over items in sorted key order. This starts from the
 // first key/value pair and updates the k/v variables to the
 // next key/value on each iteration.
 //
@@ -92,7 +92,7 @@ func (b *boltStore) Len() int {
 
 func (b *boltStore) Close() {
 	if err := b.db.Close(); err != nil {
-		slog.Debugf("boltdb store: %s", err)
+		log.DefaultLogger.Debug("boltdb", "close", "err", err)
 	}
 }
 
@@ -228,6 +228,7 @@ func (c *boltCursor) Last() *Beacon {
 	return b
 }
 
+// CallbackStore keeps a list of functions to notify on new beacons
 type CallbackStore struct {
 	Store
 	cbs []func(*Beacon)
@@ -241,6 +242,7 @@ func NewCallbackStore(s Store) *CallbackStore {
 	return &CallbackStore{Store: s}
 }
 
+// Put stores a new beacon
 func (c *CallbackStore) Put(b *Beacon) error {
 	if err := c.Store.Put(b); err != nil {
 		return err
@@ -257,6 +259,7 @@ func (c *CallbackStore) Put(b *Beacon) error {
 	return nil
 }
 
+// AddCallback registers a function to call
 func (c *CallbackStore) AddCallback(fn func(*Beacon)) {
 	c.Lock()
 	defer c.Unlock()

@@ -6,11 +6,11 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/nikkolasg/slog"
 	http_grpc "github.com/weaveworks/common/httpgrpc"
 	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
 	"google.golang.org/grpc"
@@ -120,10 +120,12 @@ func (g *tlsListener) Start() {
 }
 
 func (g *tlsListener) Stop(ctx context.Context) {
-	g.l.Close()
+	if err := g.l.Close(); err != nil {
+		log.DefaultLogger.Debug("grpc tls listener", "grpc shutdown", "err", err)
+	}
 	// Graceful stop not supported with HTTP Server
 	// https://github.com/grpc/grpc-go/issues/1384
 	if err := g.httpServer.Shutdown(ctx); err != nil {
-		slog.Debugf("grpc: tls listener shutdown failed: %s\n", err)
+		log.DefaultLogger.Debug("grpc tls listener", "http shutdown", "err", err)
 	}
 }

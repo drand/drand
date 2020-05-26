@@ -7,12 +7,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	//"github.com/drand/drand/protobuf/control"
-
 	"github.com/drand/drand/protobuf/drand"
 )
-
-//var DefaultTimeout = time.Duration(30) * time.Second
 
 // PrivateGateway is the main interface to communicate to other drand nodes. It
 // acts as a listener to receive incoming requests and acts a client connecting
