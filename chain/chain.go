@@ -128,7 +128,7 @@ func (c *chainStore) runAggregator() {
 			shouldStore := pRound >= lastBeacon.Round+1 && pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
 			// check if we can reconstruct
 			if !shouldStore {
-				c.l.Error("ignoring_partial", partial.p.GetRound(), "last_beacon_stored", lastBeacon.Round)
+				c.l.Debug("ignoring_partial", partial.p.GetRound(), "last_beacon_stored", lastBeacon.Round)
 				break
 			}
 			if cache.Len() < thr {
