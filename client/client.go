@@ -127,7 +127,7 @@ type clientConfig struct {
 	// id is a unique identifier for this client instance
 	id string
 	// prometheus is an interface to a Prometheus system
-	prometheus PrometheusBridge
+	prometheus prometheus.Registerer
 }
 
 // Option is an option configuring a client.
@@ -235,15 +235,10 @@ func WithWatcher(wc WatcherCtor) Option {
 	}
 }
 
-// PrometheusBridge abstracts the Prometheus metric registration and push functionalities.
-type PrometheusBridge interface {
-	Register(prometheus.Collector) error
-}
-
 // WithPrometheus specifies a prometheus system to be used for metric collection.
-func WithPrometheus(b PrometheusBridge) Option {
+func WithPrometheus(r prometheus.Registerer) Option {
 	return func(cfg *clientConfig) error {
-		cfg.prometheus = b
+		cfg.prometheus = r
 		return nil
 	}
 }

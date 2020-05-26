@@ -204,7 +204,7 @@ func Watch(c *cli.Context, client client.Client) error {
 	return nil
 }
 
-func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) *prometheusBridge {
+func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) prometheus.Registerer {
 	b := &prometheusBridge{
 		address:         address,
 		pushIntervalSec: pushIntervalSec,
@@ -240,4 +240,12 @@ func (b *prometheusBridge) Register(x prometheus.Collector) error {
 		b.pusher.Collector(x)
 	}
 	return prometheus.Register(x)
+}
+
+func (b *prometheusBridge) MustRegister(x ...prometheus.Collector) {
+	panic("not supported")
+}
+
+func (b *prometheusBridge) Unregister(x prometheus.Collector) bool {
+	panic("not supported")
 }

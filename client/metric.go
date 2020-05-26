@@ -8,13 +8,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func newMetricController(chainInfo *chain.Info, b PrometheusBridge) *metricController {
-	return &metricController{chainInfo: chainInfo, bridge: b}
+func newMetricController(chainInfo *chain.Info, r prometheus.Registerer) *metricController {
+	return &metricController{chainInfo: chainInfo, bridge: r}
 }
 
 type metricController struct {
 	chainInfo *chain.Info
-	bridge    PrometheusBridge
+	bridge    prometheus.Registerer
 }
 
 func (mc *metricController) Register(x prometheus.Collector) error {
