@@ -7,9 +7,7 @@ syntax = "proto3";
 
 package drand;
 
-/*option go_package = "github.com/drand/drand/protobuf/drand";*/
 option go_package = "drand";
-
 import "drand/common.proto";
 
 service Public {
@@ -23,12 +21,9 @@ service Public {
     // by the drand node only.
     rpc PrivateRand(PrivateRandRequest) returns (PrivateRandResponse);
 
-    // Group is the method that returns the group descrition that the drand
-    // endpoint belongs to
-    rpc Group(drand.GroupRequest) returns (drand.GroupPacket);
-
-    // DistKey returns the distributed key from which drand node endpoint get a share
-    rpc DistKey(DistKeyRequest) returns (DistKeyResponse);
+    // ChainInfo returns the information related to the chain this node
+    // participates to
+    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket);
 
     // Home is a simple endpoint
     rpc Home(HomeRequest) returns (HomeResponse);
@@ -71,13 +66,6 @@ message PrivateRandResponse {
     bytes response = 1;
 }
 
-// DistKeyRequest requests the distributed public key used during the randomness generation process
-message DistKeyRequest {
-}
-
-message DistKeyResponse {
-    bytes key = 2;
-}
 
 message HomeRequest {
 }
@@ -85,3 +73,5 @@ message HomeRequest {
 message HomeResponse {
     string status = 1;
 }
+
+

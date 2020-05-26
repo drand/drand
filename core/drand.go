@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/http"
 	"github.com/drand/drand/key"
@@ -36,7 +36,7 @@ type Drand struct {
 	// stores recent entries in memory
 	//cache *beaconCache
 
-	beacon *beacon.Handler
+	beacon *chain.Handler
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
 	// dkg public key. Can be nil if dkg not finished yet.
@@ -107,7 +107,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-disable")
 		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), logger.With("server", "http"))
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +122,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-enabled")
 		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, logger.With("server", "http"))
+			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), logger.With("server", "http"))
 			if err != nil {
 				return nil, err
 			}
@@ -321,11 +321,11 @@ func (d *Drand) isDKGDone() bool {
 	return d.dkgDone
 }
 
-func (d *Drand) newBeacon() (*beacon.Handler, error) {
+func (d *Drand) newBeacon() (*chain.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	fs.CreateSecureFolder(d.opts.DBFolder())
-	store, err := beacon.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+	store, err := chain.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -335,13 +335,13 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	if node == nil {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
-	conf := &beacon.Config{
+	conf := &chain.Config{
 		Public: node,
 		Group:  d.group,
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	beacon, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
+	beacon, err := chain.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
 	if err != nil {
 		return nil, err
 	}
@@ -350,6 +350,6 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	return d.beacon, nil
 }
 
-func (d *Drand) beaconCallback(b *beacon.Beacon) {
+func (d *Drand) beaconCallback(b *chain.Beacon) {
 	d.opts.callbacks(b)
 }

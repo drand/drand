@@ -12,8 +12,10 @@ import (
 	"testing"
 	"time"
 
+	json "github.com/nikkolasg/hexjson"
+
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -33,21 +35,21 @@ func TestDeleteBeacon(t *testing.T) {
 	var opt = core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
 	fs.CreateSecureFolder(conf.DBFolder())
-	store, err := beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err := chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	require.NoError(t, err)
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     1,
 		Signature: []byte("Hello"),
 	})
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     2,
 		Signature: []byte("Hello"),
 	})
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     3,
 		Signature: []byte("Hello"),
 	})
-	store.Put(&beacon.Beacon{
+	store.Put(&chain.Beacon{
 		Round:     4,
 		Signature: []byte("hello"),
 	})
@@ -64,7 +66,7 @@ func TestDeleteBeacon(t *testing.T) {
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "3"}
 	app := CLI()
 	require.NoError(t, app.Run(args))
-	store, err = beacon.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err = chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail
@@ -161,11 +163,11 @@ func TestStartWithoutGroup(t *testing.T) {
 	fs := key.NewFileStore(config.ConfigFolder())
 	require.NoError(t, fs.SaveKeyPair(priv))
 
-	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "2", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", metricsPort}
+	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", "127.0.0.1:" + metricsPort}
 	go CLI().Run(startArgs)
 	time.Sleep(500 * time.Millisecond)
 
-	fmt.Println(" DRAND SHARE ---")
+	fmt.Println("--- DRAND SHARE --- (expected to fail)")
 	// this must fail because not enough arguments
 	// TODO - test vectors testing on the inputs
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1}
@@ -175,6 +177,15 @@ func TestStartWithoutGroup(t *testing.T) {
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
 	_, group := test.BatchIdentities(5)
+
+	// fake dkg outuput
+	fakeKey := key.KeyGroup.Point().Pick(random.New())
+	distKey := &key.DistPublic{
+		Coefficients: []kyber.Point{fakeKey,
+			key.KeyGroup.Point().Pick(random.New()),
+			key.KeyGroup.Point().Pick(random.New()),
+		},
+	}
 	priv.Public.TLS = false
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
@@ -191,11 +202,6 @@ func TestStartWithoutGroup(t *testing.T) {
 	share := &key.Share{Share: s}
 	require.NoError(t, fs.SaveShare(share))
 
-	// fake dkg outuput
-	fakeKey := key.KeyGroup.Point().Pick(random.New())
-	distKey := &key.DistPublic{
-		Coefficients: []kyber.Point{fakeKey},
-	}
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
@@ -227,15 +233,31 @@ func TestStartWithoutGroup(t *testing.T) {
 	getCmd := []string{"drand", "get", "private", "--tls-disable", groupPath}
 	require.NoError(t, CLI().Run(getCmd))
 
-	fmt.Printf("\n Running GET COKEY command\n")
-	fakeStr := key.PointToString(fakeKey)
-	cokeyCmd := []string{"drand", "get", "cokey", "--tls-disable", priv.Public.Address()}
-	testCommand(t, cokeyCmd, fakeStr)
+	fmt.Printf("\n Running CHAIN-INFO command\n")
+	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	require.NoError(t, err)
+	expectedOutput := string(chainInfo)
+	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", priv.Public.Address()}
+	testCommand(t, chainInfoCmd, expectedOutput)
+
+	fmt.Printf("\n Running CHAIN-INFO --HASH command\n")
+	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", priv.Public.Address()}
+	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	testCommand(t, chainInfoCmdHash, expectedOutput)
 
 	fmt.Println("\nRunning SHOW SHARE command")
 	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort2}
-	expectedOutput := "0000000000000000000000000000000000000000000000000000000000000001"
+	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 	testCommand(t, shareCmd, expectedOutput)
+
+	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort2}
+	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	require.NoError(t, err)
+	testCommand(t, showChainInfo, string(buffCi))
+
+	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort2}
+	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state
 	resetCmd := []string{"drand", "util", "reset", "--folder", tmpPath}
@@ -289,18 +311,21 @@ func TestClientTLS(t *testing.T) {
 
 	// fake group
 	_, group := test.BatchTLSIdentities(5)
-	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
-	group.Period = 2 * time.Minute
-	groupPath = path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
-	fs.SaveGroup(group)
-
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
-	keyStr := key.PointToString(fakeKey)
-
+	// need a threshold of coefficients
 	distKey := &key.DistPublic{
-		Coefficients: []kyber.Point{fakeKey},
+		Coefficients: []kyber.Point{fakeKey,
+			key.KeyGroup.Point().Pick(random.New()),
+			key.KeyGroup.Point().Pick(random.New()),
+		},
 	}
+	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
+	group.Period = 2 * time.Minute
+	group.GenesisTime = time.Now().Unix()
+	group.PublicKey = distKey
+	groupPath = path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
+	require.NoError(t, fs.SaveGroup(group))
 	require.NoError(t, fs.SaveDistPublic(distKey))
 
 	//fake share
@@ -325,9 +350,11 @@ func TestClientTLS(t *testing.T) {
 	}
 	require.Nil(t, err)
 
-	getCokey := []string{"drand", "get", "cokey", "--tls-cert", certPath, addr}
-	expectedOutput := keyStr
-	testCommand(t, getCokey, expectedOutput)
+	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, addr}
+	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	require.NoError(t, err)
+	expectedOutput := string(chainInfoBuff)
+	testCommand(t, chainInfoCmd, expectedOutput)
 
 	showCmd := []string{"drand", "show", "share", "--control", ctrlPort}
 	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
@@ -343,17 +370,16 @@ func TestClientTLS(t *testing.T) {
 	exp = hex.EncodeToString(b)
 	testCommand(t, showPrivate, exp)
 
-	showCokey := []string{"drand", "show", "cokey", "--control", ctrlPort}
-	expectedOutput = keyStr
+	showCokey := []string{"drand", "show", "chain-info", "--control", ctrlPort}
+	expectedOutput = string(chainInfoBuff)
 	testCommand(t, showCokey, expectedOutput)
 
 	showGroup := []string{"drand", "show", "group", "--control", ctrlPort}
 	testCommand(t, showGroup, "")
 
-	showHash := []string{"drand", "show", "group", "--control", ctrlPort, "--hash-only"}
+	showHash := []string{"drand", "show", "group", "--control", ctrlPort, "--hash"}
 	groupHash := hex.EncodeToString(group.Hash())
 	testCommand(t, showHash, groupHash)
-
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
@@ -362,9 +388,14 @@ func testCommand(t *testing.T, args []string, exp string) {
 	var buff bytes.Buffer
 	output = &buff
 	defer func() { output = os.Stdout }()
+	fmt.Println("-------------_")
 	require.NoError(t, CLI().Run(args))
 	if exp == "" {
 		return
 	}
+	fmt.Println("RUNNING: ", args)
+	fmt.Println("EXPECTED: ", exp)
+	fmt.Println("GOT: ", strings.Trim(buff.String(), "\n"), " --")
+	fmt.Println("EQUAL: ", strings.Trim(buff.String(), "\n") == exp)
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }

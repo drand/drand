@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
@@ -14,15 +14,15 @@ import (
 // Get requests are sourced from get sub-clients.
 // Watch requests are sourced from a watch sub-client if available, otherwise
 // it is achieved as a long-poll from the prioritized get sub-clients.
-func NewPrioritizingClient(watchClient Client, getClient []Client, groupHash []byte, group *key.Group, log log.Logger) (Client, error) {
-	return &prioritizingClient{watchClient, getClient, groupHash, group, log}, nil
+func NewPrioritizingClient(watchClient Client, getClient []Client, chainHash []byte, chainInfo *chain.Info, log log.Logger) (Client, error) {
+	return &prioritizingClient{watchClient, getClient, chainHash, chainInfo, log}, nil
 }
 
 type prioritizingClient struct {
 	watchClient Client
 	getClient   []Client
-	groupHash   []byte
-	group       *key.Group
+	chainHash   []byte
+	chainInfo   *chain.Info
 	log         log.Logger
 }
 
@@ -47,14 +47,14 @@ func (p *prioritizingClient) Get(ctx context.Context, round uint64) (res Result,
 
 // Attempt to learn the trust root for the group from group-hash.
 func (p *prioritizingClient) learnGroup(ctx context.Context) error {
-	var group *key.Group
+	var chainInfo *chain.Info
 	var err error
 
 	for _, c := range p.getClient {
 		if hc, ok := c.(*httpClient); ok {
-			group, err = hc.FetchGroupInfo(p.groupHash)
+			chainInfo, err = hc.FetchChainInfo(p.chainHash)
 			if err == nil {
-				p.group = group
+				p.chainInfo = chainInfo
 				return nil
 			}
 		}
@@ -72,7 +72,7 @@ func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
 		return p.watchClient.Watch(ctx)
 	}
 	// otherwise, poll from the prioritized list of getClients
-	if p.group == nil {
+	if p.chainInfo == nil {
 		if err := p.learnGroup(ctx); err != nil {
 			log.DefaultLogger.Warn("prioritizing_client", "failed to learn group", "err", err)
 			ch := make(chan Result, 0)
@@ -80,7 +80,7 @@ func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
 			return ch
 		}
 	}
-	return pollingWatcher(ctx, p, p.group, p.log)
+	return pollingWatcher(ctx, p, p.chainInfo, p.log)
 }
 
 // RoundAt will return the most recent round of randomness that will be available

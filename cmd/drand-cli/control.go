@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -26,6 +27,9 @@ func shareCmd(c *cli.Context) error {
 		coordAddress := c.String(connectFlag.Name)
 		isTls := !c.IsSet(insecureFlag.Name)
 		connectPeer = net.CreatePeer(coordAddress, isTls)
+	}
+	if isLeader && !(c.IsSet(thresholdFlag.Name) && c.IsSet(shareNodeFlag.Name)) {
+		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
 	}
 
 	nodes := c.Int(shareNodeFlag.Name)
@@ -80,7 +84,7 @@ func shareCmd(c *cli.Context) error {
 			fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 		} else {
 			fmt.Fprintln(output, "Participating to the setup of the DKG")
-			groupP, shareErr = client.InitDKG(connectPeer, nodes, thr, timeout, entropyInfo, secret)
+			groupP, shareErr = client.InitDKG(connectPeer, entropyInfo, secret)
 			fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 		}
 	} else {
@@ -106,7 +110,7 @@ func shareCmd(c *cli.Context) error {
 			groupP, shareErr = client.InitReshareLeader(nodes, thr, timeout, secret, oldPath, offset)
 		} else {
 			fmt.Fprintln(output, "Participating to the resharing")
-			groupP, shareErr = client.InitReshare(connectPeer, nodes, thr, timeout, secret, oldPath)
+			groupP, shareErr = client.InitReshare(connectPeer, secret, oldPath)
 		}
 	}
 	if shareErr != nil {
@@ -159,16 +163,20 @@ func showGroupCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
-func showCokeyCmd(c *cli.Context) error {
+func showChainInfo(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
 		return err
 	}
-	resp, err := client.CollectiveKey()
+	resp, err := client.ChainInfo()
 	if err != nil {
-		return fmt.Errorf("could not request drand.cokey: %s", err)
+		return fmt.Errorf("could not request chain info: %s", err)
 	}
-	return printJSON(resp)
+	ci, err := chain.InfoFromProto(resp)
+	if err != nil {
+		return fmt.Errorf("could not get correct chain info: %s", err)
+	}
+	return printChainInfo(c, ci)
 }
 
 func showPrivateCmd(c *cli.Context) error {

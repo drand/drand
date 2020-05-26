@@ -154,7 +154,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 		grp, err = cl.InitDKGLeader(nodes, thr, p, t, nil, secretDKG, beaconOffset)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitDKG(leader, nodes, thr, t, nil, secretDKG)
+		grp, err = cl.InitDKG(leader, nil, secretDKG)
 	}
 	if err != nil {
 		l.log.Error("drand", "dkg run failed", "err", err)
@@ -190,7 +190,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 		grp, err = cl.InitReshareLeader(nodes, thr, t, secretReshare, oldGroup, beaconOffset)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, nodes, thr, t, secretReshare, oldGroup)
+		grp, err = cl.InitReshare(leader, secretReshare, oldGroup)
 	}
 	if err != nil {
 		l.log.Error("drand", "reshare failed", "err", err)
@@ -200,15 +200,15 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 	return kg
 }
 
-func (l *LocalNode) GetCokey(group string) bool {
+func (l *LocalNode) ChainInfo(group string) bool {
 	cl := l.ctrl()
-	key, err := cl.CollectiveKey()
+	ci, err := cl.ChainInfo()
 	if err != nil {
-		l.log.Error("drand", "can't get cokey", "err", err)
+		l.log.Error("drand", "can't get chain-info", "err", err)
 		return false
 	}
-	sdist := hex.EncodeToString(key.GetCoKey())
-	fmt.Printf("\t- Node %s has cokey %s\n", l.PrivateAddr(), sdist[10:14])
+	sdist := hex.EncodeToString(ci.PublicKey)
+	fmt.Printf("\t- Node %s has chain-info %s\n", l.PrivateAddr(), sdist[10:14])
 	return true
 }
 

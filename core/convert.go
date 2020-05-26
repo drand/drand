@@ -3,7 +3,7 @@ package core
 import (
 	"fmt"
 
-	"github.com/drand/drand/beacon"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/drand/protobuf/drand"
@@ -11,7 +11,7 @@ import (
 	"github.com/drand/kyber/share/dkg"
 )
 
-func beaconToProto(b *beacon.Beacon) *drand.PublicRandResponse {
+func beaconToProto(b *chain.Beacon) *drand.PublicRandResponse {
 	return &drand.PublicRandResponse{
 		Round:             b.Round,
 		Signature:         b.Signature,

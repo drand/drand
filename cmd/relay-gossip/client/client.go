@@ -4,6 +4,9 @@ import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
@@ -16,6 +19,7 @@ var (
 	log = logging.Logger("drand-client")
 )
 
+// Client is a concrete pubsub client implementation
 type Client struct {
 	cancel func()
 	latest uint64
@@ -26,9 +30,21 @@ type Client struct {
 	}
 }
 
-// NewWtihPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
-	t, err := ps.Join(lp2p.PubSubTopic(networkName))
+// WithPubsub provides an option for integrating pubsub notification
+// into a drand client.
+func WithPubsub(ps *pubsub.PubSub, chainHash string) dclient.Option {
+	return dclient.WithWatcher(func(_ *chain.Info) (dclient.Watcher, error) {
+		c, err := NewWithPubsub(ps, chainHash)
+		if err != nil {
+			return nil, err
+		}
+		return c, nil
+	})
+}
+
+// NewWithPubsub creates a gossip randomness client.
+func NewWithPubsub(ps *pubsub.PubSub, chainHash string) (*Client, error) {
+	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}
@@ -91,6 +107,7 @@ func NewWithPubsub(ps *pubsub.PubSub, networkName string) (*Client, error) {
 	return c, nil
 }
 
+// UnsubFunc is a cancel function for pubsub subscription
 type UnsubFunc func()
 
 // Sub subscribes to notfications about new randomness.
@@ -106,13 +123,63 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	c.subs.Lock()
 	c.subs.M[id] = ch
 	c.subs.Unlock()
-
 	return func() {
 		c.subs.Lock()
 		delete(c.subs.M, id)
 		close(ch)
 		c.subs.Unlock()
 	}
+}
+
+// Watch implements the dclient.Watcher interface
+func (c *Client) Watch(ctx context.Context) <-chan client.Result {
+	innerCh := make(chan drand.PublicRandResponse)
+	outerCh := make(chan dclient.Result)
+	end := c.Sub(innerCh)
+
+	go func() {
+		for {
+			select {
+			case resp, ok := <-innerCh:
+				if !ok {
+					close(outerCh)
+					return
+				}
+				select {
+				case outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}:
+				default:
+					log.Warn("randomness notification dropped due to a full channel")
+				}
+			case <-ctx.Done():
+				close(outerCh)
+				end()
+				// drain leftover on innerCh
+				for range innerCh {
+				}
+				return
+			}
+		}
+	}()
+
+	return outerCh
+}
+
+type result struct {
+	round      uint64
+	randomness []byte
+	signature  []byte
+}
+
+func (r *result) Round() uint64 {
+	return r.round
+}
+
+func (r *result) Randomness() []byte {
+	return r.randomness
+}
+
+func (r *result) Signature() []byte {
+	return r.signature
 }
 
 // Close stops Client, cancels PubSub subscription and closes the topic.

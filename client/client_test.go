@@ -5,7 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/test"
 )
 
 func TestClientConstraints(t *testing.T) {
@@ -13,8 +14,8 @@ func TestClientConstraints(t *testing.T) {
 		t.Fatal("client can't be created without root of trust")
 	}
 
-	if _, e := New(WithGroupHash([]byte{0})); e == nil {
-		t.Fatal("Client needs URLs if only a group hash is specified")
+	if _, e := New(WithChainHash([]byte{0})); e == nil {
+		t.Fatal("Client needs URLs if only a chain hash is specified")
 	}
 
 	if _, e := New(WithHTTPEndpoints([]string{"http://test.com"})); e == nil {
@@ -35,7 +36,7 @@ func TestClientMultiple(t *testing.T) {
 	addr2, _, cancel2 := withServer(t)
 	defer cancel2()
 
-	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1, "http://" + addr2}), WithGroupHash(hash))
+	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1, "http://" + addr2}), WithChainHash(hash))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -48,8 +49,14 @@ func TestClientMultiple(t *testing.T) {
 	}
 }
 
-func TestClientWithGroup(t *testing.T) {
-	c, err := New(WithGroup(key.NewGroup([]*key.Identity{}, 1, 100, time.Second)), WithHTTPEndpoints([]string{"http://nxdomain.local/"}))
+func TestClientWithChainInfo(t *testing.T) {
+	id := test.GenerateIDs(1)[0]
+	chainInfo := &chain.Info{
+		PublicKey:   id.Public.Key,
+		GenesisTime: 100,
+		Period:      time.Second,
+	}
+	c, err := New(WithChainInfo(chainInfo), WithHTTPEndpoints([]string{"http://nxdomain.local/"}))
 	if err != nil {
 		t.Fatal("existing group creation shouldn't do additional validaiton.")
 	}
@@ -63,7 +70,7 @@ func TestClientCache(t *testing.T) {
 	addr1, hash, cancel := withServer(t)
 	defer cancel()
 
-	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithGroupHash(hash), WithCacheSize(1))
+	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithChainHash(hash), WithCacheSize(1))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -88,7 +95,7 @@ func TestClientWithoutCache(t *testing.T) {
 	addr1, hash, cancel := withServer(t)
 	defer cancel()
 
-	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithGroupHash(hash), WithCacheSize(0))
+	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithChainHash(hash), WithCacheSize(0))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -100,5 +107,20 @@ func TestClientWithoutCache(t *testing.T) {
 	_, e = c.Get(context.Background(), 0)
 	if e == nil {
 		t.Fatal("cache should be disabled.")
+	}
+}
+
+func TestClientWithFailover(t *testing.T) {
+	addr1, hash, cancel := withServer(t)
+	defer cancel()
+
+	// ensure a client with failover can be created successfully without error
+	_, err := New(
+		WithHTTPEndpoints([]string{"http://" + addr1}),
+		WithChainHash(hash),
+		WithFailoverGracePeriod(time.Second*5),
+	)
+	if err != nil {
+		t.Fatal(err)
 	}
 }

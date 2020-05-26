@@ -2,10 +2,11 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"time"
 
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
@@ -20,58 +21,70 @@ func New(options ...Option) (Client, error) {
 			return nil, err
 		}
 	}
-
-	coreClient, err := makeClient(cfg)
-	if err != nil {
-		return nil, err
-	}
-	if cfg.cacheSize > 0 {
-		coreClient, err = NewCachingClient(coreClient, cfg.cacheSize, cfg.log)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if cfg.failoverGracePeriod > 0 {
-		coreClient = NewFailoverWatcher(coreClient, cfg.group, cfg.failoverGracePeriod, cfg.log)
-	}
-	return newWatchAggregator(coreClient, cfg.log), nil
+	return makeClient(cfg)
 }
 
 // makeClient creates a client from a configuration.
 func makeClient(cfg clientConfig) (Client, error) {
-	if !cfg.insecure && cfg.groupHash == nil && cfg.group == nil {
+	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
 		return nil, errors.New("No root of trust specified")
 	}
 	if len(cfg.urls) == 0 {
 		return nil, errors.New("No points of contact specified")
 	}
-	clients := []Client{}
+	// provision gossip client
+	var gossipClient Client
+	if cfg.watcher != nil {
+		var err error
+		if gossipClient, err = newWatcherClient(nil, nil, cfg.watcher); err != nil {
+			return nil, err
+		}
+	}
+	// provision REST clients
+	restClients := []Client{}
 	var c Client
 	var err error
 	for _, url := range cfg.urls {
-		if cfg.group != nil {
-			c, err = NewHTTPClientWithGroup(url, cfg.group, cfg.getter)
+		if cfg.chainInfo != nil {
+			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.getter)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			c, err = NewHTTPClient(url, cfg.groupHash, cfg.getter)
+			c, err = NewHTTPClient(url, cfg.chainHash, cfg.getter)
 			if err != nil {
 				return nil, err
 			}
-			group, err := c.(*httpClient).FetchGroupInfo(cfg.groupHash)
+			chainInfo, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
 			if err != nil {
 				return nil, err
 			}
-			cfg.group = group
+			cfg.chainInfo = chainInfo
 		}
 		c.(*httpClient).l = cfg.log
-		clients = append(clients, c)
+		restClients = append(restClients, c)
 	}
-	if len(clients) == 1 {
-		return clients[0], nil
+
+	c, err = NewPrioritizingClient(gossipClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+	if err != nil {
+		return nil, err
 	}
-	return NewPrioritizingClient(nil, clients, cfg.groupHash, cfg.group, cfg.log)
+
+	if cfg.cacheSize > 0 {
+		c, err = NewCachingClient(c, cfg.cacheSize, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.failoverGracePeriod > 0 {
+		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return newWatchAggregator(c, cfg.log), nil
 }
 
 type clientConfig struct {
@@ -79,10 +92,11 @@ type clientConfig struct {
 	urls []string
 	// Insecure will allow creating the HTTP client without a bound group.
 	insecure bool
-	// from `key.GroupInfo.Hash()` - serves as a root of trust.
-	groupHash []byte
-	// Full group information - serves as a root of trust.
-	group *key.Group
+	// from `chainInfo.Hash()` - serves as a root of trust for a given
+	// randomness chain.
+	chainHash []byte
+	// Full chain information - serves as a root of trust.
+	chainInfo *chain.Info
 	// getter configures the http transport parameters used when fetching randomness.
 	getter HTTPGetter
 	// cache size - how large of a cache to keep locally.
@@ -91,6 +105,8 @@ type clientConfig struct {
 	log log.Logger
 	// time after which a watcher will failover to using client.Get to get the latest randomness.
 	failoverGracePeriod time.Duration
+	// watcher is a constructor function that creates a new Watcher
+	watcher WatcherCtor
 }
 
 // Option is an option configuring a client.
@@ -148,25 +164,26 @@ func WithInsecureHTTPEndpoints(urls []string) Option {
 	}
 }
 
-// WithGroupHash configures the client to root trust with a given drand group
-// hash, the group parameters will be fetched from an HTTP endpoint.
-func WithGroupHash(grouphash []byte) Option {
+// WithChainHash configures the client to root trust with a given randomness
+// chain hash, the chain parameters will be fetched from an HTTP endpoint.
+func WithChainHash(chainHash []byte) Option {
 	return func(cfg *clientConfig) error {
-		if cfg.group != nil && !bytes.Equal(cfg.group.Hash(), grouphash) {
+		if cfg.chainInfo != nil && !bytes.Equal(cfg.chainInfo.Hash(), chainHash) {
 			return errors.New("refusing to override group with non-matching hash")
 		}
-		cfg.groupHash = grouphash
+		cfg.chainHash = chainHash
 		return nil
 	}
 }
 
-// WithGroup configures the client to root trust in the given group information
-func WithGroup(group *key.Group) Option {
+// WithChainInfo configures the client to root trust in the given randomness
+// chain information
+func WithChainInfo(chainInfo *chain.Info) Option {
 	return func(cfg *clientConfig) error {
-		if cfg.groupHash != nil && !bytes.Equal(cfg.groupHash, group.Hash()) {
+		if cfg.chainHash != nil && !bytes.Equal(cfg.chainHash, chainInfo.Hash()) {
 			return errors.New("refusing to override hash with non-matching group")
 		}
-		cfg.group = group
+		cfg.chainInfo = chainInfo
 		return nil
 	}
 }
@@ -176,6 +193,23 @@ func WithGroup(group *key.Group) Option {
 func WithFailoverGracePeriod(d time.Duration) Option {
 	return func(cfg *clientConfig) error {
 		cfg.failoverGracePeriod = d
+		return nil
+	}
+}
+
+// Watcher supplies the `Watch` portion of the drand client interface.
+type Watcher interface {
+	Watch(ctx context.Context) <-chan Result
+}
+
+// WatcherCtor creates a Watcher once a group is known.
+type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
+
+// WithWatcher specifies a channel that can provide notifications of new
+// randomness bootstrappeed from the group information.
+func WithWatcher(wc WatcherCtor) Option {
+	return func(cfg *clientConfig) error {
+		cfg.watcher = wc
 		return nil
 	}
 }

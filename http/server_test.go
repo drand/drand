@@ -36,7 +36,7 @@ func TestHTTPRelay(t *testing.T) {
 	defer cancel()
 	client := withClient(t)
 
-	handler, err := New(ctx, client, nil)
+	handler, err := New(ctx, client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestHTTPWaiting(t *testing.T) {
 	defer cancel()
 	client := withClient(t)
 
-	handler, err := New(ctx, client, nil)
+	handler, err := New(ctx, client, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,17 +99,19 @@ func TestHTTPWaiting(t *testing.T) {
 	go server.Serve(listener)
 	defer server.Shutdown(ctx)
 
-	// Wait for first round to have been seen.
-	time.Sleep(1200 * time.Millisecond)
+	// The first request will trigger background watch. 1 get (1969)
+	next, _ := http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
 
+	// 1 additional watch get will occur (1970 - the bad one)
+	time.Sleep(1200 * time.Millisecond)
 	body := make(map[string]interface{})
 	before := time.Now()
-	next, _ := http.Get(fmt.Sprintf("http://%s/public/1970", listener.Addr().String()))
+	next, _ = http.Get(fmt.Sprintf("http://%s/public/1971", listener.Addr().String()))
 	after := time.Now()
 	if err = json.NewDecoder(next.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body["round"].(float64) != 1970.0 {
+	if body["round"].(float64) != 1971.0 {
 		t.Fatalf("wrong response round number: %v", body)
 	}
 
