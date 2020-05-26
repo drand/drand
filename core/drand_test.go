@@ -169,7 +169,7 @@ type DrandTest2 struct {
 	// only set after the DKG
 	group *key.Group
 	// needed to give the group to new nodes during a resharing - only set after
-	// a successfull DKG
+	// a successful DKG
 	groupPath string
 	// only set after the resharing
 	newGroup *key.Group

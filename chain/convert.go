@@ -49,6 +49,7 @@ func (c *Info) ToProto() *drand.ChainInfoPacket {
 		PublicKey:   buff,
 		GenesisTime: c.GenesisTime,
 		Period:      uint32(c.Period.Seconds()),
+		Hash:        c.Hash(),
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
+	"github.com/stretchr/testify/require"
 
 	json "github.com/nikkolasg/hexjson"
 	"google.golang.org/grpc"
@@ -50,17 +51,20 @@ func TestHTTPRelay(t *testing.T) {
 	defer server.Shutdown(ctx)
 	time.Sleep(100 * time.Millisecond)
 
+	getChain := fmt.Sprintf("http://%s/info", listener.Addr().String())
+	resp, err := http.Get(getChain)
+	require.NoError(t, err)
+	cip := new(drand.ChainInfoPacket)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(cip))
+	require.NotNil(t, cip.Hash)
+	require.NotNil(t, cip.PublicKey)
+
 	// Test exported interfaces.
 	u := fmt.Sprintf("http://%s/public/2", listener.Addr().String())
-	resp, err := http.Get(u)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp, err = http.Get(u)
+	require.NoError(t, err)
 	body := make(map[string]interface{})
-
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 
 	if _, ok := body["signature"]; !ok {
 		t.Fatal("expected signature in random response.")

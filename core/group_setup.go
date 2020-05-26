@@ -141,7 +141,7 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error 
 
 	newID, err := key.IdentityFromProto(p.GetNode())
 	if err != nil {
-		s.l.Info("setup", "error_decoding", "id", addr, err)
+		s.l.Info("setup", "error_decoding", "id", addr, "err", err)
 		return fmt.Errorf("invalid id: %v", err)
 	}
 
@@ -217,7 +217,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 	} else {
 		genesis := s.oldGroup.GenesisTime
 		atLeast := s.clock.Now().Add(s.beaconOffset).Unix()
-		// transitionning to the next round time that is at least
+		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)

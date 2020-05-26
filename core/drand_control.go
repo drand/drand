@@ -169,7 +169,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	oldPresent := oldNode != nil
 	if leader && !oldPresent {
 		d.log.Error("run_reshare", "invalid", "leader", leader, "old_present", oldPresent)
-		return nil, errors.New("can not be a leader if not present in the old group.")
+		return nil, errors.New("can not be a leader if not present in the old group")
 	}
 	newNode := newGroup.Find(d.priv.Public)
 	newPresent := newNode != nil
@@ -300,7 +300,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	case dkgInfo = <-d.receiver.WaitDKGInfo():
 		d.log.Debug("init_dkg", "received_group")
 	case <-d.opts.clock.After(MaxWaitPrepareDKG):
-		d.log.Error("init_dkg", "wait_group", "timeout")
+		d.log.Error("init_dkg", "wait_group", "err", "timeout")
 		return nil, errors.New("wait_group timeouts from coordinator")
 	}
 
@@ -577,6 +577,7 @@ func (d *Drand) GroupFile(ctx context.Context, in *control.GroupRequest) (*contr
 	return protoGroup, nil
 }
 
+// Shutdown stops the node
 func (d *Drand) Shutdown(ctx context.Context, in *control.ShutdownRequest) (*control.ShutdownResponse, error) {
 	d.Stop(ctx)
 	return nil, nil
@@ -623,6 +624,7 @@ func (d *Drand) getPhaser(timeout uint32) (*dkg.TimePhaser, error) {
 // call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(to []*key.Node, packet *drand.DKGInfoPacket) error {
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	var tooLate = make(chan bool, 1)
 	var success = make(chan string, len(to))
 	go func() {
@@ -636,7 +638,7 @@ func (d *Drand) pushDKGInfo(to []*key.Node, packet *drand.DKGInfoPacket) error {
 		go func(i *key.Identity) {
 			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
 			if err != nil {
-				d.log.Error("push_dkg", err, "to", i.Address())
+				d.log.Error("push_dkg", "failed to push", "to", i.Address(), "err", err)
 			} else {
 				success <- i.Address()
 			}
@@ -650,10 +652,10 @@ func (d *Drand) pushDKGInfo(to []*key.Node, packet *drand.DKGInfoPacket) error {
 			d.log.Debug("push_dkg", "sending_group", "success_to", ok)
 			got++
 		case <-tooLate:
-			cancel()
 			return errors.New("push group timeout")
 		}
 	}
-	d.log.Info("push_dkg", "sending_group", "done")
+	d.log.Info("push_dkg", "sending_group", "status", "done")
+	cancel()
 	return nil
 }

@@ -32,11 +32,9 @@ RUN \
   go install \
     -mod=readonly \
     -ldflags \
-      "-X main.version=${version} \
-       -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
-       -X main.gitCommit=${gitCommit}"
-
-
+        "-X github.com/drand/drand/cmd/drand-cli.version=${version} \
+        -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
+        -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
 
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>

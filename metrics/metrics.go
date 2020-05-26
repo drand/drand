@@ -1,9 +1,12 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"runtime"
+	"strings"
 
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -88,14 +91,26 @@ func bindMetrics() {
 	}
 }
 
+// PeerHandler abstracts a helper for relaying http requests to a group peer
+type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
+
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler) {
+func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
 	log.DefaultLogger.Debug("metrics", "private listener started", "at", metricsBind)
 	bindMetrics()
 
-	s := http.Server{Addr: metricsBind}
+	l, err := net.Listen("tcp", metricsBind)
+	if err != nil {
+		log.DefaultLogger.Warn("metrics", "listen failed", "err", err)
+		return nil
+	}
+	s := http.Server{Addr: l.Addr().String()}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
+
+	if peerHandler != nil {
+		mux.Handle("/peer/", &lazyPeerHandler{peerHandler})
+	}
 
 	if pprof != nil {
 		mux.Handle("/debug/pprof", pprof)
@@ -106,11 +121,47 @@ func Start(metricsBind string, pprof http.Handler) {
 		fmt.Fprintf(w, "GC run complete")
 	})
 	s.Handler = mux
-	log.DefaultLogger.Warn("metrics", "listen finished", "err", s.ListenAndServe())
+	go func() {
+		log.DefaultLogger.Warn("metrics", "listen finished", "err", s.Serve(l))
+	}()
+	return l
 }
 
 // GroupHandler provides metrics shared to other group members
 // This HTTP handler, which would typically be mounted at `/metrics` exposes `GroupMetrics`
 func GroupHandler() http.Handler {
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
+}
+
+// lazyPeerHandler is a structure that defers learning who current
+// group members are until an http request is received.
+type lazyPeerHandler struct {
+	peerHandler PeerHandler
+}
+
+func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	addr := strings.Replace(r.URL.Path, "/peer/", "", 1)
+	if strings.Contains(addr, "/") {
+		addr = addr[:strings.Index(addr, "/")]
+	}
+
+	handlers, err := l.peerHandler(r.Context())
+	if err != nil {
+		log.DefaultLogger.Warn("metrics", "failed to get peer handlers", "err", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	handler, ok := handlers[addr]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// The request to make to the peer is for its "/metrics" endpoint
+	// Note that at present this shouldn't matter, since the only handler
+	// mounted for the other end of these requests is `GroupHandler()` above,
+	// so all paths / requests should see group metrics as a response.
+	r.URL.Path = "/metrics"
+	handler.ServeHTTP(w, r)
 }

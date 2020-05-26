@@ -1,4 +1,4 @@
-// drand is a distributed randomness beacon. It provides periodically an
+// Package drand is a distributed randomness beacon. It provides periodically an
 // unpredictable, bias-resistant, and verifiable random value.
 package drand
 
@@ -27,7 +27,6 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/nikkolasg/slog"
 	"github.com/urfave/cli/v2"
 )
 
@@ -218,6 +217,7 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
+// CLI runs the drand app
 func CLI() *cli.App {
 	app := cli.NewApp()
 	app.Name = "drand"
@@ -225,11 +225,14 @@ func CLI() *cli.App {
 		fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	}
 
+	app.ExitErrHandler = func(context *cli.Context, err error) {
+		fmt.Fprintf(os.Stderr, err.Error())
+	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
 	app.Commands = []*cli.Command{
-		&cli.Command{
+		{
 			Name:  "start",
 			Usage: "Start the drand daemon.",
 			Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
@@ -240,7 +243,7 @@ func CLI() *cli.App {
 				return startCmd(c)
 			},
 		},
-		&cli.Command{
+		{
 			Name:  "stop",
 			Usage: "Stop the drand daemon.\n",
 			Flags: toArray(controlFlag),
@@ -249,7 +252,7 @@ func CLI() *cli.App {
 				return stopDaemon(c)
 			},
 		},
-		&cli.Command{
+		{
 			Name:  "share",
 			Usage: "Launch a sharing protocol.",
 			Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
@@ -261,7 +264,7 @@ func CLI() *cli.App {
 				return shareCmd(c)
 			},
 		},
-		&cli.Command{
+		{
 			Name: "generate-keypair",
 			Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 				"for this node.\n",
@@ -323,7 +326,7 @@ func CLI() *cli.App {
 			Name:  "util",
 			Usage: "Multiple commands of utility functions, such as reseting a state, checking the connection of a peer...",
 			Subcommands: []*cli.Command{
-				&cli.Command{
+				{
 					Name: "check",
 					Usage: "Check node at the given `ADDRESS` (you can put multiple ones)" +
 						" in the group for accessibility over the gRPC communication. If the node " +
@@ -433,7 +436,7 @@ func resetCmd(c *cli.Context) error {
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if answer != "y" {
-		slog.Print("drand: not reseting the state.")
+		fmt.Fprintf(output, "drand: not reseting the state.")
 		return nil
 	}
 	store := key.NewFileStore(conf.ConfigFolder())
@@ -462,14 +465,14 @@ func resetBeaconDB(config *core.Config) error {
 		}
 		answer = strings.ToLower(strings.TrimSpace(answer))
 		if answer != "y" {
-			slog.Print("drand: not deleting the database.")
+			fmt.Fprintf(output, "drand: not deleting the database.")
 			return nil
 		}
 
 		if err := os.RemoveAll(config.DBFolder()); err != nil {
 			return err
 		}
-		slog.Print("drand: removed existing beacon database.")
+		fmt.Fprintf(output, "drand: removed existing beacon database.")
 	}
 	return nil
 }
@@ -477,7 +480,7 @@ func resetBeaconDB(config *core.Config) error {
 func askPort() string {
 	for {
 		var port string
-		slog.Print("No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
+		fmt.Fprintf(output, "No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
 		if _, err := fmt.Scanf("%s\n", &port); err != nil {
 			continue
 		}
@@ -503,7 +506,7 @@ func testWindows(c *cli.Context) error {
 func keygenCmd(c *cli.Context) error {
 	args := c.Args()
 	if !args.Present() {
-		return errors.New("Missing drand address in argument. Abort.")
+		return errors.New("missing drand address in argument. Abort")
 	}
 	addr := args.First()
 	var validID = regexp.MustCompile(`[:][0-9]+$`)
@@ -671,7 +674,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 	for round := startRound; round <= lastBeacon.Round; round++ {
 		err := store.Del(round)
 		if err != nil {
-			return fmt.Errorf("Error deleting round %d: %s\n", round, err)
+			return fmt.Errorf("error deleting round %d: %s", round, err)
 		}
 		if c.IsSet(verboseFlag.Name) {
 			fmt.Println("- Deleted beacon round ", round)

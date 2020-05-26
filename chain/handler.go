@@ -138,7 +138,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == info.index {
-		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.index, "advance_packet?", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
+		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.index, "advance_packet", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
@@ -204,6 +204,7 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 	return nil
 }
 
+// TransitionNewGroup begins transition the crypto share to a new group
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
 	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -234,7 +235,7 @@ func (h *Handler) run(startTime int64) {
 			// if the next round of the last beacon we generated is not the round we
 			// are now, that means there is a gap between the two rounds. In other
 			// words, the chain has halted for that amount of rounds or our
-			// network is not functionning properly.
+			// network is not functioning properly.
 			if lastBeacon.Round+1 < current.round {
 
 				// We also launch a sync with the other nodes. If there is one node
@@ -283,17 +284,17 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *Beacon) {
 	}
 	info, err := h.safe.GetInfo(round)
 	if err != nil {
-		h.l.Error("no_info", round, "BUG")
+		h.l.Error("no_info", round, "BUG", h.safe.String())
 		return
 	}
 	if info.share == nil {
-		h.l.Error("no_share", round, "BUG", h.safe.String(), "not_synced_yet?")
+		h.l.Error("no_share", round, "BUG", h.safe.String())
 		return
 	}
 	msg := Message(round, previousSig)
 	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
 	if err != nil {
-		h.l.Fatal("beacon_round", fmt.Sprintf("creating signature: %s", err), "round", round)
+		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
 		return
 	}
 	shortPub := info.pub.Eval(1).V.String()[14:19]
@@ -352,6 +353,7 @@ func (h *Handler) StopAt(stopTime int64) error {
 	return nil
 }
 
+// AddCallback registers a handler to be notified with new beacons
 func (h *Handler) AddCallback(fn func(*Beacon)) {
 	h.callbacks.AddCallback(fn)
 }

@@ -5,13 +5,16 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/nikkolasg/slog"
+	"github.com/weaveworks/common/httpgrpc"
+	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -212,15 +215,13 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 		_, err = client.PartialBeacon(ctx, in, opts...)
 		return err
 	}
-	if err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
+	err := do()
+	if err != nil && strings.Contains(err.Error(), "connection error") {
 		g.deleteConn(p)
 		return do()
-	} else {
-		return err
 	}
+	return err
 }
-
-const SyncBlockKey = "sync"
 
 func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
 	resp := make(chan *drand.BeaconPacket)
@@ -238,15 +239,18 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 		for {
 			reply, err := stream.Recv()
 			if err == io.EOF {
+				log.DefaultLogger.Info("grpc client", "chain sync", "error", "eof", "to", p.Address())
 				fmt.Println(" --- STREAM EOF")
 				return
 			}
 			if err != nil {
+				log.DefaultLogger.Info("grpc client", "chain sync", "error", err, "to", p.Address())
 				fmt.Println(" --- STREAM ERR:", err)
 				return
 			}
 			select {
 			case <-ctx.Done():
+				log.DefaultLogger.Info("grpc client", "chain sync", "error", "context done", "to", p.Address())
 				fmt.Println(" --- STREAM CONTEXT DONE")
 				return
 			default:
@@ -284,7 +288,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	var err error
 	c, ok := g.conns[p.Address()]
 	if !ok {
-		slog.Debugf("grpc-client: attempting connection to %s (TLS %v)", p.Address(), p.IsTLS())
+		log.DefaultLogger.Debug("grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
 		if !p.IsTLS() {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 			if err != nil {
@@ -312,6 +316,43 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 		metrics.GroupConnections.Set(float64(len(g.conns)))
 	}
 	return c, err
+}
+
+type httpHandler struct {
+	httpgrpc.HTTPClient
+}
+
+func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	req, err := httpgrpcserver.HTTPRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := h.Handle(r.Context(), req)
+	if err != nil {
+		var ok bool
+		resp, ok = httpgrpc.HTTPResponseFromError(err)
+
+		if !ok {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := httpgrpcserver.WriteResponse(w, resp); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (g *grpcClient) HandleHTTP(p Peer) (http.Handler, error) {
+	conn, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := httpgrpc.NewHTTPClient(conn)
+
+	return &httpHandler{client}, nil
 }
 
 // proxyClient is used by the gRPC json gateway to dispatch calls to the
