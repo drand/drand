@@ -9,12 +9,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func newMetricController(id string, chainInfo *chain.Info, r prometheus.Registerer) *metricController {
-	return &metricController{id: id, chainInfo: chainInfo, bridge: r}
+func newMetricController(chainInfo *chain.Info, r prometheus.Registerer) *metricController {
+	return &metricController{chainInfo: chainInfo, bridge: r}
 }
 
 type metricController struct {
-	id        string
 	chainInfo *chain.Info
 	bridge    prometheus.Registerer
 }
@@ -53,7 +52,8 @@ func (c *watchLatencyMetricClient) startObserve(ctx context.Context) {
 			// compute the latency metric
 			actual := time.Now().Unix()
 			expected := chain.TimeOfRound(c.ctl.chainInfo.Period, c.ctl.chainInfo.GenesisTime, result.Round())
-			c.watchLatency.WithLabelValues(c.ctl.id).Set(float64(expected - actual))
+			// the labels of the gauge vec must already be set at the registerer level
+			c.watchLatency.With(nil).Set(float64(expected - actual))
 		case <-ctx.Done():
 			return
 		}

@@ -141,7 +141,7 @@ func Client(c *cli.Context) error {
 	}
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
-		opts = append(opts, client.WithID(c.String(clientMetricsIDFlag.Name)))
+		clientID := c.String(clientMetricsIDFlag.Name)
 		if !c.IsSet(clientMetricsAddressFlag.Name) || !c.IsSet(clientMetricsGatewayFlag.Name) {
 			return fmt.Errorf("missing prometheus address or push gateway")
 		}
@@ -149,7 +149,10 @@ func Client(c *cli.Context) error {
 		metricsGateway := c.String(clientMetricsGatewayFlag.Name)
 		metricsPushInterval := c.Int64(clientMetricsPushIntervalFlag.Name)
 		bridge := newPrometheusBridge(metricsAddr, metricsGateway, metricsPushInterval)
-		opts = append(opts, client.WithPrometheus(bridge))
+		bridgeWithID := client.WithPrometheus(prometheus.WrapRegistererWith(
+			prometheus.Labels{"client_id": clientID},
+			bridge))
+		opts = append(opts, bridgeWithID)
 	}
 
 	client, err := client.New(opts...)
