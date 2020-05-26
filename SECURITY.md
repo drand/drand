@@ -4,7 +4,7 @@
 
 The Drand team actively supports the most recent minor version of drand.
 
-Upcoming major or minor releases are announced with a prerelease at least one week in advance, and are communicated through the leagueofentropy@googlegroups.com email list.
+Upcoming major or minor releases will go through a release-candidate cycle before they are released to the ecosystem.```
 
 ## Reporting a Vulnerability
 
@@ -15,4 +15,3 @@ To help us serving the drand ecosystem, we appreciate that your reports are as p
 If the issue is a protocol weakness that cannot be immediately exploited or something not yet deployed, feel welcome to discuss it openly in a [Github issue](https://github.com/drand/drand/issues/new).
 
 For all other kinds of bugs, please [file an issue in this repo](https://github.com/drand/drand/issues/new). 
-
