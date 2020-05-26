@@ -256,12 +256,6 @@ func (n *NodeProc) ChainInfo(group string) bool {
 	return true
 }
 
-/*func (n *Node) GetGroup() *key.Group {*/
-//group, err := n.store.LoadGroup()
-//checkErr(err)
-//return group
-/*}*/
-
 func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	out, err := cmd.CombinedOutput()
