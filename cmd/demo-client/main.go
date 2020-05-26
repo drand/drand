@@ -211,13 +211,16 @@ func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) 
 	b := &prometheusBridge{
 		address:         address,
 		pushIntervalSec: pushIntervalSec,
+		registry:        prometheus.NewRegistry(),
 	}
 	if gateway != "" {
 		b.pusher = push.New(gateway, "drand_client_observations_push")
 		go b.pushLoop()
 	}
 	if address != "" {
-		http.Handle("/metrics", promhttp.Handler())
+		http.Handle("/metrics", promhttp.HandlerFor(b.registry, promhttp.HandlerOpts{
+			Timeout: 10 * time.Second,
+		}))
 		go log.Fatal(http.ListenAndServe(address, nil))
 	}
 	return b
@@ -226,6 +229,7 @@ func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) 
 type prometheusBridge struct {
 	address         string
 	pushIntervalSec int64
+	registry        *prometheus.Registry
 	pusher          *push.Pusher
 }
 
@@ -242,7 +246,7 @@ func (b *prometheusBridge) Register(x prometheus.Collector) error {
 	if b.pusher != nil {
 		b.pusher.Collector(x)
 	}
-	return prometheus.Register(x)
+	return b.registry.Register(x)
 }
 
 func (b *prometheusBridge) MustRegister(x ...prometheus.Collector) {
