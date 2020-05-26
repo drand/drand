@@ -8,6 +8,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // New Creates a client with specified configuration.
@@ -107,6 +108,10 @@ type clientConfig struct {
 	failoverGracePeriod time.Duration
 	// watcher is a constructor function that creates a new Watcher
 	watcher WatcherCtor
+	// id is a unique identifier for this client instance
+	id string
+	// prometheus is an interface to a Prometheus system
+	prometheus PrometheusBridge
 }
 
 // Option is an option configuring a client.
@@ -210,6 +215,28 @@ type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
 func WithWatcher(wc WatcherCtor) Option {
 	return func(cfg *clientConfig) error {
 		cfg.watcher = wc
+		return nil
+	}
+}
+
+// PrometheusBridge abstracts the Prometheus metric registration and push functionalities.
+type PrometheusBridge interface {
+	Register(prometheus.Collector) error
+	Push() error
+}
+
+// WithPrometheus specifies a prometheus system to be used for metric collection.
+func WithPrometheus(b PrometheusBridge) Option {
+	return func(cfg *clientConfig) error {
+		cfg.prometheus = b
+		return nil
+	}
+}
+
+// WithID specifies a unique identifier for the client instance.
+func WithID(id string) Option {
+	return func(cfg *clientConfig) error {
+		cfg.id = id
 		return nil
 	}
 }
