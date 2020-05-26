@@ -33,7 +33,6 @@ func main() {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "chain-hash",
-				Aliases:  []string{"h"},
 				Required: true,
 			},
 		},
