@@ -99,7 +99,6 @@ func makeClient(cfg clientConfig) (Client, error) {
 		if c, err = newWatchLatencyMetricClient(cfg.id, c, ctl); err != nil {
 			return nil, err
 		}
-		go ctl.Start()
 	}
 
 	return c, nil
@@ -239,7 +238,6 @@ func WithWatcher(wc WatcherCtor) Option {
 // PrometheusBridge abstracts the Prometheus metric registration and push functionalities.
 type PrometheusBridge interface {
 	Register(prometheus.Collector) error
-	Push() error
 }
 
 // WithPrometheus specifies a prometheus system to be used for metric collection.

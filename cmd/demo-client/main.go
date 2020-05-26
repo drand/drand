@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus"
@@ -78,6 +79,11 @@ var clientMetricsGatewayFlag = &cli.StringFlag{
 	Usage: "Push gateway for Prometheus metrics.",
 }
 
+var clientMetricsPushIntervalFlag = &cli.Int64Flag{
+	Name:  "client-metrics-push-interval",
+	Usage: "Push interval in seconds for Prometheus gateway.",
+}
+
 var clientMetricsIDFlag = &cli.StringFlag{
 	Name:  "id",
 	Usage: "Unique identifier for the client instance, used by the metrics system.",
@@ -90,7 +96,7 @@ func main() {
 		Flags: []cli.Flag{
 			urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
 			relayPeersFlag, relayNetworkFlag, relayPortFlag,
-			clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
+			clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag, clientMetricsPushIntervalFlag,
 		},
 		Action: Client,
 	}
@@ -141,12 +147,9 @@ func Client(c *cli.Context) error {
 		}
 		metricsAddr := c.String(clientMetricsAddressFlag.Name)
 		metricsGateway := c.String(clientMetricsGatewayFlag.Name)
-		bridge := newPrometheusBridge(metricsAddr, metricsGateway)
+		metricsPushInterval := c.Int64(clientMetricsPushIntervalFlag.Name)
+		bridge := newPrometheusBridge(metricsAddr, metricsGateway, metricsPushInterval)
 		opts = append(opts, client.WithPrometheus(bridge))
-		if metricsAddr != "" {
-			http.Handle("/metrics", promhttp.Handler())
-			log.Fatal(http.ListenAndServe(metricsAddr, nil))
-		}
 	}
 
 	client, err := client.New(opts...)
@@ -201,18 +204,35 @@ func Watch(c *cli.Context, client client.Client) error {
 	return nil
 }
 
-func newPrometheusBridge(address string, gateway string) *prometheusBridge {
-	return &prometheusBridge{
-		address: address,
-		gateway: gateway,
-		pusher:  push.New(gateway, "drand_client_observations_push"),
+func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) *prometheusBridge {
+	b := &prometheusBridge{
+		address:         address,
+		pushIntervalSec: pushIntervalSec,
 	}
+	if gateway != "" {
+		b.pusher = push.New(gateway, "drand_client_observations_push")
+		go b.pushLoop()
+	}
+	if address != "" {
+		http.Handle("/metrics", promhttp.Handler())
+		go log.Fatal(http.ListenAndServe(address, nil))
+	}
+	return b
 }
 
 type prometheusBridge struct {
-	address string
-	gateway string
-	pusher  *push.Pusher
+	address         string
+	pushIntervalSec int64
+	pusher          *push.Pusher
+}
+
+func (b *prometheusBridge) pushLoop() {
+	for {
+		time.Sleep(time.Second * time.Duration(b.pushIntervalSec))
+		if err := b.pusher.Push(); err != nil {
+			log.Printf("prometheus gateway push (%v)", err)
+		}
+	}
 }
 
 func (b *prometheusBridge) Register(x prometheus.Collector) error {
@@ -220,11 +240,4 @@ func (b *prometheusBridge) Register(x prometheus.Collector) error {
 		b.pusher.Collector(x)
 	}
 	return prometheus.Register(x)
-}
-
-func (b *prometheusBridge) Push() error {
-	if b.pusher != nil {
-		return b.pusher.Push()
-	}
-	return nil
 }

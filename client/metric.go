@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -16,15 +15,6 @@ func newMetricController(chainInfo *chain.Info, b PrometheusBridge) *metricContr
 type metricController struct {
 	chainInfo *chain.Info
 	bridge    PrometheusBridge
-}
-
-func (mc *metricController) Start() {
-	for {
-		time.Sleep(mc.chainInfo.Period)
-		if err := mc.bridge.Push(); err != nil {
-			log.Printf("prometheus gateway push (%v)", err)
-		}
-	}
 }
 
 func (mc *metricController) Register(x prometheus.Collector) error {
