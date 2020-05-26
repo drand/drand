@@ -53,7 +53,7 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon, toRound uint64, client net.ProtocolClient) (chan *Beacon, error) {
 	outCh := make(chan *Beacon, toRound-from.Round)
 	fromRound := from.Round
-	defer l.Debug("sync_from", fromRound, "leaving")
+	defer l.Debug("sync_from", fromRound, "status", "leaving")
 
 	info, err := safe.GetInfo(fromRound)
 	if err != nil {

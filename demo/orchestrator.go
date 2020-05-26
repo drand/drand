@@ -292,6 +292,8 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 			if r.GetRound() != rand.GetRound() {
 				panic("[-] Inconsistent round from curl vs CLI")
 			} else if !bytes.Equal(r.GetSignature(), rand.GetSignature()) {
+				fmt.Printf("curl output: %s\n", out)
+				fmt.Printf("cli output: %v\n", rand)
 				panic("[-] Inconsistent signature from curl vs CLI")
 			}
 		} else {
