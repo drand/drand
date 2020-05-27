@@ -29,7 +29,9 @@ WORKDIR $SRC_PATH
 RUN go mod download
 
 COPY . $SRC_PATH
-RUN go install cmd/demo-client -mod=readonly
+RUN set -x \
+        && cd cmd/demo-client \
+        && go install -mod=readonly
 
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -54,7 +56,7 @@ EXPOSE 42777
 # expose promethius API
 EXPOSE 32111
 
-COPY --from=builder $GOPATH/bin/drand /usr/local/bin/demo-client
+COPY --from=builder $GOPATH/bin/demo-client /usr/local/bin/demo-client
 COPY --from=builder $SRC_PATH/cmd/demo-client/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=builder /tmp/tini /sbin/tini
