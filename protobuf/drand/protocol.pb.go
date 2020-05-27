@@ -5,8 +5,8 @@ package drand
 
 import (
 	context "context"
-	fmt "fmt"
 	dkg "github.com/drand/drand/protobuf/crypto/dkg"
+	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"

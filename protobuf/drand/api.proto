@@ -32,9 +32,11 @@ service Public {
 // PublicRandRequest requests a public random value that has been generated in a
 // unbiasable way and verifiable.
 message PublicRandRequest {
-    // round uniquely identifies a beacon. If round == 0 (or unspecified), then
-    // the response will contain the last.
+    // round uniquely identifies a beacon.
     uint64 round = 1;
+    // if latest is true, the response will be the latest beacon the store have
+    // regardless of the round indicated.
+    bool latest = 2;
 }
 
 // PublicRandResponse holds a signature which is the random value. It can be

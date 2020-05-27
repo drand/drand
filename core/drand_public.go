@@ -89,7 +89,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	}
 	var r *chain.Beacon
 	var err error
-	if in.GetRound() == 0 {
+	if in.GetLatest() {
 		r, err = d.beacon.Store().Last()
 	} else {
 		// fetch the correct entry or the next one if not found

@@ -402,7 +402,7 @@ func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) *drand.PublicRan
 	node := d.GetDrand(id, newGroup)
 	dr := node.drand
 	client := net.NewGrpcClientFromCertManager(dr.opts.certmanager, dr.opts.grpcOpts...)
-	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{})
+	resp, err := client.PublicRand(context.TODO(), test.NewTLSPeer(dr.priv.Public.Addr), &drand.PublicRandRequest{Latest: true})
 	require.NoError(d.t, err)
 	require.NotNil(d.t, resp)
 	return resp
@@ -619,14 +619,17 @@ func TestDrandPublicRand(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// get last round first
-	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	req := &drand.PublicRandRequest{
+		Latest: true,
+	}
+	resp, err := client.PublicRand(ctx, rootID, req)
 	require.NoError(t, err)
 
 	initRound := resp.Round + 1
 	max := initRound + 4
 	for i := initRound; i < max; i++ {
 		dt.MoveTime(group.Period)
-		req := new(drand.PublicRandRequest)
+		req = new(drand.PublicRandRequest)
 		req.Round = i
 		resp, err := client.PublicRand(ctx, rootID, req)
 		require.NoError(t, err)
@@ -660,11 +663,14 @@ func TestDrandPublicStream(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// get last round first
-	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	req := &drand.PublicRandRequest{
+		Latest: true,
+	}
+	resp, err := client.PublicRand(ctx, rootID, req)
 	require.NoError(t, err)
 
 	//  run streaming and expect responses
-	req := &drand.PublicRandRequest{Round: resp.GetRound()}
+	req = &drand.PublicRandRequest{Round: resp.GetRound()}
 	respCh, err := client.PublicRandStream(ctx, root.drand.priv.Public, req)
 	require.NoError(t, err)
 	// expect first round now since node already has it
@@ -689,8 +695,10 @@ func TestDrandPublicStream(t *testing.T) {
 			require.True(t, false, "too late for streaming, round %d didn't reply in time", round)
 		}
 	}
-	// try fetching with round 0 -> get latest
-	respCh, err = client.PublicRandStream(ctx, root.drand.priv.Public, new(drand.PublicRandRequest))
+	req = &drand.PublicRandRequest{
+		Latest: true,
+	}
+	respCh, err = client.PublicRandStream(ctx, root.drand.priv.Public, req)
 	require.NoError(t, err)
 	select {
 	case <-respCh:
@@ -730,11 +738,14 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	// get last round first
-	resp, err := client.PublicRand(ctx, new(drand.PublicRandRequest))
+	req := &drand.PublicRandRequest{
+		Latest: true,
+	}
+	resp, err := client.PublicRand(ctx, req)
 	require.NoError(t, err)
 
 	//  run streaming and expect responses
-	req := &drand.PublicRandRequest{Round: resp.GetRound()}
+	req = &drand.PublicRandRequest{Round: resp.GetRound()}
 	respClient, err := client.PublicRandStream(ctx, req)
 	require.NoError(t, err)
 	// expect first round now since node already has it

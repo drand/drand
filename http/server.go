@@ -237,7 +237,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
-	req := drand.PublicRandRequest{Round: 0}
+	req := drand.PublicRandRequest{Latest: true}
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
