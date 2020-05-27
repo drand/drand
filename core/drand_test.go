@@ -618,11 +618,18 @@ func TestDrandPublicRand(t *testing.T) {
 	client := net.NewGrpcClientFromCertManager(cm)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// try get genesis block
+	resp, err := client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: 0})
+	require.NoError(t, err)
+	require.Equal(t, resp.GetRound(), uint64(0))
+	require.Equal(t, resp.GetSignature(), group.GetGenesisSeed())
+
 	// get last round first
 	req := &drand.PublicRandRequest{
 		Latest: true,
 	}
-	resp, err := client.PublicRand(ctx, rootID, req)
+	resp, err = client.PublicRand(ctx, rootID, req)
 	require.NoError(t, err)
 
 	initRound := resp.Round + 1
