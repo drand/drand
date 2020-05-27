@@ -58,8 +58,9 @@ func randomnessValidator(info *chain.Info) func(context.Context, peer.ID, *pubsu
 		}
 
 		b := chain.Beacon{
-			Round:     rand.GetRound(),
-			Signature: rand.GetSignature(),
+			Round:       rand.GetRound(),
+			Signature:   rand.GetSignature(),
+			PreviousSig: rand.GetPreviousSignature(),
 		}
 
 		if err := chain.VerifyBeacon(info.PublicKey, &b); err != nil {
