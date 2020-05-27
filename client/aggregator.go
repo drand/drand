@@ -83,5 +83,9 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 			}
 		}
 		c.subscriberLock.Unlock()
+
+		if !ok {
+			return
+		}
 	}
 }
