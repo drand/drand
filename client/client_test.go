@@ -126,7 +126,7 @@ func TestClientWithFailover(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	addr1, hash, cancel := withServer(t)
+	addr1, hash, cancel := withServer(t, false)
 	defer cancel()
 
 	results := []MockResult{
