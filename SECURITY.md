@@ -4,7 +4,7 @@
 
 The Drand team actively supports the most recent minor version of drand.
 
-Upcoming major or minor releases will go through a release-candidate cycle before they are released to the ecosystem.```
+Upcoming major or minor releases will go through a release-candidate cycle before they are released to the ecosystem.
 
 ## Reporting a Vulnerability
 
