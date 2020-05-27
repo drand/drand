@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -20,7 +21,7 @@ import (
 
 func TestClient(t *testing.T) {
 	// start mock drand node
-	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false)
+	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
@@ -34,9 +35,15 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	infoProto, err := svc.ChainInfo(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, _ := chain.InfoFromProto(infoProto)
+
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
-		ChainHash:       "test",
+		ChainHash:       hex.EncodeToString(info.Hash()),
 		PeerWith:        nil,
 		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
 		DataDir:         dataDir,
@@ -52,7 +59,7 @@ func TestClient(t *testing.T) {
 	defer g.Shutdown()
 
 	// start client
-	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), &chain.Info{})
+	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), info)
 	if err != nil {
 		t.Fatal(err)
 	}

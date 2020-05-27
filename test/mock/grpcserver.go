@@ -210,3 +210,13 @@ func roundToBytes(r int) []byte {
 	binary.Write(&buff, binary.BigEndian, uint64(r))
 	return buff.Bytes()
 }
+
+// NewMockBeacon provides a random beacon and the chain it validates against
+func NewMockBeacon() (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData()
+	s := newMockServer(d)
+	c, _ := s.ChainInfo(context.Background(), nil)
+	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
+
+	return c, r
+}

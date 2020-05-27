@@ -72,6 +72,9 @@ func randomnessValidator(info *chain.Info) func(context.Context, peer.ID, *pubsu
 
 // NewWithPubsub creates a gossip randomness client.
 func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info) (*Client, error) {
+	if info == nil {
+		return nil, xerrors.Errorf("No chain supplied for joining")
+	}
 	chainHash := hex.EncodeToString(info.Hash())
 	ps.RegisterTopicValidator(chainHash, randomnessValidator(info), pubsub.WithValidatorInline(true))
 	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
