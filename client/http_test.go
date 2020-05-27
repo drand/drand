@@ -99,7 +99,7 @@ func TestHTTPGetLatest(t *testing.T) {
 	addr, hash, cancel := withServer(t, false)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, hash, &http.Client{})
+	httpClient, err := NewHTTPClient("http://"+addr, hash, http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
