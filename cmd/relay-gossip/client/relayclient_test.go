@@ -8,6 +8,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
@@ -51,7 +52,7 @@ func TestClient(t *testing.T) {
 	defer g.Shutdown()
 
 	// start client
-	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), "test")
+	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), &chain.Info{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +71,7 @@ func TestClient(t *testing.T) {
 	}
 }
 
-func newTestClient(name string, relayMultiaddr []ma.Multiaddr, chainHash string) (*Client, error) {
+func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "client-"+name+"-datastore")
 	if err != nil {
 		return nil, err
@@ -96,5 +97,5 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, chainHash string)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithPubsub(ps, chainHash)
+	return NewWithPubsub(ps, info)
 }

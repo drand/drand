@@ -137,7 +137,7 @@ func Client(c *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		opts = append(opts, gclient.WithPubsub(ps, c.String(relayNetworkFlag.Name)))
+		opts = append(opts, gclient.WithPubsub(ps))
 	}
 
 	if c.IsSet(clientMetricsIDFlag.Name) {

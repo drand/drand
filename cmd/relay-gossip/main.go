@@ -126,7 +126,7 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		c, err := client.NewWithPubsub(ps, cctx.String("chain-hash"))
+		c, err := client.NewWithPubsub(ps, nil)
 		if err != nil {
 			return xerrors.Errorf("constructing client: %w", err)
 		}

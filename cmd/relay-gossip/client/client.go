@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"sync"
 
 	"github.com/drand/drand/chain"
@@ -11,6 +12,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
 )
@@ -32,9 +34,9 @@ type Client struct {
 
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsub(ps *pubsub.PubSub, chainHash string) dclient.Option {
-	return dclient.WithWatcher(func(_ *chain.Info) (dclient.Watcher, error) {
-		c, err := NewWithPubsub(ps, chainHash)
+func WithPubsub(ps *pubsub.PubSub) dclient.Option {
+	return dclient.WithWatcher(func(info *chain.Info) (dclient.Watcher, error) {
+		c, err := NewWithPubsub(ps, info)
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +44,35 @@ func WithPubsub(ps *pubsub.PubSub, chainHash string) dclient.Option {
 	})
 }
 
+func randomnessValidator(info *chain.Info) func(context.Context, peer.ID, *pubsub.Message) bool {
+	return func(ctx context.Context, p peer.ID, m *pubsub.Message) bool {
+		var rand drand.PublicRandResponse
+		err := proto.Unmarshal(m.Data, &rand)
+		if err != nil {
+			return false
+		}
+
+		if info == nil {
+			log.Warn("Not validating received randomness due to lack of trust root.")
+			return true
+		}
+
+		b := chain.Beacon{
+			Round:     rand.GetRound(),
+			Signature: rand.GetSignature(),
+		}
+
+		if err := chain.VerifyBeacon(info.PublicKey, &b); err != nil {
+			return false
+		}
+		return true
+	}
+}
+
 // NewWithPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, chainHash string) (*Client, error) {
+func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info) (*Client, error) {
+	chainHash := hex.EncodeToString(info.Hash())
+	ps.RegisterTopicValidator(chainHash, randomnessValidator(info), pubsub.WithValidatorInline(true))
 	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
