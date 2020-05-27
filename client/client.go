@@ -36,14 +36,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(cfg.urls) == 0 {
 		return nil, errors.New("No points of contact specified")
 	}
-	// provision gossip client
-	var gossipClient Client
-	if cfg.watcher != nil {
-		var err error
-		if gossipClient, err = newWatcherClient(nil, nil, cfg.watcher); err != nil {
-			return nil, err
-		}
-	}
+
 	// provision REST clients
 	restClients := []Client{}
 	var c Client
@@ -69,7 +62,15 @@ func makeClient(cfg clientConfig) (Client, error) {
 		restClients = append(restClients, c)
 	}
 
-	c, err = NewPrioritizingClient(gossipClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+	// provision watcher client
+	var watcherClient Client
+	if cfg.watcher != nil {
+		if watcherClient, err = newWatcherClient(restClients[0], cfg.chainInfo, cfg.watcher); err != nil {
+			return nil, err
+		}
+	}
+
+	c, err = NewPrioritizingClient(watcherClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
 	if err != nil {
 		return nil, err
 	}
@@ -220,11 +221,11 @@ type Watcher interface {
 	Watch(ctx context.Context) <-chan Result
 }
 
-// WatcherCtor creates a Watcher once a group is known.
+// WatcherCtor creates a Watcher once chain info is known.
 type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
 
 // WithWatcher specifies a channel that can provide notifications of new
-// randomness bootstrappeed from the group information.
+// randomness bootstrappeed from the chain info.
 func WithWatcher(wc WatcherCtor) Option {
 	return func(cfg *clientConfig) error {
 		cfg.watcher = wc
