@@ -5,11 +5,16 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus/push"
 
 	"github.com/drand/drand/client"
 	gclient "github.com/drand/drand/cmd/relay-gossip/client"
@@ -61,11 +66,38 @@ var relayNetworkFlag = &cli.StringFlag{
 	Usage: "relay network name",
 }
 
+// client metric flags
+
+var clientMetricsAddressFlag = &cli.StringFlag{
+	Name:  "client-metrics-address",
+	Usage: "Server address for Prometheus metrics.",
+	Value: ":8080",
+}
+
+var clientMetricsGatewayFlag = &cli.StringFlag{
+	Name:  "client-metrics-gateway",
+	Usage: "Push gateway for Prometheus metrics.",
+}
+
+var clientMetricsPushIntervalFlag = &cli.Int64Flag{
+	Name:  "client-metrics-push-interval",
+	Usage: "Push interval in seconds for Prometheus gateway.",
+}
+
+var clientMetricsIDFlag = &cli.StringFlag{
+	Name:  "client-metrics-id",
+	Usage: "Unique identifier for the client instance, used by the metrics system.",
+}
+
 func main() {
 	app := &cli.App{
-		Name:   "demo-client",
-		Usage:  "CDN Drand client for loading randomness from an HTTP endpoint",
-		Flags:  []cli.Flag{urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag, relayPeersFlag, relayNetworkFlag, relayPortFlag},
+		Name:  "demo-client",
+		Usage: "CDN Drand client for loading randomness from an HTTP endpoint",
+		Flags: []cli.Flag{
+			urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
+			relayPeersFlag, relayNetworkFlag, relayPortFlag,
+			clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag, clientMetricsPushIntervalFlag,
+		},
 		Action: Client,
 	}
 
@@ -106,6 +138,21 @@ func Client(c *cli.Context) error {
 			return err
 		}
 		opts = append(opts, gclient.WithPubsub(ps, c.String(relayNetworkFlag.Name)))
+	}
+
+	if c.IsSet(clientMetricsIDFlag.Name) {
+		clientID := c.String(clientMetricsIDFlag.Name)
+		if !c.IsSet(clientMetricsAddressFlag.Name) || !c.IsSet(clientMetricsGatewayFlag.Name) {
+			return fmt.Errorf("missing prometheus address or push gateway")
+		}
+		metricsAddr := c.String(clientMetricsAddressFlag.Name)
+		metricsGateway := c.String(clientMetricsGatewayFlag.Name)
+		metricsPushInterval := c.Int64(clientMetricsPushIntervalFlag.Name)
+		bridge := newPrometheusBridge(metricsAddr, metricsGateway, metricsPushInterval)
+		bridgeWithID := client.WithPrometheus(prometheus.WrapRegistererWith(
+			prometheus.Labels{"client_id": clientID},
+			bridge))
+		opts = append(opts, bridgeWithID)
 	}
 
 	client, err := client.New(opts...)
@@ -158,4 +205,39 @@ func Watch(c *cli.Context, client client.Client) error {
 		fmt.Printf("%d\t%x\n", r.Round(), r.Randomness())
 	}
 	return nil
+}
+
+func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) prometheus.Registerer {
+	b := &prometheusBridge{
+		address:         address,
+		pushIntervalSec: pushIntervalSec,
+		Registry:        prometheus.NewRegistry(),
+	}
+	if gateway != "" {
+		b.pusher = push.New(gateway, "drand_client_observations_push").Gatherer(b.Registry)
+		go b.pushLoop()
+	}
+	if address != "" {
+		http.Handle("/metrics", promhttp.HandlerFor(b.Registry, promhttp.HandlerOpts{
+			Timeout: 10 * time.Second,
+		}))
+		go log.Fatal(http.ListenAndServe(address, nil))
+	}
+	return b
+}
+
+type prometheusBridge struct {
+	*prometheus.Registry
+	address         string
+	pushIntervalSec int64
+	pusher          *push.Pusher
+}
+
+func (b *prometheusBridge) pushLoop() {
+	for {
+		time.Sleep(time.Second * time.Duration(b.pushIntervalSec))
+		if err := b.pusher.Push(); err != nil {
+			log.Printf("prometheus gateway push (%v)", err)
+		}
+	}
 }
