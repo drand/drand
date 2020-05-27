@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/drand/drand/log"
@@ -41,6 +42,26 @@ func TestCacheGet(t *testing.T) {
 	}
 	if len(m.Results) != 2 {
 		t.Fatalf("unexpected cache size. %d", len(m.Results))
+	}
+}
+
+func TestCacheGetLatest(t *testing.T) {
+	m := MockClientWithResults(1, 3)
+	c, err := NewCachingClient(m, 2, log.DefaultLogger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r0, e := c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	r1, e := c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	fmt.Println(r0, r1)
+	if r0.Round() == r1.Round() {
+		t.Fatal("cached result for latest")
 	}
 }
 

@@ -95,6 +95,34 @@ func TestHTTPClient(t *testing.T) {
 	}
 }
 
+func TestHTTPGetLatest(t *testing.T) {
+	addr, hash, cancel := withServer(t)
+	defer cancel()
+
+	httpClient, err := NewHTTPClient("http://"+addr, hash, &http.Client{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r0, err := httpClient.Get(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r1, err := httpClient.Get(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r1.Round() != r0.Round()+1 {
+		t.Fatal("expected round progression")
+	}
+}
+
 func TestHTTPWatch(t *testing.T) {
 	addr, hash, cancel := withServer(t)
 	defer cancel()

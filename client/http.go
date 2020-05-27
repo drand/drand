@@ -153,7 +153,14 @@ func (r *RandomData) Randomness() []byte {
 
 // Get returns a the randomness at `round` or an error.
 func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
-	randResponse, err := h.client.Get(fmt.Sprintf("%s/public/%d", h.root, round))
+	var url string
+	if round == 0 {
+		url = fmt.Sprintf("%s/public/latest", h.root)
+	} else {
+		url = fmt.Sprintf("%s/public/%d", h.root, round)
+	}
+
+	randResponse, err := h.client.Get(url)
 	if err != nil {
 		return nil, err
 	}
