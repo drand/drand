@@ -1,7 +1,6 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -11,25 +10,6 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
-
-// next reads the next result form the channel and fails the test if it closes before a value is read.
-func next(t *testing.T, ch <-chan Result) Result {
-	r, ok := <-ch
-	if !ok {
-		t.Fatal("closed before result")
-	}
-	return r
-}
-
-// compare asserts that two results are the same.
-func compare(t *testing.T, a, b Result) {
-	if a.Round() != b.Round() {
-		t.Fatal("unexpected result round", a.Round(), b.Round())
-	}
-	if bytes.Compare(a.Randomness(), b.Randomness()) != 0 {
-		t.Fatal("unexpected result randomness", a.Randomness(), b.Randomness())
-	}
-}
 
 func TestFailover(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -48,11 +28,11 @@ func TestFailover(t *testing.T) {
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
-	compare(t, next(t, watchC), &results[0]) // Normal operation
-	compare(t, next(t, watchC), &results[1]) // First fail
-	compare(t, next(t, watchC), &results[2]) // Second fail
+	compareResults(t, nextResult(t, watchC), &results[0]) // Normal operation
+	compareResults(t, nextResult(t, watchC), &results[1]) // First fail
+	compareResults(t, nextResult(t, watchC), &results[2]) // Second fail
 	failC <- &results[3]
-	compare(t, next(t, watchC), &results[3]) // Resume normal operattion
+	compareResults(t, nextResult(t, watchC), &results[3]) // Resume normal operattion
 }
 
 func TestFailoverDedupe(t *testing.T) {
@@ -72,14 +52,14 @@ func TestFailoverDedupe(t *testing.T) {
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
-	compare(t, next(t, watchC), &results[0]) // Normal operation
-	compare(t, next(t, watchC), &results[1]) // Failover
+	compareResults(t, nextResult(t, watchC), &results[0]) // Normal operation
+	compareResults(t, nextResult(t, watchC), &results[1]) // Failover
 
 	// Two sends but only 1 write to watchC
 	failC <- &results[2]
 	failC <- &results[3]
 
-	compare(t, next(t, watchC), &results[3]) // Success deduped previous
+	compareResults(t, nextResult(t, watchC), &results[3]) // Success deduped previous
 }
 
 func TestFailoverDefaultGrace(t *testing.T) {
@@ -92,7 +72,7 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0, log.DefaultLogger)
 	watchC := failoverClient.Watch(ctx)
 
-	compare(t, next(t, watchC), &results[0])
+	compareResults(t, nextResult(t, watchC), &results[0])
 }
 
 func TestFailoverMaxGrace(t *testing.T) {
@@ -113,7 +93,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 
 	now := time.Now()
 	// Should failover in ~period and _definitely_ within gracePeriod!
-	compare(t, next(t, watchC), &results[0])
+	compareResults(t, nextResult(t, watchC), &results[0])
 
 	if time.Now().Sub(now) >= defaultFailoverGracePeriod {
 		t.Fatal("grace period was not bounded to half group period")
@@ -151,7 +131,7 @@ func TestFailoverGetFail(t *testing.T) {
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
-	compare(t, next(t, watchC), &results[0]) // Normal operation
+	compareResults(t, nextResult(t, watchC), &results[0]) // Normal operation
 
 	// Wait for error from failover to Get
 	err, _ := <-getErrC
@@ -161,15 +141,7 @@ func TestFailoverGetFail(t *testing.T) {
 
 	// Write another result and ensure we recover
 	failC <- &results[1]
-	compare(t, next(t, watchC), &results[1])
-}
-
-func fakeChainInfo() *chain.Info {
-	return &chain.Info{
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix(),
-		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
-	}
+	compareResults(t, nextResult(t, watchC), &results[1])
 }
 
 func TestFailoverMissingChainInfo(t *testing.T) {
