@@ -31,6 +31,8 @@ var (
 	log = logging.Logger("lp2p")
 	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
 	userAgent = "drand-relay/0.0.0"
+	// directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
+	directConnectTicks = uint64(5)
 )
 
 func PubSubTopic(nn string) string {
@@ -83,6 +85,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		}),
 		pubsub.WithDirectPeers(addrInfos),
 		pubsub.WithFloodPublish(true),
+		pubsub.WithDirectConnectTicks(directConnectTicks),
 	)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing pubsub: %d", err)
