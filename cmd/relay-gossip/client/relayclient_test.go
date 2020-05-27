@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -23,13 +24,22 @@ func TestClient(t *testing.T) {
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
+	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	identityDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
 		ChainHash:       "test",
 		PeerWith:        nil,
 		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
-		DataDir:         path.Join(os.TempDir(), "test-gossip-relay-node-datastore"),
-		IdentityPath:    path.Join(os.TempDir(), "test-gossip-relay-node-id"),
+		DataDir:         dataDir,
+		IdentityPath:    path.Join(identityDir, "identity.key"),
 		CertPath:        "",
 		Insecure:        true,
 		DrandPublicGRPC: grpcAddr,
@@ -61,11 +71,19 @@ func TestClient(t *testing.T) {
 }
 
 func newTestClient(name string, relayMultiaddr []ma.Multiaddr, chainHash string) (*Client, error) {
-	ds, err := bds.NewDatastore(path.Join(os.TempDir(), "client-"+name+"-datastore"), nil)
+	dataDir, err := ioutil.TempDir(os.TempDir(), "client-"+name+"-datastore")
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "client-"+name+"-id"))
+	identityDir, err := ioutil.TempDir(os.TempDir(), "client-"+name+"-id")
+	if err != nil {
+		return nil, err
+	}
+	ds, err := bds.NewDatastore(dataDir, nil)
+	if err != nil {
+		return nil, err
+	}
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"))
 	if err != nil {
 		return nil, err
 	}
