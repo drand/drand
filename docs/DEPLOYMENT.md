@@ -392,7 +392,7 @@ difficult to update.
 **Setting up the coordinator**: The coordinator must be a member of the current
 network. To run the coordinator, run the following:
 ```
-drand share --leader --transition --secret mysecret2 --out
+drand share --leader --transition --secret mysecret2 --nodes 15 --threshold 10 --out
 group2.toml
 ```
 
