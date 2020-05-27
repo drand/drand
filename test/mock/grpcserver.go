@@ -49,7 +49,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
-	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round+1) {
+	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
 	randomness := sha256Hash(signature)
@@ -162,6 +162,7 @@ func generateMockData() *Data {
 	return d
 }
 
+// nextMockData generates a valid Data for the next round when given the current round data.
 func nextMockData(d *Data) *Data {
 	previous := decodeHex(d.PreviousSignature)
 	msg := sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))

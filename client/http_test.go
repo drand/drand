@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
+func withServer(t *testing.T, badSecondRound bool) (string, []byte, context.CancelFunc) {
 	t.Helper()
-	l, s := mock.NewMockGRPCPublicServer(":0", false)
+	l, s := mock.NewMockGRPCPublicServer(":0", badSecondRound)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -65,7 +65,7 @@ func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 	}
 }
 func TestHTTPClient(t *testing.T) {
-	addr, hash, cancel := withServer(t)
+	addr, hash, cancel := withServer(t, true)
 	defer cancel()
 
 	httpClient, err := NewHTTPClient("http://"+addr, hash, http.DefaultTransport)
@@ -96,7 +96,7 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestHTTPGetLatest(t *testing.T) {
-	addr, hash, cancel := withServer(t)
+	addr, hash, cancel := withServer(t, false)
 	defer cancel()
 
 	httpClient, err := NewHTTPClient("http://"+addr, hash, &http.Client{})
@@ -124,7 +124,7 @@ func TestHTTPGetLatest(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
-	addr, hash, cancel := withServer(t)
+	addr, hash, cancel := withServer(t, false)
 	defer cancel()
 
 	httpClient, err := NewHTTPClient("http://"+addr, hash, http.DefaultTransport)
