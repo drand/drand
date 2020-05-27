@@ -124,3 +124,38 @@ func TestClientWithFailover(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestClientWithWatcher(t *testing.T) {
+	addr1, hash, cancel := withServer(t)
+	defer cancel()
+
+	results := []MockResult{
+		{rnd: 1, rand: []byte{1}},
+		{rnd: 2, rand: []byte{2}},
+	}
+
+	ch := make(chan Result, len(results))
+	for i := range results {
+		ch <- &results[i]
+	}
+	close(ch)
+
+	watcherCtor := func(chainInfo *chain.Info) (Watcher, error) {
+		return &MockClient{WatchCh: ch}, nil
+	}
+
+	c, err := New(
+		WithHTTPEndpoints([]string{"http://" + addr1}),
+		WithChainHash(hash),
+		WithWatcher(watcherCtor),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	i := 0
+	for r := range c.Watch(context.Background()) {
+		compareResults(t, r, &results[i])
+		i++
+	}
+}

@@ -57,12 +57,10 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 		c.subscriberLock.Unlock()
 
 		var m Result
+		var ok bool
+
 		select {
-		case res, ok := <-in:
-			if !ok {
-				return
-			}
-			m = res
+		case m, ok = <-in:
 		case <-aCtx.Done():
 		}
 
@@ -71,7 +69,7 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 		c.subscribers = c.subscribers[:0]
 
 		for _, s := range curr {
-			if s.ctx.Err() == nil {
+			if ok && s.ctx.Err() == nil {
 				c.subscribers = append(c.subscribers, s)
 				if m != nil {
 					select {
