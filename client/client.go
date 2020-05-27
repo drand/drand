@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -48,12 +50,12 @@ func makeClient(cfg clientConfig) (Client, error) {
 	var err error
 	for _, url := range cfg.urls {
 		if cfg.chainInfo != nil {
-			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.getter)
+			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.transport)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			c, err = NewHTTPClient(url, cfg.chainHash, cfg.getter)
+			c, err = NewHTTPClient(url, cfg.chainHash, cfg.transport)
 			if err != nil {
 				return nil, err
 			}
@@ -89,11 +91,11 @@ func makeClient(cfg clientConfig) (Client, error) {
 	c = newWatchAggregator(c, cfg.log)
 
 	if cfg.prometheus != nil {
+		metrics.RegisterClientMetrics(cfg.prometheus)
 		if cfg.chainInfo == nil {
 			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
 		}
-		ctl := newMetricController(cfg.chainInfo, cfg.prometheus)
-		if c, err = newWatchLatencyMetricClient(c, ctl); err != nil {
+		if c, err = newWatchLatencyMetricClient(c, cfg.chainInfo); err != nil {
 			return nil, err
 		}
 	}
@@ -111,8 +113,8 @@ type clientConfig struct {
 	chainHash []byte
 	// Full chain information - serves as a root of trust.
 	chainInfo *chain.Info
-	// getter configures the http transport parameters used when fetching randomness.
-	getter HTTPGetter
+	// transport configures the http parameters used when fetching randomness.
+	transport http.RoundTripper
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -139,11 +141,11 @@ func WithHTTPEndpoints(urls []string) Option {
 	}
 }
 
-// WithHTTPGetter specifies the HTTP Client (or mocked equivalent) for fetching
+// WithHTTPTransport specifies the HTTP Client (or mocked equivalent) for fetching
 // randomness from an HTTP endpoint.
-func WithHTTPGetter(getter HTTPGetter) Option {
+func WithHTTPTransport(transport http.RoundTripper) Option {
 	return func(cfg *clientConfig) error {
-		cfg.getter = getter
+		cfg.transport = transport
 		return nil
 	}
 }
@@ -230,7 +232,7 @@ func WithWatcher(wc WatcherCtor) Option {
 	}
 }
 
-// WithPrometheus specifies a prometheus system to be used for metric collection.
+// WithPrometheus specifies a registry into which to report metrics
 func WithPrometheus(r prometheus.Registerer) Option {
 	return func(cfg *clientConfig) error {
 		cfg.prometheus = r
