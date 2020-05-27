@@ -35,7 +35,7 @@ func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err 
 	}
 	val, err := c.Client.Get(ctx, round)
 	if err == nil && val != nil {
-		c.cache.Add(round, val)
+		c.cache.Add(val.Round(), val)
 	}
 	return val, err
 }
