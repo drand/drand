@@ -29,7 +29,7 @@ WORKDIR $SRC_PATH
 RUN go mod download
 
 COPY . $SRC_PATH
-RUN set -x make build-client
+RUN set -x && make build-client
 
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
