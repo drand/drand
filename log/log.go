@@ -79,7 +79,7 @@ func NewKitLogger(opts ...lvl.Option) Logger {
 	}
 	timestamp := log.TimestampFormat(time.Now, time.RFC1123)
 	logger = log.With(logger, "ts", timestamp)
-	logger = log.With(logger, "call", log.Caller(8))
+	logger = log.With(logger, "call", log.Caller(6))
 	return NewKitLoggerFrom(logger)
 }
 
