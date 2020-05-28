@@ -20,6 +20,14 @@ import (
 	"golang.org/x/xerrors"
 )
 
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+var (
+	version   = "master"
+	gitCommit = "none"
+	buildDate = "unknown"
+)
+
 var (
 	log = logging.Logger("beacon-relay")
 )
@@ -29,8 +37,8 @@ func main() {
 	logging.SetLogLevel("beacon-relay", "info")
 
 	app := &cli.App{
-		Name:    "beacon-relay",
-		Version: "0.0.1",
+		Name:    "drand-relay-gossip",
+		Version: version,
 		Usage:   "pubsub relay for randomness beacon",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -40,6 +48,10 @@ func main() {
 		},
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+	}
+
 	err := app.Run(os.Args)
 	if err != nil {
 		fmt.Printf("error: %+v\n", err)
