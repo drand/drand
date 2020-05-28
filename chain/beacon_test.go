@@ -19,6 +19,7 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 	prevSig := []byte("My Sweet Previous Signature")
 	msg := Message(round, prevSig)
 	sig, _ := key.AuthScheme.Sign(secret, msg)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		err := VerifyBeacon(public, &Beacon{
 			PreviousSig: prevSig,
