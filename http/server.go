@@ -186,6 +186,11 @@ func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
 		}
 	}
 
+	// make sure we aren't going to ask for a round that doesn't exist yet.
+	if time.Unix(chain.TimeOfRound(h.chainInfo.Period, h.chainInfo.GenesisTime, round), 0).After(time.Now()) {
+		return nil, nil
+	}
+
 	req := drand.PublicRandRequest{Round: round}
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
@@ -224,6 +229,11 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		return
+	}
+	if data == nil {
+		w.WriteHeader(http.StatusNotFound)
+		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 

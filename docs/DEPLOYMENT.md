@@ -173,13 +173,15 @@ drand start --tls-disable
 
 ### Test the connection to a node
 
-In order to test if your node is reachable from the internet and your setup is
-correct, you can run the following command:
+To test the gRPC endpoint of your or another drand node, you can use the following command:
 ```
 drand util check <address>
 ```
 where address is the address as listed in the public key. If you disabled TLS,
-you need to add the `--tls-disable` flag.
+you need to add the `--tls-disable` flag. 
+
+Note that if the address is a DNS name (as it usually is), this command will try
+to resolve the DNS name to IP.
 
 ### Run the setup phase
 
@@ -380,6 +382,7 @@ offers the following:
   not wish to operate drand anymore.
 + nodes can update the threshold associated with their current distributed
   public key.
++ refresh the shares (similar to using a new private key)
 
 The main advantage of this method is that the distributed public key stays the
 *same* even with new nodes coming in. That can be useful when the distributed
@@ -389,23 +392,21 @@ difficult to update.
 **Setting up the coordinator**: The coordinator must be a member of the current
 network. To run the coordinator, run the following:
 ```
-drand share --leader --transition --nodes 15 --treshold 10 --secret mysecret2 --out
+drand share --leader --transition --secret mysecret2 --nodes 15 --threshold 10 --out
 group2.toml
 ```
 
 **Setting up the current members for the resharing**: The current members can
 simply run the following command:
 ```
-drand share --transition --nodes 15 --threshold 10 --secret mysecret2 --out
-group2.toml
+drand share --connect <coordinator> --transition --secret mysecret2 --out group2.toml
 ```
 
 **Setting up the new members**: The new members need the current group file to
 proceed. Check how to get the group file in the "Using the drand daemon"
 section. Then run the command:
 ```
-drand share --from group.toml --nodes 15 --threshold 10 --secret mysecret2 --out
-group2.toml
+drand share connect <coordinator> --from group.toml --secret mysecret2 --out group2.toml
 ```
 
 After the protocol is finished, each node will have the new group file written

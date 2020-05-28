@@ -20,10 +20,11 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
 	version   = "master"
 	gitCommit = "none"
+	buildDate = "unknown"
 )
 
 var accessLogFlag = &cli.StringFlag{
@@ -113,10 +114,14 @@ func Relay(c *cli.Context) error {
 
 func main() {
 	app := &cli.App{
-		Name:   "relay",
-		Usage:  "Relay a Drand group to a public HTTP Rest API",
-		Flags:  []cli.Flag{listenFlag, connectFlag, certFlag, insecureFlag, accessLogFlag, metricsFlag},
-		Action: Relay,
+		Name:    "relay",
+		Version: version,
+		Usage:   "Relay a Drand group to a public HTTP Rest API",
+		Flags:   []cli.Flag{listenFlag, connectFlag, certFlag, insecureFlag, accessLogFlag, metricsFlag},
+		Action:  Relay,
+	}
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand HTTP relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)

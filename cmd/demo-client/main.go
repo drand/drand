@@ -26,6 +26,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+var (
+	version   = "master"
+	gitCommit = "none"
+	buildDate = "unknown"
+)
+
 var urlFlag = &cli.StringFlag{
 	Name:  "url",
 	Usage: "root URL for fetching randomness",
@@ -90,15 +98,19 @@ var clientMetricsIDFlag = &cli.StringFlag{
 }
 
 func main() {
-	app := &cli.App{
-		Name:  "demo-client",
-		Usage: "CDN Drand client for loading randomness from an HTTP endpoint",
-		Flags: []cli.Flag{
-			urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
-			relayPeersFlag, relayNetworkFlag, relayPortFlag,
-			clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag, clientMetricsPushIntervalFlag,
-		},
-		Action: Client,
+	app := cli.NewApp()
+	app.Name = "demo-client"
+	app.Version = version
+	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
+	app.Flags = []cli.Flag{
+		urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
+		relayPeersFlag, relayNetworkFlag, relayPortFlag,
+		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
+		clientMetricsPushIntervalFlag,
+	}
+	app.Action = Client
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand client %v (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
