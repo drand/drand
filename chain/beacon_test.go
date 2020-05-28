@@ -7,9 +7,29 @@ import (
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
+	"github.com/drand/kyber/util/random"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
 )
+
+func BenchmarkVerifyBeacon(b *testing.B) {
+	secret := key.KeyGroup.Scalar().Pick(random.New())
+	public := key.KeyGroup.Point().Mul(secret, nil)
+	var round uint64 = 16
+	prevSig := []byte("My Sweet Previous Signature")
+	msg := Message(round, prevSig)
+	sig, _ := key.AuthScheme.Sign(secret, msg)
+	for i := 0; i < b.N; i++ {
+		err := VerifyBeacon(public, &Beacon{
+			PreviousSig: prevSig,
+			Round:       16,
+			Signature:   sig,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
 func TestChainNextRound(t *testing.T) {
 	clock := clock.NewFakeClock()
