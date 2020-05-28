@@ -70,7 +70,8 @@ func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*se
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
-		return nil, errors.New("drand: setup dkg already in progress")
+		d.log.Info("reshare", "already_in_progress", "restart", "reshare")
+		d.manager.StopPreemptively()
 	}
 	manager, err := newSetup()
 	if err != nil {
@@ -263,8 +264,8 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
-		d.state.Unlock()
-		return nil, errors.New("drand: already waiting for an automatic setup")
+		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
+		d.receiver.stop()
 	}
 	receiver := newSetupReceiver(d.log, in.GetInfo())
 	d.receiver = receiver
@@ -298,6 +299,10 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *control.InitDKGPacket) 
 	var dkgInfo *drand.DKGInfoPacket
 	select {
 	case dkgInfo = <-d.receiver.WaitDKGInfo():
+		if dkgInfo == nil {
+			d.log.Debug("init_dkg", "wait_group", "cancelled", "nil_group")
+			return nil, errors.New("cancelled operation")
+		}
 		d.log.Debug("init_dkg", "received_group")
 	case <-d.opts.clock.After(MaxWaitPrepareDKG):
 		d.log.Error("init_dkg", "wait_group", "err", "timeout")
@@ -341,9 +346,10 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
-		d.state.Unlock()
-		return nil, errors.New("drand: already waiting for an automatic setup")
+		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
+		d.receiver.stop()
 	}
+
 	receiver := newSetupReceiver(d.log, in.GetInfo())
 	d.receiver = receiver
 	d.state.Unlock()
