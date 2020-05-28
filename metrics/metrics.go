@@ -190,7 +190,7 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 	}
 
 	if pprof != nil {
-		mux.Handle("/debug/pprof", pprof)
+		mux.Handle("/debug/pprof/", pprof)
 	}
 
 	mux.HandleFunc("/debug/gc", func(w http.ResponseWriter, req *http.Request) {
