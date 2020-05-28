@@ -32,4 +32,16 @@ install:
 
 # create the "drand" binary in the current folder
 build: 
-	go build -ldflags "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`" 
+	go build -ldflags -mod=readonly "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`" 
+
+# create the "drand-client" binary in the current folder
+build-client: 
+	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/demo-client.version=`git describe --tags` -X github.com/drand/drand/cmd/demo-client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/demo-client.gitCommit=`git rev-parse HEAD`" ./cmd/demo-client
+
+# create the "dran-relay-http" binary in the current folder
+build-relay-http: 
+	go build -o drand-relay-http -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay.version=`git describe --tags` -X github.com/drand/drand/cmd/relay.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay.gitCommit=`git rev-parse HEAD`" ./cmd/relay
+
+# create the "drand-relay-gossip" binary in the current folder
+build-relay-gossip: 
+	go build -o drand-relay-gossip -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-gossip.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-gossip.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-gossip.gitCommit=`git rev-parse HEAD`" ./cmd/relay-gossip
