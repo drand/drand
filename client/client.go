@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // New Creates a client with specified configuration.
@@ -32,26 +36,19 @@ func makeClient(cfg clientConfig) (Client, error) {
 	if len(cfg.urls) == 0 {
 		return nil, errors.New("No points of contact specified")
 	}
-	// provision gossip client
-	var gossipClient Client
-	if cfg.watcher != nil {
-		var err error
-		if gossipClient, err = newWatcherClient(nil, nil, cfg.watcher); err != nil {
-			return nil, err
-		}
-	}
+
 	// provision REST clients
 	restClients := []Client{}
 	var c Client
 	var err error
 	for _, url := range cfg.urls {
 		if cfg.chainInfo != nil {
-			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.getter)
+			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.transport)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			c, err = NewHTTPClient(url, cfg.chainHash, cfg.getter)
+			c, err = NewHTTPClient(url, cfg.chainHash, cfg.transport)
 			if err != nil {
 				return nil, err
 			}
@@ -65,7 +62,15 @@ func makeClient(cfg clientConfig) (Client, error) {
 		restClients = append(restClients, c)
 	}
 
-	c, err = NewPrioritizingClient(gossipClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+	// provision watcher client
+	var watcherClient Client
+	if cfg.watcher != nil {
+		if watcherClient, err = newWatcherClient(restClients[0], cfg.chainInfo, cfg.watcher); err != nil {
+			return nil, err
+		}
+	}
+
+	c, err = NewPrioritizingClient(watcherClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +89,19 @@ func makeClient(cfg clientConfig) (Client, error) {
 		}
 	}
 
-	return newWatchAggregator(c, cfg.log), nil
+	c = newWatchAggregator(c, cfg.log)
+
+	if cfg.prometheus != nil {
+		metrics.RegisterClientMetrics(cfg.prometheus)
+		if cfg.chainInfo == nil {
+			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
+		}
+		if c, err = newWatchLatencyMetricClient(c, cfg.chainInfo); err != nil {
+			return nil, err
+		}
+	}
+
+	return c, nil
 }
 
 type clientConfig struct {
@@ -97,8 +114,8 @@ type clientConfig struct {
 	chainHash []byte
 	// Full chain information - serves as a root of trust.
 	chainInfo *chain.Info
-	// getter configures the http transport parameters used when fetching randomness.
-	getter HTTPGetter
+	// transport configures the http parameters used when fetching randomness.
+	transport http.RoundTripper
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -107,6 +124,8 @@ type clientConfig struct {
 	failoverGracePeriod time.Duration
 	// watcher is a constructor function that creates a new Watcher
 	watcher WatcherCtor
+	// prometheus is an interface to a Prometheus system
+	prometheus prometheus.Registerer
 }
 
 // Option is an option configuring a client.
@@ -123,11 +142,11 @@ func WithHTTPEndpoints(urls []string) Option {
 	}
 }
 
-// WithHTTPGetter specifies the HTTP Client (or mocked equivalent) for fetching
+// WithHTTPTransport specifies the HTTP Client (or mocked equivalent) for fetching
 // randomness from an HTTP endpoint.
-func WithHTTPGetter(getter HTTPGetter) Option {
+func WithHTTPTransport(transport http.RoundTripper) Option {
 	return func(cfg *clientConfig) error {
-		cfg.getter = getter
+		cfg.transport = transport
 		return nil
 	}
 }
@@ -202,14 +221,22 @@ type Watcher interface {
 	Watch(ctx context.Context) <-chan Result
 }
 
-// WatcherCtor creates a Watcher once a group is known.
+// WatcherCtor creates a Watcher once chain info is known.
 type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
 
 // WithWatcher specifies a channel that can provide notifications of new
-// randomness bootstrappeed from the group information.
+// randomness bootstrappeed from the chain info.
 func WithWatcher(wc WatcherCtor) Option {
 	return func(cfg *clientConfig) error {
 		cfg.watcher = wc
+		return nil
+	}
+}
+
+// WithPrometheus specifies a registry into which to report metrics
+func WithPrometheus(r prometheus.Registerer) Option {
+	return func(cfg *clientConfig) error {
+		cfg.prometheus = r
 		return nil
 	}
 }

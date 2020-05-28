@@ -22,7 +22,7 @@ func TestClientConstraints(t *testing.T) {
 		t.Fatal("Client needs root of trust unless insecure specified explicitly")
 	}
 
-	addr, _, cancel := withServer(t)
+	addr, _, cancel := withServer(t, false)
 	defer cancel()
 
 	if _, e := New(WithInsecureHTTPEndpoints([]string{"http://" + addr})); e != nil {
@@ -31,9 +31,9 @@ func TestClientConstraints(t *testing.T) {
 }
 
 func TestClientMultiple(t *testing.T) {
-	addr1, hash, cancel := withServer(t)
+	addr1, hash, cancel := withServer(t, false)
 	defer cancel()
-	addr2, _, cancel2 := withServer(t)
+	addr2, _, cancel2 := withServer(t, false)
 	defer cancel2()
 
 	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1, "http://" + addr2}), WithChainHash(hash))
@@ -67,19 +67,19 @@ func TestClientWithChainInfo(t *testing.T) {
 }
 
 func TestClientCache(t *testing.T) {
-	addr1, hash, cancel := withServer(t)
+	addr1, hash, cancel := withServer(t, false)
 	defer cancel()
 
 	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithChainHash(hash), WithCacheSize(1))
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = c.Get(context.Background(), 0)
+	r0, e := c.Get(context.Background(), 0)
 	if e != nil {
 		t.Fatal(e)
 	}
 	cancel()
-	_, e = c.Get(context.Background(), 0)
+	_, e = c.Get(context.Background(), r0.Round())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -92,7 +92,7 @@ func TestClientCache(t *testing.T) {
 }
 
 func TestClientWithoutCache(t *testing.T) {
-	addr1, hash, cancel := withServer(t)
+	addr1, hash, cancel := withServer(t, false)
 	defer cancel()
 
 	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithChainHash(hash), WithCacheSize(0))
@@ -111,7 +111,7 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithFailover(t *testing.T) {
-	addr1, hash, cancel := withServer(t)
+	addr1, hash, cancel := withServer(t, false)
 	defer cancel()
 
 	// ensure a client with failover can be created successfully without error
@@ -122,5 +122,40 @@ func TestClientWithFailover(t *testing.T) {
 	)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestClientWithWatcher(t *testing.T) {
+	addr1, hash, cancel := withServer(t, false)
+	defer cancel()
+
+	results := []MockResult{
+		{rnd: 1, rand: []byte{1}},
+		{rnd: 2, rand: []byte{2}},
+	}
+
+	ch := make(chan Result, len(results))
+	for i := range results {
+		ch <- &results[i]
+	}
+	close(ch)
+
+	watcherCtor := func(chainInfo *chain.Info) (Watcher, error) {
+		return &MockClient{WatchCh: ch}, nil
+	}
+
+	c, err := New(
+		WithHTTPEndpoints([]string{"http://" + addr1}),
+		WithChainHash(hash),
+		WithWatcher(watcherCtor),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	i := 0
+	for r := range c.Watch(context.Background()) {
+		compareResults(t, r, &results[i])
+		i++
 	}
 }

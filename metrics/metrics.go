@@ -20,6 +20,8 @@ var (
 	HTTPMetrics = prometheus.NewRegistry()
 	// GroupMetrics about the group surface (grp, group-member stuff)
 	GroupMetrics = prometheus.NewRegistry()
+	// ClientMetrics about the drand client requests to servers
+	ClientMetrics = prometheus.NewRegistry()
 
 	// APICallCounter (Group) how many grpc calls
 	APICallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -55,6 +57,61 @@ var (
 		Help: "A gauge of requests currently being served.",
 	})
 
+	// Client observation metrics
+
+	// ClientWatchLatency measures the latency of the watch channel from the client's perspective.
+	ClientWatchLatency = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "client_watch_latency",
+		Help: "Duration between time round received and time round expected.",
+	})
+
+	// ClientInFlight measures how many active requests have been made
+	ClientInFlight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "client_in_flight",
+		Help: "A gauge of in-flight drand client http requests.",
+	},
+		[]string{"url"},
+	)
+
+	// ClientRequests measures how many total requests have been made
+	ClientRequests = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "client_api_requests_total",
+			Help: "A counter for requests from the drand client.",
+		},
+		[]string{"code", "method", "url"},
+	)
+
+	// ClientDNSLatencyVec tracks the observed DNS resolution times
+	ClientDNSLatencyVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "client_dns_duration_seconds",
+			Help:    "Client drand dns latency histogram.",
+			Buckets: []float64{.005, .01, .025, .05},
+		},
+		[]string{"event", "url"},
+	)
+
+	// ClientTLSLatencyVec tracks observed TLS connection times
+	ClientTLSLatencyVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "client_tls_duration_seconds",
+			Help:    "Client drand tls latency histogram.",
+			Buckets: []float64{.05, .1, .25, .5},
+		},
+		[]string{"event", "url"},
+	)
+
+	// ClientLatencyVec tracks raw http request latencies
+	ClientLatencyVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "client_request_duration_seconds",
+			Help:    "A histogram of client request latencies.",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"url"},
+	)
+
 	metricsBound = false
 )
 
@@ -89,6 +146,26 @@ func bindMetrics() {
 		HTTPMetrics.Register(c)
 		PrivateMetrics.Register(c)
 	}
+
+	// Client metrics
+	RegisterClientMetrics(ClientMetrics)
+	RegisterClientMetrics(PrivateMetrics)
+}
+
+// RegisterClientMetrics registers drand client metrics with the given registry
+func RegisterClientMetrics(r prometheus.Registerer) {
+	// Client metrics
+	client := []prometheus.Collector{
+		ClientDNSLatencyVec,
+		ClientInFlight,
+		ClientLatencyVec,
+		ClientRequests,
+		ClientTLSLatencyVec,
+		ClientWatchLatency,
+	}
+	for _, c := range client {
+		r.Register(c)
+	}
 }
 
 // PeerHandler abstracts a helper for relaying http requests to a group peer
@@ -113,7 +190,7 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 	}
 
 	if pprof != nil {
-		mux.Handle("/debug/pprof", pprof)
+		mux.Handle("/debug/pprof/", pprof)
 	}
 
 	mux.HandleFunc("/debug/gc", func(w http.ResponseWriter, req *http.Request) {

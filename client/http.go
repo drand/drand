@@ -10,25 +10,21 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	json "github.com/nikkolasg/hexjson"
 )
 
-// HTTPGetter is an interface for the exercised methods of an `http.Client`,
-// or equivalent alternative.
-type HTTPGetter interface {
-	Do(req *http.Request) (*http.Response, error)
-	Get(url string) (resp *http.Response, err error)
-}
-
 // NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, chainHash []byte, client HTTPGetter) (Client, error) {
+func NewHTTPClient(url string, chainHash []byte, client http.RoundTripper) (Client, error) {
 	if client == nil {
-		client = &http.Client{}
+		client = http.DefaultTransport
 	}
 	c := &httpClient{
 		root:   url,
-		client: client,
+		client: instrumentClient(url, client),
 		l:      log.DefaultLogger,
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
@@ -41,23 +37,55 @@ func NewHTTPClient(url string, chainHash []byte, client HTTPGetter) (Client, err
 }
 
 // NewHTTPClientWithInfo constructs an http client when the group parameters are already known.
-func NewHTTPClientWithInfo(url string, info *chain.Info, client HTTPGetter) (Client, error) {
+func NewHTTPClientWithInfo(url string, info *chain.Info, client http.RoundTripper) (Client, error) {
 	if client == nil {
-		client = &http.Client{}
+		client = http.DefaultTransport
 	}
+
 	c := &httpClient{
 		root:      url,
 		chainInfo: info,
-		client:    client,
+		client:    instrumentClient(url, client),
 		l:         log.DefaultLogger,
 	}
 	return c, nil
 }
 
+// Instruments an HTTP client around a transport
+func instrumentClient(url string, transport http.RoundTripper) *http.Client {
+	client := http.DefaultClient
+	urlLabel := prometheus.Labels{"url": url}
+
+	trace := &promhttp.InstrumentTrace{
+		DNSStart: func(t float64) {
+			metrics.ClientDNSLatencyVec.MustCurryWith(urlLabel).WithLabelValues("dns_start").Observe(t)
+		},
+		DNSDone: func(t float64) {
+			metrics.ClientDNSLatencyVec.MustCurryWith(urlLabel).WithLabelValues("dns_done").Observe(t)
+		},
+		TLSHandshakeStart: func(t float64) {
+			metrics.ClientTLSLatencyVec.MustCurryWith(urlLabel).WithLabelValues("tls_handshake_start").Observe(t)
+		},
+		TLSHandshakeDone: func(t float64) {
+			metrics.ClientTLSLatencyVec.MustCurryWith(urlLabel).WithLabelValues("tls_handshake_done").Observe(t)
+		},
+	}
+
+	transport = promhttp.InstrumentRoundTripperInFlight(metrics.ClientInFlight.With(urlLabel),
+		promhttp.InstrumentRoundTripperCounter(metrics.ClientRequests.MustCurryWith(urlLabel),
+			promhttp.InstrumentRoundTripperTrace(trace,
+				promhttp.InstrumentRoundTripperDuration(metrics.ClientLatencyVec.MustCurryWith(urlLabel),
+					transport))))
+
+	client.Transport = transport
+
+	return client
+}
+
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
 	root      string
-	client    HTTPGetter
+	client    *http.Client
 	chainInfo *chain.Info
 	l         log.Logger
 }
@@ -125,7 +153,14 @@ func (r *RandomData) Randomness() []byte {
 
 // Get returns a the randomness at `round` or an error.
 func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
-	randResponse, err := h.client.Get(fmt.Sprintf("%s/public/%d", h.root, round))
+	var url string
+	if round == 0 {
+		url = fmt.Sprintf("%s/public/latest", h.root)
+	} else {
+		url = fmt.Sprintf("%s/public/%d", h.root, round)
+	}
+
+	randResponse, err := h.client.Get(url)
 	if err != nil {
 		return nil, err
 	}

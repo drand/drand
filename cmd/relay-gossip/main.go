@@ -9,6 +9,8 @@ import (
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -75,10 +77,18 @@ var runCmd = &cli.Command{
 			Usage: "listen addr for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
+		&cli.StringFlag{
+			Name:  "metrics",
+			Usage: "local host:port to bind a metrics servlet (optional)",
+		},
 		peerWithFlag, idFlag,
 	},
 
 	Action: func(cctx *cli.Context) error {
+		if cctx.IsSet("metrics") {
+			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
+			defer metricsListener.Close()
+		}
 		cfg := &node.GossipRelayConfig{
 			ChainHash:       cctx.String("chain-hash"),
 			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
