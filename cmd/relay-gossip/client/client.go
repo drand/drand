@@ -1,9 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"sync"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -35,8 +37,8 @@ type Client struct {
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
 func WithPubsub(ps *pubsub.PubSub) dclient.Option {
-	return dclient.WithWatcher(func(info *chain.Info) (dclient.Watcher, error) {
-		c, err := NewWithPubsub(ps, info)
+	return dclient.WithWatcher(func(info *chain.Info, cache client.Cache) (dclient.Watcher, error) {
+		c, err := NewWithPubsub(ps, info, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +46,7 @@ func WithPubsub(ps *pubsub.PubSub) dclient.Option {
 	})
 }
 
-func randomnessValidator(info *chain.Info) func(context.Context, peer.ID, *pubsub.Message) bool {
+func randomnessValidator(info *chain.Info, cache client.Cache) func(context.Context, peer.ID, *pubsub.Message) bool {
 	return func(ctx context.Context, p peer.ID, m *pubsub.Message) bool {
 		var rand drand.PublicRandResponse
 		err := proto.Unmarshal(m.Data, &rand)
@@ -63,6 +65,28 @@ func randomnessValidator(info *chain.Info) func(context.Context, peer.ID, *pubsu
 			PreviousSig: rand.GetPreviousSignature(),
 		}
 
+		// Unwilling to relay beacons in the future.
+		if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, b.Round), 0).After(time.Now()) {
+			return false
+		}
+
+		if cache != nil {
+			if current := cache.TryGet(rand.GetRound()); current != nil {
+				currentFull, ok := current.(*client.RandomData)
+				if !ok {
+					// Note: this shouldn't happen in practice, but if we have a degraded cache entry we
+					// can't validate the full byte sequence.
+					return bytes.Equal(b.Signature, current.Signature())
+				}
+				curB := chain.Beacon{
+					Round:       current.Round(),
+					Signature:   current.Signature(),
+					PreviousSig: currentFull.PreviousSignature,
+				}
+				return b.Equal(&curB)
+			}
+		}
+
 		if err := chain.VerifyBeacon(info.PublicKey, &b); err != nil {
 			return false
 		}
@@ -71,12 +95,12 @@ func randomnessValidator(info *chain.Info) func(context.Context, peer.ID, *pubsu
 }
 
 // NewWithPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info) (*Client, error) {
+func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
 	if info == nil {
 		return nil, xerrors.Errorf("No chain supplied for joining")
 	}
 	chainHash := hex.EncodeToString(info.Hash())
-	ps.RegisterTopicValidator(chainHash, randomnessValidator(info), pubsub.WithValidatorInline(true))
+	ps.RegisterTopicValidator(chainHash, randomnessValidator(info, cache))
 	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)

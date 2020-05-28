@@ -62,21 +62,30 @@ func makeClient(cfg clientConfig) (Client, error) {
 		restClients = append(restClients, c)
 	}
 
-	// provision watcher client
-	var watcherClient Client
-	if cfg.watcher != nil {
-		if watcherClient, err = newWatcherClient(restClients[0], cfg.chainInfo, cfg.watcher); err != nil {
+	if len(restClients) > 1 {
+		c, err = NewPrioritizingClient(restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	c, err = NewPrioritizingClient(watcherClient, restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+	// provision cache
+	cache, err := makeCache(cfg.cacheSize)
 	if err != nil {
 		return nil, err
 	}
 
+	// provision watcher client
+	if cfg.watcher != nil {
+		w, err := cfg.watcher(cfg.chainInfo, cache)
+		if err != nil {
+			return nil, err
+		}
+		c = &watcherClient{c, w}
+	}
+
 	if cfg.cacheSize > 0 {
-		c, err = NewCachingClient(c, cfg.cacheSize, cfg.log)
+		c, err = NewCachingClient(c, cache, cfg.log)
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +231,7 @@ type Watcher interface {
 }
 
 // WatcherCtor creates a Watcher once chain info is known.
-type WatcherCtor func(chainInfo *chain.Info) (Watcher, error)
+type WatcherCtor func(chainInfo *chain.Info, cache Cache) (Watcher, error)
 
 // WithWatcher specifies a channel that can provide notifications of new
 // randomness bootstrappeed from the chain info.

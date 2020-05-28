@@ -104,5 +104,5 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithPubsub(ps, info)
+	return NewWithPubsub(ps, info, nil)
 }
