@@ -22,7 +22,7 @@ import (
 // MockService provides a way for clients getting the service to be able to call
 // the EmitRand method on the mock server
 type MockService interface {
-	EmitRand()
+	EmitRand(bool)
 }
 
 // Server fake
@@ -75,28 +75,44 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 
 // PublicRandStream is part of the public drand service.
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	s.l.Lock()
 	s.streamDone = make(chan error, 1)
 	s.stream = stream
+	s.l.Unlock()
 
-	return <-s.streamDone
+	err := <-s.streamDone
+	s.l.Lock()
+	s.stream = nil
+	s.l.Unlock()
+	return err
 }
 
 // EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`
-func (s *Server) EmitRand() {
+func (s *Server) EmitRand(closeStream bool) {
+	s.l.Lock()
 	if s.stream == nil {
+		s.l.Unlock()
 		return
 	}
-	if s.stream.Context().Err() != nil {
-		s.streamDone <- s.stream.Context().Err()
+	stream := s.stream
+	done := s.streamDone
+	s.l.Unlock()
+	if closeStream {
+		close(done)
+		return
+	}
+
+	if stream.Context().Err() != nil {
+		done <- s.stream.Context().Err()
 		return
 	}
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
-		s.streamDone <- err
+		done <- err
 		return
 	}
-	if err = s.stream.Send(resp); err != nil {
-		s.streamDone <- err
+	if err = stream.Send(resp); err != nil {
+		done <- err
 		return
 	}
 }

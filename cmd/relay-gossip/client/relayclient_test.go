@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/drand/drand/chain"
 	cmock "github.com/drand/drand/client/test/mock"
@@ -68,15 +69,25 @@ func TestGRPCClient(t *testing.T) {
 
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
+	// for the initial 'get' to sync the chain
+	svc.(mock.MockService).EmitRand(false)
 	ch := c.Watch(ctx)
+	time.Sleep(5 * time.Millisecond)
 	for i := 0; i < 3; i++ {
-		svc.(mock.MockService).EmitRand()
-		svc.(mock.MockService).EmitRand()
-		if _, ok := <-ch; !ok {
-			t.Fatal("expected randomness")
+		svc.(mock.MockService).EmitRand(false)
+		fmt.Printf("round %d. emitting.\n", i)
+		select {
+		case r, ok := <-ch:
+			if !ok {
+				t.Fatal("expected randomness")
+			} else {
+				fmt.Print(r)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout.")
 		}
-		fmt.Print(<-ch)
 	}
+	svc.(mock.MockService).EmitRand(true)
 	cancel()
 	for range ch {
 	}
@@ -116,16 +127,23 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	emit(false)
 	ch := c.Watch(ctx)
+	time.Sleep(5 * time.Millisecond)
 	for i := 0; i < 3; i++ {
-		emit()
-		emit()
-		r, ok := <-ch
-		if !ok {
-			t.Fatal("expected randomness")
+		emit(false)
+		select {
+		case r, ok := <-ch:
+			if !ok {
+				t.Fatal("expected randomness")
+			} else {
+				fmt.Print(r)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout.")
 		}
-		fmt.Printf("%+v\n", r)
 	}
+	emit(true)
 	cancel()
 	for range ch {
 	}

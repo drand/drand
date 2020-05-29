@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func withClient(t *testing.T) (drand.PublicClient, func()) {
+func withClient(t *testing.T) (drand.PublicClient, func(bool)) {
 	t.Helper()
 
 	l, s := mock.NewMockGRPCPublicServer(":0", true)
@@ -107,7 +107,7 @@ func TestHTTPWaiting(t *testing.T) {
 	next, _ := http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
 
 	// 1 watch get will occur (1970 - the bad one)
-	push()
+	push(false)
 	body := make(map[string]interface{})
 	done := make(chan struct{})
 	before := time.Now()
@@ -121,7 +121,7 @@ func TestHTTPWaiting(t *testing.T) {
 	if !after.IsZero() {
 		t.Fatal("should block until randomness provided.")
 	}
-	push()
+	push(false)
 	time.Sleep(10 * time.Millisecond)
 	if after.IsZero() {
 		t.Fatal("should return after a round.")
@@ -179,7 +179,7 @@ func TestHTTPHealth(t *testing.T) {
 		t.Fatalf("startup of the server on 1st request should happen")
 	}
 
-	push()
+	push(false)
 	resp, _ = http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
 	if resp.StatusCode != http.StatusOK {
 		var buf [100]byte
