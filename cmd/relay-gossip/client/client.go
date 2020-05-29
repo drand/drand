@@ -10,24 +10,19 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
-	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
-)
-
-var (
-	log = logging.Logger("drand-client")
 )
 
 // Client is a concrete pubsub client implementation
 type Client struct {
 	cancel func()
 	latest uint64
-	log    dlog.Logger
+	log    log.Logger
 
 	subs struct {
 		sync.Mutex
@@ -36,7 +31,7 @@ type Client struct {
 }
 
 // SetLog configures the client log output
-func (c *Client) SetLog(l dlog.Logger) {
+func (c *Client) SetLog(l log.Logger) {
 	c.log = l
 }
 
@@ -115,7 +110,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
 		cancel: cancel,
-		log:    dlog.DefaultLogger,
+		log:    log.DefaultLogger,
 	}
 
 	chainHash := hex.EncodeToString(info.Hash())
