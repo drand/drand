@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"time"
 
-	"github.com/drand/drand/cmd/relay-gossip/client"
+	"github.com/drand/drand/client"
+	psc "github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
@@ -122,8 +126,18 @@ var runCmd = &cli.Command{
 }
 
 var clientCmd = &cli.Command{
-	Name:  "client",
-	Flags: []cli.Flag{peerWithFlag},
+	Name: "client",
+	Flags: []cli.Flag{
+		peerWithFlag,
+		&cli.StringSliceFlag{
+			Name:  "http-failover",
+			Usage: "URL(s) of drand HTTP API(s) to failover to if gossipsub messages do not arrive in time",
+		},
+		&cli.DurationFlag{
+			Name:  "http-failover-grace",
+			Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := node.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
@@ -140,23 +154,52 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		c, err := client.NewWithPubsub(ps, nil, nil)
+		chainHash, err := hex.DecodeString(cctx.String("chain-hash"))
 		if err != nil {
-			return xerrors.Errorf("constructing client: %w", err)
+			return xerrors.Errorf("decoding chain hash: %w", err)
 		}
 
-		var notifChan <-chan drand.PublicRandResponse
-		var unsub client.UnsubFunc
-		{
-			ch := make(chan drand.PublicRandResponse, 5)
-			notifChan = ch
-			unsub = c.Sub(ch)
-		}
-		_ = unsub
+		httpFailover := cctx.StringSlice("http-failover")
 
-		for rand := range notifChan {
-			log.Info("client", "got randomness", "round", rand.Round, "signature", rand.Signature[:16])
+		// if we have http failover endpoints then use the drand HTTP client with pubsub option
+		if len(httpFailover) > 0 {
+			grace := cctx.Duration("http-failover-grace")
+			if grace == 0 {
+				grace = time.Second * 5
+			}
+			c, err := client.New(
+				psc.WithPubsub(ps),
+				client.WithChainHash(chainHash),
+				client.WithHTTPEndpoints(httpFailover),
+				client.WithFailoverGracePeriod(grace),
+			)
+			if err != nil {
+				return xerrors.Errorf("constructing client: %w", err)
+			}
+
+			for rand := range c.Watch(context.Background()) {
+				fmt.Printf("got randomness: Round %d: %X\n", rand.Round(), rand.Randomness()[:16])
+			}
+		} else {
+			c, err := psc.NewWithPubsub(ps, nil, nil)
+			if err != nil {
+				return xerrors.Errorf("constructing client: %w", err)
+			}
+
+			var notifChan <-chan drand.PublicRandResponse
+			var unsub psc.UnsubFunc
+			{
+				ch := make(chan drand.PublicRandResponse, 5)
+				notifChan = ch
+				unsub = c.Sub(ch)
+			}
+			_ = unsub
+
+			for rand := range notifChan {
+				fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Randomness[:16])
+			}
 		}
+
 		return nil
 	},
 }
