@@ -140,7 +140,7 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 	close(ch)
 
-	watcherCtor := func(chainInfo *chain.Info) (Watcher, error) {
+	watcherCtor := func(chainInfo *chain.Info, _ Cache) (Watcher, error) {
 		return &MockClient{WatchCh: ch}, nil
 	}
 

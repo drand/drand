@@ -2,12 +2,14 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
@@ -19,7 +21,7 @@ import (
 
 func TestClient(t *testing.T) {
 	// start mock drand node
-	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false)
+	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
@@ -33,9 +35,15 @@ func TestClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	infoProto, err := svc.ChainInfo(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, _ := chain.InfoFromProto(infoProto)
+
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
-		ChainHash:       "test",
+		ChainHash:       hex.EncodeToString(info.Hash()),
 		PeerWith:        nil,
 		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
 		DataDir:         dataDir,
@@ -51,7 +59,7 @@ func TestClient(t *testing.T) {
 	defer g.Shutdown()
 
 	// start client
-	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), "test")
+	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +78,7 @@ func TestClient(t *testing.T) {
 	}
 }
 
-func newTestClient(name string, relayMultiaddr []ma.Multiaddr, chainHash string) (*Client, error) {
+func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
 	dataDir, err := ioutil.TempDir(os.TempDir(), "client-"+name+"-datastore")
 	if err != nil {
 		return nil, err
@@ -96,5 +104,5 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, chainHash string)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithPubsub(ps, chainHash)
+	return NewWithPubsub(ps, info, nil)
 }

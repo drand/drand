@@ -12,28 +12,26 @@ import (
 // NewPrioritizingClient is a client combinator that asks sub-clients
 // in succession until an answer is found.
 // Get requests are sourced from get sub-clients.
-// Watch requests are sourced from a watch sub-client if available, otherwise
-// it is achieved as a long-poll from the prioritized get sub-clients.
-func NewPrioritizingClient(watchClient Client, getClient []Client, chainHash []byte, chainInfo *chain.Info, log log.Logger) (Client, error) {
-	return &prioritizingClient{watchClient, getClient, chainHash, chainInfo, log}, nil
+// Watches are achieved as a long-poll from the prioritized get sub-clients.
+func NewPrioritizingClient(clients []Client, chainHash []byte, chainInfo *chain.Info, log log.Logger) (Client, error) {
+	return &prioritizingClient{clients, chainHash, chainInfo, log}, nil
 }
 
 type prioritizingClient struct {
-	watchClient Client
-	getClient   []Client
-	chainHash   []byte
-	chainInfo   *chain.Info
-	log         log.Logger
+	clients   []Client
+	chainHash []byte
+	chainInfo *chain.Info
+	log       log.Logger
 }
 
 // Get returns a the randomness at `round` or an error.
 func (p *prioritizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
-	for i, c := range p.getClient {
+	for i, c := range p.clients {
 		res, err = c.Get(ctx, round)
 		if err == nil {
 			// previous clients failed. move them to end of priority.
 			if i > 0 {
-				p.getClient = append(p.getClient[i:], p.getClient[:i]...)
+				p.clients = append(p.clients[i:], p.clients[:i]...)
 			}
 			return
 		}
@@ -50,7 +48,7 @@ func (p *prioritizingClient) learnGroup(ctx context.Context) error {
 	var chainInfo *chain.Info
 	var err error
 
-	for _, c := range p.getClient {
+	for _, c := range p.clients {
 		if hc, ok := c.(*httpClient); ok {
 			chainInfo, err = hc.FetchChainInfo(p.chainHash)
 			if err == nil {
@@ -67,10 +65,6 @@ func (p *prioritizingClient) learnGroup(ctx context.Context) error {
 
 // Watch returns new randomness as it becomes available.
 func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
-	// prefer the watchClient channel for watches
-	if p.watchClient != nil {
-		return p.watchClient.Watch(ctx)
-	}
 	// otherwise, poll from the prioritized list of getClients
 	if p.chainInfo == nil {
 		if err := p.learnGroup(ctx); err != nil {
@@ -86,5 +80,5 @@ func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
 func (p *prioritizingClient) RoundAt(time time.Time) uint64 {
-	return p.getClient[0].RoundAt(time)
+	return p.clients[0].RoundAt(time)
 }

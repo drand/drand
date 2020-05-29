@@ -20,14 +20,15 @@ func TestWatcherWatch(t *testing.T) {
 	}
 	close(ch)
 
-	ctor := func(chainInfo *chain.Info) (Watcher, error) {
+	ctor := func(chainInfo *chain.Info, _ Cache) (Watcher, error) {
 		return &MockClient{WatchCh: ch}, nil
 	}
 
-	w, err := newWatcherClient(nil, fakeChainInfo(), ctor)
+	watcher, err := ctor(fakeChainInfo(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	w := watcherClient{nil, watcher}
 
 	i := 0
 	for r := range w.Watch(context.Background()) {
@@ -46,14 +47,15 @@ func TestWatcherGet(t *testing.T) {
 	copy(cr, results)
 
 	c := &MockClient{Results: cr}
-	ctor := func(chainInfo *chain.Info) (Watcher, error) {
+	ctor := func(chainInfo *chain.Info, _ Cache) (Watcher, error) {
 		return c, nil
 	}
 
-	w, err := newWatcherClient(c, fakeChainInfo(), ctor)
+	watcher, err := ctor(fakeChainInfo(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	w := watcherClient{c, watcher}
 
 	for _, result := range results {
 		r, err := w.Get(context.Background(), 0)
@@ -66,14 +68,15 @@ func TestWatcherGet(t *testing.T) {
 
 func TestWatcherRoundAt(t *testing.T) {
 	c := &MockClient{}
-	ctor := func(chainInfo *chain.Info) (Watcher, error) {
+	ctor := func(chainInfo *chain.Info, _ Cache) (Watcher, error) {
 		return c, nil
 	}
 
-	w, err := newWatcherClient(c, fakeChainInfo(), ctor)
+	watcher, err := ctor(fakeChainInfo(), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	w := watcherClient{c, watcher}
 
 	if w.RoundAt(time.Now()) != 0 {
 		t.Fatal("unexpected RoundAt value")
