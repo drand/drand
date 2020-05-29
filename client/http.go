@@ -114,7 +114,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 	}
 
 	if chainHash == nil {
-		h.l.Warn("http_client", "instantiated without trustroot", "groupHash", hex.EncodeToString(chainInfo.Hash()))
+		h.l.Warn("http_client", "instantiated without trustroot", "chainHash", hex.EncodeToString(chainInfo.Hash()))
 	}
 	if chainHash != nil && !bytes.Equal(chainInfo.Hash(), chainHash) {
 		return nil, fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)

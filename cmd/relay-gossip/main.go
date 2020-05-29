@@ -68,8 +68,13 @@ var runCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "connect",
-			Usage: "host:port to dial to a drand gRPC PI",
+			Name:    "grpc-connect",
+			Usage:   "host:port to dial to a drand gRPC API",
+			Aliases: []string{"connect"},
+		},
+		&cli.StringSliceFlag{
+			Name:  "http-connect",
+			Usage: "URL(s) of drand HTTP API(s) to relay",
 		},
 		&cli.StringFlag{
 			Name:  "store",
@@ -109,7 +114,8 @@ var runCmd = &cli.Command{
 			IdentityPath:    cctx.String(idFlag.Name),
 			CertPath:        cctx.String("cert"),
 			Insecure:        cctx.Bool("insecure"),
-			DrandPublicGRPC: cctx.String("connect"),
+			DrandPublicGRPC: cctx.String("grpc-connect"),
+			DrandPublicHTTP: cctx.StringSlice("http-connect"),
 		}
 		if _, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg); err != nil {
 			return err
