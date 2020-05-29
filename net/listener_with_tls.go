@@ -48,6 +48,7 @@ func NewGRPCListenerForPrivateWithTLS(ctx context.Context, bindingAddr string, c
 	}
 	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
 	grpc_prometheus.Register(grpcServer)
+	metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics)
 	return g, nil
 }
 
