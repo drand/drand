@@ -47,6 +47,7 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/info", handler.ChainInfo)
+	mux.HandleFunc("/health", handler.Health)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -312,4 +313,30 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 
+}
+
+func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
+	h.pendingLk.RLock()
+	lastSeen := h.latestRound
+	h.pendingLk.RUnlock()
+
+	info := h.getChainInfo(r.Context())
+	if info == nil {
+		w.Header().Set("Content-Length", "11")
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("not started"))
+	}
+
+	expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+	w.Header().Set("Content-Type", "text/plain")
+	if lastSeen == expected || lastSeen+1 == expected {
+		w.Header().Set("Content-Length", "2")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	} else {
+		r := []byte(fmt.Sprintf("at %d not %d", lastSeen, expected))
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r)))
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write(r)
+	}
 }

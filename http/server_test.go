@@ -16,10 +16,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-func withClient(t *testing.T) drand.PublicClient {
+func withClient(t *testing.T) (drand.PublicClient, func()) {
 	t.Helper()
 
-	l, _ := mock.NewMockGRPCPublicServer(":0", true)
+	l, s := mock.NewMockGRPCPublicServer(":0", true)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -29,13 +29,13 @@ func withClient(t *testing.T) drand.PublicClient {
 	}
 
 	client := drand.NewPublicClient(conn)
-	return client
+	return client, s.(mock.MockService).EmitRand
 }
 
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client := withClient(t)
+	client, _ := withClient(t)
 
 	handler, err := New(ctx, client, "", nil)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestHTTPRelay(t *testing.T) {
 func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	client := withClient(t)
+	client, push := withClient(t)
 
 	handler, err := New(ctx, client, "", nil)
 	if err != nil {
@@ -106,12 +106,28 @@ func TestHTTPWaiting(t *testing.T) {
 	// The first request will trigger background watch. 1 get (1969)
 	next, _ := http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
 
-	// 1 additional watch get will occur (1970 - the bad one)
-	time.Sleep(1200 * time.Millisecond)
+	// 1 watch get will occur (1970 - the bad one)
+	push()
 	body := make(map[string]interface{})
+	done := make(chan struct{})
 	before := time.Now()
-	next, _ = http.Get(fmt.Sprintf("http://%s/public/1971", listener.Addr().String()))
-	after := time.Now()
+	var after time.Time
+	go func() {
+		next, _ = http.Get(fmt.Sprintf("http://%s/public/1971", listener.Addr().String()))
+		after = time.Now()
+		close(done)
+	}()
+	time.Sleep(50 * time.Millisecond)
+	if !after.IsZero() {
+		t.Fatal("should block until randomness provided.")
+	}
+	push()
+	time.Sleep(10 * time.Millisecond)
+	if after.IsZero() {
+		t.Fatal("should return after a round.")
+	}
+	<-done
+
 	if err = json.NewDecoder(next.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
@@ -132,5 +148,42 @@ func TestHTTPWaiting(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatal("response should fail on requests in the future")
+	}
+}
+
+func TestHTTPHealth(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	client, push := withClient(t)
+
+	handler, err := New(ctx, client, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := http.Server{Handler: handler}
+	go server.Serve(listener)
+	defer server.Shutdown(ctx)
+
+	resp, _ := http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
+	if resp.StatusCode == http.StatusOK {
+		t.Fatalf("newly started server not expected to be synced.")
+	}
+
+	resp, _ = http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("startup of the server on 1st request should happen")
+	}
+
+	push()
+	resp, _ = http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
+	if resp.StatusCode != http.StatusOK {
+		var buf [100]byte
+		resp.Body.Read(buf[:])
+		t.Fatalf("after start server expected to be healthy relatively quickly. %v", string(buf[:]))
 	}
 }
