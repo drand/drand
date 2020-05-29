@@ -31,7 +31,7 @@ import (
 const (
 	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
 	userAgent   = "drand-relay/0.0.0"
-  // directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
+	// directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
 	directConnectTicks = uint64(5)
 	lowWater    = 50
 	highWater   = 200
