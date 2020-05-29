@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/test"
-	"github.com/drand/drand/test/mock"
 )
 
 func TestClientConstraints(t *testing.T) {
@@ -23,7 +23,7 @@ func TestClientConstraints(t *testing.T) {
 		t.Fatal("Client needs root of trust unless insecure specified explicitly")
 	}
 
-	addr, _, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr, _, cancel := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	if _, e := New(WithInsecureHTTPEndpoints([]string{"http://" + addr})); e != nil {
@@ -32,9 +32,9 @@ func TestClientConstraints(t *testing.T) {
 }
 
 func TestClientMultiple(t *testing.T) {
-	addr1, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
-	addr2, _, cancel2 := mock.NewMockHTTPPublicServer(t, false)
+	addr2, _, cancel2 := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel2()
 
 	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1, "http://" + addr2}), WithChainHash(chainInfo.Hash()))
@@ -68,7 +68,7 @@ func TestClientWithChainInfo(t *testing.T) {
 }
 
 func TestClientCache(t *testing.T) {
-	addr1, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithChainHash(chainInfo.Hash()), WithCacheSize(1))
@@ -93,7 +93,7 @@ func TestClientCache(t *testing.T) {
 }
 
 func TestClientWithoutCache(t *testing.T) {
-	addr1, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	c, e := New(WithHTTPEndpoints([]string{"http://" + addr1}), WithChainHash(chainInfo.Hash()), WithCacheSize(0))
@@ -112,7 +112,7 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithFailover(t *testing.T) {
-	addr1, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	// ensure a client with failover can be created successfully without error
@@ -127,7 +127,7 @@ func TestClientWithFailover(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	addr1, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	results := []MockResult{

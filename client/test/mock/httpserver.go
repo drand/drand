@@ -10,13 +10,14 @@ import (
 	"github.com/drand/drand/chain"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/test/mock"
 	"google.golang.org/grpc"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
 func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.Info, context.CancelFunc) {
 	t.Helper()
-	l, s := NewMockGRPCPublicServer(":0", badSecondRound)
+	l, s := mock.NewMockGRPCPublicServer(":0", badSecondRound)
 	lAddr := l.Addr()
 	go l.Start()
 

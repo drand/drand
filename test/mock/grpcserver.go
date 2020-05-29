@@ -37,7 +37,7 @@ func newMockServer(d *Data) *Server {
 // ChainInfo implements net.Service
 func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	return &drand.ChainInfoPacket{
-		Period:      1,
+		Period:      uint32(s.d.Period.Seconds()),
 		GenesisTime: int64(s.d.Genesis),
 		PublicKey:   s.d.Public,
 	}, nil
@@ -133,6 +133,7 @@ type Data struct {
 	PreviousSignature string
 	PreviousRound     int
 	Genesis           int64
+	Period            time.Duration
 	BadSecondRound    bool
 }
 
@@ -154,6 +155,7 @@ func generateMockData() *Data {
 	tshare := tbls.SigShare(tsig)
 	sig := tshare.Value()
 	publicBuff, _ := public.MarshalBinary()
+	period := time.Second
 	d := &Data{
 		secret:            secret,
 		Public:            publicBuff,
@@ -161,7 +163,8 @@ func generateMockData() *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Add(60 * 1969 * time.Second * -1).Unix(),
+		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
+		Period:            period,
 		BadSecondRound:    true,
 	}
 	return d
@@ -186,6 +189,7 @@ func nextMockData(d *Data) *Data {
 		PreviousRound:     d.Round,
 		Round:             d.Round + 1,
 		Genesis:           d.Genesis,
+		Period:            d.Period,
 		BadSecondRound:    d.BadSecondRound,
 	}
 }
