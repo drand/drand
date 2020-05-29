@@ -329,14 +329,10 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 	var bytes []byte
 
 	if info == nil {
-		bytes, _ = json.Marshal(resp)
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(bytes)))
 		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
 		resp["expected"] = expected
-		bytes, _ = json.Marshal(resp)
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(bytes)))
 		if lastSeen == expected || lastSeen+1 == expected {
 			w.WriteHeader(http.StatusOK)
 		} else {
@@ -344,5 +340,6 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	bytes, _ = json.Marshal(resp)
 	w.Write(bytes)
 }
