@@ -46,16 +46,16 @@ func (c *httpHealthMetrics) startObserve(ctx context.Context) {
 		n := c.next % len(c.clients)
 		result, err := c.clients[n].Get(ctx, 0)
 		if err != nil {
-			metrics.ClientHTTPHeartbeatFailure.With(prometheus.Labels{"http": c.httpAddrs[n]}).Inc()
+			metrics.ClientHTTPHeartbeatFailure.With(prometheus.Labels{"http_address": c.httpAddrs[n]}).Inc()
 			continue
 		} else {
-			metrics.ClientHTTPHeartbeatSuccess.With(prometheus.Labels{"http": c.httpAddrs[n]}).Inc()
+			metrics.ClientHTTPHeartbeatSuccess.With(prometheus.Labels{"http_address": c.httpAddrs[n]}).Inc()
 		}
 		// compute the latency metric
 		actual := time.Now().Unix()
 		expected := chain.TimeOfRound(c.chainInfo.Period, c.chainInfo.GenesisTime, result.Round())
 		// the labels of the gauge vec must already be set at the registerer level
-		metrics.ClientHTTPHeartbeatLatency.With(prometheus.Labels{"http": c.httpAddrs[n]}).Set(float64(expected - actual))
+		metrics.ClientHTTPHeartbeatLatency.With(prometheus.Labels{"http_address": c.httpAddrs[n]}).Set(float64(expected - actual))
 		c.next++
 	}
 }
