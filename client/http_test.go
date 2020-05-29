@@ -10,7 +10,7 @@ import (
 )
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, true)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
 	defer cancel()
 
 	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
@@ -41,7 +41,7 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestHTTPGetLatest(t *testing.T) {
-	addr, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
@@ -69,7 +69,7 @@ func TestHTTPGetLatest(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
-	addr, chainInfo, cancel := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)

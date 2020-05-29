@@ -69,6 +69,7 @@ func TestGRPCClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := c.Watch(ctx)
 	for i := 0; i < 3; i++ {
+		svc.(mock.MockService).EmitRand()
 		if _, ok := <-ch; !ok {
 			t.Fatal("expected randomness")
 		}
@@ -80,7 +81,7 @@ func TestGRPCClient(t *testing.T) {
 }
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, stop := cmock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, stop, emit := cmock.NewMockHTTPPublicServer(t, false)
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
@@ -114,6 +115,7 @@ func TestHTTPClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := c.Watch(ctx)
 	for i := 0; i < 3; i++ {
+		emit()
 		r, ok := <-ch
 		if !ok {
 			t.Fatal("expected randomness")
