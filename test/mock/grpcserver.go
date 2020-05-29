@@ -23,24 +23,26 @@ import (
 type Server struct {
 	addr string
 	*net.EmptyServer
-	l sync.Mutex
-	d *Data
+	l         sync.Mutex
+	d         *Data
+	chainInfo *drand.ChainInfoPacket
 }
 
 func newMockServer(d *Data) *Server {
 	return &Server{
 		EmptyServer: new(net.EmptyServer),
 		d:           d,
+		chainInfo: &drand.ChainInfoPacket{
+			Period:      uint32(d.Period.Seconds()),
+			GenesisTime: int64(d.Genesis),
+			PublicKey:   d.Public,
+		},
 	}
 }
 
 // ChainInfo implements net.Service
 func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
-	return &drand.ChainInfoPacket{
-		Period:      60,
-		GenesisTime: int64(s.d.Genesis),
-		PublicKey:   s.d.Public,
-	}, nil
+	return s.chainInfo, nil
 }
 
 // PublicRand implements net.Service
@@ -67,9 +69,14 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	done := make(chan error, 1)
 
+	chainInfo, err := s.ChainInfo(context.Background(), &drand.ChainInfoRequest{})
+	if err != nil {
+		return err
+	}
+
 	go func() {
 		for {
-			ticker := time.NewTicker(time.Second)
+			ticker := time.NewTicker(time.Duration(chainInfo.Period) * time.Second)
 			defer ticker.Stop()
 			defer func() { done <- stream.Context().Err() }()
 			select {
@@ -128,6 +135,7 @@ type Data struct {
 	PreviousSignature string
 	PreviousRound     int
 	Genesis           int64
+	Period            time.Duration
 	BadSecondRound    bool
 }
 
@@ -149,6 +157,7 @@ func generateMockData() *Data {
 	tshare := tbls.SigShare(tsig)
 	sig := tshare.Value()
 	publicBuff, _ := public.MarshalBinary()
+	period := time.Second
 	d := &Data{
 		secret:            secret,
 		Public:            publicBuff,
@@ -156,7 +165,8 @@ func generateMockData() *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Add(60 * 1969 * time.Second * -1).Unix(),
+		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
+		Period:            period,
 		BadSecondRound:    true,
 	}
 	return d
@@ -181,6 +191,7 @@ func nextMockData(d *Data) *Data {
 		PreviousRound:     d.Round,
 		Round:             d.Round + 1,
 		Genesis:           d.Genesis,
+		Period:            d.Period,
 		BadSecondRound:    d.BadSecondRound,
 	}
 }
