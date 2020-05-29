@@ -100,8 +100,9 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 		return nil, xerrors.Errorf("No chain supplied for joining")
 	}
 	chainHash := hex.EncodeToString(info.Hash())
-	ps.RegisterTopicValidator(chainHash, randomnessValidator(info, cache))
-	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
+	topic := lp2p.PubSubTopic(chainHash)
+	ps.RegisterTopicValidator(topic, randomnessValidator(info, cache))
+	t, err := ps.Join(topic)
 	if err != nil {
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
 	}
