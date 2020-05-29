@@ -154,7 +154,7 @@ func Client(c *cli.Context) error {
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
 		clientID := c.String(clientMetricsIDFlag.Name)
-		if !c.IsSet(clientMetricsAddressFlag.Name) || !c.IsSet(clientMetricsGatewayFlag.Name) {
+		if !c.IsSet(clientMetricsAddressFlag.Name) && !c.IsSet(clientMetricsGatewayFlag.Name) {
 			return fmt.Errorf("missing prometheus address or push gateway")
 		}
 		metricsAddr := c.String(clientMetricsAddressFlag.Name)
