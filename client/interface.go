@@ -24,7 +24,7 @@ type Client interface {
 
 // LoggingClient sets the logger for use by clients that suppport it
 type LoggingClient interface {
-	SetLog(l log.Logger)
+	SetLog(log.Logger)
 }
 
 // Result represents the randomness for a single drand round.
