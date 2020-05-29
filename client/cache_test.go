@@ -13,7 +13,7 @@ func TestCacheGet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := NewCachingClient(m, cache, log.DefaultLogger)
+	c, err := NewCachingClient(m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestCacheGetLatest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := NewCachingClient(m, cache, log.DefaultLogger)
+	c, err := NewCachingClient(m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestCacheWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cache, _ := NewCachingClient(m, arcCache, log.DefaultLogger)
+	cache, _ := NewCachingClient(m, arcCache)
 	c := newWatchAggregator(cache, log.DefaultLogger)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

@@ -19,7 +19,7 @@ const defaultFailoverGracePeriod = time.Second * 5
 // and not emit the intermediate values.
 //
 // If grace period is 0, it'll be set to 5s or the chain period / 2, whichever is smaller.
-func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration, l log.Logger) (Client, error) {
+func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration) (Client, error) {
 	if chainInfo == nil {
 		return nil, errors.New("missing chain info")
 	}
@@ -36,7 +36,7 @@ func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Dur
 		Client:      core,
 		chainInfo:   chainInfo,
 		gracePeriod: gracePeriod,
-		log:         l,
+		log:         log.DefaultLogger,
 	}, nil
 }
 
@@ -45,6 +45,11 @@ type failoverWatcher struct {
 	chainInfo   *chain.Info
 	gracePeriod time.Duration
 	log         log.Logger
+}
+
+// SetLog configures the client log output
+func (c *failoverWatcher) SetLog(l log.Logger) {
+	c.log = l
 }
 
 // Watch returns new randomness as it becomes available.

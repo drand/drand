@@ -60,11 +60,11 @@ func (*nilCache) TryGet(_ uint64) Result {
 
 // NewCachingClient is a meta client that stores an LRU cache of
 // recently fetched random values.
-func NewCachingClient(client Client, cache Cache, log log.Logger) (Client, error) {
+func NewCachingClient(client Client, cache Cache) (Client, error) {
 	return &cachingClient{
 		Client: client,
 		cache:  cache,
-		log:    log,
+		log:    log.DefaultLogger,
 	}, nil
 }
 
@@ -73,6 +73,11 @@ type cachingClient struct {
 
 	cache Cache
 	log   log.Logger
+}
+
+// SetLog configures the client log output
+func (c *cachingClient) SetLog(l log.Logger) {
+	c.log = l
 }
 
 // Get returns the randomness at `round` or an error.
