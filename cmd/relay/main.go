@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
-	"time"
 
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
@@ -109,15 +109,17 @@ func Relay(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Listening at %s\n", listener.Addr())
-	go checkHealth(listener.Addr())
-	return http.Serve(listener, handler)
-}
 
-func checkHealth(addr net.Addr) {
-	time.Sleep(10 * time.Millisecond)
-	client := http.Client{}
-	client.Get(fmt.Sprintf("http://%s/public/0", addr.String()))
+	// jumpstart bootup
+	req, _ := http.NewRequest("GET", "/public/0", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		log.DefaultLogger.Warn("binary", "relay", "startup failed", rr.Code)
+	}
+
+	fmt.Printf("Listening at %s\n", listener.Addr())
+	return http.Serve(listener, handler)
 }
 
 func main() {
