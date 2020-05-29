@@ -9,7 +9,6 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -43,8 +42,8 @@ func (c *Client) SetLog(l dlog.Logger) {
 
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsub(ps *pubsub.PubSub) dclient.Option {
-	return dclient.WithWatcher(func(info *chain.Info, cache client.Cache) (dclient.Watcher, error) {
+func WithPubsub(ps *pubsub.PubSub) client.Option {
+	return client.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
 		c, err := NewWithPubsub(ps, info, cache)
 		if err != nil {
 			return nil, err
@@ -120,8 +119,9 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	}
 
 	chainHash := hex.EncodeToString(info.Hash())
-	ps.RegisterTopicValidator(chainHash, randomnessValidator(info, cache, c))
-	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
+	topic := lp2p.PubSubTopic(chainHash)
+	ps.RegisterTopicValidator(topic, randomnessValidator(info, cache, c))
+	t, err := ps.Join(topic)
 	if err != nil {
 		cancel()
 		return nil, xerrors.Errorf("joining pubsub: %w", err)
@@ -206,10 +206,10 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 	}
 }
 
-// Watch implements the dclient.Watcher interface
+// Watch implements the client.Watcher interface
 func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	innerCh := make(chan drand.PublicRandResponse)
-	outerCh := make(chan dclient.Result)
+	outerCh := make(chan client.Result)
 	end := c.Sub(innerCh)
 
 	go func() {
