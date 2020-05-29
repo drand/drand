@@ -233,7 +233,9 @@ func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) 
 		http.Handle("/metrics", promhttp.HandlerFor(b.Registry, promhttp.HandlerOpts{
 			Timeout: 10 * time.Second,
 		}))
-		go log.Fatal(http.ListenAndServe(address, nil))
+		go func() {
+			log.Fatal(http.ListenAndServe(address, nil))
+		}()
 	}
 	return b
 }
