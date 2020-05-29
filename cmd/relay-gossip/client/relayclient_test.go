@@ -10,11 +10,12 @@ import (
 	"testing"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client/test/mock"
+	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/mock"
 	bds "github.com/ipfs/go-ds-badger2"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -79,7 +80,7 @@ func TestGRPCClient(t *testing.T) {
 }
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, stop := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, stop := cmock.NewMockHTTPPublicServer(t, false)
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")

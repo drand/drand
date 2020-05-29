@@ -23,24 +23,26 @@ import (
 type Server struct {
 	addr string
 	*net.EmptyServer
-	l sync.Mutex
-	d *Data
+	l         sync.Mutex
+	d         *Data
+	chainInfo *drand.ChainInfoPacket
 }
 
 func newMockServer(d *Data) *Server {
 	return &Server{
 		EmptyServer: new(net.EmptyServer),
 		d:           d,
+		chainInfo: &drand.ChainInfoPacket{
+			Period:      uint32(d.Period.Seconds()),
+			GenesisTime: int64(d.Genesis),
+			PublicKey:   d.Public,
+		},
 	}
 }
 
 // ChainInfo implements net.Service
 func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
-	return &drand.ChainInfoPacket{
-		Period:      uint32(s.d.Period.Seconds()),
-		GenesisTime: int64(s.d.Genesis),
-		PublicKey:   s.d.Public,
-	}, nil
+	return s.chainInfo, nil
 }
 
 // PublicRand implements net.Service
