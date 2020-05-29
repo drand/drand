@@ -99,8 +99,14 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	if round == 0 {
 		return genesis
 	}
+	delta := (round - 1) * uint64(period.Seconds())
+	if delta/(round-1) != uint64(period.Seconds()) || int64(delta) < 0 {
+		// overflow
+		return math.MaxInt64
+	}
+
 	// - 1 because genesis time is for 1st round already
-	return genesis + int64((round-1)*uint64(period.Seconds()))
+	return genesis + int64(delta)
 }
 
 // CurrentRound calculates the active round at `now`
