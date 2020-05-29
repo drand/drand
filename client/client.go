@@ -67,6 +67,9 @@ func makeClient(cfg clientConfig) (Client, error) {
 		trySetLog(c, cfg.log)
 		restClients = append(restClients, c)
 	}
+	if cfg.prometheus != nil {
+		newHTTPHealthMetrics(cfg.urls, restClients, cfg.chainInfo)
+	}
 
 	if len(restClients) > 1 {
 		c, err = NewPrioritizingClient(restClients, cfg.chainHash, cfg.chainInfo)
