@@ -9,12 +9,18 @@ import (
 
 // newWatchAggregator maintains state of consumers calling `Watch` so that a
 // single `watch` request is made to the underlying client.
-func newWatchAggregator(c Client, l log.Logger) *watchAggregator {
-	return &watchAggregator{
+func newWatchAggregator(c Client, autoStart bool) *watchAggregator {
+	aggregator := &watchAggregator{
 		Client:      c,
-		log:         l,
+		autoStart:   autoStart,
+		log:         log.DefaultLogger,
 		subscribers: make([]subscriber, 0),
 	}
+	if autoStart {
+		ctx, cancel := context.WithCancel(context.Background())
+		go aggregator.distribute(aggregator.Client.Watch(ctx), cancel, true)
+	}
+	return aggregator
 }
 
 type subscriber struct {
@@ -24,10 +30,16 @@ type subscriber struct {
 
 type watchAggregator struct {
 	Client
-	log log.Logger
+	autoStart bool
+	log       log.Logger
 
 	subscriberLock sync.Mutex
 	subscribers    []subscriber
+}
+
+// SetLog configures the client log output
+func (c *watchAggregator) SetLog(l log.Logger) {
+	c.log = l
 }
 
 func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
@@ -37,19 +49,19 @@ func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 	sub := subscriber{ctx, make(chan Result, 5)}
 	c.subscribers = append(c.subscribers, sub)
 
-	if len(c.subscribers) == 1 {
+	if len(c.subscribers) == 1 && !c.autoStart {
 		ctx, cancel := context.WithCancel(context.Background())
-		go c.distribute(c.Client.Watch(ctx), cancel)
+		go c.distribute(c.Client.Watch(ctx), cancel, false)
 	}
 	return sub.c
 }
 
-func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc) {
+func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc, keepAlive bool) {
 	defer cancel()
 	for {
 		var aCtx context.Context
 		c.subscriberLock.Lock()
-		if len(c.subscribers) == 0 {
+		if len(c.subscribers) == 0 && !keepAlive {
 			c.subscriberLock.Unlock()
 			return
 		}

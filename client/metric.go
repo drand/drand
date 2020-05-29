@@ -41,6 +41,7 @@ func (c *httpHealthMetrics) startObserve(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
+		default:
 		}
 		time.Sleep(time.Duration(int64(HTTPHeartbeatInterval) / int64(len(c.clients))))
 		n := c.next % len(c.clients)
