@@ -19,7 +19,7 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func TestClient(t *testing.T) {
+func TestGRPCClient(t *testing.T) {
 	// start mock drand node
 	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false)
 	grpcAddr := grpcLis.Addr()
@@ -72,6 +72,52 @@ func TestClient(t *testing.T) {
 			t.Fatal("expected randomness")
 		}
 		fmt.Print(<-ch)
+	}
+	cancel()
+	for range ch {
+	}
+}
+
+func TestHTTPClient(t *testing.T) {
+	addr, chainInfo, stop := mock.NewMockHTTPPublicServer(t, false)
+	defer stop()
+
+	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
+	if err != nil {
+		t.Fatal(err)
+	}
+	identityDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-id")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &node.GossipRelayConfig{
+		ChainHash:       hex.EncodeToString(chainInfo.Hash()),
+		PeerWith:        nil,
+		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
+		DataDir:         dataDir,
+		IdentityPath:    path.Join(identityDir, "identity.key"),
+		DrandPublicHTTP: []string{"http://" + addr},
+	}
+	g, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg)
+	if err != nil {
+		t.Fatalf("gossip relay node (%v)", err)
+	}
+	defer g.Shutdown()
+
+	c, err := newTestClient("test-http-gossip-relay-client", g.Multiaddrs(), chainInfo)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ch := c.Watch(ctx)
+	for i := 0; i < 3; i++ {
+		r, ok := <-ch
+		if !ok {
+			t.Fatal("expected randomness")
+		}
+		fmt.Printf("%+v\n", r)
 	}
 	cancel()
 	for range ch {

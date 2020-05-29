@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/client"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/log"
@@ -88,16 +89,18 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 	}
 
 	opts := []grpc.DialOption{}
-	if cfg.CertPath != "" {
-		creds, err := credentials.NewClientTLSFromFile(cfg.CertPath, "")
-		if err != nil {
-			return nil, xerrors.Errorf("loading cert file: %w", err)
+	if cfg.DrandPublicGRPC != "" {
+		if cfg.CertPath != "" {
+			creds, err := credentials.NewClientTLSFromFile(cfg.CertPath, "")
+			if err != nil {
+				return nil, xerrors.Errorf("loading cert file: %w", err)
+			}
+			opts = append(opts, grpc.WithTransportCredentials(creds))
+		} else if cfg.Insecure {
+			opts = append(opts, grpc.WithInsecure())
+		} else {
+			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 		}
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-	} else if cfg.Insecure {
-		opts = append(opts, grpc.WithInsecure())
-	} else {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 	}
 	g := &GossipRelayNode{
 		l:         l,
@@ -198,10 +201,17 @@ func (g *GossipRelayNode) startHTTP(urls []string) {
 				return
 			}
 
+			rd, ok := res.(*client.RandomData)
+			if !ok {
+				g.l.Error("relaynode", "unexpected client result type")
+				continue
+			}
+
 			randB, err := proto.Marshal(&drand.PublicRandResponse{
-				Round:      res.Round(),
-				Signature:  res.Signature(),
-				Randomness: res.Randomness(),
+				Round:             res.Round(),
+				Signature:         res.Signature(),
+				PreviousSignature: rd.PreviousSignature,
+				Randomness:        res.Randomness(),
 			})
 			if err != nil {
 				g.l.Error("relaynode", "marshaling", err)
