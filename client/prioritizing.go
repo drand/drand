@@ -13,8 +13,8 @@ import (
 // in succession until an answer is found.
 // Get requests are sourced from get sub-clients.
 // Watches are achieved as a long-poll from the prioritized get sub-clients.
-func NewPrioritizingClient(clients []Client, chainHash []byte, chainInfo *chain.Info, log log.Logger) (Client, error) {
-	return &prioritizingClient{clients, chainHash, chainInfo, log}, nil
+func NewPrioritizingClient(clients []Client, chainHash []byte, chainInfo *chain.Info) (Client, error) {
+	return &prioritizingClient{clients, chainHash, chainInfo, log.DefaultLogger}, nil
 }
 
 type prioritizingClient struct {
@@ -22,6 +22,11 @@ type prioritizingClient struct {
 	chainHash []byte
 	chainInfo *chain.Info
 	log       log.Logger
+}
+
+// SetLog configures the client log output
+func (p *prioritizingClient) SetLog(l log.Logger) {
+	p.log = l
 }
 
 // Get returns a the randomness at `round` or an error.

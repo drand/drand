@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/client"
 	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
+	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
 	logging "github.com/ipfs/go-log/v2"
@@ -27,11 +28,17 @@ var (
 type Client struct {
 	cancel func()
 	latest uint64
+	log    dlog.Logger
 
 	subs struct {
 		sync.Mutex
 		M map[*int]chan drand.PublicRandResponse
 	}
+}
+
+// SetLog configures the client log output
+func (c *Client) SetLog(l dlog.Logger) {
+	c.log = l
 }
 
 // WithPubsub provides an option for integrating pubsub notification
@@ -46,7 +53,7 @@ func WithPubsub(ps *pubsub.PubSub) dclient.Option {
 	})
 }
 
-func randomnessValidator(info *chain.Info, cache client.Cache) pubsub.ValidatorEx {
+func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub.ValidatorEx {
 	return func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		var rand drand.PublicRandResponse
 		err := proto.Unmarshal(m.Data, &rand)
@@ -55,7 +62,7 @@ func randomnessValidator(info *chain.Info, cache client.Cache) pubsub.ValidatorE
 		}
 
 		if info == nil {
-			log.Warn("Not validating received randomness due to lack of trust root.")
+			c.log.Warn("gossip validator", "Not validating received randomness due to lack of trust root.")
 			return pubsub.ValidationAccept
 		}
 
@@ -78,9 +85,8 @@ func randomnessValidator(info *chain.Info, cache client.Cache) pubsub.ValidatorE
 					// can't validate the full byte sequence.
 					if bytes.Equal(b.Signature, current.Signature()) {
 						return pubsub.ValidationIgnore
-					} else {
-						return pubsub.ValidationReject
 					}
+					return pubsub.ValidationReject
 				}
 				curB := chain.Beacon{
 					Round:       current.Round(),
@@ -89,9 +95,8 @@ func randomnessValidator(info *chain.Info, cache client.Cache) pubsub.ValidatorE
 				}
 				if b.Equal(&curB) {
 					return pubsub.ValidationIgnore
-				} else {
-					return pubsub.ValidationReject
 				}
+				return pubsub.ValidationReject
 			}
 		}
 
@@ -107,21 +112,26 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	if info == nil {
 		return nil, xerrors.Errorf("No chain supplied for joining")
 	}
-	chainHash := hex.EncodeToString(info.Hash())
-	ps.RegisterTopicValidator(chainHash, randomnessValidator(info, cache))
-	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
-	if err != nil {
-		return nil, xerrors.Errorf("joining pubsub: %w", err)
-	}
-	s, err := t.Subscribe()
-	if err != nil {
-		return nil, xerrors.Errorf("subscribe: %w", err)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
 		cancel: cancel,
+		log:    dlog.DefaultLogger,
 	}
+
+	chainHash := hex.EncodeToString(info.Hash())
+	ps.RegisterTopicValidator(chainHash, randomnessValidator(info, cache, c))
+	t, err := ps.Join(lp2p.PubSubTopic(chainHash))
+	if err != nil {
+		cancel()
+		return nil, xerrors.Errorf("joining pubsub: %w", err)
+	}
+	s, err := t.Subscribe()
+	if err != nil {
+		cancel()
+		return nil, xerrors.Errorf("subscribe: %w", err)
+	}
+
 	c.subs.M = make(map[*int]chan drand.PublicRandResponse)
 
 	go func() {
@@ -139,13 +149,13 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				return
 			}
 			if err != nil {
-				log.Warnf("topic.Next error: %+v", err)
+				c.log.Warn("gossip client", "topic.Next error", "err", err)
 				continue
 			}
 			var rand drand.PublicRandResponse
 			err = proto.Unmarshal(msg.Data, &rand)
 			if err != nil {
-				log.Warnf("unmarshaling randomness: %+v", err)
+				c.log.Warn("gossip client", "unmarshal random error", "err", err)
 				continue
 			}
 
@@ -161,7 +171,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				select {
 				case ch <- rand:
 				default:
-					log.Warn("randomness notification dropped due to a full channel")
+					c.log.Warn("gossip client", "randomness notification dropped due to a full channel")
 				}
 			}
 			c.subs.Unlock()
@@ -213,7 +223,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 				select {
 				case outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}:
 				default:
-					log.Warn("randomness notification dropped due to a full channel")
+					c.log.Warn("gossip client", "randomness notification dropped due to a full channel")
 				}
 			case <-ctx.Done():
 				close(outerCh)

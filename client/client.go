@@ -28,6 +28,12 @@ func New(options ...Option) (Client, error) {
 	return makeClient(cfg)
 }
 
+func trySetLog(c Client, l log.Logger) {
+	if lc, ok := c.(LoggingClient); ok {
+		lc.SetLog(l)
+	}
+}
+
 // makeClient creates a client from a configuration.
 func makeClient(cfg clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
@@ -58,15 +64,16 @@ func makeClient(cfg clientConfig) (Client, error) {
 			}
 			cfg.chainInfo = chainInfo
 		}
-		c.(*httpClient).l = cfg.log
+		trySetLog(c, cfg.log)
 		restClients = append(restClients, c)
 	}
 
 	if len(restClients) > 1 {
-		c, err = NewPrioritizingClient(restClients, cfg.chainHash, cfg.chainInfo, cfg.log)
+		c, err = NewPrioritizingClient(restClients, cfg.chainHash, cfg.chainInfo)
 		if err != nil {
 			return nil, err
 		}
+		trySetLog(c, cfg.log)
 	}
 
 	// provision cache
@@ -81,21 +88,26 @@ func makeClient(cfg clientConfig) (Client, error) {
 		if err != nil {
 			return nil, err
 		}
+		if lw, ok := w.(LoggingClient); ok {
+			lw.SetLog(cfg.log)
+		}
 		c = &watcherClient{c, w}
 	}
 
 	if cfg.cacheSize > 0 {
-		c, err = NewCachingClient(c, cache, cfg.log)
+		c, err = NewCachingClient(c, cache)
 		if err != nil {
 			return nil, err
 		}
+		trySetLog(c, cfg.log)
 	}
 
 	if cfg.failoverGracePeriod > 0 {
-		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod, cfg.log)
+		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod)
 		if err != nil {
 			return nil, err
 		}
+		trySetLog(c, cfg.log)
 	}
 
 	c = newWatchAggregator(c, cfg.log)
