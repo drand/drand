@@ -50,3 +50,5 @@ drand-relay-http: relay-http
 relay-gossip:
 	go build -o drand-relay-gossip -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-gossip.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-gossip.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-gossip.gitCommit=`git rev-parse HEAD`" ./cmd/relay-gossip
 drand-relay-gossip: relay-gossip
+
+.PHONY: client drand relay-http relay-gossip
