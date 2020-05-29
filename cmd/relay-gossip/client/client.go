@@ -216,7 +216,12 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					return
 				}
 				select {
-				case outerCh <- &result{resp.Round, resp.Randomness, resp.Signature}:
+				case outerCh <- &client.RandomData{
+					Rnd:               resp.Round,
+					Random:            resp.Randomness,
+					Sig:               resp.Signature,
+					PreviousSignature: resp.PreviousSignature,
+				}:
 				default:
 					c.log.Warn("gossip client", "randomness notification dropped due to a full channel")
 				}
@@ -232,24 +237,6 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	}()
 
 	return outerCh
-}
-
-type result struct {
-	round      uint64
-	randomness []byte
-	signature  []byte
-}
-
-func (r *result) Round() uint64 {
-	return r.round
-}
-
-func (r *result) Randomness() []byte {
-	return r.randomness
-}
-
-func (r *result) Signature() []byte {
-	return r.signature
 }
 
 // Close stops Client, cancels PubSub subscription and closes the topic.
