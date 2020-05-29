@@ -69,11 +69,6 @@ var relayPortFlag = &cli.IntFlag{
 	Usage: "port for client's peer host, when connecting to relays",
 }
 
-var relayNetworkFlag = &cli.StringFlag{
-	Name:  "network",
-	Usage: "relay network name",
-}
-
 // client metric flags
 
 var clientMetricsAddressFlag = &cli.StringFlag{
@@ -104,7 +99,7 @@ func main() {
 	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
 	app.Flags = []cli.Flag{
 		urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
-		relayPeersFlag, relayNetworkFlag, relayPortFlag,
+		relayPeersFlag, relayPortFlag,
 		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
 		clientMetricsPushIntervalFlag,
 	}
