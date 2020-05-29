@@ -109,24 +109,27 @@ func TestHTTPWaiting(t *testing.T) {
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
 	body := make(map[string]interface{})
-	done := make(chan struct{})
+	done := make(chan time.Time)
 	before := time.Now()
-	var after time.Time
 	go func() {
 		next, _ = http.Get(fmt.Sprintf("http://%s/public/1971", listener.Addr().String()))
-		after = time.Now()
-		close(done)
+		done <- time.Now()
 	}()
 	time.Sleep(50 * time.Millisecond)
-	if !after.IsZero() {
-		t.Fatal("should block until randomness provided.")
+	select {
+	case <-done:
+		t.Fatal("shouldn't be done.")
+	default:
 	}
 	push(false)
 	time.Sleep(10 * time.Millisecond)
-	if after.IsZero() {
-		t.Fatal("should return after a round.")
+	var after time.Time
+	select {
+	case x := <-done:
+		after = x
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("should return after a round")
 	}
-	<-done
 
 	if err = json.NewDecoder(next.Body).Decode(&body); err != nil {
 		t.Fatal(err)
