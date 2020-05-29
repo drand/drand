@@ -90,6 +90,11 @@ type httpClient struct {
 	l         log.Logger
 }
 
+// SetLog configures the client log output
+func (h *httpClient) SetLog(l log.Logger) {
+	h.l = l
+}
+
 // FetchGroupInfo attempts to initialize an httpClient when
 // it does not know the full group paramters for a drand group. The chain hash
 // is the hash of the chain info.

@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"time"
+
+	"github.com/drand/drand/log"
 )
 
 // Client represents the drand Client interface.
@@ -18,6 +20,11 @@ type Client interface {
 	// RoundAt will return the most recent round of randomness that will be available
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
+}
+
+// LoggingClient sets the logger for use by clients that suppport it
+type LoggingClient interface {
+	SetLog(log.Logger)
 }
 
 // Result represents the randomness for a single drand round.
