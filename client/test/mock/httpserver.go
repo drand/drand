@@ -15,7 +15,7 @@ import (
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
-func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.Info, context.CancelFunc) {
+func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 	l, s := mock.NewMockGRPCPublicServer(":0", badSecondRound)
 	lAddr := l.Addr()
@@ -61,5 +61,5 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.
 	return listener.Addr().String(), chainInfo, func() {
 		server.Shutdown(ctx)
 		cancel()
-	}
+	}, s.(mock.MockService).EmitRand
 }

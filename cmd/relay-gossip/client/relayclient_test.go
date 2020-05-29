@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/drand/drand/chain"
 	cmock "github.com/drand/drand/client/test/mock"
@@ -41,6 +42,7 @@ func TestGRPCClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, _ := chain.InfoFromProto(infoProto)
+	info.GenesisTime -= 10
 
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
@@ -67,20 +69,32 @@ func TestGRPCClient(t *testing.T) {
 
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
+	// for the initial 'get' to sync the chain
+	svc.(mock.MockService).EmitRand(false)
 	ch := c.Watch(ctx)
+	time.Sleep(5 * time.Millisecond)
 	for i := 0; i < 3; i++ {
-		if _, ok := <-ch; !ok {
-			t.Fatal("expected randomness")
+		svc.(mock.MockService).EmitRand(false)
+		fmt.Printf("round %d. emitting.\n", i)
+		select {
+		case r, ok := <-ch:
+			if !ok {
+				t.Fatal("expected randomness")
+			} else {
+				fmt.Print(r)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout.")
 		}
-		fmt.Print(<-ch)
 	}
+	svc.(mock.MockService).EmitRand(true)
 	cancel()
 	for range ch {
 	}
 }
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, stop := cmock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, stop, emit := cmock.NewMockHTTPPublicServer(t, false)
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
@@ -92,6 +106,7 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	chainInfo.GenesisTime -= 10
 	cfg := &node.GossipRelayConfig{
 		ChainHash:       hex.EncodeToString(chainInfo.Hash()),
 		PeerWith:        nil,
@@ -112,14 +127,23 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
+	emit(false)
 	ch := c.Watch(ctx)
+	time.Sleep(5 * time.Millisecond)
 	for i := 0; i < 3; i++ {
-		r, ok := <-ch
-		if !ok {
-			t.Fatal("expected randomness")
+		emit(false)
+		select {
+		case r, ok := <-ch:
+			if !ok {
+				t.Fatal("expected randomness")
+			} else {
+				fmt.Print(r)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout.")
 		}
-		fmt.Printf("%+v\n", r)
 	}
+	emit(true)
 	cancel()
 	for range ch {
 	}

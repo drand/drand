@@ -80,7 +80,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 	}
 
 	for _, a := range addrs {
-		l.Info(fmt.Sprintf("%s/p2p/%s\n", a, h.ID()))
+		l.Info("relay_node", "has addr", "addr", fmt.Sprintf("%s/p2p/%s\n", a, h.ID()))
 	}
 
 	t, err := ps.Join(lp2p.PubSubTopic(cfg.ChainHash))
@@ -145,6 +145,7 @@ func (g *GossipRelayNode) Shutdown() {
 	close(g.done)
 }
 
+// ParseMultiaddrSlice parses a list of addresses into multiaddrs
 func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
 	out := make([]ma.Multiaddr, len(peers))
 	for i, peer := range peers {
@@ -166,19 +167,19 @@ func (g *GossipRelayNode) startGRPC(drandPublicGRPC string) {
 		}
 		conn, err := grpc.Dial(drandPublicGRPC, g.opts...)
 		if err != nil {
-			g.l.Warn(fmt.Sprintf("error connecting to grpc: %+v", err))
+			g.l.Warn("relay_node", "conn error to grpc", "err", err)
 			time.Sleep(5 * time.Second)
 			continue
 		}
 		client := drand.NewPublicClient(conn)
 		err = g.workRelay(client)
 		if err != nil {
-			g.l.Warn(fmt.Sprintf("error relaying: %+v", err))
+			g.l.Warn("relay_node", "err relaying", "err", err)
 			err = conn.Close()
 			if err != nil {
-				g.l.Warn(fmt.Sprintf("error while closing connection: %+v", err))
+				g.l.Warn("relay_node", "err closing", "err", err)
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(time.Second)
 		}
 	}
 }
@@ -186,7 +187,7 @@ func (g *GossipRelayNode) startGRPC(drandPublicGRPC string) {
 func (g *GossipRelayNode) startHTTP(urls []string) {
 	c, err := dclient.New(dclient.WithInsecureHTTPEndpoints(urls))
 	if err != nil {
-		g.l.Error("relaynode", "creating drand HTTP client", err)
+		g.l.Error("relay_node", "err creating drand HTTP client", "err", err)
 		return
 	}
 
@@ -203,7 +204,7 @@ func (g *GossipRelayNode) startHTTP(urls []string) {
 
 			rd, ok := res.(*client.RandomData)
 			if !ok {
-				g.l.Error("relaynode", "unexpected client result type")
+				g.l.Error("relay_node", "unexpected client result type")
 				continue
 			}
 
@@ -214,17 +215,17 @@ func (g *GossipRelayNode) startHTTP(urls []string) {
 				Randomness:        res.Randomness(),
 			})
 			if err != nil {
-				g.l.Error("relaynode", "marshaling", err)
+				g.l.Error("relay_node", "err marshaling", "err", err)
 				continue
 			}
 
 			err = g.t.Publish(ctx, randB)
 			if err != nil {
-				g.l.Error("relaynode", "publishing on pubsub", err)
+				g.l.Error("relay_node", "err publishing on pubsub", "err", err)
 				continue
 			}
 
-			g.l.Info("relaynode", "Published randomness on pubsub", "round", res.Round())
+			g.l.Info("relay_node", "Published randomness on pubsub", "round", res.Round())
 		case <-g.done:
 			return
 		}
@@ -239,7 +240,7 @@ func (g *GossipRelayNode) workRelay(client drand.PublicClient) error {
 	if err != nil {
 		return xerrors.Errorf("getting initial round failed: %w", err)
 	}
-	g.l.Info(fmt.Sprintf("got latest rand: %d", curr.Round))
+	g.l.Info("relay_node", "got round", "round", curr.Round)
 
 	// context.Background() on purpose as this applies to whole, long lived stream
 	stream, err := client.PublicRandStream(context.Background(), &drand.PublicRandRequest{Round: curr.Round})
@@ -267,6 +268,6 @@ func (g *GossipRelayNode) workRelay(client drand.PublicClient) error {
 		if err != nil {
 			return xerrors.Errorf("publishing on pubsub: %w", err)
 		}
-		g.l.Info(fmt.Sprintf("Published randomness on pubsub, round: %d", rand.Round))
+		g.l.Info("relay_node", "published randomness", "round", rand.Round)
 	}
 }

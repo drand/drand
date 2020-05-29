@@ -47,6 +47,7 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/info", handler.ChainInfo)
+	mux.HandleFunc("/health", handler.Health)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -312,4 +313,33 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 
+}
+
+func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
+	h.pendingLk.RLock()
+	lastSeen := h.latestRound
+	h.pendingLk.RUnlock()
+
+	info := h.getChainInfo(r.Context())
+
+	w.Header().Set("Content-Type", "application/json")
+	resp := make(map[string]uint64)
+	resp["current"] = lastSeen
+	resp["expected"] = 0
+	var bytes []byte
+
+	if info == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+		resp["expected"] = expected
+		if lastSeen == expected || lastSeen+1 == expected {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+	}
+
+	bytes, _ = json.Marshal(resp)
+	w.Write(bytes)
 }

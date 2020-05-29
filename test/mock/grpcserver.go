@@ -19,13 +19,21 @@ import (
 	"github.com/drand/kyber/util/random"
 )
 
+// MockService provides a way for clients getting the service to be able to call
+// the EmitRand method on the mock server
+type MockService interface {
+	EmitRand(bool)
+}
+
 // Server fake
 type Server struct {
 	addr string
 	*net.EmptyServer
-	l         sync.Mutex
-	d         *Data
-	chainInfo *drand.ChainInfoPacket
+	l          sync.Mutex
+	stream     drand.Public_PublicRandStreamServer
+	streamDone chan error
+	d          *Data
+	chainInfo  *drand.ChainInfoPacket
 }
 
 func newMockServer(d *Data) *Server {
@@ -67,35 +75,46 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 
 // PublicRandStream is part of the public drand service.
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
-	done := make(chan error, 1)
+	s.l.Lock()
+	s.streamDone = make(chan error, 1)
+	s.stream = stream
+	s.l.Unlock()
 
-	chainInfo, err := s.ChainInfo(context.Background(), &drand.ChainInfoRequest{})
-	if err != nil {
-		return err
+	err := <-s.streamDone
+	s.l.Lock()
+	s.stream = nil
+	s.l.Unlock()
+	return err
+}
+
+// EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`
+func (s *Server) EmitRand(closeStream bool) {
+	s.l.Lock()
+	if s.stream == nil {
+		s.l.Unlock()
+		return
+	}
+	stream := s.stream
+	done := s.streamDone
+	s.l.Unlock()
+	if closeStream {
+		close(done)
+		return
 	}
 
-	go func() {
-		for {
-			ticker := time.NewTicker(time.Duration(chainInfo.Period) * time.Second)
-			defer ticker.Stop()
-			defer func() { done <- stream.Context().Err() }()
-			select {
-			case <-stream.Context().Done():
-				return
-			case <-ticker.C:
-				resp, err := s.PublicRand(stream.Context(), req)
-				if err != nil {
-					done <- err
-					return
-				}
-				if err = stream.Send(resp); err != nil {
-					done <- err
-					return
-				}
-			}
-		}
-	}()
-	return <-done
+	if stream.Context().Err() != nil {
+		done <- s.stream.Context().Err()
+		return
+	}
+	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
+	if err != nil {
+		done <- err
+		return
+	}
+	if err = stream.Send(resp); err != nil {
+		done <- err
+		return
+	}
 }
 
 func testValid(d *Data) {
