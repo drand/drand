@@ -23,25 +23,32 @@ linter:
 	}
 
 demo:
-	cd demo && go build && ./demo -build 
+	cd demo && go build && ./demo -build
 	#cd demo && sudo ./run.sh
 
 # create the "drand" binary and install it in $GOBIN
 install:
-	go install -ldflags "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`" 
+	go install -ldflags "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`"
 
 # create the "drand" binary in the current folder
-build: 
-	go build -ldflags -mod=readonly "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`" 
+build:
+	go build -o drand -mod=readonly -ldflags "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`"
+
+drand: build
 
 # create the "drand-client" binary in the current folder
-build-client: 
-	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/demo-client.version=`git describe --tags` -X github.com/drand/drand/cmd/demo-client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/demo-client.gitCommit=`git rev-parse HEAD`" ./cmd/demo-client
+client:
+	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/demo-client.version=`git describe --tags` -X github.com/drand/cmd/demo-client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/demo-client.gitCommit=`git rev-parse HEAD`" ./cmd/demo-client
+drand-client: client
 
 # create the "drand-relay-http" binary in the current folder
-build-relay-http: 
-	go build -o drand-relay-http -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay.version=`git describe --tags` -X github.com/drand/drand/cmd/relay.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay.gitCommit=`git rev-parse HEAD`" ./cmd/relay
+relay-http:
+	go build -o drand-relay-http -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay.version=`git describe --tags` -X github.com/drand/cmd/relay.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay.gitCommit=`git rev-parse HEAD`" ./cmd/relay
+drand-relay-http: relay-http
 
 # create the "drand-relay-gossip" binary in the current folder
-build-relay-gossip: 
+relay-gossip:
 	go build -o drand-relay-gossip -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-gossip.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-gossip.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-gossip.gitCommit=`git rev-parse HEAD`" ./cmd/relay-gossip
+drand-relay-gossip: relay-gossip
+
+.PHONY: client drand relay-http relay-gossip
