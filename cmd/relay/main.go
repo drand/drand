@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
@@ -109,7 +110,14 @@ func Relay(c *cli.Context) error {
 		return err
 	}
 	fmt.Printf("Listening at %s\n", listener.Addr())
+	go checkHealth(listener.Addr())
 	return http.Serve(listener, handler)
+}
+
+func checkHealth(addr net.Addr) {
+	time.Sleep(10 * time.Millisecond)
+	client := http.Client{}
+	client.Get(fmt.Sprintf("http://%s/public/0", addr.String()))
 }
 
 func main() {
