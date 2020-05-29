@@ -87,10 +87,6 @@ func TestHTTPWatch(t *testing.T) {
 	if len(first.Randomness()) == 0 {
 		t.Fatal("should get randomness from watching")
 	}
-	_, ok = <-result
-	if ok {
-		// Note. there is a second value polled for by the client, but it will
-		// be invalid per the mocked grpc backing server.
-		t.Fatal("second result should fail per context timeout")
+	for range result { // drain the channel until the context expires
 	}
 }
