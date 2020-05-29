@@ -38,7 +38,7 @@ build:
 build-client: 
 	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/demo-client.version=`git describe --tags` -X github.com/drand/drand/cmd/demo-client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/demo-client.gitCommit=`git rev-parse HEAD`" ./cmd/demo-client
 
-# create the "dran-relay-http" binary in the current folder
+# create the "drand-relay-http" binary in the current folder
 build-relay-http: 
 	go build -o drand-relay-http -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay.version=`git describe --tags` -X github.com/drand/drand/cmd/relay.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay.gitCommit=`git rev-parse HEAD`" ./cmd/relay
 
