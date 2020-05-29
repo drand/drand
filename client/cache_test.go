@@ -9,7 +9,11 @@ import (
 
 func TestCacheGet(t *testing.T) {
 	m := MockClientWithResults(1, 6)
-	c, err := NewCachingClient(m, 3, log.DefaultLogger)
+	cache, err := makeCache(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewCachingClient(m, cache, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,11 +48,40 @@ func TestCacheGet(t *testing.T) {
 	}
 }
 
+func TestCacheGetLatest(t *testing.T) {
+	m := MockClientWithResults(1, 3)
+	cache, err := makeCache(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewCachingClient(m, cache, log.DefaultLogger)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r0, e := c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	r1, e := c.Get(context.Background(), 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	if r0.Round() == r1.Round() {
+		t.Fatal("cached result for latest")
+	}
+}
+
 func TestCacheWatch(t *testing.T) {
 	m := MockClientWithResults(2, 6)
 	rc := make(chan Result, 1)
 	m.WatchCh = rc
-	cache, _ := NewCachingClient(m, 2, log.DefaultLogger)
+	arcCache, err := makeCache(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache, _ := NewCachingClient(m, arcCache, log.DefaultLogger)
 	c := newWatchAggregator(cache, log.DefaultLogger)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -59,7 +92,7 @@ func TestCacheWatch(t *testing.T) {
 		t.Fatal("results should propagate")
 	}
 
-	_, err := c.Get(context.Background(), 1)
+	_, err = c.Get(context.Background(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}

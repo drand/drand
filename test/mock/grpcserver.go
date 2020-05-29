@@ -13,6 +13,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
@@ -33,7 +34,7 @@ func newMockServer(d *Data) *Server {
 	}
 }
 
-// Group implements net.Service
+// ChainInfo implements net.Service
 func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	return &drand.ChainInfoPacket{
 		Period:      60,
@@ -48,7 +49,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
-	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round+1) {
+	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
 	randomness := sha256Hash(signature)
@@ -58,7 +59,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 		Signature:         signature,
 		Randomness:        randomness,
 	}
-	s.d.Round++
+	s.d = nextMockData(s.d)
 	return &resp, nil
 }
 
@@ -120,6 +121,7 @@ func decodeHex(s string) []byte {
 
 // Data of signing
 type Data struct {
+	secret            kyber.Scalar
 	Public            []byte
 	Signature         string
 	Round             int
@@ -148,6 +150,7 @@ func generateMockData() *Data {
 	sig := tshare.Value()
 	publicBuff, _ := public.MarshalBinary()
 	d := &Data{
+		secret:            secret,
 		Public:            publicBuff,
 		Signature:         hex.EncodeToString(sig),
 		PreviousSignature: hex.EncodeToString(previous[:]),
@@ -157,6 +160,29 @@ func generateMockData() *Data {
 		BadSecondRound:    true,
 	}
 	return d
+}
+
+// nextMockData generates a valid Data for the next round when given the current round data.
+func nextMockData(d *Data) *Data {
+	previous := decodeHex(d.PreviousSignature)
+	msg := sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
+	sshare := share.PriShare{I: 0, V: d.secret}
+	tsig, err := key.Scheme.Sign(&sshare, msg)
+	if err != nil {
+		panic(err)
+	}
+	tshare := tbls.SigShare(tsig)
+	sig := tshare.Value()
+	return &Data{
+		secret:            d.secret,
+		Public:            d.Public,
+		Signature:         hex.EncodeToString(sig),
+		PreviousSignature: hex.EncodeToString(previous[:]),
+		PreviousRound:     d.Round,
+		Round:             d.Round + 1,
+		Genesis:           d.Genesis,
+		BadSecondRound:    d.BadSecondRound,
+	}
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
@@ -183,4 +209,14 @@ func roundToBytes(r int) []byte {
 	var buff bytes.Buffer
 	binary.Write(&buff, binary.BigEndian, uint64(r))
 	return buff.Bytes()
+}
+
+// NewMockBeacon provides a random beacon and the chain it validates against
+func NewMockBeacon() (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData()
+	s := newMockServer(d)
+	c, _ := s.ChainInfo(context.Background(), nil)
+	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
+
+	return c, r
 }

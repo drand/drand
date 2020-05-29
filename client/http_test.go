@@ -14,9 +14,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
+func withServer(t *testing.T, badSecondRound bool) (string, []byte, context.CancelFunc) {
 	t.Helper()
-	l, s := mock.NewMockGRPCPublicServer(":0", false)
+	l, s := mock.NewMockGRPCPublicServer(":0", badSecondRound)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -65,10 +65,10 @@ func withServer(t *testing.T) (string, []byte, context.CancelFunc) {
 	}
 }
 func TestHTTPClient(t *testing.T) {
-	addr, hash, cancel := withServer(t)
+	addr, hash, cancel := withServer(t, true)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, hash, &http.Client{})
+	httpClient, err := NewHTTPClient("http://"+addr, hash, http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,11 +95,39 @@ func TestHTTPClient(t *testing.T) {
 	}
 }
 
-func TestHTTPWatch(t *testing.T) {
-	addr, hash, cancel := withServer(t)
+func TestHTTPGetLatest(t *testing.T) {
+	addr, hash, cancel := withServer(t, false)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, hash, &http.Client{})
+	httpClient, err := NewHTTPClient("http://"+addr, hash, http.DefaultTransport)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r0, err := httpClient.Get(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r1, err := httpClient.Get(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r1.Round() != r0.Round()+1 {
+		t.Fatal("expected round progression")
+	}
+}
+
+func TestHTTPWatch(t *testing.T) {
+	addr, hash, cancel := withServer(t, false)
+	defer cancel()
+
+	httpClient, err := NewHTTPClient("http://"+addr, hash, http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}

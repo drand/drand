@@ -9,6 +9,8 @@ import (
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -16,6 +18,14 @@ import (
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	cli "github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
+)
+
+// Automatically set through -ldflags
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+var (
+	version   = "master"
+	gitCommit = "none"
+	buildDate = "unknown"
 )
 
 var (
@@ -27,8 +37,8 @@ func main() {
 	logging.SetLogLevel("beacon-relay", "info")
 
 	app := &cli.App{
-		Name:    "beacon-relay",
-		Version: "0.0.1",
+		Name:    "drand-relay-gossip",
+		Version: version,
 		Usage:   "pubsub relay for randomness beacon",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -38,6 +48,10 @@ func main() {
 		},
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+	}
+
 	err := app.Run(os.Args)
 	if err != nil {
 		fmt.Printf("error: %+v\n", err)
@@ -75,10 +89,18 @@ var runCmd = &cli.Command{
 			Usage: "listen addr for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
+		&cli.StringFlag{
+			Name:  "metrics",
+			Usage: "local host:port to bind a metrics servlet (optional)",
+		},
 		peerWithFlag, idFlag,
 	},
 
 	Action: func(cctx *cli.Context) error {
+		if cctx.IsSet("metrics") {
+			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
+			defer metricsListener.Close()
+		}
 		cfg := &node.GossipRelayConfig{
 			ChainHash:       cctx.String("chain-hash"),
 			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
@@ -116,7 +138,7 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		c, err := client.NewWithPubsub(ps, cctx.String("chain-hash"))
+		c, err := client.NewWithPubsub(ps, nil, nil)
 		if err != nil {
 			return xerrors.Errorf("constructing client: %w", err)
 		}

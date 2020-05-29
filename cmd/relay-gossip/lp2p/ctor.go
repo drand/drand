@@ -15,6 +15,7 @@ import (
 	"github.com/ipfs/go-datastore/namespace"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
+	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
@@ -27,18 +28,24 @@ import (
 	xerrors "golang.org/x/xerrors"
 )
 
-var (
-	log = logging.Logger("lp2p")
+const (
 	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
-	userAgent = "drand-relay/0.0.0"
-	// directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
+	userAgent   = "drand-relay/0.0.0"
+  // directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
 	directConnectTicks = uint64(5)
+	lowWater    = 50
+	highWater   = 200
+	gracePeriod = time.Minute
 )
 
-func PubSubTopic(nn string) string {
-	return fmt.Sprintf("/drand/pubsub/v0.0.0/%s", nn)
+var log = logging.Logger("lp2p")
+
+// PubSubTopic generates a drand pubsub topic from a chain hash.
+func PubSubTopic(h string) string {
+	return fmt.Sprintf("/drand/pubsub/v0.0.0/%s", h)
 }
 
+// ConstructHost build a libp2p host configured for relaying drand randomness over pubsub.
 func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr string,
 	bootstrap []ma.Multiaddr) (host.Host, *pubsub.PubSub, error) {
 	ctx := context.Background()
@@ -48,11 +55,11 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 	if err != nil {
 		return nil, nil, xerrors.Errorf("creating peerstore: %w", err)
 	}
-	peerId, err := peer.IDFromPrivateKey(priv)
+	peerID, err := peer.IDFromPrivateKey(priv)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("computing peerid: %w", err)
 	}
-	err = pstore.AddPrivKey(peerId, priv)
+	err = pstore.AddPrivKey(peerID, priv)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
 	}
@@ -63,6 +70,8 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
+	cmgr := connmgr.NewConnManager(lowWater, highWater, gracePeriod)
+
 	h, err := libp2p.New(ctx,
 		libp2p.ListenAddrStrings(listenAddr),
 		libp2p.Identity(priv),
@@ -70,6 +79,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		libp2p.DisableRelay(),
 		//libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
 		libp2p.UserAgent(userAgent),
+		libp2p.ConnectionManager(cmgr),
 	)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
