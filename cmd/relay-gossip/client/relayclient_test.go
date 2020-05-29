@@ -41,6 +41,7 @@ func TestGRPCClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, _ := chain.InfoFromProto(infoProto)
+	info.GenesisTime -= 10
 
 	// start mock relay-node
 	cfg := &node.GossipRelayConfig{
@@ -70,6 +71,7 @@ func TestGRPCClient(t *testing.T) {
 	ch := c.Watch(ctx)
 	for i := 0; i < 3; i++ {
 		svc.(mock.MockService).EmitRand()
+		svc.(mock.MockService).EmitRand()
 		if _, ok := <-ch; !ok {
 			t.Fatal("expected randomness")
 		}
@@ -93,6 +95,7 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	chainInfo.GenesisTime -= 10
 	cfg := &node.GossipRelayConfig{
 		ChainHash:       hex.EncodeToString(chainInfo.Hash()),
 		PeerWith:        nil,
@@ -115,6 +118,7 @@ func TestHTTPClient(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	ch := c.Watch(ctx)
 	for i := 0; i < 3; i++ {
+		emit()
 		emit()
 		r, ok := <-ch
 		if !ok {
