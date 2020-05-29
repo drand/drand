@@ -321,22 +321,28 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 	h.pendingLk.RUnlock()
 
 	info := h.getChainInfo(r.Context())
+
+	w.Header().Set("Content-Type", "application/json")
+	resp := make(map[string]uint64)
+	resp["current"] = lastSeen
+	resp["expected"] = 0
+	var bytes []byte
+
 	if info == nil {
-		w.Header().Set("Content-Length", "11")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("not started"))
+		bytes, _ = json.Marshal(resp)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(bytes)))
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+		resp["expected"] = expected
+		bytes, _ = json.Marshal(resp)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(bytes)))
+		if lastSeen == expected || lastSeen+1 == expected {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
 	}
 
-	expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
-	w.Header().Set("Content-Type", "text/plain")
-	if lastSeen == expected || lastSeen+1 == expected {
-		w.Header().Set("Content-Length", "2")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	} else {
-		r := []byte(fmt.Sprintf("at %d not %d", lastSeen, expected))
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r)))
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(r)
-	}
+	w.Write(bytes)
 }
