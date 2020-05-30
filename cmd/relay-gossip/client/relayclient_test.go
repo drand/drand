@@ -72,7 +72,7 @@ func TestGRPCClient(t *testing.T) {
 	// for the initial 'get' to sync the chain
 	svc.(mock.MockService).EmitRand(false)
 	ch := c.Watch(ctx)
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	for i := 0; i < 3; i++ {
 		svc.(mock.MockService).EmitRand(false)
 		fmt.Printf("round %d. emitting.\n", i)

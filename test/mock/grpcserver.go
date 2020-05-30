@@ -121,6 +121,7 @@ func (s *Server) EmitRand(closeStream bool) {
 		fmt.Println("MOCK SERVER: stream send error:", err)
 		return
 	}
+	fmt.Println("MOCK SERVER: emit round done")
 }
 
 func testValid(d *Data) {
