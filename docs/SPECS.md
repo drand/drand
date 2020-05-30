@@ -36,6 +36,7 @@ This document is a specification of the drand protocols.
     - [Overiew](#overiew)
     - [Randomness Generation Period](#randomness-generation-period)
     - [Beacon Chain](#beacon-chain)
+    - [Root of trust](#root-of-trust)
     - [Catchup mode](#catchup-mode)
     - [Syncing](#syncing)
 - [Cryptographic specification](#cryptographic-specification)
@@ -105,7 +106,7 @@ chain](#beacon-chain) section for more information.
 ### Group configuration
 
 Group configuration: A structure that contains all the necessary information
-about nodes that form a drand network:
+about a running drand network:
 * Nodes: A list of nodes information that represents all nodes on the network.
 * Threshold: The number of nodes that are necessary to participate to a
   randomness generation round to produce a new random value. Given the security
@@ -627,6 +628,35 @@ There should never be any gaps in the rounds.
 A node can now save the beacon locally in its database and exposes it to the
 external API.
 
+#### Root of trust
+
+In drand, we can uniquely identify a chain of randomness via a tuple of
+information:
+```go
+type Info struct {
+    // Period of the randomness generation in seconds
+    Period uint32
+    // Time at which the drand nodes started the chain, UNIX in seconds.
+    GenesisTime int64
+    // PublicKey necessary to validate any randomness beacon of the chain
+    PublicKey []byte
+}
+```
+This information is constant regardless of the network composition: even after a
+resharing is performed, the chain information is constant.
+
+This root of trust is to be given to clients to embed in the application. For
+simplicity, we also refer to the chain information by its hash of the `Info`
+structure:
+```go
+func (i *Info) Hash() []byte {
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, i.Period)
+	binary.Write(h, binary.BigEndian, i.GenesisTime)
+    h.Write(i.PublicKey)
+    return h.Sum(nil)
+}
+```
 
 #### Catchup mode
 
