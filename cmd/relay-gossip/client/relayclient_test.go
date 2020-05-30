@@ -83,7 +83,7 @@ func TestGRPCClient(t *testing.T) {
 			} else {
 				fmt.Print(r)
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
