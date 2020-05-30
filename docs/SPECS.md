@@ -126,11 +126,18 @@ about a running drand network:
   field is empty is the network has never reshared yet. See TODO for more
   information.
 
+**Note**: This group information  is only shared between drand nodes. Even
+though it doesn't expose private key materials it non-essential information from
+the point of view of users. A public struct derived from the group to share to
+clients is described in the [root of trust section](#root-of-trust).
+
 #### Group Configuration Hash
 
-The group configuration can be uniquely referenced via its canonical hash. 
-The hash is derived using the blake2b hash function.
-The Go procedure works as follow:
+The group configuration can be uniquely referenced via its canonical hash. The
+hash of the group file is used during a resharing procedure to make sure node
+are resharing from the correct group.
+The hash is derived using the blake2b hash function.  The Go procedure works as
+follow:
 ```go
 func (g *Group) Hash() []byte {
     h, _ := blake2b.New256(nil)
