@@ -63,6 +63,11 @@ var runCmd = &cli.Command{
 			Required: true,
 		},
 		&cli.StringFlag{
+			Name:    "region",
+			Usage:   "name of the AWS region to use",
+			Aliases: []string{"r"},
+		},
+		&cli.StringFlag{
 			Name:    "grpc-connect",
 			Usage:   "host:port to dial to a drand gRPC API",
 			Aliases: []string{"connect", "c"},
@@ -93,10 +98,14 @@ var runCmd = &cli.Command{
 		}
 
 		sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(cctx.String("region"))}))
+		_, err := sess.Config.Credentials.Get() // check credentials have been set
+		if err != nil {
+			return err
+		}
+
 		uploader := s3manager.NewUploader(sess)
 
 		var w client.Watcher
-		var err error
 
 		if len(cctx.StringSlice("http-connect")) > 0 {
 			w, err = newHTTPWatcher(cctx.StringSlice("http-connect"))
