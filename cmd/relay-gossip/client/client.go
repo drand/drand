@@ -75,8 +75,9 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 			if current := cache.TryGet(rand.GetRound()); current != nil {
 				currentFull, ok := current.(*client.RandomData)
 				if !ok {
-					// Note: this shouldn't happen in practice, but if we have a degraded cache entry we
-					// can't validate the full byte sequence.
+					// Note: this shouldn't happen in practice, but if we have a
+					// degraded cache entry we can't validate the full byte
+					// sequence.
 					if bytes.Equal(b.Signature, current.Signature()) {
 						return pubsub.ValidationIgnore
 					}
