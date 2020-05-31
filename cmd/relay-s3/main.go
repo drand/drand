@@ -1,14 +1,21 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/drand/drand/client"
+	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
+	json "github.com/nikkolasg/hexjson"
 	cli "github.com/urfave/cli/v2"
 )
 
@@ -18,6 +25,7 @@ var (
 	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
+	log       = dlog.DefaultLogger
 )
 
 func main() {
@@ -49,12 +57,20 @@ var runCmd = &cli.Command{
 	Name: "run",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
-			Name:  "grpc-connect",
-			Usage: "host:port to dial to a drand gRPC API",
+			Name:     "bucket",
+			Usage:    "name of the AWS bucket to upload to",
+			Aliases:  []string{"b"},
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:    "grpc-connect",
+			Usage:   "host:port to dial to a drand gRPC API",
+			Aliases: []string{"connect", "c"},
 		},
 		&cli.StringSliceFlag{
-			Name:  "http-connect",
-			Usage: "URL(s) of drand HTTP API(s) to relay",
+			Name:    "http-connect",
+			Usage:   "URL(s) of drand HTTP API(s) to relay",
+			Aliases: []string{"u"},
 		},
 		&cli.StringFlag{
 			Name:  "cert",
@@ -62,7 +78,7 @@ var runCmd = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "insecure",
-			Usage: "allow insecure connection",
+			Usage: "allow insecure GRPC connection",
 		},
 		&cli.StringFlag{
 			Name:  "metrics",
@@ -76,27 +92,75 @@ var runCmd = &cli.Command{
 			defer metricsListener.Close()
 		}
 
-		sess := session.Must(session.NewSession())
+		sess := session.Must(session.NewSession(&aws.Config{Region: aws.String(cctx.String("region"))}))
 		uploader := s3manager.NewUploader(sess)
 
-		f, err := os.Open(filename)
+		var w client.Watcher
+		var err error
+
+		if len(cctx.StringSlice("http-connect")) > 0 {
+			w, err = newHTTPWatcher(cctx.StringSlice("http-connect"))
+		} else if cctx.String("grpc-connect") != "" {
+			w, err = newGRPCWatcher(
+				cctx.String("grpc-connect"),
+				cctx.String("cert"),
+				cctx.Bool("insecure"),
+			)
+		} else {
+			return errors.New("missing GRPC or HTTP address(es)")
+		}
 		if err != nil {
-			return fmt.Errorf("failed to open file %q, %v", filename, err)
+			return err
 		}
 
-		// Upload the file to S3.
-		result, err := uploader.Upload(&s3manager.UploadInput{
-			Bucket: aws.String(myBucket),
-			Key:    aws.String(myString),
-			Body:   f,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to upload file, %v", err)
+		ctx := context.Background()
+		for res := range w.Watch(ctx) {
+			go uploadRandomness(ctx, uploader, cctx.String("bucket"), res)
 		}
-		fmt.Printf("file uploaded to, %s\n", aws.StringValue(result.Location))
+		return nil
 	},
 }
 
-func workRelay() {
+func newGRPCWatcher(addr string, cert string, insecure bool) (client.Watcher, error) {
+	return nil, errors.New("not implemented")
+}
 
+func newHTTPWatcher(urls []string) (client.Watcher, error) {
+	return client.New(client.WithHTTPEndpoints(urls), client.WithCacheSize(0))
+}
+
+func uploadRandomness(ctx context.Context, uploader *s3manager.Uploader, bucket string, result client.Result) {
+	for {
+		rd, ok := result.(*client.RandomData)
+		if !ok {
+			log.Error("relay_s3", "unexpected underlying result type")
+			return
+		}
+		data, err := json.Marshal(rd)
+		if err != nil {
+			log.Error("relay_s3", "failed to marshal randomness", "error", err)
+			return
+		}
+		r, err := uploader.UploadWithContext(ctx, &s3manager.UploadInput{
+			Bucket:          aws.String(bucket),
+			Key:             aws.String(fmt.Sprintf("public/%v", result.Round())),
+			Body:            bytes.NewBuffer(data),
+			ContentEncoding: aws.String("application/json"),
+			CacheControl:    aws.String("immutable"),
+		})
+		if err != nil {
+			log.Error("relay_s3", "failed to upload randomness", "round", result.Round(), "error", err)
+			t := time.NewTimer(time.Minute)
+			select {
+			case <-t.C:
+				continue
+			case <-ctx.Done():
+				t.Stop()
+				return
+			}
+		}
+		log.Info("relay_s3", "uploaded randmoness", "round", result.Round(), "upload_output", r)
+		return
+	}
+	// TODO: upload to /public/latest
 }
