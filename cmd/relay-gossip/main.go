@@ -15,7 +15,6 @@ import (
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
-	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ipfs/go-datastore"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
@@ -161,13 +160,14 @@ var clientCmd = &cli.Command{
 
 		httpFailover := cctx.StringSlice("http-failover")
 
+		var c client.Watcher
 		// if we have http failover endpoints then use the drand HTTP client with pubsub option
 		if len(httpFailover) > 0 {
 			grace := cctx.Duration("http-failover-grace")
 			if grace == 0 {
 				grace = time.Second * 5
 			}
-			c, err := client.New(
+			c, err = client.New(
 				psc.WithPubsub(ps),
 				client.WithChainHash(chainHash),
 				client.WithHTTPEndpoints(httpFailover),
@@ -176,28 +176,15 @@ var clientCmd = &cli.Command{
 			if err != nil {
 				return xerrors.Errorf("constructing client: %w", err)
 			}
-
-			for rand := range c.Watch(context.Background()) {
-				fmt.Printf("got randomness: Round %d: %X\n", rand.Round(), rand.Randomness()[:16])
-			}
 		} else {
-			c, err := psc.NewWithPubsub(ps, nil, nil)
+			c, err = psc.NewWithPubsub(ps, nil, nil)
 			if err != nil {
 				return xerrors.Errorf("constructing client: %w", err)
 			}
+		}
 
-			var notifChan <-chan drand.PublicRandResponse
-			var unsub psc.UnsubFunc
-			{
-				ch := make(chan drand.PublicRandResponse, 5)
-				notifChan = ch
-				unsub = c.Sub(ch)
-			}
-			_ = unsub
-
-			for rand := range notifChan {
-				fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Randomness[:16])
-			}
+		for rand := range c.Watch(context.Background()) {
+			log.Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
 		}
 
 		return nil
