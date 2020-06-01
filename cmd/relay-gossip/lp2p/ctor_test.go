@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 	"testing"
+
+	"github.com/drand/drand/log"
 )
 
 func TestCreateThenLoadPrivKey(t *testing.T) {
@@ -17,13 +19,13 @@ func TestCreateThenLoadPrivKey(t *testing.T) {
 	// should not exist yet...
 	identityPath := path.Join(dir, "identify.key")
 
-	priv0, err := LoadOrCreatePrivKey(identityPath)
+	priv0, err := LoadOrCreatePrivKey(identityPath, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read again, should be the same
-	priv1, err := LoadOrCreatePrivKey(identityPath)
+	priv1, err := LoadOrCreatePrivKey(identityPath, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,13 +44,13 @@ func TestCreatePrivKeyMkdirp(t *testing.T) {
 	// should not exist yet and has an intermediate dir that does not exist
 	identityPath := path.Join(dir, "not-exists-dir", "identify.key")
 
-	priv0, err := LoadOrCreatePrivKey(identityPath)
+	priv0, err := LoadOrCreatePrivKey(identityPath, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read again, should be the same
-	priv1, err := LoadOrCreatePrivKey(identityPath)
+	priv1, err := LoadOrCreatePrivKey(identityPath, log.DefaultLogger)
 	if err != nil {
 		t.Fatal(err)
 	}

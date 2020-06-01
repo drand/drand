@@ -14,6 +14,7 @@ import (
 	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
+	"github.com/drand/drand/log"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
@@ -72,7 +73,7 @@ func TestGRPCClient(t *testing.T) {
 	// for the initial 'get' to sync the chain
 	svc.(mock.MockService).EmitRand(false)
 	ch := c.Watch(ctx)
-	time.Sleep(5 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	for i := 0; i < 3; i++ {
 		svc.(mock.MockService).EmitRand(false)
 		fmt.Printf("round %d. emitting.\n", i)
@@ -83,7 +84,7 @@ func TestGRPCClient(t *testing.T) {
 			} else {
 				fmt.Print(r)
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
@@ -162,7 +163,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"))
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +172,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
+		log.DefaultLogger,
 	)
 	if err != nil {
 		return nil, err

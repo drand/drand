@@ -316,6 +316,8 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
+	h.startOnce.Do(h.start)
+
 	h.pendingLk.RLock()
 	lastSeen := h.latestRound
 	h.pendingLk.RUnlock()
@@ -323,6 +325,7 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 	info := h.getChainInfo(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache")
 	resp := make(map[string]uint64)
 	resp["current"] = lastSeen
 	resp["expected"] = 0
