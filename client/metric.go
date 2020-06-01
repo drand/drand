@@ -53,10 +53,11 @@ func (c *httpHealthMetrics) startObserve(ctx context.Context) {
 			metrics.ClientHTTPHeartbeatSuccess.With(prometheus.Labels{"http_address": c.httpAddrs[n]}).Inc()
 		}
 		// compute the latency metric
-		actual := time.Now().Unix()
-		expected := chain.TimeOfRound(c.chainInfo.Period, c.chainInfo.GenesisTime, result.Round())
+		actual := time.Now().UnixNano()
+		expected := chain.TimeOfRound(c.chainInfo.Period, c.chainInfo.GenesisTime, result.Round()) * 1e9
 		// the labels of the gauge vec must already be set at the registerer level
-		metrics.ClientHTTPHeartbeatLatency.With(prometheus.Labels{"http_address": c.httpAddrs[n]}).Set(float64(expected - actual))
+		metrics.ClientHTTPHeartbeatLatency.With(prometheus.Labels{"http_address": c.httpAddrs[n]}).
+			Set(float64(actual-expected) / 1e6) // latency in milliseconds
 		c.next++
 	}
 }
