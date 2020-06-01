@@ -149,7 +149,7 @@ type clientConfig struct {
 	failoverGracePeriod time.Duration
 	// watcher is a constructor function that creates a new Watcher
 	watcher WatcherCtor
-	// autoWatch causes the client to being watching immediately so that new rasndomness is proactively fetched.
+	// autoWatch causes the client to start watching immediately in the background so that new randomness is proactively fetched and added to the cache.
 	autoWatch bool
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
