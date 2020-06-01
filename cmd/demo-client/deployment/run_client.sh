@@ -10,7 +10,7 @@ demo-client \
         --watch
 
 # XXX
-#       multiple URLs
+#       rig multiple urls in docker
 #       deploy telegraf with client
 #       telegraf.conf: env=XXX, build=XXX
 
