@@ -33,17 +33,19 @@ func main() {
 	app := &cli.App{
 		Name:    "drand-relay-gossip",
 		Version: version,
-		Usage:   "pubsub relay for randomness beacon",
+		Usage:   "Pubsub relay for drand randomness beacon",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "chain-hash",
+				Usage:    "Hash of the drand group chain (hex encoded)",
+				Aliases:  []string{"c"},
 				Required: true,
 			},
 		},
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("Drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
@@ -55,11 +57,12 @@ func main() {
 
 var peerWithFlag = &cli.StringSliceFlag{
 	Name:  "peer-with",
-	Usage: "list of peers to connect with",
+	Usage: "List of peers to connect with",
 }
 
 var runCmd = &cli.Command{
-	Name: "run",
+	Name:  "run",
+	Usage: "Starts a drand gossip relay process",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "grpc-connect",
@@ -72,25 +75,25 @@ var runCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "store",
-			Usage: "datastore directory",
+			Usage: "Datastore directory",
 			Value: "./datastore",
 		},
 		&cli.StringFlag{
 			Name:  "cert",
-			Usage: "file containing GRPC transport credentials of peer",
+			Usage: "File containing GRPC transport credentials of peer",
 		},
 		&cli.BoolFlag{
 			Name:  "insecure",
-			Usage: "allow insecure connection",
+			Usage: "Allow insecure connection",
 		},
 		&cli.StringFlag{
 			Name:  "listen",
-			Usage: "listen addr for libp2p",
+			Usage: "Listening address for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
 		&cli.StringFlag{
 			Name:  "metrics",
-			Usage: "local host:port to bind a metrics servlet (optional)",
+			Usage: "Local host:port to bind a metrics servlet (optional)",
 		},
 		peerWithFlag, idFlag,
 	},
@@ -121,6 +124,7 @@ var runCmd = &cli.Command{
 
 var clientCmd = &cli.Command{
 	Name:  "client",
+	Usage: "Starts a drand gossip client and print out randomness as it is received",
 	Flags: []cli.Flag{peerWithFlag},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := node.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
