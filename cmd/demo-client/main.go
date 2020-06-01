@@ -20,6 +20,7 @@ import (
 	gclient "github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
+	dlog "github.com/drand/drand/log"
 	bds "github.com/ipfs/go-ds-badger2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
@@ -189,7 +190,7 @@ func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsu
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "drand-client-"+clientID+"-id"))
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "drand-client-"+clientID+"-id"), dlog.DefaultLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -198,6 +199,7 @@ func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsu
 		priv,
 		"/ip4/0.0.0.0/tcp/"+strconv.Itoa(clientRelayPort),
 		relayMultiaddr,
+		dlog.DefaultLogger,
 	)
 	if err != nil {
 		return nil, err
