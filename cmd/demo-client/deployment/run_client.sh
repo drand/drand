@@ -11,9 +11,9 @@ demo-client \
 
 # XXX
 #       multiple URLs
-#       env=XXX, build=XXX
-#       deploy with client?
-#       location of deployment scripts?
+#       deploy telegraf with client
+#       telegraf.conf: env=XXX, build=XXX
+
 
 # deployments
 #       https://github.com/drand/drand-infra#deployments
