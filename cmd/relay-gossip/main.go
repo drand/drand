@@ -37,7 +37,7 @@ func main() {
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand gossip relay %v (date %v, commit %v).\n", version, buildDate, gitCommit)
+		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
@@ -71,7 +71,7 @@ var runCmd = &cli.Command{
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "grpc-connect",
-			Usage:   "host:port to dial to a drand GRPC API",
+			Usage:   "host:port to dial to a drand gRPC API",
 			Aliases: []string{"connect"},
 		},
 		&cli.StringSliceFlag{
@@ -85,11 +85,11 @@ var runCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "cert",
-			Usage: "file containing GRPC transport credentials of peer",
+			Usage: "file containing gRPC transport credentials of peer",
 		},
 		&cli.BoolFlag{
 			Name:  "insecure",
-			Usage: "allow insecure GRPC connection",
+			Usage: "allow insecure gRPC connection",
 		},
 		&cli.StringFlag{
 			Name:  "listen",
