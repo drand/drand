@@ -9,6 +9,7 @@ ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
 ENV GOPROXY https://proxy.golang.org
 
+# Install SU-EXEC and TINI
 ENV SUEXEC_VERSION v0.2
 ENV TINI_VERSION v0.19.0
 RUN set -x \
@@ -20,6 +21,8 @@ RUN set -x \
         && cd /tmp \
         && wget -q -O tini https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini \
         && chmod +x tini
+
+# XXX: Install telegraf
 
 # Get the TLS CA certificates, they're not provided by busybox.
 RUN apt-get update && apt-get install -y ca-certificates
