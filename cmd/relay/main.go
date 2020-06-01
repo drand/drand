@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 
 	dhttp "github.com/drand/drand/http"
@@ -116,6 +117,15 @@ func Relay(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// jumpstart bootup
+	req, _ := http.NewRequest("GET", "/public/0", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		log.DefaultLogger.Warn("binary", "relay", "startup failed", rr.Code)
+	}
+
 	fmt.Printf("Listening at %s\n", listener.Addr())
 	return http.Serve(listener, handler)
 }
