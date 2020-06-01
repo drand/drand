@@ -31,21 +31,13 @@ var log = dlog.DefaultLogger
 
 func main() {
 	app := &cli.App{
-		Name:    "drand-relay-gossip",
-		Version: version,
-		Usage:   "Pubsub relay for drand randomness beacon",
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "chain-hash",
-				Usage:    "Hash of the drand group chain (hex encoded)",
-				Aliases:  []string{"c"},
-				Required: true,
-			},
-		},
+		Name:     "drand-relay-gossip",
+		Version:  version,
+		Usage:    "pubsub relay for drand randomness beacon",
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("Drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("drand gossip relay %v (date %v, commit %v).\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
@@ -55,18 +47,31 @@ func main() {
 	}
 }
 
+var chainHashFlag = &cli.StringFlag{
+	Name:     "chain-hash",
+	Usage:    "hash of the drand group chain (hex encoded)",
+	Aliases:  []string{"c"},
+	Required: true,
+}
+
 var peerWithFlag = &cli.StringSliceFlag{
 	Name:  "peer-with",
-	Usage: "List of peers to connect with",
+	Usage: "list of peer multiaddrs to direct connect with",
+}
+
+var idFlag = &cli.StringFlag{
+	Name:  "identity",
+	Usage: "path to a file containing a libp2p identity (base64 encoded)",
+	Value: "identity.key",
 }
 
 var runCmd = &cli.Command{
 	Name:  "run",
-	Usage: "Starts a drand gossip relay process",
+	Usage: "starts a drand gossip relay process",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "grpc-connect",
-			Usage:   "host:port to dial to a drand gRPC API",
+			Usage:   "host:port to dial to a drand GRPC API",
 			Aliases: []string{"connect"},
 		},
 		&cli.StringSliceFlag{
@@ -75,27 +80,29 @@ var runCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "store",
-			Usage: "Datastore directory",
+			Usage: "datastore directory",
 			Value: "./datastore",
 		},
 		&cli.StringFlag{
 			Name:  "cert",
-			Usage: "File containing GRPC transport credentials of peer",
+			Usage: "file containing GRPC transport credentials of peer",
 		},
 		&cli.BoolFlag{
 			Name:  "insecure",
-			Usage: "Allow insecure connection",
+			Usage: "allow insecure GRPC connection",
 		},
 		&cli.StringFlag{
 			Name:  "listen",
-			Usage: "Listening address for libp2p",
+			Usage: "listening address for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
 		&cli.StringFlag{
 			Name:  "metrics",
-			Usage: "Local host:port to bind a metrics servlet (optional)",
+			Usage: "local host:port to bind a metrics servlet (optional)",
 		},
-		peerWithFlag, idFlag,
+		chainHashFlag,
+		peerWithFlag,
+		idFlag,
 	},
 
 	Action: func(cctx *cli.Context) error {
@@ -124,8 +131,8 @@ var runCmd = &cli.Command{
 
 var clientCmd = &cli.Command{
 	Name:  "client",
-	Usage: "Starts a drand gossip client and print out randomness as it is received",
-	Flags: []cli.Flag{peerWithFlag},
+	Usage: "starts a drand gossip client and prints out randomness as it is received",
+	Flags: []cli.Flag{chainHashFlag, peerWithFlag},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := node.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
@@ -163,16 +170,9 @@ var clientCmd = &cli.Command{
 	},
 }
 
-var idFlag = &cli.StringFlag{
-	Name:  "identity",
-	Usage: "path to a file containing libp2p identity",
-	Value: "identity.key",
-}
-
 var idCmd = &cli.Command{
 	Name:  "peerid",
-	Usage: "prints libp2p peerid",
-
+	Usage: "prints the libp2p peer ID or creates one if it does not exist",
 	Flags: []cli.Flag{idFlag},
 	Action: func(cctx *cli.Context) error {
 		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log)
