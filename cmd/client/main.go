@@ -36,7 +36,7 @@ var (
 )
 
 var urlsFlag = &cli.StringSliceFlag{
-	Name:  "urls",
+	Name:  "url",
 	Usage: "root URLs for fetching randomness",
 }
 
