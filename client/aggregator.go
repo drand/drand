@@ -9,14 +9,14 @@ import (
 
 // newWatchAggregator maintains state of consumers calling `Watch` so that a
 // single `watch` request is made to the underlying client.
-func newWatchAggregator(c Client, autoStart bool) *watchAggregator {
+func newWatchAggregator(c Client, autoWatch bool) *watchAggregator {
 	aggregator := &watchAggregator{
 		Client:      c,
-		autoStart:   autoStart,
+		autoWatch:   autoWatch,
 		log:         log.DefaultLogger,
 		subscribers: make([]subscriber, 0),
 	}
-	if autoStart {
+	if autoWatch {
 		ctx, cancel := context.WithCancel(context.Background())
 		go aggregator.distribute(aggregator.Client.Watch(ctx), cancel, true)
 	}
@@ -30,7 +30,7 @@ type subscriber struct {
 
 type watchAggregator struct {
 	Client
-	autoStart bool
+	autoWatch bool
 	log       log.Logger
 
 	subscriberLock sync.Mutex
@@ -49,23 +49,24 @@ func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 	sub := subscriber{ctx, make(chan Result, 5)}
 	c.subscribers = append(c.subscribers, sub)
 
-	if len(c.subscribers) == 1 && !c.autoStart {
+	if len(c.subscribers) == 1 && !c.autoWatch {
 		ctx, cancel := context.WithCancel(context.Background())
 		go c.distribute(c.Client.Watch(ctx), cancel, false)
 	}
 	return sub.c
 }
 
-func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc, keepAlive bool) {
+func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc, autoWatch bool) {
 	defer cancel()
 	for {
-		var aCtx context.Context
+		aCtx := context.Background()
 		c.subscriberLock.Lock()
-		if len(c.subscribers) == 0 && !keepAlive {
+		if len(c.subscribers) == 0 && !autoWatch {
 			c.subscriberLock.Unlock()
 			return
+		} else if len(c.subscribers) > 0 {
+			aCtx = c.subscribers[0].ctx
 		}
-		aCtx = c.subscribers[0].ctx
 		c.subscriberLock.Unlock()
 
 		var m Result

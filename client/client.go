@@ -260,10 +260,10 @@ func WithWatcher(wc WatcherCtor) Option {
 	}
 }
 
-// WithProactiveFetches causes the client to actively attempt to get
+// WithAutoWatch causes the client to automatically attempt to get
 // randomness for rounds, so that it will hopefully already be cached
 // when `Get` is called.
-func WithProactiveFetches() Option {
+func WithAutoWatch() Option {
 	return func(cfg *clientConfig) error {
 		cfg.autoWatch = true
 		return nil
