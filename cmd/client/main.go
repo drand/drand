@@ -95,7 +95,7 @@ var clientMetricsIDFlag = &cli.StringFlag{
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "demo-client"
+	app.Name = "drand-client"
 	app.Version = version
 	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
 	app.Flags = []cli.Flag{

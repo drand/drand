@@ -14,7 +14,7 @@ if [ `id -u` -eq 0 ]; then
     exec su-exec "$user" "$0" $@
 fi
 
-exec demo-client \
+exec drand-client \
         --url $DRAND_CLIENT_URL \
         --hash $DRAND_CLIENT_HASH \
         --relays $DRAND_CLIENT_RELAYS \
