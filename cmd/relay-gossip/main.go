@@ -12,6 +12,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ipfs/go-datastore"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -99,6 +100,7 @@ var runCmd = &cli.Command{
 		if cctx.IsSet("metrics") {
 			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
+			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
 		cfg := &node.GossipRelayConfig{
 			ChainHash:       cctx.String("chain-hash"),
@@ -175,11 +177,11 @@ var idCmd = &cli.Command{
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
-		peerId, err := peer.IDFromPrivateKey(priv)
+		peerID, err := peer.IDFromPrivateKey(priv)
 		if err != nil {
 			return xerrors.Errorf("computing peerid: %w", err)
 		}
-		fmt.Printf("%s\n", peerId)
+		fmt.Printf("%s\n", peerID)
 		return nil
 	},
 }
