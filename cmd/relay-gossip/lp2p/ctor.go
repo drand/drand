@@ -11,9 +11,9 @@ import (
 	"path"
 	"time"
 
+	dlog "github.com/drand/drand/log"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
-	logging "github.com/ipfs/go-log/v2"
 	"github.com/libp2p/go-libp2p"
 	connmgr "github.com/libp2p/go-libp2p-connmgr"
 	"github.com/libp2p/go-libp2p-core/crypto"
@@ -30,15 +30,13 @@ import (
 
 const (
 	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
-	userAgent   = "drand-relay/0.0.0"
+	userAgent = "drand-relay/0.0.0"
 	// directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
 	directConnectTicks = uint64(5)
-	lowWater    = 50
-	highWater   = 200
-	gracePeriod = time.Minute
+	lowWater           = 50
+	highWater          = 200
+	gracePeriod        = time.Minute
 )
-
-var log = logging.Logger("lp2p")
 
 // PubSubTopic generates a drand pubsub topic from a chain hash.
 func PubSubTopic(h string) string {
@@ -47,7 +45,7 @@ func PubSubTopic(h string) string {
 
 // ConstructHost build a libp2p host configured for relaying drand randomness over pubsub.
 func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr string,
-	bootstrap []ma.Multiaddr) (host.Host, *pubsub.PubSub, error) {
+	bootstrap []ma.Multiaddr, log dlog.Logger) (host.Host, *pubsub.PubSub, error) {
 	ctx := context.Background()
 
 	pstoreDs := namespace.Wrap(ds, datastore.NewKey("/peerstore"))
@@ -66,7 +64,6 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 	addrInfos, err := peer.AddrInfosFromP2pAddrs(bootstrap...)
 	if err != nil {
-		fmt.Printf("%+v", bootstrap)
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
@@ -108,7 +105,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {
-				log.Warnf("could not bootstrap with: %s", ai)
+				log.Warn("construct_host", "could not bootstrap", "addr", ai)
 			}
 		}
 	}()
@@ -116,7 +113,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 }
 
 // LoadOrCreatePrivKey loads a base64 encoded libp2p private key from a file or creates one if it does not exist.
-func LoadOrCreatePrivKey(identityPath string) (crypto.PrivKey, error) {
+func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, error) {
 	privB64, err := ioutil.ReadFile(identityPath)
 
 	var priv crypto.PrivKey
@@ -130,7 +127,7 @@ func LoadOrCreatePrivKey(identityPath string) (crypto.PrivKey, error) {
 		if err != nil {
 			return nil, xerrors.Errorf("unmarshaling ed25519 key: %w", err)
 		}
-		log.Infof("loaded private key")
+		log.Info("load_or_create_priv_key", "loaded private key")
 
 	case xerrors.Is(err, os.ErrNotExist):
 		priv, _, err = crypto.GenerateEd25519Key(rand.Reader)

@@ -17,7 +17,6 @@ require (
 	github.com/ipfs/go-cid v0.0.6-0.20200501230655-7c82f3b81c00 // indirect
 	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ds-badger2 v0.1.0
-	github.com/ipfs/go-log/v2 v2.1.0
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 	github.com/libp2p/go-libp2p v0.9.2

@@ -14,7 +14,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ipfs/go-datastore"
-	logging "github.com/ipfs/go-log/v2"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	cli "github.com/urfave/cli/v2"
@@ -29,14 +28,9 @@ var (
 	buildDate = "unknown"
 )
 
-var (
-	log = logging.Logger("beacon-relay")
-)
+var log = dlog.DefaultLogger
 
 func main() {
-	logging.SetLogLevel("*", "info")
-	logging.SetLogLevel("beacon-relay", "info")
-
 	app := &cli.App{
 		Name:    "drand-relay-gossip",
 		Version: version,
@@ -119,7 +113,7 @@ var runCmd = &cli.Command{
 			DrandPublicGRPC: cctx.String("grpc-connect"),
 			DrandPublicHTTP: cctx.StringSlice("http-connect"),
 		}
-		if _, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg); err != nil {
+		if _, err := node.NewGossipRelayNode(log, cfg); err != nil {
 			return err
 		}
 		<-(chan int)(nil)
@@ -141,7 +135,7 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("generating ed25519 key: %w", err)
 		}
 
-		_, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap)
+		_, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap, log)
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
 		}
@@ -161,7 +155,7 @@ var clientCmd = &cli.Command{
 		_ = unsub
 
 		for rand := range notifChan {
-			fmt.Printf("got randomness: Round %d: %X\n", rand.Round, rand.Signature[:16])
+			log.Info("client", "got randomness", "round", rand.Round, "signature", rand.Signature[:16])
 		}
 		return nil
 	},
@@ -179,7 +173,7 @@ var idCmd = &cli.Command{
 
 	Flags: []cli.Flag{idFlag},
 	Action: func(cctx *cli.Context) error {
-		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name))
+		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log)
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}

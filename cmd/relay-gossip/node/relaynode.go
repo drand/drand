@@ -65,12 +65,12 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		return nil, xerrors.Errorf("opening datastore: %w", err)
 	}
 
-	priv, err := lp2p.LoadOrCreatePrivKey(cfg.IdentityPath)
+	priv, err := lp2p.LoadOrCreatePrivKey(cfg.IdentityPath, l)
 	if err != nil {
 		return nil, xerrors.Errorf("loading p2p key: %w", err)
 	}
 
-	h, ps, err := lp2p.ConstructHost(ds, priv, cfg.Addr, bootstrap)
+	h, ps, err := lp2p.ConstructHost(ds, priv, cfg.Addr, bootstrap, l)
 	if err != nil {
 		return nil, xerrors.Errorf("constructing host: %w", err)
 	}
@@ -81,7 +81,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 	}
 
 	for _, a := range addrs {
-		l.Info("relay_node", "has addr", "addr", fmt.Sprintf("%s/p2p/%s\n", a, h.ID()))
+		l.Info("relay_node", "has addr", "addr", fmt.Sprintf("%s/p2p/%s", a, h.ID()))
 	}
 
 	t, err := ps.Join(lp2p.PubSubTopic(cfg.ChainHash))

@@ -14,6 +14,7 @@ import (
 	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
+	"github.com/drand/drand/log"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
@@ -162,7 +163,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"))
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +172,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
+		log.DefaultLogger,
 	)
 	if err != nil {
 		return nil, err
