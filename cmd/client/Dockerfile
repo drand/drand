@@ -29,7 +29,7 @@ WORKDIR $SRC_PATH
 RUN go mod download
 
 COPY . $SRC_PATH
-RUN set -x && make build-client
+RUN set -x && make client
 
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -38,15 +38,12 @@ ENV GOPATH                 /go
 ENV SRC_PATH               /go/src/github.com/drand/drand
 ENV DRAND_CLIENT_HOME             /data/drand_client
 # client command-line arguments
-ENV DRAND_CLIENT_NETWORK   ""
 ENV DRAND_CLIENT_HASH   ""
 ENV DRAND_CLIENT_URL   ""
 ENV DRAND_CLIENT_RELAYS   ""
 ENV DRAND_CLIENT_PORT   "42777"
 ENV DRAND_CLIENT_METRICS_ADDRESS   "0.0.0.0:32111"
-ENV DRAND_CLIENT_METRICS_GATEWAY ""
 ENV DRAND_CLIENT_METRICS_ID ""
-ENV DRAND_CLIENT_METRICS_PUSH_INTERVAL 10
 
 # expose peer host
 EXPOSE 42777
@@ -69,4 +66,4 @@ VOLUME $DRAND_CLIENT_HOME
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
 
 # Defaults for demo-client go here
-CMD ["--watch", "--insecure"]
+CMD ["--watch"]

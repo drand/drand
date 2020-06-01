@@ -18,10 +18,7 @@ exec drand-client \
         --url $DRAND_CLIENT_URL \
         --hash $DRAND_CLIENT_HASH \
         --relays $DRAND_CLIENT_RELAYS \
-        --network $DRAND_CLIENT_NETWORK \
         --port $DRAND_CLIENT_PORT \
         --client-metrics-address $DRAND_CLIENT_METRICS_ADDRESS \
-        --client-metrics-gateway $DRAND_CLIENT_METRICS_GATEWAY \
         --client-metrics-id $DRAND_CLIENT_METRICS_ID \
-        --client-metrics-push-interval $DRAND_CLIENT_METRICS_PUSH_INTERVAL \
         $@
