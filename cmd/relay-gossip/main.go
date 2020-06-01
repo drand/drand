@@ -56,7 +56,7 @@ var chainHashFlag = &cli.StringFlag{
 
 var peerWithFlag = &cli.StringSliceFlag{
 	Name:  "peer-with",
-	Usage: "list of peer multiaddrs to direct connect with",
+	Usage: "peer multiaddr(s) to direct connect with",
 }
 
 var idFlag = &cli.StringFlag{
@@ -85,7 +85,7 @@ var runCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "cert",
-			Usage: "file containing gRPC transport credentials of peer",
+			Usage: "path to a file containing gRPC transport credentials of peer",
 		},
 		&cli.BoolFlag{
 			Name:  "insecure",
