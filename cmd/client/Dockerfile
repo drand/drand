@@ -54,8 +54,8 @@ EXPOSE 42777
 # expose promethius API
 EXPOSE 32111
 
-COPY --from=builder $SRC_PATH/drand-client /usr/local/bin/demo-client
-COPY --from=builder $SRC_PATH/cmd/demo-client/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --from=builder $SRC_PATH/drand-client /usr/local/bin/drand-client
+COPY --from=builder $SRC_PATH/cmd/drand-client/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=builder /tmp/tini /sbin/tini
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs

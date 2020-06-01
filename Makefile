@@ -38,7 +38,7 @@ drand: build
 
 # create the "drand-client" binary in the current folder
 client:
-	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/demo-client.version=`git describe --tags` -X github.com/drand/cmd/demo-client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/demo-client.gitCommit=`git rev-parse HEAD`" ./cmd/demo-client
+	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/client.version=`git describe --tags` -X github.com/drand/cmd/client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/client.gitCommit=`git rev-parse HEAD`" ./cmd/client
 drand-client: client
 
 # create the "drand-relay-http" binary in the current folder
