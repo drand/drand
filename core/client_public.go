@@ -35,28 +35,6 @@ func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client 
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
 }
 
-// LastPublic returns the last randomness beacon from the server associated. It
-// returns it if the randomness is valid. Secure indicates that the request
-// must be made over a TLS protected channel.
-func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.PublicRand(context.TODO(), &peerAddr{addr, secure}, &drand.PublicRandRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return resp, c.verify(pub.Key(), resp)
-}
-
-// Public returns the random output of the specified beacon at a given index. It
-// returns it if the randomness is valid. Secure indicates that the request
-// must be made over a TLS protected channel.
-func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.PublicRand(context.TODO(), &peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
-	if err != nil {
-		return nil, err
-	}
-	return resp, c.verify(pub.Key(), resp)
-}
-
 // TODO: make the other methods follow the "peer" approach
 func (c *Client) ChainInfo(p net.Peer) (*chain.Info, error) {
 	resp, err := c.client.ChainInfo(context.TODO(), p, &drand.ChainInfoRequest{})
