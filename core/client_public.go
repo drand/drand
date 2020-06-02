@@ -1,17 +1,12 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
-	"errors"
-	"fmt"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber"
 	"github.com/drand/kyber/encrypt/ecies"
 	"google.golang.org/grpc"
 )
@@ -64,27 +59,6 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 		return nil, err
 	}
 	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
-}
-
-func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
-	prevSig := resp.GetPreviousSignature()
-	round := resp.GetRound()
-	msg := chain.Message(round, prevSig)
-	rand := resp.GetRandomness()
-	if rand == nil {
-		return errors.New("drand: no randomness found")
-	}
-	ver := key.Scheme.VerifyRecovered(public, msg, resp.GetSignature())
-	if ver != nil {
-		return ver
-	}
-	expect := chain.RandomnessFromSignature(resp.GetSignature())
-	if !bytes.Equal(expect, rand) {
-		exp := hex.EncodeToString(expect)[10:14]
-		got := hex.EncodeToString(rand)[10:14]
-		return fmt.Errorf("randomness: got %s , expected %s", got, exp)
-	}
-	return nil
 }
 
 type peerAddr struct {
