@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/drand/drand/client"
-	psc "github.com/drand/drand/cmd/relay-gossip/client"
-	"github.com/drand/drand/cmd/relay-gossip/lp2p"
-	"github.com/drand/drand/cmd/relay-gossip/node"
+	"github.com/drand/drand/client/grpc"
 	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/lp2p"
+	psc "github.com/drand/drand/lp2p/client"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -105,18 +105,19 @@ var runCmd = &cli.Command{
 			defer metricsListener.Close()
 			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
-		cfg := &node.GossipRelayConfig{
-			ChainHash:       cctx.String("chain-hash"),
-			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
-			Addr:            cctx.String("listen"),
-			DataDir:         cctx.String("store"),
-			IdentityPath:    cctx.String(idFlag.Name),
-			CertPath:        cctx.String("cert"),
-			Insecure:        cctx.Bool("insecure"),
-			DrandPublicGRPC: cctx.String("grpc-connect"),
-			DrandPublicHTTP: cctx.StringSlice("http-connect"),
+		grpclient, err := grpc.New(cctx.String("grpc-connect"), cctx.String("cert"), cctx.Bool("insecure"))
+		if err != nil {
+			return err
 		}
-		if _, err := node.NewGossipRelayNode(log, cfg); err != nil {
+		cfg := &lp2p.GossipRelayConfig{
+			ChainHash:    cctx.String("chain-hash"),
+			PeerWith:     cctx.StringSlice(peerWithFlag.Name),
+			Addr:         cctx.String("listen"),
+			DataDir:      cctx.String("store"),
+			IdentityPath: cctx.String(idFlag.Name),
+			Client:       grpclient,
+		}
+		if _, err := lp2p.NewGossipRelayNode(log, cfg); err != nil {
 			return err
 		}
 		<-(chan int)(nil)
@@ -138,7 +139,7 @@ var clientCmd = &cli.Command{
 		},
 	},
 	Action: func(cctx *cli.Context) error {
-		bootstrap, err := node.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
+		bootstrap, err := lp2p.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
 			return xerrors.Errorf("parsing peer-with: %w", err)
 		}
