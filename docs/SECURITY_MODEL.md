@@ -5,7 +5,6 @@
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [Notations](#notations)
 - [Security Model](#security-model)
   - [Distributed Key Generation Ceremony (setup phase)](#distributed-key-generation-ceremony-setup-phase)
@@ -97,7 +96,7 @@ for threshold BLS signatures are secure in the model of Gennaro.  However, it is
 believed that this assumptions holds in this context as well and is being worked
 on.  Note that using threshold BLS signatures as a source of randomness _is_
 formally proven secure in this [paper](https://eprint.iacr.org/2020/096.pdf)
-from Galindo et al. 
+from Galindo et al.
 
 ### Randomness generation model
 
@@ -109,7 +108,7 @@ chain advances if conditions are there (enough partial beacon and time for a new
 start the rounds at the same time. The accuracy of the synchronicity between
 clocks only needs to be at the order the round frequency (order of tens of
 seconds), which is much higher than the reality of the server's clock (NTP-synced
-servers achieve [offsets of under a second over the globe](https://www.eecis.udel.edu/~mills/database/reports/ntp-survey99-minar.pdf)). 
+servers achieve [offsets of under a second over the globe](https://www.eecis.udel.edu/~mills/database/reports/ntp-survey99-minar.pdf)).
 
 **Broadcast channel**: The randomness generation models only needs a regular
 broadcast channel. It does **not** need to be reliable given the deterministic
@@ -144,35 +143,34 @@ to generate randomness.
 There can be multiple ways of attacking the drand network during the randomness
 generation phase, each with different consequences.
 
-#### Front Running 
+#### Front Running
 
-1. **Passive Adversary Scenario**
+1. Passive Adversary Scenario
 
-An attacker that is able to listen passively on the traffic
-between nodes (**if** TLS is not used - which is not a recommended setup) OR that is
-able to listen to plaintext traffic from the network of a threshold of nodes might be
-able to see a threshold number of partial beacons before any other honest nodes.
+    An attacker that is able to listen passively on the traffic
+    between nodes (**if** TLS is not used - which is not a recommended setup) OR that is
+    able to listen to plaintext traffic from the network of a threshold of nodes might be
+    able to see a threshold number of partial beacons before any other honest nodes.
 
-Consequence: The attacker in such position is able to aggregate the final
-beacon of the current round before any other drand nodes. However, the advantage
-should as most as half of the RTT of the slowest of the link between the honest
-drand nodes. Drand end users should be using the round number as a marker and
-not the time accuracy which may not be granular enough for some applications.
+    Consequence: The attacker in such position is able to aggregate the final
+    beacon of the current round before any other drand nodes. However, the advantage
+    should as most as half of the RTT of the slowest of the link between the honest
+    drand nodes. Drand end users should be using the round number as a marker and
+    not the time accuracy which may not be granular enough for some applications.
 
-2. **Active Adversary Scenario**: 
+2. Active Adversary Scenario
 
-Assuming the threshold is 50%+1, an adversary tries to "take down" N/2 drand
-nodes by either running a DoS on those, or block outgoing traffic from these
-drand nodes.
+    Assuming the threshold is 50%+1, an adversary tries to "take down" N/2 drand
+    nodes by either running a DoS on those, or block outgoing traffic from these
+    drand nodes.
 
-Consequence: The adversary becomes the node that can decide whether to aggregate
-the final beacon of the current round or not, because the rest of the still
-alive nodes will send their partal beacons to the adversary but the adversary
-does not send its, effectively becoming the last "missing piece" to create the
-final beacon. The adversary has the choice to release now or later the final
-beacon and the adversary can already use the final beacon for the application
-while the rest of the network does not know it yet.
-
+    Consequence: The adversary becomes the node that can decide whether to aggregate
+    the final beacon of the current round or not, because the rest of the still
+    alive nodes will send their partal beacons to the adversary but the adversary
+    does not send its, effectively becoming the last "missing piece" to create the
+    final beacon. The adversary has the choice to release now or later the final
+    beacon and the adversary can already use the final beacon for the application
+    while the rest of the network does not know it yet.
 
 #### DoS the drand network
 
@@ -193,7 +191,7 @@ partial beacon that leaves the drand's node network. That is a _critical
 distinction_ to make since, otherwise, a drand node could still collect the
 partial beacons of under-attacked drand nodes, one by one. As soon as this node
 gets a threhsold of them, it can reconstruct the final beacon and broadcast it
-to the relay network. 
+to the relay network.
 
 **Defense mechanism**: To counter DoS attacks, the drand nodes must block the
 incoming traffic as early as possible. To achieve that, allowing traffic only
@@ -232,9 +230,10 @@ not _unpredictable_ anymore from the point of view of the attacker.  However,
 the drand randomness stays _unbiasable_: attacker is not able to change the
 randomness in any way.
 
-**Mitigation**: Proactive resharing allows both to 
+**Mitigation**: Proactive resharing allows both to:
+
 1. Let a new group of nodes take over the randomness generation, potentially
-   with more nodes and higher threshold. 
+   with more nodes and higher threshold.
 2. Refresh shares for nodes that participate in the resharing in the new group:
    partial beacons created from an old share is not validated by the members of
    the new group.
@@ -272,7 +271,7 @@ resharing or not.
 **Scenario 1**: An attacker only "controls" less than a threshold of nodes. The
 attacker can choose the private polynomial used to create the shares. Attacker can
 influence the distribution of the private share but is believed to not being
-able to bias the distribution of the randomness later on. 
+able to bias the distribution of the randomness later on.
 
 **Scenario 2**: An attacker controls more than a threshold of nodes during the
 DKG. This scenario is similar to the scenario 2 for the randomness generation
@@ -311,10 +310,10 @@ an attacker that would send different public polynomials is likely to end up as
 not a qualified dealer since honest nodes would relay its packet and find the
 inconsistency.
 
-## TO REVIEW:
+## To review
 
-* drand must make sure that if a DKG went "wrong" during a resharing because of
-  the broadcast channel assumption being violated, it keeps the previous share
-  to be able to start a new DKG again. Currently it erases the previous share
-  when DKG finishes. For a fresh DKG it is fine since nodes can restart from
-  scratch as before.
+Drand must make sure that if a DKG went _wrong_ during a resharing because of
+ the broadcast channel assumption being violated, it keeps the previous share
+ to be able to start a new DKG again. Currently it erases the previous share
+ when DKG finishes. For a fresh DKG it is fine since nodes can restart from
+ scratch as before.
