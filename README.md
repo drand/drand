@@ -214,7 +214,7 @@ Here `Signature` is the threshold BLS signature on the previous signature value
 specifies the index of `Randomness` in the sequence of all random values
 produced by this drand instance. The **message signed** is therefore the
 concatenation of the round number treated as a `uint64` and the previous
-signature. At the moment, we are only using BLS signatures on the BN256 curves
+signature. At the moment, we are only using BLS signatures on the bls12-381 curves
 and the signature is made over G1.
 
 ### Fetching Private Randomness
@@ -332,7 +332,7 @@ helpful discussions on the drand design.
 
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native
-Golang bn256 implementation and for their help in the design of drand and
+Golang bls12-381 implementation and for their help in the design of drand and
 future ideas.
 
 Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.ch)

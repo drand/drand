@@ -361,7 +361,7 @@ The JSON-formatted output has the following form:
 
 The "gid" simply indicates which group the data belongs to. It is present for
 scalar and points on the curve, even though scalars are the same on the three
-groups of BN256. The field is present already to be able to accommodate
+groups of bls12-381. The field is present already to be able to accommodate
 different curves later on.
 
 ### Chain Information
