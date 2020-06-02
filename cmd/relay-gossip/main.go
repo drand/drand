@@ -35,6 +35,14 @@ func main() {
 		Version:  version,
 		Usage:    "pubsub relay for drand randomness beacon",
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
+		Flags: []cli.Flag{
+			// Global use deprecated. Use in appropriate subcommand.
+			// TODO: remove in a future release.
+			&cli.StringFlag{
+				Name:   "chain-hash",
+				Hidden: true,
+			},
+		},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
@@ -48,10 +56,8 @@ func main() {
 }
 
 var chainHashFlag = &cli.StringFlag{
-	Name:     "chain-hash",
-	Usage:    "hash of the drand group chain (hex encoded)",
-	Aliases:  []string{"c"},
-	Required: true,
+	Name:  "chain-hash",
+	Usage: "hash of the drand group chain (hex encoded)",
 }
 
 var peerWithFlag = &cli.StringSliceFlag{
@@ -110,8 +116,16 @@ var runCmd = &cli.Command{
 			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
 		}
+
+		// The global `chain-hash` param is deprecated.
+		// TODO: use `cctx.String("chain-hash")` when support is removed.
+		chainHash := localOrGlobalString(cctx, "chain-hash")
+		if chainHash == "" {
+			return xerrors.Errorf("missing required chain-hash parameter")
+		}
+
 		cfg := &node.GossipRelayConfig{
-			ChainHash:       cctx.String("chain-hash"),
+			ChainHash:       chainHash,
 			PeerWith:        cctx.StringSlice(peerWithFlag.Name),
 			Addr:            cctx.String("listen"),
 			DataDir:         cctx.String("store"),
@@ -186,4 +200,14 @@ var idCmd = &cli.Command{
 		fmt.Printf("%s\n", peerId)
 		return nil
 	},
+}
+
+func localOrGlobalString(cctx *cli.Context, name string) string {
+	for _, c := range cctx.Lineage() {
+		str := c.String(name)
+		if str != "" {
+			return str
+		}
+	}
+	return ""
 }
