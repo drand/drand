@@ -1,17 +1,21 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"time"
 
-	"github.com/drand/drand/cmd/relay-gossip/client"
+	"github.com/drand/drand/client"
+	psc "github.com/drand/drand/cmd/relay-gossip/client"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
-	"github.com/drand/drand/protobuf/drand"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/ipfs/go-datastore"
 	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
@@ -115,6 +119,7 @@ var runCmd = &cli.Command{
 		if cctx.IsSet("metrics") {
 			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
+			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
 
 		// The global `chain-hash` param is deprecated.
@@ -144,9 +149,19 @@ var runCmd = &cli.Command{
 }
 
 var clientCmd = &cli.Command{
-	Name:  "client",
-	Usage: "starts a drand gossip client and prints out randomness as it is received",
-	Flags: []cli.Flag{chainHashFlag, peerWithFlag},
+	Name: "client",
+	Flags: []cli.Flag{
+    chainHashFlag,
+		peerWithFlag,
+		&cli.StringSliceFlag{
+			Name:  "http-failover",
+			Usage: "URL(s) of drand HTTP API(s) to failover to if gossipsub messages do not arrive in time",
+		},
+		&cli.DurationFlag{
+			Name:  "http-failover-grace",
+			Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
+		},
+	},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := node.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
 		if err != nil {
@@ -162,24 +177,48 @@ var clientCmd = &cli.Command{
 		if err != nil {
 			return xerrors.Errorf("constructing host: %w", err)
 		}
+    
+    // The global `chain-hash` param is deprecated.
+		// TODO: use `cctx.String("chain-hash")` when support is removed.
+		chainHashStr := localOrGlobalString(cctx, "chain-hash")
+		if chainHashStr == "" {
+			return xerrors.Errorf("missing required chain-hash parameter")
+		}
 
-		c, err := client.NewWithPubsub(ps, nil, nil)
+		chainHash, err := hex.DecodeString(chainHashStr)
 		if err != nil {
-			return xerrors.Errorf("constructing client: %w", err)
+			return xerrors.Errorf("decoding chain hash: %w", err)
 		}
 
-		var notifChan <-chan drand.PublicRandResponse
-		var unsub client.UnsubFunc
-		{
-			ch := make(chan drand.PublicRandResponse, 5)
-			notifChan = ch
-			unsub = c.Sub(ch)
-		}
-		_ = unsub
+		httpFailover := cctx.StringSlice("http-failover")
 
-		for rand := range notifChan {
-			log.Info("client", "got randomness", "round", rand.Round, "signature", rand.Signature[:16])
+		var c client.Watcher
+		// if we have http failover endpoints then use the drand HTTP client with pubsub option
+		if len(httpFailover) > 0 {
+			grace := cctx.Duration("http-failover-grace")
+			if grace == 0 {
+				grace = time.Second * 5
+			}
+			c, err = client.New(
+				psc.WithPubsub(ps),
+				client.WithChainHash(chainHash),
+				client.WithHTTPEndpoints(httpFailover),
+				client.WithFailoverGracePeriod(grace),
+			)
+			if err != nil {
+				return xerrors.Errorf("constructing client: %w", err)
+			}
+		} else {
+			c, err = psc.NewWithPubsub(ps, nil, nil)
+			if err != nil {
+				return xerrors.Errorf("constructing client: %w", err)
+			}
 		}
+
+		for rand := range c.Watch(context.Background()) {
+			log.Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
+		}
+
 		return nil
 	},
 }
@@ -193,11 +232,11 @@ var idCmd = &cli.Command{
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}
-		peerId, err := peer.IDFromPrivateKey(priv)
+		peerID, err := peer.IDFromPrivateKey(priv)
 		if err != nil {
 			return xerrors.Errorf("computing peerid: %w", err)
 		}
-		fmt.Printf("%s\n", peerId)
+		fmt.Printf("%s\n", peerID)
 		return nil
 	},
 }

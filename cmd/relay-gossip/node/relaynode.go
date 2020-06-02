@@ -13,6 +13,7 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/gogo/protobuf/proto"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	bds "github.com/ipfs/go-ds-badger2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
@@ -101,6 +102,10 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 		} else {
 			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
 		}
+		opts = append(opts,
+			grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+			grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		)
 	}
 	g := &GossipRelayNode{
 		l:         l,

@@ -35,9 +35,9 @@ var (
 	buildDate = "unknown"
 )
 
-var urlFlag = &cli.StringFlag{
+var urlsFlag = &cli.StringSliceFlag{
 	Name:  "url",
-	Usage: "root URL for fetching randomness",
+	Usage: "root URLs for fetching randomness",
 }
 
 var hashFlag = &cli.StringFlag{
@@ -95,11 +95,11 @@ var clientMetricsIDFlag = &cli.StringFlag{
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "demo-client"
+	app.Name = "drand-client"
 	app.Version = version
 	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
 	app.Flags = []cli.Flag{
-		urlFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
+		urlsFlag, hashFlag, insecureFlag, watchFlag, roundFlag,
 		relayPeersFlag, relayPortFlag,
 		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
 		clientMetricsPushIntervalFlag,
@@ -117,7 +117,7 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
-	if !c.IsSet(urlFlag.Name) {
+	if !c.IsSet(urlsFlag.Name) {
 		return fmt.Errorf("A URL is required to learn randomness from an HTTP endpoint")
 	}
 
@@ -131,9 +131,9 @@ func Client(c *cli.Context) error {
 		opts = append(opts, client.WithChainHash(hex))
 	}
 	if c.IsSet(insecureFlag.Name) {
-		opts = append(opts, client.WithInsecureHTTPEndpoints([]string{c.String(urlFlag.Name)}))
+		opts = append(opts, client.WithInsecureHTTPEndpoints(c.StringSlice(urlsFlag.Name)))
 	} else {
-		opts = append(opts, client.WithHTTPEndpoints([]string{c.String(urlFlag.Name)}))
+		opts = append(opts, client.WithHTTPEndpoints(c.StringSlice(urlsFlag.Name)))
 	}
 
 	if c.IsSet(relayPeersFlag.Name) {

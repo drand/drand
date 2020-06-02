@@ -160,3 +160,41 @@ func TestClientWithWatcher(t *testing.T) {
 		i++
 	}
 }
+
+func TestClientAutoWatch(t *testing.T) {
+	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	defer cancel()
+
+	results := []MockResult{
+		{rnd: 1, rand: []byte{1}},
+		{rnd: 2, rand: []byte{2}},
+	}
+
+	ch := make(chan Result, len(results))
+	for i := range results {
+		ch <- &results[i]
+	}
+	close(ch)
+
+	watcherCtor := func(chainInfo *chain.Info, _ Cache) (Watcher, error) {
+		return &MockClient{WatchCh: ch}, nil
+	}
+
+	c, err := New(
+		WithHTTPEndpoints([]string{"http://" + addr1}),
+		WithChainHash(chainInfo.Hash()),
+		WithWatcher(watcherCtor),
+		WithAutoWatch(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	time.Sleep(chainInfo.Period)
+	cancel()
+	r, err := c.Get(context.Background(), results[0].Round())
+	if err != nil {
+		t.Fatal(err)
+	}
+	compareResults(t, r, &results[0])
+}

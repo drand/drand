@@ -3,8 +3,6 @@ package client
 import (
 	"context"
 	"testing"
-
-	"github.com/drand/drand/log"
 )
 
 func TestCacheGet(t *testing.T) {
@@ -82,7 +80,7 @@ func TestCacheWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	cache, _ := NewCachingClient(m, arcCache)
-	c := newWatchAggregator(cache, log.DefaultLogger)
+	c := newWatchAggregator(cache, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)

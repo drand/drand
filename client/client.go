@@ -113,7 +113,8 @@ func makeClient(cfg clientConfig) (Client, error) {
 		trySetLog(c, cfg.log)
 	}
 
-	c = newWatchAggregator(c, cfg.log)
+	c = newWatchAggregator(c, cfg.autoWatch)
+	trySetLog(c, cfg.log)
 
 	if cfg.prometheus != nil {
 		metrics.RegisterClientMetrics(cfg.prometheus)
@@ -148,6 +149,8 @@ type clientConfig struct {
 	failoverGracePeriod time.Duration
 	// watcher is a constructor function that creates a new Watcher
 	watcher WatcherCtor
+	// autoWatch causes the client to start watching immediately in the background so that new randomness is proactively fetched and added to the cache.
+	autoWatch bool
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
 }
@@ -253,6 +256,16 @@ type WatcherCtor func(chainInfo *chain.Info, cache Cache) (Watcher, error)
 func WithWatcher(wc WatcherCtor) Option {
 	return func(cfg *clientConfig) error {
 		cfg.watcher = wc
+		return nil
+	}
+}
+
+// WithAutoWatch causes the client to automatically attempt to get
+// randomness for rounds, so that it will hopefully already be cached
+// when `Get` is called.
+func WithAutoWatch() Option {
+	return func(cfg *clientConfig) error {
+		cfg.autoWatch = true
 		return nil
 	}
 }
