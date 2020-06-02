@@ -1,2 +1,2 @@
 #!/bin/sh
-docker build -t drandorg/demo-client:1.0 -f ./Dockerfile ../..
+docker build -t drandorg/observer-client:1.0 -f ./Dockerfile ../..

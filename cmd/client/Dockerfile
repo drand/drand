@@ -22,8 +22,6 @@ RUN set -x \
         && wget -q -O tini https://github.com/krallin/tini/releases/download/$TINI_VERSION/tini \
         && chmod +x tini
 
-# XXX: Install telegraf
-
 # Get the TLS CA certificates, they're not provided by busybox.
 RUN apt-get update && apt-get install -y ca-certificates
 
@@ -41,11 +39,6 @@ ENV GOPATH                 /go
 ENV SRC_PATH               /go/src/github.com/drand/drand
 ENV DRAND_CLIENT_HOME             /data/drand_client
 # client command-line arguments
-ENV DRAND_CLIENT_HASH   ""
-ENV DRAND_CLIENT_URL   ""
-ENV DRAND_CLIENT_RELAYS   ""
-ENV DRAND_CLIENT_PORT   "42777"
-ENV DRAND_CLIENT_METRICS_ADDRESS   "0.0.0.0:32111"
 ENV DRAND_CLIENT_METRICS_ID ""
 
 # expose peer host
@@ -55,7 +48,7 @@ EXPOSE 42777
 EXPOSE 32111
 
 COPY --from=builder $SRC_PATH/drand-client /usr/local/bin/drand-client
-COPY --from=builder $SRC_PATH/cmd/drand-client/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --from=builder $SRC_PATH/cmd/client/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --from=builder /tmp/su-exec/su-exec /sbin/su-exec
 COPY --from=builder /tmp/tini /sbin/tini
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
@@ -67,6 +60,4 @@ RUN mkdir -p $DRAND_CLIENT_HOME && \
 
 VOLUME $DRAND_CLIENT_HOME
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]
-
-# Defaults for demo-client go here
 CMD ["--watch"]
