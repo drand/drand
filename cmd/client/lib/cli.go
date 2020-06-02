@@ -24,15 +24,15 @@ var (
 	ClientFlags = []cli.Flag{
 		&cli.StringSliceFlag{
 			Name:  "url",
-			Usage: "root URLs for fetching randomness",
+			Usage: "root URL(s) for fetching randomness",
 		},
 		&cli.StringFlag{
 			Name:  "grpc-connect",
-			Usage: "host:port to dial a GRPC randomness provider",
+			Usage: "host:port to dial a gRPC randomness provider",
 		},
 		&cli.StringFlag{
 			Name:  "cert",
-			Usage: "file containing GRPC transport credentials of peer",
+			Usage: "Path to a file containing gRPC transport credentials of peer",
 		},
 		&cli.StringFlag{
 			Name:  "hash",
@@ -43,8 +43,8 @@ var (
 			Usage: "Allow autodetection of the chain information",
 		},
 		&cli.StringSliceFlag{
-			Name:  "relays",
-			Usage: "list of multiaddresses of relays to connect with",
+			Name:  "relay",
+			Usage: "relay peer multiaddr(s) to connect with",
 		},
 		&cli.IntFlag{
 			Name:  "port",
@@ -60,11 +60,11 @@ func Create(c *cli.Context, opts ...client.Option) (client.Client, error) {
 		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.IsSet("insecure"))
 	}
 	if c.IsSet("hash") {
-		hex, err := hex.DecodeString(c.String("hash"))
+		hash, err := hex.DecodeString(c.String("hash"))
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, client.WithChainHash(hex))
+		opts = append(opts, client.WithChainHash(hash))
 	}
 	if c.IsSet("insecure") {
 		opts = append(opts, client.WithInsecureHTTPEndpoints(c.StringSlice("url")))
