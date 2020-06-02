@@ -241,8 +241,11 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	r, err := c.Get(ctx, round)
-	if err != nil {
+	if err != nil || r == nil {
 		l.log.Error("drand", "can't get becon", "err", err)
+	}
+	if r == nil {
+		return
 	}
 	resp = &drand.PublicRandResponse{
 		Round:      r.Round(),
