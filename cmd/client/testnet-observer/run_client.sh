@@ -1,6 +1,6 @@
 #!/bin/sh
 set -x
-demo-client \
+drand-client \
         --url http://pl-us.testnet.drand.sh \
         --url http://pl-eu.testnet.drand.sh \
         --url http://pl-sin.testnet.drand.sh \
