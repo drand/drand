@@ -25,6 +25,11 @@ func TestPrioritizingGet(t *testing.T) {
 		r.(*MockResult).AssertValid(t)
 	}
 
+	_, err = p.Info(context.Background())
+	if err == nil {
+		t.Fatal("shouldn't have group info with non-http clients")
+	}
+
 	r, err := p.Get(context.Background(), 0)
 	if err != nil {
 		t.Fatal("should not error even when one client does")

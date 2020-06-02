@@ -54,8 +54,13 @@ func TestClientLib(t *testing.T) {
 		t.Fatal("http should construct", err)
 	}
 
-	err = run([]string{"mock-client", "--relays", "127.0.0.1:0"})
+	err = run([]string{"mock-client", "--relays", "/ip4/8.8.8.8/tcp/9/p2p/QmSoLju6m7xTh3DuokvT3886QRYqxAzb1kShaanJgW36yx"})
 	if err == nil {
 		t.Fatal("relays need URL or hash")
+	}
+
+	err = run([]string{"mock-client", "--relays", "/ip4/8.8.8.8/tcp/9/p2p/QmSoLju6m7xTh3DuokvT3886QRYqxAzb1kShaanJgW36yx", "--hash", hex.EncodeToString(info.Hash())})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
