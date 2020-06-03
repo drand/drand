@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	dlog "github.com/drand/drand/log"
@@ -40,8 +41,7 @@ func main() {
 		Usage:   "pubsub relay for randomness beacon",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "chain-hash",
-				Required: true,
+				Name: "chain-hash",
 			},
 		},
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
@@ -60,6 +60,16 @@ func main() {
 var peerWithFlag = &cli.StringSliceFlag{
 	Name:  "peer-with",
 	Usage: "list of peers to connect with",
+}
+
+var httpFailoverFlag = &cli.StringSliceFlag{
+	Name:  "http-failover",
+	Usage: "URL(s) of drand HTTP API(s) to failover to if randomness rounds do not arrive in time",
+}
+
+var httpFailoverGraceFlag = &cli.DurationFlag{
+	Name:  "http-failover-grace",
+	Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
 }
 
 var runCmd = &cli.Command{
@@ -96,7 +106,10 @@ var runCmd = &cli.Command{
 			Name:  "metrics",
 			Usage: "local host:port to bind a metrics servlet (optional)",
 		},
-		peerWithFlag, idFlag,
+		peerWithFlag,
+		idFlag,
+		httpFailoverFlag,
+		httpFailoverGraceFlag,
 	},
 
 	Action: func(cctx *cli.Context) error {
@@ -105,17 +118,67 @@ var runCmd = &cli.Command{
 			defer metricsListener.Close()
 			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
-		grpclient, err := grpc.New(cctx.String("grpc-connect"), cctx.String("cert"), cctx.Bool("insecure"))
-		if err != nil {
-			return err
+
+		var chainHash []byte
+		var err error
+
+		if cctx.String("chain-hash") != "" {
+			chainHash, err = hex.DecodeString(cctx.String("chain-hash"))
+			if err != nil {
+				return xerrors.Errorf("decoding chain hash: %w", err)
+			}
 		}
+
+		var c client.Client
+		httpConnect := cctx.StringSlice("http-connect")
+
+		if len(httpConnect) > 0 {
+			opts := []client.Option{}
+			if chainHash != nil {
+				opts = append(opts, client.WithChainHash(chainHash), client.WithHTTPEndpoints(httpConnect))
+			} else {
+				opts = append(opts, client.WithInsecureHTTPEndpoints(httpConnect))
+			}
+			c, err = client.New(opts...)
+		} else {
+			grpcClient, err := grpc.New(cctx.String("grpc-connect"), cctx.String("cert"), cctx.Bool("insecure"))
+			if err != nil {
+				return xerrors.Errorf("constructing gRPC client: %w", err)
+			}
+
+			httpFailover := cctx.StringSlice(httpFailoverFlag.Name)
+			if len(httpFailover) > 0 {
+				chainInfo, err := c.Info(context.Background())
+				if err != nil {
+					return xerrors.Errorf("getting chain info: %w", err)
+				}
+				grace := cctx.Duration(httpFailoverGraceFlag.Name)
+				if grace == 0 {
+					grace = time.Second * 5
+				}
+				c, err = client.New(
+					client.WithChainInfo(chainInfo),
+					client.WithHTTPEndpoints(httpFailover),
+					client.WithFailoverGracePeriod(grace),
+					client.WithWatcher(func(_ *chain.Info, cache client.Cache) (client.Watcher, error) {
+						return grpcClient, nil
+					}),
+				)
+			} else {
+				c = grpcClient
+			}
+		}
+		if err != nil {
+			return xerrors.Errorf("constructing client: %w", err)
+		}
+
 		cfg := &lp2p.GossipRelayConfig{
 			ChainHash:    cctx.String("chain-hash"),
 			PeerWith:     cctx.StringSlice(peerWithFlag.Name),
 			Addr:         cctx.String("listen"),
 			DataDir:      cctx.String("store"),
 			IdentityPath: cctx.String(idFlag.Name),
-			Client:       grpclient,
+			Client:       c,
 		}
 		if _, err := lp2p.NewGossipRelayNode(log, cfg); err != nil {
 			return err
@@ -129,14 +192,8 @@ var clientCmd = &cli.Command{
 	Name: "client",
 	Flags: []cli.Flag{
 		peerWithFlag,
-		&cli.StringSliceFlag{
-			Name:  "http-failover",
-			Usage: "URL(s) of drand HTTP API(s) to failover to if gossipsub messages do not arrive in time",
-		},
-		&cli.DurationFlag{
-			Name:  "http-failover-grace",
-			Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
-		},
+		httpFailoverFlag,
+		httpFailoverGraceFlag,
 	},
 	Action: func(cctx *cli.Context) error {
 		bootstrap, err := lp2p.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
@@ -159,12 +216,12 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("decoding chain hash: %w", err)
 		}
 
-		httpFailover := cctx.StringSlice("http-failover")
+		httpFailover := cctx.StringSlice(httpFailoverFlag.Name)
 
 		var c client.Watcher
 		// if we have http failover endpoints then use the drand HTTP client with pubsub option
 		if len(httpFailover) > 0 {
-			grace := cctx.Duration("http-failover-grace")
+			grace := cctx.Duration(httpFailoverGraceFlag.Name)
 			if grace == 0 {
 				grace = time.Second * 5
 			}
