@@ -214,13 +214,13 @@ in the new group configuration.
 Each non-coordinator participant sends their information via the following RPC
 call:
 
-```bash
+```protobuf
 rpc SignalDKGParticipant(SignalDKGPacket) returns (drand.Empty);
 ```
 
 The relevant protobuf packets are the following:
 
-```bash
+```protobuf
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
 // start the DKG automatically.
@@ -253,13 +253,13 @@ slice of bytes.
 The coordinator then pushes the group configuration to the participants via the
 following RPC call:
 
-```bash
+```protobuf
 rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
 ```
 
 with the relevant protobuf packets as follow:
 
-```bash
+```protobuf
 // PushDKGInfo is the packet the coordinator sends that contains the group over
 // which to run the DKG on, the secret proof (to prove it's he's part of the
 // expected group, and it's not a random packet) and as well the time at which
@@ -335,13 +335,13 @@ the cryptography section explains in details the difference between the two.
 For a new setup, nodes exchanges the DKG packets
 using the following RPC call:
 
-```bash
+```protobuf
 rpc FreshDKG(DKGPacket) returns (drand.Empty);
 ```
 
 and the following protobuf packets:
 
-```bash
+```protobuf
 message DKGPacket {
     dkg.Packet dkg = 1;
 }
@@ -412,7 +412,7 @@ derived. The share is encrypted via ECIES using the public key of the recipient
 share holder.  A node bundles all its deals into a `DealBundle` that is
 signed.Here is the protobuf wire specification of the deals:
 
-```bash
+```protobuf
 // DealBundle is a packet issued by a dealer that contains each individual
 // deals, as well as the coefficients of the public polynomial he used.
 message DealBundle {
@@ -453,7 +453,7 @@ complaint (`false`) and if the share was valid, the status is set as a success
 A node bundles all its responses into a `ResponseBundle` that is signed. Here is
 the protobuf description:
 
-```bash
+```protobuf
 // ResponseBundle is a packet issued by a share holder that contains all the
 // responses (complaint and/or success) to broadcast.
 message ResponseBundle {
@@ -489,7 +489,7 @@ unencrypted.
 A node bundles all its `Justifications` into a `JustificationBundle` that is
 signed. Here is the protobuf description:
 
-```bash
+```protobuf
 // JustifBundle is a packet that holds all justifications a dealer must
 // produce
 message JustifBundle {
@@ -627,7 +627,7 @@ of the current time. More information in the following section.
 
 **Partial Beacon Broadcast**:Each node then calls the following RPC call
 
-```bash
+```protobuf
 rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
 ```
 
@@ -635,7 +635,7 @@ with the following protobuf packets:
 
 XXX: protobuf shown is assuming [issue 256](https://github.com/drand/drand/issues/256)is fixed.
 
-```bash
+```protobuf
 message PartialBeaconPacket {
     // Round is the round for which the beacon will be created from the partial
     // signatures
@@ -768,13 +768,13 @@ progress (previous section), a node should sync to all other nodes in the
 network. A node indicates the last beacon saved in its database and calls the
 following RPC:
 
-```bash
+```protobuf
 rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 ```
 
 with the following protobuf packet:
 
-```bash
+```protobuf
 // SyncRequest is from a node that needs to sync up with the current head of the
 // chain
 message SyncRequest {
