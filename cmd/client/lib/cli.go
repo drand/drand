@@ -27,8 +27,9 @@ var (
 			Usage: "root URL(s) for fetching randomness",
 		},
 		&cli.StringFlag{
-			Name:  "grpc-connect",
-			Usage: "host:port to dial a gRPC randomness provider",
+			Name:    "grpc-connect",
+			Usage:   "host:port to dial a gRPC randomness provider",
+			Aliases: []string{"connect"},
 		},
 		&cli.StringFlag{
 			Name:  "cert",
