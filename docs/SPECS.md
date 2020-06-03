@@ -77,21 +77,21 @@ what drand nodes knows about other drand nodes:
 
 ```go
 type Node struct {
-    Key  []byte // public key on bls12-381 G1
-    Addr string // publicly reachable address of the node
-    TLS  bool // reachable via TLS
-    Index  uint32 // index of the node w.r.t. to the network
+	Key[] byte // public key on bls12-381 G1
+	Addr string // publicly reachable address of the node
+	TLS bool // reachable via TLS
+	Index uint32 // index of the node w.r.t. to the network
 }
 ```
 
 A node can be referenced by its hash as follows:
 
 ```go
-func (n *Node) Hash() []byte {
-    h := blake2b.New(nil)
-    binary.Write(h, binary.LittleEndian, n.Index)
-    h.Write(n.Key)
-    return h.Sum(nil)
+func(n * Node) Hash()[] byte {
+	h: = blake2b.New(nil)
+	binary.Write(h, binary.LittleEndian, n.Index)
+	h.Write(n.Key)
+	return h.Sum(nil)
 }
 ```
 
@@ -144,24 +144,24 @@ follow:
 
 ```go
 func (g *Group) Hash() []byte {
-    h, _ := blake2b.New256(nil)
-    // sort all nodes entries by their index
-    sort.Slice(nodes, func(i, j int) bool {
-        return nodes[i].Index < nodes[j].Index
-    })
-    // all nodes public keys and positions
-    for _, n := range nodes {
-        h.Write(n.Hash())
-    }
-    binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
-    binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
-    if g.TransitionTime != 0 {
-    binary.Write(h, binary.LittleEndian, g.TransitionTime)
-    }
-    if g.PublicKey != nil {
-    h.Write(g.PublicKey.Hash())
-    }
-    return h.Sum(nil)
+	h, _ := blake2b.New256(nil)
+	// sort all nodes entries by their index
+	sort.Slice(nodes, func(i, j int) bool {
+		return nodes[i].Index < nodes[j].Index
+	})
+	// all nodes public keys and positions
+	for _, n := range nodes {
+		h.Write(n.Hash())
+	}
+	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
+	binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
+	if g.TransitionTime != 0 {
+	binary.Write(h, binary.LittleEndian, g.TransitionTime)
+	}
+	if g.PublicKey != nil {
+	h.Write(g.PublicKey.Hash())
+	}
+	return h.Sum(nil)
 }
 ```
 
@@ -558,17 +558,17 @@ The relation to determine this mapping is as follow:
 // * round: the round number at which the drand network is at
 // * the time at which this round started
 func CurrentRound(now, genesis int64, period uint32) (round uint64, time int64){
-    if now < genesis {
-        // round 0 is the genesis block: signature is the genesis seed
-        return 0
-    }
-    fromGenesis := now - genesis
-    // we take the time from genesis divided by the periods in seconds, that
-    // gives us the number of periods since genesis.  We add +1 because round 1
-    // starts at genesis time.
-    round = uint64(math.Floor(float64(fromGenesis)/period)) + 1
-    time = genesis + int64(nextRound*uint64(period.Seconds()))
-    return
+	if now < genesis {
+		// round 0 is the genesis block: signature is the genesis seed
+		return 0
+	}
+	fromGenesis := now - genesis
+	// we take the time from genesis divided by the periods in seconds, that
+	// gives us the number of periods since genesis.  We add +1 because round 1
+	// starts at genesis time.
+	round = uint64(math.Floor(float64(fromGenesis)/period)) + 1
+	time = genesis + int64(nextRound*uint64(period.Seconds()))
+	return
 }
 ```
 
@@ -585,9 +585,9 @@ beacons. Remember a drand beacon is structured as follow:
 
 ```go
 type Beacon struct {
-    Round uint64
-    PreviousSignature []byte
-    Signature []byte
+	Round uint64
+	PreviousSignature []byte
+	Signature []byte
 }
 ```
 
@@ -607,10 +607,10 @@ over the message:
 
 ```go
 func Message(currRound uint64, prevSig []byte) []byte {
-    h := sha256.New()
-    h.Write(prevSig)
-    h.Write(roundToBytes(currRound))
-    return h.Sum(nil)
+	h := sha256.New()
+	h.Write(prevSig)
+	h.Write(roundToBytes(currRound))
+	return h.Sum(nil)
 }
 ```
 
@@ -658,8 +658,8 @@ if the following routine returns true:
 
 ```go
 func isAppendable(lastBeacon, newBeacon *Beacon) bool {
-    return newBeacon.Round == lastBeacon.Round+1 &&
-    bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
+	return newBeacon.Round == lastBeacon.Round+1 &&
+	bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
 }
 ```
 
@@ -674,12 +674,12 @@ information:
 
 ```go
 type Info struct {
-    // Period of the randomness generation in seconds
-    Period uint32
-    // Time at which the drand nodes started the chain, UNIX in seconds.
-    GenesisTime int64
-    // PublicKey necessary to validate any randomness beacon of the chain
-    PublicKey []byte
+	// Period of the randomness generation in seconds
+	Period uint32
+	// Time at which the drand nodes started the chain, UNIX in seconds.
+	GenesisTime int64
+	// PublicKey necessary to validate any randomness beacon of the chain
+	PublicKey []byte
 }
 ```
 
@@ -692,11 +692,11 @@ structure:
 
 ```go
 func (i *Info) Hash() []byte {
-    h := sha256.New()
-    binary.Write(h, binary.BigEndian, i.Period)
-    binary.Write(h, binary.BigEndian, i.GenesisTime)
-    h.Write(i.PublicKey)
-    return h.Sum(nil)
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, i.Period)
+	binary.Write(h, binary.BigEndian, i.GenesisTime)
+	h.Write(i.PublicKey)
+	return h.Sum(nil)
 }
 ```
 
@@ -806,7 +806,7 @@ Drand uses the pairing curve
 The implementation that drand uses is located in the
 [bls12-381](https://github.com/drand/bls12-381) repo.
 **Hash to curve**:The hash-to-curve algorithm is derived from the [RFC
-v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07). 
+v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07).
 
 **Groups**: This document uses the notation G1 and G2 as commonly used in
 pairing equipped curves. The BLS12-381 specification specifies a base point, or
@@ -839,8 +839,8 @@ public polynomial created during the DKG protocol.
 // drand signature. It is the list of all commitments of the coefficients of the
 // private distributed polynomial.
 type DistPublic struct {
-    // points on the BLS12-381 G1 curve
-    Coefficients [][]byte
+	// points on the BLS12-381 G1 curve
+	Coefficients [][]byte
 }
 ```
 
@@ -853,10 +853,10 @@ A beacon signature is a regular [BLS signature](https://www.iacr.org/archive/asi
 
 ```go
 func Message(currRound uint64, prevSig []byte) []byte {
-    h := sha256.New()
-    h.Write(prevSig)
-    h.Write(roundToBytes(currRound))
-    return h.Sum(nil)
+	h := sha256.New()
+	h.Write(prevSig)
+	h.Write(roundToBytes(currRound))
+	return h.Sum(nil)
 }
 ```
 
@@ -877,10 +877,10 @@ signature.
 
 ```go
 func concatenate(signature []byte, index uint16) []byte {
-    var buffer bytes.Buffer
-    binary.Write(buffer, binary.BigEndian, index)
-    buffer.Write(sig)
-    return buffer.Bytes()
+	var buffer bytes.Buffer
+	binary.Write(buffer, binary.BigEndian, index)
+	buffer.Write(sig)
+	return buffer.Bytes()
 }
 ```
 
@@ -896,13 +896,13 @@ To evaluate the polynomial, one can use the following routine:
 // i is the index of the signer
 // commits are the points of the distributed public key
 func Eval(i int,commits []Point) Point {
-    xi := Scalar().SetInt64(1 + int64(i)) // x-coordinate of this share
-    v := Point().Null()
-    for j := p.Threshold() - 1; j >= 0; j-- {
-        v.Mul(xi, v)
-        v.Add(v, commits[j])
-    }
-    return v
+	xi := Scalar().SetInt64(1 + int64(i)) // x-coordinate of this share
+	v := Point().Null()
+	for j := p.Threshold() - 1; j >= 0; j-- {
+		v.Mul(xi, v)
+		v.Add(v, commits[j])
+	}
+	return v
 }
 ```
 
@@ -964,7 +964,7 @@ algorithm described [below](#ecies) in the document, with the public key of the
 share holder and the share serialized as in described in the curve section.
 A pseudo algorithm describes the operation:
 
-```go
+```text
 // Node running the following has the following properties:
 //  - its index as a dealer (in the group A) DealerIndex di,
 //  - a flag "isHolder" denoting if the node is a member of the group B
@@ -1156,7 +1156,7 @@ The deal phase is essentially the same except for the index where the node
 evaluate the private polynomial. A dealer evaluates its private polynomial on
  the indexes of the share holders.
 
-```go
+```text
 // Node running the following has the following properties:
 //  - its index as a dealer (in the group A) DealerIndex di,
 //  - a flag "isHolder" denoting if the node is a member of the group B
@@ -1398,119 +1398,119 @@ signature:
 // Deal holds the Deal for one participant as well as the index of the issuing
 // Dealer.
 type Deal struct {
-    // Index of the share holder
-    ShareIndex uint32
-    // encrypted share issued to the share holder
-    EncryptedShare []byte
+	// Index of the share holder
+	ShareIndex uint32
+	// encrypted share issued to the share holder
+	EncryptedShare []byte
 }
 
 type DealBundle struct {
-    DealerIndex uint32
-    Deals       []Deal
-    // Public coefficients of the public polynomial used to create the shares
-    Public []kyber.Point
+	DealerIndex uint32
+	Deals       []Deal
+	// Public coefficients of the public polynomial used to create the shares
+	Public []kyber.Point
 }
 
 // Hash hashes the index, public coefficients and deals
 func (d *DealBundle) Hash() []byte {
-    // first order the deals in a  stable order
-    sort.Slice(d.Deals, func(i, j int) bool {
-        return d.Deals[i].ShareIndex < d.Deals[j].ShareIndex
-    })
-    h := sha256.New()
-    binary.Write(h, binary.BigEndian, d.DealerIndex)
-    for _, c := range d.Public {
-        cbuff, _ := c.MarshalBinary()
-        h.Write(cbuff)
-    }
-    for _, deal := range d.Deals {
-        binary.Write(h, binary.BigEndian, deal.ShareIndex)
-        h.Write(deal.EncryptedShare)
-    }
-    return h.Sum(nil)
+	// first order the deals in a  stable order
+	sort.Slice(d.Deals, func(i, j int) bool {
+		return d.Deals[i].ShareIndex < d.Deals[j].ShareIndex
+	})
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, d.DealerIndex)
+	for _, c := range d.Public {
+		cbuff, _ := c.MarshalBinary()
+		h.Write(cbuff)
+	}
+	for _, deal := range d.Deals {
+		binary.Write(h, binary.BigEndian, deal.ShareIndex)
+		h.Write(deal.EncryptedShare)
+	}
+	return h.Sum(nil)
 }
 
 // Response holds the Response from another participant as well as the index of
 // the target Dealer.
 type Response struct {
-    // Index of the Dealer for which this response is for
-    DealerIndex uint32
-    Status      bool
+	// Index of the Dealer for which this response is for
+	DealerIndex uint32
+	Status      bool
 }
 
 type ResponseBundle struct {
-    // Index of the share holder for which these reponses are for
-    ShareIndex uint32
-    Responses  []Response
+	// Index of the share holder for which these reponses are for
+	ShareIndex uint32
+	Responses  []Response
 }
 
 // Hash hashes the share index and responses
 func (r *ResponseBundle) Hash() []byte {
-    // first order the response slice in a canonical order
-    sort.Slice(r.Responses, func(i, j int) bool {
-        return r.Responses[i].DealerIndex < r.Responses[j].DealerIndex
-    })
-    h := sha256.New()
-    binary.Write(h, binary.BigEndian, r.ShareIndex)
-    for _, resp := range r.Responses {
-        binary.Write(h, binary.BigEndian, resp.DealerIndex)
-        if resp.Status {
-            binary.Write(h, binary.BigEndian, byte(1))
-        } else {
-            binary.Write(h, binary.BigEndian, byte(0))
-        }
-    }
-    return h.Sum(nil)
+	// first order the response slice in a canonical order
+	sort.Slice(r.Responses, func(i, j int) bool {
+		return r.Responses[i].DealerIndex < r.Responses[j].DealerIndex
+	})
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, r.ShareIndex)
+	for _, resp := range r.Responses {
+		binary.Write(h, binary.BigEndian, resp.DealerIndex)
+		if resp.Status {
+			binary.Write(h, binary.BigEndian, byte(1))
+		} else {
+			binary.Write(h, binary.BigEndian, byte(0))
+		}
+	}
+	return h.Sum(nil)
 }
 
 func (b *ResponseBundle) String() string {
-    var s = fmt.Sprintf("ShareHolder %d: ", b.ShareIndex)
-    var arr []string
-    for _, resp := range b.Responses {
-        arr = append(arr, fmt.Sprintf("{dealer %d, status %v}", resp.DealerIndex, resp.Status))
-    }
-    s += "[" + strings.Join(arr, ",") + "]"
-    return s
+	var s = fmt.Sprintf("ShareHolder %d: ", b.ShareIndex)
+	var arr []string
+	for _, resp := range b.Responses {
+		arr = append(arr, fmt.Sprintf("{dealer %d, status %v}", resp.DealerIndex, resp.Status))
+	}
+	s += "[" + strings.Join(arr, ",") + "]"
+	return s
 }
 
 type JustificationBundle struct {
-    DealerIndex    uint32
-    Justifications []Justification
+	DealerIndex    uint32
+	Justifications []Justification
 }
 
 type Justification struct {
-    ShareIndex uint32
-    Share      kyber.Scalar
+	ShareIndex uint32
+	Share      kyber.Scalar
 }
 
 func (j *JustificationBundle) Hash() []byte {
-    // sort them in a canonical order
-    sort.Slice(j.Justifications, func(a, b int) bool {
-        return j.Justifications[a].ShareIndex < j.Justifications[b].ShareIndex
-    })
-    h := sha256.New()
-    binary.Write(h, binary.BigEndian, j.DealerIndex)
-    for _, just := range j.Justifications {
-        binary.Write(h, binary.BigEndian, just.ShareIndex)
-        sbuff, _ := just.Share.MarshalBinary()
-        h.Write(sbuff)
-    }
-    return h.Sum(nil)
+	// sort them in a canonical order
+	sort.Slice(j.Justifications, func(a, b int) bool {
+		return j.Justifications[a].ShareIndex < j.Justifications[b].ShareIndex
+	})
+	h := sha256.New()
+	binary.Write(h, binary.BigEndian, j.DealerIndex)
+	for _, just := range j.Justifications {
+		binary.Write(h, binary.BigEndian, just.ShareIndex)
+		sbuff, _ := just.Share.MarshalBinary()
+		h.Write(sbuff)
+	}
+	return h.Sum(nil)
 }
 
 type AuthDealBundle struct {
-    Bundle    *DealBundle
-    Signature []byte
+	Bundle    *DealBundle
+	Signature []byte
 }
 
 type AuthResponseBundle struct {
-    Bundle    *ResponseBundle
-    Signature []byte
+	Bundle    *ResponseBundle
+	Signature []byte
 }
 
 type AuthJustifBundle struct {
-    Bundle    *JustificationBundle
-    Signature []byte
+	Bundle    *JustificationBundle
+	Signature []byte
 }
 ```
 
