@@ -82,17 +82,6 @@ func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
 	return pollingWatcher(ctx, p, p.chainInfo, p.log)
 }
 
-// Info returns information about the chain.
-func (p *prioritizingClient) Info(ctx context.Context) (*chain.Info, error) {
-	if p.chainInfo != nil {
-		return p.chainInfo, nil
-	}
-	if err := p.learnGroup(ctx); err != nil {
-		return nil, err
-	}
-	return p.chainInfo, nil
-}
-
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
 func (p *prioritizingClient) RoundAt(time time.Time) uint64 {

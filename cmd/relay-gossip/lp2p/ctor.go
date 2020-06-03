@@ -12,7 +12,6 @@ import (
 	"time"
 
 	dlog "github.com/drand/drand/log"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p"

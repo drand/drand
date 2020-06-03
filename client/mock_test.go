@@ -39,10 +39,6 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 	return ch
 }
 
-func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
-	return &chain.Info{}, nil
-}
-
 // RoundAt will return the most recent round of randomness
 func (m *MockClient) RoundAt(time time.Time) uint64 {
 	return 0
