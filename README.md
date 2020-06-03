@@ -332,7 +332,7 @@ helpful discussions on the drand design.
 
 Thanks to [@Bren2010](https://github.com/Bren2010) and
 [@grittygrease](https://github.com/grittygrease) for providing the native
-Golang bls12-381 implementation and for their help in the design of drand and
+Golang bn256 implementation and for their help in the design of drand and
 future ideas.
 
 Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.ch)
