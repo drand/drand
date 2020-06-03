@@ -35,16 +35,18 @@ var log = dlog.DefaultLogger
 
 func main() {
 	app := &cli.App{
-		Name:    "drand-relay-gossip",
-		Version: version,
-		Usage:   "pubsub relay for randomness beacon",
+		Name:     "drand-relay-gossip",
+		Version:  version,
+		Usage:    "pubsub relay for drand randomness beacon",
+		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 		Flags: []cli.Flag{
+			// Global use deprecated. Use in appropriate subcommand.
+			// TODO: remove in a future release.
 			&cli.StringFlag{
-				Name:     "chain-hash",
-				Required: true,
+				Name:   "chain-hash",
+				Hidden: true,
 			},
 		},
-		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
@@ -57,13 +59,25 @@ func main() {
 	}
 }
 
+var chainHashFlag = &cli.StringFlag{
+	Name:  "chain-hash",
+	Usage: "hash of the drand group chain (hex encoded)",
+}
+
 var peerWithFlag = &cli.StringSliceFlag{
 	Name:  "peer-with",
-	Usage: "list of peers to connect with",
+	Usage: "peer multiaddr(s) to direct connect with",
+}
+
+var idFlag = &cli.StringFlag{
+	Name:  "identity",
+	Usage: "path to a file containing a libp2p identity (base64 encoded)",
+	Value: "identity.key",
 }
 
 var runCmd = &cli.Command{
-	Name: "run",
+	Name:  "run",
+	Usage: "starts a drand gossip relay process",
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:    "grpc-connect",
@@ -81,22 +95,24 @@ var runCmd = &cli.Command{
 		},
 		&cli.StringFlag{
 			Name:  "cert",
-			Usage: "file containing GRPC transport credentials of peer",
+			Usage: "path to a file containing gRPC transport credentials of peer",
 		},
 		&cli.BoolFlag{
 			Name:  "insecure",
-			Usage: "allow insecure connection",
+			Usage: "allow insecure gRPC connection",
 		},
 		&cli.StringFlag{
 			Name:  "listen",
-			Usage: "listen addr for libp2p",
+			Usage: "listening address for libp2p",
 			Value: "/ip4/0.0.0.0/tcp/44544",
 		},
 		&cli.StringFlag{
 			Name:  "metrics",
 			Usage: "local host:port to bind a metrics servlet (optional)",
 		},
-		peerWithFlag, idFlag,
+		chainHashFlag,
+		peerWithFlag,
+		idFlag,
 	},
 
 	Action: func(cctx *cli.Context) error {
@@ -105,12 +121,19 @@ var runCmd = &cli.Command{
 			defer metricsListener.Close()
 			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
+
+		// The global `chain-hash` param is deprecated.
+		// TODO: use `cctx.String("chain-hash")` when support is removed.
+		chainHash := localOrGlobalString(cctx, "chain-hash")
+		if chainHash == "" {
+			return xerrors.Errorf("missing required chain-hash parameter")
+		}
 		grpclient, err := grpc.New(cctx.String("grpc-connect"), cctx.String("cert"), cctx.Bool("insecure"))
 		if err != nil {
 			return err
 		}
 		cfg := &lp2p.GossipRelayConfig{
-			ChainHash:    cctx.String("chain-hash"),
+			ChainHash:    chainHash,
 			PeerWith:     cctx.StringSlice(peerWithFlag.Name),
 			Addr:         cctx.String("listen"),
 			DataDir:      cctx.String("store"),
@@ -128,6 +151,7 @@ var runCmd = &cli.Command{
 var clientCmd = &cli.Command{
 	Name: "client",
 	Flags: []cli.Flag{
+		chainHashFlag,
 		peerWithFlag,
 		&cli.StringSliceFlag{
 			Name:  "http-failover",
@@ -154,7 +178,14 @@ var clientCmd = &cli.Command{
 			return xerrors.Errorf("constructing host: %w", err)
 		}
 
-		chainHash, err := hex.DecodeString(cctx.String("chain-hash"))
+		// The global `chain-hash` param is deprecated.
+		// TODO: use `cctx.String("chain-hash")` when support is removed.
+		chainHashStr := localOrGlobalString(cctx, "chain-hash")
+		if chainHashStr == "" {
+			return xerrors.Errorf("missing required chain-hash parameter")
+		}
+
+		chainHash, err := hex.DecodeString(chainHashStr)
 		if err != nil {
 			return xerrors.Errorf("decoding chain hash: %w", err)
 		}
@@ -192,16 +223,9 @@ var clientCmd = &cli.Command{
 	},
 }
 
-var idFlag = &cli.StringFlag{
-	Name:  "identity",
-	Usage: "path to a file containing libp2p identity",
-	Value: "identity.key",
-}
-
 var idCmd = &cli.Command{
 	Name:  "peerid",
-	Usage: "prints libp2p peerid",
-
+	Usage: "prints the libp2p peer ID or creates one if it does not exist",
 	Flags: []cli.Flag{idFlag},
 	Action: func(cctx *cli.Context) error {
 		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log)
@@ -215,4 +239,14 @@ var idCmd = &cli.Command{
 		fmt.Printf("%s\n", peerID)
 		return nil
 	},
+}
+
+func localOrGlobalString(cctx *cli.Context, name string) string {
+	for _, c := range cctx.Lineage() {
+		str := c.String(name)
+		if str != "" {
+			return str
+		}
+	}
+	return ""
 }
