@@ -36,10 +36,12 @@ func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, erro
 // Watch returns new randomness as it becomes available.
 func (d *drandProxy) Watch(ctx context.Context) <-chan client.Result {
 	proxy := newStreamProxy(ctx)
-	err := d.r.PublicRandStream(&drand.PublicRandRequest{}, proxy)
-	if err != nil {
-		proxy.Close(err)
-	}
+	go func() {
+		err := d.r.PublicRandStream(&drand.PublicRandRequest{}, proxy)
+		if err != nil {
+			proxy.Close(err)
+		}
+	}()
 	return proxy.outgoing
 }
 
@@ -95,6 +97,8 @@ func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
 	case <-s.ctx.Done():
 		close(s.outgoing)
 		return s.ctx.Err()
+	default:
+		return nil
 	}
 }
 
