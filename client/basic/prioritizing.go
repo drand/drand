@@ -1,4 +1,4 @@
-package client
+package basic
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 )
 
@@ -13,12 +14,12 @@ import (
 // in succession until an answer is found.
 // Get requests are sourced from get sub-clients.
 // Watches are achieved as a long-poll from the prioritized get sub-clients.
-func NewPrioritizingClient(clients []Client, chainHash []byte, chainInfo *chain.Info) (Client, error) {
+func NewPrioritizingClient(clients []client.Client, chainHash []byte, chainInfo *chain.Info) (client.Client, error) {
 	return &prioritizingClient{clients, chainHash, chainInfo, log.DefaultLogger}, nil
 }
 
 type prioritizingClient struct {
-	clients   []Client
+	clients   []client.Client
 	chainHash []byte
 	chainInfo *chain.Info
 	log       log.Logger
@@ -30,7 +31,7 @@ func (p *prioritizingClient) SetLog(l log.Logger) {
 }
 
 // Get returns a the randomness at `round` or an error.
-func (p *prioritizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
+func (p *prioritizingClient) Get(ctx context.Context, round uint64) (res client.Result, err error) {
 	for i, c := range p.clients {
 		res, err = c.Get(ctx, round)
 		if err == nil {
@@ -69,12 +70,12 @@ func (p *prioritizingClient) learnGroup(ctx context.Context) error {
 }
 
 // Watch returns new randomness as it becomes available.
-func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
+func (p *prioritizingClient) Watch(ctx context.Context) <-chan client.Result {
 	// otherwise, poll from the prioritized list of getClients
 	if p.chainInfo == nil {
 		if err := p.learnGroup(ctx); err != nil {
 			log.DefaultLogger.Warn("prioritizing_client", "failed to learn group", "err", err)
-			ch := make(chan Result, 0)
+			ch := make(chan client.Result, 0)
 			close(ch)
 			return ch
 		}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
@@ -39,8 +39,8 @@ func (c *Client) SetLog(l log.Logger) {
 
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsub(ps *pubsub.PubSub) client.Option {
-	return client.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
+func WithPubsub(ps *pubsub.PubSub) basic.Option {
+	return basic.WithWatcher(func(info *chain.Info, cache basic.Cache) (basic.Watcher, error) {
 		c, err := NewWithPubsub(ps, info, cache)
 		if err != nil {
 			return nil, err
@@ -49,7 +49,7 @@ func WithPubsub(ps *pubsub.PubSub) client.Option {
 	})
 }
 
-func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub.ValidatorEx {
+func randomnessValidator(info *chain.Info, cache basic.Cache, c *Client) pubsub.ValidatorEx {
 	return func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		var rand drand.PublicRandResponse
 		err := proto.Unmarshal(m.Data, &rand)
@@ -75,7 +75,7 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 
 		if cache != nil {
 			if current := cache.TryGet(rand.GetRound()); current != nil {
-				currentFull, ok := current.(*clientinterface.RandomData)
+				currentFull, ok := current.(*client.RandomData)
 				if !ok {
 					// Note: this shouldn't happen in practice, but if we have a
 					// degraded cache entry we can't validate the full byte
@@ -105,7 +105,7 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 }
 
 // NewWithPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
+func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache basic.Cache) (*Client, error) {
 	if info == nil {
 		return nil, xerrors.Errorf("No chain supplied for joining")
 	}
@@ -219,7 +219,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					return
 				}
 				select {
-				case outerCh <- &clientinterface.RandomData{
+				case outerCh <- &client.RandomData{
 					Rnd:               resp.Round,
 					Random:            resp.Randomness,
 					Sig:               resp.Signature,

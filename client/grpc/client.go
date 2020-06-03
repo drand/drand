@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/protobuf/drand"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -20,7 +20,7 @@ type grpcClient struct {
 }
 
 // New creates a drand client backed by a GRPC connection.
-func New(address string, certPath string, insecure bool) (clientinterface.Client, error) {
+func New(address string, certPath string, insecure bool) (client.Client, error) {
 	opts := []grpc.DialOption{}
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -44,8 +44,8 @@ func New(address string, certPath string, insecure bool) (clientinterface.Client
 	return &grpcClient{drand.NewPublicClient(conn)}, nil
 }
 
-func asRD(r *drand.PublicRandResponse) *clientinterface.RandomData {
-	return &clientinterface.RandomData{
+func asRD(r *drand.PublicRandResponse) *client.RandomData {
+	return &client.RandomData{
 		Rnd:               r.Round,
 		Random:            r.Randomness,
 		Sig:               r.Signature,
@@ -54,7 +54,7 @@ func asRD(r *drand.PublicRandResponse) *clientinterface.RandomData {
 }
 
 // Get returns a the randomness at `round` or an error.
-func (g *grpcClient) Get(ctx context.Context, round uint64) (clientinterface.Result, error) {
+func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
 	if err != nil {
 		return nil, err
@@ -67,9 +67,9 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (clientinterface.Res
 }
 
 // Watch returns new randomness as it becomes available.
-func (g *grpcClient) Watch(ctx context.Context) <-chan clientinterface.Result {
+func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 	stream, err := g.client.PublicRandStream(ctx, &drand.PublicRandRequest{Round: 0})
-	ch := make(chan clientinterface.Result, 1)
+	ch := make(chan client.Result, 1)
 	if err != nil {
 		close(ch)
 		return ch
@@ -87,7 +87,7 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 	return chain.InfoFromProto(proto)
 }
 
-func translate(stream drand.Public_PublicRandStreamClient, out chan<- clientinterface.Result) {
+func translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
 	for {
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {

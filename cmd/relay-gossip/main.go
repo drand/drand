@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/client/grpc"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
@@ -192,18 +192,18 @@ var clientCmd = &cli.Command{
 
 		httpFailover := cctx.StringSlice("http-failover")
 
-		var c client.Watcher
+		var c basic.Watcher
 		// if we have http failover endpoints then use the drand HTTP client with pubsub option
 		if len(httpFailover) > 0 {
 			grace := cctx.Duration("http-failover-grace")
 			if grace == 0 {
 				grace = time.Second * 5
 			}
-			c, err = client.New(
+			c, err = basic.New(
 				psc.WithPubsub(ps),
-				client.WithChainHash(chainHash),
-				client.WithHTTPEndpoints(httpFailover),
-				client.WithFailoverGracePeriod(grace),
+				basic.WithChainHash(chainHash),
+				basic.WithHTTPEndpoints(httpFailover),
+				basic.WithFailoverGracePeriod(grace),
 			)
 			if err != nil {
 				return xerrors.Errorf("constructing client: %w", err)

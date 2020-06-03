@@ -1,4 +1,4 @@
-package client
+package basic
 
 import (
 	"bytes"
@@ -9,13 +9,15 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 // New Creates a client with specified configuration.
-func New(options ...Option) (Client, error) {
+func New(options ...Option) (client.Client, error) {
 	cfg := clientConfig{
 		cacheSize: 32,
 		log:       log.DefaultLogger,
@@ -28,14 +30,14 @@ func New(options ...Option) (Client, error) {
 	return makeClient(cfg)
 }
 
-func trySetLog(c Client, l log.Logger) {
+func trySetLog(c client.Client, l log.Logger) {
 	if lc, ok := c.(LoggingClient); ok {
 		lc.SetLog(l)
 	}
 }
 
 // makeClient creates a client from a configuration.
-func makeClient(cfg clientConfig) (Client, error) {
+func makeClient(cfg clientConfig) (client.Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
 		return nil, errors.New("No root of trust specified")
 	}
@@ -44,8 +46,8 @@ func makeClient(cfg clientConfig) (Client, error) {
 	}
 
 	// provision REST clients
-	restClients := []Client{}
-	var c Client
+	restClients := []client.Client{}
+	var c client.Client
 	var err error
 	for _, url := range cfg.urls {
 		if cfg.chainInfo != nil {
@@ -245,7 +247,7 @@ func WithFailoverGracePeriod(d time.Duration) Option {
 
 // Watcher supplies the `Watch` portion of the drand client interface.
 type Watcher interface {
-	Watch(ctx context.Context) <-chan Result
+	Watch(ctx context.Context) <-chan client.Result
 }
 
 // WatcherCtor creates a Watcher once chain info is known.

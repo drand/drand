@@ -1,4 +1,4 @@
-package clientinterface
+package client
 
 // RandomData holds the full random response from the server, including data needed
 // for validation.

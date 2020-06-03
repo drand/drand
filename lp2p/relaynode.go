@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 
@@ -27,7 +27,7 @@ type GossipRelayConfig struct {
 	IdentityPath string
 	CertPath     string
 	Insecure     bool
-	Client       clientinterface.Client
+	Client       client.Client
 }
 
 // GossipRelayNode is a gossip relay runtime.
@@ -131,7 +131,7 @@ func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
 	return out, nil
 }
 
-func (g *GossipRelayNode) background(c clientinterface.Client) {
+func (g *GossipRelayNode) background(c client.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	results := c.Watch(ctx)
@@ -142,7 +142,7 @@ func (g *GossipRelayNode) background(c clientinterface.Client) {
 				return
 			}
 
-			rd, ok := res.(*clientinterface.RandomData)
+			rd, ok := res.(*client.RandomData)
 			if !ok {
 				g.l.Error("relay_node", "unexpected client result type")
 				continue

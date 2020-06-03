@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -27,7 +27,7 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client clientinterface.Client, version string, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, client client.Client, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
@@ -61,7 +61,7 @@ func New(ctx context.Context, client clientinterface.Client, version string, log
 
 type handler struct {
 	timeout   time.Duration
-	client    clientinterface.Client
+	client    client.Client
 	chainInfo *chain.Info
 	log       log.Logger
 

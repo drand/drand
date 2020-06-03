@@ -1,4 +1,4 @@
-package client
+package basic
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -19,13 +19,13 @@ import (
 )
 
 // NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, chainHash []byte, client http.RoundTripper) (Client, error) {
-	if client == nil {
-		client = http.DefaultTransport
+func NewHTTPClient(url string, chainHash []byte, transport http.RoundTripper) (client.Client, error) {
+	if transport == nil {
+		transport = http.DefaultTransport
 	}
 	c := &httpClient{
 		root:   url,
-		client: instrumentClient(url, client),
+		client: instrumentClient(url, transport),
 		l:      log.DefaultLogger,
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
@@ -38,15 +38,15 @@ func NewHTTPClient(url string, chainHash []byte, client http.RoundTripper) (Clie
 }
 
 // NewHTTPClientWithInfo constructs an http client when the group parameters are already known.
-func NewHTTPClientWithInfo(url string, info *chain.Info, client http.RoundTripper) (Client, error) {
-	if client == nil {
-		client = http.DefaultTransport
+func NewHTTPClientWithInfo(url string, info *chain.Info, transport http.RoundTripper) (client.Client, error) {
+	if transport == nil {
+		transport = http.DefaultTransport
 	}
 
 	c := &httpClient{
 		root:      url,
 		chainInfo: info,
-		client:    instrumentClient(url, client),
+		client:    instrumentClient(url, transport),
 		l:         log.DefaultLogger,
 	}
 	return c, nil
@@ -134,7 +134,7 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 }
 
 // Get returns a the randomness at `round` or an error.
-func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
+func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	var url string
 	if round == 0 {
 		url = fmt.Sprintf("%s/public/latest", h.root)
@@ -148,7 +148,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	}
 	defer randResponse.Body.Close()
 
-	randResp := clientinterface.RandomData{}
+	randResp := client.RandomData{}
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 }
 
 // Watch returns new randomness as it becomes available.
-func (h *httpClient) Watch(ctx context.Context) <-chan Result {
+func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
 	return pollingWatcher(ctx, h, h.chainInfo, h.l)
 }
 

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/protobuf/drand"
 
 	"google.golang.org/grpc/metadata"
@@ -20,12 +20,12 @@ type drandProxy struct {
 }
 
 // Get returns randomness at a requested round
-func (d *drandProxy) Get(ctx context.Context, round uint64) (clientinterface.Result, error) {
+func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, error) {
 	resp, err := d.r.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
 	if err != nil {
 		return nil, err
 	}
-	return &clientinterface.RandomData{
+	return &client.RandomData{
 		Rnd:               resp.Round,
 		Random:            resp.Randomness,
 		Sig:               resp.Signature,
@@ -34,7 +34,7 @@ func (d *drandProxy) Get(ctx context.Context, round uint64) (clientinterface.Res
 }
 
 // Watch returns new randomness as it becomes available.
-func (d *drandProxy) Watch(ctx context.Context) <-chan clientinterface.Result {
+func (d *drandProxy) Watch(ctx context.Context) <-chan client.Result {
 	proxy := newStreamProxy(ctx)
 	err := d.r.PublicRandStream(&drand.PublicRandRequest{}, proxy)
 	if err != nil {
@@ -69,7 +69,7 @@ func (d *drandProxy) RoundAt(t time.Time) uint64 {
 type streamProxy struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
-	outgoing chan clientinterface.Result
+	outgoing chan client.Result
 }
 
 func newStreamProxy(ctx context.Context) *streamProxy {
@@ -77,13 +77,13 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 	s := streamProxy{
 		ctx:      ctx,
 		cancel:   cancel,
-		outgoing: make(chan clientinterface.Result, 1),
+		outgoing: make(chan client.Result, 1),
 	}
 	return &s
 }
 
 func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
-	d := clientinterface.RandomData{
+	d := client.RandomData{
 		Rnd:               next.Round,
 		Random:            next.Randomness,
 		Sig:               next.Signature,

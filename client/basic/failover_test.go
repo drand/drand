@@ -1,4 +1,4 @@
-package client
+package basic
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/test"
 )
 
@@ -21,7 +22,7 @@ func TestFailover(t *testing.T) {
 		{rnd: 4, rand: []byte{4}}, // Success
 	}
 
-	failC := make(chan Result, 1)
+	failC := make(chan client.Result, 1)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:3]}
 	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
@@ -45,7 +46,7 @@ func TestFailoverDedupe(t *testing.T) {
 		{rnd: 3, rand: []byte{3}}, // Success
 	}
 
-	failC := make(chan Result, 2)
+	failC := make(chan client.Result, 2)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:2]}
 	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
@@ -66,7 +67,7 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	defer cancel()
 
 	results := []MockResult{{rnd: 1, rand: []byte{1}}}
-	failC := make(chan Result)
+	failC := make(chan client.Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0)
 	watchC := failoverClient.Watch(ctx)
@@ -79,7 +80,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 	defer cancel()
 
 	results := []MockResult{{rnd: 1, rand: []byte{1}}}
-	failC := make(chan Result)
+	failC := make(chan client.Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	period := defaultFailoverGracePeriod / 2
 	chainInfo := &chain.Info{
@@ -106,7 +107,7 @@ type errOnGetClient struct {
 	errC chan error
 }
 
-func (c *errOnGetClient) Get(ctx context.Context, round uint64) (Result, error) {
+func (c *errOnGetClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	c.errC <- c.err
 	return nil, c.err
 }
@@ -120,7 +121,7 @@ func TestFailoverGetFail(t *testing.T) {
 		{rnd: 2, rand: []byte{2}},
 	}
 
-	failC := make(chan Result, 1)
+	failC := make(chan client.Result, 1)
 	getErr := fmt.Errorf("client get error")
 	getErrC := make(chan error, 1)
 

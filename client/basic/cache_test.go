@@ -1,8 +1,10 @@
-package client
+package basic
 
 import (
 	"context"
 	"testing"
+
+	"github.com/drand/drand/client"
 )
 
 func TestCacheGet(t *testing.T) {
@@ -73,7 +75,7 @@ func TestCacheGetLatest(t *testing.T) {
 
 func TestCacheWatch(t *testing.T) {
 	m := MockClientWithResults(2, 6)
-	rc := make(chan Result, 1)
+	rc := make(chan client.Result, 1)
 	m.WatchCh = rc
 	arcCache, err := makeCache(3)
 	if err != nil {

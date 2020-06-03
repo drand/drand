@@ -1,4 +1,4 @@
-package client
+package basic
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 )
 
 func TestWatcherWatch(t *testing.T) {
@@ -14,7 +15,7 @@ func TestWatcherWatch(t *testing.T) {
 		{rnd: 2, rand: []byte{2}},
 	}
 
-	ch := make(chan Result, len(results))
+	ch := make(chan client.Result, len(results))
 	for i := range results {
 		ch <- &results[i]
 	}

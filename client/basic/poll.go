@@ -1,19 +1,20 @@
-package client
+package basic
 
 import (
 	"context"
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 )
 
 // pollingWatcher generalizes the `Watch` interface for clients which learn new values
 // by asking for them once each group period.
-func pollingWatcher(ctx context.Context, client Client, chainInfo *chain.Info, log log.Logger) <-chan Result {
-	ch := make(chan Result, 1)
-	r := client.RoundAt(time.Now())
-	val, err := client.Get(ctx, r)
+func pollingWatcher(ctx context.Context, c client.Client, chainInfo *chain.Info, log log.Logger) <-chan client.Result {
+	ch := make(chan client.Result, 1)
+	r := c.RoundAt(time.Now())
+	val, err := c.Get(ctx, r)
 	if err != nil {
 		log.Error("polling_client", "failed to watch", "err", err)
 		close(ch)
@@ -32,7 +33,7 @@ func pollingWatcher(ctx context.Context, client Client, chainInfo *chain.Info, l
 		case <-time.After(time.Duration(nextTime-time.Now().Unix()) * time.Second):
 		}
 
-		r, err := client.Get(ctx, client.RoundAt(time.Now()))
+		r, err := c.Get(ctx, c.RoundAt(time.Now()))
 		if err == nil {
 			ch <- r
 		} else {
@@ -45,7 +46,7 @@ func pollingWatcher(ctx context.Context, client Client, chainInfo *chain.Info, l
 		for {
 			select {
 			case <-t.C:
-				r, err := client.Get(ctx, client.RoundAt(time.Now()))
+				r, err := c.Get(ctx, c.RoundAt(time.Now()))
 				if err == nil {
 					ch <- r
 				} else {

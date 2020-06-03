@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
-	clientinterface "github.com/drand/drand/client/interface"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-func withClient(t *testing.T) (clientinterface.Client, func(bool)) {
+func withClient(t *testing.T) (client.Client, func(bool)) {
 	t.Helper()
 
 	l, s := mock.NewMockGRPCPublicServer(":0", true)

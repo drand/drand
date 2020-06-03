@@ -1,15 +1,16 @@
-package client
+package basic
 
 import (
 	"context"
 	"sync"
 
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 )
 
 // newWatchAggregator maintains state of consumers calling `Watch` so that a
 // single `watch` request is made to the underlying client.
-func newWatchAggregator(c Client, autoWatch bool) *watchAggregator {
+func newWatchAggregator(c client.Client, autoWatch bool) *watchAggregator {
 	aggregator := &watchAggregator{
 		Client:      c,
 		autoWatch:   autoWatch,
@@ -25,11 +26,11 @@ func newWatchAggregator(c Client, autoWatch bool) *watchAggregator {
 
 type subscriber struct {
 	ctx context.Context
-	c   chan Result
+	c   chan client.Result
 }
 
 type watchAggregator struct {
-	Client
+	client.Client
 	autoWatch bool
 	log       log.Logger
 
@@ -42,11 +43,11 @@ func (c *watchAggregator) SetLog(l log.Logger) {
 	c.log = l
 }
 
-func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
+func (c *watchAggregator) Watch(ctx context.Context) <-chan client.Result {
 	c.subscriberLock.Lock()
 	defer c.subscriberLock.Unlock()
 
-	sub := subscriber{ctx, make(chan Result, 5)}
+	sub := subscriber{ctx, make(chan client.Result, 5)}
 	c.subscribers = append(c.subscribers, sub)
 
 	if len(c.subscribers) == 1 && !c.autoWatch {
@@ -56,7 +57,7 @@ func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 	return sub.c
 }
 
-func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc, autoWatch bool) {
+func (c *watchAggregator) distribute(in <-chan client.Result, cancel context.CancelFunc, autoWatch bool) {
 	defer cancel()
 	for {
 		aCtx := context.Background()
@@ -69,7 +70,7 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 		}
 		c.subscriberLock.Unlock()
 
-		var m Result
+		var m client.Result
 		var ok bool
 
 		select {

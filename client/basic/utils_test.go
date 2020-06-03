@@ -1,4 +1,4 @@
-package client
+package basic
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/test"
 )
 
@@ -19,7 +20,7 @@ func fakeChainInfo() *chain.Info {
 }
 
 // nextResult reads the next result from the channel and fails the test if it closes before a value is read.
-func nextResult(t *testing.T, ch <-chan Result) Result {
+func nextResult(t *testing.T, ch <-chan client.Result) client.Result {
 	r, ok := <-ch
 	if !ok {
 		t.Fatal("closed before result")
@@ -28,7 +29,7 @@ func nextResult(t *testing.T, ch <-chan Result) Result {
 }
 
 // compareResults asserts that two results are the same.
-func compareResults(t *testing.T, a, b Result) {
+func compareResults(t *testing.T, a, b client.Result) {
 	if a.Round() != b.Round() {
 		t.Fatal("unexpected result round", a.Round(), b.Round())
 	}

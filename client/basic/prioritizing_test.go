@@ -1,15 +1,17 @@
-package client
+package basic
 
 import (
 	"context"
 	"testing"
+
+	"github.com/drand/drand/client"
 )
 
 func TestPrioritizingGet(t *testing.T) {
 	c := MockClientWithResults(0, 5)
 	c2 := MockClientWithResults(6, 10)
 
-	p, err := NewPrioritizingClient([]Client{c, c2}, nil, nil)
+	p, err := NewPrioritizingClient([]client.Client{c, c2}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,14 +57,14 @@ func TestPrioritizingWatch(t *testing.T) {
 	c := MockClientWithResults(0, 5)
 	c2 := MockClientWithResults(6, 10)
 
-	p, _ := NewPrioritizingClient([]Client{c, c2}, nil, nil)
+	p, _ := NewPrioritizingClient([]client.Client{c, c2}, nil, nil)
 	ch := p.Watch(context.Background())
 	r, ok := <-ch
 	if r != nil || ok {
 		t.Fatal("watch should fail without group provided")
 	}
 
-	p, _ = NewPrioritizingClient([]Client{c, c2}, nil, fakeChainInfo())
+	p, _ = NewPrioritizingClient([]client.Client{c, c2}, nil, fakeChainInfo())
 	ch = p.Watch(context.Background())
 	r, ok = <-ch
 	if r == nil || !ok {
@@ -77,7 +79,7 @@ func TestPrioritizingWatchFromClient(t *testing.T) {
 	c := MockClientWithResults(0, 5)
 	c2, _ := NewHTTPClientWithInfo("", fakeChainInfo(), nil)
 
-	p, _ := NewPrioritizingClient([]Client{c, c2}, nil, nil)
+	p, _ := NewPrioritizingClient([]client.Client{c, c2}, nil, nil)
 	ch := p.Watch(context.Background())
 	r, ok := <-ch
 	if r == nil || !ok {

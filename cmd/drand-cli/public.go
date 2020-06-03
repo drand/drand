@@ -8,8 +8,8 @@ import (
 	"os"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
-	clientinterface "github.com/drand/drand/client/interface"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/urfave/cli/v2"
@@ -71,7 +71,7 @@ func getPublicRandomness(c *cli.Context) error {
 		return errors.New("drand: group file must contain the distributed public key")
 	}
 
-	var resp clientinterface.Result
+	var resp client.Result
 	var foundCorrect bool
 	for _, id := range ids {
 		cli, err := grpc.New(id.Addr, certPath, !id.TLS)

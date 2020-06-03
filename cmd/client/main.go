@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/push"
 
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/log"
 	"github.com/urfave/cli/v2"
@@ -80,7 +81,7 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
-	opts := []client.Option{}
+	opts := []basic.Option{}
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
 		clientID := c.String(clientMetricsIDFlag.Name)
@@ -91,7 +92,7 @@ func Client(c *cli.Context) error {
 		metricsGateway := c.String(clientMetricsGatewayFlag.Name)
 		metricsPushInterval := c.Int64(clientMetricsPushIntervalFlag.Name)
 		bridge := newPrometheusBridge(metricsAddr, metricsGateway, metricsPushInterval)
-		bridgeWithID := client.WithPrometheus(prometheus.WrapRegistererWith(
+		bridgeWithID := basic.WithPrometheus(prometheus.WrapRegistererWith(
 			prometheus.Labels{"client_id": clientID},
 			bridge))
 		opts = append(opts, bridgeWithID)
