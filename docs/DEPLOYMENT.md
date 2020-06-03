@@ -163,7 +163,7 @@ If no `public-listen` flag is provided, drand will not expose a public HTTP inte
 
 The equivalent Apache config block to the NGinX config above for forwarding HTTP requests back to the drand public port would be:
 
-```xml
+```apache
 ProxyPreserveHost On
 SSLProxyEngine on
 SSLProxyCheckPeerCN off
@@ -246,7 +246,7 @@ drand show group --out group.toml
 secret string shared by all. This method is offering some basic security
 however drand will provide more manual checks later-on and/or different secrets
 for each participants. However, since the set of participants is public and consistent
- across all participants after a setup, nodes can detect if there are some unwanted nodes
+ accross all participants after a setup, nodes can detect if there are some unwanted nodes
 after the setup and in that case, setup a new network again.
 
 **Custom entropy source**: By default drand takes its entropy for the setup
