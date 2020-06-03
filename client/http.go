@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	clientinterface "github.com/drand/drand/client/interface"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -132,30 +133,6 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 	return json.Marshal(h)
 }
 
-// RandomData holds the full random response from the server, including data needed
-// for validation.
-type RandomData struct {
-	Rnd               uint64 `json:"round,omitempty"`
-	Random            []byte `json:"randomness,omitempty"`
-	Sig               []byte `json:"signature,omitempty"`
-	PreviousSignature []byte `json:"previous_signature,omitempty"`
-}
-
-// Round provides access to the round associatted with this random data.
-func (r *RandomData) Round() uint64 {
-	return r.Rnd
-}
-
-// Signature provides the signature over this round's randomness
-func (r *RandomData) Signature() []byte {
-	return r.Sig
-}
-
-// Randomness exports the randomness
-func (r *RandomData) Randomness() []byte {
-	return r.Random
-}
-
 // Get returns a the randomness at `round` or an error.
 func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	var url string
@@ -171,7 +148,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	}
 	defer randResponse.Body.Close()
 
-	randResp := RandomData{}
+	randResp := clientinterface.RandomData{}
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
 		return nil, err
 	}
@@ -196,6 +173,11 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 // Watch returns new randomness as it becomes available.
 func (h *httpClient) Watch(ctx context.Context) <-chan Result {
 	return pollingWatcher(ctx, h, h.chainInfo, h.l)
+}
+
+// Info returns information about the chain.
+func (h *httpClient) Info(ctx context.Context) (*chain.Info, error) {
+	return h.chainInfo, nil
 }
 
 // RoundAt will return the most recent round of randomness that will be available
