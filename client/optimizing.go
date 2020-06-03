@@ -16,14 +16,14 @@ import (
 const defaultTTL = time.Minute * 5
 
 // NewOptimizingClient creates a drand client that measures the speed of clients
-// and uses the fastest one. Speeds are measured as the optimising client is
+// and uses the fastest one. Speeds are measured as the optimizing client is
 // used, so there is no background routine and no additional calls to other
 // clients.
 //
 // A speed measurement lives for a certain period before it is reset. The next
 // call to `.Get` will then attempt to use a reset client even if it was
 // previously considered to be slower. Pass a value > 0 for `rttTTL` to
-// customise the period - it defaults to 5 minutes.
+// customize the period - it defaults to 5 minutes.
 //
 // If a client fails to return a value it'll be attempted from the next fastest
 // client. Failed clients are given a large RTT and are moved to the back of the
