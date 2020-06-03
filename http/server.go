@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	clientinterface "github.com/drand/drand/client/interface"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	json "github.com/nikkolasg/hexjson"
@@ -27,7 +27,7 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client clientinterface.Client, version string, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, client drand.PublicClient, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
@@ -61,7 +61,7 @@ func New(ctx context.Context, client clientinterface.Client, version string, log
 
 type handler struct {
 	timeout   time.Duration
-	client    clientinterface.Client
+	client    drand.PublicClient
 	chainInfo *chain.Info
 	log       log.Logger
 
@@ -83,12 +83,16 @@ func (h *handler) start() {
 
 func (h *handler) Watch(ctx context.Context) {
 RESET:
-	stream := h.client.Watch(context.Background())
+	stream, err := h.client.PublicRandStream(context.Background(), &drand.PublicRandRequest{})
+	if err != nil {
+		h.log.Error("http_server", "creation of random stream failed", "err", err)
+		return
+	}
 
 	for {
-		next, ok := <-stream
-		if !ok {
-			h.log.Warn("http_server", "random stream round failed")
+		next, err := stream.Recv()
+		if err != nil {
+			h.log.Warn("http_server", "random stream round failed", "err", err)
 			h.pendingLk.Lock()
 			h.latestRound = 0
 			h.pendingLk.Unlock()
@@ -98,15 +102,15 @@ RESET:
 			goto RESET
 		}
 
-		bytes, _ := json.Marshal(next)
+		bytes, err := json.Marshal(next)
 
 		h.pendingLk.Lock()
-		if h.latestRound+1 != next.Round() && h.latestRound != 0 {
+		if h.latestRound+1 != next.Round && h.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
-			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round()))
+			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round))
 			bytes = []byte{}
 		}
-		h.latestRound = next.Round()
+		h.latestRound = next.Round
 		pending := h.pending
 		h.pending = make([]chan []byte, 0)
 		h.pendingLk.Unlock()
@@ -130,16 +134,20 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	info, err := h.client.Info(ctx)
+	pkt, err := h.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
 	if err != nil {
 		h.log.Warn("msg", "chain info fetch failed", "err", err)
 		return nil
 	}
-	if info == nil {
+	if pkt == nil {
 		h.log.Warn("msg", "chain info fetch didn't return group info")
 		return nil
 	}
-	h.chainInfo = info
+	h.chainInfo, err = chain.InfoFromProto(pkt)
+	if err != nil {
+		h.log.Warn("msg", "chain info is invalid")
+		return nil
+	}
 	return h.chainInfo
 }
 
@@ -184,9 +192,10 @@ func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
 		return nil, nil
 	}
 
+	req := drand.PublicRandRequest{Round: round}
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	resp, err := h.client.Get(ctx, round)
+	resp, err := h.client.PublicRand(ctx, &req)
 
 	if err != nil {
 		return nil, err
@@ -239,10 +248,11 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
+	req := drand.PublicRandRequest{Round: 0}
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
-	resp, err := h.client.Get(ctx, 0)
+	resp, err := h.client.PublicRand(ctx, &req)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -261,8 +271,8 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	roundTime := time.Now()
 	nextTime := time.Now()
 	if info != nil {
-		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
-		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round), 0)
+		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round+1), 0)
 	}
 
 	remaining := nextTime.Sub(time.Now())

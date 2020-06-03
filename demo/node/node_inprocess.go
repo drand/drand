@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +9,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -224,33 +222,29 @@ func (l *LocalNode) Ping() bool {
 }
 
 func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.PublicRandResponse, cmd string) {
-	cert := ""
+	c := core.NewGrpcClient()
 	if l.tls {
-		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
+		m := net.NewCertManager()
+		m.Add(path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)))
+		c = core.NewGrpcClientFromCert(m)
 	}
-	c, _ := grpc.New(l.privAddr, cert, cert == "")
 
 	group := l.GetGroup()
 	if group == nil {
 		l.log.Error("drand", "can't get group")
 		return
 	}
+	pk := group.PublicKey
 
 	var err error
 	cmd = "unused"
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	r, err := c.Get(ctx, round)
-	if err != nil || r == nil {
+	if round == 0 {
+		resp, err = c.LastPublic(l.privAddr, pk, l.tls)
+	} else {
+		resp, err = c.Public(l.privAddr, pk, l.tls, int(round))
+	}
+	if err != nil {
 		l.log.Error("drand", "can't get becon", "err", err)
-	}
-	if r == nil {
-		return
-	}
-	resp = &drand.PublicRandResponse{
-		Round:      r.Round(),
-		Signature:  r.Signature(),
-		Randomness: r.Randomness(),
 	}
 	return
 }

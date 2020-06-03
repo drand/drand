@@ -2,13 +2,11 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"net"
-	"time"
 
-	"github.com/drand/drand/chain"
-	clientinterface "github.com/drand/drand/client/interface"
 	"github.com/drand/drand/protobuf/drand"
-
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
@@ -19,57 +17,12 @@ type drandProxy struct {
 	r drand.PublicServer
 }
 
-// Get returns randomness at a requested round
-func (d *drandProxy) Get(ctx context.Context, round uint64) (clientinterface.Result, error) {
-	resp, err := d.r.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
-	if err != nil {
-		return nil, err
-	}
-	return &clientinterface.RandomData{
-		Rnd:               resp.Round,
-		Random:            resp.Randomness,
-		Sig:               resp.Signature,
-		PreviousSignature: resp.PreviousSignature,
-	}, nil
-}
-
-// Watch returns new randomness as it becomes available.
-func (d *drandProxy) Watch(ctx context.Context) <-chan clientinterface.Result {
-	proxy := newStreamProxy(ctx)
-	err := d.r.PublicRandStream(&drand.PublicRandRequest{}, proxy)
-	if err != nil {
-		proxy.Close(err)
-	}
-	return proxy.outgoing
-}
-
-// Info returns the parameters of the chain this client is connected to.
-// The public key, when it started, and how frequently it updates.
-func (d *drandProxy) Info(ctx context.Context) (*chain.Info, error) {
-	info, err := d.r.ChainInfo(ctx, &drand.ChainInfoRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return chain.InfoFromProto(info)
-}
-
-// RoundAt will return the most recent round of randomness that will be available
-// at time for the current client.
-func (d *drandProxy) RoundAt(t time.Time) uint64 {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	info, err := d.Info(ctx)
-	if err != nil {
-		return 0
-	}
-	return chain.CurrentRound(t.Unix(), info.Period, info.GenesisTime)
-}
-
 // streamProxy directly relays mesages of the PublicRandResponse stream.
 type streamProxy struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
-	outgoing chan clientinterface.Result
+	incoming chan *drand.PublicRandResponse
+	outgoing chan *drand.PublicRandResponse
 }
 
 func newStreamProxy(ctx context.Context) *streamProxy {
@@ -77,29 +30,55 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 	s := streamProxy{
 		ctx:      ctx,
 		cancel:   cancel,
-		outgoing: make(chan clientinterface.Result, 1),
+		incoming: make(chan *drand.PublicRandResponse, 0),
+		outgoing: make(chan *drand.PublicRandResponse, 1),
 	}
+	go s.loop()
 	return &s
 }
 
-func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
-	d := clientinterface.RandomData{
-		Rnd:               next.Round,
-		Random:            next.Randomness,
-		Sig:               next.Signature,
-		PreviousSignature: next.PreviousSignature,
+func (s *streamProxy) Recv() (*drand.PublicRandResponse, error) {
+	// s.outgoing closed on context close by loop().
+	next, ok := <-s.outgoing
+	if ok {
+		return next, nil
 	}
+	return nil, fmt.Errorf("stream closed")
+}
+
+func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
 	select {
-	case s.outgoing <- &d:
+	case s.incoming <- next:
 		return nil
 	case <-s.ctx.Done():
-		close(s.outgoing)
+		close(s.incoming)
 		return s.ctx.Err()
+	}
+}
+
+func (s *streamProxy) loop() {
+	defer close(s.outgoing)
+	for {
+		select {
+		case next, ok := <-s.incoming:
+			if !ok {
+				return
+			}
+			select {
+			case s.outgoing <- next:
+			case <-s.ctx.Done():
+				return
+			default:
+			}
+		case <-s.ctx.Done():
+			return
+		}
 	}
 }
 
 func (s *streamProxy) Close(err error) {
 	s.cancel()
+	close(s.incoming)
 }
 
 /* implement the grpc stream interface. not used since messages passed directly. */
@@ -130,4 +109,30 @@ func (s *streamProxy) Trailer() metadata.MD {
 }
 func (s *streamProxy) CloseSend() error {
 	return nil
+}
+
+var _ drand.PublicClient = (*drandProxy)(nil)
+
+func (d *drandProxy) PublicRand(c context.Context, r *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
+	return d.r.PublicRand(c, r)
+}
+func (d *drandProxy) PublicRandStream(ctx context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (drand.Public_PublicRandStreamClient, error) {
+	srvr := newStreamProxy(ctx)
+
+	go func() {
+		err := d.r.PublicRandStream(in, srvr)
+		srvr.Close(err)
+	}()
+
+	return srvr, nil
+}
+func (d *drandProxy) PrivateRand(c context.Context, r *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
+	return d.r.PrivateRand(c, r)
+}
+
+func (d *drandProxy) Home(c context.Context, r *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {
+	return d.r.Home(c, r)
+}
+func (d *drandProxy) ChainInfo(c context.Context, r *drand.ChainInfoRequest, opts ...grpc.CallOption) (*drand.ChainInfoPacket, error) {
+	return d.r.ChainInfo(c, r)
 }

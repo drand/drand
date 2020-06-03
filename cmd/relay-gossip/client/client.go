@@ -9,11 +9,9 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	clientinterface "github.com/drand/drand/client/interface"
+	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
-
 	"github.com/gogo/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -75,7 +73,7 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 
 		if cache != nil {
 			if current := cache.TryGet(rand.GetRound()); current != nil {
-				currentFull, ok := current.(*clientinterface.RandomData)
+				currentFull, ok := current.(*client.RandomData)
 				if !ok {
 					// Note: this shouldn't happen in practice, but if we have a
 					// degraded cache entry we can't validate the full byte
@@ -219,7 +217,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					return
 				}
 				select {
-				case outerCh <- &clientinterface.RandomData{
+				case outerCh <- &client.RandomData{
 					Rnd:               resp.Round,
 					Random:            resp.Randomness,
 					Sig:               resp.Signature,

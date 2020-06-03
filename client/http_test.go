@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	clientinterface "github.com/drand/drand/client/interface"
 	"github.com/drand/drand/client/test/mock"
 )
 
@@ -28,7 +27,7 @@ func TestHTTPClient(t *testing.T) {
 	if len(result.Randomness()) == 0 {
 		t.Fatal("no randomness provided")
 	}
-	full, ok := (result).(*clientinterface.RandomData)
+	full, ok := (result).(*RandomData)
 	if !ok {
 		t.Fatal("Should be able to restore concrete type")
 	}
