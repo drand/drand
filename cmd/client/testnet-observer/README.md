@@ -1,8 +1,3 @@
-# TODO
-- [x] rig multiple urls in docker
-- [ ] deploy clients
-- [ ] deploy telegraf
-- [ ] telegraf.conf: env=XXX, build=XXX
 
 ## Drand deployments
 - https://github.com/drand/drand-infra#deployments
