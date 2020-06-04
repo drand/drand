@@ -87,7 +87,7 @@ Key []byte  // public key on bls12-381 G1
 A node can be referenced by its hash as follows:
 
 ```go
-func(n * Node) Hash()[] byte {
+func (n *Node) Hash() []byte {
 	h: = blake2b.New(nil)
 	binary.Write(h, binary.LittleEndian, n.Index)
 	h.Write(n.Key)
