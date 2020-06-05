@@ -1,4 +1,4 @@
-package basic
+package client
 
 import (
 	"bytes"
@@ -9,17 +9,16 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 )
 
 // MockClient provide a mocked client interface
 type MockClient struct {
-	WatchCh chan client.Result
+	WatchCh chan Result
 	Results []MockResult
 }
 
 // Get returns a the randomness at `round` or an error.
-func (m *MockClient) Get(ctx context.Context, round uint64) (client.Result, error) {
+func (m *MockClient) Get(ctx context.Context, round uint64) (Result, error) {
 	if len(m.Results) == 0 {
 		return nil, errors.New("No result available")
 	}
@@ -29,11 +28,11 @@ func (m *MockClient) Get(ctx context.Context, round uint64) (client.Result, erro
 }
 
 // Watch returns new randomness as it becomes available.
-func (m *MockClient) Watch(ctx context.Context) <-chan client.Result {
+func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 	if m.WatchCh != nil {
 		return m.WatchCh
 	}
-	ch := make(chan client.Result, 1)
+	ch := make(chan Result, 1)
 	r, _ := m.Get(ctx, 0)
 	ch <- r
 	close(ch)

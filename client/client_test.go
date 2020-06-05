@@ -1,4 +1,4 @@
-package basic
+package client
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/test"
 )
@@ -136,7 +135,7 @@ func TestClientWithWatcher(t *testing.T) {
 		{rnd: 2, rand: []byte{2}},
 	}
 
-	ch := make(chan client.Result, len(results))
+	ch := make(chan Result, len(results))
 	for i := range results {
 		ch <- &results[i]
 	}
@@ -171,7 +170,7 @@ func TestClientAutoWatch(t *testing.T) {
 		{rnd: 2, rand: []byte{2}},
 	}
 
-	ch := make(chan client.Result, len(results))
+	ch := make(chan Result, len(results))
 	for i := range results {
 		ch <- &results[i]
 	}

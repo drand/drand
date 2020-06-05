@@ -1,15 +1,13 @@
-package basic
+package client
 
 import (
 	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 
@@ -17,7 +15,7 @@ import (
 )
 
 // New Creates a client with specified configuration.
-func New(options ...Option) (client.Client, error) {
+func New(options ...Option) (Client, error) {
 	cfg := clientConfig{
 		cacheSize: 32,
 		log:       log.DefaultLogger,
@@ -30,55 +28,39 @@ func New(options ...Option) (client.Client, error) {
 	return makeClient(cfg)
 }
 
-func trySetLog(c client.Client, l log.Logger) {
+func trySetLog(c Client, l log.Logger) {
 	if lc, ok := c.(LoggingClient); ok {
 		lc.SetLog(l)
 	}
 }
 
 // makeClient creates a client from a configuration.
-func makeClient(cfg clientConfig) (client.Client, error) {
+func makeClient(cfg clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
 		return nil, errors.New("No root of trust specified")
 	}
-	if len(cfg.urls) == 0 {
+	if len(cfg.clients) == 0 && cfg.watcher == nil {
 		return nil, errors.New("No points of contact specified")
 	}
 
-	// provision REST clients
-	restClients := []client.Client{}
-	var c client.Client
-	var err error
-	for _, url := range cfg.urls {
-		if cfg.chainInfo != nil {
-			c, err = NewHTTPClientWithInfo(url, cfg.chainInfo, cfg.transport)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			c, err = NewHTTPClient(url, cfg.chainHash, cfg.transport)
-			if err != nil {
-				return nil, err
-			}
-			chainInfo, err := c.(*httpClient).FetchChainInfo(cfg.chainHash)
-			if err != nil {
-				return nil, err
-			}
-			cfg.chainInfo = chainInfo
-		}
+	for _, c := range cfg.clients {
 		trySetLog(c, cfg.log)
-		restClients = append(restClients, c)
 	}
-	if cfg.prometheus != nil {
-		newHTTPHealthMetrics(cfg.urls, restClients, cfg.chainInfo)
-	}
+	// TODO:
+	//newHTTPHealthMetrics(cfg.urls, restClients, cfg.chainInfo)
 
-	if len(restClients) > 1 {
-		c, err = NewPrioritizingClient(restClients, cfg.chainHash, cfg.chainInfo)
+	var c Client
+	var err error
+	if len(cfg.clients) > 1 {
+		c, err = NewPrioritizingClient(cfg.clients, cfg.chainHash, cfg.chainInfo)
 		if err != nil {
 			return nil, err
 		}
 		trySetLog(c, cfg.log)
+	} else if len(cfg.clients) == 1 {
+		c = cfg.clients[0]
+	} else {
+		// TODO: nil base.
 	}
 
 	// provision cache
@@ -132,25 +114,23 @@ func makeClient(cfg clientConfig) (client.Client, error) {
 }
 
 type clientConfig struct {
-	// URLs when specified will create an HTTP client.
-	urls []string
-	// Insecure will allow creating the HTTP client without a bound group.
-	insecure bool
+	// clients is the set of options for fetching randomness
+	clients []Client
+	// watcher is a constructor function for generating a new partial client of randomness
+	watcher WatcherCtor
 	// from `chainInfo.Hash()` - serves as a root of trust for a given
 	// randomness chain.
 	chainHash []byte
 	// Full chain information - serves as a root of trust.
 	chainInfo *chain.Info
-	// transport configures the http parameters used when fetching randomness.
-	transport http.RoundTripper
+	// insecure indicates the root of trust does not need to be present.
+	insecure bool
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
 	log log.Logger
 	// time after which a watcher will failover to using client.Get to get the latest randomness.
 	failoverGracePeriod time.Duration
-	// watcher is a constructor function that creates a new Watcher
-	watcher WatcherCtor
 	// autoWatch causes the client to start watching immediately in the background so that new randomness is proactively fetched and added to the cache.
 	autoWatch bool
 	// prometheus is an interface to a Prometheus system
@@ -160,22 +140,19 @@ type clientConfig struct {
 // Option is an option configuring a client.
 type Option func(cfg *clientConfig) error
 
-// WithHTTPEndpoints configures the client to use the provided URLs.
-func WithHTTPEndpoints(urls []string) Option {
+// From constructs the client from a set of clients providing randomness
+func From(c ...Client) Option {
 	return func(cfg *clientConfig) error {
-		if cfg.insecure {
-			return errors.New("Cannot mix secure and insecure URLs")
-		}
-		cfg.urls = append(cfg.urls, urls...)
+		cfg.clients = c
 		return nil
 	}
 }
 
-// WithHTTPTransport specifies the HTTP Client (or mocked equivalent) for fetching
-// randomness from an HTTP endpoint.
-func WithHTTPTransport(transport http.RoundTripper) Option {
+// Insecurely indicates the client should be allowed to provide randomness
+// when the root of trust is not fully provided in a validate-able way.
+func Insecurely() Option {
 	return func(cfg *clientConfig) error {
-		cfg.transport = transport
+		cfg.insecure = true
 		return nil
 	}
 }
@@ -195,19 +172,6 @@ func WithCacheSize(size int) Option {
 func WithLogger(l log.Logger) Option {
 	return func(cfg *clientConfig) error {
 		cfg.log = l
-		return nil
-	}
-}
-
-// WithInsecureHTTPEndpoints configures the client to pull randomness from
-// provided URLs without validating the group trust root.
-func WithInsecureHTTPEndpoints(urls []string) Option {
-	return func(cfg *clientConfig) error {
-		if len(cfg.urls) != 0 && !cfg.insecure {
-			return errors.New("Cannot mix secure and insecure URLs")
-		}
-		cfg.urls = append(cfg.urls, urls...)
-		cfg.insecure = true
 		return nil
 	}
 }
@@ -247,7 +211,7 @@ func WithFailoverGracePeriod(d time.Duration) Option {
 
 // Watcher supplies the `Watch` portion of the drand client interface.
 type Watcher interface {
-	Watch(ctx context.Context) <-chan client.Result
+	Watch(ctx context.Context) <-chan Result
 }
 
 // WatcherCtor creates a Watcher once chain info is known.

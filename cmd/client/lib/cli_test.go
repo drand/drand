@@ -5,13 +5,12 @@ import (
 	"testing"
 
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/client/test/mock"
 	"github.com/urfave/cli/v2"
 )
 
 var (
-	opts         []basic.Option
+	opts         []client.Option
 	latestClient client.Client
 )
 
@@ -31,7 +30,7 @@ func run(args []string) error {
 }
 
 func TestClientLib(t *testing.T) {
-	opts = []basic.Option{}
+	opts = []client.Option{}
 	err := run([]string{"mock-client"})
 	if err == nil {
 		t.Fatal("need to specify a connection method.")

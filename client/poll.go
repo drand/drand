@@ -1,18 +1,17 @@
-package basic
+package client
 
 import (
 	"context"
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 )
 
-// pollingWatcher generalizes the `Watch` interface for clients which learn new values
+// PollingWatcher generalizes the `Watch` interface for clients which learn new values
 // by asking for them once each group period.
-func pollingWatcher(ctx context.Context, c client.Client, chainInfo *chain.Info, log log.Logger) <-chan client.Result {
-	ch := make(chan client.Result, 1)
+func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, log log.Logger) <-chan Result {
+	ch := make(chan Result, 1)
 	r := c.RoundAt(time.Now())
 	val, err := c.Get(ctx, r)
 	if err != nil {

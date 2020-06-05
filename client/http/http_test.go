@@ -1,8 +1,9 @@
-package basic
+package http
 
 import (
 	"context"
 	"net/http"
+	nhttp "net/http"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ func TestHTTPClient(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), nhttp.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func TestHTTPWatch(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), nhttp.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}

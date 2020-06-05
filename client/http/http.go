@@ -1,11 +1,11 @@
-package basic
+package http
 
 import (
 	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
-	"net/http"
+	nhttp "net/http"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -18,10 +18,10 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-// NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, chainHash []byte, transport http.RoundTripper) (client.Client, error) {
+// New creates a new client pointing to an HTTP endpoint
+func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
-		transport = http.DefaultTransport
+		transport = nhttp.DefaultTransport
 	}
 	c := &httpClient{
 		root:   url,
@@ -37,10 +37,10 @@ func NewHTTPClient(url string, chainHash []byte, transport http.RoundTripper) (c
 	return c, nil
 }
 
-// NewHTTPClientWithInfo constructs an http client when the group parameters are already known.
-func NewHTTPClientWithInfo(url string, info *chain.Info, transport http.RoundTripper) (client.Client, error) {
+// NewWithInfo constructs an http client when the group parameters are already known.
+func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
-		transport = http.DefaultTransport
+		transport = nhttp.DefaultTransport
 	}
 
 	c := &httpClient{
@@ -53,8 +53,8 @@ func NewHTTPClientWithInfo(url string, info *chain.Info, transport http.RoundTri
 }
 
 // Instruments an HTTP client around a transport
-func instrumentClient(url string, transport http.RoundTripper) *http.Client {
-	client := http.DefaultClient
+func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
+	client := nhttp.DefaultClient
 	urlLabel := prometheus.Labels{"url": url}
 
 	trace := &promhttp.InstrumentTrace{
@@ -86,7 +86,7 @@ func instrumentClient(url string, transport http.RoundTripper) *http.Client {
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
 	root      string
-	client    *http.Client
+	client    *nhttp.Client
 	chainInfo *chain.Info
 	l         log.Logger
 }
@@ -172,7 +172,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 
 // Watch returns new randomness as it becomes available.
 func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
-	return pollingWatcher(ctx, h, h.chainInfo, h.l)
+	return client.PollingWatcher(ctx, h, h.chainInfo, h.l)
 }
 
 // Info returns information about the chain.

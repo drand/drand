@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/client/grpc"
+	dhttp "github.com/drand/drand/client/http"
 	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
@@ -111,7 +111,7 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, err := basic.NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	client, err := dhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}

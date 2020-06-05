@@ -9,7 +9,6 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
@@ -39,8 +38,8 @@ func (c *Client) SetLog(l log.Logger) {
 
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsub(ps *pubsub.PubSub) basic.Option {
-	return basic.WithWatcher(func(info *chain.Info, cache basic.Cache) (basic.Watcher, error) {
+func WithPubsub(ps *pubsub.PubSub) client.Option {
+	return basic.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
 		c, err := NewWithPubsub(ps, info, cache)
 		if err != nil {
 			return nil, err
@@ -49,7 +48,7 @@ func WithPubsub(ps *pubsub.PubSub) basic.Option {
 	})
 }
 
-func randomnessValidator(info *chain.Info, cache basic.Cache, c *Client) pubsub.ValidatorEx {
+func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub.ValidatorEx {
 	return func(ctx context.Context, p peer.ID, m *pubsub.Message) pubsub.ValidationResult {
 		var rand drand.PublicRandResponse
 		err := proto.Unmarshal(m.Data, &rand)
@@ -105,7 +104,7 @@ func randomnessValidator(info *chain.Info, cache basic.Cache, c *Client) pubsub.
 }
 
 // NewWithPubsub creates a gossip randomness client.
-func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache basic.Cache) (*Client, error) {
+func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
 	if info == nil {
 		return nil, xerrors.Errorf("No chain supplied for joining")
 	}

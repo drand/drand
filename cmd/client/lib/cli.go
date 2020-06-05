@@ -2,13 +2,14 @@ package lib
 
 import (
 	"encoding/hex"
+	nhttp "net/http"
 	"os"
 	"path"
 	"strconv"
 
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/basic"
 	"github.com/drand/drand/client/grpc"
+	"github.com/drand/drand/client/http"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	gclient "github.com/drand/drand/lp2p/client"
@@ -57,7 +58,7 @@ var (
 
 // Create builds a client, and can be invoked from a cli action supplied
 // with ClientFlags
-func Create(c *cli.Context, opts ...basic.Option) (client.Client, error) {
+func Create(c *cli.Context, opts ...client.Option) (client.Client, error) {
 	if c.IsSet("grpc-connect") {
 		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.IsSet("insecure"))
 	}
@@ -66,13 +67,16 @@ func Create(c *cli.Context, opts ...basic.Option) (client.Client, error) {
 		if err != nil {
 			return nil, err
 		}
-		opts = append(opts, basic.WithChainHash(hash))
+		opts = append(opts, client.WithChainHash(hash))
 	}
 	if c.IsSet("insecure") {
-		opts = append(opts, basic.WithInsecureHTTPEndpoints(c.StringSlice("url")))
-	} else {
-		opts = append(opts, basic.WithHTTPEndpoints(c.StringSlice("url")))
+		opts = append(opts, client.Insecurely())
 	}
+	httpClients := make([]client.Client, 0)
+	for _, url := range c.StringSlice("url") {
+		httpClients = append(httpClients, http.New(url, hash, nhttp.DefaultTransport))
+	}
+	opts = append(opts, client.From(httpClients))
 
 	if c.IsSet("relays") {
 		relayPeers, err := lp2p.ParseMultiaddrSlice(c.StringSlice("relays"))
@@ -86,7 +90,7 @@ func Create(c *cli.Context, opts ...basic.Option) (client.Client, error) {
 		opts = append(opts, gclient.WithPubsub(ps))
 	}
 
-	return basic.New(opts...)
+	return client.New(opts...)
 }
 
 func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {

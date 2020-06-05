@@ -1,4 +1,4 @@
-package basic
+package client
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 )
 
@@ -20,7 +19,7 @@ const defaultFailoverGracePeriod = time.Second * 5
 // and not emit the intermediate values.
 //
 // If grace period is 0, it'll be set to 5s or the chain period / 2, whichever is smaller.
-func NewFailoverWatcher(core client.Client, chainInfo *chain.Info, gracePeriod time.Duration) (client.Client, error) {
+func NewFailoverWatcher(core Client, chainInfo *chain.Info, gracePeriod time.Duration) (Client, error) {
 	if chainInfo == nil {
 		return nil, errors.New("missing chain info")
 	}
@@ -42,7 +41,7 @@ func NewFailoverWatcher(core client.Client, chainInfo *chain.Info, gracePeriod t
 }
 
 type failoverWatcher struct {
-	client.Client
+	Client
 	chainInfo   *chain.Info
 	gracePeriod time.Duration
 	log         log.Logger
@@ -54,11 +53,11 @@ func (c *failoverWatcher) SetLog(l log.Logger) {
 }
 
 // Watch returns new randomness as it becomes available.
-func (c *failoverWatcher) Watch(ctx context.Context) <-chan client.Result {
+func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
 	var latest uint64
-	ch := make(chan client.Result, 5)
+	ch := make(chan Result, 5)
 
-	sendResult := func(r client.Result) {
+	sendResult := func(r Result) {
 		if latest >= r.Round() {
 			c.log.Warn("failover_client", "randomness notification dropped: out of date", "round", r.Round(), "latest", latest)
 			return

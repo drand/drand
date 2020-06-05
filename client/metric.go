@@ -1,16 +1,15 @@
-package basic
+package client
 
 import (
 	"context"
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
 	"github.com/drand/drand/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func newHTTPHealthMetrics(httpAddrs []string, clients []client.Client, info *chain.Info) *httpHealthMetrics {
+func newHTTPHealthMetrics(httpAddrs []string, clients []Client, info *chain.Info) *httpHealthMetrics {
 	if len(clients) != len(httpAddrs) {
 		panic("client/address count mismatch")
 	}
@@ -30,7 +29,7 @@ func newHTTPHealthMetrics(httpAddrs []string, clients []client.Client, info *cha
 type httpHealthMetrics struct {
 	next      int
 	httpAddrs []string
-	clients   []client.Client
+	clients   []Client
 	chainInfo *chain.Info
 }
 
@@ -63,7 +62,7 @@ func (c *httpHealthMetrics) startObserve(ctx context.Context) {
 	}
 }
 
-func newWatchLatencyMetricClient(base client.Client, info *chain.Info) (client.Client, error) {
+func newWatchLatencyMetricClient(base Client, info *chain.Info) (Client, error) {
 	c := &watchLatencyMetricClient{
 		Client:    base,
 		chainInfo: info,
@@ -73,7 +72,7 @@ func newWatchLatencyMetricClient(base client.Client, info *chain.Info) (client.C
 }
 
 type watchLatencyMetricClient struct {
-	client.Client
+	Client
 	chainInfo *chain.Info
 }
 
