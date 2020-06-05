@@ -2,6 +2,7 @@ package chain
 
 import (
 	"bytes"
+	"math"
 	"testing"
 	"time"
 
@@ -107,4 +108,22 @@ func TestChainInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, c13)
 	require.True(t, c1.Equal(c13))
+}
+
+func TestTimeOverflow(t *testing.T) {
+	start := time.Date(2020, 01, 01, 0, 0, 0, 0, time.UTC).Unix()
+	period := time.Second
+
+	smallRound := TimeOfRound(period, start, 1024)
+	largeRound := TimeOfRound(period, start, math.MaxInt32)
+
+	if largeRound < smallRound {
+		t.Fatal("future rounds should not allow previous times.")
+	}
+
+	overflowRound := TimeOfRound(period, start, math.MaxInt64)
+	if overflowRound < smallRound {
+		t.Fatal("future rounds should not allow previous times.")
+	}
+
 }
