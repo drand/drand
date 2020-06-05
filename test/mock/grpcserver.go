@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
@@ -91,6 +92,7 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 func (s *Server) EmitRand(closeStream bool) {
 	s.l.Lock()
 	if s.stream == nil {
+		fmt.Println("MOCK SERVER: stream nil")
 		s.l.Unlock()
 		return
 	}
@@ -99,22 +101,27 @@ func (s *Server) EmitRand(closeStream bool) {
 	s.l.Unlock()
 	if closeStream {
 		close(done)
+		fmt.Println("MOCK SERVER: closing stream upon request")
 		return
 	}
 
-	if stream.Context().Err() != nil {
-		done <- s.stream.Context().Err()
+	if err := stream.Context().Err(); err != nil {
+		done <- err
+		fmt.Println("MOCK SERVER: context error ", err)
 		return
 	}
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
 		done <- err
+		fmt.Println("MOCK SERVER: public rand err:", err)
 		return
 	}
 	if err = stream.Send(resp); err != nil {
 		done <- err
+		fmt.Println("MOCK SERVER: stream send error:", err)
 		return
 	}
+	fmt.Println("MOCK SERVER: emit round done")
 }
 
 func testValid(d *Data) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 
 	dhttp "github.com/drand/drand/http"
@@ -14,6 +15,7 @@ import (
 	drand "github.com/drand/drand/protobuf/drand"
 
 	"github.com/gorilla/handlers"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -63,12 +65,19 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("A 'connect' host must be provided")
 	}
 
+	opts := []grpc.DialOption{}
+
 	if c.IsSet(metricsFlag.Name) {
 		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
+
+		opts = append(opts,
+			grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
+			grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		)
+		metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 	}
 
-	opts := []grpc.DialOption{}
 	if c.IsSet(certFlag.Name) {
 		creds, _ := credentials.NewClientTLSFromFile(c.String(certFlag.Name), "")
 		opts = append(opts, grpc.WithTransportCredentials(creds))
@@ -108,6 +117,15 @@ func Relay(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// jumpstart bootup
+	req, _ := http.NewRequest("GET", "/public/0", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		log.DefaultLogger.Warn("binary", "relay", "startup failed", rr.Code)
+	}
+
 	fmt.Printf("Listening at %s\n", listener.Addr())
 	return http.Serve(listener, handler)
 }
