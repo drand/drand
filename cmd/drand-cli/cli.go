@@ -226,7 +226,9 @@ func CLI() *cli.App {
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
-		fmt.Fprintf(os.Stderr, err.Error())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
+		}
 	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
