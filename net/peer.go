@@ -1,5 +1,13 @@
 package net
 
+import (
+	"context"
+	"strings"
+
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
+)
+
 // Peer is a simple interface that allows retrieving the address of a
 // destination. It might further be enhanced with certificates properties and
 // all.
@@ -27,4 +35,58 @@ func CreatePeer(addr string, tls bool) Peer {
 		addr: addr,
 		tls:  tls,
 	}
+}
+
+// RemoteAddress returns the address of the peer by first taking the address
+// that gRPC returns. If that address is a reserved address, then it tries to
+// read the "X-REAL-IP" header content.
+// For example, a valid nging config could include
+//
+// ```
+// location / {
+//       grpc_pass grpc://127.0.0.1:9091;
+//       grpc_set_header X-Real-IP $remote_addr;
+// }
+// ```
+//
+func RemoteAddress(c context.Context) string {
+	peer, ok := peer.FromContext(c)
+	var str string = ""
+	if ok {
+		str = peer.Addr.String()
+	}
+	// https://en.wikipedia.org/wiki/Reserved_IP_addresses
+	reserved := []string{
+		"192.168",
+		"10.0.0",
+		"127.0.0",
+		"192.0.0",
+		"192.168",
+	}
+
+	lookAtHeader := func() bool {
+		if str == "" {
+			return true
+		}
+		for _, r := range reserved {
+			if strings.HasPrefix(str, r) {
+				return true
+			}
+		}
+		return false
+	}()
+
+	if !lookAtHeader {
+		return str
+	}
+
+	md, ok := metadata.FromIncomingContext(c)
+	if !ok {
+		return str
+	}
+	vals := md.Get("x-real-ip")
+	if len(vals) > 0 {
+		return vals[0]
+	}
+	return str
 }
