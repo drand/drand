@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -104,7 +105,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 }
 
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
-	var b *chain.Handler
+	var b *beacon.Handler
 	d.state.Lock()
 	if d.beacon == nil {
 		return errors.New("beacon has not started on this node yet")

@@ -1,10 +1,11 @@
-package chain
+package beacon
 
 import (
 	"context"
 	"errors"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -32,10 +33,10 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 		return p.Send(beaconToProto(last))
 	}
 	var err error
-	h.chain.Cursor(func(c Cursor) {
+	h.chain.Cursor(func(c chain.Cursor) {
 		for beacon := c.Seek(fromRound); beacon != nil; beacon = c.Next() {
 			reply := beaconToProto(beacon)
-			nRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+			nRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 			l, _ := h.chain.Last()
 			h.l.Debug("sync_chain_reply", addr, "from", fromRound, "to", reply.Round, "head", nRound-1, "last_beacon", l.String())
 			if err = p.Send(reply); err != nil {
@@ -50,8 +51,8 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 
 // syncChain will sync from the given rounds, to the targeted round until either
 // the context closes or it exhausted the list of nodes to contact to.
-func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon, toRound uint64, client net.ProtocolClient) (chan *Beacon, error) {
-	outCh := make(chan *Beacon, toRound-from.Round)
+func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *chain.Beacon, toRound uint64, client net.ProtocolClient) (chan *chain.Beacon, error) {
+	outCh := make(chan *chain.Beacon, toRound-from.Round)
 	fromRound := from.Round
 	defer l.Debug("sync_from", fromRound, "status", "leaving")
 
@@ -104,7 +105,7 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *Beacon
 							l.Error("sync_from", addr, "invalid_round_info", newBeacon.Round)
 							return
 						}
-						err = VerifyBeacon(info.pub.Commit(), newBeacon)
+						err = chain.VerifyBeacon(info.pub.Commit(), newBeacon)
 						if err != nil {
 							l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", newBeacon.Round)
 							return
