@@ -90,7 +90,10 @@ func TestGRPCClient(t *testing.T) {
 	}
 	svc.(mock.MockService).EmitRand(true)
 	cancel()
-	for range ch {
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout")
 	}
 }
 
@@ -140,13 +143,16 @@ func TestHTTPClient(t *testing.T) {
 			} else {
 				fmt.Print(r)
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
 	emit(true)
 	cancel()
-	for range ch {
+	select {
+	case <-ch:
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout")
 	}
 }
 
