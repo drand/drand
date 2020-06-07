@@ -57,24 +57,22 @@ func RemoteAddress(c context.Context) string {
 	}
 	// https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	reserved := []string{
-		"192.168",
-		"10.0.0",
-		"127.0.0",
+		"10.",
+		"127.",
 		"192.0.0",
 		"192.168",
 	}
 
-	lookAtHeader := func() bool {
-		if str == "" {
-			return true
-		}
+	var lookAtHeader bool
+	if str == "" {
+		lookAtHeader = true
+	} else {
 		for _, r := range reserved {
 			if strings.HasPrefix(str, r) {
-				return true
+				lookAtHeader = true
 			}
 		}
-		return false
-	}()
+	}
 
 	if !lookAtHeader {
 		return str
