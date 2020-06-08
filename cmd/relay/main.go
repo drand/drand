@@ -50,7 +50,7 @@ func Relay(c *cli.Context) error {
 		metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 	}
 
-	client, err := lib.Create(c)
+	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 	if err != nil {
 		return err
 	}

@@ -60,7 +60,7 @@ var (
 
 // Create builds a client, and can be invoked from a cli action supplied
 // with ClientFlags
-func Create(c *cli.Context, opts ...client.Option) (client.Client, error) {
+func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (client.Client, error) {
 	if c.IsSet("grpc-connect") {
 		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.IsSet("insecure"))
 	}
@@ -99,6 +99,9 @@ func Create(c *cli.Context, opts ...client.Option) (client.Client, error) {
 			}
 		}
 		httpClients = append(httpClients, hc)
+	}
+	if withInstrumentation {
+		http.MeasureHeartbeats(c.Context, httpClients)
 	}
 	opts = append(opts, client.From(httpClients...))
 

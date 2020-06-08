@@ -15,7 +15,7 @@ var (
 )
 
 func mockAction(c *cli.Context) error {
-	res, err := Create(c, opts...)
+	res, err := Create(c, false, opts...)
 	latestClient = res
 	return err
 }

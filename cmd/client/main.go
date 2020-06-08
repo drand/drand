@@ -97,7 +97,7 @@ func Client(c *cli.Context) error {
 		opts = append(opts, bridgeWithID)
 	}
 
-	client, err := lib.Create(c, opts...)
+	client, err := lib.Create(c, c.IsSet(clientMetricsIDFlag.Name), opts...)
 	if err != nil {
 		return err
 	}

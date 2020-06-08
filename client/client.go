@@ -46,8 +46,6 @@ func makeClient(cfg clientConfig) (Client, error) {
 	for _, c := range cfg.clients {
 		trySetLog(c, cfg.log)
 	}
-	// TODO:
-	//newHTTPHealthMetrics(cfg.urls, restClients, cfg.chainInfo)
 
 	var c Client
 	var err error
