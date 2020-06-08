@@ -36,6 +36,13 @@ func TestKeyPublic(t *testing.T) {
 	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
 }
 
+func TestKeySignature(t *testing.T) {
+	addr := "127.0.0.1:80"
+	kp := NewTLSKeyPair(addr)
+	ptoml := kp.Public.TOML().(*PublicTOML)
+
+}
+
 func TestKeyDistributedPublic(t *testing.T) {
 	n := 4
 	publics := make([]kyber.Point, n)

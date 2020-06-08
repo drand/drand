@@ -27,9 +27,10 @@ type Pair struct {
 // valid internet facing ipv4 address where to this reach the node holding the
 // public / private key pair.
 type Identity struct {
-	Key  kyber.Point
-	Addr string
-	TLS  bool
+	Key       kyber.Point
+	Addr      string
+	TLS       bool
+	Signature []byte
 }
 
 // Address implements the net.Peer interface
@@ -46,6 +47,22 @@ func (i *Identity) String() string {
 	return fmt.Sprintf("{%s - %s}", i.Address(), i.Key.String())
 }
 
+// Hash returns the hash of the public key without signing the signature. The hash
+// is the input to the signature scheme. It does _not_ hash the address & tls
+// field as those may need to change while the node keeps the same key.
+func (i *Identity) Hash() []byte {
+	h := hashFunc()
+	i.Key.MarshalTo(h)
+	return h.Sum(nil)
+}
+
+// ValidSignature returns true if the signature included in this identity is
+// correct or not
+func (i *Identity) ValidSignature() error {
+	msg := i.Hash()
+	return AuthScheme.Verify(i.Key, msg, i.Signature)
+}
+
 // Equal indicates if two identities are equal
 func (i *Identity) Equal(i2 *Identity) bool {
 	if i.Addr != i2.Addr {
@@ -60,6 +77,12 @@ func (i *Identity) Equal(i2 *Identity) bool {
 	return true
 }
 
+func (p *Pair) finalize() {
+	msg := p.Public.Hash()
+	signature, _ := AuthScheme.Sign(p.Key, msg)
+	p.Public.Signature = signature
+}
+
 // NewKeyPair returns a freshly created private / public key pair. The group is
 // decided by the group variable by default. Currently, drand only supports
 // bn256.
@@ -70,10 +93,12 @@ func NewKeyPair(address string) *Pair {
 		Key:  pubKey,
 		Addr: address,
 	}
-	return &Pair{
+	p := &Pair{
 		Key:    key,
 		Public: pub,
 	}
+	p.finalize()
+	return p
 }
 
 // NewTLSKeyPair returns a fresh keypair associated with the given address
@@ -81,6 +106,7 @@ func NewKeyPair(address string) *Pair {
 func NewTLSKeyPair(address string) *Pair {
 	kp := NewKeyPair(address)
 	kp.Public.TLS = true
+	kp.finalize()
 	return kp
 }
 
@@ -91,9 +117,10 @@ type PairTOML struct {
 
 // PublicTOML is the TOML-able version of a public key
 type PublicTOML struct {
-	Address string
-	Key     string
-	TLS     bool
+	Address   string
+	Key       string
+	TLS       bool
+	Signature string
 }
 
 // TOML returns a struct that can be marshalled using a TOML-encoding library
@@ -109,16 +136,10 @@ func (p *Pair) FromTOML(i interface{}) error {
 		return errors.New("private can't decode toml from non PairTOML struct")
 	}
 
-	buff, err := hex.DecodeString(ptoml.Key)
-	if err != nil {
-		return err
-	}
-	p.Key = KeyGroup.Scalar()
-	if err := p.Key.UnmarshalBinary(buff); err != nil {
-		return err
-	}
+	var err error
+	p.Key, err = StringToScalar(KeyGroup, ptoml.Key)
 	p.Public = new(Identity)
-	return nil
+	return err
 }
 
 // TOMLValue returns an empty TOML-compatible interface value
@@ -132,23 +153,25 @@ func (i *Identity) FromTOML(t interface{}) error {
 	if !ok {
 		return errors.New("Public can't decode from non PublicTOML struct")
 	}
-	buff, err := hex.DecodeString(ptoml.Key)
+	var err error
+	i.Key, err = StringToPoint(KeyGroup, ptoml.Key)
+	i.Addr = ptoml.Address
+	i.TLS = ptoml.TLS
+	i.Signature, err = hex.DecodeString(ptoml.Signature)
 	if err != nil {
 		return err
 	}
-	i.Addr = ptoml.Address
-	i.Key = KeyGroup.Point()
-	i.TLS = ptoml.TLS
-	return i.Key.UnmarshalBinary(buff)
+	return i.ValidSignature()
 }
 
 // TOML returns a empty TOML-compatible version of the public key
 func (i *Identity) TOML() interface{} {
-	hex := PointToString(i.Key)
+	hexKey := PointToString(i.Key)
 	return &PublicTOML{
-		Address: i.Addr,
-		Key:     hex,
-		TLS:     i.TLS,
+		Address:   i.Addr,
+		Key:       hexKey,
+		TLS:       i.TLS,
+		Signature: hex.EncodeToString(i.Signature),
 	}
 }
 
@@ -184,11 +207,14 @@ func IdentityFromProto(n *proto.Identity) (*Identity, error) {
 	if err := public.UnmarshalBinary(n.GetKey()); err != nil {
 		return nil, err
 	}
-	return &Identity{
-		Addr: n.GetAddress(),
-		TLS:  n.Tls,
-		Key:  public,
-	}, nil
+
+	id := &Identity{
+		Addr:      n.GetAddress(),
+		TLS:       n.Tls,
+		Key:       public,
+		Signature: n.GetSignature(),
+	}
+	return id, id.ValidSignature()
 }
 
 // Share represents the private information that a node holds after a successful
