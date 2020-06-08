@@ -659,7 +659,7 @@ if the following routine returns true:
 ```go
 func isAppendable(lastBeacon, newBeacon *Beacon) bool {
 	return newBeacon.Round == lastBeacon.Round+1 &&
-	bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
+	 	bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
 }
 ```
 
