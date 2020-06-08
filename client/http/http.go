@@ -52,6 +52,17 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 	return c, nil
 }
 
+// ForURLs provides a shortcut for creating a set of HTTP clients for a set of URLs.
+func ForURLs(urls []string, chainHash []byte) []client.Client {
+	clients := make([]client.Client, 0)
+	for _, u := range urls {
+		if c, err := New(u, chainHash, nil); err == nil {
+			clients = append(clients, c)
+		}
+	}
+	return clients
+}
+
 // Instruments an HTTP client around a transport
 func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	client := nhttp.DefaultClient

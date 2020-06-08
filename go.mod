@@ -5,7 +5,6 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/drand/bls12-381 v0.3.2
-	github.com/drand/drand/cmd/relay-gossip v0.0.0-20200526025814-ddf9da8a93e6 // indirect
 	github.com/drand/kyber v1.0.2
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/protobuf v1.3.1

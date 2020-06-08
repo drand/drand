@@ -40,7 +40,7 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
-	return &chain.Info{}, nil
+	return nil, errors.New("not supported")
 }
 
 // RoundAt will return the most recent round of randomness
@@ -61,36 +61,63 @@ func NewMockResult(round uint64) MockResult {
 	sig := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sig, round)
 	return MockResult{
-		rnd:  round,
-		sig:  sig,
-		rand: chain.RandomnessFromSignature(sig),
+		Rnd:  round,
+		Sig:  sig,
+		Rand: chain.RandomnessFromSignature(sig),
 	}
 }
 
 type MockResult struct {
-	rnd  uint64
-	rand []byte
-	sig  []byte
+	Rnd  uint64
+	Rand []byte
+	Sig  []byte
 }
 
 func (r *MockResult) Randomness() []byte {
-	return r.rand
+	return r.Rand
 }
 func (r *MockResult) Signature() []byte {
-	return r.sig
+	return r.Sig
 }
 func (r *MockResult) Round() uint64 {
-	return r.rnd
+	return r.Rnd
 }
 func (r *MockResult) AssertValid(t *testing.T) {
 	t.Helper()
 	sigTarget := make([]byte, 8)
-	binary.LittleEndian.PutUint64(sigTarget, r.rnd)
-	if !bytes.Equal(r.sig, sigTarget) {
-		t.Fatalf("expected sig: %x, got %x", sigTarget, r.sig)
+	binary.LittleEndian.PutUint64(sigTarget, r.Rnd)
+	if !bytes.Equal(r.Sig, sigTarget) {
+		t.Fatalf("expected sig: %x, got %x", sigTarget, r.Sig)
 	}
 	randTarget := chain.RandomnessFromSignature(sigTarget)
-	if !bytes.Equal(r.rand, randTarget) {
-		t.Fatalf("expected rand: %x, got %x", randTarget, r.rand)
+	if !bytes.Equal(r.Rand, randTarget) {
+		t.Fatalf("expected rand: %x, got %x", randTarget, r.Rand)
 	}
+}
+
+// MockClientWithInfo makes a client that returns the given info but no randomness
+func MockClientWithInfo(info *chain.Info) Client {
+	return &MockInfoClient{info}
+}
+
+type MockInfoClient struct {
+	i *chain.Info
+}
+
+func (m *MockInfoClient) Info(ctx context.Context) (*chain.Info, error) {
+	return m.i, nil
+}
+
+func (m *MockInfoClient) RoundAt(t time.Time) uint64 {
+	return chain.CurrentRound(t.Unix(), m.i.Period, m.i.GenesisTime)
+}
+
+func (m *MockInfoClient) Get(ctx context.Context, round uint64) (Result, error) {
+	return nil, errors.New("not supported")
+}
+
+func (m *MockInfoClient) Watch(ctx context.Context) <-chan Result {
+	ch := make(chan Result, 1)
+	close(ch)
+	return ch
 }

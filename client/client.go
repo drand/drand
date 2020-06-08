@@ -71,6 +71,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 
 	// provision watcher client
 	if cfg.watcher != nil {
+		cfg.tryPopulateInfo(c)
 		w, err := cfg.watcher(cfg.chainInfo, cache)
 		if err != nil {
 			return nil, err
@@ -90,6 +91,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	}
 
 	if cfg.failoverGracePeriod > 0 {
+		cfg.tryPopulateInfo(c)
 		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod)
 		if err != nil {
 			return nil, err
@@ -102,6 +104,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 
 	if cfg.prometheus != nil {
 		metrics.RegisterClientMetrics(cfg.prometheus)
+		cfg.tryPopulateInfo(c)
 		if cfg.chainInfo == nil {
 			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
 		}
@@ -135,6 +138,14 @@ type clientConfig struct {
 	autoWatch bool
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
+}
+
+func (c *clientConfig) tryPopulateInfo(cli Client) {
+	if c.chainInfo == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		c.chainInfo, _ = cli.Info(ctx)
+	}
 }
 
 // Option is an option configuring a client.

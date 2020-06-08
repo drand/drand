@@ -130,10 +130,6 @@ github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2/go.mod h1:SqUrOPUn
 github.com/drand/bls12-381 v0.3.2 h1:RImU8Wckmx8XQx1tp1q04OV73J9Tj6mmpQLYDP7V1XE=
 github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqiniuAt4Y=
 github.com/drand/drand v0.8.2-0.20200508124210-33866c2232e3/go.mod h1:pX75MGTg1J5n6iJ9Jf1jFfl4TsiohiJqzhY0GHfQOnY=
-github.com/drand/drand/cmd/drand-gossip-relay v0.0.0-20200515153120-57a6056a24d4 h1:6pWtoRm0cMzG+E6TyPL54OW+CIXKweO7Hv+pF2444dA=
-github.com/drand/drand/cmd/drand-gossip-relay v0.0.0-20200515153120-57a6056a24d4/go.mod h1:80fl4F3wP8N3RlVTfrdiWBshRW2rJw2siXWFPDGOwL0=
-github.com/drand/drand/cmd/relay-gossip v0.0.0-20200526025814-ddf9da8a93e6 h1:XfM4lK+mACJcYWx9Oycy9C1LtO8xOm+0Lf127aI8z+Q=
-github.com/drand/drand/cmd/relay-gossip v0.0.0-20200526025814-ddf9da8a93e6/go.mod h1:1a6akvV9YjeN1HPWeW4SxbPyRXoFyOAeCOehqQ+w//4=
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.1-0.20200502215402-daa30f0ec4f8/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber v1.0.2 h1:dHjtWJZJdn3zBBZ9pqLsLfcR9ScvDvSqzS1sWA8seao=

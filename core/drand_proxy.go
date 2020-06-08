@@ -19,6 +19,11 @@ type drandProxy struct {
 	r drand.PublicServer
 }
 
+// Proxy wraps a server interface into a client interface so it can be queried
+func Proxy(s drand.PublicServer) client.Client {
+	return &drandProxy{s}
+}
+
 // Get returns randomness at a requested round
 func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, error) {
 	resp, err := d.r.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
