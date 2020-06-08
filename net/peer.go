@@ -59,8 +59,10 @@ func RemoteAddress(c context.Context) string {
 	reserved := []string{
 		"10.",
 		"127.",
-		"192.0.0",
 		"192.168",
+		"100.64.",
+		"172.16.",
+		"169.254.",
 	}
 
 	var lookAtHeader bool
