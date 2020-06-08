@@ -39,7 +39,7 @@ func (c *Client) SetLog(l log.Logger) {
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
 func WithPubsub(ps *pubsub.PubSub) client.Option {
-	return basic.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
+	return client.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
 		c, err := NewWithPubsub(ps, info, cache)
 		if err != nil {
 			return nil, err
