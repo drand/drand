@@ -55,7 +55,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	var c Client
 	var err error
 	if len(cfg.clients) > 0 {
-		c, err = NewOptimizingClient(cfg.clients, cfg.chainInfo, cfg.rttTTL)
+		c, err = NewOptimizingClient(cfg.clients, cfg.chainInfo, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -142,8 +142,6 @@ type clientConfig struct {
 	autoWatch bool
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
-	// rttTTL is the time a RTT sample will live before it is tested again.
-	rttTTL time.Duration
 }
 
 func (c *clientConfig) tryPopulateInfo(cli Client) (err error) {
@@ -258,18 +256,6 @@ func WithAutoWatch() Option {
 func WithPrometheus(r prometheus.Registerer) Option {
 	return func(cfg *clientConfig) error {
 		cfg.prometheus = r
-		return nil
-	}
-}
-
-// WithRoundTripTTL is the time a RTT sample will live before it is tested
-// again. Calls to `.Get` are timed so that when multiple endpoints are
-// available the fastest one can be used. Sample round trip times live for a
-// certain period before they are reset. This allows a slow or unavailable
-// client to recover and become the fastest.
-func WithRoundTripTTL(t time.Duration) Option {
-	return func(cfg *clientConfig) error {
-		cfg.rttTTL = t
 		return nil
 	}
 }
