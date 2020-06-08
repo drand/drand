@@ -75,7 +75,7 @@ func TestPrioritizingWatch(t *testing.T) {
 
 func TestPrioritizingWatchFromClient(t *testing.T) {
 	c := MockClientWithResults(0, 5)
-	c2 := MockClientWithInfo(fakeChainInfo())
+	c2 := EmptyClientWithInfo(fakeChainInfo())
 
 	p, _ := NewPrioritizingClient([]Client{c, c2}, nil, nil)
 	ch := p.Watch(context.Background())

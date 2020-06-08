@@ -58,7 +58,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	} else if len(cfg.clients) == 1 {
 		c = cfg.clients[0]
 	} else {
-		// TODO: nil base.
+		c = EmptyClientWithInfo(cfg.chainInfo)
 	}
 
 	// provision cache
