@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -69,7 +68,9 @@ func makeClient(cfg clientConfig) (Client, error) {
 
 	// provision watcher client
 	if cfg.watcher != nil {
-		cfg.tryPopulateInfo(c)
+		if err := cfg.tryPopulateInfo(c); err != nil {
+			return nil, err
+		}
 		w, err := cfg.watcher(cfg.chainInfo, cache)
 		if err != nil {
 			return nil, err
@@ -89,7 +90,9 @@ func makeClient(cfg clientConfig) (Client, error) {
 	}
 
 	if cfg.failoverGracePeriod > 0 {
-		cfg.tryPopulateInfo(c)
+		if err := cfg.tryPopulateInfo(c); err != nil {
+			return nil, err
+		}
 		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod)
 		if err != nil {
 			return nil, err
@@ -102,9 +105,8 @@ func makeClient(cfg clientConfig) (Client, error) {
 
 	if cfg.prometheus != nil {
 		metrics.RegisterClientMetrics(cfg.prometheus)
-		cfg.tryPopulateInfo(c)
-		if cfg.chainInfo == nil {
-			return nil, fmt.Errorf("prometheus enabled, but chain info not known")
+		if err := cfg.tryPopulateInfo(c); err != nil {
+			return nil, err
 		}
 		if c, err = newWatchLatencyMetricClient(c, cfg.chainInfo); err != nil {
 			return nil, err
@@ -138,12 +140,13 @@ type clientConfig struct {
 	prometheus prometheus.Registerer
 }
 
-func (c *clientConfig) tryPopulateInfo(cli Client) {
+func (c *clientConfig) tryPopulateInfo(cli Client) (err error) {
 	if c.chainInfo == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		c.chainInfo, _ = cli.Info(ctx)
+		c.chainInfo, err = cli.Info(ctx)
 	}
+	return
 }
 
 // Option is an option configuring a client.

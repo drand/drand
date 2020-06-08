@@ -73,7 +73,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		opts = append(opts, client.WithChainHash(hash))
 	}
-	if c.IsSet("insecure") {
+	if c.Bool("insecure") {
 		opts = append(opts, client.Insecurely())
 	}
 	httpClients := make([]client.Client, 0)
