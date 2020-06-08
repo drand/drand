@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/cmd/relay-gossip/node"
@@ -90,6 +91,21 @@ func TestGRPCClient(t *testing.T) {
 	}
 	svc.(mock.MockService).EmitRand(true)
 	cancel()
+	drain(t, ch, 10*time.Second)
+}
+
+func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
+
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+		case <-time.After(timeout):
+			t.Fatal("timed out closing channel.")
+		}
+	}
 }
 
 func TestHTTPClient(t *testing.T) {
@@ -144,6 +160,7 @@ func TestHTTPClient(t *testing.T) {
 	}
 	emit(true)
 	cancel()
+	drain(t, ch, 10*time.Second)
 }
 
 func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
