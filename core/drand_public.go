@@ -9,9 +9,9 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/encrypt/ecies"
-	"google.golang.org/grpc/peer"
 )
 
 // Setup is the public method to call during a DKG protocol.
@@ -24,11 +24,7 @@ func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, 
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
-	p, ok := peer.FromContext(c)
-	addr := "<unknown>"
-	if ok {
-		addr = p.Addr.String()
-	}
+	addr := net.RemoteAddress(c)
 	if !d.dkgInfo.started {
 		d.log.Info("init_dkg", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
 		d.dkgInfo.started = true
@@ -46,11 +42,7 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg setup yet")
 	}
-	p, ok := peer.FromContext(c)
-	addr := "<unknown>"
-	if ok {
-		addr = p.Addr.String()
-	}
+	addr := net.RemoteAddress(c)
 	if !d.dkgInfo.started {
 		d.dkgInfo.started = true
 		d.log.Info("init_reshare", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()), "target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
@@ -75,13 +67,7 @@ func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) 
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	var addr string
-	peer, ok := peer.FromContext(c)
-	if ok {
-		addr = peer.Addr.String()
-	} else {
-		addr = "<unknown>"
-	}
+	var addr = net.RemoteAddress(c)
 	d.state.Lock()
 	defer d.state.Unlock()
 	if d.beacon == nil {
@@ -115,8 +101,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	if err != nil {
 		return err
 	}
-	peer, _ := peer.FromContext(stream.Context())
-	addr := peer.Addr.String()
+	addr := net.RemoteAddress(stream.Context())
 	done := make(chan error, 1)
 	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
 	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
@@ -180,10 +165,7 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 
 // Home ...
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	peer, ok := peer.FromContext(c)
-	if ok {
-		d.log.With("module", "public").Info("home", peer.Addr.String())
-	}
+	d.log.With("module", "public").Info("home", net.RemoteAddress(c))
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),
@@ -206,12 +188,9 @@ func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPack
 	if d.manager == nil {
 		return nil, errors.New("no manager")
 	}
-	peer, ok := peer.FromContext(ctx)
-	if !ok {
-		return nil, errors.New("no peer associated")
-	}
+	addr := net.RemoteAddress(ctx)
 	// manager will verify if information are correct
-	err := d.manager.ReceivedKey(peer.Addr.String(), p)
+	err := d.manager.ReceivedKey(addr, p)
 	if err != nil {
 		return nil, err
 	}
