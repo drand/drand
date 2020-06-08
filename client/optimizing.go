@@ -13,26 +13,20 @@ import (
 )
 
 const (
-	defaultRequestTimeout    = time.Second * 5
-	defaultSpeedTestInterval = time.Minute * 5
+	defaultRequestTimeout     = time.Second * 5
+	defaultSpeedTestInterval  = time.Minute * 5
+	defaultRequestConcurrency = 2
 )
 
 // NewOptimizingClient creates a drand client that measures the speed of clients
-// and uses the fastest one. Speeds are measured as the optimizing client is
-// used, so there is no background routine and no additional calls to other
-// clients.
-//
-// A speed measurement lives for a certain period before it is reset. The next
-// call to `.Get` will then attempt to use a reset client even if it was
-// previously considered to be slower. Pass a value > 0 for `rttTTL` to
-// customize the period - it defaults to 5 minutes.
-//
-// If a client fails to return a value it'll be attempted from the next fastest
-// client. Failed clients are given a large RTT and are moved to the back of the
-// list. This RTT expires as usual and allows failed clients to be re-introduced
-// and become the fastest again. i.e. failed clients are not taken out of the
-// list, just considered to be very slow.
-func NewOptimizingClient(clients []Client, chainInfo *chain.Info, requestTimeout time.Duration, speedTestInterval time.Duration) (Client, error) {
+// and uses the fastest one.
+func NewOptimizingClient(
+	clients []Client,
+	chainInfo *chain.Info,
+	requestTimeout time.Duration,
+	requestConcurrency int,
+	speedTestInterval time.Duration,
+) (Client, error) {
 	if len(clients) == 0 {
 		return nil, errors.New("missing clients")
 	}
@@ -48,31 +42,36 @@ func NewOptimizingClient(clients []Client, chainInfo *chain.Info, requestTimeout
 	if requestTimeout <= 0 {
 		requestTimeout = defaultRequestTimeout
 	}
+	if requestConcurrency <= 0 {
+		requestConcurrency = defaultRequestConcurrency
+	}
 	if speedTestInterval <= 0 {
 		speedTestInterval = defaultSpeedTestInterval
 	}
-	c := &optimizingClient{
-		clients:           clients,
-		stats:             stats,
-		requestTimeout:    requestTimeout,
-		speedTestInterval: speedTestInterval,
-		chainInfo:         chainInfo,
-		log:               log.DefaultLogger,
-		done:              done,
+	oc := &optimizingClient{
+		clients:            clients,
+		stats:              stats,
+		requestTimeout:     requestTimeout,
+		requestConcurrency: requestConcurrency,
+		speedTestInterval:  speedTestInterval,
+		chainInfo:          chainInfo,
+		log:                log.DefaultLogger,
+		done:               done,
 	}
-	go c.testSpeed()
-	return c, nil
+	go oc.testSpeed()
+	return oc, nil
 }
 
 type optimizingClient struct {
 	sync.RWMutex
-	clients           []Client
-	stats             []*requestStat
-	requestTimeout    time.Duration
-	speedTestInterval time.Duration
-	chainInfo         *chain.Info
-	log               log.Logger
-	done              chan struct{}
+	clients            []Client
+	stats              []*requestStat
+	requestTimeout     time.Duration
+	requestConcurrency int
+	speedTestInterval  time.Duration
+	chainInfo          *chain.Info
+	log                log.Logger
+	done               chan struct{}
 }
 
 type requestStat struct {
@@ -84,56 +83,100 @@ type requestStat struct {
 	startTime time.Time
 }
 
+type requestResult struct {
+	// result is the return value from the call to Get.
+	result Result
+	// err is the error that occurred from a call to Get (not including context error).
+	err error
+	// stat is stats from the call to Get.
+	stat *requestStat
+}
+
 func (oc *optimizingClient) testSpeed() {
 	for {
-		nextStats := []*requestStat{}
-		for _, c := range oc.clients {
-			ctx, cancel := context.WithTimeout(context.Background(), oc.requestTimeout)
-			ch := get(ctx, c, 1)
+		stats := []*requestStat{}
+		ctx, cancel := context.WithCancel(context.Background())
+		ch := parallelGet(ctx, oc.clients, 1, oc.requestTimeout, oc.requestConcurrency)
 
+	LOOP:
+		for {
 			select {
 			case rr, ok := <-ch:
-				cancel()
 				if !ok {
-					break
+					cancel()
+					break LOOP
 				}
-				if rr.err != nil && ctx.Err() == nil {
-					oc.log.Warn("optimising_client", "speed test request failed", "err", rr.err)
-				}
-				nextStats = append(nextStats, rr.stat)
-			case <-ctx.Done():
+				stats = append(stats, rr.stat)
 			case <-oc.done:
 				cancel()
 				return
 			}
 		}
 
-		oc.updateStats(nextStats)
+		oc.updateStats(stats)
 
 		t := time.NewTimer(oc.speedTestInterval)
 		select {
 		case <-t.C:
 		case <-oc.done:
+			t.Stop()
 			return
 		}
 	}
 }
 
-// requestResult records all the information about a call to Get.
-type requestResult struct {
-	res  Result
-	err  error
-	stat *requestStat
+// SetLog configures the client log output.
+func (oc *optimizingClient) SetLog(l log.Logger) {
+	oc.log = l
+}
+
+// Get returns a the randomness at `round` or an error.
+func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
+	oc.RLock()
+	// copy the current ordered client list so we iterate over a stable slice
+	var clients []Client
+	for _, s := range oc.stats {
+		clients = append(clients, s.client)
+	}
+	oc.RUnlock()
+
+	stats := []*requestStat{}
+	defer oc.updateStats(stats)
+	ch := raceGet(ctx, clients, round, oc.requestTimeout, oc.requestConcurrency)
+
+LOOP:
+	for {
+		select {
+		case rr, ok := <-ch:
+			if !ok {
+				break LOOP
+			}
+			stats = append(stats, rr.stat)
+			res, err = rr.result, rr.err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-oc.done:
+			return nil, errors.New("client closed")
+		}
+	}
+
+	return
 }
 
 // get calls Get on the passed client and returns a channel that yields a single
-// raceResult when the call completes.
+// raceResult when the call completes or closes the channel with no result if the
+// context is canceled.
 func get(ctx context.Context, client Client, round uint64) <-chan *requestResult {
 	ch := make(chan *requestResult, 1)
 	go func() {
 		start := time.Now()
 		res, err := client.Get(ctx, round)
 		rtt := time.Now().Sub(start)
+
+		if ctx.Err() != nil {
+			close(ch)
+			return
+		}
 
 		// client failure, set a large RTT so it is sent to the back of the list
 		if err != nil {
@@ -152,73 +195,86 @@ func get(ctx context.Context, client Client, round uint64) <-chan *requestResult
 	return ch
 }
 
-// SetLog configures the client log output
-func (oc *optimizingClient) SetLog(l log.Logger) {
-	oc.log = l
-}
+func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
+	results := make(chan *requestResult, len(clients))
 
-func (oc *optimizingClient) Close() {
-	close(oc.done)
-}
+	go func() {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		defer close(results)
+		ch := parallelGet(ctx, clients, round, timeout, concurrency)
 
-// Get returns a the randomness at `round` or an error.
-func (oc *optimizingClient) Get(ctx context.Context, round uint64) (Result, error) {
-	oc.RLock()
-	// copy the current ordered client list so we iterate over a stable slice
-	var clients []Client
-	for i := range oc.stats {
-		clients = append(clients, oc.stats[i].client)
-	}
-	oc.RUnlock()
-
-	if len(clients) == 1 {
-		ctx, cancel := context.WithTimeout(context.Background(), oc.requestTimeout)
-		ch := get(ctx, clients[0], round)
-		select {
-		case rr, _ := <-ch:
-			oc.updateStats([]*requestStat{rr.stat})
-			if rr.err != nil {
-				return nil, rr.err
+		for {
+			select {
+			case rr, ok := <-ch:
+				if !ok {
+					return
+				}
+				results <- rr
+				if rr.err == nil { // race is won
+					return
+				}
+			case <-ctx.Done():
+				return
 			}
-			return rr.res, nil
-		case <-oc.done:
-			cancel()
-			return nil, errors.New("client closed")
 		}
-	}
+	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), oc.requestTimeout)
-	ch0 := get(ctx, clients[0], round)
-	ch1 := get(ctx, clients[1], round)
-	select {
-	case rr, _ := <-ch0:
-		oc.updateStats([]*requestStat{rr.stat})
-		cancel()
-		if rr.err != nil {
-			return nil, rr.err
-		}
-		return rr.res, nil
-	case rr, _ := <-ch1:
-		oc.updateStats([]*requestStat{rr.stat})
-		cancel()
-		if rr.err != nil {
-			return nil, rr.err
-		}
-		return rr.res, nil
-	case <-oc.done:
-		cancel()
-		return nil, errors.New("client closed")
-	}
-
-	// TODO fallback to other clients
+	return results
 }
 
-func (oc *optimizingClient) updateStats(samples []*requestStat) {
+func parallelGet(ctx context.Context, clients []Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
+	results := make(chan *requestResult, len(clients))
+	token := make(chan struct{}, concurrency)
+
+	for i := 0; i < concurrency; i++ {
+		token <- struct{}{}
+	}
+
+	go func() {
+		wg := sync.WaitGroup{}
+	LOOP:
+		for len(clients) > 0 {
+			c := clients[0]
+			clients = clients[1:]
+			select {
+			case <-token:
+				wg.Add(1)
+				go func(c Client) {
+					defer func() { token <- struct{}{} }()
+					defer wg.Done()
+
+					ctx, cancel := context.WithTimeout(ctx, timeout)
+					defer cancel()
+
+					ch := get(ctx, c, round)
+					select {
+					case rr, ok := <-ch:
+						if !ok {
+							return
+						}
+						results <- rr
+					case <-ctx.Done():
+						return
+					}
+				}(c)
+			case <-ctx.Done():
+				break LOOP
+			}
+		}
+		wg.Wait()
+		close(results)
+	}()
+
+	return results
+}
+
+func (oc *optimizingClient) updateStats(stats []*requestStat) {
 	oc.Lock()
 	defer oc.Unlock()
 
 	// update the round trip times with new samples
-	for _, next := range samples {
+	for _, next := range stats {
 		for _, curr := range oc.stats {
 			if curr.client == next.client {
 				if curr.startTime.Before(next.startTime) {
@@ -244,5 +300,10 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
 func (oc *optimizingClient) RoundAt(time time.Time) uint64 {
-	return oc.stats[0].client.RoundAt(time)
+	return oc.clients[0].RoundAt(time)
+}
+
+// Close stops the background speed tests and closes the client for further use.
+func (oc *optimizingClient) Close() {
+	close(oc.done)
 }
