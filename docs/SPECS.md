@@ -156,7 +156,7 @@ func (g *Group) Hash() []byte {
 	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
 	binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
 	if g.TransitionTime != 0 {
-	binary.Write(h, binary.LittleEndian, g.TransitionTime)
+		binary.Write(h, binary.LittleEndian, g.TransitionTime)
 	}
 	if g.PublicKey != nil {
 	h.Write(g.PublicKey.Hash())
