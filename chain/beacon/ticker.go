@@ -1,8 +1,9 @@
-package chain
+package beacon
 
 import (
 	"time"
 
+	"github.com/drand/drand/chain"
 	clock "github.com/jonboulle/clockwork"
 )
 
@@ -48,7 +49,7 @@ func (t *ticker) Stop() {
 }
 
 func (t *ticker) CurrentRound() uint64 {
-	return CurrentRound(t.clock.Now().Unix(), t.period, t.genesis)
+	return chain.CurrentRound(t.clock.Now().Unix(), t.period, t.genesis)
 }
 
 // Start will sleep until the next upcoming round and start sending out the
@@ -59,7 +60,7 @@ func (t *ticker) Start() {
 	// still sleeping until the next time
 	go func() {
 		now := t.clock.Now().Unix()
-		_, ttime := NextRound(now, t.period, t.genesis)
+		_, ttime := chain.NextRound(now, t.period, t.genesis)
 		if ttime > now {
 			t.clock.Sleep(time.Duration(ttime-now) * time.Second)
 		}
@@ -101,7 +102,7 @@ func (t *ticker) Start() {
 		}
 		select {
 		case nt := <-chanTime:
-			tround = CurrentRound(nt.Unix(), t.period, t.genesis)
+			tround = chain.CurrentRound(nt.Unix(), t.period, t.genesis)
 			ttime = nt.Unix()
 			sendTicks = true
 		case newChan := <-t.newCh:
