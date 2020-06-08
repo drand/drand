@@ -19,6 +19,8 @@ func New(options ...Option) (Client, error) {
 	cfg := clientConfig{
 		cacheSize: 32,
 		log:       log.DefaultLogger,
+		timeout:   time.Second * 5,
+		rttTTL:    time.Minute * 5,
 	}
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
@@ -155,6 +157,8 @@ type clientConfig struct {
 	prometheus prometheus.Registerer
 	// rttTTL is the time a RTT sample will live before it is tested again.
 	rttTTL time.Duration
+	// timeout is the timeout for calls to `Get`. By default this is 5s.
+	timeout time.Duration
 }
 
 // Option is an option configuring a client.
@@ -276,6 +280,15 @@ func WithAutoWatch() Option {
 func WithPrometheus(r prometheus.Registerer) Option {
 	return func(cfg *clientConfig) error {
 		cfg.prometheus = r
+		return nil
+	}
+}
+
+// WithTimeout sets the timeout for calls to `Get`. By default this is 5s. Set
+// to 0 for no timeout.
+func WithTimeout(t time.Duration) Option {
+	return func(cfg *clientConfig) error {
+		cfg.timeout = t
 		return nil
 	}
 }
