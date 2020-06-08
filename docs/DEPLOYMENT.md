@@ -40,7 +40,7 @@ The setup process for a drand node consists of the following steps:
 
 1. Generate the long-term key pair for each node
 2. Each node starts their daemon
-3. Leader starts the command as a coordinator & every participant connect to the
+3. Leader starts the command as a coordinator & every participant connects to the
  coordinator to setup the network
 
 This document explains how to do the setup with the drand binary itself. drand
