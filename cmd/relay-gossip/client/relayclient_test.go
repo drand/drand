@@ -90,11 +90,6 @@ func TestGRPCClient(t *testing.T) {
 	}
 	svc.(mock.MockService).EmitRand(true)
 	cancel()
-	select {
-	case <-ch:
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout")
-	}
 }
 
 func TestHTTPClient(t *testing.T) {
@@ -149,11 +144,6 @@ func TestHTTPClient(t *testing.T) {
 	}
 	emit(true)
 	cancel()
-	select {
-	case <-ch:
-	case <-time.After(10 * time.Second):
-		t.Fatal("timeout")
-	}
 }
 
 func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
