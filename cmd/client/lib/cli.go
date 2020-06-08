@@ -62,7 +62,7 @@ var (
 // with ClientFlags
 func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (client.Client, error) {
 	if c.IsSet("grpc-connect") {
-		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.IsSet("insecure"))
+		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.Bool("insecure"))
 	}
 	var hash []byte
 	var err error
@@ -103,7 +103,6 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if withInstrumentation {
 		http.MeasureHeartbeats(c.Context, httpClients)
 	}
-	opts = append(opts, client.From(httpClients...))
 
 	if c.IsSet("relays") {
 		relayPeers, err := lp2p.ParseMultiaddrSlice(c.StringSlice("relays"))
@@ -117,7 +116,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, gclient.WithPubsub(ps))
 	}
 
-	return client.New(opts...)
+	return client.Wrap(httpClients, opts...)
 }
 
 func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {

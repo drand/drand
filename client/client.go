@@ -27,6 +27,12 @@ func New(options ...Option) (Client, error) {
 	return makeClient(cfg)
 }
 
+// Wrap provides a single entrypoint for wrapping a concrete client
+// implementation with configured aggregation, caching, and retry logic
+func Wrap(clients []Client, options ...Option) (Client, error) {
+	return New(append(options, From(clients...))...)
+}
+
 func trySetLog(c Client, l log.Logger) {
 	if lc, ok := c.(LoggingClient); ok {
 		lc.SetLog(l)
