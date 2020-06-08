@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
-	proto "github.com/drand/drand/protobuf/drand"
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
@@ -52,13 +51,7 @@ func TestKeySignature(t *testing.T) {
 	ptoml.Signature = "no justice, no peace"
 	require.Error(t, id2.FromTOML(ptoml))
 
-	buff, err := kp.Public.Key.MarshalBinary()
-	require.NoError(t, err)
-	protoID := &proto.Identity{
-		Address: "127.0.0.1:8080",
-		Key:     buff,
-	}
-	protoID.Signature = validSig
+	protoIP := kp.Public.ToProto()
 	decodedID, err := IdentityFromProto(protoID)
 	require.NoError(t, err)
 	require.True(t, decodedID.Key.Equal(kp.Public.Key))

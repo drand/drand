@@ -20,6 +20,7 @@ type Client interface {
 // ProtocolClient holds all the methods of the protocol API that drand protocols
 // use. See protobuf/drand/protocol.proto for more information.
 type ProtocolClient interface {
+	GetIdentity(ctx context.Context, p Peer, in *drand.IdentityRequest, opts ...CallOption) (*drand.Identity, error)
 	SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error)
 	PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error
 	FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error)

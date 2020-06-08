@@ -55,6 +55,9 @@ message DKGInfoPacket {
     string secret_proof = 2;
     // timeout in seconds
     uint32 dkg_timeout = 3;
+    // signature from the coordinator to prove he is the one sending that group
+    // file.
+    bytes signature = 4;
 }
 
 message PartialBeaconPacket {

@@ -200,7 +200,8 @@ func (b ByKey) Less(i, j int) bool {
 	return bytes.Compare(is, js) < 0
 }
 
-// IdentityFromProto creates an identity from its wire representation
+// IdentityFromProto creates an identity from its wire representation and
+// verifies it validity.
 func IdentityFromProto(n *proto.Identity) (*Identity, error) {
 	_, _, err := net.SplitHostPort(n.GetAddress())
 	if err != nil {
@@ -218,6 +219,16 @@ func IdentityFromProto(n *proto.Identity) (*Identity, error) {
 		Signature: n.GetSignature(),
 	}
 	return id, id.ValidSignature()
+}
+
+func (i *Identity) ToProto() *proto.Identity {
+	buff, _ := i.Key.MarshalBinary()
+	return &proto.Identity{
+		Address:   i.Addr,
+		Key:       buff,
+		Tls:       i.TLS,
+		Signature: i.Signature,
+	}
 }
 
 // Share represents the private information that a node holds after a successful
