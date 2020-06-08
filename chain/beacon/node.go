@@ -1,4 +1,4 @@
-package chain
+package beacon
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	//"github.com/benbjohnson/clock"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
@@ -35,7 +36,7 @@ type Config struct {
 	Clock clock.Clock
 	// Callback to use when a new beacon is created - can be nil and new
 	// callbacks can be added afterwards to the beacon
-	Callback func(*Beacon)
+	Callback func(*chain.Beacon)
 }
 
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
@@ -56,12 +57,12 @@ type Handler struct {
 	started   bool
 	stopped   bool
 	l         log.Logger
-	callbacks *CallbackStore
+	callbacks *chain.CallbackStore
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Handler, error) {
+func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger) (*Handler, error) {
 	if conf.Share == nil || conf.Group == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}
@@ -77,13 +78,13 @@ func NewHandler(c net.ProtocolClient, s Store, conf *Config, l log.Logger) (*Han
 	// genesis block at round 0, next block at round 1
 	// THIS is to change when one network wants to build on top of another
 	// network's chain. Note that if present it overwrites.
-	b := &Beacon{
+	b := &chain.Beacon{
 		Signature: conf.Group.GetGenesisSeed(),
 		Round:     0,
 	}
 	s.Put(b)
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
-	callbacks := NewCallbackStore(s)
+	callbacks := chain.NewCallbackStore(s)
 	chain := newChainStore(logger, c, safe, callbacks, ticker)
 	handler := &Handler{
 		conf:      conf,
@@ -107,7 +108,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	addr := net.RemoteAddress(c)
 	h.l.Debug("received", "request", "from", addr, "round", p.GetRound())
 
-	nextRound, _ := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
 
 	// we allow one round off in the future because of small clock drifts
@@ -118,7 +119,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	msg := Message(p.GetRound(), p.GetPreviousSig())
+	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
 	info, err := h.safe.GetInfo(p.GetRound())
 	if err != nil {
 		h.l.Error("process_partial", addr, "no_info_for_round", p.GetRound())
@@ -145,7 +146,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 }
 
 // Store returns the store associated with this beacon handler
-func (h *Handler) Store() Store {
+func (h *Handler) Store() chain.Store {
 	return h.chain
 }
 
@@ -161,7 +162,7 @@ func (h *Handler) Start() error {
 		h.l.Error("genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
-	_, tTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Info("beacon", "start")
 	go h.run(tTime)
 	return nil
@@ -174,7 +175,7 @@ func (h *Handler) Start() error {
 // next upcoming round.
 func (h *Handler) Catchup() {
 	h.chain.RunSync(context.Background())
-	_, tTime := NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
 }
 
@@ -187,8 +188,8 @@ func (h *Handler) Catchup() {
 // defined, best to use streaming.
 func (h *Handler) Transition(prevGroup *key.Group) error {
 	targetTime := h.conf.Group.TransitionTime
-	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
@@ -205,8 +206,8 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 // TransitionNewGroup begins transition the crypto share to a new group
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
-	tRound := CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
@@ -267,7 +268,7 @@ func (h *Handler) run(startTime int64) {
 	}
 }
 
-func (h *Handler) broadcastNextPartial(current roundInfo, upon *Beacon) {
+func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	ctx := context.Background()
 	previousSig := upon.Signature
 	round := upon.Round + 1
@@ -289,7 +290,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *Beacon) {
 		h.l.Error("no_share", round, "BUG", h.safe.String())
 		return
 	}
-	msg := Message(round, previousSig)
+	msg := chain.Message(round, previousSig)
 	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
@@ -352,7 +353,7 @@ func (h *Handler) StopAt(stopTime int64) error {
 }
 
 // AddCallback registers a handler to be notified with new beacons
-func (h *Handler) AddCallback(fn func(*Beacon)) {
+func (h *Handler) AddCallback(fn func(*chain.Beacon)) {
 	h.callbacks.AddCallback(fn)
 }
 
@@ -408,7 +409,7 @@ func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Node, group *key.Group) {
 	}
 	if group.TransitionTime != 0 {
 		time := group.TransitionTime
-		info.startAt = CurrentRound(time, group.Period, group.GenesisTime)
+		info.startAt = chain.CurrentRound(time, group.Period, group.GenesisTime)
 	} else {
 		// group started at genesis time
 		info.startAt = 0
