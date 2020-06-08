@@ -9,17 +9,15 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	proto "github.com/drand/drand/protobuf/drand"
-	"google.golang.org/grpc/peer"
 )
 
 // SyncChain is the server side call that reply with the beacon in order to the
 // client requesting the syncing.
 func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error {
 	fromRound := req.GetFromRound()
-	peer, _ := peer.FromContext(p.Context())
-	addr := peer.Addr.String()
+	addr := net.RemoteAddress(p.Context())
 	last, _ := h.chain.Last()
-	h.l.Debug("received", "sync_request", "from", peer.Addr.String(), "from_round", fromRound, "head_at", last.Round)
+	h.l.Debug("received", "sync_request", "from", addr, "from_round", fromRound, "head_at", last.Round)
 	if last.Round < fromRound {
 		return errors.New("no beacon stored above requested round")
 	}

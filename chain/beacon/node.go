@@ -18,7 +18,6 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
 	clock "github.com/jonboulle/clockwork"
-	"google.golang.org/grpc/peer"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -106,8 +105,7 @@ var errOutOfRound = "out-of-round beacon request"
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
-	peer, _ := peer.FromContext(c)
-	addr := peer.Addr.String()
+	addr := net.RemoteAddress(c)
 	h.l.Debug("received", "request", "from", addr, "round", p.GetRound())
 
 	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -143,7 +141,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
-	h.chain.NewValidPartial(peer.Addr.String(), p)
+	h.chain.NewValidPartial(addr, p)
 	return new(proto.Empty), nil
 }
 
