@@ -20,6 +20,7 @@ func New(options ...Option) (Client, error) {
 		cacheSize: 32,
 		log:       log.DefaultLogger,
 		timeout:   time.Second * 5,
+		headStart: time.Second,
 		rttTTL:    time.Minute * 5,
 	}
 	for _, opt := range options {
