@@ -1,12 +1,14 @@
 package lib
 
 import (
+	"context"
 	"encoding/hex"
 	nhttp "net/http"
 	"os"
 	"path"
 	"strconv"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/client/http"
@@ -62,8 +64,10 @@ func Create(c *cli.Context, opts ...client.Option) (client.Client, error) {
 	if c.IsSet("grpc-connect") {
 		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.IsSet("insecure"))
 	}
+	var hash []byte
+	var err error
 	if c.IsSet("hash") {
-		hash, err := hex.DecodeString(c.String("hash"))
+		hash, err = hex.DecodeString(c.String("hash"))
 		if err != nil {
 			return nil, err
 		}
@@ -73,10 +77,30 @@ func Create(c *cli.Context, opts ...client.Option) (client.Client, error) {
 		opts = append(opts, client.Insecurely())
 	}
 	httpClients := make([]client.Client, 0)
+	var info *chain.Info
 	for _, url := range c.StringSlice("url") {
-		httpClients = append(httpClients, http.New(url, hash, nhttp.DefaultTransport))
+		var hc client.Client
+		if info != nil {
+			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
+			if err != nil {
+				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				continue
+			}
+		} else {
+			hc, err = http.New(url, hash, nhttp.DefaultTransport)
+			if err != nil {
+				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				continue
+			}
+			info, err = hc.Info(context.Background())
+			if err != nil {
+				log.DefaultLogger.Warn("client", "failed to load Info from URL", "url", url, "err", err)
+				continue
+			}
+		}
+		httpClients = append(httpClients, hc)
 	}
-	opts = append(opts, client.From(httpClients))
+	opts = append(opts, client.From(httpClients...))
 
 	if c.IsSet("relays") {
 		relayPeers, err := lp2p.ParseMultiaddrSlice(c.StringSlice("relays"))
