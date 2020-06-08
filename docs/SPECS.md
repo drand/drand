@@ -159,7 +159,7 @@ func (g *Group) Hash() []byte {
 		binary.Write(h, binary.LittleEndian, g.TransitionTime)
 	}
 	if g.PublicKey != nil {
-	h.Write(g.PublicKey.Hash())
+		h.Write(g.PublicKey.Hash())
 	}
 	return h.Sum(nil)
 }
