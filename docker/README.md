@@ -252,6 +252,7 @@ server {
   location / {
     // default --public-listen port specified in the docker compose
     grpc_pass grpc://localhost:1234;
+    grpc_set_header X-Real-IP $remote_addr;
   }
 
   location /info {
