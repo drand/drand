@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"math"
 	"sort"
 	"sync"
 	"time"
@@ -207,6 +208,12 @@ func get(ctx context.Context, client Client, round uint64) <-chan *raceResult {
 		start := time.Now()
 		res, err := client.Get(ctx, round)
 		rtt := time.Now().Sub(start)
+
+		// client failure, set a large RTT so it is sent to the back of the list
+		if err != nil {
+			rtt = math.MaxInt64
+		}
+
 		stat := requestStat{client, rtt, start}
 
 		if err != nil {
