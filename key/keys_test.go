@@ -51,7 +51,7 @@ func TestKeySignature(t *testing.T) {
 	ptoml.Signature = "no justice, no peace"
 	require.Error(t, id2.FromTOML(ptoml))
 
-	protoIP := kp.Public.ToProto()
+	protoID := kp.Public.ToProto()
 	decodedID, err := IdentityFromProto(protoID)
 	require.NoError(t, err)
 	require.True(t, decodedID.Key.Equal(kp.Public.Key))
