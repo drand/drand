@@ -74,7 +74,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	}
 
 	if len(restClients) > 1 {
-		c, err = NewOptimizingClient(restClients, cfg.chainInfo, cfg.rttTTL)
+		c, err = NewOptimizingClient(restClients, cfg.chainInfo, cfg.timeout, cfg.headStart, cfg.rttTTL)
 		if err != nil {
 			return nil, err
 		}
@@ -159,6 +159,9 @@ type clientConfig struct {
 	rttTTL time.Duration
 	// timeout is the timeout for calls to `Get`. By default this is 5s.
 	timeout time.Duration
+	// headStart is the time given to the fastest client before which we race
+	// the others to `Get` a `Result`.
+	headStart time.Duration
 }
 
 // Option is an option configuring a client.
@@ -289,6 +292,17 @@ func WithPrometheus(r prometheus.Registerer) Option {
 func WithTimeout(t time.Duration) Option {
 	return func(cfg *clientConfig) error {
 		cfg.timeout = t
+		return nil
+	}
+}
+
+// WithHeadStart is the time a call to `.Get` will have before which other
+// clients are raced for the result. When multiple clients are available they
+// are measured for speed and the fastest one is used. This duration gives the
+// fastest client time to respond before the other clients are asked.
+func WithHeadStart(t time.Duration) Option {
+	return func(cfg *clientConfig) error {
+		cfg.headStart = t
 		return nil
 	}
 }
