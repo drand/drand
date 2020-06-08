@@ -1,4 +1,4 @@
-package chain
+package boltdb
 
 import (
 	"os"
@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,13 +18,13 @@ func TestStoreBoltOrder(t *testing.T) {
 	store, err := NewBoltStore(path, nil)
 	require.NoError(t, err)
 
-	b1 := &Beacon{
+	b1 := &chain.Beacon{
 		PreviousSig: []byte("a magnificent signature"),
 		Round:       145,
 		Signature:   []byte("one signature to"),
 	}
 
-	b2 := &Beacon{
+	b2 := &chain.Beacon{
 		PreviousSig: []byte("is not worth an invalid one"),
 		Round:       146,
 		Signature:   []byte("govern them all"),
@@ -61,13 +62,13 @@ func TestStoreBolt(t *testing.T) {
 
 	require.Equal(t, 0, store.Len())
 
-	b1 := &Beacon{
+	b1 := &chain.Beacon{
 		PreviousSig: sig1,
 		Round:       145,
 		Signature:   sig2,
 	}
 
-	b2 := &Beacon{
+	b2 := &chain.Beacon{
 		PreviousSig: sig2,
 		Round:       146,
 		Signature:   sig1,
@@ -90,11 +91,11 @@ func TestStoreBolt(t *testing.T) {
 	require.NoError(t, store.Put(b1))
 
 	doneCh := make(chan bool)
-	callback := func(b *Beacon) {
+	callback := func(b *chain.Beacon) {
 		require.Equal(t, b1, b)
 		doneCh <- true
 	}
-	cbStore := NewCallbackStore(store)
+	cbStore := chain.NewCallbackStore(store)
 	cbStore.AddCallback(callback)
 	go cbStore.Put(b1)
 	select {
@@ -109,8 +110,8 @@ func TestStoreBolt(t *testing.T) {
 	store.Put(b1)
 	store.Put(b2)
 
-	store.Cursor(func(c Cursor) {
-		expecteds := []*Beacon{b1, b2}
+	store.Cursor(func(c chain.Cursor) {
+		expecteds := []*chain.Beacon{b1, b2}
 		i := 0
 		for b := c.First(); b != nil; b = c.Next() {
 			require.True(t, expecteds[i].Equal(b))
@@ -121,7 +122,7 @@ func TestStoreBolt(t *testing.T) {
 		require.Nil(t, unknown)
 	})
 
-	store.Cursor(func(c Cursor) {
+	store.Cursor(func(c chain.Cursor) {
 		lb2 := c.Last()
 		require.NotNil(t, lb2)
 		require.Equal(t, b2, lb2)

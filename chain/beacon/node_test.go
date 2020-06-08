@@ -1,4 +1,4 @@
-package chain
+package beacon
 
 import (
 	"context"
@@ -11,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	//"github.com/benbjohnson/clock"
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -105,7 +106,7 @@ type node struct {
 	index    int // group index
 	private  *key.Pair
 	shares   *key.Share
-	callback func(*Beacon)
+	callback func(*chain.Beacon)
 	handler  *Handler
 	listener net.Listener
 	clock    clock.FakeClock
@@ -183,7 +184,7 @@ func (b *BeaconTest) CreateNode(i int) {
 	node.private = priv
 	share := findShare(idx)
 	node.shares = share
-	store, err := NewBoltStore(b.paths[idx], nil)
+	store, err := boltdb.NewBoltStore(b.paths[idx], nil)
 	if err != nil {
 		panic(err)
 	}
@@ -367,9 +368,9 @@ func TestBeaconSync(t *testing.T) {
 	fmt.Println(" HERE TEST 11")
 	defer bt.CleanUp()
 	var counter = &sync.WaitGroup{}
-	myCallBack := func(i int) func(*Beacon) {
-		return func(b *Beacon) {
-			require.NoError(t, VerifyBeacon(bt.dpublic, b))
+	myCallBack := func(i int) func(*chain.Beacon) {
+		return func(b *chain.Beacon) {
+			require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
 			fmt.Printf("\nROUND %d DONE for %s\n\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
 			counter.Done()
 		}
@@ -432,9 +433,9 @@ func TestBeaconSimple(t *testing.T) {
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
-	myCallBack := func(b *Beacon) {
+	myCallBack := func(b *chain.Beacon) {
 		// verify partial sig
-		require.NoError(t, VerifyBeacon(bt.dpublic, b))
+		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
 		//msg := Message(b.PreviousSig, b.PreviousRound, b.Round)
 		//err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 		//require.NoError(t, err)
@@ -481,11 +482,11 @@ func TestBeaconThreshold(t *testing.T) {
 	defer func() { go bt.CleanUp() }()
 	var currentRound uint64 = 0
 	var counter = &sync.WaitGroup{}
-	myCallBack := func(i int) func(*Beacon) {
-		return func(b *Beacon) {
+	myCallBack := func(i int) func(*chain.Beacon) {
+		return func(b *chain.Beacon) {
 			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
-			msg := Message(b.Round, b.PreviousSig)
+			msg := chain.Message(b.Round, b.PreviousSig)
 			err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 			require.NoError(t, err)
 			// callbacks are called for syncing up as well so we only decrease
@@ -555,7 +556,7 @@ func TestBeaconThreshold(t *testing.T) {
 	makeRounds(nRounds, n)
 }
 
-func (b *BeaconTest) CallbackFor(i int, fn func(*Beacon)) {
+func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {
 	j := b.searchNode(i)
 	b.nodes[j].handler.callbacks.AddCallback(fn)
 }
