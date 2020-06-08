@@ -155,11 +155,14 @@ func (i *Identity) FromTOML(t interface{}) error {
 	}
 	var err error
 	i.Key, err = StringToPoint(KeyGroup, ptoml.Key)
+	if err != nil {
+		return fmt.Errorf("decoding public key: %s", err)
+	}
 	i.Addr = ptoml.Address
 	i.TLS = ptoml.TLS
 	i.Signature, err = hex.DecodeString(ptoml.Signature)
 	if err != nil {
-		return err
+		return fmt.Errorf("decoding signature: %s", err)
 	}
 	return i.ValidSignature()
 }

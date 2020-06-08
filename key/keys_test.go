@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
+	proto "github.com/drand/drand/protobuf/drand"
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
@@ -39,8 +40,31 @@ func TestKeyPublic(t *testing.T) {
 func TestKeySignature(t *testing.T) {
 	addr := "127.0.0.1:80"
 	kp := NewTLSKeyPair(addr)
-	ptoml := kp.Public.TOML().(*PublicTOML)
+	validSig := kp.Public.Signature
+	require.NoError(t, kp.Public.ValidSignature())
+	kp.Public.Signature = []byte("no justice, no peace")
+	require.Error(t, kp.Public.ValidSignature())
+	kp.Public.Signature = validSig
 
+	ptoml := kp.Public.TOML().(*PublicTOML)
+	id2 := new(Identity)
+	require.NoError(t, id2.FromTOML(ptoml))
+	ptoml.Signature = "no justice, no peace"
+	require.Error(t, id2.FromTOML(ptoml))
+
+	buff, err := kp.Public.Key.MarshalBinary()
+	require.NoError(t, err)
+	protoID := &proto.Identity{
+		Address: "127.0.0.1:8080",
+		Key:     buff,
+	}
+	protoID.Signature = validSig
+	decodedID, err := IdentityFromProto(protoID)
+	require.NoError(t, err)
+	require.True(t, decodedID.Key.Equal(kp.Public.Key))
+	protoID.Signature = []byte("I am insane. And you are my insanity")
+	decodedID, err = IdentityFromProto(protoID)
+	require.Error(t, err)
 }
 
 func TestKeyDistributedPublic(t *testing.T) {
