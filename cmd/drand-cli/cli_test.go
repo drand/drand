@@ -16,6 +16,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -35,7 +36,7 @@ func TestDeleteBeacon(t *testing.T) {
 	var opt = core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
 	fs.CreateSecureFolder(conf.DBFolder())
-	store, err := chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err := boltdb.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	require.NoError(t, err)
 	store.Put(&chain.Beacon{
 		Round:     1,
@@ -66,7 +67,7 @@ func TestDeleteBeacon(t *testing.T) {
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "3"}
 	app := CLI()
 	require.NoError(t, app.Run(args))
-	store, err = chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err = boltdb.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail

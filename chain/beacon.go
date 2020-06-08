@@ -3,10 +3,8 @@ package chain
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/binary"
+	"encoding/hex"
 	"fmt"
-	"math"
-	"time"
 
 	json "github.com/nikkolasg/hexjson"
 
@@ -90,83 +88,14 @@ func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
 func Message(currRound uint64, prevSig []byte) []byte {
 	h := sha256.New()
 	h.Write(prevSig)
-	h.Write(roundToBytes(currRound))
+	h.Write(RoundToBytes(currRound))
 	return h.Sum(nil)
 }
 
-// TimeOfRound is returning the time the current round should happen
-func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
-	if round == 0 {
-		return genesis
+func shortSigStr(sig []byte) string {
+	max := 3
+	if len(sig) < max {
+		max = len(sig)
 	}
-
-	periodBits := math.Log2(float64(period))
-	if round > (math.MaxUint64 >> int(periodBits)) {
-		return math.MaxInt64
-	}
-	delta := (round - 1) * uint64(period.Seconds())
-
-	// - 1 because genesis time is for 1st round already
-	return genesis + int64(delta)
-}
-
-// CurrentRound calculates the active round at `now`
-func CurrentRound(now int64, period time.Duration, genesis int64) uint64 {
-	nextRound, _ := NextRound(now, period, genesis)
-	if nextRound <= 1 {
-		return nextRound
-	}
-	return nextRound - 1
-}
-
-// NextRound returns the next upcoming round and its UNIX time given the genesis
-// time and the period.
-// round at time genesis = round 1. Round 0 is fixed.
-func NextRound(now int64, period time.Duration, genesis int64) (uint64, int64) {
-	if now < genesis {
-		return 1, genesis
-	}
-	fromGenesis := now - genesis
-	// we take the time from genesis divided by the periods in seconds, that
-	// gives us the number of periods since genesis. We add +1 since we want the
-	// next round. We also add +1 because round 1 starts at genesis time.
-	nextRound := uint64(math.Floor(float64(fromGenesis)/period.Seconds())) + 1
-	nextTime := genesis + int64(nextRound*uint64(period.Seconds()))
-	return nextRound + 1, nextTime
-}
-
-// Info represents the public information that is necessary for a client to
-// very any beacon present in a randomness chain.
-type Info struct {
-	PublicKey   kyber.Point   `json:"public_key"`
-	Period      time.Duration `json:"period"`
-	GenesisTime int64         `json:"genesis_time"`
-}
-
-// NewChainInfo makes a chain Info from a group
-func NewChainInfo(g *key.Group) *Info {
-	return &Info{
-		Period:      g.Period,
-		PublicKey:   g.PublicKey.Key(),
-		GenesisTime: g.GenesisTime,
-	}
-}
-
-// Hash returns the canonical hash representing the chain information. A hash is
-// consistent throughout the entirety of a chain, regardless of the network
-// composition, the actual nodes, generating the randomness.
-func (c *Info) Hash() []byte {
-	h := sha256.New()
-	binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
-	binary.Write(h, binary.BigEndian, int64(c.GenesisTime))
-	buff, _ := c.PublicKey.MarshalBinary()
-	h.Write(buff)
-	return h.Sum(nil)
-}
-
-// Equal indicates if two Chain Info objects are equivalent
-func (c *Info) Equal(c2 *Info) bool {
-	return c.GenesisTime == c2.GenesisTime &&
-		c.Period == c2.Period &&
-		c.PublicKey.Equal(c2.PublicKey)
+	return hex.EncodeToString(sig[0:max])
 }
