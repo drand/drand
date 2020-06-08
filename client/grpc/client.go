@@ -60,7 +60,7 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		return nil, err
 	}
 	if curr == nil {
-		return nil, errors.New("No received randomness")
+		return nil, errors.New("No received randomness. Unexpected gPRC response")
 	}
 
 	return asRD(curr), nil
@@ -84,10 +84,14 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 	if err != nil {
 		return nil, err
 	}
+	if proto == nil {
+		return nil, errors.New("No received group. Unexpected gPRC response")
+	}
 	return chain.InfoFromProto(proto)
 }
 
 func translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
+	defer close(out)
 	for {
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {
