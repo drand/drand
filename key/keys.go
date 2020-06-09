@@ -77,7 +77,7 @@ func (i *Identity) Equal(i2 *Identity) bool {
 	return true
 }
 
-func (p *Pair) finalize() {
+func (p *Pair) SelfSign() {
 	msg := p.Public.Hash()
 	signature, _ := AuthScheme.Sign(p.Key, msg)
 	p.Public.Signature = signature
@@ -97,7 +97,7 @@ func NewKeyPair(address string) *Pair {
 		Key:    key,
 		Public: pub,
 	}
-	p.finalize()
+	p.SelfSign()
 	return p
 }
 
@@ -106,7 +106,7 @@ func NewKeyPair(address string) *Pair {
 func NewTLSKeyPair(address string) *Pair {
 	kp := NewKeyPair(address)
 	kp.Public.TLS = true
-	kp.finalize()
+	kp.SelfSign()
 	return kp
 }
 
