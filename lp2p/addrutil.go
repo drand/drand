@@ -37,13 +37,13 @@ func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr) ([]peer.AddrInf
 			defer wg.Done()
 			raddrs, err := madns.Resolve(ctx, maddr)
 			if err != nil {
-				resolveErrC <- err
+				resolveErrC <- fmt.Errorf("failed to resolve \"%s\": %w)", maddr, err)
 				return
 			}
 			// filter out addresses that still doesn't end in `ipfs/Qm...`
 			found := 0
 			for _, raddr := range raddrs {
-				if _, last := ma.SplitLast(raddr); last != nil && last.Protocol().Code == ma.P_IPFS {
+				if _, last := ma.SplitLast(raddr); last != nil && last.Protocol().Code == ma.P_P2P {
 					maddrC <- raddr
 					found++
 				}
