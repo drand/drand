@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
@@ -17,14 +18,13 @@ type Client interface {
 	// Watch returns new randomness as it becomes available.
 	Watch(ctx context.Context) <-chan Result
 
+	// Info returns the parameters of the chain this client is connected to.
+	// The public key, when it started, and how frequently it updates.
+	Info(ctx context.Context) (*chain.Info, error)
+
 	// RoundAt will return the most recent round of randomness that will be available
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
-}
-
-// LoggingClient sets the logger for use by clients that suppport it
-type LoggingClient interface {
-	SetLog(log.Logger)
 }
 
 // Result represents the randomness for a single drand round.
@@ -32,4 +32,9 @@ type Result interface {
 	Round() uint64
 	Randomness() []byte
 	Signature() []byte
+}
+
+// LoggingClient sets the logger for use by clients that suppport it
+type LoggingClient interface {
+	SetLog(log.Logger)
 }
