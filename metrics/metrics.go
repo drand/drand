@@ -65,6 +65,24 @@ var (
 		Help: "Duration between time round received and time round expected.",
 	})
 
+	// ClientHTTPHeartbeatSuccess measures the success rate of HTTP hearbeat randomness requests.
+	ClientHTTPHeartbeatSuccess = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "client_http_heartbeat_success",
+		Help: "Number of successful HTTP heartbeats.",
+	}, []string{"http_address"})
+
+	// ClientHTTPHeartbeatFailure measures the number of times HTTP heartbeats fail.
+	ClientHTTPHeartbeatFailure = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "client_http_heartbeat_failure",
+		Help: "Number of unsuccessful HTTP heartbeats.",
+	}, []string{"http_address"})
+
+	// ClientHTTPHeartbeatLatency measures the randomness latency of an HTTP source.
+	ClientHTTPHeartbeatLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "client_http_heartbeat_latency",
+		Help: "Randomness latency of an HTTP source.",
+	}, []string{"http_address"})
+
 	// ClientInFlight measures how many active requests have been made
 	ClientInFlight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "client_in_flight",
@@ -162,6 +180,9 @@ func RegisterClientMetrics(r prometheus.Registerer) {
 		ClientRequests,
 		ClientTLSLatencyVec,
 		ClientWatchLatency,
+		ClientHTTPHeartbeatSuccess,
+		ClientHTTPHeartbeatFailure,
+		ClientHTTPHeartbeatLatency,
 	}
 	for _, c := range client {
 		r.Register(c)

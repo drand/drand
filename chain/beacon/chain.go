@@ -1,10 +1,11 @@
-package chain
+package beacon
 
 import (
 	"bytes"
 	"context"
 	"fmt"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -14,20 +15,20 @@ import (
 // chainStore is a Store that deals with reconstructing the beacons, sync when
 // needed and arranges the head
 type chainStore struct {
-	Store
+	chain.Store
 	l             log.Logger
 	client        net.ProtocolClient
 	safe          *cryptoSafe
 	ticker        *ticker
 	done          chan bool
 	newPartials   chan partialInfo
-	newBeaconCh   chan *Beacon
-	lastInserted  chan *Beacon
+	newBeaconCh   chan *chain.Beacon
+	lastInserted  chan *chain.Beacon
 	requestSync   chan likeBeacon
-	nonSyncBeacon chan *Beacon
+	nonSyncBeacon chan *chain.Beacon
 }
 
-func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s Store, ticker *ticker) *chainStore {
+func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
 	chain := &chainStore{
 		l:             l,
 		client:        client,
@@ -36,10 +37,10 @@ func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s 
 		done:          make(chan bool, 1),
 		ticker:        ticker,
 		newPartials:   make(chan partialInfo, 10),
-		newBeaconCh:   make(chan *Beacon, 100),
+		newBeaconCh:   make(chan *chain.Beacon, 100),
 		requestSync:   make(chan likeBeacon, 10),
-		lastInserted:  make(chan *Beacon, 1),
-		nonSyncBeacon: make(chan *Beacon, 1),
+		lastInserted:  make(chan *chain.Beacon, 1),
+		nonSyncBeacon: make(chan *chain.Beacon, 1),
 	}
 	// TODO maybe look if it's worth having multiple workers there
 	go chain.runChainLoop()
@@ -148,7 +149,7 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			cache.done = true
-			newBeacon := &Beacon{
+			newBeacon := &chain.Beacon{
 				Round:       cache.round,
 				PreviousSig: cache.previousSig,
 				Signature:   finalSig,
@@ -167,7 +168,7 @@ func (c *chainStore) runChainLoop() {
 	if err != nil {
 		c.l.Fatal("store_last_init", err)
 	}
-	insert := func(newB *Beacon) {
+	insert := func(newB *chain.Beacon) {
 		if err := c.Store.Put(newB); err != nil {
 			c.l.Fatal("new_beacon_storing", err)
 		}
@@ -215,7 +216,7 @@ func (c *chainStore) runChainLoop() {
 	}
 }
 
-func isAppendable(lastBeacon, newBeacon *Beacon) bool {
+func isAppendable(lastBeacon, newBeacon *chain.Beacon) bool {
 	return newBeacon.Round == lastBeacon.Round+1 &&
 		bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
 }
@@ -224,7 +225,7 @@ type likeBeacon interface {
 	GetRound() uint64
 }
 
-func (c *chainStore) shouldSync(last *Beacon, newB likeBeacon) bool {
+func (c *chainStore) shouldSync(last *chain.Beacon, newB likeBeacon) bool {
 	// we should sync if we are two blocks late
 	return newB.GetRound() > last.GetRound()+1
 }
@@ -249,7 +250,7 @@ func (c *chainStore) RunSync(ctx context.Context) {
 	return
 }
 
-func (c *chainStore) AppendedBeaconNoSync() chan *Beacon {
+func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
 	return c.nonSyncBeacon
 }
 
@@ -260,7 +261,7 @@ type partialInfo struct {
 
 type beaconInfo struct {
 	addr   string
-	beacon *Beacon
+	beacon *chain.Beacon
 }
 
 type roundCache struct {
@@ -305,7 +306,7 @@ func (cache *roundCache) Len() int {
 
 // Msg provides the chain for the current round
 func (cache *roundCache) Msg() []byte {
-	return Message(cache.round, cache.previousSig)
+	return chain.Message(cache.round, cache.previousSig)
 }
 
 // Partials provides all cached partial signatures

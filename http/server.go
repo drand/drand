@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	json "github.com/nikkolasg/hexjson"
@@ -27,7 +27,7 @@ var (
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client drand.PublicClient, version string, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, client client.Client, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
@@ -47,6 +47,7 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 	mux.HandleFunc("/public/latest", handler.LatestRand)
 	mux.HandleFunc("/public/", handler.PublicRand)
 	mux.HandleFunc("/info", handler.ChainInfo)
+	mux.HandleFunc("/health", handler.Health)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -60,7 +61,7 @@ func New(ctx context.Context, client drand.PublicClient, version string, logger 
 
 type handler struct {
 	timeout   time.Duration
-	client    drand.PublicClient
+	client    client.Client
 	chainInfo *chain.Info
 	log       log.Logger
 
@@ -82,16 +83,12 @@ func (h *handler) start() {
 
 func (h *handler) Watch(ctx context.Context) {
 RESET:
-	stream, err := h.client.PublicRandStream(context.Background(), &drand.PublicRandRequest{})
-	if err != nil {
-		h.log.Error("http_server", "creation of random stream failed", "err", err)
-		return
-	}
+	stream := h.client.Watch(context.Background())
 
 	for {
-		next, err := stream.Recv()
-		if err != nil {
-			h.log.Warn("http_server", "random stream round failed", "err", err)
+		next, ok := <-stream
+		if !ok {
+			h.log.Warn("http_server", "random stream round failed")
 			h.pendingLk.Lock()
 			h.latestRound = 0
 			h.pendingLk.Unlock()
@@ -101,15 +98,15 @@ RESET:
 			goto RESET
 		}
 
-		bytes, err := json.Marshal(next)
+		bytes, _ := json.Marshal(next)
 
 		h.pendingLk.Lock()
-		if h.latestRound+1 != next.Round && h.latestRound != 0 {
+		if h.latestRound+1 != next.Round() && h.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
-			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round))
+			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round()))
 			bytes = []byte{}
 		}
-		h.latestRound = next.Round
+		h.latestRound = next.Round()
 		pending := h.pending
 		h.pending = make([]chan []byte, 0)
 		h.pendingLk.Unlock()
@@ -133,20 +130,16 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	pkt, err := h.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
+	info, err := h.client.Info(ctx)
 	if err != nil {
 		h.log.Warn("msg", "chain info fetch failed", "err", err)
 		return nil
 	}
-	if pkt == nil {
+	if info == nil {
 		h.log.Warn("msg", "chain info fetch didn't return group info")
 		return nil
 	}
-	h.chainInfo, err = chain.InfoFromProto(pkt)
-	if err != nil {
-		h.log.Warn("msg", "chain info is invalid")
-		return nil
-	}
+	h.chainInfo = info
 	return h.chainInfo
 }
 
@@ -186,10 +179,14 @@ func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
 		}
 	}
 
-	req := drand.PublicRandRequest{Round: round}
+	// make sure we aren't going to ask for a round that doesn't exist yet.
+	if time.Unix(chain.TimeOfRound(h.chainInfo.Period, h.chainInfo.GenesisTime, round), 0).After(time.Now()) {
+		return nil, nil
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	resp, err := h.client.PublicRand(ctx, &req)
+	resp, err := h.client.Get(ctx, round)
 
 	if err != nil {
 		return nil, err
@@ -226,6 +223,11 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
+	if data == nil {
+		w.WriteHeader(http.StatusNotFound)
+		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		return
+	}
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
@@ -237,11 +239,10 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
-	req := drand.PublicRandRequest{Round: 0}
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
-	resp, err := h.client.PublicRand(ctx, &req)
+	resp, err := h.client.Get(ctx, 0)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -260,8 +261,8 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	roundTime := time.Now()
 	nextTime := time.Now()
 	if info != nil {
-		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round), 0)
-		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round+1), 0)
+		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
+		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
 	}
 
 	remaining := nextTime.Sub(time.Now())
@@ -302,4 +303,36 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 
+}
+
+func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
+	h.startOnce.Do(h.start)
+
+	h.pendingLk.RLock()
+	lastSeen := h.latestRound
+	h.pendingLk.RUnlock()
+
+	info := h.getChainInfo(r.Context())
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache")
+	resp := make(map[string]uint64)
+	resp["current"] = lastSeen
+	resp["expected"] = 0
+	var bytes []byte
+
+	if info == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	} else {
+		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+		resp["expected"] = expected
+		if lastSeen == expected || lastSeen+1 == expected {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+	}
+
+	bytes, _ = json.Marshal(resp)
+	w.Write(bytes)
 }

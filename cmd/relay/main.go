@@ -1,49 +1,34 @@
 package main
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 
+	"github.com/drand/drand/cmd/client/lib"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
-	drand "github.com/drand/drand/protobuf/drand"
 
 	"github.com/gorilla/handlers"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/urfave/cli/v2"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
 	version   = "master"
 	gitCommit = "none"
+	buildDate = "unknown"
 )
 
 var accessLogFlag = &cli.StringFlag{
 	Name:  "access-log",
 	Usage: "file to log http accesses to",
-}
-
-var connectFlag = &cli.StringFlag{
-	Name:  "connect",
-	Usage: "host:port to dial to a GRPC drand public API",
-}
-
-var certFlag = &cli.StringFlag{
-	Name:  "cert",
-	Usage: "file containing GRPC transport credentials of peer",
-}
-
-var insecureFlag = &cli.BoolFlag{
-	Name:  "insecure",
-	Usage: "Allow non-tls connections to GRPC server",
 }
 
 var listenFlag = &cli.StringFlag{
@@ -58,30 +43,17 @@ var metricsFlag = &cli.StringFlag{
 
 // Relay a GRPC connection to an HTTP server.
 func Relay(c *cli.Context) error {
-	if !c.IsSet(connectFlag.Name) {
-		return fmt.Errorf("A 'connect' host must be provided")
-	}
-
 	if c.IsSet(metricsFlag.Name) {
 		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
+
+		metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 	}
 
-	opts := []grpc.DialOption{}
-	if c.IsSet(certFlag.Name) {
-		creds, _ := credentials.NewClientTLSFromFile(c.String(certFlag.Name), "")
-		opts = append(opts, grpc.WithTransportCredentials(creds))
-	} else if c.Bool(insecureFlag.Name) {
-		opts = append(opts, grpc.WithInsecure())
-	} else {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
-	}
-	conn, err := grpc.Dial(c.String(connectFlag.Name), opts...)
+	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 	if err != nil {
-		return fmt.Errorf("Failed to connect to group member: %w", err)
+		return err
 	}
-
-	client := drand.NewPublicClient(conn)
 
 	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger.With("binary", "relay"))
 	if err != nil {
@@ -107,16 +79,29 @@ func Relay(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// jumpstart bootup
+	req, _ := http.NewRequest("GET", "/public/0", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		log.DefaultLogger.Warn("binary", "relay", "startup failed", rr.Code)
+	}
+
 	fmt.Printf("Listening at %s\n", listener.Addr())
 	return http.Serve(listener, handler)
 }
 
 func main() {
 	app := &cli.App{
-		Name:   "relay",
-		Usage:  "Relay a Drand group to a public HTTP Rest API",
-		Flags:  []cli.Flag{listenFlag, connectFlag, certFlag, insecureFlag, accessLogFlag, metricsFlag},
-		Action: Relay,
+		Name:    "relay",
+		Version: version,
+		Usage:   "Relay a Drand group to a public HTTP Rest API",
+		Flags:   append(lib.ClientFlags, listenFlag, accessLogFlag, metricsFlag),
+		Action:  Relay,
+	}
+	cli.VersionPrinter = func(c *cli.Context) {
+		fmt.Printf("drand HTTP relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)

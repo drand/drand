@@ -14,17 +14,17 @@ require (
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d
 	github.com/ipfs/go-cid v0.0.6-0.20200501230655-7c82f3b81c00 // indirect
 	github.com/ipfs/go-datastore v0.4.4
 	github.com/ipfs/go-ds-badger2 v0.1.0
-	github.com/ipfs/go-log/v2 v2.1.0
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 	github.com/libp2p/go-libp2p v0.9.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.3
 	github.com/libp2p/go-libp2p-core v0.5.6
 	github.com/libp2p/go-libp2p-peerstore v0.2.4
-	github.com/libp2p/go-libp2p-pubsub v0.3.0
+	github.com/libp2p/go-libp2p-pubsub v0.3.2-0.20200527132641-c0712c6e92cf
 	github.com/libp2p/go-libp2p-tls v0.1.3
 	github.com/multiformats/go-multiaddr v0.2.2
 	github.com/nikkolasg/hexjson v0.0.0-20181101101858-78e39397e00c

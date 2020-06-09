@@ -13,7 +13,6 @@ func newWatchLatencyMetricClient(base Client, info *chain.Info) (Client, error) 
 		Client:    base,
 		chainInfo: info,
 	}
-
 	go c.startObserve(context.Background())
 	return c, nil
 }

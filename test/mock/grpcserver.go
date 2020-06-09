@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,28 +20,38 @@ import (
 	"github.com/drand/kyber/util/random"
 )
 
+// MockService provides a way for clients getting the service to be able to call
+// the EmitRand method on the mock server
+type MockService interface {
+	EmitRand(bool)
+}
+
 // Server fake
 type Server struct {
 	addr string
 	*net.EmptyServer
-	l sync.Mutex
-	d *Data
+	l          sync.Mutex
+	stream     drand.Public_PublicRandStreamServer
+	streamDone chan error
+	d          *Data
+	chainInfo  *drand.ChainInfoPacket
 }
 
 func newMockServer(d *Data) *Server {
 	return &Server{
 		EmptyServer: new(net.EmptyServer),
 		d:           d,
+		chainInfo: &drand.ChainInfoPacket{
+			Period:      uint32(d.Period.Seconds()),
+			GenesisTime: int64(d.Genesis),
+			PublicKey:   d.Public,
+		},
 	}
 }
 
 // ChainInfo implements net.Service
 func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
-	return &drand.ChainInfoPacket{
-		Period:      60,
-		GenesisTime: int64(s.d.Genesis),
-		PublicKey:   s.d.Public,
-	}, nil
+	return s.chainInfo, nil
 }
 
 // PublicRand implements net.Service
@@ -65,30 +76,52 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 
 // PublicRandStream is part of the public drand service.
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
-	done := make(chan error, 1)
+	s.l.Lock()
+	s.streamDone = make(chan error, 1)
+	s.stream = stream
+	s.l.Unlock()
 
-	go func() {
-		for {
-			ticker := time.NewTicker(time.Second)
-			defer ticker.Stop()
-			defer func() { done <- stream.Context().Err() }()
-			select {
-			case <-stream.Context().Done():
-				return
-			case <-ticker.C:
-				resp, err := s.PublicRand(stream.Context(), req)
-				if err != nil {
-					done <- err
-					return
-				}
-				if err = stream.Send(resp); err != nil {
-					done <- err
-					return
-				}
-			}
-		}
-	}()
-	return <-done
+	err := <-s.streamDone
+	s.l.Lock()
+	s.stream = nil
+	s.l.Unlock()
+	return err
+}
+
+// EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`
+func (s *Server) EmitRand(closeStream bool) {
+	s.l.Lock()
+	if s.stream == nil {
+		fmt.Println("MOCK SERVER: stream nil")
+		s.l.Unlock()
+		return
+	}
+	stream := s.stream
+	done := s.streamDone
+	s.l.Unlock()
+	if closeStream {
+		close(done)
+		fmt.Println("MOCK SERVER: closing stream upon request")
+		return
+	}
+
+	if err := stream.Context().Err(); err != nil {
+		done <- err
+		fmt.Println("MOCK SERVER: context error ", err)
+		return
+	}
+	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
+	if err != nil {
+		done <- err
+		fmt.Println("MOCK SERVER: public rand err:", err)
+		return
+	}
+	if err = stream.Send(resp); err != nil {
+		done <- err
+		fmt.Println("MOCK SERVER: stream send error:", err)
+		return
+	}
+	fmt.Println("MOCK SERVER: emit round done")
 }
 
 func testValid(d *Data) {
@@ -128,6 +161,7 @@ type Data struct {
 	PreviousSignature string
 	PreviousRound     int
 	Genesis           int64
+	Period            time.Duration
 	BadSecondRound    bool
 }
 
@@ -149,6 +183,7 @@ func generateMockData() *Data {
 	tshare := tbls.SigShare(tsig)
 	sig := tshare.Value()
 	publicBuff, _ := public.MarshalBinary()
+	period := time.Second
 	d := &Data{
 		secret:            secret,
 		Public:            publicBuff,
@@ -156,7 +191,8 @@ func generateMockData() *Data {
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
-		Genesis:           time.Now().Add(60 * 1969 * time.Second * -1).Unix(),
+		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
+		Period:            period,
 		BadSecondRound:    true,
 	}
 	return d
@@ -181,6 +217,7 @@ func nextMockData(d *Data) *Data {
 		PreviousRound:     d.Round,
 		Round:             d.Round + 1,
 		Genesis:           d.Genesis,
+		Period:            d.Period,
 		BadSecondRound:    d.BadSecondRound,
 	}
 }
@@ -199,6 +236,15 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, ne
 	return listener, server
 }
 
+// NewMockServer creates a server interface not bound to a newtork port
+func NewMockServer(badSecondRound bool) net.Service {
+	d := generateMockData()
+	testValid(d)
+	d.BadSecondRound = badSecondRound
+	server := newMockServer(d)
+	return server
+}
+
 func sha256Hash(in []byte) []byte {
 	h := sha256.New()
 	h.Write(in)
@@ -209,4 +255,14 @@ func roundToBytes(r int) []byte {
 	var buff bytes.Buffer
 	binary.Write(&buff, binary.BigEndian, uint64(r))
 	return buff.Bytes()
+}
+
+// NewMockBeacon provides a random beacon and the chain it validates against
+func NewMockBeacon() (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData()
+	s := newMockServer(d)
+	c, _ := s.ChainInfo(context.Background(), nil)
+	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
+
+	return c, r
 }

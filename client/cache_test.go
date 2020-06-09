@@ -3,13 +3,15 @@ package client
 import (
 	"context"
 	"testing"
-
-	"github.com/drand/drand/log"
 )
 
 func TestCacheGet(t *testing.T) {
 	m := MockClientWithResults(1, 6)
-	c, err := NewCachingClient(m, 3, log.DefaultLogger)
+	cache, err := makeCache(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewCachingClient(m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +48,11 @@ func TestCacheGet(t *testing.T) {
 
 func TestCacheGetLatest(t *testing.T) {
 	m := MockClientWithResults(1, 3)
-	c, err := NewCachingClient(m, 2, log.DefaultLogger)
+	cache, err := makeCache(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := NewCachingClient(m, cache)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,18 +75,22 @@ func TestCacheWatch(t *testing.T) {
 	m := MockClientWithResults(2, 6)
 	rc := make(chan Result, 1)
 	m.WatchCh = rc
-	cache, _ := NewCachingClient(m, 2, log.DefaultLogger)
-	c := newWatchAggregator(cache, log.DefaultLogger)
+	arcCache, err := makeCache(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache, _ := NewCachingClient(m, arcCache)
+	c := newWatchAggregator(cache, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)
-	rc <- &MockResult{rnd: 1, rand: []byte{1}}
+	rc <- &MockResult{Rnd: 1, Rand: []byte{1}}
 	_, ok := <-r1
 	if !ok {
 		t.Fatal("results should propagate")
 	}
 
-	_, err := c.Get(context.Background(), 1)
+	_, err = c.Get(context.Background(), 1)
 	if err != nil {
 		t.Fatal(err)
 	}

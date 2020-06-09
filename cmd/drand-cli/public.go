@@ -8,9 +8,10 @@ import (
 	"os"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/urfave/cli/v2"
 )
 
@@ -53,11 +54,9 @@ func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
 		return errors.New("get public command takes a group file as argument")
 	}
-	client := core.NewGrpcClient()
+	certPath := ""
 	if c.IsSet(tlsCertFlag.Name) {
-		defaultManager := net.NewCertManager()
-		defaultManager.Add(c.String(tlsCertFlag.Name))
-		client = core.NewGrpcClientFromCert(defaultManager)
+		certPath = c.String(tlsCertFlag.Name)
 	}
 
 	ids, err := getNodes(c)
@@ -72,15 +71,17 @@ func getPublicRandomness(c *cli.Context) error {
 		return errors.New("drand: group file must contain the distributed public key")
 	}
 
-	public := group.PublicKey
-	var resp *drand.PublicRandResponse
+	var resp client.Result
 	var foundCorrect bool
 	for _, id := range ids {
-		if c.IsSet(roundFlag.Name) {
-			resp, err = client.Public(id.Addr, public, id.TLS, c.Int(roundFlag.Name))
-		} else {
-			resp, err = client.LastPublic(id.Addr, public, id.TLS)
+		cli, err := grpc.New(id.Addr, certPath, !id.TLS)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s", id.Addr, err)
+			break
 		}
+
+		resp, err = cli.Get(c.Context, uint64(c.Int(roundFlag.Name)))
+
 		if err == nil {
 			foundCorrect = true
 			if c.Bool(verboseFlag.Name) {

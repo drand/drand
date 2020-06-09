@@ -20,7 +20,7 @@ import (
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -226,7 +226,9 @@ func CLI() *cli.App {
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
-		fmt.Fprintf(os.Stderr, err.Error())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, err.Error())
+		}
 	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
@@ -656,7 +658,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 		return fmt.Errorf("given round not valid: %d", sr)
 	}
 	startRound := uint64(sr)
-	store, err := chain.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	store, err := boltdb.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
 	if err != nil {
 		return fmt.Errorf("invalid bolt store creation: %s", err)
 	}

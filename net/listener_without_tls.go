@@ -32,6 +32,7 @@ func NewGRPCListenerForPrivate(ctx context.Context, addr string, s Service, opts
 	drand.RegisterPublicServer(g.grpcServer, g.Service)
 	http_grpc.RegisterHTTPServer(g.grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
 	grpc_prometheus.Register(g.grpcServer)
+	metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics)
 	return g, nil
 }
 

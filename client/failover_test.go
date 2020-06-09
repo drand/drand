@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
 
@@ -16,15 +15,15 @@ func TestFailover(t *testing.T) {
 	defer cancel()
 
 	results := []MockResult{
-		{rnd: 1, rand: []byte{1}}, // Success
-		{rnd: 2, rand: []byte{2}}, // Failover
-		{rnd: 3, rand: []byte{3}}, // Failover
-		{rnd: 4, rand: []byte{4}}, // Success
+		{Rnd: 1, Rand: []byte{1}}, // Success
+		{Rnd: 2, Rand: []byte{2}}, // Failover
+		{Rnd: 3, Rand: []byte{3}}, // Failover
+		{Rnd: 4, Rand: []byte{4}}, // Success
 	}
 
 	failC := make(chan Result, 1)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:3]}
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -40,15 +39,15 @@ func TestFailoverDedupe(t *testing.T) {
 	defer cancel()
 
 	results := []MockResult{
-		{rnd: 1, rand: []byte{1}}, // Success
-		{rnd: 2, rand: []byte{2}}, // Failover
-		{rnd: 2, rand: []byte{2}}, // Success but duplicate
-		{rnd: 3, rand: []byte{3}}, // Success
+		{Rnd: 1, Rand: []byte{1}}, // Success
+		{Rnd: 2, Rand: []byte{2}}, // Failover
+		{Rnd: 2, Rand: []byte{2}}, // Success but duplicate
+		{Rnd: 3, Rand: []byte{3}}, // Success
 	}
 
 	failC := make(chan Result, 2)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:2]}
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -66,10 +65,10 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{{rnd: 1, rand: []byte{1}}}
+	results := []MockResult{{Rnd: 1, Rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0)
 	watchC := failoverClient.Watch(ctx)
 
 	compareResults(t, nextResult(t, watchC), &results[0])
@@ -79,7 +78,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{{rnd: 1, rand: []byte{1}}}
+	results := []MockResult{{Rnd: 1, Rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	period := defaultFailoverGracePeriod / 2
@@ -88,7 +87,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 		GenesisTime: time.Now().Unix() - 1,
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
-	failoverClient, _ := NewFailoverWatcher(mockClient, chainInfo, 0, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, chainInfo, 0)
 	watchC := failoverClient.Watch(ctx)
 
 	now := time.Now()
@@ -117,8 +116,8 @@ func TestFailoverGetFail(t *testing.T) {
 	defer cancel()
 
 	results := []MockResult{
-		{rnd: 1, rand: []byte{1}},
-		{rnd: 2, rand: []byte{2}},
+		{Rnd: 1, Rand: []byte{1}},
+		{Rnd: 2, Rand: []byte{2}},
 	}
 
 	failC := make(chan Result, 1)
@@ -127,7 +126,7 @@ func TestFailoverGetFail(t *testing.T) {
 
 	mockClient := &errOnGetClient{MockClient: MockClient{WatchCh: failC}, errC: getErrC, err: getErr}
 
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50, log.DefaultLogger)
+	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -146,7 +145,7 @@ func TestFailoverGetFail(t *testing.T) {
 
 func TestFailoverMissingChainInfo(t *testing.T) {
 	mockClient := &MockClient{}
-	_, err := NewFailoverWatcher(mockClient, nil, 0, log.DefaultLogger)
+	_, err := NewFailoverWatcher(mockClient, nil, 0)
 	if err == nil {
 		t.Fatal("expected error")
 	}
