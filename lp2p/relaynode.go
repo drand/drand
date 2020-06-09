@@ -8,7 +8,7 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	bds "github.com/ipfs/go-ds-badger2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
