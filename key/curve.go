@@ -1,7 +1,7 @@
 package key
 
 import (
-	bls "github.com/drand/bls12-381"
+	bls "github.com/drand/kyber-bls12381"
 
 	sign "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/sign/tbls"
