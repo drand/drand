@@ -1,14 +1,15 @@
-package client
+package http
 
 import (
 	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
-	"net/http"
+	nhttp "net/http"
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,14 +18,14 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-// NewHTTPClient creates a new client pointing to an HTTP endpoint
-func NewHTTPClient(url string, chainHash []byte, client http.RoundTripper) (Client, error) {
-	if client == nil {
-		client = http.DefaultTransport
+// New creates a new client pointing to an HTTP endpoint
+func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
+	if transport == nil {
+		transport = nhttp.DefaultTransport
 	}
 	c := &httpClient{
 		root:   url,
-		client: instrumentClient(url, client),
+		client: instrumentClient(url, transport),
 		l:      log.DefaultLogger,
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
@@ -36,24 +37,43 @@ func NewHTTPClient(url string, chainHash []byte, client http.RoundTripper) (Clie
 	return c, nil
 }
 
-// NewHTTPClientWithInfo constructs an http client when the group parameters are already known.
-func NewHTTPClientWithInfo(url string, info *chain.Info, client http.RoundTripper) (Client, error) {
-	if client == nil {
-		client = http.DefaultTransport
+// NewWithInfo constructs an http client when the group parameters are already known.
+func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
+	if transport == nil {
+		transport = nhttp.DefaultTransport
 	}
 
 	c := &httpClient{
 		root:      url,
 		chainInfo: info,
-		client:    instrumentClient(url, client),
+		client:    instrumentClient(url, transport),
 		l:         log.DefaultLogger,
 	}
 	return c, nil
 }
 
+// ForURLs provides a shortcut for creating a set of HTTP clients for a set of URLs.
+func ForURLs(urls []string, chainHash []byte) []client.Client {
+	clients := make([]client.Client, 0)
+	var info *chain.Info
+	for _, u := range urls {
+		if info == nil {
+			if c, err := New(u, chainHash, nil); err == nil {
+				info, err = c.Info(context.Background())
+				clients = append(clients, c)
+			}
+		} else {
+			if c, err := NewWithInfo(u, info, nil); err == nil {
+				clients = append(clients, c)
+			}
+		}
+	}
+	return clients
+}
+
 // Instruments an HTTP client around a transport
-func instrumentClient(url string, transport http.RoundTripper) *http.Client {
-	client := http.DefaultClient
+func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
+	client := nhttp.DefaultClient
 	urlLabel := prometheus.Labels{"url": url}
 
 	trace := &promhttp.InstrumentTrace{
@@ -85,7 +105,7 @@ func instrumentClient(url string, transport http.RoundTripper) *http.Client {
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
 	root      string
-	client    *http.Client
+	client    *nhttp.Client
 	chainInfo *chain.Info
 	l         log.Logger
 }
@@ -132,32 +152,8 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 	return json.Marshal(h)
 }
 
-// RandomData holds the full random response from the server, including data needed
-// for validation.
-type RandomData struct {
-	Rnd               uint64 `json:"round,omitempty"`
-	Random            []byte `json:"randomness,omitempty"`
-	Sig               []byte `json:"signature,omitempty"`
-	PreviousSignature []byte `json:"previous_signature,omitempty"`
-}
-
-// Round provides access to the round associatted with this random data.
-func (r *RandomData) Round() uint64 {
-	return r.Rnd
-}
-
-// Signature provides the signature over this round's randomness
-func (r *RandomData) Signature() []byte {
-	return r.Sig
-}
-
-// Randomness exports the randomness
-func (r *RandomData) Randomness() []byte {
-	return r.Random
-}
-
 // Get returns a the randomness at `round` or an error.
-func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
+func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	var url string
 	if round == 0 {
 		url = fmt.Sprintf("%s/public/latest", h.root)
@@ -171,7 +167,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 	}
 	defer randResponse.Body.Close()
 
-	randResp := RandomData{}
+	randResp := client.RandomData{}
 	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
 		return nil, err
 	}
@@ -194,8 +190,13 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (Result, error) {
 }
 
 // Watch returns new randomness as it becomes available.
-func (h *httpClient) Watch(ctx context.Context) <-chan Result {
-	return pollingWatcher(ctx, h, h.chainInfo, h.l)
+func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
+	return client.PollingWatcher(ctx, h, h.chainInfo, h.l)
+}
+
+// Info returns information about the chain.
+func (h *httpClient) Info(ctx context.Context) (*chain.Info, error) {
+	return h.chainInfo, nil
 }
 
 // RoundAt will return the most recent round of randomness that will be available

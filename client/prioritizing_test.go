@@ -25,6 +25,11 @@ func TestPrioritizingGet(t *testing.T) {
 		r.(*MockResult).AssertValid(t)
 	}
 
+	_, err = p.Info(context.Background())
+	if err == nil {
+		t.Fatal("shouldn't have group info with non-http clients")
+	}
+
 	r, err := p.Get(context.Background(), 0)
 	if err != nil {
 		t.Fatal("should not error even when one client does")
@@ -70,7 +75,7 @@ func TestPrioritizingWatch(t *testing.T) {
 
 func TestPrioritizingWatchFromClient(t *testing.T) {
 	c := MockClientWithResults(0, 5)
-	c2, _ := NewHTTPClientWithInfo("", fakeChainInfo(), nil)
+	c2 := EmptyClientWithInfo(fakeChainInfo())
 
 	p, _ := NewPrioritizingClient([]Client{c, c2}, nil, nil)
 	ch := p.Watch(context.Background())
