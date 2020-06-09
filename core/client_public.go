@@ -1,17 +1,12 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"encoding/hex"
-	"errors"
-	"fmt"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber"
 	"github.com/drand/kyber/encrypt/ecies"
 	"google.golang.org/grpc"
 )
@@ -33,28 +28,6 @@ func NewGrpcClient(opts ...grpc.DialOption) *Client {
 // NewGrpcClientFromCert returns a client that contact its peer over TLS
 func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client {
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
-}
-
-// LastPublic returns the last randomness beacon from the server associated. It
-// returns it if the randomness is valid. Secure indicates that the request
-// must be made over a TLS protected channel.
-func (c *Client) LastPublic(addr string, pub *key.DistPublic, secure bool) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.PublicRand(context.TODO(), &peerAddr{addr, secure}, &drand.PublicRandRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return resp, c.verify(pub.Key(), resp)
-}
-
-// Public returns the random output of the specified beacon at a given index. It
-// returns it if the randomness is valid. Secure indicates that the request
-// must be made over a TLS protected channel.
-func (c *Client) Public(addr string, pub *key.DistPublic, secure bool, round int) (*drand.PublicRandResponse, error) {
-	resp, err := c.client.PublicRand(context.TODO(), &peerAddr{addr, secure}, &drand.PublicRandRequest{Round: uint64(round)})
-	if err != nil {
-		return nil, err
-	}
-	return resp, c.verify(pub.Key(), resp)
 }
 
 // TODO: make the other methods follow the "peer" approach
@@ -86,27 +59,6 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 		return nil, err
 	}
 	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
-}
-
-func (c *Client) verify(public kyber.Point, resp *drand.PublicRandResponse) error {
-	prevSig := resp.GetPreviousSignature()
-	round := resp.GetRound()
-	msg := chain.Message(round, prevSig)
-	rand := resp.GetRandomness()
-	if rand == nil {
-		return errors.New("drand: no randomness found")
-	}
-	ver := key.Scheme.VerifyRecovered(public, msg, resp.GetSignature())
-	if ver != nil {
-		return ver
-	}
-	expect := chain.RandomnessFromSignature(resp.GetSignature())
-	if !bytes.Equal(expect, rand) {
-		exp := hex.EncodeToString(expect)[10:14]
-		got := hex.EncodeToString(rand)[10:14]
-		return fmt.Errorf("randomness: got %s , expected %s", got, exp)
-	}
-	return nil
 }
 
 type peerAddr struct {

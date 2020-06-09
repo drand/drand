@@ -10,8 +10,8 @@ import (
 
 func TestWatcherWatch(t *testing.T) {
 	results := []MockResult{
-		{rnd: 1, rand: []byte{1}},
-		{rnd: 2, rand: []byte{2}},
+		{Rnd: 1, Rand: []byte{1}},
+		{Rnd: 2, Rand: []byte{2}},
 	}
 
 	ch := make(chan Result, len(results))
@@ -39,8 +39,8 @@ func TestWatcherWatch(t *testing.T) {
 
 func TestWatcherGet(t *testing.T) {
 	results := []MockResult{
-		{rnd: 1, rand: []byte{1}},
-		{rnd: 2, rand: []byte{2}},
+		{Rnd: 1, Rand: []byte{1}},
+		{Rnd: 2, Rand: []byte{2}},
 	}
 
 	cr := make([]MockResult, len(results))

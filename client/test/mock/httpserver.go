@@ -8,26 +8,19 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/core"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
-	"google.golang.org/grpc"
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
 func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
-	l, s := mock.NewMockGRPCPublicServer(":0", badSecondRound)
-	lAddr := l.Addr()
-	go l.Start()
 
-	conn, err := grpc.Dial(lAddr, grpc.WithInsecure())
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	server := mock.NewMockServer(badSecondRound)
+	client := core.Proxy(server)
 	ctx, cancel := context.WithCancel(context.Background())
-	client := drand.NewPublicClient(conn)
 
 	handler, err := dhttp.New(ctx, client, "", nil)
 	if err != nil {
@@ -36,7 +29,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.
 
 	var chainInfo *chain.Info
 	for i := 0; i < 3; i++ {
-		protoInfo, err := s.ChainInfo(ctx, &drand.ChainInfoRequest{})
+		protoInfo, err := server.ChainInfo(ctx, &drand.ChainInfoRequest{})
 		if err != nil {
 			time.Sleep(10 * time.Millisecond)
 			continue
@@ -56,10 +49,10 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
-	go server.Serve(listener)
+	httpServer := http.Server{Handler: handler}
+	go httpServer.Serve(listener)
 	return listener.Addr().String(), chainInfo, func() {
-		server.Shutdown(ctx)
+		httpServer.Shutdown(context.Background())
 		cancel()
-	}, s.(mock.MockService).EmitRand
+	}, server.(mock.MockService).EmitRand
 }
