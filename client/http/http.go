@@ -56,13 +56,23 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 func ForURLs(urls []string, chainHash []byte) []client.Client {
 	clients := make([]client.Client, 0)
 	var info *chain.Info
+	skipped := make([]string, 0)
 	for _, u := range urls {
 		if info == nil {
 			if c, err := New(u, chainHash, nil); err == nil {
 				info, err = c.Info(context.Background())
 				clients = append(clients, c)
+			} else {
+				skipped = append(skipped, u)
 			}
 		} else {
+			if c, err := NewWithInfo(u, info, nil); err == nil {
+				clients = append(clients, c)
+			}
+		}
+	}
+	if info != nil {
+		for _, u := range skipped {
 			if c, err := NewWithInfo(u, info, nil); err == nil {
 				clients = append(clients, c)
 			}
