@@ -207,14 +207,18 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	info := h.getChainInfo(r.Context())
 	roundExpectedTime := time.Now()
-	if info != nil {
-		roundExpectedTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+	if info == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		return
+	}
 
-		if roundExpectedTime.After(time.Now().Add(info.Period)) {
-			w.WriteHeader(http.StatusNotFound)
-			h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
-			return
-		}
+	roundExpectedTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+
+	if roundExpectedTime.After(time.Now().Add(info.Period)) {
+		w.WriteHeader(http.StatusNotFound)
+		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		return
 	}
 
 	data, err := h.getRand(r.Context(), roundN)
