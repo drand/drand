@@ -14,6 +14,8 @@ import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
 
 service Protocol {
+    // GetIdentity returns the identity of the drand node
+    rpc GetIdentity(IdentityRequest) returns (Identity);
     // SignalDKGParticipant is called by non-coordinators nodes that sends their
     // public keys and secret proof they have to the coordinator so that he can
     // create the group.
@@ -30,6 +32,8 @@ service Protocol {
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 }
+
+message IdentityRequest {}
 
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
@@ -51,6 +55,9 @@ message DKGInfoPacket {
     string secret_proof = 2;
     // timeout in seconds
     uint32 dkg_timeout = 3;
+    // signature from the coordinator to prove he is the one sending that group
+    // file.
+    bytes signature = 4;
 }
 
 message PartialBeaconPacket {

@@ -98,6 +98,22 @@ on.  Note that using threshold BLS signatures as a source of randomness _is_
 formally proven secure in this [paper](https://eprint.iacr.org/2020/096.pdf)
 from Galindo et al.
 
+#### Creation of the group
+
+In the distributed key generation protocol, every participants needs to know the
+public key of every other participants. To ease up the burden of having to
+create a list of identities manually, and given the permissioned nature of the 
+network, drand introduces a special trust assumption just for the task of
+creating the list of public keys (i.e. the group file). This follows the TOFU
+("Trust On First Use") approach.
+
+**The coordinator** is a node that gathers, on the wire, all participants's public
+keys, and that creates the group configuration and sends it back, signed, to other
+participants. Therefore, the coordinator is considered fully honest in this phase of
+the setup. Afterwards, each node starts the DKG by themselves _independently_,
+i.e. all participants are considered equal.
+
+
 ### Randomness generation model
 
 **Network**: The randomness generation protocol do not make any assumption on

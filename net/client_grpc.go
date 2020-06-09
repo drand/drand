@@ -76,6 +76,19 @@ func (g *grpcClient) SetTimeout(p time.Duration) {
 	g.timeout = p
 }
 
+func (g *grpcClient) GetIdentity(ctx context.Context, p Peer, in *drand.IdentityRequest, opts ...CallOption) (*drand.Identity, error) {
+	var resp *drand.Identity
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewProtocolClient(c)
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
+	resp, err = client.GetIdentity(ctx, in)
+	return resp, err
+}
+
 func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	var resp *drand.PublicRandResponse
 	c, err := g.conn(p)
