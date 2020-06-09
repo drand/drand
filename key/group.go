@@ -363,10 +363,9 @@ func (g *Group) ToProto() *proto.GroupPacket {
 		key, _ := id.Key.MarshalBinary()
 		ids[i] = &proto.Node{
 			Public: &proto.Identity{
-				Address:   id.Address(),
-				Tls:       id.IsTLS(),
-				Key:       key,
-				Signature: id.Signature,
+				Address: id.Address(),
+				Tls:     id.IsTLS(),
+				Key:     key,
 			},
 			Index: id.Index,
 		}

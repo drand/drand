@@ -11,10 +11,6 @@ var _ Service = (*EmptyServer)(nil)
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
 type EmptyServer struct{}
 
-func (s *EmptyServer) GetIdentity(ctx context.Context, in *drand.IdentityRequest) (*drand.Identity, error) {
-	return nil, nil
-}
-
 // PublicRandStream ...
 func (s *EmptyServer) PublicRandStream(*drand.PublicRandRequest, drand.Public_PublicRandStreamServer) error {
 	return nil

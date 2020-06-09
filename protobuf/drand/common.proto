@@ -16,8 +16,6 @@ message Identity {
     string address = 1;
     bytes key = 2;
     bool tls = 3;
-    // BLS signature over the identity to prove possession of the private key
-    bytes signature = 4;
 }
 
 // Node holds the information related to a server in a group that forms a drand
