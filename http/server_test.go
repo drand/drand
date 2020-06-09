@@ -178,12 +178,13 @@ func TestHTTPHealth(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("startup of the server on 1st request should happen")
 	}
-
 	push(false)
+	// give some time for http server to get it
+	time.Sleep(30 * time.Millisecond)
 	resp, _ = http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
 	if resp.StatusCode != http.StatusOK {
 		var buf [100]byte
 		resp.Body.Read(buf[:])
-		t.Fatalf("after start server expected to be healthy relatively quickly. %v", string(buf[:]))
+		t.Fatalf("after start server expected to be healthy relatively quickly. %v - %v", string(buf[:]), resp.StatusCode)
 	}
 }
