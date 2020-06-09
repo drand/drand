@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
+	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/http"
 	"github.com/drand/drand/key"
@@ -36,7 +38,7 @@ type Drand struct {
 	// stores recent entries in memory
 	//cache *beaconCache
 
-	beacon *chain.Handler
+	beacon *beacon.Handler
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
 	// dkg public key. Can be nil if dkg not finished yet.
@@ -321,11 +323,11 @@ func (d *Drand) isDKGDone() bool {
 	return d.dkgDone
 }
 
-func (d *Drand) newBeacon() (*chain.Handler, error) {
+func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	fs.CreateSecureFolder(d.opts.DBFolder())
-	store, err := chain.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+	store, err := boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -335,13 +337,13 @@ func (d *Drand) newBeacon() (*chain.Handler, error) {
 	if node == nil {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
-	conf := &chain.Config{
+	conf := &beacon.Config{
 		Public: node,
 		Group:  d.group,
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	beacon, err := chain.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
+	beacon, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
 	if err != nil {
 		return nil, err
 	}

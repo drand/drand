@@ -116,7 +116,9 @@ server {
 
   location / {
     grpc_pass grpc://localhost:8080;
+    grpc_set_header X-Real-IP $remote_addr;
   }
+
   location /public/ {
     proxy_pass http://localhost:4444;
     proxy_set_header Host $host;
