@@ -43,14 +43,14 @@ var metricsFlag = &cli.StringFlag{
 
 // Relay a GRPC connection to an HTTP server.
 func Relay(c *cli.Context) error {
-	if c.Bool(metricsFlag.Name) {
+	if c.IsSet(metricsFlag.Name) {
 		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
 
 		metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 	}
 
-	client, err := lib.Create(c, c.Bool(metricsFlag.Name))
+	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 	if err != nil {
 		return err
 	}
