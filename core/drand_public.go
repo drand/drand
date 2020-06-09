@@ -225,7 +225,3 @@ func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChai
 	}
 	return nil
 }
-
-func (d *Drand) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.Identity, error) {
-	return d.priv.Public.ToProto(), nil
-}
