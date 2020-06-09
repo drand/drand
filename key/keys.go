@@ -160,11 +160,10 @@ func (i *Identity) FromTOML(t interface{}) error {
 	}
 	i.Addr = ptoml.Address
 	i.TLS = ptoml.TLS
-	i.Signature, err = hex.DecodeString(ptoml.Signature)
-	if err != nil {
-		return fmt.Errorf("decoding signature: %s", err)
+	if ptoml.Signature != "" {
+		i.Signature, err = hex.DecodeString(ptoml.Signature)
 	}
-	return i.ValidSignature()
+	return err
 }
 
 // TOML returns a empty TOML-compatible version of the public key
@@ -218,7 +217,7 @@ func IdentityFromProto(n *proto.Identity) (*Identity, error) {
 		Key:       public,
 		Signature: n.GetSignature(),
 	}
-	return id, id.ValidSignature()
+	return id, nil
 }
 
 func (i *Identity) ToProto() *proto.Identity {

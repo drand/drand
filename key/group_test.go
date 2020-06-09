@@ -96,6 +96,18 @@ func TestGroupProtobuf(t *testing.T) {
 		require.Equal(t, tv.group.Hash(), loaded.Hash())
 	}
 }
+
+func TestGroupUnsignedIdentities(t *testing.T) {
+	ids := newIds(5)
+	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61)
+	require.Nil(t, group.UnsignedIdentities())
+
+	ids[0].Signature = nil
+	require.Len(t, group.UnsignedIdentities(), 1)
+
+	ids[1].Signature = []byte("silver linings")
+	require.Len(t, group.UnsignedIdentities(), 2)
+}
 func TestGroupSaveLoad(t *testing.T) {
 	n := 3
 	ids := newIds(n)

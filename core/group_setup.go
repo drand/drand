@@ -147,6 +147,11 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error 
 		return fmt.Errorf("invalid id: %v", err)
 	}
 
+	if err := newID.ValidSignature(); err != nil {
+		s.l.Info("setup", "invalid_sig", "id", addr, "err", err)
+		return fmt.Errorf("invalid sig: %s", err)
+	}
+
 	s.l.Debug("setup", "received_new_key", "id", newID.String())
 
 	s.pushKeyCh <- pushKey{
@@ -313,7 +318,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 		r.l.Error("received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %s", err)
 	}
-
+	checkGroup(r.l, group)
 	r.ch <- &dkgGroup{
 		group:   group,
 		timeout: pg.GetDkgTimeout(),

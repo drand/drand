@@ -48,16 +48,20 @@ func TestKeySignature(t *testing.T) {
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	id2 := new(Identity)
 	require.NoError(t, id2.FromTOML(ptoml))
-	ptoml.Signature = "no justice, no peace"
-	require.Error(t, id2.FromTOML(ptoml))
+	require.NoError(t, id2.ValidSignature())
+	ptoml.Signature = ""
+	id2.Signature = nil
+	require.NoError(t, id2.FromTOML(ptoml))
+	require.Error(t, id2.ValidSignature(), id2.Signature)
 
 	protoID := kp.Public.ToProto()
 	decodedID, err := IdentityFromProto(protoID)
 	require.NoError(t, err)
-	require.True(t, decodedID.Key.Equal(kp.Public.Key))
+	require.NoError(t, decodedID.ValidSignature())
 	protoID.Signature = []byte("I am insane. And you are my insanity")
 	decodedID, err = IdentityFromProto(protoID)
-	require.Error(t, err)
+	require.NoError(t, err)
+	require.Error(t, decodedID.ValidSignature())
 }
 
 func TestKeyDistributedPublic(t *testing.T) {
