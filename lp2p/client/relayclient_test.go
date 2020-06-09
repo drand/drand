@@ -5,19 +5,22 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"testing"
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/grpc"
+	dhttp "github.com/drand/drand/client/http"
 	cmock "github.com/drand/drand/client/test/mock"
-	"github.com/drand/drand/cmd/relay-gossip/lp2p"
-	"github.com/drand/drand/cmd/relay-gossip/node"
 	"github.com/drand/drand/log"
-	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
+
 	bds "github.com/ipfs/go-ds-badger2"
 	ma "github.com/multiformats/go-multiaddr"
 )
@@ -46,17 +49,19 @@ func TestGRPCClient(t *testing.T) {
 	info.GenesisTime -= 10
 
 	// start mock relay-node
-	cfg := &node.GossipRelayConfig{
-		ChainHash:       hex.EncodeToString(info.Hash()),
-		PeerWith:        nil,
-		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
-		DataDir:         dataDir,
-		IdentityPath:    path.Join(identityDir, "identity.key"),
-		CertPath:        "",
-		Insecure:        true,
-		DrandPublicGRPC: grpcAddr,
+	client, err := grpc.New(grpcAddr, "", true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	g, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg)
+	cfg := &lp2p.GossipRelayConfig{
+		ChainHash:    hex.EncodeToString(info.Hash()),
+		PeerWith:     nil,
+		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
+		DataDir:      dataDir,
+		IdentityPath: path.Join(identityDir, "identity.key"),
+		Client:       client,
+	}
+	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger, cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -90,7 +95,20 @@ func TestGRPCClient(t *testing.T) {
 	}
 	svc.(mock.MockService).EmitRand(true)
 	cancel()
-	for range ch {
+	drain(t, ch, 10*time.Second)
+}
+
+func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
+
+	for {
+		select {
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+		case <-time.After(timeout):
+			t.Fatal("timed out closing channel.")
+		}
 	}
 }
 
@@ -107,16 +125,20 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	chainInfo.GenesisTime -= 10
-	cfg := &node.GossipRelayConfig{
-		ChainHash:       hex.EncodeToString(chainInfo.Hash()),
-		PeerWith:        nil,
-		Addr:            "/ip4/0.0.0.0/tcp/" + test.FreePort(),
-		DataDir:         dataDir,
-		IdentityPath:    path.Join(identityDir, "identity.key"),
-		DrandPublicHTTP: []string{"http://" + addr},
+	client, err := dhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	if err != nil {
+		t.Fatal(err)
 	}
-	g, err := node.NewGossipRelayNode(dlog.DefaultLogger, cfg)
+	chainInfo.GenesisTime -= 10
+	cfg := &lp2p.GossipRelayConfig{
+		ChainHash:    hex.EncodeToString(chainInfo.Hash()),
+		PeerWith:     nil,
+		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
+		DataDir:      dataDir,
+		IdentityPath: path.Join(identityDir, "identity.key"),
+		Client:       client,
+	}
+	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger, cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -140,14 +162,13 @@ func TestHTTPClient(t *testing.T) {
 			} else {
 				fmt.Print(r)
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(10 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
 	emit(true)
 	cancel()
-	for range ch {
-	}
+	drain(t, ch, 10*time.Second)
 }
 
 func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {

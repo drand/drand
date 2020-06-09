@@ -12,6 +12,7 @@ import (
 	"time"
 
 	dlog "github.com/drand/drand/log"
+
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p"
@@ -62,7 +63,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
 	}
 
-	addrInfos, err := peer.AddrInfosFromP2pAddrs(bootstrap...)
+	addrInfos, err := resolveAddresses(ctx, bootstrap)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}

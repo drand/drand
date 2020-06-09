@@ -13,7 +13,6 @@ This document is a specification of the drand protocols.
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
-
 - [Notations](#notations)
   - [Drand node](#drand-node)
   - [Drand beacon](#drand-beacon)
@@ -72,24 +71,27 @@ This document is a specification of the drand protocols.
 
 A drand node is a server that runs the drand code, that participates in the
 distributed key generations phases, in the randomness generation and that can
-reply to public request API. 
+reply to public request API.
 The following representation is what gets embedded in group configuration file,
 what drand nodes knows about other drand nodes:
+
 ```go
 type Node struct {
-	Key  []byte // public key on bls12-381 G1 
+Key []byte  // public key on bls12-381 G1
 	Addr string // publicly reachable address of the node
-	TLS  bool // reachable via TLS 
-    Index  uint32 // index of the node w.r.t. to the network
+	TLS bool // reachable via TLS
+	Index uint32 // index of the node w.r.t. to the network
 }
 ```
+
 A node can be referenced by its hash as follows:
+
 ```go
 func (n *Node) Hash() []byte {
-    h := blake2b.New(nil)
+	h: = blake2b.New(nil)
 	binary.Write(h, binary.LittleEndian, n.Index)
-    h.Write(n.Key)
-    return h.Sum(nil)
+	h.Write(n.Key)
+	return h.Sum(nil)
 }
 ```
 
@@ -107,21 +109,22 @@ chain](#beacon-chain) section for more information.
 
 Group configuration: A structure that contains all the necessary information
 about a running drand network:
-* Nodes: A list of nodes information that represents all nodes on the network.
-* Threshold: The number of nodes that are necessary to participate to a
+
+- Nodes: A list of nodes information that represents all nodes on the network.
+- Threshold: The number of nodes that are necessary to participate to a
   randomness generation round to produce a new random value. Given the security
   model of Drand, the threshold must be superior to 50% of the number of nodes.
-* Period: The period at which the network creates new random value
-* GenesisTime: An UNIX timestamp in seconds that represents the time at which
+- Period: The period at which the network creates new random value
+- GenesisTime: An UNIX timestamp in seconds that represents the time at which
   the first round of the drand chain starts. See the [beacon
-  chain](#beacon-chain) section for more information. 
-* GenesisSeed: A generic slice of bytes that is the input for nodes that create
+  chain](#beacon-chain) section for more information.
+- GenesisSeed: A generic slice of bytes that is the input for nodes that create
   the first beacon. This seed is the hash of the initial group configuration, as
   shown below.
-* Distributed public key: A list of points used to verify the partial and final
+- Distributed public key: A list of points used to verify the partial and final
   beacons created by the network. This field is nil if the network hasn't ran
-  the setup phase yet. Each point lies on the group G1 of the BLS12-381 curve. 
-* TransitionTime: An UNIX timestamp in seconds that represents the time the
+  the setup phase yet. Each point lies on the group G1 of the BLS12-381 curve.
+- TransitionTime: An UNIX timestamp in seconds that represents the time the
   network denoted by this group configuration took over a previous network. This
   field is empty is the network has never reshared yet. See TODO for more
   information.
@@ -138,10 +141,11 @@ hash of the group file is used during a resharing procedure to make sure node
 are resharing from the correct group.
 The hash is derived using the blake2b hash function.  The Go procedure works as
 follow:
+
 ```go
 func (g *Group) Hash() []byte {
-    h, _ := blake2b.New256(nil)
-    // sort all nodes entries by their index
+	h, _ := blake2b.New256(nil)
+	// sort all nodes entries by their index
 	sort.Slice(nodes, func(i, j int) bool {
 		return nodes[i].Index < nodes[j].Index
 	})
@@ -177,12 +181,12 @@ randomness is generated collectively by drand nodes and publicly available. The
 A drand network is composed of a distributed set of nodes and has two
 phases / modules:
 
-* Setup: The nodes perform a distributed key generation (DKG) protocol to create
+- Setup: The nodes perform a distributed key generation (DKG) protocol to create
   the collective public key and one private key share per node. The participants
   never see/use the actual (distributed) private key explicitly but instead
   utilize their respectiveprivate key shares for the generation of public
   randomness.
-* Generation: After the setup, the nodes switch to the randomness generation
+- Generation: After the setup, the nodes switch to the randomness generation
   mode. Each node periodically broadcasts a partial signature to all the other
   participants sign using a t-of-n threshold version of the Boneh-Lynn-Shacham
   (BLS) signature scheme with their respective private key shares. Once any node
@@ -190,7 +194,7 @@ phases / modules:
   reconstruct the full BLS signature, that can be verified against the
   distributed public key.  The signature is then simply the hash of that
   signature, to ensure that there is no bias in the byte representation of the
-  final output. 
+  final output.
 
 ### Setup phase
 
@@ -232,10 +236,13 @@ message Identity {
 
 Each non-coordinator participant sends their information via the following RPC
 call:
+
 ```protobuf
 rpc SignalDKGParticipant(SignalDKGPacket) returns (drand.Empty);
 ```
+
 The relevant protobuf packets are the following:
+
 ```protobuf
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
@@ -262,16 +269,19 @@ message SignalDKGPacket {
 
 Once the coordinator has received the expected number of node informations, then
 he creates the group configuration (the operator has given the parameters such as
-threshold and period to the drand logic). 
+threshold and period to the drand logic).
 When creating a group from only public keys and addresses of the node, the
 _index_ of a node is determined by the lexigraphical order of the public keys as
 slice of bytes.
 The coordinator then pushes the group configuration to the participants via the
 following RPC call:
+
 ```protobuf
 rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
 ```
+
 with the relevant protobuf packets as follow:
+
 ```protobuf
 // PushDKGInfo is the packet the coordinator sends that contains the group over
 // which to run the DKG on, the secret proof (to prove it's he's part of the
@@ -284,7 +294,7 @@ message DKGInfoPacket {
 // GroupPacket represents a group that is running a drand network (or is in the
 // process of creating one or performing a resharing).
 message GroupPacket {
-    repeated Node nodes = 1; 
+    repeated Node nodes = 1;
     uint32 threshold = 2;
     // period in seconds
     uint32 period = 3;
@@ -293,7 +303,7 @@ message GroupPacket {
     bytes genesis_seed = 6;
     // is nil in this case, since the network
     // hasn't run the setup phase yet
-    repeated bytes dist_key = 7; 
+    repeated bytes dist_key = 7;
 }
 ```
 
@@ -310,12 +320,13 @@ DKG as well and start the ticker as explained below.
 The distributed key generation protocol implements the Pedersen's protocol, best
 described from [Gennaro's
 paper](https://www.researchgate.net/publication/225722958_Secure_Distributed_Key_Generation_for_Discrete-Log_Based_Cryptosystems):
+
 > Distributed key generation (DKG) is a main component of threshold
 > cryptosystems. It allows a set of n servers to generate jointly a pair of
 > public and private keys without assuming any trusted party. A DKG may be run
 > in the presence of a malicious adversary who corrupts a fraction (or
 > threshold) of the parties and forces them to follow an arbitrary protocol of
-> their choice. 
+> their choice.
 
 Note that the nodes that finish the protocol successfully, called "qualified
 nodes" may be a subset of the nodes that started it: there can be nodes offline
@@ -325,9 +336,9 @@ accordingly to the protocol.
 #### Types of distributed key generation
 
 Drand supports two operations with respect to setting up a distributed key:
-* Fresh setup: nodes have no prior shares and want to run the protocol from
-  scratch
-* Resharing: Resharing enables to _remove_ and _add_ new nodes to a group, while
+
+- Fresh setup: nodes have no prior shares and want to run the protocol from scratch
+- Resharing: Resharing enables to _remove_ and _add_ new nodes to a group, while
   keeping the same public facing information, namely the distributed key. There
   is already a first group of nodes A that have ran the DKG protocol and have
   shares of a distributed private key. This group wants to "re-share their
@@ -336,7 +347,7 @@ Drand supports two operations with respect to setting up a distributed key:
   resharing, nodes in group B will be able to use their new shares to produce
   randomness and nodes in group A will not be able to participate in randomness
   generation with the nodes in group B. the Note that a node can be in group A
-  and B as well. 
+  and B as well.
 
 The rest of this section highlights the network level operations that are valid
 for both types of DKG. Even though the main logic is similar for the two types,
@@ -346,10 +357,13 @@ the cryptography section explains in details the difference between the two.
 
 For a new setup, nodes exchanges the DKG packets
 using the following RPC call:
+
 ```protobuf
 rpc FreshDKG(DKGPacket) returns (drand.Empty);
 ```
+
 and the following protobuf packets:
+
 ```protobuf
 message DKGPacket {
     dkg.Packet dkg = 1;
@@ -365,6 +379,7 @@ message Packet {
     bytes signature = 4;
 }
 ```
+
 All messages of the DKG have a canonical hash representation and each node signs
 that hash before sending out the packet, therefore providing authentication of
 the messages. The signature scheme is the regular BLS signature as explained in
@@ -381,13 +396,14 @@ phase.
 The way the protocol transition works is via time-outs. As soon as a node starts
 the DKG protocol, it starts a ticker that triggers each transition phase.
 Example:
-* DKG timeout is set to 30s
-* Node 1 starts the DKG at time T, so he is in `DealPhase` and sends its deals
+
+- DKG timeout is set to 30s
+- Node 1 starts the DKG at time T, so he is in `DealPhase` and sends its deals
   to every other node.
-* Node 1's ticker ticks at time T+30s, and node 1 enters the `ResponsePhase` and
+- Node 1's ticker ticks at time T+30s, and node 1 enters the `ResponsePhase` and
   sends its responses to every other node. Each `Response` can be a complaint or a
   success depending on the deal the node received at the previous step.
-* Node 1's ticker ticks at time T+60s, and node 1 enters the
+- Node 1's ticker ticks at time T+60s, and node 1 enters the
   `JustificationPhase` _if there was no complaint response received_ OR in
   `FinishPhase` otherwise.
 
@@ -396,13 +412,14 @@ phase proceeds faster at the cost of higher bandwidth usage. Given the
 relatively low size of the network, the latter is not a concern. The general
 idea is to move to the next step before the ticker kicks in if we received the
 messages of the phase from all other nodes already. In more details:
-* nodes go into the `ResponsePhase` as soon as they received deals from
+
+- nodes go into the `ResponsePhase` as soon as they received deals from
   everybody else OR when the ticker kicks in.
-* nodes go into the `FinishPhase` as soon as they received "success" responses
+- nodes go into the `FinishPhase` as soon as they received "success" responses
   from all other nodes (i.e. all deals were correct) OR
-* nodes go into the `JustificationPhase` as soon as they received all responses
-  from all other nodes, where at least one of the responses is a complaint. 
-* The transition from the `JustificationPhase` to the `FinishPhase` is done
+- nodes go into the `JustificationPhase` as soon as they received all responses
+  from all other nodes, where at least one of the responses is a complaint.
+- The transition from the `JustificationPhase` to the `FinishPhase` is done
   locally: when a node received all justifications or when the ticker kicks in,
   the nodes compute their final share. The beacon chain is starting at a
   pre-defined time so it doesn't impact how nodes are handling this last phase.
@@ -424,7 +441,7 @@ signed.Here is the protobuf wire specification of the deals:
 message DealBundle {
     // Index of the dealer that issues these deals
     uint32 dealer_index = 1;
-    // Coefficients of the public polynomial that is created from the 
+    // Coefficients of the public polynomial that is created from the
     // private polynomial from which the shares are derived.
     repeated bytes commits = 2;
     // list of deals for each individual share holders.
@@ -441,7 +458,7 @@ message Deal {
 
 Each `DealBundle` is authentificated so a node can know when they received all
 expected `DealBundle`, one from each node, by looking at the
-`dealer_index` field of all `DealBundle. If that is the case, the node can
+`dealer_index` field of all `DealBundle`. If that is the case, the node can
 directly transition to the `ResponsePhase`. Otherwise, the node needs to wait
 until the ticker kicks in for the next timeouts, before entering the
 `ResponsePhase`.
@@ -460,7 +477,7 @@ A node bundles all its responses into a `ResponseBundle` that is signed. Here is
 the protobuf description:
 
 ```protobuf
-// ResponseBundle is a packet issued by a share holder that contains all the 
+// ResponseBundle is a packet issued by a share holder that contains all the
 // responses (complaint and/or success) to broadcast.
 message ResponseBundle {
     uint32 share_index = 1;
@@ -472,7 +489,7 @@ message ResponseBundle {
 message Response {
     // index of the dealer for which this response is for
     uint32 dealer_index = 1;
-    // Status represents a complaint if set to false, a success if set to 
+    // Status represents a complaint if set to false, a success if set to
     // true.
     bool status = 2;
 }
@@ -480,9 +497,10 @@ message Response {
 
 When a node received all expected `ResponseBundle` from each node OR when the
 ticker kicks in, the node decides to which phase to proceed to:
-* If all `Response.status` from each `ResponseBundle` are set to true, the node
+
+- If all `Response.status` from each `ResponseBundle` are set to true, the node
   can directly go into the `FinishPhase` and compute their final share.
-* If not, then the node needs to go into the `JustificationPhase`.
+- If not, then the node needs to go into the `JustificationPhase`.
 
 #### Justification Phase
 
@@ -495,7 +513,7 @@ A node bundles all its `Justifications` into a `JustificationBundle` that is
 signed. Here is the protobuf description:
 
 ```protobuf
-// JustifBundle is a packet that holds all justifications a dealer must 
+// JustifBundle is a packet that holds all justifications a dealer must
 // produce
 message JustifBundle {
     uint32 dealer_index = 1;
@@ -511,6 +529,7 @@ message Justification {
     bytes share = 2;
 }
 ```
+
 A node can silently waits until it receives all justification expected or the
 ticker kicks in to go into the `FinishPhase`.
 
@@ -528,9 +547,7 @@ protocol. Given there might be slight time delays, it must already be ready to
 accept packets for this. However, the node must only start generating randomness
 at the time specified in the `GenesisTime` of the group configuration file.
 
-### Randomness generation 
-
-#### Overiew
+### Randomness generation
 
 The randomness generation protocol works in its simple form by having each node
 periodically broadcasts a "partial" signature over a common input. Each nodes
@@ -538,10 +555,12 @@ waits to receive these partial signatures, and as soon as one has a subset of at
 least a "threshold" (parameter given in the group configuration file) of those,
 this node can reconstruct the final signature. The final signature is a regular
 BLS signature that can be verified against the distributed public key. If that
-signature is correct, then the randomness is simply the hash of it: 
+signature is correct, then the randomness is simply the hash of it:
+
 ```go
 rand := sha256.Sum256(signature)
 ```
+
 Note here that the hash function shown here is simply an example, a suggestion.
 An application is free to hash the signature using any secure hash function. The
 important point is to verify to validity of the signature.
@@ -552,6 +571,7 @@ The drand network outputs a new random beacon every period and associates a
 beacon "round" to a specific time. The mapping between a time and a round allows
 to exactly determine the round number for any given time in the past or future.
 The relation to determine this mapping is as follow:
+
 ```go
 // Parameters:
 // * now: UNIX timestamp in seconds
@@ -562,16 +582,16 @@ The relation to determine this mapping is as follow:
 // * the time at which this round started
 func CurrentRound(now, genesis int64, period uint32) (round uint64, time int64){
 	if now < genesis {
-        // round 0 is the genesis block: signature is the genesis seed
+		// round 0 is the genesis block: signature is the genesis seed
 		return 0
 	}
 	fromGenesis := now - genesis
 	// we take the time from genesis divided by the periods in seconds, that
-	// gives us the number of periods since genesis.  We add +1 because round 1 
-    // starts at genesis time.
+	// gives us the number of periods since genesis.  We add +1 because round 1
+	// starts at genesis time.
 	round = uint64(math.Floor(float64(fromGenesis)/period)) + 1
 	time = genesis + int64(nextRound*uint64(period.Seconds()))
-    return
+	return
 }
 ```
 
@@ -585,18 +605,20 @@ section](#catchup) for more information.
 
 Drand binds the different random beacon together so they form a chain of random
 beacons. Remember a drand beacon is structured as follow:
+
 ```go
 type Beacon struct {
-    Round uint64
-    PreviousSignature []byte 
-    Signature []byte
+	Round uint64
+	PreviousSignature []byte
+	Signature []byte
 }
 ```
-* The `Round` is the round at which the beacon was created, as explained in the
+
+- The `Round` is the round at which the beacon was created, as explained in the
   previous section.
-* The `PreviousSignature` is the signature of the beacon that was created at
+- The `PreviousSignature` is the signature of the beacon that was created at
   round `Round - 1`
-* `Signature` is the final BLS signature created by aggregating at least
+- `Signature` is the final BLS signature created by aggregating at least
   `Threshold` of partial signatures from nodes.
 
 This structure makes it so that each beacon created is building on the previous
@@ -604,7 +626,8 @@ one therefor forming a randomness chain.
 
 **Partial Beacon Creation**: At each new round, a node creates a `PartialBeacon`
 with the current round number, the previous signature and the partial signature
-over the message: 
+over the message:
+
 ```go
 func Message(currRound uint64, prevSig []byte) []byte {
 	h := sha256.New()
@@ -613,21 +636,28 @@ func Message(currRound uint64, prevSig []byte) []byte {
 	return h.Sum(nil)
 }
 ```
+
 To determine the "current round" and the "previous signature", the node loads it
 last generated beacon and sets the following:
-```
+
+```go
 currentRound = lastBeacon.Round + 1
 previousSignature = lastBeacon.Signature
 ```
+
 It is important to note that the current round may not be necessarily the round
 of the current time. More information in the following section.
 
-**Partial Beacon Broadcast**:Each node then calls the following RPC call 
+**Partial Beacon Broadcast**:Each node then calls the following RPC call
+
 ```protobuf
 rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
 ```
+
 with the following protobuf packets:
+
 XXX: protobuf shown is assuming [issue 256](https://github.com/drand/drand/issues/256)is fixed.
+
 ```protobuf
 message PartialBeaconPacket {
     // Round is the round for which the beacon will be created from the partial
@@ -643,17 +673,19 @@ message PartialBeaconPacket {
 node must first verify it, using the partial signature verification routine and
 then stores it in a temporary cache if it is valid.  As soon as there is at
 least a threshold of valid partial signatures, the node can aggregate them to
-create the final signature. 
+create the final signature.
 
 **Validation of beacon and storage**: Once the new beacon is created, the node
 verifies its signature, loads the last saved beacom from the database and checks
 if the following routine returns true:
+
 ```go
 func isAppendable(lastBeacon, newBeacon *Beacon) bool {
 	return newBeacon.Round == lastBeacon.Round+1 &&
-		bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
+	 	bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
 }
 ```
+
 There should never be any gaps in the rounds.
 A node can now save the beacon locally in its database and exposes it to the
 external API.
@@ -662,29 +694,32 @@ external API.
 
 In drand, we can uniquely identify a chain of randomness via a tuple of
 information:
+
 ```go
 type Info struct {
-    // Period of the randomness generation in seconds
-    Period uint32
-    // Time at which the drand nodes started the chain, UNIX in seconds.
-    GenesisTime int64
-    // PublicKey necessary to validate any randomness beacon of the chain
-    PublicKey []byte
+	// Period of the randomness generation in seconds
+	Period uint32
+	// Time at which the drand nodes started the chain, UNIX in seconds.
+	GenesisTime int64
+	// PublicKey necessary to validate any randomness beacon of the chain
+	PublicKey []byte
 }
 ```
+
 This information is constant regardless of the network composition: even after a
 resharing is performed, the chain information is constant.
 
 This root of trust is to be given to clients to embed in the application. For
 simplicity, we also refer to the chain information by its hash of the `Info`
 structure:
+
 ```go
 func (i *Info) Hash() []byte {
 	h := sha256.New()
 	binary.Write(h, binary.BigEndian, i.Period)
 	binary.Write(h, binary.BigEndian, i.GenesisTime)
-    h.Write(i.PublicKey)
-    return h.Sum(nil)
+	h.Write(i.PublicKey)
+	return h.Sum(nil)
 }
 ```
 
@@ -707,8 +742,8 @@ time in the previous round OR this node didn't receive enoug partial beacons for
 some reasons.
 
 If that condition is true, nodes must first try to sync with each other: each node
-asks the other nodes if they have a random beacon at the round `lastBeacon.Round
-+ 1` AND higher beacons as well. If a node receives a valid beacon for the
+asks the other nodes if they have a random beacon at the round `lastBeacon.Round + 1`
+AND higher beacons as well. If a node receives a valid beacon for the
 requested round, that means the network is still producing randomness but for
 some networking reasons, he didn't receive correctly the partial beacons. In
 this case, if the last beacon received corresponds to the current round, the
@@ -716,7 +751,7 @@ node must wait on the next tick and continue as usual.
 
 If the sync didn't return any more recent valid beacons, that probably means the
 network is stalled. In that case, nodes must continue to broadcast the same
-partial beacon as usual at every tick. 
+partial beacon as usual at every tick.
 
 **Network Catchup**: At some point, there will be enough honest & alive nodes to
 broadcast their partial signatures such that a new beacon can be aggregated, for
@@ -729,27 +764,25 @@ aggregated, nodes look if the round corresponds to the current round, and if
 not, prepare to broadcast their next partial signatures.
 
 **Example**:
-* Period is 30s, genesis time = 10
-* Beacon for round 1 generated at T = 10
-* Beacon for round 2 generated at T = 40
-* Outage of multiple honest nodes for 70s
-* When the honest nodes are back online, it's time T = 40+70 = 110
-  + Beacons round 3 (T=70), round 4 (T=100) should have been generated in the
-    meantime
-* When the nodes come back online, they try to sync with each other
-  + They all see all nodes only have the beacon round 2 as the "head" of the
+
+- Period is 30s, genesis time = 10
+- Beacon for round 1 generated at T = 10
+- Beacon for round 2 generated at T = 40
+- Outage of multiple honest nodes for 70s
+- When the honest nodes are back online, it's time T = 40+70 = 110 + Beacons round 3 (T=70), round 4 (T=100) should have been generated in the meantime
+- When the nodes come back online, they try to sync with each other
+  - They all see all nodes only have the beacon round 2 as the "head" of the
     chain
-  + Therefore, they go into "catchup mode"
-* Nodes send a partial beacon for round 3 at time T = 100 (+ some delta for
+  - Therefore, they go into "catchup mode"
+- Nodes send a partial beacon for round 3 at time T = 100 (+ some delta for
   syncing)
-* As soon as a node has enough partial beacon for round 3, he creates the final
+- As soon as a node has enough partial beacon for round 3, he creates the final
   beacon for round 4
-  + It then moves to the next round automatically, since round 4 is still in the
-    past
-* All nodes continue on this mode until all have the round 4 as their heads and
+  - It then moves to the next round automatically, since round 4 is still in the past
+- All nodes continue on this mode until all have the round 4 as their heads and
   as long the the current time is less than T=130, since that corresponds to
   round 5
-* All nodes wait for the round 5 as usual.
+- All nodes wait for the round 5 as usual.
 
 #### Syncing
 
@@ -757,10 +790,13 @@ When a drand node is offline, restarted or detects a halt in the chain's
 progress (previous section), a node should sync to all other nodes in the
 network. A node indicates the last beacon saved in its database and calls the
 following RPC:
+
 ```protobuf
 rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 ```
+
 with the following protobuf packet:
+
 ```protobuf
 // SyncRequest is from a node that needs to sync up with the current head of the
 // chain
@@ -793,7 +829,7 @@ Drand uses the pairing curve
 The implementation that drand uses is located in the
 [bls12-381](https://github.com/drand/bls12-381) repo.
 **Hash to curve**:The hash-to-curve algorithm is derived from the [RFC
-v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07). 
+v7](https://tools.ietf.org/html/draft-irtf-cfrg-hash-to-curve-07).
 
 **Groups**: This document uses the notation G1 and G2 as commonly used in
 pairing equipped curves. The BLS12-381 specification specifies a base point, or
@@ -804,34 +840,40 @@ generator for both group, that drand uses.
 **Polynomial**: This document refers to polynomials as a list of points lying in
 the group G1 of BLS12-381. The first point in the list is the free coefficient
 of the polynomial,i.e.:
-```
+
+```text
 f(x) = c_0 + c_1 * x + ... + c_{t-1} * x^{t-1}
 ```
+
 Two polynomials can be added in the following way:
-```
-f(x) + g(x) = (f_0 + g_0) + (f_1 + g_1) * x + ... 
+
+```text
+f(x) + g(x) = (f_0 + g_0) + (f_1 + g_1) * x + ...
 ```
 
 ### Distributed Public Key
 
 The distributed public key is a list of BLS12-381 G1 points that represents the
 public polynomial created during the DKG protocol.
+
 ```go
 // DistPublic represents the distributed public key generated during a DKG. This
 // is the information that can be safely exported to end users verifying a
 // drand signature. It is the list of all commitments of the coefficients of the
 // private distributed polynomial.
 type DistPublic struct {
-    // points on the BLS12-381 G1 curve
-	Coefficients [][]byte 
+	// points on the BLS12-381 G1 curve
+	Coefficients [][]byte
 }
 ```
-The coefficients are needed to verify partial beacon signatures. 
+
+The coefficients are needed to verify partial beacon signatures.
 The first coefficient is needed to verify the final beacon signature.
 
 ### Beacon Signature
 
 A beacon signature is a regular [BLS signature](https://www.iacr.org/archive/asiacrypt2001/22480516.pdf) over the message:
+
 ```go
 func Message(currRound uint64, prevSig []byte) []byte {
 	h := sha256.New()
@@ -840,7 +882,9 @@ func Message(currRound uint64, prevSig []byte) []byte {
 	return h.Sum(nil)
 }
 ```
+
 The ciphersuite used is:
+
 ```go
 var Domain = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_")
 ```
@@ -853,12 +897,13 @@ stored in the group configuration:
 A partial beacon signature is created over the same input as the beacon
 signature. However, the node's index is prefixed on the first two bytes to the
 signature.
+
 ```go
 func concatenate(signature []byte, index uint16) []byte {
-    var buffer bytes.Buffer
-    binary.Write(buffer, binary.BigEndian, index)
-    buffer.Write(sig)
-    return buffer.Bytes()
+	var buffer bytes.Buffer
+	binary.Write(buffer, binary.BigEndian, index)
+	buffer.Write(sig)
+	return buffer.Bytes()
 }
 ```
 
@@ -869,6 +914,7 @@ index of the signer + 1. We need to increment the signer's index since the
 evaluation point 0 corresponds to the public key but no nodes posseses the
 private key. More on that in the DKG sections below.
 To evaluate the polynomial, one can use the following routine:
+
 ```go
 // i is the index of the signer
 // commits are the points of the distributed public key
@@ -896,10 +942,11 @@ a both a dealer and a share holder at the same time.
 #### Input
 
 The input are:
-* The list of public keys of all participants
-* The longterm private key of the node
-* The designated index of this node
-* The threshold to use during the DKG
+
+- The list of public keys of all participants
+- The longterm private key of the node
+- The designated index of this node
+- The threshold to use during the DKG
 
 For a fresh distributed key generation, the index of each node is set as the
 index of its public key in the list of participants.
@@ -917,7 +964,7 @@ Each node creates the following two polynomials as a setup to the first phase:
 **Private Polynomial**:In order to create the shares, Each node locally creates
 random polynomial with a `threshold` number of coefficients. In other words, the
 node creates a list of size `threshold` of random scalars from the prime order
-field of the BLS12-381 curve. 
+field of the BLS12-381 curve.
 
 **Public Polynomial**: Each nodes compute then the public commitment of this
 polynomial simply by multiplying each coefficients with the base points of G1.
@@ -926,7 +973,7 @@ polynomial simply by multiplying each coefficients with the base points of G1.
 distributed by each dealer. A status is either "valid" or "invalid". At the
 end of the protocol, all dealers whose all shares are marked as valid in this
 matrix are qualified to be in the group. For a fresh DKG, this matrix is a NxN
-matrix since there are as many dealers as share holders. 
+matrix since there are as many dealers as share holders.
 The matrix must be initialized as having only incorrect shares for all dealers
 at the beginning. This effectively forces all share holders to explicitely
 broadcast that the shares they receives are correct.
@@ -940,16 +987,16 @@ algorithm described [below](#ecies) in the document, with the public key of the
 share holder and the share serialized as in described in the curve section.
 A pseudo algorithm describes the operation:
 
-```
+```text
 // Node running the following has the following properties:
-//  - its index as a dealer (in the group A) DealerIndex di, 
+//  - its index as a dealer (in the group A) DealerIndex di,
 //  - a flag "isHolder" denoting if the node is a member of the group B
 //  - its index as a share holder ShareIndex si - if isHolder is true
 shares = []
 for n in shareHolders:
   - share = private_polynomial.Eval(n.Index)
   - mark as valid the share ShareIndex for the dealer DealerIndex in the status matrix
-  - if shareHolder && n.Index == ShareIndex 
+  - if shareHolder && n.Index == ShareIndex
         - continue to next node
   - encryption = ECIES(node.PublicKey, share)
   - append(shares, { encrypted: encryption, index: n.Index })
@@ -965,9 +1012,10 @@ packet.
 
 **Processing of the shares**:
 At the beginning of this phase, the node must first process all published deals
-during the previous phase. 
+during the previous phase.
 The logic is as follow:
-```
+
+```text
 For each deal bundle:
  - check signature of the packet
     - if invalid, pass to next bundle
@@ -996,6 +1044,7 @@ For each deal bundle:
 ```
 
 **Creation of the responses**:
+
 Each node sends a response for each of the shares he has or should have
 received. In other words, each node at index i looks at all share's index i for
 all dealers and create a response with the same status. Each node bundles these
@@ -1006,7 +1055,8 @@ responses into a `ResponseBundle`, signs it and wraps it into a
 
 **Processing of the responses**: For each responses received, each node sets the
 status of the share index from the dealer index as designated in the response.
-```
+
+```text
 For each response bundle "bundle":
     - check if the bundle.ShareIndex is a valid index in the group
         - if false, set all share's of that ShareIndex as invalid
@@ -1025,7 +1075,8 @@ run the following logic.
 
 **Validating Justifications**: Each node runs the following logic on all
 received `AuthJustifBundle`:
-```
+
+```text
 For each bundle:
     - check if the bundle.DealerIndex is one index in the group
         - if false, pass to next bundle
@@ -1036,7 +1087,7 @@ For each bundle:
         - if not, pass to next bundle
         - if yet, save it as "public"
     - For each justifications from that dealer:
-        - check if the justification.ShareIndex is in the group 
+        - check if the justification.ShareIndex is in the group
             - if false, mark all shares of the dealer bundle.DealerIndex invalid
         - evaluate the public polynomial at the justification.ShareIndex
             - expected = public.Eval(justification.ShareIndex)
@@ -1058,7 +1109,8 @@ In the finish phase, each node locally computes their final share and the
 distributed public key. At the end, each node can distribute the public key and
 use the share to create partial beacon.
 The logic is as follows:
-```
+
+```text
 // INPUT: i: node's index
 // OUTPUT: (share, distributedkey)
 // scalar in the BLS12-381 curve
@@ -1079,10 +1131,11 @@ return (finalShare,finalPublic)
 
 Resharing is a mechanism that allows an established group to give _new_ shares
 to a _new_ group of nodes such that:
-* the new group of nodes can now uses their share to produce partial beacon
+
+- the new group of nodes can now uses their share to produce partial beacon
   signatures
-* the old shares can not be validated anymore within the new group
-* the distributed public polynomial changes but not the free coefficient which
+- the old shares can not be validated anymore within the new group
+- the distributed public polynomial changes but not the free coefficient which
   is the public key used to verify a random beacon
 
 There are few differences in the logic w.r.t to a fresh DKG as explained in the
@@ -1093,9 +1146,11 @@ previous section.
 **Private Polynomial**: Each dealer creates its private polynomial from the
 **share of the node** that the node generated in group A. Namely, the free
 coefficient of the private polynomial is the share:
-```
+
+```text
 f(x) = share + c_1 * x + ... + c_{t-1} * x^{t-1}
 ```
+
 **NOTE**:The length of the polynomial is set to the threshold of the new group, of the
 group B.
 
@@ -1116,24 +1171,24 @@ of dealers and M in the number of share holders.
 
 Note a node can now have two indexes if it belongs to the group A and group B.
 We call theses indexes DealerIndex and ShareIndex as consistent with the
-previous notation in the DKG case. 
+previous notation in the DKG case.
 
 #### Deal Phase
 
 The deal phase is essentially the same except for the index where the node
-evaluate the private polynomial. A dealer evaluates its private polynomial on 
-the indexes of the share holders.
+evaluate the private polynomial. A dealer evaluates its private polynomial on
+ the indexes of the share holders.
 
-```
+```text
 // Node running the following has the following properties:
-//  - its index as a dealer (in the group A) DealerIndex di, 
+//  - its index as a dealer (in the group A) DealerIndex di,
 //  - a flag "isHolder" denoting if the node is a member of the group B
 //  - its index as a share holder ShareIndex si - if isHolder is true
 shares = []
 for n in shareHolders:
   - share = private_polynomial.Eval(n.Index)
   - mark as valid the share ShareIndex for the dealer DealerIndex in the status matrix
-  - if shareHolder && n.Index == ShareIndex 
+  - if shareHolder && n.Index == ShareIndex
         - continue to next node
   - encryption = ECIES(node.PublicKey, share)
   - append(shares, { encrypted: encryption, index: n.Index })
@@ -1142,9 +1197,9 @@ return shares
 
 #### Response Phase
 
-
 There are two main differences with respect to the responses phase in a fresh
 dkg:
+
 1. A node must be able to verify that the free coefficient of the public
    polynomial of the dealer is the same as the commitment of the share of the
    dealer. That check ensures that the dealer is indeed creating a private
@@ -1155,10 +1210,11 @@ dkg:
 
 **Processing of the shares**:
 At the beginning of this phase, the node must first process all published deals
-during the previous phase. 
+during the previous phase.
 The logic is as follow:
-```
-// INPUT: 
+
+```text
+// INPUT:
 //  - public polynomial of the current group A: polyA
 //  - deals bundle
 //  - node ShareIndex
@@ -1217,7 +1273,7 @@ node needs also to validate that the dealer is indeed "re-sharing its share":
 the dealer used the commitment of its share as the free coefficient of the
 public polynomial he advertised during the deal phase.
 
-```
+```text
 // INPUT:
 //  - polyA: public polynomial of the group A
 //  - list of response bundles
@@ -1231,7 +1287,7 @@ For each bundle:
         - if not, pass to next bundle
         - if yet, save it as "public"
     - For each justifications from that dealer:
-        - check if the justification.ShareIndex is in the group 
+        - check if the justification.ShareIndex is in the group
             - if false, mark all shares of the dealer bundle.DealerIndex invalid
         - evaluate the public polynomial at the justification.ShareIndex
             - expected = public.Eval(justification.ShareIndex)
@@ -1253,27 +1309,29 @@ For each bundle:
 
 The finish phase in case of a resharing is where the the major differences rises
 with respect to a fresh DKG protocol.
-* On the algebra side, instead of simply summing up valid shares received, each
+
+- On the algebra side, instead of simply summing up valid shares received, each
   node has to interpolate (using Lagrange interpolation) the valid shares
   received to be able to construct a new share. That is valid too for the public
   polynomials received: each node needs to interpolate the coefficients of all
   valid polynomials column-wise.
-* On the protocol side, each node make sure to output a qualified set of nodes
+- On the protocol side, each node make sure to output a qualified set of nodes
   from only the share holders that replied correctly during the response phases.
 
 **Aggregation of the shares**: In a resharing context, each node needs to treat the
 valid shares they received as the evaluation points of a polynomial. The final
-share of the node is the secret coefficient of that polynomial. 
-The logic is as follows:
-```
+share of the node is the secret coefficient of that polynomial. The logic is as
+ follows:
+
+```text
 // INPUT
 //  - list of shares stored (dealerIndex, value)
 //  - ShareIndex: node index
 //  - threshold parameter of the group A
 // OUTPUT:
 //  - final share of the node
-// 
-// temp_points is a list of tuples (x_i,y_i) evaluation points of a polynomial 
+//
+// temp_points is a list of tuples (x_i,y_i) evaluation points of a polynomial
 temp_points = []
 For each share:
   - check if all shares for share.dealerIndex are marked as valid
@@ -1293,21 +1351,21 @@ column-wise of that matrix to create one by one the public coefficients of the
 new public polynomial. The first coefficient is still the same as the previous
 group; in other words, the distributed key doesn't change.
 
-```
+```text
 // INPUT:
 //  - thresholdA: threshold of the group A
 //  - thresholdB: threshold of the group B
 //  - all valid public polynomials (dealerIndex, polynomial)
-//      - each public polynomial is of length thresholdB 
+//      - each public polynomial is of length thresholdB
 //
 // OUTPUT:
 //  - public polynomial of the group B
-// 
+//
 
 // list of coefficients that will form the new public polynomial
 new_coeffs = []
 For i in 0..thresholdB:
-    // list of evaluation points (index, point on G1) 
+    // list of evaluation points (index, point on G1)
     tmp_coeffs = []  
     for each polynomials p:
         - append(tmp_coeffs, p.Coefficient(i)
@@ -1325,12 +1383,13 @@ return new_coeffs
 
 **Qualified Nodes Selection**: We need to augment the normal selection rule from
 the fresh DKG case with a new rule to exclude absent new nodes from group B.
-```
+
+```text
 // INPUT:
-//  - status matrix 
+//  - status matrix
 //  - newNodes: list of nodes indexes in group B
 // OUTPUT:
-//  - indexes of the qualified nodes in group B 
+//  - indexes of the qualified nodes in group B
 
 valid_dealers = []
 quals = []
@@ -1357,6 +1416,7 @@ return quals
 
 Here are the the DKG packets with their authentication wrapper adding the
 signature:
+
 ```go
 // Deal holds the Deal for one participant as well as the index of the issuing
 // Dealer.
@@ -1477,11 +1537,11 @@ type AuthJustifBundle struct {
 }
 ```
 
-## THINGS TO REVIEW
+## Things to review
 
-* Setup phase: now it doesn't require any manual downloading from operators, and
+- Setup phase: now it doesn't require any manual downloading from operators, and
   it's a huge win given the manual errors we've seen previously. But the
-  coordinator is trusted to setup the group correctly. 
+  coordinator is trusted to setup the group correctly.
   Given the setup phase is done in a controlled fashion, it hasn't been a been a
   practical problem but we should think about a best practice here.
   One idea is to add an additional step such that a participant can inspect the
@@ -1491,8 +1551,7 @@ type AuthJustifBundle struct {
   configuration again to participants and start the DKG. Another slightly
   different model is to simply say that a participate could refuse to run the
   DKG if the group configuration is deemed invalid.
-
-* DKG Resharing potential optimzation: the check that a dealer must have used
+- DKG Resharing potential optimzation: the check that a dealer must have used
   the commitment of its share is done twice in the response phase and in the
   justification phase.  However, dealers that don't provide a regular valid
   polynomial in the response phase are already excluded. That means we could

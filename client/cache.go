@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/drand/drand/log"
+
 	lru "github.com/hashicorp/golang-lru"
 )
 

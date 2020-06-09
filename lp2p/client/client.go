@@ -9,10 +9,11 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/cmd/relay-gossip/lp2p"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/gogo/protobuf/proto"
+
+	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
