@@ -236,6 +236,15 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, ne
 	return listener, server
 }
 
+// NewMockServer creates a server interface not bound to a newtork port
+func NewMockServer(badSecondRound bool) net.Service {
+	d := generateMockData()
+	testValid(d)
+	d.BadSecondRound = badSecondRound
+	server := newMockServer(d)
+	return server
+}
+
 func sha256Hash(in []byte) []byte {
 	h := sha256.New()
 	h.Write(in)

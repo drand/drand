@@ -730,27 +730,25 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	// get last round first
-	resp, err := client.PublicRand(ctx, new(drand.PublicRandRequest))
+	resp, err := client.Get(ctx, 0)
 	require.NoError(t, err)
 
 	//  run streaming and expect responses
-	req := &drand.PublicRandRequest{Round: resp.GetRound()}
-	respClient, err := client.PublicRandStream(ctx, req)
-	require.NoError(t, err)
+	rc := client.Watch(ctx)
 	// expect first round now since node already has it
-	beacon, err := respClient.Recv()
-	require.Equal(t, beacon.GetRound(), resp.GetRound())
+	dt.MoveTime(group.Period)
+	beacon, ok := <-rc
+	require.Equal(t, beacon.Round(), resp.Round()+1)
 	nTry := 4
 	// we expect the next one now
-	initRound := resp.Round + 1
+	initRound := resp.Round() + 2
 	maxRound := initRound + uint64(nTry)
-	fmt.Println("Streaming for future rounds starting from", initRound)
 	for round := initRound; round < maxRound; round++ {
 		// move time to next period
 		dt.MoveTime(group.Period)
-		beacon, err = respClient.Recv()
-		require.Nil(t, err)
-		require.Equal(t, round, beacon.GetRound())
+		beacon, ok = <-rc
+		require.True(t, ok)
+		require.Equal(t, round, beacon.Round())
 	}
 }
 

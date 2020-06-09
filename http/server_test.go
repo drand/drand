@@ -8,27 +8,24 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 	"github.com/stretchr/testify/require"
 
 	json "github.com/nikkolasg/hexjson"
-	"google.golang.org/grpc"
 )
 
-func withClient(t *testing.T) (drand.PublicClient, func(bool)) {
+func withClient(t *testing.T) (client.Client, func(bool)) {
 	t.Helper()
 
 	l, s := mock.NewMockGRPCPublicServer(":0", true)
 	lAddr := l.Addr()
 	go l.Start()
 
-	conn, err := grpc.Dial(lAddr, grpc.WithInsecure())
-	if err != nil {
-		t.Fatal(err)
-	}
+	client, _ := grpc.New(lAddr, "", true)
 
-	client := drand.NewPublicClient(conn)
 	return client, s.(mock.MockService).EmitRand
 }
 

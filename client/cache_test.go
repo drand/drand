@@ -84,7 +84,7 @@ func TestCacheWatch(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)
-	rc <- &MockResult{rnd: 1, rand: []byte{1}}
+	rc <- &MockResult{Rnd: 1, Rand: []byte{1}}
 	_, ok := <-r1
 	if !ok {
 		t.Fatal("results should propagate")

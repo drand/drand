@@ -1,11 +1,13 @@
-package client
+package http
 
 import (
 	"context"
 	"net/http"
+	nhttp "net/http"
 	"testing"
 	"time"
 
+	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/mock"
 )
 
@@ -13,7 +15,7 @@ func TestHTTPClient(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), nhttp.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +29,7 @@ func TestHTTPClient(t *testing.T) {
 	if len(result.Randomness()) == 0 {
 		t.Fatal("no randomness provided")
 	}
-	full, ok := (result).(*RandomData)
+	full, ok := (result).(*client.RandomData)
 	if !ok {
 		t.Fatal("Should be able to restore concrete type")
 	}
@@ -44,7 +46,7 @@ func TestHTTPGetLatest(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +74,7 @@ func TestHTTPWatch(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	httpClient, err := NewHTTPClient("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), nhttp.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
