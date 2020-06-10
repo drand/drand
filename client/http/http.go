@@ -60,7 +60,9 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 	for _, u := range urls {
 		if info == nil {
 			if c, err := New(u, chainHash, nil); err == nil {
-				info, err = c.Info(context.Background())
+				// Note: this wrapper assumes the current behavior that if `New` succeeds,
+				// Info will have been fetched.
+				info, _ = c.Info(context.Background())
 				clients = append(clients, c)
 			} else {
 				skipped = append(skipped, u)
