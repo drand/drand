@@ -77,23 +77,18 @@ func (c *chainStore) runAggregator() {
 	if err != nil {
 		c.l.Fatal("chain_aggregator", "loading", "last_beacon", err)
 	}
-	var caches = []*roundCache{
-		newRoundCache(lastBeacon.Round+1, lastBeacon.Signature),
+
+	info, err := c.safe.GetInfo(lastBeacon.Round + 1)
+	if err != nil {
+		c.l.Fatal("chain_aggregator", "chain_info_load", "round", lastBeacon.Round+1)
 	}
+	var cache = newPartialCache(c.l, info.group.Threshold)
 	for {
 		select {
 		case <-c.done:
 			return
 		case lastBeacon = <-c.lastInserted:
-			// filter all caches inferior to this beacon
-			var newCaches []*roundCache
-			for _, cache := range caches {
-				if cache.round <= lastBeacon.Round {
-					continue
-				}
-				newCaches = append(newCaches, cache)
-			}
-			caches = newCaches
+			cache.FlushRounds(lastBeacon.Round)
 			break
 		case partial := <-c.newPartials:
 			// look if we have info for this round first
@@ -104,34 +99,43 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			// look if we want to store ths partial anyway
-			shouldStore := pRound >= lastBeacon.Round+1 && pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
+			isNotInPast := pRound >= lastBeacon.Round+1
+			isNotTooFar := pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
+			shouldStore := isNotInPast && isNotTooFar
 			// check if we can reconstruct
 			if !shouldStore {
 				c.l.Debug("ignoring_partial", partial.p.GetRound(), "last_beacon_stored", lastBeacon.Round)
 				break
 			}
 			thr := ginfo.group.Threshold
-			c.l.Debug("store_partial", partial.addr, "round", cache.round, "len_partials", fmt.Sprintf("%d/%d", cache.Len(), thr))
-			if cache.Len() < thr {
+			cache.Append(partial.p)
+			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
+			if roundCache == nil {
+				c.l.Error("store_partial", partial.addr, "no_round_cache", partial.p.GetRound())
+				break
+			}
+
+			c.l.Debug("store_partial", partial.addr, "round", roundCache.round, "len_partials", fmt.Sprintf("%d/%d", roundCache.Len(), thr))
+			if roundCache.Len() < thr {
 				break
 			}
 
 			pub := ginfo.pub
 			n := ginfo.group.Len()
-			msg := cache.Msg()
-			finalSig, err := key.Scheme.Recover(pub, msg, cache.Partials(), thr, n)
+			msg := roundCache.Msg()
+			finalSig, err := key.Scheme.Recover(pub, msg, roundCache.Partials(), thr, n)
 			if err != nil {
-				c.l.Debug("invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", cache.Len(), n))
+				c.l.Debug("invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
 				break
 			}
 			if err := key.Scheme.VerifyRecovered(pub.Commit(), msg, finalSig); err != nil {
 				c.l.Error("invalid_sig", err, "round", pRound)
 				break
 			}
-			cache.done = true
+			cache.FlushRounds(partial.p.GetRound())
 			newBeacon := &chain.Beacon{
-				Round:       cache.round,
-				PreviousSig: cache.previousSig,
+				Round:       roundCache.round,
+				PreviousSig: roundCache.prev,
 				Signature:   finalSig,
 			}
 			c.l.Info("aggregated_beacon", newBeacon.Round)
@@ -265,94 +269,123 @@ func newPartialCache(l log.Logger, threshold int) *partialCache {
 	}
 }
 
-func idFromPartial(p *drand.PartialBeaconPacket) string {
+func roundID(round uint64, previous []byte) string {
 	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, p.GetRound())
-	buff.Write(p.GetPartialSig())
+	binary.Write(&buff, binary.BigEndian, round)
+	buff.Write(previous)
 	return buff.String()
 }
 
-func (c *partialCache) append(p *drand.PartialBeaconPacket) {
-	id = idFromPartial(p)
-	cache, ok := c.rounds[id]
-	if !ok {
-		cache = newRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
-		caches = append(caches, cache)
-		if !cache.tryAppend(partial.p) {
-			c.l.Fatal("chain-aggregator", "bug_cache_partial")
-		}
-	} else if cache.done {
-		c.l.Debug("store_partial", "ignored", "round", cache.round, "already_reconstructed")
+func (c *partialCache) Append(p *drand.PartialBeaconPacket) {
+	id := roundID(p.GetRound(), p.GetPreviousSig())
+	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
+	round := c.getCache(id, p)
+	if round == nil {
 		return
 	}
+	if round.append(p) {
+		// we increment the counter of that node index
+		c.rcvd[idx] = append(c.rcvd[idx], id)
+	}
+}
+
+// FlushRounds deletes all rounds cache that are inferior or equal to `round`.
+func (c *partialCache) FlushRounds(round uint64) {
+	for id, cache := range c.rounds {
+		if cache.round > round {
+			continue
+		}
+
+		// delete the cache entry
+		delete(c.rounds, cache.id)
+		// delete the counter of each nodes that participated in that round
+		for idx, _ := range cache.sigs {
+			var idSlice = c.rcvd[idx][:0]
+			for _, idd := range c.rcvd[idx] {
+				if idd == id {
+					continue
+				}
+				idSlice = append(idSlice, idd)
+			}
+		}
+	}
+}
+
+func (c *partialCache) GetRoundCache(round uint64, previous []byte) *roundCache {
+	id := roundID(round, previous)
+	return c.rounds[id]
 }
 
 // newRoundCache creates a new round cache given p. If the signer of the partial
 // already has more than `
-func (c *partialCache) newRoundCache(id string, p *drand.PartialBeaconPacket) {
+func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundCache {
+	if round, ok := c.rounds[id]; ok {
+		return round
+	}
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if len(c.rcvd[idx]) > MaxPartialsPerNode {
 		// this node has submitted too many partials - we take the last one off
 		toEvict := c.rcvd[idx][0]
-		rounds, ok := c.rounds[toEvict]
+		round, ok := c.rounds[toEvict]
 		if !ok {
 			c.l.Error("cache", "miss", "node", idx, "not_present_for", p.GetRound())
-			// something's off
+			return nil
 		}
-		c.rcvd[idx] = append(c.rdvc[1:], id)
+		round.flushIndex(idx)
+		c.rcvd[idx] = append(c.rcvd[idx][1:], id)
 	}
+	round := newRoundCache(id, p)
+	c.rounds[id] = round
+	return round
 }
 
 type roundCache struct {
-	round       uint64
-	previous    uint64
-	previousSig []byte
-	sigs        map[int][]byte
-	indexes     []int
-	done        bool
+	round uint64
+	prev  []byte
+	id    string
+	sigs  map[int][]byte
+	done  bool
 }
 
-func newRoundCache(round uint64, prevSig []byte) *cacheEntry {
-	return &cacheEntry{
-		round:       round,
-		previousSig: prevSig,
-		sigs:        make(map[int][]byte),
+func newRoundCache(id string, p *drand.PartialBeaconPacket) *roundCache {
+	return &roundCache{
+		round: p.GetRound(),
+		prev:  p.GetPreviousSig(),
+		id:    id,
+		sigs:  make(map[int][]byte),
 	}
 }
 
-func (cache *cacheEntry) tryAppend(p *drand.PartialBeaconPacket) bool {
-	round := p.GetRound()
-	prevSig := p.GetPreviousSig()
+// append stores the partial and returns true if the partial is not stored . It
+// returns false if the cache is already caching this partial signature.
+func (r *roundCache) append(p *drand.PartialBeaconPacket) bool {
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if _, seen := cache.sigs[idx]; seen {
-		return true
+	if _, seen := r.sigs[idx]; seen {
+		return false
 	}
-
-	sameRound := round == cache.round
-	samePrevS := bytes.Equal(prevSig, cache.previousSig)
-	if sameRound && samePrevS {
-		cache.sigs[idx] = p.GetPartialSig()
-		indexes = append(indexes, idx)
-		return true
-	}
-	return false
+	r.sigs[idx] = p.GetPartialSig()
+	return true
 }
 
 // Len shows how many items are in the cache
-func (cache *cacheEntry) Len() int {
-	return len(cache.sigs)
+func (r *roundCache) Len() int {
+	return len(r.sigs)
 }
 
 // Msg provides the chain for the current round
-func (cache *cacheEntry) Msg() []byte {
-	return chain.Message(cache.round, cache.previousSig)
+func (r *roundCache) Msg() []byte {
+	return chain.Message(r.round, r.prev)
 }
 
 // Partials provides all cached partial signatures
-func (cache *cacheEntry) Partials() [][]byte {
-	partials := make([][]byte, 0, len(cache.sigs))
-	for _, sig := range cache.sigs {
+func (r *roundCache) Partials() [][]byte {
+	partials := make([][]byte, 0, len(r.sigs))
+	for _, sig := range r.sigs {
 		partials = append(partials, sig)
 	}
 	return partials
+}
+
+func (r *roundCache) flushIndex(idx int) {
+	delete(r.sigs, idx)
 }
