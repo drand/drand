@@ -55,7 +55,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	var c Client
 	var err error
 	if len(cfg.clients) > 0 {
-		c, err = NewPrioritizingClient(cfg.clients, cfg.chainHash, cfg.chainInfo)
+		c, err = NewOptimizingClient(cfg.clients, 0, 0, 0)
 		if err != nil {
 			return nil, err
 		}
