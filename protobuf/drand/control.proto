@@ -69,7 +69,7 @@ message SetupInfoPacket {
     // received the group file by then.
     uint32 dkg_offset = 8;
     // the secret used to authentify group members
-    string secret = 9;
+    bytes secret = 9;
 }
 
 message InitDKGPacket {
