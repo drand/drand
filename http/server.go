@@ -276,7 +276,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		if next.After(nextTime) {
 			nextTime = next
 		} else {
-			nextTime = nextTime.Add(time.Second)
+			nextTime = nextTime.Add(info.Period / 2)
 		}
 	}
 
