@@ -127,7 +127,7 @@ type pushKey struct {
 func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
-	if compareSecret(s.hashedSecret, p.GetSecretProof()) != 0 {
+	if !correctSecret(s.hashedSecret, p.GetSecretProof()) {
 		return errors.New("shared secret is incorrect")
 	}
 	if s.isResharing {
@@ -266,7 +266,7 @@ func newSetupReceiver(l log.Logger, in *control.SetupInfoPacket) *setupReceiver 
 }
 
 func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
-	if compareSecret(r.secret, pg.GetSecretProof()) == 0 {
+	if !correctSecret(r.secret, pg.GetSecretProof()) {
 		r.l.Debug("received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
@@ -282,9 +282,9 @@ func (r *setupReceiver) stop() {
 	close(r.ch)
 }
 
-func compareSecret(hashed, received []byte) int {
+func correctSecret(hashed, received []byte) bool {
 	got := hashSecret(received)
-	return subtle.ConstantTimeCompare(hashed, got)
+	return subtle.ConstantTimeCompare(hashed, got) == 1
 }
 
 func hashSecret(s []byte) []byte {
