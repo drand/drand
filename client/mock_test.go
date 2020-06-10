@@ -113,3 +113,30 @@ func (r *MockResult) AssertValid(t *testing.T) {
 		t.Fatalf("expected rand: %x, got %x", randTarget, r.Rand)
 	}
 }
+
+// MockClientWithInfo makes a client that returns the given info but no randomness
+func MockClientWithInfo(info *chain.Info) Client {
+	return &MockInfoClient{info}
+}
+
+type MockInfoClient struct {
+	i *chain.Info
+}
+
+func (m *MockInfoClient) Info(ctx context.Context) (*chain.Info, error) {
+	return m.i, nil
+}
+
+func (m *MockInfoClient) RoundAt(t time.Time) uint64 {
+	return chain.CurrentRound(t.Unix(), m.i.Period, m.i.GenesisTime)
+}
+
+func (m *MockInfoClient) Get(ctx context.Context, round uint64) (Result, error) {
+	return nil, errors.New("not supported")
+}
+
+func (m *MockInfoClient) Watch(ctx context.Context) <-chan Result {
+	ch := make(chan Result, 1)
+	close(ch)
+	return ch
+}

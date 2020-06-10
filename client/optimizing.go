@@ -21,7 +21,7 @@ const (
 // NewOptimizingClient creates a drand client that measures the speed of clients
 // and uses the fastest ones.
 //
-// Clients passed to the optimising client are ordered by speed and calls to
+// Clients passed to the optimizing client are ordered by speed and calls to
 // `Get` race the 2 fastest clients (by default) for the result. If a client
 // errors then it is moved to the back of the list.
 //
@@ -31,7 +31,7 @@ const (
 //
 // Calls to `Get` actually iterate over the speed-ordered client list with a
 // concurrency of 2 (by default) until a result is retrieved. It means that the
-// optimising client will fallback to using the other slower clients in the
+// optimizing client will fallback to using the other slower clients in the
 // event of failure(s).
 //
 // Additionally, calls to Get are given a timeout of 5 seconds (by default) to
@@ -158,7 +158,6 @@ func (oc *optimizingClient) fastestClients() []Client {
 func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
 	clients := oc.fastestClients()
 	stats := []*requestStat{}
-	defer oc.updateStats(stats)
 	ch := raceGet(ctx, clients, round, oc.requestTimeout, oc.requestConcurrency)
 	err = errors.New("no valid clients")
 
@@ -172,12 +171,15 @@ LOOP:
 			stats = append(stats, rr.stat)
 			res, err = rr.result, rr.err
 		case <-ctx.Done():
+			oc.updateStats(stats)
 			return nil, ctx.Err()
 		case <-oc.done:
+			oc.updateStats(stats)
 			return nil, errors.New("client closed")
 		}
 	}
 
+	oc.updateStats(stats)
 	return
 }
 
@@ -185,7 +187,7 @@ LOOP:
 func get(ctx context.Context, client Client, round uint64) *requestResult {
 	start := time.Now()
 	res, err := client.Get(ctx, round)
-	rtt := time.Now().Sub(start)
+	rtt := time.Since(start)
 	var stat requestStat
 
 	// client failure, set a large RTT so it is sent to the back of the list
@@ -319,8 +321,8 @@ func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain.Info, er
 
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
-func (oc *optimizingClient) RoundAt(time time.Time) uint64 {
-	return oc.clients[0].RoundAt(time)
+func (oc *optimizingClient) RoundAt(t time.Time) uint64 {
+	return oc.clients[0].RoundAt(t)
 }
 
 // Close stops the background speed tests and closes the client for further use.
