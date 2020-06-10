@@ -72,7 +72,7 @@ func (p *prioritizingClient) learnGroup(ctx context.Context) {
 		}
 	}
 	if err == nil {
-		err = errors.New("No clients to learn group info from")
+		err = errors.New("no clients to learn group info from")
 	}
 	log.DefaultLogger.Warn("prioritizing_client", "failed to learn group", "err", err)
 	p.info = &infoResult{nil, err}
@@ -83,7 +83,7 @@ func (p *prioritizingClient) Watch(ctx context.Context) <-chan Result {
 	info, err := p.Info(ctx)
 	if err != nil || info == nil {
 		log.DefaultLogger.Warn("prioritizing_client", "failing watch due to lack of group")
-		ch := make(chan Result, 0)
+		ch := make(chan Result)
 		close(ch)
 		return ch
 	}
@@ -108,6 +108,6 @@ func (p *prioritizingClient) Info(ctx context.Context) (*chain.Info, error) {
 
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
-func (p *prioritizingClient) RoundAt(time time.Time) uint64 {
-	return p.clients[0].RoundAt(time)
+func (p *prioritizingClient) RoundAt(t time.Time) uint64 {
+	return p.clients[0].RoundAt(t)
 }

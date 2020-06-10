@@ -94,7 +94,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 	// Should failover in ~period and _definitely_ within gracePeriod!
 	compareResults(t, nextResult(t, watchC), &results[0])
 
-	if time.Now().Sub(now) >= defaultFailoverGracePeriod {
+	if time.Since(now) >= defaultFailoverGracePeriod {
 		t.Fatal("grace period was not bounded to half group period")
 	}
 }
@@ -133,8 +133,8 @@ func TestFailoverGetFail(t *testing.T) {
 	compareResults(t, nextResult(t, watchC), &results[0]) // Normal operation
 
 	// Wait for error from failover to Get
-	err, _ := <-getErrC
-	if err != getErr {
+
+	if err := <-getErrC; err != getErr {
 		t.Fatal("expected error from failover to Get")
 	}
 

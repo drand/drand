@@ -13,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const clientStartupTimeoutDefault = time.Second * 5
+
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
 	cfg := clientConfig{
@@ -24,7 +26,7 @@ func New(options ...Option) (Client, error) {
 			return nil, err
 		}
 	}
-	return makeClient(cfg)
+	return makeClient(&cfg)
 }
 
 // Wrap provides a single entrypoint for wrapping a concrete client
@@ -40,12 +42,12 @@ func trySetLog(c Client, l log.Logger) {
 }
 
 // makeClient creates a client from a configuration.
-func makeClient(cfg clientConfig) (Client, error) {
+func makeClient(cfg *clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
-		return nil, errors.New("No root of trust specified")
+		return nil, errors.New("no root of trust specified")
 	}
 	if len(cfg.clients) == 0 && cfg.watcher == nil {
-		return nil, errors.New("No points of contact specified")
+		return nil, errors.New("no points of contact specified")
 	}
 
 	for _, c := range cfg.clients {
@@ -71,6 +73,29 @@ func makeClient(cfg clientConfig) (Client, error) {
 	}
 
 	// provision watcher client
+	if c, err = attachWatcher(cfg, c, cache); err != nil {
+		return nil, err
+	}
+
+	if cfg.cacheSize > 0 {
+		c, err = NewCachingClient(c, cache)
+		if err != nil {
+			return nil, err
+		}
+		trySetLog(c, cfg.log)
+	}
+
+	if c, err = attachFailover(cfg, c); err != nil {
+		return nil, err
+	}
+
+	c = newWatchAggregator(c, cfg.autoWatch)
+	trySetLog(c, cfg.log)
+
+	return attachMetrics(cfg, c)
+}
+
+func attachWatcher(cfg *clientConfig, c Client, cache Cache) (Client, error) {
 	if cfg.watcher != nil {
 		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
@@ -82,41 +107,35 @@ func makeClient(cfg clientConfig) (Client, error) {
 		if lw, ok := w.(LoggingClient); ok {
 			lw.SetLog(cfg.log)
 		}
-		c = &watcherClient{c, w}
+		return &watcherClient{c, w}, nil
 	}
+	return c, nil
+}
 
-	if cfg.cacheSize > 0 {
-		c, err = NewCachingClient(c, cache)
-		if err != nil {
-			return nil, err
-		}
-		trySetLog(c, cfg.log)
-	}
-
+func attachFailover(cfg *clientConfig, c Client) (Client, error) {
 	if cfg.failoverGracePeriod > 0 {
 		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
 		}
-		c, err = NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod)
+
+		failover, err := NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod)
 		if err != nil {
 			return nil, err
 		}
-		trySetLog(c, cfg.log)
+		trySetLog(failover, cfg.log)
+		return failover, nil
 	}
+	return c, nil
+}
 
-	c = newWatchAggregator(c, cfg.autoWatch)
-	trySetLog(c, cfg.log)
-
+func attachMetrics(cfg *clientConfig, c Client) (Client, error) {
 	if cfg.prometheus != nil {
 		metrics.RegisterClientMetrics(cfg.prometheus)
 		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
 		}
-		if c, err = newWatchLatencyMetricClient(c, cfg.chainInfo); err != nil {
-			return nil, err
-		}
+		return newWatchLatencyMetricClient(c, cfg.chainInfo), nil
 	}
-
 	return c, nil
 }
 
@@ -138,7 +157,8 @@ type clientConfig struct {
 	log log.Logger
 	// time after which a watcher will failover to using client.Get to get the latest randomness.
 	failoverGracePeriod time.Duration
-	// autoWatch causes the client to start watching immediately in the background so that new randomness is proactively fetched and added to the cache.
+	// autoWatch causes the client to start watching immediately in the background so that new randomness
+	// is proactively fetched and added to the cache.
 	autoWatch bool
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
@@ -146,7 +166,7 @@ type clientConfig struct {
 
 func (c *clientConfig) tryPopulateInfo(cli Client) (err error) {
 	if c.chainInfo == nil {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		ctx, cancel := context.WithTimeout(context.Background(), clientStartupTimeoutDefault)
 		defer cancel()
 		c.chainInfo, err = cli.Info(ctx)
 	}
