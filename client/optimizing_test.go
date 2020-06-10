@@ -154,6 +154,21 @@ func TestOptimizingIsCloser(t *testing.T) {
 	cc.Close()
 }
 
+func TestOptimizingInfo(t *testing.T) {
+	chainInfo := fakeChainInfo()
+	oc, err := NewOptimizingClient([]Client{&MockClient{}}, chainInfo, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, err := oc.Info(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if i != chainInfo {
+		t.Fatal("wrong chain info", i)
+	}
+}
+
 func TestOptimizingRoundAt(t *testing.T) {
 	oc, err := NewOptimizingClient([]Client{&MockClient{}}, fakeChainInfo(), 0, 0, 0)
 	if err != nil {

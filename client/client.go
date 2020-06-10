@@ -153,6 +153,9 @@ func (c *clientConfig) tryPopulateInfo(clients ...Client) (err error) {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 			c.chainInfo, err = cli.Info(ctx)
 			cancel()
+			if err == nil {
+				return
+			}
 		}
 	}
 	return
