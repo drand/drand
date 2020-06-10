@@ -282,6 +282,7 @@ func (r *setupReceiver) stop() {
 	close(r.ch)
 }
 
+// compateSecret hash `received` and then compare in constant time with `hashed`.
 func compareSecret(hashed, received []byte) int {
 	got := hashSecret(received)
 	return subtle.ConstantTimeCompare(hashed, got)
