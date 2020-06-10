@@ -282,6 +282,9 @@ func (r *setupReceiver) stop() {
 	close(r.ch)
 }
 
+// correctSecret returns true if `hashed" and the hash of `received are equal.
+// It performs the comparison in constant time to avoid leaking timing
+// information about the secret.
 func correctSecret(hashed, received []byte) bool {
 	got := hashSecret(received)
 	return subtle.ConstantTimeCompare(hashed, got) == 1
