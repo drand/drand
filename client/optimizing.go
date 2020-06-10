@@ -160,6 +160,7 @@ func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, 
 	stats := []*requestStat{}
 	defer oc.updateStats(stats)
 	ch := raceGet(ctx, clients, round, oc.requestTimeout, oc.requestConcurrency)
+	err = errors.New("no valid clients")
 
 LOOP:
 	for {
@@ -177,7 +178,7 @@ LOOP:
 		}
 	}
 
-	return nil, errors.New("no valid clients")
+	return
 }
 
 // get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
