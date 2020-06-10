@@ -180,36 +180,25 @@ LOOP:
 	return
 }
 
-// get calls Get on the passed client and returns a channel that yields a single
-// raceResult when the call completes or closes the channel with no result if the
-// context is canceled.
-func get(ctx context.Context, client Client, round uint64) <-chan *requestResult {
-	ch := make(chan *requestResult, 1)
-	go func() {
-		start := time.Now()
-		res, err := client.Get(ctx, round)
-		rtt := time.Now().Sub(start)
+// get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
+func get(ctx context.Context, client Client, round uint64) *requestResult {
+	start := time.Now()
+	res, err := client.Get(ctx, round)
+	rtt := time.Now().Sub(start)
+	var stat requestStat
 
-		if ctx.Err() != nil {
-			close(ch)
-			return
-		}
+	// client failure, set a large RTT so it is sent to the back of the list
+	if err != nil && err != ctx.Err() {
+		stat = requestStat{client, math.MaxInt64, start}
+		return &requestResult{res, err, &stat}
+	}
 
-		// client failure, set a large RTT so it is sent to the back of the list
-		if err != nil {
-			rtt = math.MaxInt64
-		}
+	if ctx.Err() != nil {
+		return nil
+	}
 
-		stat := requestStat{client, rtt, start}
-
-		if err != nil {
-			ch <- &requestResult{nil, err, &stat}
-		} else {
-			ch <- &requestResult{res, nil, &stat}
-		}
-		close(ch)
-	}()
-	return ch
+	stat = requestStat{client, rtt, start}
+	return &requestResult{res, err, &stat}
 }
 
 func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {
@@ -251,29 +240,19 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 	go func() {
 		wg := sync.WaitGroup{}
 	LOOP:
-		for len(clients) > 0 {
-			c := clients[0]
-			clients = clients[1:]
+		for _, c := range clients {
 			select {
 			case <-token:
 				wg.Add(1)
 				go func(c Client) {
-					defer func() { token <- struct{}{} }()
-					defer wg.Done()
-
 					gctx, cancel := context.WithTimeout(ctx, timeout)
-					defer cancel()
-
-					ch := get(gctx, c, round)
-					select {
-					case rr, ok := <-ch:
-						if !ok {
-							return
-						}
+					rr := get(gctx, c, round)
+					cancel()
+					if rr != nil {
 						results <- rr
-					case <-gctx.Done():
-						return
 					}
+					token <- struct{}{}
+					wg.Done()
 				}(c)
 			case <-ctx.Done():
 				break LOOP
