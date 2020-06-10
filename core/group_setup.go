@@ -2,6 +2,8 @@ package core
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"sync"
@@ -46,7 +48,6 @@ type setupManager struct {
 	dkgTimeout   uint64
 	clock        clock.Clock
 	leaderKey    *key.Identity
-	verifySecret func(string) bool
 	verifyKeys   func([]*key.Identity) bool
 	l            log.Logger
 
@@ -54,9 +55,10 @@ type setupManager struct {
 	oldGroup    *key.Group
 	oldHash     []byte
 
-	startDKG  chan *key.Group
-	pushKeyCh chan pushKey
-	doneCh    chan bool
+	startDKG     chan *key.Group
+	pushKeyCh    chan pushKey
+	doneCh       chan bool
+	hashedSecret []byte
 }
 
 func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPeriod uint32, in *control.SetupInfoPacket) (*setupManager, error) {
@@ -64,12 +66,7 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 	if err != nil {
 		return nil, err
 	}
-	secret := in.GetSecret()
-	verifySecret := func(given string) bool {
-		// XXX reason for the function is that we might want to do more
-		// elaborate things later like a separate secret to each individual etc
-		return given == secret
-	}
+	secret := hashSecret(in.GetSecret())
 	verifyKeys := func(keys []*key.Identity) bool {
 		// XXX Later we can add specific name list of DNS, or prexisting
 		// keys..
@@ -89,11 +86,11 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 		l:            l,
 		startDKG:     make(chan *key.Group, 1),
 		pushKeyCh:    make(chan pushKey, n),
-		verifySecret: verifySecret,
 		verifyKeys:   verifyKeys,
 		doneCh:       make(chan bool, 1),
 		clock:        c,
 		leaderKey:    leaderKey,
+		hashedSecret: secret,
 	}
 	return sm, nil
 }
@@ -130,7 +127,7 @@ type pushKey struct {
 func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
-	if !s.verifySecret(p.GetSecretProof()) {
+	if !correctSecret(s.hashedSecret, p.GetSecretProof()) {
 		return errors.New("shared secret is incorrect")
 	}
 	if s.isResharing {
@@ -257,19 +254,19 @@ func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Dura
 type setupReceiver struct {
 	ch     chan *drand.DKGInfoPacket
 	l      log.Logger
-	secret string
+	secret []byte
 }
 
 func newSetupReceiver(l log.Logger, in *control.SetupInfoPacket) *setupReceiver {
 	return &setupReceiver{
 		ch:     make(chan *drand.DKGInfoPacket, 1),
 		l:      l,
-		secret: in.GetSecret(),
+		secret: hashSecret(in.GetSecret()),
 	}
 }
 
 func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
-	if pg.GetSecretProof() != r.secret {
+	if !correctSecret(r.secret, pg.GetSecretProof()) {
 		r.l.Debug("received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
@@ -283,4 +280,17 @@ func (r *setupReceiver) WaitDKGInfo() chan *drand.DKGInfoPacket {
 
 func (r *setupReceiver) stop() {
 	close(r.ch)
+}
+
+// correctSecret returns true if `hashed" and the hash of `received are equal.
+// It performs the comparison in constant time to avoid leaking timing
+// information about the secret.
+func correctSecret(hashed, received []byte) bool {
+	got := hashSecret(received)
+	return subtle.ConstantTimeCompare(hashed, got) == 1
+}
+
+func hashSecret(s []byte) []byte {
+	hashed := sha256.Sum256(s)
+	return hashed[:]
 }
