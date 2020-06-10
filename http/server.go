@@ -60,10 +60,11 @@ func New(ctx context.Context, client client.Client, version string, logger log.L
 }
 
 type handler struct {
-	timeout   time.Duration
-	client    client.Client
-	chainInfo *chain.Info
-	log       log.Logger
+	timeout     time.Duration
+	client      client.Client
+	chainInfo   *chain.Info
+	chainInfoLk sync.RWMutex
+	log         log.Logger
 
 	// synchronization for blocking writes until randomness available.
 	pendingLk   sync.RWMutex
@@ -124,9 +125,12 @@ RESET:
 }
 
 func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
+	h.chainInfoLk.RLock()
 	if h.chainInfo != nil {
+		h.chainInfoLk.RUnlock()
 		return h.chainInfo
 	}
+	h.chainInfoLk.RUnlock()
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
@@ -139,7 +143,9 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 		h.log.Warn("msg", "chain info fetch didn't return group info")
 		return nil
 	}
+	h.chainInfoLk.Lock()
 	h.chainInfo = info
+	h.chainInfoLk.Unlock()
 	return h.chainInfo
 }
 
