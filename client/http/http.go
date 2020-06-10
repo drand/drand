@@ -85,7 +85,7 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 
 // Instruments an HTTP client around a transport
 func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
-	client := nhttp.DefaultClient
+	client := &nhttp.Client{}
 	urlLabel := prometheus.Labels{"url": url}
 
 	trace := &promhttp.InstrumentTrace{
