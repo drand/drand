@@ -177,7 +177,7 @@ LOOP:
 		}
 	}
 
-	return
+	return nil, errors.New("no valid clients")
 }
 
 // get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
