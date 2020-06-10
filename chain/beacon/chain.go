@@ -253,13 +253,15 @@ type partialCache struct {
 	threshold int
 	rounds    map[string]*roundCache
 	rcvd      map[int][]string
+	l         log.Logger
 }
 
-func newPartialCache(threshold int) *partialCache {
+func newPartialCache(l log.Logger, threshold int) *partialCache {
 	return &partialCache{
 		threshold: threshold,
 		rounds:    make(map[string]*roundCache),
 		rcvd:      make(map[int][]string),
+		l:         l,
 	}
 }
 
@@ -294,6 +296,7 @@ func (c *partialCache) newRoundCache(id string, p *drand.PartialBeaconPacket) {
 		toEvict := c.rcvd[idx][0]
 		rounds, ok := c.rounds[toEvict]
 		if !ok {
+			c.l.Error("cache", "miss", "node", idx, "not_present_for", p.GetRound())
 			// something's off
 		}
 		c.rcvd[idx] = append(c.rdvc[1:], id)
