@@ -78,8 +78,9 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	}
 	httpClients := make([]client.Client, 0)
 	var info *chain.Info
+	skipped := []string{}
+	var hc client.Client
 	for _, url := range c.StringSlice("url") {
-		var hc client.Client
 		if info != nil {
 			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
 			if err != nil {
@@ -90,6 +91,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			hc, err = http.New(url, hash, nhttp.DefaultTransport)
 			if err != nil {
 				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				skipped = append(skipped, url)
 				continue
 			}
 			info, err = hc.Info(context.Background())
@@ -99,6 +101,16 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			}
 		}
 		httpClients = append(httpClients, hc)
+	}
+	if info != nil {
+		for _, url := range skipped {
+			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
+			if err != nil {
+				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				continue
+			}
+			httpClients = append(httpClients, hc)
+		}
 	}
 	if withInstrumentation {
 		http.MeasureHeartbeats(c.Context, httpClients)
