@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 
@@ -16,6 +17,14 @@ func fakeChainInfo() *chain.Info {
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
+}
+
+func latestResult(t *testing.T, c Client) Result {
+	r, err := c.Get(context.Background(), 0)
+	if err != nil {
+		t.Fatal("getting latest result", err)
+	}
+	return r
 }
 
 // nextResult reads the next result from the channel and fails the test if it closes before a value is read.

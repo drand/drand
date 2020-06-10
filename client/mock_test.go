@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,17 +14,35 @@ import (
 
 // MockClient provide a mocked client interface
 type MockClient struct {
+	sync.Mutex
 	WatchCh chan Result
 	Results []MockResult
+	// Delay causes results to be delivered after this period of time has
+	// passed. Note that if the context is canceled a result is still consumed
+	// from Results.
+	Delay time.Duration
 }
 
 // Get returns a the randomness at `round` or an error.
 func (m *MockClient) Get(ctx context.Context, round uint64) (Result, error) {
+	m.Lock()
 	if len(m.Results) == 0 {
+		m.Unlock()
 		return nil, errors.New("No result available")
 	}
 	r := m.Results[0]
 	m.Results = m.Results[1:]
+	m.Unlock()
+
+	if m.Delay > 0 {
+		t := time.NewTimer(m.Delay)
+		select {
+		case <-t.C:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+
 	return &r, nil
 }
 
