@@ -19,7 +19,23 @@ const (
 )
 
 // NewOptimizingClient creates a drand client that measures the speed of clients
-// and uses the fastest one.
+// and uses the fastest ones.
+//
+// Clients passed to the optimising client are ordered by speed and calls to
+// `Get` race the 2 fastest clients (by default) for the result. If a client
+// errors then it is moved to the back of the list.
+//
+// A speed test is performed periodically in the background every 5 minutes (by
+// default) to ensure we're still using the fastest clients. A negative speed
+// test interval will disable testing.
+//
+// Calls to `Get` actually iterate over the speed-ordered client list with a
+// concurrency of 2 (by default) until a result is retrieved. It means that the
+// optimising client will fallback to using the other slower clients in the
+// event of failure(s).
+//
+// Additionally, calls to Get are given a timeout of 5 seconds (by default) to
+// ensure no unbounded blocking occurs.
 func NewOptimizingClient(
 	clients []Client,
 	chainInfo *chain.Info,
@@ -45,7 +61,7 @@ func NewOptimizingClient(
 	if requestConcurrency <= 0 {
 		requestConcurrency = defaultRequestConcurrency
 	}
-	if speedTestInterval <= 0 {
+	if speedTestInterval == 0 {
 		speedTestInterval = defaultSpeedTestInterval
 	}
 	oc := &optimizingClient{
@@ -58,7 +74,9 @@ func NewOptimizingClient(
 		log:                log.DefaultLogger,
 		done:               done,
 	}
-	go oc.testSpeed()
+	if speedTestInterval > 0 {
+		go oc.testSpeed()
+	}
 	return oc, nil
 }
 
@@ -130,7 +148,7 @@ func (oc *optimizingClient) SetLog(l log.Logger) {
 	oc.log = l
 }
 
-// Get returns a the randomness at `round` or an error.
+// Get returns the randomness at `round` or an error.
 func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
 	oc.RLock()
 	// copy the current ordered client list so we iterate over a stable slice
