@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -142,6 +144,11 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error 
 		return fmt.Errorf("invalid id: %v", err)
 	}
 
+	if err := newID.ValidSignature(); err != nil {
+		s.l.Info("setup", "invalid_sig", "id", addr, "err", err)
+		return fmt.Errorf("invalid sig: %s", err)
+	}
+
 	s.l.Debug("setup", "received_new_key", "id", newID.String())
 
 	s.pushKeyCh <- pushKey{
@@ -252,30 +259,82 @@ func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Dura
 // to setup a new DKG. When it receives it from the coordinator, it pass it
 // along the to the logic waiting to start the DKG.
 type setupReceiver struct {
-	ch     chan *drand.DKGInfoPacket
-	l      log.Logger
-	secret []byte
+	client   net.ProtocolClient
+	clock    clock.Clock
+	ch       chan *dkgGroup
+	l        log.Logger
+	leader   net.Peer
+	leaderID *key.Identity
+	secret   []byte
 }
 
-func newSetupReceiver(l log.Logger, in *control.SetupInfoPacket) *setupReceiver {
-	return &setupReceiver{
-		ch:     make(chan *drand.DKGInfoPacket, 1),
+func newSetupReceiver(l log.Logger, clock clock.Clock, client net.ProtocolClient, in *control.SetupInfoPacket) (*setupReceiver, error) {
+	setup := &setupReceiver{
+		ch:     make(chan *dkgGroup, 1),
 		l:      l,
+		leader: net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
+		client: client,
+		clock:  clock,
 		secret: hashSecret(in.GetSecret()),
 	}
+	return setup, setup.fetchLeaderKey()
 }
 
+func (r *setupReceiver) fetchLeaderKey() error {
+	protoID, err := r.client.GetIdentity(context.Background(), r.leader, new(drand.IdentityRequest))
+	if err != nil {
+		return err
+	}
+	id, err := key.IdentityFromProto(protoID)
+	if err != nil {
+		return err
+	}
+	r.leaderID = id
+	return nil
+}
+
+type dkgGroup struct {
+	group   *key.Group
+	timeout uint32
+}
+
+// PushDKGInfo method is being called when a node received a group from the
+// leader. It runs some routines verification of the group before passing it on
+// to the routine that waits for the group to start the DKG.
 func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	if !correctSecret(r.secret, pg.GetSecretProof()) {
 		r.l.Debug("received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
-	r.ch <- pg
+	// verify things are all in order
+	group, err := key.GroupFromProto(pg.NewGroup)
+	if err != nil {
+		return fmt.Errorf("group from leader invalid: %s", err)
+	}
+	if err := key.AuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
+		r.l.Error("received", "group", "invalid_sig", err)
+		return fmt.Errorf("invalid group sig: %s", err)
+	}
+	checkGroup(r.l, group)
+	r.ch <- &dkgGroup{
+		group:   group,
+		timeout: pg.GetDkgTimeout(),
+	}
 	return nil
 }
 
-func (r *setupReceiver) WaitDKGInfo() chan *drand.DKGInfoPacket {
-	return r.ch
+func (r *setupReceiver) WaitDKGInfo() (*key.Group, uint32, error) {
+	select {
+	case dkgGroup := <-r.ch:
+		if dkgGroup == nil {
+			return nil, 0, errors.New("unable to fetch group")
+		}
+		r.l.Debug("init_dkg", "received_group")
+		return dkgGroup.group, dkgGroup.timeout, nil
+	case <-r.clock.After(MaxWaitPrepareDKG):
+		r.l.Error("init_dkg", "wait_group", "err", "timeout")
+		return nil, 0, errors.New("wait_group timeouts from coordinator")
+	}
 }
 
 func (r *setupReceiver) stop() {

@@ -16,11 +16,8 @@ func newIds(n int) []*Node {
 	ids := make([]*Node, n)
 	for i := 0; i < n; i++ {
 		ids[i] = &Node{
-			Index: uint32(i),
-			Identity: &Identity{
-				Key:  KeyGroup.Point().Mul(KeyGroup.Scalar().Pick(random.New()), nil),
-				Addr: "127.0.0.1:3000",
-			},
+			Index:    uint32(i),
+			Identity: NewKeyPair("127.0.0.1:3000").Public,
 		}
 	}
 	return ids
@@ -89,7 +86,7 @@ func TestGroupProtobuf(t *testing.T) {
 		}
 		// load the seed after
 		seed := tv.group.GetGenesisSeed()
-		require.Equal(t, len(loaded.Nodes), len(tv.group.Nodes))
+		require.Equal(t, len(loaded.Nodes), len(tv.group.Nodes), "test %d", i)
 		require.Equal(t, loaded.Threshold, tv.group.Threshold)
 		require.True(t, loaded.PublicKey.Equal(tv.group.PublicKey), "test %d: %v vs %v", i, loaded.PublicKey, group.PublicKey)
 		require.Equal(t, loaded.Period, tv.group.Period)
@@ -98,6 +95,18 @@ func TestGroupProtobuf(t *testing.T) {
 		require.Equal(t, transition, loaded.TransitionTime)
 		require.Equal(t, tv.group.Hash(), loaded.Hash())
 	}
+}
+
+func TestGroupUnsignedIdentities(t *testing.T) {
+	ids := newIds(5)
+	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61)
+	require.Nil(t, group.UnsignedIdentities())
+
+	ids[0].Signature = nil
+	require.Len(t, group.UnsignedIdentities(), 1)
+
+	ids[1].Signature = []byte("silver linings")
+	require.Len(t, group.UnsignedIdentities(), 2)
 }
 func TestGroupSaveLoad(t *testing.T) {
 	n := 3

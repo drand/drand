@@ -80,6 +80,9 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := priv.Public.ValidSignature(); err != nil {
+		logger.Error("INVALID SELF SIGNATURE", err, "action", "run `drand util selfsign`")
+	}
 
 	// trick to always set the listening address by default based on the
 	// identity. If there is an option to set the address, it will override the
@@ -158,6 +161,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
+	checkGroup(d.log, d.group)
 	d.share, err = s.LoadShare()
 	if err != nil {
 		return nil, err
@@ -354,4 +358,16 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 
 func (d *Drand) beaconCallback(b *chain.Beacon) {
 	d.opts.callbacks(b)
+}
+
+func checkGroup(l log.Logger, group *key.Group) {
+	unsigned := group.UnsignedIdentities()
+	if unsigned == nil {
+		return
+	}
+	var info []string
+	for _, n := range unsigned {
+		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
+	}
+	l.Info("UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
