@@ -38,16 +38,12 @@ const (
 // ensure no unbounded blocking occurs.
 func NewOptimizingClient(
 	clients []Client,
-	chainInfo *chain.Info,
 	requestTimeout time.Duration,
 	requestConcurrency int,
 	speedTestInterval time.Duration,
 ) (Client, error) {
 	if len(clients) == 0 {
 		return nil, errors.New("missing clients")
-	}
-	if chainInfo == nil {
-		return nil, errors.New("missing chain info")
 	}
 	stats := make([]*requestStat, len(clients))
 	now := time.Now()
@@ -70,7 +66,6 @@ func NewOptimizingClient(
 		requestTimeout:     requestTimeout,
 		requestConcurrency: requestConcurrency,
 		speedTestInterval:  speedTestInterval,
-		chainInfo:          chainInfo,
 		log:                log.DefaultLogger,
 		done:               done,
 	}
@@ -87,7 +82,6 @@ type optimizingClient struct {
 	requestTimeout     time.Duration
 	requestConcurrency int
 	speedTestInterval  time.Duration
-	chainInfo          *chain.Info
 	log                log.Logger
 	done               chan struct{}
 }
@@ -222,10 +216,10 @@ func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.D
 	results := make(chan *requestResult, len(clients))
 
 	go func() {
-		ctx, cancel := context.WithCancel(ctx)
+		rctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 		defer close(results)
-		ch := parallelGet(ctx, clients, round, timeout, concurrency)
+		ch := parallelGet(rctx, clients, round, timeout, concurrency)
 
 		for {
 			select {
@@ -237,7 +231,7 @@ func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.D
 				if rr.err == nil { // race is won
 					return
 				}
-			case <-ctx.Done():
+			case <-rctx.Done():
 				return
 			}
 		}
@@ -267,17 +261,17 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 					defer func() { token <- struct{}{} }()
 					defer wg.Done()
 
-					ctx, cancel := context.WithTimeout(ctx, timeout)
+					gctx, cancel := context.WithTimeout(ctx, timeout)
 					defer cancel()
 
-					ch := get(ctx, c, round)
+					ch := get(gctx, c, round)
 					select {
 					case rr, ok := <-ch:
 						if !ok {
 							return
 						}
 						results <- rr
-					case <-ctx.Done():
+					case <-gctx.Done():
 						return
 					}
 				}(c)
@@ -317,13 +311,30 @@ func (oc *optimizingClient) updateStats(stats []*requestStat) {
 
 // Watch returns new randomness as it becomes available.
 func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
-	return PollingWatcher(ctx, oc, oc.chainInfo, oc.log)
+	// TODO: move this logic into PollingWatcher?
+	chainInfo, err := oc.Info(ctx)
+	if err != nil {
+		oc.log.Error("optimizing_client", "failed to get chain info", "err", err)
+		ch := make(chan Result)
+		close(ch)
+		return ch
+	}
+	return PollingWatcher(ctx, oc, chainInfo, oc.log)
 }
 
 // Info returns the parameters of the chain this client is connected to.
 // The public key, when it started, and how frequently it updates.
-func (oc *optimizingClient) Info(ctx context.Context) (*chain.Info, error) {
-	return oc.chainInfo, nil
+func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain.Info, err error) {
+	clients := oc.fastestClients()
+	for _, c := range clients {
+		ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+		chainInfo, err = c.Info(ctx)
+		cancel()
+		if err == nil {
+			return
+		}
+	}
+	return
 }
 
 // RoundAt will return the most recent round of randomness that will be available

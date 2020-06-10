@@ -55,10 +55,7 @@ func makeClient(cfg clientConfig) (Client, error) {
 	var c Client
 	var err error
 	if len(cfg.clients) > 0 {
-		if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
-			return nil, err
-		}
-		c, err = NewOptimizingClient(cfg.clients, cfg.chainInfo, 0, 0, 0)
+		c, err = NewOptimizingClient(cfg.clients, 0, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -147,16 +144,11 @@ type clientConfig struct {
 	prometheus prometheus.Registerer
 }
 
-func (c *clientConfig) tryPopulateInfo(clients ...Client) (err error) {
+func (c *clientConfig) tryPopulateInfo(cli Client) (err error) {
 	if c.chainInfo == nil {
-		for _, cli := range clients {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-			c.chainInfo, err = cli.Info(ctx)
-			cancel()
-			if err == nil {
-				return
-			}
-		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		c.chainInfo, err = cli.Info(ctx)
 	}
 	return
 }
