@@ -82,7 +82,7 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Dur
 			Threshold:    uint32(threshold),
 			Leader:       true,
 			Timeout:      uint32(timeout.Seconds()),
-			Secret:       secret,
+			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
 	}
@@ -99,7 +99,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) 
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Secret:        secret,
+			Secret:        []byte(secret),
 		},
 	}
 	return c.client.InitReshare(context.Background(), request)
@@ -116,7 +116,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Du
 			Threshold:    uint32(threshold),
 			Leader:       true,
 			Timeout:      uint32(timeout.Seconds()),
-			Secret:       secret,
+			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
 		Entropy:      entropy,
@@ -132,7 +132,7 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Secret:        secret,
+			Secret:        []byte(secret),
 		},
 		Entropy: entropy,
 	}

@@ -589,7 +589,7 @@ func (d *Drand) getPhaser(timeout uint32) (*dkg.TimePhaser, error) {
 
 // pushDKGInfo sends the information to run the DKG to all specified nodes. The
 // call is blocking until all nodes have replied or after one minute timeouts.
-func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret string, timeout uint32) error {
+func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
