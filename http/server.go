@@ -283,7 +283,12 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	nextTime := time.Now()
 	if info != nil {
 		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
-		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+		next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+		if next.After(nextTime) {
+			nextTime = next
+		} else {
+			nextTime = nextTime.Add(info.Period / 2)
+		}
 	}
 
 	remaining := nextTime.Sub(time.Now())
