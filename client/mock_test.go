@@ -15,7 +15,9 @@ import (
 type MockClient struct {
 	WatchCh chan Result
 	Results []MockResult
-	// Delay causes results to be delivered after this period of time has passed.
+	// Delay causes results to be delivered after this period of time has
+	// passed. Note that if the context is canceled a result is still consumed
+	// from Results.
 	Delay time.Duration
 }
 

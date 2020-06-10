@@ -148,16 +148,21 @@ func (oc *optimizingClient) SetLog(l log.Logger) {
 	oc.log = l
 }
 
-// Get returns the randomness at `round` or an error.
-func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
+// fastestClients returns a ordered slice of clients - fastest first.
+func (oc *optimizingClient) fastestClients() []Client {
 	oc.RLock()
+	defer oc.RUnlock()
 	// copy the current ordered client list so we iterate over a stable slice
 	var clients []Client
 	for _, s := range oc.stats {
 		clients = append(clients, s.client)
 	}
-	oc.RUnlock()
+	return clients
+}
 
+// Get returns the randomness at `round` or an error.
+func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
+	clients := oc.fastestClients()
 	stats := []*requestStat{}
 	defer oc.updateStats(stats)
 	ch := raceGet(ctx, clients, round, oc.requestTimeout, oc.requestConcurrency)
@@ -312,7 +317,13 @@ func (oc *optimizingClient) updateStats(stats []*requestStat) {
 
 // Watch returns new randomness as it becomes available.
 func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
-	return pollingWatcher(ctx, oc, oc.chainInfo, oc.log)
+	return PollingWatcher(ctx, oc, oc.chainInfo, oc.log)
+}
+
+// Info returns the parameters of the chain this client is connected to.
+// The public key, when it started, and how frequently it updates.
+func (oc *optimizingClient) Info(ctx context.Context) (*chain.Info, error) {
+	return oc.chainInfo, nil
 }
 
 // RoundAt will return the most recent round of randomness that will be available
@@ -322,6 +333,7 @@ func (oc *optimizingClient) RoundAt(time time.Time) uint64 {
 }
 
 // Close stops the background speed tests and closes the client for further use.
-func (oc *optimizingClient) Close() {
+func (oc *optimizingClient) Close() error {
 	close(oc.done)
+	return nil
 }
