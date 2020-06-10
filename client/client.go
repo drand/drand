@@ -54,14 +54,12 @@ func makeClient(cfg clientConfig) (Client, error) {
 
 	var c Client
 	var err error
-	if len(cfg.clients) > 1 {
+	if len(cfg.clients) > 0 {
 		c, err = NewPrioritizingClient(cfg.clients, cfg.chainHash, cfg.chainInfo)
 		if err != nil {
 			return nil, err
 		}
 		trySetLog(c, cfg.log)
-	} else if len(cfg.clients) == 1 {
-		c = cfg.clients[0]
 	} else {
 		c = EmptyClientWithInfo(cfg.chainInfo)
 	}
