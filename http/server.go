@@ -141,6 +141,12 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 	}
 	h.chainInfoLk.RUnlock()
 
+	h.chainInfoLk.Lock()
+	defer h.chainInfoLk.Unlock()
+	if h.chainInfo != nil {
+		return h.chainInfo
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
 	info, err := h.client.Info(ctx)
@@ -152,10 +158,8 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 		h.log.Warn("msg", "chain info fetch didn't return group info")
 		return nil
 	}
-	h.chainInfoLk.Lock()
 	h.chainInfo = info
-	h.chainInfoLk.Unlock()
-	return h.chainInfo
+	return info
 }
 
 func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
