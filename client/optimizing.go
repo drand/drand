@@ -307,7 +307,7 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain.Info, err error) {
 	clients := oc.fastestClients()
 	for _, c := range clients {
-		ctx, cancel := context.WithTimeout(context.Background(), defaultRequestTimeout)
+		ctx, cancel := context.WithTimeout(context.Background(), oc.requestTimeout)
 		chainInfo, err = c.Info(ctx)
 		cancel()
 		if err == nil {
