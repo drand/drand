@@ -3,8 +3,10 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +20,7 @@ const (
 	defaultRequestConcurrency = 2
 )
 
-// NewOptimizingClient creates a drand client that measures the speed of clients
+// newOptimizingClient creates a drand client that measures the speed of clients
 // and uses the fastest ones.
 //
 // Clients passed to the optimising client are ordered by speed and calls to
@@ -36,12 +38,12 @@ const (
 //
 // Additionally, calls to Get are given a timeout of 5 seconds (by default) to
 // ensure no unbounded blocking occurs.
-func NewOptimizingClient(
+func newOptimizingClient(
 	clients []Client,
 	requestTimeout time.Duration,
 	requestConcurrency int,
 	speedTestInterval time.Duration,
-) (Client, error) {
+) (*optimizingClient, error) {
 	if len(clients) == 0 {
 		return nil, errors.New("missing clients")
 	}
@@ -69,10 +71,15 @@ func NewOptimizingClient(
 		log:                log.DefaultLogger,
 		done:               done,
 	}
-	if speedTestInterval > 0 {
+	return oc, nil
+}
+
+// Start starts the background speed measurements of the optimizing client.Start
+// SetLog should not be called after Start.
+func (oc *optimizingClient) Start() {
+	if oc.speedTestInterval > 0 {
 		go oc.testSpeed()
 	}
-	return oc, nil
 }
 
 type optimizingClient struct {
@@ -86,6 +93,15 @@ type optimizingClient struct {
 	done               chan struct{}
 }
 
+// String returns the name of this client.
+func (oc *optimizingClient) String() string {
+	names := make([]string, len(oc.clients))
+	for i, c := range oc.clients {
+		names[i] = fmt.Sprint(c)
+	}
+	return fmt.Sprintf("OptimizingClient(%s)", strings.Join(names, ", "))
+}
+
 type requestStat struct {
 	// client is the client used to make the request.
 	client Client
@@ -96,6 +112,8 @@ type requestStat struct {
 }
 
 type requestResult struct {
+	// client is the client used to make the request.
+	client Client
 	// result is the return value from the call to Get.
 	result Result
 	// err is the error that occurred from a call to Get (not including context error).
@@ -117,6 +135,9 @@ func (oc *optimizingClient) testSpeed() {
 				if !ok {
 					cancel()
 					break LOOP
+				}
+				if rr.err != nil {
+					oc.log.Error("optimizing_client", "endpoint_temporarily_down_due_to", rr.err)
 				}
 				stats = append(stats, rr.stat)
 			case <-oc.done:
@@ -191,7 +212,7 @@ func get(ctx context.Context, client Client, round uint64) *requestResult {
 	// client failure, set a large RTT so it is sent to the back of the list
 	if err != nil && err != ctx.Err() {
 		stat = requestStat{client, math.MaxInt64, start}
-		return &requestResult{res, err, &stat}
+		return &requestResult{client, res, err, &stat}
 	}
 
 	if ctx.Err() != nil {
@@ -199,7 +220,7 @@ func get(ctx context.Context, client Client, round uint64) *requestResult {
 	}
 
 	stat = requestStat{client, rtt, start}
-	return &requestResult{res, err, &stat}
+	return &requestResult{client, res, err, &stat}
 }
 
 func raceGet(ctx context.Context, clients []Client, round uint64, timeout time.Duration, concurrency int) <-chan *requestResult {

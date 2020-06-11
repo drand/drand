@@ -130,6 +130,11 @@ func (h *httpClient) SetLog(l log.Logger) {
 	h.l = l
 }
 
+// String returns the name of this client.
+func (h *httpClient) String() string {
+	return fmt.Sprintf("HTTP(%q)", h.root)
+}
+
 // FetchGroupInfo attempts to initialize an httpClient when
 // it does not know the full group paramters for a drand group. The chain hash
 // is the hash of the chain info.

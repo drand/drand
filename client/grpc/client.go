@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -16,7 +17,8 @@ import (
 )
 
 type grpcClient struct {
-	client drand.PublicClient
+	address string
+	client  drand.PublicClient
 }
 
 // New creates a drand client backed by a GRPC connection.
@@ -41,7 +43,7 @@ func New(address string, certPath string, insecure bool) (client.Client, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &grpcClient{drand.NewPublicClient(conn)}, nil
+	return &grpcClient{address, drand.NewPublicClient(conn)}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {
@@ -51,6 +53,11 @@ func asRD(r *drand.PublicRandResponse) *client.RandomData {
 		Sig:               r.Signature,
 		PreviousSignature: r.PreviousSignature,
 	}
+}
+
+// String returns the name of this client.
+func (g *grpcClient) String() string {
+	return fmt.Sprintf("GRPC(%q)", g.address)
 }
 
 // Get returns a the randomness at `round` or an error.
