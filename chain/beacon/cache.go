@@ -16,18 +16,16 @@ import (
 // signatures cache. Namely, it makes sure that there is a limited number of
 // partial signatures from the same index stored at any given time.
 type partialCache struct {
-	threshold int
-	rounds    map[string]*roundCache
-	rcvd      map[int][]string
-	l         log.Logger
+	rounds map[string]*roundCache
+	rcvd   map[int][]string
+	l      log.Logger
 }
 
-func newPartialCache(l log.Logger, threshold int) *partialCache {
+func newPartialCache(l log.Logger) *partialCache {
 	return &partialCache{
-		threshold: threshold,
-		rounds:    make(map[string]*roundCache),
-		rcvd:      make(map[int][]string),
-		l:         l,
+		rounds: make(map[string]*roundCache),
+		rcvd:   make(map[int][]string),
+		l:      l,
 	}
 }
 
@@ -59,7 +57,7 @@ func (c *partialCache) FlushRounds(round uint64) {
 		}
 
 		// delete the cache entry
-		delete(c.rounds, cache.id)
+		delete(c.rounds, id)
 		// delete the counter of each nodes that participated in that round
 		for idx, _ := range cache.sigs {
 			var idSlice = c.rcvd[idx][:0]
@@ -68,6 +66,11 @@ func (c *partialCache) FlushRounds(round uint64) {
 					continue
 				}
 				idSlice = append(idSlice, idd)
+			}
+			if len(idSlice) > 0 {
+				c.rcvd[idx] = idSlice
+			} else {
+				delete(c.rcvd, idx)
 			}
 		}
 	}
@@ -85,7 +88,7 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 		return round
 	}
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if len(c.rcvd[idx]) > MaxPartialsPerNode {
+	if len(c.rcvd[idx]) >= MaxPartialsPerNode {
 		// this node has submitted too many partials - we take the last one off
 		toEvict := c.rcvd[idx][0]
 		round, ok := c.rounds[toEvict]
@@ -95,6 +98,10 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 		}
 		round.flushIndex(idx)
 		c.rcvd[idx] = append(c.rcvd[idx][1:], id)
+		// if the round is now empty, delete it
+		if round.Len() == 0 {
+			delete(c.rounds, toEvict)
+		}
 	}
 	round := newRoundCache(id, p)
 	c.rounds[id] = round

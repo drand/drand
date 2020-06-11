@@ -77,11 +77,7 @@ func (c *chainStore) runAggregator() {
 		c.l.Fatal("chain_aggregator", "loading", "last_beacon", err)
 	}
 
-	info, err := c.safe.GetInfo(lastBeacon.Round + 1)
-	if err != nil {
-		c.l.Fatal("chain_aggregator", "chain_info_load", "round", lastBeacon.Round+1)
-	}
-	var cache = newPartialCache(c.l, info.group.Threshold)
+	var cache = newPartialCache(c.l)
 	for {
 		select {
 		case <-c.done:
