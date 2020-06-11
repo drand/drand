@@ -16,13 +16,15 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+const grpcDefaultTimeout = 5 * time.Second
+
 type grpcClient struct {
 	address string
 	client  drand.PublicClient
 }
 
 // New creates a drand client backed by a GRPC connection.
-func New(address string, certPath string, insecure bool) (client.Client, error) {
+func New(address, certPath string, insecure bool) (client.Client, error) {
 	opts := []grpc.DialOption{}
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -67,7 +69,7 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		return nil, err
 	}
 	if curr == nil {
-		return nil, errors.New("No received randomness. Unexpected gPRC response")
+		return nil, errors.New("no received randomness - unexpected gPRC response")
 	}
 
 	return asRD(curr), nil
@@ -92,7 +94,7 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 		return nil, err
 	}
 	if proto == nil {
-		return nil, errors.New("No received group. Unexpected gPRC response")
+		return nil, errors.New("no received group - unexpected gPRC response")
 	}
 	return chain.InfoFromProto(proto)
 }
@@ -109,7 +111,7 @@ func translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Res
 }
 
 func (g *grpcClient) RoundAt(t time.Time) uint64 {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), grpcDefaultTimeout)
 	defer cancel()
 	info, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
 	if err != nil {

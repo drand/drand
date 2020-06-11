@@ -51,7 +51,6 @@ type nilCache struct{}
 
 // Add a result to the cache
 func (*nilCache) Add(_ uint64, _ Result) {
-	return
 }
 
 // TryGet attempts to get ar esult from the cache

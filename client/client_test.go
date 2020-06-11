@@ -94,7 +94,6 @@ func TestClientCache(t *testing.T) {
 	if e == nil {
 		t.Fatal("non-cached results should fail.")
 	}
-
 }
 
 func TestClientWithoutCache(t *testing.T) {
@@ -214,7 +213,7 @@ func compareResults(t *testing.T, a, b client.Result) {
 	if a.Round() != b.Round() {
 		t.Fatal("unexpected result round", a.Round(), b.Round())
 	}
-	if bytes.Compare(a.Randomness(), b.Randomness()) != 0 {
+	if !bytes.Equal(a.Randomness(), b.Randomness()) {
 		t.Fatal("unexpected result randomness", a.Randomness(), b.Randomness())
 	}
 }

@@ -32,7 +32,7 @@ func (m *MockClient) Get(ctx context.Context, round uint64) (Result, error) {
 	m.Lock()
 	if len(m.Results) == 0 {
 		m.Unlock()
-		return nil, errors.New("No result available")
+		return nil, errors.New("no result available")
 	}
 	r := m.Results[0]
 	m.Results = m.Results[1:]
@@ -67,7 +67,7 @@ func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
 }
 
 // RoundAt will return the most recent round of randomness
-func (m *MockClient) RoundAt(time time.Time) uint64 {
+func (m *MockClient) RoundAt(_ time.Time) uint64 {
 	return 0
 }
 

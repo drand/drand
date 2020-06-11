@@ -10,6 +10,7 @@ import (
 )
 
 const defaultFailoverGracePeriod = time.Second * 5
+const failoverWatchBufferSize = 5
 
 // NewFailoverWatcher creates a client whose Watch function will failover to
 // Get-ing new randomness if it does not receive it after the passed grace period.
@@ -55,7 +56,7 @@ func (c *failoverWatcher) SetLog(l log.Logger) {
 // Watch returns new randomness as it becomes available.
 func (c *failoverWatcher) Watch(ctx context.Context) <-chan Result {
 	var latest uint64
-	ch := make(chan Result, 5)
+	ch := make(chan Result, failoverWatchBufferSize)
 
 	sendResult := func(r Result) {
 		if latest >= r.Round() {

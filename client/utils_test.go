@@ -45,7 +45,7 @@ func compareResults(t *testing.T, a, b Result) {
 	if a.Round() != b.Round() {
 		t.Fatal("unexpected result round", a.Round(), b.Round())
 	}
-	if bytes.Compare(a.Randomness(), b.Randomness()) != 0 {
+	if !bytes.Equal(a.Randomness(), b.Randomness()) {
 		t.Fatal("unexpected result randomness", a.Randomness(), b.Randomness())
 	}
 }

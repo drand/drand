@@ -10,12 +10,12 @@ import (
 
 // PollingWatcher generalizes the `Watch` interface for clients which learn new values
 // by asking for them once each group period.
-func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, log log.Logger) <-chan Result {
+func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, l log.Logger) <-chan Result {
 	ch := make(chan Result, 1)
 	r := c.RoundAt(time.Now())
 	val, err := c.Get(ctx, r)
 	if err != nil {
-		log.Error("polling_client", "failed to watch", "err", err)
+		l.Error("polling_client", "failed to watch", "err", err)
 		close(ch)
 		return ch
 	}
@@ -36,7 +36,7 @@ func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, log lo
 		if err == nil {
 			ch <- r
 		} else {
-			log.Error("polling_client", "failed to watch", "err", err)
+			l.Error("polling_client", "failed to watch", "err", err)
 		}
 
 		// Then tick each period.
@@ -49,7 +49,7 @@ func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, log lo
 				if err == nil {
 					ch <- r
 				} else {
-					log.Error("polling_client", "failed to watch", "err", err)
+					l.Error("polling_client", "failed to watch", "err", err)
 				}
 				// TODO: keep trying on errors?
 			case <-ctx.Done():
