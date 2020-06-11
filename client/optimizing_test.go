@@ -72,10 +72,11 @@ func TestOptimizingGet(t *testing.T) {
 	c0.Delay = time.Millisecond * 100
 	c1.Delay = time.Millisecond
 
-	oc, err := NewOptimizingClient([]Client{c0, c1}, time.Second*5, 2, time.Minute*5)
+	oc, err := newOptimizingClient([]Client{c0, c1}, time.Second*5, 2, time.Minute*5)
 	if err != nil {
 		t.Fatal(err)
 	}
+	oc.Start()
 	defer closeClient(t, oc)
 
 	waitForSpeedTest(t, oc, time.Minute)
@@ -99,10 +100,11 @@ func TestOptimizingWatch(t *testing.T) {
 	c0.Delay = time.Millisecond * 100
 	c1.Delay = time.Millisecond
 
-	oc, err := NewOptimizingClient([]Client{c0, c1, c2}, time.Second*5, 2, time.Minute*5)
+	oc, err := newOptimizingClient([]Client{c0, c1, c2}, time.Second*5, 2, time.Minute*5)
 	if err != nil {
 		t.Fatal(err)
 	}
+	oc.Start()
 	defer closeClient(t, oc)
 
 	waitForSpeedTest(t, oc, time.Minute)
@@ -118,42 +120,36 @@ func TestOptimizingWatch(t *testing.T) {
 }
 
 func TestOptimizingRequiresClients(t *testing.T) {
-	_, err := NewOptimizingClient([]Client{}, 0, 0, 0)
+	_, err := newOptimizingClient([]Client{}, 0, 0, 0)
 	if err.Error() != "missing clients" {
 		t.Fatal("unexpected error", err)
 	}
 }
 
 func TestOptimizingIsLogging(t *testing.T) {
-	oc, err := NewOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	lc, ok := oc.(LoggingClient)
-	if !ok {
-		t.Fatal("expected implements LoggingClient")
-	}
-	lc.SetLog(log.DefaultLogger)
+	oc.SetLog(log.DefaultLogger)
 }
 
 func TestOptimizingIsCloser(t *testing.T) {
-	oc, err := NewOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cc, ok := oc.(io.Closer)
-	if !ok {
-		t.Fatal("expected implements io.Closer")
-	}
-	cc.Close()
+	oc.Start()
+	oc.Close()
 }
 
 func TestOptimizingInfo(t *testing.T) {
 	chainInfo := fakeChainInfo()
-	oc, err := NewOptimizingClient([]Client{MockClientWithInfo(chainInfo)}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{MockClientWithInfo(chainInfo)}, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	oc.Start()
 	i, err := oc.Info(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -164,10 +160,11 @@ func TestOptimizingInfo(t *testing.T) {
 }
 
 func TestOptimizingRoundAt(t *testing.T) {
-	oc, err := NewOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	oc.Start()
 	r := oc.RoundAt(time.Now()) // mock client returns 0 always
 	if r != 0 {
 		t.Fatal("unexpected round", r)

@@ -23,6 +23,10 @@ type MockClient struct {
 	Delay time.Duration
 }
 
+func (m *MockClient) String() string {
+	return "Mock"
+}
+
 // Get returns a the randomness at `round` or an error.
 func (m *MockClient) Get(ctx context.Context, round uint64) (Result, error) {
 	m.Lock()
@@ -121,6 +125,10 @@ func MockClientWithInfo(info *chain.Info) Client {
 
 type MockInfoClient struct {
 	i *chain.Info
+}
+
+func (m *MockInfoClient) String() string {
+	return "MockInfo"
 }
 
 func (m *MockInfoClient) Info(ctx context.Context) (*chain.Info, error) {

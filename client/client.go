@@ -57,11 +57,13 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	var c Client
 	var err error
 	if len(cfg.clients) > 0 {
-		c, err = NewOptimizingClient(cfg.clients, 0, 0, 0)
+		oc, err := newOptimizingClient(cfg.clients, 0, 0, 0)
 		if err != nil {
 			return nil, err
 		}
+		c = oc
 		trySetLog(c, cfg.log)
+		oc.Start()
 	} else {
 		c = EmptyClientWithInfo(cfg.chainInfo)
 	}
