@@ -92,7 +92,7 @@ type optimizingClient struct {
 func (oc *optimizingClient) String() string {
 	names := make([]string, len(oc.clients))
 	for i, c := range oc.clients {
-		names[i] = c.String()
+		names[i] = fmt.Sprint(c)
 	}
 	return fmt.Sprintf("OptimizingClient(%s)", strings.Join(names, ", "))
 }

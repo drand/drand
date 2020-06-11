@@ -10,8 +10,6 @@ import (
 
 // Client represents the drand Client interface.
 type Client interface {
-	// String returns the name of this client instance.
-	String() string
 	// Get returns a the randomness at `round` or an error.
 	// Requesting round = 0 will return randomness for the most
 	// recent known round, bounded at a minimum to the `RoundAt(time.Now())`
