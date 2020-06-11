@@ -85,10 +85,10 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 
 // Instruments an HTTP client around a transport
 func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
-	client := nhttp.Client{}
-	client.Timeout = nhttp.DefaultClient.Timeout
-	client.Jar = nhttp.DefaultClient.Jar
-	client.CheckRedirect = nhttp.DefaultClient.CheckRedirect
+	hc := nhttp.Client{}
+	hc.Timeout = nhttp.DefaultClient.Timeout
+	hc.Jar = nhttp.DefaultClient.Jar
+	hc.CheckRedirect = nhttp.DefaultClient.CheckRedirect
 	urlLabel := prometheus.Labels{"url": url}
 
 	trace := &promhttp.InstrumentTrace{
@@ -112,9 +112,9 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 				promhttp.InstrumentRoundTripperDuration(metrics.ClientLatencyVec.MustCurryWith(urlLabel),
 					transport))))
 
-	client.Transport = transport
+	hc.Transport = transport
 
-	return &client
+	return &hc
 }
 
 // httpClient implements Client through http requests to a Drand relay.
@@ -136,7 +136,7 @@ func (h *httpClient) String() string {
 }
 
 // FetchGroupInfo attempts to initialize an httpClient when
-// it does not know the full group paramters for a drand group. The chain hash
+// it does not know the full group parameters for a drand group. The chain hash
 // is the hash of the chain info.
 func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 	if h.chainInfo != nil {
@@ -155,7 +155,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 	}
 
 	if chainInfo.PublicKey == nil {
-		return nil, fmt.Errorf("Group does not have a valid key for validation")
+		return nil, fmt.Errorf("group does not have a valid key for validation")
 	}
 
 	if chainHash == nil {
@@ -192,7 +192,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		return nil, err
 	}
 	if len(randResp.Sig) == 0 || len(randResp.PreviousSignature) == 0 {
-		return nil, fmt.Errorf("insufficent response")
+		return nil, fmt.Errorf("insufficient response")
 	}
 
 	b := chain.Beacon{
@@ -221,6 +221,6 @@ func (h *httpClient) Info(ctx context.Context) (*chain.Info, error) {
 
 // RoundAt will return the most recent round of randomness that will be available
 // at time for the current client.
-func (h *httpClient) RoundAt(time time.Time) uint64 {
-	return chain.CurrentRound(time.Unix(), h.chainInfo.Period, h.chainInfo.GenesisTime)
+func (h *httpClient) RoundAt(t time.Time) uint64 {
+	return chain.CurrentRound(t.Unix(), h.chainInfo.Period, h.chainInfo.GenesisTime)
 }

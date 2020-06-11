@@ -4,6 +4,8 @@ issues:
     - path: _test\.go
       linters:
         - gomnd
+        - gosec
+        - errcheck
     # https://github.com/go-critic/go-critic/issues/926
     - linters:
         - gocritic
@@ -20,11 +22,9 @@ run:
     - entropy
     - fs
     - hooks
-    - http
     - key
     - log
     - lp2p
-    - metrics
     - net
     - protobuf
     - test

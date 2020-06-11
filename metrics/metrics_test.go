@@ -10,7 +10,7 @@ import (
 func TestMetricReshare(t *testing.T) {
 	mph := func(ctx context.Context) (map[string]http.Handler, error) {
 		m := make(map[string]http.Handler)
-		m["test.com"] = http.RedirectHandler("test", 303)
+		m["test.com"] = http.RedirectHandler("test", http.StatusSeeOther)
 		return m, nil
 	}
 
@@ -24,6 +24,7 @@ func TestMetricReshare(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatal("req to metrics should succeed.")
 	}
+	_ = resp.Body.Close()
 
 	client := &http.Client{
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -37,6 +38,7 @@ func TestMetricReshare(t *testing.T) {
 	if resp.StatusCode != 303 {
 		t.Fatal("lazy reshare didn't do its thing.")
 	}
+	_ = resp.Body.Close()
 
 	resp, err = client.Get(fmt.Sprintf("http://%s/peer/other.com/metrics", addr.String()))
 	if err != nil {
@@ -45,4 +47,5 @@ func TestMetricReshare(t *testing.T) {
 	if resp.StatusCode != 404 {
 		t.Fatal("lazy reshare didn't do its thing.")
 	}
+	_ = resp.Body.Close()
 }

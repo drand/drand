@@ -57,7 +57,7 @@ func (c *HealthMetrics) startObserve(ctx context.Context) {
 		expected := chain.TimeOfRound(httpClient.chainInfo.Period, httpClient.chainInfo.GenesisTime, result.Round()) * 1e9
 		// the labels of the gauge vec must already be set at the registerer level
 		metrics.ClientHTTPHeartbeatLatency.With(prometheus.Labels{"http_address": httpClient.root}).
-			Set(float64(actual-expected) / 1e6) // latency in milliseconds
+			Set(float64(actual-expected) / float64(time.Millisecond))
 		c.next++
 	}
 }
