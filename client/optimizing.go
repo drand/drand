@@ -132,7 +132,7 @@ func (oc *optimizingClient) testSpeed() {
 					break LOOP
 				}
 				if rr.err != nil {
-					oc.log.Error("optimizing_client", "endpoint_temporarily_down_due_to", rr.err)
+					oc.getLog().Error("optimizing_client", "endpoint_temporarily_down_due_to", rr.err)
 				}
 				stats = append(stats, rr.stat)
 			case <-oc.done:
@@ -155,7 +155,15 @@ func (oc *optimizingClient) testSpeed() {
 
 // SetLog configures the client log output.
 func (oc *optimizingClient) SetLog(l log.Logger) {
+	oc.Lock()
+	defer oc.Unlock()
 	oc.log = l
+}
+
+func (oc *optimizingClient) getLog() log.Logger {
+	oc.RLock()
+	defer oc.RUnlock()
+	return oc.log
 }
 
 // fastestClients returns a ordered slice of clients - fastest first.
@@ -310,12 +318,12 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 	// TODO: move this logic into PollingWatcher?
 	chainInfo, err := oc.Info(ctx)
 	if err != nil {
-		oc.log.Error("optimizing_client", "failed to get chain info", "err", err)
+		oc.getLog().Error("optimizing_client", "failed to get chain info", "err", err)
 		ch := make(chan Result)
 		close(ch)
 		return ch
 	}
-	return PollingWatcher(ctx, oc, chainInfo, oc.log)
+	return PollingWatcher(ctx, oc, chainInfo, oc.getLog())
 }
 
 // Info returns the parameters of the chain this client is connected to.
