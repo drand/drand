@@ -56,13 +56,25 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 func ForURLs(urls []string, chainHash []byte) []client.Client {
 	clients := make([]client.Client, 0)
 	var info *chain.Info
+	skipped := []string{}
 	for _, u := range urls {
 		if info == nil {
 			if c, err := New(u, chainHash, nil); err == nil {
-				info, err = c.Info(context.Background())
+				// Note: this wrapper assumes the current behavior that if `New` succeeds,
+				// Info will have been fetched.
+				info, _ = c.Info(context.Background())
 				clients = append(clients, c)
+			} else {
+				skipped = append(skipped, u)
 			}
 		} else {
+			if c, err := NewWithInfo(u, info, nil); err == nil {
+				clients = append(clients, c)
+			}
+		}
+	}
+	if info != nil {
+		for _, u := range skipped {
 			if c, err := NewWithInfo(u, info, nil); err == nil {
 				clients = append(clients, c)
 			}
@@ -73,7 +85,10 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 
 // Instruments an HTTP client around a transport
 func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
-	client := nhttp.DefaultClient
+	client := nhttp.Client{}
+	client.Timeout = nhttp.DefaultClient.Timeout
+	client.Jar = nhttp.DefaultClient.Jar
+	client.CheckRedirect = nhttp.DefaultClient.CheckRedirect
 	urlLabel := prometheus.Labels{"url": url}
 
 	trace := &promhttp.InstrumentTrace{
@@ -99,7 +114,7 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 
 	client.Transport = transport
 
-	return client
+	return &client
 }
 
 // httpClient implements Client through http requests to a Drand relay.

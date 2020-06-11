@@ -11,8 +11,8 @@ import (
 )
 
 // MeasureHeartbeats periodically tracks latency observed on a set of HTTP clients
-func MeasureHeartbeats(ctx context.Context, c []client.Client) *HttpHealthMetrics {
-	m := &HttpHealthMetrics{
+func MeasureHeartbeats(ctx context.Context, c []client.Client) *HealthMetrics {
+	m := &HealthMetrics{
 		next:    0,
 		clients: c,
 	}
@@ -20,8 +20,8 @@ func MeasureHeartbeats(ctx context.Context, c []client.Client) *HttpHealthMetric
 	return m
 }
 
-// HttpHealthMetrics is a measurement task around HTTP clients
-type HttpHealthMetrics struct {
+// HealthMetrics is a measurement task around HTTP clients
+type HealthMetrics struct {
 	next    int
 	clients []client.Client
 }
@@ -29,7 +29,7 @@ type HttpHealthMetrics struct {
 // HTTPHeartbeatInterval is the duration between liveness heartbeats sent to an HTTP API.
 const HTTPHeartbeatInterval = 10 * time.Second
 
-func (c *HttpHealthMetrics) startObserve(ctx context.Context) {
+func (c *HealthMetrics) startObserve(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():

@@ -70,6 +70,16 @@ func TestHTTPGetLatest(t *testing.T) {
 	}
 }
 
+func TestForURLsCreation(t *testing.T) {
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	defer cancel()
+
+	clients := ForURLs([]string{"http://invalid.domain/", "http://"+addr}, chainInfo.Hash())
+	if len(clients) != 2 {
+		t.Fatal("expect both urls returned.")
+	}
+}
+
 func TestHTTPWatch(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()

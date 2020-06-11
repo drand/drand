@@ -44,9 +44,9 @@ func New(ctx context.Context, client client.Client, version string, logger log.L
 
 	mux := http.NewServeMux()
 	//TODO: aggregated bulk round responses.
-	mux.HandleFunc("/public/latest", handler.LatestRand)
-	mux.HandleFunc("/public/", handler.PublicRand)
-	mux.HandleFunc("/info", handler.ChainInfo)
+	mux.HandleFunc("/public/latest", withCommonHeaders(version, handler.LatestRand))
+	mux.HandleFunc("/public/", withCommonHeaders(version, handler.PublicRand))
+	mux.HandleFunc("/info", withCommonHeaders(version, handler.ChainInfo))
 	mux.HandleFunc("/health", handler.Health)
 
 	instrumented := promhttp.InstrumentHandlerCounter(
@@ -59,11 +59,21 @@ func New(ctx context.Context, client client.Client, version string, logger log.L
 	return instrumented, nil
 }
 
+func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Server", version)
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		h(w, r)
+	}
+}
+
 type handler struct {
-	timeout   time.Duration
-	client    client.Client
-	chainInfo *chain.Info
-	log       log.Logger
+	timeout     time.Duration
+	client      client.Client
+	chainInfo   *chain.Info
+	chainInfoLk sync.RWMutex
+	log         log.Logger
 
 	// synchronization for blocking writes until randomness available.
 	pendingLk   sync.RWMutex
@@ -124,6 +134,15 @@ RESET:
 }
 
 func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
+	h.chainInfoLk.RLock()
+	if h.chainInfo != nil {
+		h.chainInfoLk.RUnlock()
+		return h.chainInfo
+	}
+	h.chainInfoLk.RUnlock()
+
+	h.chainInfoLk.Lock()
+	defer h.chainInfoLk.Unlock()
 	if h.chainInfo != nil {
 		return h.chainInfo
 	}
@@ -140,7 +159,7 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 		return nil
 	}
 	h.chainInfo = info
-	return h.chainInfo
+	return info
 }
 
 func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
@@ -207,14 +226,18 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	info := h.getChainInfo(r.Context())
 	roundExpectedTime := time.Now()
-	if info != nil {
-		roundExpectedTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+	if info == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		return
+	}
 
-		if roundExpectedTime.After(time.Now().Add(info.Period)) {
-			w.WriteHeader(http.StatusNotFound)
-			h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
-			return
-		}
+	roundExpectedTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+
+	if roundExpectedTime.After(time.Now().Add(info.Period)) {
+		w.WriteHeader(http.StatusNotFound)
+		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		return
 	}
 
 	data, err := h.getRand(r.Context(), roundN)
@@ -231,10 +254,8 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
-	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
 
@@ -262,7 +283,12 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	nextTime := time.Now()
 	if info != nil {
 		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
-		nextTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+		next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+		if next.After(nextTime) {
+			nextTime = next
+		} else {
+			nextTime = nextTime.Add(info.Period / 2)
+		}
 	}
 
 	remaining := nextTime.Sub(time.Now())
@@ -273,8 +299,6 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
-	w.Header().Set("Server", h.version)
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
 	w.Write(data)
@@ -297,10 +321,8 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 
 	// Headers per recommendation for static assets at
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-	w.Header().Set("Server", h.version)
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
-	w.Header().Set("Content-Type", "application/json")
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 
 }
