@@ -9,6 +9,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/http"
+	"github.com/drand/drand/client/test/mock"
 	cmock "github.com/drand/drand/client/test/mock"
 	"github.com/drand/drand/test"
 )
@@ -137,7 +138,7 @@ func TestClientWithWatcher(t *testing.T) {
 	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	results := []client.MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
 	}
@@ -172,7 +173,7 @@ func TestClientAutoWatch(t *testing.T) {
 	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	results := []client.MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
 	}
