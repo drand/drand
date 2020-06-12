@@ -9,8 +9,8 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/http"
-	"github.com/drand/drand/client/test/mock"
-	cmock "github.com/drand/drand/client/test/mock"
+	httpmock "github.com/drand/drand/client/test/http/mock"
+	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/test"
 )
 
@@ -33,9 +33,9 @@ func TestClientConstraints(t *testing.T) {
 }
 
 func TestClientMultiple(t *testing.T) {
-	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
-	addr2, _, cancel2, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel2()
 
 	c, e := client.New(
@@ -73,7 +73,7 @@ func TestClientWithChainInfo(t *testing.T) {
 }
 
 func TestClientCache(t *testing.T) {
-	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	c, e := client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
@@ -98,7 +98,7 @@ func TestClientCache(t *testing.T) {
 }
 
 func TestClientWithoutCache(t *testing.T) {
-	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	c, e := client.New(
@@ -120,7 +120,7 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithFailover(t *testing.T) {
-	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	// ensure a client with failover can be created successfully without error
@@ -135,7 +135,7 @@ func TestClientWithFailover(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	results := []mock.Result{
@@ -170,7 +170,7 @@ func TestClientWithWatcher(t *testing.T) {
 }
 
 func TestClientAutoWatch(t *testing.T) {
-	addr1, chainInfo, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	results := []mock.Result{

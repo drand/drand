@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/drand/drand/client/test/mock"
+	"github.com/drand/drand/client/test/result/mock"
 )
 
 func TestCacheGet(t *testing.T) {

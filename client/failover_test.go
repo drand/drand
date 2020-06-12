@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client/test/mock"
+	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/test"
 )
 
