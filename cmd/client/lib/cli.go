@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -24,63 +25,104 @@ import (
 )
 
 var (
-	// ClientFlags is a list of common flags for client creation
-	ClientFlags = []cli.Flag{
-		&cli.StringSliceFlag{
-			Name:  "url",
-			Usage: "root URL(s) for fetching randomness",
-		},
-		&cli.StringFlag{
-			Name:    "grpc-connect",
-			Usage:   "host:port to dial a gRPC randomness provider",
-			Aliases: []string{"connect"},
-		},
-		&cli.StringFlag{
-			Name:  "cert",
-			Usage: "Path to a file containing gRPC transport credentials of peer",
-		},
-		&cli.StringFlag{
-			Name:  "hash",
-			Usage: "The hash (in hex) for the chain to follow",
-		},
-		&cli.BoolFlag{
-			Name:  "insecure",
-			Usage: "Allow autodetection of the chain information",
-		},
-		&cli.StringSliceFlag{
-			Name:  "relay",
-			Usage: "relay peer multiaddr(s) to connect with",
-		},
-		&cli.IntFlag{
-			Name:  "port",
-			Usage: "Local port for client to bind to, when connecting to relays",
-		},
+	// URLFlag is the CLI flag for root URL(s) for fetching randomness.
+	URLFlag = &cli.StringSliceFlag{
+		Name:    "url",
+		Usage:   "root URL(s) for fetching randomness",
+		Aliases: []string{"http-failover"}, // DEPRECATED
+	}
+	// GRPCConnectFlag is the CLI flag for host:port to dial a gRPC randomness
+	// provider.
+	GRPCConnectFlag = &cli.StringFlag{
+		Name:    "grpc-connect",
+		Usage:   "host:port to dial a gRPC randomness provider",
+		Aliases: []string{"connect"}, // DEPRECATED
+	}
+	// CertFlag is the CLI flag for the path to a file containing gRPC transport
+	// credentials of peer.
+	CertFlag = &cli.StringFlag{
+		Name:  "cert",
+		Usage: "Path to a file containing gRPC transport credentials of peer",
+	}
+	// HashFlag is the CLI flag for the hash (in hex) for the chain to follow.
+	HashFlag = &cli.StringFlag{
+		Name:    "hash",
+		Usage:   "The hash (in hex) for the chain to follow",
+		Aliases: []string{"chain-hash"}, // DEPRECATED
+	}
+	// InsecureFlag is the CLI flag to allow autodetection of the chain
+	// information.
+	InsecureFlag = &cli.BoolFlag{
+		Name:  "insecure",
+		Usage: "Allow autodetection of the chain information",
+	}
+	// RelayFlag is the CLI flag for relay peer multiaddr(s) to connect with.
+	RelayFlag = &cli.StringSliceFlag{
+		Name:    "relay",
+		Usage:   "relay peer multiaddr(s) to connect with",
+		Aliases: []string{"peer-with"}, // DEPRECATED
+	}
+	// PortFlag is the CLI flag for local port for client to bind to, when
+	// connecting to relays.
+	PortFlag = &cli.IntFlag{
+		Name:  "port",
+		Usage: "Local port for client to bind to, when connecting to relays",
+	}
+	// FailoverGraceFlag is the CLI flag for setting the grace period before
+	// randomness is requested from the HTTP API when watching for randomness
+	// and it does not arrive.
+	FailoverGraceFlag = &cli.DurationFlag{
+		Name:    "failover-grace",
+		Usage:   "grace period before randomness is requested from the HTTP API when watching for randomness and it does not arrive (default 5s)",
+		Aliases: []string{"http-failover-grace"}, // DEPRECATED
 	}
 )
+
+// ClientFlags is a list of common flags for client creation
+var ClientFlags = []cli.Flag{
+	URLFlag,
+	GRPCConnectFlag,
+	CertFlag,
+	HashFlag,
+	InsecureFlag,
+	RelayFlag,
+	PortFlag,
+	FailoverGraceFlag,
+}
 
 // Create builds a client, and can be invoked from a cli action supplied
 // with ClientFlags
 func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (client.Client, error) {
-	if c.IsSet("grpc-connect") {
-		return grpc.New(c.String("grpc-connect"), c.String("cert"), c.Bool("insecure"))
+	clients := make([]client.Client, 0)
+	var info *chain.Info
+
+	if c.IsSet(GRPCConnectFlag.Name) {
+		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
+		if err != nil {
+			return nil, err
+		}
+		info, err = gc.Info(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		clients = append(clients, gc)
 	}
+
 	var hash []byte
 	var err error
-	if c.IsSet("hash") {
-		hash, err = hex.DecodeString(c.String("hash"))
+	if c.IsSet(HashFlag.Name) {
+		hash, err = hex.DecodeString(c.String(HashFlag.Name))
 		if err != nil {
 			return nil, err
 		}
 		opts = append(opts, client.WithChainHash(hash))
 	}
-	if c.Bool("insecure") {
+	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
 	}
-	httpClients := make([]client.Client, 0)
-	var info *chain.Info
 	skipped := []string{}
 	var hc client.Client
-	for _, url := range c.StringSlice("url") {
+	for _, url := range c.StringSlice(URLFlag.Name) {
 		if info != nil {
 			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
 			if err != nil {
@@ -100,7 +142,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 				continue
 			}
 		}
-		httpClients = append(httpClients, hc)
+		clients = append(clients, hc)
 	}
 	if info != nil {
 		for _, url := range skipped {
@@ -109,26 +151,37 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
-			httpClients = append(httpClients, hc)
+			clients = append(clients, hc)
 		}
 	}
 	if withInstrumentation {
-		http.MeasureHeartbeats(c.Context, httpClients)
+		http.MeasureHeartbeats(c.Context, clients)
 	}
 
-	if c.IsSet("relays") {
-		relayPeers, err := lp2p.ParseMultiaddrSlice(c.StringSlice("relays"))
-		if err != nil {
-			return nil, err
+	if c.IsSet(RelayFlag.Name) {
+		addrs := c.StringSlice(RelayFlag.Name)
+		if len(addrs) > 0 {
+			relayPeers, err := lp2p.ParseMultiaddrSlice(addrs)
+			if err != nil {
+				return nil, err
+			}
+			ps, err := buildClientHost(c.Int(PortFlag.Name), relayPeers)
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, gclient.WithPubsub(ps))
 		}
-		ps, err := buildClientHost(c.Int("port"), relayPeers)
-		if err != nil {
-			return nil, err
-		}
-		opts = append(opts, gclient.WithPubsub(ps))
 	}
 
-	return client.Wrap(httpClients, opts...)
+	if c.IsSet(FailoverGraceFlag.Name) {
+		grace := c.Duration(FailoverGraceFlag.Name)
+		if grace == 0 {
+			grace = time.Second * 5
+		}
+		opts = append(opts, client.WithFailoverGracePeriod(grace))
+	}
+
+	return client.Wrap(clients, opts...)
 }
 
 func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
