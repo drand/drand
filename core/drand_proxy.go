@@ -24,6 +24,11 @@ func Proxy(s drand.PublicServer) client.Client {
 	return &drandProxy{s}
 }
 
+// String returns the name of this proxy.
+func (d *drandProxy) String() string {
+	return "Proxy"
+}
+
 // Get returns randomness at a requested round
 func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, error) {
 	resp, err := d.r.PublicRand(ctx, &drand.PublicRandRequest{Round: round})

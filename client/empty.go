@@ -17,6 +17,10 @@ type emptyClient struct {
 	i *chain.Info
 }
 
+func (m *emptyClient) String() string {
+	return "EmptyClient"
+}
+
 func (m *emptyClient) Info(ctx context.Context) (*chain.Info, error) {
 	return m.i, nil
 }

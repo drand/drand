@@ -8,13 +8,13 @@ import (
 	"github.com/drand/drand/metrics"
 )
 
-func newWatchLatencyMetricClient(base Client, info *chain.Info) (Client, error) {
+func newWatchLatencyMetricClient(base Client, info *chain.Info) Client {
 	c := &watchLatencyMetricClient{
 		Client:    base,
 		chainInfo: info,
 	}
 	go c.startObserve(context.Background())
-	return c, nil
+	return c
 }
 
 type watchLatencyMetricClient struct {
