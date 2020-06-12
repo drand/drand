@@ -3,6 +3,8 @@ package core
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -103,7 +105,7 @@ func (d *Drand) leaderRunSetup(in *control.SetupInfoPacket, newSetup func() (*se
 func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, entropy *control.EntropyInfo) (*key.Group, error) {
 
 	reader, user := extractEntropy(entropy)
-	dkgConfig := dkg.DkgConfig{
+	config := &dkg.Config{
 		Suite:          key.KeyGroup.(dkg.Suite),
 		NewNodes:       group.DKGNodes(),
 		Longterm:       d.priv.Key,
@@ -111,17 +113,15 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, entropy *c
 		UserReaderOnly: user,
 		FastSync:       true,
 		Threshold:      group.Threshold,
+		Nonce:          getNonce(group),
+		Auth:           key.AuthScheme,
 	}
 	phaser, err := d.getPhaser(timeout)
 	if err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
 	board := newBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, group)
-	protoConf := &dkg.Config{
-		DkgConfig: dkgConfig,
-		Auth:      key.AuthScheme,
-	}
-	dkgProto, err := dkg.NewProtocol(protoConf, board, phaser)
+	dkgProto, err := dkg.NewProtocol(config, board, phaser)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, entropy *c
 		target: group,
 		board:  board,
 		phaser: phaser,
-		conf:   protoConf,
+		conf:   config,
 		proto:  dkgProto,
 	}
 	if leader {
@@ -167,8 +167,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 	newNode := newGroup.Find(d.priv.Public)
 	newPresent := newNode != nil
-
-	dkgConfig := dkg.DkgConfig{
+	config := &dkg.Config{
 		Suite:        key.KeyGroup.(dkg.Suite),
 		NewNodes:     newGroup.DKGNodes(),
 		OldNodes:     oldGroup.DKGNodes(),
@@ -176,6 +175,8 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		Threshold:    newGroup.Threshold,
 		OldThreshold: oldGroup.Threshold,
 		FastSync:     true,
+		Nonce:        getNonce(newGroup),
+		Auth:         key.AuthScheme,
 	}
 	err := func() error {
 		d.state.Lock()
@@ -189,11 +190,11 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 				return errors.New("control: can't reshare without a share")
 			}
 			dkgShare := dkg.DistKeyShare(*d.share)
-			dkgConfig.Share = &dkgShare
+			config.Share = &dkgShare
 		} else {
 			// we are a new node, we want to make sure we reshare from the old
 			// group public key
-			dkgConfig.PublicCoeffs = oldGroup.PublicKey.Coefficients
+			config.PublicCoeffs = oldGroup.PublicKey.Coefficients
 		}
 		return nil
 	}()
@@ -201,16 +202,12 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		return nil, err
 	}
 	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, oldGroup, newGroup)
-	protoConf := &dkg.Config{
-		DkgConfig: dkgConfig,
-		Auth:      key.AuthScheme,
-	}
 	phaser, err := d.getPhaser(timeout)
 	if err != nil {
 		return nil, fmt.Errorf("drand: invalid timeout: %s", err)
 	}
 
-	dkgProto, err := dkg.NewProtocol(protoConf, board, phaser)
+	dkgProto, err := dkg.NewProtocol(config, board, phaser)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +215,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		target: newGroup,
 		board:  board,
 		phaser: phaser,
-		conf:   protoConf,
+		conf:   config,
 		proto:  dkgProto,
 	}
 	d.state.Lock()
@@ -637,4 +634,14 @@ func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, tim
 	d.log.Info("push_dkg", "sending_group", "status", "done")
 	cancel()
 	return nil
+}
+
+func getNonce(g *key.Group) []byte {
+	h := sha256.New()
+	if g.TransitionTime != 0 {
+		binary.Write(h, binary.BigEndian, g.TransitionTime)
+	} else {
+		binary.Write(h, binary.BigEndian, g.GenesisTime)
+	}
+	return h.Sum(nil)
 }

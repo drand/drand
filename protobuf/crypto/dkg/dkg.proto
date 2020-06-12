@@ -14,9 +14,8 @@ message Packet {
     oneof Bundle {
         DealBundle deal = 1;
         ResponseBundle response = 2;
-        JustifBundle justification = 3;
+        JustificationBundle justification = 3;
     }
-    bytes signature = 4;
 }
 
 
@@ -30,6 +29,10 @@ message DealBundle {
     repeated bytes commits = 2;
     // list of deals for each individual share holders.
     repeated Deal deals = 3;
+    // session identifier of the protocol run
+    bytes session_id = 4;
+    // signature over the hash of the deal
+    bytes signature = 5;
 }
 
 // Deal contains a share for a participant.
@@ -44,6 +47,10 @@ message Deal {
 message ResponseBundle {
     uint32 share_index = 1;
     repeated Response responses = 2;
+    // session identifier of the protocol run
+    bytes session_id = 3;
+    // signature over the hash of the response
+    bytes signature = 4;
 }
 
 // Response holds the response that a participant broadcast after having
@@ -56,11 +63,15 @@ message Response {
     bool status = 2;
 }
 
-// JustifBundle is a packet that holds all justifications a dealer must 
+// JustificationBundle is a packet that holds all justifications a dealer must
 // produce
-message JustifBundle {
+message JustificationBundle {
     uint32 dealer_index = 1;
     repeated Justification justifications = 2;
+    // session identifier of the protocol run
+    bytes session_id = 3;
+    // signature over the hash of the justification
+    bytes signature = 4;
 }
 
 // Justification holds the justification from a dealer after a participant
