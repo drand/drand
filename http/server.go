@@ -21,19 +21,24 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
+const (
+	watchConnectBackoff = 300 * time.Millisecond
+	catchupExpiryFactor = 2
+)
+
 var (
 	// Timeout for how long to wait for the drand.PublicClient before timing out
 	reqTimeout = 5 * time.Second
 )
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, client client.Client, version string, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, c client.Client, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger
 	}
 	handler := handler{
 		timeout:     reqTimeout,
-		client:      client,
+		client:      c,
 		chainInfo:   nil,
 		log:         logger,
 		pending:     nil,
@@ -104,17 +109,17 @@ RESET:
 			h.pendingLk.Unlock()
 			// backoff on failures a bit to not fall into a tight loop.
 			// TODO: tuning.
-			time.Sleep(300 * time.Millisecond)
+			time.Sleep(watchConnectBackoff)
 			goto RESET
 		}
 
-		bytes, _ := json.Marshal(next)
+		b, _ := json.Marshal(next)
 
 		h.pendingLk.Lock()
 		if h.latestRound+1 != next.Round() && h.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
 			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round()))
-			bytes = []byte{}
+			b = []byte{}
 		}
 		h.latestRound = next.Round()
 		pending := h.pending
@@ -122,7 +127,7 @@ RESET:
 		h.pendingLk.Unlock()
 
 		for _, waiter := range pending {
-			waiter <- bytes
+			waiter <- b
 		}
 
 		select {
@@ -287,11 +292,11 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		if next.After(nextTime) {
 			nextTime = next
 		} else {
-			nextTime = nextTime.Add(info.Period / 2)
+			nextTime = nextTime.Add(info.Period / catchupExpiryFactor)
 		}
 	}
 
-	remaining := nextTime.Sub(time.Now())
+	remaining := time.Until(nextTime)
 	if remaining > 0 && remaining < info.Period {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
@@ -301,7 +306,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
 	w.Header().Set("Last-Modified", roundTime.Format(http.TimeFormat))
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
@@ -324,7 +329,6 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 	w.Header().Set("Expires", time.Now().Add(7*24*time.Hour).Format(http.TimeFormat))
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
-
 }
 
 func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +345,7 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 	resp := make(map[string]uint64)
 	resp["current"] = lastSeen
 	resp["expected"] = 0
-	var bytes []byte
+	var b []byte
 
 	if info == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
@@ -355,6 +359,6 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	bytes, _ = json.Marshal(resp)
-	w.Write(bytes)
+	b, _ = json.Marshal(resp)
+	_, _ = w.Write(b)
 }

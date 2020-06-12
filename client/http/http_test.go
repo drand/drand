@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"net/http"
-	nhttp "net/http"
 	"testing"
 	"time"
 
@@ -15,7 +14,7 @@ func TestHTTPClient(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
 	defer cancel()
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), nhttp.DefaultTransport)
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +75,7 @@ func TestForURLsCreation(t *testing.T) {
 
 	clients := ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
-		t.Fatal("expect both urls returned.")
+		t.Fatal("expect both urls returned")
 	}
 }
 
@@ -84,7 +83,7 @@ func TestHTTPWatch(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), nhttp.DefaultTransport)
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +93,7 @@ func TestHTTPWatch(t *testing.T) {
 	result := httpClient.Watch(ctx)
 	first, ok := <-result
 	if !ok {
-		t.Fatal("Should get a result from watching")
+		t.Fatal("should get a result from watching")
 	}
 	if len(first.Randomness()) == 0 {
 		t.Fatal("should get randomness from watching")

@@ -132,7 +132,9 @@ func attachFailover(cfg *clientConfig, c Client) (Client, error) {
 
 func attachMetrics(cfg *clientConfig, c Client) (Client, error) {
 	if cfg.prometheus != nil {
-		metrics.RegisterClientMetrics(cfg.prometheus)
+		if err := metrics.RegisterClientMetrics(cfg.prometheus); err != nil {
+			return nil, err
+		}
 		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
 		}

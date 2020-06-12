@@ -133,15 +133,19 @@ var (
 	metricsBound = false
 )
 
-func bindMetrics() {
+func bindMetrics() error {
 	if metricsBound {
-		return
+		return nil
 	}
 	metricsBound = true
 
 	// The private go-level metrics live in private.
-	PrivateMetrics.Register(prometheus.NewGoCollector())
-	PrivateMetrics.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	if err := PrivateMetrics.Register(prometheus.NewGoCollector()); err != nil {
+		return err
+	}
+	if err := PrivateMetrics.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})); err != nil {
+		return err
+	}
 
 	// Group metrics
 	group := []prometheus.Collector{
@@ -150,28 +154,41 @@ func bindMetrics() {
 		GroupConnections,
 	}
 	for _, c := range group {
-		GroupMetrics.Register(c)
-		PrivateMetrics.Register(c)
+		if err := GroupMetrics.Register(c); err != nil {
+			return err
+		}
+		if err := PrivateMetrics.Register(c); err != nil {
+			return err
+		}
 	}
 
 	// HTTP metrics
-	http := []prometheus.Collector{
+	httpMetrics := []prometheus.Collector{
 		HTTPCallCounter,
 		HTTPLatency,
 		HTTPInFlight,
 	}
-	for _, c := range http {
-		HTTPMetrics.Register(c)
-		PrivateMetrics.Register(c)
+	for _, c := range httpMetrics {
+		if err := HTTPMetrics.Register(c); err != nil {
+			return err
+		}
+		if err := PrivateMetrics.Register(c); err != nil {
+			return err
+		}
 	}
 
 	// Client metrics
-	RegisterClientMetrics(ClientMetrics)
-	RegisterClientMetrics(PrivateMetrics)
+	if err := RegisterClientMetrics(ClientMetrics); err != nil {
+		return err
+	}
+	if err := RegisterClientMetrics(PrivateMetrics); err != nil {
+		return err
+	}
+	return nil
 }
 
 // RegisterClientMetrics registers drand client metrics with the given registry
-func RegisterClientMetrics(r prometheus.Registerer) {
+func RegisterClientMetrics(r prometheus.Registerer) error {
 	// Client metrics
 	client := []prometheus.Collector{
 		ClientDNSLatencyVec,
@@ -185,8 +202,11 @@ func RegisterClientMetrics(r prometheus.Registerer) {
 		ClientHTTPHeartbeatLatency,
 	}
 	for _, c := range client {
-		r.Register(c)
+		if err := r.Register(c); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // PeerHandler abstracts a helper for relaying http requests to a group peer
@@ -195,7 +215,10 @@ type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
 // Start starts a prometheus metrics server with debug endpoints.
 func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
 	log.DefaultLogger.Debug("metrics", "private listener started", "at", metricsBind)
-	bindMetrics()
+	if err := bindMetrics(); err != nil {
+		log.DefaultLogger.Warn("metrics", "metric setup failed", "err", err)
+		return nil
+	}
 
 	l, err := net.Listen("tcp", metricsBind)
 	if err != nil {
