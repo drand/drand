@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/drand/drand/client"
-	cmock "github.com/drand/drand/client/test/mock"
+	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/test/mock"
 	"github.com/urfave/cli/v2"
 )
@@ -38,7 +38,7 @@ func TestClientLib(t *testing.T) {
 		t.Fatal("need to specify a connection method.", err)
 	}
 
-	addr, info, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
 	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false)

@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"testing"
+
+	"github.com/drand/drand/client/test/result/mock"
 )
 
 func TestCacheGet(t *testing.T) {
@@ -19,7 +21,7 @@ func TestCacheGet(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	res.(*MockResult).AssertValid(t)
+	res.(*mock.Result).AssertValid(t)
 
 	_, e = c.Get(context.Background(), 1)
 	if e != nil {
@@ -84,7 +86,7 @@ func TestCacheWatch(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)
-	rc <- &MockResult{Rnd: 1, Rand: []byte{1}}
+	rc <- &mock.Result{Rnd: 1, Rand: []byte{1}}
 	_, ok := <-r1
 	if !ok {
 		t.Fatal("results should propagate")

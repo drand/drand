@@ -1,22 +1,20 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client/test/result/mock"
 )
 
 // MockClient provide a mocked client interface
 type MockClient struct {
 	sync.Mutex
 	WatchCh chan Result
-	Results []MockResult
+	Results []mock.Result
 	// Delay causes results to be delivered after this period of time has
 	// passed. Note that if the context is canceled a result is still consumed
 	// from Results.
@@ -75,47 +73,9 @@ func (m *MockClient) RoundAt(_ time.Time) uint64 {
 func MockClientWithResults(n, m uint64) *MockClient {
 	c := new(MockClient)
 	for i := n; i < m; i++ {
-		c.Results = append(c.Results, NewMockResult(i))
+		c.Results = append(c.Results, mock.NewMockResult(i))
 	}
 	return c
-}
-
-func NewMockResult(round uint64) MockResult {
-	sig := make([]byte, 8)
-	binary.LittleEndian.PutUint64(sig, round)
-	return MockResult{
-		Rnd:  round,
-		Sig:  sig,
-		Rand: chain.RandomnessFromSignature(sig),
-	}
-}
-
-type MockResult struct {
-	Rnd  uint64
-	Rand []byte
-	Sig  []byte
-}
-
-func (r *MockResult) Randomness() []byte {
-	return r.Rand
-}
-func (r *MockResult) Signature() []byte {
-	return r.Sig
-}
-func (r *MockResult) Round() uint64 {
-	return r.Rnd
-}
-func (r *MockResult) AssertValid(t *testing.T) {
-	t.Helper()
-	sigTarget := make([]byte, 8)
-	binary.LittleEndian.PutUint64(sigTarget, r.Rnd)
-	if !bytes.Equal(r.Sig, sigTarget) {
-		t.Fatalf("expected sig: %x, got %x", sigTarget, r.Sig)
-	}
-	randTarget := chain.RandomnessFromSignature(sigTarget)
-	if !bytes.Equal(r.Rand, randTarget) {
-		t.Fatalf("expected rand: %x, got %x", randTarget, r.Rand)
-	}
 }
 
 // MockClientWithInfo makes a client that returns the given info but no randomness

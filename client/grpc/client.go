@@ -9,6 +9,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -21,6 +22,7 @@ const grpcDefaultTimeout = 5 * time.Second
 type grpcClient struct {
 	address string
 	client  drand.PublicClient
+	l       log.Logger
 }
 
 // New creates a drand client backed by a GRPC connection.
@@ -45,7 +47,7 @@ func New(address, certPath string, insecure bool) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &grpcClient{address, drand.NewPublicClient(conn)}, nil
+	return &grpcClient{address, drand.NewPublicClient(conn), log.DefaultLogger}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {
@@ -83,7 +85,7 @@ func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 		close(ch)
 		return ch
 	}
-	go translate(stream, ch)
+	go g.translate(stream, ch)
 	return ch
 }
 
@@ -99,11 +101,14 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 	return chain.InfoFromProto(proto)
 }
 
-func translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
+func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
 	defer close(out)
 	for {
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {
+			if err != stream.Context().Err() {
+				g.l.Error("grpc_client", "public rand stream", "err", err)
+			}
 			return
 		}
 		out <- asRD(next)
@@ -118,4 +123,9 @@ func (g *grpcClient) RoundAt(t time.Time) uint64 {
 		return 0
 	}
 	return chain.CurrentRound(t.Unix(), time.Second*time.Duration(info.Period), info.GenesisTime)
+}
+
+// SetLog configures the client log output
+func (g *grpcClient) SetLog(l log.Logger) {
+	g.l = l
 }

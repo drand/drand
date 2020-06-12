@@ -3,6 +3,7 @@ package lp2p
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
@@ -134,40 +135,45 @@ func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
 func (g *GossipRelayNode) background(c client.Client) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	results := c.Watch(ctx)
 	for {
-		select {
-		case res, ok := <-results:
-			if !ok {
+		results := c.Watch(ctx)
+	LOOP:
+		for {
+			select {
+			case res, ok := <-results:
+				if !ok {
+					g.l.Warn("relay_node", "watch channel closed")
+					break LOOP
+				}
+
+				rd, ok := res.(*client.RandomData)
+				if !ok {
+					g.l.Error("relay_node", "unexpected client result type")
+					continue
+				}
+
+				randB, err := proto.Marshal(&drand.PublicRandResponse{
+					Round:             res.Round(),
+					Signature:         res.Signature(),
+					PreviousSignature: rd.PreviousSignature,
+					Randomness:        res.Randomness(),
+				})
+				if err != nil {
+					g.l.Error("relay_node", "err marshaling", "err", err)
+					continue
+				}
+
+				err = g.t.Publish(ctx, randB)
+				if err != nil {
+					g.l.Error("relay_node", "err publishing on pubsub", "err", err)
+					continue
+				}
+
+				g.l.Info("relay_node", "Published randomness on pubsub", "round", res.Round())
+			case <-g.done:
 				return
 			}
-
-			rd, ok := res.(*client.RandomData)
-			if !ok {
-				g.l.Error("relay_node", "unexpected client result type")
-				continue
-			}
-
-			randB, err := proto.Marshal(&drand.PublicRandResponse{
-				Round:             res.Round(),
-				Signature:         res.Signature(),
-				PreviousSignature: rd.PreviousSignature,
-				Randomness:        res.Randomness(),
-			})
-			if err != nil {
-				g.l.Error("relay_node", "err marshaling", "err", err)
-				continue
-			}
-
-			err = g.t.Publish(ctx, randB)
-			if err != nil {
-				g.l.Error("relay_node", "err publishing on pubsub", "err", err)
-				continue
-			}
-
-			g.l.Info("relay_node", "Published randomness on pubsub", "round", res.Round())
-		case <-g.done:
-			return
 		}
+		time.Sleep(time.Second)
 	}
 }
