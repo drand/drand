@@ -1,11 +1,13 @@
 package lib
 
 import (
+	"context"
 	"encoding/hex"
 	"testing"
 
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/test/mock"
+	cmock "github.com/drand/drand/client/test/mock"
+	"github.com/drand/drand/test/mock"
 	"github.com/urfave/cli/v2"
 )
 
@@ -33,20 +35,24 @@ func TestClientLib(t *testing.T) {
 	opts = []client.Option{}
 	err := run([]string{"mock-client"})
 	if err == nil {
-		t.Fatal("need to specify a connection method.")
+		t.Fatal("need to specify a connection method.", err)
 	}
 
-	addr, info, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	addr, info, cancel, _ := cmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	err = run([]string{"mock-client", "--url", "http://" + addr, "--grpc-connect", "127.0.0.1:0", "--insecure"})
+	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false)
+	go grpcLis.Start()
+	defer grpcLis.Stop(context.Background())
+
+	err = run([]string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"})
 	if err != nil {
-		t.Fatal("GRPC should work")
+		t.Fatal("GRPC should work", err)
 	}
 
 	err = run([]string{"mock-client", "--url", "https://" + addr})
 	if err == nil {
-		t.Fatal("http needs insecure or hash")
+		t.Fatal("http needs insecure or hash", err)
 	}
 
 	err = run([]string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())})
@@ -56,7 +62,7 @@ func TestClientLib(t *testing.T) {
 
 	err = run([]string{"mock-client", "--relay", "/ip4/8.8.8.8/tcp/9/p2p/QmSoLju6m7xTh3DuokvT3886QRYqxAzb1kShaanJgW36yx"})
 	if err == nil {
-		t.Fatal("relays need URL or hash")
+		t.Fatal("relays need URL or hash", err)
 	}
 
 	err = run([]string{"mock-client", "--relay", "/ip4/8.8.8.8/tcp/9/p2p/QmSoLju6m7xTh3DuokvT3886QRYqxAzb1kShaanJgW36yx", "--hash", hex.EncodeToString(info.Hash())})
