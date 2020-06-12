@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/log"
 )
 
@@ -114,14 +115,14 @@ func TestOptimizingWatch(t *testing.T) {
 	ch := oc.Watch(ctx)
 
 	expectRound(t, nextResult(t, ch), 1) // round 1 from c0 (after 100ms)
-	wc1 <- &MockResult{Rnd: 2}
+	wc1 <- &mock.Result{Rnd: 2}
 	expectRound(t, nextResult(t, ch), 2) // round 2 from c1 and round 2 from c0 (discarded)
 	select {
 	case <-ch:
 		t.Fatal("should not get another watched result at this point")
 	case <-time.After(50 * time.Millisecond):
 	}
-	wc1 <- &MockResult{Rnd: 6}
+	wc1 <- &mock.Result{Rnd: 6}
 	expectRound(t, nextResult(t, ch), 6) // round 6 from c1
 	close(wc1)
 	select {
