@@ -11,11 +11,10 @@ import (
 )
 
 func TestConvertJustification(t *testing.T) {
-	j := new(dkg.AuthJustifBundle)
+	j := new(dkg.JustificationBundle)
 	j.Signature = []byte{1, 2, 3}
-	j.Bundle = new(dkg.JustificationBundle)
-	j.Bundle.DealerIndex = 32
-	j.Bundle.Justifications = []dkg.Justification{
+	j.DealerIndex = 32
+	j.Justifications = []dkg.Justification{
 		{
 			ShareIndex: 10,
 			Share:      key.KeyGroup.Scalar().Pick(random.New()),
@@ -27,5 +26,5 @@ func TestConvertJustification(t *testing.T) {
 	require.NotNil(t, justifProto)
 	bundle, err := protoToJustif(justifProto.Justification)
 	require.NoError(t, err)
-	require.Equal(t, j.Bundle, bundle)
+	require.Equal(t, j, bundle)
 }
