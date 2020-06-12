@@ -30,14 +30,16 @@ type dkgInfo struct {
 // from/to protobuf structures and send/receive packets from network.
 type dkgBoard struct {
 	l         log.Logger
-	dealCh    chan dkg.AuthDealBundle
-	respCh    chan dkg.AuthResponseBundle
-	justCh    chan dkg.AuthJustifBundle
+	dealCh    chan dkg.DealBundle
+	respCh    chan dkg.ResponseBundle
+	justCh    chan dkg.JustificationBundle
 	client    net.ProtocolClient
 	nodes     []*key.Node
 	isReshare bool
 	public    *key.Identity
 }
+
+var _ dkg.Board = (*dkgBoard)(nil)
 
 // newBoard is to be used when starting a new DKG protocol from scratch
 func newBoard(l log.Logger, client net.ProtocolClient, public *key.Identity, group *key.Group) *dkgBoard {
@@ -47,9 +49,9 @@ func newBoard(l log.Logger, client net.ProtocolClient, public *key.Identity, gro
 func initBoard(l log.Logger, client net.ProtocolClient, public *key.Identity, nodes []*key.Node) *dkgBoard {
 	return &dkgBoard{
 		l:      l,
-		dealCh: make(chan dkg.AuthDealBundle, len(nodes)),
-		respCh: make(chan dkg.AuthResponseBundle, len(nodes)),
-		justCh: make(chan dkg.AuthJustifBundle, len(nodes)),
+		dealCh: make(chan dkg.DealBundle, len(nodes)),
+		respCh: make(chan dkg.ResponseBundle, len(nodes)),
+		justCh: make(chan dkg.JustificationBundle, len(nodes)),
 		client: client,
 		nodes:  nodes,
 		public: public,
@@ -92,22 +94,22 @@ func (b *dkgBoard) ReshareDKG(c context.Context, p *proto.ResharePacket) (*proto
 	return new(proto.Empty), b.dispatch(c, p.Dkg)
 }
 
-func (b *dkgBoard) PushDeals(bundle dkg.AuthDealBundle) {
-	pdeal := dealToProto(&bundle)
-	b.l.Info("push", "deal", "index", bundle.Bundle.DealerIndex, "hash", fmt.Sprintf("%x", bundle.Bundle.Hash()))
-	b.dealCh <- bundle
+func (b *dkgBoard) PushDeals(bundle *dkg.DealBundle) {
+	pdeal := dealToProto(bundle)
+	b.l.Info("push", "deal", "index", bundle.DealerIndex, "hash", fmt.Sprintf("%x", bundle.Hash()))
+	b.dealCh <- *bundle
 	go b.broadcastPacket(pdeal, "deal")
 }
 
-func (b *dkgBoard) PushResponses(bundle dkg.AuthResponseBundle) {
-	presp := respToProto(&bundle)
-	b.respCh <- bundle
+func (b *dkgBoard) PushResponses(bundle *dkg.ResponseBundle) {
+	presp := respToProto(bundle)
+	b.respCh <- *bundle
 	go b.broadcastPacket(presp, "response")
 }
 
-func (b *dkgBoard) PushJustifications(bundle dkg.AuthJustifBundle) {
-	pjust := justifToProto(&bundle)
-	b.justCh <- bundle
+func (b *dkgBoard) PushJustifications(bundle *dkg.JustificationBundle) {
+	pjust := justifToProto(bundle)
+	b.justCh <- *bundle
 	go b.broadcastPacket(pjust, "justification")
 }
 
@@ -120,11 +122,11 @@ func (b *dkgBoard) dispatch(c context.Context, p *pdkg.Packet) error {
 	var err error
 	switch packet := p.GetBundle().(type) {
 	case *pdkg.Packet_Deal:
-		err = b.dispatchDeal(addr, packet.Deal, p.GetSignature())
+		err = b.dispatchDeal(addr, packet.Deal)
 	case *pdkg.Packet_Response:
-		b.dispatchResponse(addr, packet.Response, p.GetSignature())
+		b.dispatchResponse(addr, packet.Response)
 	case *pdkg.Packet_Justification:
-		err = b.dispatchJustification(addr, packet.Justification, p.GetSignature())
+		err = b.dispatchJustification(addr, packet.Justification)
 	default:
 		b.l.Debug("board", "invalid_packet", "from", addr, "packet", fmt.Sprintf("%+v", p))
 		err = errors.New("invalid_packet")
@@ -132,54 +134,43 @@ func (b *dkgBoard) dispatch(c context.Context, p *pdkg.Packet) error {
 	return err
 }
 
-func (b *dkgBoard) dispatchDeal(p string, d *pdkg.DealBundle, sig []byte) error {
+func (b *dkgBoard) dispatchDeal(p string, d *pdkg.DealBundle) error {
 	bundle, err := protoToDeal(d)
 	if err != nil {
 		b.l.Debug("board", "invalid_deal", "from", p, "err", err)
 		return fmt.Errorf("invalid deal: %s", err)
 	}
-	authBundle := dkg.AuthDealBundle{
-		Bundle:    bundle,
-		Signature: sig,
-	}
 	b.l.Debug("board", "received_deal", "from", p, "dealer_index", bundle.DealerIndex)
-	b.dealCh <- authBundle
+	b.dealCh <- *bundle
 	return nil
 }
 
-func (b *dkgBoard) dispatchResponse(p string, r *pdkg.ResponseBundle, sig []byte) {
-	authBundle := dkg.AuthResponseBundle{
-		Bundle:    protoToResp(r),
-		Signature: sig,
-	}
-	b.l.Debug("board", "received_responses", "from", p, "share_index", authBundle.Bundle.ShareIndex)
-	b.respCh <- authBundle
+func (b *dkgBoard) dispatchResponse(p string, r *pdkg.ResponseBundle) {
+	bundle := protoToResp(r)
+	b.l.Debug("board", "received_responses", "from", p, "share_index", bundle.ShareIndex)
+	b.respCh <- *bundle
 }
 
-func (b *dkgBoard) dispatchJustification(p string, j *pdkg.JustifBundle, sig []byte) error {
+func (b *dkgBoard) dispatchJustification(p string, j *pdkg.JustificationBundle) error {
 	bundle, err := protoToJustif(j)
 	if err != nil {
 		b.l.Debug("board", "invalid_justif", "from", p, "err", err)
 		return fmt.Errorf("invalid justif: %s", err)
 	}
-	authBundle := dkg.AuthJustifBundle{
-		Bundle:    bundle,
-		Signature: sig,
-	}
-	b.l.Debug("board", "received_justifications", "from", p, "dealer_index", authBundle.Bundle.DealerIndex)
-	b.justCh <- authBundle
+	b.l.Debug("board", "received_justifications", "from", p, "dealer_index", bundle.DealerIndex)
+	b.justCh <- *bundle
 	return nil
 }
 
-func (b *dkgBoard) IncomingDeal() <-chan dkg.AuthDealBundle {
+func (b *dkgBoard) IncomingDeal() <-chan dkg.DealBundle {
 	return b.dealCh
 }
 
-func (b *dkgBoard) IncomingResponse() <-chan dkg.AuthResponseBundle {
+func (b *dkgBoard) IncomingResponse() <-chan dkg.ResponseBundle {
 	return b.respCh
 }
 
-func (b *dkgBoard) IncomingJustification() <-chan dkg.AuthJustifBundle {
+func (b *dkgBoard) IncomingJustification() <-chan dkg.JustificationBundle {
 	return b.justCh
 }
 
