@@ -329,26 +329,28 @@ func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchRes
 	defer close(out)
 
 	latest := uint64(0)
-	select {
-	case r, ok := <-in:
-		if !ok {
+	for {
+		select {
+		case r, ok := <-in:
+			if !ok {
+				return
+			}
+
+			round := r.Result.Round()
+			timeOfRound := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
+			stat := requestStat{
+				client:    r.Client,
+				rtt:       time.Since(timeOfRound),
+				startTime: timeOfRound,
+			}
+			oc.updateStats([]*requestStat{&stat})
+			if round > latest {
+				latest = round
+				out <- r.Result
+			}
+		case <-done:
 			return
 		}
-
-		round := r.Result.Round()
-		timeOfRound := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
-		stat := requestStat{
-			client:    r.Client,
-			rtt:       time.Since(timeOfRound),
-			startTime: timeOfRound,
-		}
-		oc.updateStats([]*requestStat{&stat})
-		if round > latest {
-			latest = round
-			out <- r.Result
-		}
-	case <-done:
-		return
 	}
 }
 
