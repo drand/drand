@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/test/mock"
+	"github.com/drand/drand/client/test/http/mock"
 )
 
 func TestHTTPClient(t *testing.T) {
@@ -74,7 +74,7 @@ func TestForURLsCreation(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	clients := ForURLs([]string{"http://invalid.domain/", "http://"+addr}, chainInfo.Hash())
+	clients := ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
 		t.Fatal("expect both urls returned.")
 	}

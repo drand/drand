@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/test"
 )
 
@@ -14,7 +15,7 @@ func TestFailover(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}}, // Success
 		{Rnd: 2, Rand: []byte{2}}, // Failover
 		{Rnd: 3, Rand: []byte{3}}, // Failover
@@ -38,7 +39,7 @@ func TestFailoverDedupe(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}}, // Success
 		{Rnd: 2, Rand: []byte{2}}, // Failover
 		{Rnd: 2, Rand: []byte{2}}, // Success but duplicate
@@ -65,7 +66,7 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{{Rnd: 1, Rand: []byte{1}}}
+	results := []mock.Result{{Rnd: 1, Rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0)
@@ -78,7 +79,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{{Rnd: 1, Rand: []byte{1}}}
+	results := []mock.Result{{Rnd: 1, Rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	period := defaultFailoverGracePeriod / 2
@@ -115,7 +116,7 @@ func TestFailoverGetFail(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
 	}
