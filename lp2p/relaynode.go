@@ -3,6 +3,7 @@ package lp2p
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
@@ -173,5 +174,6 @@ func (g *GossipRelayNode) background(c client.Client) {
 				return
 			}
 		}
+		time.Sleep(time.Second)
 	}
 }
