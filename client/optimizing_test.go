@@ -118,7 +118,7 @@ func TestOptimizingWatch(t *testing.T) {
 	expectRound(t, nextResult(t, ch), 2) // round 2 from c1 and round 2 from c0 (discarded)
 	select {
 	case <-ch:
-		t.Fatal("should not get anohter watched result at this point")
+		t.Fatal("should not get another watched result at this point")
 	case <-time.After(50 * time.Millisecond):
 	}
 	wc1 <- &MockResult{Rnd: 6}
