@@ -106,8 +106,6 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			return nil, err
 		}
 		clients = append(clients, gc)
-		// TODO: debug wrapping of grpc client
-		return clients[0], nil
 	}
 
 	var hash []byte

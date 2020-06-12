@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/log"
 )
 
@@ -97,8 +98,10 @@ func TestOptimizingWatch(t *testing.T) {
 	c1 := MockClientWithResults(5, 8)
 	c2 := MockClientWithInfo(fakeChainInfo())
 
-	c0.Delay = time.Millisecond * 100
-	c1.Delay = time.Millisecond
+	wc1 := make(chan Result, 5)
+	c1.WatchCh = wc1
+
+	c0.Delay = time.Millisecond
 
 	oc, err := newOptimizingClient([]Client{c0, c1, c2}, time.Second*5, 2, time.Minute*5)
 	if err != nil {
@@ -111,12 +114,25 @@ func TestOptimizingWatch(t *testing.T) {
 
 	ch := oc.Watch(ctx)
 
-	// speed test will consume round 0 and 5 from c0 and c1
-	// then c1 will be used because it's faster
-	expectRound(t, nextResult(t, ch), 6) // round 6 from c1 and round 1 from c0 (discarded)
-	expectRound(t, nextResult(t, ch), 7) // round 7 from c1 and round 2 from c0 (discarded)
-	expectRound(t, nextResult(t, ch), 3) // c1 error (no results left), round 3 from c0
-	expectRound(t, nextResult(t, ch), 4) // round 4 from c0
+	expectRound(t, nextResult(t, ch), 1) // round 1 from c0 (after 100ms)
+	wc1 <- &mock.Result{Rnd: 2}
+	expectRound(t, nextResult(t, ch), 2) // round 2 from c1 and round 2 from c0 (discarded)
+	select {
+	case <-ch:
+		t.Fatal("should not get another watched result at this point")
+	case <-time.After(50 * time.Millisecond):
+	}
+	wc1 <- &mock.Result{Rnd: 6}
+	expectRound(t, nextResult(t, ch), 6) // round 6 from c1
+	close(wc1)
+	select {
+	case _, ok := <-ch:
+		if ok {
+			t.Fatal("watch should fail after all substreams")
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("channel should close")
+	}
 }
 
 func TestOptimizingRequiresClients(t *testing.T) {

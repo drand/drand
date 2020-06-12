@@ -312,17 +312,74 @@ func (oc *optimizingClient) updateStats(stats []*requestStat) {
 	})
 }
 
+type watchResult struct {
+	Result
+	Client
+}
+
+func (oc *optimizingClient) watchIngest(ctx context.Context, c Client, out chan watchResult, done *sync.WaitGroup) {
+	resultStream := c.Watch(ctx)
+	for r := range resultStream {
+		out <- watchResult{r, c}
+	}
+	done.Done()
+}
+
+func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchResult, out chan Result, done chan bool) {
+	defer close(out)
+
+	latest := uint64(0)
+	for {
+		select {
+		case r, ok := <-in:
+			if !ok {
+				return
+			}
+
+			round := r.Result.Round()
+			timeOfRound := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
+			stat := requestStat{
+				client:    r.Client,
+				rtt:       time.Since(timeOfRound),
+				startTime: timeOfRound,
+			}
+			oc.updateStats([]*requestStat{&stat})
+			if round > latest {
+				latest = round
+				out <- r.Result
+			}
+		case <-done:
+			return
+		}
+	}
+}
+
 // Watch returns new randomness as it becomes available.
 func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
-	// TODO: move this logic into PollingWatcher?
-	chainInfo, err := oc.Info(ctx)
+	outChan := make(chan Result)
+	inChan := make(chan watchResult)
+	wg := sync.WaitGroup{}
+
+	info, err := oc.Info(ctx)
 	if err != nil {
-		oc.log.Error("optimizing_client", "failed to get chain info", "err", err)
-		ch := make(chan Result)
-		close(ch)
-		return ch
+		oc.log.Error("optimizing_client", "failed to learn info", "err", err)
+		close(outChan)
+		return outChan
 	}
-	return PollingWatcher(ctx, oc, chainInfo, oc.log)
+
+	for _, c := range oc.clients {
+		wg.Add(1)
+		go oc.watchIngest(ctx, c, inChan, &wg)
+	}
+
+	doneChan := make(chan bool)
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
+
+	go oc.trackWatchResults(info, inChan, outChan, doneChan)
+	return outChan
 }
 
 // Info returns the parameters of the chain this client is connected to.
