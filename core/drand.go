@@ -81,7 +81,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		logger.Error("INVALID SELF SIGNATURE", err, "action", "run `drand util selfsign`")
+		logger.Error("INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
 	}
 
 	// trick to always set the listening address by default based on the
