@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client/test/result/mock"
 	"github.com/drand/drand/test"
 )
 
@@ -14,7 +15,7 @@ func TestFailover(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}}, // Success
 		{Rnd: 2, Rand: []byte{2}}, // Failover
 		{Rnd: 3, Rand: []byte{3}}, // Failover
@@ -23,7 +24,9 @@ func TestFailover(t *testing.T) {
 
 	failC := make(chan Result, 1)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:3]}
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
+	i := fakeChainInfo()
+	i.Period = 500 * time.Millisecond
+	failoverClient, _ := NewFailoverWatcher(mockClient, i, time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -38,7 +41,7 @@ func TestFailoverDedupe(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}}, // Success
 		{Rnd: 2, Rand: []byte{2}}, // Failover
 		{Rnd: 2, Rand: []byte{2}}, // Success but duplicate
@@ -47,7 +50,9 @@ func TestFailoverDedupe(t *testing.T) {
 
 	failC := make(chan Result, 2)
 	mockClient := &MockClient{WatchCh: failC, Results: results[1:2]}
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), time.Millisecond*50)
+	i := fakeChainInfo()
+	i.Period = 500 * time.Millisecond
+	failoverClient, _ := NewFailoverWatcher(mockClient, i, time.Millisecond*50)
 	watchC := failoverClient.Watch(ctx)
 
 	failC <- &results[0]
@@ -65,10 +70,12 @@ func TestFailoverDefaultGrace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{{Rnd: 1, Rand: []byte{1}}}
+	results := []mock.Result{{Rnd: 1, Rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
-	failoverClient, _ := NewFailoverWatcher(mockClient, fakeChainInfo(), 0)
+	i := fakeChainInfo()
+	i.Period = 500 * time.Millisecond
+	failoverClient, _ := NewFailoverWatcher(mockClient, i, 0)
 	watchC := failoverClient.Watch(ctx)
 
 	compareResults(t, nextResult(t, watchC), &results[0])
@@ -78,7 +85,7 @@ func TestFailoverMaxGrace(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{{Rnd: 1, Rand: []byte{1}}}
+	results := []mock.Result{{Rnd: 1, Rand: []byte{1}}}
 	failC := make(chan Result)
 	mockClient := &MockClient{WatchCh: failC, Results: results}
 	period := defaultFailoverGracePeriod / 2
@@ -92,7 +99,9 @@ func TestFailoverMaxGrace(t *testing.T) {
 
 	now := time.Now()
 	// Should failover in ~period and _definitely_ within gracePeriod!
-	compareResults(t, nextResult(t, watchC), &results[0])
+
+	r := <-watchC
+	compareResults(t, r, &results[0])
 
 	if time.Since(now) >= defaultFailoverGracePeriod {
 		t.Fatal("grace period was not bounded to half group period")
@@ -115,7 +124,7 @@ func TestFailoverGetFail(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
 	}

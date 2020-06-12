@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/test/mock"
+	"github.com/drand/drand/client/test/http/mock"
 )
 
 func TestHTTPClient(t *testing.T) {

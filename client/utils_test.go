@@ -31,11 +31,16 @@ func latestResult(t *testing.T, c Client) Result {
 func nextResult(t *testing.T, ch <-chan Result) Result {
 	t.Helper()
 
-	r, ok := <-ch
-	if !ok {
-		t.Fatal("closed before result")
+	select {
+	case r, ok := <-ch:
+		if !ok {
+			t.Fatal("closed before result")
+		}
+		return r
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for result.")
+		return nil
 	}
-	return r
 }
 
 // compareResults asserts that two results are the same.

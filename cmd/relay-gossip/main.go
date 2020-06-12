@@ -2,23 +2,16 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
-	"github.com/drand/drand/client/http"
+	"github.com/drand/drand/cmd/client/lib"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
-	psc "github.com/drand/drand/lp2p/client"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/ipfs/go-datastore"
-	crypto "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 	cli "github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
@@ -40,14 +33,6 @@ func main() {
 		Version:  version,
 		Usage:    "pubsub relay for drand randomness beacon",
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
-		Flags: []cli.Flag{
-			// Global use deprecated. Use in appropriate subcommand.
-			// TODO: remove in a future release.
-			&cli.StringFlag{
-				Name:   "chain-hash",
-				Hidden: true,
-			},
-		},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
@@ -60,16 +45,6 @@ func main() {
 	}
 }
 
-var chainHashFlag = &cli.StringFlag{
-	Name:  "chain-hash",
-	Usage: "hash of the drand group chain (hex encoded)",
-}
-
-var peerWithFlag = &cli.StringSliceFlag{
-	Name:  "peer-with",
-	Usage: "peer multiaddr(s) to direct connect with",
-}
-
 var idFlag = &cli.StringFlag{
 	Name:  "identity",
 	Usage: "path to a file containing a libp2p identity (base64 encoded)",
@@ -80,11 +55,7 @@ var runCmd = &cli.Command{
 	Name:  "run",
 	Usage: "starts a drand gossip relay process",
 	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "grpc-connect",
-			Usage:   "host:port to dial to a drand gRPC API",
-			Aliases: []string{"connect"},
-		},
+		lib.GRPCConnectFlag,
 		&cli.StringSliceFlag{
 			Name:  "http-connect",
 			Usage: "URL(s) of drand HTTP API(s) to relay",
@@ -94,14 +65,8 @@ var runCmd = &cli.Command{
 			Usage: "datastore directory",
 			Value: "./datastore",
 		},
-		&cli.StringFlag{
-			Name:  "cert",
-			Usage: "path to a file containing gRPC transport credentials of peer",
-		},
-		&cli.BoolFlag{
-			Name:  "insecure",
-			Usage: "allow insecure gRPC connection",
-		},
+		lib.CertFlag,
+		lib.InsecureFlag,
 		&cli.StringFlag{
 			Name:  "listen",
 			Usage: "listening address for libp2p",
@@ -111,8 +76,8 @@ var runCmd = &cli.Command{
 			Name:  "metrics",
 			Usage: "local host:port to bind a metrics servlet (optional)",
 		},
-		chainHashFlag,
-		peerWithFlag,
+		lib.HashFlag,
+		lib.RelayFlag,
 		idFlag,
 	},
 
@@ -123,19 +88,17 @@ var runCmd = &cli.Command{
 			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
 
-		// The global `chain-hash` param is deprecated.
-		// TODO: use `cctx.String("chain-hash")` when support is removed.
-		chainHash := localOrGlobalString(cctx, "chain-hash")
+		chainHash := cctx.String(lib.HashFlag.Name)
 		if chainHash == "" {
 			return xerrors.Errorf("missing required chain-hash parameter")
 		}
-		grpclient, err := grpc.New(cctx.String("grpc-connect"), cctx.String("cert"), cctx.Bool("insecure"))
+		grpclient, err := grpc.New(cctx.String(lib.GRPCConnectFlag.Name), cctx.String(lib.CertFlag.Name), cctx.Bool(lib.InsecureFlag.Name))
 		if err != nil {
 			return err
 		}
 		cfg := &lp2p.GossipRelayConfig{
 			ChainHash:    chainHash,
-			PeerWith:     cctx.StringSlice(peerWithFlag.Name),
+			PeerWith:     cctx.StringSlice(lib.RelayFlag.Name),
 			Addr:         cctx.String("listen"),
 			DataDir:      cctx.String("store"),
 			IdentityPath: cctx.String(idFlag.Name),
@@ -150,70 +113,12 @@ var runCmd = &cli.Command{
 }
 
 var clientCmd = &cli.Command{
-	Name: "client",
-	Flags: []cli.Flag{
-		chainHashFlag,
-		peerWithFlag,
-		&cli.StringSliceFlag{
-			Name:  "http-failover",
-			Usage: "URL(s) of drand HTTP API(s) to failover to if gossipsub messages do not arrive in time",
-		},
-		&cli.DurationFlag{
-			Name:  "http-failover-grace",
-			Usage: "grace period before the failover HTTP API is used when watching for randomness (default 5s)",
-		},
-	},
+	Name:  "client",
+	Flags: lib.ClientFlags,
 	Action: func(cctx *cli.Context) error {
-		bootstrap, err := lp2p.ParseMultiaddrSlice(cctx.StringSlice(peerWithFlag.Name))
+		c, err := lib.Create(cctx, false)
 		if err != nil {
-			return xerrors.Errorf("parsing peer-with: %w", err)
-		}
-
-		priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
-		if err != nil {
-			return xerrors.Errorf("generating ed25519 key: %w", err)
-		}
-
-		_, ps, err := lp2p.ConstructHost(datastore.NewMapDatastore(), priv, "/ip4/0.0.0.0/tcp/0", bootstrap, log)
-		if err != nil {
-			return xerrors.Errorf("constructing host: %w", err)
-		}
-
-		// The global `chain-hash` param is deprecated.
-		// TODO: use `cctx.String("chain-hash")` when support is removed.
-		chainHashStr := localOrGlobalString(cctx, "chain-hash")
-		if chainHashStr == "" {
-			return xerrors.Errorf("missing required chain-hash parameter")
-		}
-
-		chainHash, err := hex.DecodeString(chainHashStr)
-		if err != nil {
-			return xerrors.Errorf("decoding chain hash: %w", err)
-		}
-
-		httpFailover := cctx.StringSlice("http-failover")
-
-		var c client.Watcher
-		// if we have http failover endpoints then use the drand HTTP client with pubsub option
-		if len(httpFailover) > 0 {
-			grace := cctx.Duration("http-failover-grace")
-			if grace == 0 {
-				grace = time.Second * 5
-			}
-			c, err = client.New(
-				psc.WithPubsub(ps),
-				client.WithChainHash(chainHash),
-				client.From(http.ForURLs(httpFailover, chainHash)...),
-				client.WithFailoverGracePeriod(grace),
-			)
-			if err != nil {
-				return xerrors.Errorf("constructing client: %w", err)
-			}
-		} else {
-			c, err = psc.NewWithPubsub(ps, nil, nil)
-			if err != nil {
-				return xerrors.Errorf("constructing client: %w", err)
-			}
+			return xerrors.Errorf("constructing client: %w", err)
 		}
 
 		for rand := range c.Watch(context.Background()) {
@@ -240,14 +145,4 @@ var idCmd = &cli.Command{
 		fmt.Printf("%s\n", peerID)
 		return nil
 	},
-}
-
-func localOrGlobalString(cctx *cli.Context, name string) string {
-	for _, c := range cctx.Lineage() {
-		str := c.String(name)
-		if str != "" {
-			return str
-		}
-	}
-	return ""
 }

@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/client/test/result/mock"
 )
 
 func TestWatcherWatch(t *testing.T) {
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
 	}
@@ -28,12 +30,12 @@ func TestWatcherWatch(t *testing.T) {
 }
 
 func TestWatcherGet(t *testing.T) {
-	results := []MockResult{
+	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
 	}
 
-	cr := make([]MockResult, len(results))
+	cr := make([]mock.Result, len(results))
 	copy(cr, results)
 
 	c := &MockClient{Results: cr}

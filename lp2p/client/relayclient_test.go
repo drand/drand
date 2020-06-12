@@ -15,7 +15,7 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
-	cmock "github.com/drand/drand/client/test/mock"
+	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
@@ -113,7 +113,7 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, stop, emit := cmock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false)
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
