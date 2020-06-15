@@ -10,16 +10,16 @@ import (
 	"os/exec"
 )
 
-// GetRandom reads len bytes of randomness from whatever Reader is passed in, and returns
+// GetRandom reads n bytes of randomness from whatever Reader is passed in, and returns
 // those bytes as the requested randomness.
-func GetRandom(source io.Reader, len uint32) ([]byte, error) {
+func GetRandom(source io.Reader, n uint32) ([]byte, error) {
 	if source == nil {
 		source = rand.Reader
 	}
 
-	randomBytes := make([]byte, len)
+	randomBytes := make([]byte, n)
 	bytesRead, err := source.Read(randomBytes)
-	if err != nil || uint32(bytesRead) != len {
+	if err != nil || uint32(bytesRead) != n {
 		// If customEntropy provides an error,
 		// fallback to Golang crypto/rand generator.
 		_, err := rand.Read(randomBytes)
@@ -39,12 +39,12 @@ var _ io.Reader = &ScriptReader{}
 // n == len(p) if and only if err == nil
 func (r *ScriptReader) Read(p []byte) (n int, err error) {
 	if r.Path == "" {
-		return 0, errors.New("No reader was provided")
+		return 0, errors.New("no reader was provided")
 	}
 	var b bytes.Buffer
 	read := 0
 	for read < len(p) {
-		cmd := exec.Command(r.Path)
+		cmd := exec.Command(r.Path) // #nosec
 		cmd.Stdout = bufio.NewWriter(&b)
 		err = cmd.Run()
 		if err != nil {
