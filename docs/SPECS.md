@@ -12,6 +12,7 @@ This document is a specification of the drand protocols.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
 
 - [Notations](#notations)
   - [Drand node](#drand-node)
@@ -21,6 +22,7 @@ This document is a specification of the drand protocols.
 - [Wireformat & API](#wireformat--api)
 - [Drand Modules](#drand-modules)
   - [Setup phase](#setup-phase)
+    - [Getting the public key of the coordinator](#getting-the-public-key-of-the-coordinator)
     - [Collecting the keys of the participants](#collecting-the-keys-of-the-participants)
     - [Coordinator pushing the new group configuration](#coordinator-pushing-the-new-group-configuration)
   - [Distributed Key Generation](#distributed-key-generation)
@@ -32,7 +34,6 @@ This document is a specification of the drand protocols.
     - [Justification Phase](#justification-phase)
     - [Finish Phase](#finish-phase)
   - [Randomness generation](#randomness-generation)
-    - [Overiew](#overiew)
     - [Randomness Generation Period](#randomness-generation-period)
     - [Beacon Chain](#beacon-chain)
     - [Root of trust](#root-of-trust)
@@ -61,7 +62,7 @@ This document is a specification of the drand protocols.
 - [External API](#external-api)
 - [Control API](#control-api)
 - [Appendix A. DKG packets](#appendix-a-dkg-packets)
-- [THINGS TO REVIEW](#things-to-review)
+- [Things to review](#things-to-review)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
