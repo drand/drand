@@ -192,7 +192,7 @@ func main() {
 
 #### Insecurely
 
-If you trust the HTTP endpoint completely, you don't need chain info or a chain hash:
+If you trust the HTTP(S) endpoint, you don't need chain info or a chain hash. Note: using HTTP**S** provides trust at the transport level but it does not allow verification that the randomness is being requested from the expected chain:
 
 ```go
 package main
