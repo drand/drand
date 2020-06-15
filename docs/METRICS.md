@@ -1,3 +1,13 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Drand Metrics](#drand-metrics)
+  - [Local Metrics](#local-metrics)
+  - [Shared Group Metrics](#shared-group-metrics)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 # Drand Metrics
 
 Drand uses [prometheus](https://prometheus.io/) instrumentation for helping

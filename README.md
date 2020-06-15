@@ -26,7 +26,7 @@ is now under the drand organization.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-
+**Table of Contents**
 
 - [Goal and Overview](#goal-and-overview)
   - [Public Randomness](#public-randomness)
@@ -45,8 +45,6 @@ is now under the drand organization.
   - [DrandJS](#drandjs)
 - [Documentation](#documentation)
 - [What's Next?](#whats-next)
-- [Supporting](#supporting)
-- [Contributors](#contributors)
 - [Acknowledgments](#acknowledgments)
 - [Coverage](#coverage)
 - [License](#license)
