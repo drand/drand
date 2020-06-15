@@ -115,7 +115,7 @@ const (
    // relayP2PAddr is the p2p multiaddr of the drand gossipsub relay node to connect to.
    relayP2PAddr = "/ip4/192.168.1.124/tcp/44544/p2p/QmPeerID"
    // groupTOMLPath is the path to the group configuration information (in TOML format).
-   groupTOMLPath = "/Users/alan/.drand0/groups/drand_group.toml"
+   groupTOMLPath = "/home/user/.drand/groups/drand_group.toml"
 )
 
 func main() {
