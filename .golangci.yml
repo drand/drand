@@ -19,8 +19,6 @@ run:
     - deploy
     - docker
     - docs
-    - entropy
-    - fs
     - hooks
     - key
     - log
