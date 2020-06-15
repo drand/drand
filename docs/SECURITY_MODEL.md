@@ -4,10 +4,12 @@
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
 
 - [Notations](#notations)
 - [Security Model](#security-model)
   - [Distributed Key Generation Ceremony (setup phase)](#distributed-key-generation-ceremony-setup-phase)
+    - [Creation of the group](#creation-of-the-group)
   - [Randomness generation model](#randomness-generation-model)
 - [Attack Vectors](#attack-vectors)
   - [Randomness Generation](#randomness-generation)
@@ -18,7 +20,7 @@
     - [DoS attacks](#dos-attacks)
     - [Corruption attacks](#corruption-attacks)
     - [Broadcast Channel Assumption](#broadcast-channel-assumption)
-- [TO REVIEW:](#to-review)
+- [To review](#to-review)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
