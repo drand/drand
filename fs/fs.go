@@ -9,6 +9,8 @@ import (
 	"path"
 )
 
+const defaultDirectoryPermission = 0740
+
 // HomeFolder returns the home folder of the current user
 func HomeFolder() string {
 	u, err := user.Current()
@@ -22,19 +24,19 @@ func HomeFolder() string {
 // the empty string is returned.If the folder doesn't exist it creates it.
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
-		if err := os.MkdirAll(folder, 0740); err != nil {
+		if err := os.MkdirAll(folder, defaultDirectoryPermission); err != nil {
 			fmt.Println("folder", folder, ",err", err)
 			panic(err)
 		}
 	} else {
-		//the folder exists already
+		// the folder exists already
 		info, err := os.Lstat(folder)
 		if err != nil {
 			fmt.Println("Error checking stat folder: ", err)
 			return ""
 		}
 		perm := int(info.Mode().Perm())
-		if perm != int(0740) {
+		if perm != int(defaultDirectoryPermission) {
 			fmt.Printf("Folder different permission: %#o vs %#o \n", perm, 0740)
 			return folder
 		}
@@ -43,8 +45,8 @@ func CreateSecureFolder(folder string) string {
 }
 
 // Exists returns whether the given file or directory exists.
-func Exists(path string) (bool, error) {
-	_, err := os.Stat(path)
+func Exists(filePath string) (bool, error) {
+	_, err := os.Stat(filePath)
 	if err == nil {
 		return true, nil
 	}
@@ -86,8 +88,8 @@ func Files(folderPath string) ([]string, error) {
 
 // FileExists returns true if the given name is a file in the given path. name
 // must be the "basename" of the file and path must be the folder where it lies.
-func FileExists(path string, name string) bool {
-	list, err := Files(path)
+func FileExists(filePath, name string) bool {
+	list, err := Files(filePath)
 	if err != nil {
 		return false
 	}
