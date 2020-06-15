@@ -27,7 +27,6 @@ func (b *Beacon) Equal(b2 *Beacon) bool {
 	return bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
 		b.Round == b2.Round &&
 		bytes.Equal(b.Signature, b2.Signature)
-
 }
 
 // Marshal provides a JSON encoding of a beacon
@@ -87,8 +86,8 @@ func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
 // H ( prevSig || currRound)
 func Message(currRound uint64, prevSig []byte) []byte {
 	h := sha256.New()
-	h.Write(prevSig)
-	h.Write(RoundToBytes(currRound))
+	_, _ = h.Write(prevSig)
+	_, _ = h.Write(RoundToBytes(currRound))
 	return h.Sum(nil)
 }
 
