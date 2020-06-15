@@ -3,37 +3,37 @@
 A program that relays drand randomness rounds over libp2p pubsub (gossipsub) from a gRPC, HTTP or gossipsub source. It is the "drand gossipsub relay" in this helpful diagram:
 
 ```
-           +-------------------------------+
-           |                               |
-           |         drand server          |
-           |                               |
-           +-------------------------------+
-           |  gRPC API   |--|   HTTP API   |
-           +------^-+------------^-+-------+
-                  | |            | |
-                  | |            | |
-                  | |            | |
-               +--+-v------------+-v---+
-               | drand gossipsub relay |
-               +----------+------------+
-                          |
-                          |
+              +-------------------------------+
+              |                               |
+              |         drand server          |
+              |                               |
+              +-------------------------------+
+              |  gRPC API   |--|   HTTP API   |
+              +------^-+------------^-+-------+
+                     | |            | |
+                     | |            | |
+                     | |            | |
+                  +--+-v------------+-v---+
+                  | drand gossipsub relay |
+                  +----------+------------+
+                             |
+                             |
 Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
-                          |
-                          |
-              +-----------v--------------+
-              |                          |
-              | libp2p gossipsub network |
-              |                          |
-              +--+--------------------+--+
-                 |                    |
-                 |                    |
-    Subscribe topic=/drand/pubsub/v0.0.0/<chain-hash>
-                 |                    |
-                 |                    |
-+----------------v--------+   +-------v-----------------+
-| drand client WithPubsub |   | drand client WithPubsub |
-+-------------------------+   +-------------------------+
+                             |
+                             |
+                 +-----------v--------------+
+                 |                          |
+                 | libp2p gossipsub network |
+                 |                          |
+                 +--+--------------------+--+
+                    |                    |
+                    |                    |
+        Subscribe topic=/drand/pubsub/v0.0.0/<chain-hash>
+                    |                    |
+                    |                    |
+   +----------------v--------+   +-------v-----------------+
+   | drand client WithPubsub |   | drand client WithPubsub |
+   +-------------------------+   +-------------------------+
 ```
 
 ## Install
