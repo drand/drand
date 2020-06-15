@@ -1,4 +1,4 @@
-name: Lint
+name: TOC
 
 on:
   pull_request:
