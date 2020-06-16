@@ -27,7 +27,7 @@ var candidate = flag.String("candidate", "drand", "path to candidate build")
 func testStartup(orch *lib.Orchestrator) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%w", r)
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 	orch.StartCurrentNodes()
@@ -41,7 +41,7 @@ func testStartup(orch *lib.Orchestrator) (err error) {
 func testReshare(orch *lib.Orchestrator) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%w", r)
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 
@@ -60,7 +60,7 @@ func testReshare(orch *lib.Orchestrator) (err error) {
 func testUpgrade(orch *lib.Orchestrator) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%w", r)
+			err = fmt.Errorf("%v", r)
 		}
 	}()
 
