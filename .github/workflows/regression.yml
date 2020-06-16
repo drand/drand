@@ -20,6 +20,8 @@ jobs:
     - name: Fetch Dependencies
       if: steps.cache.outputs.cache-hit != 'true'
       run: go get ./...
+    - name: Dir Setup
+      run: mkdir -p ~/go/bin
     - name: Build
       run: go build . && cp drand ~/go/bin/drand-candidate
 
@@ -32,11 +34,12 @@ jobs:
       run: go build . && cp drand ~/go/bin/drand-existing
 
     - uses: actions/checkout@v2
-    - name: Run regression
+    - id: regression
+      name: Run regression
       run: go run ./demo/regression -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
     
     - name: Record Comment
-      if: ${{ failure() }}
+      if: ${{ steps.regression.outcome == "failure" }}
       uses: machine-learning-apps/pr-comment@master
       with:
         path: report.md
