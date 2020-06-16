@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"bytes"
@@ -21,6 +21,16 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
+// 10s after dkg finishes, (new or reshared) beacon starts
+var beaconOffset = 12
+
+// how much should we wait before checking if the randomness is present. This is
+// mostly due to the fact we run on localhost on cheap machine with CI so we
+// need some delays to make sure *all* nodes that we check have gathered the
+// randomness.
+var afterPeriodWait = 5 * time.Second
+
+// Orchestrator controls a set of nodes
 type Orchestrator struct {
 	n            int
 	thr          int
@@ -311,6 +321,19 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
 	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary)
+}
+
+// UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
+// a hwole if idx is negative.
+func (e *Orchestrator) UpdateBinary(binary string, idx int) {
+	if idx < 0 {
+		e.binary = binary
+	} else {
+		n := e.nodes[idx]
+		if spn, ok := n.(*node.NodeProc); ok {
+			spn.UpdateBinary(binary)
+		}
+	}
 }
 
 func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {

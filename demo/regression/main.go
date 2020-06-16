@@ -4,61 +4,48 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/drand/drand/demo/lib"
 )
 
-func installDrand() {
-	fmt.Println("[+] Building & installing drand")
-	curr, err := os.Getwd()
-	checkErr(err)
-	checkErr(os.Chdir("../"))
-	install := exec.Command("go", "install")
-	runCommand(install)
-	checkErr(os.Chdir(curr))
+// Test plans:
+// 1. startup with 4 old, 1 new, thr=4
+//   if fails:
+//   report; startup with all old nodes.
+// 2. reshare to add a new node.
+//   if fails:
+//   report; revert to all old.
+// 3. stop an old node, update it to new, restart it, stop 2 other old nodes
+//   if progress doesn't continue, report.
 
-}
-
-var build = flag.Bool("build", false, "build the drand binary first")
-var binaryF = flag.String("binary", "drand", "path to drand binary")
-var testF = flag.Bool("test", false, "run it as a test that finishes")
-var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
-var noCurl = flag.Bool("nocurl", false, "skip commands using curl")
-var debug = flag.Bool("debug", false, "prints the log when panic occurs")
+var build = flag.String("release", "drand", "path to base build")
+var candidate = flag.String("candidate", "drand", "path to candidate build")
 
 func main() {
 	flag.Parse()
-	if *build {
-		installDrand()
-	}
-	if *testF {
-		defer func() { fmt.Println("[+] Leaving test - all good") }()
-	}
 	nRound := 2
-	n := 6
+	n := 5
 	thr := 4
 	period := "10s"
-	newThr := 5
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
+	orch := lib.NewOrchestrator(n, thr, period, true, *build, false)
+	orch.UpdateBinary(*candidate, 2)
+	orch.UpdateBinary(*candidate, -1)
+
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
 	// already the new nodes here, such that when calling "StartCurrentNodes",
 	// the drand nodes will load all of them already.
-	orch.SetupNewNodes(3)
+	orch.SetupNewNodes(1)
 	defer orch.Shutdown()
 	defer func() {
 		// print logs in case things panic
 		if err := recover(); err != nil {
-			if *debug {
-				fmt.Println(err)
-				orch.PrintLogs()
-			}
+			fmt.Println(err)
+			orch.PrintLogs()
 			os.Exit(1)
 		}
 	}()
@@ -66,10 +53,12 @@ func main() {
 	orch.StartCurrentNodes()
 	orch.RunDKG("4s")
 	orch.WaitGenesis()
-	for i := 0; i < nRound; i++ {
-		orch.WaitPeriod()
-		orch.CheckCurrentBeacon()
+	orch.WaitPeriod()
+
+	if err := orch.CheckCurrentBeacon(); err != nil {
+		// Mixed startup failed.
 	}
+
 	// stop a node and look if the beacon still continues
 	nodeToStop := 3
 	orch.StopNodes(nodeToStop)
@@ -77,21 +66,6 @@ func main() {
 		orch.WaitPeriod()
 		orch.CheckCurrentBeacon(nodeToStop)
 	}
-
-	// stop the whole network, wait a bit and see if it can restart at the right
-	// round
-	/*orch.StopAllNodes(nodeToStop)*/
-	//orch.WaitPeriod()
-	//orch.WaitPeriod()
-	//// start all but the one still down
-	//orch.StartCurrentNodes(nodeToStop)
-	//// leave time to network to sync
-	//periodD, _ := time.ParseDuration(period)
-	//orch.Wait(time.Duration(2) * periodD)
-	//for i := 0; i < nRound; i++ {
-	//orch.WaitPeriod()
-	//orch.CheckCurrentBeacon(nodeToStop)
-	//}
 
 	// stop only more than a threshold of the network, wait a bit and see if it
 	// can restart at the right round correctly
@@ -117,12 +91,8 @@ func main() {
 	orch.CreateResharingGroup(1, newThr)
 	orch.RunResharing("2s")
 	orch.WaitTransition()
-	limit := 10000
-	if *testF {
-		limit = 4
-	}
 	// look if beacon is still up even with the nodeToExclude being offline
-	for i := 0; i < limit; i++ {
+	for i := 0; i < 4; i++ {
 		orch.WaitPeriod()
 		orch.CheckNewBeacon()
 	}
@@ -149,26 +119,4 @@ func setSignal(orch *lib.Orchestrator) {
 		orch.PrintLogs()
 		orch.Shutdown()
 	}()
-}
-
-func runCommand(c *exec.Cmd, add ...string) []byte {
-	out, err := c.CombinedOutput()
-	if err != nil {
-		if len(add) > 0 {
-			fmt.Printf("[-] Msg failed command: %s\n", add[0])
-		}
-		fmt.Printf("[-] Command \"%s\" gave\n%s\n", strings.Join(c.Args, " "), string(out))
-		panic(err)
-	}
-	return out
-}
-
-func checkErr(err error, out ...string) {
-	if err != nil {
-		if len(out) > 0 {
-			panic(fmt.Errorf("%s: %v", out[0], err))
-		} else {
-			panic(err)
-		}
-	}
 }

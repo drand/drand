@@ -69,6 +69,11 @@ func NewNode(i int, period string, base string, tls bool, binary string) Node {
 	return n
 }
 
+// UpdateBinary updates the binary this node uses for control, to e.g. simulate an upgrade
+func (n *NodeProc) UpdateBinary(binary string) {
+	n.binary = binary
+}
+
 func (n *NodeProc) setup() {
 	var err error
 	// find a free port
