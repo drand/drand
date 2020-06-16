@@ -1,0 +1,43 @@
+name: Regression
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Fetch Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: go get ./...
+    - name: Build
+      run: go build . && cp drand ~/go/bin/drand-candidate
+
+    - uses: actions/checkout@v2
+      with:
+        ref: ''
+    - name: Fetch Dependencies
+      run: go get ./...
+    - name: Build
+      run: go build . && cp drand ~/go/bin/drand-existing
+
+    - uses: actions/checkout@v2
+    - name: Run regression
+      run: go run ./demo/regression -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
+    
+    - name: Record Comment
+      if: ${{ failure() }}
+      uses: machine-learning-apps/pr-comment@master
+      with:
+        path: report.md
+
