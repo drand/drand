@@ -1,6 +1,6 @@
 # Drand Pubsub Relay
 
-A program that relays drand randomness rounds over libp2p pubsub (gossipsub) from a gRPC, HTTP or gossipsub source. It is the "drand gossipsub relay" in this helpful diagram:
+A program that relays drand randomness rounds over libp2p pubsub (gossipsub) from a gRPC, HTTP, or gossipsub source (labeled as _drand gossipsub relay_ in this diagram):
 
 ```
               +-------------------------------+
@@ -66,7 +66,7 @@ TODO: will be fixed soon in https://github.com/drand/drand/pull/501
 
 #### Failover
 
-The `-url` and `-failover-grace` flags can be used when relaying over gRPC to provide 1 or more alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection, and the amount of time to leave after a round is due before they are contacted. e.g.
+The `-url` and `-failover-grace` flags can be used when relaying over gRPC. These flags provide one or more alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection. The amount of time to leave after a round is due before they are contacted. e.g.
 
 ```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
@@ -77,7 +77,7 @@ drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
 
 ### Relay HTTP
 
-The gossip relay can also relay directly from a HTTP API. You can also specify multiple endpoints to enable failover.
+The gossip relay can also relay directly from an HTTP API. You can also specify multiple endpoints to enable failover.
 
 ```sh
 drand-relay-gossip run -url=http://127.0.0.1:3002 \
@@ -89,7 +89,7 @@ drand-relay-gossip run -url=http://127.0.0.1:3002 \
 
 ### Configuring the libp2p pubsub node
 
-Starting a relay will spawn a libp2p pubsub node listening on `/ip4/0.0.0.0/tcp/44544` by default. Use the `listen` flag to change. To relay drand randomness effectively your node must be publicly accessible on the network.
+Starting a relay will spawn a libp2p pubsub node listening on `/ip4/0.0.0.0/tcp/44544` by default. Use the `listen` flag to change. To effectively relay drand randomness, your node must be publicly accessible on the network.
 
 If not specified a libp2p identity will be generated and stored in an `identity.key` file in the current working directory. Use the `-identity` flag to override the location.
 
@@ -138,7 +138,7 @@ func main() {
 
 #### With Known Chain Hash
 
-You do not need to know the full group info to use the pubsub client, if you know the chain hash and a HTTP endpoint then you can request the chain info from the HTTP endpoint, verifying it with the known chain hash:
+You do not need to know the full group info to use the pubsub client if you know the chain-hash and an HTTP endpoint then you can request the chain info from the HTTP endpoint, verifying it with the known chain hash:
 
 ```go
 package main
@@ -192,7 +192,7 @@ func main() {
 
 #### Insecurely
 
-If you trust the HTTP(S) endpoint, you don't need chain info or a chain hash. Note: using HTTP**S** provides trust at the transport level but it does not allow verification that the randomness is being requested from the expected chain:
+If you trust the HTTP(S) endpoint, you don't need chain info or a chain-hash. Note: using HTTP**S** provides trust at the transport level, but it does not allow verification that the randomness is being requested from the expected chain:
 
 ```go
 package main
