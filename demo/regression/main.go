@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
+	"text/template"
 
 	"github.com/drand/drand/demo/lib"
 )
@@ -24,22 +24,66 @@ import (
 var build = flag.String("release", "drand", "path to base build")
 var candidate = flag.String("candidate", "drand", "path to candidate build")
 
+func testStartup(orch *lib.Orchestrator) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%w", r)
+		}
+	}()
+	orch.StartCurrentNodes()
+	orch.RunDKG("4s")
+	orch.WaitGenesis()
+	orch.WaitPeriod()
+	orch.CheckCurrentBeacon()
+	return nil
+}
+
+func testReshare(orch *lib.Orchestrator) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%w", r)
+		}
+	}()
+
+	orch.StartNewNodes()
+	// exclude first node
+	orch.CreateResharingGroup(0, 4)
+	orch.RunResharing("2s")
+	orch.WaitTransition()
+	// look if beacon is still up even with the nodeToExclude being offline
+	orch.WaitPeriod()
+	orch.CheckNewBeacon()
+
+	return nil
+}
+
+func testUpgrade(orch *lib.Orchestrator) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%w", r)
+		}
+	}()
+
+	orch.StopNodes(0)
+	orch.WaitPeriod()
+	orch.CheckNewBeacon(0)
+	orch.StartNode(0)
+	orch.WaitPeriod()
+	orch.CheckNewBeacon()
+
+	return nil
+}
+
 func main() {
 	flag.Parse()
-	nRound := 2
 	n := 5
 	thr := 4
 	period := "10s"
 	orch := lib.NewOrchestrator(n, thr, period, true, *build, false)
 	orch.UpdateBinary(*candidate, 2)
 	orch.UpdateBinary(*candidate, -1)
-
-	// NOTE: this line should be before "StartNewNodes". The reason it is here
-	// is that we are using self signed certificates, so when the first drand nodes
-	// start, they need to know about all self signed certificates. So we create
-	// already the new nodes here, such that when calling "StartCurrentNodes",
-	// the drand nodes will load all of them already.
 	orch.SetupNewNodes(1)
+
 	defer orch.Shutdown()
 	defer func() {
 		// print logs in case things panic
@@ -50,61 +94,79 @@ func main() {
 		}
 	}()
 	setSignal(orch)
-	orch.StartCurrentNodes()
-	orch.RunDKG("4s")
-	orch.WaitGenesis()
-	orch.WaitPeriod()
 
-	if err := orch.CheckCurrentBeacon(); err != nil {
-		// Mixed startup failed.
+	startupErr := testStartup(orch)
+	if startupErr != nil {
+		// recover with a fully old-node dkg
+		orch.Shutdown()
+		orch = lib.NewOrchestrator(n, thr, period, true, *build, false)
+		orch.UpdateBinary(*candidate, -1)
+		orch.SetupNewNodes(1)
+		defer orch.Shutdown()
+		orch.StartCurrentNodes()
+		orch.RunDKG("4s")
+		orch.WaitGenesis()
 	}
 
-	// stop a node and look if the beacon still continues
-	nodeToStop := 3
-	orch.StopNodes(nodeToStop)
-	for i := 0; i < nRound; i++ {
-		orch.WaitPeriod()
-		orch.CheckCurrentBeacon(nodeToStop)
+	// start the new candidate node and reshare to include it.
+	reshareErr := testReshare(orch)
+	if reshareErr != nil {
+		// recover back to a fully old-node dkg
+		orch.Shutdown()
+		orch = lib.NewOrchestrator(n, thr, period, true, *build, false)
+		orch.UpdateBinary(*candidate, -1)
+		orch.SetupNewNodes(1)
+		defer orch.Shutdown()
+		orch.StartCurrentNodes()
+		orch.RunDKG("4s")
+		orch.WaitGenesis()
 	}
 
-	// stop only more than a threshold of the network, wait a bit and see if it
-	// can restart at the right round correctly
-	nodesToStop := []int{1, 2}
-	fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
-	orch.StopNodes(nodesToStop...)
-	orch.WaitPeriod()
-	orch.WaitPeriod()
-	fmt.Printf("[+] Trying to start them again and check beacons\n")
-	orch.StartNode(nodesToStop...)
-	orch.StartNode(nodeToStop)
-	orch.WaitPeriod()
-	orch.WaitPeriod()
-	// at this point node should have catched up
-	for i := 0; i < nRound; i++ {
-		orch.WaitPeriod()
-		orch.CheckCurrentBeacon()
-	}
+	// upgrade a node to the candidate.
+	orch.UpdateBinary(*candidate, 0)
+	upgradeErr := testUpgrade(orch)
 
-	/// --- RESHARING PART ---
-	orch.StartNewNodes()
-	// exclude first node
-	orch.CreateResharingGroup(1, newThr)
-	orch.RunResharing("2s")
-	orch.WaitTransition()
-	// look if beacon is still up even with the nodeToExclude being offline
-	for i := 0; i < 4; i++ {
-		orch.WaitPeriod()
-		orch.CheckNewBeacon()
+	if startupErr != nil || reshareErr != nil || upgradeErr != nil {
+		t := template.Must(template.New("report").Parse(reportTemplate))
+		type Errs struct {
+			Startup, Reshare, Upgrade error
+		}
+		errs := Errs{
+			startupErr, reshareErr, upgradeErr,
+		}
+		f, err := os.OpenFile("report.md", os.O_CREATE|os.O_RDWR, 0777)
+		if err != nil {
+			fmt.Printf("Errors detected. Unable to write report!\n %v\n", errs)
+			os.Exit(2)
+		}
+		t.Execute(f, errs)
+		f.Close()
+		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
-func findTransitionTime(period time.Duration, genesis int64, secondsFromNow int64) int64 {
-	transition := genesis
-	for transition < time.Now().Unix()+secondsFromNow {
-		transition += int64(period.Seconds())
-	}
-	return transition
-}
+const reportTemplate = `
+Candidate appears incompatible with master
+{{if .Startup}}
+
+* DKG mixing versions failed
+
+> {{.Startup}}
+{{- end}}
+{{if .Reshare}}
+
+* Resharing to a node running this version failed
+
+> {{.Reshare}}
+{{- end}}
+{{if .Upgrade}}
+
+* Upgrading a group member of an existing group to this version failed
+
+> {{.Upgrade}}
+{{- end}}
+`
 
 func setSignal(orch *lib.Orchestrator) {
 	sigc := make(chan os.Signal, 1)
