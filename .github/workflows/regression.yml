@@ -5,7 +5,7 @@ on:
     branches: [ master ]
 
 jobs:
-  lint:
+  regression:
     runs-on: ubuntu-latest
 
     steps:
@@ -41,6 +41,8 @@ jobs:
     - name: Record Comment
       if: ${{ failure() }}
       uses: machine-learning-apps/pr-comment@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         path: report.md
 
