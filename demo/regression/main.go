@@ -152,19 +152,25 @@ Candidate appears incompatible with master
 
 * DKG mixing versions failed
 
-> {{.Startup}}
+~~~
+{{.Startup}}
+~~~
 {{- end}}
 {{if .Reshare}}
 
 * Resharing to a node running this version failed
 
-> {{.Reshare}}
+~~~
+{{.Reshare}}
+~~~
 {{- end}}
 {{if .Upgrade}}
 
 * Upgrading a group member of an existing group to this version failed
 
-> {{.Upgrade}}
+~~~
+{{.Upgrade}}
+~~~
 {{- end}}
 `
 
