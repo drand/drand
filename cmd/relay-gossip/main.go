@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -88,14 +89,20 @@ var runCmd = &cli.Command{
 			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
 
-		chainHash := cctx.String(lib.HashFlag.Name)
-		if chainHash == "" {
-			return xerrors.Errorf("missing required chain-hash parameter")
-		}
 		grpclient, err := grpc.New(cctx.String(lib.GRPCConnectFlag.Name), cctx.String(lib.CertFlag.Name), cctx.Bool(lib.InsecureFlag.Name))
 		if err != nil {
 			return err
 		}
+
+		chainHash := cctx.String(lib.HashFlag.Name)
+		if chainHash == "" {
+			info, err := grpclient.Info(context.Background())
+			if err != nil {
+				return xerrors.Errorf("getting chain info: %w", err)
+			}
+			chainHash = hex.EncodeToString(info.Hash())
+		}
+
 		cfg := &lp2p.GossipRelayConfig{
 			ChainHash:    chainHash,
 			PeerWith:     cctx.StringSlice(lib.RelayFlag.Name),
