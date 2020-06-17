@@ -51,8 +51,11 @@ The outcomes of these requests are used to generate the following metrics:
 
 * _Heartbeat success and failure_: These are two counters, "success" and "failure", whose Prometheus names are `client_http_heartbeat_success` and `client_http_heartbeat_latency`. The success counter is increments after an HTTP request returns a successful response HTTP, otherwise the the failure counter is incremented. This metric is implemented in [https://github.com/drand/drand/blob/master/client/http/metric.go#L50].
 
+In addition, the client maintains a metric on its watch channel for randomness. This channel pushes latest randomness to the client as soon as it is available. The channel is implemented either by connecting to a gossip relay or by polling HTTP endpoints, if a relay is not specified. The relevant metric is:
+
+* _Watch latency_: This is a Prometheus gauge measuring the duration between when a randomness round was received by the client and the time when it was produced by the drand nodes (as calculated based on round number and genesis time). The metric is implemented in [https://github.com/drand/drand/blob/master/client/metric.go#L37].
+
 All of the above measurements have two significant labels:
 
 * The label `http_address` identifies the HTTP endpoint that is being queried by the client,
 * The label `url` identifies the client itself.
-
