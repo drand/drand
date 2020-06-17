@@ -50,11 +50,14 @@ func NewBoltStore(folder string, opts *bolt.Options) (chain.Store, error) {
 
 func (b *boltStore) Len() int {
 	var length = 0
-	b.db.View(func(tx *bolt.Tx) error {
+	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
 		length = bucket.Stats().KeyN
 		return nil
 	})
+	if err != nil {
+		log.DefaultLogger.Warn("boltdb", "error getting length", "err", err)
+	}
 	return length
 }
 
@@ -136,12 +139,15 @@ func (b *boltStore) Del(round uint64) error {
 }
 
 func (b *boltStore) Cursor(fn func(chain.Cursor)) {
-	b.db.View(func(tx *bolt.Tx) error {
+	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
 		c := bucket.Cursor()
 		fn(&boltCursor{Cursor: c})
 		return nil
 	})
+	if err != nil {
+		log.DefaultLogger.Warn("boltdb", "error getting cursor", "err", err)
+	}
 }
 
 type boltCursor struct {

@@ -75,8 +75,9 @@ func (c *CallbackStore) AddCallback(fn func(*Beacon)) {
 	c.cbs = append(c.cbs, fn)
 }
 
+// RoundToBytes provides a byte serialized form of a round number
 func RoundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, r)
+	_ = binary.Write(&buff, binary.BigEndian, r)
 	return buff.Bytes()
 }

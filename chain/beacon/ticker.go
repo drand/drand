@@ -7,6 +7,8 @@ import (
 	clock "github.com/jonboulle/clockwork"
 )
 
+const tickerChanBacklog = 5
+
 type ticker struct {
 	clock   clock.Clock
 	period  time.Duration
@@ -20,7 +22,7 @@ func newTicker(c clock.Clock, period time.Duration, genesis int64) *ticker {
 		clock:   c,
 		period:  period,
 		genesis: genesis,
-		newCh:   make(chan channelInfo, 5),
+		newCh:   make(chan channelInfo, tickerChanBacklog),
 		stop:    make(chan bool, 1),
 	}
 	go t.Start()
