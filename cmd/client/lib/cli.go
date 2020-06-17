@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"net"
 	nhttp "net/http"
 	"os"
 	"path"
@@ -204,9 +205,12 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 	if clientListenAddr != "" {
 		bindHost := "0.0.0.0"
 		if strings.Contains(clientListenAddr, ":") {
-			parts := strings.Split(clientListenAddr, ":")
-			bindHost = parts[0]
-			clientListenAddr = parts[1]
+			host, port, err := net.SplitHostPort(clientListenAddr)
+			if err != nil {
+				return nil, err
+			}
+			bindHost = host
+			clientListenAddr = port
 		}
 		listen = fmt.Sprintf("/ip4/%s/tcp/%s", bindHost, clientListenAddr)
 	}
