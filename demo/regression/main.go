@@ -64,10 +64,10 @@ func testUpgrade(orch *lib.Orchestrator) (err error) {
 		}
 	}()
 
-	orch.StopNodes(0)
+	orch.StopNodes(1)
 	orch.WaitPeriod()
 	orch.CheckNewBeacon(0)
-	orch.StartNode(0)
+	orch.StartNode(1)
 	orch.WaitPeriod()
 	orch.CheckNewBeacon()
 
@@ -147,7 +147,7 @@ func main() {
 }
 
 const reportTemplate = `
-Candidate appears incompatible with master
+⚠️ This PR appears to introduce incompatibility
 {{if .Startup}}
 
 * DKG mixing versions failed

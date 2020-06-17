@@ -500,7 +500,7 @@ func (e *Orchestrator) StopAllNodes(toExclude ...int) {
 func (e *Orchestrator) StartNode(idxs ...int) {
 	for _, idx := range idxs {
 		var foundNode node.Node
-		for _, node := range e.nodes {
+		for _, node := range append(e.nodes, e.newNodes...) {
 			if node.Index() == idx {
 				foundNode = node
 			}
