@@ -12,7 +12,6 @@ issues:
       text: "unnecessaryDefer:"
 run:
   skip-dirs:
-    - chain
     - cmd
     - core
     - demo

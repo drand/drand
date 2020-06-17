@@ -49,7 +49,13 @@ func (h *Handler) SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainSe
 
 // syncChain will sync from the given rounds, to the targeted round until either
 // the context closes or it exhausted the list of nodes to contact to.
-func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *chain.Beacon, toRound uint64, client net.ProtocolClient) (chan *chain.Beacon, error) {
+func syncChain(
+	ctx context.Context,
+	l log.Logger,
+	safe *cryptoSafe,
+	from *chain.Beacon,
+	toRound uint64,
+	client net.ProtocolClient) (chan *chain.Beacon, error) {
 	outCh := make(chan *chain.Beacon, toRound-from.Round)
 	fromRound := from.Round
 	defer l.Debug("sync_from", fromRound, "status", "leaving")
@@ -83,8 +89,8 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *chain.
 				defer ccancel()
 				for {
 					select {
-					case proto := <-respCh:
-						if proto == nil {
+					case beaconPacket := <-respCh:
+						if beaconPacket == nil {
 							// because of the "select" behavior, sync returns an
 							// default proto beacon - that means channel is down
 							// so we log that as so
@@ -92,8 +98,8 @@ func syncChain(ctx context.Context, l log.Logger, safe *cryptoSafe, from *chain.
 							return
 						}
 
-						l.Debug("sync_from", addr, "from_round", fromRound, "got_round", proto.GetRound())
-						newBeacon := protoToBeacon(proto)
+						l.Debug("sync_from", addr, "from_round", fromRound, "got_round", beaconPacket.GetRound())
+						newBeacon := protoToBeacon(beaconPacket)
 						if !isAppendable(lastBeacon, newBeacon) {
 							l.Error("sync_from", addr, "from_round", fromRound, "want_round", lastBeacon.Round+1, "got_round", newBeacon.Round)
 							return
