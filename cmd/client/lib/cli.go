@@ -3,10 +3,12 @@ package lib
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
+	"net"
 	nhttp "net/http"
 	"os"
 	"path"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -62,11 +64,11 @@ var (
 		Usage:   "relay peer multiaddr(s) to connect with",
 		Aliases: []string{"peer-with"}, // DEPRECATED
 	}
-	// PortFlag is the CLI flag for local port for client to bind to, when
-	// connecting to relays.
-	PortFlag = &cli.IntFlag{
+	// PortFlag is the CLI flag for local address for client to bind to, when
+	// connecting to relays. (specified as a numeric port, or a host:port)
+	PortFlag = &cli.StringFlag{
 		Name:  "port",
-		Usage: "Local port for client to bind to, when connecting to relays",
+		Usage: "Local (host:)port for client to bind to, when connecting to relays",
 	}
 	// FailoverGraceFlag is the CLI flag for setting the grace period before
 	// randomness is requested from the HTTP API when watching for randomness
@@ -165,7 +167,11 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			if err != nil {
 				return nil, err
 			}
-			ps, err := buildClientHost(c.Int(PortFlag.Name), relayPeers)
+			listen := ""
+			if c.IsSet(PortFlag.Name) {
+				listen = c.String(PortFlag.Name)
+			}
+			ps, err := buildClientHost(listen, relayPeers)
 			if err != nil {
 				return nil, err
 			}
@@ -184,7 +190,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	return client.Wrap(clients, opts...)
 }
 
-func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
+func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
 	clientID := uuid.New().String()
 	ds, err := bds.NewDatastore(path.Join(os.TempDir(), "drand-"+clientID+"-datastore"), nil)
 	if err != nil {
@@ -194,10 +200,25 @@ func buildClientHost(clientRelayPort int, relayMultiaddr []ma.Multiaddr) (*pubsu
 	if err != nil {
 		return nil, err
 	}
+
+	listen := ""
+	if clientListenAddr != "" {
+		bindHost := "0.0.0.0"
+		if strings.Contains(clientListenAddr, ":") {
+			host, port, err := net.SplitHostPort(clientListenAddr)
+			if err != nil {
+				return nil, err
+			}
+			bindHost = host
+			clientListenAddr = port
+		}
+		listen = fmt.Sprintf("/ip4/%s/tcp/%s", bindHost, clientListenAddr)
+	}
+
 	_, ps, err := lp2p.ConstructHost(
 		ds,
 		priv,
-		"/ip4/0.0.0.0/tcp/"+strconv.Itoa(clientRelayPort),
+		listen,
 		relayMultiaddr,
 		log.DefaultLogger,
 	)

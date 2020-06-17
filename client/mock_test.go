@@ -14,6 +14,7 @@ import (
 type MockClient struct {
 	sync.Mutex
 	WatchCh chan Result
+	WatchF  func(context.Context) <-chan Result
 	Results []mock.Result
 	// Delay causes results to be delivered after this period of time has
 	// passed. Note that if the context is canceled a result is still consumed
@@ -53,9 +54,14 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 	if m.WatchCh != nil {
 		return m.WatchCh
 	}
+	if m.WatchF != nil {
+		return m.WatchF(ctx)
+	}
 	ch := make(chan Result, 1)
-	r, _ := m.Get(ctx, 0)
-	ch <- r
+	r, err := m.Get(ctx, 0)
+	if err == nil {
+		ch <- r
+	}
 	close(ch)
 	return ch
 }
