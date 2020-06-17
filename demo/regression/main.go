@@ -66,7 +66,7 @@ func testUpgrade(orch *lib.Orchestrator) (err error) {
 
 	orch.StopNodes(1)
 	orch.WaitPeriod()
-	orch.CheckNewBeacon(0)
+	orch.CheckNewBeacon(1)
 	orch.StartNode(1)
 	orch.WaitPeriod()
 	orch.CheckNewBeacon()

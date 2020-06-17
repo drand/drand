@@ -37,12 +37,21 @@ jobs:
     - id: regression
       name: Run regression
       run: go run ./demo/regression -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
-    
+
+    - id: report
+      if: ${{ failure() }}
+      name: Save report
+      run: |
+        OUTPUT=$(cat report.md)
+        OUTPUT="${OUTPUT//'%'/'%25'}​【7,6 m】"
+        OUTPUT="${OUTPUT//$'\n'/'%0A'}"
+        OUTPUT="${OUTPUT//$'\r'/'%0D'}"
+        echo "::set-output name=result::$OUTPUT"
+
     - name: Record Comment
       if: ${{ failure() }}
-      uses: machine-learning-apps/pr-comment@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: marocchino/sticky-pull-request-comment@v1
       with:
-        path: report.md
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        message: ${{ steps.report.outputs.result }}
 
