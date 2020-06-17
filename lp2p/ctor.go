@@ -81,6 +81,8 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 	if listenAddr != "" {
 		opts = append(opts, libp2p.ListenAddrStrings(listenAddr))
+	} else {
+		opts = append(opts, libp2p.NoListenAddrs)
 	}
 
 	h, err := libp2p.New(ctx, opts...)
