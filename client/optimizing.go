@@ -18,6 +18,9 @@ const (
 	defaultRequestTimeout     = time.Second * 5
 	defaultSpeedTestInterval  = time.Minute * 5
 	defaultRequestConcurrency = 2
+	// defaultWatchRetryInterval is the time after which a closed watch channel
+	// is re-open when no context error occurred.
+	defaultWatchRetryInterval = time.Second * 5
 )
 
 // newOptimizingClient creates a drand client that measures the speed of clients
@@ -43,6 +46,7 @@ func newOptimizingClient(
 	requestTimeout time.Duration,
 	requestConcurrency int,
 	speedTestInterval time.Duration,
+	watchRetryInterval time.Duration,
 ) (*optimizingClient, error) {
 	if len(clients) == 0 {
 		return nil, errors.New("missing clients")
@@ -62,12 +66,16 @@ func newOptimizingClient(
 	if speedTestInterval == 0 {
 		speedTestInterval = defaultSpeedTestInterval
 	}
+	if watchRetryInterval == 0 {
+		watchRetryInterval = defaultWatchRetryInterval
+	}
 	oc := &optimizingClient{
 		clients:            clients,
 		stats:              stats,
 		requestTimeout:     requestTimeout,
 		requestConcurrency: requestConcurrency,
 		speedTestInterval:  speedTestInterval,
+		watchRetryInterval: watchRetryInterval,
 		log:                log.DefaultLogger,
 		done:               done,
 	}
@@ -89,6 +97,7 @@ type optimizingClient struct {
 	requestTimeout     time.Duration
 	requestConcurrency int
 	speedTestInterval  time.Duration
+	watchRetryInterval time.Duration
 	log                log.Logger
 	done               chan struct{}
 }
@@ -137,7 +146,7 @@ func (oc *optimizingClient) testSpeed() {
 					break LOOP
 				}
 				if rr.err != nil {
-					oc.log.Error("optimizing_client", "endpoint_temporarily_down_due_to", rr.err)
+					oc.log.Error("optimizing_client", "endpoint temporarily down", "err", rr.err)
 				}
 				stats = append(stats, rr.stat)
 			case <-oc.done:
@@ -207,7 +216,9 @@ LOOP:
 // get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
 func get(ctx context.Context, client Client, round uint64) *requestResult {
 	start := time.Now()
+	fmt.Println("client.get start")
 	res, err := client.Get(ctx, round)
+	fmt.Println("client.get done")
 	rtt := time.Since(start)
 	var stat requestStat
 
@@ -318,11 +329,30 @@ type watchResult struct {
 }
 
 func (oc *optimizingClient) watchIngest(ctx context.Context, c Client, out chan watchResult, done *sync.WaitGroup) {
-	resultStream := c.Watch(ctx)
-	for r := range resultStream {
-		out <- watchResult{r, c}
+	for {
+		resultStream := c.Watch(ctx)
+		for r := range resultStream {
+			out <- watchResult{r, c}
+		}
+		if ctx.Err() != nil {
+			done.Done()
+			return
+		}
+
+		oc.log.Warn("optimizing_client", "watch channel closed", "client", c)
+
+		if oc.watchRetryInterval < 0 { // negative interval disables retries
+			done.Done()
+			return
+		}
+
+		t := time.NewTimer(oc.watchRetryInterval)
+		select {
+		case <-t.C:
+		case <-ctx.Done():
+			t.Stop()
+		}
 	}
-	done.Done()
 }
 
 func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchResult, out chan Result, done chan bool) {
