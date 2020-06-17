@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -121,6 +122,13 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		hash, err = hex.DecodeString(c.String(HashFlag.Name))
 		if err != nil {
 			return nil, err
+		}
+		if info != nil && !bytes.Equal(hash, info.Hash()) {
+			return nil, fmt.Errorf(
+				"incorrect chain hash %v != %v",
+				c.String(HashFlag.Name),
+				hex.EncodeToString(info.Hash()),
+			)
 		}
 		opts = append(opts, client.WithChainHash(hash))
 	}
