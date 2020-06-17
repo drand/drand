@@ -114,8 +114,8 @@ drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
 ```sh
 drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
                        -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
-					   -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83 \
-					   -url=http://127.0.0.1:3102 \
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83 \
+                       -url=http://127.0.0.1:3102 \
                        -failover-grace=5s
 ```
 
