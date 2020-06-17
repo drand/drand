@@ -33,7 +33,7 @@ var (
 	URLFlag = &cli.StringSliceFlag{
 		Name:    "url",
 		Usage:   "root URL(s) for fetching randomness",
-		Aliases: []string{"http-connect", "http-failover"}, // DEPRECATED
+		Aliases: []string{"http-failover"}, // DEPRECATED
 	}
 	// GRPCConnectFlag is the CLI flag for host:port to dial a gRPC randomness
 	// provider.
@@ -84,6 +84,7 @@ var ClientFlags = []cli.Flag{
 	GRPCConnectFlag,
 	CertFlag,
 	HashFlag,
+	GroupConfFlag,
 	InsecureFlag,
 	RelayFlag,
 	PortFlag,
@@ -101,6 +102,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode group configuration: %w", err)
 		}
+		opts = append(opts, client.WithChainInfo(info))
 	}
 
 	if c.IsSet(GRPCConnectFlag.Name) {

@@ -49,7 +49,7 @@ make relay-gossip
 
 ## Usage
 
-In general, you _should_ specify a `-hash` or `-group-conf` flag in order for your client to validate the randomness it receives is from the correct chain. There are some configurations where at least one of these flags are required.
+In general, you _should_ specify either a `-hash` or `-group-conf` flag in order for your client to validate the randomness it receives is from the correct chain.
 
 ### Relay gRPC
 
@@ -72,7 +72,7 @@ The gossip relay can also relay directly from an HTTP API. You can specify multi
 ```sh
 drand-relay-gossip run -url=http://127.0.0.1:3002 \
                        -url=http://127.0.0.1:3102 \
-                       -hash=c599c267a0dd386606f7d6132da8327d57e1004760897c9dd4fb8495c29942b2
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
 ```
 
 ### Relay Gossipsub
@@ -85,6 +85,15 @@ drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
                        -group-conf=/home/user/.drand/groups/drand_group.toml
 ```
 
+Alternatively, you can provide URL(s) of HTTP API(s) that can be contacted to retrieve chain information. In this case we must provide the chain `-hash` to verify the information we retrieve is for the chain we expect (or provide the `-insecure` flag):
+
+```sh
+drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
+                       -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
+                       -url=http://127.0.0.1:3002 \
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+```
+
 ### Other options
 
 #### Bootstrap peers
@@ -93,13 +102,21 @@ If there is a set of peers the gossip relay should connect with and stay connect
 
 #### Failover
 
-The `-url` and `-failover-grace` flags can be used when relaying over gRPC to provide 1 or more alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection, and the amount of time to leave after a round is due before they are contacted. e.g.
+The `-url` and `-failover-grace` flags can be used in combination when relaying over gRPC or from another gossipsub relay. The `-url` flag provides the URL(s) of alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection/libp2p pubsub network. The `-failover-grace` flag enables failover to these endpoints and sets the amount of time to leave after a round is due before they are contacted. e.g.
 
 ```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
+                       -insecure \
                        -url=http://127.0.0.1:3102 \
-                       -failover-grace=5s \
-                       -insecure
+                       -failover-grace=5s
+```
+
+```sh
+drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
+                       -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
+					   -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83 \
+					   -url=http://127.0.0.1:3102 \
+                       -failover-grace=5s
 ```
 
 #### Configuring the libp2p pubsub node
