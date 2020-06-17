@@ -9,11 +9,10 @@ import (
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
-	proto "github.com/drand/drand/protobuf/drand"
 )
 
 // InfoFromProto returns a Info from the protocol description
-func InfoFromProto(p *proto.ChainInfoPacket) (*Info, error) {
+func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 	public := key.KeyGroup.Point()
 	if err := public.UnmarshalBinary(p.PublicKey); err != nil {
 		return nil, err
@@ -50,7 +49,8 @@ func InfoFromJSON(buff io.Reader) (*Info, error) {
 	return chainInfo, nil
 }
 
+// ToJSON provides a json serialization of an info packet
 func (c *Info) ToJSON(w io.Writer) error {
-	proto := c.ToProto()
-	return json.NewEncoder(w).Encode(proto)
+	info := c.ToProto()
+	return json.NewEncoder(w).Encode(info)
 }

@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	//"github.com/benbjohnson/clock"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	proto "github.com/drand/drand/protobuf/drand"
@@ -82,15 +80,17 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 		Signature: conf.Group.GetGenesisSeed(),
 		Round:     0,
 	}
-	s.Put(b)
+	if err := s.Put(b); err != nil {
+		return nil, err
+	}
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	callbacks := chain.NewCallbackStore(s)
-	chain := newChainStore(logger, c, safe, callbacks, ticker)
+	store := newChainStore(logger, c, safe, callbacks, ticker)
 	handler := &Handler{
 		conf:      conf,
 		client:    c,
 		safe:      safe,
-		chain:     chain,
+		chain:     store,
 		ticker:    ticker,
 		addr:      addr,
 		close:     make(chan bool),
@@ -131,13 +131,26 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	shortPub := info.pub.Eval(1).V.String()[14:19]
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(info.pub, msg, p.GetPartialSig()); err != nil {
-		h.l.Error("process_partial", addr, "err", err, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+		h.l.Error("process_partial", addr, "err", err,
+			"prev_sig", shortSigStr(p.GetPreviousSig()),
+			"curr_round", currentRound,
+			"msg_sign", shortSigStr(msg),
+			"short_pub", shortPub)
 		return nil, err
 	}
-	h.l.Debug("process_partial", addr, "prev_sig", shortSigStr(p.GetPreviousSig()), "curr_round", currentRound, "msg_sign", shortSigStr(msg), "short_pub", shortPub, "status", "OK")
+	h.l.Debug("process_partial", addr,
+		"prev_sig", shortSigStr(p.GetPreviousSig()),
+		"curr_round", currentRound, "msg_sign",
+		shortSigStr(msg), "short_pub", shortPub,
+		"status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == info.index {
-		h.l.Error("process_partial", addr, "index_got", idx, "index_our", info.index, "advance_packet", p.GetRound(), "safe", h.safe.String(), "pub", shortPub)
+		h.l.Error("process_partial", addr,
+			"index_got", idx,
+			"index_our", info.index,
+			"advance_packet", p.GetRound(),
+			"safe", h.safe.String(),
+			"pub", shortPub)
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
@@ -236,7 +249,6 @@ func (h *Handler) run(startTime int64) {
 			// words, the chain has halted for that amount of rounds or our
 			// network is not functioning properly.
 			if lastBeacon.Round+1 < current.round {
-
 				// We also launch a sync with the other nodes. If there is one node
 				// that has a higher beacon, we'll build on it next epoch. If
 				// nobody has a higher beacon, then this one will be next if the
@@ -357,8 +369,6 @@ func (h *Handler) AddCallback(fn func(*chain.Beacon)) {
 	h.callbacks.AddCallback(fn)
 }
 
-var errOutdatedRound = errors.New("current partial signature not for this round")
-
 func shortSigStr(sig []byte) string {
 	max := 3
 	if len(sig) < max {
@@ -369,9 +379,7 @@ func shortSigStr(sig []byte) string {
 
 func shuffleNodes(nodes []*key.Node) []*key.Node {
 	ids := make([]*key.Node, 0, len(nodes))
-	for _, id := range nodes {
-		ids = append(ids, id)
-	}
+	ids = append(ids, nodes...)
 	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
 	return ids
 }
@@ -394,22 +402,22 @@ func newCryptoSafe() *cryptoSafe {
 	return &cryptoSafe{}
 }
 
-func (c *cryptoSafe) SetInfo(share *key.Share, id *key.Node, group *key.Group) {
+func (c *cryptoSafe) SetInfo(keyShare *key.Share, id *key.Node, group *key.Group) {
 	c.Lock()
 	defer c.Unlock()
 	info := new(cryptoInfo)
 	info.id = id
 	info.group = group
 	info.pub = group.PublicKey.PubPoly()
-	if share != nil {
-		info.share = share
-		info.index = share.Share.I
+	if keyShare != nil {
+		info.share = keyShare
+		info.index = keyShare.Share.I
 	} else {
 		info.index = int(id.Index)
 	}
 	if group.TransitionTime != 0 {
-		time := group.TransitionTime
-		info.startAt = chain.CurrentRound(time, group.Period, group.GenesisTime)
+		t := group.TransitionTime
+		info.startAt = chain.CurrentRound(t, group.Period, group.GenesisTime)
 	} else {
 		// group started at genesis time
 		info.startAt = 0
@@ -438,7 +446,7 @@ func (c *cryptoSafe) String() string {
 	for _, info := range c.infos {
 		var index = -1
 		if info.share != nil {
-			index = int(info.share.Share.I)
+			index = info.share.Share.I
 		}
 		shortPub := info.pub.Eval(1).V.String()[14:19]
 		out += fmt.Sprintf(" {startAt: %d, index: %d, pub: %s} ", info.startAt, index, shortPub)
