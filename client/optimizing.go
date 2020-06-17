@@ -45,7 +45,7 @@ func newOptimizingClient(
 	clients []Client,
 	requestTimeout time.Duration,
 	requestConcurrency int,
-	speedTestInterval time.Duration,
+	speedTestInterval,
 	watchRetryInterval time.Duration,
 ) (*optimizingClient, error) {
 	if len(clients) == 0 {
