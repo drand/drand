@@ -126,20 +126,37 @@ func (e *Orchestrator) RunDKG(timeout string) {
 	leader := e.nodes[0]
 	var wg sync.WaitGroup
 	wg.Add(len(e.nodes))
+	panicCh := make(chan interface{}, 1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				panicCh <- err
+			}
+			wg.Done()
+		}()
 		fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
 		leader.RunDKG(e.n, e.thr, timeout, true, "", beaconOffset)
-		wg.Done()
 	}()
 	time.Sleep(200 * time.Millisecond)
 	for _, n := range e.nodes[1:] {
 		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
 		go func(n node.Node) {
+			defer func() {
+				if err := recover(); err != nil {
+					panicCh <- err
+				}
+				wg.Done()
+			}()
 			n.RunDKG(e.n, e.thr, timeout, false, leader.PrivateAddr(), beaconOffset)
-			wg.Done()
 		}(n)
 	}
 	wg.Wait()
+	select {
+	case p := <-panicCh:
+		panic(p)
+	default:
+	}
+
 	fmt.Println("[+] Nodes finished running DKG. Checking keys...")
 	// we pass the current group path
 	g := e.checkDKGNodes(e.nodes, e.groupPath)
@@ -383,7 +400,13 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	thr := e.newThr
 	groupCh := make(chan *key.Group, 1)
 	leader := e.reshareNodes[0]
+	panicCh := make(chan interface{}, 1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				panicCh <- err
+			}
+		}()
 		path := ""
 		if e.isNew(leader) {
 			path = e.groupPath
@@ -394,15 +417,27 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}()
 	time.Sleep(100 * time.Millisecond)
 
-	for _, node := range e.reshareNodes[1:] {
+	for _, n := range e.reshareNodes[1:] {
 		path := ""
-		if e.isNew(node) {
+		if e.isNew(n) {
 			path = e.groupPath
 		}
-		fmt.Printf("\t- Running DKG for node %s\n", node.PrivateAddr())
-		go node.RunReshare(nodes, thr, path, timeout, false, leader.PrivateAddr(), beaconOffset)
+		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
+		go func(n node.Node) {
+			defer func() {
+				if err := recover(); err != nil {
+					panicCh <- err
+				}
+			}()
+			n.RunReshare(nodes, thr, path, timeout, false, leader.PrivateAddr(), beaconOffset)
+		}(n)
 	}
 	<-groupCh
+	select {
+	case p := <-panicCh:
+		panic(p)
+	default:
+	}
 	// we pass the new group file
 	g := e.checkDKGNodes(e.reshareNodes, e.newGroupPath)
 	e.newGroup = g
