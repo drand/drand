@@ -50,12 +50,31 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, errors.New("no points of contact specified")
 	}
 
+	var err error
+
+	// provision cache
+	cache, err := makeCache(cfg.cacheSize)
+	if err != nil {
+		return nil, err
+	}
+
+	// provision watcher client
+	if cfg.watcher != nil {
+		if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
+			return nil, err
+		}
+		w, err := cfg.watcher(cfg.chainInfo, cache)
+		if err != nil {
+			return nil, err
+		}
+		cfg.clients = append(cfg.clients, &watcherClient{&emptyClient{cfg.chainInfo}, w})
+	}
+
 	for _, c := range cfg.clients {
 		trySetLog(c, cfg.log)
 	}
 
 	var c Client
-	var err error
 	if len(cfg.clients) > 0 {
 		oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
 		if err != nil {
@@ -66,17 +85,6 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		oc.Start()
 	} else {
 		c = EmptyClientWithInfo(cfg.chainInfo)
-	}
-
-	// provision cache
-	cache, err := makeCache(cfg.cacheSize)
-	if err != nil {
-		return nil, err
-	}
-
-	// provision watcher client
-	if c, err = attachWatcher(cfg, c, cache); err != nil {
-		return nil, err
 	}
 
 	if cfg.cacheSize > 0 {
@@ -95,23 +103,6 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	trySetLog(c, cfg.log)
 
 	return attachMetrics(cfg, c)
-}
-
-func attachWatcher(cfg *clientConfig, c Client, cache Cache) (Client, error) {
-	if cfg.watcher != nil {
-		if err := cfg.tryPopulateInfo(c); err != nil {
-			return nil, err
-		}
-		w, err := cfg.watcher(cfg.chainInfo, cache)
-		if err != nil {
-			return nil, err
-		}
-		if lw, ok := w.(LoggingClient); ok {
-			lw.SetLog(cfg.log)
-		}
-		return &watcherClient{c, w}, nil
-	}
-	return c, nil
 }
 
 func attachFailover(cfg *clientConfig, c Client) (Client, error) {
@@ -168,11 +159,19 @@ type clientConfig struct {
 	prometheus prometheus.Registerer
 }
 
-func (c *clientConfig) tryPopulateInfo(cli Client) (err error) {
+func (c *clientConfig) tryPopulateInfo(clients ...Client) (err error) {
 	if c.chainInfo == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), clientStartupTimeoutDefault)
 		defer cancel()
-		c.chainInfo, err = cli.Info(ctx)
+		for _, cli := range clients {
+			c.chainInfo, err = cli.Info(ctx)
+			if err == nil {
+				return
+			}
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+		}
 	}
 	return
 }
