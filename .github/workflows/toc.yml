@@ -5,7 +5,7 @@ on:
     branches: [ master ]
 
 jobs:
-  lint:
+  toc:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
