@@ -13,9 +13,8 @@ import (
 func TestStoreBoltOrder(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drandtest")
 	require.NoError(t, os.MkdirAll(tmp, 0755))
-	path := tmp
 	defer os.RemoveAll(tmp)
-	store, err := NewBoltStore(path, nil)
+	store, err := NewBoltStore(tmp, nil)
 	require.NoError(t, err)
 
 	b1 := &chain.Beacon{
@@ -45,19 +44,17 @@ func TestStoreBoltOrder(t *testing.T) {
 	eb2, err = store.Last()
 	require.NoError(t, err)
 	require.Equal(t, eb2, b2)
-
 }
 
 func TestStoreBolt(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drandtest")
 	require.NoError(t, os.MkdirAll(tmp, 0755))
-	path := tmp
 	defer os.RemoveAll(tmp)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
-	store, err := NewBoltStore(path, nil)
+	store, err := NewBoltStore(tmp, nil)
 	require.NoError(t, err)
 
 	require.Equal(t, 0, store.Len())
@@ -86,7 +83,7 @@ func TestStoreBolt(t *testing.T) {
 	require.Equal(t, b2, received)
 
 	store.Close()
-	store, err = NewBoltStore(path, nil)
+	store, err = NewBoltStore(tmp, nil)
 	require.NoError(t, err)
 	require.NoError(t, store.Put(b1))
 
@@ -105,7 +102,7 @@ func TestStoreBolt(t *testing.T) {
 		t.Fail()
 	}
 
-	store, err = NewBoltStore(path, nil)
+	store, err = NewBoltStore(tmp, nil)
 	require.NoError(t, err)
 	store.Put(b1)
 	store.Put(b2)

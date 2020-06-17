@@ -12,6 +12,12 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
+const (
+	defaultPartialChanBuffer = 10
+	defaultRequestSyncBuffer = 10
+	defaultNewBeaconBuffer   = 100
+)
+
 // chainStore is a Store that deals with reconstructing the beacons, sync when
 // needed and arranges the head
 type chainStore struct {
@@ -29,23 +35,23 @@ type chainStore struct {
 }
 
 func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
-	chain := &chainStore{
+	c := &chainStore{
 		l:             l,
 		client:        client,
 		safe:          safe,
 		Store:         s,
 		done:          make(chan bool, 1),
 		ticker:        ticker,
-		newPartials:   make(chan partialInfo, 10),
-		newBeaconCh:   make(chan *chain.Beacon, 100),
-		requestSync:   make(chan likeBeacon, 10),
+		newPartials:   make(chan partialInfo, defaultPartialChanBuffer),
+		newBeaconCh:   make(chan *chain.Beacon, defaultNewBeaconBuffer),
+		requestSync:   make(chan likeBeacon, defaultRequestSyncBuffer),
 		lastInserted:  make(chan *chain.Beacon, 1),
 		nonSyncBeacon: make(chan *chain.Beacon, 1),
 	}
 	// TODO maybe look if it's worth having multiple workers there
-	go chain.runChainLoop()
-	go chain.runAggregator()
-	return chain
+	go c.runChainLoop()
+	go c.runAggregator()
+	return c
 }
 
 func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) {
@@ -94,7 +100,7 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			// look if we want to store ths partial anyway
-			isNotInPast := pRound >= lastBeacon.Round+1
+			isNotInPast := pRound > lastBeacon.Round
 			isNotTooFar := pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
 			shouldStore := isNotInPast && isNotTooFar
 			// check if we can reconstruct
@@ -226,7 +232,6 @@ func (c *chainStore) RunSync(ctx context.Context) {
 	for newB := range outCh {
 		c.newBeaconCh <- newB
 	}
-	return
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
@@ -236,9 +241,4 @@ func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
 type partialInfo struct {
 	addr string
 	p    *drand.PartialBeaconPacket
-}
-
-type beaconInfo struct {
-	addr   string
-	beacon *chain.Beacon
 }

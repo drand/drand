@@ -31,11 +31,12 @@ func newPartialCache(l log.Logger) *partialCache {
 
 func roundID(round uint64, previous []byte) string {
 	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, round)
-	buff.Write(previous)
+	_ = binary.Write(&buff, binary.BigEndian, round)
+	_, _ = buff.Write(previous)
 	return buff.String()
 }
 
+// Append adds a partial signature to the cache.
 func (c *partialCache) Append(p *drand.PartialBeaconPacket) {
 	id := roundID(p.GetRound(), p.GetPreviousSig())
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
@@ -59,7 +60,7 @@ func (c *partialCache) FlushRounds(round uint64) {
 		// delete the cache entry
 		delete(c.rounds, id)
 		// delete the counter of each nodes that participated in that round
-		for idx, _ := range cache.sigs {
+		for idx := range cache.sigs {
 			var idSlice = c.rcvd[idx][:0]
 			for _, idd := range c.rcvd[idx] {
 				if idd == id {
@@ -113,7 +114,6 @@ type roundCache struct {
 	prev  []byte
 	id    string
 	sigs  map[int][]byte
-	done  bool
 }
 
 func newRoundCache(id string, p *drand.PartialBeaconPacket) *roundCache {

@@ -33,7 +33,7 @@ func CurrentRound(now int64, period time.Duration, genesis int64) uint64 {
 // NextRound returns the next upcoming round and its UNIX time given the genesis
 // time and the period.
 // round at time genesis = round 1. Round 0 is fixed.
-func NextRound(now int64, period time.Duration, genesis int64) (uint64, int64) {
+func NextRound(now int64, period time.Duration, genesis int64) (nextRound uint64, nextTime int64) {
 	if now < genesis {
 		return 1, genesis
 	}
@@ -41,7 +41,7 @@ func NextRound(now int64, period time.Duration, genesis int64) (uint64, int64) {
 	// we take the time from genesis divided by the periods in seconds, that
 	// gives us the number of periods since genesis. We add +1 since we want the
 	// next round. We also add +1 because round 1 starts at genesis time.
-	nextRound := uint64(math.Floor(float64(fromGenesis)/period.Seconds())) + 1
-	nextTime := genesis + int64(nextRound*uint64(period.Seconds()))
+	nextRound = uint64(math.Floor(float64(fromGenesis)/period.Seconds())) + 1
+	nextTime = genesis + int64(nextRound*uint64(period.Seconds()))
 	return nextRound + 1, nextTime
 }
