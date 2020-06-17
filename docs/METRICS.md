@@ -58,4 +58,4 @@ In addition, the client maintains a metric on its watch channel for randomness. 
 All of the above measurements have two significant labels:
 
 * The label `http_address` identifies the HTTP endpoint that is being queried by the client,
-* The label `url` identifies the client itself.
+* The label `client_id` identifies the client itself.
