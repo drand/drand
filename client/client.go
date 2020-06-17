@@ -57,7 +57,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	var c Client
 	var err error
 	if len(cfg.clients) > 0 {
-		oc, err := newOptimizingClient(cfg.clients, 0, 0, 0)
+		oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
 		if err != nil {
 			return nil, err
 		}
