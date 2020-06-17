@@ -216,9 +216,7 @@ LOOP:
 // get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
 func get(ctx context.Context, client Client, round uint64) *requestResult {
 	start := time.Now()
-	fmt.Println("client.get start")
 	res, err := client.Get(ctx, round)
-	fmt.Println("client.get done")
 	rtt := time.Since(start)
 	var stat requestStat
 
