@@ -5,6 +5,7 @@
 - [Drand Metrics](#drand-metrics)
   - [Local Metrics](#local-metrics)
   - [Shared Group Metrics](#shared-group-metrics)
+- [Drand Client Metrics](#drand-client-metrics)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -35,3 +36,23 @@ remote peer, and does not include the process or internal health of
 the node. It is meant to allow better visibility when debugging
 network issues, and helping operators understand where problems
 originate.
+
+# Drand Client Metrics
+
+The Drand client is capable of collecting metrics on the health of the sources
+of randomness that it is connected to.
+
+For each HTTP endpoint, every 10 seconds, the client sends "heartbeat"
+requests for the "current" randomness, wherein the requested "current" randomness round 
+is calculated based on the current time and the genenesis time of the Drand network.
+The outcomes of these requests are used to generate the following metrics:
+
+* _Heartbeat latency_: This is the duration, in milliseconds, between the time when the randomness response was received and the time when it was meant to be produced by the Drand nodes (based on the genesis time of the network and the round number). The corresponding Prometheus metric is the gauge `client_http_heartbeat_latency`. In normal conditions, when the network latency is sub-second, one expects the heartbeat latency to be roughly evenly distributed between 0 and 30 seconds. This is caused by the fact that there are multiple heartbeats during a single round, which lasts 30 seconds, as well as the fact that each request blocks until the randomness becomes available. This metric is implemented in [https://github.com/drand/drand/blob/master/client/http/metric.go#L59].
+
+* _Heartbeat success and failure_: These are two counters, "success" and "failure", whose Prometheus names are `client_http_heartbeat_success` and `client_http_heartbeat_latency`. The success counter is increments after an HTTP request returns a successful response HTTP, otherwise the the failure counter is incremented. This metric is implemented in [https://github.com/drand/drand/blob/master/client/http/metric.go#L50].
+
+All of the above measurements have two significant labels:
+
+* The label `http_address` identifies the HTTP endpoint that is being queried by the client,
+* The label `url` identifies the client itself.
+
