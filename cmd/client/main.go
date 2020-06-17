@@ -114,7 +114,7 @@ func Client(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%v\n", rand)
+	fmt.Printf("%d\t%x\n", rand.Round(), rand.Randomness())
 	return nil
 }
 
