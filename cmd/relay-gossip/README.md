@@ -66,7 +66,7 @@ TODO: will be fixed soon in https://github.com/drand/drand/pull/501
 
 #### Failover
 
-The `-url` and `-failover-grace` flags can be used when relaying over gRPC. These flags provide one or more alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection. The amount of time to leave after a round is due before they are contacted. e.g.
+The `-url` and `-failover-grace` flags can be used in combination when relaying over gRPC. The `-url` flag provides the URL(s) of alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection. The `-failover-grace` flag enables failover to these endpoints and sets the amount of time to leave after a round is due before they are contacted. e.g.
 
 ```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
