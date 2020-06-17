@@ -16,7 +16,9 @@ func MeasureHeartbeats(ctx context.Context, c []client.Client) *HealthMetrics {
 		next:    0,
 		clients: c,
 	}
-	go m.startObserve(ctx)
+	if len(c) > 0 {
+		go m.startObserve(ctx)
+	}
 	return m
 }
 
