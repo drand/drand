@@ -138,7 +138,7 @@ func main() {
 
 #### With Known Chain Hash
 
-You do not need to know the full group info to use the pubsub client if you know the chain-hash and an HTTP endpoint then you can request the chain info from the HTTP endpoint, verifying it with the known chain hash:
+You do not need to know the full group info to use the pubsub client if you know the chain hash and an HTTP endpoint then you can request the chain info from the HTTP endpoint, verifying it with the known chain hash:
 
 ```go
 package main
@@ -192,7 +192,7 @@ func main() {
 
 #### Insecurely
 
-If you trust the HTTP(S) endpoint, you don't need chain info or a chain-hash. Note: using HTTP**S** provides trust at the transport level, but it does not allow verification that the randomness is being requested from the expected chain:
+If you trust the HTTP(S) endpoint, you don't need chain info or a chain hash. Note: using HTTP**S** provides trust at the transport level, but it does not allow verification that the randomness is being requested from the expected chain:
 
 ```go
 package main
