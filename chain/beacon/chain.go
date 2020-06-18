@@ -161,12 +161,11 @@ func (c *chainStore) runChainLoop() {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
-		// measure time discrepancy
-		actual := time.Now().Unix()
-		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round)
-		discrepancy := float64(actual - expected)
-
-		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy", discrepancy)
+		// measure time discrepancy in milliseconds
+		actual := time.Now().UnixNano()
+		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
+		discrepancy := float64(actual-expected) / float64(time.Millisecond)
+		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy)
 		c.lastInserted <- newB
 		if !syncing {
 			// during syncing we don't do a fast sync
