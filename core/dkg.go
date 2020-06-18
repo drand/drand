@@ -115,9 +115,9 @@ func (b *dkgBoard) PushJustifications(bundle *dkg.JustificationBundle) {
 
 func (b *dkgBoard) dispatch(c context.Context, p *pdkg.Packet) error {
 	var addr = "unknown"
-	peer, ok := peer.FromContext(c)
+	remotePeer, ok := peer.FromContext(c)
 	if ok {
-		addr = peer.Addr.String()
+		addr = remotePeer.Addr.String()
 	}
 	var err error
 	switch packet := p.GetBundle().(type) {

@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/fs"
@@ -36,7 +35,7 @@ type Drand struct {
 	// handle all callbacks when a new beacon is found
 	callbacks *callbackManager
 	// stores recent entries in memory
-	//cache *beaconCache
+	// cache *beaconCache
 
 	beacon *beacon.Handler
 	// dkg private share. can be nil if dkg not finished yet.
@@ -73,7 +72,7 @@ func NewDrand(s key.Store, c *Config) (*Drand, error) {
 // gateway with the correct options.
 func initDrand(s key.Store, c *Config) (*Drand, error) {
 	logger := c.Logger()
-	if c.insecure == false && (c.certPath == "" || c.keyPath == "") {
+	if !c.insecure && (c.certPath == "" || c.keyPath == "") {
 		return nil, errors.New("config: need to set WithInsecure if no certificate and private key path given")
 	}
 	priv, err := s.LoadKeyPair()
@@ -96,13 +95,19 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		callbacks: newCallbackManager(),
 		//cache:     newBeaconCache(logger),
 	}
+	if err := setupDrand(d, c); err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func setupDrand(d *Drand, c *Config) error {
 	// every new beacon will be passed through the opts callbacks
 	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
-	//d.callbacks.AddCallback(cacheID, d.cache.StoreTemp)
 
 	// Set the private API address to the command-line flag, if given.
 	// Otherwise, set it to the address associated with stored private key.
-	privAddr := c.PrivateListenAddress(priv.Public.Address())
+	privAddr := c.PrivateListenAddress(d.priv.Public.Address())
 	pubAddr := c.PublicListenAddress("")
 	// ctx is used to create the gateway below.
 	// Gateway constructors (specifically, the generated gateway stubs that require it)
@@ -112,31 +117,32 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		var err error
 		d.log.Info("network", "tls-disable")
 		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), logger.With("server", "http"))
+			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if d.pubGateway, err = net.NewRESTPublicGatewayWithoutTLS(ctx, pubAddr, handler); err != nil {
-				return nil, err
+				return err
 			}
 		}
 		if d.privGateway, err = net.NewGRPCPrivateGatewayWithoutTLS(ctx, privAddr, d, d.opts.grpcOpts...); err != nil {
-			return nil, err
+			return err
 		}
 	} else {
 		var err error
 		d.log.Info("network", "tls-enabled")
 		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), logger.With("server", "http"))
+			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if d.pubGateway, err = net.NewRESTPublicGatewayWithTLS(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler); err != nil {
-				return nil, err
+				return err
 			}
 		}
-		if d.privGateway, err = net.NewGRPCPrivateGatewayWithTLS(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...); err != nil {
-			return nil, err
+		d.privGateway, err = net.NewGRPCPrivateGatewayWithTLS(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+		if err != nil {
+			return err
 		}
 	}
 	p := c.ControlPort()
@@ -147,7 +153,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
 	}
-	return d, nil
+	return nil
 }
 
 // LoadDrand restores a drand instance that is ready to serve randomness, with a
@@ -207,8 +213,12 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 
 	s := key.Share(*res.Result.Key)
 	d.share = &s
-	d.store.SaveShare(d.share)
-	d.store.SaveDistPublic(d.share.Public())
+	if err := d.store.SaveShare(d.share); err != nil {
+		return nil, err
+	}
+	if err := d.store.SaveDistPublic(d.share.Public()); err != nil {
+		return nil, err
+	}
 	targetGroup := d.dkgInfo.target
 	// only keep the qualified ones
 	targetGroup.Nodes = qualNodes
@@ -220,7 +230,9 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %d, pub: %s}", node.Address(), node.Index, node.Key))
 	}
 	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
-	d.store.SaveGroup(d.group)
+	if err := d.store.SaveGroup(d.group); err != nil {
+		return nil, err
+	}
 	d.opts.applyDkgCallback(d.share)
 	d.dkgInfo = nil
 	return d.group, nil
@@ -229,19 +241,16 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (d *Drand) StartBeacon(catchup bool) {
-	beacon, err := d.newBeacon()
+	b, err := d.newBeacon()
 	if err != nil {
 		d.log.Error("init_beacon", err)
 		return
 	}
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
-		go beacon.Catchup()
-
-	} else {
-		if err := beacon.Start(); err != nil {
-			d.log.Error("beacon_start", err)
-		}
+		go b.Catchup()
+	} else if err := b.Start(); err != nil {
+		d.log.Error("beacon_start", err)
 	}
 }
 
@@ -260,7 +269,6 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	// case to go that fast
 	timeToStop := d.group.TransitionTime - 1
 	if !newPresent {
-		//fmt.Printf(" OLD NODE STOPping %s\n", d.priv.Public.Address())
 		// an old node is leaving the network
 		if err := d.beacon.StopAt(timeToStop); err != nil {
 			d.log.Error("leaving_group", err)
@@ -279,11 +287,11 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	if oldPresent {
 		d.beacon.TransitionNewGroup(newShare, newGroup)
 	} else {
-		beacon, err := d.newBeacon()
+		b, err := d.newBeacon()
 		if err != nil {
 			d.log.Fatal("transition", "new_node", "err", err)
 		}
-		if err := beacon.Transition(oldGroup); err != nil {
+		if err := b.Transition(oldGroup); err != nil {
 			d.log.Error("sync_before", err)
 		}
 		d.log.Info("transition_new", "done")
@@ -319,14 +327,6 @@ func (d *Drand) WaitExit() chan bool {
 	return d.exitCh
 }
 
-// isDKGDone returns true if the DKG protocol has already been executed. That
-// means that the only packet that this node should receive are TBLS packet.
-func (d *Drand) isDKGDone() bool {
-	d.state.Lock()
-	defer d.state.Unlock()
-	return d.dkgDone
-}
-
 func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -347,17 +347,13 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	beacon, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
+	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
 	if err != nil {
 		return nil, err
 	}
-	d.beacon = beacon
+	d.beacon = b
 	d.beacon.AddCallback(d.callbacks.NewBeacon)
 	return d.beacon, nil
-}
-
-func (d *Drand) beaconCallback(b *chain.Beacon) {
-	d.opts.callbacks(b)
 }
 
 func checkGroup(l log.Logger, group *key.Group) {

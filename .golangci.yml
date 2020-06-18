@@ -13,7 +13,6 @@ issues:
 run:
   skip-dirs:
     - cmd
-    - core
     - demo
     - deploy
     - docker
