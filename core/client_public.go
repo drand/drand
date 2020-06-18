@@ -30,7 +30,7 @@ func NewGrpcClientFromCert(c *net.CertManager, opts ...grpc.DialOption) *Client 
 	return &Client{client: net.NewGrpcClientFromCertManager(c, opts...)}
 }
 
-// TODO: make the other methods follow the "peer" approach
+// ChainInfo returns the chain info as reported by the given peer.
 func (c *Client) ChainInfo(p net.Peer) (*chain.Info, error) {
 	resp, err := c.client.ChainInfo(context.TODO(), p, &drand.ChainInfoRequest{})
 	if err != nil {

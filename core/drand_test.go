@@ -184,7 +184,7 @@ type DrandTest2 struct {
 func NewDrandTest2(t *testing.T, n, thr int, period time.Duration) *DrandTest2 {
 	dt := new(DrandTest2)
 	drands, _, dir, certPaths := BatchNewDrand(n, false,
-		WithCallOption(grpc.WaitForReady(false)),
+		WithCallOption(grpc.WaitForReady(true)),
 	)
 	dt.t = t
 	dt.dir = dir
