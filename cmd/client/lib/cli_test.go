@@ -111,5 +111,5 @@ func TestClientLibListenPort(t *testing.T) {
 
 func groupTOMLPath() string {
 	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "testdata", "drand_group.toml")
+	return filepath.Join(filepath.Dir(file), "..", "..", "..", "deploy", "latest", "group.toml")
 }
