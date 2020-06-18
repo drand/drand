@@ -60,14 +60,11 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	// provision watcher client
 	if cfg.watcher != nil {
-		if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
-			return nil, err
-		}
-		w, err := cfg.watcher(cfg.chainInfo, cache)
+		wc, err := makeWatcherClient(cfg, cache)
 		if err != nil {
 			return nil, err
 		}
-		cfg.clients = append(cfg.clients, &watcherClient{&emptyClient{cfg.chainInfo}, w})
+		cfg.clients = append(cfg.clients, wc)
 	}
 
 	for _, c := range cfg.clients {
@@ -95,30 +92,21 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		trySetLog(c, cfg.log)
 	}
 
-	if c, err = attachFailover(cfg, c); err != nil {
-		return nil, err
-	}
-
 	c = newWatchAggregator(c, cfg.autoWatch)
 	trySetLog(c, cfg.log)
 
 	return attachMetrics(cfg, c)
 }
 
-func attachFailover(cfg *clientConfig, c Client) (Client, error) {
-	if cfg.failoverGracePeriod > 0 {
-		if err := cfg.tryPopulateInfo(c); err != nil {
-			return nil, err
-		}
-
-		failover, err := NewFailoverWatcher(c, cfg.chainInfo, cfg.failoverGracePeriod)
-		if err != nil {
-			return nil, err
-		}
-		trySetLog(failover, cfg.log)
-		return failover, nil
+func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
+	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
+		return nil, err
 	}
-	return c, nil
+	w, err := cfg.watcher(cfg.chainInfo, cache)
+	if err != nil {
+		return nil, err
+	}
+	return &watcherClient{&emptyClient{cfg.chainInfo}, w}, nil
 }
 
 func attachMetrics(cfg *clientConfig, c Client) (Client, error) {
@@ -150,8 +138,6 @@ type clientConfig struct {
 	cacheSize int
 	// customized client log.
 	log log.Logger
-	// time after which a watcher will failover to using client.Get to get the latest randomness.
-	failoverGracePeriod time.Duration
 	// autoWatch causes the client to start watching immediately in the background so that new randomness
 	// is proactively fetched and added to the cache.
 	autoWatch bool
@@ -235,15 +221,6 @@ func WithChainInfo(chainInfo *chain.Info) Option {
 			return errors.New("refusing to override hash with non-matching group")
 		}
 		cfg.chainInfo = chainInfo
-		return nil
-	}
-}
-
-// WithFailoverGracePeriod enables failover if set and configures the time after
-// which a watcher will failover to using client.Get to get the latest randomness.
-func WithFailoverGracePeriod(d time.Duration) Option {
-	return func(cfg *clientConfig) error {
-		cfg.failoverGracePeriod = d
 		return nil
 	}
 }
