@@ -34,7 +34,7 @@ func TestEmptyClient(t *testing.T) {
 	if !ok {
 		t.Fatal("expected Stringer interface")
 	}
-	if sc.String() != "EmptyClient" {
+	if sc.String() != emptyClientStringerValue {
 		t.Fatal("unexpected string value")
 	}
 
