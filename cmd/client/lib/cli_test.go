@@ -1,9 +1,12 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
@@ -79,8 +82,33 @@ func TestClientLib(t *testing.T) {
 	}
 }
 
-func TestClientLibGroupConf(t *testing.T) {
+func TestClientLibGroupConfTOML(t *testing.T) {
 	err := run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--group-conf", groupTOMLPath()})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestClientLibGroupConfJSON(t *testing.T) {
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	defer cancel()
+
+	var b bytes.Buffer
+	info.ToJSON(&b)
+
+	tmpDir, err := ioutil.TempDir(os.TempDir(), "drand")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	infoPath := filepath.Join(tmpDir, "info.json")
+
+	err = ioutil.WriteFile(infoPath, b.Bytes(), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = run([]string{"mock-client", "--url", "http://" + addr, "--group-conf", infoPath})
 	if err != nil {
 		t.Fatal(err)
 	}

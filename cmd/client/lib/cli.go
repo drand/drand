@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net"
 	nhttp "net/http"
 	"os"
@@ -54,10 +55,10 @@ var (
 		Usage:   "The hash (in hex) for the chain to follow",
 		Aliases: []string{"chain-hash"}, // DEPRECATED
 	}
-	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded).
+	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
 		Name:  "group-conf",
-		Usage: "Path to a drand group configuration (TOML encoded), can be used instead of `-hash` flag to verify the chain.",
+		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded), can be used instead of `-hash` flag to verify the chain.",
 	}
 	// InsecureFlag is the CLI flag to allow autodetection of the chain
 	// information.
@@ -100,7 +101,10 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if c.IsSet(GroupConfFlag.Name) {
 		info, err = chainInfoFromGroupTOML(c.Path(GroupConfFlag.Name))
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode group configuration: %w", err)
+			info, _ = chainInfoFromChainInfoJSON(c.Path(GroupConfFlag.Name))
+			if info == nil {
+				return nil, fmt.Errorf("failed to decode group configuration: %w", err)
+			}
 		}
 		opts = append(opts, client.WithChainInfo(info))
 	}
@@ -248,4 +252,12 @@ func chainInfoFromGroupTOML(path string) (*chain.Info, error) {
 		return nil, err
 	}
 	return chain.NewChainInfo(g), nil
+}
+
+func chainInfoFromChainInfoJSON(path string) (*chain.Info, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return chain.InfoFromJSON(bytes.NewBuffer(b))
 }
