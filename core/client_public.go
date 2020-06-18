@@ -60,16 +60,3 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	}
 	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
 }
-
-type peerAddr struct {
-	addr string
-	t    bool
-}
-
-func (p *peerAddr) Address() string {
-	return p.addr
-}
-
-func (p *peerAddr) IsTLS() bool {
-	return p.t
-}
