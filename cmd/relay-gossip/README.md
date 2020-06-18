@@ -36,6 +36,9 @@ Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
    +-------------------------+   +-------------------------+
 ```
 
+<!-- START doctoc -->
+<!-- END doctoc -->
+
 ## Install
 
 ```sh
