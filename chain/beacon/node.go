@@ -85,7 +85,7 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 	}
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	callbacks := chain.NewCallbackStore(s)
-	store := newChainStore(logger, c, safe, callbacks, ticker)
+	store := newChainStore(logger, conf, c, safe, callbacks, ticker)
 	handler := &Handler{
 		conf:      conf,
 		client:    c,

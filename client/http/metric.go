@@ -47,7 +47,7 @@ func (c *HealthMetrics) startObserve(ctx context.Context) {
 			continue
 		}
 
-		result, err := c.clients[n].Get(ctx, 0)
+		result, err := c.clients[n].Get(ctx, c.clients[n].RoundAt(time.Now())+1)
 		if err != nil {
 			metrics.ClientHTTPHeartbeatFailure.With(prometheus.Labels{"http_address": httpClient.root}).Inc()
 			continue
