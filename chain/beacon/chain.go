@@ -9,6 +9,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -161,10 +162,11 @@ func (c *chainStore) runChainLoop() {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
-		// measure time discrepancy in milliseconds
+		// measure beacon creation time discrepancy in milliseconds
 		actual := time.Now().UnixNano()
 		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
 		discrepancy := float64(actual-expected) / float64(time.Millisecond)
+		metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
 		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy)
 		c.lastInserted <- newB
 		if !syncing {
