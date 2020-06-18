@@ -38,6 +38,12 @@ var (
 		Name: "group_connections",
 		Help: "Number of peers with current GrpcClient connections",
 	})
+	// BeaconDiscrepancyLatency (Group) millisecond duration between time beacon created and
+	// calculated time of round.
+	BeaconDiscrepancyLatency = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "beacon_discrepancy_latency",
+		Help: "Discrepancy between beacon creation time and calculated round time",
+	})
 
 	// HTTPCallCounter (HTTP) how many http requests
 	HTTPCallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -152,6 +158,7 @@ func bindMetrics() error {
 		APICallCounter,
 		GroupDialFailures,
 		GroupConnections,
+		BeaconDiscrepancyLatency,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {

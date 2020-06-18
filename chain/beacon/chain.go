@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -22,6 +24,7 @@ const (
 // needed and arranges the head
 type chainStore struct {
 	chain.Store
+	conf          *Config
 	l             log.Logger
 	client        net.ProtocolClient
 	safe          *cryptoSafe
@@ -34,9 +37,10 @@ type chainStore struct {
 	nonSyncBeacon chan *chain.Beacon
 }
 
-func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
+func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
 	c := &chainStore{
 		l:             l,
+		conf:          conf,
 		client:        client,
 		safe:          safe,
 		Store:         s,
@@ -158,7 +162,12 @@ func (c *chainStore) runChainLoop() {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
-		c.l.Info("NEW_BEACON_STORED", newB.String())
+		// measure beacon creation time discrepancy in milliseconds
+		actual := time.Now().UnixNano()
+		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
+		discrepancy := float64(actual-expected) / float64(time.Millisecond)
+		metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
+		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy)
 		c.lastInserted <- newB
 		if !syncing {
 			// during syncing we don't do a fast sync
