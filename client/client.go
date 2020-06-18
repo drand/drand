@@ -72,17 +72,14 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	}
 
 	var c Client
-	if len(cfg.clients) > 0 {
-		oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
-		if err != nil {
-			return nil, err
-		}
-		c = oc
-		trySetLog(c, cfg.log)
-		oc.Start()
-	} else {
-		c = EmptyClientWithInfo(cfg.chainInfo)
+
+	oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
+	if err != nil {
+		return nil, err
 	}
+	c = oc
+	trySetLog(c, cfg.log)
+	oc.Start()
 
 	if cfg.cacheSize > 0 {
 		c, err = NewCachingClient(c, cache)
@@ -106,7 +103,8 @@ func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &watcherClient{&emptyClient{cfg.chainInfo}, w}, nil
+	ec := EmptyClientWithInfo(cfg.chainInfo)
+	return &watcherClient{ec, w}, nil
 }
 
 func attachMetrics(cfg *clientConfig, c Client) (Client, error) {

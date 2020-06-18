@@ -3,6 +3,7 @@ package client_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -152,6 +153,46 @@ func TestClientWithWatcher(t *testing.T) {
 		if i == len(results) {
 			break
 		}
+	}
+}
+
+func TestClientWithWatcherCtorError(t *testing.T) {
+	watcherErr := errors.New("boom")
+	watcherCtor := func(chainInfo *chain.Info, _ client.Cache) (client.Watcher, error) {
+		return nil, watcherErr
+	}
+
+	// constructor should return error returned by watcherCtor
+	_, err := client.New(
+		client.WithChainInfo(fakeChainInfo()),
+		client.WithWatcher(watcherCtor),
+	)
+	if err != watcherErr {
+		t.Fatal(err)
+	}
+}
+
+func TestClientChainHashOverrideError(t *testing.T) {
+	chainInfo := fakeChainInfo()
+	_, err := client.Wrap(
+		[]client.Client{client.EmptyClientWithInfo(chainInfo)},
+		client.WithChainInfo(chainInfo),
+		client.WithChainHash(fakeChainInfo().Hash()),
+	)
+	if err.Error() != "refusing to override group with non-matching hash" {
+		t.Fatal(err)
+	}
+}
+
+func TestClientChainInfoOverrideError(t *testing.T) {
+	chainInfo := fakeChainInfo()
+	_, err := client.Wrap(
+		[]client.Client{client.EmptyClientWithInfo(chainInfo)},
+		client.WithChainHash(chainInfo.Hash()),
+		client.WithChainInfo(fakeChainInfo()),
+	)
+	if err.Error() != "refusing to override hash with non-matching group" {
+		t.Fatal(err)
 	}
 }
 
