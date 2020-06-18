@@ -1,19 +1,23 @@
 package lib
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net"
 	nhttp "net/http"
 	"os"
 	"path"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/client/http"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	gclient "github.com/drand/drand/lp2p/client"
@@ -51,6 +55,11 @@ var (
 		Usage:   "The hash (in hex) for the chain to follow",
 		Aliases: []string{"chain-hash"}, // DEPRECATED
 	}
+	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
+	GroupConfFlag = &cli.PathFlag{
+		Name:  "group-conf",
+		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded), can be used instead of `-hash` flag to verify the chain.",
+	}
 	// InsecureFlag is the CLI flag to allow autodetection of the chain
 	// information.
 	InsecureFlag = &cli.BoolFlag{
@@ -59,9 +68,8 @@ var (
 	}
 	// RelayFlag is the CLI flag for relay peer multiaddr(s) to connect with.
 	RelayFlag = &cli.StringSliceFlag{
-		Name:    "relay",
-		Usage:   "relay peer multiaddr(s) to connect with",
-		Aliases: []string{"peer-with"}, // DEPRECATED
+		Name:  "relay",
+		Usage: "relay peer multiaddr(s) to connect with",
 	}
 	// PortFlag is the CLI flag for local address for client to bind to, when
 	// connecting to relays. (specified as a numeric port, or a host:port)
@@ -77,6 +85,7 @@ var ClientFlags = []cli.Flag{
 	GRPCConnectFlag,
 	CertFlag,
 	HashFlag,
+	GroupConfFlag,
 	InsecureFlag,
 	RelayFlag,
 	PortFlag,
@@ -87,25 +96,45 @@ var ClientFlags = []cli.Flag{
 func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (client.Client, error) {
 	clients := make([]client.Client, 0)
 	var info *chain.Info
+	var err error
+
+	if c.IsSet(GroupConfFlag.Name) {
+		info, err = chainInfoFromGroupTOML(c.Path(GroupConfFlag.Name))
+		if err != nil {
+			info, _ = chainInfoFromChainInfoJSON(c.Path(GroupConfFlag.Name))
+			if info == nil {
+				return nil, fmt.Errorf("failed to decode group configuration: %w", err)
+			}
+		}
+		opts = append(opts, client.WithChainInfo(info))
+	}
 
 	if c.IsSet(GRPCConnectFlag.Name) {
 		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
 		if err != nil {
 			return nil, err
 		}
-		info, err = gc.Info(context.Background())
-		if err != nil {
-			return nil, err
+		if info == nil {
+			info, err = gc.Info(context.Background())
+			if err != nil {
+				return nil, err
+			}
 		}
 		clients = append(clients, gc)
 	}
 
 	var hash []byte
-	var err error
 	if c.IsSet(HashFlag.Name) {
 		hash, err = hex.DecodeString(c.String(HashFlag.Name))
 		if err != nil {
 			return nil, err
+		}
+		if info != nil && !bytes.Equal(hash, info.Hash()) {
+			return nil, fmt.Errorf(
+				"incorrect chain hash %v != %v",
+				c.String(HashFlag.Name),
+				hex.EncodeToString(info.Hash()),
+			)
 		}
 		opts = append(opts, client.WithChainHash(hash))
 	}
@@ -208,4 +237,27 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 		return nil, err
 	}
 	return ps, nil
+}
+
+// chainInfoFromGroupTOML reads a drand group TOML file and returns the chain info.
+func chainInfoFromGroupTOML(path string) (*chain.Info, error) {
+	gt := &key.GroupTOML{}
+	_, err := toml.DecodeFile(path, gt)
+	if err != nil {
+		return nil, err
+	}
+	g := &key.Group{}
+	err = g.FromTOML(gt)
+	if err != nil {
+		return nil, err
+	}
+	return chain.NewChainInfo(g), nil
+}
+
+func chainInfoFromChainInfoJSON(path string) (*chain.Info, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return chain.InfoFromJSON(bytes.NewBuffer(b))
 }
