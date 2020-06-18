@@ -34,7 +34,7 @@ func (c *watchLatencyMetricClient) startObserve(ctx context.Context) {
 			actual := time.Now().Unix()
 			expected := chain.TimeOfRound(c.chainInfo.Period, c.chainInfo.GenesisTime, result.Round())
 			// the labels of the gauge vec must already be set at the registerer level
-			metrics.ClientWatchLatency.Set(float64(actual - expected))
+			metrics.ClientWatchLatency.Set(float64(actual-expected) / float64(time.Millisecond))
 		case <-ctx.Done():
 			return
 		}
