@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -70,14 +69,6 @@ var (
 		Name:  "port",
 		Usage: "Local (host:)port for client to bind to, when connecting to relays",
 	}
-	// FailoverGraceFlag is the CLI flag for setting the grace period before
-	// randomness is requested from the HTTP API when watching for randomness
-	// and it does not arrive.
-	FailoverGraceFlag = &cli.DurationFlag{
-		Name:    "failover-grace",
-		Usage:   "grace period before randomness is requested from the HTTP API when watching for randomness and it does not arrive (default 5s)",
-		Aliases: []string{"http-failover-grace"}, // DEPRECATED
-	}
 )
 
 // ClientFlags is a list of common flags for client creation
@@ -89,7 +80,6 @@ var ClientFlags = []cli.Flag{
 	InsecureFlag,
 	RelayFlag,
 	PortFlag,
-	FailoverGraceFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied
@@ -177,14 +167,6 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			}
 			opts = append(opts, gclient.WithPubsub(ps))
 		}
-	}
-
-	if c.IsSet(FailoverGraceFlag.Name) {
-		grace := c.Duration(FailoverGraceFlag.Name)
-		if grace == 0 {
-			grace = time.Second * 5
-		}
-		opts = append(opts, client.WithFailoverGracePeriod(grace))
 	}
 
 	return client.Wrap(clients, opts...)
