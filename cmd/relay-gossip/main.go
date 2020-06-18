@@ -74,7 +74,8 @@ var (
 var runCmd = &cli.Command{
 	Name:  "run",
 	Usage: "starts a drand gossip relay process",
-	Flags: append(lib.ClientFlags, []cli.Flag{idFlag,
+	Flags: append(lib.ClientFlags, []cli.Flag{
+		idFlag,
 		peerWithFlag,
 		storeFlag,
 		listenFlag,
