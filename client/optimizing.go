@@ -337,7 +337,7 @@ func (oc *optimizingClient) watchIngest(ctx context.Context, c Client, out chan 
 			return
 		}
 
-		oc.log.Warn("optimizing_client", "watch channel closed", "client", c)
+		oc.log.Warn("optimizing_client", "watch channel closed")
 
 		if oc.watchRetryInterval < 0 { // negative interval disables retries
 			done.Done()
