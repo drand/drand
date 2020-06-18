@@ -72,6 +72,7 @@ func TestGRPCClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Close()
 
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
@@ -99,7 +100,6 @@ func TestGRPCClient(t *testing.T) {
 }
 
 func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
-
 	for {
 		select {
 		case _, ok := <-ch:
@@ -148,6 +148,7 @@ func TestHTTPClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	emit(false)

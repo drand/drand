@@ -3,6 +3,7 @@ package client_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -119,25 +120,7 @@ func TestClientWithoutCache(t *testing.T) {
 	}
 }
 
-func TestClientWithFailover(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
-
-	// ensure a client with failover can be created successfully without error
-	_, err := client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()),
-		client.WithFailoverGracePeriod(time.Second*5),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestClientWithWatcher(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
-
 	results := []mock.Result{
 		{Rnd: 1, Rand: []byte{1}},
 		{Rnd: 2, Rand: []byte{2}},
@@ -154,8 +137,7 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()),
+		client.WithChainInfo(fakeChainInfo()),
 		client.WithWatcher(watcherCtor),
 	)
 	if err != nil {
@@ -163,9 +145,54 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 
 	i := 0
-	for r := range c.Watch(context.Background()) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	for r := range c.Watch(ctx) {
 		compareResults(t, r, &results[i])
 		i++
+		if i == len(results) {
+			break
+		}
+	}
+}
+
+func TestClientWithWatcherCtorError(t *testing.T) {
+	watcherErr := errors.New("boom")
+	watcherCtor := func(chainInfo *chain.Info, _ client.Cache) (client.Watcher, error) {
+		return nil, watcherErr
+	}
+
+	// constructor should return error returned by watcherCtor
+	_, err := client.New(
+		client.WithChainInfo(fakeChainInfo()),
+		client.WithWatcher(watcherCtor),
+	)
+	if err != watcherErr {
+		t.Fatal(err)
+	}
+}
+
+func TestClientChainHashOverrideError(t *testing.T) {
+	chainInfo := fakeChainInfo()
+	_, err := client.Wrap(
+		[]client.Client{client.EmptyClientWithInfo(chainInfo)},
+		client.WithChainInfo(chainInfo),
+		client.WithChainHash(fakeChainInfo().Hash()),
+	)
+	if err.Error() != "refusing to override group with non-matching hash" {
+		t.Fatal(err)
+	}
+}
+
+func TestClientChainInfoOverrideError(t *testing.T) {
+	chainInfo := fakeChainInfo()
+	_, err := client.Wrap(
+		[]client.Client{client.EmptyClientWithInfo(chainInfo)},
+		client.WithChainHash(chainInfo.Hash()),
+		client.WithChainInfo(fakeChainInfo()),
+	)
+	if err.Error() != "refusing to override hash with non-matching group" {
+		t.Fatal(err)
 	}
 }
 
@@ -216,5 +243,14 @@ func compareResults(t *testing.T, a, b client.Result) {
 	}
 	if !bytes.Equal(a.Randomness(), b.Randomness()) {
 		t.Fatal("unexpected result randomness", a.Randomness(), b.Randomness())
+	}
+}
+
+// fakeChainInfo creates a chain info object for use in tests.
+func fakeChainInfo() *chain.Info {
+	return &chain.Info{
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix(),
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
 }
