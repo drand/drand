@@ -55,7 +55,10 @@ type ControlClient struct {
 func NewControlClient(addr string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
 	net, host := controlListenAddr(addr)
-	conn, err := grpc.Dial(fmt.Sprintf("%s://%s", net, host), grpc.WithInsecure())
+	if net != "tcp" {
+		host = fmt.Sprintf("%s://%s", net, host)
+	}
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
 		log.DefaultLogger.Error("control client", "connect failure", "err", err)
 		return nil, err
