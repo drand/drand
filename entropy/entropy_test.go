@@ -26,7 +26,7 @@ func TestNoDuplicatesDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal("Getting randomness failed:", err)
 	}
-	if bytes.Compare(random1, random2) == 0 {
+	if bytes.Equal(random1, random2) {
 		t.Fatal("Randomness was the same for two samples, which is incorrect.")
 	}
 }
@@ -55,7 +55,7 @@ func TestEntropyRead(t *testing.T) {
 }
 
 func TestEntropyReadSmallExec(t *testing.T) {
-	file, err := os.Create("./veryrandom.sh")
+	file, err := os.Create("./veryrandom2.sh")
 	file.Chmod(0740)
 
 	if err != nil {
@@ -66,9 +66,9 @@ func TestEntropyReadSmallExec(t *testing.T) {
 		panic(err)
 	}
 	file.Close()
-	defer os.Remove("./veryrandom.sh")
+	defer os.Remove("./veryrandom2.sh")
 
-	execRand := "./veryrandom.sh"
+	execRand := "./veryrandom2.sh"
 	entropyReader := NewScriptReader(execRand)
 	p := make([]byte, 32)
 	n, err := entropyReader.Read(p)

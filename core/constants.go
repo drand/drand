@@ -18,9 +18,9 @@ func DefaultConfigFolder() string {
 	return path.Join(fs.HomeFolder(), DefaultConfigFolderName)
 }
 
-// DefaultDbFolder is the name of the folder in which the db file is saved. By
+// DefaultDBFolder is the name of the folder in which the db file is saved. By
 // default it is relative to the DefaultConfigFolder path.
-const DefaultDbFolder = "db"
+const DefaultDBFolder = "db"
 
 // DefaultBeaconPeriod is the period in which the beacon logic creates new
 // random beacon.
@@ -41,14 +41,16 @@ var EciesHash = sha256.New
 
 // MaxWaitPrepareDKG is the maximum time the "automatic" setting up of the group
 // can take. If the setup is still not finished after this time, it is
-// cancelled.
+// canceled.
 var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
+
+const genesisOffsetTimeoutMultiple = 3
 
 // DefaultGenesisOffset is the time that the leader adds to the current time to
 // compute the genesis time. It computes the genesis time *before* sending the
 // group to the nodes and before running the DKG so it must be sufficiently high
 // enough (at the very least superior than the time DKG is taking).
-var DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(3)
+const DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(genesisOffsetTimeoutMultiple)
 
 // DefaultResharingOffset is the time the leader adds to the current time to set
 // the TransitionTime field in the group file when setting up a resharing. This
@@ -58,3 +60,6 @@ var DefaultResharingOffset = 30 * time.Second
 
 // IDs for callback when beacon appears
 const callbackID = "callbackID"
+
+// PrivateRandLength is the length of expected private randomness buffers
+const PrivateRandLength = 32

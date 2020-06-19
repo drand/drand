@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 
@@ -18,15 +19,28 @@ func fakeChainInfo() *chain.Info {
 	}
 }
 
+func latestResult(t *testing.T, c Client) Result {
+	r, err := c.Get(context.Background(), 0)
+	if err != nil {
+		t.Fatal("getting latest result", err)
+	}
+	return r
+}
+
 // nextResult reads the next result from the channel and fails the test if it closes before a value is read.
 func nextResult(t *testing.T, ch <-chan Result) Result {
 	t.Helper()
 
-	r, ok := <-ch
-	if !ok {
-		t.Fatal("closed before result")
+	select {
+	case r, ok := <-ch:
+		if !ok {
+			t.Fatal("closed before result")
+		}
+		return r
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for result.")
+		return nil
 	}
-	return r
 }
 
 // compareResults asserts that two results are the same.
@@ -36,7 +50,7 @@ func compareResults(t *testing.T, a, b Result) {
 	if a.Round() != b.Round() {
 		t.Fatal("unexpected result round", a.Round(), b.Round())
 	}
-	if bytes.Compare(a.Randomness(), b.Randomness()) != 0 {
+	if !bytes.Equal(a.Randomness(), b.Randomness()) {
 		t.Fatal("unexpected result randomness", a.Randomness(), b.Randomness())
 	}
 }

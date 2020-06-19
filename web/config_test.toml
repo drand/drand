@@ -1,7 +1,0 @@
-baseURL = "https://drand.io/"
-languageCode = "en-us"
-title = "drand - A Distributed Randomness Beacon"
-
-[params]
-    serverContact = "localhost:1969"
-    tls = false

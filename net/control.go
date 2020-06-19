@@ -20,10 +20,10 @@ type ControlListener struct {
 }
 
 //NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
-func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
-	lis, err := net.Listen("tcp", controlListenAddr(port))
+func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
+	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {
-		log.DefaultLogger.Error("grpc listener", "failure", "err", err)
+		log.DefaultLogger().Error("grpc listener", "failure", "err", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()
@@ -34,7 +34,7 @@ func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlList
 // Start the listener for the control commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
-		log.DefaultLogger.Error("control listener", "serve ended", "err", err)
+		log.DefaultLogger().Error("control listener", "serve ended", "err", err)
 	}
 }
 
@@ -52,11 +52,15 @@ type ControlClient struct {
 
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
-func NewControlClient(port string) (*ControlClient, error) {
+func NewControlClient(addr string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(controlListenAddr(port), grpc.WithInsecure())
+	net, host := controlListenAddr(addr)
+	if net != "tcp" {
+		host = fmt.Sprintf("%s://%s", net, host)
+	}
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
-		log.DefaultLogger.Error("control client", "connect failure", "err", err)
+		log.DefaultLogger().Error("control client", "connect failure", "err", err)
 		return nil, err
 	}
 	c := control.NewControlClient(conn)
@@ -82,7 +86,7 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Dur
 			Threshold:    uint32(threshold),
 			Leader:       true,
 			Timeout:      uint32(timeout.Seconds()),
-			Secret:       secret,
+			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
 	}
@@ -99,7 +103,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) 
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Secret:        secret,
+			Secret:        []byte(secret),
 		},
 	}
 	return c.client.InitReshare(context.Background(), request)
@@ -116,7 +120,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Du
 			Threshold:    uint32(threshold),
 			Leader:       true,
 			Timeout:      uint32(timeout.Seconds()),
-			Secret:       secret,
+			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
 		Entropy:      entropy,
@@ -132,7 +136,7 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			Leader:        false,
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
-			Secret:        secret,
+			Secret:        []byte(secret),
 		},
 		Entropy: entropy,
 	}
@@ -170,11 +174,15 @@ func (c ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 	return c.client.Shutdown(context.Background(), &control.ShutdownRequest{})
 }
 
-func controlListenAddr(port string) string {
-	if strings.Contains(port, ":") {
-		return port
+// controlListenAddr parses the control address as specified, into a dialable / listenable address
+func controlListenAddr(listenAddr string) (network string, addr string) {
+	if strings.HasPrefix(listenAddr, "unix://") {
+		return "unix", strings.TrimPrefix(listenAddr, "unix://")
 	}
-	return fmt.Sprintf("%s:%s", "localhost", port)
+	if strings.Contains(listenAddr, ":") {
+		return "tcp", listenAddr
+	}
+	return "tcp", fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }
 
 //DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.

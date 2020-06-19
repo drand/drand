@@ -79,6 +79,29 @@ func TestDeleteBeacon(t *testing.T) {
 	require.Nil(t, b)
 }
 
+func TestKeySelfSign(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "127.0.0.1:8081"}
+	require.NoError(t, CLI().Run(args))
+
+	selfSign := []string{"drand", "util", "self-sign", "--folder", tmp}
+	// try self sign, it should only print that it's already the case
+	expectedOutput := "already self signed"
+	testCommand(t, selfSign, expectedOutput)
+
+	// load, remove signature and save
+	fs := key.NewFileStore(tmp)
+	pair, err := fs.LoadKeyPair()
+	require.NoError(t, err)
+	pair.Public.Signature = nil
+	require.NoError(t, fs.SaveKeyPair(pair))
+
+	expectedOutput = "identity self signed"
+	testCommand(t, selfSign, expectedOutput)
+
+}
+
 func TestKeyGen(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -397,6 +420,6 @@ func testCommand(t *testing.T, args []string, exp string) {
 	fmt.Println("RUNNING: ", args)
 	fmt.Println("EXPECTED: ", exp)
 	fmt.Println("GOT: ", strings.Trim(buff.String(), "\n"), " --")
-	fmt.Println("EQUAL: ", strings.Trim(buff.String(), "\n") == exp)
+	fmt.Println("CONTAINS: ", strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }

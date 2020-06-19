@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
@@ -112,7 +112,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
 		cancel: cancel,
-		log:    log.DefaultLogger,
+		log:    log.DefaultLogger(),
 	}
 
 	chainHash := hex.EncodeToString(info.Hash())

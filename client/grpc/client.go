@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -15,12 +17,16 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+const grpcDefaultTimeout = 5 * time.Second
+
 type grpcClient struct {
-	client drand.PublicClient
+	address string
+	client  drand.PublicClient
+	l       log.Logger
 }
 
 // New creates a drand client backed by a GRPC connection.
-func New(address string, certPath string, insecure bool) (client.Client, error) {
+func New(address, certPath string, insecure bool) (client.Client, error) {
 	opts := []grpc.DialOption{}
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -41,7 +47,7 @@ func New(address string, certPath string, insecure bool) (client.Client, error) 
 	if err != nil {
 		return nil, err
 	}
-	return &grpcClient{drand.NewPublicClient(conn)}, nil
+	return &grpcClient{address, drand.NewPublicClient(conn), log.DefaultLogger()}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {
@@ -53,6 +59,11 @@ func asRD(r *drand.PublicRandResponse) *client.RandomData {
 	}
 }
 
+// String returns the name of this client.
+func (g *grpcClient) String() string {
+	return fmt.Sprintf("GRPC(%q)", g.address)
+}
+
 // Get returns a the randomness at `round` or an error.
 func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
@@ -60,7 +71,7 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		return nil, err
 	}
 	if curr == nil {
-		return nil, errors.New("No received randomness. Unexpected gPRC response")
+		return nil, errors.New("no received randomness - unexpected gPRC response")
 	}
 
 	return asRD(curr), nil
@@ -74,7 +85,7 @@ func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 		close(ch)
 		return ch
 	}
-	go translate(stream, ch)
+	go g.translate(stream, ch)
 	return ch
 }
 
@@ -85,16 +96,19 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 		return nil, err
 	}
 	if proto == nil {
-		return nil, errors.New("No received group. Unexpected gPRC response")
+		return nil, errors.New("no received group - unexpected gPRC response")
 	}
 	return chain.InfoFromProto(proto)
 }
 
-func translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
+func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
 	defer close(out)
 	for {
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {
+			if err != stream.Context().Err() {
+				g.l.Error("grpc_client", "public rand stream", "err", err)
+			}
 			return
 		}
 		out <- asRD(next)
@@ -102,11 +116,16 @@ func translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Res
 }
 
 func (g *grpcClient) RoundAt(t time.Time) uint64 {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), grpcDefaultTimeout)
 	defer cancel()
 	info, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
 	if err != nil {
 		return 0
 	}
 	return chain.CurrentRound(t.Unix(), time.Second*time.Duration(info.Period), info.GenesisTime)
+}
+
+// SetLog configures the client log output
+func (g *grpcClient) SetLog(l log.Logger) {
+	g.l = l
 }

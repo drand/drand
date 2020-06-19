@@ -55,7 +55,7 @@ func Relay(c *cli.Context) error {
 		return err
 	}
 
-	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger.With("binary", "relay"))
+	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger().With("binary", "relay"))
 	if err != nil {
 		return fmt.Errorf("Failed to create rest handler: %w", err)
 	}
@@ -85,7 +85,7 @@ func Relay(c *cli.Context) error {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
-		log.DefaultLogger.Warn("binary", "relay", "startup failed", rr.Code)
+		log.DefaultLogger().Warn("binary", "relay", "startup failed", rr.Code)
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
@@ -106,6 +106,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.DefaultLogger.Fatal("binary", "relay", "err", err)
+		log.DefaultLogger().Fatal("binary", "relay", "err", err)
 	}
 }

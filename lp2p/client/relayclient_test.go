@@ -15,11 +15,13 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
-	cmock "github.com/drand/drand/client/test/mock"
+	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	bds "github.com/ipfs/go-ds-badger2"
 	ma "github.com/multiformats/go-multiaddr"
@@ -61,7 +63,7 @@ func TestGRPCClient(t *testing.T) {
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       client,
 	}
-	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger, cfg)
+	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -72,6 +74,7 @@ func TestGRPCClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Close()
 
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
@@ -99,7 +102,6 @@ func TestGRPCClient(t *testing.T) {
 }
 
 func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
-
 	for {
 		select {
 		case _, ok := <-ch:
@@ -113,7 +115,7 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, stop, emit := cmock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false)
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
@@ -138,7 +140,7 @@ func TestHTTPClient(t *testing.T) {
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       client,
 	}
-	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger, cfg)
+	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -148,6 +150,7 @@ func TestHTTPClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer c.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	emit(false)
@@ -184,19 +187,51 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger)
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger())
 	if err != nil {
 		return nil, err
 	}
-	_, ps, err := lp2p.ConstructHost(
+	h, ps, err := lp2p.ConstructHost(
 		ds,
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
-		log.DefaultLogger,
+		log.DefaultLogger(),
 	)
 	if err != nil {
 		return nil, err
 	}
+	relayPeerID, err := peerIDFromMultiaddr(relayMultiaddr[0])
+	if err != nil {
+		return nil, err
+	}
+	err = waitForConnection(h, relayPeerID, time.Minute)
+	if err != nil {
+		return nil, err
+	}
 	return NewWithPubsub(ps, info, nil)
+}
+
+func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
+	ai, err := peer.AddrInfoFromP2pAddr(addr)
+	if err != nil {
+		return "", err
+	}
+	return ai.ID, nil
+}
+
+func waitForConnection(h host.Host, id peer.ID, timeout time.Duration) error {
+	t := time.NewTimer(timeout)
+	for {
+		if len(h.Network().ConnsToPeer(id)) > 0 {
+			t.Stop()
+			return nil
+		}
+		select {
+		case <-t.C:
+			return fmt.Errorf("timed out waiting to be connected the relay @ %v", id)
+		default:
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
 }

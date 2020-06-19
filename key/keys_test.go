@@ -36,6 +36,34 @@ func TestKeyPublic(t *testing.T) {
 	require.Equal(t, kp.Public.Key.String(), p2.Key.String())
 }
 
+func TestKeySignature(t *testing.T) {
+	addr := "127.0.0.1:80"
+	kp := NewTLSKeyPair(addr)
+	validSig := kp.Public.Signature
+	require.NoError(t, kp.Public.ValidSignature())
+	kp.Public.Signature = []byte("no justice, no peace")
+	require.Error(t, kp.Public.ValidSignature())
+	kp.Public.Signature = validSig
+
+	ptoml := kp.Public.TOML().(*PublicTOML)
+	id2 := new(Identity)
+	require.NoError(t, id2.FromTOML(ptoml))
+	require.NoError(t, id2.ValidSignature())
+	ptoml.Signature = ""
+	id2.Signature = nil
+	require.NoError(t, id2.FromTOML(ptoml))
+	require.Error(t, id2.ValidSignature(), id2.Signature)
+
+	protoID := kp.Public.ToProto()
+	decodedID, err := IdentityFromProto(protoID)
+	require.NoError(t, err)
+	require.NoError(t, decodedID.ValidSignature())
+	protoID.Signature = []byte("I am insane. And you are my insanity")
+	decodedID, err = IdentityFromProto(protoID)
+	require.NoError(t, err)
+	require.Error(t, decodedID.ValidSignature())
+}
+
 func TestKeyDistributedPublic(t *testing.T) {
 	n := 4
 	publics := make([]kyber.Point, n)

@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"sync"
 	"time"
 
 	"github.com/go-kit/kit/log"
@@ -29,17 +30,25 @@ const (
 	LogDebug
 )
 
+const logStackDepth = 6
+
 // DefaultLevel is the default level where statements are logged. Change the
 // value of this variable before init() to change the level of the default
 // logger.
 var DefaultLevel = LogInfo
 
-// DefaultLogger is the default logger that only statemetns at the
-// default level. The level is set by DefaultLevel inside init()..
-var DefaultLogger Logger
+var defaultLogger Logger
 
-func init() {
-	DefaultLogger = NewLogger(DefaultLevel)
+var defaultLoggerSet sync.Once
+
+func setDefaultLogger() {
+	defaultLogger = NewLogger(DefaultLevel)
+}
+
+// DefaultLogger is the default logger that only logs at the `DefaultLevel`.
+func DefaultLogger() Logger {
+	defaultLoggerSet.Do(setDefaultLogger)
+	return defaultLogger
 }
 
 type kitLogger struct {
@@ -79,28 +88,28 @@ func NewKitLogger(opts ...lvl.Option) Logger {
 	}
 	timestamp := log.TimestampFormat(time.Now, time.RFC1123)
 	logger = log.With(logger, "ts", timestamp)
-	logger = log.With(logger, "call", log.Caller(6))
+	logger = log.With(logger, "call", log.Caller(logStackDepth))
 	return NewKitLoggerFrom(logger)
 }
 
 func (k *kitLogger) Info(kv ...interface{}) {
-	lvl.Info(k.Logger).Log(kv...)
+	_ = lvl.Info(k.Logger).Log(kv...)
 }
 
 func (k *kitLogger) Debug(kv ...interface{}) {
-	lvl.Debug(k.Logger).Log(kv...)
+	_ = lvl.Debug(k.Logger).Log(kv...)
 }
 
 func (k *kitLogger) Warn(kv ...interface{}) {
-	lvl.Warn(k.Logger).Log(kv...)
+	_ = lvl.Warn(k.Logger).Log(kv...)
 }
 
 func (k *kitLogger) Error(kv ...interface{}) {
-	lvl.Error(k.Logger).Log(kv...)
+	_ = lvl.Error(k.Logger).Log(kv...)
 }
 
 func (k *kitLogger) Fatal(kv ...interface{}) {
-	lvl.Error(k.Logger).Log(kv...)
+	_ = lvl.Error(k.Logger).Log(kv...)
 	os.Exit(1)
 }
 

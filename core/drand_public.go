@@ -15,7 +15,7 @@ import (
 	"github.com/drand/kyber/encrypt/ecies"
 )
 
-// Setup is the public method to call during a DKG protocol.
+// FreshDKG is the public method to call during a DKG protocol.
 func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -31,11 +31,13 @@ func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, 
 		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}
-	d.dkgInfo.board.FreshDKG(c, in)
+	if _, err := d.dkgInfo.board.FreshDKG(c, in); err != nil {
+		return nil, err
+	}
 	return new(drand.Empty), nil
 }
 
-// Reshare is called when a resharing protocol is in progress
+// ReshareDKG is called when a resharing protocol is in progress
 func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -46,15 +48,20 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 	addr := net.RemoteAddress(c)
 	if !d.dkgInfo.started {
 		d.dkgInfo.started = true
-		d.log.Info("init_reshare", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()), "target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
+		d.log.Info("init_reshare", "start",
+			"signal_leader", addr,
+			"group", hex.EncodeToString(d.dkgInfo.target.Hash()),
+			"target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
 		go d.dkgInfo.phaser.Start()
 	}
 
-	d.dkgInfo.board.ReshareDKG(c, in)
+	if _, err := d.dkgInfo.board.ReshareDKG(c, in); err != nil {
+		return nil, err
+	}
 	return new(drand.Empty), nil
 }
 
-// NewBeacon methods receives a beacon generation requests and answers
+// PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
 func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
@@ -90,6 +97,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	return beaconToProto(r), nil
 }
 
+// PublicRandStream exports a stream of new beacons as they are generated over gRPC
 func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	var b *beacon.Handler
 	d.state.Lock()
@@ -153,18 +161,18 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 	if err := clientKey.UnmarshalBinary(msg); err != nil {
 		return nil, errors.New("invalid client key")
 	}
-	randomness, err := entropy.GetRandom(nil, 32)
+	randomness, err := entropy.GetRandom(nil, PrivateRandLength)
 	if err != nil {
 		return nil, fmt.Errorf("error gathering randomness: %s", err)
-	} else if len(randomness) != 32 {
+	} else if len(randomness) != PrivateRandLength {
 		return nil, fmt.Errorf("error gathering randomness: expected 32 bytes, got %d", len(randomness))
 	}
 
-	obj, err := ecies.Encrypt(key.KeyGroup, clientKey, randomness[:], EciesHash)
+	obj, err := ecies.Encrypt(key.KeyGroup, clientKey, randomness, EciesHash)
 	return &drand.PrivateRandResponse{Response: obj}, err
 }
 
-// Home ...
+// Home provides the address the local node is listening
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	d.log.With("module", "public").Info("home", net.RemoteAddress(c))
 	return &drand.HomeResponse{
@@ -183,6 +191,7 @@ func (d *Drand) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*dra
 	return chain.NewChainInfo(d.group).ToProto(), nil
 }
 
+// SignalDKGParticipant receives a dkg signal packet from another member
 func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -198,6 +207,7 @@ func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPack
 	return new(drand.Empty), nil
 }
 
+// PushDKGInfo triggers sending DKG info to other members
 func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
@@ -218,10 +228,15 @@ func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*dran
 // given round
 func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
 	d.state.Lock()
-	beacon := d.beacon
+	b := d.beacon
 	d.state.Unlock()
-	if beacon != nil {
-		beacon.SyncChain(req, stream)
+	if b != nil {
+		return b.SyncChain(req, stream)
 	}
 	return nil
+}
+
+// GetIdentity returns the identity of this drand node
+func (d *Drand) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.Identity, error) {
+	return d.priv.Public.ToProto(), nil
 }

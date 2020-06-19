@@ -47,10 +47,10 @@ func NewConfig(opts ...ConfigOption) *Config {
 		dkgTimeout:   DefaultDKGTimeout,
 		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
-		logger:      log.DefaultLogger,
+		logger:      log.DefaultLogger(),
 		clock:       clock.NewRealClock(),
 	}
-	d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
+	d.dbFolder = path.Join(d.configFolder, DefaultDBFolder)
 	for i := range opts {
 		opts[i](d)
 	}
@@ -119,7 +119,7 @@ func (d *Config) applyDkgCallback(share *key.Share) {
 	}
 }
 
-// WithGrpcOptions applies grpc dialling option used when a drand node actively
+// WithGrpcOptions applies grpc dialing option used when a drand node actively
 // contacts another.
 func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
 	return func(d *Config) {
@@ -153,9 +153,9 @@ func (d *Config) BoltOptions() *bolt.Options {
 	return d.boltOpts
 }
 
-// WithDbFolder sets the path folder for the db file. This path is NOT relative
+// WithDBFolder sets the path folder for the db file. This path is NOT relative
 // to the DrandFolder path if set.
-func WithDbFolder(folder string) ConfigOption {
+func WithDBFolder(folder string) ConfigOption {
 	return func(d *Config) {
 		d.dbFolder = folder
 	}
@@ -165,7 +165,7 @@ func WithDbFolder(folder string) ConfigOption {
 func WithConfigFolder(folder string) ConfigOption {
 	return func(d *Config) {
 		d.configFolder = folder
-		d.dbFolder = path.Join(d.configFolder, DefaultDbFolder)
+		d.dbFolder = path.Join(d.configFolder, DefaultDBFolder)
 	}
 }
 
@@ -250,13 +250,6 @@ func WithControlPort(port string) ConfigOption {
 func WithLogLevel(level int) ConfigOption {
 	return func(d *Config) {
 		d.logger = log.NewLogger(level)
-	}
-}
-
-// test option to feed a fake clock
-func withClock(c clock.Clock) ConfigOption {
-	return func(d *Config) {
-		d.clock = c
 	}
 }
 

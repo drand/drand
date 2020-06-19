@@ -363,9 +363,10 @@ func (g *Group) ToProto() *proto.GroupPacket {
 		key, _ := id.Key.MarshalBinary()
 		ids[i] = &proto.Node{
 			Public: &proto.Identity{
-				Address: id.Address(),
-				Tls:     id.IsTLS(),
-				Key:     key,
+				Address:   id.Address(),
+				Tls:       id.IsTLS(),
+				Key:       key,
+				Signature: id.Signature,
 			},
 			Index: id.Index,
 		}
@@ -385,4 +386,17 @@ func (g *Group) ToProto() *proto.GroupPacket {
 		out.DistKey = coeffs
 	}
 	return out
+}
+
+// UnsignedIdentities return true if all identities in the group are signed
+// correctly or not. This method is here because of backward compatibility where
+// identities were not self-signed before.
+func (g *Group) UnsignedIdentities() []*Node {
+	var unsigned []*Node
+	for _, n := range g.Nodes {
+		if n.Identity.ValidSignature() != nil {
+			unsigned = append(unsigned, n)
+		}
+	}
+	return unsigned
 }

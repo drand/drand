@@ -1,0 +1,32 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Fetch Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: go get ./...
+
+    - name: Build
+      run: go build .
+
+    - name: Run golangci-lint
+      uses: golangci/golangci-lint-action@v1.2.1
+      with:
+        version: v1.27

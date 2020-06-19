@@ -27,8 +27,7 @@ type Node struct {
 func (n *Node) Hash() []byte {
 	h := hashFunc()
 	binary.Write(h, binary.LittleEndian, n.Index)
-	buff, _ := n.Identity.Key.MarshalBinary()
-	h.Write(buff)
+	n.Identity.Key.MarshalTo(h)
 	return h.Sum(nil)
 }
 

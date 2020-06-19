@@ -12,6 +12,7 @@ This document is a specification of the drand protocols.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
 
 - [Notations](#notations)
   - [Drand node](#drand-node)
@@ -21,6 +22,7 @@ This document is a specification of the drand protocols.
 - [Wireformat & API](#wireformat--api)
 - [Drand Modules](#drand-modules)
   - [Setup phase](#setup-phase)
+    - [Getting the public key of the coordinator](#getting-the-public-key-of-the-coordinator)
     - [Collecting the keys of the participants](#collecting-the-keys-of-the-participants)
     - [Coordinator pushing the new group configuration](#coordinator-pushing-the-new-group-configuration)
   - [Distributed Key Generation](#distributed-key-generation)
@@ -32,7 +34,6 @@ This document is a specification of the drand protocols.
     - [Justification Phase](#justification-phase)
     - [Finish Phase](#finish-phase)
   - [Randomness generation](#randomness-generation)
-    - [Overiew](#overiew)
     - [Randomness Generation Period](#randomness-generation-period)
     - [Beacon Chain](#beacon-chain)
     - [Root of trust](#root-of-trust)
@@ -61,7 +62,7 @@ This document is a specification of the drand protocols.
 - [External API](#external-api)
 - [Control API](#control-api)
 - [Appendix A. DKG packets](#appendix-a-dkg-packets)
-- [THINGS TO REVIEW](#things-to-review)
+- [Things to review](#things-to-review)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -208,6 +209,29 @@ configuration and for starting the Distributed Key Generation.
 This setup phase uses the notion of a common _secret_ between all participants.
 That way, only the participants that know the same secret are able to be listed
 in the new group configuration.
+
+#### Getting the public key of the coordinator
+
+Participants needs to know at least the address *and* public key of the coordinator. Drand provides a simple gRPC call that returns the public key of the node.
+**Note**: This part is not _required_ by the spec but is implemented by drand
+for simplicity of use. This protocol relies the TOFU ("Trust On First Use")
+approach: the coordinator is trusted for this and the subsequent phase and gives
+us a valid public key. A node/implementation can skip this step if it knows
+already the public key of the coordinator by another mean (out of band, gossip,
+etc)
+The gRPC endpoint call is:
+```protobuf
+rpc GetIdentity(IdentityRequest) returns (Identity);
+
+message IdentityRequest {}
+message Identity {
+    string address = 1;
+    bytes key = 2;
+    bool tls = 3;
+    // BLS signature over the identity to prove possession of the private key
+    bytes signature = 4;
+}
+```
 
 #### Collecting the keys of the participants
 

@@ -7,13 +7,15 @@ import (
 	"github.com/drand/drand/log"
 )
 
+const aggregatorWatchBuffer = 5
+
 // newWatchAggregator maintains state of consumers calling `Watch` so that a
 // single `watch` request is made to the underlying client.
 func newWatchAggregator(c Client, autoWatch bool) *watchAggregator {
 	aggregator := &watchAggregator{
 		Client:      c,
 		autoWatch:   autoWatch,
-		log:         log.DefaultLogger,
+		log:         log.DefaultLogger(),
 		subscribers: make([]subscriber, 0),
 	}
 	if autoWatch {
@@ -46,7 +48,7 @@ func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 	c.subscriberLock.Lock()
 	defer c.subscriberLock.Unlock()
 
-	sub := subscriber{ctx, make(chan Result, 5)}
+	sub := subscriber{ctx, make(chan Result, aggregatorWatchBuffer)}
 	c.subscribers = append(c.subscribers, sub)
 
 	if len(c.subscribers) == 1 && !c.autoWatch {

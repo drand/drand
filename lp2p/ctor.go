@@ -63,22 +63,29 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
 	}
 
-	addrInfos, err := peer.AddrInfosFromP2pAddrs(bootstrap...)
+	addrInfos, err := resolveAddresses(ctx, bootstrap)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
 	cmgr := connmgr.NewConnManager(lowWater, highWater, gracePeriod)
 
-	h, err := libp2p.New(ctx,
-		libp2p.ListenAddrStrings(listenAddr),
+	opts := []libp2p.Option{
 		libp2p.Identity(priv),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.DisableRelay(),
 		//libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
 		libp2p.UserAgent(userAgent),
 		libp2p.ConnectionManager(cmgr),
-	)
+	}
+
+	if listenAddr != "" {
+		opts = append(opts, libp2p.ListenAddrStrings(listenAddr))
+	} else {
+		opts = append(opts, libp2p.NoListenAddrs)
+	}
+
+	h, err := libp2p.New(ctx, opts...)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}

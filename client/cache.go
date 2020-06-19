@@ -51,7 +51,6 @@ type nilCache struct{}
 
 // Add a result to the cache
 func (*nilCache) Add(_ uint64, _ Result) {
-	return
 }
 
 // TryGet attempts to get ar esult from the cache
@@ -65,7 +64,7 @@ func NewCachingClient(client Client, cache Cache) (Client, error) {
 	return &cachingClient{
 		Client: client,
 		cache:  cache,
-		log:    log.DefaultLogger,
+		log:    log.DefaultLogger(),
 	}, nil
 }
 

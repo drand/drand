@@ -41,6 +41,8 @@ func protoToDeal(d *pdkg.DealBundle) (*dkg.DealBundle, error) {
 		deals = append(deals, deal)
 	}
 	bundle.Deals = deals
+	bundle.SessionID = d.SessionId
+	bundle.Signature = d.Signature
 	return bundle, nil
 }
 
@@ -55,10 +57,12 @@ func protoToResp(r *pdkg.ResponseBundle) *dkg.ResponseBundle {
 		}
 		resp.Responses = append(resp.Responses, response)
 	}
+	resp.SessionID = r.SessionId
+	resp.Signature = r.Signature
 	return resp
 }
 
-func protoToJustif(j *pdkg.JustifBundle) (*dkg.JustificationBundle, error) {
+func protoToJustif(j *pdkg.JustificationBundle) (*dkg.JustificationBundle, error) {
 	just := new(dkg.JustificationBundle)
 	just.DealerIndex = j.DealerIndex
 	just.Justifications = make([]dkg.Justification, len(j.Justifications))
@@ -73,15 +77,17 @@ func protoToJustif(j *pdkg.JustifBundle) (*dkg.JustificationBundle, error) {
 		}
 		just.Justifications[i] = justif
 	}
+	just.SessionID = j.SessionId
+	just.Signature = j.Signature
 	return just, nil
 }
 
-func dealToProto(d *dkg.AuthDealBundle) *pdkg.Packet {
+func dealToProto(d *dkg.DealBundle) *pdkg.Packet {
 	packet := new(pdkg.Packet)
 	bundle := new(pdkg.DealBundle)
-	bundle.DealerIndex = d.Bundle.DealerIndex
-	bundle.Deals = make([]*pdkg.Deal, len(d.Bundle.Deals))
-	for i, deal := range d.Bundle.Deals {
+	bundle.DealerIndex = d.DealerIndex
+	bundle.Deals = make([]*pdkg.Deal, len(d.Deals))
+	for i, deal := range d.Deals {
 		pdeal := &pdkg.Deal{
 			ShareIndex:     deal.ShareIndex,
 			EncryptedShare: deal.EncryptedShare,
@@ -89,39 +95,41 @@ func dealToProto(d *dkg.AuthDealBundle) *pdkg.Packet {
 		bundle.Deals[i] = pdeal
 	}
 
-	bundle.Commits = make([][]byte, len(d.Bundle.Public))
-	for i, coeff := range d.Bundle.Public {
+	bundle.Commits = make([][]byte, len(d.Public))
+	for i, coeff := range d.Public {
 		cbuff, _ := coeff.MarshalBinary()
 		bundle.Commits[i] = cbuff
 	}
-	packet.Signature = d.Signature
+	bundle.Signature = d.Signature
+	bundle.SessionId = d.SessionID
 	packet.Bundle = &pdkg.Packet_Deal{Deal: bundle}
 	return packet
 }
 
-func respToProto(r *dkg.AuthResponseBundle) *pdkg.Packet {
+func respToProto(r *dkg.ResponseBundle) *pdkg.Packet {
 	packet := new(pdkg.Packet)
 	bundle := new(pdkg.ResponseBundle)
-	bundle.ShareIndex = r.Bundle.ShareIndex
-	bundle.Responses = make([]*pdkg.Response, len(r.Bundle.Responses))
-	for i, resp := range r.Bundle.Responses {
+	bundle.ShareIndex = r.ShareIndex
+	bundle.Responses = make([]*pdkg.Response, len(r.Responses))
+	for i, resp := range r.Responses {
 		presp := &pdkg.Response{
 			DealerIndex: resp.DealerIndex,
 			Status:      resp.Status,
 		}
 		bundle.Responses[i] = presp
 	}
-	packet.Signature = r.Signature
+	bundle.SessionId = r.SessionID
+	bundle.Signature = r.Signature
 	packet.Bundle = &pdkg.Packet_Response{Response: bundle}
 	return packet
 }
 
-func justifToProto(j *dkg.AuthJustifBundle) *pdkg.Packet {
+func justifToProto(j *dkg.JustificationBundle) *pdkg.Packet {
 	packet := new(pdkg.Packet)
-	bundle := new(pdkg.JustifBundle)
-	bundle.DealerIndex = j.Bundle.DealerIndex
-	bundle.Justifications = make([]*pdkg.Justification, len(j.Bundle.Justifications))
-	for i, just := range j.Bundle.Justifications {
+	bundle := new(pdkg.JustificationBundle)
+	bundle.DealerIndex = j.DealerIndex
+	bundle.Justifications = make([]*pdkg.Justification, len(j.Justifications))
+	for i, just := range j.Justifications {
 		shareBuff, _ := just.Share.MarshalBinary()
 		pjust := &pdkg.Justification{
 			ShareIndex: just.ShareIndex,
@@ -129,7 +137,8 @@ func justifToProto(j *dkg.AuthJustifBundle) *pdkg.Packet {
 		}
 		bundle.Justifications[i] = pjust
 	}
-	packet.Signature = j.Signature
+	bundle.SessionId = j.SessionID
+	bundle.Signature = j.Signature
 	packet.Bundle = &pdkg.Packet_Justification{Justification: bundle}
 	return packet
 }

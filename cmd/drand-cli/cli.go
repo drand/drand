@@ -364,6 +364,14 @@ func CLI() *cli.App {
 						return deleteBeaconCmd(c)
 					},
 				},
+				{
+					Name:  "self-sign",
+					Usage: "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
+					Flags: toArray(folderFlag),
+					Action: func(c *cli.Context) error {
+						return selfSign(c)
+					},
+				},
 			},
 		},
 		{
@@ -541,15 +549,12 @@ func keygenCmd(c *cli.Context) error {
 		return fmt.Errorf("err getting full path: %s", err)
 	}
 	fmt.Println("Generated keys at ", absPath)
-	fmt.Println("You can copy paste the following snippet to a common group.toml file:")
 	var buff bytes.Buffer
-	buff.WriteString("[[Nodes]]\n")
 	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
 		panic(err)
 	}
 	buff.WriteString("\n")
 	fmt.Println(buff.String())
-	fmt.Println("Or just collect all public key files and use the group command!")
 	return nil
 }
 
