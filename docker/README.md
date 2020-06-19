@@ -70,7 +70,7 @@ Note: **only** do this if you intend to setup TLS with your reverse proxy. If yo
 In this case, replace the following line in the `docker-compose.yml` file:
 
 ```
-    command: --verbose 2 start --private-listen 0.0.0.0:8080 --cert-dir "/root/.drand/tls_certificates" --tls-cert "/root/.drand/tls_keypair/cert.pem" --tls-key "/root/.drand/tls_keypair/key.pem"
+    command: --verbose 2 start --private-listen 0.0.0.0:8080 --cert-dir "/data/drand/.drand/tls_certificates" --tls-cert "/data/drand/.drand/tls_keypair/cert.pem" --tls-key "/data/drand/.drand/tls_keypair/key.pem"
 ```
 
 by:
@@ -83,15 +83,9 @@ This guide will continue focusing on drand; jump to the end of this guide to con
 ## Public HTTP api
 
 The compose file also opens a public http API to be consumed by the clients.
-This public endpoint is exposed on the 1235 port (private endpont + 1).
+This public endpoint is exposed on the 8081 port (specified with `--public-listen`]).
 If you wish to not expose the public http endpoint, you need to change the
-docker file to remove references to public port, as follow:
-```
-    ports:
-      - "0.0.0.0:1234:8080"
-    entrypoint: /drand
-    command: start --verbose --private-listen 0.0.0.0:8080 --tls-cert "/root/.drand/cert.pem" --tls-key "/root/.drand/key.pem"
-```
+docker file to remove references to public port.
 
 ## Generate drand keys
 
@@ -153,7 +147,7 @@ Then, you're inside the container; tell drand to run the DKG like so:
 drand share --connect <leader address> --nodes <expected nodes> --threshold <expected threshold>
 ```
 
-**Notice the full path** `/root/.drand/group.toml` and not `group.toml` nor `./group.toml`
+**Notice the full path** `/data/drand/.drand/group.toml` and not `group.toml` nor `./group.toml`
 
 At this point, once *everybody* in the group.toml has run the same command (at the same time), the randomness generation starts. Well done! Simply let it run, there's nothing else to do.
 
@@ -250,20 +244,20 @@ server {
   ssl_ciphers   HIGH:!aNULL:!MD5;
 
   location / {
-    // default --public-listen port specified in the docker compose
+    // default --private-listen port specified in the docker compose
     grpc_pass grpc://localhost:1234;
     grpc_set_header X-Real-IP $remote_addr;
   }
 
   location /info {
     // default --public-listen flag specified in the docker compose
-    proxy_pass http://localhost:1235;
+    proxy_pass http://localhost:8081;
     proxy_set_header Host $host;
   }
 
   location /public/ {
     // default --public-listen flag specified in the docker compose
-    proxy_pass http://localhost:1235;
+    proxy_pass http://localhost:8081;
     proxy_set_header Host $host;
   }
 
