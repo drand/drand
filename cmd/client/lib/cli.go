@@ -147,19 +147,19 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		if info != nil {
 			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 		} else {
 			hc, err = http.New(url, hash, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
 				skipped = append(skipped, url)
 				continue
 			}
 			info, err = hc.Info(context.Background())
 			if err != nil {
-				log.DefaultLogger.Warn("client", "failed to load Info from URL", "url", url, "err", err)
+				log.DefaultLogger().Warn("client", "failed to load Info from URL", "url", url, "err", err)
 				continue
 			}
 		}
@@ -169,7 +169,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		for _, url := range skipped {
 			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger.Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 			clients = append(clients, hc)
@@ -207,7 +207,7 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "drand-"+clientID+"-id"), log.DefaultLogger)
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(os.TempDir(), "drand-"+clientID+"-id"), log.DefaultLogger())
 	if err != nil {
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 		priv,
 		listen,
 		relayMultiaddr,
-		log.DefaultLogger,
+		log.DefaultLogger(),
 	)
 	if err != nil {
 		return nil, err

@@ -64,7 +64,7 @@ func NewCachingClient(client Client, cache Cache) (Client, error) {
 	return &cachingClient{
 		Client: client,
 		cache:  cache,
-		log:    log.DefaultLogger,
+		log:    log.DefaultLogger(),
 	}, nil
 }
 

@@ -15,7 +15,7 @@ func newWatchAggregator(c Client, autoWatch bool) *watchAggregator {
 	aggregator := &watchAggregator{
 		Client:      c,
 		autoWatch:   autoWatch,
-		log:         log.DefaultLogger,
+		log:         log.DefaultLogger(),
 		subscribers: make([]subscriber, 0),
 	}
 	if autoWatch {

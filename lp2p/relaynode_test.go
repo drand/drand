@@ -96,7 +96,7 @@ func TestWatchRetryOnClose(t *testing.T) {
 
 	c := &mockClient{chainInfo, watchF}
 
-	gr, err := NewGossipRelayNode(log.DefaultLogger, &GossipRelayConfig{
+	gr, err := NewGossipRelayNode(log.DefaultLogger(), &GossipRelayConfig{
 		ChainHash:    hex.EncodeToString(chainInfo.Hash()),
 		Addr:         "/ip4/0.0.0.0/tcp/0",
 		DataDir:      tmpDir(t, "test-gossip-relay-node-datastore"),

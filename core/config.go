@@ -47,7 +47,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 		dkgTimeout:   DefaultDKGTimeout,
 		//certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
-		logger:      log.DefaultLogger,
+		logger:      log.DefaultLogger(),
 		clock:       clock.NewRealClock(),
 	}
 	d.dbFolder = path.Join(d.configFolder, DefaultDBFolder)

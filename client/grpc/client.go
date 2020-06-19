@@ -47,7 +47,7 @@ func New(address, certPath string, insecure bool) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &grpcClient{address, drand.NewPublicClient(conn), log.DefaultLogger}, nil
+	return &grpcClient{address, drand.NewPublicClient(conn), log.DefaultLogger()}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {

@@ -76,7 +76,7 @@ func newOptimizingClient(
 		requestConcurrency: requestConcurrency,
 		speedTestInterval:  speedTestInterval,
 		watchRetryInterval: watchRetryInterval,
-		log:                log.DefaultLogger,
+		log:                log.DefaultLogger(),
 		done:               done,
 	}
 	return oc, nil

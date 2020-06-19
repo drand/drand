@@ -4,10 +4,10 @@ services:
   drand:
     image: drandorg/go-drand:latest
     volumes:
-      - ./data:/root/.drand
+      - ./data:/data/drand/.drand
     ports:
       - "0.0.0.0:1234:8080"
       - "0.0.0.01:1235:8081"
-    entrypoint: /drand
-    command: start --verbose --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:8081 --tls-cert "/root/.drand/cert.pem" --tls-key "/root/.drand/key.pem"
+    entrypoint: /sbin/tini /usr/local/bin/entrypoint.sh
+    command: start --verbose --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:8081 --tls-cert "/data/drand/.drand/cert.pem" --tls-key "/data/drand/.drand/key.pem"
     restart: always
