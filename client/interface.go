@@ -28,7 +28,7 @@ type Client interface {
 
 	// Close will halt the client and any background processes it runs.
 	// In-flight Get, Watch and Info requests _may_ be canceled but this is
-	// implementation dependent. Behaviour for usage of the client after Close
+	// implementation dependent. Behavior for usage of the client after Close
 	// is called is undefined.
 	// TODO: maybe this should be part of the interface?
 	// Close() error
