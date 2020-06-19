@@ -14,12 +14,7 @@ run:
   skip-dirs:
     - cmd
     - demo
-    - deploy
-    - docker
-    - docs
-    - hooks
     - key
-    - log
     - lp2p
     - net
     - protobuf

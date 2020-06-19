@@ -180,7 +180,7 @@ func TestOptimizingIsLogging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	oc.SetLog(log.DefaultLogger)
+	oc.SetLog(log.DefaultLogger())
 }
 
 func TestOptimizingIsCloser(t *testing.T) {

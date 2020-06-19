@@ -122,11 +122,11 @@ func (g *tlsListener) Start() {
 
 func (g *tlsListener) Stop(ctx context.Context) {
 	if err := g.l.Close(); err != nil {
-		log.DefaultLogger.Debug("grpc tls listener", "grpc shutdown", "err", err)
+		log.DefaultLogger().Debug("grpc tls listener", "grpc shutdown", "err", err)
 	}
 	// Graceful stop not supported with HTTP Server
 	// https://github.com/grpc/grpc-go/issues/1384
 	if err := g.httpServer.Shutdown(ctx); err != nil {
-		log.DefaultLogger.Debug("grpc tls listener", "http shutdown", "err", err)
+		log.DefaultLogger().Debug("grpc tls listener", "http shutdown", "err", err)
 	}
 }

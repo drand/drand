@@ -61,7 +61,7 @@ func TestGRPCClient(t *testing.T) {
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       client,
 	}
-	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger, cfg)
+	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -138,7 +138,7 @@ func TestHTTPClient(t *testing.T) {
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       client,
 	}
-	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger, cfg)
+	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
 	if err != nil {
 		t.Fatalf("gossip relay node (%v)", err)
 	}
@@ -185,7 +185,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger)
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger())
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
-		log.DefaultLogger,
+		log.DefaultLogger(),
 	)
 	if err != nil {
 		return nil, err
