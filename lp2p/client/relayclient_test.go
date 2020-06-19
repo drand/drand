@@ -20,6 +20,8 @@ import (
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
+	"github.com/libp2p/go-libp2p-core/host"
+	"github.com/libp2p/go-libp2p-core/peer"
 
 	bds "github.com/ipfs/go-ds-badger2"
 	ma "github.com/multiformats/go-multiaddr"
@@ -189,7 +191,7 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	_, ps, err := lp2p.ConstructHost(
+	h, ps, err := lp2p.ConstructHost(
 		ds,
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
@@ -199,5 +201,37 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
+	relayPeerID, err := peerIDFromMultiaddr(relayMultiaddr[0])
+	if err != nil {
+		return nil, err
+	}
+	err = waitForConnection(h, relayPeerID, time.Minute)
+	if err != nil {
+		return nil, err
+	}
 	return NewWithPubsub(ps, info, nil)
+}
+
+func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
+	ai, err := peer.AddrInfoFromP2pAddr(addr)
+	if err != nil {
+		return "", err
+	}
+	return ai.ID, nil
+}
+
+func waitForConnection(h host.Host, id peer.ID, timeout time.Duration) error {
+	t := time.NewTimer(timeout)
+	for {
+		if len(h.Network().ConnsToPeer(id)) > 0 {
+			t.Stop()
+			return nil
+		}
+		select {
+		case <-t.C:
+			return fmt.Errorf("timed out waiting to be connected the relay @ %v", id)
+		default:
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
 }
