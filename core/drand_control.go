@@ -284,8 +284,8 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 		return nil, err
 	}
 	if group == nil {
-		d.log.Debug("init_dkg", "wait_group", "cancelled", "nil_group")
-		return nil, errors.New("cancelled operation")
+		d.log.Debug("init_dkg", "wait_group", "canceled", "nil_group")
+		return nil, errors.New("canceled operation")
 	}
 
 	now := d.opts.clock.Now().Unix()
