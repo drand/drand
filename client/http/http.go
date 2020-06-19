@@ -26,7 +26,7 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 	c := &httpClient{
 		root:   url,
 		client: instrumentClient(url, transport),
-		l:      log.DefaultLogger,
+		l:      log.DefaultLogger(),
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
 	if err != nil {
@@ -47,7 +47,7 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 		root:      url,
 		chainInfo: info,
 		client:    instrumentClient(url, transport),
-		l:         log.DefaultLogger,
+		l:         log.DefaultLogger(),
 	}
 	return c, nil
 }

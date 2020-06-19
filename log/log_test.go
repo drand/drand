@@ -12,7 +12,6 @@ import (
 )
 
 func TestLoggerKit(t *testing.T) {
-
 	const (
 		Info int = iota
 		Debug

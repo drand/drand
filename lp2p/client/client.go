@@ -112,7 +112,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
 		cancel: cancel,
-		log:    log.DefaultLogger,
+		log:    log.DefaultLogger(),
 	}
 
 	chainHash := hex.EncodeToString(info.Hash())

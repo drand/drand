@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/drand/drand/cmd/client/lib"
-	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
@@ -24,8 +24,6 @@ var (
 	gitCommit = "none"
 	buildDate = "unknown"
 )
-
-var log = dlog.DefaultLogger
 
 func main() {
 	app := &cli.App{
@@ -110,7 +108,7 @@ var runCmd = &cli.Command{
 			IdentityPath: cctx.String(idFlag.Name),
 			Client:       c,
 		}
-		if _, err := lp2p.NewGossipRelayNode(log, cfg); err != nil {
+		if _, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg); err != nil {
 			return err
 		}
 		<-(chan int)(nil)
@@ -128,7 +126,7 @@ var clientCmd = &cli.Command{
 		}
 
 		for rand := range c.Watch(context.Background()) {
-			log.Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
+			log.DefaultLogger().Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
 		}
 
 		return nil
@@ -140,7 +138,7 @@ var idCmd = &cli.Command{
 	Usage: "prints the libp2p peer ID or creates one if it does not exist",
 	Flags: []cli.Flag{idFlag},
 	Action: func(cctx *cli.Context) error {
-		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log)
+		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log.DefaultLogger())
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}

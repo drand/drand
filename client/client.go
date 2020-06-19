@@ -19,7 +19,7 @@ const clientStartupTimeoutDefault = time.Second * 5
 func New(options ...Option) (Client, error) {
 	cfg := clientConfig{
 		cacheSize: 32,
-		log:       log.DefaultLogger,
+		log:       log.DefaultLogger(),
 	}
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
