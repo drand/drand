@@ -25,6 +25,13 @@ type Client interface {
 	// RoundAt will return the most recent round of randomness that will be available
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
+
+	// Close will halt the client and any background processes it runs.
+	// In-flight Get, Watch and Info requests _may_ be canceled but this is
+	// implementation dependent. Behaviour for usage of the client after Close
+	// is called is undefined.
+	// TODO: maybe this should be part of the interface?
+	// Close() error
 }
 
 // Result represents the randomness for a single drand round.

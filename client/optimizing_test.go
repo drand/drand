@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -221,4 +222,32 @@ func TestOptimizingRoundAt(t *testing.T) {
 	if r != 0 {
 		t.Fatal("unexpected round", r)
 	}
+}
+
+func TestOptimizingClose(t *testing.T) {
+	wg := sync.WaitGroup{}
+
+	closeF := func() error {
+		wg.Done()
+		return nil
+	}
+
+	clients := []Client{
+		&MockClient{WatchCh: make(chan Result), CloseF: closeF},
+		&MockClient{WatchCh: make(chan Result), CloseF: closeF},
+	}
+
+	wg.Add(len(clients))
+
+	oc, err := newOptimizingClient(clients, 0, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = oc.Close() // should close the underlying clients
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Wait() // wait for underlying clients to close
 }

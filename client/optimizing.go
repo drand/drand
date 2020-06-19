@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"sort"
 	"strings"
@@ -431,8 +432,16 @@ func (oc *optimizingClient) RoundAt(t time.Time) uint64 {
 	return oc.clients[0].RoundAt(t)
 }
 
-// Close stops the background speed tests and closes the client for further use.
+// Close stops the background speed tests and closes the client and it's
+// underlying clients for further use.
 func (oc *optimizingClient) Close() error {
+	var err error
+	for _, c := range oc.clients {
+		cc, ok := c.(io.Closer)
+		if ok {
+			err = cc.Close()
+		}
+	}
 	close(oc.done)
-	return nil
+	return err
 }

@@ -3,10 +3,14 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"io"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/drand/drand/test/mock"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestClient(t *testing.T) {
@@ -53,4 +57,48 @@ func TestClient(t *testing.T) {
 		t.Fatal("unexpected round")
 	}
 	cancel()
+}
+
+func TestClientClose(t *testing.T) {
+	l, _ := mock.NewMockGRPCPublicServer("localhost:0", false)
+	addr := l.Addr()
+	go l.Start()
+	defer l.Stop(context.Background())
+
+	c, err := New(addr, "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := c.Get(context.Background(), 1969)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Round() != 1969 {
+		t.Fatal("unexpected round.")
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		for range c.Watch(context.Background()) {
+		}
+		wg.Done()
+	}()
+
+	cc, ok := c.(io.Closer)
+	if !ok {
+		t.Fatal("not an io.Closer")
+	}
+
+	err = cc.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = c.Get(context.Background(), 0)
+	if status.Code(err) != codes.Canceled {
+		t.Fatal("unexpected error from closed client", err)
+	}
+
+	wg.Wait() // wait for the watch to close
 }

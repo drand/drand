@@ -224,3 +224,8 @@ func (h *httpClient) Info(ctx context.Context) (*chain.Info, error) {
 func (h *httpClient) RoundAt(t time.Time) uint64 {
 	return chain.CurrentRound(t.Unix(), h.chainInfo.Period, h.chainInfo.GenesisTime)
 }
+
+func (h *httpClient) Close() error {
+	h.client.CloseIdleConnections()
+	return nil
+}

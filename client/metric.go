@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -9,17 +10,20 @@ import (
 )
 
 func newWatchLatencyMetricClient(base Client, info *chain.Info) Client {
+	ctx, cancel := context.WithCancel(context.Background())
 	c := &watchLatencyMetricClient{
 		Client:    base,
 		chainInfo: info,
+		cancel:    cancel,
 	}
-	go c.startObserve(context.Background())
+	go c.startObserve(ctx)
 	return c
 }
 
 type watchLatencyMetricClient struct {
 	Client
 	chainInfo *chain.Info
+	cancel    context.CancelFunc
 }
 
 func (c *watchLatencyMetricClient) startObserve(ctx context.Context) {
@@ -39,4 +43,14 @@ func (c *watchLatencyMetricClient) startObserve(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (c *watchLatencyMetricClient) Close() error {
+	var err error
+	cc, ok := c.Client.(io.Closer)
+	if ok {
+		err = cc.Close()
+	}
+	c.cancel()
+	return err
 }

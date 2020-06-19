@@ -20,6 +20,9 @@ type MockClient struct {
 	// passed. Note that if the context is canceled a result is still consumed
 	// from Results.
 	Delay time.Duration
+	// CloseF is a function to call when the Close function is called on the
+	// mock client.
+	CloseF func() error
 }
 
 func (m *MockClient) String() string {
@@ -73,6 +76,14 @@ func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
 // RoundAt will return the most recent round of randomness
 func (m *MockClient) RoundAt(_ time.Time) uint64 {
 	return 0
+}
+
+// Close calls the optional CloseF function.
+func (m *MockClient) Close() error {
+	if m.CloseF != nil {
+		return m.CloseF()
+	}
+	return nil
 }
 
 // ClientWithResults returns a client on which `Get` works `m-n` times.
