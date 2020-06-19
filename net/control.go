@@ -20,8 +20,8 @@ type ControlListener struct {
 }
 
 //NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
-func NewTCPGrpcControlListener(s control.ControlServer, port string) ControlListener {
-	lis, err := net.Listen("tcp", controlListenAddr(port))
+func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
+	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {
 		log.DefaultLogger.Error("grpc listener", "failure", "err", err)
 		return ControlListener{}
@@ -52,9 +52,13 @@ type ControlClient struct {
 
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
-func NewControlClient(port string) (*ControlClient, error) {
+func NewControlClient(addr string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
-	conn, err := grpc.Dial(controlListenAddr(port), grpc.WithInsecure())
+	net, host := controlListenAddr(addr)
+	if net != "tcp" {
+		host = fmt.Sprintf("%s://%s", net, host)
+	}
+	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
 		log.DefaultLogger.Error("control client", "connect failure", "err", err)
 		return nil, err
@@ -170,11 +174,15 @@ func (c ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 	return c.client.Shutdown(context.Background(), &control.ShutdownRequest{})
 }
 
-func controlListenAddr(port string) string {
-	if strings.Contains(port, ":") {
-		return port
+// controlListenAddr parses the control address as specified, into a dialable / listenable address
+func controlListenAddr(listenAddr string) (network string, addr string) {
+	if strings.HasPrefix(listenAddr, "unix://") {
+		return "unix", strings.TrimPrefix(listenAddr, "unix://")
 	}
-	return fmt.Sprintf("%s:%s", "localhost", port)
+	if strings.Contains(listenAddr, ":") {
+		return "tcp", listenAddr
+	}
+	return "tcp", fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }
 
 //DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
