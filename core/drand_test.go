@@ -140,6 +140,76 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)
 }
 
+func TestDrandResharePreempt(t *testing.T) {
+	oldN := 3
+	newN := 3
+	oldThr := 2
+	newThr := 2
+	timeout := 1 * time.Second
+	beaconPeriod := 2 * time.Second
+
+	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
+	defer dt.Cleanup()
+	group1 := dt.RunDKG()
+	// make sure all nodes had enough time to run their go routines to start the
+	// beacon handler - related to CI problems
+	time.Sleep(getSleepDuration())
+	dt.MoveToTime(group1.GenesisTime)
+	// move to genesis time - so nodes start to make a round
+	dt.TestBeaconLength(2, false, dt.Ids(oldN, false)...)
+	// so nodes think they are going forward with round 2
+	dt.MoveTime(1 * time.Second)
+
+	fmt.Println("SETUP RESHARE DONE")
+
+	// first, the leader is going to start running a failed reshare:
+	oldNode := dt.group.Find(dt.nodes[0].drand.priv.Public)
+	if oldNode == nil {
+		panic("leader not found in old group")
+	}
+	// old root: oldNode.Index leater: leader.addr
+	go func() {
+		client, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
+		require.NoError(t, err)
+		_, err = client.InitReshareLeader(newN, newThr, timeout, "unused secret", "", testBeaconOffset)
+		// Done resharing
+		if err == nil {
+			panic("initial reshare should fail.")
+		}
+	}()
+	time.Sleep(100 * time.Millisecond)
+
+	// run the resharing
+	var doneReshare = make(chan *key.Group)
+	go func() {
+		group := dt.RunReshare(oldN, 0, newThr, timeout)
+		doneReshare <- group
+	}()
+	time.Sleep(3 * time.Second)
+	fmt.Printf("\n -- Move to Response phase !! -- \n")
+	dt.MoveTime(timeout)
+	// at this point in time, nodes should have gotten all deals and send back
+	// their responses to all nodes
+	time.Sleep(getSleepDuration())
+	fmt.Printf("\n -- Move to Justif phase !! -- \n")
+	dt.MoveTime(timeout)
+	// at this time, all nodes received the responses of each other nodes but
+	// there is one node missing so they expect justifications
+	time.Sleep(getSleepDuration())
+	fmt.Printf("\n -- Move to Finish phase !! -- \n")
+	dt.MoveTime(timeout)
+	time.Sleep(getSleepDuration())
+	// at this time they received no justification from the missing node so he's
+	// exlucded of the group and the dkg should finish
+	// time.Sleep(10 * time.Second)
+	select {
+	case _ = <-doneReshare:
+	case <-time.After(1 * time.Second):
+		require.True(t, false)
+	}
+	dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
+}
+
 type Node struct {
 	addr  string
 	drand *Drand
