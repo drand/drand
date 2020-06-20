@@ -31,21 +31,21 @@ func (c *mockClient) Watch(ctx context.Context) <-chan client.Result {
 	return c.watchF(ctx)
 }
 
-func (c *mockClient) Info(ctx context.Context) (*chain.Info, error) {
+func (c *mockClient) Info(_ context.Context) (*chain.Info, error) {
 	return c.chainInfo, nil
 }
 
-func (c *mockClient) RoundAt(time time.Time) uint64 {
+func (c *mockClient) RoundAt(_ time.Time) uint64 {
 	return 0
 }
 
 // toRandomDataChain converts the mock results into a chain of client.RandomData
 // objects. Note that you do not get back the first result.
 func toRandomDataChain(results ...mock.Result) []client.RandomData {
-	var chain []client.RandomData
+	var randomness []client.RandomData
 	prevSig := results[0].Signature()
 	for i := 1; i < len(results); i++ {
-		chain = append(chain, client.RandomData{
+		randomness = append(randomness, client.RandomData{
 			Rnd:               results[i].Round(),
 			Random:            results[i].Randomness(),
 			Sig:               results[i].Signature(),
@@ -53,10 +53,10 @@ func toRandomDataChain(results ...mock.Result) []client.RandomData {
 		})
 		prevSig = results[i].Signature()
 	}
-	return chain
+	return randomness
 }
 
-func tmpDir(t *testing.T, name string) string {
+func tmpDir(t *testing.T) string {
 	t.Helper()
 	dir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
 	if err != nil {
@@ -96,11 +96,15 @@ func TestWatchRetryOnClose(t *testing.T) {
 
 	c := &mockClient{chainInfo, watchF}
 
+	td := tmpDir(t)
+	defer func() {
+		_ = os.RemoveAll(td)
+	}()
 	gr, err := NewGossipRelayNode(log.DefaultLogger(), &GossipRelayConfig{
 		ChainHash:    hex.EncodeToString(chainInfo.Hash()),
 		Addr:         "/ip4/0.0.0.0/tcp/0",
-		DataDir:      tmpDir(t, "test-gossip-relay-node-datastore"),
-		IdentityPath: path.Join(tmpDir(t, "test-gossip-relay-node-id"), "identity.key"),
+		DataDir:      td,
+		IdentityPath: path.Join(td, "identity.key"),
 		Client:       c,
 	})
 	if err != nil {

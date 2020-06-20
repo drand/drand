@@ -6,8 +6,8 @@ syntax = "proto3";
 
 package drand;
 
-/*option go_package = "github.com/drand/drand/protobuf/drand";*/
-option go_package = "drand";
+option go_package = "github.com/drand/drand/protobuf/drand";
+/*option go_package = "drand";*/
 
 import "drand/common.proto";
 
