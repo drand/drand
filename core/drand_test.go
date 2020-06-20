@@ -203,7 +203,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	// exlucded of the group and the dkg should finish
 	// time.Sleep(10 * time.Second)
 	select {
-	case _ = <-doneReshare:
+	case <-doneReshare:
 	case <-time.After(1 * time.Second):
 		require.True(t, false)
 	}
