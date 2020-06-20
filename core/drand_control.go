@@ -86,7 +86,7 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (*key.Gro
 	// wait to receive the keys & send them to the other nodes
 	var group *key.Group
 	select {
-	case group = <-d.manager.WaitGroup():
+	case group = <-manager.WaitGroup():
 		var addr []string
 		for _, k := range group.Nodes {
 			addr = append(addr, k.Address())
