@@ -44,12 +44,10 @@ func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver *madns
 				resolveErrC <- fmt.Errorf("failed to resolve \"%s\": %w)", maddr, err)
 				return
 			}
-			// fmt.Println(raddrs)
 			// filter out addresses that still doesn't end in `ipfs/Qm...`
 			found := 0
 			for _, raddr := range raddrs {
 				if _, last := ma.SplitLast(raddr); last != nil && last.Protocol().Code == ma.P_P2P {
-					fmt.Println(raddr, "last=", last.String())
 					maddrC <- raddr
 					found++
 				}
