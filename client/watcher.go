@@ -20,8 +20,8 @@ func (c *watcherClient) Close() error {
 	var errs *multierror.Error
 	cw, ok := c.watcher.(io.Closer)
 	if ok {
-		errs = multierror.Append(cw.Close())
+		errs = multierror.Append(errs, cw.Close())
 	}
-	errs = multierror.Append(c.Client.Close())
+	errs = multierror.Append(errs, c.Client.Close())
 	return errs.ErrorOrNil()
 }

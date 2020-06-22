@@ -186,14 +186,15 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 			h.l.Warn("http_client", "instantiated without trustroot", "chainHash", hex.EncodeToString(chainInfo.Hash()))
 		}
 		if chainHash != nil && !bytes.Equal(chainInfo.Hash(), chainHash) {
-			resC <- httpInfoResponse{nil, fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)}
+			err := fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)
+			resC <- httpInfoResponse{nil, err}
 			return
 		}
 		resC <- httpInfoResponse{chainInfo, nil}
 	}()
 
 	select {
-	case res, _ := <-resC:
+	case res := <-resC:
 		if res.err != nil {
 			return nil, res.err
 		}
@@ -265,7 +266,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 	}()
 
 	select {
-	case res, _ := <-resC:
+	case res := <-resC:
 		if res.err != nil {
 			return nil, res.err
 		}
