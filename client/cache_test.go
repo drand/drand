@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 	"sync"
 	"testing"
 
@@ -124,12 +123,7 @@ func TestCacheClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cc, ok := ca.(io.Closer)
-	if !ok {
-		t.Fatal("not an io.Closer")
-	}
-
-	err = cc.Close() // should close the underlying client
+	err = ca.Close() // should close the underlying client
 	if err != nil {
 		t.Fatal(err)
 	}

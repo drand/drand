@@ -3,7 +3,6 @@ package grpc
 import (
 	"bytes"
 	"context"
-	"io"
 	"sync"
 	"testing"
 	"time"
@@ -85,12 +84,7 @@ func TestClientClose(t *testing.T) {
 		wg.Done()
 	}()
 
-	cc, ok := c.(io.Closer)
-	if !ok {
-		t.Fatal("not an io.Closer")
-	}
-
-	err = cc.Close()
+	err = c.Close()
 	if err != nil {
 		t.Fatal(err)
 	}

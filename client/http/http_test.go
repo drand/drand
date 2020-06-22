@@ -2,7 +2,6 @@ package http
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"sync"
 	"testing"
@@ -128,12 +127,7 @@ func TestHTTPClientClose(t *testing.T) {
 		wg.Done()
 	}()
 
-	cc, ok := httpClient.(io.Closer)
-	if !ok {
-		t.Fatal("not an io.Closer")
-	}
-
-	err = cc.Close()
+	err = httpClient.Close()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 	"sync"
 	"testing"
 	"time"
@@ -57,11 +56,7 @@ func expectRound(t *testing.T, res Result, r uint64) {
 
 func closeClient(t *testing.T, c Client) {
 	t.Helper()
-	cl, ok := c.(io.Closer)
-	if !ok {
-		t.Fatal("client is not an io.Closer")
-	}
-	err := cl.Close()
+	err := c.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
