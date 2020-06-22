@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"io"
+
+	"github.com/hashicorp/go-multierror"
 )
 
 type watcherClient struct {
@@ -15,14 +17,11 @@ func (c *watcherClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (c *watcherClient) Close() error {
-	var err error
+	var errs *multierror.Error
 	cw, ok := c.watcher.(io.Closer)
 	if ok {
-		err = cw.Close()
+		errs = multierror.Append(cw.Close())
 	}
-	cc, ok := c.Client.(io.Closer)
-	if ok {
-		err = cc.Close()
-	}
-	return err
+	errs = multierror.Append(c.Client.Close())
+	return errs.ErrorOrNil()
 }

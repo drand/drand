@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -46,11 +45,7 @@ func (c *watchLatencyMetricClient) startObserve(ctx context.Context) {
 }
 
 func (c *watchLatencyMetricClient) Close() error {
-	var err error
-	cc, ok := c.Client.(io.Closer)
-	if ok {
-		err = cc.Close()
-	}
+	err := c.Client.Close()
 	c.cancel()
 	return err
 }

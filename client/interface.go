@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -26,12 +27,10 @@ type Client interface {
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
 
-	// Close will halt the client and any background processes it runs.
-	// In-flight Get, Watch and Info requests _may_ be canceled but this is
-	// implementation dependent. Behavior for usage of the client after Close
-	// is called is undefined.
-	// TODO: maybe this should be part of the interface?
-	// Close() error
+	// Close will halt the client, any background processes it runs and any
+	// in-flight Get, Watch or Info requests. Behavior for usage of the client
+	// after Close is called is undefined.
+	io.Closer
 }
 
 // Result represents the randomness for a single drand round.

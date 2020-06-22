@@ -125,3 +125,7 @@ func (m *MockInfoClient) Watch(ctx context.Context) <-chan Result {
 	close(ch)
 	return ch
 }
+
+func (m *MockInfoClient) Close() error {
+	return nil
+}

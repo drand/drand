@@ -2,7 +2,9 @@ package http
 
 import (
 	"context"
+	"io"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -100,4 +102,46 @@ func TestHTTPWatch(t *testing.T) {
 	}
 	for range result { // drain the channel until the context expires
 	}
+}
+
+func TestHTTPClientClose(t *testing.T) {
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	defer cancel()
+
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := httpClient.Get(context.Background(), 1969)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Round() != 1969 {
+		t.Fatal("unexpected round.")
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		for range httpClient.Watch(context.Background()) {
+		}
+		wg.Done()
+	}()
+
+	cc, ok := httpClient.(io.Closer)
+	if !ok {
+		t.Fatal("not an io.Closer")
+	}
+
+	err = cc.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = httpClient.Get(context.Background(), 0)
+	if err != errClientClosed {
+		t.Fatal("unexpected error from closed client", err)
+	}
+
+	wg.Wait() // wait for the watch to close
 }

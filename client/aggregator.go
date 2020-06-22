@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 	"sync"
 
 	"github.com/drand/drand/log"
@@ -109,11 +108,7 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 }
 
 func (c *watchAggregator) Close() error {
-	var err error
-	cc, ok := c.Client.(io.Closer)
-	if ok {
-		err = cc.Close()
-	}
+	err := c.Client.Close()
 	if c.cancelAutoWatch != nil {
 		c.cancelAutoWatch()
 	}

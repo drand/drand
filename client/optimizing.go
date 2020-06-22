@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"sort"
 	"strings"
@@ -437,10 +436,7 @@ func (oc *optimizingClient) RoundAt(t time.Time) uint64 {
 func (oc *optimizingClient) Close() error {
 	var err error
 	for _, c := range oc.clients {
-		cc, ok := c.(io.Closer)
-		if ok {
-			err = cc.Close()
-		}
+		err = c.Close()
 	}
 	close(oc.done)
 	return err

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"io"
 
 	"github.com/drand/drand/log"
 
@@ -107,9 +106,5 @@ func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (c *cachingClient) Close() error {
-	cc, ok := c.Client.(io.Closer)
-	if ok {
-		return cc.Close()
-	}
-	return nil
+	return c.Client.Close()
 }
