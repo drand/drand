@@ -118,6 +118,13 @@ func TestHTTPWaiting(t *testing.T) {
 	go func() {
 		second, _ := http.Get(fmt.Sprintf("http://%s/public/1971", listener.Addr().String()))
 		defer func() { _ = second.Body.Close() }()
+
+		if second.StatusCode != http.StatusOK {
+			err = fmt.Errorf("unexpected status: %v", second.StatusCode)
+			done <- time.Unix(0, 0)
+			return
+		}
+
 		if err = json.NewDecoder(second.Body).Decode(&body); err != nil {
 			done <- time.Unix(0, 0)
 			return
@@ -137,7 +144,7 @@ func TestHTTPWaiting(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	select {
 	case <-done:
-		t.Fatal("shouldn't be done.")
+		t.Fatal("shouldn't be done.", err)
 	default:
 	}
 	push(false)
