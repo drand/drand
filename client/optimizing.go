@@ -12,6 +12,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/hashicorp/go-multierror"
 )
 
 const (
@@ -431,8 +432,13 @@ func (oc *optimizingClient) RoundAt(t time.Time) uint64 {
 	return oc.clients[0].RoundAt(t)
 }
 
-// Close stops the background speed tests and closes the client for further use.
+// Close stops the background speed tests and closes the client and it's
+// underlying clients for further use.
 func (oc *optimizingClient) Close() error {
+	var errs *multierror.Error
+	for _, c := range oc.clients {
+		errs = multierror.Append(errs, c.Close())
+	}
 	close(oc.done)
-	return nil
+	return errs.ErrorOrNil()
 }

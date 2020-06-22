@@ -60,4 +60,8 @@ func TestEmptyClient(t *testing.T) {
 	if len(rs) > 0 {
 		t.Fatal("unexpected results in watch channel", rs)
 	}
+
+	if err := c.Close(); err != nil {
+		t.Fatal("unexpected error closing client", err)
+	}
 }

@@ -39,6 +39,10 @@ func (c *mockClient) RoundAt(time time.Time) uint64 {
 	return 0
 }
 
+func (c *mockClient) Close() error {
+	return nil
+}
+
 // toRandomDataChain converts the mock results into a chain of client.RandomData
 // objects. Note that you do not get back the first result.
 func toRandomDataChain(results ...mock.Result) []client.RandomData {
