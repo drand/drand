@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/drand/kyber v1.1.0
+	github.com/drand/kyber v1.1.1
 	github.com/drand/kyber-bls12381 v0.1.0
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/googleapis v1.4.0 // indirect
