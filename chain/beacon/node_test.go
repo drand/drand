@@ -530,8 +530,8 @@ func TestBeaconThreshold(t *testing.T) {
 	bt.ServeBeacon(n - 1)
 	bt.StartBeacon(n-1, true)
 	fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
-	// wait a bit for syncing to take place
-	time.Sleep(100 * time.Millisecond)
+	// 2s because of gRPC default timeouts backoff
+	time.Sleep(2 * time.Second)
 	bt.CallbackFor(n-1, myCallBack(n-1))
 	fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
 	// and then run a few rounds
