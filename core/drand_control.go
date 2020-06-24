@@ -65,10 +65,12 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (*key.Gro
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
+		d.state.Unlock()
 		return nil, errors.New("drand: setup dkg already in progress")
 	}
 	manager, err := newSetup()
 	if err != nil {
+		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	go manager.run()

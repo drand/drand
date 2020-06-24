@@ -107,10 +107,8 @@ github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqi
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.2 h1:dHjtWJZJdn3zBBZ9pqLsLfcR9ScvDvSqzS1sWA8seao=
 github.com/drand/kyber v1.0.2/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
-github.com/drand/kyber v1.0.3-0.20200611231330-7a2dbc4838f0 h1:xyooIZF+EDv8WYCRR+7c/OYsR7OWw6nGXLR4QvQWv2I=
-github.com/drand/kyber v1.0.3-0.20200611231330-7a2dbc4838f0/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
-github.com/drand/kyber v1.1.0 h1:uBfD8gwpVufr+7Dvbxi4jGQ+qoMCO5tRfhYPyn+Tpqk=
-github.com/drand/kyber v1.1.0/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
+github.com/drand/kyber v1.1.1 h1:mwCY2XGRB+Qc1MPfrnRuVuXELkPhcq/r9yMoJIcDhHI=
+github.com/drand/kyber v1.1.1/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber-bls12381 v0.1.0 h1:/P4C65VnyEwxzR5ZYYVMNzY1If+aYBrdUU5ukwh7LQw=
 github.com/drand/kyber-bls12381 v0.1.0/go.mod h1:N1emiHpm+jj7kMlxEbu3MUyOiooTgNySln564cgD9mk=
 github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=

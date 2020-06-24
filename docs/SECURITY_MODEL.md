@@ -86,6 +86,9 @@ nodes (QUAL). Only these nodes have valid shares and are able to produce
 partial beacons that can be successfully validated with respect to the
 distributed public key.
 
+**Malicious parties**: The number of malicious parties is strictly less than 50% of the total
+number of nodes.
+
 **DKG's biasability in signatures**: Pedersen's DKG is known to exhibit a
 weakness in the biasability in the distribution of the distributed private key.
 However, the same authors (Gennaro et al.) that proved the latter also proved
