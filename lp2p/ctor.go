@@ -63,7 +63,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
 	}
 
-	addrInfos, err := resolveAddresses(ctx, bootstrap)
+	addrInfos, err := resolveAddresses(ctx, bootstrap, nil)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}

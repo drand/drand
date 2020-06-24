@@ -77,6 +77,10 @@ func (d *drandProxy) RoundAt(t time.Time) uint64 {
 	return chain.CurrentRound(t.Unix(), info.Period, info.GenesisTime)
 }
 
+func (d *drandProxy) Close() error {
+	return nil
+}
+
 // streamProxy directly relays mesages of the PublicRandResponse stream.
 type streamProxy struct {
 	ctx      context.Context
