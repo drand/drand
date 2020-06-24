@@ -28,7 +28,7 @@ func Verify(ctx context.Context, c Client, previous Result) (current Result, err
 		if r > 1 {
 			if full, ok := next.(*RandomData); ok {
 				if !bytes.Equal(full.PreviousSignature, previous.Signature()) {
-					return nil, fmt.Errorf("signature inconsistant at round %d", r)
+					return nil, fmt.Errorf("signature inconsistent at round %d", r)
 				}
 			}
 		}
