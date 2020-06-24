@@ -66,9 +66,7 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (*key.Gro
 	d.state.Lock()
 	if d.manager != nil {
 		d.log.Info("reshare", "already_in_progress", "restart", "reshare")
-		d.state.Unlock()
 		d.manager.StopPreemptively()
-		return nil, errors.New("drand: setup dkg already in progress")
 	}
 	manager, err := newSetup()
 	if err != nil {
