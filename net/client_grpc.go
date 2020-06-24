@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -218,21 +217,13 @@ func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePa
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
-	do := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewProtocolClient(c)
-		ctx, _ := g.getTimeoutContext(ctx)
-		_, err = client.PartialBeacon(ctx, in, opts...)
+	c, err := g.conn(p)
+	if err != nil {
 		return err
 	}
-	err := do()
-	if err != nil && strings.Contains(err.Error(), "connection error") {
-		g.deleteConn(p)
-		return do()
-	}
+	client := drand.NewProtocolClient(c)
+	ctx, _ = g.getTimeoutContext(ctx)
+	_, err = client.PartialBeacon(ctx, in, opts...)
 	return err
 }
 
@@ -252,18 +243,18 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 		for {
 			reply, err := stream.Recv()
 			if err == io.EOF {
-				log.DefaultLogger.Info("grpc client", "chain sync", "error", "eof", "to", p.Address())
+				log.DefaultLogger().Info("grpc client", "chain sync", "error", "eof", "to", p.Address())
 				fmt.Println(" --- STREAM EOF")
 				return
 			}
 			if err != nil {
-				log.DefaultLogger.Info("grpc client", "chain sync", "error", err, "to", p.Address())
+				log.DefaultLogger().Info("grpc client", "chain sync", "error", err, "to", p.Address())
 				fmt.Println(" --- STREAM ERR:", err)
 				return
 			}
 			select {
 			case <-ctx.Done():
-				log.DefaultLogger.Info("grpc client", "chain sync", "error", "context done", "to", p.Address())
+				log.DefaultLogger().Info("grpc client", "chain sync", "error", "context done", "to", p.Address())
 				fmt.Println(" --- STREAM CONTEXT DONE")
 				return
 			default:
@@ -301,7 +292,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	var err error
 	c, ok := g.conns[p.Address()]
 	if !ok {
-		log.DefaultLogger.Debug("grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
+		log.DefaultLogger().Debug("grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
 		if !p.IsTLS() {
 			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
 			if err != nil {

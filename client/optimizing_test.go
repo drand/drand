@@ -2,7 +2,7 @@ package client
 
 import (
 	"context"
-	"io"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,11 +56,7 @@ func expectRound(t *testing.T, res Result, r uint64) {
 
 func closeClient(t *testing.T, c Client) {
 	t.Helper()
-	cl, ok := c.(io.Closer)
-	if !ok {
-		t.Fatal("client is not an io.Closer")
-	}
-	err := cl.Close()
+	err := c.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +69,7 @@ func TestOptimizingGet(t *testing.T) {
 	c0.Delay = time.Millisecond * 100
 	c1.Delay = time.Millisecond
 
-	oc, err := newOptimizingClient([]Client{c0, c1}, time.Second*5, 2, time.Minute*5)
+	oc, err := newOptimizingClient([]Client{c0, c1}, time.Second*5, 2, time.Minute*5, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +99,7 @@ func TestOptimizingWatch(t *testing.T) {
 
 	c0.Delay = time.Millisecond
 
-	oc, err := newOptimizingClient([]Client{c0, c1, c2}, time.Second*5, 2, time.Minute*5)
+	oc, err := newOptimizingClient([]Client{c0, c1, c2}, time.Second*5, 2, time.Minute*5, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,44 +120,80 @@ func TestOptimizingWatch(t *testing.T) {
 	}
 	wc1 <- &mock.Result{Rnd: 6}
 	expectRound(t, nextResult(t, ch), 6) // round 6 from c1
-	close(wc1)
-	select {
-	case _, ok := <-ch:
-		if ok {
-			t.Fatal("watch should fail after all substreams")
+}
+
+func TestOptimizingWatchRetryOnClose(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var rnd uint64
+	c := &MockClient{
+		// a single result for the speed test
+		Results: []mock.Result{mock.NewMockResult(0)},
+		// return a watch channel that yields one result then closes
+		WatchF: func(context.Context) <-chan Result {
+			ch := make(chan Result, 1)
+			r := mock.NewMockResult(rnd)
+			rnd++
+			ch <- &r
+			close(ch)
+			return ch
+		},
+	}
+
+	oc, err := newOptimizingClient([]Client{c}, 0, 0, 0, time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oc.Start()
+	defer closeClient(t, oc)
+
+	waitForSpeedTest(t, oc, time.Minute)
+
+	ch := oc.Watch(ctx)
+
+	var i uint64
+	for r := range ch {
+		if r.Round() != i {
+			t.Fatal("unexpected round number")
 		}
-	case <-time.After(50 * time.Millisecond):
-		t.Fatal("channel should close")
+		i++
+		if i > 2 {
+			break
+		}
 	}
 }
 
 func TestOptimizingRequiresClients(t *testing.T) {
-	_, err := newOptimizingClient([]Client{}, 0, 0, 0)
+	_, err := newOptimizingClient([]Client{}, 0, 0, 0, 0)
 	if err.Error() != "missing clients" {
 		t.Fatal("unexpected error", err)
 	}
 }
 
 func TestOptimizingIsLogging(t *testing.T) {
-	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	oc.SetLog(log.DefaultLogger)
+	oc.SetLog(log.DefaultLogger())
 }
 
 func TestOptimizingIsCloser(t *testing.T) {
-	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	oc.Start()
-	oc.Close()
+	err = oc.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestOptimizingInfo(t *testing.T) {
 	chainInfo := fakeChainInfo()
-	oc, err := newOptimizingClient([]Client{MockClientWithInfo(chainInfo)}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{MockClientWithInfo(chainInfo)}, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +208,7 @@ func TestOptimizingInfo(t *testing.T) {
 }
 
 func TestOptimizingRoundAt(t *testing.T) {
-	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0)
+	oc, err := newOptimizingClient([]Client{&MockClient{}}, 0, 0, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,4 +217,32 @@ func TestOptimizingRoundAt(t *testing.T) {
 	if r != 0 {
 		t.Fatal("unexpected round", r)
 	}
+}
+
+func TestOptimizingClose(t *testing.T) {
+	wg := sync.WaitGroup{}
+
+	closeF := func() error {
+		wg.Done()
+		return nil
+	}
+
+	clients := []Client{
+		&MockClient{WatchCh: make(chan Result), CloseF: closeF},
+		&MockClient{WatchCh: make(chan Result), CloseF: closeF},
+	}
+
+	wg.Add(len(clients))
+
+	oc, err := newOptimizingClient(clients, 0, 0, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = oc.Close() // should close the underlying clients
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Wait() // wait for underlying clients to close
 }

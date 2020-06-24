@@ -12,17 +12,9 @@ issues:
       text: "unnecessaryDefer:"
 run:
   skip-dirs:
-    - chain
     - cmd
-    - core
     - demo
-    - deploy
-    - docker
-    - docs
-    - hooks
     - key
-    - log
-    - lp2p
     - net
     - protobuf
     - test

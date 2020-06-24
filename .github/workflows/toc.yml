@@ -1,11 +1,11 @@
-name: Lint
+name: TOC
 
 on:
   pull_request:
     branches: [ master ]
 
 jobs:
-  lint:
+  toc:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -16,4 +16,4 @@ jobs:
           OPENING_COMMENT: "<!-- START "
           CLOSING_COMMENT: "<!-- END "
           CREATE_PR: false
-          TARGET_PATHS: "README.md,docs/*.md"
+          TARGET_PATHS: "README.md,docs/*.md,cmd/relay-gossip/README.md"

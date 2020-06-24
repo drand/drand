@@ -114,7 +114,7 @@ func Client(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%v\n", rand)
+	fmt.Printf("%d\t%x\n", rand.Round(), rand.Randomness())
 	return nil
 }
 
@@ -142,7 +142,7 @@ func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) 
 			Timeout: 10 * time.Second,
 		}))
 		go func() {
-			log.DefaultLogger.Fatal("client", http.ListenAndServe(address, nil))
+			log.DefaultLogger().Fatal("client", http.ListenAndServe(address, nil))
 		}()
 	}
 	return b
@@ -159,7 +159,7 @@ func (b *prometheusBridge) pushLoop() {
 	for {
 		time.Sleep(time.Second * time.Duration(b.pushIntervalSec))
 		if err := b.pusher.Push(); err != nil {
-			log.DefaultLogger.Info("client_metrics", "prometheus gateway push (%v)", err)
+			log.DefaultLogger().Info("client_metrics", "prometheus gateway push (%v)", err)
 		}
 	}
 }

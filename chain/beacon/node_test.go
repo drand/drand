@@ -78,9 +78,9 @@ func dkgShares(n, t int) ([]*key.Share, []kyber.Point) {
 		panic("secret not equal")
 	}
 	msg := []byte("Hello world")
-	sigs := make([][]byte, n, n)
+	sigs := make([][]byte, n)
 	_, commits := pubPoly.Info()
-	dkgShares := make([]*key.Share, n, n)
+	dkgShares := make([]*key.Share, n)
 	for i := 0; i < n; i++ {
 		sigs[i], err = key.Scheme.Sign(shares[i], msg)
 		if err != nil {
@@ -98,7 +98,6 @@ func dkgShares(n, t int) ([]*key.Share, []kyber.Point) {
 	if err := key.Scheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
 		panic(err)
 	}
-	//fmt.Println(pubPoly.Commit())
 	return dkgShares, commits
 }
 
@@ -118,7 +117,6 @@ type BeaconTest struct {
 	paths   []string
 	n       int
 	thr     int
-	genesis int64
 	shares  []*key.Share
 	period  time.Duration
 	group   *key.Group
@@ -182,8 +180,8 @@ func (b *BeaconTest) CreateNode(i int) {
 	}
 	node.index = idx
 	node.private = priv
-	share := findShare(idx)
-	node.shares = share
+	keyShare := findShare(idx)
+	node.shares = keyShare
 	store, err := boltdb.NewBoltStore(b.paths[idx], nil)
 	if err != nil {
 		panic(err)
@@ -192,7 +190,7 @@ func (b *BeaconTest) CreateNode(i int) {
 	conf := &Config{
 		Group:  b.group,
 		Public: knode,
-		Share:  share,
+		Share:  keyShare,
 		Clock:  node.clock,
 	}
 
@@ -269,7 +267,14 @@ func (b *BeaconTest) MoveTime(t time.Duration) {
 	for _, n := range b.nodes {
 		before := n.clock.Now().Unix()
 		n.handler.conf.Clock.(clock.FakeClock).Advance(t)
-		fmt.Printf(" - %d increasing time of node %d - %s (pointer %p)- before: %d - current: %d - pointer clock %p\n", time.Now().Unix(), n.index, n.private.Public.Address(), n, before, n.clock.Now().Unix(), n.handler.conf.Clock)
+		fmt.Printf(" - %d increasing time of node %d - %s (pointer %p)- before: %d - current: %d - pointer clock %p\n",
+			time.Now().Unix(),
+			n.index,
+			n.private.Public.Address(),
+			n,
+			before,
+			n.clock.Now().Unix(),
+			n.handler.conf.Clock)
 	}
 	b.time.Advance(t)
 	time.Sleep(getSleepDuration())
@@ -326,7 +331,7 @@ func checkErr(e error) {
 }
 
 func createBoltStores(prefix string, n int) []string {
-	paths := make([]string, n, n)
+	paths := make([]string, n)
 	for i := 0; i < n; i++ {
 		paths[i] = path.Join(prefix, fmt.Sprintf("drand-%d", i))
 		if err := os.MkdirAll(paths[i], 0755); err != nil {
@@ -415,7 +420,7 @@ func TestBeaconSync(t *testing.T) {
 	// beacon, but they will see the beacon they send is late w.r.t. the round
 	// they should be, so they will sync with the "safe online" nodes. They
 	// will get the latest beacon and then directly run the right round
-	//bt.MoveTime(period
+	// bt.MoveTime(period
 	// n for the new round
 	// n - online for the previous round that the others catch up
 	doRound(n+n-online, period)
@@ -425,7 +430,6 @@ func TestBeaconSimple(t *testing.T) {
 	thr := n/2 + 1
 	period := 2 * time.Second
 
-	//var genesisTime int64 = clock.NewMock().Now().Unix() + 2
 	var genesisTime int64 = clock.NewFakeClock().Now().Unix() + 2
 
 	bt := NewBeaconTest(n, thr, period, genesisTime)
@@ -436,9 +440,6 @@ func TestBeaconSimple(t *testing.T) {
 	myCallBack := func(b *chain.Beacon) {
 		// verify partial sig
 		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
-		//msg := Message(b.PreviousSig, b.PreviousRound, b.Round)
-		//err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
-		//require.NoError(t, err)
 		counter.Done()
 	}
 
@@ -456,7 +457,6 @@ func TestBeaconSimple(t *testing.T) {
 		started := bt.nodes[i].handler.started
 		bt.nodes[i].handler.Unlock()
 		require.False(t, started, "handler %d has started?", i)
-		//fmt.Printf(" + before genesis - node %d has clock time %d\n", bt.handlers[i].index, bt.handlers[i].conf.Clock.Now().Unix())
 	}
 	fmt.Println(" --------- moving to genesis ---------------")
 	// move clock to genesis time
@@ -530,27 +530,25 @@ func TestBeaconThreshold(t *testing.T) {
 	bt.ServeBeacon(n - 1)
 	bt.StartBeacon(n-1, true)
 	fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
-	// wait a bit for syncing to take place
-	time.Sleep(100 * time.Millisecond)
+	// 2s because of gRPC default timeouts backoff
+	time.Sleep(2 * time.Second)
 	bt.CallbackFor(n-1, myCallBack(n-1))
 	fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
 	// and then run a few rounds
 	makeRounds(nRounds, n)
 
-	/*fmt.Printf("\n | STOP LAST NODE |\n\n")*/
-	//// stop last one again - so it will force a sync not from genesis
-	//bt.StopBeacon(n - 1)
-	//// make a few round
-	//makeRounds(nRounds, n-1)
+	// stop last one again - so it will force a sync not from genesis
+	// bt.StopBeacon(n - 1)
+	// make a few round
+	// makeRounds(nRounds, n-1)
 
-	//fmt.Printf("\n | CREATE LAST NODE AGAIN | \n\n")
-	//// start the node again
-	//bt.CreateNode(n - 1)
-	//bt.ServeBeacon(n - 1)
-	//bt.StartBeacon(n-1, true)
-	//bt.CallbackFor(n-1, myCallBack(n-1))
-	//// let time for syncing
-	/*time.Sleep(100 * time.Millisecond)*/
+	// start the node again
+	// bt.CreateNode(n - 1)
+	// bt.ServeBeacon(n - 1)
+	// bt.StartBeacon(n-1, true)
+	// bt.CallbackFor(n-1, myCallBack(n-1))
+	// let time for syncing
+	// time.Sleep(100 * time.Millisecond)
 	fmt.Printf("\n | MOVE TIME WITH ALL NODES  | \n\n")
 	// expect lastnode to have catch up
 	makeRounds(nRounds, n)

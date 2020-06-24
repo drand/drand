@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/kyber"
 )
 
@@ -31,10 +32,13 @@ func NewChainInfo(g *key.Group) *Info {
 // composition, the actual nodes, generating the randomness.
 func (c *Info) Hash() []byte {
 	h := sha256.New()
-	binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
-	binary.Write(h, binary.BigEndian, int64(c.GenesisTime))
-	buff, _ := c.PublicKey.MarshalBinary()
-	h.Write(buff)
+	_ = binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
+	_ = binary.Write(h, binary.BigEndian, c.GenesisTime)
+	buff, err := c.PublicKey.MarshalBinary()
+	if err != nil {
+		log.DefaultLogger().Warn("info", "failed to hash pubkey", "err", err)
+	}
+	_, _ = h.Write(buff)
 	return h.Sum(nil)
 }
 

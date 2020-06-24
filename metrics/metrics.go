@@ -38,6 +38,12 @@ var (
 		Name: "group_connections",
 		Help: "Number of peers with current GrpcClient connections",
 	})
+	// BeaconDiscrepancyLatency (Group) millisecond duration between time beacon created and
+	// calculated time of round.
+	BeaconDiscrepancyLatency = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "beacon_discrepancy_latency",
+		Help: "Discrepancy between beacon creation time and calculated round time",
+	})
 
 	// HTTPCallCounter (HTTP) how many http requests
 	HTTPCallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -152,6 +158,7 @@ func bindMetrics() error {
 		APICallCounter,
 		GroupDialFailures,
 		GroupConnections,
+		BeaconDiscrepancyLatency,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
@@ -214,15 +221,15 @@ type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
 func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
-	log.DefaultLogger.Debug("metrics", "private listener started", "at", metricsBind)
+	log.DefaultLogger().Debug("metrics", "private listener started", "at", metricsBind)
 	if err := bindMetrics(); err != nil {
-		log.DefaultLogger.Warn("metrics", "metric setup failed", "err", err)
+		log.DefaultLogger().Warn("metrics", "metric setup failed", "err", err)
 		return nil
 	}
 
 	l, err := net.Listen("tcp", metricsBind)
 	if err != nil {
-		log.DefaultLogger.Warn("metrics", "listen failed", "err", err)
+		log.DefaultLogger().Warn("metrics", "listen failed", "err", err)
 		return nil
 	}
 	s := http.Server{Addr: l.Addr().String()}
@@ -243,7 +250,7 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 	})
 	s.Handler = mux
 	go func() {
-		log.DefaultLogger.Warn("metrics", "listen finished", "err", s.Serve(l))
+		log.DefaultLogger().Warn("metrics", "listen finished", "err", s.Serve(l))
 	}()
 	return l
 }
@@ -268,7 +275,7 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handlers, err := l.peerHandler(r.Context())
 	if err != nil {
-		log.DefaultLogger.Warn("metrics", "failed to get peer handlers", "err", err)
+		log.DefaultLogger().Warn("metrics", "failed to get peer handlers", "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

@@ -15,11 +15,12 @@ func newWatchAggregator(c Client, autoWatch bool) *watchAggregator {
 	aggregator := &watchAggregator{
 		Client:      c,
 		autoWatch:   autoWatch,
-		log:         log.DefaultLogger,
+		log:         log.DefaultLogger(),
 		subscribers: make([]subscriber, 0),
 	}
 	if autoWatch {
 		ctx, cancel := context.WithCancel(context.Background())
+		aggregator.cancelAutoWatch = cancel
 		go aggregator.distribute(aggregator.Client.Watch(ctx), cancel, true)
 	}
 	return aggregator
@@ -32,8 +33,9 @@ type subscriber struct {
 
 type watchAggregator struct {
 	Client
-	autoWatch bool
-	log       log.Logger
+	autoWatch       bool
+	log             log.Logger
+	cancelAutoWatch context.CancelFunc
 
 	subscriberLock sync.Mutex
 	subscribers    []subscriber
@@ -103,4 +105,12 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 			return
 		}
 	}
+}
+
+func (c *watchAggregator) Close() error {
+	err := c.Client.Close()
+	if c.cancelAutoWatch != nil {
+		c.cancelAutoWatch()
+	}
+	return err
 }

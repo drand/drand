@@ -5,7 +5,7 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/drand/kyber v1.1.0
+	github.com/drand/kyber v1.1.1
 	github.com/drand/kyber-bls12381 v0.1.0
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/googleapis v1.4.0 // indirect
@@ -17,6 +17,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6
+	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ipfs/go-cid v0.0.6-0.20200501230655-7c82f3b81c00 // indirect
 	github.com/ipfs/go-datastore v0.4.4
@@ -50,4 +51,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/genproto v0.0.0-20200608115520-7c474a2e3482 // indirect
 	google.golang.org/grpc v1.29.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v0.0.0-20200617041141-9a465503579e // indirect
+	google.golang.org/protobuf v1.24.0
 )

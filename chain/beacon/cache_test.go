@@ -50,7 +50,7 @@ func TestCacheRound(t *testing.T) {
 }
 
 func TestCachePartial(t *testing.T) {
-	l := log.DefaultLogger
+	l := log.DefaultLogger()
 	cache := newPartialCache(l)
 	var round uint64 = 64
 	prev := []byte("yesterday was another day")

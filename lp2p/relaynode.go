@@ -9,13 +9,13 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 
-	"github.com/golang/protobuf/proto"
 	bds "github.com/ipfs/go-ds-badger2"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"golang.org/x/xerrors"
+	"google.golang.org/protobuf/proto"
 )
 
 // GossipRelayConfig configures a gossip relay node.
@@ -132,11 +132,11 @@ func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
 	return out, nil
 }
 
-func (g *GossipRelayNode) background(c client.Client) {
+func (g *GossipRelayNode) background(w client.Watcher) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for {
-		results := c.Watch(ctx)
+		results := w.Watch(ctx)
 	LOOP:
 		for {
 			select {

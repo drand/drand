@@ -4,18 +4,27 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
+)
+
+const (
+	defaultPartialChanBuffer = 10
+	defaultRequestSyncBuffer = 10
+	defaultNewBeaconBuffer   = 100
 )
 
 // chainStore is a Store that deals with reconstructing the beacons, sync when
 // needed and arranges the head
 type chainStore struct {
 	chain.Store
+	conf          *Config
 	l             log.Logger
 	client        net.ProtocolClient
 	safe          *cryptoSafe
@@ -28,24 +37,25 @@ type chainStore struct {
 	nonSyncBeacon chan *chain.Beacon
 }
 
-func newChainStore(l log.Logger, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
-	chain := &chainStore{
+func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
+	c := &chainStore{
 		l:             l,
+		conf:          conf,
 		client:        client,
 		safe:          safe,
 		Store:         s,
 		done:          make(chan bool, 1),
 		ticker:        ticker,
-		newPartials:   make(chan partialInfo, 10),
-		newBeaconCh:   make(chan *chain.Beacon, 100),
-		requestSync:   make(chan likeBeacon, 10),
+		newPartials:   make(chan partialInfo, defaultPartialChanBuffer),
+		newBeaconCh:   make(chan *chain.Beacon, defaultNewBeaconBuffer),
+		requestSync:   make(chan likeBeacon, defaultRequestSyncBuffer),
 		lastInserted:  make(chan *chain.Beacon, 1),
 		nonSyncBeacon: make(chan *chain.Beacon, 1),
 	}
 	// TODO maybe look if it's worth having multiple workers there
-	go chain.runChainLoop()
-	go chain.runAggregator()
-	return chain
+	go c.runChainLoop()
+	go c.runAggregator()
+	return c
 }
 
 func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) {
@@ -94,7 +104,7 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			// look if we want to store ths partial anyway
-			isNotInPast := pRound >= lastBeacon.Round+1
+			isNotInPast := pRound > lastBeacon.Round
 			isNotTooFar := pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
 			shouldStore := isNotInPast && isNotTooFar
 			// check if we can reconstruct
@@ -152,7 +162,12 @@ func (c *chainStore) runChainLoop() {
 			c.l.Fatal("new_beacon_storing", err)
 		}
 		lastBeacon = newB
-		c.l.Info("NEW_BEACON_STORED", newB.String())
+		// measure beacon creation time discrepancy in milliseconds
+		actual := time.Now().UnixNano()
+		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
+		discrepancy := float64(actual-expected) / float64(time.Millisecond)
+		metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
+		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy)
 		c.lastInserted <- newB
 		if !syncing {
 			// during syncing we don't do a fast sync
@@ -226,7 +241,6 @@ func (c *chainStore) RunSync(ctx context.Context) {
 	for newB := range outCh {
 		c.newBeaconCh <- newB
 	}
-	return
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
@@ -236,9 +250,4 @@ func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
 type partialInfo struct {
 	addr string
 	p    *drand.PartialBeaconPacket
-}
-
-type beaconInfo struct {
-	addr   string
-	beacon *chain.Beacon
 }

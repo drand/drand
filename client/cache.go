@@ -64,7 +64,7 @@ func NewCachingClient(client Client, cache Cache) (Client, error) {
 	return &cachingClient{
 		Client: client,
 		cache:  cache,
-		log:    log.DefaultLogger,
+		log:    log.DefaultLogger(),
 	}, nil
 }
 
@@ -103,4 +103,8 @@ func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
 		close(out)
 	}()
 	return out
+}
+
+func (c *cachingClient) Close() error {
+	return c.Client.Close()
 }

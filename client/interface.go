@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"io"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -25,6 +26,11 @@ type Client interface {
 	// RoundAt will return the most recent round of randomness that will be available
 	// at time for the current client.
 	RoundAt(time time.Time) uint64
+
+	// Close will halt the client, any background processes it runs and any
+	// in-flight Get, Watch or Info requests. Behavior for usage of the client
+	// after Close is called is undefined.
+	io.Closer
 }
 
 // Result represents the randomness for a single drand round.

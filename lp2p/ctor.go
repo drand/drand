@@ -33,10 +33,11 @@ const (
 	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
 	userAgent = "drand-relay/0.0.0"
 	// directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
-	directConnectTicks = uint64(5)
-	lowWater           = 50
-	highWater          = 200
-	gracePeriod        = time.Minute
+	directConnectTicks uint64 = 5
+	lowWater                  = 50
+	highWater                 = 200
+	gracePeriod               = time.Minute
+	bootstrapTimeout          = 5 * time.Second
 )
 
 // PubSubTopic generates a drand pubsub topic from a chain hash.
@@ -63,22 +64,29 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
 	}
 
-	addrInfos, err := resolveAddresses(ctx, bootstrap)
+	addrInfos, err := resolveAddresses(ctx, bootstrap, nil)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
 	cmgr := connmgr.NewConnManager(lowWater, highWater, gracePeriod)
 
-	h, err := libp2p.New(ctx,
-		libp2p.ListenAddrStrings(listenAddr),
+	opts := []libp2p.Option{
 		libp2p.Identity(priv),
 		libp2p.Security(libp2ptls.ID, libp2ptls.New),
 		libp2p.DisableRelay(),
-		//libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
+		// libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
 		libp2p.UserAgent(userAgent),
 		libp2p.ConnectionManager(cmgr),
-	)
+	}
+
+	if listenAddr != "" {
+		opts = append(opts, libp2p.ListenAddrStrings(listenAddr))
+	} else {
+		opts = append(opts, libp2p.NoListenAddrs)
+	}
+
+	h, err := libp2p.New(ctx, opts...)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}
@@ -102,7 +110,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			addrInfos[i], addrInfos[j] = addrInfos[j], addrInfos[i]
 		})
 		for _, ai := range addrInfos {
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, bootstrapTimeout)
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {
