@@ -6,7 +6,12 @@
   - [Install](#install)
   - [Usage](#usage)
     - [Relay gRPC](#relay-grpc)
-    - [Configuring the libp2p pubsub node](#configuring-the-libp2p-pubsub-node)
+    - [Relay HTTP](#relay-http)
+    - [Relay Gossipsub](#relay-gossipsub)
+    - [Other options](#other-options)
+      - [Bootstrap peers](#bootstrap-peers)
+      - [Failover](#failover)
+      - [Configuring the libp2p pubsub node](#configuring-the-libp2p-pubsub-node)
     - [Usage from a golang drand client](#usage-from-a-golang-drand-client)
       - [With Group TOML or Chain Info](#with-group-toml-or-chain-info)
       - [With Known Chain Hash](#with-known-chain-hash)
@@ -52,7 +57,7 @@ Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
    +-------------------------+   +-------------------------+
 ```
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- START doctoc doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
@@ -70,7 +75,7 @@ Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
     - [With Known Chain Hash](#with-known-chain-hash)
     - [Insecurely](#insecurely)
 
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+<!-- END doctoc doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Install
 
