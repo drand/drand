@@ -14,11 +14,12 @@ type callbackManager struct {
 }
 
 const streamRoutines int = 5
+const callbackChanBufferSize = 100
 
 func newCallbackManager() *callbackManager {
 	s := &callbackManager{
 		callbacks: make(map[string]func(*chain.Beacon)),
-		newCb:     make(chan callback, 100),
+		newCb:     make(chan callback, callbackChanBufferSize),
 		stop:      make(chan bool),
 	}
 	for i := 0; i < streamRoutines; i++ {
@@ -39,7 +40,6 @@ func (s *callbackManager) DelCallback(id string) {
 	s.Lock()
 	defer s.Unlock()
 	delete(s.callbacks, id)
-
 }
 
 func (s *callbackManager) NewBeacon(b *chain.Beacon) {

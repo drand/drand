@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -59,4 +60,25 @@ func TestWatcherRoundAt(t *testing.T) {
 	if w.RoundAt(time.Now()) != 0 {
 		t.Fatal("unexpected RoundAt value")
 	}
+}
+
+func TestWatcherClose(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+
+	closeF := func() error {
+		wg.Done()
+		return nil
+	}
+
+	w := &MockClient{CloseF: closeF}
+	c := &MockClient{CloseF: closeF}
+
+	wc := &watcherClient{c, w}
+	err := wc.Close() // should close the underlying client AND watcher
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Wait() // wait for underlying client AND watcher to close
 }

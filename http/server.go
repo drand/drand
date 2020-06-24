@@ -34,7 +34,7 @@ var (
 // New creates an HTTP handler for the public Drand API
 func New(ctx context.Context, c client.Client, version string, logger log.Logger) (http.Handler, error) {
 	if logger == nil {
-		logger = log.DefaultLogger
+		logger = log.DefaultLogger()
 	}
 	handler := handler{
 		timeout:     reqTimeout,

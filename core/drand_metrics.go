@@ -17,10 +17,10 @@ func (d *Drand) PeerMetrics(c context.Context) (map[string]http.Handler, error) 
 	pc := d.privGateway.ProtocolClient
 	hc, ok := pc.(net.HTTPClient)
 	if !ok {
-		return nil, errors.New("Implementation does not support metrics")
+		return nil, errors.New("implementation does not support metrics")
 	}
 
-	handlers := make(map[string]http.Handler, 0)
+	handlers := make(map[string]http.Handler)
 	var err error
 	for _, n := range d.group.Nodes {
 		if n.Index == uint32(d.index) {

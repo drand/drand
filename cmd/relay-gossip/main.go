@@ -6,9 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/cmd/client/lib"
-	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
@@ -25,8 +24,6 @@ var (
 	gitCommit = "none"
 	buildDate = "unknown"
 )
-
-var log = dlog.DefaultLogger
 
 func main() {
 	app := &cli.App{
@@ -46,57 +43,57 @@ func main() {
 	}
 }
 
-var idFlag = &cli.StringFlag{
-	Name:  "identity",
-	Usage: "path to a file containing a libp2p identity (base64 encoded)",
-	Value: "identity.key",
-}
+var (
+	idFlag = &cli.StringFlag{
+		Name:  "identity",
+		Usage: "path to a file containing a libp2p identity (base64 encoded)",
+		Value: "identity.key",
+	}
+	peerWithFlag = &cli.StringSliceFlag{
+		Name:  "peer-with",
+		Usage: "peer multiaddr(s) for the relay to direct connect with",
+	}
+	storeFlag = &cli.StringFlag{
+		Name:  "store",
+		Usage: "datastore directory",
+		Value: "./datastore",
+	}
+	listenFlag = &cli.StringFlag{
+		Name:  "listen",
+		Usage: "listening address for libp2p",
+		Value: "/ip4/0.0.0.0/tcp/44544",
+	}
+	metricsFlag = &cli.StringFlag{
+		Name:  "metrics",
+		Usage: "local host:port to bind a metrics servlet (optional)",
+	}
+)
 
 var runCmd = &cli.Command{
 	Name:  "run",
 	Usage: "starts a drand gossip relay process",
-	Flags: []cli.Flag{
-		lib.GRPCConnectFlag,
-		&cli.StringSliceFlag{
-			Name:  "http-connect",
-			Usage: "URL(s) of drand HTTP API(s) to relay",
-		},
-		&cli.StringFlag{
-			Name:  "store",
-			Usage: "datastore directory",
-			Value: "./datastore",
-		},
-		lib.CertFlag,
-		lib.InsecureFlag,
-		&cli.StringFlag{
-			Name:  "listen",
-			Usage: "listening address for libp2p",
-			Value: "/ip4/0.0.0.0/tcp/44544",
-		},
-		&cli.StringFlag{
-			Name:  "metrics",
-			Usage: "local host:port to bind a metrics servlet (optional)",
-		},
-		lib.HashFlag,
-		lib.RelayFlag,
+	Flags: append(lib.ClientFlags, []cli.Flag{
 		idFlag,
-	},
-
+		peerWithFlag,
+		storeFlag,
+		listenFlag,
+		metricsFlag,
+	}...),
 	Action: func(cctx *cli.Context) error {
-		if cctx.IsSet("metrics") {
-			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
+		if cctx.IsSet(metricsFlag.Name) {
+			metricsListener := metrics.Start(cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
 			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
 		}
 
-		grpclient, err := grpc.New(cctx.String(lib.GRPCConnectFlag.Name), cctx.String(lib.CertFlag.Name), cctx.Bool(lib.InsecureFlag.Name))
+		c, err := lib.Create(cctx, cctx.IsSet(metricsFlag.Name))
 		if err != nil {
-			return err
+			return xerrors.Errorf("constructing client: %w", err)
 		}
 
 		chainHash := cctx.String(lib.HashFlag.Name)
 		if chainHash == "" {
-			info, err := grpclient.Info(context.Background())
+			info, err := c.Info(context.Background())
 			if err != nil {
 				return xerrors.Errorf("getting chain info: %w", err)
 			}
@@ -105,13 +102,13 @@ var runCmd = &cli.Command{
 
 		cfg := &lp2p.GossipRelayConfig{
 			ChainHash:    chainHash,
-			PeerWith:     cctx.StringSlice(lib.RelayFlag.Name),
-			Addr:         cctx.String("listen"),
-			DataDir:      cctx.String("store"),
+			PeerWith:     cctx.StringSlice(peerWithFlag.Name),
+			Addr:         cctx.String(listenFlag.Name),
+			DataDir:      cctx.String(storeFlag.Name),
 			IdentityPath: cctx.String(idFlag.Name),
-			Client:       grpclient,
+			Client:       c,
 		}
-		if _, err := lp2p.NewGossipRelayNode(log, cfg); err != nil {
+		if _, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg); err != nil {
 			return err
 		}
 		<-(chan int)(nil)
@@ -129,7 +126,7 @@ var clientCmd = &cli.Command{
 		}
 
 		for rand := range c.Watch(context.Background()) {
-			log.Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
+			log.DefaultLogger().Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
 		}
 
 		return nil
@@ -141,7 +138,7 @@ var idCmd = &cli.Command{
 	Usage: "prints the libp2p peer ID or creates one if it does not exist",
 	Flags: []cli.Flag{idFlag},
 	Action: func(cctx *cli.Context) error {
-		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log)
+		priv, err := lp2p.LoadOrCreatePrivKey(cctx.String(idFlag.Name), log.DefaultLogger())
 		if err != nil {
 			return xerrors.Errorf("loading p2p key: %w", err)
 		}

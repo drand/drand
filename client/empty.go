@@ -8,6 +8,8 @@ import (
 	"github.com/drand/drand/chain"
 )
 
+const emptyClientStringerValue = "EmptyClient"
+
 // EmptyClientWithInfo makes a client that returns the given info but no randomness
 func EmptyClientWithInfo(info *chain.Info) Client {
 	return &emptyClient{info}
@@ -18,7 +20,7 @@ type emptyClient struct {
 }
 
 func (m *emptyClient) String() string {
-	return "EmptyClient"
+	return emptyClientStringerValue
 }
 
 func (m *emptyClient) Info(ctx context.Context) (*chain.Info, error) {
@@ -37,4 +39,8 @@ func (m *emptyClient) Watch(ctx context.Context) <-chan Result {
 	ch := make(chan Result, 1)
 	close(ch)
 	return ch
+}
+
+func (m *emptyClient) Close() error {
+	return nil
 }

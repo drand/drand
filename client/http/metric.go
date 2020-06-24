@@ -16,7 +16,9 @@ func MeasureHeartbeats(ctx context.Context, c []client.Client) *HealthMetrics {
 		next:    0,
 		clients: c,
 	}
-	go m.startObserve(ctx)
+	if len(c) > 0 {
+		go m.startObserve(ctx)
+	}
 	return m
 }
 
@@ -45,7 +47,7 @@ func (c *HealthMetrics) startObserve(ctx context.Context) {
 			continue
 		}
 
-		result, err := c.clients[n].Get(ctx, 0)
+		result, err := c.clients[n].Get(ctx, c.clients[n].RoundAt(time.Now())+1)
 		if err != nil {
 			metrics.ClientHTTPHeartbeatFailure.With(prometheus.Labels{"http_address": httpClient.root}).Inc()
 			continue

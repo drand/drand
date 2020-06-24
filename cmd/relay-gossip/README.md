@@ -16,7 +16,7 @@
 
 # Drand Pubsub Relay
 
-A program that relays drand randomness rounds over libp2p pubsub (gossipsub) from a gRPC, HTTP or gossipsub source. It is the "drand gossipsub relay" in this helpful diagram:
+A program that relays drand randomness rounds over libp2p pubsub (gossipsub) from a gRPC, HTTP, or gossipsub source (labeled as _drand gossipsub relay_ in this diagram):
 
 ```
               +-------------------------------+
@@ -52,6 +52,26 @@ Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
    +-------------------------+   +-------------------------+
 ```
 
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Install](#install)
+- [Usage](#usage)
+  - [Relay gRPC](#relay-grpc)
+  - [Relay HTTP](#relay-http)
+  - [Relay Gossipsub](#relay-gossipsub)
+  - [Other options](#other-options)
+    - [Bootstrap peers](#bootstrap-peers)
+    - [Failover](#failover)
+    - [Configuring the libp2p pubsub node](#configuring-the-libp2p-pubsub-node)
+  - [Usage from a golang drand client](#usage-from-a-golang-drand-client)
+    - [With Group TOML or Chain Info](#with-group-toml-or-chain-info)
+    - [With Known Chain Hash](#with-known-chain-hash)
+    - [Insecurely](#insecurely)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Install
 
 ```sh
@@ -65,47 +85,77 @@ make relay-gossip
 
 ## Usage
 
+In general, you _should_ specify either a `-hash` or `-group-conf` flag in order for your client to validate the randomness it receives is from the correct chain.
+
 ### Relay gRPC
 
 ```sh
-drand-relay-gossip run -grpc-connect=127.0.0.1:3000 -cert=/path/to/grpc-drand-cert
+drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
+                       -cert=/path/to/grpc-drand-cert
 ```
 
 If you do not have gRPC transport credentials, you can use the `-insecure` flag:
 
 ```sh
-drand-relay-gossip run -grpc-connect=127.0.0.1:3000 -insecure
-```
-
-<!--
-TODO: will be fixed soon in https://github.com/drand/drand/pull/501
-
-#### Failover
-
-The `-url` and `-failover-grace` flags can be used when relaying over gRPC to provide 1 or more alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection, and the amount of time to leave after a round is due before they are contacted. e.g.
-
-```sh
 drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
-                       -url=http://127.0.0.1:3102 \
-                       -failover-grace=5s \
                        -insecure
 ```
 
 ### Relay HTTP
 
-The gossip relay can also relay directly from a HTTP API. You can also specify multiple endpoints to enable failover.
+The gossip relay can also relay directly from an HTTP API. You can specify multiple endpoints to enable failover.
 
 ```sh
 drand-relay-gossip run -url=http://127.0.0.1:3002 \
                        -url=http://127.0.0.1:3102 \
-                       -failover-grace=5s \
-                       -insecure
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
 ```
--->
 
-### Configuring the libp2p pubsub node
+### Relay Gossipsub
 
-Starting a relay will spawn a libp2p pubsub node listening on `/ip4/0.0.0.0/tcp/44544` by default. Use the `listen` flag to change. To relay drand randomness effectively your node must be publicly accessible on the network.
+The gossip relay can also relay directly from _other_ gossip relays. You can specify multiple peers to directly connect with. In this case, a group configuration file must be specified since there's no way to retrieve chain information over pubsub.
+
+```sh
+drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
+                       -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
+                       -group-conf=/home/user/.drand/groups/drand_group.toml
+```
+
+Alternatively, you can provide URL(s) of HTTP API(s) that can be contacted to retrieve chain information. In this case we must provide the chain `-hash` to verify the information we retrieve is for the chain we expect (or provide the `-insecure` flag):
+
+```sh
+drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
+                       -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
+                       -url=http://127.0.0.1:3002 \
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83
+```
+
+### Other options
+
+#### Bootstrap peers
+
+If there is a set of peers the gossip relay should connect with and stay connected to then the `-peer-with` flag can be used to specify one or more peer multiaddrs for this purpose.
+
+#### Failover
+
+The `-url` flag provides the URL(s) of alternative HTTP API endpoints that may be able to provide randomness in the event of a failure of the gRPC connection/libp2p pubsub network. Each randomness round is raced with the HTTP endpoints when it becomes available such that if gRPC or pubsub take too long to deliver the round it'll be provided over HTTP e.g.
+
+```sh
+drand-relay-gossip run -grpc-connect=127.0.0.1:3000 \
+                       -insecure \
+                       -url=http://127.0.0.1:3102
+```
+
+```sh
+drand-relay-gossip run -relay=/ip4/127.0.0.1/tcp/44544/p2p/QmPeerID0 \
+                       -relay=/ip4/127.0.0.1/tcp/44545/p2p/QmPeerID1 \
+                       -hash=6093f9e4320c285ac4aab50ba821cd5678ec7c5015d3d9d11ef89e2a99741e83 \
+                       -url=http://127.0.0.1:3102
+```
+
+#### Configuring the libp2p pubsub node
+
+Starting a relay will spawn a libp2p pubsub node listening on `/ip4/0.0.0.0/tcp/44544` by default. Use the `-listen` flag to change. To effectively relay drand randomness, your node must be publicly accessible on the network.
 
 If not specified a libp2p identity will be generated and stored in an `identity.key` file in the current working directory. Use the `-identity` flag to override the location.
 
@@ -154,7 +204,7 @@ func main() {
 
 #### With Known Chain Hash
 
-You do not need to know the full group info to use the pubsub client, if you know the chain hash and a HTTP endpoint then you can request the chain info from the HTTP endpoint, verifying it with the known chain hash:
+You do not need to know the full group info to use the pubsub client if you know the chain hash and an HTTP endpoint then you can request the chain info from the HTTP endpoint, verifying it with the known chain hash:
 
 ```go
 package main
@@ -208,7 +258,7 @@ func main() {
 
 #### Insecurely
 
-If you trust the HTTP(S) endpoint, you don't need chain info or a chain hash. Note: using HTTP**S** provides trust at the transport level but it does not allow verification that the randomness is being requested from the expected chain:
+If you trust the HTTP(S) endpoint, you don't need chain info or a chain hash. Note: using HTTP**S** provides trust at the transport level, but it does not allow verification that the randomness is being requested from the expected chain:
 
 ```go
 package main

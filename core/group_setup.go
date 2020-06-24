@@ -15,8 +15,6 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	control "github.com/drand/drand/protobuf/drand"
-	proto "github.com/drand/drand/protobuf/drand"
 	clock "github.com/jonboulle/clockwork"
 )
 
@@ -63,7 +61,12 @@ type setupManager struct {
 	hashedSecret []byte
 }
 
-func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPeriod uint32, in *control.SetupInfoPacket) (*setupManager, error) {
+func newDKGSetup(
+	l log.Logger,
+	c clock.Clock,
+	leaderKey *key.Identity,
+	beaconPeriod uint32,
+	in *drand.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
 		return nil, err
@@ -97,7 +100,12 @@ func newDKGSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, beaconPer
 	return sm, nil
 }
 
-func newReshareSetup(l log.Logger, c clock.Clock, leaderKey *key.Identity, oldGroup *key.Group, in *control.InitResharePacket) (*setupManager, error) {
+func newReshareSetup(
+	l log.Logger,
+	c clock.Clock,
+	leaderKey *key.Identity,
+	oldGroup *key.Group,
+	in *drand.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
 	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, in.GetInfo())
@@ -126,7 +134,7 @@ type pushKey struct {
 // receiver.DoneCh to notify the setup manager the group is sent. This last
 // channel is to make sure the group is sent to every registered participants
 // before notifying the leader to start the dkg.
-func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error {
+func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
 	if !correctSecret(s.hashedSecret, p.GetSecretProof()) {
@@ -158,13 +166,6 @@ func (s *setupManager) ReceivedKey(addr string, p *proto.SignalDKGPacket) error 
 	return nil
 }
 
-type groupReceiver struct {
-	// channel over which to send the group when ready
-	WaitGroup chan *key.Group
-	// channel over which leader notifies it has sent group to the member
-	DoneCh chan bool
-}
-
 func (s *setupManager) run() {
 	var inKeys = make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
@@ -174,10 +175,11 @@ func (s *setupManager) run() {
 			// verify it's not in the list we have
 			var found bool
 			for _, id := range inKeys {
-				sameAddr := id.Address() == pk.id.Address()
-				// lazy eval
-				sameKey := func() bool { return id.Key.Equal(pk.id.Key) }
-				if sameAddr || sameKey() {
+				if id.Address() == pk.id.Address() {
+					found = true
+					s.l.Debug("setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					break
+				} else if id.Key.Equal(pk.id.Key) {
 					found = true
 					s.l.Debug("setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
@@ -216,7 +218,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
-		genesis = genesis + (ps - genesis%ps)
+		genesis += (ps - genesis%ps)
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)
 	} else {
 		genesis := s.oldGroup.GenesisTime
@@ -244,7 +246,7 @@ func (s *setupManager) StopPreemptively() {
 	s.doneCh <- true
 }
 
-func validInitPacket(in *control.SetupInfoPacket) (n int, thr int, dkg time.Duration, err error) {
+func validInitPacket(in *drand.SetupInfoPacket) (n, thr int, dkg time.Duration, err error) {
 	n = int(in.GetNodes())
 	thr = int(in.GetThreshold())
 	if thr < key.MinimumT(n) {
@@ -268,16 +270,19 @@ type setupReceiver struct {
 	secret   []byte
 }
 
-func newSetupReceiver(l log.Logger, clock clock.Clock, client net.ProtocolClient, in *control.SetupInfoPacket) (*setupReceiver, error) {
+func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
 	setup := &setupReceiver{
 		ch:     make(chan *dkgGroup, 1),
 		l:      l,
 		leader: net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
 		client: client,
-		clock:  clock,
+		clock:  c,
 		secret: hashSecret(in.GetSecret()),
 	}
-	return setup, setup.fetchLeaderKey()
+	if err := setup.fetchLeaderKey(); err != nil {
+		return nil, err
+	}
+	return setup, nil
 }
 
 func (r *setupReceiver) fetchLeaderKey() error {

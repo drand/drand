@@ -36,7 +36,7 @@ func (c *Info) Hash() []byte {
 	_ = binary.Write(h, binary.BigEndian, c.GenesisTime)
 	buff, err := c.PublicKey.MarshalBinary()
 	if err != nil {
-		log.DefaultLogger.Warn("info", "failed to hash pubkey", "err", err)
+		log.DefaultLogger().Warn("info", "failed to hash pubkey", "err", err)
 	}
 	_, _ = h.Write(buff)
 	return h.Sum(nil)

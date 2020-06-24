@@ -63,7 +63,7 @@ func NewLocalNode(i int, period string, base string, tls bool, bindAddr string) 
 		period:   period,
 		tls:      tls,
 		logPath:  logPath,
-		log:      log.DefaultLogger,
+		log:      log.DefaultLogger(),
 		pubAddr:  test.FreeBind(bindAddr),
 		privAddr: test.FreeBind(bindAddr),
 		ctrlAddr: test.FreeBind("localhost"),
