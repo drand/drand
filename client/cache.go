@@ -104,3 +104,7 @@ func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
 	}()
 	return out
 }
+
+func (c *cachingClient) Close() error {
+	return c.Client.Close()
+}

@@ -16,9 +16,13 @@ const (
 )
 
 // resolveAddresses resolves addresses parallelly
-func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr) ([]peer.AddrInfo, error) {
+func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver *madns.Resolver) ([]peer.AddrInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, dnsResolveTimeout)
 	defer cancel()
+
+	if resolver == nil {
+		resolver = madns.DefaultResolver
+	}
 
 	var maddrs []ma.Multiaddr
 	var wg sync.WaitGroup
@@ -35,7 +39,7 @@ func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr) ([]peer.AddrInf
 		wg.Add(1)
 		go func(maddr ma.Multiaddr) {
 			defer wg.Done()
-			raddrs, err := madns.Resolve(ctx, maddr)
+			raddrs, err := resolver.Resolve(ctx, maddr)
 			if err != nil {
 				resolveErrC <- fmt.Errorf("failed to resolve \"%s\": %w)", maddr, err)
 				return

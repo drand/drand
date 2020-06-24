@@ -40,3 +40,7 @@ func (m *emptyClient) Watch(ctx context.Context) <-chan Result {
 	close(ch)
 	return ch
 }
+
+func (m *emptyClient) Close() error {
+	return nil
+}
