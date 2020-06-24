@@ -21,7 +21,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// 10s after dkg finishes, (new or reshared) beacon starts
+// 12s after dkg finishes, (new or reshared) beacon starts
 var beaconOffset = 12
 
 // how much should we wait before checking if the randomness is present. This is
@@ -341,7 +341,7 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 }
 
 // UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
-// a hwole if idx is negative.
+// a whole if idx is negative.
 func (e *Orchestrator) UpdateBinary(binary string, idx int) {
 	if idx < 0 {
 		e.binary = binary
