@@ -13,10 +13,10 @@ import (
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"golang.org/x/xerrors"
+	"google.golang.org/protobuf/proto"
 )
 
 // Client is a concrete pubsub client implementation
@@ -117,7 +117,10 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 
 	chainHash := hex.EncodeToString(info.Hash())
 	topic := lp2p.PubSubTopic(chainHash)
-	ps.RegisterTopicValidator(topic, randomnessValidator(info, cache, c))
+	if err := ps.RegisterTopicValidator(topic, randomnessValidator(info, cache, c)); err != nil {
+		cancel()
+		return nil, xerrors.Errorf("creating topic: %w", err)
+	}
 	t, err := ps.Join(topic)
 	if err != nil {
 		cancel()
@@ -172,7 +175,6 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				}
 			}
 			c.subs.Unlock()
-
 		}
 	}()
 
