@@ -57,7 +57,7 @@ Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
    +-------------------------+   +-------------------------+
 ```
 
-<!-- START doctoc doctoc generated TOC please keep comment here to allow auto update -->
+<!-- START doctoc doctoc doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**
 
@@ -75,7 +75,7 @@ Publish topic=/drand/pubsub/v0.0.0/<chain-hash> data={randomness}
     - [With Known Chain Hash](#with-known-chain-hash)
     - [Insecurely](#insecurely)
 
-<!-- END doctoc doctoc generated TOC please keep comment here to allow auto update -->
+<!-- END doctoc doctoc doctoc generated TOC please keep comment here to allow auto update -->
 
 ## Install
 
