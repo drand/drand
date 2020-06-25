@@ -114,7 +114,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	}
 
 	trustRound := uint64(1)
-	trustPrevSig := []byte{}
+	var trustPrevSig []byte
 	b := chain.Beacon{}
 
 	v.potLk.Lock()
@@ -182,4 +182,9 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 
 	r.Random = chain.RandomnessFromSignature(r.Sig)
 	return nil
+}
+
+// String returns the name of this client.
+func (v *verifyingClient) String() string {
+	return fmt.Sprintf("%s.(+verifier)", v.Client)
 }

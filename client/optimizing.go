@@ -147,7 +147,7 @@ func (oc *optimizingClient) testSpeed() {
 					break LOOP
 				}
 				if rr.err != nil {
-					oc.log.Error("optimizing_client", "endpoint temporarily down", "err", rr.err)
+					oc.log.Error("optimizing_client", "endpoint temporarily down", "client", fmt.Sprintf("%v", rr.client), "err", rr.err)
 				}
 				stats = append(stats, rr.stat)
 			case <-oc.done:
