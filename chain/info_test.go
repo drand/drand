@@ -21,6 +21,8 @@ func TestChainInfo(t *testing.T) {
 		PublicKey:   g1.PublicKey,
 	}
 	c12 := NewChainInfo(fake)
+	// Note: the fake group here does not hash the same.
+	c12.GroupHash = c1.GroupHash
 	h12 := c12.Hash()
 	require.Equal(t, h1, h12)
 	require.Equal(t, c1, c12)
@@ -50,5 +52,5 @@ func TestChainInfo(t *testing.T) {
 	c13, err := InfoFromJSON(&c1Buff)
 	require.NoError(t, err)
 	require.NotNil(t, c13)
-	require.True(t, c1.Equal(c13))
+	require.Equal(t, c1, c13)
 }
