@@ -89,6 +89,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		trySetLog(c, cfg.log)
 	}
 
+	c = newVerifyingClient(c, cfg.previousResult, cfg.fullVerify)
 	c = newWatchAggregator(c, cfg.autoWatch)
 	trySetLog(c, cfg.log)
 

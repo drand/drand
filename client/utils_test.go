@@ -54,14 +54,3 @@ func compareResults(t *testing.T, a, b Result) {
 		t.Fatal("unexpected result randomness", a.Randomness(), b.Randomness())
 	}
 }
-
-func TestVerify(t *testing.T) {
-	testClient := MockClientWithResults(1, 2)
-	if _, err := Verify(context.Background(), testClient, nil); err != nil {
-		t.Fatal(err)
-	}
-	badClient := MockClientWithInfo(&chain.Info{GenesisTime: time.Now().Unix() - 2, Period: time.Second})
-	if _, err := Verify(context.Background(), badClient, nil); err == nil {
-		t.Fatal("expect failure")
-	}
-}
