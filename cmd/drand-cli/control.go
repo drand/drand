@@ -3,8 +3,6 @@ package drand
 import (
 	"fmt"
 	"os"
-	"regexp"
-	"strings"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -16,27 +14,6 @@ import (
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"
 )
-
-func isWeak(password string) bool {
-	if len(password) < 12 {
-		return true
-	}
-	if strings.Contains(strings.ToLower(password), "drand") {
-		return true
-	}
-
-	matchLower := regexp.MustCompile(`[a-z]`)
-	matchUpper := regexp.MustCompile(`[A-Z]`)
-	matchNumber := regexp.MustCompile(`[0-9]`)
-	matchSpecial := regexp.MustCompile(`[\!\@\#\$\%\^\&\*\(\\\)\-_\=\+\,\.\?\/\:\;\{\}\[\]~]`)
-	if !matchLower.MatchString(password) ||
-		!matchUpper.MatchString(password) ||
-		!matchNumber.MatchString(password) ||
-		!matchSpecial.MatchString(password) {
-		return true
-	}
-	return false
-}
 
 func shareCmd(c *cli.Context) error {
 	isResharing := c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name)
@@ -58,8 +35,8 @@ func shareCmd(c *cli.Context) error {
 	nodes := c.Int(shareNodeFlag.Name)
 	thr := c.Int(thresholdFlag.Name)
 	secret := c.String(secretFlag.Name)
-	if isWeak(secret) {
-		return fmt.Errorf("secret is insecure. Should be at least 12 characters with letters, numbers, and symbols")
+	if len(secret) < 32 {
+		return fmt.Errorf("secret is insecure. Should be at least 32 characters")
 	}
 	var timeout = core.DefaultDKGTimeout
 	if c.IsSet(timeoutFlag.Name) {
