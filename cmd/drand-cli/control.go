@@ -25,8 +25,8 @@ func shareCmd(c *cli.Context) error {
 			return fmt.Errorf("need to the address of the coordinator to create the group file")
 		}
 		coordAddress := c.String(connectFlag.Name)
-		isTls := !c.IsSet(insecureFlag.Name)
-		connectPeer = net.CreatePeer(coordAddress, isTls)
+		isTLS := !c.IsSet(insecureFlag.Name)
+		connectPeer = net.CreatePeer(coordAddress, isTLS)
 	}
 	if isLeader && !(c.IsSet(thresholdFlag.Name) && c.IsSet(shareNodeFlag.Name)) {
 		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
@@ -161,6 +161,22 @@ func showGroupCmd(c *cli.Context) error {
 		return err
 	}
 	return groupOut(c, group)
+}
+
+func showIPCmd(c *cli.Context) error {
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
+	r, err := client.GroupFile()
+	if err != nil {
+		return fmt.Errorf("fetching group file error: %s", err)
+	}
+	group, err := key.GroupFromProto(r)
+	if err != nil {
+		return err
+	}
+	return ipOut(c, group)
 }
 
 func showChainInfo(c *cli.Context) error {

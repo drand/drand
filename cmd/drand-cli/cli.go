@@ -426,6 +426,14 @@ func CLI() *cli.App {
 						return showPublicCmd(c)
 					},
 				},
+				{
+					Name:  "ips",
+					Usage: "Shows the list of IP addresses for the current group",
+					Flags: toArray(controlFlag),
+					Action: func(c *cli.Context) error {
+						return showIPCmd(c)
+					},
+				},
 			},
 		},
 	}
@@ -575,6 +583,26 @@ func groupOut(c *cli.Context, group *key.Group) error {
 		fmt.Fprintf(output, "Copy the following snippet into a new group.toml file\n")
 		fmt.Fprintf(output, buff.String())
 		fmt.Fprintf(output, "\nHash of the group configuration: %x\n", group.Hash())
+	}
+	return nil
+}
+
+func ipOut(c *cli.Context, group *key.Group) error {
+	ips := make([]string, 0)
+	for _, n := range group.Nodes {
+		addr := n.Address()
+		host, _, err := gonet.SplitHostPort(addr)
+		if err != nil {
+			return fmt.Errorf("drand: unable to parse host %s: %v", addr, err)
+		}
+		hostAddrs, err := gonet.LookupHost(host)
+		if err != nil {
+			return fmt.Errorf("drand: unable to resolve group member %s: %v", host, err)
+		}
+		ips = append(ips, hostAddrs...)
+	}
+	for _, i := range ips {
+		fmt.Fprintf(output, "%s\n", i)
 	}
 	return nil
 }
