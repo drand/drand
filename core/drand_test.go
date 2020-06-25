@@ -43,8 +43,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	// make the last node fail
 	lastID := dt.nodes[n-1].addr
 	dt.StopDrand(lastID, false)
-	//lastOne.Stop()
-	fmt.Printf("\n--- lastOne STOPPED --- \n\n")
+	fmt.Printf("\n--- lastOne STOPPED %s --- \n\n", lastID)
 
 	// move time to genesis
 	//dt.MoveTime(offsetGenesis)
@@ -55,12 +54,13 @@ func TestDrandDKGFresh(t *testing.T) {
 	// two = genesis + 1st round (happens at genesis)
 	fmt.Println(" --- Test BEACON LENGTH --- ")
 	dt.TestBeaconLength(2, false, dt.Ids(n-1, false)...)
-	fmt.Println(" --- START LAST DRAND ---")
+	fmt.Printf("\n\n --- START LAST DRAND %s ---\n\n", lastID)
 	// start last one
 	dt.StartDrand(lastID, true, false)
 	// leave some room to do the catchup
 	time.Sleep(100 * time.Millisecond)
-	fmt.Println(" --- STARTED BEACON DRAND ---")
+	fmt.Printf("\n\n --- STARTED BEACON DRAND %s ---\n\n", lastID)
+	time.Sleep(2 * time.Second)
 	dt.MoveTime(beaconPeriod)
 	dt.TestBeaconLength(3, false, dt.Ids(n, false)...)
 	dt.TestPublicBeacon(lastID, false)

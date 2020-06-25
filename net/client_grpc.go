@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -212,22 +211,14 @@ func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePa
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
-	do := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewProtocolClient(c)
-		ctx, _ := g.getTimeoutContext(ctx)
-		_, err = client.PartialBeacon(ctx, in, opts...)
+	c, err := g.conn(p)
+	if err != nil {
 		return err
 	}
-	if err := do(); err != nil && strings.Contains(err.Error(), "connection error") {
-		g.deleteConn(p)
-		return do()
-	} else {
-		return err
-	}
+	client := drand.NewProtocolClient(c)
+	ctx, _ = g.getTimeoutContext(ctx)
+	_, err = client.PartialBeacon(ctx, in, opts...)
+	return err
 }
 
 const SyncBlockKey = "sync"
