@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
@@ -27,6 +28,7 @@ type verifyingClient struct {
 	indirectClient Client
 
 	pointOfTrust Result
+	potLk        sync.Mutex
 	strict       bool
 
 	log log.Logger
@@ -60,7 +62,7 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 
 	info, err := v.Client.Info(ctx)
 	if err != nil {
-		v.log.Error("drand_client", "could not get info", "err", err)
+		v.log.Error("verifying_client", "could not get info", "err", err)
 		close(outCh)
 		return outCh
 	}
@@ -70,12 +72,17 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 		defer close(outCh)
 		for r := range inCh {
 			if err := v.verify(ctx, info, asRandomData(r)); err != nil {
+				v.log.Warn("verifying_client", "skipping invalid watch round", "round", r.Round(), "err", err)
 				continue
 			}
 			outCh <- r
 		}
 	}()
 	return outCh
+}
+
+type resultWithPreviousSignature interface {
+	PreviousSignature() []byte
 }
 
 func asRandomData(r Result) *RandomData {
@@ -88,6 +95,10 @@ func asRandomData(r Result) *RandomData {
 		Random: r.Randomness(),
 		Sig:    r.Signature(),
 	}
+	if rp, ok := r.(resultWithPreviousSignature); ok {
+		rd.PreviousSignature = rp.PreviousSignature()
+	}
+
 	return rd
 }
 
@@ -102,21 +113,30 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		return info.GroupHash, nil
 	}
 
-	trustRound := v.pointOfTrust.Round()
-	trustPrevSig := v.pointOfTrust.Signature()
+	trustRound := uint64(1)
+	trustPrevSig := []byte{}
 	b := chain.Beacon{}
-	if v.pointOfTrust.Round() > round {
+
+	v.potLk.Lock()
+	if v.pointOfTrust == nil || v.pointOfTrust.Round() > round {
 		// slow path
-		trustRound = 1
+		v.potLk.Unlock()
 		trustPrevSig, err = v.getTrustedPreviousSignature(ctx, 1)
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		trustRound = v.pointOfTrust.Round()
+		trustPrevSig = v.pointOfTrust.Signature()
+		v.potLk.Unlock()
 	}
+	initialTrustRound := trustRound
 
+	var next Result
 	for trustRound < round-1 {
 		trustRound++
-		next, err := v.indirectClient.Get(ctx, trustRound)
+		v.log.Warn("verifying_client", "loading round to verify", "round", trustRound)
+		next, err = v.indirectClient.Get(ctx, trustRound)
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
 		}
@@ -124,13 +144,15 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		b.Round = trustRound
 		b.Signature = next.Signature()
 		if err := chain.VerifyBeacon(info.PublicKey, &b); err != nil {
-			v.log.Warn("drand_client", "failed to verify value", "err", err)
+			v.log.Warn("verifying_client", "failed to verify value", "b", b, "err", err)
 			return []byte{}, fmt.Errorf("verifying beacon: %w", err)
 		}
 		trustPrevSig = next.Signature()
-		if trustRound == round-1 && trustRound > v.pointOfTrust.Round() {
-			v.pointOfTrust = next
-		}
+	}
+	if trustRound == round-1 && trustRound > initialTrustRound {
+		v.potLk.Lock()
+		v.pointOfTrust = next
+		v.potLk.Unlock()
 	}
 
 	if trustRound != round-1 {
@@ -155,7 +177,7 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 	}
 
 	if err = chain.VerifyBeacon(info.PublicKey, &b); err != nil {
-		return
+		return fmt.Errorf("verification of %v failed: %w", b, err)
 	}
 
 	r.Random = chain.RandomnessFromSignature(r.Sig)

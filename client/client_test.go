@@ -121,10 +121,7 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	results := []mock.Result{
-		{Rnd: 1, Rand: []byte{1}},
-		{Rnd: 2, Rand: []byte{2}},
-	}
+	info, results := mock.VerifiableResults(2)
 
 	ch := make(chan client.Result, len(results))
 	for i := range results {
@@ -137,7 +134,7 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.WithChainInfo(fakeChainInfo()),
+		client.WithChainInfo(info),
 		client.WithWatcher(watcherCtor),
 	)
 	if err != nil {
