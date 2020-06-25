@@ -152,7 +152,7 @@ var secretFlag = &cli.StringFlag{
 	EnvVars:  []string{"DRAND_SHARE_SECRET"},
 	Required: true,
 	Usage: "Specify the secret to use when doing the share so the leader knows you are an eligible potential participant." +
-		" must be at least 12 characters and include letters, numbers, and symbols",
+		" must be at least 32 characters.",
 }
 
 var connectFlag = &cli.StringFlag{
