@@ -73,7 +73,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	var c Client
 
-	verifiers := make([]Client, len(cfg.clients))
+	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
 		verifiers = append(verifiers, newVerifyingClient(source, cfg.previousResult, cfg.fullVerify))
 	}
@@ -93,6 +93,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		trySetLog(c, cfg.log)
 	}
 	for _, v := range verifiers {
+		trySetLog(v, cfg.log)
 		v.(*verifyingClient).indirectClient = c
 	}
 
