@@ -73,7 +73,11 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	var c Client
 
-	oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
+	verifiers := make([]Client, len(cfg.clients))
+	for _, source := range cfg.clients {
+		verifiers = append(verifiers, newVerifyingClient(source, cfg.previousResult, cfg.fullVerify))
+	}
+	oc, err := newOptimizingClient(verifiers, 0, 0, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -88,8 +92,10 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		}
 		trySetLog(c, cfg.log)
 	}
+	for _, v := range verifiers {
+		v.(*verifyingClient).indirectClient = c
+	}
 
-	c = newVerifyingClient(c, cfg.previousResult, cfg.fullVerify)
 	c = newWatchAggregator(c, cfg.autoWatch)
 	trySetLog(c, cfg.log)
 

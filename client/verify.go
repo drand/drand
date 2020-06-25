@@ -11,14 +11,20 @@ import (
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
 func newVerifyingClient(c Client, previousResult Result, strict bool) Client {
 	return &verifyingClient{
-		Client:       c,
-		pointOfTrust: previousResult,
-		strict:       strict,
+		Client:         c,
+		indirectClient: c,
+		pointOfTrust:   previousResult,
+		strict:         strict,
 	}
 }
 
 type verifyingClient struct {
+	// Client is the wrapped client. calls to `get` and `watch` return results proxied from this client's fetch
 	Client
+
+	// indirectClient is used to fetch other rounds of randomness needed for verification.
+	// it is separated so that it can provide a cache or shared pool that the direct client may not.
+	indirectClient Client
 
 	pointOfTrust Result
 	strict       bool
@@ -110,7 +116,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 
 	for trustRound < round-1 {
 		trustRound++
-		next, err := v.Client.Get(ctx, trustRound)
+		next, err := v.indirectClient.Get(ctx, trustRound)
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
 		}
@@ -137,6 +143,9 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 	ps := r.PreviousSignature
 	if v.strict || r.PreviousSignature == nil {
 		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
+		if err != nil {
+			return
+		}
 	}
 
 	b := chain.Beacon{
