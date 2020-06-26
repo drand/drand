@@ -211,14 +211,14 @@ configuration file
 **before** everyone else:
 
 ```bash
-drand share --leader --nodes 10 --threshold 6 --secret mysecret --period 30s
+drand share --leader --nodes 10 --threshold 6 --secret mysecret901234567890123456789012 --period 30s
 ```
 
 **Rest of participants**: Once the coordinator has run the previous command, the
  rest of the participants must run the following command:
 
 ```bash
-drand share --connect <leaderaddress> --secret mysecret
+drand share --connect <leaderaddress> --secret mysecret901234567890123456789012
 ```
 
 The flags usage is as follow:
@@ -231,7 +231,7 @@ The flags usage is as follow:
 - `--period` indicates the period of the randomness beacon to use. It must be
   valid duration as parsed by Golang's [`time.ParseDuration`](https://golang.org/pkg/time/#ParseDuration)  method.
 - `--secret` indicates the secret that the coordinator uses to authentify the
-  nodes that wants to participate to the network.
+  nodes that wants to participate to the network. it must be at least 32 bytes.
 - `--connect` is the `host:port` address of the leader. By default, drand will
   connect to the leader by using tls. If you are not using tls, use the
   `--tls-disable` flag.
@@ -250,7 +250,9 @@ secret string shared by all. This method is offering some basic security
 however drand will provide more manual checks later-on and/or different secrets
 for each participants. However, since the set of participants is public and consistent
  accross all participants after a setup, nodes can detect if there are some unwanted nodes
-after the setup and in that case, setup a new network again.
+after the setup and in that case, setup a new network again. the secret must be at least
+32 bytes. If the `DRAND_SHARE_SECRET` environment variable is set, the command line flag
+can be omitted.
 
 **Custom entropy source**: By default drand takes its entropy for the setup
 phase from the OS's entropy source (`/dev/urandom` on Unix systems). However,
@@ -429,7 +431,7 @@ difficult to update.
 network. To run the coordinator, run the following:
 
 ```bash
-drand share --leader --transition --secret mysecret2 --nodes 15 --threshold 10 --out
+drand share --leader --transition --secret mysecret901234567890123456789012 --nodes 15 --threshold 10 --out
 group2.toml
 ```
 
@@ -437,7 +439,7 @@ group2.toml
 simply run the following command:
 
 ```bash
-drand share --connect <coordinator> --transition --secret mysecret2 --out group2.toml
+drand share --connect <coordinator> --transition --secret mysecret901234567890123456789012 --out group2.toml
 ```
 
 **Setting up the new members**: The new members need the current group file to
@@ -445,7 +447,7 @@ proceed. Check how to get the group file in the "Using the drand daemon"
 section. Then run the command:
 
 ```bash
-drand share connect <coordinator> --from group.toml --secret mysecret2 --out group2.toml
+drand share connect <coordinator> --from group.toml --secret mysecret901234567890123456789012 --out group2.toml
 ```
 
 After the protocol is finished, each node will have the new group file written

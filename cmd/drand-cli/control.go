@@ -25,8 +25,8 @@ func shareCmd(c *cli.Context) error {
 			return fmt.Errorf("need to the address of the coordinator to create the group file")
 		}
 		coordAddress := c.String(connectFlag.Name)
-		isTls := !c.IsSet(insecureFlag.Name)
-		connectPeer = net.CreatePeer(coordAddress, isTls)
+		isTLS := !c.IsSet(insecureFlag.Name)
+		connectPeer = net.CreatePeer(coordAddress, isTLS)
 	}
 	if isLeader && !(c.IsSet(thresholdFlag.Name) && c.IsSet(shareNodeFlag.Name)) {
 		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
@@ -35,6 +35,9 @@ func shareCmd(c *cli.Context) error {
 	nodes := c.Int(shareNodeFlag.Name)
 	thr := c.Int(thresholdFlag.Name)
 	secret := c.String(secretFlag.Name)
+	if len(secret) < 32 {
+		return fmt.Errorf("secret is insecure. Should be at least 32 characters")
+	}
 	var timeout = core.DefaultDKGTimeout
 	if c.IsSet(timeoutFlag.Name) {
 		var err error
