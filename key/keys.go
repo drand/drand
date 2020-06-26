@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"net"
 
 	kyber "github.com/drand/kyber"
@@ -52,7 +51,7 @@ func (i *Identity) String() string {
 // field as those may need to change while the node keeps the same key.
 func (i *Identity) Hash() []byte {
 	h := hashFunc()
-	i.Key.MarshalTo(h)
+	_, _ = i.Key.MarshalTo(h)
 	return h.Sum(nil)
 }
 
@@ -77,6 +76,7 @@ func (i *Identity) Equal(i2 *Identity) bool {
 	return true
 }
 
+// SelfSign signs the public key with the key pair
 func (p *Pair) SelfSign() {
 	msg := p.Public.Hash()
 	signature, _ := AuthScheme.Sign(p.Key, msg)
@@ -123,7 +123,7 @@ type PublicTOML struct {
 	Signature string
 }
 
-// TOML returns a struct that can be marshalled using a TOML-encoding library
+// TOML returns a struct that can be marshaled using a TOML-encoding library
 func (p *Pair) TOML() interface{} {
 	hexKey := ScalarToString(p.Key)
 	return &PairTOML{hexKey}
@@ -151,7 +151,7 @@ func (p *Pair) TOMLValue() interface{} {
 func (i *Identity) FromTOML(t interface{}) error {
 	ptoml, ok := t.(*PublicTOML)
 	if !ok {
-		return errors.New("Public can't decode from non PublicTOML struct")
+		return errors.New("public can't decode from non PublicTOML struct")
 	}
 	var err error
 	i.Key, err = StringToPoint(KeyGroup, ptoml.Key)
@@ -220,6 +220,7 @@ func IdentityFromProto(n *proto.Identity) (*Identity, error) {
 	return id, nil
 }
 
+// ToProto marshals an identity into protobuf format
 func (i *Identity) ToProto() *proto.Identity {
 	buff, _ := i.Key.MarshalBinary()
 	return &proto.Identity{
@@ -328,7 +329,7 @@ func (d *DistPublic) Hash() []byte {
 	h := hashFunc()
 	for _, c := range d.Coefficients {
 		buff, _ := c.MarshalBinary()
-		h.Write(buff)
+		_, _ = h.Write(buff)
 	}
 	return h.Sum(nil)
 }
@@ -388,5 +389,5 @@ func (d *DistPublic) Equal(d2 *DistPublic) bool {
 
 // DefaultThreshold return floor(n / 2) + 1
 func DefaultThreshold(n int) int {
-	return int(math.Floor(float64(n)/2.0)) + 1
+	return MinimumT(n)
 }
