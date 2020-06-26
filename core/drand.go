@@ -113,37 +113,20 @@ func setupDrand(d *Drand, c *Config) error {
 	// Gateway constructors (specifically, the generated gateway stubs that require it)
 	// do not actually use it, so we are passing a background context to be safe.
 	ctx := context.Background()
-	if c.insecure {
-		var err error
-		d.log.Info("network", "tls-disable")
-		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
-			if err != nil {
-				return err
-			}
-			if d.pubGateway, err = net.NewRESTPublicGatewayWithoutTLS(ctx, pubAddr, handler); err != nil {
-				return err
-			}
-		}
-		if d.privGateway, err = net.NewGRPCPrivateGatewayWithoutTLS(ctx, privAddr, d, d.opts.grpcOpts...); err != nil {
-			return err
-		}
-	} else {
-		var err error
-		d.log.Info("network", "tls-enabled")
-		if pubAddr != "" {
-			handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
-			if err != nil {
-				return err
-			}
-			if d.pubGateway, err = net.NewRESTPublicGatewayWithTLS(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler); err != nil {
-				return err
-			}
-		}
-		d.privGateway, err = net.NewGRPCPrivateGatewayWithTLS(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, d, d.opts.grpcOpts...)
+	var err error
+	d.log.Info("network", "init", "insecure", c.insecure)
+	if pubAddr != "" {
+		handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
 		if err != nil {
 			return err
 		}
+		if d.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler, c.insecure); err != nil {
+			return err
+		}
+	}
+	d.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, d, c.insecure, d.opts.grpcOpts...)
+	if err != nil {
+		return err
 	}
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)

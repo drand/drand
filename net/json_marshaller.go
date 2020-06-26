@@ -1,10 +1,10 @@
 package net
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-	"github.com/nikkolasg/hexjson"
 )
 
 // HexJSON transforms json into hex string instead of b64
