@@ -13,12 +13,6 @@ import (
 // should be allowed by drand, such as BLS12-381.
 var Pairing = bls.NewBLS12381Suite()
 
-// G1 is the G1 group implementation.
-//var G1 = Pairing.G1()
-
-// G2 is the G2 group implementation.
-//var G2 = Pairing.G2()
-
 // KeyGroup is the group used to create the keys
 var KeyGroup = Pairing.G1()
 

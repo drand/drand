@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"hash"
-	"math"
 	"sort"
 	"time"
 
@@ -90,25 +89,17 @@ func (g *Group) Hash() []byte {
 	})
 	// all nodes public keys and positions
 	for _, n := range g.Nodes {
-		h.Write(n.Hash())
+		_, _ = h.Write(n.Hash())
 	}
-	binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
-	binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
+	_ = binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
+	_ = binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
 	if g.TransitionTime != 0 {
-		binary.Write(h, binary.LittleEndian, g.TransitionTime)
+		_ = binary.Write(h, binary.LittleEndian, g.TransitionTime)
 	}
 	if g.PublicKey != nil {
-		h.Write(g.PublicKey.Hash())
+		_, _ = h.Write(g.PublicKey.Hash())
 	}
 	return h.Sum(nil)
-}
-
-func (g *Group) identities() []*Identity {
-	ids := make([]*Identity, g.Len())
-	for i := 0; i < g.Len(); i++ {
-		ids[i] = g.Nodes[i].Identity
-	}
-	return ids
 }
 
 // Points returns itself under the form of a list of kyber.Point
@@ -127,7 +118,7 @@ func (g *Group) Len() int {
 
 func (g *Group) String() string {
 	var b bytes.Buffer
-	toml.NewEncoder(&b).Encode(g.TOML())
+	_ = toml.NewEncoder(&b).Encode(g.TOML())
 	return b.String()
 }
 
@@ -302,7 +293,7 @@ func copyAndSort(list []*Identity) []*Node {
 
 // MinimumT calculates the threshold needed for the group to produce sufficient shares to decode
 func MinimumT(n int) int {
-	return int(math.Floor(float64(n)/2.0) + 1)
+	return (n >> 1) + 1
 }
 
 // GroupFromProto convertes a protobuf group into a local Group object
@@ -336,13 +327,13 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		}
 		dist.Coefficients = append(dist.Coefficients, c)
 	}
-	//group := key.NewGroup(nodes, thr, genesisTime)
-	group := new(Group)
-	group.Nodes = nodes
-	group.Threshold = thr
-	group.GenesisTime = genesisTime
-	group.Period = period
-	group.TransitionTime = int64(g.GetTransitionTime())
+	group := &Group{
+		Threshold:      thr,
+		Period:         period,
+		Nodes:          nodes,
+		GenesisTime:    genesisTime,
+		TransitionTime: int64(g.GetTransitionTime()),
+	}
 	if g.GetGenesisSeed() != nil {
 		group.GenesisSeed = g.GetGenesisSeed()
 	}
