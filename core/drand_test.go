@@ -169,6 +169,7 @@ func TestDrandResharePreempt(t *testing.T) {
 		panic("leader not found in old group")
 	}
 	// old root: oldNode.Index leater: leader.addr
+	oldDone := make(chan error, 1)
 	go func() {
 		client, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
 		require.NoError(t, err)
@@ -177,11 +178,12 @@ func TestDrandResharePreempt(t *testing.T) {
 		if err == nil {
 			panic("initial reshare should fail.")
 		}
+		oldDone <- err
 	}()
 	time.Sleep(100 * time.Millisecond)
 
 	// run the resharing
-	var doneReshare = make(chan *key.Group)
+	var doneReshare = make(chan *key.Group, 1)
 	go func() {
 		group := dt.RunReshare(oldN, 0, newThr, timeout)
 		doneReshare <- group
@@ -202,11 +204,15 @@ func TestDrandResharePreempt(t *testing.T) {
 	time.Sleep(getSleepDuration())
 	// at this time they received no justification from the missing node so he's
 	// exlucded of the group and the dkg should finish
-	// time.Sleep(10 * time.Second)
 	select {
 	case <-doneReshare:
 	case <-time.After(1 * time.Second):
-		require.True(t, false)
+		panic("expect dkg to have finished within one second")
+	}
+	select {
+	case <-oldDone:
+	case <-time.After(1 * time.Second):
+		panic("expect aborted dkg to fail")
 	}
 	dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 }
