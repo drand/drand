@@ -22,8 +22,8 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-var secretDKG = "dkgsecret"
-var secretReshare = "sharesecret"
+var secretDKG = "dkgsecret_____________________32"
+var secretReshare = "sharesecret___________________32"
 
 type NodeProc struct {
 	base       string
