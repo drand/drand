@@ -75,9 +75,7 @@ var runCmd = &cli.Command{
 		}
 
 		upr := s3manager.NewUploader(sess)
-		ctx := context.Background()
-
-		watch(ctx, c, upr, cctx.String(bucketFlag.Name))
+		watch(context.Background(), c, upr, cctx.String(bucketFlag.Name))
 		return nil
 	},
 }
