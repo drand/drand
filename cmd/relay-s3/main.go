@@ -82,32 +82,34 @@ var runCmd = &cli.Command{
 }
 
 func watch(ctx context.Context, c client.Client, upr *s3manager.Uploader, buc string) {
-LOOP:
 	for {
 		ch := c.Watch(ctx)
-		select {
-		case res, ok := <-ch:
-			if !ok {
-				log.DefaultLogger().Warn("relay_s3", "watch channel closed")
-				t := time.NewTimer(time.Second)
-				select {
-				case <-t.C:
-					break LOOP
-				case <-ctx.Done():
-					return
+	INNER:
+		for {
+			select {
+			case res, ok := <-ch:
+				if !ok {
+					log.DefaultLogger().Warn("relay_s3", "watch channel closed")
+					t := time.NewTimer(time.Second)
+					select {
+					case <-t.C:
+						break INNER
+					case <-ctx.Done():
+						return
+					}
 				}
+				log.DefaultLogger().Info("relay_s3", "got randomness", "round", res.Round())
+				go func(res client.Result) {
+					url, err := uploadRandomness(ctx, upr, buc, res)
+					if err != nil {
+						log.DefaultLogger().Error("relay_s3", "failed to upload randomness", "err", err)
+						return
+					}
+					log.DefaultLogger().Info("relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
+				}(res)
+			case <-ctx.Done():
+				return
 			}
-			log.DefaultLogger().Info("relay_s3", "got randomness", "round", res.Round())
-			go func(res client.Result) {
-				url, err := uploadRandomness(ctx, upr, buc, res)
-				if err != nil {
-					log.DefaultLogger().Error("relay_s3", "failed to upload randomness", "err", err)
-					return
-				}
-				log.DefaultLogger().Info("relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
-			}(res)
-		case <-ctx.Done():
-			return
 		}
 	}
 }
