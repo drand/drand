@@ -178,9 +178,6 @@ var syncCmd = &cli.Command{
 			rnd = r.Round()
 		}
 
-		// upload new rounds while we're syncing
-		go watch(ctx, c, upr, buc)
-
 		for ; rnd > 0; rnd-- {
 			// TODO: check if bucket already has this round
 			r, err := c.Get(ctx, rnd)
