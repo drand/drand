@@ -4,16 +4,24 @@ A drand relay that writes randomness rounds to an AWS S3 bucket.
 
 ## Usage
 
-```console
+```sh
 drand-relay-s3 run [arguments...]
 ```
 
-Note: at minimum you'll need to specify a S3 bucket name and either a HTTP or GRPC drand endpoint to relay from.
+Note: at minimum you'll need to specify a S3 bucket name and either a HTTP, gRPC or libp2p pubsub drand endpoint to relay from.
 
-### Example
+**Example**
 
-```console
-drand-relay-s3 run -chain 138a324aa6540f93d0dad002aa89454b1bec2b6e948682cde6bd4db40f4b7c9b -u http://pl-us.testnet.drand.sh -b drand-testnet -r eu-west-2
+```sh
+drand-relay-s3 run -hash 138a324aa6540f93d0dad002aa89454b1bec2b6e948682cde6bd4db40f4b7c9b -url http://pl-us.testnet.drand.sh -bucket drand-testnet -region eu-west-2
+```
+
+### Sync bucket with randomness chain
+
+The `sync` command will ensure the AWS S3 bucket is fully sync'd with the randomness chain. i.e. it ensures all randomness rounds to date (and generated during the sync) are uploaded to the S3 bucket. This may take a while, but if you need to stop you can start it again from a specific round number using the `-begin` flag.
+
+```sh
+drand-relay-s3 sync [arguments...]
 ```
 
 ## Prerequesites

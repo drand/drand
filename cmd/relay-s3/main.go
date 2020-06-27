@@ -3,25 +3,17 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/drand/drand/client"
-	dlog "github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/metrics/pprof"
+	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/log"
 	json "github.com/nikkolasg/hexjson"
 	cli "github.com/urfave/cli/v2"
-)
-
-const (
-	uploadRetryInterval = time.Minute
 )
 
 // Automatically set through -ldflags
@@ -30,7 +22,18 @@ var (
 	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
-	log       = dlog.DefaultLogger
+)
+
+var (
+	bucketFlag = &cli.StringFlag{
+		Name:     "bucket",
+		Usage:    "Name of the AWS bucket to upload to",
+		Required: true,
+	}
+	regionFlag = &cli.StringFlag{
+		Name:  "region",
+		Usage: "Name of the AWS region to use (optional)",
+	}
 )
 
 func main() {
@@ -38,7 +41,7 @@ func main() {
 		Name:     "drand-relay-s3",
 		Version:  version,
 		Usage:    "AWS S3 relay for randomness beacon",
-		Commands: []*cli.Command{runCmd},
+		Commands: []*cli.Command{runCmd, syncCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand AWS S3 relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
@@ -54,141 +57,128 @@ func main() {
 var runCmd = &cli.Command{
 	Name:  "run",
 	Usage: "start a drand AWS S3 relay process",
-	Flags: []cli.Flag{
-		&cli.StringFlag{
-			Name:    "chain-hash",
-			Usage:   "hex encoded hash of the drand group chain (optional)",
-			Aliases: []string{"chain"},
-		},
-		&cli.StringFlag{
-			Name:     "bucket",
-			Usage:    "name of the AWS bucket to upload to",
-			Aliases:  []string{"b"},
-			Required: true,
-		},
-		&cli.StringFlag{
-			Name:    "region",
-			Usage:   "name of the AWS region to use (optional)",
-			Aliases: []string{"r"},
-		},
-		&cli.StringFlag{
-			Name:    "grpc-connect",
-			Usage:   "host:port to dial to a drand gRPC API",
-			Aliases: []string{"connect", "c"},
-		},
-		&cli.StringSliceFlag{
-			Name:    "http-connect",
-			Usage:   "URL(s) of drand HTTP API(s) to relay",
-			Aliases: []string{"u"},
-		},
-		&cli.StringFlag{
-			Name:  "cert",
-			Usage: "file containing GRPC transport credentials of peer (optional)",
-		},
-		&cli.BoolFlag{
-			Name:  "insecure",
-			Usage: "allow insecure GRPC connection (optional)",
-		},
-		&cli.StringFlag{
-			Name:  "metrics",
-			Usage: "local host:port to bind a metrics servlet (optional)",
-		},
-	},
+	Flags: append(lib.ClientFlags, bucketFlag, regionFlag),
 
 	Action: func(cctx *cli.Context) error {
-		if cctx.IsSet("metrics") {
-			metricsListener := metrics.Start(cctx.String("metrics"), pprof.WithProfile(), nil)
-			defer metricsListener.Close()
-		}
-
-		var err error
-		var chainHash []byte
-
-		if cctx.String("chain-hash") != "" {
-			chainHash, err = hex.DecodeString(cctx.String("chain-hash"))
-			if err != nil {
-				return fmt.Errorf("decoding chain hash: %w", err)
-			}
-		}
-
-		sess, err := session.NewSession(&aws.Config{Region: aws.String(cctx.String("region"))})
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(cctx.String(regionFlag.Name))})
 		if err != nil {
 			return fmt.Errorf("creating aws session: %w", err)
 		}
 
-		_, err = sess.Config.Credentials.Get()
-		if err != nil {
+		if _, err := sess.Config.Credentials.Get(); err != nil {
 			return fmt.Errorf("checking credentials: %w", err)
 		}
 
-		uploader := s3manager.NewUploader(sess)
-
-		var w client.Watcher
-
-		if len(cctx.StringSlice("http-connect")) > 0 {
-			w, err = newHTTPWatcher(cctx.StringSlice("http-connect"), chainHash)
-		} else if cctx.String("grpc-connect") != "" {
-			w, err = newGRPCWatcher(cctx.String("grpc-connect"), cctx.String("cert"), cctx.Bool("insecure"))
-		} else {
-			return errors.New("missing GRPC or HTTP address(es)")
-		}
+		c, err := lib.Create(cctx, false)
 		if err != nil {
-			return err
+			return fmt.Errorf("creating client: %w", err)
 		}
 
+		upr := s3manager.NewUploader(sess)
 		ctx := context.Background()
-		for res := range w.Watch(ctx) {
-			log.Info("relay_s3", "got randomness", "round", res.Round())
-			go uploadRandomness(ctx, uploader, cctx.String("bucket"), res)
-		}
+
+		watch(ctx, c, upr, cctx.String(bucketFlag.Name))
 		return nil
 	},
 }
 
-func newGRPCWatcher(addr string, cert string, insecure bool) (client.Watcher, error) {
-	return nil, errors.New("not implemented")
-}
-
-func newHTTPWatcher(urls []string, chainHash []byte) (client.Watcher, error) {
-	if chainHash == nil {
-		return client.New(client.WithInsecureHTTPEndpoints(urls), client.WithCacheSize(0))
+func watch(ctx context.Context, c client.Client, upr *s3manager.Uploader, buc string) {
+	for res := range c.Watch(ctx) {
+		log.DefaultLogger().Info("relay_s3", "got randomness", "round", res.Round())
+		go func(res client.Result) {
+			url, err := uploadRandomness(ctx, upr, buc, res)
+			if err != nil {
+				log.DefaultLogger().Error("relay_s3", "failed to upload randomness", "err", err)
+				return
+			}
+			log.DefaultLogger().Info("relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
+		}(res)
 	}
-	return client.New(client.WithChainHash(chainHash), client.WithHTTPEndpoints(urls), client.WithCacheSize(0))
 }
 
-func uploadRandomness(ctx context.Context, uploader *s3manager.Uploader, bucket string, result client.Result) {
-	rd, ok := result.(*client.RandomData)
+func uploadRandomness(ctx context.Context, upr *s3manager.Uploader, buc string, res client.Result) (string, error) {
+	rd, ok := res.(*client.RandomData)
 	if !ok {
-		log.Error("relay_s3", "unexpected underlying result type")
-		return
+		return "", fmt.Errorf("unexpected underlying result type")
 	}
 	data, err := json.Marshal(rd)
 	if err != nil {
-		log.Error("relay_s3", "failed to marshal randomness", "error", err)
-		return
+		return "", fmt.Errorf("failed to marshal randomness: %w", err)
 	}
-	for {
-		r, err := uploader.UploadWithContext(ctx, &s3manager.UploadInput{
-			ACL:          aws.String("public-read"),
-			Bucket:       aws.String(bucket),
-			Key:          aws.String(fmt.Sprintf("public/%v", result.Round())),
-			Body:         bytes.NewBuffer(data),
-			ContentType:  aws.String("application/json"),
-			CacheControl: aws.String("immutable"),
-		})
+	r, err := upr.UploadWithContext(ctx, &s3manager.UploadInput{
+		ACL:          aws.String("public-read"),
+		Bucket:       aws.String(buc),
+		Key:          aws.String(fmt.Sprintf("public/%v", res.Round())),
+		Body:         bytes.NewBuffer(data),
+		ContentType:  aws.String("application/json"),
+		CacheControl: aws.String("public, max-age=604800, immutable"),
+	})
+	if err != nil {
+		return "", err
+	}
+	return r.Location, nil
+}
+
+var syncCmd = &cli.Command{
+	Name:  "sync",
+	Usage: "sync the AWS S3 bucket with the randomness chain",
+	Flags: append(
+		lib.ClientFlags,
+		bucketFlag,
+		regionFlag,
+		&cli.Uint64Flag{
+			Name:  "begin",
+			Usage: "Sync backwards from this round number. A value of 0 will sync from the latest round",
+		},
+	),
+
+	Action: func(cctx *cli.Context) error {
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(cctx.String(regionFlag.Name))})
 		if err != nil {
-			log.Error("relay_s3", "failed to upload randomness", "round", result.Round(), "error", err)
-			t := time.NewTimer(uploadRetryInterval)
-			select {
-			case <-t.C:
-				continue
-			case <-ctx.Done():
-				t.Stop()
-				return
-			}
+			return fmt.Errorf("creating aws session: %w", err)
 		}
-		log.Info("relay_s3", "uploaded randomness", "round", result.Round(), "location", r.Location)
-		break
-	}
-	// TODO: upload to /public/latest
+
+		if _, err := sess.Config.Credentials.Get(); err != nil {
+			return fmt.Errorf("checking credentials: %w", err)
+		}
+
+		c, err := lib.Create(cctx, false)
+		if err != nil {
+			return fmt.Errorf("creating client: %w", err)
+		}
+
+		buc := cctx.String(bucketFlag.Name)
+		upr := s3manager.NewUploader(sess)
+		ctx := context.Background()
+
+		rnd := cctx.Uint64("begin")
+		if rnd == 0 {
+			r, err := c.Get(ctx, 0)
+			if err != nil {
+				return fmt.Errorf("getting latest round: %w", err)
+			}
+			rnd = r.Round()
+		}
+
+		// upload new rounds while we're syncing
+		go watch(ctx, c, upr, buc)
+
+		for rnd > 0 {
+			// TODO: check if bucket already has this round
+			r, err := c.Get(ctx, rnd)
+			if err != nil {
+				log.DefaultLogger().Error("relay_s3_sync", "failed to get randomness", "round", rnd)
+				continue
+			}
+			url, err := uploadRandomness(ctx, upr, buc, r)
+			if err != nil {
+				log.DefaultLogger().Error("relay_s3_sync", "failed to upload randomness", "err", err)
+				continue
+			}
+			log.DefaultLogger().Info("relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
+			rnd--
+		}
+
+		return nil
+	},
 }
