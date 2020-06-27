@@ -170,22 +170,22 @@ var syncCmd = &cli.Command{
 		ctx := context.Background()
 
 		rnd := cctx.Uint64("begin")
-		if rnd == 0 {
-			r, err := c.Get(ctx, 0)
-			if err != nil {
-				return fmt.Errorf("getting latest round: %w", err)
-			}
+		r, err := c.Get(ctx, 0)
+		if err != nil {
+			return fmt.Errorf("getting latest round: %w", err)
+		}
+		if rnd == 0 || rnd > r.Round() {
 			rnd = r.Round()
 		}
 
 		// upload new rounds while we're syncing
 		go watch(ctx, c, upr, buc)
 
-		for rnd > 0 {
+		for ; rnd > 0; rnd-- {
 			// TODO: check if bucket already has this round
 			r, err := c.Get(ctx, rnd)
 			if err != nil {
-				log.DefaultLogger().Error("relay_s3_sync", "failed to get randomness", "round", rnd)
+				log.DefaultLogger().Error("relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
 				continue
 			}
 			url, err := uploadRandomness(ctx, upr, buc, r)
@@ -194,7 +194,6 @@ var syncCmd = &cli.Command{
 				continue
 			}
 			log.DefaultLogger().Info("relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
-			rnd--
 		}
 
 		return nil
