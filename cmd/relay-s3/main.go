@@ -146,7 +146,8 @@ var syncCmd = &cli.Command{
 		regionFlag,
 		&cli.Uint64Flag{
 			Name:  "begin",
-			Usage: "Sync backwards from this round number. A value of 0 will sync from the latest round",
+			Usage: "Begin syncing from this round number to the latest round.",
+			Value: 1,
 		},
 	),
 
@@ -169,16 +170,7 @@ var syncCmd = &cli.Command{
 		upr := s3manager.NewUploader(sess)
 		ctx := context.Background()
 
-		rnd := cctx.Uint64("begin")
-		r, err := c.Get(ctx, 0)
-		if err != nil {
-			return fmt.Errorf("getting latest round: %w", err)
-		}
-		if rnd == 0 || rnd > r.Round() {
-			rnd = r.Round()
-		}
-
-		for ; rnd > 0; rnd-- {
+		for rnd := cctx.Uint64("begin"); rnd <= c.RoundAt(time.Now()); rnd++ {
 			// TODO: check if bucket already has this round
 			r, err := c.Get(ctx, rnd)
 			if err != nil {
