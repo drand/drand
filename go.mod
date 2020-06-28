@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/aws/aws-sdk-go v1.32.11
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/drand/kyber v1.1.1
 	github.com/drand/kyber-bls12381 v0.1.0
@@ -51,6 +52,5 @@ require (
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/genproto v0.0.0-20200608115520-7c474a2e3482 // indirect
 	google.golang.org/grpc v1.29.1
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v0.0.0-20200617041141-9a465503579e // indirect
 	google.golang.org/protobuf v1.24.0
 )
