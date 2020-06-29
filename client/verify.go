@@ -41,7 +41,7 @@ func (v *verifyingClient) SetLog(l log.Logger) {
 
 // Get returns a requested round of randomness
 func (v *verifyingClient) Get(ctx context.Context, round uint64) (Result, error) {
-	info, err := v.Client.Info(ctx)
+	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (v *verifyingClient) Get(ctx context.Context, round uint64) (Result, error)
 func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 	outCh := make(chan Result, 1)
 
-	info, err := v.Client.Info(ctx)
+	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
 		v.log.Error("verifying_client", "could not get info", "err", err)
 		close(outCh)
@@ -103,7 +103,7 @@ func asRandomData(r Result) *RandomData {
 }
 
 func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round uint64) ([]byte, error) {
-	info, err := v.Client.Info(ctx)
+	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
 		v.log.Error("drand_client", "could not get info to verify round 1", "err", err)
 		return []byte{}, fmt.Errorf("could not get info: %w", err)

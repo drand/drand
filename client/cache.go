@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/drand/drand/log"
 
@@ -78,6 +79,14 @@ type cachingClient struct {
 // SetLog configures the client log output
 func (c *cachingClient) SetLog(l log.Logger) {
 	c.log = l
+}
+
+// String returns the name of this client.
+func (c *cachingClient) String() string {
+	if arc, ok := c.cache.(*typedCache); ok {
+		return fmt.Sprintf("%s.(+%d el cache)", c.Client, arc.ARCCache.Len())
+	}
+	return fmt.Sprintf("%s.(+nil cache)", c.Client)
 }
 
 // Get returns the randomness at `round` or an error.

@@ -244,6 +244,7 @@ func WithVerifiedResult(result Result) Option {
 		if cfg.previousResult != nil && cfg.previousResult.Round() > result.Round() {
 			return errors.New("refusing to override verified result with an earlier result")
 		}
+		cfg.previousResult = result
 		return nil
 	}
 }
