@@ -229,7 +229,12 @@ func (b *BeaconTest) ServeBeacon(i int) {
 	beaconServer := &testBeaconServer{h: b.nodes[j].handler}
 	b.nodes[j].server = beaconServer
 	var err error
-	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(context.Background(), b.nodes[j].private.Public.Address(), beaconServer)
+	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(
+		context.Background(),
+		b.nodes[j].private.Public.Address(),
+		"", "",
+		beaconServer,
+		true)
 	if err != nil {
 		panic(err)
 	}

@@ -7,10 +7,12 @@ import (
 	"testing"
 )
 
+const runtimeGOOSWindows = "windows"
+
 // From https://github.com/golang/net/blob/master/nettest/nettest.go#L91
 func testable() bool {
 	switch runtime.GOOS {
-	case "aix", "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
+	case "aix", "android", "fuchsia", "hurd", "js", "nacl", "plan9", runtimeGOOSWindows:
 		return false
 	case "darwin":
 		// iOS does not support unix, unixgram.
