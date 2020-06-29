@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration demo deploy-local linter install build
+.PHONY: test test-unit test-integration demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
 
 test: test-unit test-integration
 
@@ -51,4 +51,7 @@ relay-gossip:
 	go build -o drand-relay-gossip -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-gossip.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-gossip.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-gossip.gitCommit=`git rev-parse HEAD`" ./cmd/relay-gossip
 drand-relay-gossip: relay-gossip
 
-.PHONY: client drand relay-http relay-gossip
+# create the "drand-relay-s3" binary in the current folder
+relay-s3:
+	go build -o drand-relay-s3 -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-s3.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-s3.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-s3.gitCommit=`git rev-parse HEAD`" ./cmd/relay-s3
+drand-relay-s3: relay-s3
