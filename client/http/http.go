@@ -251,17 +251,6 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 			return
 		}
 
-		b := chain.Beacon{
-			PreviousSig: randResp.PreviousSignature,
-			Round:       randResp.Rnd,
-			Signature:   randResp.Sig,
-		}
-		if err := chain.VerifyBeacon(h.chainInfo.PublicKey, &b); err != nil {
-			h.l.Warn("http_client", "failed to verify value", "err", err)
-			resC <- httpGetResponse{nil, fmt.Errorf("verifying beacon: %w", err)}
-			return
-		}
-		randResp.Random = chain.RandomnessFromSignature(randResp.Sig)
 		resC <- httpGetResponse{&randResp, nil}
 	}()
 
