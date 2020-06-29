@@ -13,13 +13,13 @@ import (
 	"google.golang.org/grpc"
 )
 
-//ControlListener is used to keep state of the connections of our drand instance
+// ControlListener is used to keep state of the connections of our drand instance
 type ControlListener struct {
 	conns *grpc.Server
 	lis   net.Listener
 }
 
-//NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
+// NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
 func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
 	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {
@@ -43,20 +43,22 @@ func (g *ControlListener) Stop() {
 	g.conns.Stop()
 }
 
-//ControlClient is a struct that implement control.ControlClient and is used to
-//request a Share to a ControlListener on a specific port
+// ControlClient is a struct that implement control.ControlClient and is used to
+// request a Share to a ControlListener on a specific port
 type ControlClient struct {
 	conn   *grpc.ClientConn
 	client control.ControlClient
 }
 
+const grpcDefaultIPNetwork = "tcp"
+
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
 func NewControlClient(addr string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
-	net, host := controlListenAddr(addr)
-	if net != "tcp" {
-		host = fmt.Sprintf("%s://%s", net, host)
+	network, host := controlListenAddr(addr)
+	if network != grpcDefaultIPNetwork {
+		host = fmt.Sprintf("%s://%s", network, host)
 	}
 	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
@@ -76,7 +78,11 @@ func (c *ControlClient) Ping() error {
 // InitReshareLeader sets up the node to be ready for a resharing protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Duration, secret string, oldPath string, offset int) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshareLeader(
+	nodes, threshold int,
+	timeout time.Duration,
+	secret, oldPath string,
+	offset int) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -94,7 +100,7 @@ func (c *ControlClient) InitReshareLeader(nodes, threshold int, timeout time.Dur
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -113,7 +119,11 @@ func (c *ControlClient) InitReshare(leader Peer, secret string, oldPath string) 
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(nodes, threshold int, beaconPeriod time.Duration, timeout time.Duration, entropy *control.EntropyInfo, secret string, offset int) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKGLeader(nodes, threshold int,
+	beaconPeriod, timeout time.Duration,
+	entropy *control.EntropyInfo,
+	secret string,
+	offset int) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
@@ -175,27 +185,27 @@ func (c ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 }
 
 // controlListenAddr parses the control address as specified, into a dialable / listenable address
-func controlListenAddr(listenAddr string) (network string, addr string) {
+func controlListenAddr(listenAddr string) (network, addr string) {
 	if strings.HasPrefix(listenAddr, "unix://") {
 		return "unix", strings.TrimPrefix(listenAddr, "unix://")
 	}
 	if strings.Contains(listenAddr, ":") {
-		return "tcp", listenAddr
+		return grpcDefaultIPNetwork, listenAddr
 	}
-	return "tcp", fmt.Sprintf("%s:%s", "localhost", listenAddr)
+	return grpcDefaultIPNetwork, fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }
 
-//DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
+// DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.
 type DefaultControlServer struct {
 	C control.ControlServer
 }
 
-// PingPong ...
+// PingPong sends aping to the server
 func (s *DefaultControlServer) PingPong(c context.Context, in *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
 }
 
-// Share ...
+// Share initiates a share request
 func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest) (*control.ShareResponse, error) {
 	if s.C == nil {
 		return &control.ShareResponse{}, nil
@@ -203,7 +213,7 @@ func (s *DefaultControlServer) Share(c context.Context, in *control.ShareRequest
 	return s.C.Share(c, in)
 }
 
-// PublicKey ...
+// PublicKey gets the node's public key
 func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKeyRequest) (*control.PublicKeyResponse, error) {
 	if s.C == nil {
 		return &control.PublicKeyResponse{}, nil
@@ -211,7 +221,7 @@ func (s *DefaultControlServer) PublicKey(c context.Context, in *control.PublicKe
 	return s.C.PublicKey(c, in)
 }
 
-// PrivateKey ...
+// PrivateKey gets the node's private key
 func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.PrivateKeyRequest) (*control.PrivateKeyResponse, error) {
 	if s.C == nil {
 		return &control.PrivateKeyResponse{}, nil
@@ -219,7 +229,7 @@ func (s *DefaultControlServer) PrivateKey(c context.Context, in *control.Private
 	return s.C.PrivateKey(c, in)
 }
 
-// ChainInfo ...
+// ChainInfo gets the current chain information from the ndoe
 func (s *DefaultControlServer) ChainInfo(c context.Context, in *control.ChainInfoRequest) (*control.ChainInfoPacket, error) {
 	if s.C == nil {
 		return &control.ChainInfoPacket{}, nil

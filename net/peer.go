@@ -50,10 +50,10 @@ func CreatePeer(addr string, tls bool) Peer {
 // ```
 //
 func RemoteAddress(c context.Context) string {
-	peer, ok := peer.FromContext(c)
+	p, ok := peer.FromContext(c)
 	var str string = ""
 	if ok {
-		str = peer.Addr.String()
+		str = p.Addr.String()
 	}
 	// https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	reserved := []string{
