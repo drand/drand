@@ -147,7 +147,7 @@ func (oc *optimizingClient) testSpeed() {
 					break LOOP
 				}
 				if rr.err != nil {
-					oc.log.Error("optimizing_client", "endpoint temporarily down", "err", rr.err)
+					oc.log.Error("optimizing_client", "endpoint temporarily down", "client", fmt.Sprintf("%s", rr.client), "err", rr.err)
 				}
 				stats = append(stats, rr.stat)
 			case <-oc.done:
@@ -283,6 +283,9 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 					rr := get(gctx, c, round)
 					cancel()
 					if rr != nil {
+						if rr.result != nil && rr.result.Round() != round {
+							fmt.Printf("got unexpected round back in OC get call %s\n", c)
+						}
 						results <- rr
 					}
 					token <- struct{}{}

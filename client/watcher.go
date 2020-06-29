@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/hashicorp/go-multierror"
@@ -24,4 +25,9 @@ func (c *watcherClient) Close() error {
 	}
 	errs = multierror.Append(errs, c.Client.Close())
 	return errs.ErrorOrNil()
+}
+
+// String returns the name of this client.
+func (c *watcherClient) String() string {
+	return fmt.Sprintf("%s.(+watcher)", c.Client)
 }

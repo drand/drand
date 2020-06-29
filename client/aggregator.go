@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/drand/drand/log"
@@ -44,6 +45,11 @@ type watchAggregator struct {
 // SetLog configures the client log output
 func (c *watchAggregator) SetLog(l log.Logger) {
 	c.log = l
+}
+
+// String returns the name of this client.
+func (c *watchAggregator) String() string {
+	return fmt.Sprintf("%s.(+aggregator)", c.Client)
 }
 
 func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {

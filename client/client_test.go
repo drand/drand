@@ -121,10 +121,7 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	results := []mock.Result{
-		{Rnd: 1, Rand: []byte{1}},
-		{Rnd: 2, Rand: []byte{2}},
-	}
+	info, results := mock.VerifiableResults(2)
 
 	ch := make(chan client.Result, len(results))
 	for i := range results {
@@ -137,7 +134,7 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.WithChainInfo(fakeChainInfo()),
+		client.WithChainInfo(info),
 		client.WithWatcher(watcherCtor),
 	)
 	if err != nil {
@@ -200,14 +197,14 @@ func TestClientAutoWatch(t *testing.T) {
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	results := []mock.Result{
-		{Rnd: 1, Rand: []byte{1}},
-		{Rnd: 2, Rand: []byte{2}},
-	}
+	httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
+	r1, _ := httpClient[0].Get(context.Background(), 1)
+	r2, _ := httpClient[0].Get(context.Background(), 2)
+	results := []client.Result{r1, r2}
 
 	ch := make(chan client.Result, len(results))
 	for i := range results {
-		ch <- &results[i]
+		ch <- results[i]
 	}
 	close(ch)
 
@@ -216,7 +213,7 @@ func TestClientAutoWatch(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+		client.From(httpClient...),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
 		client.WithAutoWatch(),
@@ -231,7 +228,7 @@ func TestClientAutoWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compareResults(t, r, &results[0])
+	compareResults(t, r, results[0])
 }
 
 // compareResults asserts that two results are the same.
