@@ -83,7 +83,6 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	}
 	c = oc
 	trySetLog(c, cfg.log)
-	oc.Start()
 
 	if cfg.cacheSize > 0 {
 		c, err = NewCachingClient(c, cache)
@@ -96,6 +95,8 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		trySetLog(v, cfg.log)
 		v.(*verifyingClient).indirectClient = c
 	}
+
+	oc.Start()
 
 	c = newWatchAggregator(c, cfg.autoWatch)
 	trySetLog(c, cfg.log)
