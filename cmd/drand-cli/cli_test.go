@@ -355,6 +355,7 @@ func TestClientTLS(t *testing.T) {
 	group.PublicKey = distKey
 	require.NoError(t, fileStore.SaveGroup(group))
 	require.NoError(t, fileStore.SaveDistPublic(distKey))
+	require.NoError(t, key.Save(groupPath, group, false))
 
 	// fake share
 	scalarOne := key.KeyGroup.Scalar().One()
