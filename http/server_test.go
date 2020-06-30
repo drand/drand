@@ -85,6 +85,27 @@ func TestHTTPRelay(t *testing.T) {
 	}
 }
 
+func validateEndpoint(endpoint string, round float64) error {
+	resp, _ := http.Get(fmt.Sprintf("http://%s", endpoint))
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status: %v", resp.StatusCode)
+	}
+
+	body := make(map[string]interface{})
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return err
+	}
+	if err := resp.Body.Close(); err != nil {
+		return err
+	}
+	if body["round"].(float64) != round {
+		return fmt.Errorf("wrong response round number: %v", body)
+	}
+	return nil
+}
+
 func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -112,33 +133,13 @@ func TestHTTPWaiting(t *testing.T) {
 
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
-	body := make(map[string]interface{})
 	done := make(chan time.Time)
 	before := time.Now()
 	go func() {
-		second, _ := http.Get(fmt.Sprintf("http://%s/public/1971", listener.Addr().String()))
-		defer func() { _ = second.Body.Close() }()
-
-		if second.StatusCode != http.StatusOK {
-			err = fmt.Errorf("unexpected status: %v", second.StatusCode)
+		if err = validateEndpoint(listener.Addr().String()+"/public/1971", 1971.0); err != nil {
 			done <- time.Unix(0, 0)
 			return
 		}
-
-		if err = json.NewDecoder(second.Body).Decode(&body); err != nil {
-			done <- time.Unix(0, 0)
-			return
-		}
-		if err = second.Body.Close(); err != nil {
-			done <- time.Unix(0, 0)
-			return
-		}
-		if body["round"].(float64) != 1971.0 {
-			err = fmt.Errorf("wrong response round number: %v", body)
-			done <- time.Unix(0, 0)
-			return
-		}
-
 		done <- time.Now()
 	}()
 	time.Sleep(50 * time.Millisecond)
@@ -161,7 +162,7 @@ func TestHTTPWaiting(t *testing.T) {
 	}
 	// mock grpc server spits out new round every second on streaming interface.
 	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
-		t.Fatalf("unexpected timing to receive %v", body)
+		t.Fatalf("unexpected timing to receive response: %s", before)
 	}
 }
 
