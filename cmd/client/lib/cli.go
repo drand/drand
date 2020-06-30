@@ -114,7 +114,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if err != nil {
 		return nil, err
 	}
-	clients = append(clients, gc)
+	clients = append(clients, gc...)
 
 	var hash []byte
 	if c.IsSet(HashFlag.Name) {
@@ -145,12 +145,12 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if err != nil {
 		return nil, err
 	}
-	opts = append(opts, gopt)
+	opts = append(opts, gopt...)
 
 	return client.Wrap(clients, opts...)
 }
 
-func buildGrpcClient(c *cli.Context, info **chain.Info) (client.Client, error) {
+func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
 	if c.IsSet(GRPCConnectFlag.Name) {
 		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
 		if err != nil {
@@ -162,9 +162,9 @@ func buildGrpcClient(c *cli.Context, info **chain.Info) (client.Client, error) {
 				return nil, err
 			}
 		}
-		return gc, nil
+		return []client.Client{gc}, nil
 	}
-	return nil, nil
+	return []client.Client{}, nil
 }
 
 func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte) []client.Client {
@@ -207,7 +207,7 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte) []client.C
 	return clients
 }
 
-func buildGossipClient(c *cli.Context) (client.Option, error) {
+func buildGossipClient(c *cli.Context) ([]client.Option, error) {
 	if c.IsSet(RelayFlag.Name) {
 		addrs := c.StringSlice(RelayFlag.Name)
 		if len(addrs) > 0 {
@@ -223,10 +223,10 @@ func buildGossipClient(c *cli.Context) (client.Option, error) {
 			if err != nil {
 				return nil, err
 			}
-			return gclient.WithPubsub(ps), nil
+			return []client.Option{gclient.WithPubsub(ps)}, nil
 		}
 	}
-	return nil, nil
+	return []client.Option{}, nil
 }
 
 func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
