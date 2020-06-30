@@ -240,10 +240,14 @@ func TestStartWithoutGroup(t *testing.T) {
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 	time.Sleep(500 * time.Millisecond)
 
-	fmt.Println(" + running PING command with ", ctrlPort2)
+	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore)
+}
+
+func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store) {
+	fmt.Println(" + running PING command with ", ctrlPort)
 	var err error
 	for i := 0; i < 3; i++ {
-		ping := []string{"drand", "util", "ping", "--control", ctrlPort2}
+		ping := []string{"drand", "util", "ping", "--control", ctrlPort}
 		err = CLI().Run(ping)
 		if err == nil {
 			break
@@ -254,6 +258,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
+	groupPath := path.Join(rootPath, "drand_group.toml")
 	fmt.Printf("\n Running GET PRIVATE command with group file at %s\n", groupPath)
 	loadedGroup := new(key.Group)
 	require.NoError(t, key.Load(groupPath, loadedGroup))
@@ -266,29 +271,29 @@ func TestStartWithoutGroup(t *testing.T) {
 	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
-	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", priv.Public.Address()}
+	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", address}
 	testCommand(t, chainInfoCmd, expectedOutput)
 
 	fmt.Printf("\n Running CHAIN-INFO --HASH command\n")
-	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", priv.Public.Address()}
+	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", address}
 	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	testCommand(t, chainInfoCmdHash, expectedOutput)
 
 	fmt.Println("\nRunning SHOW SHARE command")
-	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort2}
+	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort}
 	testCommand(t, shareCmd, expectedShareOutput)
 
-	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort2}
+	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	testCommand(t, showChainInfo, string(buffCi))
 
-	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort2}
+	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort}
 	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state
-	resetCmd := []string{"drand", "util", "reset", "--folder", tmpPath}
+	resetCmd := []string{"drand", "util", "reset", "--folder", rootPath}
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	_, err = w.Write([]byte("y\n"))
@@ -301,7 +306,6 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.Error(t, err)
 	_, err = fileStore.LoadGroup()
 	require.Error(t, err)
-	fmt.Println("DONE")
 }
 
 func TestClientTLS(t *testing.T) {
@@ -372,6 +376,10 @@ func TestClientTLS(t *testing.T) {
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
 	time.Sleep(500 * time.Millisecond)
 
+	testStartedTLSDrandFunctional(t, ctrlPort, certPath, groupPath, group, priv)
+}
+
+func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath string, group *key.Group, priv *key.Pair) {
 	var err error
 	for i := 0; i < 3; i++ {
 		getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
@@ -383,7 +391,7 @@ func TestClientTLS(t *testing.T) {
 	}
 	require.Nil(t, err)
 
-	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, addr}
+	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
 	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfoBuff)

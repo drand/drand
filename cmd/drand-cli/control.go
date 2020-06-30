@@ -17,80 +17,217 @@ import (
 
 const minimumShareSecretLength = 32
 
+type shareArgs struct {
+	secret    string
+	isTLS     bool
+	timeout   time.Duration
+	threshold int
+	entropy   *control.EntropyInfo
+	conf      *core.Config
+}
+
+func getShareArgs(c *cli.Context) (*shareArgs, error) {
+	var err error
+	args := new(shareArgs)
+	args.secret = c.String(secretFlag.Name)
+	if len(args.secret) < minimumShareSecretLength {
+		return nil, fmt.Errorf("secret is insecure. Should be at least %d characters", minimumShareSecretLength)
+	}
+
+	args.isTLS = !c.IsSet(insecureFlag.Name)
+
+	args.timeout, err = getTimeout(c)
+	if err != nil {
+		return nil, err
+	}
+
+	args.threshold, err = getThreshold(c)
+	if err != nil {
+		return nil, err
+	}
+
+	if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
+		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
+	}
+	args.entropy, err = entropyInfoFromReader(c)
+	if err != nil {
+		return nil, fmt.Errorf("error getting entropy source: %w", err)
+	}
+
+	args.conf = contextToConfig(c)
+
+	return args, nil
+}
+
 func shareCmd(c *cli.Context) error {
 	if c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name) {
 		return reshareCmd(c)
 	}
-	isLeader := c.Bool(leaderFlag.Name)
 
-	var connectPeer net.Peer
-	if !isLeader {
-		if !c.IsSet(connectFlag.Name) {
-			return fmt.Errorf("need to the address of the coordinator to create the group file")
-		}
-		coordAddress := c.String(connectFlag.Name)
-		isTLS := !c.IsSet(insecureFlag.Name)
-		connectPeer = net.CreatePeer(coordAddress, isTLS)
-	}
-	if isLeader && !(c.IsSet(thresholdFlag.Name) && c.IsSet(shareNodeFlag.Name)) {
-		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+	if c.Bool(leaderFlag.Name) {
+		return leadShareCmd(c)
 	}
 
-	nodes := c.Int(shareNodeFlag.Name)
-	thr, err := getThreshold(c)
-	if err != nil {
-		return err
-	}
-	secret := c.String(secretFlag.Name)
-	if len(secret) < minimumShareSecretLength {
-		return fmt.Errorf("secret is insecure. Should be at least %d characters", minimumShareSecretLength)
-	}
-	timeout, err := getTimeout(c)
+	args, err := getShareArgs(c)
 	if err != nil {
 		return err
 	}
 
-	conf := contextToConfig(c)
-	ctrlClient, err := net.NewControlClient(conf.ControlPort())
+	if !c.IsSet(connectFlag.Name) {
+		return fmt.Errorf("need to the address of the coordinator to create the group file")
+	}
+	coordAddress := c.String(connectFlag.Name)
+	connectPeer := net.CreatePeer(coordAddress, args.isTLS)
+
+	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
 	if err != nil {
 		return fmt.Errorf("could not create client: %v", err)
 	}
 
-	var groupP *control.GroupPacket
-	var shareErr error
-	if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
-		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
-	}
-	entropyInfo, err := entropyInfoFromReader(c)
-	if err != nil {
-		return fmt.Errorf("error getting entropy source: %s", err)
-	}
-	if isLeader {
-		if !c.IsSet(periodFlag.Name) {
-			return fmt.Errorf("leader flag indicated requires the beacon period flag as well")
-		}
-		periodStr := c.String(periodFlag.Name)
-		period, err := time.ParseDuration(periodStr)
-		if err != nil {
-			return fmt.Errorf("period given is invalid: %v", err)
-		}
+	fmt.Fprintln(output, "Participating to the setup of the DKG")
+	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret)
+	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 
-		offset := int(core.DefaultGenesisOffset.Seconds())
-		if c.IsSet(beaconOffset.Name) {
-			offset = c.Int(beaconOffset.Name)
-		}
-		fmt.Fprintln(output, "Initiating the DKG as a leader")
-		fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
-			"file will not be written out to the specified output. To get the"+
-			"group file once the setup phase is done, you can run the `drand show"+
-			"group` command")
-		groupP, shareErr = ctrlClient.InitDKGLeader(nodes, thr, period, timeout, entropyInfo, secret, offset)
-		fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
-	} else {
-		fmt.Fprintln(output, "Participating to the setup of the DKG")
-		groupP, shareErr = ctrlClient.InitDKG(connectPeer, entropyInfo, secret)
-		fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
+	if shareErr != nil {
+		return fmt.Errorf("error setting up the network: %v", err)
 	}
+	group, err := key.GroupFromProto(groupP)
+	if err != nil {
+		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+	}
+	return groupOut(c, group)
+}
+
+func leadShareCmd(c *cli.Context) error {
+	if !c.IsSet(thresholdFlag.Name) || !c.IsSet(shareNodeFlag.Name) {
+		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+	}
+
+	args, err := getShareArgs(c)
+	if err != nil {
+		return err
+	}
+
+	nodes := c.Int(shareNodeFlag.Name)
+
+	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
+	if err != nil {
+		return fmt.Errorf("could not create client: %v", err)
+	}
+
+	if !c.IsSet(periodFlag.Name) {
+		return fmt.Errorf("leader flag indicated requires the beacon period flag as well")
+	}
+	periodStr := c.String(periodFlag.Name)
+	period, err := time.ParseDuration(periodStr)
+	if err != nil {
+		return fmt.Errorf("period given is invalid: %v", err)
+	}
+
+	offset := int(core.DefaultGenesisOffset.Seconds())
+	if c.IsSet(beaconOffset.Name) {
+		offset = c.Int(beaconOffset.Name)
+	}
+	fmt.Fprintln(output, "Initiating the DKG as a leader")
+	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
+		"file will not be written out to the specified output. To get the"+
+		"group file once the setup phase is done, you can run the `drand show"+
+		"group` command")
+	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, args.timeout, args.entropy, args.secret, offset)
+	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
+
+	if shareErr != nil {
+		return fmt.Errorf("error setting up the network: %v", err)
+	}
+	group, err := key.GroupFromProto(groupP)
+	if err != nil {
+		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+	}
+	return groupOut(c, group)
+}
+
+func reshareCmd(c *cli.Context) error {
+	if c.Bool(leaderFlag.Name) {
+		return leadReshareCmd(c)
+	}
+
+	args, err := getShareArgs(c)
+	if err != nil {
+		return err
+	}
+
+	if !c.IsSet(connectFlag.Name) {
+		return fmt.Errorf("need to the address of the coordinator to create the group file")
+	}
+	coordAddress := c.String(connectFlag.Name)
+	connectPeer := net.CreatePeer(coordAddress, args.isTLS)
+
+	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
+	if err != nil {
+		return fmt.Errorf("could not create client: %v", err)
+	}
+
+	// resharing case needs the previous group
+	var oldPath string
+	if c.IsSet(transitionFlag.Name) {
+		// daemon will try to the load the one stored
+		oldPath = ""
+	} else if c.IsSet(oldGroupFlag.Name) {
+		var oldGroup = new(key.Group)
+		if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
+			return fmt.Errorf("could not load drand from path: %s", err)
+		}
+		oldPath = c.String(oldGroupFlag.Name)
+	}
+
+	fmt.Fprintln(output, "Participating to the resharing")
+	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath)
+	if shareErr != nil {
+		return fmt.Errorf("error setting up the network: %v", err)
+	}
+	group, err := key.GroupFromProto(groupP)
+	if err != nil {
+		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+	}
+	return groupOut(c, group)
+}
+
+func leadReshareCmd(c *cli.Context) error {
+	args, err := getShareArgs(c)
+	if err != nil {
+		return err
+	}
+
+	if !c.IsSet(thresholdFlag.Name) || !c.IsSet(shareNodeFlag.Name) {
+		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+	}
+
+	nodes := c.Int(shareNodeFlag.Name)
+
+	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
+	if err != nil {
+		return fmt.Errorf("could not create client: %v", err)
+	}
+
+	// resharing case needs the previous group
+	var oldPath string
+	if c.IsSet(transitionFlag.Name) {
+		// daemon will try to the load the one stored
+		oldPath = ""
+	} else if c.IsSet(oldGroupFlag.Name) {
+		var oldGroup = new(key.Group)
+		if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
+			return fmt.Errorf("could not load drand from path: %s", err)
+		}
+		oldPath = c.String(oldGroupFlag.Name)
+	}
+
+	offset := int(core.DefaultResharingOffset.Seconds())
+	if c.IsSet(beaconOffset.Name) {
+		offset = c.Int(beaconOffset.Name)
+	}
+	fmt.Fprintln(output, "Initiating the resharing as a leader")
+	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout, args.secret, oldPath, offset)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", err)
@@ -108,79 +245,6 @@ func getTimeout(c *cli.Context) (timeout time.Duration, err error) {
 		return time.ParseDuration(str)
 	}
 	return core.DefaultDKGTimeout, nil
-}
-
-func reshareCmd(c *cli.Context) error {
-	isLeader := c.Bool(leaderFlag.Name)
-
-	var connectPeer net.Peer
-	if !isLeader {
-		if !c.IsSet(connectFlag.Name) {
-			return fmt.Errorf("need to the address of the coordinator to create the group file")
-		}
-		coordAddress := c.String(connectFlag.Name)
-		isTLS := !c.IsSet(insecureFlag.Name)
-		connectPeer = net.CreatePeer(coordAddress, isTLS)
-	}
-	if isLeader && !(c.IsSet(thresholdFlag.Name) && c.IsSet(shareNodeFlag.Name)) {
-		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
-	}
-
-	nodes := c.Int(shareNodeFlag.Name)
-	thr, err := getThreshold(c)
-	if err != nil {
-		return err
-	}
-	secret := c.String(secretFlag.Name)
-	if len(secret) < minimumShareSecretLength {
-		return fmt.Errorf("secret is insecure. Should be at least %d characters", minimumShareSecretLength)
-	}
-	timeout, err := getTimeout(c)
-	if err != nil {
-		return err
-	}
-
-	conf := contextToConfig(c)
-	ctrlClient, err := net.NewControlClient(conf.ControlPort())
-	if err != nil {
-		return fmt.Errorf("could not create client: %v", err)
-	}
-
-	var groupP *control.GroupPacket
-	var shareErr error
-
-	// resharing case needs the previous group
-	var oldPath string
-	if c.IsSet(transitionFlag.Name) {
-		// daemon will try to the load the one stored
-		oldPath = ""
-	} else if c.IsSet(oldGroupFlag.Name) {
-		var oldGroup = new(key.Group)
-		if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
-			return fmt.Errorf("could not load drand from path: %s", err)
-		}
-		oldPath = c.String(oldGroupFlag.Name)
-	}
-
-	if isLeader {
-		offset := int(core.DefaultResharingOffset.Seconds())
-		if c.IsSet(beaconOffset.Name) {
-			offset = c.Int(beaconOffset.Name)
-		}
-		fmt.Fprintln(output, "Initiating the resharing as a leader")
-		groupP, shareErr = ctrlClient.InitReshareLeader(nodes, thr, timeout, secret, oldPath, offset)
-	} else {
-		fmt.Fprintln(output, "Participating to the resharing")
-		groupP, shareErr = ctrlClient.InitReshare(connectPeer, secret, oldPath)
-	}
-	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", err)
-	}
-	group, err := key.GroupFromProto(groupP)
-	if err != nil {
-		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
-	}
-	return groupOut(c, group)
 }
 
 func pingpongCmd(c *cli.Context) error {

@@ -134,40 +134,9 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
 	}
-	skipped := []string{}
-	var hc client.Client
-	for _, url := range c.StringSlice(URLFlag.Name) {
-		if info != nil {
-			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
-			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
-				continue
-			}
-		} else {
-			hc, err = http.New(url, hash, nhttp.DefaultTransport)
-			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
-				skipped = append(skipped, url)
-				continue
-			}
-			info, err = hc.Info(context.Background())
-			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load Info from URL", "url", url, "err", err)
-				continue
-			}
-		}
-		clients = append(clients, hc)
-	}
-	if info != nil {
-		for _, url := range skipped {
-			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
-			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
-				continue
-			}
-			clients = append(clients, hc)
-		}
-	}
+
+	clients = append(clients, buildHTTPClients(c, &info, hash)...)
+
 	if withInstrumentation {
 		http.MeasureHeartbeats(c.Context, clients)
 	}
@@ -196,6 +165,46 @@ func buildGrpcClient(c *cli.Context, info **chain.Info) (client.Client, error) {
 		return gc, nil
 	}
 	return nil, nil
+}
+
+func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte) []client.Client {
+	clients := make([]client.Client, 0)
+	var err error
+	skipped := []string{}
+	var hc client.Client
+	for _, url := range c.StringSlice(URLFlag.Name) {
+		if *info != nil {
+			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
+			if err != nil {
+				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				continue
+			}
+		} else {
+			hc, err = http.New(url, hash, nhttp.DefaultTransport)
+			if err != nil {
+				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				skipped = append(skipped, url)
+				continue
+			}
+			*info, err = hc.Info(context.Background())
+			if err != nil {
+				log.DefaultLogger().Warn("client", "failed to load Info from URL", "url", url, "err", err)
+				continue
+			}
+		}
+		clients = append(clients, hc)
+	}
+	if *info != nil {
+		for _, url := range skipped {
+			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
+			if err != nil {
+				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				continue
+			}
+			clients = append(clients, hc)
+		}
+	}
+	return clients
 }
 
 func buildGossipClient(c *cli.Context) (client.Option, error) {
