@@ -22,8 +22,8 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-var secretDKG = "dkgsecret"
-var secretReshare = "sharesecret"
+var secretDKG = "dkgsecret_____________________32"
+var secretReshare = "sharesecret___________________32"
 
 type NodeProc struct {
 	base       string
@@ -67,6 +67,11 @@ func NewNode(i int, period string, base string, tls bool, binary string) Node {
 	}
 	n.setup()
 	return n
+}
+
+// UpdateBinary updates the binary this node uses for control, to e.g. simulate an upgrade
+func (n *NodeProc) UpdateBinary(binary string) {
+	n.binary = binary
 }
 
 func (n *NodeProc) setup() {

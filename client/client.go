@@ -73,13 +73,16 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	var c Client
 
-	oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
+	verifiers := make([]Client, 0, len(cfg.clients))
+	for _, source := range cfg.clients {
+		verifiers = append(verifiers, newVerifyingClient(source, cfg.previousResult, cfg.fullVerify))
+	}
+	oc, err := newOptimizingClient(verifiers, 0, 0, 0, 0)
 	if err != nil {
 		return nil, err
 	}
 	c = oc
 	trySetLog(c, cfg.log)
-	oc.Start()
 
 	if cfg.cacheSize > 0 {
 		c, err = NewCachingClient(c, cache)
@@ -88,6 +91,12 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		}
 		trySetLog(c, cfg.log)
 	}
+	for _, v := range verifiers {
+		trySetLog(v, cfg.log)
+		v.(*verifyingClient).indirectClient = c
+	}
+
+	oc.Start()
 
 	c = newWatchAggregator(c, cfg.autoWatch)
 	trySetLog(c, cfg.log)
@@ -130,6 +139,11 @@ type clientConfig struct {
 	chainHash []byte
 	// Full chain information - serves as a root of trust.
 	chainInfo *chain.Info
+	// A previously fetched result serving as a verification checkpoint if one exists.
+	previousResult Result
+	// chain signature verification back to the 1st round, or to a know result to ensure
+	// determinism in the event of a compromised chain.
+	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
 	// cache size - how large of a cache to keep locally.
@@ -219,6 +233,32 @@ func WithChainInfo(chainInfo *chain.Info) Option {
 			return errors.New("refusing to override hash with non-matching group")
 		}
 		cfg.chainInfo = chainInfo
+		return nil
+	}
+}
+
+// WithVerifiedResult provides a checkpoint of randomness verified at a given round.
+// Used in combination with `VerifyFullChain`, this allows for catching up only on
+// previously not-yet-verified results.
+func WithVerifiedResult(result Result) Option {
+	return func(cfg *clientConfig) error {
+		if cfg.previousResult != nil && cfg.previousResult.Round() > result.Round() {
+			return errors.New("refusing to override verified result with an earlier result")
+		}
+		cfg.previousResult = result
+		return nil
+	}
+}
+
+// WithFullChainVerification validates random beacons not just as being generated correctly
+// from the group signature, but ensures that the full chain is deterministic by making sure
+// each round is derived correctly from the previous one. In cases of compromise where
+// a single party learns sufficient shares to derive the full key, malicious randomness
+// could otherwise be generated that is signed, but not properly derived from previous rounds
+// according to protocol.
+func WithFullChainVerification() Option {
+	return func(cfg *clientConfig) error {
+		cfg.fullVerify = true
 		return nil
 	}
 }

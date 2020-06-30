@@ -14,9 +14,6 @@ run:
   skip-dirs:
     - cmd
     - demo
-    - key
-    - lp2p
-    - net
     - protobuf
     - test
 

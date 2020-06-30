@@ -41,7 +41,7 @@ const groupFileName = "drand_group.toml"
 const shareFileName = "dist_key.private"
 const distKeyFileName = "dist_key.public"
 
-// Tomler represents any struct that can be (un)marshalled into/from toml format
+// Tomler represents any struct that can be (un)marshaled into/from toml format
 // XXX surely golang reflect package can automatically return the TOMLValue()
 // for us
 type Tomler interface {
@@ -63,7 +63,7 @@ type fileStore struct {
 // NewFileStore is used to create the config folder and all the subfolders.
 // If a folder alredy exists, we simply check the rights
 func NewFileStore(baseFolder string) Store {
-	//config folder
+	// config folder
 	if fs.CreateSecureFolder(baseFolder) == "" {
 		fmt.Println("Something went wrong with the config folder. Make sure that you have the appropriate rights.")
 		os.Exit(1)
@@ -144,26 +144,26 @@ func (f *fileStore) Reset(...ResetOption) error {
 // Save the given Tomler interface to the given path. If secure is true, the
 // file will have a 0700 security.
 // TODO: move that to fs/
-func Save(path string, t Tomler, secure bool) error {
+func Save(filePath string, t Tomler, secure bool) error {
 	var fd *os.File
 	var err error
 	if secure {
-		fd, err = fs.CreateSecureFile(path)
+		fd, err = fs.CreateSecureFile(filePath)
 	} else {
-		fd, err = os.Create(path)
+		fd, err = os.Create(filePath)
 	}
 	if err != nil {
-		return fmt.Errorf("config: can't save %s to %s: %s", reflect.TypeOf(t).String(), path, err)
+		return fmt.Errorf("config: can't save %s to %s: %s", reflect.TypeOf(t).String(), filePath, err)
 	}
 	defer fd.Close()
 	return toml.NewEncoder(fd).Encode(t.TOML())
 }
 
 // Load the given Tomler from the given file path.
-func Load(path string, t Tomler) error {
+func Load(filePath string, t Tomler) error {
 	tomlValue := t.TOMLValue()
 	var err error
-	if _, err = toml.DecodeFile(path, tomlValue); err != nil {
+	if _, err = toml.DecodeFile(filePath, tomlValue); err != nil {
 		return err
 	}
 	return t.FromTOML(tomlValue)
@@ -171,8 +171,8 @@ func Load(path string, t Tomler) error {
 
 // Delete the resource denoted by the given path. If it is a file, it deletes
 // the file; if it is a folder it delete the folder and all its content.
-func Delete(path string) error {
-	return os.RemoveAll(path)
+func Delete(filePath string) error {
+	return os.RemoveAll(filePath)
 }
 
 // ResetOption is an option to allow for fine-grained reset

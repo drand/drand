@@ -26,8 +26,8 @@ type Node struct {
 // Hash is a compact representation of the node
 func (n *Node) Hash() []byte {
 	h := hashFunc()
-	binary.Write(h, binary.LittleEndian, n.Index)
-	n.Identity.Key.MarshalTo(h)
+	_ = binary.Write(h, binary.LittleEndian, n.Index)
+	_, _ = n.Identity.Key.MarshalTo(h)
 	return h.Sum(nil)
 }
 

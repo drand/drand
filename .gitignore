@@ -2,12 +2,10 @@ TODO.md
 test/drand
 dist/
 *.DS_Store
-web/static/js/drandjs
-!web/static/js/drandjs/dist/drandjs.js
 *swagger.json
 demo/demo
 test/full/full
 gh-md-toc
 web/public/
-drand
+/drand
 cover*

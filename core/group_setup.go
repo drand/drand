@@ -167,6 +167,7 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 }
 
 func (s *setupManager) run() {
+	defer close(s.startDKG)
 	var inKeys = make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
 	for {
@@ -205,7 +206,7 @@ func (s *setupManager) run() {
 				}
 			}
 		case <-s.doneCh:
-			s.l.Debug("setup", "done")
+			s.l.Debug("setup", "preempted", "collected_keys", len(inKeys))
 			return
 		}
 	}
@@ -240,8 +241,8 @@ func (s *setupManager) WaitGroup() chan *key.Group {
 	return s.startDKG
 }
 
-// StopPreemptively is to be called if something is wrong *before* the
-// group is created. In normal cases, setupManager will stop itself.
+// StopPreemptively is to be called if something is wrong *before* the group is
+// created. In normal cases, setupManager will stop itself.
 func (s *setupManager) StopPreemptively() {
 	s.doneCh <- true
 }

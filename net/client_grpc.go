@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -21,18 +20,14 @@ import (
 
 var _ Client = (*grpcClient)(nil)
 
-//var defaultJSONMarshaller = &runtime.JSONBuiltin{}
-var defaultJSONMarshaller = &HexJSON{}
-
 // grpcClient implements both Protocol and Control functionalities
 // using gRPC as its underlying mechanism
 type grpcClient struct {
 	sync.Mutex
-	conns    map[string]*grpc.ClientConn
-	opts     []grpc.DialOption
-	timeout  time.Duration
-	manager  *CertManager
-	failFast grpc.CallOption
+	conns   map[string]*grpc.ClientConn
+	opts    []grpc.DialOption
+	timeout time.Duration
+	manager *CertManager
 }
 
 var defaultTimeout = 1 * time.Minute
@@ -102,9 +97,15 @@ func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRan
 	return resp, err
 }
 
+const grpcClientRandStreamBacklog = 10
+
 // XXX move that to core/ client
-func (g *grpcClient) PublicRandStream(ctx context.Context, p Peer, in *drand.PublicRandRequest, opts ...CallOption) (chan *drand.PublicRandResponse, error) {
-	var outCh = make(chan *drand.PublicRandResponse, 10)
+func (g *grpcClient) PublicRandStream(
+	ctx context.Context,
+	p Peer,
+	in *drand.PublicRandRequest,
+	opts ...CallOption) (chan *drand.PublicRandResponse, error) {
+	var outCh = make(chan *drand.PublicRandResponse, grpcClientRandStreamBacklog)
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -172,20 +173,16 @@ func (g *grpcClient) PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoP
 		return err
 	}
 	client := drand.NewProtocolClient(c)
-	//ctx, cancel := g.getTimeoutContext(ctx)
-	//defer cancel()
 	_, err = client.PushDKGInfo(ctx, in, opts...)
 	return err
-
 }
+
 func (g *grpcClient) SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error {
 	c, err := g.conn(p)
 	if err != nil {
 		return err
 	}
 	client := drand.NewProtocolClient(c)
-	//ctx, cancel := g.getTimeoutContext(ctx)
-	//defer cancel()
 	_, err = client.SignalDKGParticipant(ctx, in, opts...)
 	return err
 }
@@ -218,21 +215,13 @@ func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePa
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
-	do := func() error {
-		c, err := g.conn(p)
-		if err != nil {
-			return err
-		}
-		client := drand.NewProtocolClient(c)
-		ctx, _ := g.getTimeoutContext(ctx)
-		_, err = client.PartialBeacon(ctx, in, opts...)
+	c, err := g.conn(p)
+	if err != nil {
 		return err
 	}
-	err := do()
-	if err != nil && strings.Contains(err.Error(), "connection error") {
-		g.deleteConn(p)
-		return do()
-	}
+	client := drand.NewProtocolClient(c)
+	ctx, _ = g.getTimeoutContext(ctx)
+	_, err = client.PartialBeacon(ctx, in, opts...)
 	return err
 }
 
@@ -287,13 +276,6 @@ func (g *grpcClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*
 	return resp, err
 }
 
-func (g *grpcClient) deleteConn(p Peer) {
-	g.Lock()
-	defer g.Unlock()
-	delete(g.conns, p.Address())
-	metrics.GroupConnections.Set(float64(len(g.conns)))
-}
-
 // conn retrieve an already existing conn to the given peer or create a new one
 func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	g.Lock()
@@ -309,9 +291,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 			}
 		} else {
 			var opts []grpc.DialOption
-			for _, o := range g.opts {
-				opts = append(opts, o)
-			}
+			opts = append(opts, g.opts...)
 			if g.manager != nil {
 				pool := g.manager.Pool()
 				creds := credentials.NewClientTLSFromCert(pool, "")
@@ -366,25 +346,4 @@ func (g *grpcClient) HandleHTTP(p Peer) (http.Handler, error) {
 	client := httpgrpc.NewHTTPClient(conn)
 
 	return &httpHandler{client}, nil
-}
-
-// proxyClient is used by the gRPC json gateway to dispatch calls to the
-// underlying gRPC server. It needs only to implement the public facing API
-type proxyClient struct {
-	s Service
-}
-
-func newProxyClient(s Service) *proxyClient {
-	return &proxyClient{s}
-}
-
-func (p *proxyClient) Public(c context.Context, in *drand.PublicRandRequest, opts ...grpc.CallOption) (*drand.PublicRandResponse, error) {
-	return p.s.PublicRand(c, in)
-}
-func (p *proxyClient) Private(c context.Context, in *drand.PrivateRandRequest, opts ...grpc.CallOption) (*drand.PrivateRandResponse, error) {
-	return p.s.PrivateRand(c, in)
-}
-
-func (p *proxyClient) Home(c context.Context, in *drand.HomeRequest, opts ...grpc.CallOption) (*drand.HomeResponse, error) {
-	return p.s.Home(c, in)
 }

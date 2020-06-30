@@ -20,6 +20,9 @@ import (
 	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
+// errPreempted is returned on reshares when a subsequent reshare is started concurrently
+var errPreempted = errors.New("time out: pre-empted")
+
 // InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
 // DKG protocol to finish. If the request specifies this node is a leader, it
 // starts the DKG protocol.
@@ -61,14 +64,16 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	return finalGroup.ToProto(), nil
 }
 
-func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (*key.Group, error) {
+func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *key.Group, err error) {
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
-		return nil, errors.New("drand: setup dkg already in progress")
+		d.log.Info("reshare", "already_in_progress", "restart", "reshare")
+		d.manager.StopPreemptively()
 	}
 	manager, err := newSetup()
 	if err != nil {
+		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	go manager.run()
@@ -76,6 +81,10 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (*key.Gro
 	d.manager = manager
 	d.state.Unlock()
 	defer func() {
+		// don't clear manager if pre-empted
+		if err == errPreempted {
+			return
+		}
 		d.state.Lock()
 		// set back manager to nil afterwards to be able to run a new setup
 		d.manager = nil
@@ -83,14 +92,19 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (*key.Gro
 	}()
 
 	// wait to receive the keys & send them to the other nodes
-	var group *key.Group
+	var ok bool
 	select {
-	case group = <-d.manager.WaitGroup():
-		var addr []string
-		for _, k := range group.Nodes {
-			addr = append(addr, k.Address())
+	case group, ok = <-manager.WaitGroup():
+		if ok {
+			var addr []string
+			for _, k := range group.Nodes {
+				addr = append(addr, k.Address())
+			}
+			d.log.Debug("init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
+		} else {
+			d.log.Debug("init_dkg", "pre-empted")
+			return nil, errPreempted
 		}
-		d.log.Debug("init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
 	case <-time.After(MaxWaitPrepareDKG):
 		d.log.Debug("init_dkg", "time_out")
 		manager.StopPreemptively()
@@ -246,8 +260,8 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
-		d.state.Unlock()
-		return nil, errors.New("drand: already waiting for an automatic setup")
+		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
+		d.receiver.stop()
 	}
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
@@ -277,9 +291,14 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	}
 
 	d.log.Debug("init_dkg", "wait_group")
+
 	group, dkgTimeout, err := d.receiver.WaitDKGInfo()
 	if err != nil {
 		return nil, err
+	}
+	if group == nil {
+		d.log.Debug("init_dkg", "wait_group", "canceled", "nil_group")
+		return nil, errors.New("canceled operation")
 	}
 
 	now := d.opts.clock.Now().Unix()
@@ -314,9 +333,10 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
-		d.state.Unlock()
-		return nil, errors.New("drand: already waiting for an automatic setup")
+		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
+		d.receiver.stop()
 	}
+
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)

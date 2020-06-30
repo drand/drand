@@ -23,6 +23,10 @@ type MockClient struct {
 	// CloseF is a function to call when the Close function is called on the
 	// mock client.
 	CloseF func() error
+	// if strict rounds is set, calls to get will scan through results to
+	// return the first result with the requested round, rather than simply
+	// popping the next result and treating it as a stack.
+	StrictRounds bool
 }
 
 func (m *MockClient) String() string {
@@ -37,7 +41,16 @@ func (m *MockClient) Get(ctx context.Context, round uint64) (Result, error) {
 		return nil, errors.New("no result available")
 	}
 	r := m.Results[0]
-	m.Results = m.Results[1:]
+	if m.StrictRounds {
+		for _, candidate := range m.Results {
+			if candidate.Round() == round {
+				r = candidate
+				break
+			}
+		}
+	} else {
+		m.Results = m.Results[1:]
+	}
 	m.Unlock()
 
 	if m.Delay > 0 {
@@ -70,7 +83,7 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
-	return nil, errors.New("not supported")
+	return nil, errors.New("not supported (mock client info)")
 }
 
 // RoundAt will return the most recent round of randomness
@@ -117,7 +130,7 @@ func (m *MockInfoClient) RoundAt(t time.Time) uint64 {
 }
 
 func (m *MockInfoClient) Get(ctx context.Context, round uint64) (Result, error) {
-	return nil, errors.New("not supported")
+	return nil, errors.New("not supported (mock info client get)")
 }
 
 func (m *MockInfoClient) Watch(ctx context.Context) <-chan Result {
