@@ -18,7 +18,8 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.version=`git describe --tags`
+//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
 	version   = "master"
 	gitCommit = "none"
@@ -81,7 +82,7 @@ var runCmd = &cli.Command{
 	},
 }
 
-func watch(ctx context.Context, c client.Client, upr *s3manager.Uploader, buc string) {
+func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc string) {
 	for {
 		ch := c.Watch(ctx)
 	INNER:

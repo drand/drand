@@ -29,6 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
+
 func TestDeleteBeacon(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -91,15 +93,14 @@ func TestKeySelfSign(t *testing.T) {
 	testCommand(t, selfSign, expectedOutput)
 
 	// load, remove signature and save
-	fs := key.NewFileStore(tmp)
-	pair, err := fs.LoadKeyPair()
+	fileStore := key.NewFileStore(tmp)
+	pair, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	pair.Public.Signature = nil
-	require.NoError(t, fs.SaveKeyPair(pair))
+	require.NoError(t, fileStore.SaveKeyPair(pair))
 
 	expectedOutput = "identity self signed"
 	testCommand(t, selfSign, expectedOutput)
-
 }
 
 func TestKeyGen(t *testing.T) {
@@ -109,8 +110,8 @@ func TestKeyGen(t *testing.T) {
 	require.NoError(t, CLI().Run(args))
 
 	config := core.NewConfig(core.WithConfigFolder(tmp))
-	fs := key.NewFileStore(config.ConfigFolder())
-	priv, err := fs.LoadKeyPair()
+	fileStore := key.NewFileStore(config.ConfigFolder())
+	priv, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	require.NotNil(t, priv.Public)
 
@@ -120,20 +121,20 @@ func TestKeyGen(t *testing.T) {
 	require.Error(t, CLI().Run(args))
 
 	config = core.NewConfig(core.WithConfigFolder(tmp2))
-	fs = key.NewFileStore(config.ConfigFolder())
-	priv, err = fs.LoadKeyPair()
+	fileStore = key.NewFileStore(config.ConfigFolder())
+	priv, err = fileStore.LoadKeyPair()
 	require.Error(t, err)
 	require.Nil(t, priv)
 }
 
-//tests valid commands and then invalid commands
+// tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 	n := 5
 	_, group := test.BatchIdentities(n)
-	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
 	args := []string{"drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath}
@@ -148,10 +149,6 @@ func TestStartAndStop(t *testing.T) {
 		// ERROR: 2020/01/23 21:06:28 grpc: server failed to encode response:
 		// rpc error: code = Internal desc = grpc: error while marshaling: proto:
 		// Marshal called with nil
-
-		//if e, ok := err.(*exec.ExitError); !ok || e.ExitCode() != 0 {
-		//t.Fatal(err)
-		//}
 	}()
 	<-startCh
 	time.Sleep(200 * time.Millisecond)
@@ -184,10 +181,18 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	fs := key.NewFileStore(config.ConfigFolder())
-	require.NoError(t, fs.SaveKeyPair(priv))
+	fileStore := key.NewFileStore(config.ConfigFolder())
+	require.NoError(t, fileStore.SaveKeyPair(priv))
 
-	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", "127.0.0.1:" + metricsPort}
+	startArgs := []string{
+		"drand",
+		"start",
+		"--tls-disable",
+		"--verbose",
+		"--folder", tmpPath,
+		"--control", ctrlPort1,
+		"--metrics", "127.0.0.1:" + metricsPort,
+	}
 	go CLI().Run(startArgs)
 	time.Sleep(500 * time.Millisecond)
 
@@ -218,15 +223,15 @@ func TestStartWithoutGroup(t *testing.T) {
 	groupPath := path.Join(tmpPath, "drand_group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 	// save it also to somewhere drand will find it
-	require.NoError(t, fs.SaveGroup(group))
+	require.NoError(t, fileStore.SaveGroup(group))
 
-	//fake share
+	// fake share
 	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
-	share := &key.Share{Share: s}
-	require.NoError(t, fs.SaveShare(share))
+	fakeShare := &key.Share{Share: s}
+	require.NoError(t, fileStore.SaveShare(fakeShare))
 
-	require.NoError(t, fs.SaveDistPublic(distKey))
+	require.NoError(t, fileStore.SaveDistPublic(distKey))
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
@@ -271,8 +276,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println("\nRunning SHOW SHARE command")
 	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort2}
-	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
-	testCommand(t, shareCmd, expectedOutput)
+	testCommand(t, shareCmd, expectedShareOutput)
 
 	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort2}
 	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
@@ -291,11 +295,11 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, err)
 	os.Stdin = r
 	require.NoError(t, CLI().Run(resetCmd))
-	_, err = fs.LoadDistPublic()
+	_, err = fileStore.LoadDistPublic()
 	require.Error(t, err)
-	_, err = fs.LoadShare()
+	_, err = fileStore.LoadShare()
 	require.Error(t, err)
-	_, err = fs.LoadGroup()
+	_, err = fileStore.LoadGroup()
 	require.Error(t, err)
 	fmt.Println("DONE")
 }
@@ -304,9 +308,6 @@ func TestClientTLS(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
-
-	//ctx, cancel := context.WithCancel(context.Background())
-	//defer cancel()
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	pubPath := path.Join(tmpPath, "pub.key")
@@ -322,8 +323,8 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	fs := key.NewFileStore(config.ConfigFolder())
-	fs.SaveKeyPair(priv)
+	fileStore := key.NewFileStore(config.ConfigFolder())
+	fileStore.SaveKeyPair(priv)
 
 	if httpscerts.Check(certPath, keyPath) != nil {
 		fmt.Println("generating on the fly")
@@ -348,17 +349,25 @@ func TestClientTLS(t *testing.T) {
 	group.Period = 2 * time.Minute
 	group.GenesisTime = time.Now().Unix()
 	group.PublicKey = distKey
-	groupPath = path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
-	require.NoError(t, fs.SaveGroup(group))
-	require.NoError(t, fs.SaveDistPublic(distKey))
+	require.NoError(t, fileStore.SaveGroup(group))
+	require.NoError(t, fileStore.SaveDistPublic(distKey))
 
-	//fake share
+	// fake share
 	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
-	share := &key.Share{Share: s}
-	fs.SaveShare(share)
+	fakeShare := &key.Share{Share: s}
+	fileStore.SaveShare(fakeShare)
 
-	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
+	startArgs := []string{
+		"drand",
+		"start",
+		"--tls-cert", certPath,
+		"--tls-key", keyPath,
+		"--control", ctrlPort,
+		"--folder", tmpPath,
+		"--metrics", metricsPort,
+		"--private-rand",
+	}
 	go CLI().Run(startArgs)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
 	time.Sleep(500 * time.Millisecond)
@@ -381,8 +390,7 @@ func TestClientTLS(t *testing.T) {
 	testCommand(t, chainInfoCmd, expectedOutput)
 
 	showCmd := []string{"drand", "show", "share", "--control", ctrlPort}
-	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
-	testCommand(t, showCmd, expectedOutput)
+	testCommand(t, showCmd, expectedShareOutput)
 
 	showPublic := []string{"drand", "show", "public", "--control", ctrlPort}
 	b, _ := priv.Public.Key.MarshalBinary()
@@ -407,8 +415,6 @@ func TestClientTLS(t *testing.T) {
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
-	//capture := newStdoutCapture(t)
-	//defer capture.Restore()
 	var buff bytes.Buffer
 	output = &buff
 	defer func() { output = os.Stdout }()
