@@ -468,25 +468,12 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		return nil, errors.New("control: old and new group have different genesis seed")
 	}
 
-	// send to all previous nodes + new nodes
-	var seen = make(map[string]bool)
-	seen[d.priv.Public.Address()] = true
-	var to []*key.Node
-	for _, node := range oldGroup.Nodes {
-		if seen[node.Address()] {
-			continue
-		}
-		to = append(to, node)
-	}
-	for _, node := range newGroup.Nodes {
-		if seen[node.Address()] {
-			continue
-		}
-		to = append(to, node)
-	}
-
 	// send it to everyone in the group nodes
-	if err := d.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes, oldGroup.Threshold, newGroup, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
+	if err := d.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes,
+		oldGroup.Threshold,
+		newGroup,
+		in.GetInfo().GetSecret(),
+		in.GetInfo().GetTimeout()); err != nil {
 		d.log.Error("push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
@@ -606,7 +593,7 @@ func (d *Drand) getPhaser(timeout uint32) *dkg.TimePhaser {
 
 // pushDKGInfo sends the information to run the DKG to all specified nodes. The
 // call is blocking until all nodes have replied or after one minute timeouts.
-func (d *Drand) pushDKGInfo(outgoing []*key.Node, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
+func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
