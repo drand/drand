@@ -40,7 +40,7 @@ func startCmd(c *cli.Context) error {
 		}
 		// XXX make it configurable so that new share holder can still start if
 		// nobody started.
-		//drand.StartBeacon(!c.Bool(pushFlag.Name))
+		// drand.StartBeacon(!c.Bool(pushFlag.Name))
 		catchup := true
 		drand.StartBeacon(catchup)
 	}
@@ -54,12 +54,12 @@ func startCmd(c *cli.Context) error {
 }
 
 func stopDaemon(c *cli.Context) error {
-	client, err := controlClient(c)
+	ctrlClient, err := controlClient(c)
 	if err != nil {
 		return err
 	}
-	if _, err := client.Shutdown(); err != nil {
-		return fmt.Errorf("Error stopping drand daemon: %v\n", err)
+	if _, err := ctrlClient.Shutdown(); err != nil {
+		return fmt.Errorf("error stopping drand daemon: %w", err)
 	}
 	fmt.Println("drand daemon stopped correctly. Bye.")
 	return nil

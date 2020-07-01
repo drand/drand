@@ -21,16 +21,18 @@ func getPrivateCmd(c *cli.Context) error {
 	}
 	defaultManager := net.NewCertManager()
 	if c.IsSet("tls-cert") {
-		defaultManager.Add(c.String("tls-cert"))
+		if err := defaultManager.Add(c.String("tls-cert")); err != nil {
+			return err
+		}
 	}
 	ids, err := getNodes(c)
 	if err != nil {
 		return err
 	}
-	client := core.NewGrpcClientFromCert(defaultManager)
+	grpcClient := core.NewGrpcClientFromCert(defaultManager)
 	var resp []byte
 	for _, public := range ids {
-		resp, err = client.Private(public.Identity)
+		resp, err = grpcClient.Private(public.Identity)
 		if err == nil {
 			fmt.Fprintf(output, "drand: successfully retrieved private randomness "+
 				"from %s", public.Addr)
@@ -46,8 +48,7 @@ func getPrivateCmd(c *cli.Context) error {
 		Randomness []byte
 	}
 
-	printJSON(&private{resp})
-	return nil
+	return printJSON(&private{resp})
 }
 
 func getPublicRandomness(c *cli.Context) error {
@@ -74,13 +75,13 @@ func getPublicRandomness(c *cli.Context) error {
 	var resp client.Result
 	var foundCorrect bool
 	for _, id := range ids {
-		cli, err := grpc.New(id.Addr, certPath, !id.TLS)
+		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s", id.Addr, err)
 			break
 		}
 
-		resp, err = cli.Get(c.Context, uint64(c.Int(roundFlag.Name)))
+		resp, err = grpcClient.Get(c.Context, uint64(c.Int(roundFlag.Name)))
 
 		if err == nil {
 			foundCorrect = true
@@ -95,17 +96,18 @@ func getPublicRandomness(c *cli.Context) error {
 		return errors.New("drand: could not verify randomness")
 	}
 
-	printJSON(resp)
-	return nil
+	return printJSON(resp)
 }
 
 func getChainInfo(c *cli.Context) error {
-	var client = core.NewGrpcClient()
+	var grpcClient = core.NewGrpcClient()
 	if c.IsSet(tlsCertFlag.Name) {
 		defaultManager := net.NewCertManager()
 		certPath := c.String(tlsCertFlag.Name)
-		defaultManager.Add(certPath)
-		client = core.NewGrpcClientFromCert(defaultManager)
+		if err := defaultManager.Add(certPath); err != nil {
+			return err
+		}
+		grpcClient = core.NewGrpcClientFromCert(defaultManager)
 	}
 	var ci *chain.Info
 	for _, addr := range c.Args().Slice() {
@@ -113,7 +115,7 @@ func getChainInfo(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("invalid address given: %s", err)
 		}
-		ci, err = client.ChainInfo(net.CreatePeer(addr, !c.Bool("tls-disable")))
+		ci, err = grpcClient.ChainInfo(net.CreatePeer(addr, !c.Bool("tls-disable")))
 		if err == nil {
 			break
 		}
