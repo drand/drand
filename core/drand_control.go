@@ -54,7 +54,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 
 	// send it to everyone in the group nodes
 	nodes := group.Nodes
-	if err := d.pushDKGInfo(nodes, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
+	if err := d.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		return nil, err
 	}
 	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
@@ -468,25 +468,12 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		return nil, errors.New("control: old and new group have different genesis seed")
 	}
 
-	// send to all previous nodes + new nodes
-	var seen = make(map[string]bool)
-	seen[d.priv.Public.Address()] = true
-	var to []*key.Node
-	for _, node := range oldGroup.Nodes {
-		if seen[node.Address()] {
-			continue
-		}
-		to = append(to, node)
-	}
-	for _, node := range newGroup.Nodes {
-		if seen[node.Address()] {
-			continue
-		}
-		to = append(to, node)
-	}
-
 	// send it to everyone in the group nodes
-	if err := d.pushDKGInfo(to, newGroup, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
+	if err := d.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes,
+		oldGroup.Threshold,
+		newGroup,
+		in.GetInfo().GetSecret(),
+		in.GetInfo().GetTimeout()); err != nil {
 		d.log.Error("push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
@@ -606,7 +593,7 @@ func (d *Drand) getPhaser(timeout uint32) *dkg.TimePhaser {
 
 // pushDKGInfo sends the information to run the DKG to all specified nodes. The
 // call is blocking until all nodes have replied or after one minute timeouts.
-func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, timeout uint32) error {
+func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
@@ -622,7 +609,37 @@ func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, tim
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var tooLate = make(chan bool, 1)
-	var success = make(chan string, len(to))
+
+	newThreshold := group.Threshold
+	to := make([]*key.Node, 0, len(outgoing)+len(incoming))
+	to = append(to, outgoing...)
+	for _, n := range to {
+		if n.Address() == d.priv.Public.Address() {
+			previousThreshold--
+			break
+		}
+	}
+
+	for _, n := range incoming {
+		found := false
+		if n.Address() == d.priv.Public.Address() {
+			newThreshold--
+		}
+		for _, e := range to {
+			if n.Address() == e.Address() {
+				found = true
+			}
+		}
+		if !found {
+			to = append(to, n)
+		}
+	}
+
+	type pushResult struct {
+		address string
+		err     error
+	}
+	var success = make(chan pushResult, len(to))
 	go func() {
 		<-d.opts.clock.After(time.Minute)
 		tooLate <- true
@@ -633,26 +650,43 @@ func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, tim
 		}
 		go func(i *key.Identity) {
 			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
-			if err != nil {
-				d.log.Error("push_dkg", "failed to push", "to", i.Address(), "err", err)
-			} else {
-				success <- i.Address()
-			}
+			success <- pushResult{i.Address(), err}
 		}(node.Identity)
 	}
-	exp := len(to) - 1
-	got := 0
-	for got < exp {
+	total := len(to) - 1
+	for total > 0 {
 		select {
 		case ok := <-success:
-			d.log.Debug("push_dkg", "sending_group", "success_to", ok)
-			got++
+			total--
+			if ok.err != nil {
+				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", err)
+				continue
+			}
+			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
+			for _, n := range outgoing {
+				if ok.address == n.Address() {
+					previousThreshold--
+				}
+			}
+			for _, n := range incoming {
+				if ok.address == n.Address() {
+					newThreshold--
+				}
+			}
 		case <-tooLate:
+			if previousThreshold <= 0 && newThreshold <= 0 {
+				d.log.Info("push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
+				return nil
+			}
+			d.log.Warn("push_dkg", "sending_group", "status", "timeout")
 			return errors.New("push group timeout")
 		}
 	}
-	d.log.Info("push_dkg", "sending_group", "status", "done")
-	cancel()
+	if previousThreshold > 0 || newThreshold > 0 {
+		d.log.Info("push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
+		return errors.New("push group failure")
+	}
+	d.log.Info("push_dkg", "sending_group", "status", "all succeeded")
 	return nil
 }
 
