@@ -93,12 +93,20 @@ func (h *handler) start() {
 	h.pendingLk.Lock()
 	defer h.pendingLk.Unlock()
 	h.pending = make([]chan []byte, 0)
-	go h.Watch(h.context)
+	ready := make(chan bool)
+	go h.Watch(h.context, ready)
+	<-ready
 }
 
-func (h *handler) Watch(ctx context.Context) {
+func (h *handler) Watch(ctx context.Context, ready chan bool) {
 RESET:
 	stream := h.client.Watch(context.Background())
+
+	// signal that the watch is ready
+	select {
+	case ready <- true:
+	default:
+	}
 
 	for {
 		next, ok := <-stream
