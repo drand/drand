@@ -399,7 +399,7 @@ func CLI() *cli.App {
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
 		if err != nil {
-			fmt.Fprint(os.Stderr, err.Error())
+			fmt.Fprintf(os.Stderr, "%+v\n", err)
 		}
 	}
 	app.Version = version
