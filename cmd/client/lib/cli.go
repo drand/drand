@@ -135,11 +135,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.Insecurely())
 	}
 
-	clients = append(clients, buildHTTPClients(c, &info, hash)...)
-
-	if withInstrumentation {
-		http.MeasureHeartbeats(c.Context, clients)
-	}
+	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
 
 	gopt, err := buildGossipClient(c)
 	if err != nil {
@@ -167,7 +163,7 @@ func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error)
 	return []client.Client{}, nil
 }
 
-func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte) []client.Client {
+func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {
 	clients := make([]client.Client, 0)
 	var err error
 	skipped := []string{}
@@ -204,6 +200,11 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte) []client.C
 			clients = append(clients, hc)
 		}
 	}
+
+	if withInstrumentation {
+		http.MeasureHeartbeats(c.Context, clients)
+	}
+
 	return clients
 }
 
