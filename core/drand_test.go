@@ -188,7 +188,9 @@ func TestDrandResharePreempt(t *testing.T) {
 		group := dt.RunReshare(oldN, 0, newThr, timeout)
 		doneReshare <- group
 	}()
-	time.Sleep(3 * time.Second)
+	time.Sleep(time.Second)
+	dt.MoveTime(time.Second)
+	time.Sleep(time.Second)
 	fmt.Printf("\n -- Move to Response phase !! -- \n")
 	dt.MoveTime(timeout)
 	// at this point in time, nodes should have gotten all deals and send back

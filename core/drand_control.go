@@ -626,7 +626,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 			newThreshold--
 		}
 		for _, e := range to {
-			if n.Equal(e) {
+			if n.Address() == e.Address() {
 				found = true
 			}
 		}
@@ -635,7 +635,11 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		}
 	}
 
-	var success = make(chan string, len(to))
+	type pushResult struct {
+		address string
+		err     error
+	}
+	var success = make(chan pushResult, len(to))
 	go func() {
 		<-d.opts.clock.After(time.Minute)
 		tooLate <- true
@@ -646,38 +650,41 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		}
 		go func(i *key.Identity) {
 			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
-			if err != nil {
-				d.log.Error("push_dkg", "failed to push", "to", i.Address(), "err", err)
-			} else {
-				success <- i.Address()
-			}
+			success <- pushResult{i.Address(), err}
 		}(node.Identity)
 	}
 	total := len(to) - 1
 	for total > 0 {
 		select {
 		case ok := <-success:
-			d.log.Debug("push_dkg", "sending_group", "success_to", ok)
 			total--
+			if ok.err != nil {
+				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", err)
+				continue
+			}
+			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
 			for _, n := range outgoing {
-				if ok == n.Address() {
+				if ok.address == n.Address() {
 					previousThreshold--
-					break
 				}
 			}
 			for _, n := range incoming {
-				if ok == n.Address() {
+				if ok.address == n.Address() {
 					newThreshold--
-					break
 				}
 			}
 		case <-tooLate:
 			if previousThreshold <= 0 && newThreshold <= 0 {
-				d.log.Info("push_dkg", "sending_group", "status", "enough succeeded")
+				d.log.Info("push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
 				return nil
 			}
+			d.log.Warn("push_dkg", "sending_group", "status", "timeout")
 			return errors.New("push group timeout")
 		}
+	}
+	if previousThreshold > 0 || newThreshold > 0 {
+		d.log.Info("push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
+		return errors.New("push group failure")
 	}
 	d.log.Info("push_dkg", "sending_group", "status", "all succeeded")
 	return nil
