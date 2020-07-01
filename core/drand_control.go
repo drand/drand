@@ -54,7 +54,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 
 	// send it to everyone in the group nodes
 	nodes := group.Nodes
-	if err := d.pushDKGInfo(nodes, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
+	if err := d.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		return nil, err
 	}
 	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
@@ -486,7 +486,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 	}
 
 	// send it to everyone in the group nodes
-	if err := d.pushDKGInfo(to, newGroup, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
+	if err := d.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes, oldGroup.Threshold, newGroup, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		d.log.Error("push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
@@ -606,7 +606,7 @@ func (d *Drand) getPhaser(timeout uint32) *dkg.TimePhaser {
 
 // pushDKGInfo sends the information to run the DKG to all specified nodes. The
 // call is blocking until all nodes have replied or after one minute timeouts.
-func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, timeout uint32) error {
+func (d *Drand) pushDKGInfo(outgoing []*key.Node, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
@@ -622,6 +622,32 @@ func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, tim
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var tooLate = make(chan bool, 1)
+
+	newThreshold := group.Threshold
+	to := make([]*key.Node, 0, len(outgoing)+len(incoming))
+	to = append(to, outgoing...)
+	for _, n := range to {
+		if n.Address() == d.priv.Public.Address() {
+			previousThreshold--
+			break
+		}
+	}
+
+	for _, n := range incoming {
+		found := false
+		if n.Address() == d.priv.Public.Address() {
+			newThreshold--
+		}
+		for _, e := range to {
+			if n.Equal(e) {
+				found = true
+			}
+		}
+		if !found {
+			to = append(to, n)
+		}
+	}
+
 	var success = make(chan string, len(to))
 	go func() {
 		<-d.opts.clock.After(time.Minute)
@@ -640,19 +666,33 @@ func (d *Drand) pushDKGInfo(to []*key.Node, group *key.Group, secret []byte, tim
 			}
 		}(node.Identity)
 	}
-	exp := len(to) - 1
-	got := 0
-	for got < exp {
+	total := len(to) - 1
+	for total > 0 {
 		select {
 		case ok := <-success:
 			d.log.Debug("push_dkg", "sending_group", "success_to", ok)
-			got++
+			total--
+			for _, n := range outgoing {
+				if ok == n.Address() {
+					previousThreshold--
+					break
+				}
+			}
+			for _, n := range incoming {
+				if ok == n.Address() {
+					newThreshold--
+					break
+				}
+			}
 		case <-tooLate:
+			if previousThreshold <= 0 && newThreshold <= 0 {
+				d.log.Info("push_dkg", "sending_group", "status", "enough succeeded")
+				return nil
+			}
 			return errors.New("push group timeout")
 		}
 	}
-	d.log.Info("push_dkg", "sending_group", "status", "done")
-	cancel()
+	d.log.Info("push_dkg", "sending_group", "status", "all succeeded")
 	return nil
 }
 
