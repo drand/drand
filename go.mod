@@ -28,7 +28,7 @@ require (
 	github.com/libp2p/go-libp2p v0.9.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.3
 	github.com/libp2p/go-libp2p-core v0.5.6
-	github.com/libp2p/go-libp2p-noise v0.1.1 // indirect
+	github.com/libp2p/go-libp2p-noise v0.1.1
 	github.com/libp2p/go-libp2p-peerstore v0.2.4
 	github.com/libp2p/go-libp2p-pubsub v0.3.2-0.20200527132641-c0712c6e92cf
 	github.com/libp2p/go-libp2p-tls v0.1.3
