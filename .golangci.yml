@@ -6,16 +6,16 @@ issues:
         - gomnd
         - gosec
         - errcheck
+    - path: protobuf/gen.go
+      linters:
+        - lll
     # https://github.com/go-critic/go-critic/issues/926
     - linters:
         - gocritic
       text: "unnecessaryDefer:"
 run:
   skip-dirs:
-    - cmd
     - demo
-    - net
-    - protobuf
     - test
 
 linters:

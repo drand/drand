@@ -227,6 +227,9 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 		return nil
 	}
 
+	if !strings.Contains(metricsBind, ":") {
+		metricsBind = "localhost:" + metricsBind
+	}
 	l, err := net.Listen("tcp", metricsBind)
 	if err != nil {
 		log.DefaultLogger().Warn("metrics", "listen failed", "err", err)

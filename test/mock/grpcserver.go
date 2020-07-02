@@ -228,7 +228,7 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, ne
 	testValid(d)
 	d.BadSecondRound = badSecondRound
 	server := newMockServer(d)
-	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, server)
+	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
 		panic(err)
 	}

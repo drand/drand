@@ -18,7 +18,8 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.version=`git describe --tags`
+//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
 	version   = "master"
 	gitCommit = "none"
@@ -83,7 +84,9 @@ var runCmd = &cli.Command{
 		if cctx.IsSet(metricsFlag.Name) {
 			metricsListener := metrics.Start(cctx.String(metricsFlag.Name), pprof.WithProfile(), nil)
 			defer metricsListener.Close()
-			metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics)
+			if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultClientMetrics); err != nil {
+				return err
+			}
 		}
 
 		c, err := lib.Create(cctx, cctx.IsSet(metricsFlag.Name))

@@ -20,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	noise "github.com/libp2p/go-libp2p-noise"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
@@ -73,7 +74,9 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 	opts := []libp2p.Option{
 		libp2p.Identity(priv),
-		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+		libp2p.ChainOptions(
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			libp2p.Security(noise.ID, noise.New)),
 		libp2p.DisableRelay(),
 		// libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
 		libp2p.UserAgent(userAgent),
