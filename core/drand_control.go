@@ -591,6 +591,48 @@ func (d *Drand) getPhaser(timeout uint32) *dkg.TimePhaser {
 	})
 }
 
+func nodesContainAddr(nodes []*key.Node, addr string) bool {
+	for _, n := range nodes {
+		if n.Address() == addr {
+			return true
+		}
+	}
+	return false
+}
+
+// nodeUnion takes the union of two sets of nodes
+func nodeUnion(a, b []*key.Node) []*key.Node {
+	out := append([]*key.Node{}, a...)
+	for _, n := range b {
+		if !nodesContainAddr(a, n.Address()) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+type pushResult struct {
+	address string
+	err     error
+}
+
+// pushDKGInfoPacket sets a specific DKG info packet to spcified nodes, and returns a stream of responses.
+func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet *drand.DKGInfoPacket) chan pushResult {
+	results := make(chan pushResult, len(nodes))
+
+	for _, node := range nodes {
+		if node.Address() == d.priv.Public.Address() {
+			continue
+		}
+		go func(i *key.Identity) {
+			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
+			results <- pushResult{i.Address(), err}
+		}(node.Identity)
+	}
+
+	return results
+}
+
 // pushDKGInfo sends the information to run the DKG to all specified nodes. The
 // call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
@@ -598,7 +640,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
 		d.log.Error("setup", "leader", "group_signature", err)
-		return fmt.Errorf("drand: error signing group: %s", err)
+		return fmt.Errorf("drand: error signing group: %w", err)
 	}
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(),
@@ -608,72 +650,35 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	var tooLate = make(chan bool, 1)
 
 	newThreshold := group.Threshold
-	to := make([]*key.Node, 0, len(outgoing)+len(incoming))
-	to = append(to, outgoing...)
-	for _, n := range to {
-		if n.Address() == d.priv.Public.Address() {
-			previousThreshold--
-			break
-		}
+	if nodesContainAddr(outgoing, d.priv.Public.Address()) {
+		previousThreshold--
 	}
+	if nodesContainAddr(incoming, d.priv.Public.Address()) {
+		newThreshold--
+	}
+	to := nodeUnion(outgoing, incoming)
 
-	for _, n := range incoming {
-		found := false
-		if n.Address() == d.priv.Public.Address() {
-			newThreshold--
-		}
-		for _, e := range to {
-			if n.Address() == e.Address() {
-				found = true
-			}
-		}
-		if !found {
-			to = append(to, n)
-		}
-	}
+	results := d.pushDKGInfoPacket(ctx, to, packet)
 
-	type pushResult struct {
-		address string
-		err     error
-	}
-	var success = make(chan pushResult, len(to))
-	go func() {
-		<-d.opts.clock.After(time.Minute)
-		tooLate <- true
-	}()
-	for _, node := range to {
-		if node.Address() == d.priv.Public.Address() {
-			continue
-		}
-		go func(i *key.Identity) {
-			err := d.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
-			success <- pushResult{i.Address(), err}
-		}(node.Identity)
-	}
 	total := len(to) - 1
 	for total > 0 {
 		select {
-		case ok := <-success:
+		case ok := <-results:
 			total--
 			if ok.err != nil {
 				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", err)
 				continue
 			}
 			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
-			for _, n := range outgoing {
-				if ok.address == n.Address() {
-					previousThreshold--
-				}
+			if nodesContainAddr(outgoing, ok.address) {
+				previousThreshold--
 			}
-			for _, n := range incoming {
-				if ok.address == n.Address() {
-					newThreshold--
-				}
+			if nodesContainAddr(incoming, ok.address) {
+				newThreshold--
 			}
-		case <-tooLate:
+		case <-d.opts.clock.After(time.Minute):
 			if previousThreshold <= 0 && newThreshold <= 0 {
 				d.log.Info("push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
 				return nil
