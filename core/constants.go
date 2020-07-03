@@ -1,11 +1,16 @@
 package core
 
 import (
+	"crypto/cipher"
 	"crypto/sha256"
 	"path"
 	"time"
 
 	"github.com/drand/drand/fs"
+	"github.com/drand/drand/key"
+	"github.com/drand/kyber/sign/schnorr"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/util/random"
 )
 
 // DefaultConfigFolderName is the name of the folder containing all key materials
@@ -63,3 +68,15 @@ const callbackID = "callbackID"
 
 // PrivateRandLength is the length of expected private randomness buffers
 const PrivateRandLength = 32
+
+// BroadcastAuthScheme is the signature scheme used to authentify packets during
+// a broadcast
+var BroadcastAuthScheme = schnorr.NewScheme(&schnorrSuite{key.KeyGroup})
+
+type schnorrSuite struct {
+	kyber.Group
+}
+
+func (s *schnorrSuite) RandomStream() cipher.Stream {
+	return random.New()
+}
