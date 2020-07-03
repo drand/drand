@@ -253,7 +253,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
-func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
+func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -271,12 +271,15 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	d.receiver = receiver
 	d.state.Unlock()
 
-	defer func() {
+	defer func(r *setupReceiver) {
 		d.state.Lock()
-		d.receiver.stop()
-		d.receiver = nil
+		r.stop()
+		if r == d.receiver {
+			// if there has been no new receiver since, we set the field to nil
+			d.receiver = nil
+		}
 		d.state.Unlock()
-	}()
+	}(receiver)
 	// send public key to leader
 	id := d.priv.Public.ToProto()
 	prep := &drand.SignalDKGPacket{
@@ -292,7 +295,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 
 	d.log.Debug("init_dkg", "wait_group")
 
-	group, dkgTimeout, err := d.receiver.WaitDKGInfo()
+	group, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
 	if err != nil {
 		return nil, err
 	}
@@ -369,7 +372,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
 	}
 
-	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo()
+	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
 	if err != nil {
 		return nil, err
 	}

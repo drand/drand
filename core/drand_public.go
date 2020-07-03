@@ -217,11 +217,7 @@ func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*dran
 	d.log.Info("push_group", "received_new")
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.
-	err := d.receiver.PushDKGInfo(in)
-	if err != nil {
-		return nil, err
-	}
-	return new(drand.Empty), nil
+	return new(drand.Empty), d.receiver.PushDKGInfo(in)
 }
 
 // SyncChain is a inter-node protocol that replies to a syncing request from a
