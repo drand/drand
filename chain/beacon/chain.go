@@ -31,10 +31,16 @@ type chainStore struct {
 	ticker        *ticker
 	done          chan bool
 	newPartials   chan partialInfo
-	newBeaconCh   chan *chain.Beacon
+	newBeaconCh   chan newBeaconWithStat
 	lastInserted  chan *chain.Beacon
 	requestSync   chan likeBeacon
 	nonSyncBeacon chan *chain.Beacon
+}
+
+type newBeaconWithStat struct {
+	*chain.Beacon
+	lastPartial time.Time
+	myPartial   time.Time
 }
 
 func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
@@ -47,7 +53,7 @@ func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, safe *
 		done:          make(chan bool, 1),
 		ticker:        ticker,
 		newPartials:   make(chan partialInfo, defaultPartialChanBuffer),
-		newBeaconCh:   make(chan *chain.Beacon, defaultNewBeaconBuffer),
+		newBeaconCh:   make(chan newBeaconWithStat, defaultNewBeaconBuffer),
 		requestSync:   make(chan likeBeacon, defaultRequestSyncBuffer),
 		lastInserted:  make(chan *chain.Beacon, 1),
 		nonSyncBeacon: make(chan *chain.Beacon, 1),
@@ -66,7 +72,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) NewBeacon(addr string, proto *drand.BeaconPacket) {
-	c.newBeaconCh <- protoToBeacon(proto)
+	c.newBeaconCh <- newBeaconWithStat{protoToBeacon(proto), time.Time{}, time.Time{}}
 }
 
 func (c *chainStore) Stop() {
@@ -124,6 +130,8 @@ func (c *chainStore) runAggregator() {
 			if roundCache.Len() < thr {
 				break
 			}
+			lastPartialTime := time.Now()
+			myPartialTime := cache.GetTimeOfPartial(partial.p.GetRound(), partial.p.GetPreviousSig(), ginfo.index)
 
 			pub := ginfo.pub
 			n := ginfo.group.Len()
@@ -144,7 +152,7 @@ func (c *chainStore) runAggregator() {
 				Signature:   finalSig,
 			}
 			c.l.Info("aggregated_beacon", newBeacon.Round)
-			c.newBeaconCh <- newBeacon
+			c.newBeaconCh <- newBeaconWithStat{newBeacon, lastPartialTime, myPartialTime}
 			break
 		}
 	}
@@ -157,23 +165,32 @@ func (c *chainStore) runChainLoop() {
 	if err != nil {
 		c.l.Fatal("store_last_init", err)
 	}
-	insert := func(newB *chain.Beacon) {
-		if err := c.Store.Put(newB); err != nil {
+	insert := func(newB newBeaconWithStat) {
+		if err := c.Store.Put(newB.Beacon); err != nil {
 			c.l.Fatal("new_beacon_storing", err)
 		}
-		lastBeacon = newB
+		lastBeacon = newB.Beacon
 		// measure beacon creation time discrepancy in milliseconds
 		actual := time.Now().UnixNano()
 		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
 		discrepancy := float64(actual-expected) / float64(time.Millisecond)
+		partialsReady := float64(newB.lastPartial.UnixNano()-expected) / float64(time.Millisecond)
 		metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
-		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy)
-		c.lastInserted <- newB
+		if !newB.myPartial.IsZero() {
+			mine := float64(newB.myPartial.UnixNano()-expected) / float64(time.Millisecond)
+			c.l.Info("NEW_BEACON_STORED", newB.String(),
+				"time_discrepancy_ms", discrepancy,
+				"time_partial_ms", partialsReady,
+				"my_discrepancy_ms", mine)
+		} else {
+			c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy, "time_partial_ms", partialsReady)
+		}
+		c.lastInserted <- newB.Beacon
 		if !syncing {
 			// during syncing we don't do a fast sync
 			select {
 			// only send if it's not full already
-			case c.nonSyncBeacon <- newB:
+			case c.nonSyncBeacon <- newB.Beacon:
 			default:
 			}
 		}
@@ -181,7 +198,7 @@ func (c *chainStore) runChainLoop() {
 	for {
 		select {
 		case newBeacon := <-c.newBeaconCh:
-			if isAppendable(lastBeacon, newBeacon) {
+			if isAppendable(lastBeacon, newBeacon.Beacon) {
 				insert(newBeacon)
 				break
 			}
@@ -239,7 +256,7 @@ func (c *chainStore) RunSync(ctx context.Context) {
 		return
 	}
 	for newB := range outCh {
-		c.newBeaconCh <- newB
+		c.newBeaconCh <- newBeaconWithStat{newB, time.Time{}, time.Time{}}
 	}
 }
 

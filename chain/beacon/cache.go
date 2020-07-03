@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"encoding/binary"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
@@ -17,14 +18,19 @@ import (
 // partial signatures from the same index stored at any given time.
 type partialCache struct {
 	rounds map[string]*roundCache
-	rcvd   map[int][]string
+	rcvd   map[int][]receivedMeta
 	l      log.Logger
+}
+
+type receivedMeta struct {
+	when time.Time
+	id   string
 }
 
 func newPartialCache(l log.Logger) *partialCache {
 	return &partialCache{
 		rounds: make(map[string]*roundCache),
-		rcvd:   make(map[int][]string),
+		rcvd:   make(map[int][]receivedMeta),
 		l:      l,
 	}
 }
@@ -46,7 +52,7 @@ func (c *partialCache) Append(p *drand.PartialBeaconPacket) {
 	}
 	if round.append(p) {
 		// we increment the counter of that node index
-		c.rcvd[idx] = append(c.rcvd[idx], id)
+		c.rcvd[idx] = append(c.rcvd[idx], receivedMeta{time.Now(), id})
 	}
 }
 
@@ -63,7 +69,7 @@ func (c *partialCache) FlushRounds(round uint64) {
 		for idx := range cache.sigs {
 			var idSlice = c.rcvd[idx][:0]
 			for _, idd := range c.rcvd[idx] {
-				if idd == id {
+				if idd.id == id {
 					continue
 				}
 				idSlice = append(idSlice, idd)
@@ -83,7 +89,7 @@ func (c *partialCache) GetRoundCache(round uint64, previous []byte) *roundCache 
 }
 
 // newRoundCache creates a new round cache given p. If the signer of the partial
-// already has more than `
+// already has more than `MaxPartialsPerNode`, the first is discarded
 func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundCache {
 	if round, ok := c.rounds[id]; ok {
 		return round
@@ -91,14 +97,14 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if len(c.rcvd[idx]) >= MaxPartialsPerNode {
 		// this node has submitted too many partials - we take the last one off
-		toEvict := c.rcvd[idx][0]
+		toEvict := c.rcvd[idx][0].id
 		round, ok := c.rounds[toEvict]
 		if !ok {
 			c.l.Error("cache", "miss", "node", idx, "not_present_for", p.GetRound())
 			return nil
 		}
 		round.flushIndex(idx)
-		c.rcvd[idx] = append(c.rcvd[idx][1:], id)
+		c.rcvd[idx] = append(c.rcvd[idx][1:], receivedMeta{time.Time{}, id})
 		// if the round is now empty, delete it
 		if round.Len() == 0 {
 			delete(c.rounds, toEvict)
@@ -107,6 +113,18 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 	round := newRoundCache(id, p)
 	c.rounds[id] = round
 	return round
+}
+
+// GetTimeOfPartial provides a time when the partial from a given index was first seen
+// on a best-effort basis
+func (c *partialCache) GetTimeOfPartial(round uint64, previous []byte, idx int) time.Time {
+	id := roundID(round, previous)
+	for _, m := range c.rcvd[idx] {
+		if m.id == id {
+			return m.when
+		}
+	}
+	return time.Time{}
 }
 
 type roundCache struct {
