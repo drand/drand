@@ -74,9 +74,9 @@ message PartialBeaconPacket {
 // broadcasting protocol.
 message BroadcastPacket {
     dkg.Packet dkg = 1;
-    // issuer is the address of the node participating to the broadcasting
+    // transmitter is the address of the node participating to the broadcasting
     // channel - this is to find the identity of the signer of this packet.
-    string issuer = 2;
+    string transmitter = 2;
     // dealer indicates if the issuer is a dealer or not during the broadcast
     bool dealer = 3;
     // signature over hash of the DKG packet
