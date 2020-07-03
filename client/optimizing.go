@@ -18,10 +18,10 @@ import (
 const (
 	defaultRequestTimeout     = time.Second * 5
 	defaultSpeedTestInterval  = time.Minute * 5
-	defaultRequestConcurrency = 2
+	defaultRequestConcurrency = 1
 	// defaultWatchRetryInterval is the time after which a closed watch channel
 	// is re-open when no context error occurred.
-	defaultWatchRetryInterval = time.Second * 5
+	defaultWatchRetryInterval = time.Second * 30
 )
 
 // newOptimizingClient creates a drand client that measures the speed of clients
