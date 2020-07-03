@@ -342,7 +342,7 @@ func (r *setupReceiver) WaitDKGInfo(ctx context.Context) (*key.Group, uint32, er
 		r.l.Error("init_dkg", "wait_group", "err", "timeout")
 		return nil, 0, errors.New("wait_group timeouts from coordinator")
 	case <-ctx.Done():
-		return nil, 0, errors.New("ctx failed")
+		return nil, 0, ctx.Err()
 	}
 }
 
