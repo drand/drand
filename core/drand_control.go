@@ -601,8 +601,14 @@ func nodesContainAddr(nodes []*key.Node, addr string) bool {
 }
 
 // nodeUnion takes the union of two sets of nodes
-func nodeUnion(a, b []*key.Node) []*key.Node {
-	out := append([]*key.Node{}, a...)
+func nodeUnion(us *key.Identity, a, b []*key.Node) []*key.Node {
+	out := make([]*key.Node, 0, len(a))
+	for _, n := range a {
+		if us.Address() == n.Address() {
+			continue
+		}
+		out = append(out, n)
+	}
 	for _, n := range b {
 		if !nodesContainAddr(a, n.Address()) {
 			out = append(out, n)
@@ -658,7 +664,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	if nodesContainAddr(incoming, d.priv.Public.Address()) {
 		newThreshold--
 	}
-	to := nodeUnion(outgoing, incoming)
+	to := nodeUnion(d.priv.Public, outgoing, incoming)
 
 	results := d.pushDKGInfoPacket(ctx, to, packet)
 
@@ -668,7 +674,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		case ok := <-results:
 			total--
 			if ok.err != nil {
-				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", err)
+				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", ok.err)
 				continue
 			}
 			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
