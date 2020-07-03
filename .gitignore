@@ -9,3 +9,4 @@ gh-md-toc
 web/public/
 /drand
 cover*
+wasm/*wasm
