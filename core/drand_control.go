@@ -668,7 +668,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		case ok := <-results:
 			total--
 			if ok.err != nil {
-				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", err)
+				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", ok.err)
 				continue
 			}
 			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
