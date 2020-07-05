@@ -77,10 +77,8 @@ message BroadcastPacket {
     // transmitter is the address of the node participating to the broadcasting
     // channel - this is to find the identity of the signer of this packet.
     string transmitter = 2;
-    // dealer indicates if the issuer is a dealer or not during the broadcast
-    bool dealer = 3;
     // signature over hash of the DKG packet
-    bytes signature = 4;
+    bytes signature = 3;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the

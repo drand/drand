@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
+	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 )
@@ -39,7 +39,7 @@ import (
 // amplification types of vulnerability where one node simply sends many packets
 // that each produces O(n^2) traffic, leading to a potential DOS of the network.
 // This implementation accepts to rebroadcast different messages for the same
-// origin for the same phases, up to a threshold number of times.
+// origin for the same phases, up to a fixed number of times (number of nodes).
 // The reason why the implementation doesn't restrict to
 // one node is that attacker can abuse of this to split the nodes into two: once
 // a group of honest nodes has accepted a message (i.e. it received the same
@@ -47,7 +47,7 @@ import (
 // rebroadcast another one and therefore the group will not be able to tell the
 // DKG library that a given node is misbehaving.
 //
-// NOTE: this implementation while in practice is largely sufficient, in theory
+// NOTE: this implementation while in practice is believed to be sufficient, in theory
 // does not prevent a certain kind of attacks that happens on the boundary of a
 // phase transition. Namely, if malicious actor sends a one packet p1 to two
 // honest nodes and another packet p2 to two other honest nodes at the same
@@ -63,116 +63,153 @@ import (
 // the DKG. This implementation randomizes the transmission of blocks each time
 // to drastically reduces the risk of pulling out such attacks.
 type broadcastChannel struct {
-	l       log.Logger
-	us      *key.Pair
-	nodes   []*key.Node
-	dealers []*key.Node
-	holders []*key.Node
-	client  net.ProtocolClient
-	// deals must be rebroadcasted by at least a threshold of share holders
+	c  *broadcastConfig
+	l  log.Logger
+	to []*key.Node
+	// to keep track of deal messages
+	// XXX: we could avoid having one store only however, that would necessitate
+	// to allow for more transmission possible in one given round
 	deals *store
-	// responses must be rebroadcasted by at least a threshold of dealers
-	// as well as a threshold of share holders (can be different)
+	// to keep track of response messages
 	resps *store
-	// justifications need to be rebroadcasted by at least a threshold of share
-	// holders
+	// to keep track of justification messages
 	justs *store
 }
 
-func newBroadcastChannel(l log.Logger, client net.ProtocolClient, us *key.Pair, to []*key.Node) *broadcastChannel {
-	return &broadcastChannel{
-		us:     us,
-		nodes:  to,
-		client: client,
-		l:      l,
+// Packet is an interface that represents the packets that gets broadcasted by
+// this protocol. These packets must be authenticated so this interface allows
+// to (1) get the information needed to verify the authenticity and to get the
+// identifier of the creator of the packet - information that is required to
+// implement the broadcast protocol.
+type Packet = dkg.Packet
+
+// PacketVerifier is the function that can verify the authenticity of a packet.
+type PacketVerifier func(Packet) error
+
+// PacketCallback is called when a packet is ready to be accepted by the
+// application logic.
+type PacketCallback func(Packet)
+
+type broadcastConfig struct {
+	l                 log.Logger
+	client            net.ProtocolClient
+	us                *key.Pair
+	role              role
+	dealers           []*key.Node
+	sharers           []*key.Node
+	dealThr           int
+	shareThr          int
+	maxPacketPerPhase int
+	verifier          PacketVerifier
+	accepter          PacketCallback
+}
+
+func newBroadcastChannel(c *broadcastConfig) *broadcastChannel {
+	bc := &broadcastChannel{
+		l:  c.l,
+		c:  c,
+		to: nodeUnion(c.dealers, c.sharers),
 	}
+	_, bc.role = bc.findNode(c.us)
+	return bc
 }
 
 func (b *broadcastChannel) PushDeals(bundle *dkg.DealBundle) {
-	pdeal := dealToProto(bundle)
-	b.l.Info("push", "deal", "index", bundle.DealerIndex, "hash", fmt.Sprintf("%x", bundle.Hash()))
-	b.dealCh <- *bundle
-	go b.broadcastPacket(pdeal, "deal")
+	b.deals.push(bundle.Issuer(), b.role, b.c.us.Public.Address(), deal)
+	b.broadcast(bundle)
 }
 
 func (b *dkgBoard) PushResponses(bundle *dkg.ResponseBundle) {
-	presp := respToProto(bundle)
-	b.respCh <- *bundle
-	go b.broadcastPacket(presp, "response")
+	b.deals.push(bundle.Issuer(), b.role, b.c.us.Public.Address(), deal)
+	b.broadcast(bundle)
 }
 
 func (b *dkgBoard) PushJustifications(bundle *dkg.JustificationBundle) {
-	pjust := justifToProto(bundle)
-	b.justCh <- *bundle
-	go b.broadcastPacket(pjust, "justification")
+	b.deals.push(bundle.Issuer(), b.role, b.c.us.Public.Address(), deal)
+	b.broadcast(bundle)
 }
 
 func (b *broadcastChannel) Broadcast(c context.Context, p *proto.BroadcastPacket) (*proto.Empty, error) {
 	var netAddr = net.RemoteAddress(c)
-	// extract issuer and verify signature is correct
-	node, dealer := b.findNode(p.GetTransmitter())
-	if node == nil {
-		b.l.Debug("broadcast", "unknown_issuer", "from", netAddr)
-		return errors.New("unknown issuer")
+	dkgPacket, err := protoToDKGPacket(p.GetDKG())
+	if err != nil {
+		b.l.Debug("broadcast", "invalid_dkg_packet", "from", netAddr, "packet", fmt.Sprintf("%+v", p))
+		return nil, errors.New("invalid packet")
 	}
-	msg := hashofDKGPacket(p.GetDKG())
-	if err := BroadcastAuthScheme.Verify(node.Key, msg, p.GetSignature()); err != nil {
-		b.l.Debug("broadcast", "invalid_signature", "from", netAddr)
-		return errors.New("invalid signature")
-	}
-
 	// dispatch to the correct store
 	var store *store
-	var spacket interface{}
-	switch packet := p.GetBundle().(type) {
-	case *pdkg.Packet_Deal:
-		spacket = packet.GetDeal()
+	switch dkgPacket.(type) {
+	case *dkg.DealBundle:
 		store = b.deals
-	case *pdkg.Packet_Response:
-		spacket = packet.Response
+	case *dkg.ResponseBundle:
 		store = b.resps
-	case *pdkg.Packet_Justification:
-		spacket = packet.Justification
+	case *dkg.JustificationBundle:
 		store = b.justs
 	default:
-		b.l.Debug("broadcast", "invalid_packet", "from", addr, "packet", fmt.Sprintf("%+v", p))
-		return errors.New("invalid packet")
+		b.l.Debug("broadcast", "invalid_packet", "from", netAddr, "packet", fmt.Sprintf("%+v", dkgPacket))
+		return nil, errors.New("invalid packet")
 	}
 
-	shouldBroadcast, shouldAccept := store.push(node, spacket)
+	// first verify if the inner packet has a valid signature - this is needed
+	// to make sure we only store authentic packets and dont filter out packets
+	// claiming to be from honest nodes.
+	if err := b.c.verifier(dkgPacket); err != nil {
+		b.l.Debug("broadcast", "invalid_dkg_packet", "from", netAddr, "packet", fmt.Sprintf("%+v", p))
+		return nil, errors.New("invalid dkg signature")
+	}
+
+	// then extract transmitter address and if verify signature is correct
+	transmitter, role := b.findNode(p.GetTransmitter())
+	if transmitter == nil {
+		b.l.Debug("broadcast", "unknown_issuer", "from", netAddr)
+		return nil, errors.New("unknown issuer")
+	}
+
+	hash := hashOfDKGPacket(dkgPacket)
+	if err := DKGAuthScheme.Verify(transmitter.Key, hash, p.GetSignature()); err != nil {
+		b.l.Debug("broadcast", "invalid_signature", "from", netAddr)
+		return nil, errors.New("invalid signature")
+	}
+	shouldBroadcast, shouldAccept := store.push(issuer, transmitter, dealer, hash, spacket)
 	if shouldBroadcast {
 		// retransmit the packet as well
-		return b.broadcast(p)
+		return nil, b.broadcast(p)
 	} else if shouldAccept {
-		b.accept(packet)
+		b.c.accepter(packet)
 	}
-	return nil
+	return new(drand.Empty), nil
 }
 
 // broadcast signs the packet and randomizes the order of the nodes to which it
 // sends the packet to
-func (b *broadcastChannel) broadcast(p *pdkg.Packet) {
-	signature, err := BroadcastAuthScheme.Sign(b.us.Key, hashOfDKGPacket(p))
+func (b *broadcastChannel) broadcast(p dkg.Packet) {
+	signature, err := DKGAuthScheme.Sign(b.us.Key, hashOfDKGPacket(p))
 	if err != nil {
 		b.l.Error("broadcast", "unable_to_sign", "err", err)
 		return
 	}
 	b := &proto.BroadcastPacket{
-		DKG:         p,
+		DKG:         dkgPacketToProto(p),
 		Signature:   signature,
 		Transmitter: b.us.Public.Address(),
-		// TODO Add dealer?
 	}
+
+	var good int
 	for _, i := range newRand().Perm(len(b.to)) {
 		to := b.nodes[i]
 		if to.Address() == b.us.Public.Address() {
 			continue
 		}
-		b.client.Broadcast(context.Background(), to, b)
+		if err := b.client.Broadcast(context.Background(), to, b); err != nil {
+			b.l.Debug("broadcast", "unable_to_send", "err", err)
+		} else {
+			good++
+		}
 	}
+	b.l.Debug("broadcast", "send_packet", "success_broadcast", fmt.Sprintf("%d/%d", good, len(b.to)))
 }
 
-func (b *broadcastChannel) accept(p interface{}) {
+func (b *broadcastChannel) accept(p dkg.Packet) {
 	switch packet := p.(type) {
 	case *dkg.DealBundle:
 		b.dealCh <- packet
@@ -183,13 +220,20 @@ func (b *broadcastChannel) accept(p interface{}) {
 	}
 }
 
-// findNode returns the node associated with that address and true if it is a
-// dealer or false otherwise (share holder).
-func (b *broadcastChannel) findNode(addr string) (*key.Node, bool) {
-	if n := findNodeIn(b.dealers, addr); n != nil {
-		return n, true
+// findNode returns the node associated with that address and the role
+// assicoated: dealer, holder or both
+func (b *broadcastChannel) findNode(addr string) (node *key.Node, r role) {
+	if n = findNodeIn(b.c.dealers, addr); n != nil {
+		r = dealerRole
 	}
-	return findNodeIn(b.holders, addr)
+	if n2 := findNodeIn(b.c.holders, addr); n2 != nil {
+		if r == dealerRole {
+			r = dealerHolder
+		} else {
+			r = holderRole
+		}
+	}
+	return n, r
 }
 
 func findNodeIn(list []*key.Node, addr string) *key.Node {
@@ -201,61 +245,113 @@ func findNodeIn(list []*key.Node, addr string) *key.Node {
 	return nil
 }
 
+// store responsability is to keep all the different counters of the different
+// packets that are being broadcasted by the protocol
 type store struct {
-	packets map[string][]*packetCounter
-	thr1    int
-	thr2    int
+	packets  map[uint32][]*packetCounter
+	max      int
+	l        log.Logger
+	dealThr  int
+	shareThr int
 }
 
-func (s *store) push(from *key.Node, h []byte, packet interface{}) bool {
-	counters, ok := s.packets[from]
+func newStore(l log.Logger, maxIssuer, dealThr, shareThr int) *store {
+	return &store{
+		l:        l,
+		packets:  make(map[uint32][]*packetCounter),
+		max:      maxIssuer,
+		dealThr:  dealThr,
+		shareThr: shareThr,
+	}
+}
+
+func (s *store) push(issuer uint32, role role, transmitter string, h []byte, packet Packet) (bool, bool) {
+	// find the right counter for this issuer
+	counters := s.packets[issuer]
 	var counter *counter
 	for _, c := range counters {
 		if bytes.Equal(h, c.hash) {
 			counter = c
 		}
 	}
+
 	if counter == nil {
-		if len(counters) < s.thr1+s.thr2 {
-			counter = newCounter()
+		if len(counters) < max {
+			counter = newCounter(s.dealThr, s.shareThr, h, packet)
 			s.packets[from] = append(s.packets[from], counter)
+		} else {
+			s.l.Info("broadcast", "FULL_CACHE (DOS)", "index", issuer, "dealer?", dealer, "packet", fmt.Sprintf("%+v", packet))
+			return false, false
 		}
 	}
-
-	return true
+	return counter.push(transmitter, role)
 }
 
+// packetCounter  role is to maintain a record of which node broadcasted this
+// node and to tell the upper logic when this packet is ready to be accepted by
+// the application (dkg library in this case).
 type packetCounter struct {
-	issuer uint32
-	packet interface{}
-	rcvd   []uint32
+	l         log.Logger
+	hash      []byte
+	packet    interface{}
+	dealers   []string
+	dealThr   int
+	holders   []string
+	holderThr int
 }
 
-func (p *packetCounter) process(issuer uint32, p interface{}) {
-	for _, r := range p.rcvd {
-		if r == issuer {
-			return
+func newCounter(dealThr, holderThr int, h []byte, packet Packet) *packetCounter {
+	return &packetCounter{
+		hash:      h,
+		packet:    packet,
+		dealThr:   dealThr,
+		holderThr: holderThr,
+	}
+}
+
+// returns
+// shouldBroadcast: whether we must broadcast the packet if it's the first time
+// we've seen it
+// shouldAccept: whether we must pass the packet to the application logic
+func (p *packetCounter) push(transmitter string, r role) (bool, bool) {
+	list := p.dealers
+	if !dealers {
+		list = p.holders
+	}
+	for _, r := range list {
+		if r == transmitter {
+			return false, false
 		}
 	}
-	p.rcvd = append(p.rcvd, issuer)
+	list = append(list, issuer)
+	if dealers {
+		p.dealers = list
+	} else {
+		p.holders = list
+	}
+
+	var shouldBroadcast bool
+	if len(p.dealers)+len(p.holders) == 1 {
+		// first time we receive this message
+		shouldBroadcast = true
+	}
+
+	var shouldAccept bool
+	if len(p.dealers) >= dealThr && len(p.holders) >= holderThr {
+		// seen enough retransmission from dealers and holders to pass the
+		// packet to the dkg library
+		shouldAccept = true
+	}
+	return shouldBroadcast, shouldAccept
 }
 
-func hashOfDKGPacket(p *proto.BroadcastPacket) []byte {
+func hashOfDKGPacket(p dkg.Packet) []byte {
 	if p == nil {
 		return nil
 	}
 	var h = sha256.New()
-	switch packet := p.GetBundle().(type) {
-	case *pdkg.Packet_Deal:
-		h.Write(packet.Deal.Hash())
-		h.Write(packet.Deal.GetSignature())
-	case *pdkg.Packet_Response:
-		h.Write(packet.Response.Hash())
-		h.Write(packet.Response.GetSignature())
-	case *pdkg.Packet_Justification:
-		h.Write(packet.Justification.Hash())
-		h.Write(packet.Justification.GetSignature())
-	}
+	h.Write(p.Hash())
+	h.Write(p.Signature())
 	return h.Sum(nil)
 }
 
@@ -266,3 +362,12 @@ func newRand() *rand.Rand {
 	}
 	rand.New(rand.NewSource(isource))
 }
+
+type role int
+
+const (
+	dealerRole = iota + 1
+	holderRole
+	// happens when a node is within both group
+	dealerHolder
+)

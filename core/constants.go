@@ -69,9 +69,9 @@ const callbackID = "callbackID"
 // PrivateRandLength is the length of expected private randomness buffers
 const PrivateRandLength = 32
 
-// BroadcastAuthScheme is the signature scheme used to authentify packets during
+// DKGAuthScheme is the signature scheme used to authentify packets during
 // a broadcast
-var BroadcastAuthScheme = schnorr.NewScheme(&schnorrSuite{key.KeyGroup})
+var DKGAuthScheme = schnorr.NewScheme(&schnorrSuite{key.KeyGroup})
 
 type schnorrSuite struct {
 	kyber.Group
