@@ -5,7 +5,7 @@ We believe that our mission is best served in an environment that is friendly, s
 ## tl;dr
 
 - Be respectful.
-- We're here to help: abuse@ipfs.io
+- We're here to help: abuse@drand.love
 - Abusive behavior is never tolerated.
 - Violations of this code may result in swift and permanent expulsion from the community.
 - "Too long, didn't read" is not a valid excuse for not knowing what is in this document.
