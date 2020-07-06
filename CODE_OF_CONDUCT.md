@@ -68,8 +68,7 @@ On IRC, let one of the ops know if you think that someone has transgressed again
 
 ## Contact Info
 
-Please contact abuse@ipfs.io if you need to report a problem or address a grievance related to an abuse report.
-The Drand team currently defers to the [IPFS abuse team](https://github.com/ipfs/community/blob/master/code-of-conduct.md#contact-info) for Code of Conduct resolutions. We believe they are best positioned to act as fair mediators with authority over our community for this purpose.
+Please contact abuse@drand.love if you need to report a problem or address a grievance related to an abuse report.
 
 We will keep all matters confidential and they will only be shared within the team, with the exception of legal counsel when deemed necessary, or unless given explicit permission by the reporter.
 
