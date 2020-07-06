@@ -43,7 +43,7 @@ jobs:
       name: Save report
       run: |
         OUTPUT=$(cat report.md)
-        OUTPUT="${OUTPUT//'%'/'%25'}​【7,6 m】"
+        OUTPUT="${OUTPUT//'%'/'%25'}"
         OUTPUT="${OUTPUT//$'\n'/'%0A'}"
         OUTPUT="${OUTPUT//$'\r'/'%0D'}"
         echo "::set-output name=result::$OUTPUT"

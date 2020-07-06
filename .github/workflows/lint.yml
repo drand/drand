@@ -10,22 +10,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-
     - uses: actions/cache@v2
-      id: cache
+      id: lint-dep-cache
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-        restore-keys: |
-          ${{ runner.os }}-go-
-
     - name: Fetch Dependencies
-      if: steps.cache.outputs.cache-hit != 'true'
       run: go get ./...
-
-    - name: Build
-      run: go build .
-
     - name: Run golangci-lint
       uses: golangci/golangci-lint-action@v1.2.1
       with:

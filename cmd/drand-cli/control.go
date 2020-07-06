@@ -89,7 +89,7 @@ func shareCmd(c *cli.Context) error {
 	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", err)
+		return fmt.Errorf("error setting up the network: %v", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
@@ -137,7 +137,7 @@ func leadShareCmd(c *cli.Context) error {
 	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", err)
+		return fmt.Errorf("error setting up the network: %v", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
@@ -183,7 +183,7 @@ func reshareCmd(c *cli.Context) error {
 	fmt.Fprintln(output, "Participating to the resharing")
 	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath)
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", err)
+		return fmt.Errorf("error setting up the network: %v", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
@@ -230,7 +230,7 @@ func leadReshareCmd(c *cli.Context) error {
 	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout, args.secret, oldPath, offset)
 
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", err)
+		return fmt.Errorf("error setting up the network: %v", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
