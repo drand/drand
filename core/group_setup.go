@@ -269,6 +269,7 @@ type setupReceiver struct {
 	leader   net.Peer
 	leaderID *key.Identity
 	secret   []byte
+	done     bool
 }
 
 func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
@@ -329,7 +330,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	return nil
 }
 
-func (r *setupReceiver) WaitDKGInfo() (*key.Group, uint32, error) {
+func (r *setupReceiver) WaitDKGInfo(ctx context.Context) (*key.Group, uint32, error) {
 	select {
 	case dkgGroup := <-r.ch:
 		if dkgGroup == nil {
@@ -340,11 +341,18 @@ func (r *setupReceiver) WaitDKGInfo() (*key.Group, uint32, error) {
 	case <-r.clock.After(MaxWaitPrepareDKG):
 		r.l.Error("init_dkg", "wait_group", "err", "timeout")
 		return nil, 0, errors.New("wait_group timeouts from coordinator")
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
 	}
 }
 
+// stop must be called in a thread safe manner
 func (r *setupReceiver) stop() {
+	if r.done {
+		return
+	}
 	close(r.ch)
+	r.done = true
 }
 
 // correctSecret returns true if `hashed" and the hash of `received are equal.
