@@ -22,6 +22,7 @@ const (
 	// defaultWatchRetryInterval is the time after which a closed watch channel
 	// is re-open when no context error occurred.
 	defaultWatchRetryInterval = time.Second * 30
+	defaultChannelBuffer      = 5
 )
 
 // newOptimizingClient creates a drand client that measures the speed of clients
@@ -330,67 +331,30 @@ type watchResult struct {
 	Client
 }
 
-func (oc *optimizingClient) watchIngest(ctx context.Context, c Client, out chan watchResult, done *sync.WaitGroup) {
-	for {
-		resultStream := c.Watch(ctx)
-		for r := range resultStream {
-			out <- watchResult{r, c}
-		}
-		if ctx.Err() != nil {
-			done.Done()
-			return
-		}
-
-		oc.log.Warn("optimizing_client", "watch channel closed")
-
-		if oc.watchRetryInterval < 0 { // negative interval disables retries
-			done.Done()
-			return
-		}
-
-		t := time.NewTimer(oc.watchRetryInterval)
-		select {
-		case <-t.C:
-		case <-ctx.Done():
-			t.Stop()
-		}
-	}
-}
-
-func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchResult, out chan Result, done chan bool) {
+func (oc *optimizingClient) trackWatchResults(info *chain.Info, in chan watchResult, out chan Result) {
 	defer close(out)
 
 	latest := uint64(0)
-	for {
-		select {
-		case r, ok := <-in:
-			if !ok {
-				return
-			}
-
-			round := r.Result.Round()
-			timeOfRound := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
-			stat := requestStat{
-				client:    r.Client,
-				rtt:       time.Since(timeOfRound),
-				startTime: timeOfRound,
-			}
-			oc.updateStats([]*requestStat{&stat})
-			if round > latest {
-				latest = round
-				out <- r.Result
-			}
-		case <-done:
-			return
+	for r := range in {
+		round := r.Result.Round()
+		timeOfRound := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0)
+		stat := requestStat{
+			client:    r.Client,
+			rtt:       time.Since(timeOfRound),
+			startTime: timeOfRound,
+		}
+		oc.updateStats([]*requestStat{&stat})
+		if round > latest {
+			latest = round
+			out <- r.Result
 		}
 	}
 }
 
 // Watch returns new randomness as it becomes available.
 func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
-	outChan := make(chan Result)
-	inChan := make(chan watchResult)
-	wg := sync.WaitGroup{}
+	outChan := make(chan Result, defaultChannelBuffer)
+	inChan := make(chan watchResult, defaultChannelBuffer)
 
 	info, err := oc.Info(ctx)
 	if err != nil {
@@ -399,19 +363,161 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 		return outChan
 	}
 
-	for _, c := range oc.clients {
-		wg.Add(1)
-		go oc.watchIngest(ctx, c, inChan, &wg)
+	state := watchState{
+		ctx:           ctx,
+		optimizer:     oc,
+		active:        make([]watchingClient, 0),
+		failed:        make([]failedClient, 0),
+		retryInterval: oc.watchRetryInterval,
 	}
 
-	doneChan := make(chan bool)
-	go func() {
-		wg.Wait()
-		close(doneChan)
-	}()
-
-	go oc.trackWatchResults(info, inChan, outChan, doneChan)
+	go state.loop(inChan)
+	go oc.trackWatchResults(info, inChan, outChan)
 	return outChan
+}
+
+type watchingClient struct {
+	Client
+	context.CancelFunc
+}
+
+type failedClient struct {
+	Client
+	time.Time
+}
+
+type watchState struct {
+	ctx           context.Context
+	optimizer     *optimizingClient
+	active        []watchingClient
+	failed        []failedClient
+	retryInterval time.Duration
+}
+
+func (ws *watchState) loop(resultChan chan watchResult) {
+	closingClients := make(chan Client, 1)
+	defer close(resultChan)
+
+	ticker := time.NewTicker(ws.optimizer.watchRetryInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case c := <-closingClients:
+			ws.done(c)
+			if ws.ctx.Err() == nil {
+				ws.tryRepopulate(resultChan, closingClients)
+			}
+			if len(ws.active) == 0 {
+				return
+			}
+		case <-ticker.C:
+			if ws.has(ws.optimizer.fastestClients()[0]) == -1 {
+				ws.closeSlowest()
+				ws.tryRepopulate(resultChan, closingClients)
+			}
+		case <-ws.ctx.Done():
+			for _, c := range ws.active {
+				c.CancelFunc()
+			}
+		}
+	}
+}
+
+func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) {
+	ws.clean()
+
+	for len(ws.active) < ws.optimizer.requestConcurrency {
+		if ws.nextUnwatched() == nil {
+			return
+		}
+		go ws.watchNext(results, done)
+	}
+	return
+}
+
+func (ws *watchState) clean() {
+	nf := make([]failedClient, 0, len(ws.failed))
+	for _, f := range ws.failed {
+		if f.Time.After(time.Now()) {
+			nf = append(nf, f)
+		}
+	}
+	ws.failed = nf
+}
+
+func (ws *watchState) close(clientIdx int) {
+	ws.active[clientIdx].CancelFunc()
+	ws.active[clientIdx] = ws.active[len(ws.active)-1]
+	ws.active[len(ws.active)-1] = watchingClient{}
+	ws.active = ws.active[:len(ws.active)-1]
+}
+
+func (ws *watchState) done(c Client) {
+	idx := ws.has(c)
+	if idx > -1 {
+		ws.close(idx)
+		ws.failed = append(ws.failed, failedClient{c, time.Now().Add(ws.retryInterval)})
+	}
+}
+
+func (ws *watchState) has(c Client) int {
+	for i, a := range ws.active {
+		if a.Client == c {
+			return i
+		}
+	}
+	return -1
+}
+
+func (ws *watchState) closeSlowest() {
+	if len(ws.active) == 0 {
+		return
+	}
+	order := ws.optimizer.fastestClients()
+	idxs := make([]int, 0)
+	for _, c := range order {
+		for i, a := range ws.active {
+			if a.Client == c {
+				idxs = append(idxs, i)
+			}
+		}
+	}
+	ws.close(idxs[len(idxs)-1])
+}
+
+func (ws *watchState) nextUnwatched() Client {
+	clients := ws.optimizer.fastestClients()
+	for _, c := range clients {
+		for _, a := range ws.active {
+			if c == a.Client {
+				continue
+			}
+		}
+		for _, f := range ws.failed {
+			if c == f.Client {
+				continue
+			}
+		}
+		return c
+	}
+	return nil
+}
+
+func (ws *watchState) watchNext(out chan watchResult, done chan Client) {
+	c := ws.nextUnwatched()
+	if c == nil {
+		return
+	}
+	cctx, cancel := context.WithCancel(ws.ctx)
+
+	ws.active = append(ws.active, watchingClient{c, cancel})
+
+	defer func() { done <- c }()
+
+	resultStream := c.Watch(cctx)
+	for r := range resultStream {
+		out <- watchResult{r, c}
+	}
 }
 
 // Info returns the parameters of the chain this client is connected to.
