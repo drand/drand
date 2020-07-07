@@ -110,7 +110,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	}
 
 	if round == 1 {
-		return info.GroupHash, nil
+		return info.GenesisSeed, nil
 	}
 
 	trustRound := uint64(1)

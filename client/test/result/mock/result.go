@@ -113,7 +113,7 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 		PublicKey:   public,
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix() - int64(count),
-		GroupHash:   out[0].PSig,
+		GenesisSeed: out[0].PSig,
 	}
 
 	return &info, out

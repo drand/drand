@@ -17,7 +17,7 @@ type Info struct {
 	PublicKey   kyber.Point   `json:"public_key"`
 	Period      time.Duration `json:"period"`
 	GenesisTime int64         `json:"genesis_time"`
-	GroupHash   []byte        `json:"group_hash"`
+	GenesisSeed []byte        `json:"genesis_seed"`
 }
 
 // NewChainInfo makes a chain Info from a group
@@ -26,7 +26,7 @@ func NewChainInfo(g *key.Group) *Info {
 		Period:      g.Period,
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
-		GroupHash:   g.Hash(),
+		GenesisSeed: g.GetGenesisSeed(),
 	}
 }
 
@@ -42,7 +42,7 @@ func (c *Info) Hash() []byte {
 		log.DefaultLogger().Warn("info", "failed to hash pubkey", "err", err)
 	}
 	_, _ = h.Write(buff)
-	_, _ = h.Write(c.GroupHash)
+	_, _ = h.Write(c.GenesisSeed)
 	return h.Sum(nil)
 }
 
@@ -51,5 +51,5 @@ func (c *Info) Equal(c2 *Info) bool {
 	return c.GenesisTime == c2.GenesisTime &&
 		c.Period == c2.Period &&
 		c.PublicKey.Equal(c2.PublicKey) &&
-		bytes.Equal(c.GroupHash, c2.GroupHash)
+		bytes.Equal(c.GenesisSeed, c2.GenesisSeed)
 }

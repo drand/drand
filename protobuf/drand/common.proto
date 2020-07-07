@@ -57,5 +57,5 @@ message ChainInfoPacket {
     // compute its hash
     bytes hash = 4;
     // hash of the genesis group
-    bytes groupHash = 5;
+    bytes genesis_seed = 5;
 }
