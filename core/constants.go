@@ -8,9 +8,9 @@ import (
 
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/sign/schnorr"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/util/random"
+	"github.com/drand/kyber/util/random"
 )
 
 // DefaultConfigFolderName is the name of the folder containing all key materials

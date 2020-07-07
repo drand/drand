@@ -187,31 +187,16 @@ func (g *grpcClient) SignalDKGParticipant(ctx context.Context, p Peer, in *drand
 	return err
 }
 
-func (g *grpcClient) FreshDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) (*drand.Empty, error) {
-	var resp *drand.Empty
+func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) error {
 	c, err := g.conn(p)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	client := drand.NewProtocolClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
-	resp, err = client.FreshDKG(ctx, in, opts...)
-	return resp, err
-}
-
-func (g *grpcClient) ReshareDKG(ctx context.Context, p Peer, in *drand.ResharePacket, opts ...CallOption) (*drand.Empty, error) {
-	var resp *drand.Empty
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
-	}
-	client := drand.NewProtocolClient(c)
-	ctx, cancel := g.getTimeoutContext(ctx)
-	defer cancel()
-
-	resp, err = client.ReshareDKG(ctx, in, opts...)
-	return resp, err
+	_, err = client.BroadcastDKG(ctx, in, opts...)
+	return err
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {

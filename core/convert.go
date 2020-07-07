@@ -26,22 +26,22 @@ func protoToDKGPacket(d *pdkg.Packet) (dkg.Packet, error) {
 	case *pdkg.Packet_Deal:
 		return protoToDeal(packet.Deal)
 	case *pdkg.Packet_Response:
-		return protoToResp(packet.Response)
+		return protoToResp(packet.Response), nil
 	case *pdkg.Packet_Justification:
-		return protoToJustification(packet.Justification)
+		return protoToJustif(packet.Justification)
 	default:
 		return nil, errors.New("unknown packet")
 	}
 }
 
-func dkgPacketToProto(p dkg.Packet) (pdkg.Packet, error) {
+func dkgPacketToProto(p dkg.Packet) (*pdkg.Packet, error) {
 	switch inner := p.(type) {
 	case *dkg.DealBundle:
-		return dealToProto(inner)
+		return dealToProto(inner), nil
 	case *dkg.ResponseBundle:
-		return responseToProto(inner)
+		return respToProto(inner), nil
 	case *dkg.JustificationBundle:
-		return justificationToProto(inner)
+		return justifToProto(inner), nil
 	default:
 		return nil, errors.New("invalid dkg packet")
 	}

@@ -25,7 +25,7 @@ service Protocol {
     // starting the DKG.
     rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
     // BroadcastPacket is used during DKG phases
-    rpc Broadcast(BroadcastPacket) returns (drand.Empty);
+    rpc BroadcastDKG(DKGPacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
@@ -70,15 +70,10 @@ message PartialBeaconPacket {
     bytes partial_sig = 3;
 }
 
-// BroadcastPacket is the packet that nodes send to others nodes as part of the
+// DKGPacket is the packet that nodes send to others nodes as part of the
 // broadcasting protocol.
-message BroadcastPacket {
+message DKGPacket{
     dkg.Packet dkg = 1;
-    // transmitter is the address of the node participating to the broadcasting
-    // channel - this is to find the identity of the signer of this packet.
-    string transmitter = 2;
-    // signature over hash of the DKG packet
-    bytes signature = 3;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the
