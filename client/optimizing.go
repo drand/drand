@@ -432,7 +432,6 @@ func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) 
 		}
 		go ws.watchNext(results, done)
 	}
-	return
 }
 
 func (ws *watchState) clean() {
