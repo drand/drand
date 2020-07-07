@@ -26,4 +26,6 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
-
+ldflags:
+     - -s -w -X github.com/drand/drand/cmd/drand-cli.version={{.Version}} -X github.com/drand/drand/cmd/drand-cli.buildDate={{.Date}} -X github.com/drand/drand/cmd/drand-cli.gitCommit={{.Commit}}
+mod_timestamp: '{{ .CommitTimestamp }}'
