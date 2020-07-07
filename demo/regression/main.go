@@ -69,6 +69,7 @@ func testUpgrade(orch *lib.Orchestrator) (err error) {
 	orch.CheckNewBeacon(1)
 	orch.StartNode(1)
 	orch.WaitPeriod()
+	orch.WaitPeriod()
 	orch.CheckNewBeacon()
 
 	return nil
@@ -172,6 +173,7 @@ const reportTemplate = `
 {{.Upgrade}}
 ~~~
 {{- end}}
+
 `
 
 func setSignal(orch *lib.Orchestrator) {

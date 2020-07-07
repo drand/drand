@@ -255,7 +255,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
-func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
+func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -273,12 +273,15 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	d.receiver = receiver
 	d.state.Unlock()
 
-	defer func() {
+	defer func(r *setupReceiver) {
 		d.state.Lock()
-		d.receiver.stop()
-		d.receiver = nil
+		r.stop()
+		if r == d.receiver {
+			// if there has been no new receiver since, we set the field to nil
+			d.receiver = nil
+		}
 		d.state.Unlock()
-	}()
+	}(receiver)
 	// send public key to leader
 	id := d.priv.Public.ToProto()
 	prep := &drand.SignalDKGPacket{
@@ -294,7 +297,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 
 	d.log.Debug("init_dkg", "wait_group")
 
-	group, dkgTimeout, err := d.receiver.WaitDKGInfo()
+	group, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +374,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
 	}
 
-	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo()
+	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
 	if err != nil {
 		return nil, err
 	}
@@ -603,8 +606,14 @@ func nodesContainAddr(nodes []*key.Node, addr string) bool {
 }
 
 // nodeUnion takes the union of two sets of nodes
-func nodeUnion(a, b []*key.Node) []*key.Node {
-	out := append([]*key.Node{}, a...)
+func nodeUnion(us *key.Identity, a, b []*key.Node) []*key.Node {
+	out := make([]*key.Node, 0, len(a))
+	for _, n := range a {
+		if us.Address() == n.Address() {
+			continue
+		}
+		out = append(out, n)
+	}
 	for _, n := range b {
 		if !nodesContainAddr(a, n.Address()) {
 			out = append(out, n)
@@ -660,7 +669,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	if nodesContainAddr(incoming, d.priv.Public.Address()) {
 		newThreshold--
 	}
-	to := nodeUnion(outgoing, incoming)
+	to := nodeUnion(d.priv.Public, outgoing, incoming)
 
 	results := d.pushDKGInfoPacket(ctx, to, packet)
 
@@ -670,7 +679,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		case ok := <-results:
 			total--
 			if ok.err != nil {
-				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", err)
+				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", ok.err)
 				continue
 			}
 			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
