@@ -398,11 +398,15 @@ func (ws *watchState) loop(resultChan chan watchResult) {
 	closingClients := make(chan Client, 1)
 	defer close(resultChan)
 
+	// spin up initial watcher(s)
+	ws.tryRepopulate(resultChan, closingClients)
+
 	ticker := time.NewTicker(ws.optimizer.watchRetryInterval)
 	defer ticker.Stop()
 	for {
 		select {
 		case c := <-closingClients:
+			// replace failed watchers
 			ws.done(c)
 			if ws.ctx.Err() == nil {
 				ws.tryRepopulate(resultChan, closingClients)
@@ -411,6 +415,7 @@ func (ws *watchState) loop(resultChan chan watchResult) {
 				return
 			}
 		case <-ticker.C:
+			// periodically cycle to fastest client.
 			if ws.has(ws.optimizer.fastestClients()[0]) == -1 {
 				ws.closeSlowest()
 				ws.tryRepopulate(resultChan, closingClients)
@@ -419,6 +424,7 @@ func (ws *watchState) loop(resultChan chan watchResult) {
 			for _, c := range ws.active {
 				c.CancelFunc()
 			}
+			ws.active = []watchingClient{}
 		}
 	}
 }
@@ -426,12 +432,30 @@ func (ws *watchState) loop(resultChan chan watchResult) {
 func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) {
 	ws.clean()
 
-	for len(ws.active) < ws.optimizer.requestConcurrency {
-		if ws.nextUnwatched() == nil {
+	for {
+		if len(ws.active) >= ws.optimizer.requestConcurrency {
 			return
 		}
-		go ws.watchNext(results, done)
+		c := ws.nextUnwatched()
+		if c == nil {
+			return
+		}
+		cctx, cancel := context.WithCancel(ws.ctx)
+
+		ws.active = append(ws.active, watchingClient{c, cancel})
+		ws.optimizer.log.Info("optimizing_client", "watching on client", "client", fmt.Sprintf("%s", c))
+		go ws.watchNext(cctx, c, results, done)
 	}
+}
+
+func (ws *watchState) watchNext(ctx context.Context, c Client, out chan watchResult, done chan Client) {
+	defer func() { done <- c }()
+
+	resultStream := c.Watch(ctx)
+	for r := range resultStream {
+		out <- watchResult{r, c}
+	}
+	ws.optimizer.log.Info("optimizing_client", "watch ended", "client", fmt.Sprintf("%s", c))
 }
 
 func (ws *watchState) clean() {
@@ -486,37 +510,21 @@ func (ws *watchState) closeSlowest() {
 
 func (ws *watchState) nextUnwatched() Client {
 	clients := ws.optimizer.fastestClients()
+CLIENT_LOOP:
 	for _, c := range clients {
 		for _, a := range ws.active {
 			if c == a.Client {
-				continue
+				continue CLIENT_LOOP
 			}
 		}
 		for _, f := range ws.failed {
 			if c == f.Client {
-				continue
+				continue CLIENT_LOOP
 			}
 		}
 		return c
 	}
 	return nil
-}
-
-func (ws *watchState) watchNext(out chan watchResult, done chan Client) {
-	c := ws.nextUnwatched()
-	if c == nil {
-		return
-	}
-	cctx, cancel := context.WithCancel(ws.ctx)
-
-	ws.active = append(ws.active, watchingClient{c, cancel})
-
-	defer func() { done <- c }()
-
-	resultStream := c.Watch(cctx)
-	for r := range resultStream {
-		out <- watchResult{r, c}
-	}
 }
 
 // Info returns the parameters of the chain this client is connected to.
