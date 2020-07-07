@@ -126,11 +126,11 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		FastSync:       true,
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
-		Auth:           key.AuthScheme,
+		Auth:           DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, group)
-	dkgProto, err := dkg.NewProtocol(config, board, phaser)
+	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
+	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		OldThreshold: oldGroup.Threshold,
 		FastSync:     true,
 		Nonce:        getNonce(newGroup),
-		Auth:         key.AuthScheme,
+		Auth:         DKGAuthScheme,
 	}
 	err := func() error {
 		d.state.Lock()
@@ -210,10 +210,13 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		return nil, err
 	}
-	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, oldGroup, newGroup)
+
+	// "" so all the addresses are taken into consideration
+	allNodes := nodeUnion("", oldGroup.Nodes, newGroup.Nodes)
+	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
 	phaser := d.getPhaser(timeout)
 
-	dkgProto, err := dkg.NewProtocol(config, board, phaser)
+	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
 	}
@@ -604,10 +607,10 @@ func nodesContainAddr(nodes []*key.Node, addr string) bool {
 }
 
 // nodeUnion takes the union of two sets of nodes
-func nodeUnion(us *key.Identity, a, b []*key.Node) []*key.Node {
+func nodeUnion(us string, a, b []*key.Node) []*key.Node {
 	out := make([]*key.Node, 0, len(a))
 	for _, n := range a {
-		if us.Address() == n.Address() {
+		if us == n.Address() {
 			continue
 		}
 		out = append(out, n)
@@ -646,7 +649,7 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 // call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
-	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
+	signature, err := DKGAuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
 		d.log.Error("setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)
@@ -667,7 +670,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	if nodesContainAddr(incoming, d.priv.Public.Address()) {
 		newThreshold--
 	}
-	to := nodeUnion(d.priv.Public, outgoing, incoming)
+	to := nodeUnion(d.priv.Public.Address(), outgoing, incoming)
 
 	results := d.pushDKGInfoPacket(ctx, to, packet)
 

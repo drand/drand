@@ -24,10 +24,8 @@ service Protocol {
     // from all received keys and as well other information such as the time of
     // starting the DKG.
     rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
-    // Setup is doing the DKG setup phase
-    rpc FreshDKG(DKGPacket) returns (drand.Empty);
-    // Reshare performs the resharing phase
-    rpc ReshareDKG(ResharePacket) returns (drand.Empty);
+    // BroadcastPacket is used during DKG phases
+    rpc BroadcastDKG(DKGPacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
@@ -68,21 +66,14 @@ message PartialBeaconPacket {
     // is used to verify the signature even before accessing the store
     bytes previous_sig = 2;
     // partial signature - a threshold of them needs to be aggregated to produce
-    // the final beacon at the given round.
+    // the final beacon at the given round.Beautiful 
     bytes partial_sig = 3;
 }
 
-message DKGPacket {
+// DKGPacket is the packet that nodes send to others nodes as part of the
+// broadcasting protocol.
+message DKGPacket{
     dkg.Packet dkg = 1;
-}
-
-// Reshare is a wrapper around a Setup packet for resharing operation that
-// serves two purposes: - indicate to non-leader old nodes that they should
-// generate and send their deals - indicate to which new group are we resharing.
-// drand should keep a list of new ready-to-operate groups allowed.
-message ResharePacket {
-    dkg.Packet dkg = 1;
-    string group_hash = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the
