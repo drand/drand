@@ -211,7 +211,8 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		return nil, err
 	}
 
-	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
+	allNodes := nodeUnion(d.priv.Public, oldGroup.Nodes, newGroup.Nodes)
+	allNodes = append(allNodes, d.priv.Public)
 	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
 	phaser := d.getPhaser(timeout)
 
