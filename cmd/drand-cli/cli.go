@@ -47,8 +47,6 @@ const defaultPort = "8080"
 
 func banner() {
 	fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
-	s := "WARNING: this software has NOT received a full audit and must be used with caution and probably NOT in a production environment.\n"
-	fmt.Fprint(output, s)
 }
 
 var folderFlag = &cli.StringFlag{
