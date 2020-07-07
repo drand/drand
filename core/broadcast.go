@@ -41,7 +41,7 @@ type broadcast struct {
 	client net.ProtocolClient
 	l      log.Logger
 	phase  phase
-	// list of deals already retransmitted comparison by hash
+	// list of messages already retransmitted comparison by hash
 	hashes set
 	dealCh chan dkg.DealBundle
 	respCh chan dkg.ResponseBundle
