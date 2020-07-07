@@ -4,11 +4,6 @@
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/drand/drand)
 [![golang version](https://img.shields.io/badge/golang-%3E%3D1.14-orange.svg)](https://golang.org/)
 
-> ⚠️ `Disclaimer` ⚠️ 
-> **This software is considered experimental and has NOT received a third-party
-audit yet. Therefore, DO NOT USE it in production or for anything security
-critical at this point.**
-
 # Drand - A Distributed Randomness Beacon Daemon
 
 Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
