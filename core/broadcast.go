@@ -14,14 +14,14 @@ import (
 	"github.com/drand/kyber/share/dkg"
 )
 
-// broadcast implements a very simple broadasting mechanism: for each new packet
+// broadcast implements a very simple broadcasting mechanism: for each new packet
 // seen, rebroadcast it once. While this protocol is simple to implement, it
 // does not guarantees anything about the timing of which nodes is going to
 // accept packets, with Byzantine adversaries. However, an attacker that wants
 // to split the nodes into two groups such that they accept different deals need
 // to be able to reliably know the network topology and be able to send the
 // deals close enough to the next phase to each node such that they won't be
-// able to send it to ther other nodes in time.
+// able to send it to their other nodes in time.
 //
 // There are other broadcast protocols that are resilient against Byzantine
 // behaviors but these require a higher threshold and they still do not protect
@@ -40,7 +40,6 @@ type broadcast struct {
 	to     []*key.Node
 	client net.ProtocolClient
 	l      log.Logger
-	phase  phase
 	// list of messages already retransmitted comparison by hash
 	hashes set
 	dealCh chan dkg.DealBundle
@@ -162,14 +161,6 @@ func (b *broadcast) IncomingResponse() <-chan dkg.ResponseBundle {
 func (b *broadcast) IncomingJustification() <-chan dkg.JustificationBundle {
 	return b.justCh
 }
-
-type phase int
-
-const (
-	dealPhase = iota + 1
-	responsePhase
-	JustifPhase
-)
 
 type hash []byte
 

@@ -86,7 +86,6 @@ func TestBroadcast(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	for i, b := range broads {
-		//require.True(t, len(b.dealCh) == n, "node %d channel len %d", i, len(b.dealCh))
 		require.Equal(t, drain(t, b.dealCh), n, "node %d failed", i)
 	}
 
@@ -98,6 +97,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func drain(t *testing.T, ch chan dkg.DealBundle) int {
+	t.Helper()
 	var howMany int
 	for {
 		select {
@@ -107,7 +107,6 @@ func drain(t *testing.T, ch chan dkg.DealBundle) int {
 			return howMany
 		}
 	}
-	return howMany
 }
 
 func fakeDeal() *dkg.DealBundle {
