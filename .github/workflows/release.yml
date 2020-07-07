@@ -21,14 +21,14 @@ jobs:
           go-version: 1.14
       -
         name: Install Protoc
-        uses: arduino/setup-protoc@v1
+        uses: arduino/setup-protoc@v1.1.0
         with:
           version: '3.x'
       -
         name: Install Protoc-gen-go
         run: |
-          go get github.com/golang/protobuf/protoc-gen-go
-          go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
+          go get github.com/golang/protobuf/protoc-gen-go@v1.4.2
+          go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v0.0.0-20200617041141-9a465503579e
       -
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
