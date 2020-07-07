@@ -44,6 +44,13 @@ var (
 		Name: "beacon_discrepancy_latency",
 		Help: "Discrepancy between beacon creation time and calculated round time",
 	})
+	// BeaconCalculationLatency (Group) millisecond duration of latency for local node to
+	// calculate its partial share, for finishing receiving shares to recover the beacon,
+	// and of calculation of the beacon from partials.
+	BeaconCalculationLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "beacon_calculation_latency",
+		Help: "Latency of different subtasks in beacon calculation",
+	}, []string{"task"})
 
 	// HTTPCallCounter (HTTP) how many http requests
 	HTTPCallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{

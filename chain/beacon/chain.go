@@ -158,6 +158,39 @@ func (c *chainStore) runAggregator() {
 	}
 }
 
+func (c *chainStore) insertNextBeacon(newB newBeaconWithStat, syncing bool) {
+	if err := c.Store.Put(newB.Beacon); err != nil {
+		c.l.Fatal("new_beacon_storing", err)
+	}
+	// measure beacon creation time discrepancy in milliseconds
+	actual := time.Now().UnixNano()
+	expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
+	discrepancy := float64(actual-expected) / float64(time.Millisecond)
+	partialsReady := float64(newB.lastPartial.UnixNano()-expected) / float64(time.Millisecond)
+	metrics.BeaconDiscrepancyLatency.Set(discrepancy)
+	metrics.BeaconCalculationLatency.WithLabelValues("partials").Set(partialsReady)
+	metrics.BeaconCalculationLatency.WithLabelValues("recovery").Set(discrepancy - partialsReady)
+	if !newB.myPartial.IsZero() {
+		mine := float64(newB.myPartial.UnixNano()-expected) / float64(time.Millisecond)
+		metrics.BeaconCalculationLatency.WithLabelValues("self").Set(mine)
+		c.l.Info("NEW_BEACON_STORED", newB.String(),
+			"time_discrepancy_ms", discrepancy,
+			"time_partial_ms", partialsReady,
+			"my_discrepancy_ms", mine)
+	} else {
+		c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy, "time_partial_ms", partialsReady)
+	}
+	c.lastInserted <- newB.Beacon
+	if !syncing {
+		// during syncing we don't do a fast sync
+		select {
+		// only send if it's not full already
+		case c.nonSyncBeacon <- newB.Beacon:
+		default:
+		}
+	}
+}
+
 func (c *chainStore) runChainLoop() {
 	var syncing bool
 	var syncingDone = make(chan bool, 1)
@@ -165,41 +198,12 @@ func (c *chainStore) runChainLoop() {
 	if err != nil {
 		c.l.Fatal("store_last_init", err)
 	}
-	insert := func(newB newBeaconWithStat) {
-		if err := c.Store.Put(newB.Beacon); err != nil {
-			c.l.Fatal("new_beacon_storing", err)
-		}
-		lastBeacon = newB.Beacon
-		// measure beacon creation time discrepancy in milliseconds
-		actual := time.Now().UnixNano()
-		expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, newB.Round) * 1e9
-		discrepancy := float64(actual-expected) / float64(time.Millisecond)
-		partialsReady := float64(newB.lastPartial.UnixNano()-expected) / float64(time.Millisecond)
-		metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
-		if !newB.myPartial.IsZero() {
-			mine := float64(newB.myPartial.UnixNano()-expected) / float64(time.Millisecond)
-			c.l.Info("NEW_BEACON_STORED", newB.String(),
-				"time_discrepancy_ms", discrepancy,
-				"time_partial_ms", partialsReady,
-				"my_discrepancy_ms", mine)
-		} else {
-			c.l.Info("NEW_BEACON_STORED", newB.String(), "time_discrepancy_ms", discrepancy, "time_partial_ms", partialsReady)
-		}
-		c.lastInserted <- newB.Beacon
-		if !syncing {
-			// during syncing we don't do a fast sync
-			select {
-			// only send if it's not full already
-			case c.nonSyncBeacon <- newB.Beacon:
-			default:
-			}
-		}
-	}
 	for {
 		select {
 		case newBeacon := <-c.newBeaconCh:
 			if isAppendable(lastBeacon, newBeacon.Beacon) {
-				insert(newBeacon)
+				lastBeacon = newBeacon.Beacon
+				c.insertNextBeacon(newBeacon, syncing)
 				break
 			}
 			// XXX store them for lfutur usage if it's a later round than what
