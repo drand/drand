@@ -57,7 +57,7 @@ func syncChain(
 	toRound uint64,
 	client net.ProtocolClient,
 	skipValidation bool) (chan *chain.Beacon, error) {
-	outCh := make(chan *chain.Beacon, toRound-from.Round)
+	outCh := make(chan *chain.Beacon, MaxCatchupBuffer)
 	fromRound := from.Round
 	defer l.Debug("sync_from", fromRound, "status", "leaving")
 

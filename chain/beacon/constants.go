@@ -12,3 +12,7 @@ var MaxSyncWaitTime = 2 * time.Second
 // faster than other. In that case, multiple partials can be received from a
 // fast nodes and these are valid.
 const MaxPartialsPerNode = 100
+
+// MaxCatchupBuffer is the maximum size of the channel that receives beacon from
+// a sync mechanism.
+const MaxCatchupBuffer = 1000
