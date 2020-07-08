@@ -16,9 +16,10 @@ written in <a href="https://golang.org/">Golang</a>.
 </p>
 
 <p align="center">
-Drand nodes are linked with each other to collectively produce publicly
-verifiable, unbiased and unpredictable random values at fixed intervals using
-bilinear pairings and threshold cryptography.
+Drand nodes are linked with each other to collectively produce <strong>publicly
+verifiable</strong>, <strong>unbiased</strong> and <strong>unpredictable</strong>
+random values at fixed intervals using bilinear pairings and threshold
+cryptography.
 </p>
 
 <p align="center">
