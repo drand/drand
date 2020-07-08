@@ -35,6 +35,8 @@ type Config struct {
 	// Callback to use when a new beacon is created - can be nil and new
 	// callbacks can be added afterwards to the beacon
 	Callback func(*chain.Beacon)
+	// skips validation of catch up
+	SkipValidation bool
 }
 
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
@@ -98,6 +100,11 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 		callbacks: callbacks,
 	}
 	return handler, nil
+}
+
+// LoadOldGroup store info about a group being transitioned from in restarting reshare syncs
+func (h *Handler) LoadOldGroup(grp *key.Group) {
+	h.safe.SetInfo(nil, h.conf.Public, grp)
 }
 
 var errOutOfRound = "out-of-round beacon request"

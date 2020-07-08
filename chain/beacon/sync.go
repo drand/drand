@@ -55,8 +55,9 @@ func syncChain(
 	safe *cryptoSafe,
 	from *chain.Beacon,
 	toRound uint64,
-	client net.ProtocolClient) (chan *chain.Beacon, error) {
-	outCh := make(chan *chain.Beacon, toRound-from.Round)
+	client net.ProtocolClient,
+	skipValidation bool) (chan *chain.Beacon, error) {
+	outCh := make(chan *chain.Beacon, MaxCatchupBuffer)
 	fromRound := from.Round
 	defer l.Debug("sync_from", fromRound, "status", "leaving")
 
@@ -109,10 +110,12 @@ func syncChain(
 							l.Error("sync_from", addr, "invalid_round_info", newBeacon.Round)
 							return
 						}
-						err = chain.VerifyBeacon(info.pub.Commit(), newBeacon)
-						if err != nil {
-							l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", newBeacon.Round)
-							return
+						if !skipValidation {
+							err = chain.VerifyBeacon(info.pub.Commit(), newBeacon)
+							if err != nil {
+								l.Error("sync_from", addr, "invalid_beacon_sig", err, "round", newBeacon.Round)
+								return
+							}
 						}
 						lastBeacon = newBeacon
 						outCh <- newBeacon

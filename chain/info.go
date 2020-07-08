@@ -26,7 +26,7 @@ func NewChainInfo(g *key.Group) *Info {
 		Period:      g.Period,
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
-		GroupHash:   g.Hash(),
+		GroupHash:   g.GetGenesisSeed(),
 	}
 }
 
