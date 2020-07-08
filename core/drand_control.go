@@ -123,18 +123,13 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Longterm:       d.priv.Key,
 		Reader:         reader,
 		UserReaderOnly: user,
-		FastSync:       true,
+		FastSync:       false,
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
 		Auth:           DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newBroadcast(
-		d.log,
-		d.privGateway.ProtocolClient,
-		d.priv.Public.Address(),
-		group.Nodes,
-		func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
+	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
@@ -188,7 +183,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		Longterm:     d.priv.Key,
 		Threshold:    newGroup.Threshold,
 		OldThreshold: oldGroup.Threshold,
-		FastSync:     true,
+		FastSync:     false,
 		Nonce:        getNonce(newGroup),
 		Auth:         DKGAuthScheme,
 	}
@@ -218,12 +213,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 
 	// "" so all the addresses are taken into consideration
 	allNodes := nodeUnion("", oldGroup.Nodes, newGroup.Nodes)
-	board := newBroadcast(
-		d.log,
-		d.privGateway.ProtocolClient,
-		d.priv.Public.Address(),
-		allNodes,
-		func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
+	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
 	phaser := d.getPhaser(timeout)
 
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
