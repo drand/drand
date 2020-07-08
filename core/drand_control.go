@@ -348,12 +348,14 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.receiver = receiver
 	d.state.Unlock()
 
-	defer func() {
+	defer func(r *setupReceiver) {
 		d.state.Lock()
-		d.receiver.stop()
-		d.receiver = nil
+		r.stop()
+		if d.receiver == r {
+			d.receiver = nil
+		}
 		d.state.Unlock()
-	}()
+	}(d.receiver)
 	// send public key to leader
 	id := d.priv.Public.ToProto()
 	prep := &drand.SignalDKGPacket{
