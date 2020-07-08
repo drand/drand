@@ -26,11 +26,9 @@ Drand was first developed within the <a href="https://github.com/dedis">DEDIS
 organization</a>, and as of December 2019, is now under the drand organization.
 </p>
 
-## Table of Contents
-
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of Contents**
+## Table of Contents
 
 - [Goal and Overview](#goal-and-overview)
   - [Public Randomness](#public-randomness)
