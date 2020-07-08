@@ -115,7 +115,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		if err != nil {
 			return err
 		}
-		drand.StartBeacon(true)
+		drand.StartBeacon(true, "", false)
 		l.daemon = drand
 	}
 	return nil

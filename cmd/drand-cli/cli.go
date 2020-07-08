@@ -179,6 +179,11 @@ var oldGroupFlag = &cli.StringFlag{
 		"included in the current DKG.",
 }
 
+var skipValidationFlag = &cli.BoolFlag{
+	Name:  "skipValidation",
+	Usage: "skips bls verification of beacon rounds for faster catchup.",
+}
+
 var timeoutFlag = &cli.StringFlag{
 	Name:  "timeout",
 	Usage: fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
@@ -222,7 +227,7 @@ var appCommands = []*cli.Command{
 		Usage: "Start the drand daemon.",
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
-			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand),
+			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag, skipValidationFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return startCmd(c)

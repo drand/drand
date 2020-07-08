@@ -160,7 +160,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	}
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
-	go d.StartBeacon(false)
+	go d.StartBeacon(false, "", false)
 	return finalGroup, nil
 }
 
