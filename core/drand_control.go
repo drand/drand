@@ -290,7 +290,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	d.log.Debug("init_dkg", "wait_group")
@@ -371,7 +371,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.log.Info("setup_reshare", "signaling_key_to_leader")
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
