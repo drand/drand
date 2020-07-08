@@ -415,7 +415,7 @@ func (d *DrandTest2) StartDrand(id string, catchup, newGroup bool) {
 	require.NoError(d.t, err)
 	node.drand = newDrand
 	fmt.Println("--- JUST BEFORE STARTBEACON---")
-	newDrand.StartBeacon(catchup)
+	newDrand.StartBeacon(catchup, "", false)
 	fmt.Println("--- JUST AFTER STARTBEACON---")
 }
 
