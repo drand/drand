@@ -11,14 +11,14 @@
 </p>
 
 <p align="center">
-Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
-in <a href="https://golang.org/">Golang</a>.
+Drand (pronounced "dee-rand") is a distributed randomness beacon daemon 
+written in <a href="https://golang.org/">Golang</a>.
 </p>
 
-<p align="center"> Servers running drand can be linked with each other to
-produce collective, publicly verifiable, unbiased, unpredictable random values
-at fixed intervals using bilinear pairings and threshold cryptography. Drand 
-nodes can also serve locally-generated private randomness to clients.
+<p align="center">
+Drand nodes are linked with each other to collectively produce publicly
+verifiable, unbiased and unpredictable random values at fixed intervals using
+bilinear pairings and threshold cryptography.
 </p>
 
 <p align="center">
