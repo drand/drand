@@ -46,7 +46,7 @@ organization</a>, and as of December 2019, is now under the drand organization.
   - [Fetching Public Randomness](#fetching-public-randomness)
   - [Fetching Private Randomness](#fetching-private-randomness)
   - [Using HTTP endpoints](#using-http-endpoints)
-  - [DrandJS](#drandjs)
+  - [JavaScript client](#javascript-client)
 - [Documentation](#documentation)
 - [What's Next?](#whats-next)
 - [Acknowledgments](#acknowledgments)
