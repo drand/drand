@@ -31,15 +31,9 @@ type chainStore struct {
 	ticker      *ticker
 	done        chan bool
 	newPartials chan partialInfo
-	//  newAggregateBeacon pass a beacon that just got aggregated from the
-	//  aggregation loop to the chain logic loop
-	newAggregatedBeacon chan *chain.Beacon
 	// catchupBeacons is used to notify the Handler when a node has aggregated a
 	// beacon.
 	catchedupBeacons chan *chain.Beacon
-	// all beacons finally inserted into the store are sent over this channel
-	// for the main loop to know
-	beaconStoredMain chan *chain.Beacon
 	// all beacons finally inserted into the store are sent over this cannel for
 	// the aggregation loop to know
 	beaconStoredAgg chan *chain.Beacon
@@ -55,28 +49,24 @@ func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, crypto
 	// we give the final append store to the syncer
 	syncer := NewSyncer(l, cbs, crypto.chain, client)
 	c := &chainStore{
-		l:                   l,
-		conf:                conf,
-		client:              client,
-		CallbackStore:       cbs,
-		sync:                syncer,
-		crypto:              crypto,
-		done:                make(chan bool, 1),
-		ticker:              ticker,
-		newPartials:         make(chan partialInfo, defaultPartialChanBuffer),
-		newAggregatedBeacon: make(chan *chain.Beacon, defaultNewBeaconBuffer),
-		catchedupBeacons:    make(chan *chain.Beacon, 1),
-		beaconStoredMain:    make(chan *chain.Beacon, defaultNewBeaconBuffer),
-		beaconStoredAgg:     make(chan *chain.Beacon, defaultNewBeaconBuffer),
+		l:                l,
+		conf:             conf,
+		client:           client,
+		CallbackStore:    cbs,
+		sync:             syncer,
+		crypto:           crypto,
+		done:             make(chan bool, 1),
+		ticker:           ticker,
+		newPartials:      make(chan partialInfo, defaultPartialChanBuffer),
+		catchedupBeacons: make(chan *chain.Beacon, 1),
+		beaconStoredAgg:  make(chan *chain.Beacon, defaultNewBeaconBuffer),
 	}
 	// we add callbacks to notify each time a final beacon is stored on the
 	// database so to update the latest view
 	cbs.AddCallback("chainstore", func(b *chain.Beacon) {
-		c.beaconStoredMain <- b
 		c.beaconStoredAgg <- b
 	})
 	// TODO maybe look if it's worth having multiple workers there
-	go c.runChainLoop()
 	go c.runAggregator()
 	return c
 }
@@ -131,7 +121,8 @@ func (c *chainStore) runAggregator() {
 			// NOTE: This line means we can only verify partial signatures of
 			// the current group we are in as only current members should
 			// participate in the randomness generation. Previous beacons can be
-			// verified using the single distributed public key point.
+			// verified using the single distributed public key point from the
+			// crypto store.
 			thr := c.crypto.GetGroup().Threshold
 			n := c.crypto.GetGroup().Len()
 			cache.Append(partial.p)
@@ -163,24 +154,6 @@ func (c *chainStore) runAggregator() {
 				Signature:   finalSig,
 			}
 			c.l.Info("aggregated_beacon", newBeacon.Round)
-			c.newAggregatedBeacon <- newBeacon
-			break
-		}
-	}
-}
-
-func (c *chainStore) runChainLoop() {
-	var syncing bool
-	var syncingDone = make(chan bool, 1)
-	var requestSync = make(chan uint64, 1)
-	lastBeacon, err := c.Last()
-	if err != nil {
-		c.l.Fatal("store_last_init", err)
-	}
-
-	for {
-		select {
-		case newBeacon := <-c.newAggregatedBeacon:
 			if c.tryAppend(lastBeacon, newBeacon) {
 				lastBeacon = newBeacon
 				break
@@ -189,28 +162,16 @@ func (c *chainStore) runChainLoop() {
 			// we have
 			c.l.Debug("new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
-				requestSync <- newBeacon.Round
+				peers := toPeers(c.crypto.GetGroup().Nodes)
+				go func() {
+					// XXX Could do something smarter with context and cancellation
+					// if we got to the right round
+					if err := c.sync.Follow(context.Background(), newBeacon.Round, peers); err != nil {
+						c.l.Debug("chain_store", "unable to follow", "err", err)
+					}
+				}()
 			}
-		case lastBeacon = <-c.beaconStoredMain:
 			break
-		case upTo := <-requestSync:
-			if syncing {
-				continue
-			}
-			syncing = true
-			peers := toPeers(c.crypto.GetGroup().Nodes)
-			go func() {
-				// XXX Could do something smarter with context and cancellation
-				// if we got to the right round
-				if err := c.sync.Follow(context.Background(), upTo, peers); err != nil {
-					c.l.Debug("chain_store", "unable to follow to the end", "err", err)
-				}
-				syncingDone <- true
-			}()
-		case <-syncingDone:
-			syncing = false
-		case <-c.done:
-			return
 		}
 	}
 }

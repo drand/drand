@@ -104,6 +104,9 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 			}
 
 			if err := s.store.Put(beacon); err != nil {
+				if err == errPreviousRound {
+					continue
+				}
 				s.l.Debug("syncer", "unable to save", "with_peer", node.Address(), "err", err)
 				cancel()
 				break

@@ -42,7 +42,7 @@ func startCmd(c *cli.Context) error {
 		// nobody started.
 		// drand.StartBeacon(!c.Bool(pushFlag.Name))
 		catchup := true
-		drand.StartBeacon(catchup, c.String(oldGroupFlag.Name), c.Bool(skipValidationFlag.Name))
+		drand.StartBeacon(catchup)
 	}
 	// Start metrics server
 	if c.IsSet(metricsFlag.Name) {

@@ -387,12 +387,3 @@ func selfSign(c *cli.Context) error {
 	fmt.Fprintln(output, printJSON(pair.Public.TOML()))
 	return nil
 }
-
-func syncCmd(c *cli.Context) error {
-	port := controlPort(c)
-	client, err := net.NewControlClient(port)
-	if err != nil {
-		return nil, fmt.Errorf("can't instantiate control client: %s", err)
-	}
-
-}
