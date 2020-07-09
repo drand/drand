@@ -1,10 +1,12 @@
 package beacon
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"sync"
 
 	"github.com/drand/drand/chain"
@@ -14,12 +16,14 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-// SyncStore allows to follow a chain from other nodes and replies to syncing
+// Syncer allows to follow a chain from other nodes and replies to syncing
 // requests.
 type Syncer interface {
 	// Follow is a blocking call that continuously fetches the beacon from the
-	// given nodes, until the context is cancelled.
-	Follow(c context.Context) (chan *chain.Beacon, error)
+	// given nodes, verify the validity (chain etc) and then  stores it, until
+	// the context is cancelled or the round reaches upTo.  To follow
+	// indefinitely, simply pass upTo = 0.
+	Follow(c context.Context, upTo uint64, to []net.Peer) error
 	SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error
 }
 
@@ -28,24 +32,22 @@ type syncer struct {
 	l         log.Logger
 	store     CallbackStore
 	info      *chain.Info
-	nodes     []net.Peer
 	client    net.ProtocolClient
 	following bool
 	sync.Mutex
 }
 
 // NewSyncer returns a syncer implementation
-func NewSyncer(l log.Logger, s CallbackStore, info *chain.Info, client net.ProtocolClient, nodes []net.Peer) *syncer {
+func NewSyncer(l log.Logger, s CallbackStore, info *chain.Info, client net.ProtocolClient) Syncer {
 	return &syncer{
 		store:  s,
 		info:   info,
-		nodes:  nodes,
 		client: client,
 		l:      l,
 	}
 }
 
-func (s *syncer) Follow(c context.Context) error {
+func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error {
 	s.Lock()
 	if s.following {
 		s.Unlock()
@@ -59,43 +61,59 @@ func (s *syncer) Follow(c context.Context) error {
 		s.Unlock()
 	}()
 
+	s.l.Debug("syncer", "starting", "up_to", upTo, "nodes", peersToString(nodes))
+	// use this wrapper to make sure the chain is consistently stored
+	appendStore, err := newAppendStore(s.store)
+	if err != nil {
+		return err
+	}
+
 	last, err := s.store.Last()
 	if err != nil {
-		return fmt.Errorf("error loading last beacon: %s", err)
+		return err
 	}
-	fromRound := last.Round
+	fromRound := last.Round + 1
 	// shuffle through the nodes
-	for _, n := range rand.Perm(len(s.nodes)) {
-		node := s.nodes[n]
+	for _, n := range rand.Perm(len(nodes)) {
+		node := nodes[n]
 		cnode, cancel := context.WithCancel(c)
 		beaconCh, err := s.client.SyncChain(cnode, node, &drand.SyncRequest{
-			FromRound: last.Round,
+			FromRound: fromRound,
 		})
 		if err != nil {
-			s.l.Debug("sync_store", "unable_to_sync", "with_peer", node.Address(), "err", err)
+			s.l.Debug("syncer", "unable_to_sync", "with_peer", node.Address(), "err", err)
 			continue
 		}
-		s.l.Debug("sync_store", "start_follow", "with_peer", node.Address())
+
+		s.l.Debug("syncer", "start_follow", "with_peer", node.Address(), "from_round", fromRound)
 
 		for beaconPacket := range beaconCh {
-			s.l.Debug("sync_store", "new_beacon_fetched", "with_peer", node.Address(), "from_round", fromRound, "got_round", beaconPacket.GetRound())
+			s.l.Debug("syncer", "new_beacon_fetched", "with_peer", node.Address(), "from_round", fromRound, "got_round", beaconPacket.GetRound())
 			beacon := protoToBeacon(beaconPacket)
+
+			// verify the signature validity
 			if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
-				s.l.Debug("sync_store", "invalid_beacon", "with_peer", node.Address(), "round", beacon.Round, "err", err)
+				s.l.Debug("syncer", "invalid_beacon", "with_peer", node.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
 				cancel()
 				break
 			}
-			if err := s.store.Put(beacon); err != nil {
-				s.l.Debug("sync_store", "unable to save", "with_peer", node.Address(), "err", err)
+
+			if err := appendStore.Put(beacon); err != nil {
+				s.l.Debug("syncer", "unable to save", "with_peer", node.Address(), "err", err)
 				cancel()
 				break
 			}
 			last = beacon
+			if last.Round == upTo {
+				cancel()
+				s.l.Debug("syncer", "syncing finished to", "round", upTo)
+				return nil
+			}
 		}
-		// see if this was a cancellation
+		// see if this was a cancellation from the call itself
 		select {
 		case <-c.Done():
-			s.l.Debug("sync_store", "follow cancelled", "err?", c.Err())
+			s.l.Debug("syncer", "follow cancelled", "err?", c.Err())
 			return c.Err()
 		default:
 		}
@@ -106,23 +124,23 @@ func (s *syncer) Follow(c context.Context) error {
 func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncChainServer) error {
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
-	s.l.Debug("sync_store", "sync_request", "from", addr, "from_round", fromRound)
+	s.l.Debug("syncer", "sync_request", "from", addr, "from_round", fromRound)
 
 	last, err := s.store.Last()
 	if err != nil {
 		return err
 	}
 	if last.Round < fromRound {
-		return errors.New("no beacon stored above requested round")
+		return fmt.Errorf("no beacon stored above requested round %d < %d", last.Round, fromRound)
 	}
 
-	if fromRound < last.Round {
+	if fromRound <= last.Round {
 		// first sync up from the store itself
 		var err error
 		s.store.Cursor(func(c chain.Cursor) {
-			for bb := c.Seek(req.GetFromRound()); bb != nil; bb = c.Next() {
+			for bb := c.Seek(fromRound); bb != nil; bb = c.Next() {
 				if err = stream.Send(beaconToProto(bb)); err != nil {
-					s.l.Debug("sync_store", "streaming_send", "err", err)
+					s.l.Debug("syncer", "streaming_send", "err", err)
 					return
 				}
 			}
@@ -136,7 +154,7 @@ func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncCha
 	s.store.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(beaconToProto(b))
 		if err != nil {
-			s.l.Debug("sync_store", "streaming_send", "err", err)
+			s.l.Debug("syncer", "streaming_send", "err", err)
 			done <- nil
 		}
 	})
@@ -144,9 +162,49 @@ func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncCha
 	// either wait that the request cancels out or wait there's an error sending
 	// to the stream
 	select {
-	case stream.Context().Done():
+	case <-stream.Context().Done():
 		return stream.Context().Err()
 	case err := <-done:
 		return err
 	}
+}
+
+// appendStore is a store that only appends new block with a round +1 from the
+// last block inserted and with the corresponding previous signature
+type appendStore struct {
+	chain.Store
+	last *chain.Beacon
+	sync.Mutex
+}
+
+func newAppendStore(s chain.Store) (*appendStore, error) {
+	last, err := s.Last()
+	return &appendStore{
+		Store: s,
+		last:  last,
+	}, err
+}
+
+func (a *appendStore) Put(b *chain.Beacon) error {
+	a.Lock()
+	defer a.Unlock()
+	if b.Round != a.last.Round+1 {
+		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
+	}
+	if !bytes.Equal(a.last.Signature, b.PreviousSig) {
+		return fmt.Errorf("invalid previous signature")
+	}
+	if err := a.Store.Put(b); err != nil {
+		return err
+	}
+	a.last = b
+	return nil
+}
+
+func peersToString(peers []net.Peer) string {
+	var adds []string
+	for _, p := range peers {
+		adds = append(adds, p.Address())
+	}
+	return "[ " + strings.Join(adds, " - ") + " ]"
 }

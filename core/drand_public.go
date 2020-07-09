@@ -72,6 +72,8 @@ func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) 
 	return d.beacon.ProcessPartialBeacon(c, in)
 }
 
+func (d *Drand) SyncChain(c context.
+
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {

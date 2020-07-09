@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/fs"
@@ -318,15 +319,18 @@ func (d *Drand) WaitExit() chan bool {
 	return d.exitCh
 }
 
+func (d *Drand) createBoltStore() (chain.Store, error) {
+	fs.CreateSecureFolder(d.opts.DBFolder())
+	return boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+}
+
 func (d *Drand) newBeacon(skipValidation bool) (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	fs.CreateSecureFolder(d.opts.DBFolder())
-	store, err := boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+	store, err := d.createBoltStore()
 	if err != nil {
 		return nil, err
 	}
-
 	pub := d.priv.Public
 	node := d.group.Find(pub)
 	if node == nil {

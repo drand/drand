@@ -34,7 +34,7 @@ service Control {
 
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 
-    rpc SyncChain(SyncChainRequest) returns (stream SyncChainResponse) { }
+    rpc StartFollowChain(StartFollowRequest) returns (stream FollowProgress) { }
 }
 
 // SetupInfoPacket contains all information necessary to run an "automatic"
@@ -172,14 +172,14 @@ message ShutdownResponse {
 
 }
 
-message SyncChainRequest {
+message StartFollowRequest {
     // hex format
     string info_hash = 1; 
     // nodes to contact to
-    string nodes = 2;
+    repeated string nodes = 2;
 }
 
-message SyncChainResponse { 
+message FollowProgress { 
     int32 current = 1;
     int32 target = 2;
 }

@@ -30,8 +30,11 @@ service Protocol {
     rpc ReshareDKG(ResharePacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
-    // SyncChain forces a daemon to sync up its chain with other nodes
+    // SyncRequest forces a daemon to sync up its chain with other nodes
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
+    // ChainInfo returns the information related to the chain this node
+    // participates to
+    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket);
 }
 
 message IdentityRequest {}
@@ -86,8 +89,8 @@ message ResharePacket {
     string group_hash = 2;
 }
 
-// SyncRequest is from a node that needs to sync up with the current head of the
-// chain
+// FollowRequest is the packet that a drand node sends to other drand nodes to
+// receive beacons from the chain
 message SyncRequest {
     uint64 from_round = 1;
 }

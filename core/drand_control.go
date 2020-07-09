@@ -12,8 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 	dnet "github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
@@ -714,4 +717,74 @@ func getNonce(g *key.Group) []byte {
 		_ = binary.Write(h, binary.BigEndian, g.GenesisTime)
 	}
 	return h.Sum(nil)
+}
+
+func (d *Drand) StartFollowChain(req *drand.FollowRequest, stream drand.Protocol_StartFollowChainServer) error {
+	// TODO replace via a more independant chain manager that manages the
+	// transition from following -> participating
+	d.state.Lock()
+	if d.syncerCancel != nil {
+		d.state.Unlock()
+		return errors.New("syncing is already in progress")
+	}
+	// context given to the syncer
+	ctx, cancel := context.WithCancel(context.Background())
+	d.syncCancel = cancel
+	d.state.Unlock()
+	addr := net.RemoteAddress(stream.Context())
+	hash := req.GetInfoHash()
+	peers := make([]net.Peer, 0, len(req.GetNodes()))
+	for _, addr := range req.GetNodes() {
+		// XXX add TLS disable later
+		peers = append(peers, net.Peer(addr, true))
+	}
+	var info *chain.Info
+	for _, peer := range peers {
+		ci, err := d.privGateway.ChainInfo(stream.Context(), new(drand.ChainInfoPacket))
+		if err != nil {
+			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+		info, err = chain.InfoFromProto(ci)
+		if err != nil {
+			d.log.Debug("start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+	}
+	if info == nil {
+		return errors.New("unable to get a chain info successfully")
+	}
+
+	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
+	/*if !bytes.Equal(info.Hash(),hash) {*/
+	//return errors.New("invalid chain info hash!")
+	/*}*/
+
+	store, err := d.createBoltStore()
+	if err != nil {
+		return fmt.Errorf("unable to create store: %s", err)
+	}
+	// register callback to notify client of progress
+	cbStore := beacon.NewCallbackStore(store)
+	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway, ProtocolClient, peers)
+	var done = make(chan error, 1)
+	cbStore.AddCallback(addr, func(b *chain.Beacon) {
+		err := stream.Send(&drand.FollowProgress{
+			Current: b.Round,
+			Target:  beacon.CurrentRound(d.opts.clock),
+		})
+		if err != nil {
+			done <- err
+		}
+		select {
+		// just check if the syncer has finished or not
+		case <-ctx.Done():
+			// TODO better UX messages for client
+			done <- ctx.Err()
+		default:
+		}
+	})
+	defer cbStore.RemoveCallback(addr)
+	syncer.Follow(ctx)
+	return <-done
 }

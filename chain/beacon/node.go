@@ -41,18 +41,17 @@ type Handler struct {
 	// to communicate with other drand peers
 	client net.ProtocolClient
 	// keeps the cryptographic info (group share etc)
-	safe *cryptoSafe
+	crypto *cryptoStore
 	// main logic that treats incoming packet / new beacons created
 	chain  *chainStore
 	ticker *ticker
 
-	close     chan bool
-	addr      string
-	started   bool
-	stopped   bool
-	l         log.Logger
-	callbacks CallbackStore
-	syncer    Syncer
+	close   chan bool
+	addr    string
+	started bool
+	stopped bool
+	l       log.Logger
+	syncer  Syncer
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -68,38 +67,25 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 	}
 	addr := conf.Public.Address()
 	logger := l
-	safe := newCryptoSafe(conf.Group)
-	safe.SetInfo(conf.Share, node, conf.Group)
-	// genesis block at round 0, next block at round 1
-	// THIS is to change when one network wants to build on top of another
-	// network's chain. Note that if present it overwrites.
-	b := &chain.Beacon{
-		Signature: conf.Group.GetGenesisSeed(),
-		Round:     0,
-	}
-	if err := s.Put(b); err != nil {
+	crypto := newCryptoStore(conf.Group, conf.Share)
+	// insert genesis beacon
+	if err := s.Put(chain.GenesisBeacon(crypto.chain)); err != nil {
 		return nil, err
 	}
+
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
-	callbacks := NewCallbackStore(s)
-	store := newChainStore(logger, conf, c, safe, callbacks, ticker)
+	store := newChainStore(logger, conf, c, crypto, s, ticker)
 	handler := &Handler{
-		conf:      conf,
-		client:    c,
-		safe:      safe,
-		chain:     store,
-		ticker:    ticker,
-		addr:      addr,
-		close:     make(chan bool),
-		l:         logger,
-		callbacks: callbacks,
+		conf:   conf,
+		client: c,
+		crypto: crypto,
+		chain:  store,
+		ticker: ticker,
+		addr:   addr,
+		close:  make(chan bool),
+		l:      logger,
 	}
 	return handler, nil
-}
-
-// LoadOldGroup store info about a group being transitioned from in restarting reshare syncs
-func (h *Handler) LoadOldGroup(grp *key.Group) {
-	h.safe.SetInfo(nil, h.conf.Public, grp)
 }
 
 var errOutOfRound = "out-of-round beacon request"
@@ -122,17 +108,11 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 
 	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
-	info, err := h.safe.GetInfo(p.GetRound())
-	if err != nil {
-		h.l.Error("process_partial", addr, "no_info_for_round", p.GetRound())
-		return nil, errors.New("no info for this round")
-	}
-
 	// XXX Remove that evaluation - find another way to show the current dist.
 	// key being used
-	shortPub := info.pub.Eval(1).V.String()[14:19]
+	shortPub := h.crypto.GetPub().Eval(1).V.String()[14:19]
 	// verify if request is valid
-	if err := key.Scheme.VerifyPartial(info.pub, msg, p.GetPartialSig()); err != nil {
+	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Error("process_partial", addr, "err", err,
 			"prev_sig", shortSigStr(p.GetPreviousSig()),
 			"curr_round", currentRound,
@@ -146,12 +126,11 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		shortSigStr(msg), "short_pub", shortPub,
 		"status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if idx == info.index {
+	if idx == h.crypto.Index() {
 		h.l.Error("process_partial", addr,
 			"index_got", idx,
-			"index_our", info.index,
+			"index_our", h.crypto.Index(),
 			"advance_packet", p.GetRound(),
-			"safe", h.safe.String(),
 			"pub", shortPub)
 		// XXX error or not ?
 		return new(proto.Empty), nil
@@ -189,22 +168,15 @@ func (h *Handler) Start() error {
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup() {
-	h.chain.RunSync(context.Background())
-	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
+	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
-}
-
-func (h *Handler) SyncChain() {
-	h.chain.RunSync(context.Background())
+	h.chain.RunSync(context.Background(), nRound, nil)
 }
 
 // Transition makes this beacon continuously sync until the time written in the
 // "TransitionTime" in the handler's group file, where he will start generating
 // randomness. To sync, he contact the nodes listed in the previous group file
 // given.
-// TODO: it should be better to use the public streaming API but since it is
-// likely to change, right now we use the sync API. Later on when API is well
-// defined, best to use streaming.
 func (h *Handler) Transition(prevGroup *key.Group) error {
 	targetTime := h.conf.Group.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -213,16 +185,13 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
-
-	// register the previous group as well in case it needs to verify the
-	// previous entries
-	h.safe.SetInfo(nil, h.conf.Public, prevGroup)
 	go h.run(targetTime)
-	h.chain.RunSync(context.Background())
+	// we run the sync up until (inclusive) one round before the transition
+	h.chain.RunSync(context.Background(), tRound-1, toPeers(prevGroup.Nodes))
 	return nil
 }
 
-// TransitionNewGroup begins transition the crypto share to a new group
+// TransitionNewGroup prepares the node to transition to the new group
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
@@ -232,7 +201,16 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 		return
 	}
 	h.l.Debug("transition", "new_group", "at_round", tRound)
-	h.safe.SetInfo(newShare, h.conf.Public, newGroup)
+	// register a callback such that when the round happening just before the
+	// transition is stored, then it switches the current share to the new one
+	targetRound := tRound - 1
+	h.chain.AddCallback("transition", func(b *chain.Beacon) {
+		if b.Round < targetRound {
+			return
+		}
+		h.crypto.SetInfo(newGroup, newShare)
+		h.chain.RemoveCallback("transition")
+	})
 }
 
 // run will wait until it is supposed to start
@@ -261,10 +239,8 @@ func (h *Handler) run(startTime int64) {
 				// network conditions allow for it.
 				// XXX find a way to start the catchup as soon as the runsync is
 				// done. Not critical but leads to faster network recovery.
-				h.l.Debug("beacon_loop", "run_sync", "potential_catchup")
-				// XXX Find a way to not run sync again before another has
-				// finished - maybe merge with chain sync mechanism
-				go h.chain.RunSync(context.Background())
+				h.l.Debug("beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
+				go h.chain.RunSync(context.Background(), current.round, nil)
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
 			if b.Round < current.round {
@@ -299,31 +275,21 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		previousSig = upon.PreviousSig
 		round = current.round
 	}
-	info, err := h.safe.GetInfo(round)
-	if err != nil {
-		h.l.Error("no_info", round, "BUG", h.safe.String())
-		return
-	}
-	if info.share == nil {
-		h.l.Error("no_share", round, "BUG", h.safe.String())
-		return
-	}
 	msg := chain.Message(round, previousSig)
-	currSig, err := key.Scheme.Sign(info.share.PrivateShare(), msg)
+	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
 		return
 	}
-	shortPub := info.pub.Eval(1).V.String()[14:19]
-	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg), "short_pub", shortPub)
+	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
 	packet := &proto.PartialBeaconPacket{
 		Round:       round,
 		PreviousSig: previousSig,
 		PartialSig:  currSig,
 	}
 	h.chain.NewValidPartial(h.addr, packet)
-	for _, id := range info.group.Nodes {
-		if info.id.Address() == id.Address() {
+	for _, id := range h.crypto.GetGroup().Nodes {
+		if h.addr == id.Address() {
 			continue
 		}
 		go func(i *key.Identity) {
@@ -370,9 +336,9 @@ func (h *Handler) StopAt(stopTime int64) error {
 	return nil
 }
 
-// AddCallback registers a handler to be notified with new beacons
-func (h *Handler) AddCallback(fn func(*chain.Beacon)) {
-	h.callbacks.AddCallback(fn)
+// AddCallback is a proxy method to register a callback on the backend store
+func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
+	h.chain.AddCallback(id, fn)
 }
 
 func shortSigStr(sig []byte) string {
@@ -392,7 +358,9 @@ func shuffleNodes(nodes []*key.Node) []*key.Node {
 
 // cryptoStore stores the information necessary to validate partial beacon, full
 // beacons and to sign new partial beacons (it implements CryptoSafe interface).
+// cryptoStore is thread safe when using the methods.
 type cryptoStore struct {
+	sync.Mutex
 	// current share of the node
 	share *key.Share
 	// public polynomial to verify a partial beacon
@@ -403,16 +371,47 @@ type cryptoStore struct {
 	group *key.Group
 }
 
-func newCryptoSafe(currentGroup *key.Group, share *key.Share) *cryptoSafe {
-	return &cryptoSafe{
+func newCryptoStore(currentGroup *key.Group, share *key.Share) *cryptoStore {
+	return &cryptoStore{
 		chain: chain.NewChainInfo(currentGroup),
 		share: share,
-		pub:   currentGroup.PubliKey.PubPoly(),
+		pub:   currentGroup.PublicKey.PubPoly(),
+		group: currentGroup,
 	}
 }
 
+// GetGroup returns the current group
+func (c *cryptoStore) GetGroup() *key.Group {
+	c.Lock()
+	defer c.Unlock()
+	return c.group
+}
+
+func (c *cryptoStore) GetPub() *share.PubPoly {
+	c.Lock()
+	defer c.Unlock()
+	return c.pub
+}
+
+// SignPartial implemements the CryptoSafe interface
 func (c *cryptoStore) SignPartial(msg []byte) ([]byte, error) {
+	c.Lock()
+	defer c.Unlock()
 	return key.Scheme.Sign(c.share.PrivateShare(), msg)
+}
+
+// Index returns the index of the share
+func (c *cryptoStore) Index() int {
+	return int(c.share.Share.I)
+}
+
+func (c *cryptoStore) SetInfo(newGroup *key.Group, share *key.Share) {
+	c.Lock()
+	defer c.Unlock()
+	c.share = share
+	c.group = newGroup
+	c.pub = newGroup.PublicKey.PubPoly()
+	// chain info is constant
 }
 
 // CryptoSafe holds the cryptographic information to generate a partial beacon
