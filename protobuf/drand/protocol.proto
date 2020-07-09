@@ -30,6 +30,7 @@ service Protocol {
     rpc ReshareDKG(ResharePacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
+    // SyncChain forces a daemon to sync up its chain with other nodes
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 }
 

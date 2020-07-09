@@ -32,6 +32,7 @@ type testBeaconServer struct {
 	disable bool
 	*net.EmptyServer
 	h *Handler
+	s *Syncer
 }
 
 func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
@@ -45,7 +46,7 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	if t.disable {
 		return errors.New("disabled server")
 	}
-	return t.h.SyncChain(req, p)
+	return t.s.SyncChain(req, p)
 }
 
 func dkgShares(n, t int) ([]*key.Share, []kyber.Point) {
@@ -197,7 +198,7 @@ func (b *BeaconTest) CreateNode(i int) {
 	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
 	checkErr(err)
 	if node.callback != nil {
-		node.handler.callbacks.AddCallback(node.callback)
+		node.handler.callbacks.AddCallback(priv.Public.Address(), node.callback)
 	}
 
 	if node.handler.addr != node.private.Public.Address() {
@@ -561,5 +562,5 @@ func TestBeaconThreshold(t *testing.T) {
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {
 	j := b.searchNode(i)
-	b.nodes[j].handler.callbacks.AddCallback(fn)
+	b.nodes[j].handler.callbacks.AddCallback(b.nodes[j].private.Public.Address(), fn)
 }

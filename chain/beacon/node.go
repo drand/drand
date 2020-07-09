@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -32,11 +31,6 @@ type Config struct {
 	Group *key.Group
 	// Clock to use - useful to testing
 	Clock clock.Clock
-	// Callback to use when a new beacon is created - can be nil and new
-	// callbacks can be added afterwards to the beacon
-	Callback func(*chain.Beacon)
-	// skips validation of catch up
-	SkipValidation bool
 }
 
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
@@ -57,7 +51,8 @@ type Handler struct {
 	started   bool
 	stopped   bool
 	l         log.Logger
-	callbacks *chain.CallbackStore
+	callbacks CallbackStore
+	syncer    Syncer
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -73,7 +68,7 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 	}
 	addr := conf.Public.Address()
 	logger := l
-	safe := newCryptoSafe()
+	safe := newCryptoSafe(conf.Group)
 	safe.SetInfo(conf.Share, node, conf.Group)
 	// genesis block at round 0, next block at round 1
 	// THIS is to change when one network wants to build on top of another
@@ -86,7 +81,7 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 		return nil, err
 	}
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
-	callbacks := chain.NewCallbackStore(s)
+	callbacks := NewCallbackStore(s)
 	store := newChainStore(logger, conf, c, safe, callbacks, ticker)
 	handler := &Handler{
 		conf:      conf,
@@ -197,6 +192,10 @@ func (h *Handler) Catchup() {
 	h.chain.RunSync(context.Background())
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
+}
+
+func (h *Handler) SyncChain() {
+	h.chain.RunSync(context.Background())
 }
 
 // Transition makes this beacon continuously sync until the time written in the
@@ -391,72 +390,33 @@ func shuffleNodes(nodes []*key.Node) []*key.Node {
 	return ids
 }
 
-type cryptoInfo struct {
-	group   *key.Group
-	share   *key.Share
-	pub     *share.PubPoly
-	startAt uint64
-	id      *key.Node
-	index   int
+// cryptoStore stores the information necessary to validate partial beacon, full
+// beacons and to sign new partial beacons (it implements CryptoSafe interface).
+type cryptoStore struct {
+	// current share of the node
+	share *key.Share
+	// public polynomial to verify a partial beacon
+	pub *share.PubPoly
+	// chian info to verify final random beacon
+	chain *chain.Info
+	// to know the threshold, transition time etc
+	group *key.Group
 }
 
-type cryptoSafe struct {
-	sync.Mutex
-	infos []*cryptoInfo
-}
-
-func newCryptoSafe() *cryptoSafe {
-	return &cryptoSafe{}
-}
-
-func (c *cryptoSafe) SetInfo(keyShare *key.Share, id *key.Node, group *key.Group) {
-	c.Lock()
-	defer c.Unlock()
-	info := new(cryptoInfo)
-	info.id = id
-	info.group = group
-	info.pub = group.PublicKey.PubPoly()
-	if keyShare != nil {
-		info.share = keyShare
-		info.index = keyShare.Share.I
-	} else {
-		info.index = int(id.Index)
+func newCryptoSafe(currentGroup *key.Group, share *key.Share) *cryptoSafe {
+	return &cryptoSafe{
+		chain: chain.NewChainInfo(currentGroup),
+		share: share,
+		pub:   currentGroup.PubliKey.PubPoly(),
 	}
-	if group.TransitionTime != 0 {
-		t := group.TransitionTime
-		info.startAt = chain.CurrentRound(t, group.Period, group.GenesisTime)
-	} else {
-		// group started at genesis time
-		info.startAt = 0
-	}
-	c.infos = append(c.infos, info)
-	// we sort reverse order so highest round are first
-	sort.Slice(c.infos, func(i, j int) bool { return c.infos[i].startAt > c.infos[j].startAt })
 }
 
-func (c *cryptoSafe) GetInfo(round uint64) (*cryptoInfo, error) {
-	c.Lock()
-	defer c.Unlock()
-	for _, info := range c.infos {
-		if round >= info.startAt {
-			return info, nil
-		}
-	}
-	fmt.Printf("failed infos for round %d: %+v\n", round, c.infos)
-	return nil, fmt.Errorf("no group info for round %d", round)
+func (c *cryptoStore) SignPartial(msg []byte) ([]byte, error) {
+	return key.Scheme.Sign(c.share.PrivateShare(), msg)
 }
 
-func (c *cryptoSafe) String() string {
-	c.Lock()
-	defer c.Unlock()
-	var out string
-	for _, info := range c.infos {
-		var index = -1
-		if info.share != nil {
-			index = info.share.Share.I
-		}
-		shortPub := info.pub.Eval(1).V.String()[14:19]
-		out += fmt.Sprintf(" {startAt: %d, index: %d, pub: %s} ", info.startAt, index, shortPub)
-	}
-	return out
+// CryptoSafe holds the cryptographic information to generate a partial beacon
+type CryptoSafe interface {
+	// SignPartial returns the partial signature
+	SignPartial(msg []byte) ([]byte, error)
 }

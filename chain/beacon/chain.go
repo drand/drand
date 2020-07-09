@@ -33,22 +33,27 @@ type chainStore struct {
 	newPartials   chan partialInfo
 	newBeaconCh   chan *chain.Beacon
 	lastInserted  chan *chain.Beacon
-	requestSync   chan likeBeacon
+	requestSync   chan bool
 	nonSyncBeacon chan *chain.Beacon
 }
 
 func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, safe *cryptoSafe, s chain.Store, ticker *ticker) *chainStore {
+	as, err := newAppendStore(s)
+	if err != nil {
+		l.Fatal("chain_store", "can't create append store", "err", err)
+	}
+
 	c := &chainStore{
 		l:             l,
 		conf:          conf,
 		client:        client,
+		Store:         as,
 		safe:          safe,
-		Store:         s,
 		done:          make(chan bool, 1),
 		ticker:        ticker,
 		newPartials:   make(chan partialInfo, defaultPartialChanBuffer),
 		newBeaconCh:   make(chan *chain.Beacon, defaultNewBeaconBuffer),
-		requestSync:   make(chan likeBeacon, defaultRequestSyncBuffer),
+		requestSync:   make(chan bool, 1),
 		lastInserted:  make(chan *chain.Beacon, 1),
 		nonSyncBeacon: make(chan *chain.Beacon, 1),
 	}
@@ -189,10 +194,10 @@ func (c *chainStore) runChainLoop() {
 			// we have
 			c.l.Debug("new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
-				c.requestSync <- newBeacon
+				c.requestSync <- true
 			}
-		case seen := <-c.requestSync:
-			if !c.shouldSync(lastBeacon, seen) || syncing {
+		case <-c.requestSync:
+			if syncing {
 				continue
 			}
 			syncing = true
@@ -250,4 +255,26 @@ func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
 type partialInfo struct {
 	addr string
 	p    *drand.PartialBeaconPacket
+}
+
+// appendStore is a store that only appends new block with a round +1 from the
+// last block inserted
+type appendStore struct {
+	chain.Store
+	last *chain.Beacon
+}
+
+func newAppendStore(s chain.Store, l log.Logger) (*appendStore, error) {
+	last, err := s.Last()
+	return &appendStore{
+		Store: s,
+		last:  last,
+	}, err
+}
+
+func (a *appendStore) Put(b *chain.Beacon) error {
+	if b.Round != a.last.Round+1 {
+		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
+	}
+	return a.Store.Put(b)
 }

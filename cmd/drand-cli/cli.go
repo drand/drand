@@ -221,6 +221,18 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
+var chainHash = &cli.StringFlag{
+	Name:     "chain-hash",
+	Usage:    "chain information hash used to verify beacons when syncing up - this hash does not change across resharing",
+	Required: true,
+}
+
+var syncNodeFlag = &cli.StringSliceFlag{
+	Name:     "sync-node",
+	Usage:    "list of nodes to which we can sync up the chain",
+	Required: true,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -343,6 +355,12 @@ var appCommands = []*cli.Command{
 				Usage:  "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
 				Flags:  toArray(folderFlag),
 				Action: selfSign,
+			},
+			{
+				Name:   "sync",
+				Usage:  "syncs up a chain. Useful for new nodes that wants to join the network, to have the chain ready when it happens",
+				Flags:  toArray(folderFlag, controlFlag, chainHash, syncNodeFlag),
+				Action: syncCmd,
 			},
 		},
 	},
