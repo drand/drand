@@ -135,9 +135,12 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		lastBeacon = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 		now = dt.Now().Unix()
 	}
+	fmt.Printf(" HHHOOOOOOOOOOOOOOOOOOOOOOOOOOOo\n")
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
+	fmt.Printf(" HIIIIIIIIIIIIIIIIIIII\n")
 	time.Sleep(getSleepDuration())
+	// test that all nodes in the new group have generated a new beacon
 	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)
 }
 
@@ -415,7 +418,7 @@ func (d *DrandTest2) StartDrand(id string, catchup, newGroup bool) {
 	require.NoError(d.t, err)
 	node.drand = newDrand
 	fmt.Println("--- JUST BEFORE STARTBEACON---")
-	newDrand.StartBeacon(catchup, "", false)
+	newDrand.StartBeacon(catchup)
 	fmt.Println("--- JUST AFTER STARTBEACON---")
 }
 
@@ -429,6 +432,8 @@ func (d *DrandTest2) MoveToTime(target int64) {
 	now := d.Now().Unix()
 	if now < target {
 		d.MoveTime(time.Duration(target-now) * time.Second)
+	} else {
+		fmt.Println("ALREADY PASSED")
 	}
 }
 
@@ -458,7 +463,7 @@ func (d *DrandTest2) TestBeaconLength(length int, newGroup bool, ids ...string) 
 				continue
 			}
 			var found bool
-			for i := 0; i < 3; i++ {
+			for i := 0; i < 10; i++ {
 				inst := node.drand
 				if length != inst.beacon.Store().Len() {
 					time.Sleep(getSleepDuration())
@@ -579,6 +584,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 	// run the new ones
 	for _, node := range d.newNodes[:newRun] {
 		d.resharedNodes = append(d.resharedNodes, node)
+		fmt.Printf("\n ++ NEW NODE running RESHARE: %s\n", node.addr)
 		clientCounter.Add(1)
 		go runreshare(node, true)
 	}

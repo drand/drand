@@ -32,9 +32,6 @@ service Protocol {
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     // SyncRequest forces a daemon to sync up its chain with other nodes
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
-    // ChainInfo returns the information related to the chain this node
-    // participates to
-    rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket);
 }
 
 message IdentityRequest {}

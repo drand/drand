@@ -17,6 +17,7 @@ import (
 type PrivateGateway struct {
 	Listener
 	ProtocolClient
+	PublicClient
 }
 
 // StartAll starts the control and public functionalities of the node

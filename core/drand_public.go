@@ -72,8 +72,6 @@ func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) 
 	return d.beacon.ProcessPartialBeacon(c, in)
 }
 
-func (d *Drand) SyncChain(c context.
-
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
@@ -132,7 +130,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	}
 	// then we can stream from any new rounds
 	// register a callback for the duration of this stream
-	d.callbacks.AddCallback(addr, func(b *chain.Beacon) {
+	d.beacon.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.PublicRandResponse{
 			Round:             b.Round,
 			Signature:         b.Signature,
@@ -141,7 +139,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 		})
 		// if connection has a problem, we drop the callback
 		if err != nil {
-			d.callbacks.DelCallback(addr)
+			d.beacon.RemoveCallback(addr)
 			done <- err
 		}
 	})

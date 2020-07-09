@@ -180,6 +180,6 @@ message StartFollowRequest {
 }
 
 message FollowProgress { 
-    int32 current = 1;
-    int32 target = 2;
+    uint64 current = 1;
+    uint64 target = 2;
 }

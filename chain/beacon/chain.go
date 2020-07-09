@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -25,7 +23,7 @@ const (
 // be inserted in the database and for replying to beacon requests.
 type chainStore struct {
 	CallbackStore
-	Syncer
+	sync        Syncer
 	conf        *Config
 	l           log.Logger
 	client      net.ProtocolClient
@@ -38,42 +36,44 @@ type chainStore struct {
 	newAggregatedBeacon chan *chain.Beacon
 	// catchupBeacons is used to notify the Handler when a node has aggregated a
 	// beacon.
-	// TODO replace with a callback with the store
 	catchedupBeacons chan *chain.Beacon
-	// syncedBeacons is the channel over which new beacon that came from syncing
-	// are notified to the main chain loop
-	syncedBeacons chan *chain.Beacon
-	// syncedeaconForAgg is the channel over which new beacon that came from
-	// syncing are notified to the aggregation loop
-	syncedBeaconForAgg chan *chain.Beacon
+	// all beacons finally inserted into the store are sent over this channel
+	// for the main loop to know
+	beaconStoredMain chan *chain.Beacon
+	// all beacons finally inserted into the store are sent over this cannel for
+	// the aggregation loop to know
+	beaconStoredAgg chan *chain.Beacon
 }
 
 func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, crypto *cryptoStore, store chain.Store, ticker *ticker) *chainStore {
-	// we create a callbackstore only for the syncer so we know which beacons
-	// come from the syncing process and which beacon we just added to the store
-	// "normally".
-	cbs := NewCallbackStore(store)
+	// we make sure the chain is increasing monotically
+	as := newAppendStore(store)
+	// we write some stats about the timing when new beacon is saved
+	ds := newDiscrepancyStore(as, l, crypto.GetGroup())
+	// we can register callbacks on it
+	cbs := NewCallbackStore(ds)
+	// we give the final append store to the syncer
 	syncer := NewSyncer(l, cbs, crypto.chain, client)
 	c := &chainStore{
 		l:                   l,
 		conf:                conf,
 		client:              client,
-		CallbackStore:       NewCallbackStore(store),
-		Syncer:              syncer,
+		CallbackStore:       cbs,
+		sync:                syncer,
 		crypto:              crypto,
 		done:                make(chan bool, 1),
 		ticker:              ticker,
 		newPartials:         make(chan partialInfo, defaultPartialChanBuffer),
 		newAggregatedBeacon: make(chan *chain.Beacon, defaultNewBeaconBuffer),
 		catchedupBeacons:    make(chan *chain.Beacon, 1),
-		syncedBeacons:       make(chan *chain.Beacon, defaultNewBeaconBuffer),
-		syncedBeaconForAgg:  make(chan *chain.Beacon, defaultNewBeaconBuffer),
+		beaconStoredMain:    make(chan *chain.Beacon, defaultNewBeaconBuffer),
+		beaconStoredAgg:     make(chan *chain.Beacon, defaultNewBeaconBuffer),
 	}
-	cbs.AddCallback("chainstore", func(newB *chain.Beacon) {
-		// we fisrt notify the main chain loop
-		c.syncedBeacons <- newB
-		// we notify the aggregation loop as well
-		c.syncedBeaconForAgg <- newB
+	// we add callbacks to notify each time a final beacon is stored on the
+	// database so to update the latest view
+	cbs.AddCallback("chainstore", func(b *chain.Beacon) {
+		c.beaconStoredMain <- b
+		c.beaconStoredAgg <- b
 	})
 	// TODO maybe look if it's worth having multiple workers there
 	go c.runChainLoop()
@@ -91,6 +91,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 func (c *chainStore) Stop() {
 	c.CallbackStore.Close()
 	close(c.done)
+	c.CallbackStore.RemoveCallback("chainstore")
 }
 
 // we store partials that are up to this amount of rounds more than the last
@@ -101,26 +102,18 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	lastBeacon, err := c.CallbackStore.Last()
+	lastBeacon, err := c.Last()
 	if err != nil {
 		c.l.Fatal("chain_aggregator", "loading", "last_beacon", err)
 	}
 
 	var cache = newPartialCache(c.l)
-	var newBeaconStored = make(chan *chain.Beacon, 1)
-	// run callback to flush the cache each time a new beacon is inserted
-	c.CallbackStore.AddCallback("aggregator", func(newB *chain.Beacon) {
-		newBeaconStored <- newB
-	})
 	for {
 		select {
 		case <-c.done:
 			c.CallbackStore.RemoveCallback("aggregator")
 			return
-		case lastBeacon = <-newBeaconStored:
-			cache.FlushRounds(lastBeacon.Round)
-			break
-		case lastBeacon = <-c.syncedBeaconForAgg:
+		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
 			break
 		case partial := <-c.newPartials:
@@ -180,30 +173,16 @@ func (c *chainStore) runChainLoop() {
 	var syncing bool
 	var syncingDone = make(chan bool, 1)
 	var requestSync = make(chan uint64, 1)
-	lastBeacon, err := c.CallbackStore.Last()
+	lastBeacon, err := c.Last()
 	if err != nil {
 		c.l.Fatal("store_last_init", err)
 	}
-	insert := func(newB *chain.Beacon) {
-		if err := c.CallbackStore.Put(newB); err != nil {
-			c.l.Fatal("new_beacon_storing", err)
-		}
-		lastBeacon = newB
-		c.newBeaconStored(newB)
-		if !syncing {
-			// during syncing we don't do a catchup
-			select {
-			// only send if it's not full already
-			case c.catchedupBeacons <- newB:
-			default:
-			}
-		}
-	}
+
 	for {
 		select {
 		case newBeacon := <-c.newAggregatedBeacon:
-			if isAppendable(lastBeacon, newBeacon) {
-				insert(newBeacon)
+			if c.tryAppend(lastBeacon, newBeacon) {
+				lastBeacon = newBeacon
 				break
 			}
 			// XXX store them for lfutur usage if it's a later round than what
@@ -212,10 +191,8 @@ func (c *chainStore) runChainLoop() {
 			if c.shouldSync(lastBeacon, newBeacon) {
 				requestSync <- newBeacon.Round
 			}
-
-		case newSyncedBeacon := <-c.syncedBeacons:
-			lastBeacon = newSyncedBeacon
-			c.newBeaconStored(newSyncedBeacon)
+		case lastBeacon = <-c.beaconStoredMain:
+			break
 		case upTo := <-requestSync:
 			if syncing {
 				continue
@@ -225,7 +202,7 @@ func (c *chainStore) runChainLoop() {
 			go func() {
 				// XXX Could do something smarter with context and cancellation
 				// if we got to the right round
-				if err := c.Syncer.Follow(context.Background(), upTo, peers); err != nil {
+				if err := c.sync.Follow(context.Background(), upTo, peers); err != nil {
 					c.l.Debug("chain_store", "unable to follow to the end", "err", err)
 				}
 				syncingDone <- true
@@ -236,6 +213,27 @@ func (c *chainStore) runChainLoop() {
 			return
 		}
 	}
+}
+
+func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
+	if last.Round+1 != newB.Round {
+		// quick check before trying to compare bytes
+		return false
+	}
+	if err := c.CallbackStore.Put(newB); err != nil {
+		// if round is ok but bytes are different, error will be raised
+		c.l.Error("chain_store", "error storing beacon", "err", err)
+		return false
+	}
+	if c.sync.Syncing() {
+		// during syncing we don't do a catchup
+		select {
+		// only send if it's not full already
+		case c.catchedupBeacons <- newB:
+		default:
+		}
+	}
+	return true
 }
 
 func isAppendable(lastBeacon, newBeacon *chain.Beacon) bool {
@@ -259,20 +257,11 @@ func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer)
 	if peers == nil {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
-	c.Syncer.Follow(ctx, upTo, peers)
+	c.sync.Follow(ctx, upTo, peers)
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
 	return c.catchedupBeacons
-}
-
-// measure beacon creation time discrepancy in milliseconds
-func (c *chainStore) newBeaconStored(b *chain.Beacon) {
-	actual := time.Now().UnixNano()
-	expected := chain.TimeOfRound(c.conf.Group.Period, c.conf.Group.GenesisTime, b.Round) * 1e9
-	discrepancy := float64(actual-expected) / float64(time.Millisecond)
-	metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
-	c.l.Info("NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
 }
 
 type partialInfo struct {

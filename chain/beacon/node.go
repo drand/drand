@@ -12,6 +12,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share"
 	clock "github.com/jonboulle/clockwork"
@@ -187,6 +188,7 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 	}
 	go h.run(targetTime)
 	// we run the sync up until (inclusive) one round before the transition
+	h.l.Debug("new_node", "following chain", "to_round", tRound-1)
 	h.chain.RunSync(context.Background(), tRound-1, toPeers(prevGroup.Nodes))
 	return nil
 }
@@ -339,6 +341,16 @@ func (h *Handler) StopAt(stopTime int64) error {
 // AddCallback is a proxy method to register a callback on the backend store
 func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
 	h.chain.AddCallback(id, fn)
+}
+
+// RemoveCallback is a proxy method to remove a callback on the backend store
+func (h *Handler) RemoveCallback(id string) {
+	h.chain.RemoveCallback(id)
+}
+
+// SyncChain is a proxy method to sync a chain
+func (h *Handler) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
+	return h.chain.sync.SyncChain(req, stream)
 }
 
 func shortSigStr(sig []byte) string {

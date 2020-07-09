@@ -163,7 +163,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	}
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
-	go d.StartBeacon(false, "", false)
+	go d.StartBeacon(false)
 	return finalGroup, nil
 }
 
@@ -719,7 +719,7 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
-func (d *Drand) StartFollowChain(req *drand.FollowRequest, stream drand.Protocol_StartFollowChainServer) error {
+func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independant chain manager that manages the
 	// transition from following -> participating
 	d.state.Lock()
@@ -729,18 +729,20 @@ func (d *Drand) StartFollowChain(req *drand.FollowRequest, stream drand.Protocol
 	}
 	// context given to the syncer
 	ctx, cancel := context.WithCancel(context.Background())
-	d.syncCancel = cancel
+	d.syncerCancel = cancel
 	d.state.Unlock()
+
 	addr := net.RemoteAddress(stream.Context())
-	hash := req.GetInfoHash()
+	// TODO put that hash verification back
+	//hash := req.GetInfoHash()
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
 		// XXX add TLS disable later
-		peers = append(peers, net.Peer(addr, true))
+		peers = append(peers, net.CreatePeer(addr, true))
 	}
 	var info *chain.Info
 	for _, peer := range peers {
-		ci, err := d.privGateway.ChainInfo(stream.Context(), new(drand.ChainInfoPacket))
+		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
 		if err != nil {
 			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
@@ -766,12 +768,12 @@ func (d *Drand) StartFollowChain(req *drand.FollowRequest, stream drand.Protocol
 	}
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(store)
-	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway, ProtocolClient, peers)
+	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
 	var done = make(chan error, 1)
 	cbStore.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.FollowProgress{
 			Current: b.Round,
-			Target:  beacon.CurrentRound(d.opts.clock),
+			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
 		})
 		if err != nil {
 			done <- err
@@ -785,6 +787,6 @@ func (d *Drand) StartFollowChain(req *drand.FollowRequest, stream drand.Protocol
 		}
 	})
 	defer cbStore.RemoveCallback(addr)
-	syncer.Follow(ctx)
+	syncer.Follow(ctx, 0, peers)
 	return <-done
 }

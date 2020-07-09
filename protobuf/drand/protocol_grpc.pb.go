@@ -35,9 +35,6 @@ type ProtocolClient interface {
 	PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
 	SyncChain(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (Protocol_SyncChainClient, error)
-	// ChainInfo returns the information related to the chain this node
-	// participates to
-	ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error)
 }
 
 type protocolClient struct {
@@ -134,15 +131,6 @@ func (x *protocolSyncChainClient) Recv() (*BeaconPacket, error) {
 	return m, nil
 }
 
-func (c *protocolClient) ChainInfo(ctx context.Context, in *ChainInfoRequest, opts ...grpc.CallOption) (*ChainInfoPacket, error) {
-	out := new(ChainInfoPacket)
-	err := c.cc.Invoke(ctx, "/drand.Protocol/ChainInfo", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // ProtocolServer is the server API for Protocol service.
 // All implementations should embed UnimplementedProtocolServer
 // for forward compatibility
@@ -165,9 +153,6 @@ type ProtocolServer interface {
 	PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
 	SyncChain(*SyncRequest, Protocol_SyncChainServer) error
-	// ChainInfo returns the information related to the chain this node
-	// participates to
-	ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error)
 }
 
 // UnimplementedProtocolServer should be embedded to have forward compatible implementations.
@@ -194,9 +179,6 @@ func (*UnimplementedProtocolServer) PartialBeacon(context.Context, *PartialBeaco
 }
 func (*UnimplementedProtocolServer) SyncChain(*SyncRequest, Protocol_SyncChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method SyncChain not implemented")
-}
-func (*UnimplementedProtocolServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ChainInfo not implemented")
 }
 
 func RegisterProtocolServer(s *grpc.Server, srv ProtocolServer) {
@@ -332,24 +314,6 @@ func (x *protocolSyncChainServer) Send(m *BeaconPacket) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _Protocol_ChainInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ChainInfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProtocolServer).ChainInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Protocol/ChainInfo",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProtocolServer).ChainInfo(ctx, req.(*ChainInfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 var _Protocol_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "drand.Protocol",
 	HandlerType: (*ProtocolServer)(nil),
@@ -377,10 +341,6 @@ var _Protocol_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PartialBeacon",
 			Handler:    _Protocol_PartialBeacon_Handler,
-		},
-		{
-			MethodName: "ChainInfo",
-			Handler:    _Protocol_ChainInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

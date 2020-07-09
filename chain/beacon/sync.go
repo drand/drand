@@ -1,13 +1,13 @@
 package beacon
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
@@ -24,6 +24,9 @@ type Syncer interface {
 	// the context is cancelled or the round reaches upTo.  To follow
 	// indefinitely, simply pass upTo = 0.
 	Follow(c context.Context, upTo uint64, to []net.Peer) error
+	// Syncing returns true if the syncer is currently being syncing
+	Syncing() bool
+	// SyncChain imeplements the server side of the syncing process
 	SyncChain(req *proto.SyncRequest, p proto.Protocol_SyncChainServer) error
 }
 
@@ -47,6 +50,12 @@ func NewSyncer(l log.Logger, s CallbackStore, info *chain.Info, client net.Proto
 	}
 }
 
+func (s *syncer) Syncing() bool {
+	s.Lock()
+	defer s.Unlock()
+	return s.following
+}
+
 func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error {
 	s.Lock()
 	if s.following {
@@ -62,11 +71,6 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 	}()
 
 	s.l.Debug("syncer", "starting", "up_to", upTo, "nodes", peersToString(nodes))
-	// use this wrapper to make sure the chain is consistently stored
-	appendStore, err := newAppendStore(s.store)
-	if err != nil {
-		return err
-	}
 
 	last, err := s.store.Last()
 	if err != nil {
@@ -76,7 +80,8 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(nodes)) {
 		node := nodes[n]
-		cnode, cancel := context.WithCancel(c)
+		// we quickly pass over different nodes to catchup fast
+		cnode, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		beaconCh, err := s.client.SyncChain(cnode, node, &drand.SyncRequest{
 			FromRound: fromRound,
 		})
@@ -98,7 +103,7 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 				break
 			}
 
-			if err := appendStore.Put(beacon); err != nil {
+			if err := s.store.Put(beacon); err != nil {
 				s.l.Debug("syncer", "unable to save", "with_peer", node.Address(), "err", err)
 				cancel()
 				break
@@ -167,38 +172,6 @@ func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncCha
 	case err := <-done:
 		return err
 	}
-}
-
-// appendStore is a store that only appends new block with a round +1 from the
-// last block inserted and with the corresponding previous signature
-type appendStore struct {
-	chain.Store
-	last *chain.Beacon
-	sync.Mutex
-}
-
-func newAppendStore(s chain.Store) (*appendStore, error) {
-	last, err := s.Last()
-	return &appendStore{
-		Store: s,
-		last:  last,
-	}, err
-}
-
-func (a *appendStore) Put(b *chain.Beacon) error {
-	a.Lock()
-	defer a.Unlock()
-	if b.Round != a.last.Round+1 {
-		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
-	}
-	if !bytes.Equal(a.last.Signature, b.PreviousSig) {
-		return fmt.Errorf("invalid previous signature")
-	}
-	if err := a.Store.Put(b); err != nil {
-		return err
-	}
-	a.last = b
-	return nil
 }
 
 func peersToString(peers []net.Peer) string {
