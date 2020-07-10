@@ -293,7 +293,6 @@ func TestDrandPublicRand(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, i, resp.Round)
 		fmt.Println("REQUEST ROUND ", i, " GOT ROUND ", resp.Round)
-
 	}
 }
 
@@ -409,7 +408,6 @@ func TestDrandFollowChain(tt *testing.T) {
 	var goon = true
 	for goon {
 		select {
-
 		case p := <-progress:
 			if p.Current == resp.GetRound() {
 				// success

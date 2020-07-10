@@ -730,8 +730,8 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	// NOTE: this means that if the client quits the requests, the syncing
 	// context will signal and it will stop. If we want the following to
 	// continue nevertheless we can use the next line by using a new context.
+	// ctx, cancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(stream.Context())
-	//ctx, cancel := context.WithCancel(context.Background())
 	d.syncerCancel = cancel
 	d.state.Unlock()
 
