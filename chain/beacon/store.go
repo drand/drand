@@ -101,7 +101,7 @@ func NewCallbackStore(s chain.Store) CallbackStore {
 	cbs := &callbackStore{
 		Store:     s,
 		callbacks: make(map[string]func(*chain.Beacon)),
-		newJob:    make(chan cbPair, 100),
+		newJob:    make(chan cbPair, CallbackWorkerQueue),
 		done:      make(chan bool, 1),
 	}
 	cbs.runWorkers(runtime.NumCPU())

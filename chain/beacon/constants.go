@@ -16,3 +16,7 @@ const MaxPartialsPerNode = 100
 // MaxCatchupBuffer is the maximum size of the channel that receives beacon from
 // a sync mechanism.
 const MaxCatchupBuffer = 1000
+
+// CallbackWorkerQueue is the length of the channel that the callback worker
+// uses to dispatch beacons to its workers.
+const CallbackWorkerQueue = 100

@@ -17,7 +17,6 @@ import (
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
-	dnet "github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
@@ -260,7 +259,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
+	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
 		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
@@ -336,7 +335,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	oldHash := oldGroup.Hash()
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
+	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
@@ -720,7 +719,7 @@ func getNonce(g *key.Group) []byte {
 }
 
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
-	// TODO replace via a more independant chain manager that manages the
+	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	d.state.Lock()
 	if d.syncerCancel != nil {
@@ -734,7 +733,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 	addr := net.RemoteAddress(stream.Context())
 	// TODO put that hash verification back
-	//hash := req.GetInfoHash()
+	// hash := req.GetInfoHash()
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
 		// XXX add TLS disable later
@@ -758,9 +757,9 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}
 
 	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
-	/*if !bytes.Equal(info.Hash(),hash) {*/
-	//return errors.New("invalid chain info hash!")
-	/*}*/
+	// if !bytes.Equal(info.Hash(),hash) {
+	//  return errors.New("invalid chain info hash!")
+	// }
 
 	store, err := d.createBoltStore()
 	if err != nil {
@@ -787,6 +786,8 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		}
 	})
 	defer cbStore.RemoveCallback(addr)
-	syncer.Follow(ctx, 0, peers)
+	if err := syncer.Follow(ctx, 0, peers); err != nil {
+		return err
+	}
 	return <-done
 }

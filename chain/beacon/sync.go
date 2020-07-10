@@ -11,7 +11,6 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
@@ -20,7 +19,7 @@ import (
 type Syncer interface {
 	// Follow is a blocking call that continuously fetches the beacon from the
 	// given nodes, verify the validity (chain etc) and then  stores it, until
-	// the context is cancelled or the round reaches upTo.  To follow
+	// the context is canceled or the round reaches upTo.  To follow
 	// indefinitely, simply pass upTo = 0.
 	Follow(c context.Context, upTo uint64, to []net.Peer) error
 	// Syncing returns true if the syncer is currently being syncing
@@ -75,53 +74,60 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 	if err != nil {
 		return err
 	}
-	fromRound := last.Round + 1
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(nodes)) {
 		node := nodes[n]
-		cnode, cancel := context.WithCancel(context.Background())
-		beaconCh, err := s.client.SyncChain(cnode, node, &drand.SyncRequest{
-			FromRound: fromRound,
-		})
-		if err != nil {
-			s.l.Debug("syncer", "unable_to_sync", "with_peer", node.Address(), "err", err)
-			continue
-		}
-
-		s.l.Debug("syncer", "start_follow", "with_peer", node.Address(), "from_round", fromRound)
-
-		for beaconPacket := range beaconCh {
-			s.l.Debug("syncer", "new_beacon_fetched", "with_peer", node.Address(), "from_round", fromRound, "got_round", beaconPacket.GetRound())
-			beacon := protoToBeacon(beaconPacket)
-
-			// verify the signature validity
-			if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
-				s.l.Debug("syncer", "invalid_beacon", "with_peer", node.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
-				cancel()
-				break
-			}
-
-			if err := s.store.Put(beacon); err != nil {
-				s.l.Debug("syncer", "unable to save", "with_peer", node.Address(), "err", err)
-				cancel()
-				break
-			}
-			last = beacon
-			if last.Round == upTo {
-				cancel()
-				s.l.Debug("syncer", "syncing finished to", "round", upTo)
-				return nil
-			}
-		}
-		// see if this was a cancellation from the call itself
-		select {
-		case <-c.Done():
-			s.l.Debug("syncer", "follow cancelled", "err?", c.Err())
-			return c.Err()
-		default:
+		if s.tryNode(c, last, upTo, node) {
+			return nil
 		}
 	}
 	return errors.New("sync store tried to follow all nodes")
+}
+
+func (s *syncer) tryNode(global context.Context, last *chain.Beacon, upTo uint64, n net.Peer) bool {
+	cnode, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	beaconCh, err := s.client.SyncChain(cnode, n, &proto.SyncRequest{
+		FromRound: last.Round + 1,
+	})
+	if err != nil {
+		s.l.Debug("syncer", "unable_to_sync", "with_peer", n.Address(), "err", err)
+		return false
+	}
+
+	s.l.Debug("syncer", "start_follow", "with_peer", n.Address(), "from_round", last.Round+1)
+
+	for beaconPacket := range beaconCh {
+		s.l.Debug("syncer", "new_beacon_fetched", "with_peer", n.Address(), "from_round", last.Round+1, "got_round", beaconPacket.GetRound())
+		beacon := protoToBeacon(beaconPacket)
+
+		// verify the signature validity
+		if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
+			s.l.Debug("syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
+			return false
+		}
+
+		if err := s.store.Put(beacon); err != nil {
+			s.l.Debug("syncer", "unable to save", "with_peer", n.Address(), "err", err)
+			return false
+		}
+		last = beacon
+		if last.Round == upTo {
+			s.l.Debug("syncer", "syncing finished to", "round", upTo)
+			return true
+		}
+	}
+	// see if this was a cancellation from the call itself
+	select {
+	case <-global.Done():
+		s.l.Debug("syncer", "follow canceled", "err?", global.Err())
+		if global.Err() == nil {
+			return true
+		}
+		return false
+	default:
+	}
+	return false
 }
 
 func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncChainServer) error {

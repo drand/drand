@@ -5,16 +5,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/protobuf/drand"
 	proto "github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/share"
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/key"
@@ -52,7 +49,6 @@ type Handler struct {
 	started bool
 	stopped bool
 	l       log.Logger
-	syncer  Syncer
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
@@ -349,7 +345,7 @@ func (h *Handler) RemoveCallback(id string) {
 }
 
 // SyncChain is a proxy method to sync a chain
-func (h *Handler) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
+func (h *Handler) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncChainServer) error {
 	return h.chain.sync.SyncChain(req, stream)
 }
 
@@ -359,75 +355,4 @@ func shortSigStr(sig []byte) string {
 		max = len(sig)
 	}
 	return hex.EncodeToString(sig[0:max])
-}
-
-func shuffleNodes(nodes []*key.Node) []*key.Node {
-	ids := make([]*key.Node, 0, len(nodes))
-	ids = append(ids, nodes...)
-	rand.Shuffle(len(ids), func(i, j int) { ids[i], ids[j] = ids[j], ids[i] })
-	return ids
-}
-
-// cryptoStore stores the information necessary to validate partial beacon, full
-// beacons and to sign new partial beacons (it implements CryptoSafe interface).
-// cryptoStore is thread safe when using the methods.
-type cryptoStore struct {
-	sync.Mutex
-	// current share of the node
-	share *key.Share
-	// public polynomial to verify a partial beacon
-	pub *share.PubPoly
-	// chian info to verify final random beacon
-	chain *chain.Info
-	// to know the threshold, transition time etc
-	group *key.Group
-}
-
-func newCryptoStore(currentGroup *key.Group, share *key.Share) *cryptoStore {
-	return &cryptoStore{
-		chain: chain.NewChainInfo(currentGroup),
-		share: share,
-		pub:   currentGroup.PublicKey.PubPoly(),
-		group: currentGroup,
-	}
-}
-
-// GetGroup returns the current group
-func (c *cryptoStore) GetGroup() *key.Group {
-	c.Lock()
-	defer c.Unlock()
-	return c.group
-}
-
-func (c *cryptoStore) GetPub() *share.PubPoly {
-	c.Lock()
-	defer c.Unlock()
-	return c.pub
-}
-
-// SignPartial implemements the CryptoSafe interface
-func (c *cryptoStore) SignPartial(msg []byte) ([]byte, error) {
-	c.Lock()
-	defer c.Unlock()
-	return key.Scheme.Sign(c.share.PrivateShare(), msg)
-}
-
-// Index returns the index of the share
-func (c *cryptoStore) Index() int {
-	return int(c.share.Share.I)
-}
-
-func (c *cryptoStore) SetInfo(newGroup *key.Group, share *key.Share) {
-	c.Lock()
-	defer c.Unlock()
-	c.share = share
-	c.group = newGroup
-	c.pub = newGroup.PublicKey.PubPoly()
-	// chain info is constant
-}
-
-// CryptoSafe holds the cryptographic information to generate a partial beacon
-type CryptoSafe interface {
-	// SignPartial returns the partial signature
-	SignPartial(msg []byte) ([]byte, error)
 }

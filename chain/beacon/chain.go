@@ -1,7 +1,6 @@
 package beacon
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 
@@ -14,7 +13,6 @@ import (
 
 const (
 	defaultPartialChanBuffer = 10
-	defaultRequestSyncBuffer = 10
 	defaultNewBeaconBuffer   = 100
 )
 
@@ -23,52 +21,52 @@ const (
 // be inserted in the database and for replying to beacon requests.
 type chainStore struct {
 	CallbackStore
-	sync        Syncer
-	conf        *Config
 	l           log.Logger
+	conf        *Config
 	client      net.ProtocolClient
+	sync        Syncer
 	crypto      *cryptoStore
 	ticker      *ticker
 	done        chan bool
 	newPartials chan partialInfo
 	// catchupBeacons is used to notify the Handler when a node has aggregated a
 	// beacon.
-	catchedupBeacons chan *chain.Beacon
+	catchupBeacons chan *chain.Beacon
 	// all beacons finally inserted into the store are sent over this cannel for
 	// the aggregation loop to know
 	beaconStoredAgg chan *chain.Beacon
 }
 
-func newChainStore(l log.Logger, conf *Config, client net.ProtocolClient, crypto *cryptoStore, store chain.Store, ticker *ticker) *chainStore {
+func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoStore, store chain.Store, t *ticker) *chainStore {
 	// we make sure the chain is increasing monotically
 	as := newAppendStore(store)
 	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(as, l, crypto.GetGroup())
+	ds := newDiscrepancyStore(as, l, c.GetGroup())
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
 	// we give the final append store to the syncer
-	syncer := NewSyncer(l, cbs, crypto.chain, client)
-	c := &chainStore{
-		l:                l,
-		conf:             conf,
-		client:           client,
-		CallbackStore:    cbs,
-		sync:             syncer,
-		crypto:           crypto,
-		done:             make(chan bool, 1),
-		ticker:           ticker,
-		newPartials:      make(chan partialInfo, defaultPartialChanBuffer),
-		catchedupBeacons: make(chan *chain.Beacon, 1),
-		beaconStoredAgg:  make(chan *chain.Beacon, defaultNewBeaconBuffer),
+	syncer := NewSyncer(l, cbs, c.chain, cl)
+	cs := &chainStore{
+		CallbackStore:   cbs,
+		l:               l,
+		conf:            cf,
+		client:          cl,
+		sync:            syncer,
+		crypto:          c,
+		ticker:          t,
+		done:            make(chan bool, 1),
+		newPartials:     make(chan partialInfo, defaultPartialChanBuffer),
+		catchupBeacons:  make(chan *chain.Beacon, 1),
+		beaconStoredAgg: make(chan *chain.Beacon, defaultNewBeaconBuffer),
 	}
 	// we add callbacks to notify each time a final beacon is stored on the
 	// database so to update the latest view
 	cbs.AddCallback("chainstore", func(b *chain.Beacon) {
-		c.beaconStoredAgg <- b
+		cs.beaconStoredAgg <- b
 	})
 	// TODO maybe look if it's worth having multiple workers there
-	go c.runAggregator()
-	return c
+	go cs.runAggregator()
+	return cs
 }
 
 func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) {
@@ -81,7 +79,6 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 func (c *chainStore) Stop() {
 	c.CallbackStore.Close()
 	close(c.done)
-	c.CallbackStore.RemoveCallback("chainstore")
 }
 
 // we store partials that are up to this amount of rounds more than the last
@@ -101,7 +98,6 @@ func (c *chainStore) runAggregator() {
 	for {
 		select {
 		case <-c.done:
-			c.CallbackStore.RemoveCallback("aggregator")
 			return
 		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
@@ -188,15 +184,10 @@ func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
 	}
 	select {
 	// only send if it's not full already
-	case c.catchedupBeacons <- newB:
+	case c.catchupBeacons <- newB:
 	default:
 	}
 	return true
-}
-
-func isAppendable(lastBeacon, newBeacon *chain.Beacon) bool {
-	return newBeacon.Round == lastBeacon.Round+1 &&
-		bytes.Equal(lastBeacon.Signature, newBeacon.PreviousSig)
 }
 
 type likeBeacon interface {
@@ -215,11 +206,13 @@ func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer)
 	if peers == nil {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
-	c.sync.Follow(ctx, upTo, peers)
+	if err := c.sync.Follow(ctx, upTo, peers); err != nil {
+		c.l.Debug("chain_store", "follow_finished", "err", err)
+	}
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
-	return c.catchedupBeacons
+	return c.catchupBeacons
 }
 
 type partialInfo struct {
