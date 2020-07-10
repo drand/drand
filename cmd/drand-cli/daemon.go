@@ -2,7 +2,6 @@ package drand
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -22,10 +21,6 @@ func startCmd(c *cli.Context) error {
 	freshRun := errG != nil || errS != nil
 	var err error
 	if freshRun {
-		if err := resetBeaconDB(conf); err != nil {
-			fmt.Println(err)
-			os.Exit(0)
-		}
 		fmt.Println("drand: will run as fresh install -> expect to run DKG.")
 		drand, err = core.NewDrand(fs, conf)
 		if err != nil {

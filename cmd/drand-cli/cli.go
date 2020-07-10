@@ -463,10 +463,12 @@ func resetCmd(c *cli.Context) error {
 
 func resetBeaconDB(config *core.Config) error {
 	if _, err := os.Stat(config.DBFolder()); err == nil {
-		fmt.Fprintf(output, "INCONSISTENT STATE: A beacon database exists already.\n"+
-			"drand support only one identity at the time and thus needs to delete "+
-			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+
-			"database ? [Y/n]: ", config.DBFolder())
+		fmt.Fprintf(output,
+			"INCONSISTENT STATE: A beacon database exists already.\n"+
+				"drand support only one chain at the time. Running a new DKG will"+
+				"generate a new random chain. Thus drand needs to delete "+
+				"the existing beacon database.\nCurrent folder is %s.\nAccept to"+
+				"delete database ? [Y/n]: ", config.DBFolder())
 		reader := bufio.NewReader(os.Stdin)
 		answer, err := reader.ReadString('\n')
 		if err != nil {

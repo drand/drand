@@ -67,6 +67,11 @@ func shareCmd(c *cli.Context) error {
 	if c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name) {
 		return reshareCmd(c)
 	}
+	conf := contextToConfig(c)
+	if err := resetBeaconDB(conf); err != nil {
+		fmt.Println(err)
+		os.Exit(0)
+	}
 
 	if c.Bool(leaderFlag.Name) {
 		return leadShareCmd(c)
@@ -76,7 +81,6 @@ func shareCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	if !c.IsSet(connectFlag.Name) {
 		return fmt.Errorf("need to the address of the coordinator to create the group file")
 	}
@@ -408,11 +412,11 @@ func followCmd(c *cli.Context) error {
 	}
 	var current uint64
 	var target uint64
-	s := spinner.New(spinner.CharSets[9], 500*time.Millisecond)
+	s := spinner.New(spinner.CharSets[9], 1000*time.Millisecond)
 	s.PreUpdate = func(spin *spinner.Spinner) {
 		curr := atomic.LoadUint64(&current)
 		tar := atomic.LoadUint64(&target)
-		spin.Suffix = fmt.Sprintf("%d/%d - %.3f %%", curr, tar, 100*float64(curr)/float64(tar))
+		spin.Suffix = fmt.Sprintf("  synced round up to %d - current target %d\t--> %.3f %% - Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
 	}
 	s.FinalMSG = "Follow stopped"
 	s.Start()
