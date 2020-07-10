@@ -1,3 +1,4 @@
+# Regenerates generated files and ensures PRs commit generated updates
 name: Generate
 
 on:
@@ -30,7 +31,7 @@ jobs:
     - name: Generate
       run: go generate ./...
     - name: Check
-      # git sttatus --porcelain shows changed files.
+      # git status --porcelain shows changed files.
       # the echoed output provides github action output format, per
       # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjobs_idoutputs
       run: |
