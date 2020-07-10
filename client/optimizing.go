@@ -283,9 +283,6 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 					rr := get(gctx, c, round)
 					cancel()
 					if rr != nil {
-						if rr.result != nil && rr.result.Round() != round {
-							fmt.Printf("got unexpected round back in OC get call %s\n", c)
-						}
 						results <- rr
 					}
 					token <- struct{}{}
