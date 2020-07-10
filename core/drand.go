@@ -35,9 +35,7 @@ type Drand struct {
 
 	beacon *beacon.Handler
 	// dkg private share. can be nil if dkg not finished yet.
-	share *key.Share
-	// dkg public key. Can be nil if dkg not finished yet.
-	pub     *key.DistPublic
+	share   *key.Share
 	dkgDone bool
 	// manager is created and destroyed during a setup phase
 	manager  *setupManager
@@ -151,10 +149,6 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.pub, err = s.LoadDistPublic()
-	if err != nil {
-		return nil, err
-	}
 	d.log.Debug("serving", d.priv.Public.Address())
 	d.dkgDone = true
 	return d, nil
@@ -193,9 +187,6 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	s := key.Share(*res.Result.Key)
 	d.share = &s
 	if err := d.store.SaveShare(d.share); err != nil {
-		return nil, err
-	}
-	if err := d.store.SaveDistPublic(d.share.Public()); err != nil {
 		return nil, err
 	}
 	targetGroup := d.dkgInfo.target

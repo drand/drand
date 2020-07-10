@@ -218,6 +218,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	priv.Public.TLS = false
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
+	group.PublicKey = distKey
 	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
 	group.Nodes[1] = &key.Node{Identity: priv.Public, Index: 1}
 	groupPath := path.Join(tmpPath, "drand_group.toml")
@@ -230,8 +231,6 @@ func TestStartWithoutGroup(t *testing.T) {
 	s := &share.PriShare{I: 2, V: scalarOne}
 	fakeShare := &key.Share{Share: s}
 	require.NoError(t, fileStore.SaveShare(fakeShare))
-
-	require.NoError(t, fileStore.SaveDistPublic(distKey))
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
@@ -300,8 +299,6 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	require.NoError(t, err)
 	os.Stdin = r
 	require.NoError(t, CLI().Run(resetCmd))
-	_, err = fileStore.LoadDistPublic()
-	require.Error(t, err)
 	_, err = fileStore.LoadShare()
 	require.Error(t, err)
 	_, err = fileStore.LoadGroup()
@@ -354,7 +351,6 @@ func TestClientTLS(t *testing.T) {
 	group.GenesisTime = time.Now().Unix()
 	group.PublicKey = distKey
 	require.NoError(t, fileStore.SaveGroup(group))
-	require.NoError(t, fileStore.SaveDistPublic(distKey))
 	require.NoError(t, key.Save(groupPath, group, false))
 
 	// fake share

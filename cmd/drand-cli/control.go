@@ -3,8 +3,11 @@ package drand
 import (
 	"fmt"
 	"os"
+	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -385,5 +388,33 @@ func selfSign(c *cli.Context) error {
 	}
 	fmt.Fprintln(output, "Public identity self signed")
 	fmt.Fprintln(output, printJSON(pair.Public.TOML()))
+	return nil
+}
+
+func followCmd(c *cli.Context) error {
+	ctrlClient, err := controlClient(c)
+	if err != nil {
+		return fmt.Errorf("unable to create control client: %s", err)
+	}
+	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
+	channel, err := ctrlClient.StartFollowChain(c.Context, c.String(hashInfoFlag.Name), addrs)
+	if err != nil {
+		return fmt.Errorf("error asking to follow chain: %s", err)
+	}
+	var current uint64
+	var target uint64
+	s := spinner.New(spinner.CharSets[9], 1*time.Millisecond)
+	s.PreUpdate = func(spin *spinner.Spinner) {
+		curr := atomic.LoadUint64(&current)
+		tar := atomic.LoadUint64(&target)
+		spin.Suffix = fmt.Sprintf("%d/%d - %.3f %%", curr, tar, float64(curr)/float64(tar))
+	}
+	s.FinalMSG = "Follow stopped"
+	s.Start()
+	defer s.Stop()
+	for progress := range channel {
+		atomic.StoreUint64(&current, progress.Current)
+		atomic.StoreUint64(&target, progress.Target)
+	}
 	return nil
 }

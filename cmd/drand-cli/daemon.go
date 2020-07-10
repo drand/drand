@@ -18,9 +18,8 @@ func startCmd(c *cli.Context) error {
 	// determine if we already ran a DKG or not
 	_, errG := fs.LoadGroup()
 	_, errS := fs.LoadShare()
-	_, errD := fs.LoadDistPublic()
 	// XXX place that logic inside core/ directly with only one method
-	freshRun := errG != nil || errS != nil || errD != nil
+	freshRun := errG != nil || errS != nil
 	var err error
 	if freshRun {
 		if err := resetBeaconDB(conf); err != nil {

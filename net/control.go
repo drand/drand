@@ -154,34 +154,63 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 }
 
 // Share returns the share of the remote node
-func (c ControlClient) Share() (*control.ShareResponse, error) {
+func (c *ControlClient) Share() (*control.ShareResponse, error) {
 	return c.client.Share(context.Background(), &control.ShareRequest{})
 }
 
 // PublicKey returns the public key of the remote node
-func (c ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
+func (c *ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
 	return c.client.PublicKey(context.Background(), &control.PublicKeyRequest{})
 }
 
 // PrivateKey returns the private key of the remote node
-func (c ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
+func (c *ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
 	return c.client.PrivateKey(context.Background(), &control.PrivateKeyRequest{})
 }
 
 // ChainInfo returns the collective key of the remote node
-func (c ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
+func (c *ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
 	return c.client.ChainInfo(context.Background(), &control.ChainInfoRequest{})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
 // time
-func (c ControlClient) GroupFile() (*control.GroupPacket, error) {
+func (c *ControlClient) GroupFile() (*control.GroupPacket, error) {
 	return c.client.GroupFile(context.Background(), &control.GroupRequest{})
 }
 
 // Shutdown stops the daemon
-func (c ControlClient) Shutdown() (*control.ShutdownResponse, error) {
+func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 	return c.client.Shutdown(context.Background(), &control.ShutdownRequest{})
+}
+
+const progressFollowQueue = 100
+
+func (c *ControlClient) StartFollowChain(ctx context.Context, hash string, nodes []string) (chan *control.FollowProgress, error) {
+	stream, err := c.client.StartFollowChain(ctx, &control.StartFollowRequest{
+		InfoHash: hash,
+		Nodes:    nodes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var outCh = make(chan *control.FollowProgress, progressFollowQueue)
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				close(outCh)
+				return
+			}
+			select {
+			case outCh <- resp:
+			case <-ctx.Done():
+				close(outCh)
+				return
+			}
+		}
+	}()
+	return outCh, nil
 }
 
 // controlListenAddr parses the control address as specified, into a dialable / listenable address

@@ -221,6 +221,20 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
+var hashInfoFlag = &cli.StringFlag{
+	Name:     "chain-hash",
+	Usage:    "The hash of the chain info",
+	Required: true,
+}
+
+// using a simple string flag because the StringSliceFlag is not intuitive
+// see https://github.com/urfave/cli/issues/62
+var syncNodeFlag = &cli.StringFlag{
+	Name:     "sync-nodes",
+	Usage:    "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s)",
+	Required: true,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -253,6 +267,12 @@ var appCommands = []*cli.Command{
 			banner()
 			return shareCmd(c)
 		},
+	},
+	{
+		Name:   "follow",
+		Usage:  "follow and store a randomness chain",
+		Flags:  toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag),
+		Action: followCmd,
 	},
 	{
 		Name: "generate-keypair",
