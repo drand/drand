@@ -40,6 +40,11 @@ jobs:
           exit 0
         else
           OUTPUT=$(git status --porcelain)
+          for file in $OUTPUT
+          do
+            f=$(echo $file | sed -e 's/^.* //')
+            echo "::error file=$f,line=1,col=1::File not in sync with `go generate`"
+          done
           OUTPUT="${OUTPUT//'%'/'%25'}"
           OUTPUT="${OUTPUT//$'\n'/'%0A'}"
           OUTPUT="${OUTPUT//$'\r'/'%0D'}"
