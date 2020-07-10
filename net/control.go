@@ -186,7 +186,11 @@ func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 
 const progressFollowQueue = 100
 
-func (c *ControlClient) StartFollowChain(cc ctx.Context, hash string, nodes []string, tls bool) (outCh chan *control.FollowProgress, errCh chan error, e error) {
+func (c *ControlClient) StartFollowChain(cc ctx.Context,
+	hash string,
+	nodes []string,
+	tls bool) (outCh chan *control.FollowProgress,
+	errCh chan error, e error) {
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,
 		Nodes:    nodes,
