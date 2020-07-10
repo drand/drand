@@ -371,7 +371,7 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 		retryInterval: oc.watchRetryInterval,
 	}
 
-	go state.loop(inChan)
+	go state.dispatchWatchingClients(inChan)
 	go oc.trackWatchResults(info, inChan, outChan)
 	return outChan
 }
@@ -383,7 +383,7 @@ type watchingClient struct {
 
 type failedClient struct {
 	Client
-	time.Time
+	backoffUntil time.Time
 }
 
 type watchState struct {
@@ -394,7 +394,7 @@ type watchState struct {
 	retryInterval time.Duration
 }
 
-func (ws *watchState) loop(resultChan chan watchResult) {
+func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult) {
 	closingClients := make(chan Client, 1)
 	defer close(resultChan)
 
@@ -411,11 +411,12 @@ func (ws *watchState) loop(resultChan chan watchResult) {
 				return
 			}
 		case <-ticker.C:
-			if ws.has(ws.optimizer.fastestClients()[0]) == -1 {
+			if ws.hasActive(ws.optimizer.fastestClients()[0]) == -1 {
 				ws.closeSlowest()
 				ws.tryRepopulate(resultChan, closingClients)
 			}
 		case <-ws.ctx.Done():
+			// trigger client close. Will return once len(ws.active) == 0
 			for _, c := range ws.active {
 				c.CancelFunc()
 			}
@@ -437,7 +438,7 @@ func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) 
 func (ws *watchState) clean() {
 	nf := make([]failedClient, 0, len(ws.failed))
 	for _, f := range ws.failed {
-		if f.Time.After(time.Now()) {
+		if f.backoffUntil.After(time.Now()) {
 			nf = append(nf, f)
 		}
 	}
@@ -452,14 +453,16 @@ func (ws *watchState) close(clientIdx int) {
 }
 
 func (ws *watchState) done(c Client) {
-	idx := ws.has(c)
+	idx := ws.hasActive(c)
 	if idx > -1 {
 		ws.close(idx)
 		ws.failed = append(ws.failed, failedClient{c, time.Now().Add(ws.retryInterval)})
+	} else {
+		ws.optimizer.log.Warn("optimizing_client", "failed to close watching client", "client", fmt.Sprintf("%s", c))
 	}
 }
 
-func (ws *watchState) has(c Client) int {
+func (ws *watchState) hasActive(c Client) int {
 	for i, a := range ws.active {
 		if a.Client == c {
 			return i
@@ -475,10 +478,8 @@ func (ws *watchState) closeSlowest() {
 	order := ws.optimizer.fastestClients()
 	idxs := make([]int, 0)
 	for _, c := range order {
-		for i, a := range ws.active {
-			if a.Client == c {
-				idxs = append(idxs, i)
-			}
+		if i := ws.hasActive(c); i > -1 {
+			idxs = append(idxs, i)
 		}
 	}
 	ws.close(idxs[len(idxs)-1])
