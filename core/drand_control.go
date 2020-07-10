@@ -25,9 +25,9 @@ import (
 // errPreempted is returned on reshares when a subsequent reshare is started concurrently
 var errPreempted = errors.New("time out: pre-empted")
 
-// InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
-// DKG protocol to finish. If the request specifies this node is a leader, it
-// starts the DKG protocol.
+// InitDKG take a InitDKGPacket, extracts the informations needed and wait for
+// the DKG protocol to finish. If the request specifies this node is a leader,
+// it starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	isLeader := in.GetInfo().GetLeader()
 	d.state.Lock()
@@ -776,6 +776,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	// TODO find a better place to put that
 	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
 		d.log.Error("start_follow_chain", "unable to insert genesis block", "err", err)
+		store.Close()
 		return fmt.Errorf("unable to insert genesis block: %s", err)
 	}
 	// register callback to notify client of progress

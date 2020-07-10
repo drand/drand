@@ -67,11 +67,6 @@ func shareCmd(c *cli.Context) error {
 	if c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name) {
 		return reshareCmd(c)
 	}
-	conf := contextToConfig(c)
-	if err := resetBeaconDB(conf); err != nil {
-		fmt.Println(err)
-		os.Exit(0)
-	}
 
 	if c.Bool(leaderFlag.Name) {
 		return leadShareCmd(c)
@@ -94,7 +89,6 @@ func shareCmd(c *cli.Context) error {
 
 	fmt.Fprintln(output, "Participating to the setup of the DKG")
 	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret)
-	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
@@ -138,11 +132,11 @@ func leadShareCmd(c *cli.Context) error {
 	}
 	fmt.Fprintln(output, "Initiating the DKG as a leader")
 	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
-		"file will not be written out to the specified output. To get the"+
-		"group file once the setup phase is done, you can run the `drand show"+
+		"file will not be written out to the specified output. To get the "+
+		"group file once the setup phase is done, you can run the `drand show "+
 		"group` command")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, args.timeout, args.entropy, args.secret, offset)
-	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
+	//fmt.Fprintln(output, "group", groupP.String())
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)

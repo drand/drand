@@ -125,7 +125,7 @@ func setupDrand(d *Drand, c *Config) error {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr)
+	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
 	d.privGateway.StartAll()
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
