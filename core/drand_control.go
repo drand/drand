@@ -160,7 +160,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	}
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
-	go d.StartBeacon(false)
+	go d.StartBeacon(false, "", false)
 	return finalGroup, nil
 }
 
@@ -290,7 +290,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	d.log.Debug("init_dkg", "wait_group")
@@ -348,12 +348,14 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.receiver = receiver
 	d.state.Unlock()
 
-	defer func() {
+	defer func(r *setupReceiver) {
 		d.state.Lock()
-		d.receiver.stop()
-		d.receiver = nil
+		r.stop()
+		if d.receiver == r {
+			d.receiver = nil
+		}
 		d.state.Unlock()
-	}()
+	}(d.receiver)
 	// send public key to leader
 	id := d.priv.Public.ToProto()
 	prep := &drand.SignalDKGPacket{
@@ -369,7 +371,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.log.Info("setup_reshare", "signaling_key_to_leader")
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)

@@ -52,6 +52,7 @@ func TestClientMultiple(t *testing.T) {
 	if r.Round() <= 0 {
 		t.Fatal("expected valid client")
 	}
+	_ = c.Close()
 }
 
 func TestClientWithChainInfo(t *testing.T) {
@@ -71,6 +72,7 @@ func TestClientWithChainInfo(t *testing.T) {
 	if err == nil {
 		t.Fatal("bad urls should clearly not provide randomness.")
 	}
+	_ = c.Close()
 }
 
 func TestClientCache(t *testing.T) {
@@ -96,6 +98,7 @@ func TestClientCache(t *testing.T) {
 	if e == nil {
 		t.Fatal("non-cached results should fail.")
 	}
+	_ = c.Close()
 }
 
 func TestClientWithoutCache(t *testing.T) {
@@ -118,6 +121,7 @@ func TestClientWithoutCache(t *testing.T) {
 	if e == nil {
 		t.Fatal("cache should be disabled.")
 	}
+	_ = c.Close()
 }
 
 func TestClientWithWatcher(t *testing.T) {
@@ -151,6 +155,7 @@ func TestClientWithWatcher(t *testing.T) {
 			break
 		}
 	}
+	_ = c.Close()
 }
 
 func TestClientWithWatcherCtorError(t *testing.T) {
@@ -229,6 +234,7 @@ func TestClientAutoWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	compareResults(t, r, results[0])
+	_ = c.Close()
 }
 
 // compareResults asserts that two results are the same.
