@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 
@@ -82,18 +83,29 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 // callbackStores keeps a list of functions to notify on new beacons
 type callbackStore struct {
 	chain.Store
-	cbs map[string]func(*chain.Beacon)
 	sync.Mutex
+	done      chan bool
+	callbacks map[string]func(*chain.Beacon)
+	newJob    chan cbPair
 }
 
-// NewCallbackStore returns a Store that calls the given callback in a goroutine
-// each time a new Beacon is saved into the given store. It does not call the
-// callback if there has been any errors while saving the beacon.
+type cbPair struct {
+	cb func(*chain.Beacon)
+	b  *chain.Beacon
+}
+
+// NewCallbackStore returns a Store that uses a pool of worker to dispatch the
+// beacon to the registered callbacks. The callbacks are not called if the "Put"
+// operations failed.
 func NewCallbackStore(s chain.Store) CallbackStore {
-	return &callbackStore{
-		Store: s,
-		cbs:   make(map[string]func(*chain.Beacon)),
+	cbs := &callbackStore{
+		Store:     s,
+		callbacks: make(map[string]func(*chain.Beacon)),
+		newJob:    make(chan cbPair, 100),
+		done:      make(chan bool, 1),
 	}
+	cbs.runWorkers(runtime.NumCPU())
+	return cbs
 }
 
 // Put stores a new beacon
@@ -102,13 +114,14 @@ func (c *callbackStore) Put(b *chain.Beacon) error {
 		return err
 	}
 	if b.Round != 0 {
-		go func() {
-			c.Lock()
-			defer c.Unlock()
-			for _, cb := range c.cbs {
-				cb(b)
+		c.Lock()
+		defer c.Unlock()
+		for _, cb := range c.callbacks {
+			c.newJob <- cbPair{
+				cb: cb,
+				b:  b,
 			}
-		}()
+		}
 	}
 	return nil
 }
@@ -117,11 +130,33 @@ func (c *callbackStore) Put(b *chain.Beacon) error {
 func (c *callbackStore) AddCallback(id string, fn func(*chain.Beacon)) {
 	c.Lock()
 	defer c.Unlock()
-	c.cbs[id] = fn
+	c.callbacks[id] = fn
 }
 
 func (c *callbackStore) RemoveCallback(id string) {
 	c.Lock()
 	defer c.Unlock()
-	delete(c.cbs, id)
+	delete(c.callbacks, id)
+}
+
+func (c *callbackStore) Close() {
+	c.Store.Close()
+	close(c.done)
+}
+
+func (c *callbackStore) runWorkers(n int) {
+	for i := 0; i < n; i++ {
+		go c.runWorker()
+	}
+}
+
+func (c *callbackStore) runWorker() {
+	for {
+		select {
+		case newJob := <-c.newJob:
+			newJob.cb(newJob.b)
+		case <-c.done:
+			return
+		}
+	}
 }

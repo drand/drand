@@ -135,10 +135,8 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		lastBeacon = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 		now = dt.Now().Unix()
 	}
-	fmt.Printf(" HHHOOOOOOOOOOOOOOOOOOOOOOOOOOOo\n")
 	// move to the transition time
 	dt.MoveToTime(resharedGroup.TransitionTime)
-	fmt.Printf(" HIIIIIIIIIIIIIIIIIIII\n")
 	time.Sleep(getSleepDuration())
 	// test that all nodes in the new group have generated a new beacon
 	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)

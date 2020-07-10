@@ -79,8 +79,6 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(nodes)) {
 		node := nodes[n]
-		// we quickly pass over different nodes to catchup fast
-		//cnode, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		cnode, cancel := context.WithCancel(context.Background())
 		beaconCh, err := s.client.SyncChain(cnode, node, &drand.SyncRequest{
 			FromRound: fromRound,
