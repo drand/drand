@@ -2,7 +2,6 @@ package drand
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -18,15 +17,10 @@ func startCmd(c *cli.Context) error {
 	// determine if we already ran a DKG or not
 	_, errG := fs.LoadGroup()
 	_, errS := fs.LoadShare()
-	_, errD := fs.LoadDistPublic()
 	// XXX place that logic inside core/ directly with only one method
-	freshRun := errG != nil || errS != nil || errD != nil
+	freshRun := errG != nil || errS != nil
 	var err error
 	if freshRun {
-		if err := resetBeaconDB(conf); err != nil {
-			fmt.Println(err)
-			os.Exit(0)
-		}
 		fmt.Println("drand: will run as fresh install -> expect to run DKG.")
 		drand, err = core.NewDrand(fs, conf)
 		if err != nil {
@@ -42,7 +36,7 @@ func startCmd(c *cli.Context) error {
 		// nobody started.
 		// drand.StartBeacon(!c.Bool(pushFlag.Name))
 		catchup := true
-		drand.StartBeacon(catchup, c.String(oldGroupFlag.Name), c.Bool(skipValidationFlag.Name))
+		drand.StartBeacon(catchup)
 	}
 	// Start metrics server
 	if c.IsSet(metricsFlag.Name) {

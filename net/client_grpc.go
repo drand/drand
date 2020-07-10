@@ -225,8 +225,10 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 	return err
 }
 
+const MaxSyncBuffer = 100
+
 func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
-	resp := make(chan *drand.BeaconPacket)
+	resp := make(chan *drand.BeaconPacket, MaxSyncBuffer)
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
