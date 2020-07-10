@@ -27,7 +27,7 @@ func installDrand() {
 var build = flag.Bool("build", false, "build the drand binary first")
 var binaryF = flag.String("binary", "drand", "path to drand binary")
 var testF = flag.Bool("test", false, "run it as a test that finishes")
-var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
+var tls = flag.Bool("tls", true, "run the nodes with self signed certs")
 var noCurl = flag.Bool("nocurl", false, "skip commands using curl")
 var debug = flag.Bool("debug", false, "prints the log when panic occurs")
 
@@ -44,7 +44,7 @@ func main() {
 	thr := 4
 	period := "10s"
 	newThr := 5
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
+	orch := lib.NewOrchestrator(n, thr, period, *tls, *binaryF, !*noCurl)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create

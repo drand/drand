@@ -2,6 +2,7 @@ package drand
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -397,24 +398,35 @@ func followCmd(c *cli.Context) error {
 		return fmt.Errorf("unable to create control client: %s", err)
 	}
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
-	channel, err := ctrlClient.StartFollowChain(c.Context, c.String(hashInfoFlag.Name), addrs)
+	channel, errCh, err := ctrlClient.StartFollowChain(
+		c.Context,
+		c.String(hashInfoFlag.Name),
+		addrs,
+		!c.Bool(insecureFlag.Name))
 	if err != nil {
 		return fmt.Errorf("error asking to follow chain: %s", err)
 	}
 	var current uint64
 	var target uint64
-	s := spinner.New(spinner.CharSets[9], 1*time.Millisecond)
+	s := spinner.New(spinner.CharSets[9], 500*time.Millisecond)
 	s.PreUpdate = func(spin *spinner.Spinner) {
 		curr := atomic.LoadUint64(&current)
 		tar := atomic.LoadUint64(&target)
-		spin.Suffix = fmt.Sprintf("%d/%d - %.3f %%", curr, tar, float64(curr)/float64(tar))
+		spin.Suffix = fmt.Sprintf("%d/%d - %.3f %%", curr, tar, 100*float64(curr)/float64(tar))
 	}
 	s.FinalMSG = "Follow stopped"
 	s.Start()
 	defer s.Stop()
-	for progress := range channel {
-		atomic.StoreUint64(&current, progress.Current)
-		atomic.StoreUint64(&target, progress.Target)
+	for {
+		select {
+		case progress := <-channel:
+			atomic.StoreUint64(&current, progress.Current)
+			atomic.StoreUint64(&target, progress.Target)
+		case err := <-errCh:
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("errror on following the chain: %s", err)
+		}
 	}
-	return nil
 }

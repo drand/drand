@@ -241,6 +241,8 @@ func (n *NodeProc) ChainInfo(group string) bool {
 	args := []string{"get", "chain-info"}
 	if n.tls {
 		args = append(args, pair("--tls-cert", n.certPath)...)
+	} else {
+		args = append(args, "--tls-disable")
 	}
 	args = append(args, n.privAddr)
 

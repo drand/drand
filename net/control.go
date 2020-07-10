@@ -186,31 +186,36 @@ func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
 
 const progressFollowQueue = 100
 
-func (c *ControlClient) StartFollowChain(ctx context.Context, hash string, nodes []string) (chan *control.FollowProgress, error) {
+func (c *ControlClient) StartFollowChain(ctx context.Context, hash string, nodes []string, tls bool) (chan *control.FollowProgress, chan error, error) {
 	stream, err := c.client.StartFollowChain(ctx, &control.StartFollowRequest{
 		InfoHash: hash,
 		Nodes:    nodes,
+		IsTls:    tls,
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var outCh = make(chan *control.FollowProgress, progressFollowQueue)
+	var errCh = make(chan error, 1)
 	go func() {
 		for {
 			resp, err := stream.Recv()
 			if err != nil {
+				errCh <- err
+				close(errCh)
 				close(outCh)
 				return
 			}
 			select {
 			case outCh <- resp:
 			case <-ctx.Done():
+				close(errCh)
 				close(outCh)
 				return
 			}
 		}
 	}()
-	return outCh, nil
+	return outCh, errCh, nil
 }
 
 // controlListenAddr parses the control address as specified, into a dialable / listenable address

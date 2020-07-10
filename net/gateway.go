@@ -68,6 +68,9 @@ func NewGRPCPrivateGateway(ctx context.Context,
 	} else {
 		pg.ProtocolClient = NewGrpcClient(opts...)
 	}
+	// duplication since client implements both...
+	// XXX Find a better fix
+	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
 	return pg, nil
 }
 

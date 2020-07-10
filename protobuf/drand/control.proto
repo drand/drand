@@ -177,6 +177,10 @@ message StartFollowRequest {
     string info_hash = 1; 
     // nodes to contact to
     repeated string nodes = 2;
+    // is TLS enabled on these nodes or not
+    // NOTE currently drand either supports following from all TLS or all
+    // non-tls nodes
+    bool is_tls = 3;
 }
 
 message FollowProgress { 

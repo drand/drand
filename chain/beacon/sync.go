@@ -70,23 +70,23 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 
 	s.l.Debug("syncer", "starting", "up_to", upTo, "nodes", peersToString(nodes))
 
-	last, err := s.store.Last()
-	if err != nil {
-		return err
-	}
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(nodes)) {
 		node := nodes[n]
-		if s.tryNode(c, last, upTo, node) {
+		if s.tryNode(c, upTo, node) {
 			return nil
 		}
 	}
 	return errors.New("sync store tried to follow all nodes")
 }
 
-func (s *syncer) tryNode(global context.Context, last *chain.Beacon, upTo uint64, n net.Peer) bool {
+func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 	cnode, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	last, err := s.store.Last()
+	if err != nil {
+		return false
+	}
 	beaconCh, err := s.client.SyncChain(cnode, n, &proto.SyncRequest{
 		FromRound: last.Round + 1,
 	})

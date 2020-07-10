@@ -737,10 +737,11 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
 		// XXX add TLS disable later
-		peers = append(peers, net.CreatePeer(addr, true))
+		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 	var info *chain.Info
 	for _, peer := range peers {
+		fmt.Println("peer", peer, d.privGateway.PublicClient, stream.Context())
 		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
 		if err != nil {
 			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
@@ -755,6 +756,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	if info == nil {
 		return errors.New("unable to get a chain info successfully")
 	}
+	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
 	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
 	// if !bytes.Equal(info.Hash(),hash) {
@@ -763,7 +765,14 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 	store, err := d.createBoltStore()
 	if err != nil {
+		d.log.Error("start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %s", err)
+	}
+
+	// TODO find a better place to put that
+	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
+		d.log.Error("start_follow_chain", "unable to insert genesis block", "err", err)
+		return fmt.Errorf("unable to insert genesis block: %s", err)
 	}
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(store)
