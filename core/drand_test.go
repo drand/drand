@@ -403,16 +403,19 @@ func TestDrandFollowChain(tt *testing.T) {
 	addrToFollow := []string{rootID.Address()}
 	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	tls := true
-	progress, errCh, err := newClient.StartFollowChain(context.Background(), hash, addrToFollow, tls)
+	ctx, cancel = context.WithCancel(context.Background())
+	progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls)
 	require.NoError(tt, err)
-	for {
+	var goon = true
+	for goon {
 		select {
 
 		case p := <-progress:
 			if p.Current == resp.GetRound() {
 				// success
 				fmt.Printf("\n\nSUCCESSSSSS\n\n")
-				return
+				goon = false
+				break
 			}
 		case e := <-errCh:
 			require.NoError(tt, e)
@@ -420,13 +423,15 @@ func TestDrandFollowChain(tt *testing.T) {
 			tt.FailNow()
 		}
 	}
+	// cancel the operation
+	cancel()
 
+	// check if the beacon is in the database
 	store, err := newNode.drand.createBoltStore()
 	require.NoError(tt, err)
 	lastB, err := store.Last()
 	require.NoError(tt, err)
 	require.Equal(tt, resp.GetRound(), lastB.Round)
-
 }
 
 // Test if the we can correctly fetch the rounds through the local proxy

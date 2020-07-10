@@ -396,6 +396,8 @@ func selfSign(c *cli.Context) error {
 	return nil
 }
 
+const refreshRate = 1000 * time.Millisecond
+
 func followCmd(c *cli.Context) error {
 	ctrlClient, err := controlClient(c)
 	if err != nil {
@@ -412,11 +414,14 @@ func followCmd(c *cli.Context) error {
 	}
 	var current uint64
 	var target uint64
-	s := spinner.New(spinner.CharSets[9], 1000*time.Millisecond)
+	s := spinner.New(spinner.CharSets[9], refreshRate)
 	s.PreUpdate = func(spin *spinner.Spinner) {
 		curr := atomic.LoadUint64(&current)
 		tar := atomic.LoadUint64(&target)
-		spin.Suffix = fmt.Sprintf("  synced round up to %d - current target %d\t--> %.3f %% - Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
+		spin.Suffix = fmt.Sprintf("  synced round up to %d "+
+			"- current target %d"+
+			"\t--> %.3f %% - "+
+			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
 	}
 	s.FinalMSG = "Follow stopped"
 	s.Start()
