@@ -3,7 +3,6 @@ package chain
 import (
 	"bytes"
 	"encoding/binary"
-	"sync"
 )
 
 // store contains all the definitions and implementation of the logic that
@@ -37,47 +36,17 @@ type Cursor interface {
 	Last() *Beacon
 }
 
-// CallbackStore keeps a list of functions to notify on new beacons
-type CallbackStore struct {
-	Store
-	cbs []func(*Beacon)
-	sync.Mutex
-}
-
-// NewCallbackStore returns a Store that calls the given callback in a goroutine
-// each time a new Beacon is saved into the given store. It does not call the
-// callback if there has been any errors while saving the beacon.
-func NewCallbackStore(s Store) *CallbackStore {
-	return &CallbackStore{Store: s}
-}
-
-// Put stores a new beacon
-func (c *CallbackStore) Put(b *Beacon) error {
-	if err := c.Store.Put(b); err != nil {
-		return err
-	}
-	if b.Round != 0 {
-		go func() {
-			c.Lock()
-			defer c.Unlock()
-			for _, cb := range c.cbs {
-				cb(b)
-			}
-		}()
-	}
-	return nil
-}
-
-// AddCallback registers a function to call
-func (c *CallbackStore) AddCallback(fn func(*Beacon)) {
-	c.Lock()
-	defer c.Unlock()
-	c.cbs = append(c.cbs, fn)
-}
-
 // RoundToBytes provides a byte serialized form of a round number
 func RoundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
 	_ = binary.Write(&buff, binary.BigEndian, r)
 	return buff.Bytes()
+}
+
+// GenesisBeacon returns the first beacon inserted in the chain
+func GenesisBeacon(c *Info) *Beacon {
+	return &Beacon{
+		Signature: c.GroupHash,
+		Round:     0,
+	}
 }

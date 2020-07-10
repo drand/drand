@@ -1,8 +1,8 @@
 package boltdb
 
 import (
+	"io/ioutil"
 	"os"
-	"path"
 	"testing"
 	"time"
 
@@ -11,8 +11,8 @@ import (
 )
 
 func TestStoreBoltOrder(t *testing.T) {
-	tmp := path.Join(os.TempDir(), "drandtest")
-	require.NoError(t, os.MkdirAll(tmp, 0755))
+	tmp, err := ioutil.TempDir("", "drandtest*")
+	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
 	store, err := NewBoltStore(tmp, nil)
 	require.NoError(t, err)
@@ -30,10 +30,12 @@ func TestStoreBoltOrder(t *testing.T) {
 	}
 
 	require.NoError(t, store.Put(b1))
+	time.Sleep(10 * time.Millisecond)
 	require.Equal(t, 1, store.Len())
 	eb1, err := store.Last()
 	require.NoError(t, err)
 	require.Equal(t, b1, eb1)
+
 	require.NoError(t, store.Put(b2))
 	eb2, err := store.Last()
 	require.NoError(t, err)
@@ -47,8 +49,8 @@ func TestStoreBoltOrder(t *testing.T) {
 }
 
 func TestStoreBolt(t *testing.T) {
-	tmp := path.Join(os.TempDir(), "drandtest")
-	require.NoError(t, os.MkdirAll(tmp, 0755))
+	tmp, err := ioutil.TempDir("", "bolttest*")
+	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
@@ -87,20 +89,11 @@ func TestStoreBolt(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, store.Put(b1))
 
-	doneCh := make(chan bool)
-	callback := func(b *chain.Beacon) {
-		require.Equal(t, b1, b)
-		doneCh <- true
-	}
-	cbStore := chain.NewCallbackStore(store)
-	cbStore.AddCallback(callback)
-	go cbStore.Put(b1)
-	select {
-	case <-doneCh:
-		return
-	case <-time.After(50 * time.Millisecond):
-		t.Fail()
-	}
+	require.NoError(t, store.Put(b1))
+	bb1, err := store.Get(b1.Round)
+	require.NoError(t, err)
+	require.Equal(t, b1, bb1)
+	store.Close()
 
 	store, err = NewBoltStore(tmp, nil)
 	require.NoError(t, err)
