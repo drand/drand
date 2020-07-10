@@ -136,7 +136,6 @@ func leadShareCmd(c *cli.Context) error {
 		"group file once the setup phase is done, you can run the `drand show "+
 		"group` command")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, args.timeout, args.entropy, args.secret, offset)
-	//fmt.Fprintln(output, "group", groupP.String())
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
