@@ -37,6 +37,7 @@ type ControlClient interface {
 	// control functionalities
 	GroupFile(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
+	StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error)
 }
 
 type controlClient struct {
@@ -128,6 +129,38 @@ func (c *controlClient) Shutdown(ctx context.Context, in *ShutdownRequest, opts 
 	return out, nil
 }
 
+func (c *controlClient) StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Control_serviceDesc.Streams[0], "/drand.Control/StartFollowChain", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &controlStartFollowChainClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Control_StartFollowChainClient interface {
+	Recv() (*FollowProgress, error)
+	grpc.ClientStream
+}
+
+type controlStartFollowChainClient struct {
+	grpc.ClientStream
+}
+
+func (x *controlStartFollowChainClient) Recv() (*FollowProgress, error) {
+	m := new(FollowProgress)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ControlServer is the server API for Control service.
 // All implementations should embed UnimplementedControlServer
 // for forward compatibility
@@ -152,6 +185,7 @@ type ControlServer interface {
 	// control functionalities
 	GroupFile(context.Context, *GroupRequest) (*GroupPacket, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
+	StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error
 }
 
 // UnimplementedControlServer should be embedded to have forward compatible implementations.
@@ -184,6 +218,9 @@ func (*UnimplementedControlServer) GroupFile(context.Context, *GroupRequest) (*G
 }
 func (*UnimplementedControlServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (*UnimplementedControlServer) StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error {
+	return status.Errorf(codes.Unimplemented, "method StartFollowChain not implemented")
 }
 
 func RegisterControlServer(s *grpc.Server, srv ControlServer) {
@@ -352,6 +389,27 @@ func _Control_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Control_StartFollowChain_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StartFollowRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlServer).StartFollowChain(m, &controlStartFollowChainServer{stream})
+}
+
+type Control_StartFollowChainServer interface {
+	Send(*FollowProgress) error
+	grpc.ServerStream
+}
+
+type controlStartFollowChainServer struct {
+	grpc.ServerStream
+}
+
+func (x *controlStartFollowChainServer) Send(m *FollowProgress) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _Control_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "drand.Control",
 	HandlerType: (*ControlServer)(nil),
@@ -393,6 +451,12 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Control_Shutdown_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StartFollowChain",
+			Handler:       _Control_StartFollowChain_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "drand/control.proto",
 }

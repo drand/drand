@@ -148,6 +148,7 @@ func (e *Orchestrator) RunDKG(timeout string) {
 				wg.Done()
 			}()
 			n.RunDKG(e.n, e.thr, timeout, false, leader.PrivateAddr(), beaconOffset)
+			fmt.Println("\t FINISHED DKG")
 		}(n)
 	}
 	wg.Wait()

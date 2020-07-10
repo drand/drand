@@ -12,9 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
-	dnet "github.com/drand/drand/net"
+	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
@@ -23,9 +25,9 @@ import (
 // errPreempted is returned on reshares when a subsequent reshare is started concurrently
 var errPreempted = errors.New("time out: pre-empted")
 
-// InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
-// DKG protocol to finish. If the request specifies this node is a leader, it
-// starts the DKG protocol.
+// InitDKG take a InitDKGPacket, extracts the informations needed and wait for
+// the DKG protocol to finish. If the request specifies this node is a leader,
+// it starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	isLeader := in.GetInfo().GetLeader()
 	d.state.Lock()
@@ -160,7 +162,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	}
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
-	go d.StartBeacon(false, "", false)
+	go d.StartBeacon(false)
 	return finalGroup, nil
 }
 
@@ -257,7 +259,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
+	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
 		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
@@ -333,7 +335,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	oldHash := oldGroup.Hash()
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
+	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
@@ -714,4 +716,93 @@ func getNonce(g *key.Group) []byte {
 		_ = binary.Write(h, binary.BigEndian, g.GenesisTime)
 	}
 	return h.Sum(nil)
+}
+
+func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
+	// TODO replace via a more independent chain manager that manages the
+	// transition from following -> participating
+	d.state.Lock()
+	if d.syncerCancel != nil {
+		d.state.Unlock()
+		return errors.New("syncing is already in progress")
+	}
+	// context given to the syncer
+	// NOTE: this means that if the client quits the requests, the syncing
+	// context will signal and it will stop. If we want the following to
+	// continue nevertheless we can use the next line by using a new context.
+	// ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(stream.Context())
+	d.syncerCancel = cancel
+	d.state.Unlock()
+
+	addr := net.RemoteAddress(stream.Context())
+	// TODO put that hash verification back
+	// hash := req.GetInfoHash()
+	peers := make([]net.Peer, 0, len(req.GetNodes()))
+	for _, addr := range req.GetNodes() {
+		// XXX add TLS disable later
+		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
+	}
+	var info *chain.Info
+	for _, peer := range peers {
+		fmt.Println("peer", peer, d.privGateway.PublicClient, stream.Context())
+		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
+		if err != nil {
+			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+		info, err = chain.InfoFromProto(ci)
+		if err != nil {
+			d.log.Debug("start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+	}
+	if info == nil {
+		return errors.New("unable to get a chain info successfully")
+	}
+	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
+
+	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
+	// if !bytes.Equal(info.Hash(),hash) {
+	//  return errors.New("invalid chain info hash!")
+	// }
+
+	store, err := d.createBoltStore()
+	if err != nil {
+		d.log.Error("start_follow_chain", "unable to create store", "err", err)
+		return fmt.Errorf("unable to create store: %s", err)
+	}
+
+	// TODO find a better place to put that
+	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
+		d.log.Error("start_follow_chain", "unable to insert genesis block", "err", err)
+		store.Close()
+		return fmt.Errorf("unable to insert genesis block: %s", err)
+	}
+	// register callback to notify client of progress
+	cbStore := beacon.NewCallbackStore(store)
+	defer cbStore.Close()
+	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
+	var done = make(chan error, 1)
+	cbStore.AddCallback(addr, func(b *chain.Beacon) {
+		err := stream.Send(&drand.FollowProgress{
+			Current: b.Round,
+			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
+		})
+		if err != nil {
+			done <- err
+		}
+		select {
+		// just check if the syncer has finished or not
+		case <-ctx.Done():
+			// TODO better UX messages for client
+			done <- ctx.Err()
+		default:
+		}
+	})
+	defer cbStore.RemoveCallback(addr)
+	if err := syncer.Follow(ctx, 0, peers); err != nil {
+		return err
+	}
+	return <-done
 }

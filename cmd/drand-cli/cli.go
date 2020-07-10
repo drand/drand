@@ -221,6 +221,20 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
+var hashInfoFlag = &cli.StringFlag{
+	Name:     "chain-hash",
+	Usage:    "The hash of the chain info",
+	Required: true,
+}
+
+// using a simple string flag because the StringSliceFlag is not intuitive
+// see https://github.com/urfave/cli/issues/62
+var syncNodeFlag = &cli.StringFlag{
+	Name:     "sync-nodes",
+	Usage:    "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s)",
+	Required: true,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -253,6 +267,12 @@ var appCommands = []*cli.Command{
 			banner()
 			return shareCmd(c)
 		},
+	},
+	{
+		Name:   "follow",
+		Usage:  "follow and store a randomness chain",
+		Flags:  toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag, tlsCertFlag, insecureFlag),
+		Action: followCmd,
 	},
 	{
 		Name: "generate-keypair",
@@ -438,31 +458,6 @@ func resetCmd(c *cli.Context) error {
 		os.Exit(1)
 	}
 	fmt.Println("drand: database reset")
-	return nil
-}
-
-func resetBeaconDB(config *core.Config) error {
-	if _, err := os.Stat(config.DBFolder()); err == nil {
-		fmt.Fprintf(output, "INCONSISTENT STATE: A beacon database exists already.\n"+
-			"drand support only one identity at the time and thus needs to delete "+
-			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+
-			"database ? [Y/n]: ", config.DBFolder())
-		reader := bufio.NewReader(os.Stdin)
-		answer, err := reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("error reading: %s", err)
-		}
-		answer = strings.ToLower(strings.TrimSpace(answer))
-		if answer != "y" {
-			fmt.Fprintf(output, "drand: not deleting the database.")
-			return nil
-		}
-
-		if err := os.RemoveAll(config.DBFolder()); err != nil {
-			return err
-		}
-		fmt.Fprintf(output, "drand: removed existing beacon database.")
-	}
 	return nil
 }
 
@@ -694,9 +689,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
 	}
-	config := c.String(folderFlag.Name)
-	opts = append(opts, core.WithConfigFolder(config),
-		core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
+	if c.IsSet(folderFlag.Name) {
+		opts = append(opts, core.WithConfigFolder(c.String(folderFlag.Name)))
+	}
+	opts = append(opts, core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
 
 	if c.Bool("tls-disable") {
 		opts = append(opts, core.WithInsecure())

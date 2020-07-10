@@ -61,6 +61,12 @@ func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServ
 	return nil
 }
 
+// StartFollowChain is the control method to instruct a drand daemon to follow
+// its chain
+func (s *EmptyServer) StartFollowChain(*drand.StartFollowRequest, drand.Control_StartFollowChainServer) error {
+	return nil
+}
+
 // ReshareDKG is an empty implementation
 func (s *EmptyServer) ReshareDKG(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
 	return nil, nil
