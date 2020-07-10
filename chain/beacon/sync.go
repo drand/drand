@@ -81,7 +81,7 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 }
 
 func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
-	cnode, cancel := context.WithCancel(context.Background())
+	cnode, cancel := context.WithCancel(global)
 	defer cancel()
 	last, err := s.store.Last()
 	if err != nil {
