@@ -105,6 +105,8 @@ func main() {
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
 	orch.WaitPeriod()
+	orch.WaitPeriod()
+	orch.WaitPeriod()
 	// at this point node should have catched up
 	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()

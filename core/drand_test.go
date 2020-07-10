@@ -130,7 +130,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	lastBeacon := dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 	// move to the transition time period by period - do not skip potential
 	// periods as to emulate the normal time behavior
-	for now < target {
+	for now < target-1 {
 		dt.MoveTime(beaconPeriod)
 		lastBeacon = dt.TestPublicBeacon(dt.Ids(1, false)[0], false)
 		now = dt.Now().Unix()

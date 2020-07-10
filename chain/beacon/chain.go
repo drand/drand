@@ -186,13 +186,10 @@ func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
 		c.l.Error("chain_store", "error storing beacon", "err", err)
 		return false
 	}
-	if c.sync.Syncing() {
-		// during syncing we don't do a catchup
-		select {
-		// only send if it's not full already
-		case c.catchedupBeacons <- newB:
-		default:
-		}
+	select {
+	// only send if it's not full already
+	case c.catchedupBeacons <- newB:
+	default:
 	}
 	return true
 }

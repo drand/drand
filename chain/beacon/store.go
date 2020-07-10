@@ -2,7 +2,6 @@ package beacon
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -37,14 +36,10 @@ func newAppendStore(s chain.Store) chain.Store {
 	}
 }
 
-var errPreviousRound = errors.New("round already inserted")
-
 func (a *appendStore) Put(b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
-	if b.Round < a.last.Round+1 {
-		return errPreviousRound
-	} else if b.Round != a.last.Round+1 {
+	if b.Round != a.last.Round+1 {
 		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
 	}
 	if !bytes.Equal(a.last.Signature, b.PreviousSig) {

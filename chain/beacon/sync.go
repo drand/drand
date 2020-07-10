@@ -7,7 +7,6 @@ import (
 	"math/rand"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
@@ -81,7 +80,8 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 	for _, n := range rand.Perm(len(nodes)) {
 		node := nodes[n]
 		// we quickly pass over different nodes to catchup fast
-		cnode, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		//cnode, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		cnode, cancel := context.WithCancel(context.Background())
 		beaconCh, err := s.client.SyncChain(cnode, node, &drand.SyncRequest{
 			FromRound: fromRound,
 		})
@@ -104,9 +104,6 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 			}
 
 			if err := s.store.Put(beacon); err != nil {
-				if err == errPreviousRound {
-					continue
-				}
 				s.l.Debug("syncer", "unable to save", "with_peer", node.Address(), "err", err)
 				cancel()
 				break
