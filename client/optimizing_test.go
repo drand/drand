@@ -76,7 +76,7 @@ func TestOptimizingGet(t *testing.T) {
 	oc.Start()
 	defer closeClient(t, oc)
 
-	waitForSpeedTest(t, oc, time.Minute)
+	waitForSpeedTest(t, oc, 10*time.Second)
 
 	// speed test will consume round 0 and 5 from c0 and c1
 	// then c1 will be used because it's faster
