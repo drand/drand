@@ -371,7 +371,7 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 		retryInterval: oc.watchRetryInterval,
 	}
 
-	go state.loop(inChan)
+	go state.dispatchWatchingClients(inChan)
 	go oc.trackWatchResults(info, inChan, outChan)
 	return outChan
 }
@@ -394,7 +394,7 @@ type watchState struct {
 	retryInterval time.Duration
 }
 
-func (ws *watchState) loop(resultChan chan watchResult) {
+func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult) {
 	closingClients := make(chan Client, 1)
 	defer close(resultChan)
 
@@ -424,7 +424,6 @@ func (ws *watchState) loop(resultChan chan watchResult) {
 			for _, c := range ws.active {
 				c.CancelFunc()
 			}
-			ws.active = []watchingClient{}
 		}
 	}
 }
