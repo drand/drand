@@ -223,11 +223,19 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
-func (d *Drand) StartBeacon(catchup bool) {
-	b, err := d.newBeacon()
+func (d *Drand) StartBeacon(catchup bool, oldGroup string, skipValidation bool) {
+	b, err := d.newBeacon(skipValidation)
 	if err != nil {
 		d.log.Error("init_beacon", err)
 		return
+	}
+	if oldGroup != "" {
+		var grp = new(key.Group)
+		if err := key.Load(oldGroup, grp); err != nil {
+			d.log.Error("beacon_start", time.Now(), "couldn't load old group", err)
+		} else {
+			b.LoadOldGroup(grp)
+		}
 	}
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
@@ -270,7 +278,7 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	if oldPresent {
 		d.beacon.TransitionNewGroup(newShare, newGroup)
 	} else {
-		b, err := d.newBeacon()
+		b, err := d.newBeacon(false)
 		if err != nil {
 			d.log.Fatal("transition", "new_node", "err", err)
 		}
@@ -310,7 +318,7 @@ func (d *Drand) WaitExit() chan bool {
 	return d.exitCh
 }
 
-func (d *Drand) newBeacon() (*beacon.Handler, error) {
+func (d *Drand) newBeacon(skipValidation bool) (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 	fs.CreateSecureFolder(d.opts.DBFolder())
@@ -325,10 +333,11 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
 	conf := &beacon.Config{
-		Public: node,
-		Group:  d.group,
-		Share:  d.share,
-		Clock:  d.opts.clock,
+		Public:         node,
+		Group:          d.group,
+		Share:          d.share,
+		Clock:          d.opts.clock,
+		SkipValidation: skipValidation,
 	}
 	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
 	if err != nil {

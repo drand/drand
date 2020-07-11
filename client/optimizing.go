@@ -284,9 +284,6 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 					rr := get(gctx, c, round)
 					cancel()
 					if rr != nil {
-						if rr.result != nil && rr.result.Round() != round {
-							fmt.Printf("got unexpected round back in OC get call %s\n", c)
-						}
 						results <- rr
 					}
 					token <- struct{}{}
@@ -383,7 +380,7 @@ type watchingClient struct {
 
 type failedClient struct {
 	Client
-	time.Time
+	backoffUntil time.Time
 }
 
 type watchState struct {
@@ -416,11 +413,12 @@ func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult) {
 			}
 		case <-ticker.C:
 			// periodically cycle to fastest client.
-			if ws.has(ws.optimizer.fastestClients()[0]) == -1 {
+			if ws.hasActive(ws.optimizer.fastestClients()[0]) == -1 {
 				ws.closeSlowest()
 				ws.tryRepopulate(resultChan, closingClients)
 			}
 		case <-ws.ctx.Done():
+			// trigger client close. Will return once len(ws.active) == 0
 			for _, c := range ws.active {
 				c.CancelFunc()
 			}
@@ -460,7 +458,7 @@ func (ws *watchState) watchNext(ctx context.Context, c Client, out chan watchRes
 func (ws *watchState) clean() {
 	nf := make([]failedClient, 0, len(ws.failed))
 	for _, f := range ws.failed {
-		if f.Time.After(time.Now()) {
+		if f.backoffUntil.After(time.Now()) {
 			nf = append(nf, f)
 		}
 	}
@@ -475,14 +473,16 @@ func (ws *watchState) close(clientIdx int) {
 }
 
 func (ws *watchState) done(c Client) {
-	idx := ws.has(c)
+	idx := ws.hasActive(c)
 	if idx > -1 {
 		ws.close(idx)
 		ws.failed = append(ws.failed, failedClient{c, time.Now().Add(ws.retryInterval)})
+	} else {
+		ws.optimizer.log.Warn("optimizing_client", "failed to close watching client", "client", fmt.Sprintf("%s", c))
 	}
 }
 
-func (ws *watchState) has(c Client) int {
+func (ws *watchState) hasActive(c Client) int {
 	for i, a := range ws.active {
 		if a.Client == c {
 			return i
@@ -498,10 +498,8 @@ func (ws *watchState) closeSlowest() {
 	order := ws.optimizer.fastestClients()
 	idxs := make([]int, 0)
 	for _, c := range order {
-		for i, a := range ws.active {
-			if a.Client == c {
-				idxs = append(idxs, i)
-			}
+		if i := ws.hasActive(c); i > -1 {
+			idxs = append(idxs, i)
 		}
 	}
 	ws.close(idxs[len(idxs)-1])

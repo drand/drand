@@ -233,7 +233,7 @@ func (c *chainStore) RunSync(ctx context.Context) {
 		return
 	}
 	currRound := c.ticker.CurrentRound()
-	outCh, err := syncChain(ctx, c.l, c.safe, l, currRound, c.client)
+	outCh, err := syncChain(ctx, c.l, c.safe, l, currRound, c.client, c.conf.SkipValidation)
 	if err != nil {
 		c.l.Error("error_sync", err)
 		return
