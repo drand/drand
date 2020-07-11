@@ -169,7 +169,7 @@ func TestOptimizingWatchFailover(t *testing.T) {
 	defer cancel()
 	chainInfo := fakeChainInfo()
 
-	var rnd uint64
+	var rnd uint64 = 1
 	c1 := &MockClient{
 		// a single result for the speed test
 		Results: []mock.Result{mock.NewMockResult(0)},
