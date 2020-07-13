@@ -713,6 +713,7 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
+// StartFollowChain begins synchronizing with a chain not including the local node
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
