@@ -137,7 +137,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)
 }
 
-func TestDrandResharePreempt(t *testing.T) {
+func DisabledTestDrandResharePreempt(t *testing.T) {
 	oldN := 3
 	newN := 3
 	oldThr := 2
