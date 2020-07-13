@@ -185,8 +185,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group, 1)
 	go func() {
-		group := dt.RunReshare(oldN, 0, newThr, timeout)
-		doneReshare <- group
+		doneReshare <- dt.RunReshare(oldN, 0, newThr, timeout)
 	}()
 	time.Sleep(time.Second)
 	dt.MoveTime(time.Second)
