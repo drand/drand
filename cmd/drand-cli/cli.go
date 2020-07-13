@@ -278,7 +278,7 @@ var appCommands = []*cli.Command{
 		Name: "generate-keypair",
 		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 			"for this node.\n",
-		ArgsUsage: "<address> is the public address for other nodes to contact",
+		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
 		Flags:     toArray(folderFlag, insecureFlag),
 		Action: func(c *cli.Context) error {
 			banner()
@@ -421,9 +421,8 @@ func CLI() *cli.App {
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%+v\n", err)
-		}
+		// override to prevent default behavior of calling OS.exit(1),
+		// when tests expect to be able to run multiple commands.
 	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
