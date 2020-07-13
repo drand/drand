@@ -278,7 +278,7 @@ var appCommands = []*cli.Command{
 		Name: "generate-keypair",
 		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 			"for this node.\n",
-		ArgsUsage: "<address> is the address for other nodes to contact (specified as 'private-listen' to the daemon)",
+		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
 		Flags:     toArray(folderFlag, insecureFlag),
 		Action: func(c *cli.Context) error {
 			banner()
