@@ -111,7 +111,7 @@ func leadShareCmd(c *cli.Context) error {
 	}
 
 	nodes := c.Int(shareNodeFlag.Name)
-	if nodes < 2 {
+	if nodes <= 1 {
 		fmt.Fprintln(output, "Warning: less than 2 nodes is an unsupported, degenerate mode.")
 	}
 
