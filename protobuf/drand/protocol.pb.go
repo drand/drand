@@ -390,8 +390,8 @@ func (x *ResharePacket) GetGroupHash() string {
 	return ""
 }
 
-// SyncRequest is from a node that needs to sync up with the current head of the
-// chain
+// FollowRequest is the packet that a drand node sends to other drand nodes to
+// receive beacons from the chain
 type SyncRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

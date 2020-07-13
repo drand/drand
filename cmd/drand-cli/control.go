@@ -2,9 +2,13 @@ package drand
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"strings"
+	"sync/atomic"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -72,7 +76,6 @@ func shareCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-
 	if !c.IsSet(connectFlag.Name) {
 		return fmt.Errorf("need to the address of the coordinator to create the group file")
 	}
@@ -86,7 +89,6 @@ func shareCmd(c *cli.Context) error {
 
 	fmt.Fprintln(output, "Participating to the setup of the DKG")
 	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret)
-	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
@@ -130,11 +132,10 @@ func leadShareCmd(c *cli.Context) error {
 	}
 	fmt.Fprintln(output, "Initiating the DKG as a leader")
 	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
-		"file will not be written out to the specified output. To get the"+
-		"group file once the setup phase is done, you can run the `drand show"+
+		"file will not be written out to the specified output. To get the "+
+		"group file once the setup phase is done, you can run the `drand show "+
 		"group` command")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, args.timeout, args.entropy, args.secret, offset)
-	fmt.Fprintln(output, " --- got err", shareErr, "group", groupP)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
@@ -386,4 +387,48 @@ func selfSign(c *cli.Context) error {
 	fmt.Fprintln(output, "Public identity self signed")
 	fmt.Fprintln(output, printJSON(pair.Public.TOML()))
 	return nil
+}
+
+const refreshRate = 1000 * time.Millisecond
+
+func followCmd(c *cli.Context) error {
+	ctrlClient, err := controlClient(c)
+	if err != nil {
+		return fmt.Errorf("unable to create control client: %s", err)
+	}
+	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
+	channel, errCh, err := ctrlClient.StartFollowChain(
+		c.Context,
+		c.String(hashInfoFlag.Name),
+		addrs,
+		!c.Bool(insecureFlag.Name))
+	if err != nil {
+		return fmt.Errorf("error asking to follow chain: %s", err)
+	}
+	var current uint64
+	var target uint64
+	s := spinner.New(spinner.CharSets[9], refreshRate)
+	s.PreUpdate = func(spin *spinner.Spinner) {
+		curr := atomic.LoadUint64(&current)
+		tar := atomic.LoadUint64(&target)
+		spin.Suffix = fmt.Sprintf("  synced round up to %d "+
+			"- current target %d"+
+			"\t--> %.3f %% - "+
+			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
+	}
+	s.FinalMSG = "Follow stopped"
+	s.Start()
+	defer s.Stop()
+	for {
+		select {
+		case progress := <-channel:
+			atomic.StoreUint64(&current, progress.Current)
+			atomic.StoreUint64(&target, progress.Target)
+		case err := <-errCh:
+			if err == io.EOF {
+				return nil
+			}
+			return fmt.Errorf("errror on following the chain: %s", err)
+		}
+	}
 }

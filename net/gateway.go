@@ -17,6 +17,7 @@ import (
 type PrivateGateway struct {
 	Listener
 	ProtocolClient
+	PublicClient
 }
 
 // StartAll starts the control and public functionalities of the node
@@ -67,6 +68,9 @@ func NewGRPCPrivateGateway(ctx context.Context,
 	} else {
 		pg.ProtocolClient = NewGrpcClient(opts...)
 	}
+	// duplication since client implements both...
+	// XXX Find a better fix
+	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
 	return pg, nil
 }
 

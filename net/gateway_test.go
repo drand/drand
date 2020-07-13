@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -34,9 +33,6 @@ type testRandomnessServer struct {
 	round uint64
 }
 
-func (t *testRandomnessServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
-	return new(drand.Empty), errors.New("no beacon")
-}
 func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{Round: t.round}, nil
 }

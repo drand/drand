@@ -33,6 +33,7 @@ type ProtocolClient interface {
 	ReshareDKG(ctx context.Context, in *ResharePacket, opts ...grpc.CallOption) (*Empty, error)
 	// PartialBeacon sends its partial beacon to another node
 	PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error)
+	// SyncRequest forces a daemon to sync up its chain with other nodes
 	SyncChain(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (Protocol_SyncChainClient, error)
 }
 
@@ -150,6 +151,7 @@ type ProtocolServer interface {
 	ReshareDKG(context.Context, *ResharePacket) (*Empty, error)
 	// PartialBeacon sends its partial beacon to another node
 	PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error)
+	// SyncRequest forces a daemon to sync up its chain with other nodes
 	SyncChain(*SyncRequest, Protocol_SyncChainServer) error
 }
 

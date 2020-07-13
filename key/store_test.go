@@ -64,10 +64,4 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, testShare.Share.V, loadedShare.Share.V)
 	require.Equal(t, testShare.Share.I, loadedShare.Share.I)
-
-	dp := &DistPublic{[]kyber.Point{ps[0].Public.Key}}
-	require.Nil(t, store.SaveDistPublic(dp))
-	loadedDp, err := store.LoadDistPublic()
-	require.NoError(t, err)
-	require.Equal(t, dp.Key().String(), loadedDp.Key().String())
 }

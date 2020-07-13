@@ -188,10 +188,14 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 			args = append(args, "--tls-disable")
 		}
 	}
-	cmd := exec.Command(n.binary, args...)
-	runCommand(cmd)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, n.binary, args...)
+	out := runCommand(cmd)
+	fmt.Println(n.priv.Public.Address(), "FINISHED DKG", string(out))
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
+	fmt.Println(n.priv.Public.Address(), "FINISHED LOADING GROUP")
 	return group
 }
 
