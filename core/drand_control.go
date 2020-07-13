@@ -608,12 +608,9 @@ func nodesContainAddr(nodes []*key.Node, addr string) bool {
 }
 
 // nodeUnion takes the union of two sets of nodes
-func nodeUnion(us *key.Identity, a, b []*key.Node) []*key.Node {
+func nodeUnion(a, b []*key.Node) []*key.Node {
 	out := make([]*key.Node, 0, len(a))
 	for _, n := range a {
-		if us.Address() == n.Address() {
-			continue
-		}
 		out = append(out, n)
 	}
 	for _, n := range b {
@@ -671,11 +668,11 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	if nodesContainAddr(incoming, d.priv.Public.Address()) {
 		newThreshold--
 	}
-	to := nodeUnion(d.priv.Public, outgoing, incoming)
+	to := nodeUnion(outgoing, incoming)
 
 	results := d.pushDKGInfoPacket(ctx, to, packet)
 
-	total := len(to)
+	total := len(to) - 1
 	for total > 0 {
 		select {
 		case ok := <-results:
