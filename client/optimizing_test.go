@@ -169,32 +169,27 @@ func TestOptimizingWatchFailover(t *testing.T) {
 	defer cancel()
 	chainInfo := fakeChainInfo()
 
+	var rndlk sync.Mutex
 	var rnd uint64 = 1
-	c1 := &MockClient{
-		// a single result for the speed test
-		Results: []mock.Result{mock.NewMockResult(0)},
-		// return a watch channel that yields one result then closes
-		WatchF: func(context.Context) <-chan Result {
-			ch := make(chan Result, 1)
-			r := mock.NewMockResult(rnd)
-			rnd++
+	wf := func(context.Context) <-chan Result {
+		rndlk.Lock()
+		defer rndlk.Unlock()
+		ch := make(chan Result, 1)
+		r := mock.NewMockResult(rnd)
+		rnd++
+		if rnd < 5 {
 			ch <- &r
-			close(ch)
-			return ch
-		},
+		}
+		close(ch)
+		return ch
+	}
+	c1 := &MockClient{
+		Results: []mock.Result{mock.NewMockResult(0)},
+		WatchF:  wf,
 	}
 	c2 := &MockClient{
-		// a single result for the speed test
 		Results: []mock.Result{mock.NewMockResult(0)},
-		// return a watch channel that yields one result then closes
-		WatchF: func(context.Context) <-chan Result {
-			ch := make(chan Result, 1)
-			r := mock.NewMockResult(rnd)
-			rnd++
-			ch <- &r
-			close(ch)
-			return ch
-		},
+		WatchF:  wf,
 	}
 
 	oc, err := newOptimizingClient([]Client{MockClientWithInfo(chainInfo), c1, c2}, 0, 0, 0, time.Millisecond)
