@@ -76,7 +76,7 @@ func TestOptimizingGet(t *testing.T) {
 	oc.Start()
 	defer closeClient(t, oc)
 
-	waitForSpeedTest(t, oc, time.Minute)
+	waitForSpeedTest(t, oc, 10*time.Second)
 
 	// speed test will consume round 0 and 5 from c0 and c1
 	// then c1 will be used because it's faster
@@ -161,6 +161,61 @@ func TestOptimizingWatchRetryOnClose(t *testing.T) {
 		if i > 2 {
 			break
 		}
+	}
+}
+
+func TestOptimizingWatchFailover(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	chainInfo := fakeChainInfo()
+
+	var rndlk sync.Mutex
+	var rnd uint64 = 1
+	wf := func(context.Context) <-chan Result {
+		rndlk.Lock()
+		defer rndlk.Unlock()
+		ch := make(chan Result, 1)
+		r := mock.NewMockResult(rnd)
+		rnd++
+		if rnd < 5 {
+			ch <- &r
+		}
+		close(ch)
+		return ch
+	}
+	c1 := &MockClient{
+		Results: []mock.Result{mock.NewMockResult(0)},
+		WatchF:  wf,
+	}
+	c2 := &MockClient{
+		Results: []mock.Result{mock.NewMockResult(0)},
+		WatchF:  wf,
+	}
+
+	oc, err := newOptimizingClient([]Client{MockClientWithInfo(chainInfo), c1, c2}, 0, 0, 0, time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oc.Start()
+	defer closeClient(t, oc)
+
+	waitForSpeedTest(t, oc, time.Minute)
+
+	ch := oc.Watch(ctx)
+
+	var i uint64 = 1
+	for r := range ch {
+		if r.Round() != i {
+			t.Fatalf("unexpected round number %d vs %d", r.Round(), i)
+		}
+		i++
+		if i > 5 {
+			t.Fatal("there are a total of 4 rounds possible")
+			break
+		}
+	}
+	if i < 3 {
+		t.Fatalf("watching didn't flip / yield expected rounds. %d", i)
 	}
 }
 

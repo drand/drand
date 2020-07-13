@@ -218,7 +218,7 @@ func TestClientAutoWatch(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.From(httpClient...),
+		client.From(client.MockClientWithInfo(chainInfo)),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
 		client.WithAutoWatch(),

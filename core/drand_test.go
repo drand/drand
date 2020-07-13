@@ -138,6 +138,10 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 }
 
 func TestDrandResharePreempt(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping testing in CI environment")
+	}
+
 	oldN := 3
 	newN := 3
 	oldThr := 2
@@ -181,8 +185,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group, 1)
 	go func() {
-		group := dt.RunReshare(oldN, 0, newThr, timeout)
-		doneReshare <- group
+		doneReshare <- dt.RunReshare(oldN, 0, newThr, timeout)
 	}()
 	time.Sleep(time.Second)
 	dt.MoveTime(time.Second)
