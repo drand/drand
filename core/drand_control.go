@@ -610,9 +610,7 @@ func nodesContainAddr(nodes []*key.Node, addr string) bool {
 // nodeUnion takes the union of two sets of nodes
 func nodeUnion(a, b []*key.Node) []*key.Node {
 	out := make([]*key.Node, 0, len(a))
-	for _, n := range a {
-		out = append(out, n)
-	}
+	out = append(out, a...)
 	for _, n := range b {
 		if !nodesContainAddr(a, n.Address()) {
 			out = append(out, n)
