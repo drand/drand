@@ -421,9 +421,8 @@ func CLI() *cli.App {
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%+v\n", err)
-		}
+		// override to prevent default behavior of calling OS.exit(1),
+		// when tests expect to be able to run multiple commands.
 	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
