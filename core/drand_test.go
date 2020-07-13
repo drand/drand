@@ -137,7 +137,11 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	dt.TestBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newN, true)...)
 }
 
-func DisabledTestDrandResharePreempt(t *testing.T) {
+func TestDrandResharePreempt(t *testing.T) {
+	if os.Getenv("CI") != "" {
+		t.Skip("Skipping testing in CI environment")
+	}
+
 	oldN := 3
 	newN := 3
 	oldThr := 2
