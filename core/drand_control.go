@@ -675,7 +675,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 
 	results := d.pushDKGInfoPacket(ctx, to, packet)
 
-	total := len(to) - 1
+	total := len(to)
 	for total > 0 {
 		select {
 		case ok := <-results:
