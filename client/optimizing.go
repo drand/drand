@@ -477,9 +477,9 @@ func (ws *watchState) done(c Client) {
 	if idx > -1 {
 		ws.close(idx)
 		ws.failed = append(ws.failed, failedClient{c, time.Now().Add(ws.retryInterval)})
-	} else {
-		ws.optimizer.log.Warn("optimizing_client", "failed to close watching client", "client", fmt.Sprintf("%s", c))
 	}
+	// note: it's expected that the client may already not be active.
+	// this happens when the optimizing client has closed it via `closeSlowest`
 }
 
 func (ws *watchState) hasActive(c Client) int {
