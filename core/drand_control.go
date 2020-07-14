@@ -740,7 +740,6 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}
 	var info *chain.Info
 	for _, peer := range peers {
-		fmt.Println("peer", peer, d.privGateway.PublicClient, stream.Context())
 		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
 		if err != nil {
 			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
@@ -784,6 +783,10 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 			Current: b.Round,
 			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
 		})
+		/*if req.GetUpTo() != 0 && b.Round == req.GetUpTo() {*/
+		//d.log.Info("start_follow_chain", "reached target", "round", req.GetUpTo())
+		//cancel()
+		/*}*/
 		if err != nil {
 			done <- err
 		}
