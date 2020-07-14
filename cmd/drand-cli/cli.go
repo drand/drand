@@ -235,6 +235,12 @@ var syncNodeFlag = &cli.StringFlag{
 	Required: true,
 }
 
+var upToFlag = &cli.IntFlag{
+	Name:  "up-to",
+	Usage: "Specify a round to which the drand daemon will stop following the chain",
+	Value: 0,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -269,9 +275,10 @@ var appCommands = []*cli.Command{
 		},
 	},
 	{
-		Name:   "follow",
-		Usage:  "follow and store a randomness chain",
-		Flags:  toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag, tlsCertFlag, insecureFlag),
+		Name:  "follow",
+		Usage: "follow and store a randomness chain",
+		Flags: toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag,
+			tlsCertFlag, insecureFlag, upToFlag),
 		Action: followCmd,
 	},
 	{

@@ -189,12 +189,14 @@ const progressFollowQueue = 100
 func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	hash string,
 	nodes []string,
-	tls bool) (outCh chan *control.FollowProgress,
+	tls bool,
+	upTo uint64) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,
 		Nodes:    nodes,
 		IsTls:    tls,
+		UpTo:     upTo,
 	})
 	if err != nil {
 		return nil, nil, err
