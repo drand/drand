@@ -404,7 +404,8 @@ func followCmd(c *cli.Context) error {
 		c.Context,
 		c.String(hashInfoFlag.Name),
 		addrs,
-		!c.Bool(insecureFlag.Name))
+		!c.Bool(insecureFlag.Name),
+		uint64(c.Int(upToFlag.Name)))
 	if err != nil {
 		return fmt.Errorf("error asking to follow chain: %s", err)
 	}

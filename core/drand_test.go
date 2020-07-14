@@ -405,34 +405,40 @@ func TestDrandFollowChain(tt *testing.T) {
 	addrToFollow := []string{rootID.Address()}
 	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	tls := true
-	ctx, cancel = context.WithCancel(context.Background())
-	progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls)
-	require.NoError(tt, err)
-	var goon = true
-	for goon {
-		select {
-		case p := <-progress:
-			if p.Current == resp.GetRound() {
-				// success
-				fmt.Printf("\n\nSUCCESSSSSS\n\n")
-				goon = false
-				break
+	fn := func(upTo, exp uint64) {
+		ctx, cancel = context.WithCancel(context.Background())
+		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo)
+		require.NoError(tt, err)
+		var goon = true
+		for goon {
+			select {
+			case p := <-progress:
+				if p.Current == exp {
+					// success
+					fmt.Printf("\n\nSUCCESSSSSS\n\n")
+					goon = false
+					break
+				}
+			case e := <-errCh:
+				require.NoError(tt, e)
+			case <-time.After(1 * time.Second):
+				tt.FailNow()
 			}
-		case e := <-errCh:
-			require.NoError(tt, e)
-		case <-time.After(1 * time.Second):
-			tt.FailNow()
 		}
-	}
-	// cancel the operation
-	cancel()
+		// cancel the operation
+		cancel()
 
-	// check if the beacon is in the database
-	store, err := newNode.drand.createBoltStore()
-	require.NoError(tt, err)
-	lastB, err := store.Last()
-	require.NoError(tt, err)
-	require.Equal(tt, resp.GetRound(), lastB.Round)
+		// check if the beacon is in the database
+		store, err := newNode.drand.createBoltStore()
+		require.NoError(tt, err)
+		defer store.Close()
+		lastB, err := store.Last()
+		require.NoError(tt, err)
+		require.Equal(tt, exp, lastB.Round, "found %d vs expected %d", lastB.Round, exp)
+	}
+	fn(resp.GetRound()-2, resp.GetRound()-2)
+	time.Sleep(200 * time.Millisecond)
+	fn(0, resp.GetRound())
 }
 
 // Test if the we can correctly fetch the rounds through the local proxy
