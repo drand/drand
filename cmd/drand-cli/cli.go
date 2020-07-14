@@ -128,6 +128,7 @@ var periodFlag = &cli.StringFlag{
 var catchupPeriodFlag = &cli.StringFlag{
 	Name:  "catchup-period",
 	Usage: "minimum period while in catchup. set only by leader of initial setup",
+	Value: "0s",
 }
 
 var thresholdFlag = &cli.IntFlag{
