@@ -125,6 +125,11 @@ var periodFlag = &cli.StringFlag{
 	Usage: "period to set when doing a setup",
 }
 
+var catchupPeriodFlag = &cli.StringFlag{
+	Name:  "catchup-period",
+	Usage: "minimum period while in catchup. set only by leader of initial setup",
+}
+
 var thresholdFlag = &cli.IntFlag{
 	Name:  "threshold",
 	Usage: "threshold to use for the DKG",
@@ -169,8 +174,6 @@ var beaconOffset = &cli.IntFlag{
 	Usage: "Leader uses this flag to specify the genesis time or transition time as a delay from when " +
 		" group is ready to run the share protocol",
 }
-
-// XXX deleted flags : debugFlag, outFlag, groupFlag, seedFlag, periodFlag, distKeyFlag, thresholdFlag.
 
 var oldGroupFlag = &cli.StringFlag{
 	Name: "from",
@@ -268,7 +271,7 @@ var appCommands = []*cli.Command{
 		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag),
+			leaderFlag, beaconOffset, transitionFlag, catchupPeriodFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)

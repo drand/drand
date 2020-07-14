@@ -39,11 +39,12 @@ type DrandTest2 struct {
 	// global clock on which all drand's clock are synchronized
 	clock clock.FakeClock
 
-	n      int
-	thr    int
-	newN   int
-	newThr int
-	period time.Duration
+	n             int
+	thr           int
+	newN          int
+	newThr        int
+	period        time.Duration
+	catchupPeriod time.Duration
 	// only set after the DKG
 	group *key.Group
 	// needed to give the group to new nodes during a resharing - only set after
@@ -110,7 +111,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	wg.Add(d.n)
 	// first run the leader and then run the other nodes
 	go func() {
-		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, testDkgTimeout, nil, secret, testBeaconOffset)
+		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
 		fmt.Printf("\n\nTEST LEADER FINISHED\n\n")
 		wg.Done()

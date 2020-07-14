@@ -120,7 +120,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string) (*contr
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
 func (c *ControlClient) InitDKGLeader(nodes, threshold int,
-	beaconPeriod, timeout time.Duration,
+	beaconPeriod, catchupPeriod, timeout time.Duration,
 	entropy *control.EntropyInfo,
 	secret string,
 	offset int) (*control.GroupPacket, error) {
@@ -133,8 +133,9 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
-		Entropy:      entropy,
-		BeaconPeriod: uint32(beaconPeriod.Seconds()),
+		Entropy:       entropy,
+		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
+		CatchupPeriod: uint32(catchupPeriod.Seconds()),
 	}
 	return c.client.InitDKG(ctx.Background(), request)
 }

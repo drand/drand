@@ -251,7 +251,10 @@ func (h *Handler) run(startTime int64) {
 				// already. If that next beacon is created soon after, this
 				// channel will trigger again etc until we arrive at the correct
 				// round.
-				h.broadcastNextPartial(current, b)
+				go func(c roundInfo, latest *chain.Beacon) {
+					time.Sleep(h.conf.Group.CatchupPeriod)
+					h.broadcastNextPartial(c, latest)
+				}(current, b)
 			}
 		case <-h.close:
 			h.l.Debug("beacon_loop", "finished")
