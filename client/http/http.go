@@ -27,7 +27,7 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 		transport = nhttp.DefaultTransport
 	}
 	if !strings.HasSuffix(url, "/") {
-		url = url + "/"
+		url += "/"
 	}
 	c := &httpClient{
 		root:   url,
@@ -50,7 +50,7 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 		transport = nhttp.DefaultTransport
 	}
 	if !strings.HasSuffix(url, "/") {
-		url = url + "/"
+		url += "/"
 	}
 
 	c := &httpClient{
