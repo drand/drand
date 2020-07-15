@@ -72,6 +72,9 @@ message SetupInfoPacket {
     uint32 dkg_offset = 8;
     // the secret used to authentify group members
     bytes secret = 9;
+    // indicating to the node that this (re)share operation should be started
+    // even if there is already one in progress.
+    bool force = 10;
 }
 
 message InitDKGPacket {

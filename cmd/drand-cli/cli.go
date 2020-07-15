@@ -141,6 +141,11 @@ var transitionFlag = &cli.BoolFlag{
 		"The node will use the currently stored group as the basis for the resharing",
 }
 
+var forceFlag = &cli.BoolFlag{
+	Name:  "force, f",
+	Usage: "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
+}
+
 // secret flag is the "manual" security when the "leader"/coordinator creates the
 // group: every participant must know this secret. It is not a consensus, not
 // perfect, but since all members are known after the protocol, and members can
@@ -268,7 +273,7 @@ var appCommands = []*cli.Command{
 		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag),
+			leaderFlag, beaconOffset, transitionFlag, forceFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)
