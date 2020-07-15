@@ -338,26 +338,34 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
+		if !in.GetInfo().GetForce() {
+			d.log.Info("reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
+			return nil, errors.New("reshare already in progress; use --force")
+		}
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
 		d.receiver.stop()
+		d.receiver = nil
 	}
 
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
+		d.state.Unlock()
 		return nil, err
 	}
 	d.receiver = receiver
-	d.state.Unlock()
-
 	defer func(r *setupReceiver) {
 		d.state.Lock()
 		r.stop()
+		// only set to nil if the given receiver here is the same as the current
+		// one, i.e. there has not been a more recent resharing comand issued in
+		// between
 		if d.receiver == r {
 			d.receiver = nil
 		}
 		d.state.Unlock()
 	}(d.receiver)
+	d.state.Unlock()
 	// send public key to leader
 	id := d.priv.Public.ToProto()
 	prep := &drand.SignalDKGPacket{
@@ -373,24 +381,29 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.log.Info("setup_reshare", "signaling_key_to_leader")
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
+		d.log.Error("setup_reshare", "failed to signal key to leader", "err", err)
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
 	if err != nil {
+		d.log.Error("setup_reshare", "failed to receive dkg info", "err", err)
 		return nil, err
 	}
 
 	// some assertions that should be true but never too safe
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
+		d.log.Error("setup_reshare", "invalid genesis time in received group")
 		return nil, errors.New("control: old and new group have different genesis time")
 	}
 
 	if oldGroup.Period != newGroup.Period {
+		d.log.Error("setup_reshare", "invalid period time in received group")
 		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
 
 	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
+		d.log.Error("setup_reshare", "invalid genesis seed in received group")
 		return nil, errors.New("control: old and new group have different genesis seed")
 	}
 	now := d.opts.clock.Now().Unix()
@@ -415,6 +428,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	// run the dkg !
 	finalGroup, err := d.runResharing(false, oldGroup, newGroup, dkgTimeout)
 	if err != nil {
+		d.log.Error("setup_reshare", "failed to run resharing", "err", err)
 		return nil, err
 	}
 	return finalGroup.ToProto(), nil
@@ -448,6 +462,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		d.log.Info("init_reshare", "begin", "leader", false)
 		return d.setupAutomaticResharing(c, oldGroup, in)
 	}
+
 	d.log.Info("init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
 
 	newSetup := func() (*setupManager, error) {

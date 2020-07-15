@@ -27,6 +27,7 @@ type shareArgs struct {
 	timeout   time.Duration
 	threshold int
 	entropy   *control.EntropyInfo
+	force     bool
 	conf      *core.Config
 }
 
@@ -49,6 +50,8 @@ func getShareArgs(c *cli.Context) (*shareArgs, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	args.force = c.Bool(forceFlag.Name)
 
 	if c.IsSet(userEntropyOnlyFlag.Name) && !c.IsSet(sourceFlag.Name) {
 		fmt.Print("drand: userEntropyOnly needs to be used with the source flag, which is not specified here. userEntropyOnly flag is ignored.")
@@ -185,7 +188,7 @@ func reshareCmd(c *cli.Context) error {
 	}
 
 	fmt.Fprintln(output, "Participating to the resharing")
-	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath)
+	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath, args.force)
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
 	}
