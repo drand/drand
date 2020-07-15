@@ -51,6 +51,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	// expect the group
 	group, err := d.leaderRunSetup(newSetup)
 	if err != nil {
+		d.log.Error("init_dkg", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 
@@ -69,11 +70,13 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *key.Group, err error) {
 	// setup the manager
 	d.state.Lock()
+	printP := func(p interface{}) string { return fmt.Sprintf("%p", p) }
 	if d.manager != nil {
-		d.log.Info("reshare", "already_in_progress", "restart", "reshare")
+		d.log.Info("reshare", "already_in_progress", "restart", "reshare", "old", printP(d.manager))
 		d.manager.StopPreemptively()
 	}
 	manager, err := newSetup()
+	d.log.Info("reshare", "newmanager", printP(manager))
 	if err != nil {
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
@@ -104,7 +107,7 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *k
 			}
 			d.log.Debug("init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
 		} else {
-			d.log.Debug("init_dkg", "pre-empted")
+			d.log.Debug("init_dkg", "pre-empted", "from_manager", printP(manager))
 			return nil, errPreempted
 		}
 	case <-time.After(MaxWaitPrepareDKG):
@@ -471,6 +474,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 
 	newGroup, err := d.leaderRunSetup(newSetup)
 	if err != nil {
+		d.log.Error("init_reshare", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	// some assertions that should always be true but never too safe

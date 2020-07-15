@@ -59,6 +59,37 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.TestPublicBeacon(lastID, false)
 }
 
+func TestDrandReshareForce(t *testing.T) {
+	oldN := 3
+	oldThr := 2
+	timeout := 1 * time.Second
+	beaconPeriod := 2 * time.Second
+
+	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
+	defer dt.Cleanup()
+	group1 := dt.RunDKG()
+	// make sure all nodes had enough time to run their go routines to start the
+	// beacon handler - related to CI problems
+	time.Sleep(getSleepDuration())
+	dt.MoveToTime(group1.GenesisTime)
+	dt.MoveTime(1 * time.Second)
+
+	// run the resharing
+	go dt.RunReshare(1, 0, oldThr, timeout, false)
+	time.Sleep(500 * time.Millisecond)
+	/*require.NoError(t, err)*/
+	//fmt.Printf("\n -- Move to Response phase !! -- \n")
+	/*fmt.Println(group2)*/
+
+	// force
+	fmt.Printf("\n\n\nSTARTING RESHARING AGAIN\n\n\n")
+	group3, err := dt.RunReshare(oldN, 0, oldThr, timeout, true)
+	require.NoError(t, err)
+	fmt.Printf("\n -- Move to Response phase !! -- \n")
+	fmt.Println(group3)
+
+}
+
 func TestDrandDKGReshareTimeout(t *testing.T) {
 	oldN := 3
 	newN := 4
@@ -91,7 +122,8 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group)
 	go func() {
-		group := dt.RunReshare(toKeep, toAdd, newThr, timeout)
+		group, err := dt.RunReshare(toKeep, toAdd, newThr, timeout, false)
+		require.NoError(t, err)
 		doneReshare <- group
 	}()
 	time.Sleep(3 * time.Second)
@@ -185,7 +217,9 @@ func TestDrandResharePreempt(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group, 1)
 	go func() {
-		doneReshare <- dt.RunReshare(oldN, 0, newThr, timeout)
+		g, err := dt.RunReshare(oldN, 0, newThr, timeout, false)
+		require.NoError(t, err)
+		doneReshare <- g
 	}()
 	time.Sleep(time.Second)
 	dt.MoveTime(time.Second)
