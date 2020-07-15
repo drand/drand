@@ -60,8 +60,8 @@ func TestDrandDKGFresh(t *testing.T) {
 }
 
 func TestDrandReshareForce(t *testing.T) {
-	oldN := 3
-	oldThr := 2
+	oldN := 4
+	oldThr := 3
 	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 
@@ -75,7 +75,7 @@ func TestDrandReshareForce(t *testing.T) {
 	dt.MoveTime(1 * time.Second)
 
 	// run the resharing
-	go dt.RunReshare(1, 0, oldThr, timeout, false)
+	go dt.RunReshare(2, 0, oldThr, timeout, false)
 	time.Sleep(500 * time.Millisecond)
 	/*require.NoError(t, err)*/
 	//fmt.Printf("\n -- Move to Response phase !! -- \n")
