@@ -78,9 +78,6 @@ func TestDrandReshareForce(t *testing.T) {
 	// run the resharing
 	go dt.RunReshare(oldN, 0, oldThr, timeout, false, true)
 	time.Sleep(500 * time.Millisecond)
-	/*require.NoError(t, err)*/
-	//fmt.Printf("\n -- Move to Response phase !! -- \n")
-	/*fmt.Println(group2)*/
 
 	// force
 	fmt.Printf("\n\n\nSTARTING RESHARING AGAIN\n\n\n")
@@ -88,7 +85,6 @@ func TestDrandReshareForce(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Printf("\n -- Move to Response phase !! -- \n")
 	fmt.Println(group3)
-
 }
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
@@ -177,12 +173,11 @@ func TestDrandResharePreempt(t *testing.T) {
 
 	oldN := 3
 	newN := 3
-	oldThr := 2
-	newThr := 2
+	Thr := 2
 	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 
-	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
+	dt := NewDrandTest2(t, oldN, Thr, beaconPeriod)
 	defer dt.Cleanup()
 	group1 := dt.RunDKG()
 	// make sure all nodes had enough time to run their go routines to start the
@@ -194,8 +189,6 @@ func TestDrandResharePreempt(t *testing.T) {
 	// so nodes think they are going forward with round 2
 	dt.MoveTime(1 * time.Second)
 
-	fmt.Println("SETUP RESHARE DONE")
-
 	// first, the leader is going to start running a failed reshare:
 	oldNode := dt.group.Find(dt.nodes[0].drand.priv.Public)
 	if oldNode == nil {
@@ -206,7 +199,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	go func() {
 		client, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
 		require.NoError(t, err)
-		_, err = client.InitReshareLeader(newN, newThr, timeout, "unused secret", "", testBeaconOffset)
+		_, err = client.InitReshareLeader(newN, Thr, timeout, "unused secret", "", testBeaconOffset)
 		// Done resharing
 		if err == nil {
 			panic("initial reshare should fail.")
@@ -218,7 +211,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group, 1)
 	go func() {
-		g, err := dt.RunReshare(oldN, 0, newThr, timeout, false, false)
+		g, err := dt.RunReshare(oldN, 0, Thr, timeout, false, false)
 		require.NoError(t, err)
 		doneReshare <- g
 	}()

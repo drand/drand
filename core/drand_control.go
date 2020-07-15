@@ -394,24 +394,8 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 
 	// some assertions that should be true but never too safe
-	if oldGroup.GenesisTime != newGroup.GenesisTime {
-		d.log.Error("setup_reshare", "invalid genesis time in received group")
-		return nil, errors.New("control: old and new group have different genesis time")
-	}
-
-	if oldGroup.Period != newGroup.Period {
-		d.log.Error("setup_reshare", "invalid period time in received group")
-		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
-	}
-
-	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
-		d.log.Error("setup_reshare", "invalid genesis seed in received group")
-		return nil, errors.New("control: old and new group have different genesis seed")
-	}
-	now := d.opts.clock.Now().Unix()
-	if newGroup.TransitionTime < now {
-		d.log.Error("setup_reshare", "invalid_transition", "given", newGroup.TransitionTime, "now", now)
-		return nil, errors.New("control: new group with transition time in the past")
+	if err := d.validateGroupTransition(oldGroup, newGroup); err != nil {
+		return nil, err
 	}
 
 	node := newGroup.Find(d.priv.Public)
@@ -434,6 +418,29 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		return nil, err
 	}
 	return finalGroup.ToProto(), nil
+}
+
+func (d *Drand) validateGroupTransition(oldGroup, newGroup *key.Group) error {
+	if oldGroup.GenesisTime != newGroup.GenesisTime {
+		d.log.Error("setup_reshare", "invalid genesis time in received group")
+		return errors.New("control: old and new group have different genesis time")
+	}
+
+	if oldGroup.Period != newGroup.Period {
+		d.log.Error("setup_reshare", "invalid period time in received group")
+		return errors.New("control: old and new group have different period - unsupported feature at the moment")
+	}
+
+	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
+		d.log.Error("setup_reshare", "invalid genesis seed in received group")
+		return errors.New("control: old and new group have different genesis seed")
+	}
+	now := d.opts.clock.Now().Unix()
+	if newGroup.TransitionTime < now {
+		d.log.Error("setup_reshare", "invalid_transition", "given", newGroup.TransitionTime, "now", now)
+		return errors.New("control: new group with transition time in the past")
+	}
+	return nil
 }
 
 func (d *Drand) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group, err error) {

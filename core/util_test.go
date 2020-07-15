@@ -319,12 +319,10 @@ func (d *DrandTest2) SetupNewNodes(newNodes int) []*Node {
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
-func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration, force bool, onlyLeader bool) (*key.Group, error) {
+func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration, force, onlyLeader bool) (*key.Group, error) {
 	d.Lock()
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.nodes), newRun, len(d.newNodes))
-	var clientCounter = new(sync.WaitGroup)
 	var secret = "thisistheresharing"
-	total := oldRun + newRun
 	// stop the exluded nodes
 	for _, node := range d.nodes[oldRun:] {
 		d.StopDrand(node.addr, false)
@@ -335,34 +333,29 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 		}
 	}
 
-	d.newN = total
+	d.newN = oldRun + newRun
 	d.newThr = newThr
 	leader := d.nodes[0]
 	errCh := make(chan error, 1)
 	groupCh := make(chan *key.Group, 1)
 	// function that each non-leader runs to start the resharing
-	runreshare := func(n *Node, newNode bool) {
+	runreshare := func(n *Node) {
 		if onlyLeader {
 			return
 		}
-		defer clientCounter.Done()
-		dr := n.drand
 		// instruct to be ready for a reshare
-		client, err := net.NewControlClient(dr.opts.controlPort)
+		client, err := net.NewControlClient(n.drand.opts.controlPort)
 		require.NoError(d.t, err)
 		_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force)
 		if err != nil {
 			errCh <- err
 			return
 		}
-		//require.NoError(d.t, err, "non-leader node (new?%v) error during reshare ", newNode)
-		fmt.Printf("\n\nRESHARING TEST: non-leader drand %s DONE RESHARING - %s\n", dr.priv.Public.Address(), dr.priv.Public.Key)
+		fmt.Printf("\n\nRESHARING TEST: non-leader drand %s DONE RESHARING - %s\n", n.drand.priv.Public.Address(), n.drand.priv.Public.Key)
 	}
-	clientCounter.Add(1)
 	// first run the leader, then the other nodes will send their PK to the
 	// leader and then the leader will answer back with the new group
 	go func() {
-		defer clientCounter.Done()
 		oldNode := d.group.Find(leader.drand.priv.Public)
 		if oldNode == nil {
 			panic("leader not found in old group")
@@ -388,8 +381,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 	// run the current nodes
 	for _, node := range d.nodes[1:oldRun] {
 		d.resharedNodes = append(d.resharedNodes, node)
-		clientCounter.Add(1)
-		go runreshare(node, false)
+		go runreshare(node)
 	}
 
 	// run the new ones
@@ -397,13 +389,11 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 		for _, node := range d.newNodes[:newRun] {
 			d.resharedNodes = append(d.resharedNodes, node)
 			fmt.Printf("\n ++ NEW NODE running RESHARE: %s\n", node.addr)
-			clientCounter.Add(1)
-			go runreshare(node, true)
+			go runreshare(node)
 		}
 	}
 	d.Unlock()
 	// wait for the return of the clients
-	//checkWait(clientCounter)
 	select {
 	case finalGroup := <-groupCh:
 		d.newGroup = finalGroup
@@ -427,19 +417,5 @@ func (d *DrandTest2) newNode(dr *Drand, certPath string) *Node {
 		addr:     id,
 		drand:    dr,
 		clock:    c,
-	}
-}
-
-func checkWait(counter *sync.WaitGroup) {
-	var doneCh = make(chan bool, 1)
-	go func() {
-		counter.Wait()
-		doneCh <- true
-	}()
-	select {
-	case <-doneCh:
-		break
-	case <-time.After(11 * time.Second):
-		panic("outdated beacon time")
 	}
 }
