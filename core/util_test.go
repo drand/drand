@@ -319,7 +319,7 @@ func (d *DrandTest2) SetupNewNodes(newNodes int) []*Node {
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
-func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration, force bool) (*key.Group, error) {
+func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration, force bool, onlyLeader bool) (*key.Group, error) {
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.nodes), newRun, len(d.newNodes))
 	var clientCounter = new(sync.WaitGroup)
 	var secret = "thisistheresharing"
@@ -341,6 +341,9 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 	groupCh := make(chan *key.Group, 1)
 	// function that each non-leader runs to start the resharing
 	runreshare := func(n *Node, newNode bool) {
+		if onlyLeader {
+			return
+		}
 		defer clientCounter.Done()
 		dr := n.drand
 		// instruct to be ready for a reshare

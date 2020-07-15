@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	gnet "net"
 	"os"
@@ -75,7 +76,7 @@ func TestDrandReshareForce(t *testing.T) {
 	dt.MoveTime(1 * time.Second)
 
 	// run the resharing
-	go dt.RunReshare(2, 0, oldThr, timeout, false)
+	go dt.RunReshare(oldN, 0, oldThr, timeout, false, true)
 	time.Sleep(500 * time.Millisecond)
 	/*require.NoError(t, err)*/
 	//fmt.Printf("\n -- Move to Response phase !! -- \n")
@@ -83,7 +84,7 @@ func TestDrandReshareForce(t *testing.T) {
 
 	// force
 	fmt.Printf("\n\n\nSTARTING RESHARING AGAIN\n\n\n")
-	group3, err := dt.RunReshare(oldN, 0, oldThr, timeout, true)
+	group3, err := dt.RunReshare(oldN, 0, oldThr, timeout, true, false)
 	require.NoError(t, err)
 	fmt.Printf("\n -- Move to Response phase !! -- \n")
 	fmt.Println(group3)
@@ -122,7 +123,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group)
 	go func() {
-		group, err := dt.RunReshare(toKeep, toAdd, newThr, timeout, false)
+		group, err := dt.RunReshare(toKeep, toAdd, newThr, timeout, false, false)
 		require.NoError(t, err)
 		doneReshare <- group
 	}()
@@ -217,7 +218,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group, 1)
 	go func() {
-		g, err := dt.RunReshare(oldN, 0, newThr, timeout, false)
+		g, err := dt.RunReshare(oldN, 0, newThr, timeout, false, false)
 		require.NoError(t, err)
 		doneReshare <- g
 	}()
@@ -454,6 +455,9 @@ func TestDrandFollowChain(tt *testing.T) {
 					break
 				}
 			case e := <-errCh:
+				if e == io.EOF {
+					break
+				}
 				require.NoError(tt, e)
 			case <-time.After(1 * time.Second):
 				tt.FailNow()
