@@ -729,6 +729,12 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	ctx, cancel := context.WithCancel(stream.Context())
 	d.syncerCancel = cancel
 	d.state.Unlock()
+	defer func() {
+		d.state.Lock()
+		d.syncerCancel()
+		d.syncerCancel = nil
+		d.state.Unlock()
+	}()
 
 	addr := net.RemoteAddress(stream.Context())
 	// TODO put that hash verification back
@@ -740,7 +746,6 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}
 	var info *chain.Info
 	for _, peer := range peers {
-		fmt.Println("peer", peer, d.privGateway.PublicClient, stream.Context())
 		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
 		if err != nil {
 			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
@@ -778,26 +783,19 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	cbStore := beacon.NewCallbackStore(store)
 	defer cbStore.Close()
 	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
-	var done = make(chan error, 1)
 	cbStore.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.FollowProgress{
 			Current: b.Round,
 			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
 		})
 		if err != nil {
-			done <- err
-		}
-		select {
-		// just check if the syncer has finished or not
-		case <-ctx.Done():
-			// TODO better UX messages for client
-			done <- ctx.Err()
-		default:
+			d.log.Error("start_follow_chain", "sending_progress", "err", err)
 		}
 	})
 	defer cbStore.RemoveCallback(addr)
-	if err := syncer.Follow(ctx, 0, peers); err != nil {
+	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
+		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
 		return err
 	}
-	return <-done
+	return ctx.Err()
 }
