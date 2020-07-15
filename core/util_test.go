@@ -320,6 +320,7 @@ func (d *DrandTest2) SetupNewNodes(newNodes int) []*Node {
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
 func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration, force bool, onlyLeader bool) (*key.Group, error) {
+	d.Lock()
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.nodes), newRun, len(d.newNodes))
 	var clientCounter = new(sync.WaitGroup)
 	var secret = "thisistheresharing"
@@ -400,7 +401,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 			go runreshare(node, true)
 		}
 	}
-
+	d.Unlock()
 	// wait for the return of the clients
 	//checkWait(clientCounter)
 	select {
