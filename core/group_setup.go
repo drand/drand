@@ -111,8 +111,7 @@ func newReshareSetup(
 	in *drand.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
-	catchupPeriod := uint32(oldGroup.CatchupPeriod.Seconds())
-	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, in.GetInfo())
+	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, in.CatchupPeriod, in.GetInfo())
 	if err != nil {
 		return nil, err
 	}

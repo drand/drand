@@ -199,7 +199,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	go func() {
 		client, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
 		require.NoError(t, err)
-		_, err = client.InitReshareLeader(newN, Thr, timeout, "unused secret", "", testBeaconOffset)
+		_, err = client.InitReshareLeader(newN, Thr, timeout, 0, "unused secret", "", testBeaconOffset)
 		// Done resharing
 		if err == nil {
 			panic("initial reshare should fail.")

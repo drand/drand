@@ -240,8 +240,15 @@ func leadReshareCmd(c *cli.Context) error {
 	if c.IsSet(beaconOffset.Name) {
 		offset = c.Int(beaconOffset.Name)
 	}
+	catchupPeriod := time.Duration(0)
+	if c.IsSet(catchupPeriodFlag.Name) {
+		catchupPeriodStr := c.String(catchupPeriodFlag.Name)
+		if catchupPeriod, err = time.ParseDuration(catchupPeriodStr); err != nil {
+			return fmt.Errorf("catchup period given is invalid: %v", err)
+		}
+	}
 	fmt.Fprintln(output, "Initiating the resharing as a leader")
-	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout, args.secret, oldPath, offset)
+	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout, catchupPeriod, args.secret, oldPath, offset)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)

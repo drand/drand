@@ -84,7 +84,6 @@ message InitDKGPacket {
     // used only in a fresh dkg
     uint32 beacon_period = 3;
     // the minimum beacon period when in catchup.
-    // used only in a fresh dkg
     uint32 catchup_period = 4;
 }
 
@@ -106,6 +105,8 @@ message InitResharePacket {
     // group.
     GroupInfo old = 1;
     SetupInfoPacket info = 2;
+    // the minimum beacon period when in catchup.
+    uint32 catchup_period = 3;
 }
 
 // GroupInfo holds the information to load a group information such as the nodes

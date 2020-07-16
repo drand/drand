@@ -80,7 +80,7 @@ func (c *ControlClient) Ping() error {
 // XXX Might be best to move to core/
 func (c *ControlClient) InitReshareLeader(
 	nodes, threshold int,
-	timeout time.Duration,
+	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
 	offset int) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
@@ -95,6 +95,7 @@ func (c *ControlClient) InitReshareLeader(
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
+		CatchupPeriod: uint32(catchupPeriod.Seconds()),
 	}
 	return c.client.InitReshare(ctx.Background(), request)
 }

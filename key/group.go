@@ -17,7 +17,6 @@ import (
 	dkg "github.com/drand/kyber/share/dkg"
 	"golang.org/x/crypto/blake2b"
 
-	"github.com/drand/drand/log"
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
@@ -209,7 +208,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	}
 	g.CatchupPeriod, err = time.ParseDuration(gt.CatchupPeriod)
 	if err != nil {
-		log.DefaultLogger().Warn("group_toml", "failed to parse catchup period", "err", err, "CatchupPeriod", gt.CatchupPeriod)
+		return err
 	}
 	g.GenesisTime = gt.GenesisTime
 	if gt.TransitionTime != 0 {
@@ -278,7 +277,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 // to a QUALified set of nodes that ran successfully a setup or reshare phase.
 // The threshold is automatically guessed from the length of the distributed
 // key.
-// Note: onluy used in tests
+// Note: only used in tests
 func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64) *Group {
 	return &Group{
 		Nodes:          list,

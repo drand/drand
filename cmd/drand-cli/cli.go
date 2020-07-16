@@ -127,7 +127,7 @@ var periodFlag = &cli.StringFlag{
 
 var catchupPeriodFlag = &cli.StringFlag{
 	Name:  "catchup-period",
-	Usage: "minimum period while in catchup. set only by leader of initial setup",
+	Usage: "Minimum period while in catchup. Set only by the leader of share / reshares",
 	Value: "0s",
 }
 

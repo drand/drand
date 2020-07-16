@@ -210,7 +210,8 @@ type GroupPacket struct {
 	TransitionTime uint64   `protobuf:"varint,5,opt,name=transition_time,json=transitionTime,proto3" json:"transition_time,omitempty"`
 	GenesisSeed    []byte   `protobuf:"bytes,6,opt,name=genesis_seed,json=genesisSeed,proto3" json:"genesis_seed,omitempty"`
 	DistKey        [][]byte `protobuf:"bytes,7,rep,name=dist_key,json=distKey,proto3" json:"dist_key,omitempty"`
-	CatchupPeriod  uint32   `protobuf:"varint,8,opt,name=catchup_period,json=catchupPeriod,proto3" json:"catchup_period,omitempty"`
+	// catchup_period in seconds
+	CatchupPeriod uint32 `protobuf:"varint,8,opt,name=catchup_period,json=catchupPeriod,proto3" json:"catchup_period,omitempty"`
 }
 
 func (x *GroupPacket) Reset() {

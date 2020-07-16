@@ -364,7 +364,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 		// old root: oldNode.Index leater: leader.addr
 		client, err := net.NewControlClient(leader.drand.opts.controlPort)
 		require.NoError(d.t, err)
-		finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, secret, "", testBeaconOffset)
+		finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, 0, secret, "", testBeaconOffset)
 		// Done resharing
 		if err != nil {
 			errCh <- err
