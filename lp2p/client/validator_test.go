@@ -3,11 +3,14 @@ package client
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/test/cache"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -85,5 +88,118 @@ func TestRejectsFutureBeacons(t *testing.T) {
 
 	if res != pubsub.ValidationReject {
 		t.Fatal(errors.New("expected reject for future message"))
+	}
+}
+
+func TestRejectsVerifyBeaconFailure(t *testing.T) {
+	info := chain.Info{
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix(),
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+	c := Client{log: log.DefaultLogger()}
+	validate := randomnessValidator(&info, nil, &c)
+
+	resp := drand.PublicRandResponse{
+		Round: chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime),
+		// missing signature etc.
+	}
+	data, err := proto.Marshal(&resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := pubsub.Message{Message: &pb.Message{Data: data}}
+	res := validate(context.Background(), randomPeerID(t), &msg)
+
+	if res != pubsub.ValidationReject {
+		t.Fatal(errors.New("expected reject for beacon verification failure"))
+	}
+}
+
+func TestIgnoresCachedEqualBeacon(t *testing.T) {
+	info := chain.Info{
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix(),
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+	ca := cache.NewMapCache()
+	c := Client{log: log.DefaultLogger()}
+	validate := randomnessValidator(&info, ca, &c)
+
+	rnd := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+
+	sig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sig, rnd)
+	psig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(psig, rnd-1)
+
+	rdata := client.RandomData{
+		Rnd:               rnd,
+		Sig:               sig,
+		PreviousSignature: psig,
+		Random:            chain.RandomnessFromSignature(sig),
+	}
+
+	ca.Add(rnd, &rdata)
+
+	resp := drand.PublicRandResponse{
+		Round:             rdata.Rnd,
+		Signature:         rdata.Sig,
+		PreviousSignature: rdata.PreviousSignature,
+		Randomness:        rdata.Random,
+	}
+	data, err := proto.Marshal(&resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := pubsub.Message{Message: &pb.Message{Data: data}}
+	res := validate(context.Background(), randomPeerID(t), &msg)
+
+	if res != pubsub.ValidationIgnore {
+		t.Fatal(errors.New("expected ignore for cached beacon"))
+	}
+}
+
+func TestRejectsCachedUnequalBeacon(t *testing.T) {
+	info := chain.Info{
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix(),
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+	ca := cache.NewMapCache()
+	c := Client{log: log.DefaultLogger()}
+	validate := randomnessValidator(&info, ca, &c)
+
+	rnd := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+
+	sig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sig, rnd)
+	psig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(psig, rnd-1)
+
+	rdata := client.RandomData{
+		Rnd:               rnd,
+		Sig:               sig,
+		PreviousSignature: psig,
+		Random:            chain.RandomnessFromSignature(sig),
+	}
+
+	ca.Add(rnd, &rdata)
+
+	resp := drand.PublicRandResponse{
+		Round:             rdata.Rnd,
+		Signature:         rdata.Sig,
+		PreviousSignature: rdata.Sig, // incoming message has incorrect previous sig
+		Randomness:        rdata.Random,
+	}
+	data, err := proto.Marshal(&resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := pubsub.Message{Message: &pb.Message{Data: data}}
+	res := validate(context.Background(), randomPeerID(t), &msg)
+
+	if res != pubsub.ValidationReject {
+		t.Fatal(errors.New("expected reject for cached but unequal beacon"))
 	}
 }
