@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client/test/cache"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -31,15 +30,14 @@ func randomPeerID(t *testing.T) peer.ID {
 	return peerID
 }
 
-func TestRejectInvalid(t *testing.T) {
+func TestRejectsUnmarshalBeaconFailure(t *testing.T) {
 	info := chain.Info{
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
-	cache := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, cache, &c)
+	validate := randomnessValidator(&info, nil, &c)
 
 	msg := pubsub.Message{Message: &pb.Message{}}
 	res := validate(context.Background(), randomPeerID(t), &msg)
@@ -49,10 +47,9 @@ func TestRejectInvalid(t *testing.T) {
 	}
 }
 
-func TestAcceptWithoutTrustRoot(t *testing.T) {
-	cache := cache.NewMapCache()
+func TestAcceptsWithoutTrustRoot(t *testing.T) {
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(nil, cache, &c)
+	validate := randomnessValidator(nil, nil, &c)
 
 	resp := drand.PublicRandResponse{}
 	data, err := proto.Marshal(&resp)
@@ -67,15 +64,14 @@ func TestAcceptWithoutTrustRoot(t *testing.T) {
 	}
 }
 
-func TestRejectFuture(t *testing.T) {
+func TestRejectsFutureBeacons(t *testing.T) {
 	info := chain.Info{
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
-	cache := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, cache, &c)
+	validate := randomnessValidator(&info, nil, &c)
 
 	resp := drand.PublicRandResponse{
 		Round: chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime) + 5,

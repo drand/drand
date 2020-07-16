@@ -6,7 +6,7 @@ import (
 	"github.com/drand/drand/client"
 )
 
-// MapCache is a simple cache that stores data in memory forever.
+// MapCache is a simple cache that stores data in memory.
 type MapCache struct {
 	sync.RWMutex
 	data map[uint64]client.Result
