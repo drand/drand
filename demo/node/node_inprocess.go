@@ -192,7 +192,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 		grp, err = cl.InitReshareLeader(nodes, thr, t, secretReshare, oldGroup, beaconOffset)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, secretReshare, oldGroup)
+		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false)
 	}
 	if err != nil {
 		l.log.Error("drand", "reshare failed", "err", err)

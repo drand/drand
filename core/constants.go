@@ -63,9 +63,6 @@ const DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(genesisOffsetTime
 // has to keep the same period.
 var DefaultResharingOffset = 30 * time.Second
 
-// IDs for callback when beacon appears
-const callbackID = "callbackID"
-
 // PrivateRandLength is the length of expected private randomness buffers
 const PrivateRandLength = 32
 

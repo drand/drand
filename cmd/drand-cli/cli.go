@@ -47,8 +47,6 @@ const defaultPort = "8080"
 
 func banner() {
 	fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
-	s := "WARNING: this software has NOT received a full audit and must be used with caution and probably NOT in a production environment.\n"
-	fmt.Fprint(output, s)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -143,6 +141,11 @@ var transitionFlag = &cli.BoolFlag{
 		"The node will use the currently stored group as the basis for the resharing",
 }
 
+var forceFlag = &cli.BoolFlag{
+	Name:  "force, f",
+	Usage: "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
+}
+
 // secret flag is the "manual" security when the "leader"/coordinator creates the
 // group: every participant must know this secret. It is not a consensus, not
 // perfect, but since all members are known after the protocol, and members can
@@ -179,6 +182,11 @@ var oldGroupFlag = &cli.StringFlag{
 	Usage: "Old group.toml path to specify when a new node wishes to participate " +
 		"in a resharing protocol. This flag is optional in case a node is already" +
 		"included in the current DKG.",
+}
+
+var skipValidationFlag = &cli.BoolFlag{
+	Name:  "skipValidation",
+	Usage: "skips bls verification of beacon rounds for faster catchup.",
 }
 
 var timeoutFlag = &cli.StringFlag{
@@ -218,13 +226,33 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
+var hashInfoFlag = &cli.StringFlag{
+	Name:     "chain-hash",
+	Usage:    "The hash of the chain info",
+	Required: true,
+}
+
+// using a simple string flag because the StringSliceFlag is not intuitive
+// see https://github.com/urfave/cli/issues/62
+var syncNodeFlag = &cli.StringFlag{
+	Name:     "sync-nodes",
+	Usage:    "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s)",
+	Required: true,
+}
+
+var upToFlag = &cli.IntFlag{
+	Name:  "up-to",
+	Usage: "Specify a round to which the drand daemon will stop following the chain",
+	Value: 0,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
 		Usage: "Start the drand daemon.",
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
-			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand),
+			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag, skipValidationFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return startCmd(c)
@@ -245,17 +273,24 @@ var appCommands = []*cli.Command{
 		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag),
+			leaderFlag, beaconOffset, transitionFlag, forceFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)
 		},
 	},
 	{
+		Name:  "follow",
+		Usage: "follow and store a randomness chain",
+		Flags: toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag,
+			tlsCertFlag, insecureFlag, upToFlag),
+		Action: followCmd,
+	},
+	{
 		Name: "generate-keypair",
 		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 			"for this node.\n",
-		ArgsUsage: "<address> is the public address for other nodes to contact",
+		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
 		Flags:     toArray(folderFlag, insecureFlag),
 		Action: func(c *cli.Context) error {
 			banner()
@@ -398,9 +433,8 @@ func CLI() *cli.App {
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "%+v\n", err)
-		}
+		// override to prevent default behavior of calling OS.exit(1),
+		// when tests expect to be able to run multiple commands.
 	}
 	app.Version = version
 	app.Usage = "distributed randomness service"
@@ -435,31 +469,6 @@ func resetCmd(c *cli.Context) error {
 		os.Exit(1)
 	}
 	fmt.Println("drand: database reset")
-	return nil
-}
-
-func resetBeaconDB(config *core.Config) error {
-	if _, err := os.Stat(config.DBFolder()); err == nil {
-		fmt.Fprintf(output, "INCONSISTENT STATE: A beacon database exists already.\n"+
-			"drand support only one identity at the time and thus needs to delete "+
-			"the existing beacon database.\nCurrent folder is %s.\nAccept to delete "+
-			"database ? [Y/n]: ", config.DBFolder())
-		reader := bufio.NewReader(os.Stdin)
-		answer, err := reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("error reading: %s", err)
-		}
-		answer = strings.ToLower(strings.TrimSpace(answer))
-		if answer != "y" {
-			fmt.Fprintf(output, "drand: not deleting the database.")
-			return nil
-		}
-
-		if err := os.RemoveAll(config.DBFolder()); err != nil {
-			return err
-		}
-		fmt.Fprintf(output, "drand: removed existing beacon database.")
-	}
 	return nil
 }
 
@@ -691,9 +700,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if port != "" {
 		opts = append(opts, core.WithControlPort(port))
 	}
-	config := c.String(folderFlag.Name)
-	opts = append(opts, core.WithConfigFolder(config),
-		core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
+	if c.IsSet(folderFlag.Name) {
+		opts = append(opts, core.WithConfigFolder(c.String(folderFlag.Name)))
+	}
+	opts = append(opts, core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
 
 	if c.Bool("tls-disable") {
 		opts = append(opts, core.WithInsecure())

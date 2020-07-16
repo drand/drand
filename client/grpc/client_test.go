@@ -56,6 +56,7 @@ func TestClient(t *testing.T) {
 		t.Fatal("unexpected round")
 	}
 	cancel()
+	_ = c.Close()
 }
 
 func TestClientClose(t *testing.T) {

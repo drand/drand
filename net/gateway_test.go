@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/protobuf/drand"
+	testnet "github.com/drand/drand/test/net"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -30,13 +30,10 @@ func (t *testPeer) IsTLS() bool {
 }
 
 type testRandomnessServer struct {
-	*EmptyServer
+	*testnet.EmptyServer
 	round uint64
 }
 
-func (t *testRandomnessServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
-	return new(drand.Empty), errors.New("no beacon")
-}
 func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{Round: t.round}, nil
 }

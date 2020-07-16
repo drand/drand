@@ -12,9 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
-	dnet "github.com/drand/drand/net"
+	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
@@ -23,9 +25,9 @@ import (
 // errPreempted is returned on reshares when a subsequent reshare is started concurrently
 var errPreempted = errors.New("time out: pre-empted")
 
-// InitDKG take a InitDKGPacket, extracts the informations needed and wait for the
-// DKG protocol to finish. If the request specifies this node is a leader, it
-// starts the DKG protocol.
+// InitDKG take a InitDKGPacket, extracts the informations needed and wait for
+// the DKG protocol to finish. If the request specifies this node is a leader,
+// it starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	isLeader := in.GetInfo().GetLeader()
 	d.state.Lock()
@@ -49,6 +51,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	// expect the group
 	group, err := d.leaderRunSetup(newSetup)
 	if err != nil {
+		d.log.Error("init_dkg", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 
@@ -68,10 +71,11 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *k
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
-		d.log.Info("reshare", "already_in_progress", "restart", "reshare")
+		d.log.Info("reshare", "already_in_progress", "restart", "reshare", "old")
 		d.manager.StopPreemptively()
 	}
 	manager, err := newSetup()
+	d.log.Info("reshare", "newmanager")
 	if err != nil {
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
@@ -211,8 +215,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		return nil, err
 	}
 
-	// "" so all the addresses are taken into consideration
-	allNodes := nodeUnion("", oldGroup.Nodes, newGroup.Nodes)
+	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
 	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
 	phaser := d.getPhaser(timeout)
 
@@ -260,7 +263,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
+	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
 		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
@@ -293,7 +296,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	d.log.Debug("init_dkg", "wait_group")
@@ -336,27 +339,37 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	oldHash := oldGroup.Hash()
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := dnet.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
+	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
+		if !in.GetInfo().GetForce() {
+			d.log.Info("reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
+			return nil, errors.New("reshare already in progress; use --force")
+		}
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
 		d.receiver.stop()
+		d.receiver = nil
 	}
 
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
+		d.state.Unlock()
 		return nil, err
 	}
 	d.receiver = receiver
-	d.state.Unlock()
-
-	defer func() {
+	defer func(r *setupReceiver) {
 		d.state.Lock()
-		d.receiver.stop()
-		d.receiver = nil
+		r.stop()
+		// only set to nil if the given receiver here is the same as the current
+		// one, i.e. there has not been a more recent resharing comand issued in
+		// between
+		if d.receiver == r {
+			d.receiver = nil
+		}
 		d.state.Unlock()
-	}()
+	}(d.receiver)
+	d.state.Unlock()
 	// send public key to leader
 	id := d.priv.Public.ToProto()
 	prep := &drand.SignalDKGPacket{
@@ -372,30 +385,19 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	d.log.Info("setup_reshare", "signaling_key_to_leader")
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when receiving group: %s", err)
+		d.log.Error("setup_reshare", "failed to signal key to leader", "err", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
 	if err != nil {
+		d.log.Error("setup_reshare", "failed to receive dkg info", "err", err)
 		return nil, err
 	}
 
 	// some assertions that should be true but never too safe
-	if oldGroup.GenesisTime != newGroup.GenesisTime {
-		return nil, errors.New("control: old and new group have different genesis time")
-	}
-
-	if oldGroup.Period != newGroup.Period {
-		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
-	}
-
-	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
-		return nil, errors.New("control: old and new group have different genesis seed")
-	}
-	now := d.opts.clock.Now().Unix()
-	if newGroup.TransitionTime < now {
-		d.log.Error("setup_reshare", "invalid_transition", "given", newGroup.TransitionTime, "now", now)
-		return nil, errors.New("control: new group with transition time in the past")
+	if err := d.validateGroupTransition(oldGroup, newGroup); err != nil {
+		return nil, err
 	}
 
 	node := newGroup.Find(d.priv.Public)
@@ -414,9 +416,33 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	// run the dkg !
 	finalGroup, err := d.runResharing(false, oldGroup, newGroup, dkgTimeout)
 	if err != nil {
+		d.log.Error("setup_reshare", "failed to run resharing", "err", err)
 		return nil, err
 	}
 	return finalGroup.ToProto(), nil
+}
+
+func (d *Drand) validateGroupTransition(oldGroup, newGroup *key.Group) error {
+	if oldGroup.GenesisTime != newGroup.GenesisTime {
+		d.log.Error("setup_reshare", "invalid genesis time in received group")
+		return errors.New("control: old and new group have different genesis time")
+	}
+
+	if oldGroup.Period != newGroup.Period {
+		d.log.Error("setup_reshare", "invalid period time in received group")
+		return errors.New("control: old and new group have different period - unsupported feature at the moment")
+	}
+
+	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
+		d.log.Error("setup_reshare", "invalid genesis seed in received group")
+		return errors.New("control: old and new group have different genesis seed")
+	}
+	now := d.opts.clock.Now().Unix()
+	if newGroup.TransitionTime < now {
+		d.log.Error("setup_reshare", "invalid_transition", "given", newGroup.TransitionTime, "now", now)
+		return errors.New("control: new group with transition time in the past")
+	}
+	return nil
 }
 
 func (d *Drand) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group, err error) {
@@ -447,6 +473,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		d.log.Info("init_reshare", "begin", "leader", false)
 		return d.setupAutomaticResharing(c, oldGroup, in)
 	}
+
 	d.log.Info("init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
 
 	newSetup := func() (*setupManager, error) {
@@ -455,6 +482,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 
 	newGroup, err := d.leaderRunSetup(newSetup)
 	if err != nil {
+		d.log.Error("init_reshare", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	// some assertions that should always be true but never too safe
@@ -607,14 +635,9 @@ func nodesContainAddr(nodes []*key.Node, addr string) bool {
 }
 
 // nodeUnion takes the union of two sets of nodes
-func nodeUnion(us string, a, b []*key.Node) []*key.Node {
+func nodeUnion(a, b []*key.Node) []*key.Node {
 	out := make([]*key.Node, 0, len(a))
-	for _, n := range a {
-		if us == n.Address() {
-			continue
-		}
-		out = append(out, n)
-	}
+	out = append(out, a...)
 	for _, n := range b {
 		if !nodesContainAddr(a, n.Address()) {
 			out = append(out, n)
@@ -670,7 +693,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	if nodesContainAddr(incoming, d.priv.Public.Address()) {
 		newThreshold--
 	}
-	to := nodeUnion(d.priv.Public.Address(), outgoing, incoming)
+	to := nodeUnion(outgoing, incoming)
 
 	results := d.pushDKGInfoPacket(ctx, to, packet)
 
@@ -715,4 +738,91 @@ func getNonce(g *key.Group) []byte {
 		_ = binary.Write(h, binary.BigEndian, g.GenesisTime)
 	}
 	return h.Sum(nil)
+}
+
+func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
+	// TODO replace via a more independent chain manager that manages the
+	// transition from following -> participating
+	d.state.Lock()
+	if d.syncerCancel != nil {
+		d.state.Unlock()
+		return errors.New("syncing is already in progress")
+	}
+	// context given to the syncer
+	// NOTE: this means that if the client quits the requests, the syncing
+	// context will signal and it will stop. If we want the following to
+	// continue nevertheless we can use the next line by using a new context.
+	// ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(stream.Context())
+	d.syncerCancel = cancel
+	d.state.Unlock()
+	defer func() {
+		d.state.Lock()
+		d.syncerCancel()
+		d.syncerCancel = nil
+		d.state.Unlock()
+	}()
+
+	addr := net.RemoteAddress(stream.Context())
+	// TODO put that hash verification back
+	// hash := req.GetInfoHash()
+	peers := make([]net.Peer, 0, len(req.GetNodes()))
+	for _, addr := range req.GetNodes() {
+		// XXX add TLS disable later
+		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
+	}
+	var info *chain.Info
+	for _, peer := range peers {
+		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
+		if err != nil {
+			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+		info, err = chain.InfoFromProto(ci)
+		if err != nil {
+			d.log.Debug("start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+	}
+	if info == nil {
+		return errors.New("unable to get a chain info successfully")
+	}
+	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
+
+	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
+	// if !bytes.Equal(info.Hash(),hash) {
+	//  return errors.New("invalid chain info hash!")
+	// }
+
+	store, err := d.createBoltStore()
+	if err != nil {
+		d.log.Error("start_follow_chain", "unable to create store", "err", err)
+		return fmt.Errorf("unable to create store: %s", err)
+	}
+
+	// TODO find a better place to put that
+	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
+		d.log.Error("start_follow_chain", "unable to insert genesis block", "err", err)
+		store.Close()
+		return fmt.Errorf("unable to insert genesis block: %s", err)
+	}
+	// register callback to notify client of progress
+	cbStore := beacon.NewCallbackStore(store)
+	defer cbStore.Close()
+	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
+	cbStore.AddCallback(addr, func(b *chain.Beacon) {
+		err := stream.Send(&drand.FollowProgress{
+			Current: b.Round,
+			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
+		})
+		if err != nil {
+			d.log.Error("start_follow_chain", "sending_progress", "err", err)
+		}
+	})
+	defer cbStore.RemoveCallback(addr)
+	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
+		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
+		return err
+	}
+	return ctx.Err()
 }

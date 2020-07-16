@@ -6,8 +6,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-var _ Service = (*EmptyServer)(nil)
-
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
 type EmptyServer struct{}
 
@@ -58,6 +56,12 @@ func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.Em
 
 // SyncChain is an empty implementation
 func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServer) error {
+	return nil
+}
+
+// StartFollowChain is the control method to instruct a drand daemon to follow
+// its chain
+func (s *EmptyServer) StartFollowChain(*drand.StartFollowRequest, drand.Control_StartFollowChainServer) error {
 	return nil
 }
 

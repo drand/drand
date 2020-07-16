@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/fs"
@@ -33,16 +34,9 @@ type Drand struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
-	// handle all callbacks when a new beacon is found
-	callbacks *callbackManager
-	// stores recent entries in memory
-	// cache *beaconCache
-
 	beacon *beacon.Handler
 	// dkg private share. can be nil if dkg not finished yet.
-	share *key.Share
-	// dkg public key. Can be nil if dkg not finished yet.
-	pub     *key.DistPublic
+	share   *key.Share
 	dkgDone bool
 	// manager is created and destroyed during a setup phase
 	manager  *setupManager
@@ -57,6 +51,11 @@ type Drand struct {
 	// global state lock
 	state  sync.Mutex
 	exitCh chan bool
+
+	// that cancel function is set when the drand process is following a chain
+	// but not participating. Drand calls the cancel func when the node
+	// participates to a resharing.
+	syncerCancel context.CancelFunc
 }
 
 // NewDrand returns an drand struct. It assumes the private key pair
@@ -88,13 +87,11 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	// identity. If there is an option to set the address, it will override the
 	// default set here..
 	d := &Drand{
-		store:     s,
-		priv:      priv,
-		opts:      c,
-		log:       logger,
-		exitCh:    make(chan bool, 1),
-		callbacks: newCallbackManager(),
-		//cache:     newBeaconCache(logger),
+		store:  s,
+		priv:   priv,
+		opts:   c,
+		log:    logger,
+		exitCh: make(chan bool, 1),
 	}
 	if err := setupDrand(d, c); err != nil {
 		return nil, err
@@ -103,9 +100,6 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 }
 
 func setupDrand(d *Drand, c *Config) error {
-	// every new beacon will be passed through the opts callbacks
-	d.callbacks.AddCallback(callbackID, d.opts.callbacks)
-
 	// Set the private API address to the command-line flag, if given.
 	// Otherwise, set it to the address associated with stored private key.
 	privAddr := c.PrivateListenAddress(d.priv.Public.Address())
@@ -132,7 +126,7 @@ func setupDrand(d *Drand, c *Config) error {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr)
+	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
 	d.privGateway.StartAll()
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
@@ -153,10 +147,6 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	}
 	checkGroup(d.log, d.group)
 	d.share, err = s.LoadShare()
-	if err != nil {
-		return nil, err
-	}
-	d.pub, err = s.LoadDistPublic()
 	if err != nil {
 		return nil, err
 	}
@@ -200,9 +190,6 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	if err := d.store.SaveShare(d.share); err != nil {
 		return nil, err
 	}
-	if err := d.store.SaveDistPublic(d.share.Public()); err != nil {
-		return nil, err
-	}
 	targetGroup := d.dkgInfo.target
 	// only keep the qualified ones
 	targetGroup.Nodes = qualNodes
@@ -230,6 +217,7 @@ func (d *Drand) StartBeacon(catchup bool) {
 		d.log.Error("init_beacon", err)
 		return
 	}
+
 	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
 		go b.Catchup()
@@ -311,15 +299,18 @@ func (d *Drand) WaitExit() chan bool {
 	return d.exitCh
 }
 
+func (d *Drand) createBoltStore() (chain.Store, error) {
+	fs.CreateSecureFolder(d.opts.DBFolder())
+	return boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+}
+
 func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	fs.CreateSecureFolder(d.opts.DBFolder())
-	store, err := boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+	store, err := d.createBoltStore()
 	if err != nil {
 		return nil, err
 	}
-
 	pub := d.priv.Public
 	node := d.group.Find(pub)
 	if node == nil {
@@ -336,7 +327,12 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		return nil, err
 	}
 	d.beacon = b
-	d.beacon.AddCallback(d.callbacks.NewBeacon)
+	d.beacon.AddCallback("opts", d.opts.callbacks)
+	// cancel any sync operations
+	if d.syncerCancel != nil {
+		d.syncerCancel()
+		d.syncerCancel = nil
+	}
 	return d.beacon, nil
 }
 

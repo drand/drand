@@ -24,8 +24,6 @@ type Store interface {
 	LoadShare() (*Share, error)
 	SaveGroup(*Group) error
 	LoadGroup() (*Group, error)
-	SaveDistPublic(d *DistPublic) error
-	LoadDistPublic() (*DistPublic, error)
 	Reset(...ResetOption) error
 }
 
@@ -115,16 +113,6 @@ func (f *fileStore) SaveShare(share *Share) error {
 func (f *fileStore) LoadShare() (*Share, error) {
 	s := new(Share)
 	return s, Load(f.shareFile, s)
-}
-
-func (f *fileStore) SaveDistPublic(d *DistPublic) error {
-	fmt.Printf("crypto store: saving public distributed key in %s\n", f.distKeyFile)
-	return Save(f.distKeyFile, d, false)
-}
-
-func (f *fileStore) LoadDistPublic() (*DistPublic, error) {
-	d := new(DistPublic)
-	return d, Load(f.distKeyFile, d)
 }
 
 func (f *fileStore) Reset(...ResetOption) error {
