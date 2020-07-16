@@ -16,3 +16,4 @@ ignore:
   - "demo"
   - "protobuf"
   - "test"
+  - "client/test"
