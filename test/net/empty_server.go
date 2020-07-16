@@ -6,8 +6,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-var _ Service = (*EmptyServer)(nil)
-
 // EmptyServer is an PublicServer + ProtocolServer that does nothing
 type EmptyServer struct{}
 

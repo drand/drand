@@ -5,6 +5,8 @@ import (
 	"os"
 	"runtime"
 	"testing"
+
+	testnet "github.com/drand/drand/test/net"
 )
 
 const runtimeGOOSWindows = "windows"
@@ -32,7 +34,7 @@ func TestControlUnix(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(name)
-	s := EmptyServer{}
+	s := testnet.EmptyServer{}
 	service := NewTCPGrpcControlListener(&s, "unix://"+name+"/sock")
 	client, err := NewControlClient("unix://" + name + "/sock")
 
