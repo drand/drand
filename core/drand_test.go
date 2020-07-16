@@ -444,9 +444,10 @@ func TestDrandFollowChain(tt *testing.T) {
 			case p, ok := <-progress:
 				if !ok {
 					fmt.Printf("\n\nPROGRESS CLOSED\n\n")
-					progress = nil
+					goon = false
 					break
 				}
+				fmt.Printf("got progress: %+v\n", p)
 				if p.Current == exp {
 					// success
 					fmt.Printf("\n\nSUCCESSSSSS\n\n")
