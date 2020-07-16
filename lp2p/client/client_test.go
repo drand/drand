@@ -235,3 +235,12 @@ func waitForConnection(h host.Host, id peer.ID, timeout time.Duration) error {
 		time.Sleep(time.Millisecond * 100)
 	}
 }
+
+func TestRandomnessValidator(t *testing.T) {
+	info := chain.Info{
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix(),
+		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
+	}
+	validate := randomnessValidator(&info, cache, client)
+}
