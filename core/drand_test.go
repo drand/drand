@@ -440,8 +440,8 @@ func TestDrandFollowChain(tt *testing.T) {
 		var goon = true
 		for goon {
 			select {
-			case p := <-progress:
-				if p.Current == exp {
+			case p, ok := <-progress:
+				if ok && p.Current == exp {
 					// success
 					fmt.Printf("\n\nSUCCESSSSSS\n\n")
 					goon = false
