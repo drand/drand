@@ -33,6 +33,22 @@ func randomPeerID(t *testing.T) peer.ID {
 	return peerID
 }
 
+func fakeRandomData(info *chain.Info) client.RandomData {
+	rnd := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
+
+	sig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sig, rnd)
+	psig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(psig, rnd-1)
+
+	return client.RandomData{
+		Rnd:               rnd,
+		Sig:               sig,
+		PreviousSignature: psig,
+		Random:            chain.RandomnessFromSignature(sig),
+	}
+}
+
 func TestRejectsUnmarshalBeaconFailure(t *testing.T) {
 	info := chain.Info{
 		Period:      time.Second,
@@ -125,22 +141,9 @@ func TestIgnoresCachedEqualBeacon(t *testing.T) {
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
 	validate := randomnessValidator(&info, ca, &c)
+	rdata := fakeRandomData(&info)
 
-	rnd := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
-
-	sig := make([]byte, 8)
-	binary.LittleEndian.PutUint64(sig, rnd)
-	psig := make([]byte, 8)
-	binary.LittleEndian.PutUint64(psig, rnd-1)
-
-	rdata := client.RandomData{
-		Rnd:               rnd,
-		Sig:               sig,
-		PreviousSignature: psig,
-		Random:            chain.RandomnessFromSignature(sig),
-	}
-
-	ca.Add(rnd, &rdata)
+	ca.Add(rdata.Rnd, &rdata)
 
 	resp := drand.PublicRandResponse{
 		Round:             rdata.Rnd,
@@ -169,22 +172,9 @@ func TestRejectsCachedUnequalBeacon(t *testing.T) {
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
 	validate := randomnessValidator(&info, ca, &c)
+	rdata := fakeRandomData(&info)
 
-	rnd := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)
-
-	sig := make([]byte, 8)
-	binary.LittleEndian.PutUint64(sig, rnd)
-	psig := make([]byte, 8)
-	binary.LittleEndian.PutUint64(psig, rnd-1)
-
-	rdata := client.RandomData{
-		Rnd:               rnd,
-		Sig:               sig,
-		PreviousSignature: psig,
-		Random:            chain.RandomnessFromSignature(sig),
-	}
-
-	ca.Add(rnd, &rdata)
+	ca.Add(rdata.Rnd, &rdata)
 
 	resp := drand.PublicRandResponse{
 		Round:             rdata.Rnd,
