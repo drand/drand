@@ -257,7 +257,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
-func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
+func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -336,7 +336,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
-func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
+func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	oldHash := oldGroup.Hash()
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -741,6 +741,7 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
+// StartFollowChain syncs up with a chain from other nodes
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
