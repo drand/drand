@@ -21,6 +21,22 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type randomDataWrapper struct {
+	data client.RandomData
+}
+
+func (r *randomDataWrapper) Round() uint64 {
+	return r.data.Rnd
+}
+
+func (r *randomDataWrapper) Signature() []byte {
+	return r.data.Sig
+}
+
+func (r *randomDataWrapper) Randomness() []byte {
+	return r.data.Random
+}
+
 func randomPeerID(t *testing.T) peer.ID {
 	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
 	if err != nil {
@@ -181,5 +197,62 @@ func TestRejectsCachedUnequalBeacon(t *testing.T) {
 
 	if res != pubsub.ValidationReject {
 		t.Fatal(errors.New("expected reject for cached but unequal beacon"))
+	}
+}
+
+func TestIgnoresCachedEqualNonRandomDataBeacon(t *testing.T) {
+	info := fakeChainInfo()
+	ca := cache.NewMapCache()
+	c := Client{log: log.DefaultLogger()}
+	validate := randomnessValidator(info, ca, &c)
+	rdata := randomDataWrapper{fakeRandomData(info)}
+
+	ca.Add(rdata.Round(), &rdata)
+
+	resp := drand.PublicRandResponse{
+		Round:             rdata.Round(),
+		Signature:         rdata.Signature(),
+		PreviousSignature: rdata.data.PreviousSignature,
+		Randomness:        rdata.Randomness(),
+	}
+	data, err := proto.Marshal(&resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := pubsub.Message{Message: &pb.Message{Data: data}}
+	res := validate(context.Background(), randomPeerID(t), &msg)
+
+	if res != pubsub.ValidationIgnore {
+		t.Fatal(errors.New("expected ignore for cached beacon"))
+	}
+}
+
+func TestRejectsCachedEqualNonRandomDataBeacon(t *testing.T) {
+	info := fakeChainInfo()
+	ca := cache.NewMapCache()
+	c := Client{log: log.DefaultLogger()}
+	validate := randomnessValidator(info, ca, &c)
+	rdata := randomDataWrapper{fakeRandomData(info)}
+
+	ca.Add(rdata.Round(), &rdata)
+
+	sig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sig, rdata.Round()+1)
+
+	resp := drand.PublicRandResponse{
+		Round:             rdata.Round(),
+		Signature:         sig, // incoming message has incorrect sig
+		PreviousSignature: rdata.data.PreviousSignature,
+		Randomness:        rdata.Randomness(),
+	}
+	data, err := proto.Marshal(&resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := pubsub.Message{Message: &pb.Message{Data: data}}
+	res := validate(context.Background(), randomPeerID(t), &msg)
+
+	if res != pubsub.ValidationReject {
+		t.Fatal(errors.New("expected reject for cached beacon"))
 	}
 }
