@@ -206,9 +206,13 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	if err != nil {
 		return err
 	}
-	g.CatchupPeriod, err = time.ParseDuration(gt.CatchupPeriod)
-	if err != nil {
-		return err
+	if gt.CatchupPeriod == "" {
+		g.CatchupPeriod = 0
+	} else {
+		g.CatchupPeriod, err = time.ParseDuration(gt.CatchupPeriod)
+		if err != nil {
+			return err
+		}
 	}
 	g.GenesisTime = gt.GenesisTime
 	if gt.TransitionTime != 0 {
