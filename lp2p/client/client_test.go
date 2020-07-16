@@ -15,6 +15,7 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
+	"github.com/drand/drand/client/test/cache"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
@@ -242,5 +243,6 @@ func TestRandomnessValidator(t *testing.T) {
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
+	cache := cache.NewMapCache()
 	validate := randomnessValidator(&info, cache, client)
 }
