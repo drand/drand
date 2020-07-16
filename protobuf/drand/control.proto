@@ -106,7 +106,8 @@ message InitResharePacket {
     GroupInfo old = 1;
     SetupInfoPacket info = 2;
     // the minimum beacon period when in catchup.
-    uint32 catchup_period = 3;
+    bool catchup_period_changed = 3;
+    uint32 catchup_period = 4;
 }
 
 // GroupInfo holds the information to load a group information such as the nodes

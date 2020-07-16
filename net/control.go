@@ -95,7 +95,8 @@ func (c *ControlClient) InitReshareLeader(
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
-		CatchupPeriod: uint32(catchupPeriod.Seconds()),
+		CatchupPeriodChanged: catchupPeriod < 0,
+		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
 	}
 	return c.client.InitReshare(ctx.Background(), request)
 }
