@@ -292,14 +292,17 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
-	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
+	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
+	defer cancel()
+
+	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	d.log.Debug("init_dkg", "wait_group")
 
-	group, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
+	group, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
 		return nil, err
 	}
