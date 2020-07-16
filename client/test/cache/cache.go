@@ -20,7 +20,7 @@ func NewMapCache() *MapCache {
 // TryGet provides a round beacon or nil if it is not cached.
 func (mc *MapCache) TryGet(round uint64) client.Result {
 	mc.RLock()
-	defer mc.Unlock()
+	defer mc.RUnlock()
 	r, ok := mc.data[round]
 	if !ok {
 		return nil
@@ -32,12 +32,5 @@ func (mc *MapCache) TryGet(round uint64) client.Result {
 func (mc *MapCache) Add(round uint64, result client.Result) {
 	mc.Lock()
 	mc.data[round] = result
-	mc.Unlock()
-}
-
-// Clear removes all the items in the cache.
-func (mc *MapCache) Clear() {
-	mc.Lock()
-	mc.data = make(map[uint64]client.Result)
 	mc.Unlock()
 }

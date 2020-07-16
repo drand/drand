@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
@@ -16,13 +15,11 @@ import (
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
-	"github.com/drand/drand/client/test/cache"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
-	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
 
@@ -237,31 +234,4 @@ func waitForConnection(h host.Host, id peer.ID, timeout time.Duration) error {
 		}
 		time.Sleep(time.Millisecond * 100)
 	}
-}
-
-func TestRandomnessValidator(t *testing.T) {
-	info := chain.Info{
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix(),
-		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
-	}
-	cache := cache.NewMapCache()
-	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, cache, &c)
-
-	res := validate(context.Background(), randomPeerID(t), msg)
-}
-
-func randomPeerID(t *testing.T) peer.ID {
-	priv, _, err := crypto.GenerateEd25519Key(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	peerID, err := peer.IDFromPrivateKey(priv)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return peerID
 }
