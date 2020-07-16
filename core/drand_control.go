@@ -390,7 +390,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
-	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
+	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
 		d.log.Error("setup_reshare", "failed to receive dkg info", "err", err)
 		return nil, err
