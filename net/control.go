@@ -100,7 +100,7 @@ func (c *ControlClient) InitReshareLeader(
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -110,6 +110,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string) (*contr
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
 			Secret:        []byte(secret),
+			Force:         force,
 		},
 	}
 	return c.client.InitReshare(ctx.Background(), request)

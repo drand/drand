@@ -18,6 +18,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	testnet "github.com/drand/drand/test/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
@@ -30,7 +31,7 @@ import (
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
 	disable bool
-	*net.EmptyServer
+	*testnet.EmptyServer
 	h *Handler
 }
 

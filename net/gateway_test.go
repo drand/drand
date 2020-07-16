@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/protobuf/drand"
+	testnet "github.com/drand/drand/test/net"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,7 @@ func (t *testPeer) IsTLS() bool {
 }
 
 type testRandomnessServer struct {
-	*EmptyServer
+	*testnet.EmptyServer
 	round uint64
 }
 

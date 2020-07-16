@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	gnet "net"
 	"os"
@@ -59,6 +60,33 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.TestPublicBeacon(lastID, false)
 }
 
+func TestDrandReshareForce(t *testing.T) {
+	oldN := 4
+	oldThr := 3
+	timeout := 1 * time.Second
+	beaconPeriod := 2 * time.Second
+
+	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
+	defer dt.Cleanup()
+	group1 := dt.RunDKG()
+	// make sure all nodes had enough time to run their go routines to start the
+	// beacon handler - related to CI problems
+	time.Sleep(getSleepDuration())
+	dt.MoveToTime(group1.GenesisTime)
+	dt.MoveTime(1 * time.Second)
+
+	// run the resharing
+	go dt.RunReshare(oldN, 0, oldThr, timeout, false, true)
+	time.Sleep(500 * time.Millisecond)
+
+	// force
+	fmt.Printf("\n\n\nSTARTING RESHARING AGAIN\n\n\n")
+	group3, err := dt.RunReshare(oldN, 0, oldThr, timeout, true, false)
+	require.NoError(t, err)
+	fmt.Printf("\n -- Move to Response phase !! -- \n")
+	fmt.Println(group3)
+}
+
 func TestDrandDKGReshareTimeout(t *testing.T) {
 	oldN := 3
 	newN := 4
@@ -91,7 +119,8 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group)
 	go func() {
-		group := dt.RunReshare(toKeep, toAdd, newThr, timeout)
+		group, err := dt.RunReshare(toKeep, toAdd, newThr, timeout, false, false)
+		require.NoError(t, err)
 		doneReshare <- group
 	}()
 	time.Sleep(3 * time.Second)
@@ -144,12 +173,11 @@ func TestDrandResharePreempt(t *testing.T) {
 
 	oldN := 3
 	newN := 3
-	oldThr := 2
-	newThr := 2
+	Thr := 2
 	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 
-	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
+	dt := NewDrandTest2(t, oldN, Thr, beaconPeriod)
 	defer dt.Cleanup()
 	group1 := dt.RunDKG()
 	// make sure all nodes had enough time to run their go routines to start the
@@ -161,8 +189,6 @@ func TestDrandResharePreempt(t *testing.T) {
 	// so nodes think they are going forward with round 2
 	dt.MoveTime(1 * time.Second)
 
-	fmt.Println("SETUP RESHARE DONE")
-
 	// first, the leader is going to start running a failed reshare:
 	oldNode := dt.group.Find(dt.nodes[0].drand.priv.Public)
 	if oldNode == nil {
@@ -173,7 +199,7 @@ func TestDrandResharePreempt(t *testing.T) {
 	go func() {
 		client, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
 		require.NoError(t, err)
-		_, err = client.InitReshareLeader(newN, newThr, timeout, "unused secret", "", testBeaconOffset)
+		_, err = client.InitReshareLeader(newN, Thr, timeout, "unused secret", "", testBeaconOffset)
 		// Done resharing
 		if err == nil {
 			panic("initial reshare should fail.")
@@ -185,7 +211,9 @@ func TestDrandResharePreempt(t *testing.T) {
 	// run the resharing
 	var doneReshare = make(chan *key.Group, 1)
 	go func() {
-		doneReshare <- dt.RunReshare(oldN, 0, newThr, timeout)
+		g, err := dt.RunReshare(oldN, 0, Thr, timeout, false, false)
+		require.NoError(t, err)
+		doneReshare <- g
 	}()
 	time.Sleep(time.Second)
 	dt.MoveTime(time.Second)
@@ -412,14 +440,17 @@ func TestDrandFollowChain(tt *testing.T) {
 		var goon = true
 		for goon {
 			select {
-			case p := <-progress:
-				if p.Current == exp {
+			case p, ok := <-progress:
+				if ok && p.Current == exp {
 					// success
 					fmt.Printf("\n\nSUCCESSSSSS\n\n")
 					goon = false
 					break
 				}
 			case e := <-errCh:
+				if e == io.EOF {
+					break
+				}
 				require.NoError(tt, e)
 			case <-time.After(1 * time.Second):
 				tt.FailNow()

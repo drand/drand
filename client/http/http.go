@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	nhttp "net/http"
+	"strings"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -24,6 +25,9 @@ var errClientClosed = fmt.Errorf("client closed")
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
+	}
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
 	}
 	c := &httpClient{
 		root:   url,
@@ -44,6 +48,9 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
+	}
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
 	}
 
 	c := &httpClient{
@@ -158,7 +165,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 	defer cancel()
 
 	go func() {
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/info", h.root), nil)
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo", h.root), nil)
 		if err != nil {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
@@ -218,9 +225,9 @@ type httpGetResponse struct {
 func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	var url string
 	if round == 0 {
-		url = fmt.Sprintf("%s/public/latest", h.root)
+		url = fmt.Sprintf("%spublic/latest", h.root)
 	} else {
-		url = fmt.Sprintf("%s/public/%d", h.root, round)
+		url = fmt.Sprintf("%spublic/%d", h.root, round)
 	}
 
 	resC := make(chan httpGetResponse, 1)
