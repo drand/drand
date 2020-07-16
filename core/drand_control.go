@@ -377,7 +377,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 
 	// we wait only a certain amount of time for the prepare phase
-	nc, cancel := context.WithTimeout(c, MaxWaitPrepareDKG)
+	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
 	defer cancel()
 
 	d.log.Info("setup_reshare", "signaling_key_to_leader")
