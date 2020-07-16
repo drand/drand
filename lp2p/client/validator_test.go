@@ -49,14 +49,17 @@ func fakeRandomData(info *chain.Info) client.RandomData {
 	}
 }
 
-func TestRejectsUnmarshalBeaconFailure(t *testing.T) {
-	info := chain.Info{
+func fakeChainInfo() *chain.Info {
+	return &chain.Info{
 		Period:      time.Second,
 		GenesisTime: time.Now().Unix(),
 		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
 	}
+}
+
+func TestRejectsUnmarshalBeaconFailure(t *testing.T) {
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, nil, &c)
+	validate := randomnessValidator(fakeChainInfo(), nil, &c)
 
 	msg := pubsub.Message{Message: &pb.Message{}}
 	res := validate(context.Background(), randomPeerID(t), &msg)
@@ -84,13 +87,9 @@ func TestAcceptsWithoutTrustRoot(t *testing.T) {
 }
 
 func TestRejectsFutureBeacons(t *testing.T) {
-	info := chain.Info{
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix(),
-		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
-	}
+	info := fakeChainInfo()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, nil, &c)
+	validate := randomnessValidator(info, nil, &c)
 
 	resp := drand.PublicRandResponse{
 		Round: chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime) + 5,
@@ -108,13 +107,9 @@ func TestRejectsFutureBeacons(t *testing.T) {
 }
 
 func TestRejectsVerifyBeaconFailure(t *testing.T) {
-	info := chain.Info{
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix(),
-		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
-	}
+	info := fakeChainInfo()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, nil, &c)
+	validate := randomnessValidator(info, nil, &c)
 
 	resp := drand.PublicRandResponse{
 		Round: chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime),
@@ -133,15 +128,11 @@ func TestRejectsVerifyBeaconFailure(t *testing.T) {
 }
 
 func TestIgnoresCachedEqualBeacon(t *testing.T) {
-	info := chain.Info{
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix(),
-		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
-	}
+	info := fakeChainInfo()
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, ca, &c)
-	rdata := fakeRandomData(&info)
+	validate := randomnessValidator(info, ca, &c)
+	rdata := fakeRandomData(info)
 
 	ca.Add(rdata.Rnd, &rdata)
 
@@ -164,15 +155,11 @@ func TestIgnoresCachedEqualBeacon(t *testing.T) {
 }
 
 func TestRejectsCachedUnequalBeacon(t *testing.T) {
-	info := chain.Info{
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix(),
-		PublicKey:   test.GenerateIDs(1)[0].Public.Key,
-	}
+	info := fakeChainInfo()
 	ca := cache.NewMapCache()
 	c := Client{log: log.DefaultLogger()}
-	validate := randomnessValidator(&info, ca, &c)
-	rdata := fakeRandomData(&info)
+	validate := randomnessValidator(info, ca, &c)
+	rdata := fakeRandomData(info)
 
 	ca.Add(rdata.Rnd, &rdata)
 
