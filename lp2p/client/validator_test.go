@@ -163,10 +163,13 @@ func TestRejectsCachedUnequalBeacon(t *testing.T) {
 
 	ca.Add(rdata.Rnd, &rdata)
 
+	sig := make([]byte, 8)
+	binary.LittleEndian.PutUint64(sig, rdata.Rnd+1)
+
 	resp := drand.PublicRandResponse{
 		Round:             rdata.Rnd,
 		Signature:         rdata.Sig,
-		PreviousSignature: rdata.Sig, // incoming message has incorrect previous sig
+		PreviousSignature: sig, // incoming message has incorrect previous sig
 		Randomness:        rdata.Random,
 	}
 	data, err := proto.Marshal(&resp)
