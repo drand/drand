@@ -11,15 +11,6 @@ import (
 	clock "github.com/jonboulle/clockwork"
 )
 
-func randomDistPublic(n int) *key.DistPublic {
-	publics := make([]kyber.Point, n)
-	for i := range publics {
-		k := key.KeyGroup.Scalar().Pick(random.New())
-		publics[i] = key.KeyGroup.Point().Mul(k, nil)
-	}
-	return &key.DistPublic{Coefficients: publics}
-}
-
 func TestValidateGroupTransitionGenesisTime(t *testing.T) {
 	d := Drand{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group
