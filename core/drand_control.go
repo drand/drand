@@ -259,7 +259,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
-func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
+func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	d.log.Info("init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -294,14 +294,17 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
-	err = d.privGateway.ProtocolClient.SignalDKGParticipant(context.Background(), lpeer, prep)
+	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
+	defer cancel()
+
+	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	d.log.Debug("init_dkg", "wait_group")
 
-	group, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
+	group, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +338,7 @@ func (d *Drand) setupAutomaticDKG(c context.Context, in *drand.InitDKGPacket) (*
 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
-func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
+func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	oldHash := oldGroup.Hash()
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
@@ -379,7 +382,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 	}
 
 	// we wait only a certain amount of time for the prepare phase
-	nc, cancel := context.WithTimeout(c, MaxWaitPrepareDKG)
+	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
 	defer cancel()
 
 	d.log.Info("setup_reshare", "signaling_key_to_leader")
@@ -389,7 +392,7 @@ func (d *Drand) setupAutomaticResharing(c context.Context, oldGroup *key.Group, 
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
-	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(c)
+	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
 		d.log.Error("setup_reshare", "failed to receive dkg info", "err", err)
 		return nil, err
@@ -740,6 +743,7 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
+// StartFollowChain syncs up with a chain from other nodes
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
