@@ -83,7 +83,6 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *k
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	go manager.run()
-
 	d.manager = manager
 	d.state.Unlock()
 	defer func() {

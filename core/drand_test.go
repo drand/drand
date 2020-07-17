@@ -61,11 +61,11 @@ func TestDrandDKGFresh(t *testing.T) {
 }
 
 func TestDrandDKGBroadcastDeny(t *testing.T) {
-	n := 3
-	thr := 3
+	n := 10
+	thr := 6
 	beaconPeriod := 1 * time.Second
 
-	dt := NewDrandTest2(t, n, 3, beaconPeriod)
+	dt := NewDrandTest2(t, n, thr, beaconPeriod)
 	defer dt.Cleanup()
 	// close connection between a pair of nodes
 	n1 := dt.nodes[1]
