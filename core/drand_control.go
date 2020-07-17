@@ -808,19 +808,8 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	cbStore := beacon.NewCallbackStore(store)
 	defer cbStore.Close()
 	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
-	done := make(chan struct{})
-	cbStore.AddCallback(addr, func(b *chain.Beacon) {
-		err := stream.Send(&drand.FollowProgress{
-			Current: b.Round,
-			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
-		})
-		if err != nil {
-			d.log.Error("start_follow_chain", "sending_progress", "err", err)
-		}
-		if req.GetUpTo() > 0 && b.Round == req.GetUpTo() {
-			close(done)
-		}
-	})
+	cb, done := sendProgressCallback(d, stream, req.GetUpTo(), info)
+	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
 		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
@@ -836,4 +825,28 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		}
 	}
 	return ctx.Err()
+}
+
+// sendProgressCallback returns a function that sends FollowProgress on the
+// passed stream. It also returns a channel that closes when the callback is
+// called with a beacon whose round matches the passed upTo value.
+func sendProgressCallback(
+	d *Drand,
+	stream drand.Control_StartFollowChainServer,
+	upTo uint64,
+	info *chain.Info,
+) (func(b *chain.Beacon), chan struct{}) {
+	done := make(chan struct{})
+	return func(b *chain.Beacon) {
+		err := stream.Send(&drand.FollowProgress{
+			Current: b.Round,
+			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
+		})
+		if err != nil {
+			d.log.Error("send_progress_callback", "sending_progress", "err", err)
+		}
+		if upTo > 0 && b.Round == upTo {
+			close(done)
+		}
+	}, done
 }
