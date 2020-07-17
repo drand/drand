@@ -845,14 +845,14 @@ func sendProgressCallback(
 	stream drand.Control_StartFollowChainServer,
 	upTo uint64,
 	info *chain.Info,
-	clock clock.Clock,
+	clk clock.Clock,
 	l log.Logger,
 ) (cb func(b *chain.Beacon), done chan struct{}) {
 	done = make(chan struct{})
 	cb = func(b *chain.Beacon) {
 		err := stream.Send(&drand.FollowProgress{
 			Current: b.Round,
-			Target:  chain.CurrentRound(clock.Now().Unix(), info.Period, info.GenesisTime),
+			Target:  chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime),
 		})
 		if err != nil {
 			l.Error("send_progress_callback", "sending_progress", "err", err)
