@@ -60,6 +60,29 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.TestPublicBeacon(lastID, false)
 }
 
+func TestDrandDKGBroadcastDeny(t *testing.T) {
+	n := 3
+	thr := 3
+	beaconPeriod := 1 * time.Second
+
+	dt := NewDrandTest2(t, n, 3, beaconPeriod)
+	defer dt.Cleanup()
+	// close connection between a pair of nodes
+	n1 := dt.nodes[1]
+	n2 := dt.nodes[2]
+	n1.drand.DenyBroadcastTo(n2.addr)
+	n2.drand.DenyBroadcastTo(n1.addr)
+	group1 := dt.RunDKG()
+	dt.MoveToTime(group1.GenesisTime)
+	dt.MoveTime(1 * time.Second)
+	fmt.Println(" --- DKG FINISHED ---")
+	time.Sleep(200 * time.Millisecond)
+	_, err := dt.RunReshare(n, 0, thr, 1*time.Second, false, false)
+	require.NoError(t, err)
+	fmt.Println(" --- RESHARING FINISHED ---")
+
+}
+
 func TestDrandReshareForce(t *testing.T) {
 	oldN := 4
 	oldThr := 3

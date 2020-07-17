@@ -419,3 +419,34 @@ func (d *DrandTest2) newNode(dr *Drand, certPath string) *Node {
 		clock:    c,
 	}
 }
+
+// DenyClient can abort request to other needs based on a peer list
+type DenyClient struct {
+	net.ProtocolClient
+	deny []string
+}
+
+func (d *Drand) DenyBroadcastTo(addrs ...string) {
+	client := d.privGateway.ProtocolClient
+	d.privGateway.ProtocolClient = &DenyClient{
+		ProtocolClient: client,
+		deny:           addrs,
+	}
+}
+
+func (d *DenyClient) BroadcastDKG(c context.Context, p net.Peer, in *drand.DKGPacket, opts ...net.CallOption) error {
+	if !d.isAllowed(p) {
+		fmt.Printf("\nDENIAL BROADCAST DKG TO %s", p.Address())
+		return errors.New("denied access network")
+	}
+	return d.ProtocolClient.BroadcastDKG(c, p, in)
+}
+
+func (d *DenyClient) isAllowed(p net.Peer) bool {
+	for _, s := range d.deny {
+		if p.Address() == s {
+			return false
+		}
+	}
+	return true
+}

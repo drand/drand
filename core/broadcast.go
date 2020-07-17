@@ -106,7 +106,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 		return nil, errors.New("invalid packet")
 	}
 
-	b.l.Debug("broadcast", "received new packet", "from", addr)
+	b.l.Debug("broadcast", "received new packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(hash)
 	go b.sendout(dkgPacket)
@@ -117,8 +117,10 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 func (b *broadcast) dispatch(p packet) {
 	switch pp := p.(type) {
 	case *dkg.DealBundle:
+		fmt.Println("GIVING NEW DEAL")
 		b.dealCh <- *pp
 	case *dkg.ResponseBundle:
+		fmt.Println("GIVING NEW RESP")
 		b.respCh <- *pp
 	case *dkg.JustificationBundle:
 		b.justCh <- *pp

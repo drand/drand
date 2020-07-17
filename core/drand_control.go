@@ -127,7 +127,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Longterm:       d.priv.Key,
 		Reader:         reader,
 		UserReaderOnly: user,
-		FastSync:       false,
+		FastSync:       true,
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
 		Auth:           DKGAuthScheme,
@@ -187,7 +187,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		Longterm:     d.priv.Key,
 		Threshold:    newGroup.Threshold,
 		OldThreshold: oldGroup.Threshold,
-		FastSync:     false,
+		FastSync:     true,
 		Nonce:        getNonce(newGroup),
 		Auth:         DKGAuthScheme,
 	}
