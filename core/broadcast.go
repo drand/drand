@@ -72,17 +72,23 @@ func newBroadcast(l log.Logger, c net.ProtocolClient, own string, to []*key.Node
 
 func (b *broadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.dealCh <- *bundle
-	go b.sendout(bundle)
+	h := hash(bundle.Hash())
+	b.l.Debug("broadcast", "push", "deal")
+	b.sendout(h, bundle)
 }
 
 func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.respCh <- *bundle
-	go b.sendout(bundle)
+	h := hash(bundle.Hash())
+	b.l.Debug("broadcast", "push", "response", bundle.String())
+	b.sendout(h, bundle)
 }
 
 func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.justCh <- *bundle
-	go b.sendout(bundle)
+	h := hash(bundle.Hash())
+	b.l.Debug("broadcast", "push", "justification")
+	b.sendout(h, bundle)
 }
 
 func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
@@ -99,7 +105,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 	if b.hashes.exists(hash) {
 		// if we already seen this one, no need to verify even because that
 		// means we already broadcasted it
-		b.l.Debug("broadcast", "ignoring duplicate packet", "from", addr)
+		b.l.Debug("broadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return new(drand.Empty), nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
@@ -108,9 +114,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 	}
 
 	b.l.Debug("broadcast", "received new packet to broadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
-	// we register we saw that packet and we broadcast it
-	b.hashes.put(hash)
-	go b.sendout(dkgPacket)
+	b.sendout(hash, dkgPacket)
 	b.dispatch(dkgPacket)
 	return new(drand.Empty), nil
 }
@@ -126,29 +130,30 @@ func (b *broadcast) dispatch(p packet) {
 	}
 }
 
-func (b *broadcast) sendout(p packet) {
+func (b *broadcast) sendout(h []byte, p packet) {
 	dkgproto, err := dkgPacketToProto(p)
 	if err != nil {
 		b.l.Error("broadcast", "can't send packet", "err", err)
 		return
 	}
+	// we register we saw that packet and we broadcast it
+	b.hashes.put(h)
 	proto := &drand.DKGPacket{
 		Dkg: dkgproto,
 	}
-	var good int
 	for _, n := range b.to {
 		if n.Address() == b.own {
 			continue
 		}
-
-		err := b.client.BroadcastDKG(context.Background(), n, proto)
-		if err != nil {
-			b.l.Debug("broadcast", "sending out", "error to", n.Address(), "err:", err)
-		} else {
-			good++
-		}
+		go func(nn *key.Node) {
+			err := b.client.BroadcastDKG(context.Background(), nn, proto)
+			if err != nil {
+				b.l.Debug("broadcast", "sending out", "error to", nn.Address(), "err:", err)
+			} else {
+				b.l.Debug("broadcast", "sending out", "to", nn.Address(), "type", fmt.Sprintf("%T", p))
+			}
+		}(n)
 	}
-	b.l.Debug("broadcast", "sending out", "type", fmt.Sprintf("%T", p), "success", fmt.Sprintf("%d/%d", good, len(b.to)-1))
 }
 
 func (b *broadcast) IncomingDeal() <-chan dkg.DealBundle {
