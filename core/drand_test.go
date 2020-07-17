@@ -434,7 +434,6 @@ func TestDrandFollowChain(tt *testing.T) {
 	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	tls := true
 	fn := func(upTo, exp uint64) {
-		fmt.Printf("upTo: %d exp: %d\n", upTo, exp)
 		ctx, cancel = context.WithCancel(context.Background())
 		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo)
 		require.NoError(tt, err)
@@ -442,12 +441,6 @@ func TestDrandFollowChain(tt *testing.T) {
 		for goon {
 			select {
 			case p, ok := <-progress:
-				// if !ok {
-				// 	fmt.Printf("\n\nPROGRESS CLOSED\n\n")
-				// 	goon = false
-				// 	break
-				// }
-				// fmt.Printf("got progress: %+v\n", p)
 				if ok && p.Current == exp {
 					// success
 					fmt.Printf("\n\nSUCCESSSSSS\n\n")
@@ -463,7 +456,6 @@ func TestDrandFollowChain(tt *testing.T) {
 				tt.FailNow()
 			}
 		}
-		fmt.Printf("\n\nCANCEL THE OP\n\n")
 		// cancel the operation
 		cancel()
 
