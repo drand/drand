@@ -99,6 +99,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 	if b.hashes.exists(hash) {
 		// if we already seen this one, no need to verify even because that
 		// means we already broadcasted it
+		b.l.Debug("broadcast", "ignoring duplicate packet", "from", addr)
 		return new(drand.Empty), nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
@@ -106,7 +107,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 		return nil, errors.New("invalid packet")
 	}
 
-	b.l.Debug("broadcast", "received new packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+	b.l.Debug("broadcast", "received new packet to broadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(hash)
 	go b.sendout(dkgPacket)
@@ -147,7 +148,7 @@ func (b *broadcast) sendout(p packet) {
 			good++
 		}
 	}
-	b.l.Debug("broadcast", "sending out", "success", fmt.Sprintf("%d/%d", good, len(b.to)-1))
+	b.l.Debug("broadcast", "sending out", "type", fmt.Sprintf("%T", p), "success", fmt.Sprintf("%d/%d", good, len(b.to)-1))
 }
 
 func (b *broadcast) IncomingDeal() <-chan dkg.DealBundle {
