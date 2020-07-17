@@ -9,8 +9,8 @@ import (
 	"github.com/drand/drand/client/test/result/mock"
 )
 
-func TestVerify(t *testing.T) {
-	info, results := mock.VerifiableResults(3)
+func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error) {
+	info, results := mock.VerifiableResults(n)
 	mc := client.MockClient{Results: results, StrictRounds: true}
 	c, err := client.Wrap(
 		[]client.Client{client.MockClientWithInfo(info), &mc},
@@ -18,6 +18,14 @@ func TestVerify(t *testing.T) {
 		client.WithVerifiedResult(&results[0]),
 		client.WithFullChainVerification(),
 	)
+	if err != nil {
+		return nil, nil, err
+	}
+	return c, results, nil
+}
+
+func TestVerify(t *testing.T) {
+	c, results, err := mockClientWithVerifiableResults(3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,14 +39,7 @@ func TestVerify(t *testing.T) {
 }
 
 func TestVerifyWithOldVerifiedResult(t *testing.T) {
-	info, results := mock.VerifiableResults(5)
-	mc := client.MockClient{Results: results, StrictRounds: true}
-	c, err := client.Wrap(
-		[]client.Client{client.MockClientWithInfo(info), &mc},
-		client.WithChainInfo(info),
-		client.WithVerifiedResult(&results[0]),
-		client.WithFullChainVerification(),
-	)
+	c, results, err := mockClientWithVerifiableResults(5)
 	if err != nil {
 		t.Fatal(err)
 	}
