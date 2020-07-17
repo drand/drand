@@ -207,6 +207,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	go func() {
 		for {
 			resp, err := stream.Recv()
+			fmt.Printf("resp: %+v err: %v\n", resp, err)
 			if err != nil {
 				errCh <- err
 				close(errCh)

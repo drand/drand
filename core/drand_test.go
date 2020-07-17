@@ -442,13 +442,13 @@ func TestDrandFollowChain(tt *testing.T) {
 		for goon {
 			select {
 			case p, ok := <-progress:
-				if !ok {
-					fmt.Printf("\n\nPROGRESS CLOSED\n\n")
-					goon = false
-					break
-				}
-				fmt.Printf("got progress: %+v\n", p)
-				if p.Current == exp {
+				// if !ok {
+				// 	fmt.Printf("\n\nPROGRESS CLOSED\n\n")
+				// 	goon = false
+				// 	break
+				// }
+				// fmt.Printf("got progress: %+v\n", p)
+				if ok && p.Current == exp {
 					// success
 					fmt.Printf("\n\nSUCCESSSSSS\n\n")
 					goon = false
