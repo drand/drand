@@ -209,7 +209,12 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithPubsub(ps, info, nil)
+	c, err := NewWithPubsub(ps, info, nil)
+	if err != nil {
+		return nil, err
+	}
+	c.SetLog(log.DefaultLogger())
+	return c, nil
 }
 
 func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {
