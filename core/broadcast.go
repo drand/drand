@@ -117,10 +117,8 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 func (b *broadcast) dispatch(p packet) {
 	switch pp := p.(type) {
 	case *dkg.DealBundle:
-		fmt.Println("GIVING NEW DEAL")
 		b.dealCh <- *pp
 	case *dkg.ResponseBundle:
-		fmt.Println("GIVING NEW RESP")
 		b.respCh <- *pp
 	case *dkg.JustificationBundle:
 		b.justCh <- *pp
