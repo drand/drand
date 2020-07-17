@@ -10,7 +10,7 @@ import (
 )
 
 func TestVerify(t *testing.T) {
-	info, results := mock.VerifiableResults(10)
+	info, results := mock.VerifiableResults(3)
 	mc := client.MockClient{Results: results, StrictRounds: true}
 	c, err := client.Wrap(
 		[]client.Client{client.MockClientWithInfo(info), &mc},
