@@ -16,10 +16,12 @@ import (
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
+	clock "github.com/jonboulle/clockwork"
 )
 
 // errPreempted is returned on reshares when a subsequent reshare is started concurrently
@@ -769,21 +771,9 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		// XXX add TLS disable later
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
-	var info *chain.Info
-	for _, peer := range peers {
-		ci, err := d.privGateway.ChainInfo(stream.Context(), peer, new(drand.ChainInfoRequest))
-		if err != nil {
-			d.log.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
-			continue
-		}
-		info, err = chain.InfoFromProto(ci)
-		if err != nil {
-			d.log.Debug("start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
-			continue
-		}
-	}
-	if info == nil {
-		return errors.New("unable to get a chain info successfully")
+	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log)
+	if err != nil {
+		return err
 	}
 	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
@@ -808,7 +798,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	cbStore := beacon.NewCallbackStore(store)
 	defer cbStore.Close()
 	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
-	cb, done := sendProgressCallback(d, stream, req.GetUpTo(), info)
+	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, d.opts.clock, d.log)
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
@@ -827,26 +817,49 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	return ctx.Err()
 }
 
+// chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
+func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway, peers []net.Peer, l log.Logger) (*chain.Info, error) {
+	var info *chain.Info
+	for _, peer := range peers {
+		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))
+		if err != nil {
+			l.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+		info, err = chain.InfoFromProto(ci)
+		if err != nil {
+			l.Debug("start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			continue
+		}
+	}
+	if info == nil {
+		return nil, errors.New("unable to get a chain info successfully")
+	}
+	return info, nil
+}
+
 // sendProgressCallback returns a function that sends FollowProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a beacon whose round matches the passed upTo value.
 func sendProgressCallback(
-	d *Drand,
 	stream drand.Control_StartFollowChainServer,
 	upTo uint64,
 	info *chain.Info,
-) (func(b *chain.Beacon), chan struct{}) {
-	done := make(chan struct{})
-	return func(b *chain.Beacon) {
+	clock clock.Clock,
+	l log.Logger,
+) (cb func(b *chain.Beacon), done chan struct{}) {
+	done = make(chan struct{})
+	cb = func(b *chain.Beacon) {
 		err := stream.Send(&drand.FollowProgress{
 			Current: b.Round,
-			Target:  chain.CurrentRound(d.opts.clock.Now().Unix(), info.Period, info.GenesisTime),
+			Target:  chain.CurrentRound(clock.Now().Unix(), info.Period, info.GenesisTime),
 		})
 		if err != nil {
-			d.log.Error("send_progress_callback", "sending_progress", "err", err)
+			l.Error("send_progress_callback", "sending_progress", "err", err)
 		}
 		if upTo > 0 && b.Round == upTo {
 			close(done)
 		}
-	}, done
+	}
+	return
 }
