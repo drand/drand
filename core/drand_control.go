@@ -808,6 +808,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	cbStore := beacon.NewCallbackStore(store)
 	defer cbStore.Close()
 	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
+	done := make(chan struct{})
 	cbStore.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.FollowProgress{
 			Current: b.Round,
@@ -816,11 +817,23 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		if err != nil {
 			d.log.Error("start_follow_chain", "sending_progress", "err", err)
 		}
+		if req.GetUpTo() > 0 && b.Round == req.GetUpTo() {
+			close(done)
+		}
 	})
 	defer cbStore.RemoveCallback(addr)
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
 		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
 		return err
+	}
+	// wait for all the callbacks to be called and progress sent before returning
+	if req.GetUpTo() > 0 {
+		select {
+		case <-done:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	return ctx.Err()
 }
