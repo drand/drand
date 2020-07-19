@@ -131,7 +131,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		FastSync:       true,
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
-		Auth:           DKGAuthScheme,
+		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
 	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error { return dkg.VerifyPacketSignature(config, p) })
@@ -195,7 +195,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		OldThreshold: oldGroup.Threshold,
 		FastSync:     true,
 		Nonce:        getNonce(newGroup),
-		Auth:         DKGAuthScheme,
+		Auth:         key.DKGAuthScheme,
 	}
 	err := func() error {
 		d.state.Lock()
@@ -681,7 +681,7 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 // call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
-	signature, err := DKGAuthScheme.Sign(d.priv.Key, group.Hash())
+	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
 		d.log.Error("setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)

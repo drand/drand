@@ -326,7 +326,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	if err != nil {
 		return fmt.Errorf("group from leader invalid: %s", err)
 	}
-	if err := DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
+	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
 		r.l.Error("received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %s", err)
 	}
