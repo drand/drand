@@ -70,6 +70,8 @@ func newBroadcast(l log.Logger, c net.ProtocolClient, own string, to []*key.Node
 
 func (b *broadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.dealCh <- *bundle
+	b.Lock()
+	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "deal")
 	b.sendout(h, bundle)
@@ -77,6 +79,8 @@ func (b *broadcast) PushDeals(bundle *dkg.DealBundle) {
 
 func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.respCh <- *bundle
+	b.Lock()
+	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "response", bundle.String())
 	b.sendout(h, bundle)
@@ -84,6 +88,8 @@ func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 
 func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.justCh <- *bundle
+	b.Lock()
+	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "justification")
 	b.sendout(h, bundle)
