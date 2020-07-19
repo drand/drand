@@ -67,7 +67,7 @@ message PartialBeaconPacket {
     // is used to verify the signature even before accessing the store
     bytes previous_sig = 2;
     // partial signature - a threshold of them needs to be aggregated to produce
-    // the final beacon at the given round.Beautiful 
+    // the final beacon at the given round.
     bytes partial_sig = 3;
 }
 
