@@ -90,9 +90,9 @@ func TestBroadcast(t *testing.T) {
 	}
 
 	// check that it dispatches to the correct channel
-	broads[0].dispatch(&dkg.ResponseBundle{})
+	broads[0].passToApplication(&dkg.ResponseBundle{})
 	require.True(t, len(broads[0].respCh) == 1)
-	broads[0].dispatch(&dkg.JustificationBundle{})
+	broads[0].passToApplication(&dkg.JustificationBundle{})
 	require.True(t, len(broads[0].justCh) == 1)
 }
 
@@ -119,3 +119,16 @@ func fakeDeal() *dkg.DealBundle {
 		}},
 	}
 }
+
+/*type testBroadcastServer struct {*/
+//*testnet.EmptyServer
+//sync.Mutex
+//blocking bool
+//}
+
+//func (t *testBroadcastServer) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
+//t.Lock()
+//if t.blocking {
+
+//}
+/*}*/

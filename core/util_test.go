@@ -125,13 +125,15 @@ func (d *DrandTest2) RunDKG() *key.Group {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
 			_, err = client.InitDKG(root.drand.priv.Public, nil, secret)
-			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			require.NoError(d.t, err)
+			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			wg.Done()
-			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", n.addr)
 		}(node)
 	}
-
+	/*time.Sleep(500 * time.Millisecond)*/
+	//for i := 0; i < 3; i++ {
+	//d.MoveTime(testDkgTimeout)
+	/*}*/
 	// wait for all to return
 	wg.Wait()
 	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", root.addr)
@@ -392,6 +394,10 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 			go runreshare(node)
 		}
 	}
+	/* time.Sleep(500 * time.Millisecond)*/
+	//for i := 0; i < 3; i++ {
+	//d.MoveTime(testDkgTimeout)
+	/*}*/
 	d.Unlock()
 	// wait for the return of the clients
 	select {

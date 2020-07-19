@@ -205,6 +205,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 		return nil, err
 	}
 	d.opts.applyDkgCallback(d.share)
+	d.dkgInfo.board.stop()
 	d.dkgInfo = nil
 	return d.group, nil
 }

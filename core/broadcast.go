@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/drand/drand/key"
@@ -36,10 +37,9 @@ import (
 // DKG library allows to use fast sync the fast sync mode.
 type broadcast struct {
 	sync.Mutex
-	own    string
-	to     []*key.Node
-	client net.ProtocolClient
-	l      log.Logger
+	l log.Logger
+	// responsible for sending out the messages
+	dispatcher *dispatcher
 	// list of messages already retransmitted comparison by hash
 	hashes set
 	dealCh chan dkg.DealBundle
@@ -58,15 +58,13 @@ type verifier func(packet) error
 
 func newBroadcast(l log.Logger, c net.ProtocolClient, own string, to []*key.Node, v verifier) *broadcast {
 	return &broadcast{
-		l:      l,
-		own:    own,
-		client: c,
-		to:     to,
-		dealCh: make(chan dkg.DealBundle, len(to)),
-		respCh: make(chan dkg.ResponseBundle, len(to)),
-		justCh: make(chan dkg.JustificationBundle, len(to)),
-		hashes: new(arraySet),
-		verif:  v,
+		l:          l,
+		dispatcher: newDispatcher(l, c, to, own),
+		dealCh:     make(chan dkg.DealBundle, len(to)),
+		respCh:     make(chan dkg.ResponseBundle, len(to)),
+		justCh:     make(chan dkg.JustificationBundle, len(to)),
+		hashes:     new(arraySet),
+		verif:      v,
 	}
 }
 
@@ -81,12 +79,14 @@ func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.respCh <- *bundle
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "response", bundle.String())
+	fmt.Printf("\n\n RESPONSE PHASE\n\n")
 	b.sendout(h, bundle)
 }
 
 func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.justCh <- *bundle
 	h := hash(bundle.Hash())
+	fmt.Printf("\n\n JUSTIFICATION PHASE\n\n")
 	b.l.Debug("broadcast", "push", "justification")
 	b.sendout(h, bundle)
 }
@@ -115,11 +115,11 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 
 	b.l.Debug("broadcast", "received new packet to broadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket)
-	b.dispatch(dkgPacket)
+	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil
 }
 
-func (b *broadcast) dispatch(p packet) {
+func (b *broadcast) passToApplication(p packet) {
 	switch pp := p.(type) {
 	case *dkg.DealBundle:
 		b.dealCh <- *pp
@@ -127,6 +127,8 @@ func (b *broadcast) dispatch(p packet) {
 		b.respCh <- *pp
 	case *dkg.JustificationBundle:
 		b.justCh <- *pp
+	default:
+		b.l.Error("broadcast", "application channel full")
 	}
 }
 
@@ -141,19 +143,7 @@ func (b *broadcast) sendout(h []byte, p packet) {
 	proto := &drand.DKGPacket{
 		Dkg: dkgproto,
 	}
-	for _, n := range b.to {
-		if n.Address() == b.own {
-			continue
-		}
-		go func(nn *key.Node) {
-			err := b.client.BroadcastDKG(context.Background(), nn, proto)
-			if err != nil {
-				b.l.Debug("broadcast", "sending out", "error to", nn.Address(), "err:", err)
-			} else {
-				b.l.Debug("broadcast", "sending out", "to", nn.Address(), "type", fmt.Sprintf("%T", p))
-			}
-		}(n)
-	}
+	b.dispatcher.broadcast(proto)
 }
 
 func (b *broadcast) IncomingDeal() <-chan dkg.DealBundle {
@@ -166,6 +156,10 @@ func (b *broadcast) IncomingResponse() <-chan dkg.ResponseBundle {
 
 func (b *broadcast) IncomingJustification() <-chan dkg.JustificationBundle {
 	return b.justCh
+}
+
+func (b *broadcast) stop() {
+	b.dispatcher.stop()
 }
 
 type hash []byte
@@ -198,4 +192,113 @@ func (a *arraySet) exists(hash hash) bool {
 		}
 	}
 	return false
+}
+
+type broadcastPacket = *drand.DKGPacket
+
+// dispatcher maintains a list of worker assigned one destination and pushes the
+// message to send to the right worker
+type dispatcher struct {
+	sync.Mutex
+	senders []*sender
+	stopped bool
+}
+
+func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
+	var senders = make([]*sender, 0, len(to)-1)
+	for _, node := range to {
+		if node.Address() == us {
+			continue
+		}
+		sender := newSender(l, client, node)
+		go sender.run()
+		senders = append(senders, sender)
+	}
+	return &dispatcher{
+		senders: senders,
+	}
+}
+
+func (d *dispatcher) broadcast(p broadcastPacket) {
+	if d.isStopped() {
+		return
+	}
+	for _, i := range rand.Perm(len(d.senders)) {
+		d.senders[i].sendPacket(p)
+	}
+}
+
+func (d *dispatcher) stop() {
+	for _, sender := range d.senders {
+		sender.stop()
+	}
+	d.Lock()
+	defer d.Unlock()
+	d.stopped = true
+}
+
+func (d *dispatcher) isStopped() bool {
+	d.Lock()
+	defer d.Unlock()
+	return d.stopped
+}
+
+// size of the receiving queue for a sender channel
+// XXX should it be dynamic ? Reason to fix it is that after some pushed packets
+// if the connection still haven't sent them, that means there's probably
+// something wrong with the connection and we shouldn't push more.
+const senderQueueSize = 10
+
+type sender struct {
+	l       log.Logger
+	client  net.ProtocolClient
+	to      net.Peer
+	newCh   chan broadcastPacket
+	closeCh chan bool
+}
+
+func newSender(l log.Logger, client net.ProtocolClient, to net.Peer) *sender {
+	return &sender{
+		l:       l,
+		client:  client,
+		to:      to,
+		newCh:   make(chan broadcastPacket, senderQueueSize),
+		closeCh: make(chan bool, 1),
+	}
+}
+
+func (s *sender) sendPacket(p broadcastPacket) {
+	select {
+	case s.newCh <- p:
+	default:
+		s.l.Debug("broadcast", "sender queue full", "endpoint", s.to.Address())
+	}
+}
+
+func (s *sender) run() {
+	// indicator to drain the channel until the end before stopping
+	var toFinish = -1
+	for {
+		select {
+		case newPacket := <-s.newCh:
+			err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
+			if err != nil {
+				s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
+			} else {
+				s.l.Debug("broadcast", "sending out", "to", s.to.Address())
+			}
+			if toFinish == 0 {
+				return
+			}
+		case <-s.closeCh:
+			toFinish = len(s.newCh)
+			if toFinish == 0 {
+				return
+			}
+		}
+	}
+}
+
+func (s *sender) stop() {
+	close(s.closeCh)
 }

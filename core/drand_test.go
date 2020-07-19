@@ -22,7 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testBeaconOffset = int((7 * time.Second).Seconds())
+// 1 second after end of dkg
+var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
@@ -75,7 +76,7 @@ func TestDrandDKGBroadcastDeny(t *testing.T) {
 	group1 := dt.RunDKG()
 	dt.MoveToTime(group1.GenesisTime)
 	dt.MoveTime(1 * time.Second)
-	fmt.Println(" --- DKG FINISHED ---")
+	fmt.Printf("\n\n --- DKG FINISHED ---\n\n")
 	time.Sleep(200 * time.Millisecond)
 	_, err := dt.RunReshare(n, 0, thr, 1*time.Second, false, false)
 	require.NoError(t, err)
