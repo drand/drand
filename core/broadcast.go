@@ -205,7 +205,6 @@ type broadcastPacket = *drand.DKGPacket
 type dispatcher struct {
 	sync.Mutex
 	senders []*sender
-	stopped bool
 }
 
 func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
@@ -224,9 +223,6 @@ func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us s
 }
 
 func (d *dispatcher) broadcast(p broadcastPacket) {
-	if d.isStopped() {
-		return
-	}
 	for _, i := range rand.Perm(len(d.senders)) {
 		d.senders[i].sendPacket(p)
 	}
@@ -236,15 +232,6 @@ func (d *dispatcher) stop() {
 	for _, sender := range d.senders {
 		sender.stop()
 	}
-	d.Lock()
-	defer d.Unlock()
-	d.stopped = true
-}
-
-func (d *dispatcher) isStopped() bool {
-	d.Lock()
-	defer d.Unlock()
-	return d.stopped
 }
 
 // size of the receiving queue for a sender channel
@@ -254,20 +241,18 @@ func (d *dispatcher) isStopped() bool {
 const senderQueueSize = 10
 
 type sender struct {
-	l       log.Logger
-	client  net.ProtocolClient
-	to      net.Peer
-	newCh   chan broadcastPacket
-	closeCh chan bool
+	l      log.Logger
+	client net.ProtocolClient
+	to     net.Peer
+	newCh  chan broadcastPacket
 }
 
 func newSender(l log.Logger, client net.ProtocolClient, to net.Peer) *sender {
 	return &sender{
-		l:       l,
-		client:  client,
-		to:      to,
-		newCh:   make(chan broadcastPacket, senderQueueSize),
-		closeCh: make(chan bool, 1),
+		l:      l,
+		client: client,
+		to:     to,
+		newCh:  make(chan broadcastPacket, senderQueueSize),
 	}
 }
 
@@ -280,29 +265,16 @@ func (s *sender) sendPacket(p broadcastPacket) {
 }
 
 func (s *sender) run() {
-	// indicator to drain the channel until the end before stopping
-	var toFinish = -1
-	for {
-		select {
-		case newPacket := <-s.newCh:
-			err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
-			if err != nil {
-				s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
-			} else {
-				s.l.Debug("broadcast", "sending out", "to", s.to.Address())
-			}
-			if toFinish == 0 {
-				return
-			}
-		case <-s.closeCh:
-			toFinish = len(s.newCh)
-			if toFinish == 0 {
-				return
-			}
+	for newPacket := range s.newCh {
+		err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
+		if err != nil {
+			s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
+		} else {
+			s.l.Debug("broadcast", "sending out", "to", s.to.Address())
 		}
 	}
 }
 
 func (s *sender) stop() {
-	close(s.closeCh)
+	close(s.newCh)
 }
