@@ -80,7 +80,7 @@ func (c *ControlClient) Ping() error {
 // XXX Might be best to move to core/
 func (c *ControlClient) InitReshareLeader(
 	nodes, threshold int,
-	timeout time.Duration,
+	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
 	offset int) (*control.GroupPacket, error) {
 	request := &control.InitResharePacket{
@@ -95,6 +95,8 @@ func (c *ControlClient) InitReshareLeader(
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
+		CatchupPeriodChanged: catchupPeriod < 0,
+		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
 	}
 	return c.client.InitReshare(ctx.Background(), request)
 }
@@ -121,7 +123,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
 func (c *ControlClient) InitDKGLeader(nodes, threshold int,
-	beaconPeriod, timeout time.Duration,
+	beaconPeriod, catchupPeriod, timeout time.Duration,
 	entropy *control.EntropyInfo,
 	secret string,
 	offset int) (*control.GroupPacket, error) {
@@ -134,8 +136,9 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
-		Entropy:      entropy,
-		BeaconPeriod: uint32(beaconPeriod.Seconds()),
+		Entropy:       entropy,
+		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
+		CatchupPeriod: uint32(catchupPeriod.Seconds()),
 	}
 	return c.client.InitDKG(ctx.Background(), request)
 }

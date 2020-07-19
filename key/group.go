@@ -29,6 +29,10 @@ type Group struct {
 	Threshold int
 	// Period to use for the beacon randomness generation
 	Period time.Duration
+	// CatchupPeriod is a delay to insert while in a catchup mode
+	// also can be thought of as the minimum period allowed between
+	// beacon and subsequent partial generation
+	CatchupPeriod time.Duration
 	// List of nodes forming this group
 	Nodes []*Node
 	// Time at which the first round of the chain is mined
@@ -162,6 +166,7 @@ func (g *Group) Equal(g2 *Group) bool {
 type GroupTOML struct {
 	Threshold      int
 	Period         string
+	CatchupPeriod  string
 	Nodes          []*NodeTOML
 	GenesisTime    int64
 	TransitionTime int64           `toml:",omitempty"`
@@ -201,6 +206,14 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	if err != nil {
 		return err
 	}
+	if gt.CatchupPeriod == "" {
+		g.CatchupPeriod = 0
+	} else {
+		g.CatchupPeriod, err = time.ParseDuration(gt.CatchupPeriod)
+		if err != nil {
+			return err
+		}
+	}
 	g.GenesisTime = gt.GenesisTime
 	if gt.TransitionTime != 0 {
 		g.TransitionTime = gt.TransitionTime
@@ -227,6 +240,7 @@ func (g *Group) TOML() interface{} {
 		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
 	}
 	gtoml.Period = g.Period.String()
+	gtoml.CatchupPeriod = g.CatchupPeriod.String()
 	gtoml.GenesisTime = g.GenesisTime
 	if g.TransitionTime != 0 {
 		gtoml.TransitionTime = g.TransitionTime
@@ -253,12 +267,13 @@ func (g *Group) TOMLValue() interface{} {
 // NewGroup returns a group from the given information to be used as a new group
 // in a setup or resharing phase. Every identity is map to a Node struct whose
 // index is the position in the list of identity.
-func NewGroup(list []*Identity, threshold int, genesis int64, period time.Duration) *Group {
+func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration) *Group {
 	return &Group{
-		Nodes:       copyAndSort(list),
-		Threshold:   threshold,
-		GenesisTime: genesis,
-		Period:      period,
+		Nodes:         copyAndSort(list),
+		Threshold:     threshold,
+		GenesisTime:   genesis,
+		Period:        period,
+		CatchupPeriod: catchupPeriod,
 	}
 }
 
@@ -266,12 +281,14 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period time.Durati
 // to a QUALified set of nodes that ran successfully a setup or reshare phase.
 // The threshold is automatically guessed from the length of the distributed
 // key.
+// Note: only used in tests
 func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64) *Group {
 	return &Group{
 		Nodes:          list,
 		Threshold:      len(public.Coefficients),
 		PublicKey:      public,
 		Period:         period,
+		CatchupPeriod:  period / 2,
 		GenesisTime:    genesis,
 		TransitionTime: transition,
 	}
@@ -319,6 +336,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	if period == time.Duration(0) {
 		return nil, fmt.Errorf("period time is zero")
 	}
+	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
 		c := KeyGroup.Point()
@@ -330,6 +348,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	group := &Group{
 		Threshold:      thr,
 		Period:         period,
+		CatchupPeriod:  catchupPeriod,
 		Nodes:          nodes,
 		GenesisTime:    genesisTime,
 		TransitionTime: int64(g.GetTransitionTime()),
@@ -364,6 +383,7 @@ func (g *Group) ToProto() *proto.GroupPacket {
 	}
 	out.Nodes = ids
 	out.Period = uint32(g.Period.Seconds())
+	out.CatchupPeriod = uint32(g.CatchupPeriod.Seconds())
 	out.Threshold = uint32(g.Threshold)
 	out.GenesisTime = uint64(g.GenesisTime)
 	out.TransitionTime = uint64(g.TransitionTime)

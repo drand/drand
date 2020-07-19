@@ -83,6 +83,8 @@ message InitDKGPacket {
     // the period time of the beacon in seconds.
     // used only in a fresh dkg
     uint32 beacon_period = 3;
+    // the minimum beacon period when in catchup.
+    uint32 catchup_period = 4;
 }
 
 // EntropyInfo contains information about external entropy sources
@@ -103,6 +105,9 @@ message InitResharePacket {
     // group.
     GroupInfo old = 1;
     SetupInfoPacket info = 2;
+    // the minimum beacon period when in catchup.
+    bool catchup_period_changed = 3;
+    uint32 catchup_period = 4;
 }
 
 // GroupInfo holds the information to load a group information such as the nodes
