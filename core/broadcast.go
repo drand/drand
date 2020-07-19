@@ -79,14 +79,12 @@ func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.respCh <- *bundle
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "response", bundle.String())
-	fmt.Printf("\n\n RESPONSE PHASE\n\n")
 	b.sendout(h, bundle)
 }
 
 func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.justCh <- *bundle
 	h := hash(bundle.Hash())
-	fmt.Printf("\n\n JUSTIFICATION PHASE\n\n")
 	b.l.Debug("broadcast", "push", "justification")
 	b.sendout(h, bundle)
 }

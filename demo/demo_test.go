@@ -10,7 +10,7 @@ func TestLocalOrchestration(t *testing.T) {
 	o := lib.NewOrchestrator(3, 2, "4s", true, "", false)
 	defer o.Shutdown()
 	o.StartCurrentNodes()
-	o.RunDKG("10s")
+	o.RunDKG("3")
 	o.WaitGenesis()
 	o.WaitPeriod()
 	o.CheckCurrentBeacon()

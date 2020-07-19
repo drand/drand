@@ -153,16 +153,21 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	}
 	d.state.Unlock()
 
-	d.log.Info("init_dkg", "start_dkg")
 	if leader {
 		// phaser will kick off the first phase for every other nodes so
 		// nodes will send their deals
+		d.log.Info("init_dkg", "START_DKG")
 		go phaser.Start()
 	}
+	d.log.Info("init_dkg", "wait_dkg_end")
 	finalGroup, err := d.WaitDKG()
 	if err != nil {
-		return nil, fmt.Errorf("drand: err during DKG: %v", err)
+		d.log.Error("init_dkg", err)
+		return nil, fmt.Errorf("drand: %v", err)
 	}
+	d.state.Lock()
+	d.dkgDone = true
+	d.state.Unlock()
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
 	go d.StartBeacon(false)
@@ -246,7 +251,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		go phaser.Start()
 	}
 
-	d.log.Info("init_dkg", "wait_dkg_end")
+	d.log.Info("dkg_reshare", "wait_dkg_end")
 	finalGroup, err := d.WaitDKG()
 	if err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)

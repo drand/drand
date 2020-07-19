@@ -19,15 +19,12 @@ import (
 func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	if d.dkgDone {
-		return nil, errors.New("drand: dkg finished already")
-	}
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
 	addr := net.RemoteAddress(c)
 	if !d.dkgInfo.started {
-		d.log.Info("init_dkg", "start", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.log.Info("init_dkg", "START DKG", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
 		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}

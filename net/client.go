@@ -3,7 +3,6 @@ package net
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/grpc"
@@ -17,6 +16,9 @@ type Client interface {
 	HTTPClient
 }
 
+// CallOption is simply a wrapper around the grpc options
+type CallOption = grpc.CallOption
+
 // ProtocolClient holds all the methods of the protocol API that drand protocols
 // use. See protobuf/drand/protocol.proto for more information.
 type ProtocolClient interface {
@@ -26,7 +28,6 @@ type ProtocolClient interface {
 	BroadcastDKG(c context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) error
 	SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error
 	PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoPacket, opts ...grpc.CallOption) error
-	SetTimeout(time.Duration)
 }
 
 // PublicClient holds all the methods of the public API . See
