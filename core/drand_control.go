@@ -168,21 +168,26 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		d.log.Error("init_dkg", err)
 		d.state.Lock()
 		if d.dkgInfo == dkgInfo {
-			d.dkgInfo.board.stop()
-			d.dkgInfo = nil
+			d.cleanupDKG()
 		}
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: %v", err)
 	}
 	d.state.Lock()
-	d.dkgInfo.board.stop()
-	d.dkgInfo = nil
+	d.cleanupDKG()
 	d.dkgDone = true
 	d.state.Unlock()
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
 	go d.StartBeacon(false)
 	return finalGroup, nil
+}
+
+func (d *Drand) cleanupDKG() {
+	if d.dkgInfo != nil {
+		d.dkgInfo.board.stop()
+	}
+	d.dkgInfo = nil
 }
 
 // runResharing setups all necessary structures to run the resharing protocol
@@ -269,8 +274,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		d.state.Lock()
 		if d.dkgInfo == info {
-			d.dkgInfo.board.stop()
-			d.dkgInfo = nil
+			d.cleanupDKG()
 		}
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
