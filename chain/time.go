@@ -10,6 +10,8 @@ import (
 const timeBufferBits = 36
 const maxTimeBuffer = int64(1 << timeBufferBits)
 
+// TimeOfRoundErrorValue is the value returned by `TimeOfRound` when an invalid round is
+// specified.
 const TimeOfRoundErrorValue = math.MaxInt64 - maxTimeBuffer
 
 // TimeOfRound is returning the time the current round should happen
