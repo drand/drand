@@ -168,12 +168,14 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		d.log.Error("init_dkg", err)
 		d.state.Lock()
 		if d.dkgInfo == dkgInfo {
+			d.dkgInfo.board.stop()
 			d.dkgInfo = nil
 		}
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: %v", err)
 	}
 	d.state.Lock()
+	d.dkgInfo.board.stop()
 	d.dkgInfo = nil
 	d.dkgDone = true
 	d.state.Unlock()
@@ -267,6 +269,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		d.state.Lock()
 		if d.dkgInfo == info {
+			d.dkgInfo.board.stop()
 			d.dkgInfo = nil
 		}
 		d.state.Unlock()
