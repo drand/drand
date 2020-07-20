@@ -293,12 +293,12 @@ func TestClientAutoWatchRetry(t *testing.T) {
 	}
 
 	// We should be able to retrieve all the results from the cache.
-	for _, res := range results {
-		r, err := c.Get(context.Background(), res.Round())
+	for i := range results {
+		r, err := c.Get(context.Background(), results[i].Round())
 		if err != nil {
 			t.Fatal(err)
 		}
-		compareResults(t, &res, r)
+		compareResults(t, &results[i], r)
 	}
 }
 

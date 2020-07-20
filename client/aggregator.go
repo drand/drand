@@ -115,14 +115,13 @@ func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc) {
 	defer cancel()
 	for {
-		aCtx := context.Background()
 		c.subscriberLock.Lock()
 		if len(c.subscribers) == 0 {
 			c.subscriberLock.Unlock()
 			c.log.Warn("watch_aggregator", "no subscribers to distribute results to")
 			return
 		}
-		aCtx = c.subscribers[0].ctx
+		aCtx := c.subscribers[0].ctx
 		c.subscriberLock.Unlock()
 
 		var m Result
