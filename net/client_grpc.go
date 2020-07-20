@@ -93,8 +93,7 @@ func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRan
 	client := drand.NewPublicClient(c)
 	ctx, cancel := g.getTimeoutContext(ctx)
 	defer cancel()
-	resp, err = client.PublicRand(ctx, in)
-	return resp, err
+	return client.PublicRand(ctx, in)
 }
 
 const grpcClientRandStreamBacklog = 10

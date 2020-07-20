@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+// time.Unix will add `time.unixToInternal` to a unix timestamp in int64 space.
+// TimeOfRound will stay below this buffer so that such a conversion does not overflow.
+const maxTimeBuffer = int64(2 << 36)
+
 // TimeOfRound is returning the time the current round should happen
 func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	if round == 0 {
@@ -13,12 +17,16 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 
 	periodBits := math.Log2(float64(period))
 	if round > (math.MaxUint64 >> int(periodBits)) {
-		return math.MaxInt64
+		return math.MaxInt64 - maxTimeBuffer
 	}
 	delta := (round - 1) * uint64(period.Seconds())
 
 	// - 1 because genesis time is for 1st round already
-	return genesis + int64(delta)
+	val := genesis + int64(delta)
+	if val > math.MaxInt64-maxTimeBuffer {
+		return math.MaxInt64 - maxTimeBuffer
+	}
+	return val
 }
 
 // CurrentRound calculates the active round at `now`

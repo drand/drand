@@ -91,7 +91,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	}
 	if err != nil || r == nil {
 		d.log.Debug("public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
-		return nil, fmt.Errorf("can't retrieve beacon: %s %s", err, r)
+		return nil, fmt.Errorf("can't retrieve beacon: %w %s", err, r)
 	}
 	d.log.Info("public_rand", addr, "round", r.Round, "reply", r.String())
 	return beaconToProto(r), nil
