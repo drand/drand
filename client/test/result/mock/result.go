@@ -80,7 +80,7 @@ func roundToBytes(r int) []byte {
 	return buff.Bytes()
 }
 
-//VerifiableResults creates a set of results that will pass a `chain.Verify` check.
+// VerifiableResults creates a set of results that will pass a `chain.Verify` check.
 func VerifiableResults(count int) (*chain.Info, []Result) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
