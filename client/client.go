@@ -98,8 +98,11 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	oc.Start()
 
-	c = newWatchAggregator(c, cfg.autoWatch)
+	wa := newWatchAggregator(c, cfg.autoWatch, cfg.autoWatchRetry)
+	c = wa
 	trySetLog(c, cfg.log)
+
+	wa.Start()
 
 	return attachMetrics(cfg, c)
 }
@@ -153,6 +156,9 @@ type clientConfig struct {
 	// autoWatch causes the client to start watching immediately in the background so that new randomness
 	// is proactively fetched and added to the cache.
 	autoWatch bool
+	// autoWatchRetry specifies the time after which the watch channel
+	// created by the autoWatch is re-opened when no context error occurred.
+	autoWatchRetry time.Duration
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
 }
@@ -286,6 +292,16 @@ func WithWatcher(wc WatcherCtor) Option {
 func WithAutoWatch() Option {
 	return func(cfg *clientConfig) error {
 		cfg.autoWatch = true
+		return nil
+	}
+}
+
+// WithAutoWatchRetry specifies the time after which the watch channel
+// created by the autoWatch is re-opened when no context error occurred.
+// Set to a negative value to disable retrying auto watch.
+func WithAutoWatchRetry(interval time.Duration) Option {
+	return func(cfg *clientConfig) error {
+		cfg.autoWatchRetry = interval
 		return nil
 	}
 }

@@ -17,7 +17,7 @@ func TestAggregatorClose(t *testing.T) {
 		},
 	}
 
-	ac := newWatchAggregator(c, true)
+	ac := newWatchAggregator(c, true, 0)
 
 	err := ac.Close() // should cancel the autoWatch and close the underlying client
 	if err != nil {

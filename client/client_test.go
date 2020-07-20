@@ -237,6 +237,71 @@ func TestClientAutoWatch(t *testing.T) {
 	_ = c.Close()
 }
 
+func TestClientAutoWatchRetry(t *testing.T) {
+	info, results := mock.VerifiableResults(5)
+	resC := make(chan client.Result)
+	defer close(resC)
+
+	// done is closed after all resuls have been written to resC
+	done := make(chan struct{})
+
+	// Returns a channel that yields the verifiable results above
+	watchF := func(ctx context.Context) <-chan client.Result {
+		go func() {
+			for i := 0; i < len(results); i++ {
+				select {
+				case resC <- &results[i]:
+				case <-ctx.Done():
+					return
+				}
+			}
+			<-time.After(time.Second)
+			close(done)
+		}()
+		return resC
+	}
+
+	var failer client.MockClient
+	failer = client.MockClient{
+		WatchF: func(ctx context.Context) <-chan client.Result {
+			// First call returns a closed channel
+			ch := make(chan client.Result)
+			close(ch)
+			// Second call returns a channel that writes results
+			failer.WatchF = watchF
+			return ch
+		},
+	}
+
+	c, err := client.New(
+		client.From(&failer, client.MockClientWithInfo(info)),
+		client.WithChainInfo(info),
+		client.WithAutoWatch(),
+		client.WithAutoWatchRetry(time.Second),
+		client.WithCacheSize(len(results)),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Wait for all the results to be consumed by the autoWatch
+	select {
+	case <-done:
+	case <-time.After(time.Minute):
+		t.Fatal("timed out waiting for results to be consumed")
+	}
+
+	// We should be able to retrieve all the results from the cache.
+	for i := range results {
+		r, err := c.Get(context.Background(), results[i].Round())
+		if err != nil {
+			t.Fatal(err)
+		}
+		compareResults(t, &results[i], r)
+	}
+}
+
 // compareResults asserts that two results are the same.
 func compareResults(t *testing.T, a, b client.Result) {
 	t.Helper()
