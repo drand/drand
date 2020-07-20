@@ -83,7 +83,6 @@ func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *k
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	go manager.run()
-
 	d.manager = manager
 	d.state.Unlock()
 	defer func() {
@@ -132,11 +131,13 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		FastSync:       true,
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
-		Auth:           key.AuthScheme,
+		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, group)
-	dkgProto, err := dkg.NewProtocol(config, board, phaser)
+	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+		return dkg.VerifyPacketSignature(config, p)
+	})
+	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
 	}
@@ -154,16 +155,21 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	}
 	d.state.Unlock()
 
-	d.log.Info("init_dkg", "start_dkg")
 	if leader {
 		// phaser will kick off the first phase for every other nodes so
 		// nodes will send their deals
+		d.log.Info("init_dkg", "START_DKG")
 		go phaser.Start()
 	}
+	d.log.Info("init_dkg", "wait_dkg_end")
 	finalGroup, err := d.WaitDKG()
 	if err != nil {
-		return nil, fmt.Errorf("drand: err during DKG: %v", err)
+		d.log.Error("init_dkg", err)
+		return nil, fmt.Errorf("drand: %v", err)
 	}
+	d.state.Lock()
+	d.dkgDone = true
+	d.state.Unlock()
 	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
 	go d.StartBeacon(false)
@@ -191,7 +197,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		OldThreshold: oldGroup.Threshold,
 		FastSync:     true,
 		Nonce:        getNonce(newGroup),
-		Auth:         key.AuthScheme,
+		Auth:         key.DKGAuthScheme,
 	}
 	err := func() error {
 		d.state.Lock()
@@ -216,10 +222,14 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	if err != nil {
 		return nil, err
 	}
-	board := newReshareBoard(d.log, d.privGateway.ProtocolClient, d.priv.Public, oldGroup, newGroup)
+
+	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
+	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
+		return dkg.VerifyPacketSignature(config, p)
+	})
 	phaser := d.getPhaser(timeout)
 
-	dkgProto, err := dkg.NewProtocol(config, board, phaser)
+	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +255,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		go phaser.Start()
 	}
 
-	d.log.Info("init_dkg", "wait_dkg_end")
+	d.log.Info("dkg_reshare", "wait_dkg_end")
 	finalGroup, err := d.WaitDKG()
 	if err != nil {
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
@@ -675,7 +685,7 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 // call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
-	signature, err := key.AuthScheme.Sign(d.priv.Key, group.Hash())
+	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
 		d.log.Error("setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)

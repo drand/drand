@@ -16,6 +16,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/kyber/share/dkg"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -204,6 +205,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 		return nil, err
 	}
 	d.opts.applyDkgCallback(d.share)
+	d.dkgInfo.board.stop()
 	d.dkgInfo = nil
 	return d.group, nil
 }
@@ -345,4 +347,15 @@ func checkGroup(l log.Logger, group *key.Group) {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
 	l.Info("UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
+}
+
+// dkgInfo is a simpler wrapper that keeps the relevant config and logic
+// necessary during the DKG protocol.
+type dkgInfo struct {
+	target  *key.Group
+	board   *broadcast
+	phaser  *dkg.TimePhaser
+	conf    *dkg.Config
+	proto   *dkg.Protocol
+	started bool
 }

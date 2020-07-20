@@ -22,7 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var testBeaconOffset = int((7 * time.Second).Seconds())
+// 1 second after end of dkg
+var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
 func TestDrandDKGFresh(t *testing.T) {
@@ -58,6 +59,28 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.MoveTime(beaconPeriod)
 	dt.TestBeaconLength(3, false, dt.Ids(n, false)...)
 	dt.TestPublicBeacon(lastID, false)
+}
+
+func TestDrandDKGBroadcastDeny(t *testing.T) {
+	n := 10
+	thr := 6
+	beaconPeriod := 1 * time.Second
+
+	dt := NewDrandTest2(t, n, thr, beaconPeriod)
+	defer dt.Cleanup()
+	// close connection between a pair of nodes
+	n1 := dt.nodes[1]
+	n2 := dt.nodes[2]
+	n1.drand.DenyBroadcastTo(n2.addr)
+	n2.drand.DenyBroadcastTo(n1.addr)
+	group1 := dt.RunDKG()
+	dt.MoveToTime(group1.GenesisTime)
+	dt.MoveTime(1 * time.Second)
+	fmt.Printf("\n\n --- DKG FINISHED ---\n\n")
+	time.Sleep(200 * time.Millisecond)
+	_, err := dt.RunReshare(n, 0, thr, 1*time.Second, false, false)
+	require.NoError(t, err)
+	fmt.Println(" --- RESHARING FINISHED ---")
 }
 
 func TestDrandReshareForce(t *testing.T) {

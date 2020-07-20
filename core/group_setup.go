@@ -44,9 +44,9 @@ type setupManager struct {
 	expected      int
 	thr           int
 	beaconOffset  time.Duration
-	beaconPeriod  time.Duration
 	catchupPeriod time.Duration
-	dkgTimeout    uint64
+	beaconPeriod  time.Duration
+	dkgTimeout    time.Duration
 	clock         clock.Clock
 	leaderKey     *key.Identity
 	verifyKeys    func([]*key.Identity) bool
@@ -90,7 +90,7 @@ func newDKGSetup(
 		beaconOffset:  offset,
 		beaconPeriod:  time.Duration(beaconPeriod) * time.Second,
 		catchupPeriod: time.Duration(catchupPeriod) * time.Second,
-		dkgTimeout:    uint64(dkgTimeout.Seconds()),
+		dkgTimeout:    dkgTimeout,
 		l:             l,
 		startDKG:      make(chan *key.Group, 1),
 		pushKeyCh:     make(chan pushKey, n),
@@ -222,15 +222,16 @@ func (s *setupManager) run() {
 func (s *setupManager) createAndSend(keys []*key.Identity) {
 	// create group
 	var group *key.Group
+	totalDKG := s.dkgTimeout*3 + s.beaconOffset
 	if !s.isResharing {
-		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
+		genesis := s.clock.Now().Add(totalDKG).Unix()
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
 		genesis += (ps - genesis%ps)
 		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
 	} else {
 		genesis := s.oldGroup.GenesisTime
-		atLeast := s.clock.Now().Add(s.beaconOffset).Unix()
+		atLeast := s.clock.Now().Add(totalDKG).Unix()
 		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
@@ -325,7 +326,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	if err != nil {
 		return fmt.Errorf("group from leader invalid: %s", err)
 	}
-	if err := key.AuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
+	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
 		r.l.Error("received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %s", err)
 	}

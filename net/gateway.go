@@ -30,9 +30,6 @@ func (g *PrivateGateway) StopAll(ctx context.Context) {
 	g.Listener.Stop(ctx)
 }
 
-// CallOption is simply a wrapper around the grpc options
-type CallOption = grpc.CallOption
-
 // Listener is the active listener for incoming requests.
 type Listener interface {
 	Start()

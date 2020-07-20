@@ -49,8 +49,8 @@ func (s *EmptyServer) PushDKGInfo(context.Context, *drand.DKGInfoPacket) (*drand
 	return nil, nil
 }
 
-// FreshDKG is an empty implementation
-func (s *EmptyServer) FreshDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error) {
+// BroadcastDKG is an empty implementation
+func (s *EmptyServer) BroadcastDKG(context.Context, *drand.DKGPacket) (*drand.Empty, error) {
 	return nil, nil
 }
 
@@ -63,11 +63,6 @@ func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServ
 // its chain
 func (s *EmptyServer) StartFollowChain(*drand.StartFollowRequest, drand.Control_StartFollowChainServer) error {
 	return nil
-}
-
-// ReshareDKG is an empty implementation
-func (s *EmptyServer) ReshareDKG(context.Context, *drand.ResharePacket) (*drand.Empty, error) {
-	return nil, nil
 }
 
 // PartialBeacon is an empty implementation
