@@ -29,9 +29,6 @@ func newWatchAggregator(c Client, autoWatch bool, autoWatchRetry time.Duration) 
 		log:            log.DefaultLogger(),
 		subscribers:    make([]subscriber, 0),
 	}
-	if autoWatch {
-		aggregator.startAutoWatch()
-	}
 	return aggregator
 }
 
@@ -49,6 +46,14 @@ type watchAggregator struct {
 
 	subscriberLock sync.Mutex
 	subscribers    []subscriber
+}
+
+// Start initiates auto watching if configured to do so.
+// SetLog should not be called after Start.
+func (c *watchAggregator) Start() {
+	if c.autoWatch {
+		c.startAutoWatch()
+	}
 }
 
 // SetLog configures the client log output
