@@ -21,8 +21,8 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-// 12s after dkg finishes, (new or reshared) beacon starts
-var beaconOffset = 12
+// 1s after dkg finishes, (new or reshared) beacon starts
+var beaconOffset = 1
 
 // how much should we wait before checking if the randomness is present. This is
 // mostly due to the fact we run on localhost on cheap machine with CI so we
@@ -402,6 +402,8 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	groupCh := make(chan *key.Group, 1)
 	leader := e.reshareNodes[0]
 	panicCh := make(chan interface{}, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
 		defer func() {
 			if err := recover(); err != nil {
@@ -414,6 +416,8 @@ func (e *Orchestrator) RunResharing(timeout string) {
 		}
 		fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
 		group := leader.RunReshare(nodes, thr, path, timeout, true, "", beaconOffset)
+		fmt.Printf("\t- Resharing DONE for leader node %s\n", leader.PrivateAddr())
+		wg.Done()
 		groupCh <- group
 	}()
 	time.Sleep(100 * time.Millisecond)
@@ -424,15 +428,20 @@ func (e *Orchestrator) RunResharing(timeout string) {
 			path = e.groupPath
 		}
 		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
+		wg.Add(1)
 		go func(n node.Node) {
 			defer func() {
 				if err := recover(); err != nil {
+					wg.Done()
 					panicCh <- err
 				}
 			}()
 			n.RunReshare(nodes, thr, path, timeout, false, leader.PrivateAddr(), beaconOffset)
+			fmt.Printf("\t- Resharing DONE for node %s\n", n.PrivateAddr())
+			wg.Done()
 		}(n)
 	}
+	wg.Wait()
 	<-groupCh
 	select {
 	case p := <-panicCh:

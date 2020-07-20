@@ -16,46 +16,19 @@ import (
 )
 
 // FreshDKG is the public method to call during a DKG protocol.
-func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
+func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	if d.dkgDone {
-		return nil, errors.New("drand: dkg finished already")
-	}
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
 	addr := net.RemoteAddress(c)
 	if !d.dkgInfo.started {
-		d.log.Info("init_dkg", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.log.Info("init_dkg", "START DKG", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
 		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}
-	if _, err := d.dkgInfo.board.FreshDKG(c, in); err != nil {
-		return nil, err
-	}
-	return new(drand.Empty), nil
-}
-
-// ReshareDKG is called when a resharing protocol is in progress
-func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
-	d.state.Lock()
-	defer d.state.Unlock()
-
-	if d.dkgInfo == nil {
-		return nil, errors.New("drand: no dkg setup yet")
-	}
-	addr := net.RemoteAddress(c)
-	if !d.dkgInfo.started {
-		d.dkgInfo.started = true
-		d.log.Info("init_reshare", "start",
-			"signal_leader", addr,
-			"group", hex.EncodeToString(d.dkgInfo.target.Hash()),
-			"target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
-		go d.dkgInfo.phaser.Start()
-	}
-
-	if _, err := d.dkgInfo.board.ReshareDKG(c, in); err != nil {
+	if _, err := d.dkgInfo.board.BroadcastDKG(c, in); err != nil {
 		return nil, err
 	}
 	return new(drand.Empty), nil

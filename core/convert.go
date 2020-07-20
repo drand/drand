@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/drand/drand/chain"
@@ -17,6 +18,32 @@ func beaconToProto(b *chain.Beacon) *drand.PublicRandResponse {
 		Signature:         b.Signature,
 		PreviousSignature: b.PreviousSig,
 		Randomness:        b.Randomness(),
+	}
+}
+
+func protoToDKGPacket(d *pdkg.Packet) (dkg.Packet, error) {
+	switch packet := d.GetBundle().(type) {
+	case *pdkg.Packet_Deal:
+		return protoToDeal(packet.Deal)
+	case *pdkg.Packet_Response:
+		return protoToResp(packet.Response), nil
+	case *pdkg.Packet_Justification:
+		return protoToJustif(packet.Justification)
+	default:
+		return nil, errors.New("unknown packet")
+	}
+}
+
+func dkgPacketToProto(p dkg.Packet) (*pdkg.Packet, error) {
+	switch inner := p.(type) {
+	case *dkg.DealBundle:
+		return dealToProto(inner), nil
+	case *dkg.ResponseBundle:
+		return respToProto(inner), nil
+	case *dkg.JustificationBundle:
+		return justifToProto(inner), nil
+	default:
+		return nil, errors.New("invalid dkg packet")
 	}
 }
 

@@ -1,10 +1,15 @@
 package key
 
 import (
+	"crypto/cipher"
+
+	kyber "github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 
 	sign "github.com/drand/kyber/sign/bls"
+	"github.com/drand/kyber/sign/schnorr"
 	"github.com/drand/kyber/sign/tbls"
+	"github.com/drand/kyber/util/random"
 )
 
 // TODO: global variables are evil, make that a config
@@ -25,6 +30,17 @@ var SigGroup = Pairing.G2()
 // and keys respectively are.
 var Scheme = tbls.NewThresholdSchemeOnG2(Pairing)
 
-// AuthScheme is the signature scheme used during the DKG phase to authenticate
-// the deals.
+// AuthScheme is the signature scheme used to identify public identities
 var AuthScheme = sign.NewSchemeOnG2(Pairing)
+
+// DKGAuthScheme is the signature scheme used to authentify packets during
+// a broadcast during a DKG
+var DKGAuthScheme = schnorr.NewScheme(&schnorrSuite{KeyGroup})
+
+type schnorrSuite struct {
+	kyber.Group
+}
+
+func (s *schnorrSuite) RandomStream() cipher.Stream {
+	return random.New()
+}

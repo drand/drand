@@ -126,13 +126,11 @@ func (d *DrandTest2) RunDKG() *key.Group {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
 			_, err = client.InitDKG(root.drand.priv.Public, nil, secret)
-			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			require.NoError(d.t, err)
+			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
 			wg.Done()
-			fmt.Printf("\n\n\n TESTDKG NON-ROOT %s FINISHED\n\n\n", n.addr)
 		}(node)
 	}
-
 	// wait for all to return
 	wg.Wait()
 	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", root.addr)
@@ -419,4 +417,37 @@ func (d *DrandTest2) newNode(dr *Drand, certPath string) *Node {
 		drand:    dr,
 		clock:    c,
 	}
+}
+
+// DenyClient can abort request to other needs based on a peer list
+type DenyClient struct {
+	net.ProtocolClient
+	deny []string
+}
+
+func (d *Drand) DenyBroadcastTo(addrs ...string) {
+	client := d.privGateway.ProtocolClient
+	d.privGateway.ProtocolClient = &DenyClient{
+		ProtocolClient: client,
+		deny:           addrs,
+	}
+}
+
+func (d *DenyClient) BroadcastDKG(c context.Context, p net.Peer, in *drand.DKGPacket, opts ...net.CallOption) error {
+	if !d.isAllowed(p) {
+		d := make(chan bool)
+		fmt.Printf("\nDENIAL BROADCAST DKG TO %s\n", p.Address())
+		<-d
+		return nil
+	}
+	return d.ProtocolClient.BroadcastDKG(c, p, in)
+}
+
+func (d *DenyClient) isAllowed(p net.Peer) bool {
+	for _, s := range d.deny {
+		if p.Address() == s {
+			return false
+		}
+	}
+	return true
 }

@@ -27,10 +27,8 @@ type ProtocolClient interface {
 	// from all received keys and as well other information such as the time of
 	// starting the DKG.
 	PushDKGInfo(ctx context.Context, in *DKGInfoPacket, opts ...grpc.CallOption) (*Empty, error)
-	// Setup is doing the DKG setup phase
-	FreshDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error)
-	// Reshare performs the resharing phase
-	ReshareDKG(ctx context.Context, in *ResharePacket, opts ...grpc.CallOption) (*Empty, error)
+	// BroadcastPacket is used during DKG phases
+	BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error)
 	// PartialBeacon sends its partial beacon to another node
 	PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
@@ -72,18 +70,9 @@ func (c *protocolClient) PushDKGInfo(ctx context.Context, in *DKGInfoPacket, opt
 	return out, nil
 }
 
-func (c *protocolClient) FreshDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error) {
+func (c *protocolClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/drand.Protocol/FreshDKG", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *protocolClient) ReshareDKG(ctx context.Context, in *ResharePacket, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/drand.Protocol/ReshareDKG", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/drand.Protocol/BroadcastDKG", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -145,10 +134,8 @@ type ProtocolServer interface {
 	// from all received keys and as well other information such as the time of
 	// starting the DKG.
 	PushDKGInfo(context.Context, *DKGInfoPacket) (*Empty, error)
-	// Setup is doing the DKG setup phase
-	FreshDKG(context.Context, *DKGPacket) (*Empty, error)
-	// Reshare performs the resharing phase
-	ReshareDKG(context.Context, *ResharePacket) (*Empty, error)
+	// BroadcastPacket is used during DKG phases
+	BroadcastDKG(context.Context, *DKGPacket) (*Empty, error)
 	// PartialBeacon sends its partial beacon to another node
 	PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
@@ -168,11 +155,8 @@ func (*UnimplementedProtocolServer) SignalDKGParticipant(context.Context, *Signa
 func (*UnimplementedProtocolServer) PushDKGInfo(context.Context, *DKGInfoPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushDKGInfo not implemented")
 }
-func (*UnimplementedProtocolServer) FreshDKG(context.Context, *DKGPacket) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method FreshDKG not implemented")
-}
-func (*UnimplementedProtocolServer) ReshareDKG(context.Context, *ResharePacket) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReshareDKG not implemented")
+func (*UnimplementedProtocolServer) BroadcastDKG(context.Context, *DKGPacket) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDKG not implemented")
 }
 func (*UnimplementedProtocolServer) PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PartialBeacon not implemented")
@@ -239,38 +223,20 @@ func _Protocol_PushDKGInfo_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Protocol_FreshDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Protocol_BroadcastDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DKGPacket)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ProtocolServer).FreshDKG(ctx, in)
+		return srv.(ProtocolServer).BroadcastDKG(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/drand.Protocol/FreshDKG",
+		FullMethod: "/drand.Protocol/BroadcastDKG",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProtocolServer).FreshDKG(ctx, req.(*DKGPacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Protocol_ReshareDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ResharePacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProtocolServer).ReshareDKG(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Protocol/ReshareDKG",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProtocolServer).ReshareDKG(ctx, req.(*ResharePacket))
+		return srv.(ProtocolServer).BroadcastDKG(ctx, req.(*DKGPacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -331,12 +297,8 @@ var _Protocol_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Protocol_PushDKGInfo_Handler,
 		},
 		{
-			MethodName: "FreshDKG",
-			Handler:    _Protocol_FreshDKG_Handler,
-		},
-		{
-			MethodName: "ReshareDKG",
-			Handler:    _Protocol_ReshareDKG_Handler,
+			MethodName: "BroadcastDKG",
+			Handler:    _Protocol_BroadcastDKG_Handler,
 		},
 		{
 			MethodName: "PartialBeacon",
