@@ -79,7 +79,6 @@ func (g *grpcClient) GetIdentity(ctx context.Context, p Peer, in *drand.Identity
 }
 
 func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	var resp *drand.PublicRandResponse
 	c, err := g.conn(p)
 	if err != nil {
 		return nil, err
@@ -203,6 +202,7 @@ func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.Partia
 	return err
 }
 
+// MaxSyncBuffer is the maximum number of queued rounds when syncing
 const MaxSyncBuffer = 100
 
 func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
