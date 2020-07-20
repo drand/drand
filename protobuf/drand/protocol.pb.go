@@ -227,7 +227,7 @@ type PartialBeaconPacket struct {
 	// is used to verify the signature even before accessing the store
 	PreviousSig []byte `protobuf:"bytes,2,opt,name=previous_sig,json=previousSig,proto3" json:"previous_sig,omitempty"`
 	// partial signature - a threshold of them needs to be aggregated to produce
-	// the final beacon at the given round.Beautiful
+	// the final beacon at the given round.
 	PartialSig []byte `protobuf:"bytes,3,opt,name=partial_sig,json=partialSig,proto3" json:"partial_sig,omitempty"`
 }
 

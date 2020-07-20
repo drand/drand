@@ -81,7 +81,6 @@ func TestDrandDKGBroadcastDeny(t *testing.T) {
 	_, err := dt.RunReshare(n, 0, thr, 1*time.Second, false, false)
 	require.NoError(t, err)
 	fmt.Println(" --- RESHARING FINISHED ---")
-
 }
 
 func TestDrandReshareForce(t *testing.T) {

@@ -131,10 +131,6 @@ func (d *DrandTest2) RunDKG() *key.Group {
 			wg.Done()
 		}(node)
 	}
-	/*time.Sleep(500 * time.Millisecond)*/
-	//for i := 0; i < 3; i++ {
-	//d.MoveTime(testDkgTimeout)
-	/*}*/
 	// wait for all to return
 	wg.Wait()
 	fmt.Printf("\n\n\n TESTDKG ROOT %s FINISHED\n\n\n", root.addr)
@@ -395,10 +391,6 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 			go runreshare(node)
 		}
 	}
-	/* time.Sleep(500 * time.Millisecond)*/
-	//for i := 0; i < 3; i++ {
-	//d.MoveTime(testDkgTimeout)
-	/*}*/
 	d.Unlock()
 	// wait for the return of the clients
 	select {

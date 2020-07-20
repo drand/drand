@@ -136,7 +136,7 @@ func (b *broadcast) passToApplication(p packet) {
 	}
 }
 
-// sendout convers the packet to protobuf and pass the packet to the dispatcher
+// sendout converts the packet to protobuf and pass the packet to the dispatcher
 // so it is broadcasted out out to all nodes. sendout requires the broadcast
 // lock.
 func (b *broadcast) sendout(h []byte, p packet) {

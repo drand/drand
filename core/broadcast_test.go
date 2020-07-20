@@ -119,16 +119,3 @@ func fakeDeal() *dkg.DealBundle {
 		}},
 	}
 }
-
-/*type testBroadcastServer struct {*/
-//*testnet.EmptyServer
-//sync.Mutex
-//blocking bool
-//}
-
-//func (t *testBroadcastServer) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
-//t.Lock()
-//if t.blocking {
-
-//}
-/*}*/
