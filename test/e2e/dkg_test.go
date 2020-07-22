@@ -89,7 +89,7 @@ func TestDKG(t *testing.T) {
 		"--nodes", "3",
 		"--threshold", "2",
 		"--secret", secret,
-		"--period", "10s",
+		"--period", "5s",
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
@@ -184,7 +184,7 @@ func TestDKGNoTLS(t *testing.T) {
 		"--nodes", "3",
 		"--threshold", "2",
 		"--secret", secret,
-		"--period", "10s",
+		"--period", "5s",
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
@@ -217,6 +217,9 @@ func TestDKGNoTLS(t *testing.T) {
 	daemonMgr.AwaitOutput(t, "NEW_BEACON_STORED=\"{ round: 2")
 }
 
+// TODO: this test currently stops the leader share command after 1 participant
+// has joined. Consider adding another test where the leader share command is
+// killed before any participants join: https://github.com/drand/drand/issues/709
 func TestDKGWithStoppedLeaderShareCommand(t *testing.T) {
 	alphaDir, bravoDir, charlieDir := x3(func() string { return tempDir(t) })
 	alphaPrivPort, bravoPrivPort, charliePrivPort := x3(test.FreePort)
@@ -290,10 +293,9 @@ func TestDKGWithStoppedLeaderShareCommand(t *testing.T) {
 		"--nodes", "3",
 		"--threshold", "2",
 		"--secret", secret,
-		"--period", "10s",
+		"--period", "5s",
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
-	alphaTerm2.Kill(t)
 
 	bravoTerm2 := terminal.ForTesting("bravo share participant")
 	bravoTerm2.Run(t,
@@ -303,6 +305,9 @@ func TestDKGWithStoppedLeaderShareCommand(t *testing.T) {
 		"--secret", secret,
 	)
 	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
+
+	// kill the leader share command before all participants join
+	alphaTerm2.Kill(t)
 
 	charlieTerm2 := terminal.ForTesting("charlie share participant")
 	charlieTerm2.Run(t,
