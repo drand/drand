@@ -58,9 +58,9 @@ func TestDKG(t *testing.T) {
 	bravoFolder := path.Join(bravoDir, ".drand")
 	charlieFolder := path.Join(charlieDir, ".drand")
 
-	alphaTerm0 := commander.NewTerminal("alpha")
-	bravoTerm0 := commander.NewTerminal("bravo")
-	charlieTerm0 := commander.NewTerminal("charlie")
+	alphaTerm0 := commander.NewTestingTerminal("alpha")
+	bravoTerm0 := commander.NewTestingTerminal("bravo")
+	charlieTerm0 := commander.NewTestingTerminal("charlie")
 
 	alphaTerm0.Run(t, "drand", "generate-keypair", "--folder", alphaFolder, host+":"+alphaPrivPort)
 	alphaTerm0.AwaitOutput(t, "Generated keys")
@@ -77,7 +77,7 @@ func TestDKG(t *testing.T) {
 	generateCerts(t, alphaDir, bravoDir, charlieDir)
 	certsDir := trustedCertsDir(t, alphaDir, bravoDir, charlieDir)
 
-	alphaTerm1 := commander.NewTerminal("alpha daemon")
+	alphaTerm1 := commander.NewTestingTerminal("alpha daemon")
 	alphaTerm1.Run(t,
 		"drand", "start",
 		"--tls-cert", path.Join(alphaDir, certFilename),
@@ -90,7 +90,7 @@ func TestDKG(t *testing.T) {
 	)
 	alphaTerm1.AwaitOutput(t, "expect to run DKG")
 
-	bravoTerm1 := commander.NewTerminal("bravo daemon")
+	bravoTerm1 := commander.NewTestingTerminal("bravo daemon")
 	bravoTerm1.Run(t,
 		"drand", "start",
 		"--tls-cert", path.Join(bravoDir, certFilename),
@@ -103,7 +103,7 @@ func TestDKG(t *testing.T) {
 	)
 	bravoTerm1.AwaitOutput(t, "expect to run DKG")
 
-	charlieTerm1 := commander.NewTerminal("charlie daemon")
+	charlieTerm1 := commander.NewTestingTerminal("charlie daemon")
 	charlieTerm1.Run(t,
 		"drand", "start",
 		"--tls-cert", path.Join(charlieDir, certFilename),
@@ -116,7 +116,7 @@ func TestDKG(t *testing.T) {
 	)
 	charlieTerm1.AwaitOutput(t, "expect to run DKG")
 
-	alphaTerm2 := commander.NewTerminal("alpha share leader")
+	alphaTerm2 := commander.NewTestingTerminal("alpha share leader")
 	alphaTerm2.Run(t,
 		"drand", "share",
 		"--control", alphaCtlPort,
@@ -128,7 +128,7 @@ func TestDKG(t *testing.T) {
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
-	bravoTerm2 := commander.NewTerminal("bravo share participant")
+	bravoTerm2 := commander.NewTestingTerminal("bravo share participant")
 	bravoTerm2.Run(t,
 		"drand", "share",
 		"--control", bravoCtlPort,
@@ -137,7 +137,7 @@ func TestDKG(t *testing.T) {
 	)
 	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
-	charlieTerm2 := commander.NewTerminal("charlie share participant")
+	charlieTerm2 := commander.NewTestingTerminal("charlie share participant")
 	charlieTerm2.Run(t,
 		"drand", "share",
 		"--control", charlieCtlPort,
@@ -159,9 +159,9 @@ func TestDKGNoTLS(t *testing.T) {
 	bravoFolder := path.Join(bravoDir, ".drand")
 	charlieFolder := path.Join(charlieDir, ".drand")
 
-	alphaTerm0 := commander.NewTerminal("alpha")
-	bravoTerm0 := commander.NewTerminal("bravo")
-	charlieTerm0 := commander.NewTerminal("charlie")
+	alphaTerm0 := commander.NewTestingTerminal("alpha")
+	bravoTerm0 := commander.NewTestingTerminal("bravo")
+	charlieTerm0 := commander.NewTestingTerminal("charlie")
 
 	alphaTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", alphaFolder, host+":"+alphaPrivPort)
 	alphaTerm0.AwaitOutput(t, "Generated keys")
@@ -175,7 +175,7 @@ func TestDKGNoTLS(t *testing.T) {
 	charlieTerm0.AwaitOutput(t, "Generated keys")
 	charlieTerm0.AwaitSuccess(t)
 
-	alphaTerm1 := commander.NewTerminal("alpha daemon")
+	alphaTerm1 := commander.NewTestingTerminal("alpha daemon")
 	alphaTerm1.Run(t,
 		"drand", "start",
 		"--tls-disable",
@@ -186,7 +186,7 @@ func TestDKGNoTLS(t *testing.T) {
 	)
 	alphaTerm1.AwaitOutput(t, "expect to run DKG")
 
-	bravoTerm1 := commander.NewTerminal("bravo daemon")
+	bravoTerm1 := commander.NewTestingTerminal("bravo daemon")
 	bravoTerm1.Run(t,
 		"drand", "start",
 		"--tls-disable",
@@ -197,7 +197,7 @@ func TestDKGNoTLS(t *testing.T) {
 	)
 	bravoTerm1.AwaitOutput(t, "expect to run DKG")
 
-	charlieTerm1 := commander.NewTerminal("charlie daemon")
+	charlieTerm1 := commander.NewTestingTerminal("charlie daemon")
 	charlieTerm1.Run(t,
 		"drand", "start",
 		"--tls-disable",
@@ -208,9 +208,10 @@ func TestDKGNoTLS(t *testing.T) {
 	)
 	charlieTerm1.AwaitOutput(t, "expect to run DKG")
 
-	alphaTerm2 := commander.NewTerminal("alpha share leader")
+	alphaTerm2 := commander.NewTestingTerminal("alpha share leader")
 	alphaTerm2.Run(t,
 		"drand", "share",
+		"--tls-disable",
 		"--control", alphaCtlPort,
 		"--leader",
 		"--nodes", "3",
@@ -220,23 +221,36 @@ func TestDKGNoTLS(t *testing.T) {
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
-	bravoTerm2 := commander.NewTerminal("bravo share participant")
+	bravoTerm2 := commander.NewTestingTerminal("bravo share participant")
 	bravoTerm2.Run(t,
 		"drand", "share",
+		"--tls-disable",
 		"--control", bravoCtlPort,
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
 	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
-	charlieTerm2 := commander.NewTerminal("charlie share participant")
+	charlieTerm2 := commander.NewTestingTerminal("charlie share participant")
 	charlieTerm2.Run(t,
 		"drand", "share",
+		"--tls-disable",
 		"--control", charlieCtlPort,
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
 	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
-	alphaTerm1.AwaitSuccess(t)
+	// wait for share processes to cleanly exit
+	alphaTerm2.AwaitSuccess(t)
+	bravoTerm2.AwaitSuccess(t)
+	charlieTerm2.AwaitSuccess(t)
+
+	// wait for beacon generation
+	alphaTerm1.AwaitOutput(t, "NEW_BEACON_STORED=\"{ round: 2")
+
+	// kill the daemon processes
+	alphaTerm1.Kill(t)
+	bravoTerm1.Kill(t)
+	charlieTerm1.Kill(t)
 }

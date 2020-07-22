@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/drand/drand/test/e2e/commander/io"
@@ -22,9 +21,9 @@ func NewTerminal(id string) *Terminal {
 	return &Terminal{id: id}
 }
 
-// Run runs the passed command in the terminal, it panics if another command is
-// already running.
-func (term *Terminal) Run(t *testing.T, name string, args ...string) {
+// Run executes the passed command in the terminal but it does not wait for it
+// to complete, it panics if another command is already running.
+func (term *Terminal) Run(name string, args ...string) error {
 	term.Lock()
 	defer term.Unlock()
 
@@ -37,7 +36,7 @@ func (term *Terminal) Run(t *testing.T, name string, args ...string) {
 		}
 	}
 	if running {
-		t.Fatal(fmt.Errorf("running command: another command is already running: \"%s\"", term.command.String()))
+		return fmt.Errorf("another command is already running: \"%s\"", term.command.String())
 	}
 	// redirect command stdout/err
 	stdout := io.NewMultiWriter(io.PrefixedWriter(term.id, os.Stdout))
@@ -46,29 +45,55 @@ func (term *Terminal) Run(t *testing.T, name string, args ...string) {
 
 	err := term.command.Run()
 	if err != nil {
-		t.Fatal(fmt.Errorf("running command: %w", err))
+		return fmt.Errorf("running command: %w", err)
 	}
+	return nil
 }
 
-// Cancel terminates the currently running command. If the current command is no
-// longer running this is a noop.
-func (term *Terminal) Cancel() {
+// Kill terminates the currently running command. It blocks until the command is
+// observed to exit and returns an error if it takes longer than 1 minute. If
+// the current command is no longer running this is a noop.
+func (term *Terminal) Kill() error {
+	return term.KillWithTimeout(DefaultTimeout)
+}
+
+// KillWithTimeout terminates the currently running command. It blocks until the
+// command is observed to exit and returns an error if it takes longer than the
+// passed timeout duration. If the current command is no longer running this is
+// a noop.
+func (term *Terminal) KillWithTimeout(timeout time.Duration) error {
 	term.Lock()
 	defer term.Unlock()
-	if term.command != nil {
-		term.command.Cancel()
+
+	if term.command == nil {
+		return nil
 	}
+
+	term.command.Cancel()
+	timer := time.NewTimer(timeout)
+	select {
+	case <-term.command.Done():
+		timer.Stop()
+	case <-timer.C:
+		return fmt.Errorf("timed out waiting for killed command to exit")
+	}
+
+	if term.command.Err() == nil || term.command.Err().Error() != "signal: killed" {
+		return fmt.Errorf("unexpected exit error: %w", term.command.Err())
+	}
+
+	return nil
 }
 
 // AwaitSuccess blocks until the current command completes without error for the
 // default timeout of 1 minute.
-func (term *Terminal) AwaitSuccess(t *testing.T) {
-	term.AwaitSuccessWithTimeout(t, time.Minute)
+func (term *Terminal) AwaitSuccess() error {
+	return term.AwaitSuccessWithTimeout(DefaultTimeout)
 }
 
 // AwaitSuccessWithTimeout blocks until the current command completes without
-// error for up to the passed amount of time - it then panics
-func (term *Terminal) AwaitSuccessWithTimeout(t *testing.T, timeout time.Duration) {
+// error for up to the passed amount of time, then it returns an error.
+func (term *Terminal) AwaitSuccessWithTimeout(timeout time.Duration) error {
 	term.Lock()
 	defer term.Unlock()
 
@@ -77,30 +102,32 @@ func (term *Terminal) AwaitSuccessWithTimeout(t *testing.T, timeout time.Duratio
 	case <-term.command.Done():
 		timer.Stop()
 	case <-timer.C:
-		t.Fatal(fmt.Errorf("timed out waiting for command to complete"))
+		return fmt.Errorf("timed out waiting for command to complete")
 	}
 
 	if term.command.Err() != nil {
-		t.Fatal(fmt.Errorf("command exited with error: %w", term.command.Err()))
+		return fmt.Errorf("command exited with error: %w", term.command.Err())
 	}
+
+	return nil
 }
 
 // AwaitOutput blocks until the current command stdout contains the passed
-// substr or it will panic if it takes longer than 1 minute.
-func (term *Terminal) AwaitOutput(t *testing.T, substr string) string {
-	return term.AwaitOutputWithTimeout(t, substr, time.Minute)
+// substr or it returns an error if it takes longer than 1 minute.
+func (term *Terminal) AwaitOutput(substr string) (string, error) {
+	return term.AwaitOutputWithTimeout(substr, DefaultTimeout)
 }
 
 // AwaitOutputWithTimeout blocks until the current command stdout contains the
-// passed substr or it will panic if the timeout is reached.
-func (term *Terminal) AwaitOutputWithTimeout(t *testing.T, substr string, timeout time.Duration) string {
+// passed substr or it returns an error if the timeout is reached.
+func (term *Terminal) AwaitOutputWithTimeout(substr string, timeout time.Duration) (string, error) {
 	term.Lock()
 	defer term.Unlock()
 
 	matcher := io.NewMatchingWriter(substr)
 	mw, ok := term.command.stdout.(*io.MultiWriter)
 	if !ok {
-		t.Fatal("stdout was not a MultiWriter")
+		return "", fmt.Errorf("stdout was not a MultiWriter")
 	}
 	mw.Add(matcher)
 	defer mw.Remove(matcher)
@@ -109,12 +136,11 @@ func (term *Terminal) AwaitOutputWithTimeout(t *testing.T, substr string, timeou
 	select {
 	case msg := <-matcher.C:
 		timer.Stop()
-		return msg
+		return msg, nil
 	case <-term.command.Done():
 		timer.Stop()
-		t.Fatal(fmt.Errorf("command completed without matching \"%s\"", substr))
+		return "", fmt.Errorf("command completed without matching \"%s\"", substr)
 	case <-timer.C:
-		t.Fatal(fmt.Errorf("timed out waiting for output matching \"%s\"", substr))
+		return "", fmt.Errorf("timed out waiting for output matching \"%s\"", substr)
 	}
-	return ""
 }
