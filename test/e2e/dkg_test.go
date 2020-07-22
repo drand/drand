@@ -133,6 +133,7 @@ func TestDKG(t *testing.T) {
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
+	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	charlieTerm2 := terminal.ForTesting("charlie share participant")
 	charlieTerm2.Run(t,
@@ -141,9 +142,7 @@ func TestDKG(t *testing.T) {
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
-
-	participantMgr := manager.ForTesting(bravoTerm2, charlieTerm2)
-	participantMgr.AwaitOutput(t, "Participating to the setup of the DKG")
+	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	// wait for share processes to cleanly exit
 	shareMgr := manager.ForTesting(alphaTerm2, bravoTerm2, charlieTerm2)
@@ -230,6 +229,7 @@ func TestDKGNoTLS(t *testing.T) {
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
+	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	charlieTerm2 := terminal.ForTesting("charlie share participant")
 	charlieTerm2.Run(t,
@@ -239,9 +239,7 @@ func TestDKGNoTLS(t *testing.T) {
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
-
-	participantMgr := manager.ForTesting(bravoTerm2, charlieTerm2)
-	participantMgr.AwaitOutput(t, "Participating to the setup of the DKG")
+	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	// wait for share processes to cleanly exit
 	shareMgr := manager.ForTesting(alphaTerm2, bravoTerm2, charlieTerm2)
