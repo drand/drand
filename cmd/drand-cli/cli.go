@@ -112,7 +112,7 @@ var roundFlag = &cli.IntFlag{
 
 var certsDirFlag = &cli.StringFlag{
 	Name:  "certs-dir",
-	Usage: "directory containing trusted certificates. Useful for testing and self signed certificates",
+	Usage: "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates",
 }
 
 var outFlag = &cli.StringFlag{

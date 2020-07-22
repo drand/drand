@@ -46,7 +46,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	d.log.Info("init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
 
 	// setup the manager
-	newSetup := func() (*setupManager, error) {
+	newSetup := func(d *Drand) (*setupManager, error) {
 		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), in.GetInfo())
 	}
 
@@ -69,14 +69,14 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	return finalGroup.ToProto(), nil
 }
 
-func (d *Drand) leaderRunSetup(newSetup func() (*setupManager, error)) (group *key.Group, err error) {
+func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (group *key.Group, err error) {
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
 		d.log.Info("reshare", "already_in_progress", "restart", "reshare", "old")
 		d.manager.StopPreemptively()
 	}
-	manager, err := newSetup()
+	manager, err := newSetup(d)
 	d.log.Info("reshare", "newmanager")
 	if err != nil {
 		d.state.Unlock()
@@ -508,7 +508,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 
 	d.log.Info("init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
 
-	newSetup := func() (*setupManager, error) {
+	newSetup := func(d *Drand) (*setupManager, error) {
 		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in)
 	}
 

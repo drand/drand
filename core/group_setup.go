@@ -136,11 +136,7 @@ type pushKey struct {
 	id   *key.Identity
 }
 
-// ReceivedKey takes a newly received identity and return two channels:
-// receiver.WaitGroup to receive the group once ready to send back to peer
-// receiver.DoneCh to notify the setup manager the group is sent. This last
-// channel is to make sure the group is sent to every registered participants
-// before notifying the leader to start the dkg.
+// ReceivedKey takes a newly received identity from a peer joining a DKG
 func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
@@ -260,6 +256,10 @@ func validInitPacket(in *drand.SetupInfoPacket) (n, thr int, dkg time.Duration, 
 	thr = int(in.GetThreshold())
 	if thr < key.MinimumT(n) {
 		err = fmt.Errorf("invalid thr: %d nodes, need thr %d got %d", n, thr, key.MinimumT(n))
+		return
+	}
+	if thr > n {
+		err = fmt.Errorf("invalid thr: %d nodes, can't have thr %d", n, thr)
 		return
 	}
 	dkg = time.Duration(in.GetTimeout()) * time.Second
