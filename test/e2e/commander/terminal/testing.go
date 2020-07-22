@@ -1,4 +1,4 @@
-package commander
+package terminal
 
 import (
 	"testing"
@@ -10,12 +10,11 @@ type TestingTerminal struct {
 	Terminal *Terminal
 }
 
-// NewTestingTerminal creates a new testing terminal session for running
+// ForTesting creates a new testing terminal session for running
 // commands. It makes testing easier by adding a *testing.T parameter to
 // methods so that the caller does not have to check for errors.
-func NewTestingTerminal(id string) *TestingTerminal {
-	term := Terminal{id: id}
-	return &TestingTerminal{Terminal: &term}
+func ForTesting(id string) *TestingTerminal {
+	return &TestingTerminal{Terminal: New(id)}
 }
 
 // Run executes the passed command in the terminal but it does not wait for it

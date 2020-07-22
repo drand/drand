@@ -1,4 +1,4 @@
-package commander
+package command
 
 import (
 	"context"
@@ -21,8 +21,8 @@ type Command struct {
 	cancel context.CancelFunc
 }
 
-// NewCommand creates a new command instance.
-func NewCommand(name string, args []string, stdout, stderr io.Writer) *Command {
+// New creates a new command instance.
+func New(name string, args []string, stdout, stderr io.Writer) *Command {
 	return &Command{
 		name:   name,
 		args:   args,
@@ -70,6 +70,16 @@ func (c *Command) Run() error {
 	}()
 
 	return nil
+}
+
+// Stdout returns the stdout writer for this command.
+func (c *Command) Stdout() io.Writer {
+	return c.stdout
+}
+
+// Stderr returns the stderr writer for this command.
+func (c *Command) Stderr() io.Writer {
+	return c.stderr
 }
 
 // Err returns the command exit error if there was one.

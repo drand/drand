@@ -7,7 +7,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/drand/drand/test/e2e/commander"
+	"github.com/drand/drand/test/e2e/commander/terminal"
+	"github.com/drand/drand/test/e2e/commander/terminal/manager"
 	"github.com/kabukky/httpscerts"
 )
 
@@ -58,26 +59,22 @@ func TestDKG(t *testing.T) {
 	bravoFolder := path.Join(bravoDir, ".drand")
 	charlieFolder := path.Join(charlieDir, ".drand")
 
-	alphaTerm0 := commander.NewTestingTerminal("alpha")
-	bravoTerm0 := commander.NewTestingTerminal("bravo")
-	charlieTerm0 := commander.NewTestingTerminal("charlie")
+	alphaTerm0 := terminal.ForTesting("alpha")
+	bravoTerm0 := terminal.ForTesting("bravo")
+	charlieTerm0 := terminal.ForTesting("charlie")
 
 	alphaTerm0.Run(t, "drand", "generate-keypair", "--folder", alphaFolder, host+":"+alphaPrivPort)
-	alphaTerm0.AwaitOutput(t, "Generated keys")
-	alphaTerm0.AwaitSuccess(t)
-
 	bravoTerm0.Run(t, "drand", "generate-keypair", "--folder", bravoFolder, host+":"+bravoPrivPort)
-	bravoTerm0.AwaitOutput(t, "Generated keys")
-	bravoTerm0.AwaitSuccess(t)
-
 	charlieTerm0.Run(t, "drand", "generate-keypair", "--folder", charlieFolder, host+":"+charliePrivPort)
-	charlieTerm0.AwaitOutput(t, "Generated keys")
-	charlieTerm0.AwaitSuccess(t)
+
+	keyMgr := manager.ForTesting(alphaTerm0, bravoTerm0, charlieTerm0)
+	keyMgr.AwaitOutput(t, "Generated keys")
+	keyMgr.AwaitSuccess(t)
 
 	generateCerts(t, alphaDir, bravoDir, charlieDir)
 	certsDir := trustedCertsDir(t, alphaDir, bravoDir, charlieDir)
 
-	alphaTerm1 := commander.NewTestingTerminal("alpha daemon")
+	alphaTerm1 := terminal.ForTesting("alpha daemon")
 	alphaTerm1.Run(t,
 		"drand", "start",
 		"--tls-cert", path.Join(alphaDir, certFilename),
@@ -88,9 +85,8 @@ func TestDKG(t *testing.T) {
 		"--control", alphaCtlPort,
 		"--public-listen", host+":"+alphaPubPort,
 	)
-	alphaTerm1.AwaitOutput(t, "expect to run DKG")
 
-	bravoTerm1 := commander.NewTestingTerminal("bravo daemon")
+	bravoTerm1 := terminal.ForTesting("bravo daemon")
 	bravoTerm1.Run(t,
 		"drand", "start",
 		"--tls-cert", path.Join(bravoDir, certFilename),
@@ -101,9 +97,8 @@ func TestDKG(t *testing.T) {
 		"--control", bravoCtlPort,
 		"--public-listen", host+":"+bravoPubPort,
 	)
-	bravoTerm1.AwaitOutput(t, "expect to run DKG")
 
-	charlieTerm1 := commander.NewTestingTerminal("charlie daemon")
+	charlieTerm1 := terminal.ForTesting("charlie daemon")
 	charlieTerm1.Run(t,
 		"drand", "start",
 		"--tls-cert", path.Join(charlieDir, certFilename),
@@ -114,9 +109,12 @@ func TestDKG(t *testing.T) {
 		"--control", charlieCtlPort,
 		"--public-listen", host+":"+charliePubPort,
 	)
-	charlieTerm1.AwaitOutput(t, "expect to run DKG")
 
-	alphaTerm2 := commander.NewTestingTerminal("alpha share leader")
+	daemonMgr := manager.ForTesting(alphaTerm1, bravoTerm1, charlieTerm1)
+	daemonMgr.AwaitOutput(t, "expect to run DKG")
+	defer daemonMgr.Kill(t)
+
+	alphaTerm2 := terminal.ForTesting("alpha share leader")
 	alphaTerm2.Run(t,
 		"drand", "share",
 		"--control", alphaCtlPort,
@@ -128,25 +126,31 @@ func TestDKG(t *testing.T) {
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
-	bravoTerm2 := commander.NewTestingTerminal("bravo share participant")
+	bravoTerm2 := terminal.ForTesting("bravo share participant")
 	bravoTerm2.Run(t,
 		"drand", "share",
 		"--control", bravoCtlPort,
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
-	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
-	charlieTerm2 := commander.NewTestingTerminal("charlie share participant")
+	charlieTerm2 := terminal.ForTesting("charlie share participant")
 	charlieTerm2.Run(t,
 		"drand", "share",
 		"--control", charlieCtlPort,
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
-	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
-	alphaTerm1.AwaitSuccess(t)
+	participantMgr := manager.ForTesting(bravoTerm2, charlieTerm2)
+	participantMgr.AwaitOutput(t, "Participating to the setup of the DKG")
+
+	// wait for share processes to cleanly exit
+	shareMgr := manager.ForTesting(alphaTerm2, bravoTerm2, charlieTerm2)
+	shareMgr.AwaitSuccess(t)
+
+	// wait for beacon generation
+	daemonMgr.AwaitOutput(t, "NEW_BEACON_STORED=\"{ round: 2")
 }
 
 func TestDKGNoTLS(t *testing.T) {
@@ -159,23 +163,19 @@ func TestDKGNoTLS(t *testing.T) {
 	bravoFolder := path.Join(bravoDir, ".drand")
 	charlieFolder := path.Join(charlieDir, ".drand")
 
-	alphaTerm0 := commander.NewTestingTerminal("alpha")
-	bravoTerm0 := commander.NewTestingTerminal("bravo")
-	charlieTerm0 := commander.NewTestingTerminal("charlie")
+	alphaTerm0 := terminal.ForTesting("alpha")
+	bravoTerm0 := terminal.ForTesting("bravo")
+	charlieTerm0 := terminal.ForTesting("charlie")
 
 	alphaTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", alphaFolder, host+":"+alphaPrivPort)
-	alphaTerm0.AwaitOutput(t, "Generated keys")
-	alphaTerm0.AwaitSuccess(t)
-
 	bravoTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", bravoFolder, host+":"+bravoPrivPort)
-	bravoTerm0.AwaitOutput(t, "Generated keys")
-	bravoTerm0.AwaitSuccess(t)
-
 	charlieTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", charlieFolder, host+":"+charliePrivPort)
-	charlieTerm0.AwaitOutput(t, "Generated keys")
-	charlieTerm0.AwaitSuccess(t)
 
-	alphaTerm1 := commander.NewTestingTerminal("alpha daemon")
+	keyMgr := manager.ForTesting(alphaTerm0, bravoTerm0, charlieTerm0)
+	keyMgr.AwaitOutput(t, "Generated keys")
+	keyMgr.AwaitSuccess(t)
+
+	alphaTerm1 := terminal.ForTesting("alpha daemon")
 	alphaTerm1.Run(t,
 		"drand", "start",
 		"--tls-disable",
@@ -184,9 +184,8 @@ func TestDKGNoTLS(t *testing.T) {
 		"--control", alphaCtlPort,
 		"--public-listen", host+":"+alphaPubPort,
 	)
-	alphaTerm1.AwaitOutput(t, "expect to run DKG")
 
-	bravoTerm1 := commander.NewTestingTerminal("bravo daemon")
+	bravoTerm1 := terminal.ForTesting("bravo daemon")
 	bravoTerm1.Run(t,
 		"drand", "start",
 		"--tls-disable",
@@ -195,9 +194,8 @@ func TestDKGNoTLS(t *testing.T) {
 		"--control", bravoCtlPort,
 		"--public-listen", host+":"+bravoPubPort,
 	)
-	bravoTerm1.AwaitOutput(t, "expect to run DKG")
 
-	charlieTerm1 := commander.NewTestingTerminal("charlie daemon")
+	charlieTerm1 := terminal.ForTesting("charlie daemon")
 	charlieTerm1.Run(t,
 		"drand", "start",
 		"--tls-disable",
@@ -206,9 +204,12 @@ func TestDKGNoTLS(t *testing.T) {
 		"--control", charlieCtlPort,
 		"--public-listen", host+":"+charliePubPort,
 	)
-	charlieTerm1.AwaitOutput(t, "expect to run DKG")
 
-	alphaTerm2 := commander.NewTestingTerminal("alpha share leader")
+	daemonMgr := manager.ForTesting(alphaTerm1, bravoTerm1, charlieTerm1)
+	daemonMgr.AwaitOutput(t, "expect to run DKG")
+	defer daemonMgr.Kill(t)
+
+	alphaTerm2 := terminal.ForTesting("alpha share leader")
 	alphaTerm2.Run(t,
 		"drand", "share",
 		"--tls-disable",
@@ -221,7 +222,7 @@ func TestDKGNoTLS(t *testing.T) {
 	)
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
-	bravoTerm2 := commander.NewTestingTerminal("bravo share participant")
+	bravoTerm2 := terminal.ForTesting("bravo share participant")
 	bravoTerm2.Run(t,
 		"drand", "share",
 		"--tls-disable",
@@ -229,9 +230,8 @@ func TestDKGNoTLS(t *testing.T) {
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
-	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
-	charlieTerm2 := commander.NewTestingTerminal("charlie share participant")
+	charlieTerm2 := terminal.ForTesting("charlie share participant")
 	charlieTerm2.Run(t,
 		"drand", "share",
 		"--tls-disable",
@@ -239,18 +239,15 @@ func TestDKGNoTLS(t *testing.T) {
 		"--connect", host+":"+alphaPrivPort,
 		"--secret", secret,
 	)
-	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
+
+	participantMgr := manager.ForTesting(bravoTerm2, charlieTerm2)
+	participantMgr.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	// wait for share processes to cleanly exit
-	alphaTerm2.AwaitSuccess(t)
-	bravoTerm2.AwaitSuccess(t)
-	charlieTerm2.AwaitSuccess(t)
+	shareMgr := manager.ForTesting(alphaTerm2, bravoTerm2, charlieTerm2)
+	shareMgr.AwaitOutput(t, "Hash of the group configuration")
+	shareMgr.AwaitSuccess(t)
 
 	// wait for beacon generation
-	alphaTerm1.AwaitOutput(t, "NEW_BEACON_STORED=\"{ round: 2")
-
-	// kill the daemon processes
-	alphaTerm1.Kill(t)
-	bravoTerm1.Kill(t)
-	charlieTerm1.Kill(t)
+	daemonMgr.AwaitOutput(t, "NEW_BEACON_STORED=\"{ round: 2")
 }
