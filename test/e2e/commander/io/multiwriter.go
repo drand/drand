@@ -51,8 +51,8 @@ func (mw *MultiWriter) Remove(w io.Writer) {
 	mw.Lock()
 	var writers []io.Writer
 	for _, ew := range mw.writers {
-		if w != ew {
-			writers = append(writers, w)
+		if ew != w {
+			writers = append(writers, ew)
 		}
 	}
 	mw.writers = writers

@@ -53,35 +53,8 @@ func (c *Command) Run() error {
 	cmd := exec.CommandContext(ctx, bin, c.args...)
 	fmt.Fprintf(c.stdout, "%s\n", c.String())
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	go func() {
-		buf := make([]byte, 512)
-		for {
-			n, err := stdout.Read(buf)
-			if err != nil {
-				return
-			}
-			c.stdout.Write(buf[0:n])
-		}
-	}()
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
-	go func() {
-		buf := make([]byte, 512)
-		for {
-			n, err := stderr.Read(buf)
-			if err != nil {
-				return
-			}
-			c.stderr.Write(buf[0:n])
-		}
-	}()
+	cmd.Stdout = c.stdout
+	cmd.Stderr = c.stderr
 
 	err = cmd.Start()
 	if err != nil {
