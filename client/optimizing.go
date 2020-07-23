@@ -393,12 +393,13 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 		retryInterval: oc.watchRetryInterval,
 	}
 
+	closingClients := make(chan Client, 1)
 	for _, c := range oc.passiveClients {
-		go state.watchNext(ctx, c, inChan, nil)
+		go state.watchNext(ctx, c, inChan, closingClients)
 		state.protected = append(state.protected, watchingClient{c, nil})
 	}
 
-	go state.dispatchWatchingClients(inChan)
+	go state.dispatchWatchingClients(inChan, closingClients)
 	go oc.trackWatchResults(info, inChan, outChan)
 	return outChan
 }
@@ -422,8 +423,7 @@ type watchState struct {
 	retryInterval time.Duration
 }
 
-func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult) {
-	closingClients := make(chan Client, 1)
+func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult, closingClients chan Client) {
 	defer close(resultChan)
 
 	// spin up initial watcher(s)
@@ -439,7 +439,7 @@ func (ws *watchState) dispatchWatchingClients(resultChan chan watchResult) {
 			if ws.ctx.Err() == nil {
 				ws.tryRepopulate(resultChan, closingClients)
 			}
-			if len(ws.active) == 0 {
+			if len(ws.active) == 0 && len(ws.protected) == 0 {
 				return
 			}
 		case <-ticker.C:
@@ -507,9 +507,17 @@ func (ws *watchState) close(clientIdx int) {
 
 func (ws *watchState) done(c Client) {
 	idx := ws.hasActive(c)
-	if idx > -1 {
+	if idx > -1 && idx < len(ws.active) {
 		ws.close(idx)
 		ws.failed = append(ws.failed, failedClient{c, time.Now().Add(ws.retryInterval)})
+	} else if idx == len(ws.active) {
+		for i, p := range ws.protected {
+			if p.Client == c {
+				ws.protected[i] = ws.protected[len(ws.protected)-1]
+				ws.protected = ws.protected[:len(ws.protected)-1]
+				return
+			}
+		}
 	}
 	// note: it's expected that the client may already not be active.
 	// this happens when the optimizing client has closed it via `closeSlowest`
