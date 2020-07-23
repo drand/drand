@@ -16,7 +16,7 @@ import (
 )
 
 // Pair is a wrapper around a random scalar  and the corresponding public
-// key in G2
+// key
 type Pair struct {
 	Key    kyber.Scalar
 	Public *Identity
@@ -84,8 +84,7 @@ func (p *Pair) SelfSign() {
 }
 
 // NewKeyPair returns a freshly created private / public key pair. The group is
-// decided by the group variable by default. Currently, drand only supports
-// bn256.
+// decided by the group variable by default.
 func NewKeyPair(address string) *Pair {
 	key := KeyGroup.Scalar().Pick(random.New())
 	pubKey := KeyGroup.Point().Mul(key, nil)

@@ -72,10 +72,10 @@ func NewLogger(level int) Logger {
 }
 
 // NewKitLoggerFrom returns a Logger out of a go-kit/kit/log logger interface. The
-// caller can set the options that it needs to the logger first. By default, it
-// wraps the logger with a SyncLogger so concurrent calls are synchronized.
+// caller can set the options that it needs to the logger first.
+// The underlying logger should already be synchronized.
 func NewKitLoggerFrom(l log.Logger) Logger {
-	return &kitLogger{log.NewSyncLogger(l)}
+	return &kitLogger{l}
 }
 
 // NewKitLogger returns a Logger based on go-kit/kit/log default logger
