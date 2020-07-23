@@ -17,9 +17,9 @@ func TestDKG(t *testing.T) {
 	bravoTerm0 := terminal.ForTesting("bravo")
 	charlieTerm0 := terminal.ForTesting("charlie")
 
-	alphaTerm0.Run(t, "drand", "generate-keypair", "--folder", alphaConf.folder, host+":"+alphaConf.ports.priv)
-	bravoTerm0.Run(t, "drand", "generate-keypair", "--folder", bravoConf.folder, host+":"+bravoConf.ports.priv)
-	charlieTerm0.Run(t, "drand", "generate-keypair", "--folder", charlieConf.folder, host+":"+charlieConf.ports.priv)
+	alphaTerm0.Run(t, "drand", generateKeypairArgs(alphaConf)...)
+	bravoTerm0.Run(t, "drand", generateKeypairArgs(bravoConf)...)
+	charlieTerm0.Run(t, "drand", generateKeypairArgs(charlieConf)...)
 
 	keyMgr := manager.ForTesting(alphaTerm0, bravoTerm0, charlieTerm0)
 	keyMgr.AwaitOutput(t, "Generated keys")
@@ -28,40 +28,13 @@ func TestDKG(t *testing.T) {
 	certsDir := trustedCertsDir(t, alphaConf.tls.certpath, bravoConf.tls.certpath, charlieConf.tls.certpath)
 
 	alphaTerm1 := terminal.ForTesting("alpha daemon")
-	alphaTerm1.Run(t,
-		"drand", "start",
-		"--tls-cert", alphaConf.tls.certpath,
-		"--tls-key", alphaConf.tls.keypath,
-		"--certs-dir", certsDir,
-		"--folder", alphaConf.folder,
-		"--private-listen", host+":"+alphaConf.ports.priv,
-		"--control", alphaConf.ports.ctl,
-		"--public-listen", host+":"+alphaConf.ports.pub,
-	)
+	alphaTerm1.Run(t, "drand", startWithTLSArgs(alphaConf, certsDir)...)
 
 	bravoTerm1 := terminal.ForTesting("bravo daemon")
-	bravoTerm1.Run(t,
-		"drand", "start",
-		"--tls-cert", bravoConf.tls.certpath,
-		"--tls-key", bravoConf.tls.keypath,
-		"--certs-dir", certsDir,
-		"--folder", bravoConf.folder,
-		"--private-listen", host+":"+bravoConf.ports.priv,
-		"--control", bravoConf.ports.ctl,
-		"--public-listen", host+":"+bravoConf.ports.pub,
-	)
+	bravoTerm1.Run(t, "drand", startWithTLSArgs(bravoConf, certsDir)...)
 
 	charlieTerm1 := terminal.ForTesting("charlie daemon")
-	charlieTerm1.Run(t,
-		"drand", "start",
-		"--tls-cert", charlieConf.tls.certpath,
-		"--tls-key", charlieConf.tls.keypath,
-		"--certs-dir", certsDir,
-		"--folder", charlieConf.folder,
-		"--private-listen", host+":"+charlieConf.ports.priv,
-		"--control", charlieConf.ports.ctl,
-		"--public-listen", host+":"+charlieConf.ports.pub,
-	)
+	charlieTerm1.Run(t, "drand", startWithTLSArgs(charlieConf, certsDir)...)
 
 	daemonMgr := manager.ForTesting(alphaTerm1, bravoTerm1, charlieTerm1)
 	daemonMgr.AwaitOutput(t, "expect to run DKG")
@@ -81,21 +54,11 @@ func TestDKG(t *testing.T) {
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
 	bravoTerm2 := terminal.ForTesting("bravo share participant")
-	bravoTerm2.Run(t,
-		"drand", "share",
-		"--control", bravoConf.ports.ctl,
-		"--connect", host+":"+alphaConf.ports.priv,
-		"--secret", secret,
-	)
+	bravoTerm2.Run(t, "drand", shareParticipantArgs(bravoConf, alphaConf, secret)...)
 	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	charlieTerm2 := terminal.ForTesting("charlie share participant")
-	charlieTerm2.Run(t,
-		"drand", "share",
-		"--control", charlieConf.ports.ctl,
-		"--connect", host+":"+alphaConf.ports.priv,
-		"--secret", secret,
-	)
+	charlieTerm2.Run(t, "drand", shareParticipantArgs(charlieConf, alphaConf, secret)...)
 	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	// wait for share processes to cleanly exit
@@ -115,9 +78,9 @@ func TestDKGNoTLS(t *testing.T) {
 	bravoTerm0 := terminal.ForTesting("bravo")
 	charlieTerm0 := terminal.ForTesting("charlie")
 
-	alphaTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", alphaConf.folder, host+":"+alphaConf.ports.priv)
-	bravoTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", bravoConf.folder, host+":"+bravoConf.ports.priv)
-	charlieTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", charlieConf.folder, host+":"+charlieConf.ports.priv)
+	alphaTerm0.Run(t, "drand", generateKeypairArgs(alphaConf)...)
+	bravoTerm0.Run(t, "drand", generateKeypairArgs(bravoConf)...)
+	charlieTerm0.Run(t, "drand", generateKeypairArgs(charlieConf)...)
 
 	keyMgr := manager.ForTesting(alphaTerm0, bravoTerm0, charlieTerm0)
 	keyMgr.AwaitOutput(t, "Generated keys")
@@ -212,9 +175,9 @@ func TestDKGWithStoppedLeaderShareCommand(t *testing.T) {
 	bravoTerm0 := terminal.ForTesting("bravo")
 	charlieTerm0 := terminal.ForTesting("charlie")
 
-	alphaTerm0.Run(t, "drand", "generate-keypair", "--folder", alphaConf.folder, host+":"+alphaConf.ports.priv)
-	bravoTerm0.Run(t, "drand", "generate-keypair", "--folder", bravoConf.folder, host+":"+bravoConf.ports.priv)
-	charlieTerm0.Run(t, "drand", "generate-keypair", "--folder", charlieConf.folder, host+":"+charlieConf.ports.priv)
+	alphaTerm0.Run(t, "drand", generateKeypairArgs(alphaConf)...)
+	bravoTerm0.Run(t, "drand", generateKeypairArgs(bravoConf)...)
+	charlieTerm0.Run(t, "drand", generateKeypairArgs(charlieConf)...)
 
 	keyMgr := manager.ForTesting(alphaTerm0, bravoTerm0, charlieTerm0)
 	keyMgr.AwaitOutput(t, "Generated keys")
@@ -223,40 +186,13 @@ func TestDKGWithStoppedLeaderShareCommand(t *testing.T) {
 	certsDir := trustedCertsDir(t, alphaConf.tls.certpath, bravoConf.tls.certpath, charlieConf.tls.certpath)
 
 	alphaTerm1 := terminal.ForTesting("alpha daemon")
-	alphaTerm1.Run(t,
-		"drand", "start",
-		"--tls-cert", alphaConf.tls.certpath,
-		"--tls-key", alphaConf.tls.keypath,
-		"--certs-dir", certsDir,
-		"--folder", alphaConf.folder,
-		"--private-listen", host+":"+alphaConf.ports.priv,
-		"--control", alphaConf.ports.ctl,
-		"--public-listen", host+":"+alphaConf.ports.pub,
-	)
+	alphaTerm1.Run(t, "drand", startWithTLSArgs(alphaConf, certsDir)...)
 
 	bravoTerm1 := terminal.ForTesting("bravo daemon")
-	bravoTerm1.Run(t,
-		"drand", "start",
-		"--tls-cert", bravoConf.tls.certpath,
-		"--tls-key", bravoConf.tls.keypath,
-		"--certs-dir", certsDir,
-		"--folder", bravoConf.folder,
-		"--private-listen", host+":"+bravoConf.ports.priv,
-		"--control", bravoConf.ports.ctl,
-		"--public-listen", host+":"+bravoConf.ports.pub,
-	)
+	bravoTerm1.Run(t, "drand", startWithTLSArgs(bravoConf, certsDir)...)
 
 	charlieTerm1 := terminal.ForTesting("charlie daemon")
-	charlieTerm1.Run(t,
-		"drand", "start",
-		"--tls-cert", charlieConf.tls.certpath,
-		"--tls-key", charlieConf.tls.keypath,
-		"--certs-dir", certsDir,
-		"--folder", charlieConf.folder,
-		"--private-listen", host+":"+charlieConf.ports.priv,
-		"--control", charlieConf.ports.ctl,
-		"--public-listen", host+":"+charlieConf.ports.pub,
-	)
+	charlieTerm1.Run(t, "drand", startWithTLSArgs(charlieConf, certsDir)...)
 
 	daemonMgr := manager.ForTesting(alphaTerm1, bravoTerm1, charlieTerm1)
 	daemonMgr.AwaitOutput(t, "expect to run DKG")
@@ -276,24 +212,14 @@ func TestDKGWithStoppedLeaderShareCommand(t *testing.T) {
 	alphaTerm2.AwaitOutput(t, "Initiating the DKG as a leader")
 
 	bravoTerm2 := terminal.ForTesting("bravo share participant")
-	bravoTerm2.Run(t,
-		"drand", "share",
-		"--control", bravoConf.ports.ctl,
-		"--connect", host+":"+alphaConf.ports.priv,
-		"--secret", secret,
-	)
+	bravoTerm2.Run(t, "drand", shareParticipantArgs(bravoConf, alphaConf, secret)...)
 	bravoTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	// kill the leader share command before all participants join
 	alphaTerm2.Kill(t)
 
 	charlieTerm2 := terminal.ForTesting("charlie share participant")
-	charlieTerm2.Run(t,
-		"drand", "share",
-		"--control", charlieConf.ports.ctl,
-		"--connect", host+":"+alphaConf.ports.priv,
-		"--secret", secret,
-	)
+	charlieTerm2.Run(t, "drand", shareParticipantArgs(charlieConf, alphaConf, secret)...)
 	charlieTerm2.AwaitOutput(t, "Participating to the setup of the DKG")
 
 	// wait for participant processes to cleanly exit
