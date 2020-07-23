@@ -38,20 +38,20 @@ drand: build
 
 # create the "drand-client" binary in the current folder
 client:
-	go build -o drand-client -mod=readonly -ldflags "-X github.com/drand/drand/cmd/client.version=`git describe --tags` -X github.com/drand/cmd/client.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/client.gitCommit=`git rev-parse HEAD`" ./cmd/client
+	go build -o drand-client -mod=readonly -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`" ./cmd/client
 drand-client: client
 
 # create the "drand-relay-http" binary in the current folder
 relay-http:
-	go build -o drand-relay-http -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay.version=`git describe --tags` -X github.com/drand/cmd/relay.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay.gitCommit=`git rev-parse HEAD`" ./cmd/relay
+	go build -o drand-relay-http -mod=readonly -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`" ./cmd/relay
 drand-relay-http: relay-http
 
 # create the "drand-relay-gossip" binary in the current folder
 relay-gossip:
-	go build -o drand-relay-gossip -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-gossip.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-gossip.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-gossip.gitCommit=`git rev-parse HEAD`" ./cmd/relay-gossip
+	go build -o drand-relay-gossip -mod=readonly -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`" ./cmd/relay-gossip
 drand-relay-gossip: relay-gossip
 
 # create the "drand-relay-s3" binary in the current folder
 relay-s3:
-	go build -o drand-relay-s3 -mod=readonly -ldflags "-X github.com/drand/drand/cmd/relay-s3.version=`git describe --tags` -X github.com/drand/drand/cmd/relay-s3.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/relay-s3.gitCommit=`git rev-parse HEAD`" ./cmd/relay-s3
+	go build -o drand-relay-s3 -mod=readonly -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`" ./cmd/relay-s3
 drand-relay-s3: relay-s3
