@@ -92,9 +92,17 @@ func (oc *optimizingClient) Start() {
 	}
 }
 
+// MarkPassive tags a client as 'passive' - a generalization of the libp2p style gossip client.
+// These clients will not participate in the speed test horse race, and willl be protected from
+// being stopped by the optimized watcher.
+func (oc *optimizingClient) MarkPassive(c Client) {
+	oc.passiveClients = append(oc.passiveClients, c)
+}
+
 type optimizingClient struct {
 	sync.RWMutex
 	clients            []Client
+	passiveClients     []Client
 	stats              []*requestStat
 	requestTimeout     time.Duration
 	requestConcurrency int
@@ -133,11 +141,27 @@ type requestResult struct {
 	stat *requestStat
 }
 
+// markedPassive checks if a client should be treated as passive
+func (oc *optimizingClient) markedPassive(c Client) bool {
+	for _, p := range oc.passiveClients {
+		if p == c {
+			return true
+		}
+	}
+	return false
+}
+
 func (oc *optimizingClient) testSpeed() {
 	for {
 		stats := []*requestStat{}
 		ctx, cancel := context.WithCancel(context.Background())
-		ch := parallelGet(ctx, oc.clients, 1, oc.requestTimeout, oc.requestConcurrency)
+		clients := make([]Client, 0, len(oc.clients))
+		for _, c := range oc.clients {
+			if !oc.markedPassive(c) {
+				clients = append(clients, c)
+			}
+		}
+		ch := parallelGet(ctx, clients, 1, oc.requestTimeout, oc.requestConcurrency)
 
 	LOOP:
 		for {
@@ -364,8 +388,14 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 		ctx:           ctx,
 		optimizer:     oc,
 		active:        make([]watchingClient, 0),
+		protected:     make([]watchingClient, 0),
 		failed:        make([]failedClient, 0),
 		retryInterval: oc.watchRetryInterval,
+	}
+
+	for _, c := range oc.passiveClients {
+		go state.watchNext(ctx, c, inChan, nil)
+		state.protected = append(state.protected, watchingClient{c, nil})
 	}
 
 	go state.dispatchWatchingClients(inChan)
@@ -387,6 +417,7 @@ type watchState struct {
 	ctx           context.Context
 	optimizer     *optimizingClient
 	active        []watchingClient
+	protected     []watchingClient
 	failed        []failedClient
 	retryInterval time.Duration
 }
@@ -446,7 +477,9 @@ func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) 
 }
 
 func (ws *watchState) watchNext(ctx context.Context, c Client, out chan watchResult, done chan Client) {
-	defer func() { done <- c }()
+	if done != nil {
+		defer func() { done <- c }()
+	}
 
 	resultStream := c.Watch(ctx)
 	for r := range resultStream {
@@ -488,6 +521,11 @@ func (ws *watchState) hasActive(c Client) int {
 			return i
 		}
 	}
+	for _, p := range ws.protected {
+		if p.Client == c {
+			return len(ws.active)
+		}
+	}
 	return -1
 }
 
@@ -498,7 +536,7 @@ func (ws *watchState) closeSlowest() {
 	order := ws.optimizer.fastestClients()
 	idxs := make([]int, 0)
 	for _, c := range order {
-		if i := ws.hasActive(c); i > -1 {
+		if i := ws.hasActive(c); i > -1 && i < len(ws.active) {
 			idxs = append(idxs, i)
 		}
 	}
@@ -516,6 +554,11 @@ CLIENT_LOOP:
 		}
 		for _, f := range ws.failed {
 			if c == f.Client {
+				continue CLIENT_LOOP
+			}
+		}
+		for _, p := range ws.protected {
+			if c == p.Client {
 				continue CLIENT_LOOP
 			}
 		}
