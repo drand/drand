@@ -56,6 +56,8 @@ func TestBroadcast(t *testing.T) {
 		b.Lock()
 		require.True(t, b.hashes.exists(deal.Hash()))
 		require.True(t, len(b.dealCh) == 1, "len of channel is %d", len(b.dealCh))
+		// drain the channel
+		<-b.dealCh
 		b.Unlock()
 	}
 
@@ -68,7 +70,14 @@ func TestBroadcast(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	broads[1].Lock()
 	// so here it shouldnt have the entry since we deleted it
-	require.False(t, broads[1].hashes.exists(deal.Hash()))
+	// make sure first that the channel is empty
+	require.Len(t, broads[1].dealCh, 0)
+	select {
+	case <-broads[1].dealCh:
+		require.False(t, true, "deal shouldn't be passed down to application")
+	case <-time.After(500 * time.Millisecond):
+		// all good
+	}
 	// put it again
 	broads[1].hashes.put(deal.Hash())
 	broads[1].Unlock()
@@ -86,7 +95,7 @@ func TestBroadcast(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 	for i, b := range broads {
-		require.Equal(t, drain(t, b.dealCh), n, "node %d failed", i)
+		require.Equal(t, drain(t, b.dealCh), n-1, "node %d failed", i)
 	}
 
 	// check that it dispatches to the correct channel
