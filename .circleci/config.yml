@@ -50,7 +50,7 @@ jobs:
       - checkout
       - run: go get -u github.com/ory/go-acc
       - run: go get -v -t -d ./...
-      - run: go-acc ./...
+      - run: go-acc $(go list ./... | grep -v /test/e2e)
       - run: bash <(curl -s https://codecov.io/bash)
   deploy:
     docker:
