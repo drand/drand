@@ -26,6 +26,8 @@ require (
 	github.com/ipfs/go-ds-badger2 v0.1.0
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
+	github.com/kurrik/oauth1a v0.0.0-20151019171716-cb1b80e32dd4
+	github.com/kurrik/twittergo v0.0.0-20190804010542-25ed642452e5
 	github.com/libp2p/go-libp2p v0.9.2
 	github.com/libp2p/go-libp2p-connmgr v0.2.3
 	github.com/libp2p/go-libp2p-core v0.5.6

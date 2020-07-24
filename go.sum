@@ -348,6 +348,10 @@ github.com/kr/pretty v0.2.0/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfn
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/kurrik/oauth1a v0.0.0-20151019171716-cb1b80e32dd4 h1:hGX8e8fDuWmCOQEneaHtuiqiy1NsBnZW2G6lxitngus=
+github.com/kurrik/oauth1a v0.0.0-20151019171716-cb1b80e32dd4/go.mod h1:8buhLMuecANgNgxrsQynWlNt03oXr1B/v2xbuRSrnEc=
+github.com/kurrik/twittergo v0.0.0-20190804010542-25ed642452e5 h1:2OHWQzMsoV/D14Mi+GPx5k82AGsNjymqK/dndop88c0=
+github.com/kurrik/twittergo v0.0.0-20190804010542-25ed642452e5/go.mod h1:8LXjN6yItBbjlBtxMRLCfWK46yaoqRignovBZnyTiQ4=
 github.com/libp2p/go-addr-util v0.0.1/go.mod h1:4ac6O7n9rIAKB1dnd+s8IbbMXkt+oBpzX4/+RACcnlQ=
 github.com/libp2p/go-addr-util v0.0.2 h1:7cWK5cdA5x72jX0g8iLrQWm5TRJZ6CzGdPEhWj7plWU=
 github.com/libp2p/go-addr-util v0.0.2/go.mod h1:Ecd6Fb3yIuLzq4bD7VcywcVSBtefcAwnUISBM3WG15E=
