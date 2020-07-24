@@ -42,7 +42,7 @@ var defaultLogger Logger
 
 var defaultLoggerSet sync.Once
 
-// SetDefaultLogger updates the default logger used throught derand to wrap a provided kit logger.
+// SetDefaultLogger updates the default logger to wrap a provided kit logger.
 func SetDefaultLogger(l log.Logger, level int) {
 	defaultLogger = NewLogger(l, level)
 }
