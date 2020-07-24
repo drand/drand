@@ -1,6 +1,7 @@
 package log
 
 import (
+	"io"
 	"os"
 	"sync"
 	"time"
@@ -41,8 +42,18 @@ var defaultLogger Logger
 
 var defaultLoggerSet sync.Once
 
+// SetDefaultLogger updates the default logger used throught derand to wrap a provided kit logger.
+func SetDefaultLogger(l log.Logger, level int) {
+	defaultLogger = NewLogger(l, level)
+}
+
+// LoggerTo provides a base logger to a specified output stream.
+func LoggerTo(out io.Writer) log.Logger {
+	return log.NewLogfmtLogger(log.NewSyncWriter(out))
+}
+
 func setDefaultLogger() {
-	defaultLogger = NewLogger(DefaultLevel)
+	SetDefaultLogger(nil, DefaultLevel)
 }
 
 // DefaultLogger is the default logger that only logs at the `DefaultLevel`.
@@ -56,7 +67,7 @@ type kitLogger struct {
 }
 
 // NewLogger returns a kit logger that prints statements at the given level.
-func NewLogger(level int) Logger {
+func NewLogger(l log.Logger, level int) Logger {
 	var opt lvl.Option
 	switch level {
 	case LogNone:
@@ -68,7 +79,7 @@ func NewLogger(level int) Logger {
 	default:
 		panic("unknown log level")
 	}
-	return NewKitLogger(opt)
+	return NewKitLogger(l, opt)
 }
 
 // NewKitLoggerFrom returns a Logger out of a go-kit/kit/log logger interface. The
@@ -79,10 +90,12 @@ func NewKitLoggerFrom(l log.Logger) Logger {
 }
 
 // NewKitLogger returns a Logger based on go-kit/kit/log default logger
-// structure that outputs to stdout. You can pass in options to only allow
+// structure that outputs to stderr. You can pass in options to only allow
 // certain levels. By default, it also includes the caller stack.
-func NewKitLogger(opts ...lvl.Option) Logger {
-	logger := log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+func NewKitLogger(logger log.Logger, opts ...lvl.Option) Logger {
+	if logger == nil {
+		logger = LoggerTo(os.Stdout)
+	}
 	for _, opt := range opts {
 		logger = lvl.NewFilter(logger, opt)
 	}

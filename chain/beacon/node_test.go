@@ -195,7 +195,7 @@ func (b *BeaconTest) CreateNode(i int) {
 		Clock:  node.clock,
 	}
 
-	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
+	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(nil, log.LogDebug))
 	checkErr(err)
 	if node.callback != nil {
 		node.handler.AddCallback(priv.Public.Address(), node.callback)
