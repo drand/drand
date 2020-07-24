@@ -78,9 +78,9 @@ func TestDKGNoTLS(t *testing.T) {
 	bravoTerm0 := terminal.ForTesting("bravo")
 	charlieTerm0 := terminal.ForTesting("charlie")
 
-	alphaTerm0.Run(t, "drand", generateKeypairArgs(alphaConf)...)
-	bravoTerm0.Run(t, "drand", generateKeypairArgs(bravoConf)...)
-	charlieTerm0.Run(t, "drand", generateKeypairArgs(charlieConf)...)
+	alphaTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", alphaConf.folder, host+":"+alphaConf.ports.priv)
+	bravoTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", bravoConf.folder, host+":"+bravoConf.ports.priv)
+	charlieTerm0.Run(t, "drand", "generate-keypair", "--tls-disable", "--folder", charlieConf.folder, host+":"+charlieConf.ports.priv)
 
 	keyMgr := manager.ForTesting(alphaTerm0, bravoTerm0, charlieTerm0)
 	keyMgr.AwaitOutput(t, "Generated keys")
