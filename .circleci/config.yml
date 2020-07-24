@@ -30,6 +30,14 @@ jobs:
       - run: make test-integration
       - store_test_results:
           path: /tmp/test-results
+  e2e:
+    working_directory: /go/src/github.com/drand/drand
+    docker:
+      - image: circleci/golang:latest
+    steps:
+      - checkout
+      - run: go get -v -t -d ./...
+      - run: make test-e2e
   coverage:
     working_directory: /go/src/github.com/drand/drand
     docker:
@@ -74,6 +82,7 @@ workflows:
   build-deploy:
     jobs:
       - build
+      - e2e
       - coverage
       - deploy:
           requires:

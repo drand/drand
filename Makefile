@@ -1,16 +1,19 @@
-.PHONY: test test-unit test-integration demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
+.PHONY: test test-unit test-integration test-e2e demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
 
-test: test-unit test-integration
+test: test-unit test-integration test-e2e
 
 test-unit:
-	GO111MODULE=on go test -race -v ./...
+	GO111MODULE=on go test -race -v $$(go list ./... | grep -v /demo | grep -v /test/e2e)
 
 test-unit-cover:
-	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $$(go list ./... | grep -v /demo | grep -v /test/e2e)
 
 test-integration:
 	go test -v ./demo
 	cd demo && go build && ./demo -build -test -debug
+
+test-e2e: install
+	go test -v ./test/e2e
 
 linter:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
