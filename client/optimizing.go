@@ -99,6 +99,8 @@ func (oc *optimizingClient) Start() {
 // MarkPassive tags a client as 'passive' - a generalization of the libp2p style gossip client.
 // These clients will not participate in the speed test horse race, and will be protected from
 // being stopped by the optimized watcher.
+// Note: if a client marked as passive closes its results channel from a `watch` call, the
+// optimizing client will not re-open it, as would be attempted with non-passive clients.
 // MarkPassive must tag clients as passive before `Start` is run.
 func (oc *optimizingClient) MarkPassive(c Client) {
 	oc.passiveClients = append(oc.passiveClients, c)
