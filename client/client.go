@@ -59,8 +59,9 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	}
 
 	// provision watcher client
+	var wc Client
 	if cfg.watcher != nil {
-		wc, err := makeWatcherClient(cfg, cache)
+		wc, err = makeWatcherClient(cfg, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -75,13 +76,36 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		verifiers = append(verifiers, newVerifyingClient(source, cfg.previousResult, cfg.fullVerify))
+		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		verifiers = append(verifiers, nv)
+		if source == wc {
+			wc = nv
+		}
 	}
+
+	c, err = makeOptimizingClient(cfg, verifiers, wc, cache)
+	if err != nil {
+		return nil, err
+	}
+
+	wa := newWatchAggregator(c, cfg.autoWatch, cfg.autoWatchRetry)
+	c = wa
+	trySetLog(c, cfg.log)
+
+	wa.Start()
+
+	return attachMetrics(cfg, c)
+}
+
+func makeOptimizingClient(cfg *clientConfig, verifiers []Client, watcher Client, cache Cache) (Client, error) {
 	oc, err := newOptimizingClient(verifiers, 0, 0, 0, 0)
 	if err != nil {
 		return nil, err
 	}
-	c = oc
+	if watcher != nil {
+		oc.MarkPassive(watcher)
+	}
+	c := Client(oc)
 	trySetLog(c, cfg.log)
 
 	if cfg.cacheSize > 0 {
@@ -97,14 +121,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	}
 
 	oc.Start()
-
-	wa := newWatchAggregator(c, cfg.autoWatch, cfg.autoWatchRetry)
-	c = wa
-	trySetLog(c, cfg.log)
-
-	wa.Start()
-
-	return attachMetrics(cfg, c)
+	return c, nil
 }
 
 func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
