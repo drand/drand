@@ -3,16 +3,19 @@
 Package client provides a drand client implementation that retrieves
 randomness by subscribing to a libp2p pubsub topic.
 
-WARNING: this client can only be used to `Watch` for new randomness rounds and
-`Get` randomness rounds it has previously seen that are still in the cache.
+WARNING: this client can only be used to "Watch" for new randomness rounds and
+"Get" randomness rounds it has previously seen that are still in the cache.
 
-If you need to `Get` arbitrary rounds from the chain then you must combine this client with the http or grpc clients.
+If you need to "Get" arbitrary rounds from the chain then you must combine this client with the http or grpc clients.
 
-The agnostic client builder must receive `WithChainInfo()` in order for it to validate randomness rounds it receives, or `WithChainHash()` and be combined with the http or grpc client implementations so that chain information can be fetched from them.
+The agnostic client builder must receive "WithChainInfo()" in order for it to
+validate randomness rounds it receives, or "WithChainHash()" and be combined
+with the http or grpc client implementations so that chain information can be
+fetched from them.
 
 It is particularly important that rounds are verified since they can be delivered by any peer in the network.
 
-Example using WithChainInfo():
+Example using "WithChainInfo()":
 
 	package main
 
@@ -41,7 +44,7 @@ Example using WithChainInfo():
 		// ...
 	}
 
-Example using WithChainHash and combining it with a different client:
+Example using "WithChainHash()" and combining it with a different client:
 
 	package main
 

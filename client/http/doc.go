@@ -35,7 +35,7 @@ The "ForURLs" helper creates multiple HTTP clients from a list of
 URLs. Alternatively you can use the "New" or "NewWithInfo" constructor to
 create clients.
 
-Tip: Provide multiple URLs to enable failover and speed optimised URL
+Tip: Provide multiple URLs to enable failover and speed optimized URL
 selection.
 */
 package http
