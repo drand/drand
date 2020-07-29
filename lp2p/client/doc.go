@@ -10,7 +10,7 @@ If you need to "Get" arbitrary rounds from the chain then you must combine this 
 
 The agnostic client builder must receive "WithChainInfo()" in order for it to
 validate randomness rounds it receives, or "WithChainHash()" and be combined
-with the http or grpc client implementations so that chain information can be
+with the HTTP or gRPC client implementations so that chain information can be
 fetched from them.
 
 It is particularly important that rounds are verified since they can be delivered by any peer in the network.
