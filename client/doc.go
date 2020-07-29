@@ -1,5 +1,5 @@
 /*
-Package client provides transport-agnostic logic to retreive and verify
+Package client provides transport-agnostic logic to retrieve and verify
 randomness from drand, including retry, validation, caching and
 optimization features.
 
