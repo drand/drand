@@ -352,7 +352,7 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag),
+				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag),
 				Action: checkConnection,
 			},
 			{
@@ -610,23 +610,40 @@ func checkConnection(c *cli.Context) error {
 	var allGood = true
 	var invalidIds []string
 	for _, address := range names {
-		peer := net.CreatePeer(address, !c.Bool(insecureFlag.Name))
-		client := net.NewGrpcClientFromCertManager(conf.Certs())
-		_, err := client.Home(context.Background(), peer, &drand.HomeRequest{})
+		err := checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name))
 		if err != nil {
 			if isVerbose {
-				fmt.Fprintf(output, "drand: error checking id %s: %s\n", peer.Address(), err)
+				fmt.Fprintf(output, "drand: error checking id %s: %s\n", address, err)
 			} else {
-				fmt.Fprintf(output, "drand: error checking id %s\n", peer.Address())
+				fmt.Fprintf(output, "drand: error checking id %s\n", address)
 			}
 			allGood = false
-			invalidIds = append(invalidIds, peer.Address())
+			invalidIds = append(invalidIds, address)
 			continue
 		}
-		fmt.Fprintf(output, "drand: id %s answers correctly\n", peer.Address())
+		fmt.Fprintf(output, "drand: id %s answers correctly\n", address)
 	}
 	if !allGood {
 		return fmt.Errorf("following nodes don't answer: %s", strings.Join(invalidIds, ","))
+	}
+	return nil
+}
+
+func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
+	peer := net.CreatePeer(addr, tls)
+	client := net.NewGrpcClientFromCertManager(conf.Certs())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	identity, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
+	if err != nil {
+		return err
+	}
+	id, err := key.IdentityFromProto(identity)
+	if err != nil {
+		return err
+	}
+	if id.Address() != addr {
+		return fmt.Errorf("mismatch of address: contact %s reply with %s", addr, id.Address())
 	}
 	return nil
 }

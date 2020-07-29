@@ -2,8 +2,10 @@ package drand
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	gnet "net"
 	"os"
 	"path"
@@ -159,6 +161,42 @@ func TestStartAndStop(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Fatal("drand daemon did not stop")
 	}
+}
+
+func TestUtilCheck(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "drand-cli-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+	// try to generate a keypair and make it listen on another address
+	keyPort := test.FreePort()
+	keyAddr := "127.0.0.1:" + keyPort
+	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, keyAddr}
+	require.NoError(t, CLI().Run(generate))
+
+	listenPort := test.FreePort()
+	listenAddr := "127.0.0.1:" + listenPort
+	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go CLI().RunContext(ctx, listen)
+	// XXX can we maybe try to bind continuously to not having to wait
+	time.Sleep(200 * time.Millisecond)
+
+	// run the check tool it should fail because key and address are not
+	// consistent
+	check := []string{"drand", "util", "check", "--tls-disable", listenAddr}
+	require.Error(t, CLI().Run(check))
+
+	// cancel the daemon and make it listen on the right address
+	cancel()
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
+	go CLI().RunContext(ctx, listen)
+	time.Sleep(200 * time.Millisecond)
+
+	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
+	require.NoError(t, CLI().Run(check))
 }
 
 func TestStartWithoutGroup(t *testing.T) {
