@@ -36,6 +36,11 @@ var roundFlag = &cli.IntFlag{
 	Usage: "request randomness for a specific round",
 }
 
+var verboseFlag = &cli.BoolFlag{
+	Name:  "verbose",
+	Usage: "print debug-level log messages",
+}
+
 // client metric flags
 
 var clientMetricsAddressFlag = &cli.StringFlag{
@@ -68,7 +73,7 @@ func main() {
 	app.Flags = append(app.Flags,
 		watchFlag, roundFlag,
 		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
-		clientMetricsPushIntervalFlag)
+		clientMetricsPushIntervalFlag, verboseFlag)
 	app.Action = Client
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand client %v (date %v, commit %v)\n", version, buildDate, gitCommit)
@@ -82,6 +87,14 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
+	// configure logging
+	_ = log.DefaultLogger()
+	if c.Bool(verboseFlag.Name) {
+		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogDebug)
+	} else {
+		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogInfo)
+	}
+
 	opts := []client.Option{}
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
