@@ -6,7 +6,7 @@ This document describes the process for a public drand release.
 
 * A release is initiated by creating a protected release branch 'release-va.b' marking the major/minor release.
 * Before beginning a release branch, check that dependencies have been pulled up to date:
-```go list -u -m -mod=readonly -json all | go-mod-outdated -update -direct -style=markdown```
+`go list -u -m -mod=readonly -json all | go-mod-outdated -update -direct -style=markdown`
 * In preparation for a release, the maintainer should look at the commit log to create a change log summarizing changes, with explicit notes of:
   * wire protocol changes that will impact group or node-client interactions.
   * protocol changes that will impact setup or resharing.
