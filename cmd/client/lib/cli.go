@@ -76,7 +76,7 @@ var (
 	// connecting to relays. (specified as a numeric port, or a host:port)
 	PortFlag = &cli.StringFlag{
 		Name:  "port",
-		Usage: "Local (host:)port for client to bind to, when connecting to relays",
+		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
 )
 

@@ -59,7 +59,7 @@ The need for digital randomness is paramount in multiple digital applications
 randomness, blockchain systems etc) as well in non-digital such as statistical
 sampling (used for example to check results of an election), assigning court
 cases to random judges, random financial audits, etc.  However, constructing a
-secure source of randomness is nothing but easy: there are countless examples
+secure source of randomness is anything but easy: there are countless examples
 of attacks where the randomness generation was the culprit (static keys,
 non-uniform distribution, biased output, etc).  drand aims to fix that gap by
 providing a Randomness-as-a-Service network (similar to NTP servers for time,
