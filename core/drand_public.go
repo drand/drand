@@ -42,9 +42,9 @@ func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) 
 		d.state.Unlock()
 		return nil, errors.New("drand: beacon not setup yet")
 	}
-	beacon := d.beacon
+	inst := d.beacon
 	d.state.Unlock()
-	return beacon.ProcessPartialBeacon(c, in)
+	return inst.ProcessPartialBeacon(c, in)
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
