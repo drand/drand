@@ -38,11 +38,13 @@ func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Emp
 // with the partial signature from this drand node.
 func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
-	defer d.state.Unlock()
 	if d.beacon == nil {
+		d.state.Unlock()
 		return nil, errors.New("drand: beacon not setup yet")
 	}
-	return d.beacon.ProcessPartialBeacon(c, in)
+	inst := d.beacon
+	d.state.Unlock()
+	return inst.ProcessPartialBeacon(c, in)
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
