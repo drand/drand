@@ -109,7 +109,7 @@ phases:
   and their respective private key shares. Once any node (or third-party
   observer) has gathered t partial signatures, it can reconstruct the full BLS
   signature (using Lagrange interpolation). The signature is then hashed using
-  SHA-512 to ensure that there is no bias in the byte representation of the
+  SHA-256 to ensure that there is no bias in the byte representation of the
   final output. This hash corresponds to the collective random value and can be
   verified against the collective public key.
 
