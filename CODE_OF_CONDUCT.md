@@ -5,7 +5,7 @@ We believe that our mission is best served in an environment that is friendly, s
 ## tl;dr
 
 - Be respectful.
-- We're here to help: abuse@drand.love
+- We're here to help: abuse@ipfs.io
 - Abusive behavior is never tolerated.
 - Violations of this code may result in swift and permanent expulsion from the community.
 - "Too long, didn't read" is not a valid excuse for not knowing what is in this document.
@@ -68,9 +68,7 @@ On IRC, let one of the ops know if you think that someone has transgressed again
 
 ## Contact Info
 
-Please contact abuse@drand.love if you need to report a problem or address a grievance related to an abuse report.
-
-We will keep all matters confidential and they will only be shared within the team, with the exception of legal counsel when deemed necessary, or unless given explicit permission by the reporter.
+As the drand community itself remains small, we have asked the [IPFS abuse team](https://github.com/ipfs/community/blob/master/code-of-conduct.md#contact-info) to act as a neutral arbiter and point of contact for Code of Conduct and abuse issues within Drand.
 
 You are also encouraged to contact us if you are curious about something that might be "on the line" between appropriate and inappropriate content. We are happy to provide guidance to help you be a successful part of our community.
 
