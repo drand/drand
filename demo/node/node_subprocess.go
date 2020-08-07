@@ -173,7 +173,6 @@ func (n *NodeProc) Index() int {
 func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
 	args := []string{"share", "--control", n.ctrl}
 	args = append(args, pair("--out", n.groupPath)...)
-	args = append(args, pair("--secret", secretDKG)...)
 	if leader {
 		args = append(args, "--leader")
 		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
@@ -191,6 +190,7 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, n.binary, args...)
+	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretDKG)
 	out := runCommand(cmd)
 	fmt.Println(n.priv.Public.Address(), "FINISHED DKG", string(out))
 	group := new(key.Group)
@@ -213,7 +213,6 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 	args := []string{"share"}
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
-	args = append(args, pair("--secret", secretReshare)...)
 	if oldGroup != "" {
 		// only append if we are a new node
 		args = append(args, pair("--from", oldGroup)...)
@@ -235,6 +234,7 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 		}
 	}
 	cmd := exec.Command(n.binary, args...)
+	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretReshare)
 	runCommand(cmd, fmt.Sprintf("drand node %s", n.privAddr))
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
