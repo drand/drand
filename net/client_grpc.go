@@ -50,7 +50,6 @@ func NewGrpcClient(opts ...grpc.DialOption) Client {
 // store of certificates.
 func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) Client {
 	client := NewGrpcClient(opts...).(*grpcClient)
-	client.loadEnvironment()
 	client.manager = c
 	return client
 }
@@ -59,7 +58,6 @@ func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) Clien
 // method calls.
 func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Client {
 	c := NewGrpcClient(opts...).(*grpcClient)
-	c.loadEnvironment()
 	c.timeout = timeout
 	return c
 }
@@ -68,7 +66,7 @@ func (g *grpcClient) loadEnvironment() {
 	opt := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
 		return proxy.Dial(ctx, "tcp", addr)
 	})
-	g.opts = append(g.opts, opt)
+	g.opts = append([]grpc.DialOption{opt}, g.opts...)
 }
 
 func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
