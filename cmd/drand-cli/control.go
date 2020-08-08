@@ -3,6 +3,7 @@ package drand
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -31,12 +32,30 @@ type shareArgs struct {
 	conf      *core.Config
 }
 
+func (s *shareArgs) loadSecret(c *cli.Context) error {
+	secret := os.Getenv("DRAND_SHARE_SECRET")
+	if c.IsSet(secretFlag.Name) {
+		bytes, err := ioutil.ReadFile(c.String(secretFlag.Name))
+		if err != nil {
+			return err
+		}
+		secret = string(bytes)
+	}
+	if secret == "" {
+		return fmt.Errorf("no secret specified for share")
+	}
+	if len(secret) < minimumShareSecretLength {
+		return fmt.Errorf("secret is insecure. Should be at least %d characters", minimumShareSecretLength)
+	}
+	s.secret = secret
+	return nil
+}
+
 func getShareArgs(c *cli.Context) (*shareArgs, error) {
 	var err error
 	args := new(shareArgs)
-	args.secret = c.String(secretFlag.Name)
-	if len(args.secret) < minimumShareSecretLength {
-		return nil, fmt.Errorf("secret is insecure. Should be at least %d characters", minimumShareSecretLength)
+	if err := args.loadSecret(c); err != nil {
+		return nil, err
 	}
 
 	args.isTLS = !c.IsSet(insecureFlag.Name)
