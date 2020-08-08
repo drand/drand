@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/weaveworks/common/httpgrpc"
 	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
+	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -35,11 +37,13 @@ var defaultTimeout = 1 * time.Minute
 // NewGrpcClient returns an implementation of an InternalClient  and
 // ExternalClient using gRPC connections
 func NewGrpcClient(opts ...grpc.DialOption) Client {
-	return &grpcClient{
+	client := grpcClient{
 		opts:    opts,
 		conns:   make(map[string]*grpc.ClientConn),
 		timeout: defaultTimeout,
 	}
+	client.loadEnvironment()
+	return &client
 }
 
 // NewGrpcClientFromCertManager returns a Client using gRPC with the given trust
@@ -56,6 +60,13 @@ func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Cl
 	c := NewGrpcClient(opts...).(*grpcClient)
 	c.timeout = timeout
 	return c
+}
+
+func (g *grpcClient) loadEnvironment() {
+	opt := grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+		return proxy.Dial(ctx, "tcp", addr)
+	})
+	g.opts = append([]grpc.DialOption{opt}, g.opts...)
 }
 
 func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, context.CancelFunc) {
