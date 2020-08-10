@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/drand/drand/client/test/result/mock"
@@ -82,7 +83,7 @@ func TestCacheWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	cache, _ := NewCachingClient(m, arcCache)
-	c := newWatchAggregator(cache, false)
+	c := newWatchAggregator(cache, false, 0)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)
@@ -99,4 +100,33 @@ func TestCacheWatch(t *testing.T) {
 	if len(m.Results) != 4 {
 		t.Fatalf("getting should be served by cache.")
 	}
+}
+
+func TestCacheClose(t *testing.T) {
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	c := &MockClient{
+		WatchCh: make(chan Result),
+		CloseF: func() error {
+			wg.Done()
+			return nil
+		},
+	}
+
+	cache, err := makeCache(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca, err := NewCachingClient(c, cache)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ca.Close() // should close the underlying client
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wg.Wait() // wait for underlying client to close
 }

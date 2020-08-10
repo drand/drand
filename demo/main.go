@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/drand/drand/demo/lib"
 )
 
 func installDrand() {
@@ -28,15 +31,6 @@ var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
 var noCurl = flag.Bool("nocurl", false, "skip commands using curl")
 var debug = flag.Bool("debug", false, "prints the log when panic occurs")
 
-// 10s after dkg finishes, (new or reshared) beacon starts
-var beaconOffset = 12
-
-// how much should we wait before checking if the randomness is present. This is
-// mostly due to the fact we run on localhost on cheap machine with CI so we
-// need some delays to make sure *all* nodes that we check have gathered the
-// randomness.
-var afterPeriodWait = 5 * time.Second
-
 func main() {
 	flag.Parse()
 	if *build {
@@ -50,7 +44,7 @@ func main() {
 	thr := 4
 	period := "10s"
 	newThr := 5
-	orch := NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
+	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
@@ -101,13 +95,13 @@ func main() {
 
 	// stop only more than a threshold of the network, wait a bit and see if it
 	// can restart at the right round correctly
-	nodesToStop := []int{1, 2}
-	fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
-	orch.StopNodes(nodesToStop...)
-	orch.WaitPeriod()
-	orch.WaitPeriod()
-	fmt.Printf("[+] Trying to start them again and check beacons\n")
-	orch.StartNode(nodesToStop...)
+	/*nodesToStop := []int{1, 2}*/
+	//fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
+	//orch.StopNodes(nodesToStop...)
+	//orch.WaitPeriod()
+	//orch.WaitPeriod()
+	//fmt.Printf("[+] Trying to start them again and check beacons\n")
+	//orch.StartNode(nodesToStop...)
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
 	orch.WaitPeriod()
@@ -121,7 +115,7 @@ func main() {
 	orch.StartNewNodes()
 	// exclude first node
 	orch.CreateResharingGroup(1, newThr)
-	orch.RunResharing("2s")
+	orch.RunResharing("4s")
 	orch.WaitTransition()
 	limit := 10000
 	if *testF {
@@ -142,7 +136,7 @@ func findTransitionTime(period time.Duration, genesis int64, secondsFromNow int6
 	return transition
 }
 
-func setSignal(orch *Orchestrator) {
+func setSignal(orch *lib.Orchestrator) {
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGHUP,
@@ -155,4 +149,26 @@ func setSignal(orch *Orchestrator) {
 		orch.PrintLogs()
 		orch.Shutdown()
 	}()
+}
+
+func runCommand(c *exec.Cmd, add ...string) []byte {
+	out, err := c.CombinedOutput()
+	if err != nil {
+		if len(add) > 0 {
+			fmt.Printf("[-] Msg failed command: %s\n", add[0])
+		}
+		fmt.Printf("[-] Command \"%s\" gave\n%s\n", strings.Join(c.Args, " "), string(out))
+		panic(err)
+	}
+	return out
+}
+
+func checkErr(err error, out ...string) {
+	if err != nil {
+		if len(out) > 0 {
+			panic(fmt.Errorf("%s: %v", out[0], err))
+		} else {
+			panic(err)
+		}
+	}
 }

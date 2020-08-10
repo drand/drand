@@ -1,0 +1,53 @@
+# Regenerates generated files and ensures PRs commit generated updates
+name: Generate
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      id: generate-dep-cache
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+    - name: Fetch Dependencies
+      run: go get ./...
+    -
+      name: Install Protoc
+      uses: arduino/setup-protoc@v1.1.0
+      with:
+        version: '3.12.3'
+    -
+      name: Install Protoc-gen-go
+      run: |
+        go get github.com/golang/protobuf/protoc-gen-go@v1.4.2
+        go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v0.0.0-20200617041141-9a465503579e
+    - name: Generate
+      run: go generate ./...&& go mod tidy
+    - name: Check
+      # git status --porcelain shows changed files.
+      # the echoed output provides github action output format, per
+      # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjobs_idoutputs
+      run: |
+        if [[ -z "$(git status --porcelain)" ]];
+        then
+          exit 0
+        else
+          OUTPUT=$(git status --porcelain)
+          for file in $OUTPUT
+          do
+            f=$(echo $file | sed -e 's/^.* //')
+            echo "::error file=$f,line=1,col=1::File not in sync with `go generate`"
+          done
+          OUTPUT="${OUTPUT//'%'/'%25'}"
+          OUTPUT="${OUTPUT//$'\n'/'%0A'}"
+          OUTPUT="${OUTPUT//$'\r'/'%0D'}"
+          echo "::set-output name=result::$OUTPUT"
+          exit 1
+        fi

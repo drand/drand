@@ -74,8 +74,9 @@ func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request
 }
 
 type handler struct {
-	timeout     time.Duration
-	client      client.Client
+	timeout time.Duration
+	client  client.Client
+	// NOTE: should only be accessed via getChainInfo
 	chainInfo   *chain.Info
 	chainInfoLk sync.RWMutex
 	log         log.Logger
@@ -93,12 +94,20 @@ func (h *handler) start() {
 	h.pendingLk.Lock()
 	defer h.pendingLk.Unlock()
 	h.pending = make([]chan []byte, 0)
-	go h.Watch(h.context)
+	ready := make(chan bool)
+	go h.Watch(h.context, ready)
+	<-ready
 }
 
-func (h *handler) Watch(ctx context.Context) {
+func (h *handler) Watch(ctx context.Context, ready chan bool) {
 RESET:
 	stream := h.client.Watch(context.Background())
+
+	// signal that the watch is ready
+	select {
+	case ready <- true:
+	default:
+	}
 
 	for {
 		next, ok := <-stream
@@ -141,8 +150,9 @@ RESET:
 func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 	h.chainInfoLk.RLock()
 	if h.chainInfo != nil {
+		info := h.chainInfo
 		h.chainInfoLk.RUnlock()
-		return h.chainInfo
+		return info
 	}
 	h.chainInfoLk.RUnlock()
 
@@ -167,7 +177,7 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 	return info
 }
 
-func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
+func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) ([]byte, error) {
 	h.startOnce.Do(h.start)
 	// First see if we should get on the synchronized 'wait for next release' bandwagon.
 	block := false
@@ -204,7 +214,7 @@ func (h *handler) getRand(ctx context.Context, round uint64) ([]byte, error) {
 	}
 
 	// make sure we aren't going to ask for a round that doesn't exist yet.
-	if time.Unix(chain.TimeOfRound(h.chainInfo.Period, h.chainInfo.GenesisTime, round), 0).After(time.Now()) {
+	if time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, round), 0).After(time.Now()) {
 		return nil, nil
 	}
 
@@ -245,7 +255,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.getRand(r.Context(), roundN)
+	data, err := h.getRand(r.Context(), info, roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)

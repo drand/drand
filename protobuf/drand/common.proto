@@ -5,8 +5,8 @@ syntax = "proto3";
 
 package drand;
 
-/*option go_package = "github.com/drand/drand/protobuf/drand";*/
-option go_package = "drand";
+option go_package = "github.com/drand/drand/protobuf/drand";
+/*option go_package = "drand";*/
 
 message Empty {
 
@@ -38,6 +38,8 @@ message GroupPacket {
     uint64 transition_time = 5;
     bytes genesis_seed = 6;
     repeated bytes dist_key = 7;
+    // catchup_period in seconds
+    uint32 catchup_period = 8;
 }
 message GroupRequest {
 
@@ -56,4 +58,6 @@ message ChainInfoPacket {
     // hash is included for ease of use - not needing to have a drand client to
     // compute its hash
     bytes hash = 4;
+    // hash of the genesis group
+    bytes groupHash = 5;
 }

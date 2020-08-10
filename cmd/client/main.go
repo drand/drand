@@ -18,7 +18,8 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags` -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.version=`git describe --tags`
+//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
 	version   = "master"
 	gitCommit = "none"
@@ -33,6 +34,11 @@ var watchFlag = &cli.BoolFlag{
 var roundFlag = &cli.IntFlag{
 	Name:  "round",
 	Usage: "request randomness for a specific round",
+}
+
+var verboseFlag = &cli.BoolFlag{
+	Name:  "verbose",
+	Usage: "print debug-level log messages",
 }
 
 // client metric flags
@@ -63,10 +69,11 @@ func main() {
 	app.Name = "drand-client"
 	app.Version = version
 	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
-	app.Flags = append(lib.ClientFlags,
+	app.Flags = lib.ClientFlags
+	app.Flags = append(app.Flags,
 		watchFlag, roundFlag,
 		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
-		clientMetricsPushIntervalFlag)
+		clientMetricsPushIntervalFlag, verboseFlag)
 	app.Action = Client
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand client %v (date %v, commit %v)\n", version, buildDate, gitCommit)
@@ -80,6 +87,14 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
+	// configure logging
+	_ = log.DefaultLogger()
+	if c.Bool(verboseFlag.Name) {
+		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogDebug)
+	} else {
+		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogInfo)
+	}
+
 	opts := []client.Option{}
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
@@ -97,20 +112,20 @@ func Client(c *cli.Context) error {
 		opts = append(opts, bridgeWithID)
 	}
 
-	client, err := lib.Create(c, c.IsSet(clientMetricsIDFlag.Name), opts...)
+	apiClient, err := lib.Create(c, c.IsSet(clientMetricsIDFlag.Name), opts...)
 	if err != nil {
 		return err
 	}
 
 	if c.IsSet(watchFlag.Name) {
-		return Watch(c, client)
+		return Watch(apiClient)
 	}
 
 	round := uint64(0)
 	if c.IsSet(roundFlag.Name) {
 		round = uint64(c.Int(roundFlag.Name))
 	}
-	rand, err := client.Get(context.Background(), round)
+	rand, err := apiClient.Get(context.Background(), round)
 	if err != nil {
 		return err
 	}
@@ -119,15 +134,15 @@ func Client(c *cli.Context) error {
 }
 
 // Watch streams randomness from a client
-func Watch(c *cli.Context, client client.Client) error {
-	results := client.Watch(context.Background())
+func Watch(inst client.Watcher) error {
+	results := inst.Watch(context.Background())
 	for r := range results {
 		fmt.Printf("%d\t%x\n", r.Round(), r.Randomness())
 	}
 	return nil
 }
 
-func newPrometheusBridge(address string, gateway string, pushIntervalSec int64) prometheus.Registerer {
+func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometheus.Registerer {
 	b := &prometheusBridge{
 		address:         address,
 		pushIntervalSec: pushIntervalSec,

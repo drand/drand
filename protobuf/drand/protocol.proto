@@ -7,8 +7,8 @@ syntax = "proto3";
 
 package drand;
 
-/*option go_package = "github.com/drand/drand/protobuf/drand";*/
-option go_package = "drand";
+option go_package = "github.com/drand/drand/protobuf/drand";
+/*option go_package = "drand";*/
 
 import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
@@ -24,12 +24,11 @@ service Protocol {
     // from all received keys and as well other information such as the time of
     // starting the DKG.
     rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
-    // Setup is doing the DKG setup phase
-    rpc FreshDKG(DKGPacket) returns (drand.Empty);
-    // Reshare performs the resharing phase
-    rpc ReshareDKG(ResharePacket) returns (drand.Empty);
+    // BroadcastPacket is used during DKG phases
+    rpc BroadcastDKG(DKGPacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
+    // SyncRequest forces a daemon to sync up its chain with other nodes
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 }
 
@@ -72,17 +71,10 @@ message PartialBeaconPacket {
     bytes partial_sig = 3;
 }
 
-message DKGPacket {
+// DKGPacket is the packet that nodes send to others nodes as part of the
+// broadcasting protocol.
+message DKGPacket{
     dkg.Packet dkg = 1;
-}
-
-// Reshare is a wrapper around a Setup packet for resharing operation that
-// serves two purposes: - indicate to non-leader old nodes that they should
-// generate and send their deals - indicate to which new group are we resharing.
-// drand should keep a list of new ready-to-operate groups allowed.
-message ResharePacket {
-    dkg.Packet dkg = 1;
-    string group_hash = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the

@@ -17,6 +17,7 @@ import (
 type PrivateGateway struct {
 	Listener
 	ProtocolClient
+	PublicClient
 }
 
 // StartAll starts the control and public functionalities of the node
@@ -28,9 +29,6 @@ func (g *PrivateGateway) StartAll() {
 func (g *PrivateGateway) StopAll(ctx context.Context) {
 	g.Listener.Stop(ctx)
 }
-
-// CallOption is simply a wrapper around the grpc options
-type CallOption = grpc.CallOption
 
 // Listener is the active listener for incoming requests.
 type Listener interface {
@@ -46,31 +44,31 @@ type Service interface {
 	drand.ProtocolServer
 }
 
-// NewGRPCPrivateGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
+// NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewGRPCPrivateGatewayWithoutTLS(ctx context.Context, listen string, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
-	l, err := NewGRPCListenerForPrivate(ctx, listen, s)
+func NewGRPCPrivateGateway(ctx context.Context,
+	listen, certPath, keyPath string,
+	certs *CertManager,
+	s Service,
+	insecure bool,
+	opts ...grpc.DialOption) (*PrivateGateway, error) {
+	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, insecure, grpc.ConnectionTimeout(time.Second))
 	if err != nil {
 		return nil, err
 	}
-	return &PrivateGateway{
-		ProtocolClient: NewGrpcClient(opts...),
-		Listener:       l,
-	}, nil
-}
-
-// NewGRPCPrivateGatewayWithTLS returns a grpc gateway using the TLS
-// certificate manager
-func NewGRPCPrivateGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, s Service, opts ...grpc.DialOption) (*PrivateGateway, error) {
-	l, err := NewGRPCListenerForPrivateWithTLS(ctx, listen, certPath, keyPath, s, grpc.ConnectionTimeout(500*time.Millisecond))
-	if err != nil {
-		return nil, err
+	pg := &PrivateGateway{
+		Listener: l,
 	}
-	return &PrivateGateway{
-		ProtocolClient: NewGrpcClientFromCertManager(certs, opts...),
-		Listener:       l,
-	}, nil
+	if !insecure {
+		pg.ProtocolClient = NewGrpcClientFromCertManager(certs, opts...)
+	} else {
+		pg.ProtocolClient = NewGrpcClient(opts...)
+	}
+	// duplication since client implements both...
+	// XXX Find a better fix
+	pg.PublicClient = pg.ProtocolClient.(*grpcClient)
+	return pg, nil
 }
 
 // PublicGateway is the main interface to communicate to users.
@@ -89,21 +87,16 @@ func (g *PublicGateway) StopAll(ctx context.Context) {
 	g.Listener.Stop(ctx)
 }
 
-// NewRESTPublicGatewayWithoutTLS returns a grpc Gateway listening on "listen" for the
+// NewRESTPublicGateway returns a grpc gateway listening on "listen" for the
 // public methods, listening on "port" for the control methods, using the given
 // Service s with the given options.
-func NewRESTPublicGatewayWithoutTLS(ctx context.Context, listen string, handler http.Handler) (*PublicGateway, error) {
-	l, err := NewRESTListenerForPublic(ctx, listen, handler)
-	if err != nil {
-		return nil, err
-	}
-	return &PublicGateway{Listener: l}, nil
-}
-
-// NewRESTPublicGatewayWithTLS returns a grpc gateway using the TLS
-// certificate manager
-func NewRESTPublicGatewayWithTLS(ctx context.Context, listen string, certPath, keyPath string, certs *CertManager, handler http.Handler) (*PublicGateway, error) {
-	l, err := NewRESTListenerForPublicWithTLS(ctx, listen, certPath, keyPath, handler)
+func NewRESTPublicGateway(
+	ctx context.Context,
+	listen, certPath, keyPath string,
+	certs *CertManager,
+	handler http.Handler,
+	insecure bool) (*PublicGateway, error) {
+	l, err := NewRESTListenerForPublic(ctx, listen, certPath, keyPath, handler, insecure)
 	if err != nil {
 		return nil, err
 	}

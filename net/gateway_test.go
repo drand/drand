@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/protobuf/drand"
+	testnet "github.com/drand/drand/test/net"
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/require"
 )
@@ -30,13 +30,10 @@ func (t *testPeer) IsTLS() bool {
 }
 
 type testRandomnessServer struct {
-	*EmptyServer
+	*testnet.EmptyServer
 	round uint64
 }
 
-func (t *testRandomnessServer) NewBeacon(context.Context, *drand.BeaconPacket) (*drand.Empty, error) {
-	return new(drand.Empty), errors.New("no beacon")
-}
 func (t *testRandomnessServer) PublicRand(context.Context, *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	return &drand.PublicRandResponse{Round: t.round}, nil
 }
@@ -51,20 +48,19 @@ func (t *testRandomnessServer) Home(context.Context, *drand.HomeRequest) (*drand
 }
 
 func TestListeners(t *testing.T) {
-	t.Run("without-tls", func(t *testing.T) { testListener(t, 4000, 4001) })
-	t.Run("with-tls", func(t *testing.T) { testListenerTLS(t, 4000, 4001) })
+	t.Run("without-tls", func(t *testing.T) { testListener(t) })
+	t.Run("with-tls", func(t *testing.T) { testListenerTLS(t) })
 }
 
-func testListener(t *testing.T, grpcPort, restPort int) {
+func testListener(t *testing.T) {
 	ctx := context.Background()
 	randServer := &testRandomnessServer{round: 42}
-	hostAddr := "127.0.0.1"
 
-	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", randServer)
+	lisGRPC, err := NewGRPCListenerForPrivate(ctx, "localhost:", "", "", randServer, true)
 	require.NoError(t, err)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
-	lisREST, err := NewRESTListenerForPublic(ctx, hostAddr+":", mux)
+	lisREST, err := NewRESTListenerForPublic(ctx, "localhost:", "", "", mux, true)
 	require.NoError(t, err)
 
 	peerGRPC := &testPeer{lisGRPC.Addr(), false}
@@ -84,9 +80,9 @@ func testListener(t *testing.T, grpcPort, restPort int) {
 }
 
 // ref https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html
-func testListenerTLS(t *testing.T, grpcPort, restPort int) {
+func testListenerTLS(t *testing.T) {
 	ctx := context.Background()
-	if run.GOOS == "windows" {
+	if run.GOOS == runtimeGOOSWindows {
 		fmt.Println("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
 	}
@@ -103,11 +99,11 @@ func testListenerTLS(t *testing.T, grpcPort, restPort int) {
 
 	randServer := &testRandomnessServer{round: 42}
 
-	lisGRPC, err := NewGRPCListenerForPrivateWithTLS(ctx, hostAddr+":", certPath, keyPath, randServer)
+	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", certPath, keyPath, randServer, false)
 	require.NoError(t, err)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
-	lisREST, err := NewRESTListenerForPublicWithTLS(ctx, hostAddr+":", certPath, keyPath, mux)
+	lisREST, err := NewRESTListenerForPublic(ctx, hostAddr+":", certPath, keyPath, mux, false)
 	require.NoError(t, err)
 
 	peerGRPC := &testPeer{lisGRPC.Addr(), true}

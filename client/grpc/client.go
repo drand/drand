@@ -22,6 +22,7 @@ const grpcDefaultTimeout = 5 * time.Second
 type grpcClient struct {
 	address string
 	client  drand.PublicClient
+	conn    *grpc.ClientConn
 	l       log.Logger
 }
 
@@ -47,7 +48,7 @@ func New(address, certPath string, insecure bool) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &grpcClient{address, drand.NewPublicClient(conn), log.DefaultLogger()}, nil
+	return &grpcClient{address, drand.NewPublicClient(conn), conn, log.DefaultLogger()}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {
@@ -106,8 +107,8 @@ func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out c
 	for {
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {
-			if err != stream.Context().Err() {
-				g.l.Error("grpc_client", "public rand stream", "err", err)
+			if stream.Context().Err() == nil {
+				g.l.Warn("grpc_client", "public rand stream", "err", err)
 			}
 			return
 		}
@@ -128,4 +129,9 @@ func (g *grpcClient) RoundAt(t time.Time) uint64 {
 // SetLog configures the client log output
 func (g *grpcClient) SetLog(l log.Logger) {
 	g.l = l
+}
+
+// Close tears down the gRPC connection and all underlying connections.
+func (g *grpcClient) Close() error {
+	return g.conn.Close()
 }

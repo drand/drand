@@ -2,8 +2,10 @@ package drand
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	gnet "net"
 	"os"
 	"path"
@@ -28,6 +30,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 
 func TestDeleteBeacon(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
@@ -91,15 +95,14 @@ func TestKeySelfSign(t *testing.T) {
 	testCommand(t, selfSign, expectedOutput)
 
 	// load, remove signature and save
-	fs := key.NewFileStore(tmp)
-	pair, err := fs.LoadKeyPair()
+	fileStore := key.NewFileStore(tmp)
+	pair, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	pair.Public.Signature = nil
-	require.NoError(t, fs.SaveKeyPair(pair))
+	require.NoError(t, fileStore.SaveKeyPair(pair))
 
 	expectedOutput = "identity self signed"
 	testCommand(t, selfSign, expectedOutput)
-
 }
 
 func TestKeyGen(t *testing.T) {
@@ -109,8 +112,8 @@ func TestKeyGen(t *testing.T) {
 	require.NoError(t, CLI().Run(args))
 
 	config := core.NewConfig(core.WithConfigFolder(tmp))
-	fs := key.NewFileStore(config.ConfigFolder())
-	priv, err := fs.LoadKeyPair()
+	fileStore := key.NewFileStore(config.ConfigFolder())
+	priv, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	require.NotNil(t, priv.Public)
 
@@ -120,20 +123,20 @@ func TestKeyGen(t *testing.T) {
 	require.Error(t, CLI().Run(args))
 
 	config = core.NewConfig(core.WithConfigFolder(tmp2))
-	fs = key.NewFileStore(config.ConfigFolder())
-	priv, err = fs.LoadKeyPair()
+	fileStore = key.NewFileStore(config.ConfigFolder())
+	priv, err = fileStore.LoadKeyPair()
 	require.Error(t, err)
 	require.Nil(t, priv)
 }
 
-//tests valid commands and then invalid commands
+// tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
 	n := 5
 	_, group := test.BatchIdentities(n)
-	groupPath := path.Join(tmpPath, fmt.Sprintf("group.toml"))
+	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
 	args := []string{"drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath}
@@ -148,10 +151,6 @@ func TestStartAndStop(t *testing.T) {
 		// ERROR: 2020/01/23 21:06:28 grpc: server failed to encode response:
 		// rpc error: code = Internal desc = grpc: error while marshaling: proto:
 		// Marshal called with nil
-
-		//if e, ok := err.(*exec.ExitError); !ok || e.ExitCode() != 0 {
-		//t.Fatal(err)
-		//}
 	}()
 	<-startCh
 	time.Sleep(200 * time.Millisecond)
@@ -162,6 +161,42 @@ func TestStartAndStop(t *testing.T) {
 	case <-time.After(1 * time.Second):
 		t.Fatal("drand daemon did not stop")
 	}
+}
+
+func TestUtilCheck(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "drand-cli-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+	// try to generate a keypair and make it listen on another address
+	keyPort := test.FreePort()
+	keyAddr := "127.0.0.1:" + keyPort
+	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, keyAddr}
+	require.NoError(t, CLI().Run(generate))
+
+	listenPort := test.FreePort()
+	listenAddr := "127.0.0.1:" + listenPort
+	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go CLI().RunContext(ctx, listen)
+	// XXX can we maybe try to bind continuously to not having to wait
+	time.Sleep(200 * time.Millisecond)
+
+	// run the check tool it should fail because key and address are not
+	// consistent
+	check := []string{"drand", "util", "check", "--tls-disable", listenAddr}
+	require.Error(t, CLI().Run(check))
+
+	// cancel the daemon and make it listen on the right address
+	cancel()
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
+	go CLI().RunContext(ctx, listen)
+	time.Sleep(200 * time.Millisecond)
+
+	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
+	require.NoError(t, CLI().Run(check))
 }
 
 func TestStartWithoutGroup(t *testing.T) {
@@ -184,10 +219,18 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	fs := key.NewFileStore(config.ConfigFolder())
-	require.NoError(t, fs.SaveKeyPair(priv))
+	fileStore := key.NewFileStore(config.ConfigFolder())
+	require.NoError(t, fileStore.SaveKeyPair(priv))
 
-	startArgs := []string{"drand", "start", "--tls-disable", "--verbose", "--folder", tmpPath, "--control", ctrlPort1, "--metrics", "127.0.0.1:" + metricsPort}
+	startArgs := []string{
+		"drand",
+		"start",
+		"--tls-disable",
+		"--verbose",
+		"--folder", tmpPath,
+		"--control", ctrlPort1,
+		"--metrics", "127.0.0.1:" + metricsPort,
+	}
 	go CLI().Run(startArgs)
 	time.Sleep(500 * time.Millisecond)
 
@@ -213,20 +256,19 @@ func TestStartWithoutGroup(t *testing.T) {
 	priv.Public.TLS = false
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
+	group.PublicKey = distKey
 	group.Nodes[0] = &key.Node{Identity: priv.Public, Index: 0}
 	group.Nodes[1] = &key.Node{Identity: priv.Public, Index: 1}
 	groupPath := path.Join(tmpPath, "drand_group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 	// save it also to somewhere drand will find it
-	require.NoError(t, fs.SaveGroup(group))
+	require.NoError(t, fileStore.SaveGroup(group))
 
-	//fake share
+	// fake share
 	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
-	share := &key.Share{Share: s}
-	require.NoError(t, fs.SaveShare(share))
-
-	require.NoError(t, fs.SaveDistPublic(distKey))
+	fakeShare := &key.Share{Share: s}
+	require.NoError(t, fileStore.SaveShare(fakeShare))
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
@@ -235,10 +277,14 @@ func TestStartWithoutGroup(t *testing.T) {
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 	time.Sleep(500 * time.Millisecond)
 
-	fmt.Println(" + running PING command with ", ctrlPort2)
+	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore)
+}
+
+func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store) {
+	fmt.Println(" + running PING command with ", ctrlPort)
 	var err error
 	for i := 0; i < 3; i++ {
-		ping := []string{"drand", "util", "ping", "--control", ctrlPort2}
+		ping := []string{"drand", "util", "ping", "--control", ctrlPort}
 		err = CLI().Run(ping)
 		if err == nil {
 			break
@@ -249,6 +295,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
+	groupPath := path.Join(rootPath, "drand_group.toml")
 	fmt.Printf("\n Running GET PRIVATE command with group file at %s\n", groupPath)
 	loadedGroup := new(key.Group)
 	require.NoError(t, key.Load(groupPath, loadedGroup))
@@ -261,52 +308,45 @@ func TestStartWithoutGroup(t *testing.T) {
 	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
-	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", priv.Public.Address()}
+	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", address}
 	testCommand(t, chainInfoCmd, expectedOutput)
 
 	fmt.Printf("\n Running CHAIN-INFO --HASH command\n")
-	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", priv.Public.Address()}
+	chainInfoCmdHash := []string{"drand", "get", "chain-info", "--hash", "--tls-disable", address}
 	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	testCommand(t, chainInfoCmdHash, expectedOutput)
 
 	fmt.Println("\nRunning SHOW SHARE command")
-	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort2}
-	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
-	testCommand(t, shareCmd, expectedOutput)
+	shareCmd := []string{"drand", "show", "share", "--control", ctrlPort}
+	testCommand(t, shareCmd, expectedShareOutput)
 
-	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort2}
+	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	testCommand(t, showChainInfo, string(buffCi))
 
-	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort2}
+	showChainInfo = []string{"drand", "show", "chain-info", "--hash", "--control", ctrlPort}
 	expectedOutput = fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state
-	resetCmd := []string{"drand", "util", "reset", "--folder", tmpPath}
+	resetCmd := []string{"drand", "util", "reset", "--folder", rootPath}
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	_, err = w.Write([]byte("y\n"))
 	require.NoError(t, err)
 	os.Stdin = r
 	require.NoError(t, CLI().Run(resetCmd))
-	_, err = fs.LoadDistPublic()
+	_, err = fileStore.LoadShare()
 	require.Error(t, err)
-	_, err = fs.LoadShare()
+	_, err = fileStore.LoadGroup()
 	require.Error(t, err)
-	_, err = fs.LoadGroup()
-	require.Error(t, err)
-	fmt.Println("DONE")
 }
 
 func TestClientTLS(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
-
-	//ctx, cancel := context.WithCancel(context.Background())
-	//defer cancel()
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	pubPath := path.Join(tmpPath, "pub.key")
@@ -322,8 +362,8 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	fs := key.NewFileStore(config.ConfigFolder())
-	fs.SaveKeyPair(priv)
+	fileStore := key.NewFileStore(config.ConfigFolder())
+	fileStore.SaveKeyPair(priv)
 
 	if httpscerts.Check(certPath, keyPath) != nil {
 		fmt.Println("generating on the fly")
@@ -348,21 +388,33 @@ func TestClientTLS(t *testing.T) {
 	group.Period = 2 * time.Minute
 	group.GenesisTime = time.Now().Unix()
 	group.PublicKey = distKey
-	groupPath = path.Join(tmpPath, fmt.Sprintf("groups/drand_group.toml"))
-	require.NoError(t, fs.SaveGroup(group))
-	require.NoError(t, fs.SaveDistPublic(distKey))
+	require.NoError(t, fileStore.SaveGroup(group))
+	require.NoError(t, key.Save(groupPath, group, false))
 
-	//fake share
+	// fake share
 	scalarOne := key.KeyGroup.Scalar().One()
 	s := &share.PriShare{I: 2, V: scalarOne}
-	share := &key.Share{Share: s}
-	fs.SaveShare(share)
+	fakeShare := &key.Share{Share: s}
+	fileStore.SaveShare(fakeShare)
 
-	startArgs := []string{"drand", "start", "--tls-cert", certPath, "--tls-key", keyPath, "--control", ctrlPort, "--folder", tmpPath, "--metrics", metricsPort, "--private-rand"}
+	startArgs := []string{
+		"drand",
+		"start",
+		"--tls-cert", certPath,
+		"--tls-key", keyPath,
+		"--control", ctrlPort,
+		"--folder", tmpPath,
+		"--metrics", metricsPort,
+		"--private-rand",
+	}
 	go CLI().Run(startArgs)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
 	time.Sleep(500 * time.Millisecond)
 
+	testStartedTLSDrandFunctional(t, ctrlPort, certPath, groupPath, group, priv)
+}
+
+func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath string, group *key.Group, priv *key.Pair) {
 	var err error
 	for i := 0; i < 3; i++ {
 		getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
@@ -374,15 +426,14 @@ func TestClientTLS(t *testing.T) {
 	}
 	require.Nil(t, err)
 
-	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, addr}
+	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
 	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfoBuff)
 	testCommand(t, chainInfoCmd, expectedOutput)
 
 	showCmd := []string{"drand", "show", "share", "--control", ctrlPort}
-	expectedOutput = "0000000000000000000000000000000000000000000000000000000000000001"
-	testCommand(t, showCmd, expectedOutput)
+	testCommand(t, showCmd, expectedShareOutput)
 
 	showPublic := []string{"drand", "show", "public", "--control", ctrlPort}
 	b, _ := priv.Public.Key.MarshalBinary()
@@ -407,8 +458,6 @@ func TestClientTLS(t *testing.T) {
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
-	//capture := newStdoutCapture(t)
-	//defer capture.Restore()
 	var buff bytes.Buffer
 	output = &buff
 	defer func() { output = os.Stdout }()

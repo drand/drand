@@ -1,0 +1,57 @@
+name: Regression
+
+on:
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      id: cache
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    - name: Fetch Dependencies
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: go get ./...
+    - name: Dir Setup
+      run: mkdir -p ~/go/bin
+    - name: Build
+      run: go build . && cp drand ~/go/bin/drand-candidate
+
+    - uses: actions/checkout@v2
+      with:
+        ref: 'master'
+    - name: Fetch Dependencies
+      run: go get ./...
+    - name: Build
+      run: go build . && cp drand ~/go/bin/drand-existing
+
+    - uses: actions/checkout@v2
+    - id: regression
+      name: Run regression
+      run: go run ./demo/regression -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
+
+    - id: report
+      if: ${{ failure() }}
+      name: Save report
+      run: |
+        OUTPUT=$(cat report.md)
+        OUTPUT="${OUTPUT//'%'/'%25'}"
+        OUTPUT="${OUTPUT//$'\n'/'%0A'}"
+        OUTPUT="${OUTPUT//$'\r'/'%0D'}"
+        echo "::set-output name=result::$OUTPUT"
+
+    - name: Record Comment
+      if: ${{ failure() }}
+      uses: marocchino/sticky-pull-request-comment@v1
+      with:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        message: ${{ steps.report.outputs.result }}
+

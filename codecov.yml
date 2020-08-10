@@ -15,3 +15,5 @@ comment: off
 ignore:
   - "demo"
   - "protobuf"
+  - "test"
+  - "client/test"

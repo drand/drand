@@ -249,7 +249,7 @@ func WithControlPort(port string) ConfigOption {
 // WithLogLevel sets the logging verbosity to the given level.
 func WithLogLevel(level int) ConfigOption {
 	return func(d *Config) {
-		d.logger = log.NewLogger(level)
+		d.logger = log.NewLogger(nil, level)
 	}
 }
 

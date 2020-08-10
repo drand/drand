@@ -52,6 +52,7 @@ func TestClientMultiple(t *testing.T) {
 	if r.Round() <= 0 {
 		t.Fatal("expected valid client")
 	}
+	_ = c.Close()
 }
 
 func TestClientWithChainInfo(t *testing.T) {
@@ -71,6 +72,7 @@ func TestClientWithChainInfo(t *testing.T) {
 	if err == nil {
 		t.Fatal("bad urls should clearly not provide randomness.")
 	}
+	_ = c.Close()
 }
 
 func TestClientCache(t *testing.T) {
@@ -96,6 +98,7 @@ func TestClientCache(t *testing.T) {
 	if e == nil {
 		t.Fatal("non-cached results should fail.")
 	}
+	_ = c.Close()
 }
 
 func TestClientWithoutCache(t *testing.T) {
@@ -118,13 +121,11 @@ func TestClientWithoutCache(t *testing.T) {
 	if e == nil {
 		t.Fatal("cache should be disabled.")
 	}
+	_ = c.Close()
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	results := []mock.Result{
-		{Rnd: 1, Rand: []byte{1}},
-		{Rnd: 2, Rand: []byte{2}},
-	}
+	info, results := mock.VerifiableResults(2)
 
 	ch := make(chan client.Result, len(results))
 	for i := range results {
@@ -137,7 +138,7 @@ func TestClientWithWatcher(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.WithChainInfo(fakeChainInfo()),
+		client.WithChainInfo(info),
 		client.WithWatcher(watcherCtor),
 	)
 	if err != nil {
@@ -154,6 +155,7 @@ func TestClientWithWatcher(t *testing.T) {
 			break
 		}
 	}
+	_ = c.Close()
 }
 
 func TestClientWithWatcherCtorError(t *testing.T) {
@@ -200,14 +202,14 @@ func TestClientAutoWatch(t *testing.T) {
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	results := []mock.Result{
-		{Rnd: 1, Rand: []byte{1}},
-		{Rnd: 2, Rand: []byte{2}},
-	}
+	httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
+	r1, _ := httpClient[0].Get(context.Background(), 1)
+	r2, _ := httpClient[0].Get(context.Background(), 2)
+	results := []client.Result{r1, r2}
 
 	ch := make(chan client.Result, len(results))
 	for i := range results {
-		ch <- &results[i]
+		ch <- results[i]
 	}
 	close(ch)
 
@@ -216,7 +218,7 @@ func TestClientAutoWatch(t *testing.T) {
 	}
 
 	c, err := client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+		client.From(client.MockClientWithInfo(chainInfo)),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
 		client.WithAutoWatch(),
@@ -231,7 +233,73 @@ func TestClientAutoWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compareResults(t, r, &results[0])
+	compareResults(t, r, results[0])
+	_ = c.Close()
+}
+
+func TestClientAutoWatchRetry(t *testing.T) {
+	info, results := mock.VerifiableResults(5)
+	resC := make(chan client.Result)
+	defer close(resC)
+
+	// done is closed after all resuls have been written to resC
+	done := make(chan struct{})
+
+	// Returns a channel that yields the verifiable results above
+	watchF := func(ctx context.Context) <-chan client.Result {
+		go func() {
+			for i := 0; i < len(results); i++ {
+				select {
+				case resC <- &results[i]:
+				case <-ctx.Done():
+					return
+				}
+			}
+			<-time.After(time.Second)
+			close(done)
+		}()
+		return resC
+	}
+
+	var failer client.MockClient
+	failer = client.MockClient{
+		WatchF: func(ctx context.Context) <-chan client.Result {
+			// First call returns a closed channel
+			ch := make(chan client.Result)
+			close(ch)
+			// Second call returns a channel that writes results
+			failer.WatchF = watchF
+			return ch
+		},
+	}
+
+	c, err := client.New(
+		client.From(&failer, client.MockClientWithInfo(info)),
+		client.WithChainInfo(info),
+		client.WithAutoWatch(),
+		client.WithAutoWatchRetry(time.Second),
+		client.WithCacheSize(len(results)),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	// Wait for all the results to be consumed by the autoWatch
+	select {
+	case <-done:
+	case <-time.After(time.Minute):
+		t.Fatal("timed out waiting for results to be consumed")
+	}
+
+	// We should be able to retrieve all the results from the cache.
+	for i := range results {
+		r, err := c.Get(context.Background(), results[i].Round())
+		if err != nil {
+			t.Fatal(err)
+		}
+		compareResults(t, &results[i], r)
+	}
 }
 
 // compareResults asserts that two results are the same.

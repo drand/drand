@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/drand/drand/log"
 
@@ -80,6 +81,14 @@ func (c *cachingClient) SetLog(l log.Logger) {
 	c.log = l
 }
 
+// String returns the name of this client.
+func (c *cachingClient) String() string {
+	if arc, ok := c.cache.(*typedCache); ok {
+		return fmt.Sprintf("%s.(+%d el cache)", c.Client, arc.ARCCache.Len())
+	}
+	return fmt.Sprintf("%s.(+nil cache)", c.Client)
+}
+
 // Get returns the randomness at `round` or an error.
 func (c *cachingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
 	if val := c.cache.TryGet(round); val != nil {
@@ -103,4 +112,8 @@ func (c *cachingClient) Watch(ctx context.Context) <-chan Result {
 		close(out)
 	}()
 	return out
+}
+
+func (c *cachingClient) Close() error {
+	return c.Client.Close()
 }

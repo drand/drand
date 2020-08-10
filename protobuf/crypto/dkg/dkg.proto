@@ -6,8 +6,8 @@ syntax = "proto3";
 
 package dkg;
 
-/*option go_package = "github.com/drand/drand/protobuf/crypto/dkg";*/
-option go_package = "dkg";
+option go_package = "github.com/drand/drand/protobuf/crypto/dkg";
+/*option go_package = "dkg";*/
 
 // Packet is a wrapper around the three different types of DKG messages
 message Packet {

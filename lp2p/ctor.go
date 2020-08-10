@@ -20,6 +20,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/host"
 	"github.com/libp2p/go-libp2p-core/peer"
+	noise "github.com/libp2p/go-libp2p-noise"
 	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
@@ -33,10 +34,11 @@ const (
 	// userAgent sets the libp2p user-agent which is sent along with the identify protocol.
 	userAgent = "drand-relay/0.0.0"
 	// directConnectTicks makes pubsub check it's connected to direct peers every N seconds.
-	directConnectTicks = uint64(5)
-	lowWater           = 50
-	highWater          = 200
-	gracePeriod        = time.Minute
+	directConnectTicks uint64 = 5
+	lowWater                  = 50
+	highWater                 = 200
+	gracePeriod               = time.Minute
+	bootstrapTimeout          = 5 * time.Second
 )
 
 // PubSubTopic generates a drand pubsub topic from a chain hash.
@@ -63,7 +65,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
 	}
 
-	addrInfos, err := resolveAddresses(ctx, bootstrap)
+	addrInfos, err := resolveAddresses(ctx, bootstrap, nil)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
@@ -72,9 +74,11 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 	opts := []libp2p.Option{
 		libp2p.Identity(priv),
-		libp2p.Security(libp2ptls.ID, libp2ptls.New),
+		libp2p.ChainOptions(
+			libp2p.Security(libp2ptls.ID, libp2ptls.New),
+			libp2p.Security(noise.ID, noise.New)),
 		libp2p.DisableRelay(),
-		//libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
+		// libp2p.Peerstore(pstore), depends on https://github.com/libp2p/go-libp2p-peerstore/issues/153
 		libp2p.UserAgent(userAgent),
 		libp2p.ConnectionManager(cmgr),
 	}
@@ -109,7 +113,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			addrInfos[i], addrInfos[j] = addrInfos[j], addrInfos[i]
 		})
 		for _, ai := range addrInfos {
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(ctx, bootstrapTimeout)
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {

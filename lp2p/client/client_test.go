@@ -51,7 +51,7 @@ func TestGRPCClient(t *testing.T) {
 	info.GenesisTime -= 10
 
 	// start mock relay-node
-	client, err := grpc.New(grpcAddr, "", true)
+	grpcClient, err := grpc.New(grpcAddr, "", true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestGRPCClient(t *testing.T) {
 		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
 		DataDir:      dataDir,
 		IdentityPath: path.Join(identityDir, "identity.key"),
-		Client:       client,
+		Client:       grpcClient,
 	}
 	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
 	if err != nil {
@@ -127,7 +127,7 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, err := dhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := dhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestHTTPClient(t *testing.T) {
 		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
 		DataDir:      dataDir,
 		IdentityPath: path.Join(identityDir, "identity.key"),
-		Client:       client,
+		Client:       httpClient,
 	}
 	g, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg)
 	if err != nil {
@@ -209,7 +209,12 @@ func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info)
 	if err != nil {
 		return nil, err
 	}
-	return NewWithPubsub(ps, info, nil)
+	c, err := NewWithPubsub(ps, info, nil)
+	if err != nil {
+		return nil, err
+	}
+	c.SetLog(log.DefaultLogger())
+	return c, nil
 }
 
 func peerIDFromMultiaddr(addr ma.Multiaddr) (peer.ID, error) {

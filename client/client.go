@@ -59,8 +59,9 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	}
 
 	// provision watcher client
+	var wc Client
 	if cfg.watcher != nil {
-		wc, err := makeWatcherClient(cfg, cache)
+		wc, err = makeWatcherClient(cfg, cache)
 		if err != nil {
 			return nil, err
 		}
@@ -73,13 +74,39 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	var c Client
 
-	oc, err := newOptimizingClient(cfg.clients, 0, 0, 0, 0)
+	verifiers := make([]Client, 0, len(cfg.clients))
+	for _, source := range cfg.clients {
+		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		verifiers = append(verifiers, nv)
+		if source == wc {
+			wc = nv
+		}
+	}
+
+	c, err = makeOptimizingClient(cfg, verifiers, wc, cache)
 	if err != nil {
 		return nil, err
 	}
-	c = oc
+
+	wa := newWatchAggregator(c, cfg.autoWatch, cfg.autoWatchRetry)
+	c = wa
 	trySetLog(c, cfg.log)
-	oc.Start()
+
+	wa.Start()
+
+	return attachMetrics(cfg, c)
+}
+
+func makeOptimizingClient(cfg *clientConfig, verifiers []Client, watcher Client, cache Cache) (Client, error) {
+	oc, err := newOptimizingClient(verifiers, 0, 0, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	if watcher != nil {
+		oc.MarkPassive(watcher)
+	}
+	c := Client(oc)
+	trySetLog(c, cfg.log)
 
 	if cfg.cacheSize > 0 {
 		c, err = NewCachingClient(c, cache)
@@ -88,11 +115,13 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		}
 		trySetLog(c, cfg.log)
 	}
+	for _, v := range verifiers {
+		trySetLog(v, cfg.log)
+		v.(*verifyingClient).indirectClient = c
+	}
 
-	c = newWatchAggregator(c, cfg.autoWatch)
-	trySetLog(c, cfg.log)
-
-	return attachMetrics(cfg, c)
+	oc.Start()
+	return c, nil
 }
 
 func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
@@ -130,6 +159,11 @@ type clientConfig struct {
 	chainHash []byte
 	// Full chain information - serves as a root of trust.
 	chainInfo *chain.Info
+	// A previously fetched result serving as a verification checkpoint if one exists.
+	previousResult Result
+	// chain signature verification back to the 1st round, or to a know result to ensure
+	// determinism in the event of a compromised chain.
+	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
 	// cache size - how large of a cache to keep locally.
@@ -139,6 +173,9 @@ type clientConfig struct {
 	// autoWatch causes the client to start watching immediately in the background so that new randomness
 	// is proactively fetched and added to the cache.
 	autoWatch bool
+	// autoWatchRetry specifies the time after which the watch channel
+	// created by the autoWatch is re-opened when no context error occurred.
+	autoWatchRetry time.Duration
 	// prometheus is an interface to a Prometheus system
 	prometheus prometheus.Registerer
 }
@@ -223,6 +260,32 @@ func WithChainInfo(chainInfo *chain.Info) Option {
 	}
 }
 
+// WithVerifiedResult provides a checkpoint of randomness verified at a given round.
+// Used in combination with `VerifyFullChain`, this allows for catching up only on
+// previously not-yet-verified results.
+func WithVerifiedResult(result Result) Option {
+	return func(cfg *clientConfig) error {
+		if cfg.previousResult != nil && cfg.previousResult.Round() > result.Round() {
+			return errors.New("refusing to override verified result with an earlier result")
+		}
+		cfg.previousResult = result
+		return nil
+	}
+}
+
+// WithFullChainVerification validates random beacons not just as being generated correctly
+// from the group signature, but ensures that the full chain is deterministic by making sure
+// each round is derived correctly from the previous one. In cases of compromise where
+// a single party learns sufficient shares to derive the full key, malicious randomness
+// could otherwise be generated that is signed, but not properly derived from previous rounds
+// according to protocol.
+func WithFullChainVerification() Option {
+	return func(cfg *clientConfig) error {
+		cfg.fullVerify = true
+		return nil
+	}
+}
+
 // Watcher supplies the `Watch` portion of the drand client interface.
 type Watcher interface {
 	Watch(ctx context.Context) <-chan Result
@@ -246,6 +309,16 @@ func WithWatcher(wc WatcherCtor) Option {
 func WithAutoWatch() Option {
 	return func(cfg *clientConfig) error {
 		cfg.autoWatch = true
+		return nil
+	}
+}
+
+// WithAutoWatchRetry specifies the time after which the watch channel
+// created by the autoWatch is re-opened when no context error occurred.
+// Set to a negative value to disable retrying auto watch.
+func WithAutoWatchRetry(interval time.Duration) Option {
+	return func(cfg *clientConfig) error {
+		cfg.autoWatchRetry = interval
 		return nil
 	}
 }

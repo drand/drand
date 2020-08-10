@@ -14,9 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testAddr = "127.0.0.1:80"
+
 func TestKeyPublic(t *testing.T) {
-	addr := "127.0.0.1:80"
-	kp := NewTLSKeyPair(addr)
+	kp := NewTLSKeyPair(testAddr)
 	ptoml := kp.Public.TOML().(*PublicTOML)
 	require.Equal(t, kp.Public.Addr, ptoml.Address)
 	require.Equal(t, kp.Public.TLS, ptoml.TLS)
@@ -37,8 +38,7 @@ func TestKeyPublic(t *testing.T) {
 }
 
 func TestKeySignature(t *testing.T) {
-	addr := "127.0.0.1:80"
-	kp := NewTLSKeyPair(addr)
+	kp := NewTLSKeyPair(testAddr)
 	validSig := kp.Public.Signature
 	require.NoError(t, kp.Public.ValidSignature())
 	kp.Public.Signature = []byte("no justice, no peace")
@@ -113,7 +113,7 @@ func TestKeyGroup(t *testing.T) {
 func TestShare(t *testing.T) {
 	n := 5
 	s := new(Share)
-	s.Commits = make([]kyber.Point, n, n)
+	s.Commits = make([]kyber.Point, n)
 	for i := 0; i < n; i++ {
 		s.Commits[i] = KeyGroup.Point().Pick(random.New())
 	}

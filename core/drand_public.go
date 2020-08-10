@@ -16,46 +16,19 @@ import (
 )
 
 // FreshDKG is the public method to call during a DKG protocol.
-func (d *Drand) FreshDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
+func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	if d.dkgDone {
-		return nil, errors.New("drand: dkg finished already")
-	}
 	if d.dkgInfo == nil {
 		return nil, errors.New("drand: no dkg running")
 	}
 	addr := net.RemoteAddress(c)
 	if !d.dkgInfo.started {
-		d.log.Info("init_dkg", "start", "signal_leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.log.Info("init_dkg", "START DKG", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
 		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}
-	if _, err := d.dkgInfo.board.FreshDKG(c, in); err != nil {
-		return nil, err
-	}
-	return new(drand.Empty), nil
-}
-
-// ReshareDKG is called when a resharing protocol is in progress
-func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.Empty, error) {
-	d.state.Lock()
-	defer d.state.Unlock()
-
-	if d.dkgInfo == nil {
-		return nil, errors.New("drand: no dkg setup yet")
-	}
-	addr := net.RemoteAddress(c)
-	if !d.dkgInfo.started {
-		d.dkgInfo.started = true
-		d.log.Info("init_reshare", "start",
-			"signal_leader", addr,
-			"group", hex.EncodeToString(d.dkgInfo.target.Hash()),
-			"target_index", d.dkgInfo.target.Find(d.priv.Public).Index)
-		go d.dkgInfo.phaser.Start()
-	}
-
-	if _, err := d.dkgInfo.board.ReshareDKG(c, in); err != nil {
+	if _, err := d.dkgInfo.board.BroadcastDKG(c, in); err != nil {
 		return nil, err
 	}
 	return new(drand.Empty), nil
@@ -65,11 +38,13 @@ func (d *Drand) ReshareDKG(c context.Context, in *drand.ResharePacket) (*drand.E
 // with the partial signature from this drand node.
 func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	d.state.Lock()
-	defer d.state.Unlock()
 	if d.beacon == nil {
+		d.state.Unlock()
 		return nil, errors.New("drand: beacon not setup yet")
 	}
-	return d.beacon.ProcessPartialBeacon(c, in)
+	inst := d.beacon
+	d.state.Unlock()
+	return inst.ProcessPartialBeacon(c, in)
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
@@ -91,7 +66,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	}
 	if err != nil || r == nil {
 		d.log.Debug("public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
-		return nil, fmt.Errorf("can't retrieve beacon: %s %s", err, r)
+		return nil, fmt.Errorf("can't retrieve beacon: %w %s", err, r)
 	}
 	d.log.Info("public_rand", addr, "round", r.Round, "reply", r.String())
 	return beaconToProto(r), nil
@@ -130,7 +105,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	}
 	// then we can stream from any new rounds
 	// register a callback for the duration of this stream
-	d.callbacks.AddCallback(addr, func(b *chain.Beacon) {
+	d.beacon.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.PublicRandResponse{
 			Round:             b.Round,
 			Signature:         b.Signature,
@@ -139,7 +114,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 		})
 		// if connection has a problem, we drop the callback
 		if err != nil {
-			d.callbacks.DelCallback(addr)
+			d.beacon.RemoveCallback(addr)
 			done <- err
 		}
 	})
@@ -217,11 +192,7 @@ func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*dran
 	d.log.Info("push_group", "received_new")
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.
-	err := d.receiver.PushDKGInfo(in)
-	if err != nil {
-		return nil, err
-	}
-	return new(drand.Empty), nil
+	return new(drand.Empty), d.receiver.PushDKGInfo(in)
 }
 
 // SyncChain is a inter-node protocol that replies to a syncing request from a

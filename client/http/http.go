@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	nhttp "net/http"
+	"strings"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -18,15 +19,21 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
+var errClientClosed = fmt.Errorf("client closed")
+
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
 		transport = nhttp.DefaultTransport
 	}
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
 	c := &httpClient{
 		root:   url,
 		client: instrumentClient(url, transport),
 		l:      log.DefaultLogger(),
+		done:   make(chan struct{}),
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
 	if err != nil {
@@ -42,12 +49,16 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 	if transport == nil {
 		transport = nhttp.DefaultTransport
 	}
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
 
 	c := &httpClient{
 		root:      url,
 		chainInfo: info,
 		client:    instrumentClient(url, transport),
 		l:         log.DefaultLogger(),
+		done:      make(chan struct{}),
 	}
 	return c, nil
 }
@@ -123,6 +134,7 @@ type httpClient struct {
 	client    *nhttp.Client
 	chainInfo *chain.Info
 	l         log.Logger
+	done      chan struct{}
 }
 
 // SetLog configures the client log output
@@ -135,6 +147,11 @@ func (h *httpClient) String() string {
 	return fmt.Sprintf("HTTP(%q)", h.root)
 }
 
+type httpInfoResponse struct {
+	chainInfo *chain.Info
+	err       error
+}
+
 // FetchGroupInfo attempts to initialize an httpClient when
 // it does not know the full group parameters for a drand group. The chain hash
 // is the hash of the chain info.
@@ -143,28 +160,55 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 		return h.chainInfo, nil
 	}
 
-	infoBody, err := h.client.Get(fmt.Sprintf("%s/info", h.root))
-	if err != nil {
-		return nil, err
-	}
-	defer infoBody.Body.Close()
+	resC := make(chan httpInfoResponse, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	chainInfo, err := chain.InfoFromJSON(infoBody.Body)
-	if err != nil {
-		return nil, err
-	}
+	go func() {
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo", h.root), nil)
+		if err != nil {
+			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
+			return
+		}
 
-	if chainInfo.PublicKey == nil {
-		return nil, fmt.Errorf("group does not have a valid key for validation")
-	}
+		infoBody, err := h.client.Do(req)
+		if err != nil {
+			resC <- httpInfoResponse{nil, fmt.Errorf("doing request: %w", err)}
+			return
+		}
+		defer infoBody.Body.Close()
 
-	if chainHash == nil {
-		h.l.Warn("http_client", "instantiated without trustroot", "chainHash", hex.EncodeToString(chainInfo.Hash()))
+		chainInfo, err := chain.InfoFromJSON(infoBody.Body)
+		if err != nil {
+			resC <- httpInfoResponse{nil, fmt.Errorf("decoding response: %w", err)}
+			return
+		}
+
+		if chainInfo.PublicKey == nil {
+			resC <- httpInfoResponse{nil, fmt.Errorf("group does not have a valid key for validation")}
+			return
+		}
+
+		if chainHash == nil {
+			h.l.Warn("http_client", "instantiated without trustroot", "chainHash", hex.EncodeToString(chainInfo.Hash()))
+		}
+		if chainHash != nil && !bytes.Equal(chainInfo.Hash(), chainHash) {
+			err := fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)
+			resC <- httpInfoResponse{nil, err}
+			return
+		}
+		resC <- httpInfoResponse{chainInfo, nil}
+	}()
+
+	select {
+	case res := <-resC:
+		if res.err != nil {
+			return nil, res.err
+		}
+		return res.chainInfo, nil
+	case <-h.done:
+		return nil, errClientClosed
 	}
-	if chainHash != nil && !bytes.Equal(chainInfo.Hash(), chainHash) {
-		return nil, fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)
-	}
-	return chainInfo, nil
 }
 
 // Implement textMarshaller
@@ -172,46 +216,84 @@ func (h *httpClient) MarshalText() ([]byte, error) {
 	return json.Marshal(h)
 }
 
+type httpGetResponse struct {
+	result client.Result
+	err    error
+}
+
 // Get returns a the randomness at `round` or an error.
 func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	var url string
 	if round == 0 {
-		url = fmt.Sprintf("%s/public/latest", h.root)
+		url = fmt.Sprintf("%spublic/latest", h.root)
 	} else {
-		url = fmt.Sprintf("%s/public/%d", h.root, round)
+		url = fmt.Sprintf("%spublic/%d", h.root, round)
 	}
 
-	randResponse, err := h.client.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer randResponse.Body.Close()
+	resC := make(chan httpGetResponse, 1)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
-	randResp := client.RandomData{}
-	if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
-		return nil, err
-	}
-	if len(randResp.Sig) == 0 || len(randResp.PreviousSignature) == 0 {
-		return nil, fmt.Errorf("insufficient response")
-	}
+	go func() {
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			resC <- httpGetResponse{nil, fmt.Errorf("creating request: %w", err)}
+			return
+		}
 
-	b := chain.Beacon{
-		PreviousSig: randResp.PreviousSignature,
-		Round:       randResp.Rnd,
-		Signature:   randResp.Sig,
-	}
-	if err := chain.VerifyBeacon(h.chainInfo.PublicKey, &b); err != nil {
-		h.l.Warn("http_client", "failed to verify value", "err", err)
-		return nil, err
-	}
-	randResp.Random = chain.RandomnessFromSignature(randResp.Sig)
+		randResponse, err := h.client.Do(req)
+		if err != nil {
+			resC <- httpGetResponse{nil, fmt.Errorf("doing request: %w", err)}
+			return
+		}
+		defer randResponse.Body.Close()
 
-	return &randResp, nil
+		randResp := client.RandomData{}
+		if err := json.NewDecoder(randResponse.Body).Decode(&randResp); err != nil {
+			resC <- httpGetResponse{nil, fmt.Errorf("decoding response: %w", err)}
+			return
+		}
+		if len(randResp.Sig) == 0 || len(randResp.PreviousSignature) == 0 {
+			resC <- httpGetResponse{nil, fmt.Errorf("insufficient response")}
+			return
+		}
+
+		resC <- httpGetResponse{&randResp, nil}
+	}()
+
+	select {
+	case res := <-resC:
+		if res.err != nil {
+			return nil, res.err
+		}
+		return res.result, nil
+	case <-h.done:
+		return nil, errClientClosed
+	}
 }
 
 // Watch returns new randomness as it becomes available.
 func (h *httpClient) Watch(ctx context.Context) <-chan client.Result {
-	return client.PollingWatcher(ctx, h, h.chainInfo, h.l)
+	out := make(chan client.Result)
+	go func() {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		defer close(out)
+
+		in := client.PollingWatcher(ctx, h, h.chainInfo, h.l)
+		for {
+			select {
+			case res, ok := <-in:
+				if !ok {
+					return
+				}
+				out <- res
+			case <-h.done:
+				return
+			}
+		}
+	}()
+	return out
 }
 
 // Info returns information about the chain.
@@ -223,4 +305,10 @@ func (h *httpClient) Info(ctx context.Context) (*chain.Info, error) {
 // at time for the current client.
 func (h *httpClient) RoundAt(t time.Time) uint64 {
 	return chain.CurrentRound(t.Unix(), h.chainInfo.Period, h.chainInfo.GenesisTime)
+}
+
+func (h *httpClient) Close() error {
+	close(h.done)
+	h.client.CloseIdleConnections()
+	return nil
 }

@@ -44,22 +44,15 @@ var EciesHash = sha256.New
 // canceled.
 var MaxWaitPrepareDKG = 24 * 7 * 2 * time.Hour
 
-const genesisOffsetTimeoutMultiple = 3
-
-// DefaultGenesisOffset is the time that the leader adds to the current time to
-// compute the genesis time. It computes the genesis time *before* sending the
-// group to the nodes and before running the DKG so it must be sufficiently high
-// enough (at the very least superior than the time DKG is taking).
-const DefaultGenesisOffset = DefaultDKGTimeout * time.Duration(genesisOffsetTimeoutMultiple)
+// DefaultGenesisOffset is the time the leader adds after the maximum DKG time
+// (the full three phases) to compute the genesis time of the randomness chain.
+const DefaultGenesisOffset = 1 * time.Second
 
 // DefaultResharingOffset is the time the leader adds to the current time to set
 // the TransitionTime field in the group file when setting up a resharing. This
 // time will be rounded up to the next round time of the beacon, since a beacon
 // has to keep the same period.
 var DefaultResharingOffset = 30 * time.Second
-
-// IDs for callback when beacon appears
-const callbackID = "callbackID"
 
 // PrivateRandLength is the length of expected private randomness buffers
 const PrivateRandLength = 32

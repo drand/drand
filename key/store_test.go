@@ -34,8 +34,6 @@ func TestKeysSaveLoad(t *testing.T) {
 	require.Nil(t, err)
 	_, err = os.Stat(store.publicKeyFile)
 	require.Nil(t, err)
-	//require.True(t, fs.FileExists(store.privateKeyFile))
-	//require.True(t, fs.FileExists(store.publicKeyFile))
 
 	// test group
 	require.Nil(t, store.SaveGroup(group))
@@ -57,20 +55,13 @@ func TestKeysSaveLoad(t *testing.T) {
 	}
 
 	// test share / dist key
-	share := &Share{
+	testShare := &Share{
 		Commits: []kyber.Point{ps[0].Public.Key, ps[1].Public.Key},
 		Share:   &share.PriShare{V: ps[0].Key, I: 0},
 	}
-	require.Nil(t, store.SaveShare(share))
+	require.Nil(t, store.SaveShare(testShare))
 	loadedShare, err := store.LoadShare()
 	require.NoError(t, err)
-	require.Equal(t, share.Share.V, loadedShare.Share.V)
-	require.Equal(t, share.Share.I, loadedShare.Share.I)
-
-	dp := &DistPublic{[]kyber.Point{ps[0].Public.Key}}
-	require.Nil(t, store.SaveDistPublic(dp))
-	loadedDp, err := store.LoadDistPublic()
-	require.NoError(t, err)
-	require.Equal(t, dp.Key().String(), loadedDp.Key().String())
-
+	require.Equal(t, testShare.Share.V, loadedShare.Share.V)
+	require.Equal(t, testShare.Share.I, loadedShare.Share.I)
 }

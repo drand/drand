@@ -41,15 +41,16 @@ import (
 // randomness generation
 type setupManager struct {
 	sync.Mutex
-	expected     int
-	thr          int
-	beaconOffset time.Duration
-	beaconPeriod time.Duration
-	dkgTimeout   uint64
-	clock        clock.Clock
-	leaderKey    *key.Identity
-	verifyKeys   func([]*key.Identity) bool
-	l            log.Logger
+	expected      int
+	thr           int
+	beaconOffset  time.Duration
+	catchupPeriod time.Duration
+	beaconPeriod  time.Duration
+	dkgTimeout    time.Duration
+	clock         clock.Clock
+	leaderKey     *key.Identity
+	verifyKeys    func([]*key.Identity) bool
+	l             log.Logger
 
 	isResharing bool
 	oldGroup    *key.Group
@@ -65,7 +66,8 @@ func newDKGSetup(
 	l log.Logger,
 	c clock.Clock,
 	leaderKey *key.Identity,
-	beaconPeriod uint32,
+	beaconPeriod,
+	catchupPeriod uint32,
 	in *drand.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
@@ -83,19 +85,20 @@ func newDKGSetup(
 	}
 
 	sm := &setupManager{
-		expected:     n,
-		thr:          thr,
-		beaconOffset: offset,
-		beaconPeriod: time.Duration(beaconPeriod) * time.Second,
-		dkgTimeout:   uint64(dkgTimeout.Seconds()),
-		l:            l,
-		startDKG:     make(chan *key.Group, 1),
-		pushKeyCh:    make(chan pushKey, n),
-		verifyKeys:   verifyKeys,
-		doneCh:       make(chan bool, 1),
-		clock:        c,
-		leaderKey:    leaderKey,
-		hashedSecret: secret,
+		expected:      n,
+		thr:           thr,
+		beaconOffset:  offset,
+		beaconPeriod:  time.Duration(beaconPeriod) * time.Second,
+		catchupPeriod: time.Duration(catchupPeriod) * time.Second,
+		dkgTimeout:    dkgTimeout,
+		l:             l,
+		startDKG:      make(chan *key.Group, 1),
+		pushKeyCh:     make(chan pushKey, n),
+		verifyKeys:    verifyKeys,
+		doneCh:        make(chan bool, 1),
+		clock:         c,
+		leaderKey:     leaderKey,
+		hashedSecret:  secret,
 	}
 	return sm, nil
 }
@@ -108,7 +111,11 @@ func newReshareSetup(
 	in *drand.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
-	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, in.GetInfo())
+	catchupPeriod := in.CatchupPeriod
+	if !in.CatchupPeriodChanged {
+		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
+	}
+	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, in.GetInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +136,7 @@ type pushKey struct {
 	id   *key.Identity
 }
 
-// ReceivedKey takes a newly received identity and return two channels:
-// receiver.WaitGroup to receive the group once ready to send back to peer
-// receiver.DoneCh to notify the setup manager the group is sent. This last
-// channel is to make sure the group is sent to every registered participants
-// before notifying the leader to start the dkg.
+// ReceivedKey takes a newly received identity from a peer joining a DKG
 func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error {
 	s.Lock()
 	defer s.Unlock()
@@ -167,6 +170,7 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 }
 
 func (s *setupManager) run() {
+	defer close(s.startDKG)
 	var inKeys = make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
 	for {
@@ -205,7 +209,7 @@ func (s *setupManager) run() {
 				}
 			}
 		case <-s.doneCh:
-			s.l.Debug("setup", "done")
+			s.l.Debug("setup", "preempted", "collected_keys", len(inKeys))
 			return
 		}
 	}
@@ -214,19 +218,20 @@ func (s *setupManager) run() {
 func (s *setupManager) createAndSend(keys []*key.Identity) {
 	// create group
 	var group *key.Group
+	totalDKG := s.dkgTimeout*3 + s.beaconOffset
 	if !s.isResharing {
-		genesis := s.clock.Now().Add(s.beaconOffset).Unix()
+		genesis := s.clock.Now().Add(totalDKG).Unix()
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
 		genesis += (ps - genesis%ps)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
 	} else {
 		genesis := s.oldGroup.GenesisTime
-		atLeast := s.clock.Now().Add(s.beaconOffset).Unix()
+		atLeast := s.clock.Now().Add(totalDKG).Unix()
 		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
@@ -240,8 +245,8 @@ func (s *setupManager) WaitGroup() chan *key.Group {
 	return s.startDKG
 }
 
-// StopPreemptively is to be called if something is wrong *before* the
-// group is created. In normal cases, setupManager will stop itself.
+// StopPreemptively is to be called if something is wrong *before* the group is
+// created. In normal cases, setupManager will stop itself.
 func (s *setupManager) StopPreemptively() {
 	s.doneCh <- true
 }
@@ -251,6 +256,10 @@ func validInitPacket(in *drand.SetupInfoPacket) (n, thr int, dkg time.Duration, 
 	thr = int(in.GetThreshold())
 	if thr < key.MinimumT(n) {
 		err = fmt.Errorf("invalid thr: %d nodes, need thr %d got %d", n, thr, key.MinimumT(n))
+		return
+	}
+	if thr > n {
+		err = fmt.Errorf("invalid thr: %d nodes, can't have thr %d", n, thr)
 		return
 	}
 	dkg = time.Duration(in.GetTimeout()) * time.Second
@@ -268,6 +277,7 @@ type setupReceiver struct {
 	leader   net.Peer
 	leaderID *key.Identity
 	secret   []byte
+	done     bool
 }
 
 func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
@@ -316,7 +326,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	if err != nil {
 		return fmt.Errorf("group from leader invalid: %s", err)
 	}
-	if err := key.AuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
+	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
 		r.l.Error("received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %s", err)
 	}
@@ -328,7 +338,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	return nil
 }
 
-func (r *setupReceiver) WaitDKGInfo() (*key.Group, uint32, error) {
+func (r *setupReceiver) WaitDKGInfo(ctx context.Context) (*key.Group, uint32, error) {
 	select {
 	case dkgGroup := <-r.ch:
 		if dkgGroup == nil {
@@ -339,11 +349,18 @@ func (r *setupReceiver) WaitDKGInfo() (*key.Group, uint32, error) {
 	case <-r.clock.After(MaxWaitPrepareDKG):
 		r.l.Error("init_dkg", "wait_group", "err", "timeout")
 		return nil, 0, errors.New("wait_group timeouts from coordinator")
+	case <-ctx.Done():
+		return nil, 0, ctx.Err()
 	}
 }
 
+// stop must be called in a thread safe manner
 func (r *setupReceiver) stop() {
+	if r.done {
+		return
+	}
 	close(r.ch)
+	r.done = true
 }
 
 // correctSecret returns true if `hashed" and the hash of `received are equal.

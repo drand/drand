@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
+	testnet "github.com/drand/drand/test/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
@@ -29,7 +30,7 @@ type MockService interface {
 // Server fake
 type Server struct {
 	addr string
-	*net.EmptyServer
+	*testnet.EmptyServer
 	l          sync.Mutex
 	stream     drand.Public_PublicRandStreamServer
 	streamDone chan error
@@ -39,7 +40,7 @@ type Server struct {
 
 func newMockServer(d *Data) *Server {
 	return &Server{
-		EmptyServer: new(net.EmptyServer),
+		EmptyServer: new(testnet.EmptyServer),
 		d:           d,
 		chainInfo: &drand.ChainInfoPacket{
 			Period:      uint32(d.Period.Seconds()),
@@ -228,7 +229,7 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, ne
 	testValid(d)
 	d.BadSecondRound = badSecondRound
 	server := newMockServer(d)
-	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, server)
+	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
 		panic(err)
 	}

@@ -5,12 +5,16 @@ import (
 	"os"
 	"runtime"
 	"testing"
+
+	testnet "github.com/drand/drand/test/net"
 )
+
+const runtimeGOOSWindows = "windows"
 
 // From https://github.com/golang/net/blob/master/nettest/nettest.go#L91
 func testable() bool {
 	switch runtime.GOOS {
-	case "aix", "android", "fuchsia", "hurd", "js", "nacl", "plan9", "windows":
+	case "aix", "android", "fuchsia", "hurd", "js", "nacl", "plan9", runtimeGOOSWindows:
 		return false
 	case "darwin":
 		// iOS does not support unix, unixgram.
@@ -30,7 +34,7 @@ func TestControlUnix(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(name)
-	s := EmptyServer{}
+	s := testnet.EmptyServer{}
 	service := NewTCPGrpcControlListener(&s, "unix://"+name+"/sock")
 	client, err := NewControlClient("unix://" + name + "/sock")
 

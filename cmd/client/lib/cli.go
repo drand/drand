@@ -57,8 +57,9 @@ var (
 	}
 	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
-		Name:  "group-conf",
-		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded), can be used instead of `-hash` flag to verify the chain.",
+		Name: "group-conf",
+		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded)," +
+			" can be used instead of `-hash` flag to verify the chain.",
 	}
 	// InsecureFlag is the CLI flag to allow autodetection of the chain
 	// information.
@@ -75,7 +76,7 @@ var (
 	// connecting to relays. (specified as a numeric port, or a host:port)
 	PortFlag = &cli.StringFlag{
 		Name:  "port",
-		Usage: "Local (host:)port for client to bind to, when connecting to relays",
+		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
 )
 
@@ -109,19 +110,11 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.WithChainInfo(info))
 	}
 
-	if c.IsSet(GRPCConnectFlag.Name) {
-		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
-		if err != nil {
-			return nil, err
-		}
-		if info == nil {
-			info, err = gc.Info(context.Background())
-			if err != nil {
-				return nil, err
-			}
-		}
-		clients = append(clients, gc)
+	gc, err := buildGrpcClient(c, &info)
+	if err != nil {
+		return nil, err
 	}
+	clients = append(clients, gc...)
 
 	var hash []byte
 	if c.IsSet(HashFlag.Name) {
@@ -141,11 +134,43 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
 	}
+
+	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
+
+	gopt, err := buildGossipClient(c)
+	if err != nil {
+		return nil, err
+	}
+	opts = append(opts, gopt...)
+
+	return client.Wrap(clients, opts...)
+}
+
+func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
+	if c.IsSet(GRPCConnectFlag.Name) {
+		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
+		if err != nil {
+			return nil, err
+		}
+		if *info == nil {
+			*info, err = gc.Info(context.Background())
+			if err != nil {
+				return nil, err
+			}
+		}
+		return []client.Client{gc}, nil
+	}
+	return []client.Client{}, nil
+}
+
+func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {
+	clients := make([]client.Client, 0)
+	var err error
 	skipped := []string{}
 	var hc client.Client
 	for _, url := range c.StringSlice(URLFlag.Name) {
-		if info != nil {
-			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
+		if *info != nil {
+			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
 			if err != nil {
 				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
 				continue
@@ -157,7 +182,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 				skipped = append(skipped, url)
 				continue
 			}
-			info, err = hc.Info(context.Background())
+			*info, err = hc.Info(context.Background())
 			if err != nil {
 				log.DefaultLogger().Warn("client", "failed to load Info from URL", "url", url, "err", err)
 				continue
@@ -165,9 +190,9 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		clients = append(clients, hc)
 	}
-	if info != nil {
+	if *info != nil {
 		for _, url := range skipped {
-			hc, err = http.NewWithInfo(url, info, nhttp.DefaultTransport)
+			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
 			if err != nil {
 				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
 				continue
@@ -175,10 +200,15 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			clients = append(clients, hc)
 		}
 	}
+
 	if withInstrumentation {
 		http.MeasureHeartbeats(c.Context, clients)
 	}
 
+	return clients
+}
+
+func buildGossipClient(c *cli.Context) ([]client.Option, error) {
 	if c.IsSet(RelayFlag.Name) {
 		addrs := c.StringSlice(RelayFlag.Name)
 		if len(addrs) > 0 {
@@ -194,11 +224,10 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 			if err != nil {
 				return nil, err
 			}
-			opts = append(opts, gclient.WithPubsub(ps))
+			return []client.Option{gclient.WithPubsub(ps)}, nil
 		}
 	}
-
-	return client.Wrap(clients, opts...)
+	return []client.Option{}, nil
 }
 
 func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*pubsub.PubSub, error) {
@@ -240,9 +269,9 @@ func buildClientHost(clientListenAddr string, relayMultiaddr []ma.Multiaddr) (*p
 }
 
 // chainInfoFromGroupTOML reads a drand group TOML file and returns the chain info.
-func chainInfoFromGroupTOML(path string) (*chain.Info, error) {
+func chainInfoFromGroupTOML(filePath string) (*chain.Info, error) {
 	gt := &key.GroupTOML{}
-	_, err := toml.DecodeFile(path, gt)
+	_, err := toml.DecodeFile(filePath, gt)
 	if err != nil {
 		return nil, err
 	}
@@ -254,8 +283,8 @@ func chainInfoFromGroupTOML(path string) (*chain.Info, error) {
 	return chain.NewChainInfo(g), nil
 }
 
-func chainInfoFromChainInfoJSON(path string) (*chain.Info, error) {
-	b, err := ioutil.ReadFile(path)
+func chainInfoFromChainInfoJSON(filePath string) (*chain.Info, error) {
+	b, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}

@@ -1,28 +1,30 @@
-[![CircleCI](https://circleci.com/gh/drand/drand/tree/master.svg?style=shield)](https://circleci.com/gh/drand/drand/tree/master)
-[![Coverage](https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg)](https://codecov.io/gh/drand/drand)
-[![Go Report Card](https://goreportcard.com/badge/github.com/drand/drand)](https://goreportcard.com/report/github.com/drand/drand)
-[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white)](https://pkg.go.dev/github.com/drand/drand)
-[![golang version](https://img.shields.io/badge/golang-%3E%3D1.14-orange.svg)](https://golang.org/)
-
-> ⚠️ `Disclaimer` ⚠️ 
-> **This software is considered experimental and has NOT received a third-party
-audit yet. Therefore, DO NOT USE it in production or for anything security
-critical at this point.**
-
 # Drand - A Distributed Randomness Beacon Daemon
 
-Drand (pronounced "dee-rand") is a distributed randomness beacon daemon written
-in [Golang](https://golang.org/). Servers running drand can be linked with each
-other to produce collective, publicly verifiable, unbiased, unpredictable
-random values at fixed intervals using bilinear pairings and threshold
-cryptography. Drand nodes can also serve locally-generated private randomness
-to clients.
+<p align="center"><img src="logo.png" width="220" /></p>
 
-drand was first developed within the [DEDIS organization](
-https://github.com/dedis), and as of December 2019,
-is now under the drand organization.
+<p align="center">
+  <a href="https://circleci.com/gh/drand/drand/tree/master" title="CircleCI"><img src="https://circleci.com/gh/drand/drand/tree/master.svg?style=shield" /></a>
+  <a href="https://codecov.io/gh/drand/drand" title="Coverage"><img src="https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg" /></a>
+  <a href="https://goreportcard.com/report/github.com/drand/drand" title="Go Report Card"><img src="https://goreportcard.com/badge/github.com/drand/drand" /></a>
+  <a href="https://pkg.go.dev/github.com/drand/drand" title="go.dev reference"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" /></a>
+  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/golang-%3E%3D1.14-orange.svg" /></a>
+</p>
 
-## Table of Contents
+<p align="center">
+Drand (pronounced "dee-rand") is a distributed randomness beacon daemon 
+written in <a href="https://golang.org/">Golang</a>.
+</p>
+
+<p align="center">
+Linked drand nodes collectively produce <strong>publicly verifiable</strong>,
+<strong>unbiased</strong> and <strong>unpredictable</strong> random values at
+fixed intervals using bilinear pairings and threshold cryptography.
+</p>
+
+<p align="center">
+Drand was first developed within the <a href="https://github.com/dedis">DEDIS
+organization</a>, and as of December 2019, is now under the drand organization.
+</p>
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -42,7 +44,7 @@ is now under the drand organization.
   - [Fetching Public Randomness](#fetching-public-randomness)
   - [Fetching Private Randomness](#fetching-private-randomness)
   - [Using HTTP endpoints](#using-http-endpoints)
-  - [DrandJS](#drandjs)
+  - [JavaScript client](#javascript-client)
 - [Documentation](#documentation)
 - [What's Next?](#whats-next)
 - [Acknowledgments](#acknowledgments)
@@ -57,7 +59,7 @@ The need for digital randomness is paramount in multiple digital applications
 randomness, blockchain systems etc) as well in non-digital such as statistical
 sampling (used for example to check results of an election), assigning court
 cases to random judges, random financial audits, etc.  However, constructing a
-secure source of randomness is nothing but easy: there are countless examples
+secure source of randomness is anything but easy: there are countless examples
 of attacks where the randomness generation was the culprit (static keys,
 non-uniform distribution, biased output, etc).  drand aims to fix that gap by
 providing a Randomness-as-a-Service network (similar to NTP servers for time,
@@ -107,7 +109,7 @@ phases:
   and their respective private key shares. Once any node (or third-party
   observer) has gathered t partial signatures, it can reconstruct the full BLS
   signature (using Lagrange interpolation). The signature is then hashed using
-  SHA-512 to ensure that there is no bias in the byte representation of the
+  SHA-256 to ensure that there is no bias in the byte representation of the
   final output. This hash corresponds to the collective random value and can be
   verified against the collective public key.
 
@@ -183,7 +185,7 @@ client can use the `--tls-cert` flag to specify the server's certificate.
 
 ### Create a Drand deployment
 
-Consult full instructions at [DEPLOYMENT](./docs/DEPLOYMENT.md)
+Consult full instructions at [DEPLOYMENT](https://beta.drand.love/operator/deploy/)
 
 ### Fetching Public Randomness
 
@@ -248,18 +250,14 @@ use
 curl <address>/public/latest
 ```
 
-### DrandJS
+### JavaScript client
 
 To facilitate the use of drand's randomness in JavaScript-based applications,
-we provide [DrandJS](https://github.com/drand/drandjs). The main method
-`fetchAndVerify` of this JavaScript library fetches from a drand node the
-latest random beacon generated and then verifies it against the distributed
-key.  For more details on the procedure and instructions on how to use it,
-refer to the
-[readme](https://github.com/PizzaWhisperer/drandjs/blob/master/README.md).
+we provide [`drand-client`](https://github.com/drand/drand-client).
 
-Note this library is still a proof of concept and uses a rather slow pairing
-based library in JavaScript.
+For more details on the procedure and instructions on how to use it,
+refer to the
+[readme](https://github.com/drand/drand-client/blob/master/README.md).
 
 ## Documentation
 
@@ -270,12 +268,12 @@ Here is a list of all documentation related to drand:
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
   about drand or online [video](https://www.youtube.com/watch?v=ydwW2HFFxNI&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=3).
   - [A basic explainer of the cryptography behind drand](https://hackmd.io/@nikkolasg/HyUAgm234), 
-  - [Protocol Specification](./docs/SPECS.md)
+  - [Protocol Specification](https://beta.drand.love/docs/specification/)
 - API documentation
   - [The client-side API documentation of drand](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
 - DevOps/Deployment documentation
-  - [Deployment instructions](./docs/DEPLOYMENT.md)
-  - [Security Model](./docs/SECURITY_MODEL.md)
+  - [Deployment instructions](https://beta.drand.love/operator/deploy/)
+  - [Security Model](https://beta.drand.love/docs/security-model/)
 
 As well, here is a list of background readings w.r.t to the cryptography used in
 drand:

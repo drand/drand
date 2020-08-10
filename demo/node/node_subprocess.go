@@ -22,8 +22,8 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-var secretDKG = "dkgsecret"
-var secretReshare = "sharesecret"
+var secretDKG = "dkgsecret_____________________32"
+var secretReshare = "sharesecret___________________32"
 
 type NodeProc struct {
 	base       string
@@ -67,6 +67,11 @@ func NewNode(i int, period string, base string, tls bool, binary string) Node {
 	}
 	n.setup()
 	return n
+}
+
+// UpdateBinary updates the binary this node uses for control, to e.g. simulate an upgrade
+func (n *NodeProc) UpdateBinary(binary string) {
+	n.binary = binary
 }
 
 func (n *NodeProc) setup() {
@@ -168,7 +173,6 @@ func (n *NodeProc) Index() int {
 func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
 	args := []string{"share", "--control", n.ctrl}
 	args = append(args, pair("--out", n.groupPath)...)
-	args = append(args, pair("--secret", secretDKG)...)
 	if leader {
 		args = append(args, "--leader")
 		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
@@ -183,10 +187,15 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 			args = append(args, "--tls-disable")
 		}
 	}
-	cmd := exec.Command(n.binary, args...)
-	runCommand(cmd)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, n.binary, args...)
+	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretDKG)
+	out := runCommand(cmd)
+	fmt.Println(n.priv.Public.Address(), "FINISHED DKG", string(out))
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))
+	fmt.Println(n.priv.Public.Address(), "FINISHED LOADING GROUP")
 	return group
 }
 
@@ -204,7 +213,6 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 	args := []string{"share"}
 	args = append(args, pair("--out", n.groupPath)...)
 	args = append(args, pair("--control", n.ctrl)...)
-	args = append(args, pair("--secret", secretReshare)...)
 	if oldGroup != "" {
 		// only append if we are a new node
 		args = append(args, pair("--from", oldGroup)...)
@@ -226,6 +234,7 @@ func (n *NodeProc) RunReshare(nodes, thr int, oldGroup string, timeout string, l
 		}
 	}
 	cmd := exec.Command(n.binary, args...)
+	cmd.Env = append(os.Environ(), "DRAND_SHARE_SECRET="+secretReshare)
 	runCommand(cmd, fmt.Sprintf("drand node %s", n.privAddr))
 	group := new(key.Group)
 	checkErr(key.Load(n.groupPath, group))

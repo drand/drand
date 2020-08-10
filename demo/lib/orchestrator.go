@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"bytes"
@@ -21,6 +21,16 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
+// 1s after dkg finishes, (new or reshared) beacon starts
+var beaconOffset = 1
+
+// how much should we wait before checking if the randomness is present. This is
+// mostly due to the fact we run on localhost on cheap machine with CI so we
+// need some delays to make sure *all* nodes that we check have gathered the
+// randomness.
+var afterPeriodWait = 5 * time.Second
+
+// Orchestrator controls a set of nodes
 type Orchestrator struct {
 	n            int
 	thr          int
@@ -116,20 +126,38 @@ func (e *Orchestrator) RunDKG(timeout string) {
 	leader := e.nodes[0]
 	var wg sync.WaitGroup
 	wg.Add(len(e.nodes))
+	panicCh := make(chan interface{}, 1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				panicCh <- err
+			}
+			wg.Done()
+		}()
 		fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
 		leader.RunDKG(e.n, e.thr, timeout, true, "", beaconOffset)
-		wg.Done()
 	}()
 	time.Sleep(200 * time.Millisecond)
 	for _, n := range e.nodes[1:] {
 		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
 		go func(n node.Node) {
+			defer func() {
+				if err := recover(); err != nil {
+					panicCh <- err
+				}
+				wg.Done()
+			}()
 			n.RunDKG(e.n, e.thr, timeout, false, leader.PrivateAddr(), beaconOffset)
-			wg.Done()
+			fmt.Println("\t FINISHED DKG")
 		}(n)
 	}
 	wg.Wait()
+	select {
+	case p := <-panicCh:
+		panic(p)
+	default:
+	}
+
 	fmt.Println("[+] Nodes finished running DKG. Checking keys...")
 	// we pass the current group path
 	g := e.checkDKGNodes(e.nodes, e.groupPath)
@@ -313,6 +341,19 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary)
 }
 
+// UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
+// a whole if idx is negative.
+func (e *Orchestrator) UpdateBinary(binary string, idx int) {
+	if idx < 0 {
+		e.binary = binary
+	} else {
+		n := e.nodes[idx]
+		if spn, ok := n.(*node.NodeProc); ok {
+			spn.UpdateBinary(binary)
+		}
+	}
+}
+
 func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {
 	fmt.Println("[+] Setting up the nodes for the resharing")
 	// create paths that contains old node + new nodes
@@ -360,26 +401,53 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	thr := e.newThr
 	groupCh := make(chan *key.Group, 1)
 	leader := e.reshareNodes[0]
+	panicCh := make(chan interface{}, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				panicCh <- err
+			}
+		}()
 		path := ""
 		if e.isNew(leader) {
 			path = e.groupPath
 		}
 		fmt.Printf("\t- Running DKG for leader node %s\n", leader.PrivateAddr())
 		group := leader.RunReshare(nodes, thr, path, timeout, true, "", beaconOffset)
+		fmt.Printf("\t- Resharing DONE for leader node %s\n", leader.PrivateAddr())
+		wg.Done()
 		groupCh <- group
 	}()
 	time.Sleep(100 * time.Millisecond)
 
-	for _, node := range e.reshareNodes[1:] {
+	for _, n := range e.reshareNodes[1:] {
 		path := ""
-		if e.isNew(node) {
+		if e.isNew(n) {
 			path = e.groupPath
 		}
-		fmt.Printf("\t- Running DKG for node %s\n", node.PrivateAddr())
-		go node.RunReshare(nodes, thr, path, timeout, false, leader.PrivateAddr(), beaconOffset)
+		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
+		wg.Add(1)
+		go func(n node.Node) {
+			defer func() {
+				if err := recover(); err != nil {
+					wg.Done()
+					panicCh <- err
+				}
+			}()
+			n.RunReshare(nodes, thr, path, timeout, false, leader.PrivateAddr(), beaconOffset)
+			fmt.Printf("\t- Resharing DONE for node %s\n", n.PrivateAddr())
+			wg.Done()
+		}(n)
 	}
+	wg.Wait()
 	<-groupCh
+	select {
+	case p := <-panicCh:
+		panic(p)
+	default:
+	}
 	// we pass the new group file
 	g := e.checkDKGNodes(e.reshareNodes, e.newGroupPath)
 	e.newGroup = g
@@ -442,7 +510,7 @@ func (e *Orchestrator) StopAllNodes(toExclude ...int) {
 func (e *Orchestrator) StartNode(idxs ...int) {
 	for _, idx := range idxs {
 		var foundNode node.Node
-		for _, node := range e.nodes {
+		for _, node := range append(e.nodes, e.newNodes...) {
 			if node.Index() == idx {
 				foundNode = node
 			}

@@ -18,6 +18,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	testnet "github.com/drand/drand/test/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
@@ -30,7 +31,7 @@ import (
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
 	disable bool
-	*net.EmptyServer
+	*testnet.EmptyServer
 	h *Handler
 }
 
@@ -45,7 +46,7 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	if t.disable {
 		return errors.New("disabled server")
 	}
-	return t.h.SyncChain(req, p)
+	return t.h.chain.sync.SyncChain(req, p)
 }
 
 func dkgShares(n, t int) ([]*key.Share, []kyber.Point) {
@@ -194,10 +195,10 @@ func (b *BeaconTest) CreateNode(i int) {
 		Clock:  node.clock,
 	}
 
-	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(log.LogDebug))
+	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, log.NewLogger(nil, log.LogDebug))
 	checkErr(err)
 	if node.callback != nil {
-		node.handler.callbacks.AddCallback(node.callback)
+		node.handler.AddCallback(priv.Public.Address(), node.callback)
 	}
 
 	if node.handler.addr != node.private.Public.Address() {
@@ -226,10 +227,17 @@ func (b *BeaconTest) CreateNode(i int) {
 
 func (b *BeaconTest) ServeBeacon(i int) {
 	j := b.searchNode(i)
-	beaconServer := &testBeaconServer{h: b.nodes[j].handler}
+	beaconServer := &testBeaconServer{
+		h: b.nodes[j].handler,
+	}
 	b.nodes[j].server = beaconServer
 	var err error
-	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(context.Background(), b.nodes[j].private.Public.Address(), beaconServer)
+	b.nodes[j].listener, err = net.NewGRPCListenerForPrivate(
+		context.Background(),
+		b.nodes[j].private.Public.Address(),
+		"", "",
+		beaconServer,
+		true)
 	if err != nil {
 		panic(err)
 	}
@@ -362,7 +370,7 @@ func checkWait(counter *sync.WaitGroup) {
 }
 
 func TestBeaconSync(t *testing.T) {
-	n := 5
+	n := 4
 	thr := n/2 + 1
 	period := 2 * time.Second
 
@@ -404,13 +412,16 @@ func TestBeaconSync(t *testing.T) {
 	fmt.Printf("\n\n --- AFTER GENESIS --- \n\n")
 	// do some rounds
 	for i := 0; i < 2; i++ {
+		fmt.Printf(" \n\n --- ROUND %d STARTING \n\n", i)
 		doRound(n, period)
 		fmt.Printf(" \n\n --- ROUND DONE %d \n\n", i)
 	}
 
+	fmt.Printf("\n\n --- DISABLE RECEPTION --- \n\n")
 	// disable reception of all nodes but one
-	online := 2
+	online := 3
 	bt.DisableReception(n - online)
+	fmt.Printf("\n\n --- doRounds AFTER disabling ---\n\n")
 	// check that at least one node got the beacon
 	doRound(online, period)
 	fmt.Printf("\n\n-- BEFORE ENABLING RECEPTION AGAIN -- \n\n")
@@ -423,6 +434,7 @@ func TestBeaconSync(t *testing.T) {
 	// bt.MoveTime(period
 	// n for the new round
 	// n - online for the previous round that the others catch up
+	fmt.Printf("\n\n --- Before DOING ROUND AFTER ENABLING -- \n\n")
 	doRound(n+n-online, period)
 }
 func TestBeaconSimple(t *testing.T) {
@@ -530,8 +542,8 @@ func TestBeaconThreshold(t *testing.T) {
 	bt.ServeBeacon(n - 1)
 	bt.StartBeacon(n-1, true)
 	fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
-	// wait a bit for syncing to take place
-	time.Sleep(100 * time.Millisecond)
+	// 2s because of gRPC default timeouts backoff
+	time.Sleep(2 * time.Second)
 	bt.CallbackFor(n-1, myCallBack(n-1))
 	fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
 	// and then run a few rounds
@@ -556,5 +568,5 @@ func TestBeaconThreshold(t *testing.T) {
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {
 	j := b.searchNode(i)
-	b.nodes[j].handler.callbacks.AddCallback(fn)
+	b.nodes[j].handler.AddCallback(b.nodes[j].private.Public.Address(), fn)
 }

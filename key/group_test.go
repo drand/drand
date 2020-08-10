@@ -62,7 +62,7 @@ func TestGroupProtobuf(t *testing.T) {
 		isErr:  false,
 	})
 
-	group3 := *(&group2)
+	group3 := group2
 	var nodes = make([]*Node, len(group3.Nodes))
 	copy(nodes, group3.Nodes)
 	nodes[0], nodes[1] = nodes[1], nodes[0]

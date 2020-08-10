@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -36,9 +37,10 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal("no signature provided")
 	}
 
-	if _, err := httpClient.Get(ctx, full.Rnd+1); err == nil {
-		t.Fatal("round n+1 should have an invalid signature")
+	if _, err := httpClient.Get(ctx, full.Rnd+1); err != nil {
+		t.Fatal("http client should not perform verification of results")
 	}
+	_ = httpClient.Close()
 }
 
 func TestHTTPGetLatest(t *testing.T) {
@@ -67,6 +69,7 @@ func TestHTTPGetLatest(t *testing.T) {
 	if r1.Round() != r0.Round()+1 {
 		t.Fatal("expected round progression")
 	}
+	_ = httpClient.Close()
 }
 
 func TestForURLsCreation(t *testing.T) {
@@ -77,6 +80,8 @@ func TestForURLsCreation(t *testing.T) {
 	if len(clients) != 2 {
 		t.Fatal("expect both urls returned")
 	}
+	_ = clients[0].Close()
+	_ = clients[1].Close()
 }
 
 func TestHTTPWatch(t *testing.T) {
@@ -100,4 +105,42 @@ func TestHTTPWatch(t *testing.T) {
 	}
 	for range result { // drain the channel until the context expires
 	}
+	_ = httpClient.Close()
+}
+
+func TestHTTPClientClose(t *testing.T) {
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	defer cancel()
+
+	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := httpClient.Get(context.Background(), 1969)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Round() != 1969 {
+		t.Fatal("unexpected round.")
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		for range httpClient.Watch(context.Background()) {
+		}
+		wg.Done()
+	}()
+
+	err = httpClient.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = httpClient.Get(context.Background(), 0)
+	if err != errClientClosed {
+		t.Fatal("unexpected error from closed client", err)
+	}
+
+	wg.Wait() // wait for the watch to close
 }
