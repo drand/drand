@@ -24,9 +24,9 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	if round > (math.MaxUint64 >> int(periodBits)) {
 		return TimeOfRoundErrorValue
 	}
+	// - 1 because genesis time is for 1st round already
 	delta := (round - 1) * uint64(period.Seconds())
 
-	// - 1 because genesis time is for 1st round already
 	val := genesis + int64(delta)
 	if val > math.MaxInt64-maxTimeBuffer {
 		return TimeOfRoundErrorValue
