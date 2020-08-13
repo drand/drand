@@ -49,14 +49,10 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/weaveworks/common v0.0.0-20200512154658-384f10054ec5
 	go.etcd.io/bbolt v1.3.4
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
+	golang.org/x/crypto v0.0.0-20200728195943-123391ffb6de
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/genproto v0.0.0-20200608115520-7c474a2e3482 // indirect
 	google.golang.org/grpc v1.29.1
 	google.golang.org/protobuf v1.24.0
 )
-
-replace github.com/drand/kyber => ../kyber
-
-replace github.com/drand/kyber-bls12381 => ../kyber-bls12381
