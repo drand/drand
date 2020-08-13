@@ -20,9 +20,19 @@ func TestTimeOverflow(t *testing.T) {
 		t.Fatal("future rounds should not allow previous times.")
 	}
 
-	overflowRound := TimeOfRound(period, start, math.MaxInt64)
-	if overflowRound < smallRound {
-		t.Fatal("future rounds should not allow previous times.")
+	overflowRound := TimeOfRound(period, start, math.MaxUint64 >> 3)
+	if overflowRound != TimeOfRoundErrorValue {
+		t.Fatal("overflow shoud return error.")
+	}
+
+	overflowRound2 := TimeOfRound(period + 2 * time.Second, start, (math.MaxUint64 >> 3) - 1)
+	if overflowRound2 != TimeOfRoundErrorValue {
+		t.Fatal("overflow shoud return error.")
+	}
+
+	negativePeriod := TimeOfRound(-1, start, math.MaxUint64)
+	if negativePeriod != TimeOfRoundErrorValue {
+		t.Fatal("negative period shoud return error.")
 	}
 }
 
