@@ -10,8 +10,9 @@ import (
 )
 
 const defaultDirectoryPermission = 0740
+const rwFilePermission = 0600
 
-// HomeFolder returns the home folder of the current user
+// HomeFolder returns the home folder of the current user.
 func HomeFolder() string {
 	u, err := user.Current()
 	if err != nil {
@@ -20,8 +21,8 @@ func HomeFolder() string {
 	return u.HomeDir
 }
 
-// CreateSecureFolder checks if the folder exists and has the appropriate permission rights. In case of bad permission rights)
-// the empty string is returned.If the folder doesn't exist it creates it.
+// CreateSecureFolder checks if the folder exists and has the appropriate permission rights. In case of bad permission rights
+// the empty string is returned. If the folder doesn't exist it, create it.
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, defaultDirectoryPermission); err != nil {
@@ -37,7 +38,7 @@ func CreateSecureFolder(folder string) string {
 		}
 		perm := int(info.Mode().Perm())
 		if perm != int(defaultDirectoryPermission) {
-			fmt.Printf("Folder different permission: %#o vs %#o \n", perm, 0740)
+			fmt.Printf("Folder different permission: %#o vs %#o \n", perm, defaultDirectoryPermission)
 			return folder
 		}
 	}
@@ -64,10 +65,10 @@ func CreateSecureFile(file string) (*os.File, error) {
 		return nil, err
 	}
 	fd.Close()
-	if err := os.Chmod(file, 0600); err != nil {
+	if err := os.Chmod(file, rwFilePermission); err != nil {
 		return nil, nil
 	}
-	return os.OpenFile(file, os.O_RDWR, 0600)
+	return os.OpenFile(file, os.O_RDWR, rwFilePermission)
 }
 
 // Files returns the list of file names included in the given path or error if

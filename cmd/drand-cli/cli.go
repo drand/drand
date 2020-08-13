@@ -158,9 +158,7 @@ var forceFlag = &cli.BoolFlag{
 // decide to redo the setup, it works in practice well enough.
 // XXX Add a manual check when the group is created so the user manually ACK.
 var secretFlag = &cli.StringFlag{
-	Name:     "secret",
-	EnvVars:  []string{"DRAND_SHARE_SECRET"},
-	Required: true,
+	Name: "secret-file",
 	Usage: "Specify the secret to use when doing the share so the leader knows you are an eligible potential participant." +
 		" must be at least 32 characters.",
 }
