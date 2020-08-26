@@ -458,12 +458,19 @@ func TestDrandFollowChain(tt *testing.T) {
 	tls := true
 	// First try with an invalid hash info
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ := newClient.StartFollowChain(ctx, "1337", addrToFollow, tls, 10000)
+	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000)
 	select {
 	case <-errCh:
 	case <-time.After(100 * time.Millisecond):
 		tt.Fatal("should have errored")
 	}
+	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000)
+	select {
+	case <-errCh:
+	case <-time.After(100 * time.Millisecond):
+		tt.Fatal("should have errored")
+	}
+
 	fn := func(upTo, exp uint64) {
 		ctx, cancel = context.WithCancel(context.Background())
 		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo)
