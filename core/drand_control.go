@@ -301,6 +301,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
+		d.state.Unlock()
 		return nil, err
 	}
 	d.receiver = receiver
@@ -376,6 +377,7 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	if d.receiver != nil {
 		if !in.GetInfo().GetForce() {
 			d.log.Info("reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
+			d.state.Unlock()
 			return nil, errors.New("reshare already in progress; use --force")
 		}
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
