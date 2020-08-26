@@ -301,6 +301,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
+		d.state.Unlock()
 		return nil, err
 	}
 	d.receiver = receiver
@@ -376,6 +377,7 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	if d.receiver != nil {
 		if !in.GetInfo().GetForce() {
 			d.log.Info("reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
+			d.state.Unlock()
 			return nil, errors.New("reshare already in progress; use --force")
 		}
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
@@ -797,23 +799,27 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}()
 
 	addr := net.RemoteAddress(stream.Context())
-	// TODO put that hash verification back
-	// hash := req.GetInfoHash()
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
 		// XXX add TLS disable later
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log)
+	// TODO replace via a more independent chain manager that manages the
 	if err != nil {
 		return err
 	}
 	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
 	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
-	// if !bytes.Equal(info.Hash(),hash) {
-	//  return errors.New("invalid chain info hash!")
-	// }
+	hashStr := req.GetInfoHash()
+	hash, err := hex.DecodeString(hashStr)
+	if err != nil {
+		return fmt.Errorf("invalid hash info hex: %v", err)
+	}
+	if !bytes.Equal(info.Hash(), hash) {
+		return errors.New("invalid chain info hash!")
+	}
 
 	store, err := d.createBoltStore()
 	if err != nil {
