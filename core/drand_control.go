@@ -805,13 +805,11 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log)
-	// TODO replace via a more independent chain manager that manages the
 	if err != nil {
 		return err
 	}
 	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
-	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
 	hashStr := req.GetInfoHash()
 	hash, err := hex.DecodeString(hashStr)
 	if err != nil {
