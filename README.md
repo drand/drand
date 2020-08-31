@@ -170,7 +170,7 @@ To run a local demo, you can simply run:
 make demo
 ```
 
-The script spins up a few drand local processes, performe resharing and other
+The script spins up a few drand local processes, performs resharing and other
 operations and will continue to print out new randomness every Xs (currently
 6s).
 For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
