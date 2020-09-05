@@ -27,6 +27,8 @@ const (
 	// is re-open when no context error occurred.
 	defaultWatchRetryInterval = time.Second * 30
 	defaultChannelBuffer      = 5
+
+	maxUnixTime = 1<<63 - 62135596801
 )
 
 // newOptimizingClient creates a drand client that measures the speed of clients
@@ -108,7 +110,7 @@ func (oc *optimizingClient) MarkPassive(c Client) {
 	for _, s := range oc.stats {
 		if s.client == c {
 			s.rtt = math.MaxInt64
-			s.startTime = time.Unix(1<<63-62135596801, 999999999)
+			s.startTime = time.Unix(maxUnixTime, 999999999)
 		}
 	}
 }
@@ -241,8 +243,10 @@ LOOP:
 			}
 			stats = append(stats, rr.stat)
 			res = rr.result
-			if err != errEmptyClientUnsupportedGet {
+			if rr.err != errEmptyClientUnsupportedGet && rr.err != nil {
 				err = fmt.Errorf("%v - %w", err, rr.err)
+			} else if rr.err == nil {
+				err = nil
 			}
 		case <-ctx.Done():
 			oc.updateStats(stats)
@@ -254,7 +258,7 @@ LOOP:
 	}
 
 	oc.updateStats(stats)
-	return
+	return res, err
 }
 
 // get calls Get on the passed client and returns a requestResult or nil if the context was canceled.
