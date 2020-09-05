@@ -104,6 +104,13 @@ func (oc *optimizingClient) Start() {
 // MarkPassive must tag clients as passive before `Start` is run.
 func (oc *optimizingClient) MarkPassive(c Client) {
 	oc.passiveClients = append(oc.passiveClients, c)
+	// push passive clients to the back of the list for `Get`s
+	for _, s := range oc.stats {
+		if s.client == c {
+			s.rtt = math.MaxInt64
+			s.startTime = time.Unix(1<<63-62135596801, 999999999)
+		}
+	}
 }
 
 type optimizingClient struct {
