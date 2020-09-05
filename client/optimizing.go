@@ -240,7 +240,10 @@ LOOP:
 				break LOOP
 			}
 			stats = append(stats, rr.stat)
-			res, err = rr.result, rr.err
+			res = rr.result
+			if err != errEmptyClientUnsupportedGet {
+				err = fmt.Errorf("%v - %w", err, rr.err)
+			}
 		case <-ctx.Done():
 			oc.updateStats(stats)
 			return nil, ctx.Err()
