@@ -10,6 +10,8 @@ import (
 
 const emptyClientStringerValue = "EmptyClient"
 
+var errEmptyClientUnsupportedGet = errors.New("not supported")
+
 // EmptyClientWithInfo makes a client that returns the given info but no randomness
 func EmptyClientWithInfo(info *chain.Info) Client {
 	return &emptyClient{info}
@@ -32,7 +34,7 @@ func (m *emptyClient) RoundAt(t time.Time) uint64 {
 }
 
 func (m *emptyClient) Get(ctx context.Context, round uint64) (Result, error) {
-	return nil, errors.New("not supported")
+	return nil, errEmptyClientUnsupportedGet
 }
 
 func (m *emptyClient) Watch(ctx context.Context) <-chan Result {
