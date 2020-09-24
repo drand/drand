@@ -56,6 +56,8 @@ type Drand struct {
 	// but not participating. Drand calls the cancel func when the node
 	// participates to a resharing.
 	syncerCancel context.CancelFunc
+
+	setupCB func(*key.Group)
 }
 
 // NewDrand returns an drand struct. It assumes the private key pair

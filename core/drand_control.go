@@ -519,6 +519,10 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		d.log.Error("init_reshare", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
+	if d.setupCB != nil {
+		d.setupCB(newGroup)
+		fmt.Println("LEADER: AFTER CALLBACK SETUP")
+	}
 	// some assertions that should always be true but never too safe
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
 		return nil, errors.New("control: old and new group have different genesis time")
@@ -536,6 +540,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		return nil, errors.New("control: old and new group have different genesis seed")
 	}
 
+	fmt.Println("LEADER: BEFORE PUSHING DKG INFO!")
 	// send it to everyone in the group nodes
 	if err := d.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes,
 		oldGroup.Threshold,
@@ -545,6 +550,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		d.log.Error("push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
+	fmt.Println("LEADER: AFTER PUSHING DKG INFO!")
 
 	finalGroup, err := d.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
 	if err != nil {
@@ -729,7 +735,9 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 	to := nodeUnion(outgoing, incoming)
 
+	fmt.Println("LEADER - pushDKGINfoPacket !")
 	results := d.pushDKGInfoPacket(ctx, to, packet)
+	fmt.Println("LEADER - pushDKGINfoPacket ! DONE")
 
 	total := len(to) - 1
 	for total > 0 {
