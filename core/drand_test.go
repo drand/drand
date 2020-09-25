@@ -149,7 +149,8 @@ func TestDrandDKGReshareAbsent(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, newGroup)
 	// the node that had stopped must not be in the group
-	require.Nil(t, newGroup.Find(dt.nodes[nodeToStop].drand.priv.Public))
+	missingPublic := dt.nodes[nodeToStop].drand.priv.Public
+	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
 
 }
 
