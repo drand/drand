@@ -57,6 +57,9 @@ type Drand struct {
 	// participates to a resharing.
 	syncerCancel context.CancelFunc
 
+	// only used for testing currently
+	// XXX need boundaries between gRPC and control plane such that we can give
+	// a list of paramteres at each DKG (inluding this callback)
 	setupCB func(*key.Group)
 }
 
