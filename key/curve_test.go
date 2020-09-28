@@ -14,7 +14,9 @@ func TestBLS12381Compatv112(t *testing.T) {
 	msgHex := "7061737320746865207369676e6174757265"
 	msg, err := hex.DecodeString(msgHex)
 	require.NoError(t, err)
-	sigExp, err := hex.DecodeString("9940ca447bab3bab393c3a07866349343630437167eaeab063ef1e47acedc51e85c513121cf319a8832c3d136d7f36490fa7241194b403a3bbbba9e7d5e73c9a86f67a9585c6fe077cd6576b2f76560efbab3550d9d5124242c728e3a7ef6989")
+	sigExp, err := hex.DecodeString("9940ca447bab3bab393c3a07866349343630437167eae" +
+		"ab063ef1e47acedc51e85c513121cf319a8832c3d136d7f36490fa7241194b403a3bbbba9e7d5" +
+		"e73c9a86f67a9585c6fe077cd6576b2f76560efbab3550d9d5124242c728e3a7ef6989")
 
 	require.NoError(t, err)
 
