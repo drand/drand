@@ -111,9 +111,11 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	wg.Add(d.n)
 	// first run the leader and then run the other nodes
 	go func() {
-		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset)
+		gp, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
-		fmt.Printf("\n\nTEST LEADER FINISHED\n\n")
+		g, err := key.GroupFromProto(gp)
+		require.NoError(d.t, err)
+		fmt.Printf("\n\nTEST LEADER FINISHED %x\n\n", g.Hash())
 		wg.Done()
 	}()
 
@@ -125,9 +127,11 @@ func (d *DrandTest2) RunDKG() *key.Group {
 		go func(n *Node) {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(root.drand.priv.Public, nil, secret)
+			gp, err := client.InitDKG(root.drand.priv.Public, nil, secret)
 			require.NoError(d.t, err)
-			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
+			g, err := key.GroupFromProto(gp)
+			require.NoError(d.t, err)
+			fmt.Printf("\n\nTEST NONLEADER FINISHED %x\n\n", g.Hash())
 			wg.Done()
 		}(node)
 	}
