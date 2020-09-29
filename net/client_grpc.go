@@ -338,3 +338,12 @@ func (g *grpcClient) HandleHTTP(p Peer) (http.Handler, error) {
 
 	return &httpHandler{client}, nil
 }
+
+func (g *grpcClient) Stop() {
+	g.Lock()
+	defer g.Unlock()
+	for _, c := range g.conns {
+		c.Close()
+	}
+	g.conns = make(map[string]*grpc.ClientConn)
+}

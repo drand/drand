@@ -16,6 +16,12 @@ type Client interface {
 	HTTPClient
 }
 
+// Stopppable is an interface that some clients can implement to close their
+// operations
+type Stoppable interface {
+	Stop()
+}
+
 // CallOption is simply a wrapper around the grpc options
 type CallOption = grpc.CallOption
 

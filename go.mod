@@ -7,8 +7,8 @@ require (
 	github.com/aws/aws-sdk-go v1.32.11
 	github.com/briandowns/spinner v1.11.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/drand/kyber v1.1.2
-	github.com/drand/kyber-bls12381 v0.1.0
+	github.com/drand/kyber v1.1.4
+	github.com/drand/kyber-bls12381 v0.2.1
 	github.com/go-kit/kit v0.10.0
 	github.com/gogo/googleapis v1.4.0 // indirect
 	github.com/gogo/status v1.1.0 // indirect
@@ -49,7 +49,7 @@ require (
 	github.com/urfave/cli/v2 v2.2.0
 	github.com/weaveworks/common v0.0.0-20200512154658-384f10054ec5
 	go.etcd.io/bbolt v1.3.4
-	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
+	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/genproto v0.0.0-20200608115520-7c474a2e3482 // indirect

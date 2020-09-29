@@ -519,6 +519,11 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		d.log.Error("init_reshare", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
+	if d.setupCB != nil {
+		// XXX Currently a bit hacky - we should split the control plane and the
+		// gRPC interface and give that callback as argument
+		d.setupCB(newGroup)
+	}
 	// some assertions that should always be true but never too safe
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
 		return nil, errors.New("control: old and new group have different genesis time")

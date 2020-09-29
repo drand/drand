@@ -62,8 +62,8 @@ func TestDrandDKGFresh(t *testing.T) {
 }
 
 func TestDrandDKGBroadcastDeny(t *testing.T) {
-	n := 10
-	thr := 6
+	n := 5
+	thr := 4
 	beaconPeriod := 1 * time.Second
 
 	dt := NewDrandTest2(t, n, thr, beaconPeriod)
@@ -108,6 +108,50 @@ func TestDrandReshareForce(t *testing.T) {
 	require.NoError(t, err)
 	fmt.Printf("\n -- Move to Response phase !! -- \n")
 	fmt.Println(group3)
+}
+
+// This tests when a node first signal his intention to participate into a
+// resharing but is down right after  - he shouldn't be in the final group
+func TestDrandDKGReshareAbsent(t *testing.T) {
+	oldN := 3
+	newN := 4
+	oldThr := 2
+	newThr := 3
+	timeout := 1 * time.Second
+	beaconPeriod := 2 * time.Second
+
+	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
+	defer dt.Cleanup()
+	group1 := dt.RunDKG()
+	// make sure all nodes had enough time to run their go routines to start the
+	// beacon handler - related to CI problems
+	time.Sleep(getSleepDuration())
+	dt.MoveToTime(group1.GenesisTime)
+	// move to genesis time - so nodes start to make a round
+	// dt.MoveTime(offsetGenesis)
+	// two = genesis + 1st round (happens at genesis)
+	dt.TestBeaconLength(2, false, dt.Ids(oldN, false)...)
+	// so nodes think they are going forward with round 2
+	dt.MoveTime(1 * time.Second)
+
+	toAdd := newN - oldN
+	dt.SetupNewNodes(toAdd)
+	// we want to stop one node right after the group is created
+	nodeToStop := 1
+	leader := 0
+	dt.nodes[leader].drand.setupCB = func(g *key.Group) {
+		fmt.Printf("\n\nSTOPPING NODE 1\n\n")
+		dt.nodes[nodeToStop].drand.Stop(context.Background())
+		fmt.Printf("\n\nSTOPPING NODE 1 DONE \n\n")
+	}
+	fmt.Println("SETUP RESHARE DONE")
+	newGroup, err := dt.RunReshare(oldN, toAdd, newThr, timeout, false, false, true)
+	require.NoError(t, err)
+	require.NotNil(t, newGroup)
+	// the node that had stopped must not be in the group
+	missingPublic := dt.nodes[nodeToStop].drand.priv.Public
+	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
+
 }
 
 func TestDrandDKGReshareTimeout(t *testing.T) {
