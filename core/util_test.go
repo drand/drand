@@ -414,7 +414,7 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 			if !ignoreErr {
 				return nil, err
 			}
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(500 * time.Millisecond):
 			d.MoveTime(d.period)
 		}
 	}
