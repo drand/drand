@@ -19,7 +19,7 @@ type ControlListener struct {
 	lis   net.Listener
 }
 
-// NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpx server
+// NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpc server
 func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
 	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {

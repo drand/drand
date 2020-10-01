@@ -19,14 +19,17 @@ func TimeOfRound(period time.Duration, genesis int64, round uint64) int64 {
 	if round == 0 {
 		return genesis
 	}
-
-	periodBits := math.Log2(float64(period))
-	if round > (math.MaxUint64 >> int(periodBits)) {
+	if period < 0 {
 		return TimeOfRoundErrorValue
 	}
+
+	periodBits := math.Log2(float64(period.Seconds()) + 1)  // require x >=1 in log2(x)
+	if round >= (math.MaxUint64 >> (int(periodBits) + 2)) { // +1 for mul overflow, +1 for casting int64
+		return TimeOfRoundErrorValue
+	}
+	// - 1 because genesis time is for 1st round already
 	delta := (round - 1) * uint64(period.Seconds())
 
-	// - 1 because genesis time is for 1st round already
 	val := genesis + int64(delta)
 	if val > math.MaxInt64-maxTimeBuffer {
 		return TimeOfRoundErrorValue
