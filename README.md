@@ -170,7 +170,7 @@ To run a local demo, you can simply run:
 make demo
 ```
 
-The script spins up a few drand local processes, performe resharing and other
+The script spins up a few drand local processes, performs resharing and other
 operations and will continue to print out new randomness every Xs (currently
 6s).
 For more information, look at the demo [README](https://github.com/drand/drand/tree/master/demo).
@@ -185,7 +185,7 @@ client can use the `--tls-cert` flag to specify the server's certificate.
 
 ### Create a Drand deployment
 
-Consult full instructions at [DEPLOYMENT](https://beta.drand.love/operator/deploy/)
+Consult full instructions at [DEPLOYMENT](https://drand.love/operator/deploy/)
 
 ### Fetching Public Randomness
 
@@ -268,12 +268,12 @@ Here is a list of all documentation related to drand:
   [slides](https://docs.google.com/presentation/d/1t2ysit78w0lsySwVbQOyWcSDnYxdOBPzY7K2P9UE1Ac/edit?usp=sharing)
   about drand or online [video](https://www.youtube.com/watch?v=ydwW2HFFxNI&list=PLhuBigpl7lqu6xWpiXtbEzJQtlMH1tqoG&index=3).
   - [A basic explainer of the cryptography behind drand](https://hackmd.io/@nikkolasg/HyUAgm234), 
-  - [Protocol Specification](https://beta.drand.love/docs/specification/)
+  - [Protocol Specification](https://drand.love/docs/specification/)
 - API documentation
   - [The client-side API documentation of drand](https://hackmd.io/@nikkolasg/HJ9lg5ZTE) 
 - DevOps/Deployment documentation
-  - [Deployment instructions](https://beta.drand.love/operator/deploy/)
-  - [Security Model](https://beta.drand.love/docs/security-model/)
+  - [Deployment instructions](https://drand.love/operator/deploy/)
+  - [Security Model](https://drand.love/docs/security-model/)
 
 As well, here is a list of background readings w.r.t to the cryptography used in
 drand:

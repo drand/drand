@@ -77,6 +77,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	var b *beacon.Handler
 	d.state.Lock()
 	if d.beacon == nil {
+		d.state.Unlock()
 		return errors.New("beacon has not started on this node yet")
 	}
 	b = d.beacon

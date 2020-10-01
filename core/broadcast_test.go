@@ -69,14 +69,14 @@ func TestBroadcast(t *testing.T) {
 	require.NoError(t, err)
 	time.Sleep(500 * time.Millisecond)
 	broads[1].Lock()
-	// so here it shouldnt have the entry since we deleted it
-	// make sure first that the channel is empty
-	require.Len(t, broads[1].dealCh, 0)
 	select {
 	case <-broads[1].dealCh:
 		require.False(t, true, "deal shouldn't be passed down to application")
 	case <-time.After(500 * time.Millisecond):
-		// all good
+		// all good - the message is not supposed to be passed down since it was
+		// already sent in the first round, so this broadcast instance should
+		// never have received it, because broads[0] should never have sent it
+		// in the first place
 	}
 	// put it again
 	broads[1].hashes.put(deal.Hash())

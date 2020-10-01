@@ -301,6 +301,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
+		d.state.Unlock()
 		return nil, err
 	}
 	d.receiver = receiver
@@ -376,6 +377,7 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	if d.receiver != nil {
 		if !in.GetInfo().GetForce() {
 			d.log.Info("reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
+			d.state.Unlock()
 			return nil, errors.New("reshare already in progress; use --force")
 		}
 		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
@@ -516,6 +518,11 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 	if err != nil {
 		d.log.Error("init_reshare", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
+	}
+	if d.setupCB != nil {
+		// XXX Currently a bit hacky - we should split the control plane and the
+		// gRPC interface and give that callback as argument
+		d.setupCB(newGroup)
 	}
 	// some assertions that should always be true but never too safe
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
