@@ -804,8 +804,6 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}()
 
 	addr := net.RemoteAddress(stream.Context())
-	// TODO put that hash verification back
-	// hash := req.GetInfoHash()
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
 		// XXX add TLS disable later
@@ -817,10 +815,14 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}
 	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
-	// TODO UNCOMMENT WHEN HASH INCONSISTENCY FIXED
-	// if !bytes.Equal(info.Hash(),hash) {
-	//  return errors.New("invalid chain info hash!")
-	// }
+	hashStr := req.GetInfoHash()
+	hash, err := hex.DecodeString(hashStr)
+	if err != nil {
+		return fmt.Errorf("invalid hash info hex: %v", err)
+	}
+	if !bytes.Equal(info.Hash(), hash) {
+		return errors.New("invalid chain info hash!")
+	}
 
 	store, err := d.createBoltStore()
 	if err != nil {

@@ -479,7 +479,7 @@ func TestDrandFollowChain(tt *testing.T) {
 
 	dt.MoveToTime(group.GenesisTime)
 	// do a few periods
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 6; i++ {
 		dt.MoveTime(group.Period)
 	}
 
@@ -499,6 +499,21 @@ func TestDrandFollowChain(tt *testing.T) {
 	addrToFollow := []string{rootID.Address()}
 	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
 	tls := true
+	// First try with an invalid hash info
+	ctx, cancel = context.WithCancel(context.Background())
+	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000)
+	select {
+	case <-errCh:
+	case <-time.After(100 * time.Millisecond):
+		tt.Fatal("should have errored")
+	}
+	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000)
+	select {
+	case <-errCh:
+	case <-time.After(100 * time.Millisecond):
+		tt.Fatal("should have errored")
+	}
+
 	fn := func(upTo, exp uint64) {
 		ctx, cancel = context.WithCancel(context.Background())
 		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo)
