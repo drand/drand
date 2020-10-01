@@ -111,9 +111,11 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	wg.Add(d.n)
 	// first run the leader and then run the other nodes
 	go func() {
-		_, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset)
+		gp, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset)
 		require.NoError(d.t, err)
-		fmt.Printf("\n\nTEST LEADER FINISHED\n\n")
+		g, err := key.GroupFromProto(gp)
+		require.NoError(d.t, err)
+		fmt.Printf("\n\nTEST LEADER FINISHED %x\n\n", g.Hash())
 		wg.Done()
 	}()
 
@@ -125,9 +127,11 @@ func (d *DrandTest2) RunDKG() *key.Group {
 		go func(n *Node) {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
-			_, err = client.InitDKG(root.drand.priv.Public, nil, secret)
+			gp, err := client.InitDKG(root.drand.priv.Public, nil, secret)
 			require.NoError(d.t, err)
-			fmt.Printf("\n\nTEST NONLEADER FINISHED\n\n")
+			g, err := key.GroupFromProto(gp)
+			require.NoError(d.t, err)
+			fmt.Printf("\n\nTEST NONLEADER FINISHED %x\n\n", g.Hash())
 			wg.Done()
 		}(node)
 	}
@@ -314,14 +318,59 @@ func (d *DrandTest2) SetupNewNodes(newNodes int) []*Node {
 	return d.newNodes
 }
 
+func (d *DrandTest2) runNodeReshare(n *Node, errCh chan error, force bool) {
+	var secret = "thisistheresharing"
+	leader := d.nodes[0]
+	// instruct to be ready for a reshare
+	client, err := net.NewControlClient(n.drand.opts.controlPort)
+	require.NoError(d.t, err)
+	_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force)
+	if err != nil {
+		fmt.Println("error in NON LEADER: ", err)
+		errCh <- err
+		return
+	}
+	fmt.Printf("\n\nRESHARING TEST: non-leader drand %s DONE RESHARING - %s\n", n.drand.priv.Public.Address(), n.drand.priv.Public.Key)
+}
+
+func (d *DrandTest2) runLeaderReshare(timeout time.Duration, errCh chan error, groupCh chan *key.Group) {
+	var secret = "thisistheresharing"
+	leader := d.nodes[0]
+	oldNode := d.group.Find(leader.drand.priv.Public)
+	if oldNode == nil {
+		panic("leader not found in old group")
+	}
+	// old root: oldNode.Index leater: leader.addr
+	client, err := net.NewControlClient(leader.drand.opts.controlPort)
+	require.NoError(d.t, err)
+	finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, 0, secret, "", testBeaconOffset)
+	// Done resharing
+	if err != nil {
+		fmt.Println("error in LEADER: ", err)
+		errCh <- err
+	}
+	fg, err := key.GroupFromProto(finalGroup)
+	if err != nil {
+		errCh <- err
+	}
+	groupCh <- fg
+}
+
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
-func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duration, force, onlyLeader bool) (*key.Group, error) {
+func (d *DrandTest2) RunReshare(
+	oldRun, newRun, newThr int,
+	timeout time.Duration,
+	force, onlyLeader bool,
+	ignoreErrs ...bool) (*key.Group, error) {
+	var ignoreErr bool
+	if len(ignoreErrs) > 0 {
+		ignoreErr = true
+	}
 	d.Lock()
 	fmt.Printf(" -- Running RESHARE with %d/%d old, %d/%d new nodes\n", oldRun, len(d.nodes), newRun, len(d.newNodes))
-	var secret = "thisistheresharing"
 	// stop the exluded nodes
 	for _, node := range d.nodes[oldRun:] {
 		d.StopDrand(node.addr, false)
@@ -337,42 +386,9 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 	leader := d.nodes[0]
 	errCh := make(chan error, 1)
 	groupCh := make(chan *key.Group, 1)
-	// function that each non-leader runs to start the resharing
-	runreshare := func(n *Node) {
-		if onlyLeader {
-			return
-		}
-		// instruct to be ready for a reshare
-		client, err := net.NewControlClient(n.drand.opts.controlPort)
-		require.NoError(d.t, err)
-		_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force)
-		if err != nil {
-			errCh <- err
-			return
-		}
-		fmt.Printf("\n\nRESHARING TEST: non-leader drand %s DONE RESHARING - %s\n", n.drand.priv.Public.Address(), n.drand.priv.Public.Key)
-	}
 	// first run the leader, then the other nodes will send their PK to the
 	// leader and then the leader will answer back with the new group
-	go func() {
-		oldNode := d.group.Find(leader.drand.priv.Public)
-		if oldNode == nil {
-			panic("leader not found in old group")
-		}
-		// old root: oldNode.Index leater: leader.addr
-		client, err := net.NewControlClient(leader.drand.opts.controlPort)
-		require.NoError(d.t, err)
-		finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, 0, secret, "", testBeaconOffset)
-		// Done resharing
-		if err != nil {
-			errCh <- err
-		}
-		fg, err := key.GroupFromProto(finalGroup)
-		if err != nil {
-			errCh <- err
-		}
-		groupCh <- fg
-	}()
+	go d.runLeaderReshare(timeout, errCh, groupCh)
 	d.resharedNodes = append(d.resharedNodes, leader)
 	// leave some time to make sure leader is listening
 	time.Sleep(1 * time.Second)
@@ -380,7 +396,9 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 	// run the current nodes
 	for _, node := range d.nodes[1:oldRun] {
 		d.resharedNodes = append(d.resharedNodes, node)
-		go runreshare(node)
+		if !onlyLeader {
+			go d.runNodeReshare(node, errCh, force)
+		}
 	}
 
 	// run the new ones
@@ -388,19 +406,27 @@ func (d *DrandTest2) RunReshare(oldRun, newRun, newThr int, timeout time.Duratio
 		for _, node := range d.newNodes[:newRun] {
 			d.resharedNodes = append(d.resharedNodes, node)
 			fmt.Printf("\n ++ NEW NODE running RESHARE: %s\n", node.addr)
-			go runreshare(node)
+			if !onlyLeader {
+				go d.runNodeReshare(node, errCh, force)
+			}
 		}
 	}
 	d.Unlock()
 	// wait for the return of the clients
-	select {
-	case finalGroup := <-groupCh:
-		d.newGroup = finalGroup
-		require.NoError(d.t, key.Save(d.groupPath, d.newGroup, false))
-		return finalGroup, nil
-	case err := <-errCh:
-		fmt.Println("ERRROR: ", err)
-		return nil, err
+	for {
+		select {
+		case finalGroup := <-groupCh:
+			d.newGroup = finalGroup
+			require.NoError(d.t, key.Save(d.groupPath, d.newGroup, false))
+			return finalGroup, nil
+		case err := <-errCh:
+			fmt.Println("ERRROR: ", err)
+			if !ignoreErr {
+				return nil, err
+			}
+		case <-time.After(500 * time.Millisecond):
+			d.MoveTime(d.period)
+		}
 	}
 }
 

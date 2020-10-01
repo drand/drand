@@ -36,7 +36,7 @@ type Cursor interface {
 	Last() *Beacon
 }
 
-// RoundToBytes provides a byte serialized form of a round number
+// RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
 	_ = binary.Write(&buff, binary.BigEndian, r)
