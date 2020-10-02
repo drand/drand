@@ -44,6 +44,11 @@ var (
 		Name: "beacon_discrepancy_latency",
 		Help: "Discrepancy between beacon creation time and calculated round time",
 	})
+	// LastBeaconRound is the most recent round (as also seen at /health) stored.
+	LastBeaconRound = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "last_beacon_round",
+		Help: "Last locally stored beacon",
+	})
 
 	// HTTPCallCounter (HTTP) how many http requests
 	HTTPCallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -159,6 +164,7 @@ func bindMetrics() error {
 		GroupDialFailures,
 		GroupConnections,
 		BeaconDiscrepancyLatency,
+		LastBeaconRound,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
