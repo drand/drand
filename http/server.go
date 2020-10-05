@@ -133,11 +133,11 @@ RESET:
 		h.latestRound = next.Round()
 		pending := h.pending
 		h.pending = make([]chan []byte, 0)
-		h.pendingLk.Unlock()
 
 		for _, waiter := range pending {
 			waiter <- b
 		}
+		h.pendingLk.Unlock()
 
 		select {
 		case <-ctx.Done():
@@ -186,7 +186,8 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 	h.pendingLk.RUnlock()
 	// If so, prepare, and if we're still sync'd, add ourselves to the list of waiters.
 	if block {
-		ch := make(chan []byte)
+		ch := make(chan []byte, 1)
+		defer close(ch)
 		h.pendingLk.Lock()
 		block = (h.latestRound+1 == round) && h.latestRound != 0
 		if block {
@@ -207,7 +208,10 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 						break
 					}
 				}
-				close(ch)
+				select {
+				case <-ch:
+				default:
+				}
 				return nil, ctx.Err()
 			}
 		}
