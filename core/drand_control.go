@@ -821,7 +821,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		return fmt.Errorf("invalid hash info hex: %v", err)
 	}
 	if !bytes.Equal(info.Hash(), hash) {
-		return errors.New("invalid chain info hash!")
+		return errors.New("invalid chain info hash")
 	}
 
 	store, err := d.createBoltStore()

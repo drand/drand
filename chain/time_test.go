@@ -20,12 +20,12 @@ func TestTimeOverflow(t *testing.T) {
 		t.Fatal("future rounds should not allow previous times.")
 	}
 
-	overflowRound := TimeOfRound(period, start, math.MaxUint64 >> 3)
+	overflowRound := TimeOfRound(period, start, math.MaxUint64>>3)
 	if overflowRound != TimeOfRoundErrorValue {
 		t.Fatal("overflow shoud return error.")
 	}
 
-	overflowRound2 := TimeOfRound(period + 2 * time.Second, start, (math.MaxUint64 >> 3) - 1)
+	overflowRound2 := TimeOfRound(period+2*time.Second, start, (math.MaxUint64>>3)-1)
 	if overflowRound2 != TimeOfRoundErrorValue {
 		t.Fatal("overflow shoud return error.")
 	}

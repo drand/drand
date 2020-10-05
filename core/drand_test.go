@@ -468,14 +468,12 @@ func TestDrandPublicStream(t *testing.T) {
 }
 func TestDrandFollowChain(tt *testing.T) {
 	n := 4
-	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
-	dt := NewDrandTest2(tt, n, thr, p)
+	dt := NewDrandTest2(tt, n, key.DefaultThreshold(n), p)
 	defer dt.Cleanup()
 	group := dt.RunDKG()
 	time.Sleep(getSleepDuration())
-	root := dt.nodes[0]
-	rootID := root.drand.priv.Public
+	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.MoveToTime(group.GenesisTime)
 	// do a few periods
@@ -483,8 +481,7 @@ func TestDrandFollowChain(tt *testing.T) {
 		dt.MoveTime(group.Period)
 	}
 
-	cm := root.drand.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(cm)
+	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.opts.certmanager)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	// get last round first
