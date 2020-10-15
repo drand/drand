@@ -23,7 +23,7 @@ const (
 // is passed, a `watch` will be run on the watch client in the absence of external watchers,
 // which will swap watching over to the main client. If no watch client is set and autowatch is off
 // then a single watch will only run when an external watch is requested.
-func newWatchAggregator(c Client, wc Client, autoWatch bool, autoWatchRetry time.Duration) *watchAggregator {
+func newWatchAggregator(c, wc Client, autoWatch bool, autoWatchRetry time.Duration) *watchAggregator {
 	if autoWatchRetry == 0 {
 		autoWatchRetry = defaultAutoWatchRetry
 	}
@@ -126,7 +126,7 @@ func (c *watchAggregator) passiveWatch(ctx context.Context) <-chan Result {
 
 	wc := make(chan Result)
 	if len(c.subscribers) == 0 {
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(ctx)
 		c.cancelPassive = cancel
 		go c.sink(c.passiveClient.Watch(ctx), wc)
 	} else {
