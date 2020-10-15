@@ -18,12 +18,18 @@ const (
 
 // newWatchAggregator maintains state of consumers calling `Watch` so that a
 // single `watch` request is made to the underlying client.
-func newWatchAggregator(c Client, autoWatch bool, autoWatchRetry time.Duration) *watchAggregator {
+// There are 3 modes taken by this aggregator. If autowatch is set, a single `watch`
+// will always be invoked on the provided client. If it is not set, but a `watch client`(wc)
+// is passed, a `watch` will be run on the watch client in the absence of external watchers,
+// which will swap watching over to the main client. If no watch client is set and autowatch is off
+// then a single watch will only run when an external watch is requested.
+func newWatchAggregator(c Client, wc Client, autoWatch bool, autoWatchRetry time.Duration) *watchAggregator {
 	if autoWatchRetry == 0 {
 		autoWatchRetry = defaultAutoWatchRetry
 	}
 	aggregator := &watchAggregator{
 		Client:         c,
+		passiveClient:  wc,
 		autoWatch:      autoWatch,
 		autoWatchRetry: autoWatchRetry,
 		log:            log.DefaultLogger(),
@@ -39,6 +45,7 @@ type subscriber struct {
 
 type watchAggregator struct {
 	Client
+	passiveClient   Client
 	autoWatch       bool
 	autoWatchRetry  time.Duration
 	log             log.Logger
@@ -46,13 +53,16 @@ type watchAggregator struct {
 
 	subscriberLock sync.Mutex
 	subscribers    []subscriber
+	cancelPassive  context.CancelFunc
 }
 
 // Start initiates auto watching if configured to do so.
 // SetLog should not be called after Start.
 func (c *watchAggregator) Start() {
 	if c.autoWatch {
-		c.startAutoWatch()
+		c.startAutoWatch(true)
+	} else if c.passiveClient != nil {
+		c.startAutoWatch(false)
 	}
 }
 
@@ -66,12 +76,17 @@ func (c *watchAggregator) String() string {
 	return fmt.Sprintf("%s.(+aggregator)", c.Client)
 }
 
-func (c *watchAggregator) startAutoWatch() {
+func (c *watchAggregator) startAutoWatch(full bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	c.cancelAutoWatch = cancel
 	go func() {
 		for {
-			results := c.Watch(ctx)
+			var results <-chan Result
+			if full {
+				results = c.Watch(ctx)
+			} else if c.passiveClient != nil {
+				results = c.passiveWatch(ctx)
+			}
 		LOOP:
 			for {
 				select {
@@ -98,6 +113,29 @@ func (c *watchAggregator) startAutoWatch() {
 	}()
 }
 
+// passiveWatch is a degraded form of watch, where watch only hits the 'passive client'
+// unless distribution is actually needed.
+func (c *watchAggregator) passiveWatch(ctx context.Context) <-chan Result {
+	c.subscriberLock.Lock()
+	defer c.subscriberLock.Unlock()
+
+	if c.cancelPassive != nil {
+		c.log.Warn("watch_aggregator", "only support one passive watch")
+		return nil
+	}
+
+	wc := make(chan Result)
+	if len(c.subscribers) == 0 {
+		ctx, cancel := context.WithCancel(context.Background())
+		c.cancelPassive = cancel
+		go c.sink(c.passiveClient.Watch(ctx), wc)
+	} else {
+		// trigger the startAutowatch to retry on backoff
+		close(wc)
+	}
+	return wc
+}
+
 func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 	c.subscriberLock.Lock()
 	defer c.subscriberLock.Unlock()
@@ -106,10 +144,21 @@ func (c *watchAggregator) Watch(ctx context.Context) <-chan Result {
 	c.subscribers = append(c.subscribers, sub)
 
 	if len(c.subscribers) == 1 {
+		if c.cancelPassive != nil {
+			c.cancelPassive()
+			c.cancelPassive = nil
+		}
 		ctx, cancel := context.WithCancel(context.Background())
 		go c.distribute(c.Client.Watch(ctx), cancel)
 	}
 	return sub.c
+}
+
+func (c *watchAggregator) sink(in <-chan Result, out chan Result) {
+	defer close(out)
+	for range in {
+		continue
+	}
 }
 
 func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc) {

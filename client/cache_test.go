@@ -83,7 +83,7 @@ func TestCacheWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	cache, _ := NewCachingClient(m, arcCache)
-	c := newWatchAggregator(cache, false, 0)
+	c := newWatchAggregator(cache, nil, false, 0)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	r1 := c.Watch(ctx)
