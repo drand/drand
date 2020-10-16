@@ -88,7 +88,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, err
 	}
 
-	wa := newWatchAggregator(c, cfg.autoWatch, cfg.autoWatchRetry)
+	wa := newWatchAggregator(c, wc, cfg.autoWatch, cfg.autoWatchRetry)
 	c = wa
 	trySetLog(c, cfg.log)
 

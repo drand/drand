@@ -20,6 +20,7 @@ import (
 type Client struct {
 	cancel func()
 	latest uint64
+	cache  client.Cache
 	log    log.Logger
 
 	subs struct {
@@ -54,6 +55,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Client{
 		cancel: cancel,
+		cache:  cache,
 		log:    log.DefaultLogger(),
 	}
 
@@ -161,13 +163,17 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					close(outerCh)
 					return
 				}
-				select {
-				case outerCh <- &client.RandomData{
+				dat := &client.RandomData{
 					Rnd:               resp.Round,
 					Random:            resp.Randomness,
 					Sig:               resp.Signature,
 					PreviousSignature: resp.PreviousSignature,
-				}:
+				}
+				if c.cache != nil {
+					c.cache.Add(resp.Round, dat)
+				}
+				select {
+				case outerCh <- dat:
 				default:
 					c.log.Warn("gossip client", "randomness notification dropped due to a full channel")
 				}

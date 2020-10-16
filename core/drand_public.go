@@ -15,7 +15,7 @@ import (
 	"github.com/drand/kyber/encrypt/ecies"
 )
 
-// FreshDKG is the public method to call during a DKG protocol.
+// BroadcastDKG is the public method to call during a DKG protocol.
 func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
