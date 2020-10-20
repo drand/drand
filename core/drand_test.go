@@ -589,6 +589,24 @@ func TestDrandPublicRand(t *testing.T) {
 		t.Logf("Checking if the round we got (%d) is the expected one (%d) \n", resp.Round, i)
 		require.Equal(t, i, resp.Round)
 	}
+
+	newN := 5
+	newThr := thr + 1
+	toAdd := newN - n
+	newNodes := dt.SetupNewNodes(toAdd)
+	newGroup, err := dt.RunReshare(n, toAdd, newThr, 1*time.Second, false, false, true)
+	require.NoError(t, err)
+	require.NotNil(t, newGroup)
+	dt.MoveToTime(newGroup.TransitionTime)
+	// do a few periods
+	for i := 0; i < 2; i++ {
+		dt.MoveTime(newGroup.Period)
+	}
+	// then ask the new node about a previous randomness
+	newNodeID := newNodes[0].drand.priv.Public
+	resp, err = client.PublicRand(ctx, newNodeID, &drand.PublicRandRequest{Round: initRound})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 }
 
 // Test if the we can correctly fetch the rounds after a DKG using the
