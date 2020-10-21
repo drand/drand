@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	nhttp "net/http"
+	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -21,6 +23,8 @@ import (
 
 var errClientClosed = fmt.Errorf("client closed")
 
+const defaultClientExec = "unknown"
+
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
@@ -29,10 +33,16 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}
+	pn, err := os.Executable()
+	if err != nil {
+		pn = defaultClientExec
+	}
+	agent := fmt.Sprintf("drand-client-%s/1.0", path.Base(pn))
 	c := &httpClient{
 		root:   url,
 		client: instrumentClient(url, transport),
 		l:      log.DefaultLogger(),
+		Agent:  agent,
 		done:   make(chan struct{}),
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
@@ -53,11 +63,17 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 		url += "/"
 	}
 
+	pn, err := os.Executable()
+	if err != nil {
+		pn = defaultClientExec
+	}
+	agent := fmt.Sprintf("drand-client-%s/1.0", path.Base(pn))
 	c := &httpClient{
 		root:      url,
 		chainInfo: info,
 		client:    instrumentClient(url, transport),
 		l:         log.DefaultLogger(),
+		Agent:     agent,
 		done:      make(chan struct{}),
 	}
 	return c, nil
@@ -132,6 +148,7 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 type httpClient struct {
 	root      string
 	client    *nhttp.Client
+	Agent     string
 	chainInfo *chain.Info
 	l         log.Logger
 	done      chan struct{}
@@ -140,6 +157,11 @@ type httpClient struct {
 // SetLog configures the client log output
 func (h *httpClient) SetLog(l log.Logger) {
 	h.l = l
+}
+
+// SetUserAgent sets the user agent used by the client
+func (h *httpClient) SetUserAgent(ua string) {
+	h.Agent = ua
 }
 
 // String returns the name of this client.
@@ -170,6 +192,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
 		}
+		req.Header.Set("User-Agent", h.Agent)
 
 		infoBody, err := h.client.Do(req)
 		if err != nil {
@@ -240,6 +263,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 			resC <- httpGetResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
 		}
+		req.Header.Set("User-Agent", h.Agent)
 
 		randResponse, err := h.client.Do(req)
 		if err != nil {
