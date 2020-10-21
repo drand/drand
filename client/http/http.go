@@ -23,6 +23,8 @@ import (
 
 var errClientClosed = fmt.Errorf("client closed")
 
+const defaultClientExec = "unknown"
+
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
 	if transport == nil {
@@ -33,7 +35,7 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 	}
 	pn, err := os.Executable()
 	if err != nil {
-		pn = "unknown"
+		pn = defaultClientExec
 	}
 	agent := fmt.Sprintf("drand-client-%s/1.0", path.Base(pn))
 	c := &httpClient{
@@ -63,7 +65,7 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 
 	pn, err := os.Executable()
 	if err != nil {
-		pn = "unknown"
+		pn = defaultClientExec
 	}
 	agent := fmt.Sprintf("drand-client-%s/1.0", path.Base(pn))
 	c := &httpClient{
@@ -155,6 +157,11 @@ type httpClient struct {
 // SetLog configures the client log output
 func (h *httpClient) SetLog(l log.Logger) {
 	h.l = l
+}
+
+// SetUserAgent sets the user agent used by the client
+func (h *httpClient) SetUserAgent(ua string) {
+	h.Agent = ua
 }
 
 // String returns the name of this client.
