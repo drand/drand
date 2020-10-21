@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	nhttp "net/http"
+	"os"
+	"path"
 	"strings"
 	"time"
 
@@ -29,10 +31,16 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 	if !strings.HasSuffix(url, "/") {
 		url += "/"
 	}
+	pn, err := os.Executable()
+	if err != nil {
+		pn = "unknown"
+	}
+	agent := fmt.Sprintf("drand-client-%s/1.0", path.Base(pn))
 	c := &httpClient{
 		root:   url,
 		client: instrumentClient(url, transport),
 		l:      log.DefaultLogger(),
+		Agent:  agent,
 		done:   make(chan struct{}),
 	}
 	chainInfo, err := c.FetchChainInfo(chainHash)
@@ -53,11 +61,17 @@ func NewWithInfo(url string, info *chain.Info, transport nhttp.RoundTripper) (cl
 		url += "/"
 	}
 
+	pn, err := os.Executable()
+	if err != nil {
+		pn = "unknown"
+	}
+	agent := fmt.Sprintf("drand-client-%s/1.0", path.Base(pn))
 	c := &httpClient{
 		root:      url,
 		chainInfo: info,
 		client:    instrumentClient(url, transport),
 		l:         log.DefaultLogger(),
+		Agent:     agent,
 		done:      make(chan struct{}),
 	}
 	return c, nil
@@ -132,6 +146,7 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 type httpClient struct {
 	root      string
 	client    *nhttp.Client
+	Agent     string
 	chainInfo *chain.Info
 	l         log.Logger
 	done      chan struct{}
@@ -170,6 +185,7 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
 		}
+		req.Header.Set("User-Agent", h.Agent)
 
 		infoBody, err := h.client.Do(req)
 		if err != nil {
@@ -240,6 +256,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 			resC <- httpGetResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
 		}
+		req.Header.Set("User-Agent", h.Agent)
 
 		randResponse, err := h.client.Do(req)
 		if err != nil {
