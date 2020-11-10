@@ -15,8 +15,7 @@ import (
 // db file.
 type boltStore struct {
 	sync.Mutex
-	db  *bolt.DB
-	len int
+	db *bolt.DB
 }
 
 var beaconBucket = []byte("beacons")
@@ -31,20 +30,17 @@ func NewBoltStore(folder string, opts *bolt.Options) (chain.Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	var baseLen = 0
 	// create the bucket already
 	err = db.Update(func(tx *bolt.Tx) error {
-		bucket, err := tx.CreateBucketIfNotExists(beaconBucket)
+		_, err := tx.CreateBucketIfNotExists(beaconBucket)
 		if err != nil {
 			return err
 		}
-		baseLen += bucket.Stats().KeyN
 		return nil
 	})
 
 	return &boltStore{
-		db:  db,
-		len: baseLen,
+		db: db,
 	}, err
 }
 
