@@ -798,7 +798,11 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	d.state.Unlock()
 	defer func() {
 		d.state.Lock()
-		d.syncerCancel()
+		if d.syncerCancel != nil {
+			// it can be nil when we recreate a new beacon we cancel it
+			// see drand.go:newBeacon()
+			d.syncerCancel()
+		}
 		d.syncerCancel = nil
 		d.state.Unlock()
 	}()
