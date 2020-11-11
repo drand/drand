@@ -38,6 +38,14 @@ var (
 		Name: "group_connections",
 		Help: "Number of peers with current GrpcClient connections",
 	})
+	GroupSize = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "group_size",
+		Help: "Number of peers in the current group",
+	})
+	GroupThreshold = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "group_threshold",
+		Help: "Number of shares needed for beacon reconstruction",
+	})
 	// BeaconDiscrepancyLatency (Group) millisecond duration between time beacon created and
 	// calculated time of round.
 	BeaconDiscrepancyLatency = prometheus.NewGauge(prometheus.GaugeOpts{
@@ -163,6 +171,8 @@ func bindMetrics() error {
 		APICallCounter,
 		GroupDialFailures,
 		GroupConnections,
+		GroupSize,
+		GroupThreshold,
 		BeaconDiscrepancyLatency,
 		LastBeaconRound,
 	}
