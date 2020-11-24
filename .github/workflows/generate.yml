@@ -20,7 +20,7 @@ jobs:
       run: go get ./...
     -
       name: Install Protoc
-      uses: arduino/setup-protoc@v1.1.0
+      uses: arduino/setup-protoc@v1.1.2
       with:
         version: '3.12.3'
     -
