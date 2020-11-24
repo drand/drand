@@ -506,7 +506,7 @@ func keygenCmd(c *cli.Context) error {
 		return errors.New("missing drand address in argument. Abort")
 	}
 	addr := args.First()
-	var validID = regexp.MustCompile(`[:][0-9]+$`)
+	var validID = regexp.MustCompile(`:\d+$`)
 	if !validID.MatchString(addr) {
 		fmt.Println("Invalid port.")
 		addr = addr + ":" + askPort()

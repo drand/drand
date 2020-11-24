@@ -114,7 +114,7 @@ var runCmd = &cli.Command{
 		if _, err := lp2p.NewGossipRelayNode(log.DefaultLogger(), cfg); err != nil {
 			return err
 		}
-		<-(chan int)(nil)
+		<-chan int(nil)
 		return nil
 	},
 }
