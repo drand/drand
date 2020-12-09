@@ -211,6 +211,19 @@ func (a *arraySet) exists(hash hash) bool {
 
 type broadcastPacket = *drand.DKGPacket
 
+// maxQueueSize is the maximum queue size we reserve for each destination of
+// broadcast.
+const maxQueueSize = 1000
+
+// senderQueueSize returns a dynamic queue size depending on the number of nodes
+// to contact.
+func senderQueueSize(nodes int) int {
+	if nodes > maxQueueSize {
+		return maxQueueSize
+	}
+	return nodes
+}
+
 // dispatcher maintains a list of worker assigned one destination and pushes the
 // message to send to the right worker
 type dispatcher struct {
@@ -220,11 +233,12 @@ type dispatcher struct {
 
 func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
 	var senders = make([]*sender, 0, len(to)-1)
+	queue := senderQueueSize(len(to))
 	for _, node := range to {
 		if node.Address() == us {
 			continue
 		}
-		sender := newSender(l, client, node)
+		sender := newSender(l, client, node, queue)
 		go sender.run()
 		senders = append(senders, sender)
 	}
@@ -255,12 +269,6 @@ func (d *dispatcher) stop() {
 	}
 }
 
-// size of the receiving queue for a sender channel
-// XXX should it be dynamic ? Reason to fix it is that after some pushed packets
-// if the connection still haven't sent them, that means there's probably
-// something wrong with the connection and we shouldn't push more.
-const senderQueueSize = 10
-
 type sender struct {
 	l      log.Logger
 	client net.ProtocolClient
@@ -268,12 +276,12 @@ type sender struct {
 	newCh  chan broadcastPacket
 }
 
-func newSender(l log.Logger, client net.ProtocolClient, to net.Peer) *sender {
+func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
 	return &sender{
 		l:      l,
 		client: client,
 		to:     to,
-		newCh:  make(chan broadcastPacket, senderQueueSize),
+		newCh:  make(chan broadcastPacket, queueSize),
 	}
 }
 
