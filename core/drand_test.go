@@ -26,6 +26,17 @@ import (
 var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
+func TestDrandLarge(t *testing.T) {
+	n := 22
+	beaconPeriod := 5 * time.Second
+
+	dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod)
+	defer dt.Cleanup()
+	dt.RunDKG()
+	time.Sleep(getSleepDuration())
+	fmt.Println(" --- DKG FINISHED ---")
+}
+
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
 	beaconPeriod := 1 * time.Second
