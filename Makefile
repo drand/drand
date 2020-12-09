@@ -3,10 +3,10 @@
 test: test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -race -v ./...
+	GO111MODULE=on go test -race -short -v ./...
 
 test-unit-cover:
-	GO111MODULE=on go test -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
 	go test -v ./demo
