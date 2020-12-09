@@ -22,18 +22,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func init() {
+	fdOpen := 2000
+	_, max, err := unixGetLimit()
+	if err != nil {
+		panic(err)
+	}
+	if err := unixSetLimit(uint64(fdOpen), max); err != nil {
+		panic(err)
+	}
+}
+
 // 1 second after end of dkg
 var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
 func TestDrandLarge(t *testing.T) {
-	fdOpen := 2000
-	cur, max, err := unixGetLimit()
-	require.NoError(t, err)
-	require.NoError(t, unixSetLimit(uint64(fdOpen), max))
-	defer func() {
-		unixSetLimit(cur, max)
-	}()
 	n := 22
 	beaconPeriod := 5 * time.Second
 

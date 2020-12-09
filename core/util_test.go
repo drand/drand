@@ -485,7 +485,7 @@ func unixGetLimit() (uint64, uint64, error) {
 	return rlimit.Cur, rlimit.Max, err
 }
 
-func unixSetLimit(soft uint64, max uint64) error {
+func unixSetLimit(soft, max uint64) error {
 	rlimit := unix.Rlimit{
 		Cur: soft,
 		Max: max,
