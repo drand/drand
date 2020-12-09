@@ -56,10 +56,10 @@ var _ dkg.Board = (*broadcast)(nil)
 // Packet, namely that the signature is correct.
 type verifier func(packet) error
 
-func newBroadcast(l log.Logger, c net.ProtocolClient, own string, to []*key.Node, v verifier) *broadcast {
+func newBroadcast(ctx context.Context, l log.Logger, c net.ProtocolClient, own string, to []*key.Node, v verifier) *broadcast {
 	return &broadcast{
 		l:          l,
-		dispatcher: newDispatcher(l, c, to, own),
+		dispatcher: newDispatcher(ctx, l, c, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
 		justCh:     make(chan dkg.JustificationBundle, len(to)),
@@ -231,14 +231,14 @@ type dispatcher struct {
 	senders []*sender
 }
 
-func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
+func newDispatcher(ctx context.Context, l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
 	var senders = make([]*sender, 0, len(to)-1)
 	queue := senderQueueSize(len(to))
 	for _, node := range to {
 		if node.Address() == us {
 			continue
 		}
-		sender := newSender(l, client, node, queue)
+		sender := newSender(ctx, l, client, node, queue)
 		go sender.run()
 		senders = append(senders, sender)
 	}
@@ -270,14 +270,16 @@ func (d *dispatcher) stop() {
 }
 
 type sender struct {
+	ctx    context.Context
 	l      log.Logger
 	client net.ProtocolClient
 	to     net.Peer
 	newCh  chan broadcastPacket
 }
 
-func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
+func newSender(ctx context.Context, l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
 	return &sender{
+		ctx:    ctx,
 		l:      l,
 		client: client,
 		to:     to,
@@ -300,7 +302,7 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
-	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
+	err := s.client.BroadcastDKG(s.ctx, s.to, newPacket)
 	if err != nil {
 		s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
 	} else {

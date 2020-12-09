@@ -45,6 +45,9 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	}
 	d.log.Info("init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
 
+	// TODO insert it into the leaderRunSetup, pushDKGInfo as well
+	nc, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
 		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), in.GetInfo())
@@ -62,7 +65,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	if err := d.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		return nil, err
 	}
-	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
+	finalGroup, err := d.runDKG(nc, true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +123,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 
 // runDKG setups the proper structures and protocol to run the DKG and waits
 // until it finishes. If leader is true, this node sends the first packet.
-func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
+func (d *Drand) runDKG(ctx context.Context, leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
 	reader, user := extractEntropy(randomness)
 	config := &dkg.Config{
 		Suite:          key.KeyGroup.(dkg.Suite),
@@ -134,7 +137,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+	board := newBroadcast(ctx, d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
@@ -193,7 +196,7 @@ func (d *Drand) cleanupDKG() {
 // runResharing setups all necessary structures to run the resharing protocol
 // and waits until it finishes (or timeouts). If leader is true, it sends the
 // first packet so other nodes will start as soon as they receive it.
-func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
+func (d *Drand) runResharing(ctx context.Context, leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
 	oldNode := oldGroup.Find(d.priv.Public)
 	oldPresent := oldNode != nil
 	if leader && !oldPresent {
@@ -238,7 +241,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
+	board := newBroadcast(ctx, d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	phaser := d.getPhaser(timeout)
@@ -359,7 +362,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	d.state.Unlock()
 
 	// run the dkg
-	finalGroup, err := d.runDKG(false, group, dkgTimeout, in.GetEntropy())
+	finalGroup, err := d.runDKG(nc, false, group, dkgTimeout, in.GetEntropy())
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +451,7 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	}
 
 	// run the dkg !
-	finalGroup, err := d.runResharing(false, oldGroup, newGroup, dkgTimeout)
+	finalGroup, err := d.runResharing(nc, false, oldGroup, newGroup, dkgTimeout)
 	if err != nil {
 		d.log.Error("setup_reshare", "failed to run resharing", "err", err)
 		return nil, err
@@ -509,6 +512,9 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 	}
 
 	d.log.Info("init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
+	// TODO add that to RunSetup and pushDKGInfo
+	nc, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	newSetup := func(d *Drand) (*setupManager, error) {
 		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in)
@@ -551,7 +557,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		return nil, errors.New("fail to push new group")
 	}
 
-	finalGroup, err := d.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
+	finalGroup, err := d.runResharing(nc, true, oldGroup, newGroup, in.GetInfo().GetTimeout())
 	if err != nil {
 		return nil, err
 	}

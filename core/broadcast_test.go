@@ -37,7 +37,7 @@ func TestBroadcast(t *testing.T) {
 
 	broads := make([]*broadcast, 0, n)
 	for _, d := range drands {
-		b := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(dkg.Packet) error { return nil })
+		b := newBroadcast(context.Background(), d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(dkg.Packet) error { return nil })
 		d.dkgInfo = &dkgInfo{
 			board:   b,
 			started: true,
@@ -103,6 +103,45 @@ func TestBroadcast(t *testing.T) {
 	require.True(t, len(broads[0].respCh) == 1)
 	broads[0].passToApplication(&dkg.JustificationBundle{})
 	require.True(t, len(broads[0].justCh) == 1)
+}
+
+func TestBroadcastContext(t *testing.T) {
+	n := 3
+	drands, group, dir, _ := BatchNewDrand(n, true)
+	defer os.RemoveAll(dir)
+	defer CloseAllDrands(drands)
+
+	broads := make([]*broadcast, 0, n)
+	ctx, cancel := context.WithCancel(context.Background())
+	for i, d := range drands {
+		localCtx := ctx
+		if i != 0 {
+			localCtx = context.Background()
+		}
+		b := newBroadcast(localCtx, d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(dkg.Packet) error { return nil })
+		d.dkgInfo = &dkgInfo{
+			board:   b,
+			started: true,
+		}
+		broads = append(broads, b)
+	}
+
+	// stop the context so the first broadcaster shouldn't send anything else
+	cancel()
+
+	deal := fakeDeal()
+	dealProto, err := dkgPacketToProto(deal)
+	require.NoError(t, err)
+	_, err = broads[0].BroadcastDKG(context.Background(), &drand.DKGPacket{Dkg: dealProto})
+	require.NoError(t, err)
+	// leave some time so other get it
+	time.Sleep(100 * time.Millisecond)
+	for _, b := range broads[1:] {
+		b.Lock()
+		require.False(t, b.hashes.exists(deal.Hash()))
+		require.True(t, len(b.dealCh) == 0, "len of channel is %d", len(b.dealCh))
+		b.Unlock()
+	}
 }
 
 func drain(t *testing.T, ch chan dkg.DealBundle) int {
