@@ -27,6 +27,13 @@ var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
 func TestDrandLarge(t *testing.T) {
+	fdOpen := 2000
+	cur, max, err := unixGetLimit()
+	require.NoError(t, err)
+	require.NoError(t, unixSetLimit(uint64(fdOpen), max))
+	defer func() {
+		unixSetLimit(cur, max)
+	}()
 	n := 22
 	beaconPeriod := 5 * time.Second
 

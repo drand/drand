@@ -18,6 +18,7 @@ import (
 	"github.com/drand/drand/test"
 	clock "github.com/jonboulle/clockwork"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc"
 )
 
@@ -476,4 +477,18 @@ func (d *DenyClient) isAllowed(p net.Peer) bool {
 		}
 	}
 	return true
+}
+
+func unixGetLimit() (uint64, uint64, error) {
+	rlimit := unix.Rlimit{}
+	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
+	return rlimit.Cur, rlimit.Max, err
+}
+
+func unixSetLimit(soft uint64, max uint64) error {
+	rlimit := unix.Rlimit{
+		Cur: soft,
+		Max: max,
+	}
+	return unix.Setrlimit(unix.RLIMIT_NOFILE, &rlimit)
 }
