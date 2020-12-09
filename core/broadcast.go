@@ -74,7 +74,7 @@ func (b *broadcast) PushDeals(bundle *dkg.DealBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "deal")
-	b.sendout(h, bundle)
+	b.sendout(h, bundle, true)
 }
 
 func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
@@ -83,7 +83,7 @@ func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "response", bundle.String())
-	b.sendout(h, bundle)
+	b.sendout(h, bundle, true)
 }
 
 func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
@@ -92,7 +92,7 @@ func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "justification")
-	b.sendout(h, bundle)
+	b.sendout(h, bundle, true)
 }
 
 func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
@@ -118,7 +118,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 	}
 
 	b.l.Debug("broadcast", "received new packet to broadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
-	b.sendout(hash, dkgPacket)
+	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil
 }
@@ -138,8 +138,9 @@ func (b *broadcast) passToApplication(p packet) {
 
 // sendout converts the packet to protobuf and pass the packet to the dispatcher
 // so it is broadcasted out out to all nodes. sendout requires the broadcast
-// lock.
-func (b *broadcast) sendout(h []byte, p packet) {
+// lock. If bypass is true, the message is directly sent to the peers, bypassing
+// the rate limiting in place.
+func (b *broadcast) sendout(h []byte, p packet, bypass bool) {
 	dkgproto, err := dkgPacketToProto(p)
 	if err != nil {
 		b.l.Error("broadcast", "can't send packet", "err", err)
@@ -150,7 +151,14 @@ func (b *broadcast) sendout(h []byte, p packet) {
 	proto := &drand.DKGPacket{
 		Dkg: dkgproto,
 	}
-	b.dispatcher.broadcast(proto)
+	if bypass {
+		// in a routine cause we don't want to block the processing of the DKG
+		// as well - that's ok since we are only expecting to send 3 packets out
+		// at the very least.
+		go b.dispatcher.broadcastDirect(proto)
+	} else {
+		b.dispatcher.broadcast(proto)
+	}
 }
 
 func (b *broadcast) IncomingDeal() <-chan dkg.DealBundle {
@@ -225,9 +233,19 @@ func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us s
 	}
 }
 
+// broadcast uses the regular channel limitation for messages coming from other
+// nodes.
 func (d *dispatcher) broadcast(p broadcastPacket) {
 	for _, i := range rand.Perm(len(d.senders)) {
 		d.senders[i].sendPacket(p)
+	}
+}
+
+// broadcastDirect directly send to the other peers - it is used only for our
+// own packets so we're not bound to congestion events.
+func (d *dispatcher) broadcastDirect(p broadcastPacket) {
+	for _, i := range rand.Perm(len(d.senders)) {
+		d.senders[i].sendDirect(p)
 	}
 }
 
@@ -269,12 +287,16 @@ func (s *sender) sendPacket(p broadcastPacket) {
 
 func (s *sender) run() {
 	for newPacket := range s.newCh {
-		err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
-		if err != nil {
-			s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
-		} else {
-			s.l.Debug("broadcast", "sending out", "to", s.to.Address())
-		}
+		s.sendDirect(newPacket)
+	}
+}
+
+func (s *sender) sendDirect(newPacket broadcastPacket) {
+	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
+	if err != nil {
+		s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
+	} else {
+		s.l.Debug("broadcast", "sending out", "to", s.to.Address())
 	}
 }
 
