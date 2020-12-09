@@ -479,9 +479,9 @@ func (d *DenyClient) isAllowed(p net.Peer) bool {
 	return true
 }
 
-func unixGetLimit() (uint64, uint64, error) {
+func unixGetLimit() (curr, max uint64, err error) {
 	rlimit := unix.Rlimit{}
-	err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
+	err = unix.Getrlimit(unix.RLIMIT_NOFILE, &rlimit)
 	return rlimit.Cur, rlimit.Max, err
 }
 

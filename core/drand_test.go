@@ -22,7 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
+func setFDLimit() {
 	fdOpen := 2000
 	_, max, err := unixGetLimit()
 	if err != nil {
@@ -38,6 +38,7 @@ var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
 func TestDrandLarge(t *testing.T) {
+	setFDLimit()
 	n := 22
 	beaconPeriod := 5 * time.Second
 
