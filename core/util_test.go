@@ -462,10 +462,8 @@ func (d *Drand) DenyBroadcastTo(addrs ...string) {
 
 func (d *DenyClient) BroadcastDKG(c context.Context, p net.Peer, in *drand.DKGPacket, opts ...net.CallOption) error {
 	if !d.isAllowed(p) {
-		d := make(chan bool)
 		fmt.Printf("\nDENIAL BROADCAST DKG TO %s\n", p.Address())
-		<-d
-		return nil
+		return errors.New("dkg broadcast denied")
 	}
 	return d.ProtocolClient.BroadcastDKG(c, p, in)
 }
