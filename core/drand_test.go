@@ -139,16 +139,17 @@ func TestDrandReshareForce(t *testing.T) {
 // This tests when a node first signal his intention to participate into a
 // resharing but is down right after  - he shouldn't be in the final group
 func TestDrandDKGReshareAbsent(t *testing.T) {
-	oldN := 3
-	newN := 4
-	oldThr := 2
-	newThr := 3
+	oldN := 4
+	newN := 5
+	oldThr := 3
+	newThr := 4
 	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 
 	dt := NewDrandTest2(t, oldN, oldThr, beaconPeriod)
 	defer dt.Cleanup()
 	group1 := dt.RunDKG()
+	require.True(t, group1.Threshold == oldThr)
 	// make sure all nodes had enough time to run their go routines to start the
 	// beacon handler - related to CI problems
 	time.Sleep(getSleepDuration())
@@ -158,6 +159,8 @@ func TestDrandDKGReshareAbsent(t *testing.T) {
 	// two = genesis + 1st round (happens at genesis)
 	dt.TestBeaconLength(2, false, dt.Ids(oldN, false)...)
 	// so nodes think they are going forward with round 2
+	dt.MoveTime(1 * time.Second)
+	dt.MoveTime(1 * time.Second)
 	dt.MoveTime(1 * time.Second)
 
 	toAdd := newN - oldN
