@@ -38,6 +38,9 @@ var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
 func TestDrandLarge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 	setFDLimit()
 	n := 22
 	beaconPeriod := 5 * time.Second

@@ -37,7 +37,9 @@ func TestBroadcast(t *testing.T) {
 
 	broads := make([]*broadcast, 0, n)
 	for _, d := range drands {
-		b := newBroadcast(context.Background(), d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(dkg.Packet) error { return nil })
+		b := newBroadcast(context.Background(), d.log, d.privGateway.ProtocolClient,
+			d.priv.Public.Address(), group.Nodes,
+			func(dkg.Packet) error { return nil })
 		d.dkgInfo = &dkgInfo{
 			board:   b,
 			started: true,
