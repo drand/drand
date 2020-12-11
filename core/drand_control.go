@@ -188,7 +188,11 @@ func (d *Drand) runDKG(ctx context.Context, leader bool, group *key.Group, timeo
 
 func (d *Drand) cleanupDKG() {
 	if d.dkgInfo != nil {
-		d.dkgInfo.board.stop()
+		// Leave the board running a little bit after completion to allow relaying of final packets to other members.
+		go func() {
+			time.Sleep(time.Second)
+			d.dkgInfo.board.stop()
+		}()
 	}
 	d.dkgInfo = nil
 }
