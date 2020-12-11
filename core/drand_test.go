@@ -88,7 +88,7 @@ func TestDrandDKGFresh(t *testing.T) {
 }
 
 func TestDrandDKGBroadcastDeny(t *testing.T) {
-	n := 3
+	n := 4
 	thr := 3
 	beaconPeriod := 1 * time.Second
 
