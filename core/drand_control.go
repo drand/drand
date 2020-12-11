@@ -123,8 +123,8 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 
 // runDKG setups the proper structures and protocol to run the DKG and waits
 // until it finishes. If leader is true, this node sends the first packet.
-func (d *Drand) runDKG(ctx context.Context, leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
-	reader, user := extractEntropy(randomness)
+func (d *Drand) runDKG(ctx context.Context, leader bool, group *key.Group, timeout uint32, r *drand.EntropyInfo) (*key.Group, error) {
+	reader, user := extractEntropy(r)
 	config := &dkg.Config{
 		Suite:          key.KeyGroup.(dkg.Suite),
 		NewNodes:       group.DKGNodes(),

@@ -120,7 +120,10 @@ func TestBroadcastContext(t *testing.T) {
 		if i != 0 {
 			localCtx = context.Background()
 		}
-		b := newBroadcast(localCtx, d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(dkg.Packet) error { return nil })
+		b := newBroadcast(localCtx, d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes,
+			func(dkg.Packet) error {
+				return nil
+			})
 		d.dkgInfo = &dkgInfo{
 			board:   b,
 			started: true,
