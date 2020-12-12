@@ -152,10 +152,7 @@ func (b *broadcast) sendout(h []byte, p packet, bypass bool) {
 		Dkg: dkgproto,
 	}
 	if bypass {
-		// in a routine cause we don't want to block the processing of the DKG
-		// as well - that's ok since we are only expecting to send 3 packets out
-		// at the very least.
-		go b.dispatcher.broadcastDirect(proto)
+		b.dispatcher.broadcastDirect(proto)
 	} else {
 		b.dispatcher.broadcast(proto)
 	}
@@ -251,7 +248,7 @@ func newDispatcher(ctx context.Context, l log.Logger, client net.ProtocolClient,
 // nodes.
 func (d *dispatcher) broadcast(p broadcastPacket) {
 	for _, i := range rand.Perm(len(d.senders)) {
-		d.senders[i].sendPacket(p)
+		d.senders[i].sendPacket(p, false)
 	}
 }
 
@@ -259,7 +256,7 @@ func (d *dispatcher) broadcast(p broadcastPacket) {
 // own packets so we're not bound to congestion events.
 func (d *dispatcher) broadcastDirect(p broadcastPacket) {
 	for _, i := range rand.Perm(len(d.senders)) {
-		d.senders[i].sendDirect(p)
+		d.senders[i].sendPacket(p, true)
 	}
 }
 
@@ -270,46 +267,73 @@ func (d *dispatcher) stop() {
 }
 
 type sender struct {
-	ctx    context.Context
-	l      log.Logger
-	client net.ProtocolClient
-	to     net.Peer
-	newCh  chan broadcastPacket
+	ctx      context.Context
+	l        log.Logger
+	client   net.ProtocolClient
+	to       net.Peer
+	directCh chan broadcastPacket
+	newCh    chan broadcastPacket
 }
 
 func newSender(ctx context.Context, l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
 	return &sender{
-		ctx:    ctx,
-		l:      l,
-		client: client,
-		to:     to,
-		newCh:  make(chan broadcastPacket, queueSize),
+		ctx:      ctx,
+		l:        l,
+		client:   client,
+		to:       to,
+		directCh: make(chan broadcastPacket, 1),
+		newCh:    make(chan broadcastPacket, queueSize),
 	}
 }
 
-func (s *sender) sendPacket(p broadcastPacket) {
-	select {
-	case s.newCh <- p:
-	default:
-		s.l.Debug("broadcast", "sender queue full", "endpoint", s.to.Address())
+func (s *sender) sendPacket(p broadcastPacket, direct bool) {
+	if direct {
+		s.directCh <- p
+	} else {
+		select {
+		case s.newCh <- p:
+		default:
+			s.l.Debug("broadcast", "sender queue full", "endpoint", s.to.Address())
+		}
 	}
 }
 
 func (s *sender) run() {
-	for newPacket := range s.newCh {
-		s.sendDirect(newPacket)
+	directOpen := true
+	normalOpen := true
+	for directOpen || normalOpen {
+		for directOpen {
+			select {
+			case p, ok := <-s.directCh:
+				if !ok {
+					directOpen = false
+					continue
+				}
+				s.sendDirect(p)
+			default:
+				break
+			}
+		}
+
+		select {
+		case p, ok := <-s.newCh:
+			if !ok {
+				normalOpen = false
+			}
+			s.sendDirect(p)
+		default:
+			continue
+		}
 	}
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
-	err := s.client.BroadcastDKG(s.ctx, s.to, newPacket)
-	if err != nil {
+	if err := s.client.BroadcastDKG(s.ctx, s.to, newPacket); err != nil {
 		s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
-	} else {
-		s.l.Debug("broadcast", "sending out", "to", s.to.Address())
 	}
 }
 
 func (s *sender) stop() {
 	close(s.newCh)
+	close(s.directCh)
 }
