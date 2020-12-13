@@ -52,13 +52,15 @@ func TestTimelock(t *testing.T) {
 		resp, err := client.PublicRand(ctx, rootID, req)
 		require.NoError(t, err)
 		require.Equal(t, round, resp.Round)
+		private := key.SigGroup.Point()
+		err = private.UnmarshalBinary(resp.Signature)
+		require.NoError(t, err)
+		msg2 := Decrypt(private, sig)
 		if round == toRound {
-			private := key.SigGroup.Point()
-			err := private.UnmarshalBinary(resp.Signature)
-			require.NoError(t, err)
-			msg2 := Decrypt(private, sig)
 			require.Equal(t, msg, msg2)
 			fmt.Println(" MESSAGE DECRYPTED ")
+		} else {
+			require.NotEqual(t, msg, msg2)
 		}
 		round += 1
 	}
