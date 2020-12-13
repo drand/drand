@@ -248,7 +248,7 @@ func (s *Share) PrivateShare() *share.PriShare {
 // Public returns the distributed public key associated with the distributed key
 // share
 func (s *Share) Public() *DistPublic {
-	return &DistPublic{s.Commits}
+	return &DistPublic{s.Commits, s.BasePoint}
 }
 
 // TOML returns a TOML-compatible version of this share
@@ -310,11 +310,12 @@ type ShareTOML struct {
 // private distributed polynomial.
 type DistPublic struct {
 	Coefficients []kyber.Point
+	BasePoint    kyber.Point
 }
 
 // PubPoly provides the public polynomial commitment
 func (d *DistPublic) PubPoly() *share.PubPoly {
-	return share.NewPubPoly(KeyGroup, KeyGroup.Point().Base(), d.Coefficients)
+	return share.NewPubPoly(KeyGroup, d.BasePoint, d.Coefficients)
 }
 
 // Key returns the first coefficient as representing the public key to be used
@@ -336,15 +337,21 @@ func (d *DistPublic) Hash() []byte {
 // DistPublicTOML is a TOML compatible value of a DistPublic
 type DistPublicTOML struct {
 	Coefficients []string
+	BasePoint    string
 }
 
 // TOML returns a TOML-compatible version of d
 func (d *DistPublic) TOML() interface{} {
+	dtoml := new(DistPublicTOML)
 	strings := make([]string, len(d.Coefficients))
 	for i, s := range d.Coefficients {
 		strings[i] = PointToString(s)
 	}
-	return &DistPublicTOML{strings}
+	dtoml.Coefficients = strings
+	if d.BasePoint != nil {
+		dtoml.BasePoint = PointToString(d.BasePoint)
+	}
+	return dtoml
 }
 
 // FromTOML initializes d from the TOML-compatible version of a DistPublic
@@ -362,6 +369,9 @@ func (d *DistPublic) FromTOML(i interface{}) error {
 		}
 	}
 	d.Coefficients = points
+	if dtoml.BasePoint != "" {
+		d.BasePoint, err = StringToPoint(KeyGroup, dtoml.BasePoint)
+	}
 	return nil
 }
 

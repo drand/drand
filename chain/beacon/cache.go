@@ -29,16 +29,15 @@ func newPartialCache(l log.Logger) *partialCache {
 	}
 }
 
-func roundID(round uint64, previous []byte) string {
+func roundID(round uint64) string {
 	var buff bytes.Buffer
 	_ = binary.Write(&buff, binary.BigEndian, round)
-	_, _ = buff.Write(previous)
 	return buff.String()
 }
 
 // Append adds a partial signature to the cache.
 func (c *partialCache) Append(p *drand.PartialBeaconPacket) {
-	id := roundID(p.GetRound(), p.GetPreviousSig())
+	id := roundID(p.GetRound())
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	round := c.getCache(id, p)
 	if round == nil {
@@ -77,8 +76,8 @@ func (c *partialCache) FlushRounds(round uint64) {
 	}
 }
 
-func (c *partialCache) GetRoundCache(round uint64, previous []byte) *roundCache {
-	id := roundID(round, previous)
+func (c *partialCache) GetRoundCache(round uint64) *roundCache {
+	id := roundID(round)
 	return c.rounds[id]
 }
 
@@ -119,7 +118,6 @@ type roundCache struct {
 func newRoundCache(id string, p *drand.PartialBeaconPacket) *roundCache {
 	return &roundCache{
 		round: p.GetRound(),
-		prev:  p.GetPreviousSig(),
 		id:    id,
 		sigs:  make(map[int][]byte),
 	}
@@ -143,7 +141,7 @@ func (r *roundCache) Len() int {
 
 // Msg provides the chain for the current round
 func (r *roundCache) Msg() []byte {
-	return chain.Message(r.round, r.prev)
+	return chain.Message(r.round)
 }
 
 // Partials provides all cached partial signatures

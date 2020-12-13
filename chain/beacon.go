@@ -14,8 +14,6 @@ import (
 
 // Beacon holds the randomness as well as the info to verify it.
 type Beacon struct {
-	// PreviousSig is the previous signature generated
-	PreviousSig []byte
 	// Round is the round number this beacon is tied to
 	Round uint64
 	// Signature is the BLS deterministic signature over Round || PreviousRand
@@ -24,8 +22,7 @@ type Beacon struct {
 
 // Equal indicates if two beacons are equal
 func (b *Beacon) Equal(b2 *Beacon) bool {
-	return bytes.Equal(b.PreviousSig, b2.PreviousSig) &&
-		b.Round == b2.Round &&
+	return b.Round == b2.Round &&
 		bytes.Equal(b.Signature, b2.Signature)
 }
 
@@ -57,7 +54,7 @@ func RandomnessFromSignature(sig []byte) []byte {
 }
 
 func (b *Beacon) String() string {
-	return fmt.Sprintf("{ round: %d, sig: %s, prevSig: %s }", b.Round, shortSigStr(b.Signature), shortSigStr(b.PreviousSig))
+	return fmt.Sprintf("{ round: %d, sig: %s }", b.Round, shortSigStr(b.Signature))
 }
 
 // VerifyBeacon returns an error if the given beacon does not verify given the
@@ -65,9 +62,8 @@ func (b *Beacon) String() string {
 // `key.DistPublic.Key()` method. The distributed public is the one written in
 // the configuration file of the network.
 func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
-	prevSig := b.PreviousSig
 	round := b.Round
-	msg := Message(round, prevSig)
+	msg := Message(round)
 	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
 }
 
@@ -75,18 +71,16 @@ func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
 // structure.
 func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
 	return VerifyBeacon(pubkey, &Beacon{
-		Round:       round,
-		PreviousSig: prevSig,
-		Signature:   signature,
+		Round:     round,
+		Signature: signature,
 	})
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
 // H ( prevSig || currRound)
-func Message(currRound uint64, prevSig []byte) []byte {
+func Message(currRound uint64) []byte {
 	h := sha256.New()
-	_, _ = h.Write(prevSig)
 	_, _ = h.Write(RoundToBytes(currRound))
 	return h.Sum(nil)
 }

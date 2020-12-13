@@ -140,7 +140,6 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
 		}
-		b.PreviousSig = trustPrevSig
 		b.Round = trustRound
 		b.Signature = next.Signature()
 
@@ -164,18 +163,9 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 }
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
-	ps := r.PreviousSignature
-	if v.strict || r.PreviousSignature == nil {
-		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
-		if err != nil {
-			return
-		}
-	}
-
 	b := chain.Beacon{
-		PreviousSig: ps,
-		Round:       r.Round(),
-		Signature:   r.Signature(),
+		Round:     r.Round(),
+		Signature: r.Signature(),
 	}
 
 	ipk := info.PublicKey.Clone()

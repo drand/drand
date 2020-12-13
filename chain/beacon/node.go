@@ -104,7 +104,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
+	msg := chain.Message(p.GetRound())
 	// XXX Remove that evaluation - find another way to show the current dist.
 	// key being used
 	shortPub := h.crypto.GetPub().Eval(1).V.String()[14:19]
@@ -273,10 +273,9 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		// the spec says we should broadcast the current round at the correct
 		// tick so we still broadcast a partial signature over it - even though
 		// drand guarantees a threshold of nodes already have it
-		previousSig = upon.PreviousSig
 		round = current.round
 	}
-	msg := chain.Message(round, previousSig)
+	msg := chain.Message(round)
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)

@@ -122,7 +122,7 @@ func (c *chainStore) runAggregator() {
 			thr := c.crypto.GetGroup().Threshold
 			n := c.crypto.GetGroup().Len()
 			cache.Append(partial.p)
-			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
+			roundCache := cache.GetRoundCache(partial.p.GetRound())
 			if roundCache == nil {
 				c.l.Error("store_partial", partial.addr, "no_round_cache", partial.p.GetRound())
 				break
@@ -145,9 +145,8 @@ func (c *chainStore) runAggregator() {
 			}
 			cache.FlushRounds(partial.p.GetRound())
 			newBeacon := &chain.Beacon{
-				Round:       roundCache.round,
-				PreviousSig: roundCache.prev,
-				Signature:   finalSig,
+				Round:     roundCache.round,
+				Signature: finalSig,
 			}
 			c.l.Info("aggregated_beacon", newBeacon.Round)
 			if c.tryAppend(lastBeacon, newBeacon) {
