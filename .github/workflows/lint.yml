@@ -18,6 +18,7 @@ jobs:
     - name: Fetch Dependencies
       run: go get ./...
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v1.2.1
+      uses: golangci/golangci-lint-action@v2.3.0
       with:
-        version: v1.27
+        version: v1.29
+        args: --timeout 5m
