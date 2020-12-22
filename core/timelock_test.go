@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -40,7 +41,8 @@ func TestTimelock(t *testing.T) {
 	// encrypt a message
 	msg := []byte("Open this in year 2100")
 	toRound := resp.Round + 3
-	sig, err := Encrypt(group.PublicKey, toRound, msg)
+	id := chain.Message(toRound)
+	sig, err := timelock.Encrypt(key.Pairing, key.KeyGroup.Point().Base(), group.PublicKey, id, msg)
 	require.NoError(t, err)
 	fmt.Printf("TIME CAPSULE : %x\n", sig.xor)
 

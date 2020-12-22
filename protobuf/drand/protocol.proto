@@ -69,6 +69,8 @@ message PartialBeaconPacket {
     // partial signature - a threshold of them needs to be aggregated to produce
     // the final beacon at the given round.
     bytes partial_sig = 3;
+    // partial signature over the round only
+    bytes partial_sig_v2 = 4;
 }
 
 // DKGPacket is the packet that nodes send to others nodes as part of the

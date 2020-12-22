@@ -29,15 +29,16 @@ func newPartialCache(l log.Logger) *partialCache {
 	}
 }
 
-func roundID(round uint64) string {
+func roundID(round uint64, previous []byte) string {
 	var buff bytes.Buffer
 	_ = binary.Write(&buff, binary.BigEndian, round)
+	_, _ = buff.Write(previous)
 	return buff.String()
 }
 
 // Append adds a partial signature to the cache.
 func (c *partialCache) Append(p *drand.PartialBeaconPacket) {
-	id := roundID(p.GetRound())
+	id := roundID(p.GetRound(), p.GetPreviousSig())
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	round := c.getCache(id, p)
 	if round == nil {
@@ -76,8 +77,8 @@ func (c *partialCache) FlushRounds(round uint64) {
 	}
 }
 
-func (c *partialCache) GetRoundCache(round uint64) *roundCache {
-	id := roundID(round)
+func (c *partialCache) GetRoundCache(round uint64, previous []byte) *roundCache {
+	id := roundID(round, previous)
 	return c.rounds[id]
 }
 
@@ -109,17 +110,20 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 }
 
 type roundCache struct {
-	round uint64
-	prev  []byte
-	id    string
-	sigs  map[int][]byte
+	round  uint64
+	prev   []byte
+	id     string
+	sigs   map[int][]byte
+	sigsV2 map[int][]byte
 }
 
 func newRoundCache(id string, p *drand.PartialBeaconPacket) *roundCache {
 	return &roundCache{
-		round: p.GetRound(),
-		id:    id,
-		sigs:  make(map[int][]byte),
+		round:  p.GetRound(),
+		prev:   p.GetPreviousSig(),
+		id:     id,
+		sigs:   make(map[int][]byte),
+		sigsV2: make(map[int][]byte),
 	}
 }
 
@@ -131,6 +135,13 @@ func (r *roundCache) append(p *drand.PartialBeaconPacket) bool {
 		return false
 	}
 	r.sigs[idx] = p.GetPartialSig()
+	if len(p.GetPartialSigV2()) > 0 {
+		// NOTE: if the first time the partial beacon did not contain a partial
+		// siganture V2, then the second time we see it, it's not gonna be saved
+		// as well because we already registered it as saved. That's a
+		// acceptable behavior for the transition.
+		r.sigsV2[idx] = p.GetPartialSigV2()
+	}
 	return true
 }
 
@@ -139,15 +150,28 @@ func (r *roundCache) Len() int {
 	return len(r.sigs)
 }
 
+// LenV2 returns the number of v2 partial signatures we have for this round.
+func (r *roundCache) LenV2() int {
+	return len(r.sigsV2)
+}
+
 // Msg provides the chain for the current round
 func (r *roundCache) Msg() []byte {
-	return chain.Message(r.round)
+	return chain.Message(r.round, r.prev)
 }
 
 // Partials provides all cached partial signatures
 func (r *roundCache) Partials() [][]byte {
 	partials := make([][]byte, 0, len(r.sigs))
 	for _, sig := range r.sigs {
+		partials = append(partials, sig)
+	}
+	return partials
+}
+
+func (r *roundCache) PartialsV2() [][]byte {
+	partials := make([][]byte, 0, len(r.sigsV2))
+	for _, sig := range r.sigsV2 {
 		partials = append(partials, sig)
 	}
 	return partials

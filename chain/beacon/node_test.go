@@ -452,6 +452,8 @@ func TestBeaconSimple(t *testing.T) {
 	myCallBack := func(b *chain.Beacon) {
 		// verify partial sig
 		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
+		// verify signature V2
+		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
 		counter.Done()
 	}
 
@@ -498,7 +500,7 @@ func TestBeaconThreshold(t *testing.T) {
 		return func(b *chain.Beacon) {
 			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
-			msg := chain.Message(b.Round)
+			msg := chain.Message(b.Round, b.PreviousSig)
 			err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 			require.NoError(t, err)
 			// callbacks are called for syncing up as well so we only decrease

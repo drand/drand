@@ -122,13 +122,15 @@ func (c *chainStore) runAggregator() {
 			thr := c.crypto.GetGroup().Threshold
 			n := c.crypto.GetGroup().Len()
 			cache.Append(partial.p)
-			roundCache := cache.GetRoundCache(partial.p.GetRound())
+			roundCache := cache.GetRoundCache(partial.p.GetRound(), partial.p.GetPreviousSig())
 			if roundCache == nil {
 				c.l.Error("store_partial", partial.addr, "no_round_cache", partial.p.GetRound())
 				break
 			}
 
 			c.l.Debug("store_partial", partial.addr, "round", roundCache.round, "len_partials", fmt.Sprintf("%d/%d", roundCache.Len(), thr))
+			// TODO : once transition phase is over, remove that check and only
+			// keep the check for LenV2
 			if roundCache.Len() < thr {
 				break
 			}
@@ -143,12 +145,31 @@ func (c *chainStore) runAggregator() {
 				c.l.Error("invalid_sig", err, "round", pRound)
 				break
 			}
-			cache.FlushRounds(partial.p.GetRound())
 			newBeacon := &chain.Beacon{
-				Round:     roundCache.round,
-				Signature: finalSig,
+				Round:       roundCache.round,
+				PreviousSig: roundCache.prev,
+				Signature:   finalSig,
 			}
-			c.l.Info("aggregated_beacon", newBeacon.Round)
+
+			// try to recover the v2 signature if enough signatures are present
+			// this allows a graceful transitions for nodes updating to v2
+			if roundCache.LenV2() >= thr {
+				roundMsg := chain.MessageV2(pRound)
+				finalSigV2, err := key.Scheme.Recover(c.crypto.GetPub(), roundMsg, roundCache.PartialsV2(), thr, n)
+				if err != nil {
+					c.l.Debug("invalid_recovery_V2", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.LenV2(), n))
+					// We don't never accept a beacon with invalid signature v2
+					// even if v1 is correct
+					break
+				}
+				if err := key.Scheme.VerifyRecovered(c.crypto.GetPub().Commit(), roundMsg, finalSigV2); err != nil {
+					c.l.Error("invalid_sig_V2", err, "round", pRound)
+				}
+				newBeacon.SignatureV2 = finalSigV2
+			}
+
+			cache.FlushRounds(partial.p.GetRound())
+			c.l.Info("aggregated_beacon", newBeacon.Round, "with_V2?", newBeacon.IsV2())
 			if c.tryAppend(lastBeacon, newBeacon) {
 				lastBeacon = newBeacon
 				break

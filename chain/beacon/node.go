@@ -104,7 +104,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	msg := chain.Message(p.GetRound())
+	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
 	// XXX Remove that evaluation - find another way to show the current dist.
 	// key being used
 	shortPub := h.crypto.GetPub().Eval(1).V.String()[14:19]
@@ -117,10 +117,23 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"short_pub", shortPub)
 		return nil, err
 	}
+
+	// backward compatible: check new signature type v2 only if present
+	var withV2 bool
+	if len(p.GetPartialSigV2()) > 0 {
+		msgRound := chain.MessageV2(p.GetRound())
+		err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msgRound, p.GetPartialSigV2())
+		if err != nil {
+			h.l.Error("process_partial_v2", addr, "curr_round", currentRound, "err", err)
+			return nil, err
+		}
+		withV2 = true
+	}
 	h.l.Debug("process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSig()),
 		"curr_round", currentRound, "msg_sign",
 		shortSigStr(msg), "short_pub", shortPub,
+		"with_v2", withV2,
 		"status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == h.crypto.Index() {
@@ -273,19 +286,27 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		// the spec says we should broadcast the current round at the correct
 		// tick so we still broadcast a partial signature over it - even though
 		// drand guarantees a threshold of nodes already have it
+		previousSig = upon.PreviousSig
 		round = current.round
 	}
-	msg := chain.Message(round)
+	msg := chain.Message(round, previousSig)
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
 		return
 	}
-	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
+	msgV2 := chain.MessageV2(round)
+	sigV2, err := h.crypto.SignPartial(msgV2)
+	if err != nil {
+		h.l.Fatal("beacon_round", "err creating sig V2", "err", err, "round", round)
+		return
+	}
+	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg), "sigV2", shortSigStr(sigV2))
 	packet := &proto.PartialBeaconPacket{
-		Round:       round,
-		PreviousSig: previousSig,
-		PartialSig:  currSig,
+		Round:        round,
+		PreviousSig:  previousSig,
+		PartialSig:   currSig,
+		PartialSigV2: sigV2,
 	}
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {
