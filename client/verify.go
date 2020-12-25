@@ -10,12 +10,15 @@ import (
 )
 
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
-func newVerifyingClient(c Client, previousResult Result, strict bool) Client {
+// v2round specifies the round at which this client starts verifying v2
+// signatures only.
+func newVerifyingClient(c Client, previousResult Result, strict bool, v2round uint64) Client {
 	return &verifyingClient{
 		Client:         c,
 		indirectClient: c,
 		pointOfTrust:   previousResult,
 		strict:         strict,
+		v2round:        v2round,
 	}
 }
 
@@ -31,7 +34,8 @@ type verifyingClient struct {
 	potLk        sync.Mutex
 	strict       bool
 
-	log log.Logger
+	log     log.Logger
+	v2round uint64
 }
 
 // SetLog configures the client log output.
@@ -141,9 +145,11 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
 		}
+		b.PreviousSig = trustPrevSig
 		b.Round = trustRound
 		b.Signature = next.Signature()
 		b.SignatureV2 = next.SignatureV2()
+
 		ipk := info.PublicKey.Clone()
 		if err := chain.VerifyBeacon(ipk, &b); err != nil {
 			v.log.Warn("verifying_client", "failed to verify value", "b", b, "err", err)
@@ -164,23 +170,33 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 }
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
+	ps := r.PreviousSignature
+	// only fetch previous signature if we are using v1 signatures
+	if v.v2round > r.Round() && (v.strict || r.PreviousSignature == nil) {
+		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
+		if err != nil {
+			return
+		}
+	}
+
 	b := chain.Beacon{
+		PreviousSig: ps,
 		Round:       r.Round(),
 		Signature:   r.Signature(),
 		SignatureV2: r.SignatureV2(),
 	}
 
-	ipk := info.PublicKey.Clone()
-	if err = chain.VerifyBeacon(ipk, &b); err != nil {
-		return fmt.Errorf("verification of %v failed: %w", b, err)
-	}
-
-	if len(r.SignatureV2()) > 0 {
+	ipk := info.PublicKey
+	if r.Round() >= v.v2round {
+		//if false {
 		if err = chain.VerifyBeaconV2(ipk, &b); err != nil {
-			return fmt.Errorf("verification of %v failed: %w", b, err)
+			return fmt.Errorf("verification v2 of %v failed: %w", b, err)
+		}
+	} else {
+		if err = chain.VerifyBeacon(ipk, &b); err != nil {
+			return fmt.Errorf("verification v1 of %v failed: %w", b, err)
 		}
 	}
-
 	r.Random = chain.RandomnessFromSignature(r.Sig)
 	return nil
 }

@@ -57,7 +57,6 @@ func asRD(r *drand.PublicRandResponse) *client.RandomData {
 		Random:            r.Randomness,
 		Sig:               r.Signature,
 		PreviousSignature: r.PreviousSignature,
-		SigV2:             r.SignatureV2,
 	}
 }
 

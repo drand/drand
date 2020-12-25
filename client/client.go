@@ -76,7 +76,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify, cfg.v2round)
 		verifiers = append(verifiers, nv)
 		if source == wc {
 			wc = nv
@@ -166,6 +166,9 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
+	// round from which to verify v2 signature - if unspecified, always verify
+	// only v2 signatures.
+	v2round uint64
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -327,6 +330,16 @@ func WithAutoWatchRetry(interval time.Duration) Option {
 func WithPrometheus(r prometheus.Registerer) Option {
 	return func(cfg *clientConfig) error {
 		cfg.prometheus = r
+		return nil
+	}
+}
+
+// By default, a client always verifies the signature V2. This options enables
+// to start verifying the signature v2 only from a specified round. This helps
+// to transitioning from the v1 to v2 signature.
+func WithV2From(round uint64) Option {
+	return func(cfg *clientConfig) error {
+		cfg.v2round = round
 		return nil
 	}
 }

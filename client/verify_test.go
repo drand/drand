@@ -17,6 +17,7 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 		client.WithChainInfo(info),
 		client.WithVerifiedResult(&results[0]),
 		client.WithFullChainVerification(),
+		client.WithV2From(uint64(n+10000000)),
 	)
 	if err != nil {
 		return nil, nil, err

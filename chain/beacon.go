@@ -82,6 +82,8 @@ func (b *Beacon) String() string {
 // public key. The public key "point" can be obtained from the
 // `key.DistPublic.Key()` method. The distributed public is the one written in
 // the configuration file of the network.
+// NOTE this method is meant to be deprecated in the future - if available,
+// always prefer to use signature v2 and VerifyBeaconV2
 func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
 	prevSig := b.PreviousSig
 	round := b.Round

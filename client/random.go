@@ -20,12 +20,11 @@ func (r *RandomData) Signature() []byte {
 	return r.Sig
 }
 
+func (r *RandomData) SignatureV2() []byte {
+	return r.SigV2
+}
+
 // Randomness exports the randomness
 func (r *RandomData) Randomness() []byte {
 	return r.Random
-}
-
-// SignatureV2 returns the signature created over just the round
-func (r *RandomData) SignatureV2() []byte {
-	return r.SigV2
 }
