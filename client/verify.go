@@ -172,7 +172,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
 	ps := r.PreviousSignature
 	// only fetch previous signature if we are using v1 signatures
-	if v.v2round > r.Round() && (v.strict || r.PreviousSignature == nil) {
+	if r.Round() < v.v2round && (v.strict || r.PreviousSignature == nil) {
 		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
 		if err != nil {
 			return
@@ -190,11 +190,11 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 	if r.Round() >= v.v2round {
 		//if false {
 		if err = chain.VerifyBeaconV2(ipk, &b); err != nil {
-			return fmt.Errorf("verification v2 of %v failed: %w", b, err)
+			return fmt.Errorf("verification v2 of %s failed: %w", b.String(), err)
 		}
 	} else {
 		if err = chain.VerifyBeacon(ipk, &b); err != nil {
-			return fmt.Errorf("verification v1 of %v failed: %w", b, err)
+			return fmt.Errorf("verification v1 of %s failed: %w", b.String(), err)
 		}
 	}
 	r.Random = chain.RandomnessFromSignature(r.Sig)

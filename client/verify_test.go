@@ -19,7 +19,7 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 		client.WithChainInfo(info),
 		client.WithVerifiedResult(&results[0]),
 		client.WithFullChainVerification(),
-		client.WithV2From(uint64(n+10000000)),
+		client.WithV2From(uint64(10000000)),
 	)
 	if err != nil {
 		return nil, nil, err
@@ -29,7 +29,7 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 
 func TestVerifyToV2(t *testing.T) {
 	n := 10
-	v2from := 5
+	var v2from uint64 = 5
 	info, results := mock.VerifiableResults(n)
 	mc := client.MockClient{Results: results, StrictRounds: true}
 	c, err := client.Wrap(
@@ -37,10 +37,10 @@ func TestVerifyToV2(t *testing.T) {
 		client.WithChainInfo(info),
 		client.WithVerifiedResult(&results[0]),
 		client.WithFullChainVerification(),
-		client.WithV2From(uint64(v2from)),
+		client.WithV2From(v2from),
 	)
 	require.NoError(t, err)
-	for i := 2; i <= n; i++ {
+	for i := results[0].Round(); i <= uint64(n); i++ {
 		res, err := c.Get(context.Background(), uint64(i))
 		require.NoError(t, err)
 		require.Equal(t, res.Round(), uint64(i))

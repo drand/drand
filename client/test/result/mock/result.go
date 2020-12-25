@@ -3,7 +3,6 @@ package mock
 import (
 	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -72,12 +71,6 @@ func (r *Result) AssertValid(t *testing.T) {
 	if !bytes.Equal(r.Rand, randTarget) {
 		t.Fatalf("expected rand: %x, got %x", randTarget, r.Rand)
 	}
-}
-
-func sha256Hash(in []byte) []byte {
-	h := sha256.New()
-	h.Write(in)
-	return h.Sum(nil)
 }
 
 func roundToBytes(r int) []byte {
