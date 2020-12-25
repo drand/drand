@@ -86,7 +86,17 @@ func roundToBytes(r int) []byte {
 	return buff.Bytes()
 }
 
-// VerifiableResults creates a set of results that will pass a `chain.Verify` check.
+func getSig(p *share.PriShare, msg []byte) []byte {
+	tsig, err := key.Scheme.Sign(p, msg)
+	if err != nil {
+		panic(err)
+	}
+	tshare := tbls.SigShare(tsig)
+	return tshare.Value()
+}
+
+// VerifiableResults creates a set of results that will pass a
+// `chain.VerifyBeacon` check AND a `chain.VerifyBeaconV2` check.
 func VerifiableResults(count int) (*chain.Info, []Result) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
@@ -97,24 +107,21 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 
 	out := make([]Result, count)
 	for i := range out {
-		msg := sha256Hash(append(previous[:], roundToBytes(i+1)...))
-		//msgv1 := chain.Message(previous[:], uint64(i+1))
+		msgv1 := chain.Message(uint64(i+1), previous[:])
+		msgv2 := chain.MessageV2(uint64(i + 1))
 		sshare := share.PriShare{I: 0, V: secret}
-		tsig, err := key.Scheme.Sign(&sshare, msg)
-		if err != nil {
-			panic(err)
-		}
-		tshare := tbls.SigShare(tsig)
-		sig := tshare.Value()
+		sig1 := getSig(&sshare, msgv1)
+		sig2 := getSig(&sshare, msgv2)
 
 		out[i] = Result{
-			Sig:  sig,
-			PSig: previous,
-			Rnd:  uint64(i + 1),
-			Rand: chain.RandomnessFromSignature(sig),
+			Sig:   sig1,
+			PSig:  previous,
+			Rnd:   uint64(i + 1),
+			Rand:  chain.RandomnessFromSignature(sig1),
+			SigV2: sig2,
 		}
-		previous = make([]byte, len(sig))
-		copy(previous[:], sig)
+		previous = make([]byte, len(sig1))
+		copy(previous[:], sig1)
 	}
 	info := chain.Info{
 		PublicKey:   public,
