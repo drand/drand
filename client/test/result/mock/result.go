@@ -20,18 +20,20 @@ func NewMockResult(round uint64) Result {
 	sig := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sig, round)
 	return Result{
-		Rnd:  round,
-		Sig:  sig,
-		Rand: chain.RandomnessFromSignature(sig),
+		Rnd:   round,
+		Sig:   sig,
+		Rand:  chain.RandomnessFromSignature(sig),
+		SigV2: sig,
 	}
 }
 
 // Result is a mock result that can be used for testing.
 type Result struct {
-	Rnd  uint64
-	Rand []byte
-	Sig  []byte
-	PSig []byte
+	Rnd   uint64
+	Rand  []byte
+	Sig   []byte
+	PSig  []byte
+	SigV2 []byte
 }
 
 // Randomness is a hash of the signature.
@@ -42,6 +44,10 @@ func (r *Result) Randomness() []byte {
 // Signature is the signature of the randomness for this round.
 func (r *Result) Signature() []byte {
 	return r.Sig
+}
+
+func (r *Result) SignatureV2() []byte {
+	return r.SigV2
 }
 
 // PreviousSignature is the signature of the previous round.

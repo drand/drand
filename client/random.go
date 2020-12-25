@@ -7,6 +7,7 @@ type RandomData struct {
 	Random            []byte `json:"randomness,omitempty"`
 	Sig               []byte `json:"signature,omitempty"`
 	PreviousSignature []byte `json:"previous_signature,omitempty"`
+	SigV2             []byte `json:"signaturev2,omitempty"`
 }
 
 // Round provides access to the round associatted with this random data.
@@ -22,4 +23,9 @@ func (r *RandomData) Signature() []byte {
 // Randomness exports the randomness
 func (r *RandomData) Randomness() []byte {
 	return r.Random
+}
+
+// SignatureV2 returns the signature created over just the round
+func (r *RandomData) SignatureV2() []byte {
+	return r.SigV2
 }

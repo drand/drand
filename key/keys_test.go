@@ -145,8 +145,7 @@ func BatchIdentities(n int) ([]*Pair, *Group) {
 		}
 	}
 	fakeDistKey := KeyGroup.Point().Pick(random.New())
-	distKey := &DistPublic{[]kyber.Point{fakeDistKey}, fakeDistKey}
-
+	distKey := &DistPublic{[]kyber.Point{fakeDistKey}}
 	group := &Group{
 		Threshold: DefaultThreshold(n),
 		Nodes:     pubs,

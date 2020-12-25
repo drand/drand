@@ -38,6 +38,7 @@ type Result interface {
 	Round() uint64
 	Randomness() []byte
 	Signature() []byte
+	SignatureV2() []byte
 }
 
 // LoggingClient sets the logger for use by clients that suppport it

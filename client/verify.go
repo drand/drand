@@ -94,6 +94,7 @@ func asRandomData(r Result) *RandomData {
 		Rnd:    r.Round(),
 		Random: r.Randomness(),
 		Sig:    r.Signature(),
+		SigV2:  r.SignatureV2(),
 	}
 	if rp, ok := r.(resultWithPreviousSignature); ok {
 		rd.PreviousSignature = rp.PreviousSignature()
@@ -142,7 +143,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		}
 		b.Round = trustRound
 		b.Signature = next.Signature()
-
+		b.SignatureV2 = next.SignatureV2()
 		ipk := info.PublicKey.Clone()
 		if err := chain.VerifyBeacon(ipk, &b); err != nil {
 			v.log.Warn("verifying_client", "failed to verify value", "b", b, "err", err)
@@ -164,13 +165,20 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
 	b := chain.Beacon{
-		Round:     r.Round(),
-		Signature: r.Signature(),
+		Round:       r.Round(),
+		Signature:   r.Signature(),
+		SignatureV2: r.SignatureV2(),
 	}
 
 	ipk := info.PublicKey.Clone()
 	if err = chain.VerifyBeacon(ipk, &b); err != nil {
 		return fmt.Errorf("verification of %v failed: %w", b, err)
+	}
+
+	if len(r.SignatureV2()) > 0 {
+		if err = chain.VerifyBeaconV2(ipk, &b); err != nil {
+			return fmt.Errorf("verification of %v failed: %w", b, err)
+		}
 	}
 
 	r.Random = chain.RandomnessFromSignature(r.Sig)

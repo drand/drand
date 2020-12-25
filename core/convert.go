@@ -14,9 +14,10 @@ import (
 
 func beaconToProto(b *chain.Beacon) *drand.PublicRandResponse {
 	return &drand.PublicRandResponse{
-		Round:      b.Round,
-		Signature:  b.Signature,
-		Randomness: b.Randomness(),
+		Round:       b.Round,
+		Signature:   b.Signature,
+		Randomness:  b.Randomness(),
+		SignatureV2: b.SignatureV2,
 	}
 }
 

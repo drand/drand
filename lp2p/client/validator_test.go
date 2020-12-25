@@ -33,6 +33,10 @@ func (r *randomDataWrapper) Signature() []byte {
 	return r.data.Sig
 }
 
+func (r *randomDataWrapper) SignatureV2() []byte {
+	return r.data.SigV2
+}
+
 func (r *randomDataWrapper) Randomness() []byte {
 	return r.data.Random
 }

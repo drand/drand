@@ -108,9 +108,10 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	// register a callback for the duration of this stream
 	d.beacon.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(&drand.PublicRandResponse{
-			Round:      b.Round,
-			Signature:  b.Signature,
-			Randomness: b.Randomness(),
+			Round:       b.Round,
+			Signature:   b.Signature,
+			Randomness:  b.Randomness(),
+			SignatureV2: b.SignatureV2,
 		})
 		// if connection has a problem, we drop the callback
 		if err != nil {

@@ -10,6 +10,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/encrypt/timelock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,10 +42,9 @@ func TestTimelock(t *testing.T) {
 	// encrypt a message
 	msg := []byte("Open this in year 2100")
 	toRound := resp.Round + 3
-	id := chain.Message(toRound)
-	sig, err := timelock.Encrypt(key.Pairing, key.KeyGroup.Point().Base(), group.PublicKey, id, msg)
+	id := chain.MessageV2(toRound)
+	sig, err := timelock.Encrypt(key.Pairing, key.KeyGroup.Point().Base(), group.PublicKey.Key(), id, msg)
 	require.NoError(t, err)
-	fmt.Printf("TIME CAPSULE : %x\n", sig.xor)
 
 	round := resp.Round + 1
 	for round <= toRound {
@@ -55,9 +55,14 @@ func TestTimelock(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, round, resp.Round)
 		private := key.SigGroup.Point()
-		err = private.UnmarshalBinary(resp.Signature)
+		err = private.UnmarshalBinary(resp.SignatureV2)
 		require.NoError(t, err)
-		msg2 := Decrypt(private, sig)
+		msg2, err := timelock.Decrypt(key.Pairing, private, sig)
+		// XXX Currently there is no MAC to ensure the message is the right one
+		// so there should never be an error when trying to decrypt (it happens
+		// only if length isn't right size etc) - we could add that in kyber
+		// according to necessity but drand doesn't need to deal with that.
+		require.NoError(t, err)
 		if round == toRound {
 			require.Equal(t, msg, msg2)
 			fmt.Println(" MESSAGE DECRYPTED ")

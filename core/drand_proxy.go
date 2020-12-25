@@ -40,6 +40,7 @@ func (d *drandProxy) Get(ctx context.Context, round uint64) (client.Result, erro
 		Random:            resp.Randomness,
 		Sig:               resp.Signature,
 		PreviousSignature: resp.PreviousSignature,
+		SigV2:             resp.SignatureV2,
 	}, nil
 }
 
