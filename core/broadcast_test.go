@@ -64,6 +64,7 @@ func TestBroadcast(t *testing.T) {
 	// try again to broadcast but it shouldn't actually do it
 	broads[1].Lock()
 	broads[1].hashes = new(arraySet)
+	require.Equal(t, len(broads[1].dealCh), 0)
 	broads[1].Unlock()
 	_, err = broads[0].BroadcastDKG(context.Background(), &drand.DKGPacket{Dkg: dealProto})
 	require.NoError(t, err)
