@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -61,6 +62,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 	defer s.l.Unlock()
 	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
+	signaturev2 := decodeHex(s.d.SignatureV2)
 	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
 	}
@@ -69,6 +71,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 		Round:             uint64(s.d.Round),
 		PreviousSignature: prev,
 		Signature:         signature,
+		SignatureV2:       signaturev2,
 		Randomness:        randomness,
 	}
 	s.d = nextMockData(s.d)
@@ -158,12 +161,23 @@ type Data struct {
 	secret            kyber.Scalar
 	Public            []byte
 	Signature         string
+	SignatureV2       string
 	Round             int
 	PreviousSignature string
 	PreviousRound     int
 	Genesis           int64
 	Period            time.Duration
 	BadSecondRound    bool
+}
+
+func getSig(s *share.PriShare, msg []byte) []byte {
+	tsig, err := key.Scheme.Sign(s, msg)
+	if err != nil {
+		panic(err)
+	}
+	tshare := tbls.SigShare(tsig)
+	sig := tshare.Value()
+	return sig
 }
 
 func generateMockData() *Data {
@@ -175,20 +189,18 @@ func generateMockData() *Data {
 	}
 	round := 1969
 	prevRound := uint64(1968)
-	msg := sha256Hash(append(previous[:], roundToBytes(round)...))
-	sshare := share.PriShare{I: 0, V: secret}
-	tsig, err := key.Scheme.Sign(&sshare, msg)
-	if err != nil {
-		panic(err)
-	}
-	tshare := tbls.SigShare(tsig)
-	sig := tshare.Value()
+	sshare := &share.PriShare{I: 0, V: secret}
+	msg := chain.Message(uint64(round), previous[:])
+	msg2 := chain.MessageV2(uint64(round))
+	sig := getSig(sshare, msg)
+	sig2 := getSig(sshare, msg2)
 	publicBuff, _ := public.MarshalBinary()
 	period := time.Second
 	d := &Data{
 		secret:            secret,
 		Public:            publicBuff,
 		Signature:         hex.EncodeToString(sig),
+		SignatureV2:       hex.EncodeToString(sig2),
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     int(prevRound),
 		Round:             round,
@@ -202,18 +214,16 @@ func generateMockData() *Data {
 // nextMockData generates a valid Data for the next round when given the current round data.
 func nextMockData(d *Data) *Data {
 	previous := decodeHex(d.PreviousSignature)
-	msg := sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
-	sshare := share.PriShare{I: 0, V: d.secret}
-	tsig, err := key.Scheme.Sign(&sshare, msg)
-	if err != nil {
-		panic(err)
-	}
-	tshare := tbls.SigShare(tsig)
-	sig := tshare.Value()
+	sshare := &share.PriShare{I: 0, V: d.secret}
+	msg1 := chain.Message(uint64(d.Round+1), previous[:])
+	msg2 := chain.MessageV2(uint64(d.Round + 1))
+	sig1 := getSig(sshare, msg1)
+	sig2 := getSig(sshare, msg2)
 	return &Data{
 		secret:            d.secret,
 		Public:            d.Public,
-		Signature:         hex.EncodeToString(sig),
+		Signature:         hex.EncodeToString(sig1),
+		SignatureV2:       hex.EncodeToString(sig2),
 		PreviousSignature: hex.EncodeToString(previous[:]),
 		PreviousRound:     d.Round,
 		Round:             d.Round + 1,

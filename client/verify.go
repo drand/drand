@@ -10,15 +10,15 @@ import (
 )
 
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
-// v2round specifies the round at which this client starts verifying v2
-// signatures only.
-func newVerifyingClient(c Client, previousResult Result, strict bool, v2round uint64) Client {
+// v2from indicates from which round to verify the v2 signature only. Before
+// that round, the client only verifies the v1.
+func newVerifyingClient(c Client, previousResult Result, strict bool, v2from uint64) Client {
 	return &verifyingClient{
 		Client:         c,
 		indirectClient: c,
 		pointOfTrust:   previousResult,
 		strict:         strict,
-		v2round:        v2round,
+		v2from:         v2from,
 	}
 }
 
@@ -34,8 +34,8 @@ type verifyingClient struct {
 	potLk        sync.Mutex
 	strict       bool
 
-	log     log.Logger
-	v2round uint64
+	log    log.Logger
+	v2from uint64
 }
 
 // SetLog configures the client log output.
@@ -171,8 +171,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
 	ps := r.PreviousSignature
-	// only fetch previous signature if we are using v1 signatures
-	if r.Round() < v.v2round && (v.strict || r.PreviousSignature == nil) {
+	if r.Round() < v.v2from && (v.strict || r.PreviousSignature == nil) {
 		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
 		if err != nil {
 			return
@@ -186,18 +185,18 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 		SignatureV2: r.SignatureV2(),
 	}
 
-	ipk := info.PublicKey
-	if r.Round() >= v.v2round {
-		//if false {
-		if err = chain.VerifyBeaconV2(ipk, &b); err != nil {
+	ipk := info.PublicKey.Clone()
+	if r.Round() >= v.v2from {
+		if err := chain.VerifyBeaconV2(ipk, &b); err != nil {
 			return fmt.Errorf("verification v2 of %s failed: %w", b.String(), err)
 		}
+		r.Random = chain.RandomnessFromSignature(r.SigV2)
 	} else {
 		if err = chain.VerifyBeacon(ipk, &b); err != nil {
 			return fmt.Errorf("verification v1 of %s failed: %w", b.String(), err)
 		}
+		r.Random = chain.RandomnessFromSignature(r.Sig)
 	}
-	r.Random = chain.RandomnessFromSignature(r.Sig)
 	return nil
 }
 

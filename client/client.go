@@ -50,6 +50,10 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, errors.New("no points of contact specified")
 	}
 
+	if cfg.fullVerify && cfg.v2from == 0 {
+		return nil, errors.New("fullVerify is deprecated for v2 only chain")
+	}
+
 	var err error
 
 	// provision cache
@@ -76,7 +80,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify, cfg.v2round)
+		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify, cfg.v2from)
 		verifiers = append(verifiers, nv)
 		if source == wc {
 			wc = nv
@@ -166,9 +170,9 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
-	// round from which to verify v2 signature - if unspecified, always verify
-	// only v2 signatures.
-	v2round uint64
+	// v2from sets from which round should the verification routine use the v2
+	// signature
+	v2from uint64
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -334,12 +338,13 @@ func WithPrometheus(r prometheus.Registerer) Option {
 	}
 }
 
-// By default, a client always verifies the signature V2. This options enables
-// to start verifying the signature v2 only from a specified round. This helps
-// to transitioning from the v1 to v2 signature.
-func WithV2From(round uint64) Option {
+// WithV1VerificationUntil sets the verification algorithm to use the v1
+// signature from first round to the given round _included_. After the given
+// round, the verification routine verifies the signature V2. If unspecified,
+// the signature v2 is automatically use.
+func WithV1VerificationUntil(round uint64) Option {
 	return func(cfg *clientConfig) error {
-		cfg.v2round = round
+		cfg.v2from = round + 1
 		return nil
 	}
 }

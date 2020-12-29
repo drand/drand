@@ -41,7 +41,7 @@ func TestClientMultiple(t *testing.T) {
 
 	c, e := client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()), client.WithV2From(100000))
+		client.WithChainHash(chainInfo.Hash()))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -80,7 +80,8 @@ func TestClientCache(t *testing.T) {
 	defer cancel()
 
 	c, e := client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1), client.WithV2From(1000000))
+		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1),
+	)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -108,8 +109,7 @@ func TestClientWithoutCache(t *testing.T) {
 	c, e := client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
 		client.WithChainHash(chainInfo.Hash()),
-		client.WithCacheSize(0),
-		client.WithV2From(1000000))
+		client.WithCacheSize(0))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -223,7 +223,6 @@ func TestClientAutoWatch(t *testing.T) {
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
 		client.WithAutoWatch(),
-		client.WithV2From(10000000),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +280,6 @@ func TestClientAutoWatchRetry(t *testing.T) {
 		client.WithAutoWatch(),
 		client.WithAutoWatchRetry(time.Second),
 		client.WithCacheSize(len(results)),
-		client.WithV2From(uint64(len(results)+100000)),
 	)
 	if err != nil {
 		t.Fatal(err)

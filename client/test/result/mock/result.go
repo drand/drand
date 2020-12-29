@@ -3,6 +3,7 @@ package mock
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -19,10 +20,9 @@ func NewMockResult(round uint64) Result {
 	sig := make([]byte, 8)
 	binary.LittleEndian.PutUint64(sig, round)
 	return Result{
-		Rnd:   round,
-		Sig:   sig,
-		Rand:  chain.RandomnessFromSignature(sig),
-		SigV2: sig,
+		Rnd:  round,
+		Sig:  sig,
+		Rand: chain.RandomnessFromSignature(sig),
 	}
 }
 
@@ -73,14 +73,20 @@ func (r *Result) AssertValid(t *testing.T) {
 	}
 }
 
+func sha256Hash(in []byte) []byte {
+	h := sha256.New()
+	h.Write(in)
+	return h.Sum(nil)
+}
+
 func roundToBytes(r int) []byte {
 	var buff bytes.Buffer
 	binary.Write(&buff, binary.BigEndian, uint64(r))
 	return buff.Bytes()
 }
 
-func getSig(p *share.PriShare, msg []byte) []byte {
-	tsig, err := key.Scheme.Sign(p, msg)
+func getSig(s *share.PriShare, msg []byte) []byte {
+	tsig, err := key.Scheme.Sign(s, msg)
 	if err != nil {
 		panic(err)
 	}
@@ -88,8 +94,7 @@ func getSig(p *share.PriShare, msg []byte) []byte {
 	return tshare.Value()
 }
 
-// VerifiableResults creates a set of results that will pass a
-// `chain.VerifyBeacon` check AND a `chain.VerifyBeaconV2` check.
+// VerifiableResults creates a set of results that will pass a `chain.Verify` check.
 func VerifiableResults(count int) (*chain.Info, []Result) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
@@ -100,18 +105,17 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 
 	out := make([]Result, count)
 	for i := range out {
-		msgv1 := chain.Message(uint64(i+1), previous[:])
-		msgv2 := chain.MessageV2(uint64(i + 1))
-		sshare := share.PriShare{I: 0, V: secret}
-		sig1 := getSig(&sshare, msgv1)
-		sig2 := getSig(&sshare, msgv2)
-
+		msg1 := chain.Message(uint64(i+1), previous[:])
+		msg2 := chain.MessageV2(uint64(i + 1))
+		sshare := &share.PriShare{I: 0, V: secret}
+		sig1 := getSig(sshare, msg1)
+		sig2 := getSig(sshare, msg2)
 		out[i] = Result{
 			Sig:   sig1,
+			SigV2: sig2,
 			PSig:  previous,
 			Rnd:   uint64(i + 1),
 			Rand:  chain.RandomnessFromSignature(sig1),
-			SigV2: sig2,
 		}
 		previous = make([]byte, len(sig1))
 		copy(previous[:], sig1)
