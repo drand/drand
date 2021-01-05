@@ -453,7 +453,7 @@ func TestBeaconSimple(t *testing.T) {
 		// verify partial sig
 		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
 		// verify signature V2
-		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
+		require.NoError(t, chain.VerifyBeaconV2(bt.dpublic, b))
 		counter.Done()
 	}
 
