@@ -137,7 +137,7 @@ func (r *roundCache) append(p *drand.PartialBeaconPacket) bool {
 	r.sigs[idx] = p.GetPartialSig()
 	if len(p.GetPartialSigV2()) > 0 {
 		// NOTE: if the first time the partial beacon did not contain a partial
-		// siganture V2, then the second time we see it, it's not gonna be saved
+		// signature V2, then the second time we see it, it's not gonna be saved
 		// as well because we already registered it as saved. That's a
 		// acceptable behavior for the transition.
 		r.sigsV2[idx] = p.GetPartialSigV2()

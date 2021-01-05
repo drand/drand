@@ -69,6 +69,6 @@ func TestTimelock(t *testing.T) {
 		} else {
 			require.NotEqual(t, msg, msg2)
 		}
-		round += 1
+		round++
 	}
 }

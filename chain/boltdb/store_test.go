@@ -18,13 +18,15 @@ func TestStoreBoltOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	b1 := &chain.Beacon{
-		Round:     145,
-		Signature: []byte("one signature to"),
+		PreviousSig: []byte("a magnificent signature"),
+		Round:       145,
+		Signature:   []byte("one signature to"),
 	}
 
 	b2 := &chain.Beacon{
-		Round:     146,
-		Signature: []byte("govern them all"),
+		PreviousSig: []byte("is not worth an invalid one"),
+		Round:       146,
+		Signature:   []byte("govern them all"),
 	}
 
 	require.NoError(t, store.Put(b1))
@@ -60,13 +62,17 @@ func TestStoreBolt(t *testing.T) {
 	require.Equal(t, 0, store.Len())
 
 	b1 := &chain.Beacon{
-		Round:     145,
-		Signature: sig2,
+		PreviousSig: sig1,
+		Round:       145,
+		Signature:   sig2,
+		SignatureV2: sig2,
 	}
 
 	b2 := &chain.Beacon{
-		Round:     146,
-		Signature: sig1,
+		PreviousSig: sig1,
+		Round:       146,
+		Signature:   sig1,
+		SignatureV2: sig2,
 	}
 
 	require.NoError(t, store.Put(b1))

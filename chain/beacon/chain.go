@@ -103,13 +103,10 @@ func (c *chainStore) runAggregator() {
 			cache.FlushRounds(lastBeacon.Round)
 			break
 		case partial := <-c.newPartials:
-			// look if we have info for this round first
 			pRound := partial.p.GetRound()
-			// look if we want to store ths partial anyway
 			isNotInPast := pRound > lastBeacon.Round
 			isNotTooFar := pRound <= lastBeacon.Round+uint64(partialCacheStoreLimit+1)
 			shouldStore := isNotInPast && isNotTooFar
-			// check if we can reconstruct
 			if !shouldStore {
 				c.l.Debug("ignoring_partial", partial.p.GetRound(), "last_beacon_stored", lastBeacon.Round)
 				break
