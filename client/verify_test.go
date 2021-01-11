@@ -11,7 +11,7 @@ import (
 )
 
 func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error) {
-	info, results := mock.VerifiableResults(n)
+	info, results := mock.VerifiableResults(n, 1000000000)
 	mc := client.MockClient{Results: results, StrictRounds: true}
 	c, err := client.Wrap(
 		[]client.Client{client.MockClientWithInfo(info), &mc},
@@ -28,7 +28,7 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 
 func TestVerifyV1ToV2(t *testing.T) {
 	var fromV2 uint64 = 5
-	info, results := mock.VerifiableResults(10)
+	info, results := mock.VerifiableResults(10, fromV2)
 	mc := client.MockClient{Results: results, StrictRounds: true}
 	c, err := client.Wrap(
 		[]client.Client{client.MockClientWithInfo(info), &mc},

@@ -29,6 +29,7 @@ func NewMockResult(round uint64) Result {
 // Result is a mock result that can be used for testing.
 type Result struct {
 	Rnd   uint64
+	v2rnd uint64
 	Rand  []byte
 	Sig   []byte
 	PSig  []byte
@@ -42,11 +43,10 @@ func (r *Result) Randomness() []byte {
 
 // Signature is the signature of the randomness for this round.
 func (r *Result) Signature() []byte {
+	if r.Rnd >= r.v2rnd {
+		return r.SigV2
+	}
 	return r.Sig
-}
-
-func (r *Result) SignatureV2() []byte {
-	return r.SigV2
 }
 
 // PreviousSignature is the signature of the previous round.
@@ -95,7 +95,7 @@ func getSig(s *share.PriShare, msg []byte) []byte {
 }
 
 // VerifiableResults creates a set of results that will pass a `chain.Verify` check.
-func VerifiableResults(count int) (*chain.Info, []Result) {
+func VerifiableResults(count int, v2Epoch uint64) (*chain.Info, []Result) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 	previous := make([]byte, 32)
@@ -111,6 +111,7 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 		sig1 := getSig(sshare, msg1)
 		sig2 := getSig(sshare, msg2)
 		out[i] = Result{
+			v2rnd: v2Epoch,
 			Sig:   sig1,
 			SigV2: sig2,
 			PSig:  previous,

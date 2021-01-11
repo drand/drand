@@ -187,7 +187,7 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 		b := chain.Beacon{
 			PreviousSig: ps,
 			Round:       r.Round(),
-			SignatureV2: r.Signature(),
+			SignatureV2: r.SigV2,
 		}
 
 		if err := chain.VerifyBeaconV2(ipk, &b); err != nil {

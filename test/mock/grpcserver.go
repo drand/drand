@@ -65,6 +65,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 	signaturev2 := decodeHex(s.d.SignatureV2)
 	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
 		signature = []byte{0x01, 0x02, 0x03}
+		signaturev2 = []byte{0x01, 0x02, 0x03}
 	}
 	randomness := sha256Hash(signature)
 	resp := drand.PublicRandResponse{
