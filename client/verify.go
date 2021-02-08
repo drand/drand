@@ -53,7 +53,7 @@ func (v *verifyingClient) Get(ctx context.Context, round uint64) (Result, error)
 	if err != nil {
 		return nil, err
 	}
-	rd := asRandomData(r)
+	rd := v.asRandomData(r)
 	if err := v.verify(ctx, info, rd); err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 	go func() {
 		defer close(outCh)
 		for r := range inCh {
-			if err := v.verify(ctx, info, asRandomData(r)); err != nil {
+			if err := v.verify(ctx, info, v.asRandomData(r)); err != nil {
 				v.log.Warn("verifying_client", "skipping invalid watch round", "round", r.Round(), "err", err)
 				continue
 			}
@@ -89,16 +89,21 @@ type resultWithPreviousSignature interface {
 	PreviousSignature() []byte
 }
 
-func asRandomData(r Result) *RandomData {
+func (v *verifyingClient) asRandomData(r Result) *RandomData {
 	rd, ok := r.(*RandomData)
 	if ok {
 		return rd
 	}
+	s := r.Signature()
 	rd = &RandomData{
 		Rnd:    r.Round(),
 		Random: r.Randomness(),
-		Sig:    r.Signature(),
-		SigV2:  r.SignatureV2(),
+	}
+	if r.Round() >= v.v2from {
+		rd.SigV2 = s
+		rd.version = 2
+	} else {
+		rd.Sig = s
 	}
 	if rp, ok := r.(resultWithPreviousSignature); ok {
 		rd.PreviousSignature = rp.PreviousSignature()
@@ -148,7 +153,6 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		b.PreviousSig = trustPrevSig
 		b.Round = trustRound
 		b.Signature = next.Signature()
-		b.SignatureV2 = next.SignatureV2()
 
 		ipk := info.PublicKey.Clone()
 		if err := chain.VerifyBeacon(ipk, &b); err != nil {
@@ -178,20 +182,24 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 		}
 	}
 
-	b := chain.Beacon{
-		PreviousSig: ps,
-		Round:       r.Round(),
-		Signature:   r.Signature(),
-		SignatureV2: r.SignatureV2(),
-	}
-
 	ipk := info.PublicKey.Clone()
 	if r.Round() >= v.v2from {
+		b := chain.Beacon{
+			PreviousSig: ps,
+			Round:       r.Round(),
+			SignatureV2: r.SigV2,
+		}
+
 		if err := chain.VerifyBeaconV2(ipk, &b); err != nil {
 			return fmt.Errorf("verification v2 of %s failed: %w", b.String(), err)
 		}
 		r.Random = chain.RandomnessFromSignature(r.SigV2)
 	} else {
+		b := chain.Beacon{
+			PreviousSig: ps,
+			Round:       r.Round(),
+			Signature:   r.Signature(),
+		}
 		if err = chain.VerifyBeacon(ipk, &b); err != nil {
 			return fmt.Errorf("verification v1 of %s failed: %w", b.String(), err)
 		}
