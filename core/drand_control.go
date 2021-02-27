@@ -909,3 +909,16 @@ func sendProgressCallback(
 	}
 	return
 }
+
+// BackupDatabase triggers a backup of the primary database.
+func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
+	d.state.Lock()
+	if d.beacon == nil {
+		d.state.Unlock()
+		return nil, errors.New("drand: beacon not setup yet")
+	}
+	inst := d.beacon
+	d.state.Unlock()
+
+	return &drand.BackupDBResponse{}, inst.Store().SaveTo(req.OutputFile)
+}

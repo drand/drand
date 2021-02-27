@@ -2,6 +2,7 @@ package boltdb
 
 import (
 	"errors"
+	"os"
 	"path"
 	"sync"
 
@@ -144,6 +145,19 @@ func (b *boltStore) Cursor(fn func(chain.Cursor)) {
 	if err != nil {
 		log.DefaultLogger().Warn("boltdb", "error getting cursor", "err", err)
 	}
+}
+
+// SaveTo saves the bolt database to an alternate file.
+func (b *boltStore) SaveTo(file string) error {
+	w, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, os.ModeExclusive)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+	return b.db.View(func(tx *bolt.Tx) error {
+		_, err := tx.WriteTo(w)
+		return err
+	})
 }
 
 type boltCursor struct {

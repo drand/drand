@@ -19,6 +19,7 @@ type Store interface {
 	Cursor(func(Cursor))
 	Close()
 	Del(round uint64) error
+	SaveTo(file string) error
 }
 
 // Cursor iterates over items in sorted key order. This starts from the
