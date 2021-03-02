@@ -169,6 +169,11 @@ func (h *httpClient) String() string {
 	return fmt.Sprintf("HTTP(%q)", h.root)
 }
 
+// Implement textMarshaller
+func (h *httpClient) MarshalText() ([]byte, error) {
+	return json.Marshal(h.String())
+}
+
 type httpInfoResponse struct {
 	chainInfo *chain.Info
 	err       error
@@ -232,11 +237,6 @@ func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
 	case <-h.done:
 		return nil, errClientClosed
 	}
-}
-
-// Implement textMarshaller
-func (h *httpClient) MarshalText() ([]byte, error) {
-	return json.Marshal(h)
 }
 
 type httpGetResponse struct {
