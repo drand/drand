@@ -210,7 +210,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 		return nil, err
 	}
 	d.opts.applyDkgCallback(d.share)
-	d.dkgInfo.board.stop()
+	d.dkgInfo.board.Stop()
 	d.dkgInfo = nil
 	return d.group, nil
 }
@@ -358,7 +358,7 @@ func checkGroup(l log.Logger, group *key.Group) {
 // necessary during the DKG protocol.
 type dkgInfo struct {
 	target  *key.Group
-	board   *broadcast
+	board   Broadcast
 	phaser  *dkg.TimePhaser
 	conf    *dkg.Config
 	proto   *dkg.Protocol
