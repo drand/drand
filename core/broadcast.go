@@ -74,7 +74,7 @@ func (b *broadcast) PushDeals(bundle *dkg.DealBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "deal")
-	b.sendout(h, bundle)
+	b.sendout(h, bundle, true)
 }
 
 func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
@@ -83,7 +83,7 @@ func (b *broadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "response", bundle.String())
-	b.sendout(h, bundle)
+	b.sendout(h, bundle, true)
 }
 
 func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
@@ -92,7 +92,7 @@ func (b *broadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	defer b.Unlock()
 	h := hash(bundle.Hash())
 	b.l.Debug("broadcast", "push", "justification")
-	b.sendout(h, bundle)
+	b.sendout(h, bundle, true)
 }
 
 func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
@@ -118,7 +118,7 @@ func (b *broadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.
 	}
 
 	b.l.Debug("broadcast", "received new packet to broadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
-	b.sendout(hash, dkgPacket)
+	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil
 }
@@ -138,8 +138,9 @@ func (b *broadcast) passToApplication(p packet) {
 
 // sendout converts the packet to protobuf and pass the packet to the dispatcher
 // so it is broadcasted out out to all nodes. sendout requires the broadcast
-// lock.
-func (b *broadcast) sendout(h []byte, p packet) {
+// lock. If bypass is true, the message is directly sent to the peers, bypassing
+// the rate limiting in place.
+func (b *broadcast) sendout(h []byte, p packet, bypass bool) {
 	dkgproto, err := dkgPacketToProto(p)
 	if err != nil {
 		b.l.Error("broadcast", "can't send packet", "err", err)
@@ -150,7 +151,14 @@ func (b *broadcast) sendout(h []byte, p packet) {
 	proto := &drand.DKGPacket{
 		Dkg: dkgproto,
 	}
-	b.dispatcher.broadcast(proto)
+	if bypass {
+		// in a routine cause we don't want to block the processing of the DKG
+		// as well - that's ok since we are only expecting to send 3 packets out
+		// at the very least.
+		go b.dispatcher.broadcastDirect(proto)
+	} else {
+		b.dispatcher.broadcast(proto)
+	}
 }
 
 func (b *broadcast) IncomingDeal() <-chan dkg.DealBundle {
@@ -203,6 +211,19 @@ func (a *arraySet) exists(hash hash) bool {
 
 type broadcastPacket = *drand.DKGPacket
 
+// maxQueueSize is the maximum queue size we reserve for each destination of
+// broadcast.
+const maxQueueSize = 1000
+
+// senderQueueSize returns a dynamic queue size depending on the number of nodes
+// to contact.
+func senderQueueSize(nodes int) int {
+	if nodes > maxQueueSize {
+		return maxQueueSize
+	}
+	return nodes
+}
+
 // dispatcher maintains a list of worker assigned one destination and pushes the
 // message to send to the right worker
 type dispatcher struct {
@@ -212,11 +233,12 @@ type dispatcher struct {
 
 func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us string) *dispatcher {
 	var senders = make([]*sender, 0, len(to)-1)
+	queue := senderQueueSize(len(to))
 	for _, node := range to {
 		if node.Address() == us {
 			continue
 		}
-		sender := newSender(l, client, node)
+		sender := newSender(l, client, node, queue)
 		go sender.run()
 		senders = append(senders, sender)
 	}
@@ -225,9 +247,19 @@ func newDispatcher(l log.Logger, client net.ProtocolClient, to []*key.Node, us s
 	}
 }
 
+// broadcast uses the regular channel limitation for messages coming from other
+// nodes.
 func (d *dispatcher) broadcast(p broadcastPacket) {
 	for _, i := range rand.Perm(len(d.senders)) {
 		d.senders[i].sendPacket(p)
+	}
+}
+
+// broadcastDirect directly send to the other peers - it is used only for our
+// own packets so we're not bound to congestion events.
+func (d *dispatcher) broadcastDirect(p broadcastPacket) {
+	for _, i := range rand.Perm(len(d.senders)) {
+		d.senders[i].sendDirect(p)
 	}
 }
 
@@ -237,12 +269,6 @@ func (d *dispatcher) stop() {
 	}
 }
 
-// size of the receiving queue for a sender channel
-// XXX should it be dynamic ? Reason to fix it is that after some pushed packets
-// if the connection still haven't sent them, that means there's probably
-// something wrong with the connection and we shouldn't push more.
-const senderQueueSize = 10
-
 type sender struct {
 	l      log.Logger
 	client net.ProtocolClient
@@ -250,12 +276,12 @@ type sender struct {
 	newCh  chan broadcastPacket
 }
 
-func newSender(l log.Logger, client net.ProtocolClient, to net.Peer) *sender {
+func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
 	return &sender{
 		l:      l,
 		client: client,
 		to:     to,
-		newCh:  make(chan broadcastPacket, senderQueueSize),
+		newCh:  make(chan broadcastPacket, queueSize),
 	}
 }
 
@@ -269,12 +295,16 @@ func (s *sender) sendPacket(p broadcastPacket) {
 
 func (s *sender) run() {
 	for newPacket := range s.newCh {
-		err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
-		if err != nil {
-			s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
-		} else {
-			s.l.Debug("broadcast", "sending out", "to", s.to.Address())
-		}
+		s.sendDirect(newPacket)
+	}
+}
+
+func (s *sender) sendDirect(newPacket broadcastPacket) {
+	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
+	if err != nil {
+		s.l.Debug("broadcast", "sending out", "error to", s.to.Address(), "err:", err)
+	} else {
+		s.l.Debug("broadcast", "sending out", "to", s.to.Address())
 	}
 }
 

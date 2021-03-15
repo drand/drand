@@ -22,9 +22,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func setFDLimit() {
+	fdOpen := 2000
+	_, max, err := unixGetLimit()
+	if err != nil {
+		panic(err)
+	}
+	if err := unixSetLimit(uint64(fdOpen), max); err != nil {
+		panic(err)
+	}
+}
+
 // 1 second after end of dkg
 var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
+
+func TestDrandLarge(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+	setFDLimit()
+	n := 22
+	beaconPeriod := 5 * time.Second
+
+	dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod)
+	defer dt.Cleanup()
+	dt.RunDKG()
+	time.Sleep(getSleepDuration())
+	fmt.Println(" --- DKG FINISHED ---")
+}
 
 func TestDrandDKGFresh(t *testing.T) {
 	n := 4
@@ -62,8 +88,8 @@ func TestDrandDKGFresh(t *testing.T) {
 }
 
 func TestDrandDKGBroadcastDeny(t *testing.T) {
-	n := 5
-	thr := 4
+	n := 4
+	thr := 3
 	beaconPeriod := 1 * time.Second
 
 	dt := NewDrandTest2(t, n, thr, beaconPeriod)
