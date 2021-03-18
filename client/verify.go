@@ -145,7 +145,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	var next Result
 	for trustRound < round-1 {
 		trustRound++
-		v.log.Warn("verifying_client", "loading round to verify", "round", trustRound)
+		v.log.Debug("verifying_client", "loading round to verify", "round", trustRound)
 		next, err = v.indirectClient.Get(ctx, trustRound)
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)

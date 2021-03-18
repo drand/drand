@@ -39,8 +39,14 @@ func TestVerifyV1ToV2(t *testing.T) {
 	)
 	require.NoError(t, err)
 	for _, res := range results[1:] {
-		_, err := c.Get(context.Background(), res.Round())
+		r, err := c.Get(context.Background(), res.Round())
 		require.NoError(t, err)
+		// test that before the fromV2 round, we only get the v1 signatures
+		if res.Round() >= fromV2 {
+			require.Equal(t, r.Signature(), res.SigV2)
+		} else {
+			require.Equal(t, r.Signature(), res.Sig, "round %d", res.Round())
+		}
 	}
 }
 
