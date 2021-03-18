@@ -3,6 +3,7 @@ package chain
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
 )
 
 // store contains all the definitions and implementation of the logic that
@@ -19,7 +20,7 @@ type Store interface {
 	Cursor(func(Cursor))
 	Close()
 	Del(round uint64) error
-	SaveTo(file string) error
+	SaveTo(w io.Writer) error
 }
 
 // Cursor iterates over items in sorted key order. This starts from the

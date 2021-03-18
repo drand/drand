@@ -2,7 +2,7 @@ package boltdb
 
 import (
 	"errors"
-	"os"
+	"io"
 	"path"
 	"sync"
 
@@ -148,12 +148,7 @@ func (b *boltStore) Cursor(fn func(chain.Cursor)) {
 }
 
 // SaveTo saves the bolt database to an alternate file.
-func (b *boltStore) SaveTo(file string) error {
-	w, err := os.OpenFile(file, os.O_WRONLY|os.O_CREATE, os.ModeExclusive)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
+func (b *boltStore) SaveTo(w io.Writer) error {
 	return b.db.View(func(tx *bolt.Tx) error {
 		_, err := tx.WriteTo(w)
 		return err

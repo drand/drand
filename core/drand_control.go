@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -920,5 +921,11 @@ func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) 
 	inst := d.beacon
 	d.state.Unlock()
 
-	return &drand.BackupDBResponse{}, inst.Store().SaveTo(req.OutputFile)
+	w, err := os.OpenFile(req.OutputFile, os.O_WRONLY|os.O_CREATE, os.ModeExclusive)
+	if err != nil {
+		return nil, fmt.Errorf("could not open file for backup: %w", err)
+	}
+	defer w.Close()
+
+	return &drand.BackupDBResponse{}, inst.Store().SaveTo(w)
 }
