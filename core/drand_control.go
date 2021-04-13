@@ -135,7 +135,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
@@ -186,7 +186,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 
 func (d *Drand) cleanupDKG() {
 	if d.dkgInfo != nil {
-		d.dkgInfo.board.stop()
+		d.dkgInfo.board.Stop()
 	}
 	d.dkgInfo = nil
 }
@@ -239,7 +239,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
+	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	phaser := d.getPhaser(timeout)
