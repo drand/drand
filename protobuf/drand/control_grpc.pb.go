@@ -11,7 +11,8 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+// Requires gRPC-Go v1.32.0 or later.
+const _ = grpc.SupportPackageIsVersion7
 
 // ControlClient is the client API for Control service.
 //
@@ -38,6 +39,7 @@ type ControlClient interface {
 	GroupFile(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error)
+	BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error)
 }
 
 type controlClient struct {
@@ -130,7 +132,7 @@ func (c *controlClient) Shutdown(ctx context.Context, in *ShutdownRequest, opts 
 }
 
 func (c *controlClient) StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Control_serviceDesc.Streams[0], "/drand.Control/StartFollowChain", opts...)
+	stream, err := c.cc.NewStream(ctx, &Control_ServiceDesc.Streams[0], "/drand.Control/StartFollowChain", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +163,15 @@ func (x *controlStartFollowChainClient) Recv() (*FollowProgress, error) {
 	return m, nil
 }
 
+func (c *controlClient) BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error) {
+	out := new(BackupDBResponse)
+	err := c.cc.Invoke(ctx, "/drand.Control/BackupDatabase", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlServer is the server API for Control service.
 // All implementations should embed UnimplementedControlServer
 // for forward compatibility
@@ -186,45 +197,56 @@ type ControlServer interface {
 	GroupFile(context.Context, *GroupRequest) (*GroupPacket, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error
+	BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error)
 }
 
 // UnimplementedControlServer should be embedded to have forward compatible implementations.
 type UnimplementedControlServer struct {
 }
 
-func (*UnimplementedControlServer) PingPong(context.Context, *Ping) (*Pong, error) {
+func (UnimplementedControlServer) PingPong(context.Context, *Ping) (*Pong, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PingPong not implemented")
 }
-func (*UnimplementedControlServer) InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error) {
+func (UnimplementedControlServer) InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitDKG not implemented")
 }
-func (*UnimplementedControlServer) InitReshare(context.Context, *InitResharePacket) (*GroupPacket, error) {
+func (UnimplementedControlServer) InitReshare(context.Context, *InitResharePacket) (*GroupPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitReshare not implemented")
 }
-func (*UnimplementedControlServer) Share(context.Context, *ShareRequest) (*ShareResponse, error) {
+func (UnimplementedControlServer) Share(context.Context, *ShareRequest) (*ShareResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Share not implemented")
 }
-func (*UnimplementedControlServer) PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error) {
+func (UnimplementedControlServer) PublicKey(context.Context, *PublicKeyRequest) (*PublicKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublicKey not implemented")
 }
-func (*UnimplementedControlServer) PrivateKey(context.Context, *PrivateKeyRequest) (*PrivateKeyResponse, error) {
+func (UnimplementedControlServer) PrivateKey(context.Context, *PrivateKeyRequest) (*PrivateKeyResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PrivateKey not implemented")
 }
-func (*UnimplementedControlServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
+func (UnimplementedControlServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChainInfo not implemented")
 }
-func (*UnimplementedControlServer) GroupFile(context.Context, *GroupRequest) (*GroupPacket, error) {
+func (UnimplementedControlServer) GroupFile(context.Context, *GroupRequest) (*GroupPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GroupFile not implemented")
 }
-func (*UnimplementedControlServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
+func (UnimplementedControlServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
 }
-func (*UnimplementedControlServer) StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error {
+func (UnimplementedControlServer) StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method StartFollowChain not implemented")
 }
+func (UnimplementedControlServer) BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method BackupDatabase not implemented")
+}
 
-func RegisterControlServer(s *grpc.Server, srv ControlServer) {
-	s.RegisterService(&_Control_serviceDesc, srv)
+// UnsafeControlServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ControlServer will
+// result in compilation errors.
+type UnsafeControlServer interface {
+	mustEmbedUnimplementedControlServer()
+}
+
+func RegisterControlServer(s grpc.ServiceRegistrar, srv ControlServer) {
+	s.RegisterService(&Control_ServiceDesc, srv)
 }
 
 func _Control_PingPong_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -410,7 +432,28 @@ func (x *controlStartFollowChainServer) Send(m *FollowProgress) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-var _Control_serviceDesc = grpc.ServiceDesc{
+func _Control_BackupDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BackupDBRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).BackupDatabase(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/drand.Control/BackupDatabase",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).BackupDatabase(ctx, req.(*BackupDBRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// Control_ServiceDesc is the grpc.ServiceDesc for Control service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Control_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "drand.Control",
 	HandlerType: (*ControlServer)(nil),
 	Methods: []grpc.MethodDesc{
@@ -449,6 +492,10 @@ var _Control_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _Control_Shutdown_Handler,
+		},
+		{
+			MethodName: "BackupDatabase",
+			Handler:    _Control_BackupDatabase_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

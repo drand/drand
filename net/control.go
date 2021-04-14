@@ -229,6 +229,12 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	return outCh, errCh, nil
 }
 
+// BackupDB backs up the database to afile
+func (c *ControlClient) BackupDB(outFile string) error {
+	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile})
+	return err
+}
+
 // controlListenAddr parses the control address as specified, into a dialable / listenable address
 func controlListenAddr(listenAddr string) (network, addr string) {
 	if strings.HasPrefix(listenAddr, "unix://") {
