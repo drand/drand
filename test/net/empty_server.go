@@ -114,3 +114,8 @@ func (s *EmptyServer) GroupFile(context.Context, *drand.GroupRequest) (*drand.Gr
 func (s *EmptyServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
 	return nil, nil
 }
+
+// BackupDatabase is an empty implementation
+func (s *EmptyServer) BackupDatabase(context.Context, *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
+	return nil, nil
+}
