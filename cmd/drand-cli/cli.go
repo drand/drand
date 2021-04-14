@@ -378,6 +378,12 @@ var appCommands = []*cli.Command{
 				Flags:  toArray(folderFlag),
 				Action: selfSign,
 			},
+			{
+				Name:   "backup",
+				Usage:  "backs up the primary drand database to a secondary location.",
+				Flags:  toArray(outFlag, controlFlag),
+				Action: backupDBCmd,
+			},
 		},
 	},
 	{

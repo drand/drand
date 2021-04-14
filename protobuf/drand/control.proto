@@ -35,6 +35,8 @@ service Control {
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 
     rpc StartFollowChain(StartFollowRequest) returns (stream FollowProgress) { }
+
+    rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) { }
 }
 
 // SetupInfoPacket contains all information necessary to run an "automatic"
@@ -197,4 +199,12 @@ message StartFollowRequest {
 message FollowProgress { 
     uint64 current = 1;
     uint64 target = 2;
+}
+
+message BackupDBRequest {
+    string output_file = 1;
+}
+
+message BackupDBResponse {
+
 }

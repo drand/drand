@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -134,7 +135,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
@@ -185,7 +186,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 
 func (d *Drand) cleanupDKG() {
 	if d.dkgInfo != nil {
-		d.dkgInfo.board.stop()
+		d.dkgInfo.board.Stop()
 	}
 	d.dkgInfo = nil
 }
@@ -238,7 +239,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
+	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	phaser := d.getPhaser(timeout)
@@ -908,4 +909,23 @@ func sendProgressCallback(
 		}
 	}
 	return
+}
+
+// BackupDatabase triggers a backup of the primary database.
+func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
+	d.state.Lock()
+	if d.beacon == nil {
+		d.state.Unlock()
+		return nil, errors.New("drand: beacon not setup yet")
+	}
+	inst := d.beacon
+	d.state.Unlock()
+
+	w, err := os.OpenFile(req.OutputFile, os.O_WRONLY|os.O_CREATE, os.ModeExclusive)
+	if err != nil {
+		return nil, fmt.Errorf("could not open file for backup: %w", err)
+	}
+	defer w.Close()
+
+	return &drand.BackupDBResponse{}, inst.Store().SaveTo(w)
 }

@@ -255,8 +255,8 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 
 	if roundExpectedTime.After(time.Now().Add(info.Period)) {
 		timeToExpected := int(time.Until(roundExpectedTime).Seconds())
-		w.WriteHeader(http.StatusNotFound)
 		w.Header().Set("Cache-Control", fmt.Sprintf("public, must-revalidate, max-age=%d", timeToExpected))
+		w.WriteHeader(http.StatusNotFound)
 		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
@@ -268,8 +268,8 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if data == nil {
-		w.WriteHeader(http.StatusNotFound)
 		w.Header().Set("Cache-Control", "must-revalidate, no-cache, max-age=0")
+		w.WriteHeader(http.StatusNotFound)
 		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
