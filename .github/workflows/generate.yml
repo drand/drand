@@ -22,12 +22,12 @@ jobs:
       name: Install Protoc
       uses: arduino/setup-protoc@v1.1.2
       with:
-        version: '3.12.3'
+        version: '3.14.0'
     -
       name: Install Protoc-gen-go
       run: |
-        go get github.com/golang/protobuf/protoc-gen-go@v1.4.2
-        go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v0.0.0-20200617041141-9a465503579e
+        go get github.com/golang/protobuf/protoc-gen-go@v1.4.3
+        go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
     - name: Generate
       run: go generate ./...&& go mod tidy
     - name: Check
@@ -40,10 +40,11 @@ jobs:
           exit 0
         else
           OUTPUT=$(git status --porcelain)
+          git diff
           for file in $OUTPUT
           do
             f=$(echo $file | sed -e 's/^.* //')
-            echo "::error file=$f,line=1,col=1::File not in sync with `go generate`"
+            echo "::error file=$f,line=1,col=1::File $f not in sync with `go generate`"
           done
           OUTPUT="${OUTPUT//'%'/'%25'}"
           OUTPUT="${OUTPUT//$'\n'/'%0A'}"

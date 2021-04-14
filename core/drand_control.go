@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -908,4 +909,23 @@ func sendProgressCallback(
 		}
 	}
 	return
+}
+
+// BackupDatabase triggers a backup of the primary database.
+func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
+	d.state.Lock()
+	if d.beacon == nil {
+		d.state.Unlock()
+		return nil, errors.New("drand: beacon not setup yet")
+	}
+	inst := d.beacon
+	d.state.Unlock()
+
+	w, err := os.OpenFile(req.OutputFile, os.O_WRONLY|os.O_CREATE, os.ModeExclusive)
+	if err != nil {
+		return nil, fmt.Errorf("could not open file for backup: %w", err)
+	}
+	defer w.Close()
+
+	return &drand.BackupDBResponse{}, inst.Store().SaveTo(w)
 }

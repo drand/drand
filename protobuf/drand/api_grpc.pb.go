@@ -11,7 +11,8 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+// Requires gRPC-Go v1.32.0 or later.
+const _ = grpc.SupportPackageIsVersion7
 
 // PublicClient is the client API for Public service.
 //
@@ -49,7 +50,7 @@ func (c *publicClient) PublicRand(ctx context.Context, in *PublicRandRequest, op
 }
 
 func (c *publicClient) PublicRandStream(ctx context.Context, in *PublicRandRequest, opts ...grpc.CallOption) (Public_PublicRandStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Public_serviceDesc.Streams[0], "/drand.Public/PublicRandStream", opts...)
+	stream, err := c.cc.NewStream(ctx, &Public_ServiceDesc.Streams[0], "/drand.Public/PublicRandStream", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -129,24 +130,31 @@ type PublicServer interface {
 type UnimplementedPublicServer struct {
 }
 
-func (*UnimplementedPublicServer) PublicRand(context.Context, *PublicRandRequest) (*PublicRandResponse, error) {
+func (UnimplementedPublicServer) PublicRand(context.Context, *PublicRandRequest) (*PublicRandResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PublicRand not implemented")
 }
-func (*UnimplementedPublicServer) PublicRandStream(*PublicRandRequest, Public_PublicRandStreamServer) error {
+func (UnimplementedPublicServer) PublicRandStream(*PublicRandRequest, Public_PublicRandStreamServer) error {
 	return status.Errorf(codes.Unimplemented, "method PublicRandStream not implemented")
 }
-func (*UnimplementedPublicServer) PrivateRand(context.Context, *PrivateRandRequest) (*PrivateRandResponse, error) {
+func (UnimplementedPublicServer) PrivateRand(context.Context, *PrivateRandRequest) (*PrivateRandResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PrivateRand not implemented")
 }
-func (*UnimplementedPublicServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
+func (UnimplementedPublicServer) ChainInfo(context.Context, *ChainInfoRequest) (*ChainInfoPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChainInfo not implemented")
 }
-func (*UnimplementedPublicServer) Home(context.Context, *HomeRequest) (*HomeResponse, error) {
+func (UnimplementedPublicServer) Home(context.Context, *HomeRequest) (*HomeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Home not implemented")
 }
 
-func RegisterPublicServer(s *grpc.Server, srv PublicServer) {
-	s.RegisterService(&_Public_serviceDesc, srv)
+// UnsafePublicServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to PublicServer will
+// result in compilation errors.
+type UnsafePublicServer interface {
+	mustEmbedUnimplementedPublicServer()
+}
+
+func RegisterPublicServer(s grpc.ServiceRegistrar, srv PublicServer) {
+	s.RegisterService(&Public_ServiceDesc, srv)
 }
 
 func _Public_PublicRand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -242,7 +250,10 @@ func _Public_Home_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Public_serviceDesc = grpc.ServiceDesc{
+// Public_ServiceDesc is the grpc.ServiceDesc for Public service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Public_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "drand.Public",
 	HandlerType: (*PublicServer)(nil),
 	Methods: []grpc.MethodDesc{
