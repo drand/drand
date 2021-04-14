@@ -365,6 +365,18 @@ func showShareCmd(c *cli.Context) error {
 	return printJSON(resp)
 }
 
+func backupDBCmd(c *cli.Context) error {
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
+	err = client.BackupDB(c.String(outFlag.Name))
+	if err != nil {
+		return fmt.Errorf("could not back up: %s", err)
+	}
+	return nil
+}
+
 func controlPort(c *cli.Context) string {
 	port := c.String(controlFlag.Name)
 	if port == "" {

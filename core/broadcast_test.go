@@ -14,6 +14,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type packInfo struct {
+	id   string
+	self *echoBroadcast
+	p    *drand.DKGPacket
+}
+
+type callback func(*packInfo)
+
+type callbackBroadcast struct {
+	*echoBroadcast
+	id string
+	cb callback
+}
+
+func withCallback(id string, b *echoBroadcast, cb callback) Broadcast {
+	return &callbackBroadcast{
+		id:            id,
+		echoBroadcast: b,
+		cb:            cb,
+	}
+}
+
+func (cb *callbackBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
+	r, err := cb.echoBroadcast.BroadcastDKG(c, p)
+	if err != nil {
+		return r, err
+	}
+	cb.cb(&packInfo{id: cb.id, self: cb.echoBroadcast, p: p})
+	return r, err
+}
+
 func TestBroadcastSet(t *testing.T) {
 	aset := new(arraySet)
 	h1 := []byte("Hello")
@@ -35,67 +66,70 @@ func TestBroadcast(t *testing.T) {
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
 
-	broads := make([]*broadcast, 0, n)
+	// channel that will receive all broadcasted packets
+	incPackets := make(chan *packInfo)
+	// callback that all nodes execute when they receive a "successful" packet
+	callback := func(p *packInfo) {
+		incPackets <- p
+	}
+	broads := make([]*echoBroadcast, 0, n)
+	ids := make([]string, 0, n)
 	for _, d := range drands {
-		b := newBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(dkg.Packet) error { return nil })
+		id := d.priv.Public.Address()
+		b := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, id, group.Nodes, func(dkg.Packet) error { return nil })
+
 		d.dkgInfo = &dkgInfo{
-			board:   b,
+			board:   withCallback(id, b, callback),
 			started: true,
 		}
 		broads = append(broads, b)
+		ids = append(ids, id)
 	}
 
-	deal := fakeDeal()
-	dealProto, err := dkgPacketToProto(deal)
-	require.NoError(t, err)
-	_, err = broads[0].BroadcastDKG(context.Background(), &drand.DKGPacket{Dkg: dealProto})
-	require.NoError(t, err)
-	// leave some time so other get it
-	time.Sleep(100 * time.Millisecond)
+	dealPacket, hash := sendNewDeal(t, broads[0])
+	waitForAll := func(exp int) {
+		received := make(map[string]bool)
+		for i := 0; i < exp; i++ {
+			select {
+			case info := <-incPackets:
+				received[info.id] = true
+			case <-time.After(5 * time.Second):
+				require.True(t, false, "test failed to continue")
+			}
+		}
+		for _, id := range ids {
+			require.True(t, received[id])
+		}
+	}
+	exp := n * (n - 1)
+	waitForAll(exp)
 	for _, b := range broads {
-		b.Lock()
-		require.True(t, b.hashes.exists(deal.Hash()))
+		require.True(t, b.hashes.exists(hash))
 		require.True(t, len(b.dealCh) == 1, "len of channel is %d", len(b.dealCh))
-		// drain the channel
-		<-b.dealCh
-		b.Unlock()
+		drain(t, b.dealCh)
 	}
 
-	// try again to broadcast but it shouldn't actually do it
-	broads[1].Lock()
-	broads[1].hashes = new(arraySet)
-	broads[1].Unlock()
-	_, err = broads[0].BroadcastDKG(context.Background(), &drand.DKGPacket{Dkg: dealProto})
+	// try again to broadcast but it shouldn't actually do it because the first
+	// node (the one we ask to send first) already has the hash registered.
+	_, err := broads[0].BroadcastDKG(context.Background(), dealPacket)
 	require.NoError(t, err)
-	time.Sleep(500 * time.Millisecond)
-	broads[1].Lock()
-	select {
-	case <-broads[1].dealCh:
-		require.False(t, true, "deal shouldn't be passed down to application")
-	case <-time.After(500 * time.Millisecond):
-		// all good - the message is not supposed to be passed down since it was
-		// already sent in the first round, so this broadcast instance should
-		// never have received it, because broads[0] should never have sent it
-		// in the first place
-	}
-	// put it again
-	broads[1].hashes.put(deal.Hash())
-	broads[1].Unlock()
+	checkEmpty(t, incPackets)
+	require.Len(t, broads[0].dealCh, 0)
 
 	// let's make everyone broadcast a different packet
+	hashes := make([][]byte, 0, n-1)
 	for _, b := range broads[1:] {
-		deal := fakeDeal()
-		dealProto, err := dkgPacketToProto(deal)
-		require.NoError(t, err)
-		_, err = b.BroadcastDKG(context.Background(), &drand.DKGPacket{
-			Dkg: dealProto,
-		})
-		require.NoError(t, err)
+		_, hash := sendNewDeal(t, b)
+		hashes = append(hashes, hash)
 	}
 
-	time.Sleep(100 * time.Millisecond)
-	for i, b := range broads {
-		require.Equal(t, drain(t, b.dealCh), n-1, "node %d failed", i)
+	exp *= (n - 1)
+	waitForAll(exp)
+	// check if they all have all hashes
+	for _, broad := range broads {
+		for _, hash := range hashes {
+			require.True(t, broad.hashes.exists(hash))
+		}
 	}
 
 	// check that it dispatches to the correct channel
@@ -103,6 +137,27 @@ func TestBroadcast(t *testing.T) {
 	require.True(t, len(broads[0].respCh) == 1)
 	broads[0].passToApplication(&dkg.JustificationBundle{})
 	require.True(t, len(broads[0].justCh) == 1)
+}
+
+func sendNewDeal(t *testing.T, b *echoBroadcast) (packet *drand.DKGPacket, hash []byte) {
+	deal := fakeDeal()
+	dealProto, err := dkgPacketToProto(deal)
+	require.NoError(t, err)
+	packet = &drand.DKGPacket{
+		Dkg: dealProto,
+	}
+	_, err = b.BroadcastDKG(context.Background(), packet)
+	require.NoError(t, err)
+	hash = deal.Hash()
+	return
+}
+
+func checkEmpty(t *testing.T, ch chan *packInfo) {
+	select {
+	case <-ch:
+		require.False(t, true, "deal shouldn't be passed down to application")
+	case <-time.After(500 * time.Millisecond):
+	}
 }
 
 func drain(t *testing.T, ch chan dkg.DealBundle) int {

@@ -11,7 +11,8 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+// Requires gRPC-Go v1.32.0 or later.
+const _ = grpc.SupportPackageIsVersion7
 
 // ProtocolClient is the client API for Protocol service.
 //
@@ -89,7 +90,7 @@ func (c *protocolClient) PartialBeacon(ctx context.Context, in *PartialBeaconPac
 }
 
 func (c *protocolClient) SyncChain(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (Protocol_SyncChainClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Protocol_serviceDesc.Streams[0], "/drand.Protocol/SyncChain", opts...)
+	stream, err := c.cc.NewStream(ctx, &Protocol_ServiceDesc.Streams[0], "/drand.Protocol/SyncChain", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -146,27 +147,34 @@ type ProtocolServer interface {
 type UnimplementedProtocolServer struct {
 }
 
-func (*UnimplementedProtocolServer) GetIdentity(context.Context, *IdentityRequest) (*Identity, error) {
+func (UnimplementedProtocolServer) GetIdentity(context.Context, *IdentityRequest) (*Identity, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIdentity not implemented")
 }
-func (*UnimplementedProtocolServer) SignalDKGParticipant(context.Context, *SignalDKGPacket) (*Empty, error) {
+func (UnimplementedProtocolServer) SignalDKGParticipant(context.Context, *SignalDKGPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SignalDKGParticipant not implemented")
 }
-func (*UnimplementedProtocolServer) PushDKGInfo(context.Context, *DKGInfoPacket) (*Empty, error) {
+func (UnimplementedProtocolServer) PushDKGInfo(context.Context, *DKGInfoPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushDKGInfo not implemented")
 }
-func (*UnimplementedProtocolServer) BroadcastDKG(context.Context, *DKGPacket) (*Empty, error) {
+func (UnimplementedProtocolServer) BroadcastDKG(context.Context, *DKGPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDKG not implemented")
 }
-func (*UnimplementedProtocolServer) PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error) {
+func (UnimplementedProtocolServer) PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PartialBeacon not implemented")
 }
-func (*UnimplementedProtocolServer) SyncChain(*SyncRequest, Protocol_SyncChainServer) error {
+func (UnimplementedProtocolServer) SyncChain(*SyncRequest, Protocol_SyncChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method SyncChain not implemented")
 }
 
-func RegisterProtocolServer(s *grpc.Server, srv ProtocolServer) {
-	s.RegisterService(&_Protocol_serviceDesc, srv)
+// UnsafeProtocolServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ProtocolServer will
+// result in compilation errors.
+type UnsafeProtocolServer interface {
+	mustEmbedUnimplementedProtocolServer()
+}
+
+func RegisterProtocolServer(s grpc.ServiceRegistrar, srv ProtocolServer) {
+	s.RegisterService(&Protocol_ServiceDesc, srv)
 }
 
 func _Protocol_GetIdentity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -280,7 +288,10 @@ func (x *protocolSyncChainServer) Send(m *BeaconPacket) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-var _Protocol_serviceDesc = grpc.ServiceDesc{
+// Protocol_ServiceDesc is the grpc.ServiceDesc for Protocol service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Protocol_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "drand.Protocol",
 	HandlerType: (*ProtocolServer)(nil),
 	Methods: []grpc.MethodDesc{
