@@ -27,8 +27,8 @@ jobs:
       -
         name: Install Protoc-gen-go
         run: |
-          go get github.com/golang/protobuf/protoc-gen-go@v1.4.2
-          go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v0.0.0-20200617041141-9a465503579e
+          GO111MODULE=off go get github.com/golang/protobuf/protoc-gen-go@v1.4.2
+          GO111MODULE=off go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v0.0.0-20200617041141-9a465503579e
           go mod tidy
       -
         name: Run GoReleaser
