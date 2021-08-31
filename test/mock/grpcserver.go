@@ -132,12 +132,12 @@ func testValid(d *Data) {
 		panic(err)
 	}
 	sig := decodeHex(d.Signature)
-	prev := decodeHex(d.PreviousSignature)
-	msg := sha256Hash(append(prev, roundToBytes(d.Round)...))
+	//prev := decodeHex(d.PreviousSignature)
+	msg := sha256Hash(roundToBytes(d.Round))
 	if err := key.Scheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
 		panic(err)
 	}
-	invMsg := sha256Hash(append(prev, roundToBytes(d.Round-1)...))
+	invMsg := sha256Hash(roundToBytes(d.Round-1))
 	if err := key.Scheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
 		panic("should be invalid signature")
 	}
@@ -175,7 +175,7 @@ func generateMockData() *Data {
 	}
 	round := 1969
 	prevRound := uint64(1968)
-	msg := sha256Hash(append(previous[:], roundToBytes(round)...))
+	msg := sha256Hash(roundToBytes(round))
 	sshare := share.PriShare{I: 0, V: secret}
 	tsig, err := key.Scheme.Sign(&sshare, msg)
 	if err != nil {
