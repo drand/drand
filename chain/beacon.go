@@ -84,9 +84,9 @@ func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
 // H ( prevSig || currRound)
-func Message(currRound uint64, prevSig []byte) []byte {
+func Message(currRound uint64, _ []byte) []byte {
 	h := sha256.New()
-	_, _ = h.Write(prevSig)
+	//_, _ = h.Write(prevSig)
 	_, _ = h.Write(RoundToBytes(currRound))
 	return h.Sum(nil)
 }
