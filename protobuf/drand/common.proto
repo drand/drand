@@ -40,6 +40,7 @@ message GroupPacket {
     repeated bytes dist_key = 7;
     // catchup_period in seconds
     uint32 catchup_period = 8;
+    bool decouple_prev_sig = 9;
 }
 message GroupRequest {
 

@@ -126,7 +126,8 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 	beaconPeriod, catchupPeriod, timeout time.Duration,
 	entropy *control.EntropyInfo,
 	secret string,
-	offset int) (*control.GroupPacket, error) {
+	offset int,
+	decouplePrevSig bool) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
@@ -139,6 +140,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 		Entropy:       entropy,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
+		DecouplePrevSig: decouplePrevSig,
 	}
 	return c.client.InitDKG(ctx.Background(), request)
 }

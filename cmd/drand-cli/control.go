@@ -156,6 +156,8 @@ func leadShareCmd(c *cli.Context) error {
 		return fmt.Errorf("catchup period given is invalid: %v", err)
 	}
 
+	decouplePrevSig := c.Bool(decouplePrevSigFlag.Name)
+
 	offset := int(core.DefaultGenesisOffset.Seconds())
 	if c.IsSet(beaconOffset.Name) {
 		offset = c.Int(beaconOffset.Name)
@@ -165,7 +167,7 @@ func leadShareCmd(c *cli.Context) error {
 		"file will not be written out to the specified output. To get the "+
 		"group file once the setup phase is done, you can run the `drand show "+
 		"group` command")
-	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, catchupPeriod, args.timeout, args.entropy, args.secret, offset)
+	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, catchupPeriod, args.timeout, args.entropy, args.secret, offset, decouplePrevSig)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)

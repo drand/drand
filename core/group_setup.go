@@ -41,16 +41,17 @@ import (
 // randomness generation
 type setupManager struct {
 	sync.Mutex
-	expected      int
-	thr           int
-	beaconOffset  time.Duration
-	catchupPeriod time.Duration
-	beaconPeriod  time.Duration
-	dkgTimeout    time.Duration
-	clock         clock.Clock
-	leaderKey     *key.Identity
-	verifyKeys    func([]*key.Identity) bool
-	l             log.Logger
+	expected        int
+	thr             int
+	beaconOffset    time.Duration
+	catchupPeriod   time.Duration
+	beaconPeriod    time.Duration
+	decouplePrevSig bool
+	dkgTimeout      time.Duration
+	clock           clock.Clock
+	leaderKey       *key.Identity
+	verifyKeys      func([]*key.Identity) bool
+	l               log.Logger
 
 	isResharing bool
 	oldGroup    *key.Group
@@ -68,6 +69,7 @@ func newDKGSetup(
 	leaderKey *key.Identity,
 	beaconPeriod,
 	catchupPeriod uint32,
+	decouplePrevSig bool,
 	in *drand.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
@@ -85,20 +87,21 @@ func newDKGSetup(
 	}
 
 	sm := &setupManager{
-		expected:      n,
-		thr:           thr,
-		beaconOffset:  offset,
-		beaconPeriod:  time.Duration(beaconPeriod) * time.Second,
-		catchupPeriod: time.Duration(catchupPeriod) * time.Second,
-		dkgTimeout:    dkgTimeout,
-		l:             l,
-		startDKG:      make(chan *key.Group, 1),
-		pushKeyCh:     make(chan pushKey, n),
-		verifyKeys:    verifyKeys,
-		doneCh:        make(chan bool, 1),
-		clock:         c,
-		leaderKey:     leaderKey,
-		hashedSecret:  secret,
+		expected:        n,
+		thr:             thr,
+		beaconOffset:    offset,
+		beaconPeriod:    time.Duration(beaconPeriod) * time.Second,
+		catchupPeriod:   time.Duration(catchupPeriod) * time.Second,
+		decouplePrevSig: decouplePrevSig,
+		dkgTimeout:      dkgTimeout,
+		l:               l,
+		startDKG:        make(chan *key.Group, 1),
+		pushKeyCh:       make(chan pushKey, n),
+		verifyKeys:      verifyKeys,
+		doneCh:          make(chan bool, 1),
+		clock:           c,
+		leaderKey:       leaderKey,
+		hashedSecret:    secret,
 	}
 	return sm, nil
 }
@@ -111,11 +114,12 @@ func newReshareSetup(
 	in *drand.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
+	decouplePrevSig := oldGroup.DecouplePrevSig
 	catchupPeriod := in.CatchupPeriod
 	if !in.CatchupPeriodChanged {
 		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
 	}
-	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, in.GetInfo())
+	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, decouplePrevSig, in.GetInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -224,14 +228,14 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
 		genesis += (ps - genesis%ps)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.decouplePrevSig)
 	} else {
 		genesis := s.oldGroup.GenesisTime
 		atLeast := s.clock.Now().Add(totalDKG).Unix()
 		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.decouplePrevSig)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}

@@ -87,6 +87,8 @@ message InitDKGPacket {
     uint32 beacon_period = 3;
     // the minimum beacon period when in catchup.
     uint32 catchup_period = 4;
+    // indicates if the node should not use the prev sig to generate the next one
+    bool decouple_prev_sig = 5;
 }
 
 // EntropyInfo contains information about external entropy sources
