@@ -202,7 +202,7 @@ func generateMockData() *Data {
 // nextMockData generates a valid Data for the next round when given the current round data.
 func nextMockData(d *Data) *Data {
 	previous := decodeHex(d.PreviousSignature)
-	msg := sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
+	msg := sha256Hash(roundToBytes(d.Round+1))
 	sshare := share.PriShare{I: 0, V: d.secret}
 	tsig, err := key.Scheme.Sign(&sshare, msg)
 	if err != nil {
