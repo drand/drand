@@ -36,7 +36,7 @@ func TestGroupProtobuf(t *testing.T) {
 	ids := newIds(n)
 
 	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
-	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61)
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, true)
 	group.Threshold = thr
 	group.Period = time.Second * 4
 	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
@@ -99,7 +99,7 @@ func TestGroupProtobuf(t *testing.T) {
 
 func TestGroupUnsignedIdentities(t *testing.T) {
 	ids := newIds(5)
-	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61)
+	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61, true)
 	require.Nil(t, group.UnsignedIdentities())
 
 	ids[0].Signature = nil
@@ -112,7 +112,7 @@ func TestGroupSaveLoad(t *testing.T) {
 	n := 3
 	ids := newIds(n)
 	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
-	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61)
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, true)
 	group.Threshold = 3
 	group.Period = time.Second * 4
 	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
@@ -154,7 +154,7 @@ func makeGroup(t *testing.T) *Group {
 	t.Helper()
 
 	fakeKey := KeyGroup.Point().Pick(random.New())
-	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0)
+	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0, true)
 	group.Threshold = MinimumT(0)
 	return group
 }
