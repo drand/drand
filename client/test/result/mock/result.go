@@ -91,7 +91,7 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 
 	out := make([]Result, count)
 	for i := range out {
-		msg := sha256Hash(append(previous[:], roundToBytes(i+1)...))
+		msg := sha256Hash(roundToBytes(i+1))
 		sshare := share.PriShare{I: 0, V: secret}
 		tsig, err := key.Scheme.Sign(&sshare, msg)
 		if err != nil {
