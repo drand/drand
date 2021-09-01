@@ -14,19 +14,21 @@ import (
 // Info represents the public information that is necessary for a client to
 // very any beacon present in a randomness chain.
 type Info struct {
-	PublicKey   kyber.Point   `json:"public_key"`
-	Period      time.Duration `json:"period"`
-	GenesisTime int64         `json:"genesis_time"`
-	GroupHash   []byte        `json:"group_hash"`
+	PublicKey       kyber.Point   `json:"public_key"`
+	Period          time.Duration `json:"period"`
+	DecouplePrevSig bool          `json:"decouple_prev_sig"`
+	GenesisTime     int64         `json:"genesis_time"`
+	GroupHash       []byte        `json:"group_hash"`
 }
 
 // NewChainInfo makes a chain Info from a group
 func NewChainInfo(g *key.Group) *Info {
 	return &Info{
-		Period:      g.Period,
-		PublicKey:   g.PublicKey.Key(),
-		GenesisTime: g.GenesisTime,
-		GroupHash:   g.GetGenesisSeed(),
+		Period:          g.Period,
+		DecouplePrevSig: g.DecouplePrevSig,
+		PublicKey:       g.PublicKey.Key(),
+		GenesisTime:     g.GenesisTime,
+		GroupHash:       g.GetGenesisSeed(),
 	}
 }
 

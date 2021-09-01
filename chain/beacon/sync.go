@@ -34,13 +34,15 @@ type syncer struct {
 	store     CallbackStore
 	info      *chain.Info
 	client    net.ProtocolClient
+	conf      *Config
 	following bool
 	sync.Mutex
 }
 
 // NewSyncer returns a syncer implementation
-func NewSyncer(l log.Logger, s CallbackStore, info *chain.Info, client net.ProtocolClient) Syncer {
+func NewSyncer(l log.Logger, s CallbackStore, info *chain.Info, client net.ProtocolClient, c *Config) Syncer {
 	return &syncer{
+		conf:   c,
 		store:  s,
 		info:   info,
 		client: client,
@@ -102,7 +104,7 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 		beacon := protoToBeacon(beaconPacket)
 
 		// verify the signature validity
-		if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
+		if err := beacon.Verify(s.info.PublicKey, s.conf.Group.DecouplePrevSig); err != nil {
 			s.l.Debug("syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
 			return false
 		}

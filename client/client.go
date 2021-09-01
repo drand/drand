@@ -76,7 +76,8 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		opts := Opts{decouplePrevSig: cfg.decouplePrevSig, strict: cfg.fullVerify}
+		nv := newVerifyingClient(source, cfg.previousResult, opts)
 		verifiers = append(verifiers, nv)
 		if source == wc {
 			wc = nv
@@ -164,6 +165,8 @@ type clientConfig struct {
 	// chain signature verification back to the 1st round, or to a know result to ensure
 	// determinism in the event of a compromised chain.
 	fullVerify bool
+	// decouplePrevSig indicates if the prev sig must be used to generate the next one
+	decouplePrevSig bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
 	// cache size - how large of a cache to keep locally.
@@ -269,6 +272,14 @@ func WithVerifiedResult(result Result) Option {
 			return errors.New("refusing to override verified result with an earlier result")
 		}
 		cfg.previousResult = result
+		return nil
+	}
+}
+
+// WithDecoupledPrevSig indicates the client should be generate the next signature without the previous one
+func WithDecoupledPrevSig() Option {
+	return func(cfg *clientConfig) error {
+		cfg.decouplePrevSig = true
 		return nil
 	}
 }

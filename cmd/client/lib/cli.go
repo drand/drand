@@ -131,6 +131,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		opts = append(opts, client.WithChainHash(hash))
 	}
+
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
 	}

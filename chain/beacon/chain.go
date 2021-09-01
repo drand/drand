@@ -45,7 +45,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
 	// we give the final append store to the syncer
-	syncer := NewSyncer(l, cbs, c.chain, cl)
+	syncer := NewSyncer(l, cbs, c.chain, cl, cf)
 	cs := &chainStore{
 		CallbackStore:   cbs,
 		l:               l,
@@ -133,7 +133,13 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
-			msg := roundCache.Msg()
+			var msg []byte
+			if !c.conf.Group.DecouplePrevSig {
+				msg = roundCache.Msg()
+			} else {
+				msg = roundCache.WithoutPrevSigMsg()
+			}
+
 			finalSig, err := key.Scheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
 				c.l.Debug("invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))

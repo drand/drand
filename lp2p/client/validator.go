@@ -61,7 +61,7 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 			}
 		}
 
-		if err := chain.VerifyBeacon(info.PublicKey, &b); err != nil {
+		if err := b.Verify(info.PublicKey, info.DecouplePrevSig); err != nil {
 			return pubsub.ValidationReject
 		}
 		return pubsub.ValidationAccept
