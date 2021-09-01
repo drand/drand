@@ -115,20 +115,21 @@ type node struct {
 }
 
 type BeaconTest struct {
-	paths   []string
-	n       int
-	thr     int
-	shares  []*key.Share
-	period  time.Duration
-	group   *key.Group
-	privs   []*key.Pair
-	dpublic kyber.Point
-	nodes   map[int]*node
-	time    clock.FakeClock
-	prefix  string
+	paths           []string
+	n               int
+	thr             int
+	shares          []*key.Share
+	period          time.Duration
+	group           *key.Group
+	privs           []*key.Pair
+	dpublic         kyber.Point
+	nodes           map[int]*node
+	time            clock.FakeClock
+	prefix          string
+	decouplePrevSig bool
 }
 
-func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconTest {
+func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64, decouplePrevSig bool) *BeaconTest {
 	prefix, err := ioutil.TempDir(os.TempDir(), "beacon-test")
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
@@ -140,17 +141,18 @@ func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconT
 	group.PublicKey = &key.DistPublic{Coefficients: commits}
 
 	bt := &BeaconTest{
-		prefix:  prefix,
-		n:       n,
-		privs:   privs,
-		thr:     thr,
-		period:  period,
-		paths:   paths,
-		shares:  shares,
-		group:   group,
-		dpublic: group.PublicKey.PubPoly().Commit(),
-		nodes:   make(map[int]*node),
-		time:    clock.NewFakeClock(),
+		prefix:          prefix,
+		n:               n,
+		privs:           privs,
+		thr:             thr,
+		period:          period,
+		decouplePrevSig: decouplePrevSig,
+		paths:           paths,
+		shares:          shares,
+		group:           group,
+		dpublic:         group.PublicKey.PubPoly().Commit(),
+		nodes:           make(map[int]*node),
+		time:            clock.NewFakeClock(),
 	}
 
 	for i := 0; i < n; i++ {
@@ -370,200 +372,213 @@ func checkWait(counter *sync.WaitGroup) {
 }
 
 func TestBeaconSync(t *testing.T) {
-	n := 4
-	thr := n/2 + 1
-	period := 2 * time.Second
 
-	var genesisOffset = 2 * time.Second
-	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	fmt.Println(" HERE TEST 10")
-	bt := NewBeaconTest(n, thr, period, genesisTime)
-	fmt.Println(" HERE TEST 11")
-	defer bt.CleanUp()
-	var counter = &sync.WaitGroup{}
-	myCallBack := func(i int) func(*chain.Beacon) {
-		return func(b *chain.Beacon) {
-			require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
-			fmt.Printf("\nROUND %d DONE for %s\n\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
-			counter.Done()
-		}
-	}
+	matrix := [2]bool{false, true}
 
-	doRound := func(count int, move time.Duration) {
-		counter.Add(count)
-		bt.MoveTime(move)
-		checkWait(counter)
-	}
+	for _, decouplePrevSig := range matrix {
+		n := 4
+		thr := n/2 + 1
+		period := 2 * time.Second
 
-	fmt.Println(" HERE TEST")
-	for i := 0; i < n; i++ {
-		bt.CallbackFor(i, myCallBack(i))
-		bt.ServeBeacon(i)
-	}
-	fmt.Println(" HERE TEST 2")
-	bt.StartBeacons(n)
-	fmt.Println(" HERE TEST 3")
-
-	// move clock to genesis time
-	fmt.Printf("\n\n --- BEFORE GENESIS --- \n\n")
-	now := bt.time.Now().Unix()
-	toMove := genesisTime - now
-	doRound(n, time.Duration(toMove)*time.Second)
-	fmt.Printf("\n\n --- AFTER GENESIS --- \n\n")
-	// do some rounds
-	for i := 0; i < 2; i++ {
-		fmt.Printf(" \n\n --- ROUND %d STARTING \n\n", i)
-		doRound(n, period)
-		fmt.Printf(" \n\n --- ROUND DONE %d \n\n", i)
-	}
-
-	fmt.Printf("\n\n --- DISABLE RECEPTION --- \n\n")
-	// disable reception of all nodes but one
-	online := 3
-	bt.DisableReception(n - online)
-	fmt.Printf("\n\n --- doRounds AFTER disabling ---\n\n")
-	// check that at least one node got the beacon
-	doRound(online, period)
-	fmt.Printf("\n\n-- BEFORE ENABLING RECEPTION AGAIN -- \n\n")
-	// enable reception again of all nodes
-	bt.EnableReception(n - online)
-	// we advance the clock, all "resucitated nodes" will transmit a wrong
-	// beacon, but they will see the beacon they send is late w.r.t. the round
-	// they should be, so they will sync with the "safe online" nodes. They
-	// will get the latest beacon and then directly run the right round
-	// bt.MoveTime(period
-	// n for the new round
-	// n - online for the previous round that the others catch up
-	fmt.Printf("\n\n --- Before DOING ROUND AFTER ENABLING -- \n\n")
-	doRound(n+n-online, period)
-}
-func TestBeaconSimple(t *testing.T) {
-	n := 3
-	thr := n/2 + 1
-	period := 2 * time.Second
-
-	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-
-	bt := NewBeaconTest(n, thr, period, genesisTime)
-	defer bt.CleanUp()
-
-	var counter = &sync.WaitGroup{}
-	counter.Add(n)
-	myCallBack := func(b *chain.Beacon) {
-		// verify partial sig
-		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
-		counter.Done()
-	}
-
-	for i := 0; i < n; i++ {
-		bt.CallbackFor(i, myCallBack)
-		// first serve all beacons
-		bt.ServeBeacon(i)
-	}
-
-	bt.StartBeacons(n)
-	// move clock before genesis time
-	bt.MoveTime(1 * time.Second)
-	for i := 0; i < n; i++ {
-		bt.nodes[i].handler.Lock()
-		started := bt.nodes[i].handler.started
-		bt.nodes[i].handler.Unlock()
-		require.False(t, started, "handler %d has started?", i)
-	}
-	fmt.Println(" --------- moving to genesis ---------------")
-	// move clock to genesis time
-	bt.MoveTime(1 * time.Second)
-
-	// check 1 period
-	checkWait(counter)
-	// check 2 period
-	counter.Add(n)
-	bt.MoveTime(period)
-	checkWait(counter)
-}
-
-func TestBeaconThreshold(t *testing.T) {
-	n := 3
-	thr := n/2 + 1
-	period := 2 * time.Second
-
-	offsetGenesis := 2 * time.Second
-	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-
-	bt := NewBeaconTest(n, thr, period, genesisTime)
-	defer func() { go bt.CleanUp() }()
-	var currentRound uint64 = 0
-	var counter = &sync.WaitGroup{}
-	myCallBack := func(i int) func(*chain.Beacon) {
-		return func(b *chain.Beacon) {
-			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
-			// verify partial sig
-			msg := chain.Message(b.Round, b.PreviousSig)
-			err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
-			require.NoError(t, err)
-			// callbacks are called for syncing up as well so we only decrease
-			// waitgroup when it's the current round
-			if b.Round == currentRound {
+		var genesisOffset = 2 * time.Second
+		var genesisTime int64 = clock.NewFakeClock().Now().Add(genesisOffset).Unix()
+		fmt.Println(" HERE TEST 10")
+		bt := NewBeaconTest(n, thr, period, genesisTime, decouplePrevSig)
+		fmt.Println(" HERE TEST 11")
+		defer bt.CleanUp()
+		var counter = &sync.WaitGroup{}
+		myCallBack := func(i int) func(*chain.Beacon) {
+			return func(b *chain.Beacon) {
+				require.NoError(t, b.Verify(bt.dpublic, decouplePrevSig))
+				fmt.Printf("\nROUND %d DONE for %s\n\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
 				counter.Done()
 			}
 		}
-	}
 
-	makeRounds := func(r int, howMany int) {
-		func() {
-			for i := 0; i < r; i++ {
-				currentRound++
-				counter.Add(howMany)
-				bt.MoveTime(period)
-				checkWait(counter)
-				time.Sleep(100 * time.Millisecond)
+		doRound := func(count int, move time.Duration) {
+			counter.Add(count)
+			bt.MoveTime(move)
+			checkWait(counter)
+		}
+
+		fmt.Println(" HERE TEST")
+		for i := 0; i < n; i++ {
+			bt.CallbackFor(i, myCallBack(i))
+			bt.ServeBeacon(i)
+		}
+		fmt.Println(" HERE TEST 2")
+		bt.StartBeacons(n)
+		fmt.Println(" HERE TEST 3")
+
+		// move clock to genesis time
+		fmt.Printf("\n\n --- BEFORE GENESIS --- \n\n")
+		now := bt.time.Now().Unix()
+		toMove := genesisTime - now
+		doRound(n, time.Duration(toMove)*time.Second)
+		fmt.Printf("\n\n --- AFTER GENESIS --- \n\n")
+		// do some rounds
+		for i := 0; i < 2; i++ {
+			fmt.Printf(" \n\n --- ROUND %d STARTING \n\n", i)
+			doRound(n, period)
+			fmt.Printf(" \n\n --- ROUND DONE %d \n\n", i)
+		}
+
+		fmt.Printf("\n\n --- DISABLE RECEPTION --- \n\n")
+		// disable reception of all nodes but one
+		online := 3
+		bt.DisableReception(n - online)
+		fmt.Printf("\n\n --- doRounds AFTER disabling ---\n\n")
+		// check that at least one node got the beacon
+		doRound(online, period)
+		fmt.Printf("\n\n-- BEFORE ENABLING RECEPTION AGAIN -- \n\n")
+		// enable reception again of all nodes
+		bt.EnableReception(n - online)
+		// we advance the clock, all "resucitated nodes" will transmit a wrong
+		// beacon, but they will see the beacon they send is late w.r.t. the round
+		// they should be, so they will sync with the "safe online" nodes. They
+		// will get the latest beacon and then directly run the right round
+		// bt.MoveTime(period
+		// n for the new round
+		// n - online for the previous round that the others catch up
+		fmt.Printf("\n\n --- Before DOING ROUND AFTER ENABLING -- \n\n")
+		doRound(n+n-online, period)
+	}
+}
+func TestBeaconSimple(t *testing.T) {
+	matrix := [2]bool{false, true}
+
+	for _, decouplePrevSig := range matrix {
+		n := 3
+		thr := n/2 + 1
+		period := 2 * time.Second
+
+		var genesisTime int64 = clock.NewFakeClock().Now().Unix() + 2
+
+		bt := NewBeaconTest(n, thr, period, genesisTime, decouplePrevSig)
+		defer bt.CleanUp()
+
+		var counter = &sync.WaitGroup{}
+		counter.Add(n)
+		myCallBack := func(b *chain.Beacon) {
+			// verify partial sig
+			require.NoError(t, b.Verify(bt.dpublic, decouplePrevSig))
+			counter.Done()
+		}
+
+		for i := 0; i < n; i++ {
+			bt.CallbackFor(i, myCallBack)
+			// first serve all beacons
+			bt.ServeBeacon(i)
+		}
+
+		bt.StartBeacons(n)
+		// move clock before genesis time
+		bt.MoveTime(1 * time.Second)
+		for i := 0; i < n; i++ {
+			bt.nodes[i].handler.Lock()
+			started := bt.nodes[i].handler.started
+			bt.nodes[i].handler.Unlock()
+			require.False(t, started, "handler %d has started?", i)
+		}
+		fmt.Println(" --------- moving to genesis ---------------")
+		// move clock to genesis time
+		bt.MoveTime(1 * time.Second)
+
+		// check 1 period
+		checkWait(counter)
+		// check 2 period
+		counter.Add(n)
+		bt.MoveTime(period)
+		checkWait(counter)
+	}
+}
+
+func TestBeaconThreshold(t *testing.T) {
+	matrix := [2]bool{false, true}
+
+	for _, decouplePrevSig := range matrix {
+		n := 3
+		thr := n/2 + 1
+		period := 2 * time.Second
+
+		offsetGenesis := 2 * time.Second
+		var genesisTime int64 = clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
+
+		bt := NewBeaconTest(n, thr, period, genesisTime, decouplePrevSig)
+		defer func() { go bt.CleanUp() }()
+		var currentRound uint64 = 0
+		var counter = &sync.WaitGroup{}
+		myCallBack := func(i int) func(*chain.Beacon) {
+			return func(b *chain.Beacon) {
+				fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
+				// verify partial sig
+				msg := chain.Message(b.Round, b.PreviousSig)
+				err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
+				require.NoError(t, err)
+				// callbacks are called for syncing up as well so we only decrease
+				// waitgroup when it's the current round
+				if b.Round == currentRound {
+					counter.Done()
+				}
 			}
-		}()
+		}
+
+		makeRounds := func(r int, howMany int) {
+			func() {
+				for i := 0; i < r; i++ {
+					currentRound++
+					counter.Add(howMany)
+					bt.MoveTime(period)
+					checkWait(counter)
+					time.Sleep(100 * time.Millisecond)
+				}
+			}()
+		}
+		nRounds := 1
+		// open connections for all but one
+		for i := 0; i < n-1; i++ {
+			bt.CallbackFor(i, myCallBack(i))
+			bt.ServeBeacon(i)
+		}
+
+		// start all but one
+		bt.StartBeacons(n - 1)
+		// move to genesis time and check they ran the round 1
+		currentRound = 1
+		counter.Add(n - 1)
+		bt.MoveTime(offsetGenesis)
+		checkWait(counter)
+
+		// make a few rounds
+		makeRounds(nRounds, n-1)
+
+		// launch the last one
+		bt.ServeBeacon(n - 1)
+		bt.StartBeacon(n-1, true)
+		fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
+		// 2s because of gRPC default timeouts backoff
+		time.Sleep(2 * time.Second)
+		bt.CallbackFor(n-1, myCallBack(n-1))
+		fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
+		// and then run a few rounds
+		makeRounds(nRounds, n)
+
+		// stop last one again - so it will force a sync not from genesis
+		// bt.StopBeacon(n - 1)
+		// make a few round
+		// makeRounds(nRounds, n-1)
+
+		// start the node again
+		// bt.CreateNode(n - 1)
+		// bt.ServeBeacon(n - 1)
+		// bt.StartBeacon(n-1, true)
+		// bt.CallbackFor(n-1, myCallBack(n-1))
+		// let time for syncing
+		// time.Sleep(100 * time.Millisecond)
+		fmt.Printf("\n | MOVE TIME WITH ALL NODES  | \n\n")
+		// expect lastnode to have catch up
+		makeRounds(nRounds, n)
 	}
-	nRounds := 1
-	// open connections for all but one
-	for i := 0; i < n-1; i++ {
-		bt.CallbackFor(i, myCallBack(i))
-		bt.ServeBeacon(i)
-	}
-
-	// start all but one
-	bt.StartBeacons(n - 1)
-	// move to genesis time and check they ran the round 1
-	currentRound = 1
-	counter.Add(n - 1)
-	bt.MoveTime(offsetGenesis)
-	checkWait(counter)
-
-	// make a few rounds
-	makeRounds(nRounds, n-1)
-
-	// launch the last one
-	bt.ServeBeacon(n - 1)
-	bt.StartBeacon(n-1, true)
-	fmt.Printf("\nLAST NODE LAUNCHED ! \n\n")
-	// 2s because of gRPC default timeouts backoff
-	time.Sleep(2 * time.Second)
-	bt.CallbackFor(n-1, myCallBack(n-1))
-	fmt.Printf("\n | MAKE NEW ROUNDS |\n\n")
-	// and then run a few rounds
-	makeRounds(nRounds, n)
-
-	// stop last one again - so it will force a sync not from genesis
-	// bt.StopBeacon(n - 1)
-	// make a few round
-	// makeRounds(nRounds, n-1)
-
-	// start the node again
-	// bt.CreateNode(n - 1)
-	// bt.ServeBeacon(n - 1)
-	// bt.StartBeacon(n-1, true)
-	// bt.CallbackFor(n-1, myCallBack(n-1))
-	// let time for syncing
-	// time.Sleep(100 * time.Millisecond)
-	fmt.Printf("\n | MOVE TIME WITH ALL NODES  | \n\n")
-	// expect lastnode to have catch up
-	makeRounds(nRounds, n)
 }
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {
