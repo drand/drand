@@ -62,7 +62,7 @@ func TestBroadcastSet(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 5
-	drands, group, dir, _ := BatchNewDrand(n, true)
+	drands, group, dir, _ := BatchNewDrand(n, true, false)
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
 

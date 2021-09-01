@@ -134,7 +134,7 @@ func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64, decouple
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(n, thr)
-	privs, group := test.BatchIdentities(n)
+	privs, group := test.BatchIdentities(n, decouplePrevSig)
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
@@ -444,6 +444,7 @@ func TestBeaconSync(t *testing.T) {
 		doRound(n+n-online, period)
 	}
 }
+
 func TestBeaconSimple(t *testing.T) {
 	matrix := [2]bool{false, true}
 

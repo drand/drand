@@ -654,12 +654,12 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 // the folder where db, certificates, etc are stored. It is the folder
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
-func BatchNewDrand(n int, insecure bool, opts ...ConfigOption) (drands []*Drand, group *key.Group, dir string, certPaths []string) {
+func BatchNewDrand(n int, insecure bool, decouplePrevSig bool, opts ...ConfigOption) (drands []*Drand, group *key.Group, dir string, certPaths []string) {
 	var privs []*key.Pair
 	if insecure {
-		privs, group = test.BatchIdentities(n)
+		privs, group = test.BatchIdentities(n, decouplePrevSig)
 	} else {
-		privs, group = test.BatchTLSIdentities(n)
+		privs, group = test.BatchTLSIdentities(n, decouplePrevSig)
 	}
 	ports := test.Ports(n)
 	var err error
