@@ -184,6 +184,7 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 	}
 
 	ipk := info.PublicKey.Clone()
+	fmt.Println(v.opts.decouplePrevSig)
 	if err = b.Verify(ipk, v.opts.decouplePrevSig); err != nil {
 		return fmt.Errorf("verification of %v failed: %w", b, err)
 	}

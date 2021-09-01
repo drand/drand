@@ -34,25 +34,38 @@ func TestClientConstraints(t *testing.T) {
 }
 
 func TestClientMultiple(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
-	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel2()
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
+		defer cancel()
+		addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
+		defer cancel2()
 
-	c, e := client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()))
-	if e != nil {
-		t.Fatal(e)
+		var c client.Client
+		var e error
+		if decouplePrevSig {
+			c, e = client.New(
+				client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
+				client.DecouplePrevSig(),
+				client.WithChainHash(chainInfo.Hash()))
+		} else {
+			c, e = client.New(
+				client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
+				client.WithChainHash(chainInfo.Hash()))
+		}
+
+		if e != nil {
+			t.Fatal(e)
+		}
+		r, e := c.Get(context.Background(), 0)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if r.Round() <= 0 {
+			t.Fatal("expected valid client")
+		}
+		_ = c.Close()
 	}
-	r, e := c.Get(context.Background(), 0)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if r.Round() <= 0 {
-		t.Fatal("expected valid client")
-	}
-	_ = c.Close()
 }
 
 func TestClientWithChainInfo(t *testing.T) {
@@ -76,52 +89,78 @@ func TestClientWithChainInfo(t *testing.T) {
 }
 
 func TestClientCache(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
+		defer cancel()
 
-	c, e := client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
-	if e != nil {
-		t.Fatal(e)
-	}
-	r0, e := c.Get(context.Background(), 0)
-	if e != nil {
-		t.Fatal(e)
-	}
-	cancel()
-	_, e = c.Get(context.Background(), r0.Round())
-	if e != nil {
-		t.Fatal(e)
-	}
+		var c client.Client
+		var e error
+		if decouplePrevSig {
+			c, e = client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+				client.DecouplePrevSig(),
+				client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
+		} else {
+			c, e = client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+				client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
+		}
 
-	_, e = c.Get(context.Background(), 4)
-	if e == nil {
-		t.Fatal("non-cached results should fail.")
+		if e != nil {
+			t.Fatal(e)
+		}
+		r0, e := c.Get(context.Background(), 0)
+		if e != nil {
+			t.Fatal(e)
+		}
+		cancel()
+		_, e = c.Get(context.Background(), r0.Round())
+		if e != nil {
+			t.Fatal(e)
+		}
+
+		_, e = c.Get(context.Background(), 4)
+		if e == nil {
+			t.Fatal("non-cached results should fail.")
+		}
+		_ = c.Close()
 	}
-	_ = c.Close()
 }
 
 func TestClientWithoutCache(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
+		defer cancel()
 
-	c, e := client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithChainHash(chainInfo.Hash()),
-		client.WithCacheSize(0))
-	if e != nil {
-		t.Fatal(e)
+		var c client.Client
+		var e error
+		if decouplePrevSig {
+			c, e = client.New(
+				client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+				client.DecouplePrevSig(),
+				client.WithChainHash(chainInfo.Hash()),
+				client.WithCacheSize(0))
+		} else {
+			c, e = client.New(
+				client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+				client.WithChainHash(chainInfo.Hash()),
+				client.WithCacheSize(0))
+		}
+
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = c.Get(context.Background(), 0)
+		if e != nil {
+			t.Fatal(e)
+		}
+		cancel()
+		_, e = c.Get(context.Background(), 0)
+		if e == nil {
+			t.Fatal("cache should be disabled.")
+		}
+		_ = c.Close()
 	}
-	_, e = c.Get(context.Background(), 0)
-	if e != nil {
-		t.Fatal(e)
-	}
-	cancel()
-	_, e = c.Get(context.Background(), 0)
-	if e == nil {
-		t.Fatal("cache should be disabled.")
-	}
-	_ = c.Close()
 }
 
 func TestClientWithWatcher(t *testing.T) {
@@ -139,10 +178,21 @@ func TestClientWithWatcher(t *testing.T) {
 			return &client.MockClient{WatchCh: ch}, nil
 		}
 
-		c, err := client.New(
-			client.WithChainInfo(info),
-			client.WithWatcher(watcherCtor),
-		)
+		var c client.Client
+		var err error
+		if decouplePrevSig {
+			c, err = client.New(
+				client.WithChainInfo(info),
+				client.DecouplePrevSig(),
+				client.WithWatcher(watcherCtor),
+			)
+		} else {
+			c, err = client.New(
+				client.WithChainInfo(info),
+				client.WithWatcher(watcherCtor),
+			)
+		}
+
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -202,42 +252,58 @@ func TestClientChainInfoOverrideError(t *testing.T) {
 }
 
 func TestClientAutoWatch(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
+		defer cancel()
 
-	httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
-	r1, _ := httpClient[0].Get(context.Background(), 1)
-	r2, _ := httpClient[0].Get(context.Background(), 2)
-	results := []client.Result{r1, r2}
+		httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
+		r1, _ := httpClient[0].Get(context.Background(), 1)
+		r2, _ := httpClient[0].Get(context.Background(), 2)
+		results := []client.Result{r1, r2}
 
-	ch := make(chan client.Result, len(results))
-	for i := range results {
-		ch <- results[i]
+		ch := make(chan client.Result, len(results))
+		for i := range results {
+			ch <- results[i]
+		}
+		close(ch)
+
+		watcherCtor := func(chainInfo *chain.Info, _ client.Cache) (client.Watcher, error) {
+			return &client.MockClient{WatchCh: ch}, nil
+		}
+
+		var c client.Client
+		var err error
+		if decouplePrevSig {
+			c, err = client.New(
+				client.From(client.MockClientWithInfo(chainInfo)),
+				client.WithChainHash(chainInfo.Hash()),
+				client.WithWatcher(watcherCtor),
+				client.DecouplePrevSig(),
+				client.WithAutoWatch(),
+			)
+		} else {
+			c, err = client.New(
+				client.From(client.MockClientWithInfo(chainInfo)),
+				client.WithChainHash(chainInfo.Hash()),
+				client.WithWatcher(watcherCtor),
+				client.WithAutoWatch(),
+			)
+		}
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		time.Sleep(chainInfo.Period)
+		cancel()
+		r, err := c.Get(context.Background(), results[0].Round())
+		if err != nil {
+			t.Fatal(err)
+		}
+		compareResults(t, r, results[0])
+		_ = c.Close()
 	}
-	close(ch)
-
-	watcherCtor := func(chainInfo *chain.Info, _ client.Cache) (client.Watcher, error) {
-		return &client.MockClient{WatchCh: ch}, nil
-	}
-
-	c, err := client.New(
-		client.From(client.MockClientWithInfo(chainInfo)),
-		client.WithChainHash(chainInfo.Hash()),
-		client.WithWatcher(watcherCtor),
-		client.WithAutoWatch(),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	time.Sleep(chainInfo.Period)
-	cancel()
-	r, err := c.Get(context.Background(), results[0].Round())
-	if err != nil {
-		t.Fatal(err)
-	}
-	compareResults(t, r, results[0])
-	_ = c.Close()
 }
 
 func TestClientAutoWatchRetry(t *testing.T) {
@@ -278,13 +344,27 @@ func TestClientAutoWatchRetry(t *testing.T) {
 			},
 		}
 
-		c, err := client.New(
-			client.From(&failer, client.MockClientWithInfo(info)),
-			client.WithChainInfo(info),
-			client.WithAutoWatch(),
-			client.WithAutoWatchRetry(time.Second),
-			client.WithCacheSize(len(results)),
-		)
+		var c client.Client
+		var err error
+		if decouplePrevSig {
+			c, err = client.New(
+				client.From(&failer, client.MockClientWithInfo(info)),
+				client.WithChainInfo(info),
+				client.WithAutoWatch(),
+				client.WithAutoWatchRetry(time.Second),
+				client.WithCacheSize(len(results)),
+				client.DecouplePrevSig(),
+			)
+		} else {
+			c, err = client.New(
+				client.From(&failer, client.MockClientWithInfo(info)),
+				client.WithChainInfo(info),
+				client.WithAutoWatch(),
+				client.WithAutoWatchRetry(time.Second),
+				client.WithCacheSize(len(results)),
+			)
+		}
+
 		if err != nil {
 			t.Fatal(err)
 		}

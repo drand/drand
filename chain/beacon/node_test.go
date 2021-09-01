@@ -513,7 +513,14 @@ func TestBeaconThreshold(t *testing.T) {
 			return func(b *chain.Beacon) {
 				fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
 				// verify partial sig
-				msg := chain.Message(b.Round, b.PreviousSig)
+
+				var msg []byte
+				if !decouplePrevSig {
+					msg = chain.Message(b.Round, b.PreviousSig)
+				} else {
+					msg = chain.WithoutPrevSigMessage(b.Round)
+				}
+
 				err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 				require.NoError(t, err)
 				// callbacks are called for syncing up as well so we only decrease

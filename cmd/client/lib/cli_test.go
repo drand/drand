@@ -43,7 +43,7 @@ func run(args []string) error {
 }
 
 func TestClientLib(t *testing.T) {
-	matrix := [2]bool{false, true}
+	matrix := [1]bool{false}
 	for _, decouplePrevSig := range matrix {
 		opts = []client.Option{}
 		err := run([]string{"mock-client"})
@@ -51,34 +51,60 @@ func TestClientLib(t *testing.T) {
 			t.Fatal("need to specify a connection method.", err)
 		}
 
-		addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+		addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
 		defer cancel()
 
 		grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false, decouplePrevSig)
 		go grpcLis.Start()
 		defer grpcLis.Stop(context.Background())
 
-		err = run([]string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"})
+		args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"}
+		if decouplePrevSig {
+			args = append(args, "--decouple-prev-sig")
+		}
+
+		fmt.Printf("%+v", args)
+		err = run(args)
 		if err != nil {
 			t.Fatal("GRPC should work", err)
 		}
 
-		err = run([]string{"mock-client", "--url", "https://" + addr})
+		args = []string{"mock-client", "--url", "https://" + addr}
+		if decouplePrevSig {
+			args = append(args, "--decouple-prev-sig")
+		}
+
+		err = run(args)
 		if err == nil {
 			t.Fatal("http needs insecure or hash", err)
 		}
 
-		err = run([]string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())})
+		args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())}
+		if decouplePrevSig {
+			args = append(args, "--decouple-prev-sig")
+		}
+
+		err = run(args)
 		if err != nil {
 			t.Fatal("http should construct", err)
 		}
 
-		err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr})
+		args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
+		if decouplePrevSig {
+			args = append(args, "--decouple-prev-sig")
+		}
+
+		err = run(args)
 		if err == nil {
 			t.Fatal("relays need URL or hash", err)
 		}
 
-		err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())})
+		args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
+		if decouplePrevSig {
+			args = append(args, "--decouple-prev-sig")
+		}
+
+		err = run(args)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -93,7 +119,7 @@ func TestClientLibGroupConfTOML(t *testing.T) {
 }
 
 func TestClientLibGroupConfJSON(t *testing.T) {
-	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, false)
 	defer cancel()
 
 	var b bytes.Buffer

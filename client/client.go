@@ -165,10 +165,10 @@ type clientConfig struct {
 	// chain signature verification back to the 1st round, or to a know result to ensure
 	// determinism in the event of a compromised chain.
 	fullVerify bool
-	// decouplePrevSig indicates if the prev sig must be used to generate the next one
-	decouplePrevSig bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
+	// decoupledPrevSig
+	decouplePrevSig bool
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -216,6 +216,14 @@ func From(c ...Client) Option {
 func Insecurely() Option {
 	return func(cfg *clientConfig) error {
 		cfg.insecure = true
+		return nil
+	}
+}
+
+// DecouplePrevSig
+func DecouplePrevSig() Option {
+	return func(cfg *clientConfig) error {
+		cfg.decouplePrevSig = true
 		return nil
 	}
 }
@@ -272,14 +280,6 @@ func WithVerifiedResult(result Result) Option {
 			return errors.New("refusing to override verified result with an earlier result")
 		}
 		cfg.previousResult = result
-		return nil
-	}
-}
-
-// WithDecoupledPrevSig indicates the client should be generate the next signature without the previous one
-func WithDecoupledPrevSig() Option {
-	return func(cfg *clientConfig) error {
-		cfg.decouplePrevSig = true
 		return nil
 	}
 }

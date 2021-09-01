@@ -253,6 +253,7 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool, decouplePrevSig b
 	d := generateMockData(decouplePrevSig)
 	testValid(d)
 	d.BadSecondRound = badSecondRound
+	d.DecouplePrevSig = decouplePrevSig
 	server := newMockServer(d)
 	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
@@ -263,10 +264,11 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool, decouplePrevSig b
 }
 
 // NewMockServer creates a server interface not bound to a newtork port
-func NewMockServer(badSecondRound bool) net.Service {
-	d := generateMockData(badSecondRound)
+func NewMockServer(badSecondRound bool, decouplePrevSig bool) net.Service {
+	d := generateMockData(decouplePrevSig)
 	testValid(d)
 	d.BadSecondRound = badSecondRound
+	d.DecouplePrevSig = decouplePrevSig
 	server := newMockServer(d)
 	return server
 }

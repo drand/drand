@@ -15,10 +15,10 @@ import (
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
-func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.Info, context.CancelFunc, func(bool)) {
+func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, decouplePrevSig bool) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 
-	server := mock.NewMockServer(badSecondRound)
+	server := mock.NewMockServer(badSecondRound, decouplePrevSig)
 	client := core.Proxy(server)
 	ctx, cancel := context.WithCancel(context.Background())
 
