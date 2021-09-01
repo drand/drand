@@ -32,56 +32,58 @@ var afterPeriodWait = 5 * time.Second
 
 // Orchestrator controls a set of nodes
 type Orchestrator struct {
-	n            int
-	thr          int
-	newThr       int
-	period       string
-	periodD      time.Duration
-	basePath     string
-	groupPath    string
-	newGroupPath string
-	certFolder   string
-	nodes        []node.Node
-	paths        []string
-	newNodes     []node.Node
-	newPaths     []string
-	genesis      int64
-	transition   int64
-	group        *key.Group
-	newGroup     *key.Group
-	resharePaths []string
-	reshareIndex []int
-	reshareThr   int
-	reshareNodes []node.Node
-	tls          bool
-	withCurl     bool
-	binary       string
+	n               int
+	thr             int
+	newThr          int
+	period          string
+	decouplePrevSig bool
+	periodD         time.Duration
+	basePath        string
+	groupPath       string
+	newGroupPath    string
+	certFolder      string
+	nodes           []node.Node
+	paths           []string
+	newNodes        []node.Node
+	newPaths        []string
+	genesis         int64
+	transition      int64
+	group           *key.Group
+	newGroup        *key.Group
+	resharePaths    []string
+	reshareIndex    []int
+	reshareThr      int
+	reshareNodes    []node.Node
+	tls             bool
+	withCurl        bool
+	binary          string
 }
 
-func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool) *Orchestrator {
+func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool, decouplePrevSig bool) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
 	checkErr(os.MkdirAll(certFolder, 0740))
-	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary)
+	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary, decouplePrevSig)
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
-		n:            n,
-		thr:          thr,
-		basePath:     basePath,
-		groupPath:    path.Join(basePath, "group.toml"),
-		newGroupPath: path.Join(basePath, "group2.toml"),
-		period:       period,
-		periodD:      periodD,
-		nodes:        nodes,
-		paths:        paths,
-		certFolder:   certFolder,
-		tls:          tls,
-		withCurl:     withCurl,
-		binary:       binary,
+		n:               n,
+		thr:             thr,
+		decouplePrevSig: decouplePrevSig,
+		basePath:        basePath,
+		groupPath:       path.Join(basePath, "group.toml"),
+		newGroupPath:    path.Join(basePath, "group2.toml"),
+		period:          period,
+		periodD:         periodD,
+		nodes:           nodes,
+		paths:           paths,
+		certFolder:      certFolder,
+		tls:             tls,
+		withCurl:        withCurl,
+		binary:          binary,
 	}
 	return e
 }
@@ -338,7 +340,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary)
+	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary, e.decouplePrevSig)
 }
 
 // UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
@@ -464,13 +466,13 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}
 }
 
-func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string) ([]node.Node, []string) {
+func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string, decouplePrevSig bool) ([]node.Node, []string) {
 	var nodes []node.Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
 		var n node.Node
 		if binary != "" {
-			n = node.NewNode(idx, period, basePath, tls, binary)
+			n = node.NewNode(idx, period, basePath, tls, binary, decouplePrevSig)
 		} else {
 			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1")
 		}

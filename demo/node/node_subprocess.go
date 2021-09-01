@@ -34,21 +34,22 @@ type NodeProc struct {
 	// certificate key
 	keyPath string
 	// where all public certs are stored
-	certFolder string
-	startCmd   *exec.Cmd
-	logPath    string
-	privAddr   string
-	pubAddr    string
-	priv       *key.Pair
-	store      key.Store
-	cancel     context.CancelFunc
-	ctrl       string
-	tls        bool
-	groupPath  string
-	binary     string
+	certFolder      string
+	startCmd        *exec.Cmd
+	logPath         string
+	privAddr        string
+	pubAddr         string
+	priv            *key.Pair
+	store           key.Store
+	cancel          context.CancelFunc
+	ctrl            string
+	tls             bool
+	groupPath       string
+	binary          string
+	decouplePrevSig bool
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string) Node {
+func NewNode(i int, period string, base string, tls bool, binary string, decouplePrevSig bool) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -56,14 +57,15 @@ func NewNode(i int, period string, base string, tls bool, binary string) Node {
 	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
 	n := &NodeProc{
-		tls:        tls,
-		base:       nbase,
-		i:          i,
-		logPath:    logPath,
-		publicPath: publicPath,
-		groupPath:  groupPath,
-		period:     period,
-		binary:     binary,
+		tls:             tls,
+		base:            nbase,
+		i:               i,
+		logPath:         logPath,
+		publicPath:      publicPath,
+		groupPath:       groupPath,
+		period:          period,
+		decouplePrevSig: decouplePrevSig,
+		binary:          binary,
 	}
 	n.setup()
 	return n
@@ -179,6 +181,7 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 		args = append(args, pair("--timeout", timeout)...)
 		args = append(args, pair("--period", n.period)...)
+		args = append(args, pair("--decouple-prev-sig", strconv.FormatBool(n.decouplePrevSig))...)
 		// make genesis time offset
 		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
 	} else {

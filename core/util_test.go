@@ -40,12 +40,13 @@ type DrandTest2 struct {
 	// global clock on which all drand's clock are synchronized
 	clock clock.FakeClock
 
-	n             int
-	thr           int
-	newN          int
-	newThr        int
-	period        time.Duration
-	catchupPeriod time.Duration
+	n               int
+	thr             int
+	newN            int
+	newThr          int
+	period          time.Duration
+	catchupPeriod   time.Duration
+	decouplePrevSig bool
 	// only set after the DKG
 	group *key.Group
 	// needed to give the group to new nodes during a resharing - only set after
@@ -65,7 +66,7 @@ type DrandTest2 struct {
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period
-func NewDrandTest2(t *testing.T, n, thr int, period time.Duration) *DrandTest2 {
+func NewDrandTest2(t *testing.T, n, thr int, period time.Duration, decouplePrevSig bool) *DrandTest2 {
 	dt := new(DrandTest2)
 	drands, _, dir, certPaths := BatchNewDrand(n, false,
 		WithCallOption(grpc.WaitForReady(true)),
@@ -74,6 +75,7 @@ func NewDrandTest2(t *testing.T, n, thr int, period time.Duration) *DrandTest2 {
 	dt.dir = dir
 	dt.certPaths = certPaths
 	dt.n = n
+	dt.decouplePrevSig = decouplePrevSig
 	dt.thr = thr
 	dt.period = period
 	dt.clock = clock.NewFakeClock()
@@ -112,7 +114,7 @@ func (d *DrandTest2) RunDKG() *key.Group {
 	wg.Add(d.n)
 	// first run the leader and then run the other nodes
 	go func() {
-		gp, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, true)
+		gp, err := controlClient.InitDKGLeader(d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.decouplePrevSig)
 		require.NoError(d.t, err)
 		g, err := key.GroupFromProto(gp)
 		require.NoError(d.t, err)

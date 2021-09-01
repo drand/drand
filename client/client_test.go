@@ -125,37 +125,40 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	info, results := mock.VerifiableResults(2)
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		info, results := mock.VerifiableResults(2, decouplePrevSig)
 
-	ch := make(chan client.Result, len(results))
-	for i := range results {
-		ch <- &results[i]
-	}
-	close(ch)
-
-	watcherCtor := func(chainInfo *chain.Info, _ client.Cache) (client.Watcher, error) {
-		return &client.MockClient{WatchCh: ch}, nil
-	}
-
-	c, err := client.New(
-		client.WithChainInfo(info),
-		client.WithWatcher(watcherCtor),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	i := 0
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	for r := range c.Watch(ctx) {
-		compareResults(t, r, &results[i])
-		i++
-		if i == len(results) {
-			break
+		ch := make(chan client.Result, len(results))
+		for i := range results {
+			ch <- &results[i]
 		}
+		close(ch)
+
+		watcherCtor := func(chainInfo *chain.Info, _ client.Cache) (client.Watcher, error) {
+			return &client.MockClient{WatchCh: ch}, nil
+		}
+
+		c, err := client.New(
+			client.WithChainInfo(info),
+			client.WithWatcher(watcherCtor),
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		i := 0
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		for r := range c.Watch(ctx) {
+			compareResults(t, r, &results[i])
+			i++
+			if i == len(results) {
+				break
+			}
+		}
+		_ = c.Close()
 	}
-	_ = c.Close()
 }
 
 func TestClientWithWatcherCtorError(t *testing.T) {
@@ -238,67 +241,70 @@ func TestClientAutoWatch(t *testing.T) {
 }
 
 func TestClientAutoWatchRetry(t *testing.T) {
-	info, results := mock.VerifiableResults(5)
-	resC := make(chan client.Result)
-	defer close(resC)
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		info, results := mock.VerifiableResults(5, decouplePrevSig)
+		resC := make(chan client.Result)
+		defer close(resC)
 
-	// done is closed after all resuls have been written to resC
-	done := make(chan struct{})
+		// done is closed after all resuls have been written to resC
+		done := make(chan struct{})
 
-	// Returns a channel that yields the verifiable results above
-	watchF := func(ctx context.Context) <-chan client.Result {
-		go func() {
-			for i := 0; i < len(results); i++ {
-				select {
-				case resC <- &results[i]:
-				case <-ctx.Done():
-					return
+		// Returns a channel that yields the verifiable results above
+		watchF := func(ctx context.Context) <-chan client.Result {
+			go func() {
+				for i := 0; i < len(results); i++ {
+					select {
+					case resC <- &results[i]:
+					case <-ctx.Done():
+						return
+					}
 				}
-			}
-			<-time.After(time.Second)
-			close(done)
-		}()
-		return resC
-	}
+				<-time.After(time.Second)
+				close(done)
+			}()
+			return resC
+		}
 
-	var failer client.MockClient
-	failer = client.MockClient{
-		WatchF: func(ctx context.Context) <-chan client.Result {
-			// First call returns a closed channel
-			ch := make(chan client.Result)
-			close(ch)
-			// Second call returns a channel that writes results
-			failer.WatchF = watchF
-			return ch
-		},
-	}
+		var failer client.MockClient
+		failer = client.MockClient{
+			WatchF: func(ctx context.Context) <-chan client.Result {
+				// First call returns a closed channel
+				ch := make(chan client.Result)
+				close(ch)
+				// Second call returns a channel that writes results
+				failer.WatchF = watchF
+				return ch
+			},
+		}
 
-	c, err := client.New(
-		client.From(&failer, client.MockClientWithInfo(info)),
-		client.WithChainInfo(info),
-		client.WithAutoWatch(),
-		client.WithAutoWatchRetry(time.Second),
-		client.WithCacheSize(len(results)),
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close()
-
-	// Wait for all the results to be consumed by the autoWatch
-	select {
-	case <-done:
-	case <-time.After(time.Minute):
-		t.Fatal("timed out waiting for results to be consumed")
-	}
-
-	// We should be able to retrieve all the results from the cache.
-	for i := range results {
-		r, err := c.Get(context.Background(), results[i].Round())
+		c, err := client.New(
+			client.From(&failer, client.MockClientWithInfo(info)),
+			client.WithChainInfo(info),
+			client.WithAutoWatch(),
+			client.WithAutoWatchRetry(time.Second),
+			client.WithCacheSize(len(results)),
+		)
 		if err != nil {
 			t.Fatal(err)
 		}
-		compareResults(t, &results[i], r)
+		defer c.Close()
+
+		// Wait for all the results to be consumed by the autoWatch
+		select {
+		case <-done:
+		case <-time.After(time.Minute):
+			t.Fatal("timed out waiting for results to be consumed")
+		}
+
+		// We should be able to retrieve all the results from the cache.
+		for i := range results {
+			r, err := c.Get(context.Background(), results[i].Round())
+			if err != nil {
+				t.Fatal(err)
+			}
+			compareResults(t, &results[i], r)
+		}
 	}
 }
 

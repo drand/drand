@@ -61,4 +61,6 @@ message ChainInfoPacket {
     bytes hash = 4;
     // hash of the genesis group
     bytes groupHash = 5;
+    //
+    bool decouple_prev_sig = 6;
 }

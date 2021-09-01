@@ -42,9 +42,10 @@ func main() {
 	nRound := 2
 	n := 6
 	thr := 4
+	decouplePrevSig := false
 	period := "10s"
 	newThr := 5
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
+	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, decouplePrevSig)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
