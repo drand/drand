@@ -43,42 +43,45 @@ func run(args []string) error {
 }
 
 func TestClientLib(t *testing.T) {
-	opts = []client.Option{}
-	err := run([]string{"mock-client"})
-	if err == nil {
-		t.Fatal("need to specify a connection method.", err)
-	}
+	matrix := [2]bool{false, true}
+	for _, decouplePrevSig := range matrix {
+		opts = []client.Option{}
+		err := run([]string{"mock-client"})
+		if err == nil {
+			t.Fatal("need to specify a connection method.", err)
+		}
 
-	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
-	defer cancel()
+		addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+		defer cancel()
 
-	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false)
-	go grpcLis.Start()
-	defer grpcLis.Stop(context.Background())
+		grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false, decouplePrevSig)
+		go grpcLis.Start()
+		defer grpcLis.Stop(context.Background())
 
-	err = run([]string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"})
-	if err != nil {
-		t.Fatal("GRPC should work", err)
-	}
+		err = run([]string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"})
+		if err != nil {
+			t.Fatal("GRPC should work", err)
+		}
 
-	err = run([]string{"mock-client", "--url", "https://" + addr})
-	if err == nil {
-		t.Fatal("http needs insecure or hash", err)
-	}
+		err = run([]string{"mock-client", "--url", "https://" + addr})
+		if err == nil {
+			t.Fatal("http needs insecure or hash", err)
+		}
 
-	err = run([]string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())})
-	if err != nil {
-		t.Fatal("http should construct", err)
-	}
+		err = run([]string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())})
+		if err != nil {
+			t.Fatal("http should construct", err)
+		}
 
-	err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr})
-	if err == nil {
-		t.Fatal("relays need URL or hash", err)
-	}
+		err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr})
+		if err == nil {
+			t.Fatal("relays need URL or hash", err)
+		}
 
-	err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())})
-	if err != nil {
-		t.Fatal(err)
+		err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
