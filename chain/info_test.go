@@ -18,9 +18,10 @@ func TestChainInfo(t *testing.T) {
 		h1 := c1.Hash()
 		require.NotNil(t, h1)
 		fake := &key.Group{
-			Period:      g1.Period,
-			GenesisTime: g1.GenesisTime,
-			PublicKey:   g1.PublicKey,
+			Period:          g1.Period,
+			GenesisTime:     g1.GenesisTime,
+			PublicKey:       g1.PublicKey,
+			DecouplePrevSig: g1.DecouplePrevSig,
 		}
 		c12 := NewChainInfo(fake)
 		// Note: the fake group here does not hash the same.
