@@ -4,7 +4,7 @@ on:
   - pull_request
 
 jobs:
-  build:
+  tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -49,6 +49,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - run: go get -v -t -d ./...
+      - name: Unit tests
+        run: make test-unit
       - name: Unit tests
         run: make test-unit
       - name: Integration tests
