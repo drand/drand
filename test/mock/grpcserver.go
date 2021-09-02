@@ -245,6 +245,7 @@ func nextMockData(d *Data) *Data {
 		Genesis:           d.Genesis,
 		Period:            d.Period,
 		BadSecondRound:    d.BadSecondRound,
+		DecouplePrevSig:   d.DecouplePrevSig,
 	}
 }
 

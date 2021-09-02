@@ -28,7 +28,7 @@ import (
 )
 
 func TestGRPCClient(t *testing.T) {
-	matrix := [1]bool{true}
+	matrix := [2]bool{false, true}
 	for _, decouplePrevSig := range matrix {
 		// start mock drand node
 		grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false, decouplePrevSig)
@@ -118,7 +118,7 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func TestHTTPClient(t *testing.T) {
-	matrix := [1]bool{false}
+	matrix := [2]bool{false, true}
 	for _, decouplePrevSig := range matrix {
 		addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
 		defer stop()

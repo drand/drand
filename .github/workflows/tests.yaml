@@ -51,7 +51,8 @@ jobs:
       - run: go get -v -t -d ./...
       - name: Unit tests
         run: make test-unit
-      - run: make test-integration
+      - name: Integration tests
+        run: make test-integration
 
   coverage:
     runs-on: ubuntu-latest
