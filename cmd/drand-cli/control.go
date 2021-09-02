@@ -167,7 +167,8 @@ func leadShareCmd(c *cli.Context) error {
 		"file will not be written out to the specified output. To get the "+
 		"group file once the setup phase is done, you can run the `drand show "+
 		"group` command")
-	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, catchupPeriod, args.timeout, args.entropy, args.secret, offset, decouplePrevSig)
+	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period,
+		catchupPeriod, args.timeout, args.entropy, args.secret, offset, decouplePrevSig)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)

@@ -31,9 +31,7 @@ func withClient(t *testing.T, decouplePrevSig bool) (c client.Client, emit func(
 
 func TestHTTPRelay(t *testing.T) {
 	matrix := [2]bool{false, true}
-
 	for _, decouplePrevSig := range matrix {
-
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		c, _ := withClient(t, decouplePrevSig)

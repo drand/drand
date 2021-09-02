@@ -149,7 +149,6 @@ func TestDrandReshareForce(t *testing.T) {
 // This tests when a node first signal his intention to participate into a
 // resharing but is down right after  - he shouldn't be in the final group
 func TestDrandDKGReshareAbsent(t *testing.T) {
-
 	for _, decouplePrevSig := range decouplePrevSigArray {
 		oldN := 3
 		newN := 4
@@ -655,7 +654,8 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 // the folder where db, certificates, etc are stored. It is the folder
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
-func BatchNewDrand(n int, insecure bool, decouplePrevSig bool, opts ...ConfigOption) (drands []*Drand, group *key.Group, dir string, certPaths []string) {
+func BatchNewDrand(n int, insecure, decouplePrevSig bool,
+	opts ...ConfigOption) (drands []*Drand, group *key.Group, dir string, certPaths []string) {
 	var privs []*key.Pair
 	if insecure {
 		privs, group = test.BatchIdentities(n, decouplePrevSig)

@@ -78,7 +78,7 @@ var (
 		Name:  "port",
 		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
-	// DecouplePrevSig
+	// DecouplePrevSigFlag indicates if the previous signature should be used to generate the next one or not
 	DecouplePrevSigFlag = &cli.BoolFlag{
 		Name:  "decouple-prev-sig",
 		Usage: "Indicates if the previous signature should be used to generate the next one or not",

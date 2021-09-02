@@ -39,37 +39,26 @@ func mockClientWithVerifiableResults(n int, decouplePrevSig bool) (client.Client
 }
 
 func TestVerify(t *testing.T) {
-	matrix := [2]bool{false, true}
-
-	for _, decouplePrevSig := range matrix {
-		c, results, err := mockClientWithVerifiableResults(3, decouplePrevSig)
-		if err != nil {
-			t.Fatal(err)
-		}
-		res, err := c.Get(context.Background(), results[1].Round())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if res.Round() != results[1].Round() {
-			t.Fatal("expected to get result.", results[1].Round(), res.Round(), fmt.Sprintf("%v", c))
-		}
-	}
+	VerifyFuncTest(t, 3, 1)
 }
 
 func TestVerifyWithOldVerifiedResult(t *testing.T) {
+	VerifyFuncTest(t, 5, 4)
+}
+
+func VerifyFuncTest(t *testing.T, clients, upTo int) {
 	matrix := [2]bool{false, true}
 	for _, decouplePrevSig := range matrix {
-		c, results, err := mockClientWithVerifiableResults(5, decouplePrevSig)
+		c, results, err := mockClientWithVerifiableResults(clients, decouplePrevSig)
 		if err != nil {
 			t.Fatal(err)
 		}
-		// should automatically load rounds 1, 2 and 3 to verify 4
-		res, err := c.Get(context.Background(), results[4].Round())
+		res, err := c.Get(context.Background(), results[upTo].Round())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if res.Round() != results[4].Round() {
-			t.Fatal("expected to get result.", results[4].Round(), res.Round(), fmt.Sprintf("%v", c))
+		if res.Round() != results[upTo].Round() {
+			t.Fatal("expected to get result.", results[upTo].Round(), res.Round(), fmt.Sprintf("%v", c))
 		}
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/key"
 	"math/rand"
 	"strings"
 	"sync"
@@ -35,7 +34,6 @@ type syncer struct {
 	store     CallbackStore
 	info      *chain.Info
 	client    net.ProtocolClient
-	group     *key.Group
 	following bool
 	sync.Mutex
 }
