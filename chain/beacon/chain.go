@@ -45,7 +45,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
 	// we give the final append store to the syncer
-	syncer := NewSyncer(l, cbs, c.chain, cl, cf)
+	syncer := NewSyncer(l, cbs, c.chain, cl)
 	cs := &chainStore{
 		CallbackStore:   cbs,
 		l:               l,

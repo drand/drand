@@ -844,7 +844,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(store)
 	defer cbStore.Close()
-	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway, d.beacon.GetConfg())
+	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
 	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, d.opts.clock, d.log)
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)

@@ -12,12 +12,26 @@ import (
 func mockClientWithVerifiableResults(n int, decouplePrevSig bool) (client.Client, []mock.Result, error) {
 	info, results := mock.VerifiableResults(n, decouplePrevSig)
 	mc := client.MockClient{Results: results, StrictRounds: true}
-	c, err := client.Wrap(
-		[]client.Client{client.MockClientWithInfo(info), &mc},
-		client.WithChainInfo(info),
-		client.WithVerifiedResult(&results[0]),
-		client.WithFullChainVerification(),
-	)
+
+	var c client.Client
+	var err error
+	if decouplePrevSig {
+		c, err = client.Wrap(
+			[]client.Client{client.MockClientWithInfo(info), &mc},
+			client.WithChainInfo(info),
+			client.WithVerifiedResult(&results[0]),
+			client.WithFullChainVerification(),
+			client.DecouplePrevSig(),
+		)
+	} else {
+		c, err = client.Wrap(
+			[]client.Client{client.MockClientWithInfo(info), &mc},
+			client.WithChainInfo(info),
+			client.WithVerifiedResult(&results[0]),
+			client.WithFullChainVerification(),
+		)
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}

@@ -121,7 +121,7 @@ func TestHTTPWatch(t *testing.T) {
 }
 
 func TestHTTPClientClose(t *testing.T) {
-	matrix := [2]bool{false, true}
+	matrix := [1]bool{false}
 	for _, decouplePrevSig := range matrix {
 		addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, decouplePrevSig)
 		defer cancel()

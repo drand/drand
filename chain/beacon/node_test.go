@@ -372,9 +372,7 @@ func checkWait(counter *sync.WaitGroup) {
 }
 
 func TestBeaconSync(t *testing.T) {
-
 	matrix := [2]bool{false, true}
-
 	for _, decouplePrevSig := range matrix {
 		n := 4
 		thr := n/2 + 1
@@ -447,7 +445,6 @@ func TestBeaconSync(t *testing.T) {
 
 func TestBeaconSimple(t *testing.T) {
 	matrix := [2]bool{false, true}
-
 	for _, decouplePrevSig := range matrix {
 		n := 3
 		thr := n/2 + 1
@@ -496,7 +493,6 @@ func TestBeaconSimple(t *testing.T) {
 
 func TestBeaconThreshold(t *testing.T) {
 	matrix := [2]bool{false, true}
-
 	for _, decouplePrevSig := range matrix {
 		n := 3
 		thr := n/2 + 1

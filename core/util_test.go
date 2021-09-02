@@ -68,7 +68,7 @@ type DrandTest2 struct {
 // specified period
 func NewDrandTest2(t *testing.T, n, thr int, period time.Duration, decouplePrevSig bool) *DrandTest2 {
 	dt := new(DrandTest2)
-	drands, _, dir, certPaths := BatchNewDrand(n, false,
+	drands, _, dir, certPaths := BatchNewDrand(n, false, decouplePrevSig,
 		WithCallOption(grpc.WaitForReady(true)),
 	)
 	dt.t = t
@@ -296,8 +296,8 @@ func (d *DrandTest2) TestPublicBeacon(id string, newGroup bool) *drand.PublicRan
 
 // SetupNewNodes creates new additional nodes that can participate during the
 // resharing
-func (d *DrandTest2) SetupNewNodes(newNodes int) []*Node {
-	newDrands, _, newDir, newCertPaths := BatchNewDrand(newNodes, false,
+func (d *DrandTest2) SetupNewNodes(newNodes int, decouplePreSig bool) []*Node {
+	newDrands, _, newDir, newCertPaths := BatchNewDrand(newNodes, false, decouplePreSig,
 		WithCallOption(grpc.WaitForReady(false)), WithLogLevel(log.LogDebug))
 	d.newCertPaths = newCertPaths
 	d.newDir = newDir

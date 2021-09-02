@@ -37,7 +37,7 @@ func setFDLimit() {
 var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
 
-var decouplePrevSigArray = [2]bool{true, false}
+var decouplePrevSigArray = [2]bool{false, true}
 
 func TestDrandLarge(t *testing.T) {
 	for _, decouplePrevSig := range decouplePrevSigArray {
@@ -173,7 +173,7 @@ func TestDrandDKGReshareAbsent(t *testing.T) {
 		dt.MoveTime(1 * time.Second)
 
 		toAdd := newN - oldN
-		dt.SetupNewNodes(toAdd)
+		dt.SetupNewNodes(toAdd, decouplePrevSig)
 		// we want to stop one node right after the group is created
 		nodeToStop := 1
 		leader := 0
@@ -219,7 +219,7 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 		// + offline makes sure t
 		toKeep := oldN - offline
 		toAdd := newN - toKeep
-		dt.SetupNewNodes(toAdd)
+		dt.SetupNewNodes(toAdd, decouplePrevSig)
 
 		fmt.Println("SETUP RESHARE DONE")
 		// run the resharing
@@ -515,6 +515,7 @@ func TestDrandPublicStream(t *testing.T) {
 		}
 	}
 }
+
 func TestDrandFollowChain(tt *testing.T) {
 	for _, decouplePrevSig := range decouplePrevSigArray {
 		n := 4
@@ -540,7 +541,7 @@ func TestDrandFollowChain(tt *testing.T) {
 
 		// TEST setup a new node and fetch history
 
-		newNode := dt.SetupNewNodes(1)[0]
+		newNode := dt.SetupNewNodes(1, decouplePrevSig)[0]
 		newClient, err := net.NewControlClient(newNode.drand.opts.controlPort)
 		require.NoError(tt, err)
 		addrToFollow := []string{rootID.Address()}

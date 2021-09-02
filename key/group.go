@@ -397,6 +397,7 @@ func (g *Group) ToProto() *proto.GroupPacket {
 	out.GenesisTime = uint64(g.GenesisTime)
 	out.TransitionTime = uint64(g.TransitionTime)
 	out.GenesisSeed = g.GetGenesisSeed()
+	out.DecouplePrevSig = g.DecouplePrevSig
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))
 		for i, c := range g.PublicKey.Coefficients {

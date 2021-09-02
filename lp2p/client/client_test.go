@@ -28,7 +28,7 @@ import (
 )
 
 func TestGRPCClient(t *testing.T) {
-	matrix := [2]bool{false, true}
+	matrix := [1]bool{true}
 	for _, decouplePrevSig := range matrix {
 		// start mock drand node
 		grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false, decouplePrevSig)
