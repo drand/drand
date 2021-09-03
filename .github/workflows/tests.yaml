@@ -20,7 +20,6 @@ jobs:
         with:
           version: '3.14.0'
       - name: Install Go Packages
-        run: go get -v -t -d ./...
       - name: Build
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
