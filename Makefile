@@ -7,14 +7,14 @@ drand: build
 install_lint:
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.41.1
 
-lint:
+lint: build_proto
 	golangci-lint --version
 	golangci-lint run -E gofmt -E gosec -E goconst -E gocritic --timeout 5m
 
-lint-todo:
+lint-todo: build_proto
 	golangci-lint run -E stylecheck -E gosec -E goconst -E godox -E gocritic
 
-fmt:
+fmt: build_proto
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
 	@{ \
 		files=$$( go fmt ./... ); \
@@ -35,22 +35,22 @@ clean:
 
 test: test-unit test-integration
 
-test-unit:
+test-unit: build_proto
 	GO111MODULE=on go test -race -short -v ./...
 
-test-unit-coverage:
+test-unit-coverage: build_proto
 	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
-test-integration:
+test-integration: build_proto
 	go test -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
-coverage:
+coverage: build_proto
 	go get -u github.com/ory/go-acc
 	go get -v -t -d ./...
 	COVERAGE=true go-acc ./...
 
-demo:
+demo: build_proto
 	cd demo && go build && ./demo -build
 	#cd demo && sudo ./run.sh
 
@@ -62,7 +62,7 @@ build_proto:
 	cd protobuf && sh ./compile_proto.sh
 
 # create the "drand" binary and install it in $GOBIN
-install:
+install: build_proto
 	go install -ldflags "-X github.com/drand/drand/cmd/drand-cli.version=`git describe --tags` -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X github.com/drand/drand/cmd/drand-cli.gitCommit=`git rev-parse HEAD`"
 
 # create the "drand" binary in the current folder

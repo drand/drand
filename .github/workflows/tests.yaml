@@ -16,12 +16,9 @@ jobs:
         with:
           go-version: '^1.16'
       - name: Install Protoc
-        run: |
-          PROTOC_ZIP=protoc-3.14.0-linux-x86_64.zip
-          curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/$PROTOC_ZIP
-          unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
-          unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
-          rm -f $PROTOC_ZIP
+        uses: arduino/setup-protoc@v1.1.2
+        with:
+          version: '3.14.0'
       - name: Install Go Packages
         run: go get -v -t -d ./...
       - name: Build
@@ -79,6 +76,10 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1.1.2
+        with:
+          version: '3.14.0'
       - run: go get -v -t -d ./...
       - name: Unit tests
         run: make test-unit
@@ -99,14 +100,9 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: '^1.16'
-      - uses: actions/cache@v2
-        id: cache
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1.1.2
         with:
-          path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-
-      - run: go get -u github.com/ory/go-acc
-      - run: go get -v -t -d ./...
-      - run: go-acc ./...
+          version: '3.14.0'
+      - run: make coverage
       - run: bash <(curl -s https://codecov.io/bash)
