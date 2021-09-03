@@ -19,7 +19,6 @@ jobs:
         uses: arduino/setup-protoc@v1.1.2
         with:
           version: '3.14.0'
-      - name: Install Go Packages
       - name: Build
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
