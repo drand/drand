@@ -24,7 +24,7 @@ fmt: build_proto
 		fi; \
 	}
 
-check-modtidy:
+check-modtidy: build_proto
 	go mod tidy
 	git diff --exit-code -- go.mod go.sum
 
