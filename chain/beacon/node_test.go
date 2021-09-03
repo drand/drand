@@ -291,8 +291,8 @@ func (b *BeaconTest) MoveTime(t time.Duration) {
 }
 
 func getSleepDuration() time.Duration {
-	if os.Getenv("CIRCLE_CI") != "" {
-		fmt.Printf("\n\n--- Sleeping on CIRCLECI\n\n")
+	if os.Getenv("CI") != "" {
+		fmt.Printf("\n\n--- Sleeping on CI\n\n")
 		return time.Duration(1000) * time.Millisecond
 	}
 	return time.Duration(500) * time.Millisecond
