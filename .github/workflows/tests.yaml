@@ -78,6 +78,8 @@ jobs:
         uses: arduino/setup-protoc@v1.1.2
         with:
           version: '3.14.0'
+      - name: Generate Protobufs
+        run: make build_proto
       - run: go get -v -t -d ./...
       - name: Unit tests
         run: make test-unit
