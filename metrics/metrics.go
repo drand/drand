@@ -204,6 +204,8 @@ func bindMetrics() error {
 	if err := RegisterClientMetrics(ClientMetrics); err != nil {
 		return err
 	}
+
+	// nolint: revive
 	if err := RegisterClientMetrics(PrivateMetrics); err != nil {
 		return err
 	}

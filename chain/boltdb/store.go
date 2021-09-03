@@ -22,7 +22,10 @@ type boltStore struct {
 var beaconBucket = []byte("beacons")
 
 // BoltFileName is the name of the file boltdb writes to
-const BoltFileName = "drand.db"
+const (
+	BoltFileName      = "drand.db"
+	BoltStoreOpenMode = 0660
+)
 
 const BoltStoreOpenPerm = 0660
 

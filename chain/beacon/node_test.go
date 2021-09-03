@@ -378,8 +378,8 @@ func TestBeaconSync(t *testing.T) {
 		thr := n/2 + 1
 		period := 2 * time.Second
 
-		var genesisOffset = 2 * time.Second
-		var genesisTime int64 = clock.NewFakeClock().Now().Add(genesisOffset).Unix()
+		genesisOffset := 2 * time.Second
+		genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
 		fmt.Println(" HERE TEST 10")
 		bt := NewBeaconTest(n, thr, period, genesisTime, decouplePrevSig)
 		fmt.Println(" HERE TEST 11")
@@ -387,6 +387,8 @@ func TestBeaconSync(t *testing.T) {
 		var counter = &sync.WaitGroup{}
 		myCallBack := func(i int) func(*chain.Beacon) {
 			return func(b *chain.Beacon) {
+				// FIXME Disable scopelint here, but it is failing
+				// nolint: scopelint
 				require.NoError(t, b.Verify(bt.dpublic, decouplePrevSig))
 				fmt.Printf("\nROUND %d DONE for %s\n\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
 				counter.Done()
@@ -450,7 +452,7 @@ func TestBeaconSimple(t *testing.T) {
 		thr := n/2 + 1
 		period := 2 * time.Second
 
-		var genesisTime int64 = clock.NewFakeClock().Now().Unix() + 2
+		genesisTime := clock.NewFakeClock().Now().Unix() + 2
 
 		bt := NewBeaconTest(n, thr, period, genesisTime, decouplePrevSig)
 		defer bt.CleanUp()
@@ -458,6 +460,8 @@ func TestBeaconSimple(t *testing.T) {
 		var counter = &sync.WaitGroup{}
 		counter.Add(n)
 		myCallBack := func(b *chain.Beacon) {
+			// FIXME Disable scopelint here, but it is failing
+			// nolint: scopelint
 			// verify partial sig
 			require.NoError(t, b.Verify(bt.dpublic, decouplePrevSig))
 			counter.Done()
@@ -499,11 +503,11 @@ func TestBeaconThreshold(t *testing.T) {
 		period := 2 * time.Second
 
 		offsetGenesis := 2 * time.Second
-		var genesisTime int64 = clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
+		genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
 
 		bt := NewBeaconTest(n, thr, period, genesisTime, decouplePrevSig)
 		defer func() { go bt.CleanUp() }()
-		var currentRound uint64 = 0
+		currentRound := uint64(0)
 		var counter = &sync.WaitGroup{}
 		myCallBack := func(i int) func(*chain.Beacon) {
 			return func(b *chain.Beacon) {
@@ -511,6 +515,8 @@ func TestBeaconThreshold(t *testing.T) {
 				// verify partial sig
 
 				var msg []byte
+				// FIXME Disable scopelint here, but it is failing
+				// nolint: scopelint
 				if !decouplePrevSig {
 					msg = chain.Message(b.Round, b.PreviousSig)
 				} else {

@@ -18,6 +18,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const AcessLogOpenMode = 0666
+
 // Automatically set through -ldflags
 // Example: go install -ldflags "-X main.version=`git describe --tags`
 //   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"

@@ -86,6 +86,8 @@ func (c *chainStore) Stop() {
 // especially in case of a quick catchup.
 var partialCacheStoreLimit = 3
 
+// FIXME Disable gocyclo here, but it is failing
+// nolint: gocyclo
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {

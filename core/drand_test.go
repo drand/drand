@@ -272,6 +272,8 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	}
 }
 
+// FIXME Disable funlen here, but it is failing
+// nolint: funlen
 func TestDrandResharePreempt(t *testing.T) {
 	for _, decouplePrevSig := range decouplePrevSigArray {
 		if os.Getenv("CI") != "" {
@@ -515,6 +517,8 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
+// FIXME Disable funlen here, but it is failing
+// nolint: funlen
 func TestDrandFollowChain(tt *testing.T) {
 	for _, decouplePrevSig := range decouplePrevSigArray {
 		n := 4
