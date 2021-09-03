@@ -39,21 +39,31 @@ var testDkgTimeout = 2 * time.Second
 
 var decouplePrevSigArray = [2]bool{false, true}
 
-func TestDrandLarge(t *testing.T) {
-	for _, decouplePrevSig := range decouplePrevSigArray {
-		if testing.Short() {
-			t.Skip("skipping test in short mode.")
-		}
-		setFDLimit()
-		n := 22
-		beaconPeriod := 5 * time.Second
+func TestDrandLarge_PrevSig(t *testing.T) {
+	DrandLargeTestFunc(t, true)
+}
+func TestDrandLarge_NoPrevSig(t *testing.T) {
+	DrandLargeTestFunc(t, false)
+}
 
-		dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod, decouplePrevSig)
-		defer dt.Cleanup()
-		dt.RunDKG()
-		time.Sleep(getSleepDuration())
-		fmt.Println(" --- DKG FINISHED ---")
+func DrandLargeTestFunc(t *testing.T, decouplePrevSig bool) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
 	}
+
+	if os.Getenv("COVERAGE") != "" {
+		t.Skip("Skipping testing in COVERAGE mode")
+	}
+
+	setFDLimit()
+	n := 22
+	beaconPeriod := 5 * time.Second
+
+	dt := NewDrandTest2(t, n, key.DefaultThreshold(n), beaconPeriod, decouplePrevSig)
+	defer dt.Cleanup()
+	dt.RunDKG()
+	time.Sleep(getSleepDuration())
+	fmt.Println(" --- DKG FINISHED ---")
 }
 
 func TestDrandDKGFresh(t *testing.T) {

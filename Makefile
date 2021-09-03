@@ -38,7 +38,7 @@ test: test-unit test-integration
 test-unit:
 	GO111MODULE=on go test -race -short -v ./...
 
-test-unit-cover:
+test-unit-coverage:
 	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
@@ -48,7 +48,7 @@ test-integration:
 coverage:
 	go get -u github.com/ory/go-acc
 	go get -v -t -d ./...
-	go-acc ./...
+	COVERAGE=true go-acc ./...
 
 demo:
 	cd demo && go build && ./demo -build
