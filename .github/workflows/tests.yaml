@@ -26,11 +26,11 @@ jobs:
         run: go get -v -t -d ./...
       - name: Build
         run: |
-          make drand
-          make drand-client
-          make drand-relay-http
-          make drand-relay-gossip
-          make drand-relay-s3
+          sudo make drand
+          sudo make drand-client
+          sudo make drand-relay-http
+          sudo make drand-relay-gossip
+          sudo make drand-relay-s3
 
   tests:
     runs-on: ubuntu-latest
