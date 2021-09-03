@@ -293,7 +293,7 @@ func (b *BeaconTest) MoveTime(t time.Duration) {
 func getSleepDuration() time.Duration {
 	if os.Getenv("CI") != "" {
 		fmt.Printf("\n\n--- Sleeping on CI\n\n")
-		return time.Duration(1000) * time.Millisecond
+		return time.Duration(2000) * time.Millisecond
 	}
 	return time.Duration(500) * time.Millisecond
 }

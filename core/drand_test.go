@@ -742,7 +742,7 @@ func CloseAllDrands(drands []*Drand) {
 func getSleepDuration() time.Duration {
 	if os.Getenv("CI") != "" {
 		fmt.Println("--- Sleeping on CI")
-		return time.Duration(600) * time.Millisecond
+		return time.Duration(1200) * time.Millisecond
 	}
 	return time.Duration(500) * time.Millisecond
 }
