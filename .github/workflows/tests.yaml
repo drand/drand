@@ -26,6 +26,7 @@ jobs:
         run: go get -v -t -d ./...
       - name: Build
         run: |
+          export PATH=$PATH:$(go env GOPATH)/bin
           sudo make drand
           sudo make drand-client
           sudo make drand-relay-http
