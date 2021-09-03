@@ -45,6 +45,11 @@ test-integration:
 	go test -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
+coverage:
+	go get -u github.com/ory/go-acc
+	go get -v -t -d ./...
+	go-acc ./...
+
 demo:
 	cd demo && go build && ./demo -build
 	#cd demo && sudo ./run.sh
