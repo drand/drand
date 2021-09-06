@@ -19,6 +19,13 @@ jobs:
         uses: arduino/setup-protoc@v1.1.2
         with:
           version: '3.14.0'
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Build
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
@@ -78,6 +85,13 @@ jobs:
         uses: arduino/setup-protoc@v1.1.2
         with:
           version: '3.14.0'
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Generate Protobufs
         run: make build_proto
       - run: go get -v -t -d ./...
@@ -102,5 +116,12 @@ jobs:
         uses: arduino/setup-protoc@v1.1.2
         with:
           version: '3.14.0'
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - run: make coverage
       - run: bash <(curl -s https://codecov.io/bash)
