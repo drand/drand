@@ -92,7 +92,7 @@ relay-s3: build_proto
 
 drand-relay-s3: relay-s3
 
-build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
+build_all: build_proto drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
 
 ############################################ Deps ############################################
 
