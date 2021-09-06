@@ -146,10 +146,6 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		opts = append(opts, client.DecouplePrevSig())
 	}
 
-	if c.Bool(InsecureFlag.Name) {
-		opts = append(opts, client.DecouplePrevSig())
-	}
-
 	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
 
 	gopt, err := buildGossipClient(c)
