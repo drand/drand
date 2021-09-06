@@ -17,13 +17,10 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
-    - name: Fetch Dependencies
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: go get ./...
     - name: Dir Setup
       run: mkdir -p ~/go/bin
     - name: Build
-      run: go build . && cp drand ~/go/bin/drand-candidate
+      run: make build && cp drand ~/go/bin/drand-candidate
 
     - uses: actions/checkout@v2
       with:
