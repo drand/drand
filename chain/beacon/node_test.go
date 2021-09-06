@@ -529,14 +529,9 @@ func testBeaconThreshold(t *testing.T, decouplePrevSig bool) {
 			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
 
-			var msg []byte
 			// FIXME Disable scopelint here, but it is failing
 			// nolint: scopelint
-			if !decouplePrevSig {
-				msg = chain.Message(b.Round, b.PreviousSig)
-			} else {
-				msg = chain.WithoutPrevSigMessage(b.Round)
-			}
+			msg := chain.Message(b.Round, b.PreviousSig, decouplePrevSig)
 
 			err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 			require.NoError(t, err)

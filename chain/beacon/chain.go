@@ -135,12 +135,7 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
-			var msg []byte
-			if !c.conf.Group.DecouplePrevSig {
-				msg = roundCache.Msg()
-			} else {
-				msg = roundCache.WithoutPrevSigMsg()
-			}
+			msg := roundCache.Msg(c.conf.Group.DecouplePrevSig)
 
 			finalSig, err := key.Scheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {

@@ -13,7 +13,7 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 
 	var round uint64 = 16
 	prevSig := []byte("My Sweet Previous Signature")
-	msg := Message(round, prevSig)
+	msg := Message(round, prevSig, false)
 
 	sig, _ := key.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()
@@ -36,7 +36,7 @@ func BenchmarkVerifyBeacon_WithoutPrevSig(b *testing.B) {
 
 	var round uint64 = 16
 	prevSig := []byte("My Sweet Previous Signature")
-	msg := WithoutPrevSigMessage(round)
+	msg := Message(round, prevSig, true)
 
 	sig, _ := key.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()

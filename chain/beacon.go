@@ -67,32 +67,19 @@ func (b *Beacon) String() string {
 func (b *Beacon) Verify(pubkey kyber.Point, decouplePrevSig bool) error {
 	prevSig := b.PreviousSig
 	round := b.Round
-
-	var msg []byte
-	if !decouplePrevSig {
-		msg = Message(round, prevSig)
-	} else {
-		msg = WithoutPrevSigMessage(round)
-	}
+	msg := Message(round, prevSig, decouplePrevSig)
 
 	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
 }
 
 // Message returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
-// H ( prevSig || currRound)
-func Message(currRound uint64, prevSig []byte) []byte {
+// H ( prevSig || currRound) or H ( currRound)
+func Message(currRound uint64, prevSig []byte, decouple bool) []byte {
 	h := sha256.New()
-	_, _ = h.Write(prevSig)
-	_, _ = h.Write(RoundToBytes(currRound))
-	return h.Sum(nil)
-}
-
-// Message returns a slice of bytes as the message to sign or to verify
-// alongside a beacon signature.
-// H (currRound)
-func WithoutPrevSigMessage(currRound uint64) []byte {
-	h := sha256.New()
+	if !decouple {
+		_, _ = h.Write(prevSig)
+	}
 	_, _ = h.Write(RoundToBytes(currRound))
 	return h.Sum(nil)
 }

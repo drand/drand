@@ -104,12 +104,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	var msg []byte
-	if !h.conf.Group.DecouplePrevSig {
-		msg = chain.Message(p.GetRound(), p.GetPreviousSig())
-	} else {
-		msg = chain.WithoutPrevSigMessage(p.GetRound())
-	}
+	msg := chain.Message(p.GetRound(), p.GetPreviousSig(), h.conf.Group.DecouplePrevSig)
 
 	// XXX Remove that evaluation - find another way to show the current dist.
 	// key being used
@@ -282,12 +277,8 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		previousSig = upon.PreviousSig
 		round = current.round
 	}
-	var msg []byte
-	if !h.conf.Group.DecouplePrevSig {
-		msg = chain.Message(round, previousSig)
-	} else {
-		msg = chain.WithoutPrevSigMessage(round)
-	}
+
+	msg := chain.Message(round, previousSig, h.conf.Group.DecouplePrevSig)
 
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
