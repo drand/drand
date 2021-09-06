@@ -282,17 +282,13 @@ func TestDrandDKGReshareTimeout(t *testing.T) {
 	}
 }
 
-// FIXME Disable funlen here, but it is failing
-// nolint: funlen
 func TestDrandResharePreempt(t *testing.T) {
 	for _, decouplePrevSig := range decouplePrevSigArray {
 		if os.Getenv("CI") != "" {
 			t.Skip("Skipping testing in CI environment")
 		}
 
-		oldN := 3
-		newN := 3
-		Thr := 2
+		oldN, newN, Thr := 3, 3, 2
 		timeout := 1 * time.Second
 		beaconPeriod := 2 * time.Second
 
@@ -527,12 +523,9 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
-// FIXME Disable funlen here, but it is failing
-// nolint: funlen
 func TestDrandFollowChain(tt *testing.T) {
 	for _, decouplePrevSig := range decouplePrevSigArray {
-		n := 4
-		p := 1 * time.Second
+		n, p := 4, 1*time.Second
 		dt := NewDrandTest2(tt, n, key.DefaultThreshold(n), p, decouplePrevSig)
 		defer dt.Cleanup()
 		group := dt.RunDKG()
