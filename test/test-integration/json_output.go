@@ -23,7 +23,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	msg := beacon.Message(previousSig, uint64(round))
+	msg := beacon.Message(previousSig, uint64(round), false)
 	signature, err := scheme.Sign(private, msg)
 	if err != nil {
 		panic(err)

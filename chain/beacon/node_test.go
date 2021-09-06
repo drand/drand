@@ -447,7 +447,6 @@ func testBeaconSync(t *testing.T, decouplePrevSig bool) {
 	// n - online for the previous round that the others catch up
 	fmt.Printf("\n\n --- Before DOING ROUND AFTER ENABLING -- \n\n")
 	doRound(n+n-online, period)
-
 }
 
 func TestBeaconSimple(t *testing.T) {
@@ -502,7 +501,6 @@ func testBeaconSimple(t *testing.T, decouplePrevSig bool) {
 	counter.Add(n)
 	bt.MoveTime(period)
 	checkWait(counter)
-
 }
 
 func TestBeaconThreshold(t *testing.T) {
@@ -598,7 +596,6 @@ func testBeaconThreshold(t *testing.T, decouplePrevSig bool) {
 	fmt.Printf("\n | MOVE TIME WITH ALL NODES  | \n\n")
 	// expect lastnode to have catch up
 	makeRounds(nRounds, n)
-
 }
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {

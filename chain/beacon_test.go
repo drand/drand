@@ -8,35 +8,19 @@ import (
 )
 
 func BenchmarkVerifyBeacon(b *testing.B) {
-	secret := key.KeyGroup.Scalar().Pick(random.New())
-	public := key.KeyGroup.Point().Mul(secret, nil)
-
-	var round uint64 = 16
-	prevSig := []byte("My Sweet Previous Signature")
-	msg := Message(round, prevSig, false)
-
-	sig, _ := key.AuthScheme.Sign(secret, msg)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		b := Beacon{
-			PreviousSig: prevSig,
-			Round:       16,
-			Signature:   sig,
-		}
-		err := b.Verify(public, false)
-		if err != nil {
-			panic(err)
-		}
-	}
+	benchmarkVerifyBeacon(b, false)
+}
+func BenchmarkVerifyBeaconDecoupled(b *testing.B) {
+	benchmarkVerifyBeacon(b, true)
 }
 
-func BenchmarkVerifyBeacon_WithoutPrevSig(b *testing.B) {
+func benchmarkVerifyBeacon(b *testing.B, decouplePrevSig bool) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 
 	var round uint64 = 16
 	prevSig := []byte("My Sweet Previous Signature")
-	msg := Message(round, prevSig, true)
+	msg := Message(round, prevSig, decouplePrevSig)
 
 	sig, _ := key.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()
@@ -46,7 +30,7 @@ func BenchmarkVerifyBeacon_WithoutPrevSig(b *testing.B) {
 			Round:       16,
 			Signature:   sig,
 		}
-		err := b.Verify(public, true)
+		err := b.Verify(public, decouplePrevSig)
 		if err != nil {
 			panic(err)
 		}
