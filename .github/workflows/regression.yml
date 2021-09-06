@@ -40,9 +40,14 @@ jobs:
       - name: Build
         run: go build . && cp drand ~/go/bin/drand-existing
 
-      - uses: actions/checkout@v2
-      - id: regression
-        name: Run regression
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Build proto files
+        run: make build_proto
+      - name: Run regression
+        id: regression
         run: go run ./demo/regression -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
 
       - id: report
