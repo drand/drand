@@ -1,0 +1,35 @@
+name: "Publish tagged image"
+
+on:
+  release:
+    types:
+      - created
+    tags:
+      - "v[0-9]+(\\.[0-9]+)*"
+
+jobs:
+  tagged-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16'
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Build and push tagged Docker image
+        run: |
+          docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
+          echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+          docker push drandorg/go-drand:`git describe --tags`
+        env:
+          DOCKER_PWD: ${{ secrets.DOCKER_PWD }}
+          DOCKER_LOGIN: ${{ secrets.DOCKER_LOGIN }}
