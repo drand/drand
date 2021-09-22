@@ -8,7 +8,7 @@ import (
 )
 
 func TestClientPrivate(t *testing.T) {
-	drands, _, dir, _ := BatchNewDrand(1, false, WithPrivateRandomness())
+	drands, _, dir, _ := BatchNewDrand(t, 1, false, WithPrivateRandomness())
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 

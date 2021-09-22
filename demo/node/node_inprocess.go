@@ -216,7 +216,7 @@ func (l *LocalNode) ChainInfo(group string) bool {
 
 func (l *LocalNode) Ping() bool {
 	cl := l.ctrl()
-	if err := cl.Ping(); err != nil {
+	if _, err := cl.Ping(); err != nil {
 		l.log.Error("drand", "can't ping", "err", err)
 		return false
 	}

@@ -70,9 +70,9 @@ func NewControlClient(addr string) (*ControlClient, error) {
 }
 
 // Ping the drand daemon to check if it's up and running
-func (c *ControlClient) Ping() error {
-	_, err := c.client.PingPong(ctx.Background(), &control.Ping{})
-	return err
+func (c *ControlClient) Ping() (*control.Pong, error) {
+	pong, err := c.client.PingPong(ctx.Background(), &control.Ping{})
+	return pong, err
 }
 
 // InitReshareLeader sets up the node to be ready for a resharing protocol.
@@ -122,11 +122,13 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(nodes, threshold int,
+func (c *ControlClient) InitDKGLeader(
+	nodes, threshold int,
 	beaconPeriod, catchupPeriod, timeout time.Duration,
 	entropy *control.EntropyInfo,
 	secret string,
-	offset int) (*control.GroupPacket, error) {
+	offset int,
+) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
@@ -140,6 +142,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
 	}
+
 	return c.client.InitDKG(ctx.Background(), request)
 }
 

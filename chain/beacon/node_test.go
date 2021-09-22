@@ -49,7 +49,7 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	return t.h.chain.sync.SyncChain(req, p)
 }
 
-func dkgShares(n, t int) ([]*key.Share, []kyber.Point) {
+func dkgShares(tt *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 	var priPoly *share.PriPoly
 	var pubPoly *share.PubPoly
 	var err error
@@ -128,11 +128,11 @@ type BeaconTest struct {
 	prefix  string
 }
 
-func NewBeaconTest(n, thr int, period time.Duration, genesisTime int64) *BeaconTest {
+func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64) *BeaconTest {
 	prefix, err := ioutil.TempDir(os.TempDir(), "beacon-test")
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
-	shares, commits := dkgShares(n, thr)
+	shares, commits := dkgShares(t, n, thr)
 	privs, group := test.BatchIdentities(n)
 	group.Threshold = thr
 	group.Period = period
@@ -377,7 +377,7 @@ func TestBeaconSync(t *testing.T) {
 	var genesisOffset = 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
 	fmt.Println(" HERE TEST 10")
-	bt := NewBeaconTest(n, thr, period, genesisTime)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime)
 	fmt.Println(" HERE TEST 11")
 	defer bt.CleanUp()
 	var counter = &sync.WaitGroup{}
@@ -444,7 +444,7 @@ func TestBeaconSimple(t *testing.T) {
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
 
-	bt := NewBeaconTest(n, thr, period, genesisTime)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime)
 	defer bt.CleanUp()
 
 	var counter = &sync.WaitGroup{}
@@ -468,7 +468,7 @@ func TestBeaconSimple(t *testing.T) {
 		bt.nodes[i].handler.Lock()
 		started := bt.nodes[i].handler.started
 		bt.nodes[i].handler.Unlock()
-		require.False(t, started, "handler %d has started?", i)
+		require.True(t, started, "handler %d has started?", i)
 	}
 	fmt.Println(" --------- moving to genesis ---------------")
 	// move clock to genesis time
@@ -490,7 +490,7 @@ func TestBeaconThreshold(t *testing.T) {
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
 
-	bt := NewBeaconTest(n, thr, period, genesisTime)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime)
 	defer func() { go bt.CleanUp() }()
 	var currentRound uint64 = 0
 	var counter = &sync.WaitGroup{}

@@ -8,9 +8,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"sync"
-	"time"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -19,6 +16,8 @@ import (
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
+	"sync"
+	"time"
 )
 
 // MockService provides a way for clients getting the service to be able to call
@@ -254,7 +253,10 @@ func sha256Hash(in []byte) []byte {
 
 func roundToBytes(r int) []byte {
 	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, uint64(r))
+	err := binary.Write(&buff, binary.BigEndian, uint64(r))
+	if err != nil {
+		return nil
+	}
 	return buff.Bytes()
 }
 
