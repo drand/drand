@@ -3,12 +3,12 @@ package net
 import (
 	"context"
 	"crypto/tls"
-	"net"
-	"net/http"
-
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
+	"net"
+	"net/http"
+	"sync"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	http_grpc "github.com/weaveworks/common/httpgrpc"
@@ -17,10 +17,17 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func registerGRPCMetrics() {
+var isGrpcPrometheusMetricsRegisted = false
+var state sync.Mutex
+
+func registerGRPCMetrics() error {
 	if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics); err != nil {
 		log.DefaultLogger().Warn("grpc Listener", "failed metrics registration", "err", err)
+		return err
 	}
+
+	isGrpcPrometheusMetricsRegisted = true
+	return nil
 }
 
 // NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC.
@@ -68,9 +75,18 @@ func NewGRPCListenerForPrivate(
 		gr.lis = tls.NewListener(lis, gr.restServer.TLSConfig)
 		g = gr
 	}
+
 	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
 	grpc_prometheus.Register(grpcServer)
-	registerGRPCMetrics()
+
+	state.Lock()
+	defer state.Unlock()
+	if !isGrpcPrometheusMetricsRegisted {
+		if err := registerGRPCMetrics(); err != nil {
+			return nil, err
+		}
+	}
+
 	return g, nil
 }
 
