@@ -140,6 +140,11 @@ message Ping {
 }
 
 message Pong {
+    uint32 dkg_status = 1;
+    uint32 reshare_status = 2;
+    uint32 beacon_status = 3;
+    bool is_any_round = 4;
+    uint64 last_round = 5;
 }
 
 // PublicKeyRequest requests the public key of a drand node
