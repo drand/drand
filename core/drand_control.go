@@ -562,7 +562,52 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
-	return &drand.Pong{}, nil
+	d.state.Lock()
+	defer d.state.Unlock()
+
+	resp := drand.Pong{}
+
+	// Last round
+	resp.IsAnyRound = false;
+
+	if( d.beacon != nil && d.beacon.Store() != nil ){
+		beacon, err := d.beacon.Store().Last()
+
+		if( err == nil && beacon != nil){
+			resp.IsAnyRound = true;
+			resp.LastRound = beacon.GetRound()
+		}
+	}
+
+	// DKG status
+	switch {
+	case d.dkgDone:
+		resp.DkgStatus = uint32(DkgReady);
+	case !d.dkgDone && d.receiver != nil:
+		resp.DkgStatus = uint32(DkgInProgress);
+	default:
+		resp.DkgStatus = uint32(DkgNotStarted);
+	}
+
+	// Reshare status
+	switch {
+	case !d.dkgDone:
+		resp.ReshareStatus = uint32(ReshareInProgress)
+	case d.dkgDone && d.receiver != nil:
+		resp.ReshareStatus = uint32(ReshareNotInProgress)
+	}
+
+	// Beacon status
+	switch {
+	case d.beacon == nil:
+		resp.BeaconStatus = uint32(BeaconNotInit)
+	case d.beacon.IsStarted():
+		resp.BeaconStatus = uint32(BeaconStarted)
+	case d.beacon.IsStopped():
+		resp.BeaconStatus = uint32(BeaconStopped)
+	}
+
+	return &resp, nil
 }
 
 // Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
@@ -691,7 +736,7 @@ type pushResult struct {
 	err     error
 }
 
-// pushDKGInfoPacket sets a specific DKG info packet to spcified nodes, and returns a stream of responses.
+// pushDKGInfoPacket sets a specific DKG info packet to specified nodes, and returns a stream of responses.
 func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet *drand.DKGInfoPacket) chan pushResult {
 	results := make(chan pushResult, len(nodes))
 
@@ -708,8 +753,8 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 	return results
 }
 
-// pushDKGInfo sends the information to run the DKG to all specified nodes. The
-// call is blocking until all nodes have replied or after one minute timeouts.
+// pushDKGInfo sends the information to run the DKG to all specified nodes.
+// The call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
@@ -717,15 +762,16 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		d.log.Error("setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)
 	}
+
+	// Prepare packet
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(),
 		SecretProof: secret,
 		DkgTimeout:  timeout,
 		Signature:   signature,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
+	// Calculate threshold
 	newThreshold := group.Threshold
 	if nodesContainAddr(outgoing, d.priv.Public.Address()) {
 		previousThreshold--
@@ -735,12 +781,16 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 	to := nodeUnion(outgoing, incoming)
 
-	results := d.pushDKGInfoPacket(ctx, to, packet)
+	// Send packet
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	resultsCh := d.pushDKGInfoPacket(ctx, to, packet)
 
+	//
 	total := len(to) - 1
 	for total > 0 {
 		select {
-		case ok := <-results:
+		case ok := <-resultsCh:
 			total--
 			if ok.err != nil {
 				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", ok.err)
@@ -762,11 +812,13 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 			return errors.New("push group timeout")
 		}
 	}
+
 	if previousThreshold > 0 || newThreshold > 0 {
 		d.log.Info("push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
 		return errors.New("push group failure")
 	}
 	d.log.Info("push_dkg", "sending_group", "status", "all succeeded")
+
 	return nil
 }
 

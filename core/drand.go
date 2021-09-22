@@ -63,7 +63,7 @@ type Drand struct {
 	setupCB func(*key.Group)
 }
 
-// NewDrand returns an drand struct. It assumes the private key pair
+// NewDrand returns a drand struct. It assumes the private key pair
 // has been generated and saved already.
 func NewDrand(s key.Store, c *Config) (*Drand, error) {
 	d, err := initDrand(s, c)

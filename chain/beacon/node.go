@@ -149,6 +149,9 @@ func (h *Handler) Store() chain.Store {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start() error {
+	h.Lock()
+	defer h.Unlock()
+
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Error("genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
@@ -156,6 +159,8 @@ func (h *Handler) Start() error {
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Info("beacon", "start")
 	go h.run(tTime)
+
+	h.started = true
 	return nil
 }
 
@@ -210,6 +215,21 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 		h.chain.RemoveCallback("transition")
 	})
 }
+
+func (h *Handler) IsStarted() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.started
+}
+
+func (h *Handler) IsStopped() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.stopped
+}
+
 
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
