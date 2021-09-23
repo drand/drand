@@ -75,7 +75,6 @@ const (
 type BeaconStatus uint32
 
 const (
-	BeaconStopped BeaconStatus = iota
-	BeaconStarted
-	BeaconNotInit
+	BeaconNotInited BeaconStatus = iota
+	BeaconInited
 )

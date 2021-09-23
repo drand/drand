@@ -147,12 +147,33 @@ message Pong {
 message StatusRequest {
 }
 
+
 message StatusResponse {
-    uint32 dkg_status = 1;
-    uint32 reshare_status = 2;
-    uint32 beacon_status = 3;
-    bool is_any_round = 4;
-    uint64 last_round = 5;
+    DkgStatus dkg = 1;
+    ReshareStatus reshare = 2;
+    BeaconStatus beacon = 3;
+    ChainStoreStatus chain_store = 4;
+}
+
+message DkgStatus{
+    uint32 status = 1;
+}
+
+message ReshareStatus{
+    uint32 status = 1;
+}
+
+message BeaconStatus{
+    uint32 status = 1;
+    bool is_running = 2;
+    bool is_stopped = 3;
+    bool is_started = 4;
+}
+
+message ChainStoreStatus{
+    bool is_any_round = 1;
+    uint64 last_round = 2;
+    uint64 length = 3;
 }
 
 // PublicKeyRequest requests the public key of a drand node

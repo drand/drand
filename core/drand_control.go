@@ -570,49 +570,52 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 	d.state.Lock()
 	defer d.state.Unlock()
 
-	resp := drand.StatusResponse{}
-
-	// Last round
-	resp.IsAnyRound = false
-
-	if d.beacon != nil && d.beacon.Store() != nil {
-		beacon, err := d.beacon.Store().Last()
-
-		if err == nil && beacon != nil {
-			resp.IsAnyRound = true
-			resp.LastRound = beacon.GetRound()
-		}
-	}
+	dkgStatus := drand.DkgStatus{}
+	reshareStatus := drand.ReshareStatus{}
+	beaconStatus := drand.BeaconStatus{}
+	chainStore := drand.ChainStoreStatus{}
 
 	// DKG status
 	switch {
 	case d.dkgDone:
-		resp.DkgStatus = uint32(DkgReady)
+		dkgStatus.Status = uint32(DkgReady)
 	case !d.dkgDone && d.receiver != nil:
-		resp.DkgStatus = uint32(DkgInProgress)
+		dkgStatus.Status = uint32(DkgInProgress)
 	default:
-		resp.DkgStatus = uint32(DkgNotStarted)
+		dkgStatus.Status = uint32(DkgNotStarted)
 	}
 
 	// Reshare status
 	switch {
 	case !d.dkgDone:
-		resp.ReshareStatus = uint32(ReshareInProgress)
+		reshareStatus.Status = uint32(ReshareInProgress)
 	case d.dkgDone && d.receiver != nil:
-		resp.ReshareStatus = uint32(ReshareNotInProgress)
+		reshareStatus.Status = uint32(ReshareNotInProgress)
 	}
 
 	// Beacon status
-	switch {
-	case d.beacon == nil:
-		resp.BeaconStatus = uint32(BeaconNotInit)
-	case d.beacon.IsStarted():
-		resp.BeaconStatus = uint32(BeaconStarted)
-	case d.beacon.IsStopped():
-		resp.BeaconStatus = uint32(BeaconStopped)
+	beaconStatus.Status = uint32(BeaconNotInited)
+
+	if d.beacon != nil {
+		beaconStatus.Status = uint32(BeaconInited)
+
+		beaconStatus.IsStarted = d.beacon.IsStarted()
+		beaconStatus.IsStopped = d.beacon.IsStopped()
+		beaconStatus.IsRunning = d.beacon.IsRunning()
+
+		// Chain store
+		if d.beacon.Store() != nil {
+			beacon, err := d.beacon.Store().Last()
+
+			if err == nil && beacon != nil {
+				chainStore.IsAnyRound = true
+				chainStore.LastRound = beacon.GetRound()
+				chainStore.Length = uint64(d.beacon.Store().Len())
+			}
+		}
 	}
 
-	return &resp, nil
+	return &drand.StatusResponse{Dkg: &dkgStatus, Reshare: &reshareStatus, ChainStore: &chainStore, Beacon: &beaconStatus}, nil
 }
 
 // Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
