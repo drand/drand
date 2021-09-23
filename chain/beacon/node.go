@@ -47,6 +47,7 @@ type Handler struct {
 	close   chan bool
 	addr    string
 	started bool
+	running bool
 	stopped bool
 	l       log.Logger
 }
@@ -223,11 +224,27 @@ func (h *Handler) IsStarted() bool {
 	return h.started
 }
 
+func (h *Handler) IsRunning() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.running
+}
+
 func (h *Handler) IsStopped() bool {
 	h.Lock()
 	defer h.Unlock()
 
 	return h.stopped
+}
+
+func (h *Handler) Reset() {
+	h.Lock()
+	defer h.Unlock()
+
+	h.stopped = false
+	h.started = false
+	h.running = false
 }
 
 
@@ -336,9 +353,12 @@ func (h *Handler) Stop() {
 		return
 	}
 	close(h.close)
+
 	h.chain.Stop()
 	h.ticker.Stop()
+
 	h.stopped = true
+	h.running = false
 	h.l.Info("beacon", "stop")
 }
 

@@ -467,8 +467,12 @@ func TestBeaconSimple(t *testing.T) {
 	for i := 0; i < n; i++ {
 		bt.nodes[i].handler.Lock()
 		started := bt.nodes[i].handler.started
+		running := bt.nodes[i].handler.running
+		stopped := bt.nodes[i].handler.stopped
 		bt.nodes[i].handler.Unlock()
 		require.True(t, started, "handler %d has started?", i)
+		require.False(t, running, "handler %d has run?", i)
+		require.False(t, stopped, "handler %d has stopped?", i)
 	}
 	fmt.Println(" --------- moving to genesis ---------------")
 	// move clock to genesis time
