@@ -396,39 +396,12 @@ func (d *DrandTestScenario) AdvanceMockClock(t *testing.T, p time.Duration) {
 	d.clock.Advance(p)
 }
 
-// CheckBeaconLength looks if the beacon chain on the given addresses is of the expected length
-func (d *DrandTestScenario) CheckBeaconLength(expectedLength int, newGroup bool, ids ...string) {
-	nodes := d.nodes
-	if newGroup {
-		nodes = d.resharedNodes
-	}
-
-	for _, id := range ids {
-		for _, node := range nodes {
-			var found bool
-
-			if node.addr != id {
-				continue
-			}
-
-			retries := 10
-			for i := 0; i < retries; i++ {
-				inst := node.drand
-
-				beaconLength := inst.beacon.Store().Len()
-				d.t.Logf("[beacon] length=%d retry=%d", beaconLength, i)
-
-				if expectedLength == beaconLength {
-					found = true
-					break
-				}
-
-				// TODO: Why a sleep here?
-				time.Sleep(getSleepDuration())
-			}
-
-			require.True(d.t, found, "node %d not have enough beacon", id)
-		}
+// CheckBeaconLength looks if the beacon chain on the given addresses is of the
+// expected length (actual round plus 1, as beacons go from 0 to n)
+func (d *DrandTestScenario) CheckBeaconLength(t *testing.T, nodes []*MockNode, expectedLength int) {
+	for _, node := range nodes {
+		err := d.WaitUntilRound(t, node, uint64(expectedLength-1))
+		require.NoError(t, err)
 	}
 }
 
@@ -483,16 +456,43 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		status, err := newClient.Status()
 		require.NoError(t, err)
 
-		if status.IsAnyRound && status.LastRound == round {
+		if status.ChainStore.IsAnyRound && status.ChainStore.LastRound == round {
+			t.Logf("node %s is on expected round (%d)", node.addr, status.ChainStore.LastRound)
 			return nil
 		}
 
 		counter++
 		if counter == 10 {
-			return fmt.Errorf("Timeout waiting node to reach %d round", round)
+			return fmt.Errorf("Timeout waiting node %s to reach %d round", node.addr, round)
 		}
 
-		time.Sleep(200 * time.Millisecond)
+		t.Logf("node %s is on %d round, waiting some time to ask again...", node.addr, status.ChainStore.LastRound)
+		time.Sleep(1000 * time.Millisecond)
+	}
+}
+
+func (d *DrandTestScenario) WaitUntilChainIsRunning(t *testing.T, node *MockNode) error {
+	counter := 0
+
+	newClient, err := net.NewControlClient(node.drand.opts.controlPort)
+	require.NoError(t, err)
+
+	for {
+		status, err := newClient.Status()
+		require.NoError(t, err)
+
+		if status.Beacon.IsRunning {
+			t.Logf("node %s has its beacon chain running", node.addr)
+			return nil
+		}
+
+		counter++
+		if counter == 10 {
+			return fmt.Errorf("Timeout waiting node %s to run beacon chain", node.addr)
+		}
+
+		t.Logf("node %s has its beacon chain not running yet, waiting some time to ask again...", node.addr)
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 

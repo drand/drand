@@ -90,9 +90,11 @@ func TestDrandDKGFresh(t *testing.T) {
 	finalGroup := dt.RunDKG()
 
 	// make the last node fail (stop)
-	lastNodeAddr := dt.nodes[n-1].addr
-	t.Logf("Stop last node %s", lastNodeAddr)
-	dt.StopMockNode(lastNodeAddr, false)
+	lastNode := dt.nodes[n-1]
+	restOfNodes := dt.nodes[:n-1]
+
+	t.Logf("Stop last node %s", lastNode.addr)
+	dt.StopMockNode(lastNode.addr, false)
 
 	// move time to genesis
 	dt.SetMockClock(t, finalGroup.GenesisTime)
@@ -100,23 +102,21 @@ func TestDrandDKGFresh(t *testing.T) {
 
 	// two = genesis + 1st round (happens at genesis)
 	t.Log("Check Beacon Length")
-	runningNodeAddresses := dt.Ids(n-1, false)
-	dt.CheckBeaconLength(2, false, runningNodeAddresses...)
+	dt.CheckBeaconLength(t, restOfNodes, 2)
 
-	t.Logf("Start last node %s", lastNodeAddr)
-	dt.StartDrand(lastNodeAddr, true, false)
+	t.Logf("Start last node %s", lastNode.addr)
+	dt.StartDrand(lastNode.addr, true, false)
 
-	// leave some room to do the catchup
-	// TODO: wait until catch up has finished (old code time.Sleep(2 * time.Second))
+	// The catchup process will finish when node gets the previous beacons (1st round)
+	dt.WaitUntilRound(t, lastNode, 1)
 
 	dt.AdvanceMockClock(t, beaconPeriod)
 
 	t.Log("Check Beacon Length")
-	runningNodeAddresses = dt.Ids(n, false)
-	dt.CheckBeaconLength(3, false, runningNodeAddresses...)
+	dt.CheckBeaconLength(t, dt.nodes, 3)
 
 	t.Log("Check Beacon Public")
-	response := dt.CheckPublicBeacon(lastNodeAddr, false)
+	response := dt.CheckPublicBeacon(lastNode.addr, false)
 	assert.Equal(t, uint64(2), response.Round)
 }
 
@@ -135,14 +135,14 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 	defer dt.Cleanup()
 
 	// close connection between a pair of nodes
-	node_1 := dt.nodes[1]
-	node_2 := dt.nodes[2]
+	node1 := dt.nodes[1]
+	node2 := dt.nodes[2]
 
 	t.Log("Setting node 1 not to broadcast messages to the node 2")
-	node_1.drand.DenyBroadcastTo(t, node_2.addr)
+	node1.drand.DenyBroadcastTo(t, node2.addr)
 
 	t.Log("Setting node 2 not to broadcast messages to the node 1")
-	node_2.drand.DenyBroadcastTo(t, node_1.addr)
+	node2.drand.DenyBroadcastTo(t, node1.addr)
 
 	group1 := dt.RunDKG()
 
@@ -169,9 +169,6 @@ func TestRunDKGReshareForce(t *testing.T) {
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
-
-	// TODO: make sure all nodes had enough time to run their go routines to start the beacon handler - related to CI problems
-	// time.Sleep(getSleepDuration())
 
 	dt.SetMockClock(t, group1.GenesisTime)
 	dt.AdvanceMockClock(t, 1*time.Second)
@@ -217,16 +214,15 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 
 	group1 := dt.RunDKG()
 
-	// TODO: make sure all nodes had enough time to run their go routines to start the beacon handler - related to CI problems
-	time.Sleep(getSleepDuration())
 	dt.SetMockClock(t, group1.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	// move to genesis time - so nodes start to make a round
 	// dt.AdvanceMockClock(t,offsetGenesis)
 	// two = genesis + 1st round (happens at genesis)
 
 	t.Log("Check Beacon Length")
-	dt.CheckBeaconLength(2, false, dt.Ids(oldNodes, false)...)
+	dt.CheckBeaconLength(t, dt.nodes, 2)
 
 	// so nodes think they are going forward with round 2
 	dt.AdvanceMockClock(t, 1*time.Second)
@@ -270,16 +266,16 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
-	// TODO: make sure all nodes had enough time to run their go routines to start the beacon handler - related to CI problems
-	time.Sleep(getSleepDuration())
+
 	dt.SetMockClock(t, group1.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	// move to genesis time - so nodes start to make a round
 	// dt.AdvanceMockClock(t,offsetGenesis)
 	// two = genesis + 1st round (happens at genesis)
 
 	t.Log("Check Beacon Length")
-	dt.CheckBeaconLength(2, false, dt.Ids(oldNodes, false)...)
+	dt.CheckBeaconLength(t, dt.nodes, 2)
 
 	// so nodes think they are going forward with round 2
 	dt.AdvanceMockClock(t, 1*time.Second)
@@ -303,17 +299,23 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	t.Log("Move to response phase")
 	dt.AdvanceMockClock(t, timeout)
+
+	// TODO: How to remove this sleep? How to check when a node is at this stage
 	// at this point in time, nodes should have gotten all deals and send back their responses to all nodes
 	time.Sleep(getSleepDuration())
 
 	t.Log("Move to justification phase")
 	dt.AdvanceMockClock(t, timeout)
+
+	// TODO: How to remove this sleep? How to check when a node is at this stage
 	// at this time, all nodes received the responses of each other nodes but
 	// there is one node missing so they expect justifications
 	time.Sleep(getSleepDuration())
 
+	// TODO: How to remove this sleep? How to check when a node is at this stage
 	t.Log("Move to finish phase")
 	dt.AdvanceMockClock(t, timeout)
+
 	time.Sleep(getSleepDuration())
 	// at this time they received no justification from the missing node so he's
 	// excluded of the group and the dkg should finish
@@ -352,7 +354,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	// test that all nodes in the new group have generated a new beacon
 	t.Log("Check Beacon Length")
-	dt.CheckBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newNodes, true)...)
+	dt.CheckBeaconLength(t, dt.resharedNodes, int(lastBeacon.Round+1))
 }
 
 // This test is where a client can stop the resharing in process and start again
@@ -372,13 +374,12 @@ func TestRunDKGResharePreempt(t *testing.T) {
 
 	group1 := dt.RunDKG()
 
-	// TODO: make sure all nodes had enough time to run their go routines to start the beacon handler - related to CI problems
-	time.Sleep(getSleepDuration())
 	dt.SetMockClock(t, group1.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	// move to genesis time - so nodes start to make a round
 	t.Log("Check Beacon Length")
-	dt.CheckBeaconLength(2, false, dt.Ids(oldN, false)...)
+	dt.CheckBeaconLength(t, dt.nodes, 2)
 
 	// so nodes think they are going forward with round 2
 	dt.AdvanceMockClock(t, 1*time.Second)
@@ -420,16 +421,21 @@ func TestRunDKGResharePreempt(t *testing.T) {
 
 	t.Log("Move to response phase")
 	dt.AdvanceMockClock(t, timeout)
+
+	// TODO: How to remove this sleep? How to check when a node is at this stage
 	// at this point in time, nodes should have gotten all deals and send back
 	// their responses to all nodes
 	time.Sleep(getSleepDuration())
 
 	t.Log("Move to justification phase")
 	dt.AdvanceMockClock(t, timeout)
+
+	// TODO: How to remove this sleep? How to check when a node is at this stage
 	// at this time, all nodes received the responses of each other nodes but
 	// there is one node missing so they expect justifications
 	time.Sleep(getSleepDuration())
 
+	// TODO: How to remove this sleep? How to check when a node is at this stage
 	t.Log("Move to finish phase")
 	dt.AdvanceMockClock(t, timeout)
 	time.Sleep(getSleepDuration())
@@ -516,12 +522,12 @@ func TestDrandPublicRand(t *testing.T) {
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
-	time.Sleep(getSleepDuration())
 
 	root := dt.nodes[0].drand
 	rootID := root.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
@@ -580,12 +586,12 @@ func TestDrandPublicStream(t *testing.T) {
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
-	time.Sleep(getSleepDuration())
 
 	root := dt.nodes[0]
 	rootID := root.drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
@@ -679,11 +685,11 @@ func TestDrandFollowChain(t *testing.T) {
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
-	time.Sleep(getSleepDuration())
 
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
@@ -791,10 +797,10 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
-	time.Sleep(getSleepDuration())
 
 	root := dt.nodes[0]
 	dt.SetMockClock(t, group.GenesisTime)
+	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
 
 	// do a few periods
 	for i := 0; i < 3; i++ {
