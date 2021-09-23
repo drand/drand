@@ -184,17 +184,17 @@ func TestRunDKGReshareForce(t *testing.T) {
 		require.Error(t, err)
 	}()
 
-	LOOP:
-		for {
-			select {
-			case state := <-stateCh:
-				if state == ReshareUnlock {
-					break LOOP
-				}
-			case <-time.After(2 * time.Minute):
-				t.Errorf("Timeout waiting reshare process to get unlock phase")
+LOOP:
+	for {
+		select {
+		case state := <-stateCh:
+			if state == ReshareUnlock {
+				break LOOP
 			}
+		case <-time.After(2 * time.Minute):
+			t.Errorf("Timeout waiting reshare process to get unlock phase")
 		}
+	}
 
 	// force
 	t.Log("[reshare] Start again!")
@@ -523,14 +523,14 @@ func TestDrandPublicRand(t *testing.T) {
 
 	dt.SetMockClock(t, group.GenesisTime)
 
-	err := dt.WaitUntilRound(t,dt.nodes[0], 1)
+	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
 
 	// do a few periods
 	for i := 0; i < 3; i++ {
 		dt.AdvanceMockClock(t, group.Period)
 
-		err = dt.WaitUntilRound(t, dt.nodes[0],uint64(i+2))
+		err = dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
 		require.NoError(t, err)
 	}
 
@@ -552,7 +552,7 @@ func TestDrandPublicRand(t *testing.T) {
 		t.Logf("Move clock to generate a new round %d \n", i)
 		dt.AdvanceMockClock(t, group.Period)
 
-		err = dt.WaitUntilRound(t,dt.nodes[0], i)
+		err = dt.WaitUntilRound(t, dt.nodes[0], i)
 		require.NoError(t, err)
 
 		req := new(drand.PublicRandRequest)
@@ -587,14 +587,14 @@ func TestDrandPublicStream(t *testing.T) {
 
 	dt.SetMockClock(t, group.GenesisTime)
 
-	err := dt.WaitUntilRound(t, dt.nodes[0],1)
+	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
 
 	// do a few periods
 	for i := 0; i < 3; i++ {
 		dt.AdvanceMockClock(t, group.Period)
 
-		err = dt.WaitUntilRound(t,dt.nodes[0], uint64(i+2))
+		err = dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
 		require.NoError(t, err)
 	}
 
@@ -685,14 +685,14 @@ func TestDrandFollowChain(t *testing.T) {
 
 	dt.SetMockClock(t, group.GenesisTime)
 
-	err := dt.WaitUntilRound(t, dt.nodes[0],1)
+	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
 
 	// do a few periods
 	for i := 0; i < 6; i++ {
 		dt.AdvanceMockClock(t, group.Period)
 
-		err := dt.WaitUntilRound(t, dt.nodes[0],uint64(i+2))
+		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
 		require.NoError(t, err)
 	}
 

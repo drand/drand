@@ -573,13 +573,13 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 	resp := drand.StatusResponse{}
 
 	// Last round
-	resp.IsAnyRound = false;
+	resp.IsAnyRound = false
 
-	if( d.beacon != nil && d.beacon.Store() != nil ){
+	if d.beacon != nil && d.beacon.Store() != nil {
 		beacon, err := d.beacon.Store().Last()
 
-		if( err == nil && beacon != nil){
-			resp.IsAnyRound = true;
+		if err == nil && beacon != nil {
+			resp.IsAnyRound = true
 			resp.LastRound = beacon.GetRound()
 		}
 	}
@@ -587,11 +587,11 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 	// DKG status
 	switch {
 	case d.dkgDone:
-		resp.DkgStatus = uint32(DkgReady);
+		resp.DkgStatus = uint32(DkgReady)
 	case !d.dkgDone && d.receiver != nil:
-		resp.DkgStatus = uint32(DkgInProgress);
+		resp.DkgStatus = uint32(DkgInProgress)
 	default:
-		resp.DkgStatus = uint32(DkgNotStarted);
+		resp.DkgStatus = uint32(DkgNotStarted)
 	}
 
 	// Reshare status

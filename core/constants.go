@@ -58,6 +58,7 @@ var DefaultResharingOffset = 30 * time.Second
 const PrivateRandLength = 32
 
 type DkgStatus uint32
+
 const (
 	DkgReady DkgStatus = iota
 	DkgInProgress
@@ -65,16 +66,16 @@ const (
 )
 
 type ReshareStatus uint32
+
 const (
 	ReshareNotInProgress ReshareStatus = iota
 	ReshareInProgress
 )
 
 type BeaconStatus uint32
+
 const (
 	BeaconStopped BeaconStatus = iota
 	BeaconStarted
 	BeaconNotInit
 )
-
-

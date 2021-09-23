@@ -70,7 +70,7 @@ func NewControlClient(addr string) (*ControlClient, error) {
 }
 
 // Ping the drand daemon to check if it's up and running
-func (c *ControlClient) Ping() ( error) {
+func (c *ControlClient) Ping() error {
 	_, err := c.client.PingPong(ctx.Background(), &control.Ping{})
 	return err
 }

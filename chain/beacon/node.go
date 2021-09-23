@@ -247,7 +247,6 @@ func (h *Handler) Reset() {
 	h.running = false
 }
 
-
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
