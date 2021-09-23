@@ -150,18 +150,19 @@ func (h *Handler) Store() chain.Store {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start() error {
-	h.Lock()
-	defer h.Unlock()
-
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Error("genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
+
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Info("beacon", "start")
 	go h.run(tTime)
 
-	h.started = true
 	return nil
 }
 
@@ -171,9 +172,14 @@ func (h *Handler) Start() error {
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup() {
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
 	h.chain.RunSync(context.Background(), nRound, nil)
+
 }
 
 // Transition makes this beacon continuously sync until the time written in the
@@ -188,10 +194,17 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
+
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	go h.run(targetTime)
+
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debug("new_node", "following chain", "to_round", tRound-1)
 	h.chain.RunSync(context.Background(), tRound-1, toPeers(prevGroup.Nodes))
+
 	return nil
 }
 
@@ -251,10 +264,19 @@ func (h *Handler) Reset() {
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
+
+	setRunnig := sync.Once{}
 	var current roundInfo
 	for {
 		select {
 		case current = <-chanTick:
+
+			setRunnig.Do(func() {
+				h.Lock()
+				h.running = true
+				h.Unlock()
+			})
+
 			lastBeacon, err := h.chain.Last()
 			if err != nil {
 				h.l.Error("beacon_loop", "loading_last", "err", err)
