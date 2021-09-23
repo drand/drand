@@ -342,7 +342,7 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 	var maxRetries = 5
 	for range time.Tick(100 * time.Millisecond) {
 		d.t.Logf("[drand] ping %s: %d/%d", dr.priv.Public.Address(), retryCount, maxRetries)
-		if _, err:= controlClient.Ping(); err != nil {
+		if err:= controlClient.Ping(); err != nil {
 			break
 		}
 		retryCount++
@@ -480,10 +480,10 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 	require.NoError(t, err)
 
 	for{
-		pong, err := newClient.Ping()
+		status, err := newClient.Status()
 		require.NoError(t, err)
 
-		if(pong.IsAnyRound && pong.LastRound == round){
+		if(status.IsAnyRound && status.LastRound == round){
 			return nil
 		}
 

@@ -562,10 +562,15 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
+	return &drand.Pong{}, nil
+}
+
+// Status responds with the actual status of drand process
+func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
 
-	resp := drand.Pong{}
+	resp := drand.StatusResponse{}
 
 	// Last round
 	resp.IsAnyRound = false;

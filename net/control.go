@@ -70,8 +70,14 @@ func NewControlClient(addr string) (*ControlClient, error) {
 }
 
 // Ping the drand daemon to check if it's up and running
-func (c *ControlClient) Ping() (*control.Pong, error) {
-	pong, err := c.client.PingPong(ctx.Background(), &control.Ping{})
+func (c *ControlClient) Ping() ( error) {
+	_, err := c.client.PingPong(ctx.Background(), &control.Ping{})
+	return err
+}
+
+// Status gets the current daemon status
+func (c *ControlClient) Status() (*control.StatusResponse, error) {
+	pong, err := c.client.Status(ctx.Background(), &control.StatusRequest{})
 	return pong, err
 }
 
@@ -254,9 +260,17 @@ type DefaultControlServer struct {
 	C control.ControlServer
 }
 
-// PingPong sends aping to the server
+// PingPong sends a ping to the server
 func (s *DefaultControlServer) PingPong(c ctx.Context, in *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
+}
+
+// Status initiates a status request
+func (s *DefaultControlServer) Status(c ctx.Context, in *control.StatusRequest) (*control.StatusResponse, error) {
+	if s.C == nil {
+		return &control.StatusResponse{}, nil
+	}
+	return s.C.Status(c, in)
 }
 
 // Share initiates a share request

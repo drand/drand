@@ -290,7 +290,7 @@ func pingpongCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := client.Ping(); err != nil {
+	if err := client.Ping(); err != nil {
 		return fmt.Errorf("drand: can't ping the daemon ... %s", err)
 	}
 	fmt.Fprintf(output, "drand daemon is alive on port %s", controlPort(c))
