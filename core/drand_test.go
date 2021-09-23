@@ -184,13 +184,18 @@ func TestRunDKGReshareForce(t *testing.T) {
 		require.Error(t, err)
 	}()
 
-	for {
-		if state := <-stateCh; state == ReshareUnlock {
-			break
+	LOOP:
+		for {
+			select {
+			case state := <-stateCh:
+				if state == ReshareUnlock {
+					break LOOP
+				}
+			case <-time.After(2 * time.Minute):
+				t.Errorf("Timeout waiting reshare process to get unlock phase")
+			}
 		}
-	}
 
-	// TODO: check the previous reshare was running when forcing a new reshare
 	// force
 	t.Log("[reshare] Start again!")
 	group3, err := dt.RunReshare(t, nil, oldNodes, 0, oldThreshold, timeout, true, false, false)
@@ -252,7 +257,9 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
 }
 
-// Test ??????????????????????
+// The test creates the scenario where one node made a complaint during the DKG, at the second phase, so normally,
+// there should be a "Justification" at the third phase. In this case, there is not. This scenario
+// can happen if there is an offline node right at the beginning of DKG that don't even send any message.
 func TestRunDKGReshareTimeout(t *testing.T) {
 	oldNodes, newNodes := 3, 4
 	oldThreshold, newThreshold := 2, 3
@@ -348,7 +355,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	dt.CheckBeaconLength(int(lastBeacon.Round+1), true, dt.Ids(newNodes, true)...)
 }
 
-// Test ??????????????????????
+// This test is where a client can stop the resharing in process and start again
 func TestRunDKGResharePreempt(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping testing in CI environment")
@@ -663,7 +670,7 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
-// ??????????
+// This test makes sure the "FollowChain" grpc method works fine
 func TestDrandFollowChain(t *testing.T) {
 	n := 4
 	p := 1 * time.Second
