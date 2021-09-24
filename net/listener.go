@@ -3,12 +3,13 @@ package net
 import (
 	"context"
 	"crypto/tls"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/protobuf/drand"
 	"net"
 	"net/http"
 	"sync"
+
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/protobuf/drand"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	http_grpc "github.com/weaveworks/common/httpgrpc"

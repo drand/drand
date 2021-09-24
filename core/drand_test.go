@@ -177,7 +177,7 @@ func TestRunDKGReshareForce(t *testing.T) {
 	stateCh := make(chan int)
 	go func() {
 		t.Log("[ReshareForce] Start reshare")
-		_, err := dt.RunReshare(t, &stateCh, oldNodes, 0, oldThreshold, timeout, false, true, false)
+		_, err := dt.RunReshare(t, stateCh, oldNodes, 0, oldThreshold, timeout, false, true, false)
 		require.Error(t, err)
 	}()
 
@@ -357,6 +357,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	dt.CheckBeaconLength(t, dt.resharedNodes, int(lastBeacon.Round+1))
 }
 
+// nolint:funlen
 // This test is where a client can stop the resharing in process and start again
 func TestRunDKGResharePreempt(t *testing.T) {
 	if os.Getenv("CI") != "" {
@@ -676,16 +677,15 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
+// nolint:funlen
 // This test makes sure the "FollowChain" grpc method works fine
 func TestDrandFollowChain(t *testing.T) {
-	n := 4
-	p := 1 * time.Second
+	n, p := 4, 1*time.Second
 
 	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
-
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
@@ -711,7 +711,6 @@ func TestDrandFollowChain(t *testing.T) {
 	require.NoError(t, err)
 
 	// TEST setup a new node and fetch history
-
 	newNode := dt.SetupNewNodes(t, 1)[0]
 	newClient, err := net.NewControlClient(newNode.drand.opts.controlPort)
 	require.NoError(t, err)
@@ -755,7 +754,6 @@ func TestDrandFollowChain(t *testing.T) {
 			select {
 			case p, ok := <-progress:
 				if ok && p.Current == exp {
-					// success
 					t.Logf("Successful beacion rcv. Round: %d. Keep following chain.", exp)
 					goon = false
 					break

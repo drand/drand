@@ -546,11 +546,12 @@ func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan e
 	groupReceivedCh <- fg
 }
 
+// nolint:gocyclo
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
-func (d *DrandTestScenario) RunReshare(t *testing.T, stateCh *chan int,
+func (d *DrandTestScenario) RunReshare(t *testing.T, stateCh chan int,
 	oldRun, newRun, newThr int,
 	timeout time.Duration, force, onlyLeader bool, ignoreErr bool) (*key.Group, error) {
 	if ignoreErr {
@@ -559,7 +560,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, stateCh *chan int,
 
 	d.Lock()
 	if stateCh != nil {
-		*stateCh <- ReshareLock
+		stateCh <- ReshareLock
 	}
 
 	d.t.Logf("[reshare] LOCK")
@@ -619,7 +620,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, stateCh *chan int,
 	d.Unlock()
 
 	if stateCh != nil {
-		*stateCh <- ReshareUnlock
+		stateCh <- ReshareUnlock
 	}
 
 	// wait for the return of the clients
