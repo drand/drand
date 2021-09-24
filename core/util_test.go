@@ -471,7 +471,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 	}
 }
 
-func (d *DrandTestScenario) WaitUntilChainIsRunning(t *testing.T, node *MockNode) error {
+func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode) error {
 	counter := 0
 
 	newClient, err := net.NewControlClient(node.drand.opts.controlPort)
@@ -481,7 +481,7 @@ func (d *DrandTestScenario) WaitUntilChainIsRunning(t *testing.T, node *MockNode
 		status, err := newClient.Status()
 		require.NoError(t, err)
 
-		if status.Beacon.IsRunning {
+		if status.Beacon.IsServing {
 			t.Logf("node %s has its beacon chain running", node.addr)
 			return nil
 		}

@@ -602,6 +602,7 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 		beaconStatus.IsStarted = d.beacon.IsStarted()
 		beaconStatus.IsStopped = d.beacon.IsStopped()
 		beaconStatus.IsRunning = d.beacon.IsRunning()
+		beaconStatus.IsServing = d.beacon.IsServing()
 
 		// Chain store
 		lastBeacon, err := d.beacon.Store().Last()

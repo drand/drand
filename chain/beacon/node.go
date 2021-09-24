@@ -48,6 +48,7 @@ type Handler struct {
 	addr    string
 	started bool
 	running bool
+	serving bool
 	stopped bool
 	l       log.Logger
 }
@@ -236,6 +237,13 @@ func (h *Handler) IsStarted() bool {
 	return h.started
 }
 
+func (h *Handler) IsServing() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.serving
+}
+
 func (h *Handler) IsRunning() bool {
 	h.Lock()
 	defer h.Unlock()
@@ -257,6 +265,7 @@ func (h *Handler) Reset() {
 	h.stopped = false
 	h.started = false
 	h.running = false
+	h.serving = false
 }
 
 // run will wait until it is supposed to start
@@ -264,15 +273,20 @@ func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
 
-	setRunnig := sync.Once{}
 	var current roundInfo
+	setRunnig := sync.Once{}
+
+	h.Lock()
+	h.running = true
+	h.Unlock()
+
 	for {
 		select {
 		case current = <-chanTick:
 
 			setRunnig.Do(func() {
 				h.Lock()
-				h.running = true
+				h.serving = true
 				h.Unlock()
 			})
 

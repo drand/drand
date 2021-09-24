@@ -215,7 +215,7 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	group1 := dt.RunDKG()
 
 	dt.SetMockClock(t, group1.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	// move to genesis time - so nodes start to make a round
 	// dt.AdvanceMockClock(t,offsetGenesis)
@@ -268,7 +268,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	group1 := dt.RunDKG()
 
 	dt.SetMockClock(t, group1.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	// move to genesis time - so nodes start to make a round
 	// dt.AdvanceMockClock(t,offsetGenesis)
@@ -376,7 +376,7 @@ func TestRunDKGResharePreempt(t *testing.T) {
 	group1 := dt.RunDKG()
 
 	dt.SetMockClock(t, group1.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	// move to genesis time - so nodes start to make a round
 	t.Log("Check Beacon Length")
@@ -528,7 +528,7 @@ func TestDrandPublicRand(t *testing.T) {
 	rootID := root.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
@@ -592,7 +592,7 @@ func TestDrandPublicStream(t *testing.T) {
 	rootID := root.drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
@@ -689,7 +689,7 @@ func TestDrandFollowChain(t *testing.T) {
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
@@ -798,7 +798,7 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 
 	root := dt.nodes[0]
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsRunning(t, dt.nodes[0])
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
 	// do a few periods
 	for i := 0; i < 3; i++ {

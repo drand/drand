@@ -168,6 +168,7 @@ message BeaconStatus{
     bool is_running = 2;
     bool is_stopped = 3;
     bool is_started = 4;
+    bool is_serving = 5;
 }
 
 message ChainStoreStatus{
