@@ -51,7 +51,7 @@ func CreatePeer(addr string, tls bool) Peer {
 //
 func RemoteAddress(c context.Context) string {
 	p, ok := peer.FromContext(c)
-	var str string = ""
+	str := ""
 	if ok {
 		str = p.Addr.String()
 	}

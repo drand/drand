@@ -288,7 +288,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 				creds := credentials.NewClientTLSFromCert(pool, "")
 				opts = append(opts, grpc.WithTransportCredentials(creds))
 			} else {
-				config := &tls.Config{}
+				config := &tls.Config{MinVersion: tls.VersionTLS12}
 				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(config)))
 			}
 			c, err = grpc.Dial(p.Address(), opts...)
