@@ -463,7 +463,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 
 		counter++
 		if counter == 10 {
-			return fmt.Errorf("Timeout waiting node %s to reach %d round", node.addr, round)
+			return fmt.Errorf("timeout waiting node %s to reach %d round", node.addr, round)
 		}
 
 		t.Logf("node %s is on %d round, waiting some time to ask again...", node.addr, status.ChainStore.LastRound)
@@ -488,7 +488,7 @@ func (d *DrandTestScenario) WaitUntilChainIsRunning(t *testing.T, node *MockNode
 
 		counter++
 		if counter == 10 {
-			return fmt.Errorf("Timeout waiting node %s to run beacon chain", node.addr)
+			return fmt.Errorf("timeout waiting node %s to run beacon chain", node.addr)
 		}
 
 		t.Logf("node %s has its beacon chain not running yet, waiting some time to ask again...", node.addr)

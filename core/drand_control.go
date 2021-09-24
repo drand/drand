@@ -604,14 +604,12 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 		beaconStatus.IsRunning = d.beacon.IsRunning()
 
 		// Chain store
-		if d.beacon.Store() != nil {
-			beacon, err := d.beacon.Store().Last()
+		beacon, err := d.beacon.Store().Last()
 
-			if err == nil && beacon != nil {
-				chainStore.IsAnyRound = true
-				chainStore.LastRound = beacon.GetRound()
-				chainStore.Length = uint64(d.beacon.Store().Len())
-			}
+		if err == nil && beacon != nil {
+			chainStore.IsAnyRound = true
+			chainStore.LastRound = beacon.GetRound()
+			chainStore.Length = uint64(d.beacon.Store().Len())
 		}
 	}
 

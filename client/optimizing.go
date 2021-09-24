@@ -29,7 +29,6 @@ const (
 	defaultChannelBuffer      = 5
 
 	maxUnixTime = 1<<63 - 62135596801
-
 	maxNanoSec = 999999999
 )
 

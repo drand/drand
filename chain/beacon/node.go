@@ -179,7 +179,6 @@ func (h *Handler) Catchup() {
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
 	h.chain.RunSync(context.Background(), nRound, nil)
-
 }
 
 // Transition makes this beacon continuously sync until the time written in the

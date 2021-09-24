@@ -49,7 +49,7 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	return t.h.chain.sync.SyncChain(req, p)
 }
 
-func dkgShares(tt *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
+func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 	var priPoly *share.PriPoly
 	var pubPoly *share.PubPoly
 	var err error
