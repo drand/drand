@@ -6,6 +6,13 @@ import (
 	kyber "github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 
+	// FIXME staticcheck
+	// package github.com/drand/kyber/sign/bls is deprecated: This version is vulnerable to rogue public-key
+	// attack and the new version of the protocol should be used to make sure a signature aggregate cannot be verified
+	// by a forged key. You can find the protocol in kyber/sign/bdn. Note that only the aggregation is broken
+	// against the attack and a later version will merge bls and asmbls.
+
+	// nolint: staticcheck
 	sign "github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/sign/schnorr"
 	"github.com/drand/kyber/sign/tbls"

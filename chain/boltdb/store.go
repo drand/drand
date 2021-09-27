@@ -24,10 +24,12 @@ var beaconBucket = []byte("beacons")
 // BoltFileName is the name of the file boltdb writes to
 const BoltFileName = "drand.db"
 
+const BoltStoreOpenPerm = 0660
+
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
 func NewBoltStore(folder string, opts *bolt.Options) (chain.Store, error) {
 	dbPath := path.Join(folder, BoltFileName)
-	db, err := bolt.Open(dbPath, 0660, opts)
+	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
 	if err != nil {
 		return nil, err
 	}

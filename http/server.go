@@ -24,6 +24,9 @@ import (
 const (
 	watchConnectBackoff = 300 * time.Millisecond
 	catchupExpiryFactor = 2
+
+	roundNumBase = 10
+	roundNumSize = 64
 )
 
 var (
@@ -236,7 +239,7 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	// Get the round.
 	round := strings.Replace(r.URL.Path, "/public/", "", 1)
-	roundN, err := strconv.ParseUint(round, 10, 64)
+	roundN, err := strconv.ParseUint(round, roundNumBase, roundNumSize)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		h.log.Warn("http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))

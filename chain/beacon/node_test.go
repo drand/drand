@@ -375,7 +375,7 @@ func TestBeaconSync(t *testing.T) {
 	period := 2 * time.Second
 
 	var genesisOffset = 2 * time.Second
-	var genesisTime int64 = clock.NewFakeClock().Now().Add(genesisOffset).Unix()
+	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
 	fmt.Println(" HERE TEST 10")
 	bt := NewBeaconTest(n, thr, period, genesisTime)
 	fmt.Println(" HERE TEST 11")
@@ -442,7 +442,7 @@ func TestBeaconSimple(t *testing.T) {
 	thr := n/2 + 1
 	period := 2 * time.Second
 
-	var genesisTime int64 = clock.NewFakeClock().Now().Unix() + 2
+	genesisTime := clock.NewFakeClock().Now().Unix() + 2
 
 	bt := NewBeaconTest(n, thr, period, genesisTime)
 	defer bt.CleanUp()
@@ -488,7 +488,7 @@ func TestBeaconThreshold(t *testing.T) {
 	period := 2 * time.Second
 
 	offsetGenesis := 2 * time.Second
-	var genesisTime int64 = clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
+	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
 
 	bt := NewBeaconTest(n, thr, period, genesisTime)
 	defer func() { go bt.CleanUp() }()
