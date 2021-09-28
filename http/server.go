@@ -24,9 +24,8 @@ import (
 const (
 	watchConnectBackoff = 300 * time.Millisecond
 	catchupExpiryFactor = 2
-
-	roundNumBase = 10
-	roundNumSize = 64
+	roundNumBase        = 10
+	roundNumSize        = 64
 )
 
 var (

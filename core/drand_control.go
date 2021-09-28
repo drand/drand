@@ -565,6 +565,58 @@ func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error)
 	return &drand.Pong{}, nil
 }
 
+// Status responds with the actual status of drand process
+func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
+	d.state.Lock()
+	defer d.state.Unlock()
+
+	dkgStatus := drand.DkgStatus{}
+	reshareStatus := drand.ReshareStatus{}
+	beaconStatus := drand.BeaconStatus{}
+	chainStore := drand.ChainStoreStatus{}
+
+	// DKG status
+	switch {
+	case d.dkgDone:
+		dkgStatus.Status = uint32(DkgReady)
+	case !d.dkgDone && d.receiver != nil:
+		dkgStatus.Status = uint32(DkgInProgress)
+	default:
+		dkgStatus.Status = uint32(DkgNotStarted)
+	}
+
+	// Reshare status
+	switch {
+	case !d.dkgDone:
+		reshareStatus.Status = uint32(ReshareInProgress)
+	case d.dkgDone && d.receiver != nil:
+		reshareStatus.Status = uint32(ReshareNotInProgress)
+	}
+
+	// Beacon status
+	beaconStatus.Status = uint32(BeaconNotInited)
+
+	if d.beacon != nil {
+		beaconStatus.Status = uint32(BeaconInited)
+
+		beaconStatus.IsStarted = d.beacon.IsStarted()
+		beaconStatus.IsStopped = d.beacon.IsStopped()
+		beaconStatus.IsRunning = d.beacon.IsRunning()
+		beaconStatus.IsServing = d.beacon.IsServing()
+
+		// Chain store
+		lastBeacon, err := d.beacon.Store().Last()
+
+		if err == nil && lastBeacon != nil {
+			chainStore.IsAnyRound = true
+			chainStore.LastRound = lastBeacon.GetRound()
+			chainStore.Length = uint64(d.beacon.Store().Len())
+		}
+	}
+
+	return &drand.StatusResponse{Dkg: &dkgStatus, Reshare: &reshareStatus, ChainStore: &chainStore, Beacon: &beaconStatus}, nil
+}
+
 // Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
 func (d *Drand) Share(ctx context.Context, in *drand.ShareRequest) (*drand.ShareResponse, error) {
 	share, err := d.store.LoadShare()
@@ -691,7 +743,7 @@ type pushResult struct {
 	err     error
 }
 
-// pushDKGInfoPacket sets a specific DKG info packet to spcified nodes, and returns a stream of responses.
+// pushDKGInfoPacket sets a specific DKG info packet to specified nodes, and returns a stream of responses.
 func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet *drand.DKGInfoPacket) chan pushResult {
 	results := make(chan pushResult, len(nodes))
 
@@ -708,8 +760,8 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 	return results
 }
 
-// pushDKGInfo sends the information to run the DKG to all specified nodes. The
-// call is blocking until all nodes have replied or after one minute timeouts.
+// pushDKGInfo sends the information to run the DKG to all specified nodes.
+// The call is blocking until all nodes have replied or after one minute timeouts.
 func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
@@ -717,15 +769,16 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		d.log.Error("setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)
 	}
+
+	// Prepare packet
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(),
 		SecretProof: secret,
 		DkgTimeout:  timeout,
 		Signature:   signature,
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
+	// Calculate threshold
 	newThreshold := group.Threshold
 	if nodesContainAddr(outgoing, d.priv.Public.Address()) {
 		previousThreshold--
@@ -735,12 +788,16 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 	to := nodeUnion(outgoing, incoming)
 
-	results := d.pushDKGInfoPacket(ctx, to, packet)
+	// Send packet
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	resultsCh := d.pushDKGInfoPacket(ctx, to, packet)
 
+	//
 	total := len(to) - 1
 	for total > 0 {
 		select {
-		case ok := <-results:
+		case ok := <-resultsCh:
 			total--
 			if ok.err != nil {
 				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", ok.err)
@@ -762,11 +819,13 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 			return errors.New("push group timeout")
 		}
 	}
+
 	if previousThreshold > 0 || newThreshold > 0 {
 		d.log.Info("push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
 		return errors.New("push group failure")
 	}
 	d.log.Info("push_dkg", "sending_group", "status", "all succeeded")
+
 	return nil
 }
 

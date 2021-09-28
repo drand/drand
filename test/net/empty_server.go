@@ -75,6 +75,11 @@ func (s *EmptyServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error
 	return nil, nil
 }
 
+// PingPong is an empty implementation
+func (s *EmptyServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error) {
+	return nil, nil
+}
+
 // InitDKG is an empty implementation
 func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	return nil, nil
