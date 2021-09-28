@@ -75,6 +75,12 @@ func (c *ControlClient) Ping() error {
 	return err
 }
 
+// Status gets the current daemon status
+func (c *ControlClient) Status() (*control.StatusResponse, error) {
+	pong, err := c.client.Status(ctx.Background(), &control.StatusRequest{})
+	return pong, err
+}
+
 // InitReshareLeader sets up the node to be ready for a resharing protocol.
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
@@ -122,11 +128,13 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(nodes, threshold int,
+func (c *ControlClient) InitDKGLeader(
+	nodes, threshold int,
 	beaconPeriod, catchupPeriod, timeout time.Duration,
 	entropy *control.EntropyInfo,
 	secret string,
-	offset int) (*control.GroupPacket, error) {
+	offset int,
+) (*control.GroupPacket, error) {
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
@@ -140,6 +148,7 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
 	}
+
 	return c.client.InitDKG(ctx.Background(), request)
 }
 
@@ -251,9 +260,17 @@ type DefaultControlServer struct {
 	C control.ControlServer
 }
 
-// PingPong sends aping to the server
+// PingPong sends a ping to the server
 func (s *DefaultControlServer) PingPong(c ctx.Context, in *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
+}
+
+// Status initiates a status request
+func (s *DefaultControlServer) Status(c ctx.Context, in *control.StatusRequest) (*control.StatusResponse, error) {
+	if s.C == nil {
+		return &control.StatusResponse{}, nil
+	}
+	return s.C.Status(c, in)
 }
 
 // Share initiates a share request

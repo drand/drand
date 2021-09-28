@@ -3,7 +3,7 @@
 set -x
 
 curr=$(pwd)
-cd $GOPATH/src/github.com/dedis/drand
+cd $GOPATH/src/github.com/drand/drand
 
 echo "[+] building drand ..."
 go build

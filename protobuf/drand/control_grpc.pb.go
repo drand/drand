@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type ControlClient interface {
 	// PingPong returns an empty message. Purpose is to test the control port.
 	PingPong(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error)
+	// Status responds with the actual status of drand process
+	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error)
 	// InitReshares sends all informations so that the drand node knows how to
@@ -53,6 +55,15 @@ func NewControlClient(cc grpc.ClientConnInterface) ControlClient {
 func (c *controlClient) PingPong(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error) {
 	out := new(Pong)
 	err := c.cc.Invoke(ctx, "/drand.Control/PingPong", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
+	out := new(StatusResponse)
+	err := c.cc.Invoke(ctx, "/drand.Control/Status", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +189,8 @@ func (c *controlClient) BackupDatabase(ctx context.Context, in *BackupDBRequest,
 type ControlServer interface {
 	// PingPong returns an empty message. Purpose is to test the control port.
 	PingPong(context.Context, *Ping) (*Pong, error)
+	// Status responds with the actual status of drand process
+	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error)
 	// InitReshares sends all informations so that the drand node knows how to
@@ -206,6 +219,9 @@ type UnimplementedControlServer struct {
 
 func (UnimplementedControlServer) PingPong(context.Context, *Ping) (*Pong, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PingPong not implemented")
+}
+func (UnimplementedControlServer) Status(context.Context, *StatusRequest) (*StatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 func (UnimplementedControlServer) InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitDKG not implemented")
@@ -263,6 +279,24 @@ func _Control_PingPong_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServer).PingPong(ctx, req.(*Ping))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).Status(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/drand.Control/Status",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).Status(ctx, req.(*StatusRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -460,6 +494,10 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PingPong",
 			Handler:    _Control_PingPong_Handler,
+		},
+		{
+			MethodName: "Status",
+			Handler:    _Control_Status_Handler,
 		},
 		{
 			MethodName: "InitDKG",

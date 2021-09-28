@@ -35,7 +35,7 @@ import (
 // the group file, with a genesis time that is current() + 10m
 // * Leader sends group file to nodes and already start sending the first DKG
 // packet
-// * Node verify they are included and if so, run the DKG as well (processing
+// * MockNode verify they are included and if so, run the DKG as well (processing
 // the first packet of the leader will make them broadcast their deals)
 // Once dkg is finished, all nodes wait for the genesis time to start the
 // randomness generation

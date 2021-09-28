@@ -313,30 +313,35 @@ func MinimumT(n int) int {
 	return (n >> 1) + 1
 }
 
-// GroupFromProto convertes a protobuf group into a local Group object
+// GroupFromProto converts a protobuf group into a local Group object
 func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	var nodes = make([]*Node, 0, len(g.GetNodes()))
-	for _, id := range g.GetNodes() {
-		kid, err := NodeFromProto(id)
+	for _, pbNode := range g.GetNodes() {
+		kid, err := NodeFromProto(pbNode)
 		if err != nil {
 			return nil, err
 		}
 		nodes = append(nodes, kid)
 	}
+
 	n := len(nodes)
 	thr := int(g.GetThreshold())
 	if thr < MinimumT(n) {
 		return nil, fmt.Errorf("invalid threshold: %d vs %d (minimum)", thr, MinimumT(n))
 	}
+
 	genesisTime := int64(g.GetGenesisTime())
 	if genesisTime == 0 {
 		return nil, fmt.Errorf("genesis time zero")
 	}
+
 	period := time.Duration(g.GetPeriod()) * time.Second
 	if period == time.Duration(0) {
 		return nil, fmt.Errorf("period time is zero")
 	}
+
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
+
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
 		c := KeyGroup.Point()
@@ -345,6 +350,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		}
 		dist.Coefficients = append(dist.Coefficients, c)
 	}
+
 	group := &Group{
 		Threshold:      thr,
 		Period:         period,
@@ -353,15 +359,18 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		GenesisTime:    genesisTime,
 		TransitionTime: int64(g.GetTransitionTime()),
 	}
+
 	if g.GetGenesisSeed() != nil {
 		group.GenesisSeed = g.GetGenesisSeed()
 	}
+
 	if len(dist.Coefficients) > 0 {
 		if len(dist.Coefficients) != group.Threshold {
 			return nil, fmt.Errorf("public coefficient length %d is not equal to threshold %d", len(dist.Coefficients), group.Threshold)
 		}
 		group.PublicKey = dist
 	}
+
 	return group, nil
 }
 

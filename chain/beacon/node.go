@@ -47,6 +47,8 @@ type Handler struct {
 	close   chan bool
 	addr    string
 	started bool
+	running bool
+	serving bool
 	stopped bool
 	l       log.Logger
 }
@@ -153,9 +155,15 @@ func (h *Handler) Start() error {
 		h.l.Error("genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
+
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	h.l.Info("beacon", "start")
 	go h.run(tTime)
+
 	return nil
 }
 
@@ -165,6 +173,10 @@ func (h *Handler) Start() error {
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup() {
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
 	h.chain.RunSync(context.Background(), nRound, nil)
@@ -182,10 +194,17 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
+
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	go h.run(targetTime)
+
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debug("new_node", "following chain", "to_round", tRound-1)
 	h.chain.RunSync(context.Background(), tRound-1, toPeers(prevGroup.Nodes))
+
 	return nil
 }
 
@@ -211,14 +230,66 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	})
 }
 
+func (h *Handler) IsStarted() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.started
+}
+
+func (h *Handler) IsServing() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.serving
+}
+
+func (h *Handler) IsRunning() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.running
+}
+
+func (h *Handler) IsStopped() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.stopped
+}
+
+func (h *Handler) Reset() {
+	h.Lock()
+	defer h.Unlock()
+
+	h.stopped = false
+	h.started = false
+	h.running = false
+	h.serving = false
+}
+
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debug("run_round", "wait", "until", startTime)
+
 	var current roundInfo
+	setRunnig := sync.Once{}
+
+	h.Lock()
+	h.running = true
+	h.Unlock()
+
 	for {
 		select {
 		case current = <-chanTick:
+
+			setRunnig.Do(func() {
+				h.Lock()
+				h.serving = true
+				h.Unlock()
+			})
+
 			lastBeacon, err := h.chain.Last()
 			if err != nil {
 				h.l.Error("beacon_loop", "loading_last", "err", err)
@@ -316,9 +387,12 @@ func (h *Handler) Stop() {
 		return
 	}
 	close(h.close)
+
 	h.chain.Stop()
 	h.ticker.Stop()
+
 	h.stopped = true
+	h.running = false
 	h.l.Info("beacon", "stop")
 }
 

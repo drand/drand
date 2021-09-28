@@ -14,6 +14,8 @@ import "drand/common.proto";
 service Control {
     // PingPong returns an empty message. Purpose is to test the control port.
     rpc PingPong(Ping) returns (Pong) { }
+    // Status responds with the actual status of drand process
+    rpc Status(StatusRequest) returns (StatusResponse) { }
     // InitDKG sends information to daemon to start a fresh DKG protocol 
     rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) { }
     // InitReshares sends all informations so that the drand node knows how to
@@ -140,6 +142,39 @@ message Ping {
 }
 
 message Pong {
+}
+
+message StatusRequest {
+}
+
+
+message StatusResponse {
+    DkgStatus dkg = 1;
+    ReshareStatus reshare = 2;
+    BeaconStatus beacon = 3;
+    ChainStoreStatus chain_store = 4;
+}
+
+message DkgStatus{
+    uint32 status = 1;
+}
+
+message ReshareStatus{
+    uint32 status = 1;
+}
+
+message BeaconStatus{
+    uint32 status = 1;
+    bool is_running = 2;
+    bool is_stopped = 3;
+    bool is_started = 4;
+    bool is_serving = 5;
+}
+
+message ChainStoreStatus{
+    bool is_any_round = 1;
+    uint64 last_round = 2;
+    uint64 length = 3;
 }
 
 // PublicKeyRequest requests the public key of a drand node
