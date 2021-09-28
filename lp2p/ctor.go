@@ -39,6 +39,8 @@ const (
 	highWater                 = 200
 	gracePeriod               = time.Minute
 	bootstrapTimeout          = 5 * time.Second
+	allDirPerm                = 0755
+	identityFilePerm          = 0600
 )
 
 // PubSubTopic generates a drand pubsub topic from a chain hash.
@@ -150,11 +152,11 @@ func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, 
 		if err != nil {
 			return nil, xerrors.Errorf("marshaling private key: %w", err)
 		}
-		err = os.MkdirAll(path.Dir(identityPath), 0755)
+		err = os.MkdirAll(path.Dir(identityPath), allDirPerm)
 		if err != nil {
 			return nil, xerrors.Errorf("creating identity directory and parents: %w", err)
 		}
-		err = ioutil.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), 0600)
+		err = ioutil.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), identityFilePerm)
 		if err != nil {
 			return nil, xerrors.Errorf("writing identity file: %w", err)
 		}

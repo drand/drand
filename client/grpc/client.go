@@ -38,7 +38,7 @@ func New(address, certPath string, insecure bool) (client.Client, error) {
 	} else if insecure {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})))
 	}
 	opts = append(opts,
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
