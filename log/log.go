@@ -29,6 +29,12 @@ const (
 	LogInfo
 	// LogDebug sets the logging verbosity to debug
 	LogDebug
+	// LogWarn sets the logging verbosity to warn
+	LogWarn
+	// LogError sets the logging verbosity to error
+	LogError
+	// LogAll sets the logging verbosity to all
+	LogAll
 )
 
 const logStackDepth = 6
@@ -76,6 +82,12 @@ func NewLogger(l log.Logger, level int) Logger {
 		opt = lvl.AllowInfo()
 	case LogDebug:
 		opt = lvl.AllowDebug()
+	case LogWarn:
+		opt = lvl.AllowWarn()
+	case LogError:
+		opt = lvl.AllowError()
+	case LogAll:
+		opt = lvl.AllowAll()
 	default:
 		panic("unknown log level")
 	}
