@@ -49,7 +49,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
-		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), in.GetInfo())
+		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), in.GetDecouplePrevSig(), in.GetInfo())
 	}
 
 	// expect the group

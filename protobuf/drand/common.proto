@@ -43,6 +43,7 @@ message GroupPacket {
     repeated bytes dist_key = 7;
     // catchup_period in seconds
     uint32 catchup_period = 8;
+    bool decouple_prev_sig = 9;
     common.Metadata metadata = 10;
 }
 message GroupRequest {
@@ -65,5 +66,6 @@ message ChainInfoPacket {
     bytes hash = 4;
     // hash of the genesis group
     bytes groupHash = 5;
+    bool decouple_prev_sig = 6;
     common.Metadata metadata = 7;
 }

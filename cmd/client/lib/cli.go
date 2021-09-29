@@ -78,6 +78,11 @@ var (
 		Name:  "port",
 		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
+	// DecouplePrevSigFlag indicates if the previous signature should be used to generate the next one or not
+	DecouplePrevSigFlag = &cli.BoolFlag{
+		Name:  "decouple-prev-sig",
+		Usage: "Indicates if the previous signature should be used to generate the next one or not",
+	}
 
 	// JsonFlag is the CLI flag for enabling JSON output for logger
 	JSONFlag = &cli.BoolFlag{
@@ -97,6 +102,7 @@ var ClientFlags = []cli.Flag{
 	RelayFlag,
 	PortFlag,
 	JSONFlag,
+	DecouplePrevSigFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied
@@ -138,8 +144,13 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		opts = append(opts, client.WithChainHash(hash))
 	}
+
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
+	}
+
+	if c.Bool(DecouplePrevSigFlag.Name) {
+		opts = append(opts, client.DecouplePrevSig())
 	}
 
 	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)

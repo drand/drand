@@ -133,7 +133,8 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
-			msg := roundCache.Msg()
+			msg := roundCache.Msg(c.conf.Group.DecouplePrevSig)
+
 			finalSig, err := key.Scheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
 				c.l.Debugw("", "invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))

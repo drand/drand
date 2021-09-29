@@ -102,7 +102,7 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 		beacon := protoToBeacon(beaconPacket)
 
 		// verify the signature validity
-		if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
+		if err := beacon.Verify(s.info.PublicKey, s.info.DecouplePrevSig); err != nil {
 			s.l.Debugw("", "syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
 			return false
 		}

@@ -142,8 +142,8 @@ func (r *roundCache) Len() int {
 }
 
 // Msg provides the chain for the current round
-func (r *roundCache) Msg() []byte {
-	return chain.Message(r.round, r.prev)
+func (r *roundCache) Msg(decouple bool) []byte {
+	return chain.Message(r.round, r.prev, decouple)
 }
 
 // Partials provides all cached partial signatures

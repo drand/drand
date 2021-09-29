@@ -19,10 +19,11 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 	}
 
 	return &Info{
-		PublicKey:   public,
-		GenesisTime: p.GenesisTime,
-		Period:      time.Duration(p.Period) * time.Second,
-		GroupHash:   p.GroupHash,
+		PublicKey:       public,
+		GenesisTime:     p.GenesisTime,
+		Period:          time.Duration(p.Period) * time.Second,
+		GroupHash:       p.GroupHash,
+		DecouplePrevSig: p.DecouplePrevSig,
 	}, nil
 }
 
@@ -30,11 +31,12 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 func (c *Info) ToProto() *drand.ChainInfoPacket {
 	buff, _ := c.PublicKey.MarshalBinary()
 	return &drand.ChainInfoPacket{
-		PublicKey:   buff,
-		GenesisTime: c.GenesisTime,
-		Period:      uint32(c.Period.Seconds()),
-		Hash:        c.Hash(),
-		GroupHash:   c.GroupHash,
+		PublicKey:       buff,
+		GenesisTime:     c.GenesisTime,
+		Period:          uint32(c.Period.Seconds()),
+		Hash:            c.Hash(),
+		GroupHash:       c.GroupHash,
+		DecouplePrevSig: c.DecouplePrevSig,
 	}
 }
 

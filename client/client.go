@@ -76,7 +76,8 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		opts := Opts{decouplePrevSig: cfg.decouplePrevSig, strict: cfg.fullVerify}
+		nv := newVerifyingClient(source, cfg.previousResult, opts)
 		verifiers = append(verifiers, nv)
 		if source == wc {
 			wc = nv
@@ -166,6 +167,8 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
+	// decoupledPrevSig
+	decouplePrevSig bool
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -213,6 +216,14 @@ func From(c ...Client) Option {
 func Insecurely() Option {
 	return func(cfg *clientConfig) error {
 		cfg.insecure = true
+		return nil
+	}
+}
+
+// DecouplePrevSig
+func DecouplePrevSig() Option {
+	return func(cfg *clientConfig) error {
+		cfg.decouplePrevSig = true
 		return nil
 	}
 }

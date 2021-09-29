@@ -155,7 +155,7 @@ func (c *ControlClient) InitDKGLeader(
 	entropy *control.EntropyInfo,
 	secret string,
 	offset int,
-) (*control.GroupPacket, error) {
+	decouplePrevSig bool) (*control.GroupPacket, error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
 	request := &control.InitDKGPacket{
@@ -167,9 +167,10 @@ func (c *ControlClient) InitDKGLeader(
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
-		Entropy:       entropy,
-		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
-		CatchupPeriod: uint32(catchupPeriod.Seconds()),
+		Entropy:         entropy,
+		BeaconPeriod:    uint32(beaconPeriod.Seconds()),
+		CatchupPeriod:   uint32(catchupPeriod.Seconds()),
+		DecouplePrevSig: decouplePrevSig,
 		Metadata:      metadata,
 	}
 
