@@ -45,7 +45,7 @@ test-integration:
 	go test -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
-coverage: build_proto
+coverage:
 	go get -u github.com/ory/go-acc
 	go get -v -t -d ./...
 	COVERAGE=true go-acc ./...
