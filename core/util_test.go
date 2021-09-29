@@ -54,12 +54,13 @@ type DrandTestScenario struct {
 	// global clock on which all drand clocks are synchronized
 	clock clock.FakeClock
 
-	n             int
-	thr           int
-	newN          int
-	newThr        int
-	period        time.Duration
-	catchupPeriod time.Duration
+	n               int
+	thr             int
+	newN            int
+	newThr          int
+	period          time.Duration
+	catchupPeriod   time.Duration
+	decouplePrevSig bool
 
 	// only set after the DKG
 	group *key.Group
@@ -83,14 +84,14 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
-func BatchNewDrand(t *testing.T, n int, insecure bool, opts ...ConfigOption) (
+func BatchNewDrand(t *testing.T, n int, insecure, decouplePrevSig bool, opts ...ConfigOption) (
 	drands []*Drand, group *key.Group, dir string, certPaths []string,
 ) {
 	var privs []*key.Pair
 	if insecure {
-		privs, group = test.BatchIdentities(n)
+		privs, group = test.BatchIdentities(n, decouplePrevSig)
 	} else {
-		privs, group = test.BatchTLSIdentities(n)
+		privs, group = test.BatchTLSIdentities(n, decouplePrevSig)
 	}
 
 	ports := test.Ports(n)
@@ -172,11 +173,11 @@ func getSleepDuration() time.Duration {
 // NewDrandTest creates a drand test scenario with initial n nodes and ready to
 // run a DKG for the given threshold that will then launch the beacon with the
 // specified period
-func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration) *DrandTestScenario {
+func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, decouplePrevSig bool) *DrandTestScenario {
 	dt := new(DrandTestScenario)
 
 	drands, _, dir, certPaths := BatchNewDrand(
-		t, n, false, WithCallOption(grpc.WaitForReady(true)),
+		t, n, false, decouplePrevSig, WithCallOption(grpc.WaitForReady(true)),
 	)
 
 	dt.t = t
@@ -184,6 +185,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration) *Drand
 	dt.certPaths = certPaths
 	dt.groupPath = path.Join(dt.dir, "group.toml")
 	dt.n = n
+	dt.decouplePrevSig = decouplePrevSig
 	dt.thr = thr
 	dt.period = period
 	dt.clock = clock.NewFakeClock()
@@ -235,7 +237,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
-			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset)
+			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.decouplePrevSig)
 		require.NoError(d.t, err)
 
 		d.t.Log("[RunDKG] Leader obtain group")
@@ -420,8 +422,8 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
 func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNode {
-	newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false,
-		WithCallOption(grpc.WaitForReady(false)), WithLogLevel(log.LogDebug, false))
+	newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.decouplePrevSig,
+		WithCallOption(grpc.WaitForReady(false)), WithLogLevel(log.LogDebug))
 	d.newCertPaths = newCertPaths
 	d.newDir = newDir
 	d.newNodes = make([]*MockNode, newNodes)

@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/demo/lib"
 )
 
@@ -44,7 +46,7 @@ func main() {
 	thr := 4
 	period := "10s"
 	newThr := 5
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
+	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, utils.PrevSigDecoupling())
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create

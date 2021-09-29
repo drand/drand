@@ -7,12 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
 )
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true, utils.PrevSigDecoupling())
 	defer cancel()
 
 	err := IsServerReady(addr)
@@ -49,7 +51,7 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestHTTPGetLatest(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, utils.PrevSigDecoupling())
 	defer cancel()
 
 	err := IsServerReady(addr)
@@ -83,7 +85,7 @@ func TestHTTPGetLatest(t *testing.T) {
 }
 
 func TestForURLsCreation(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, utils.PrevSigDecoupling())
 	defer cancel()
 
 	err := IsServerReady(addr)
@@ -100,7 +102,7 @@ func TestForURLsCreation(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, utils.PrevSigDecoupling())
 	defer cancel()
 
 	err := IsServerReady(addr)
@@ -129,7 +131,7 @@ func TestHTTPWatch(t *testing.T) {
 }
 
 func TestHTTPClientClose(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, utils.PrevSigDecoupling())
 	defer cancel()
 
 	err := IsServerReady(addr)

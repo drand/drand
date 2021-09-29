@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/drand/drand/chain"
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
@@ -23,7 +24,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	msg := beacon.Message(previousSig, uint64(round))
+	msg := beacon.Message(previousSig, uint64(round), utils.PrevSigDecoupling())
 	signature, err := scheme.Sign(private, msg)
 	if err != nil {
 		panic(err)

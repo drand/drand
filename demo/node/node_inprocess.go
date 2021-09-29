@@ -22,11 +22,12 @@ import (
 )
 
 type LocalNode struct {
-	base       string
-	i          int
-	period     string
-	publicPath string
-	certPath   string
+	base            string
+	i               int
+	period          string
+	decouplePrevSig bool
+	publicPath      string
+	certPath        string
 	// certificate key
 	keyPath string
 	// where all public certs are stored
@@ -153,7 +154,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset)
+		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.decouplePrevSig)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
 		grp, err = cl.InitDKG(leader, nil, secretDKG)

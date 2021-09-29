@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/key"
@@ -116,42 +118,44 @@ type node struct {
 }
 
 type BeaconTest struct {
-	paths   []string
-	n       int
-	thr     int
-	shares  []*key.Share
-	period  time.Duration
-	group   *key.Group
-	privs   []*key.Pair
-	dpublic kyber.Point
-	nodes   map[int]*node
-	time    clock.FakeClock
-	prefix  string
+	paths           []string
+	n               int
+	thr             int
+	shares          []*key.Share
+	period          time.Duration
+	group           *key.Group
+	privs           []*key.Pair
+	dpublic         kyber.Point
+	nodes           map[int]*node
+	time            clock.FakeClock
+	prefix          string
+	decouplePrevSig bool
 }
 
-func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64) *BeaconTest {
+func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, decouplePrevSig bool) *BeaconTest {
 	prefix, err := ioutil.TempDir(os.TempDir(), "beacon-test")
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(t, n, thr)
-	privs, group := test.BatchIdentities(n)
+	privs, group := test.BatchIdentities(n, decouplePrevSig)
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
 	group.PublicKey = &key.DistPublic{Coefficients: commits}
 
 	bt := &BeaconTest{
-		prefix:  prefix,
-		n:       n,
-		privs:   privs,
-		thr:     thr,
-		period:  period,
-		paths:   paths,
-		shares:  shares,
-		group:   group,
-		dpublic: group.PublicKey.PubPoly().Commit(),
-		nodes:   make(map[int]*node),
-		time:    clock.NewFakeClock(),
+		prefix:          prefix,
+		n:               n,
+		privs:           privs,
+		thr:             thr,
+		period:          period,
+		decouplePrevSig: decouplePrevSig,
+		paths:           paths,
+		shares:          shares,
+		group:           group,
+		dpublic:         group.PublicKey.PubPoly().Commit(),
+		nodes:           make(map[int]*node),
+		time:            clock.NewFakeClock(),
 	}
 
 	for i := 0; i < n; i++ {
@@ -390,16 +394,15 @@ func TestBeaconSync(t *testing.T) {
 	thr := n/2 + 1
 	period := 2 * time.Second
 
-	var genesisOffset = 2 * time.Second
+	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-
-	bt := NewBeaconTest(t, n, thr, period, genesisTime)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, utils.PrevSigDecoupling())
 	defer bt.CleanUp()
 
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) func(*chain.Beacon) {
 		return func(b *chain.Beacon) {
-			require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
+			require.NoError(t, b.Verify(bt.dpublic, utils.PrevSigDecoupling()))
 			t.Logf("round %d done for %s\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
 			counter.Done()
 		}
@@ -459,6 +462,7 @@ func TestBeaconSync(t *testing.T) {
 
 	doRound(n+n-online, period)
 }
+
 func TestBeaconSimple(t *testing.T) {
 	n := 3
 	thr := n/2 + 1
@@ -466,14 +470,14 @@ func TestBeaconSimple(t *testing.T) {
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, utils.PrevSigDecoupling())
 	defer bt.CleanUp()
 
 	var counter = &sync.WaitGroup{}
 	counter.Add(n)
 	myCallBack := func(b *chain.Beacon) {
 		// verify partial sig
-		require.NoError(t, chain.VerifyBeacon(bt.dpublic, b))
+		require.NoError(t, b.Verify(bt.dpublic, utils.PrevSigDecoupling()))
 		counter.Done()
 	}
 
@@ -522,15 +526,17 @@ func TestBeaconThreshold(t *testing.T) {
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, utils.PrevSigDecoupling())
 	defer func() { go bt.CleanUp() }()
-	var currentRound uint64 = 0
+	currentRound := uint64(0)
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) func(*chain.Beacon) {
 		return func(b *chain.Beacon) {
 			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
-			msg := chain.Message(b.Round, b.PreviousSig)
+
+			msg := chain.Message(b.Round, b.PreviousSig, utils.PrevSigDecoupling())
+
 			err := key.Scheme.VerifyRecovered(bt.dpublic, msg, b.Signature)
 			require.NoError(t, err)
 			// callbacks are called for syncing up as well so we only decrease

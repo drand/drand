@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
@@ -27,9 +29,9 @@ import (
 	ma "github.com/multiformats/go-multiaddr"
 )
 
-func TestGRPCClient(t *testing.T) {
+func TestGRPCClientTestFunc(t *testing.T) {
 	// start mock drand node
-	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false)
+	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false, utils.PrevSigDecoupling())
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
@@ -114,8 +116,8 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 	}
 }
 
-func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false)
+func HTTPClientTestFunc(t *testing.T) {
+	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, utils.PrevSigDecoupling())
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")

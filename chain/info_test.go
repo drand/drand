@@ -4,21 +4,24 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
 	"github.com/stretchr/testify/require"
 )
 
 func TestChainInfo(t *testing.T) {
-	_, g1 := test.BatchIdentities(5)
+	_, g1 := test.BatchIdentities(5, utils.PrevSigDecoupling())
 	c1 := NewChainInfo(g1)
 	require.NotNil(t, c1)
 	h1 := c1.Hash()
 	require.NotNil(t, h1)
 	fake := &key.Group{
-		Period:      g1.Period,
-		GenesisTime: g1.GenesisTime,
-		PublicKey:   g1.PublicKey,
+		Period:          g1.Period,
+		GenesisTime:     g1.GenesisTime,
+		PublicKey:       g1.PublicKey,
+		DecouplePrevSig: g1.DecouplePrevSig,
 	}
 	c12 := NewChainInfo(fake)
 	// Note: the fake group here does not hash the same.
@@ -27,7 +30,7 @@ func TestChainInfo(t *testing.T) {
 	require.Equal(t, h1, h12)
 	require.Equal(t, c1, c12)
 
-	_, g2 := test.BatchIdentities(5)
+	_, g2 := test.BatchIdentities(5, utils.PrevSigDecoupling())
 	c2 := NewChainInfo(g2)
 	h2 := c2.Hash()
 	require.NotEqual(t, h1, h2)

@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,7 +38,7 @@ func TestRunDKG(t *testing.T) {
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -62,7 +63,7 @@ func TestRunDKGLarge(t *testing.T) {
 	n := 22
 	expectedBeaconPeriod := 5 * time.Second
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -83,7 +84,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	n := 4
 	beaconPeriod := 1 * time.Second
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), beaconPeriod)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), beaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	// Run DKG
@@ -131,7 +132,7 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 	thr := 3
 	beaconPeriod := 1 * time.Second
 
-	dt := NewDrandTestScenario(t, n, thr, beaconPeriod)
+	dt := NewDrandTestScenario(t, n, thr, beaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	// close connection between a pair of nodes
@@ -165,7 +166,7 @@ func TestRunDKGReshareForce(t *testing.T) {
 	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 
-	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod)
+	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -209,7 +210,7 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	oldThreshold, newThreshold := 2, 3
 	timeout, beaconPeriod := 1*time.Second, 2*time.Second
 
-	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod)
+	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -262,7 +263,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	timeout, beaconPeriod := 1*time.Second, 2*time.Second
 	offline := 1
 
-	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod)
+	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -370,7 +371,7 @@ func TestRunDKGResharePreempt(t *testing.T) {
 	timeout := 1 * time.Second
 	beaconPeriod := 2 * time.Second
 
-	dt := NewDrandTestScenario(t, oldN, Thr, beaconPeriod)
+	dt := NewDrandTestScenario(t, oldN, Thr, beaconPeriod, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -464,7 +465,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 
-	dt := NewDrandTestScenario(t, n, thr, p)
+	dt := NewDrandTestScenario(t, n, thr, p, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -519,7 +520,7 @@ func TestDrandPublicRand(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 
-	dt := NewDrandTestScenario(t, n, thr, p)
+	dt := NewDrandTestScenario(t, n, thr, p, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -583,7 +584,7 @@ func TestDrandPublicStream(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 
-	dt := NewDrandTestScenario(t, n, thr, p)
+	dt := NewDrandTestScenario(t, n, thr, p, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -682,7 +683,7 @@ func TestDrandPublicStream(t *testing.T) {
 func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -791,7 +792,7 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
 
-	dt := NewDrandTestScenario(t, n, thr, p)
+	dt := NewDrandTestScenario(t, n, thr, p, utils.PrevSigDecoupling())
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()

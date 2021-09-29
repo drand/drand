@@ -81,7 +81,7 @@ func roundToBytes(r int) []byte {
 }
 
 // VerifiableResults creates a set of results that will pass a `chain.Verify` check.
-func VerifiableResults(count int) (*chain.Info, []Result) {
+func VerifiableResults(count int, decouplePrevSig bool) (*chain.Info, []Result) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 	previous := make([]byte, 32)
@@ -91,7 +91,14 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 
 	out := make([]Result, count)
 	for i := range out {
-		msg := sha256Hash(append(previous[:], roundToBytes(i+1)...))
+
+		var msg []byte
+		if !decouplePrevSig {
+			msg = sha256Hash(append(previous[:], roundToBytes(i+1)...))
+		} else {
+			msg = sha256Hash(roundToBytes(i + 1))
+		}
+
 		sshare := share.PriShare{I: 0, V: secret}
 		tsig, err := key.Scheme.Sign(&sshare, msg)
 		if err != nil {
@@ -110,10 +117,11 @@ func VerifiableResults(count int) (*chain.Info, []Result) {
 		copy(previous[:], sig)
 	}
 	info := chain.Info{
-		PublicKey:   public,
-		Period:      time.Second,
-		GenesisTime: time.Now().Unix() - int64(count),
-		GroupHash:   out[0].PSig,
+		PublicKey:       public,
+		Period:          time.Second,
+		GenesisTime:     time.Now().Unix() - int64(count),
+		GroupHash:       out[0].PSig,
+		DecouplePrevSig: decouplePrevSig,
 	}
 
 	return &info, out

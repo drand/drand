@@ -9,6 +9,7 @@ import (
 	"time"
 
 	nhttp "github.com/drand/drand/client/http"
+	"github.com/drand/drand/utils"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
@@ -19,10 +20,10 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-func withClient(t *testing.T) (c client.Client, emit func(bool)) {
+func withClient(t *testing.T, decouplePrevSig bool) (c client.Client, emit func(bool)) {
 	t.Helper()
 
-	l, s := mock.NewMockGRPCPublicServer(":0", true)
+	l, s := mock.NewMockGRPCPublicServer(":0", true, decouplePrevSig)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -34,7 +35,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, _ := withClient(t)
+	c, _ := withClient(t, utils.PrevSigDecoupling())
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
@@ -112,7 +113,7 @@ func validateEndpoint(endpoint string, round float64) error {
 func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, push := withClient(t)
+	c, push := withClient(t, utils.PrevSigDecoupling())
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
@@ -174,7 +175,7 @@ func TestHTTPWaiting(t *testing.T) {
 func TestHTTPWatchFuture(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, _ := withClient(t)
+	c, _ := withClient(t, utils.PrevSigDecoupling())
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
@@ -206,7 +207,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 func TestHTTPHealth(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, push := withClient(t)
+	c, push := withClient(t, utils.PrevSigDecoupling())
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
