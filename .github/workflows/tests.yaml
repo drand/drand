@@ -73,5 +73,5 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - run: DECOUPLE_PREV_SIG=true make coverage
+      - run: make coverage
       - run: bash <(curl -s https://codecov.io/bash)
