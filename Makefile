@@ -45,15 +45,10 @@ test-integration:
 	go test -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
-linter:
-	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
-	@{ \
-		files=$$( go fmt ./... ); \
-		if [ -n "$$files" ]; then \
-		echo "Files not properly formatted: $$files"; \
-		exit 1; \
-		fi; \
-	}
+coverage: build_proto
+	go get -u github.com/ory/go-acc
+	go get -v -t -d ./...
+	COVERAGE=true go-acc ./...
 
 demo:
 	cd demo && go build && ./demo -build
