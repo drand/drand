@@ -62,8 +62,8 @@ demo:
 ############################################ Build ############################################
 
 build_proto:
-	go get -u github.com/golang/protobuf/protoc-gen-go@v1.4.3
-	go get -u google.golang.org/grpc/cmd/protoc-gen-go-grpc@1.1.0
+	go get -u github.com/golang/protobuf/protoc-gen-go@v1.5.2
+	go get -u google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
 	cd protobuf && sh ./compile_proto.sh
 
 # create the "drand" binary and install it in $GOBIN
@@ -95,6 +95,8 @@ relay-s3:
 drand-relay-s3: relay-s3
 
 build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
+build_docker:
+	docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
 
 ############################################ Deps ############################################
 
