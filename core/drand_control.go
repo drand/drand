@@ -586,15 +586,14 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 	}
 
 	// Reshare status
-	switch {
-	case !d.dkgDone:
+	reshareStatus.Status = uint32(ReshareNotInProgress)
+	if d.dkgDone && d.receiver != nil {
 		reshareStatus.Status = uint32(ReshareInProgress)
-	case d.dkgDone && d.receiver != nil:
-		reshareStatus.Status = uint32(ReshareNotInProgress)
 	}
 
 	// Beacon status
 	beaconStatus.Status = uint32(BeaconNotInited)
+	chainStore.IsEmpty = true
 
 	if d.beacon != nil {
 		beaconStatus.Status = uint32(BeaconInited)
@@ -608,7 +607,7 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 		lastBeacon, err := d.beacon.Store().Last()
 
 		if err == nil && lastBeacon != nil {
-			chainStore.IsAnyRound = true
+			chainStore.IsEmpty = false
 			chainStore.LastRound = lastBeacon.GetRound()
 			chainStore.Length = uint64(d.beacon.Store().Len())
 		}

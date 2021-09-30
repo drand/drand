@@ -77,8 +77,8 @@ func (c *ControlClient) Ping() error {
 
 // Status gets the current daemon status
 func (c *ControlClient) Status() (*control.StatusResponse, error) {
-	pong, err := c.client.Status(ctx.Background(), &control.StatusRequest{})
-	return pong, err
+	resp, err := c.client.Status(ctx.Background(), &control.StatusRequest{})
+	return resp, err
 }
 
 // InitReshareLeader sets up the node to be ready for a resharing protocol.
