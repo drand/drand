@@ -17,6 +17,8 @@ func TestLoggerKit(t *testing.T) {
 		Debug
 		Warn
 		Error
+		All
+		None
 	)
 
 	type logTest struct {
@@ -36,6 +38,9 @@ func TestLoggerKit(t *testing.T) {
 	var tests = []logTest{
 		{nil, nil, Info, "hello", o("hello")},
 		{nil, lvl.AllowInfo(), Debug, "hello", nil},
+		{nil, lvl.AllowError(), Error, "hello", o("hello")},
+		{nil, lvl.AllowAll(), All, "hello", o("hello")},
+		{nil, lvl.AllowNone(), None, "hello", nil},
 		{w("yard", "bird"), lvl.AllowWarn(), Warn, "hello", o("yard", "bird", "hello")},
 	}
 
@@ -61,6 +66,10 @@ func TestLoggerKit(t *testing.T) {
 			logging = kit.Warn
 		case Error:
 			logging = kit.Error
+		case All:
+			logging = kit.Info
+		case None:
+			logging = kit.Info
 		default:
 			t.FailNow()
 		}

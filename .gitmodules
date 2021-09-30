@@ -1,3 +1,0 @@
-[submodule "web/static/js/drandjs"]
-	path = web/static/js/drandjs
-	url = https://github.com/drand/drandjs
