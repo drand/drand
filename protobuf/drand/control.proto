@@ -172,7 +172,7 @@ message BeaconStatus{
 }
 
 message ChainStoreStatus{
-    bool is_any_round = 1;
+    bool is_empty = 1;
     uint64 last_round = 2;
     uint64 length = 3;
 }
