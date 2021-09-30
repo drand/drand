@@ -57,24 +57,3 @@ var DefaultResharingOffset = 30 * time.Second
 // PrivateRandLength is the length of expected private randomness buffers
 const PrivateRandLength = 32
 
-type DkgStatus uint32
-
-const (
-	DkgReady DkgStatus = iota
-	DkgInProgress
-	DkgNotStarted
-)
-
-type ReshareStatus uint32
-
-const (
-	ReshareNotInProgress ReshareStatus = iota
-	ReshareInProgress
-)
-
-type BeaconStatus uint32
-
-const (
-	BeaconNotInited BeaconStatus = iota
-	BeaconInited
-)
