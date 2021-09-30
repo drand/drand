@@ -2,9 +2,14 @@ package core
 
 import (
 	"fmt"
-	"github.com/drand/drand/protobuf/drand"
 	"strings"
+
+	"github.com/drand/drand/protobuf/drand"
 )
+
+const UnknownDesc = "Unknown"
+const NotStartedDesc = "Not started"
+const InProgressDesc = "In progress"
 
 type DkgStatus uint32
 
@@ -33,22 +38,22 @@ func GetDkgStatusDescription(value DkgStatus) string {
 	case DkgReady:
 		return "Done"
 	case DkgInProgress:
-		return "In progress"
+		return InProgressDesc
 	case DkgNotStarted:
-		return "Not started"
+		return NotStartedDesc
 	default:
-		return "Unknown"
+		return UnknownDesc
 	}
 }
 
 func GetReshareStatusDescription(value ReshareStatus) string {
 	switch value {
 	case ReshareInProgress:
-		return "In progress"
+		return InProgressDesc
 	case ReshareNotInProgress:
-		return "Not started"
+		return NotStartedDesc
 	default:
-		return "Unknown"
+		return UnknownDesc
 	}
 }
 
@@ -59,12 +64,11 @@ func GetBeaconDescription(value BeaconStatus) string {
 	case BeaconInited:
 		return "Inited"
 	default:
-		return "Unknown"
+		return UnknownDesc
 	}
 }
 
-func StatusResponseToString(status drand.StatusResponse) string {
-
+func StatusResponseToString(status *drand.StatusResponse) string {
 	dkgStatus := GetDkgStatusDescription(DkgStatus(status.Dkg.Status))
 	reshareStatus := GetReshareStatusDescription(ReshareStatus(status.Reshare.Status))
 	beaconStatus := GetBeaconDescription(BeaconStatus(status.Beacon.Status))
