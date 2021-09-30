@@ -11,11 +11,13 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -61,6 +63,9 @@ type Drand struct {
 	// XXX need boundaries between gRPC and control plane such that we can give
 	// a list of paramteres at each DKG (inluding this callback)
 	setupCB func(*key.Group)
+
+	// version indicates the base code variant
+	version utils.Version
 }
 
 // NewDrand returns a drand struct. It assumes the private key pair
@@ -92,11 +97,12 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 	// identity. If there is an option to set the address, it will override the
 	// default set here..
 	d := &Drand{
-		store:  s,
-		priv:   priv,
-		opts:   c,
-		log:    logger,
-		exitCh: make(chan bool, 1),
+		store:   s,
+		priv:    priv,
+		opts:    c,
+		log:     logger,
+		exitCh:  make(chan bool, 1),
+		version: common.GetAppVersion(),
 	}
 	if err := setupDrand(d, c); err != nil {
 		return nil, err
@@ -328,7 +334,7 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
+	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log, d.version)
 	if err != nil {
 		return nil, err
 	}

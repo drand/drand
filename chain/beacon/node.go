@@ -11,7 +11,9 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/key"
@@ -51,11 +53,12 @@ type Handler struct {
 	serving bool
 	stopped bool
 	l       log.Logger
+	version utils.Version
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger) (*Handler, error) {
+func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version utils.Version) (*Handler, error) {
 	if conf.Share == nil || conf.Group == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}
@@ -75,14 +78,15 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	store := newChainStore(logger, conf, c, crypto, s, ticker)
 	handler := &Handler{
-		conf:   conf,
-		client: c,
-		crypto: crypto,
-		chain:  store,
-		ticker: ticker,
-		addr:   addr,
-		close:  make(chan bool),
-		l:      logger,
+		conf:    conf,
+		client:  c,
+		crypto:  crypto,
+		chain:   store,
+		ticker:  ticker,
+		addr:    addr,
+		close:   make(chan bool),
+		l:       logger,
+		version: version,
 	}
 	return handler, nil
 }
@@ -354,10 +358,12 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		return
 	}
 	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
+	context := common.NewContext(h.version.ToProto())
 	packet := &proto.PartialBeaconPacket{
 		Round:       round,
 		PreviousSig: previousSig,
 		PartialSig:  currSig,
+		Context:     context,
 	}
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {

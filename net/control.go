@@ -7,11 +7,16 @@ import (
 	"strings"
 	"time"
 
-	control "github.com/drand/drand/protobuf/drand"
-
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
+	protoCommon "github.com/drand/drand/protobuf/common"
+	control "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
+
 	"google.golang.org/grpc"
 )
+
+const grpcDefaultIPNetwork = "tcp"
 
 // ControlListener is used to keep state of the connections of our drand instance
 type ControlListener struct {
@@ -46,11 +51,10 @@ func (g *ControlListener) Stop() {
 // ControlClient is a struct that implement control.ControlClient and is used to
 // request a Share to a ControlListener on a specific port
 type ControlClient struct {
-	conn   *grpc.ClientConn
-	client control.ControlClient
+	conn    *grpc.ClientConn
+	client  control.ControlClient
+	version utils.Version
 }
-
-const grpcDefaultIPNetwork = "tcp"
 
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
@@ -60,18 +64,27 @@ func NewControlClient(addr string) (*ControlClient, error) {
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)
 	}
+
 	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
 		log.DefaultLogger().Error("control client", "connect failure", "err", err)
 		return nil, err
 	}
+
 	c := control.NewControlClient(conn)
-	return &ControlClient{conn: conn, client: c}, nil
+
+	return &ControlClient{
+		conn:    conn,
+		client:  c,
+		version: common.GetAppVersion(),
+	}, nil
 }
 
 // Ping the drand daemon to check if it's up and running
 func (c *ControlClient) Ping() error {
-	_, err := c.client.PingPong(ctx.Background(), &control.Ping{})
+	context := protoCommon.NewContext(c.version.ToProto())
+
+	_, err := c.client.PingPong(ctx.Background(), &control.Ping{Context: context})
 	return err
 }
 
@@ -89,6 +102,8 @@ func (c *ControlClient) InitReshareLeader(
 	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
 	offset int) (*control.GroupPacket, error) {
+	context := protoCommon.NewContext(c.version.ToProto())
+
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -103,12 +118,16 @@ func (c *ControlClient) InitReshareLeader(
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
+		Context:              context,
 	}
+
 	return c.client.InitReshare(ctx.Background(), request)
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
 func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool) (*control.GroupPacket, error) {
+	context := protoCommon.NewContext(c.version.ToProto())
+
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -120,7 +139,9 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			Secret:        []byte(secret),
 			Force:         force,
 		},
+		Context: context,
 	}
+
 	return c.client.InitReshare(ctx.Background(), request)
 }
 
@@ -135,6 +156,8 @@ func (c *ControlClient) InitDKGLeader(
 	secret string,
 	offset int,
 ) (*control.GroupPacket, error) {
+	context := protoCommon.NewContext(c.version.ToProto())
+
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
@@ -144,9 +167,10 @@ func (c *ControlClient) InitDKGLeader(
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
-		Entropy:       entropy,
-		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
-		CatchupPeriod: uint32(catchupPeriod.Seconds()),
+		Entropy:         entropy,
+		BeaconPeriod:    uint32(beaconPeriod.Seconds()),
+		CatchupPeriod:   uint32(catchupPeriod.Seconds()),
+		Context:         context,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)
@@ -154,6 +178,8 @@ func (c *ControlClient) InitDKGLeader(
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
 func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+	context := protoCommon.NewContext(c.version.ToProto())
+
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Leader:        false,
@@ -162,39 +188,48 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			Secret:        []byte(secret),
 		},
 		Entropy: entropy,
+		Context: context,
 	}
+
 	return c.client.InitDKG(ctx.Background(), request)
 }
 
 // Share returns the share of the remote node
 func (c *ControlClient) Share() (*control.ShareResponse, error) {
-	return c.client.Share(ctx.Background(), &control.ShareRequest{})
+	context := protoCommon.NewContext(c.version.ToProto())
+
+	return c.client.Share(ctx.Background(), &control.ShareRequest{Context: context})
 }
 
 // PublicKey returns the public key of the remote node
 func (c *ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
-	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{})
+	context := protoCommon.NewContext(c.version.ToProto())
+	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Context: context})
 }
 
 // PrivateKey returns the private key of the remote node
 func (c *ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
-	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{})
+	context := protoCommon.NewContext(c.version.ToProto())
+	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Context: context})
 }
 
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
-	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{})
+	context := protoCommon.NewContext(c.version.ToProto())
+	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Context: context})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
 // time
 func (c *ControlClient) GroupFile() (*control.GroupPacket, error) {
-	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{})
+	context := protoCommon.NewContext(c.version.ToProto())
+	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Context: context})
 }
 
 // Shutdown stops the daemon
 func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
-	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{})
+	context := protoCommon.NewContext(c.version.ToProto())
+	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Context: context})
 }
 
 const progressFollowQueue = 100
@@ -206,11 +241,14 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	tls bool,
 	upTo uint64) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
+	context := protoCommon.NewContext(c.version.ToProto())
+
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,
 		Nodes:    nodes,
 		IsTls:    tls,
 		UpTo:     upTo,
+		Context:  context,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -240,7 +278,8 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 
 // BackupDB backs up the database to afile
 func (c *ControlClient) BackupDB(outFile string) error {
-	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile})
+	context := protoCommon.NewContext(c.version.ToProto())
+	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Context: context})
 	return err
 }
 

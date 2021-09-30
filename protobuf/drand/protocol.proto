@@ -12,10 +12,11 @@ option go_package = "github.com/drand/drand/protobuf/drand";
 
 import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
+import "common/common.proto";
 
 service Protocol {
     // GetIdentity returns the identity of the drand node
-    rpc GetIdentity(IdentityRequest) returns (Identity);
+    rpc GetIdentity(IdentityRequest) returns (IdentityResponse);
     // SignalDKGParticipant is called by non-coordinators nodes that sends their
     // public keys and secret proof they have to the coordinator so that he can
     // create the group.
@@ -32,7 +33,21 @@ service Protocol {
     rpc SyncChain(SyncRequest) returns (stream BeaconPacket);
 }
 
-message IdentityRequest {}
+message IdentityRequest {
+    common.Context context = 1;
+}
+
+message IdentityResponse {
+    // REMINDER: This fields should be kept in sync with Identity message
+    string address = 1;
+    bytes key = 2;
+    bool tls = 3;
+    // BLS signature over the identity to prove possession of the private key
+    bytes signature = 4;
+    // --------------
+
+    common.Context context = 5;
+}
 
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
 // keys and setups the group and sends them back to the nodes such that they can
@@ -43,6 +58,8 @@ message SignalDKGPacket {
     // In resharing cases, previous_group_hash is the hash of the previous group.
     // It is to make sure the nodes build on top of the correct previous group.
     bytes previous_group_hash = 3;
+    //
+    common.Context context = 4;
 }
 
 // PushDKGInfor is the packet the coordinator sends that contains the group over
@@ -57,6 +74,8 @@ message DKGInfoPacket {
     // signature from the coordinator to prove he is the one sending that group
     // file.
     bytes signature = 4;
+    //
+    common.Context context = 5;
 }
 
 message PartialBeaconPacket {
@@ -69,22 +88,29 @@ message PartialBeaconPacket {
     // partial signature - a threshold of them needs to be aggregated to produce
     // the final beacon at the given round.
     bytes partial_sig = 3;
+    //
+    common.Context context = 4;
 }
 
 // DKGPacket is the packet that nodes send to others nodes as part of the
 // broadcasting protocol.
 message DKGPacket{
     dkg.Packet dkg = 1;
+    //
+    common.Context context = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the
 // chain
 message SyncRequest {
     uint64 from_round = 1;
+    //
+    common.Context context = 2;
 }
 
 message BeaconPacket {
     bytes previous_sig = 1;
     uint64 round = 2;
     bytes signature = 3;
+    common.Context context = 4;
 }

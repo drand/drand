@@ -8,10 +8,13 @@ package drand;
 option go_package = "github.com/drand/drand/protobuf/drand";
 /*option go_package = "drand";*/
 
-message Empty {
+import "common/common.proto";
 
+message Empty {
+    common.Context context = 1;
 }
 
+// REMINDER: This fields should be kept in sync with IdentityResponse message
 message Identity {
     string address = 1;
     bytes key = 2;
@@ -40,12 +43,14 @@ message GroupPacket {
     repeated bytes dist_key = 7;
     // catchup_period in seconds
     uint32 catchup_period = 8;
+    common.Context context = 10;
 }
 message GroupRequest {
-
+    common.Context context = 1;
 }
 
 message ChainInfoRequest {
+    common.Context context = 1;
 }
 
 message ChainInfoPacket {
@@ -60,4 +65,5 @@ message ChainInfoPacket {
     bytes hash = 4;
     // hash of the genesis group
     bytes groupHash = 5;
+    common.Context context = 7;
 }

@@ -11,7 +11,9 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -46,7 +48,8 @@ type Broadcast interface {
 // DKG library allows to use fast sync the fast sync mode.
 type echoBroadcast struct {
 	sync.Mutex
-	l log.Logger
+	l       log.Logger
+	version utils.Version
 	// responsible for sending out the messages
 	dispatcher *dispatcher
 	// list of messages already retransmitted comparison by hash
@@ -65,9 +68,10 @@ var _ Broadcast = (*echoBroadcast)(nil)
 // Packet, namely that the signature is correct.
 type verifier func(packet) error
 
-func newEchoBroadcast(l log.Logger, c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
+func newEchoBroadcast(l log.Logger, version utils.Version, c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
 	return &echoBroadcast{
 		l:          l,
+		version:    version,
 		dispatcher: newDispatcher(l, c, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
@@ -107,6 +111,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
 	b.Lock()
 	defer b.Unlock()
+
 	addr := net.RemoteAddress(c)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
 	if err != nil {
@@ -158,7 +163,8 @@ func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
 	proto := &drand.DKGPacket{
-		Dkg: dkgproto,
+		Dkg:     dkgproto,
+		Context: common.NewContext(b.version.ToProto()),
 	}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG

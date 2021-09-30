@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"github.com/drand/drand/utils"
 	"os"
 	"testing"
 	"time"
@@ -76,7 +77,8 @@ func TestBroadcast(t *testing.T) {
 	ids := make([]string, 0, n)
 	for _, d := range drands {
 		id := d.priv.Public.Address()
-		b := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, id, group.Nodes, func(dkg.Packet) error { return nil })
+		version := utils.Version{Mayor: 0, Minor: 0, Patch: 0}
+		b := newEchoBroadcast(d.log, version, d.privGateway.ProtocolClient, id, group.Nodes, func(dkg.Packet) error { return nil })
 
 		d.dkgInfo = &dkgInfo{
 			board:   withCallback(id, b, callback),

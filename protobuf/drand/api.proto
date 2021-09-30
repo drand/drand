@@ -11,6 +11,7 @@ option go_package = "github.com/drand/drand/protobuf/drand";
 /*option go_package = "drand";*/
 
 import "drand/common.proto";
+import "common/common.proto";
 
 service Public {
     // PublicRand is the method that returns the publicly verifiable randomness
@@ -37,6 +38,7 @@ message PublicRandRequest {
     // round uniquely identifies a beacon. If round == 0 (or unspecified), then
     // the response will contain the last.
     uint64 round = 1;
+    common.Context context = 2;
 }
 
 // PublicRandResponse holds a signature which is the random value. It can be
@@ -50,6 +52,7 @@ message PublicRandResponse {
     // randomness is simply there to demonstrate - it is the hash of the
     // signature. It should be computed locally.
     bytes randomness = 4;
+    common.Context context = 5;
 }
 
 // PrivateRandRequest is the message to send when requesting a private random
@@ -59,6 +62,7 @@ message PrivateRandRequest {
     // to encrypt the private randomness. The format of the bytes is denoted by
     // the ECIES encryption used by drand.
     bytes request = 1;
+    common.Context context = 2;
 }
 
 message PrivateRandResponse {
@@ -66,6 +70,7 @@ message PrivateRandResponse {
     // ephemereal public key sent in the request.  The format of the bytes is
     // denoted by the ECIES  encryption used by drand.
     bytes response = 1;
+    common.Context context = 2;
 }
 
 
@@ -74,6 +79,7 @@ message HomeRequest {
 
 message HomeResponse {
     string status = 1;
+    common.Context context = 2;
 }
 
 

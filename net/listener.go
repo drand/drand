@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	http_grpc "github.com/weaveworks/common/httpgrpc"
 	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
@@ -50,10 +51,13 @@ func NewGRPCListenerForPrivate(
 		}
 		opts = append(opts, grpc.Creds(grpcCreds))
 	}
+
 	opts = append(opts,
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_prometheus.StreamServerInterceptor, s.NodeVersionStreamValidator)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_prometheus.UnaryServerInterceptor, s.NodeVersionValidator)))
+
 	grpcServer := grpc.NewServer(opts...)
+
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
 

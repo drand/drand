@@ -13,15 +13,14 @@ import (
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -65,9 +64,11 @@ var clientMetricsIDFlag = &cli.StringFlag{
 }
 
 func main() {
+	version := common.GetAppVersion()
+
 	app := cli.NewApp()
 	app.Name = "drand-client"
-	app.Version = version
+	app.Version = version.String()
 	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
 	app.Flags = lib.ClientFlags
 	app.Flags = append(app.Flags,
@@ -76,7 +77,7 @@ func main() {
 		clientMetricsPushIntervalFlag, verboseFlag)
 	app.Action = Client
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand client %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("drand client %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)

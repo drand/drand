@@ -9,6 +9,7 @@ package drand;
 option go_package = "github.com/drand/drand/protobuf/drand";
 /*option go_package = "drand";*/
 
+import "common/common.proto";
 import "drand/common.proto";
 
 service Control {
@@ -79,6 +80,7 @@ message SetupInfoPacket {
     // indicating to the node that this (re)share operation should be started
     // even if there is already one in progress.
     bool force = 10;
+    common.Context context = 11;
 }
 
 message InitDKGPacket {
@@ -89,6 +91,11 @@ message InitDKGPacket {
     uint32 beacon_period = 3;
     // the minimum beacon period when in catchup.
     uint32 catchup_period = 4;
+    common.Context context = 6;
+}
+
+message InitDKGPacketResponse{
+    common.Context context = 1;
 }
 
 // EntropyInfo contains information about external entropy sources
@@ -98,6 +105,7 @@ message EntropyInfo {
     string script = 1;
     // do we only take this entropy source or mix it with /dev/urandom
     bool userOnly = 10;
+    common.Context context = 11;
 }
 
 // ReshareRequest contains references to the old and new group to perform the
@@ -112,6 +120,7 @@ message InitResharePacket {
     // the minimum beacon period when in catchup.
     bool catchup_period_changed = 3;
     uint32 catchup_period = 4;
+    common.Context context = 5;
 }
 
 // GroupInfo holds the information to load a group information such as the nodes
@@ -130,18 +139,22 @@ message GroupInfo {
 
 // ShareRequest requests the private share of a drand node
 message ShareRequest {
+    common.Context context = 1;
 }
 
 // ShareResponse holds the private share of a drand node
 message ShareResponse {
-  uint32 index = 2;
-  bytes share = 3;
+    uint32 index = 2;
+    bytes share = 3;
+    common.Context context = 4;
 }
 
 message Ping {
+    common.Context context = 1;
 }
 
 message Pong {
+    common.Context context = 1;
 }
 
 message StatusRequest {
@@ -179,42 +192,49 @@ message ChainStoreStatus{
 
 // PublicKeyRequest requests the public key of a drand node
 message PublicKeyRequest {
+    common.Context context = 1;
 }
 
 // PublicKeyResponse holds the public key of a drand node
 message PublicKeyResponse {
-  bytes pubKey = 2;
+    bytes pubKey = 2;
+    common.Context context = 3;
 }
 
 // PrivateKeyRequest requests the private key of a drand node
 message PrivateKeyRequest {
+    common.Context context = 1;
 }
 
 // PrivateKeyResponse holds the private key of a drand node
 message PrivateKeyResponse {
-  bytes priKey = 2;
+    bytes priKey = 2;
+    common.Context context = 3;
 }
 
 // CokeyRequest requests the collective key of a drand node
 message CokeyRequest {
+    common.Context context = 1;
 }
 
 // CokeyResponse holds the collective key of a drand node
 message CokeyResponse {
-  bytes coKey = 2;
+    bytes coKey = 2;
+    common.Context context = 3;
 }
 
 message GroupTOMLResponse {
     // TOML-encoded group file
     string group_toml = 1;
+    common.Context context = 2;
 }
 
 message ShutdownRequest {
-
+    common.Context context = 1;
 }
 
 message ShutdownResponse {
-
+    common.Context context = 1;
 }
 
 message StartFollowRequest {
@@ -229,17 +249,20 @@ message StartFollowRequest {
     // up_to tells the drand daemon to not follow up after the given round.
     // if up_to is 0, the follow operation continues until it is cancelled.
     uint64 up_to = 4;
+    common.Context context = 5;
 }
 
 message FollowProgress { 
     uint64 current = 1;
     uint64 target = 2;
+    common.Context context = 3;
 }
 
 message BackupDBRequest {
     string output_file = 1;
+    common.Context context = 2;
 }
 
 message BackupDBResponse {
-
+    common.Context context = 1;
 }

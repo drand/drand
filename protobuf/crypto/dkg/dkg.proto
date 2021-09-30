@@ -9,6 +9,8 @@ package dkg;
 option go_package = "github.com/drand/drand/protobuf/crypto/dkg";
 /*option go_package = "dkg";*/
 
+import "common/common.proto";
+
 // Packet is a wrapper around the three different types of DKG messages
 message Packet {
     oneof Bundle {
@@ -16,6 +18,7 @@ message Packet {
         ResponseBundle response = 2;
         JustificationBundle justification = 3;
     }
+    common.Context context = 4;
 }
 
 
