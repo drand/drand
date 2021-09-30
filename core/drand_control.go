@@ -586,10 +586,8 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 	}
 
 	// Reshare status
-	switch {
-	case !d.dkgDone:
-		reshareStatus.Status = uint32(ReshareNotInProgress)
-	case d.dkgDone && d.receiver != nil:
+	reshareStatus.Status = uint32(ReshareNotInProgress)
+	if d.dkgDone && d.receiver != nil {
 		reshareStatus.Status = uint32(ReshareInProgress)
 	}
 
