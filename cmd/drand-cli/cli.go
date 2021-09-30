@@ -248,6 +248,11 @@ var upToFlag = &cli.IntFlag{
 	Value: 0,
 }
 
+var jsonFlag = &cli.BoolFlag{
+	Name:  "json",
+	Usage: "Set the output as json format",
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -358,6 +363,12 @@ var appCommands = []*cli.Command{
 				Usage:  "pings the daemon checking its state\n",
 				Flags:  toArray(controlFlag),
 				Action: pingpongCmd,
+			},
+			{
+				Name:   "status",
+				Usage:  "get the status of many modules of running the daemon\n",
+				Flags:  toArray(controlFlag, jsonFlag),
+				Action: statusCmd,
 			},
 			{
 				Name:   "reset",
