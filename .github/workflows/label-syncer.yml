@@ -6,7 +6,7 @@ on:
     branches:
       - master
 jobs:
-  build:
+  sync_labels:
     name: Sync labels
     runs-on: ubuntu-latest
     steps:

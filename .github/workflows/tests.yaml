@@ -9,12 +9,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.16'
+          go-version: '^1.17'
       - uses: actions/cache@v2
         id: cache
         with:
@@ -36,11 +34,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.16'
+          go-version: '^1.17'
       - uses: actions/cache@v2
         id: cache
         with:
@@ -51,18 +47,19 @@ jobs:
       - run: go get -v -t -d ./...
       - name: Unit tests
         run: make test-unit
-      - run: make test-integration
+      - name: Integration tests
+        run: make test-integration
 
   coverage:
     runs-on: ubuntu-latest
+    env:
+      CI: "true"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
       - uses: actions/setup-go@v2
         with:
-          go-version: '^1.16'
+          go-version: '^1.17'
       - uses: actions/cache@v2
         id: cache
         with:
@@ -70,7 +67,5 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - run: go get -u github.com/ory/go-acc
-      - run: go get -v -t -d ./...
-      - run: go-acc ./...
+      - run: make coverage
       - run: bash <(curl -s https://codecov.io/bash)
