@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+
 	"github.com/drand/drand/protobuf/common"
 
 	"github.com/drand/drand/chain"
@@ -184,10 +185,10 @@ func (d *Drand) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*dra
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
 
-	context := common.NewContext(d.version.ToProto())
+	msgContext := common.NewContext(d.version.ToProto())
 
 	response := chain.NewChainInfo(d.group).ToProto()
-	response.Context = context
+	response.Context = msgContext
 
 	return response, nil
 }
@@ -241,14 +242,14 @@ func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChai
 // GetIdentity returns the identity of this drand node
 func (d *Drand) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	i := d.priv.Public.ToProto()
-	context := common.NewContext(d.version.ToProto())
+	msgContext := common.NewContext(d.version.ToProto())
 
 	response := &drand.IdentityResponse{
 		Address:   i.Address,
 		Key:       i.Key,
 		Tls:       i.Tls,
 		Signature: i.Signature,
-		Context:   context,
+		Context:   msgContext,
 	}
 	return response, nil
 }

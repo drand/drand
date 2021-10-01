@@ -76,7 +76,8 @@ func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, co
 	return context.WithDeadline(ctx, clientDeadline)
 }
 
-func (g *grpcClient) GetIdentity(ctx context.Context, p Peer, in *drand.IdentityRequest, opts ...CallOption) (*drand.IdentityResponse, error) {
+func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
+	in *drand.IdentityRequest, opts ...CallOption) (*drand.IdentityResponse, error) {
 	var resp *drand.IdentityResponse
 	c, err := g.conn(p)
 	if err != nil {

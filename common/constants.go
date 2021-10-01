@@ -1,8 +1,14 @@
 package common
 
 import (
-	"github.com/drand/drand/utils"
 	"strconv"
+
+	"github.com/drand/drand/utils"
+)
+
+const (
+	VersionBase = 10
+	VersionSize = 32
 )
 
 var (
@@ -12,10 +18,17 @@ var (
 )
 
 func GetAppVersion() utils.Version {
-	mayor, err := strconv.ParseInt(MAYOR, 10, 32)
-	minor, err := strconv.ParseInt(MINOR, 10, 32)
-	patch, err := strconv.ParseInt(PATCH, 10, 32)
+	mayor, err := strconv.ParseInt(MAYOR, VersionBase, VersionSize)
+	if err != nil {
+		return utils.Version{Mayor: 0, Minor: 0, Patch: 0}
+	}
 
+	minor, err := strconv.ParseInt(MINOR, VersionBase, VersionSize)
+	if err != nil {
+		return utils.Version{Mayor: 0, Minor: 0, Patch: 0}
+	}
+
+	patch, err := strconv.ParseInt(PATCH, VersionBase, VersionSize)
 	if err != nil {
 		return utils.Version{Mayor: 0, Minor: 0, Patch: 0}
 	}

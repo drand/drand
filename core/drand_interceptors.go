@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/utils"
 	"google.golang.org/grpc"
@@ -14,7 +15,8 @@ type ContextGetter interface {
 	GetContext() *common.Context
 }
 
-func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
+	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
 	reqWithContext, ok := req.(ContextGetter)
 
 	d.log.Debug("node_version_interceptor", fmt.Sprintf("request type: %T", req))
@@ -23,13 +25,13 @@ func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{}, info 
 		return handler(ctx, req)
 	}
 
-	context := reqWithContext.GetContext()
-	if context == nil {
+	msgContext := reqWithContext.GetContext()
+	if msgContext == nil {
 		return handler(ctx, req)
 	}
 	d.log.Debug("node_version_interceptor", "context field is present")
 
-	v := context.GetNodeVersion()
+	v := msgContext.GetNodeVersion()
 	if v == nil {
 		return handler(ctx, req)
 	}
@@ -45,7 +47,8 @@ func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{}, info 
 	return handler(ctx, req)
 }
 
-func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream,
+	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	reqWithContext, ok := srv.(ContextGetter)
 
 	d.log.Debug("node_version_interceptor", fmt.Sprintf("request type: %T", srv))
@@ -54,13 +57,13 @@ func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream
 		return handler(srv, ss)
 	}
 
-	context := reqWithContext.GetContext()
-	if context == nil {
+	msgContext := reqWithContext.GetContext()
+	if msgContext == nil {
 		return handler(srv, ss)
 	}
 	d.log.Debug("node_version_interceptor", "context field is present")
 
-	v := context.GetNodeVersion()
+	v := msgContext.GetNodeVersion()
 	if v == nil {
 		return handler(srv, ss)
 	}

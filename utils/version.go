@@ -2,13 +2,14 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/drand/drand/protobuf/common"
 )
 
 const (
-	FALLBACK_MAYOR = 0
-	FALLBACK_MINOR = 0
-	FALLBACK_PATCH = 0
+	FallbackMayor = 0
+	FallbackMinor = 0
+	FallbackPatch = 0
 )
 
 type Version struct {
@@ -18,7 +19,7 @@ type Version struct {
 }
 
 func (v Version) IsCompatible(verRcv Version) bool {
-	if verRcv.Mayor == FALLBACK_MAYOR && verRcv.Minor == FALLBACK_MINOR && verRcv.Patch == FALLBACK_PATCH {
+	if verRcv.Mayor == FallbackMayor && verRcv.Minor == FallbackMinor && verRcv.Patch == FallbackPatch {
 		return true
 	}
 	if v.Mayor == verRcv.Mayor {

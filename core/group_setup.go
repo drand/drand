@@ -283,7 +283,8 @@ type setupReceiver struct {
 	version  utils.Version
 }
 
-func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock, client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
+func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
+	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
 	setup := &setupReceiver{
 		ch:      make(chan *dkgGroup, 1),
 		l:       l,

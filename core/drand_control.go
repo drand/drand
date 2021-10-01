@@ -325,11 +325,11 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	}(receiver)
 	// send public key to leader
 	id := d.priv.Public.ToProto()
-	ctx := common.NewContext(d.version.ToProto())
+
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Context:     ctx,
+		Context:     common.NewContext(d.version.ToProto()),
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
@@ -576,9 +576,9 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
-	context := common.NewContext(d.version.ToProto())
+	ctx := common.NewContext(d.version.ToProto())
 
-	return &drand.Pong{Context: context}, nil
+	return &drand.Pong{Context: ctx}, nil
 }
 
 // Status responds with the actual status of drand process
@@ -645,9 +645,9 @@ func (d *Drand) Share(ctx context.Context, in *drand.ShareRequest) (*drand.Share
 		return nil, err
 	}
 
-	context := common.NewContext(d.version.ToProto())
+	msgContext := common.NewContext(d.version.ToProto())
 
-	return &drand.ShareResponse{Index: id, Share: buff, Context: context}, nil
+	return &drand.ShareResponse{Index: id, Share: buff, Context: msgContext}, nil
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
@@ -666,9 +666,9 @@ func (d *Drand) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*dra
 		return nil, err
 	}
 
-	context := common.NewContext(d.version.ToProto())
+	msgContext := common.NewContext(d.version.ToProto())
 
-	return &drand.PublicKeyResponse{PubKey: protoKey, Context: context}, nil
+	return &drand.PublicKeyResponse{PubKey: protoKey, Context: msgContext}, nil
 }
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control
@@ -687,9 +687,9 @@ func (d *Drand) PrivateKey(ctx context.Context, in *drand.PrivateKeyRequest) (*d
 		return nil, err
 	}
 
-	context := common.NewContext(d.version.ToProto())
+	msgContext := common.NewContext(d.version.ToProto())
 
-	return &drand.PrivateKeyResponse{PriKey: protoKey, Context: context}, nil
+	return &drand.PrivateKeyResponse{PriKey: protoKey, Context: msgContext}, nil
 }
 
 // GroupFile replies with the distributed key in the response
@@ -1028,7 +1028,7 @@ func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) 
 	}
 	defer w.Close()
 
-	context := common.NewContext(d.version.ToProto())
+	msgContext := common.NewContext(d.version.ToProto())
 
-	return &drand.BackupDBResponse{Context: context}, inst.Store().SaveTo(w)
+	return &drand.BackupDBResponse{Context: msgContext}, inst.Store().SaveTo(w)
 }

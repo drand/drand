@@ -167,10 +167,10 @@ func (c *ControlClient) InitDKGLeader(
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
 		},
-		Entropy:         entropy,
-		BeaconPeriod:    uint32(beaconPeriod.Seconds()),
-		CatchupPeriod:   uint32(catchupPeriod.Seconds()),
-		Context:         context,
+		Entropy:       entropy,
+		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
+		CatchupPeriod: uint32(catchupPeriod.Seconds()),
+		Context:       context,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)

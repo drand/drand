@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
-	"github.com/drand/drand/utils"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/utils"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
