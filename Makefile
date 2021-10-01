@@ -73,28 +73,31 @@ build_proto:
 	cd protobuf && sh ./compile_proto.sh
 
 # create the "drand" binary and install it in $GOBIN
+install:
 	go install -ldflags "-X $(VER_PACKAGE).MAYOR=$(MAYOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
 
 # create the "drand" binary in the current folder
+build:
 	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).MAYOR=$(MAYOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
 
 # create the "drand-client" binary in the current folder
+client:
 	go build -o drand-client -mod=readonly -ldflags "-X $(VER_PACKAGE).MAYOR=$(MAYOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/client
 drand-client: client
 
 # create the "drand-relay-http" binary in the current folder
+relay-http:
 	go build -o drand-relay-http -mod=readonly -ldflags "-X $(VER_PACKAGE).MAYOR=$(MAYOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay
-
 drand-relay-http: relay-http
 
 # create the "drand-relay-gossip" binary in the current folder
+relay-gossip:
 	go build -o drand-relay-gossip -mod=readonly -ldflags "-X $(VER_PACKAGE).MAYOR=$(MAYOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-gossip
-
 drand-relay-gossip: relay-gossip
 
 # create the "drand-relay-s3" binary in the current folder
+relay-s3:
 	go build -o drand-relay-s3 -mod=readonly -ldflags "-X $(VER_PACKAGE).MAYOR=$(MAYOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-s3
-
 drand-relay-s3: relay-s3
 
 build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
