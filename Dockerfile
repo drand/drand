@@ -1,7 +1,7 @@
 FROM golang:1.14.2-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
-ARG mayor=0
+ARG major=0
 ARG minor=0
 ARG patch=0
 ARG gitCommit
@@ -34,7 +34,7 @@ RUN \
   go install \
     -mod=readonly \
     -ldflags \
-        "-X github.com/drand/drand/common.MAYOR=${mayor} \
+        "-X github.com/drand/drand/common.MAJOR=${major} \
         -X github.com/drand/drand/common.MINOR=${minor} \
         -X github.com/drand/drand/common.PATCH=${patch} \
         -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \

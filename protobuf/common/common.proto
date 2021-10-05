@@ -8,7 +8,7 @@ package common;
 option go_package = "github.com/drand/drand/protobuf/common";
 
 message NodeVersion {
-    uint32 mayor = 1;
+    uint32 major = 1;
     uint32 minor = 2;
     uint32 patch = 3;
 }

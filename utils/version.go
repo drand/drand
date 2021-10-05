@@ -7,22 +7,22 @@ import (
 )
 
 const (
-	FallbackMayor = 0
+	FallbackMajor = 0
 	FallbackMinor = 0
 	FallbackPatch = 0
 )
 
 type Version struct {
-	Mayor uint32
+	Major uint32
 	Minor uint32
 	Patch uint32
 }
 
 func (v Version) IsCompatible(verRcv Version) bool {
-	if verRcv.Mayor == FallbackMayor && verRcv.Minor == FallbackMinor && verRcv.Patch == FallbackPatch {
+	if verRcv.Major == FallbackMajor && verRcv.Minor == FallbackMinor && verRcv.Patch == FallbackPatch {
 		return true
 	}
-	if v.Mayor == verRcv.Mayor {
+	if v.Major == verRcv.Major {
 		return true
 	}
 
@@ -30,9 +30,9 @@ func (v Version) IsCompatible(verRcv Version) bool {
 }
 
 func (v Version) ToProto() *common.NodeVersion {
-	return &common.NodeVersion{Minor: v.Minor, Mayor: v.Mayor, Patch: v.Patch}
+	return &common.NodeVersion{Minor: v.Minor, Major: v.Major, Patch: v.Patch}
 }
 
 func (v Version) String() string {
-	return fmt.Sprintf("%d.%d.%d", v.Mayor, v.Minor, v.Patch)
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
