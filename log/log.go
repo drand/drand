@@ -10,7 +10,7 @@ import (
 
 // Logger is a interface that can log to different levels.
 type Logger interface {
-	Info(aa string, keyvals ...interface{})
+	Info(keyvals ...interface{})
 	Debug(keyvals ...interface{})
 	Warn(keyvals ...interface{})
 	Error(keyvals ...interface{})
@@ -50,7 +50,7 @@ func DefaultLogger() Logger {
 		SetDefaultLogger(nil, DefaultLevel)
 	})
 
-	return zap.L()
+	return zap.S()
 }
 
 // NewLogger returns a kit logger that prints statements at the given level.
