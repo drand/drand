@@ -1,32 +1,24 @@
 package log
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"io/ioutil"
 	"testing"
 
-	"github.com/go-kit/kit/log"
-	lvl "github.com/go-kit/kit/log/level"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoggerKit(t *testing.T) {
-	const (
-		Info int = iota
-		Debug
-		Warn
-		Error
-		All
-		None
-	)
-
 	type logTest struct {
-		with  []interface{}
-		opts  lvl.Option
-		level int
-		msg   string
-		out   []string
+		with       []interface{}
+		level      int
+		allowedLvl int
+		msg        string
+		out        []string
 	}
 
 	w := func(kv ...interface{}) []interface{} {
@@ -36,45 +28,48 @@ func TestLoggerKit(t *testing.T) {
 		return outs
 	}
 	var tests = []logTest{
-		{nil, nil, Info, "hello", o("hello")},
-		{nil, lvl.AllowInfo(), Debug, "hello", nil},
-		{nil, lvl.AllowError(), Error, "hello", o("hello")},
-		{nil, lvl.AllowAll(), All, "hello", o("hello")},
-		{nil, lvl.AllowNone(), None, "hello", nil},
-		{w("yard", "bird"), lvl.AllowWarn(), Warn, "hello", o("yard", "bird", "hello")},
+		{nil, LogInfo, LogInfo, "hello", o("hello")},
+		{nil, LogDebug, LogInfo, "hello", nil},
+		{nil, LogError, LogDebug, "hello", o("hello")},
+		{nil, LogWarn, LogError, "hello", nil},
+		{nil, LogWarn, LogDebug, "hello", o("hello")},
+		{w("yard", "bird"), LogWarn, LogInfo, "hello", o("yard", "bird", "hello")},
 	}
 
 	for i, test := range tests {
 		t.Logf(" -- test %d -- ", i)
-		var b bytes.Buffer
-		logger := log.NewLogfmtLogger(&b)
 
-		if test.opts != nil {
-			logger = lvl.NewFilter(logger, test.opts)
-		}
-		kit := NewKitLoggerFrom(logger)
-		if test.with != nil {
-			kit = kit.With(test.with...)
-		}
+		var b bytes.Buffer
+		writer := bufio.NewWriter(&b)
+		syncer := zapcore.AddSync(writer)
+
 		var logging func(...interface{})
+		logger := NewLogger(syncer, test.allowedLvl)
+
+		if test.with != nil {
+			logger = logger.With(test.with...)
+		}
+
 		switch test.level {
-		case Info:
-			logging = kit.Info
-		case Debug:
-			logging = kit.Debug
-		case Warn:
-			logging = kit.Warn
-		case Error:
-			logging = kit.Error
-		case All:
-			logging = kit.Info
-		case None:
-			logging = kit.Info
+		case LogInfo:
+			logging = logger.Info
+		case LogDebug:
+			logging = logger.Debug
+		case LogWarn:
+			logging = logger.Warn
+		case LogError:
+			logging = logger.Error
+		case LogFatal:
+			logging = logger.Fatal
+		case LogPanic:
+			logging = logger.Panic
 		default:
 			t.FailNow()
 		}
 
-		logging("msg", test.msg)
+		logging("msg=", test.msg)
+		writer.Flush()
+
 		if test.out != nil {
 			requireContains(t, &b, test.out, true)
 		} else {

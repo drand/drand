@@ -91,9 +91,9 @@ func Client(c *cli.Context) error {
 	// configure logging
 	_ = log.DefaultLogger()
 	if c.Bool(verboseFlag.Name) {
-		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogDebug)
+		log.SetDefaultLogger(os.Stderr, log.LogDebug)
 	} else {
-		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogInfo)
+		log.SetDefaultLogger(os.Stderr, log.LogInfo)
 	}
 
 	opts := []client.Option{}
