@@ -25,7 +25,7 @@ jobs:
             ${{ runner.os }}-go-
       - name: Build and push Docker image
         run: |
-          docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
+          docker build --build-arg major=0 --build-arg minor=0 --build-arg patch=0 --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
           echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
           docker push drandorg/go-drand:latest
         env:

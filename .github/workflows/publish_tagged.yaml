@@ -23,9 +23,18 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+      - name: Get latest release version number
+        id: get_version
+        uses: battila7/get-version-action@v2
+      - name: Parse semver string
+        id: semver_parser
+        uses: booxmedialtd/ws-action-parse-semver@v1
+        with:
+          input_string: ${{ steps.get_version.outputs.version }}
+          version_extractor_regex: 'v(.*)$'
       - name: Build and push tagged Docker image
         run: |
-          docker build --build-arg version=`git describe --tags` --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
+          docker build --build-arg major=${{ steps.semver_parser.outputs.major }} --build-arg minor=${{ steps.semver_parser.outputs.minor }} --build-arg patch=${{ steps.semver_parser.outputs.patch }} --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
           echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
           docker push drandorg/go-drand:`git describe --tags`
         env:

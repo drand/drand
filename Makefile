@@ -1,9 +1,17 @@
 .PHONY: test test-unit test-integration demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
 
 # Version values
-MAJOR=0
-MINOR=1
-PATCH=0
+ifeq ($(MAJOR),)
+MAJOR := 0
+endif
+
+ifeq ($(PATCH),)
+PATCH := 0
+endif
+
+ifeq ($(MINOR),)
+MINOR := 0
+endif
 
 VER_PACKAGE=github.com/drand/drand/common
 CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
