@@ -281,11 +281,23 @@ func TestStartWithoutGroup(t *testing.T) {
 }
 
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store) {
-	fmt.Println(" + running PING command with ", ctrlPort)
 	var err error
+
+	fmt.Println(" + running PING command with ", ctrlPort)
 	for i := 0; i < 3; i++ {
 		ping := []string{"drand", "util", "ping", "--control", ctrlPort}
 		err = CLI().Run(ping)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	require.NoError(t, err)
+
+	fmt.Println(" + running STATUS command with ", ctrlPort)
+	for i := 0; i < 3; i++ {
+		status := []string{"drand", "util", "status", "--control", ctrlPort}
+		err = CLI().Run(status)
 		if err == nil {
 			break
 		}
