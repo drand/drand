@@ -11,13 +11,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type ContextGetter interface {
-	GetContext() *common.Context
+type MetadataGetter interface {
+	GetMetadata() *common.Metadata
 }
 
 func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
-	reqWithContext, ok := req.(ContextGetter)
+	reqWithContext, ok := req.(MetadataGetter)
 
 	d.log.Debug("node_version_interceptor", fmt.Sprintf("request type: %T", req))
 	d.log.Debug("node_version_interceptor", fmt.Sprintf("GetContext method is present: %t", ok))
@@ -25,13 +25,13 @@ func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
 		return handler(ctx, req)
 	}
 
-	msgContext := reqWithContext.GetContext()
-	if msgContext == nil {
+	metadata := reqWithContext.GetMetadata()
+	if metadata == nil {
 		return handler(ctx, req)
 	}
 	d.log.Debug("node_version_interceptor", "context field is present")
 
-	v := msgContext.GetNodeVersion()
+	v := metadata.GetNodeVersion()
 	if v == nil {
 		return handler(ctx, req)
 	}
@@ -49,7 +49,7 @@ func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
 
 func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream,
 	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	reqWithContext, ok := srv.(ContextGetter)
+	reqWithContext, ok := srv.(MetadataGetter)
 
 	d.log.Debug("node_version_interceptor", fmt.Sprintf("request type: %T", srv))
 	d.log.Debug("node_version_interceptor", fmt.Sprintf("GetContext method is present: %t", ok))
@@ -57,13 +57,13 @@ func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream
 		return handler(srv, ss)
 	}
 
-	msgContext := reqWithContext.GetContext()
-	if msgContext == nil {
+	metadata := reqWithContext.GetMetadata()
+	if metadata == nil {
 		return handler(srv, ss)
 	}
 	d.log.Debug("node_version_interceptor", "context field is present")
 
-	v := msgContext.GetNodeVersion()
+	v := metadata.GetNodeVersion()
 	if v == nil {
 		return handler(srv, ss)
 	}

@@ -1,5 +1,5 @@
 package common
 
-func NewContext(version *NodeVersion) *Context {
-	return &Context{NodeVersion: version}
+func NewMetadata(version *NodeVersion) *Metadata {
+	return &Metadata{NodeVersion: version}
 }

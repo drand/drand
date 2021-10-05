@@ -82,9 +82,9 @@ func NewControlClient(addr string) (*ControlClient, error) {
 
 // Ping the drand daemon to check if it's up and running
 func (c *ControlClient) Ping() error {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
-	_, err := c.client.PingPong(ctx.Background(), &control.Ping{Context: context})
+	_, err := c.client.PingPong(ctx.Background(), &control.Ping{Metadata: metadata})
 	return err
 }
 
@@ -102,7 +102,7 @@ func (c *ControlClient) InitReshareLeader(
 	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
 	offset int) (*control.GroupPacket, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -118,7 +118,7 @@ func (c *ControlClient) InitReshareLeader(
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
-		Context:              context,
+		Metadata:             metadata,
 	}
 
 	return c.client.InitReshare(ctx.Background(), request)
@@ -126,7 +126,7 @@ func (c *ControlClient) InitReshareLeader(
 
 // InitReshare sets up the node to be ready for a resharing protocol.
 func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool) (*control.GroupPacket, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -139,7 +139,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			Secret:        []byte(secret),
 			Force:         force,
 		},
-		Context: context,
+		Metadata: metadata,
 	}
 
 	return c.client.InitReshare(ctx.Background(), request)
@@ -156,7 +156,7 @@ func (c *ControlClient) InitDKGLeader(
 	secret string,
 	offset int,
 ) (*control.GroupPacket, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -170,7 +170,7 @@ func (c *ControlClient) InitDKGLeader(
 		Entropy:       entropy,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
-		Context:       context,
+		Metadata:      metadata,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)
@@ -178,7 +178,7 @@ func (c *ControlClient) InitDKGLeader(
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
 func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -187,8 +187,8 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			LeaderTls:     leader.IsTLS(),
 			Secret:        []byte(secret),
 		},
-		Entropy: entropy,
-		Context: context,
+		Entropy:  entropy,
+		Metadata: metadata,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)
@@ -196,40 +196,40 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 
 // Share returns the share of the remote node
 func (c *ControlClient) Share() (*control.ShareResponse, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
-	return c.client.Share(ctx.Background(), &control.ShareRequest{Context: context})
+	return c.client.Share(ctx.Background(), &control.ShareRequest{Metadata: metadata})
 }
 
 // PublicKey returns the public key of the remote node
 func (c *ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
-	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Context: context})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Metadata: metadata})
 }
 
 // PrivateKey returns the private key of the remote node
 func (c *ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
-	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Context: context})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Metadata: metadata})
 }
 
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
-	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Context: context})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Metadata: metadata})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
 // time
 func (c *ControlClient) GroupFile() (*control.GroupPacket, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
-	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Context: context})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Metadata: metadata})
 }
 
 // Shutdown stops the daemon
 func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
-	context := protoCommon.NewContext(c.version.ToProto())
-	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Context: context})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: metadata})
 }
 
 const progressFollowQueue = 100
@@ -241,14 +241,14 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	tls bool,
 	upTo uint64) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
-	context := protoCommon.NewContext(c.version.ToProto())
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
 
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,
 		Nodes:    nodes,
 		IsTls:    tls,
 		UpTo:     upTo,
-		Context:  context,
+		Metadata: metadata,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -278,8 +278,8 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 
 // BackupDB backs up the database to afile
 func (c *ControlClient) BackupDB(outFile string) error {
-	context := protoCommon.NewContext(c.version.ToProto())
-	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Context: context})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: metadata})
 	return err
 }
 

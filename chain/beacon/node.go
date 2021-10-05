@@ -358,12 +358,12 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		return
 	}
 	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
-	msgContext := common.NewContext(h.version.ToProto())
+	metadata := common.NewMetadata(h.version.ToProto())
 	packet := &proto.PartialBeaconPacket{
 		Round:       round,
 		PreviousSig: previousSig,
 		PartialSig:  currSig,
-		Context:     msgContext,
+		Metadata:    metadata,
 	}
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {

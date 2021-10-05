@@ -36,7 +36,7 @@ func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Emp
 		return nil, err
 	}
 
-	response := &drand.Empty{Context: common.NewContext(d.version.ToProto())}
+	response := &drand.Empty{Metadata: common.NewMetadata(d.version.ToProto())}
 	return response, nil
 }
 
@@ -52,7 +52,7 @@ func (d *Drand) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) 
 	d.state.Unlock()
 
 	_, err := inst.ProcessPartialBeacon(c, in)
-	return &drand.Empty{Context: common.NewContext(d.version.ToProto())}, err
+	return &drand.Empty{Metadata: common.NewMetadata(d.version.ToProto())}, err
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
@@ -81,7 +81,7 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 	d.log.Info("public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
 
 	response := beaconToProto(beaconResp)
-	response.Context = common.NewContext(d.version.ToProto())
+	response.Metadata = common.NewMetadata(d.version.ToProto())
 
 	return response, nil
 }
@@ -128,7 +128,7 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 			Signature:         b.Signature,
 			PreviousSignature: b.PreviousSig,
 			Randomness:        b.Randomness(),
-			Context:           common.NewContext(d.version.ToProto()),
+			Metadata:          common.NewMetadata(d.version.ToProto()),
 		})
 		// if connection has a problem, we drop the callback
 		if err != nil {
@@ -163,7 +163,7 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 
 	obj, err := ecies.Encrypt(key.KeyGroup, clientKey, randomness, EciesHash)
 
-	return &drand.PrivateRandResponse{Response: obj, Context: common.NewContext(d.version.ToProto())}, err
+	return &drand.PrivateRandResponse{Response: obj, Metadata: common.NewMetadata(d.version.ToProto())}, err
 }
 
 // Home provides the address the local node is listening
@@ -173,7 +173,7 @@ func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeRespo
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			d.priv.Public.Address()),
-		Context: common.NewContext(d.version.ToProto()),
+		Metadata: common.NewMetadata(d.version.ToProto()),
 	}, nil
 }
 
@@ -185,10 +185,10 @@ func (d *Drand) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*dra
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
 
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 
 	response := chain.NewChainInfo(d.group).ToProto()
-	response.Context = msgContext
+	response.Metadata = metadata
 
 	return response, nil
 }
@@ -207,7 +207,7 @@ func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPack
 		return nil, err
 	}
 
-	response := &drand.Empty{Context: common.NewContext(d.version.ToProto())}
+	response := &drand.Empty{Metadata: common.NewMetadata(d.version.ToProto())}
 	return response, nil
 }
 
@@ -222,7 +222,7 @@ func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*dran
 
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.
-	response := &drand.Empty{Context: common.NewContext(d.version.ToProto())}
+	response := &drand.Empty{Metadata: common.NewMetadata(d.version.ToProto())}
 	return response, d.receiver.PushDKGInfo(in)
 }
 
@@ -242,14 +242,14 @@ func (d *Drand) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChai
 // GetIdentity returns the identity of this drand node
 func (d *Drand) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	i := d.priv.Public.ToProto()
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 
 	response := &drand.IdentityResponse{
 		Address:   i.Address,
 		Key:       i.Key,
 		Tls:       i.Tls,
 		Signature: i.Signature,
-		Context:   msgContext,
+		Metadata:  metadata,
 	}
 	return response, nil
 }

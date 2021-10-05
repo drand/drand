@@ -13,6 +13,6 @@ message NodeVersion {
     uint32 patch = 3;
 }
 
-message Context {
+message Metadata {
     NodeVersion node_version = 1;
 }

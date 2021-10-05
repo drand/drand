@@ -34,7 +34,7 @@ service Protocol {
 }
 
 message IdentityRequest {
-    common.Context context = 1;
+    common.Metadata metadata = 1;
 }
 
 message IdentityResponse {
@@ -46,7 +46,7 @@ message IdentityResponse {
     bytes signature = 4;
     // --------------
 
-    common.Context context = 5;
+    common.Metadata metadata = 5;
 }
 
 // SignalDKGPacket is the packet nodes send to a coordinator that collects all
@@ -59,7 +59,7 @@ message SignalDKGPacket {
     // It is to make sure the nodes build on top of the correct previous group.
     bytes previous_group_hash = 3;
     //
-    common.Context context = 4;
+    common.Metadata metadata = 4;
 }
 
 // PushDKGInfor is the packet the coordinator sends that contains the group over
@@ -75,7 +75,7 @@ message DKGInfoPacket {
     // file.
     bytes signature = 4;
     //
-    common.Context context = 5;
+    common.Metadata metadata = 5;
 }
 
 message PartialBeaconPacket {
@@ -89,7 +89,7 @@ message PartialBeaconPacket {
     // the final beacon at the given round.
     bytes partial_sig = 3;
     //
-    common.Context context = 4;
+    common.Metadata metadata = 4;
 }
 
 // DKGPacket is the packet that nodes send to others nodes as part of the
@@ -97,7 +97,7 @@ message PartialBeaconPacket {
 message DKGPacket{
     dkg.Packet dkg = 1;
     //
-    common.Context context = 2;
+    common.Metadata metadata = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the
@@ -105,12 +105,12 @@ message DKGPacket{
 message SyncRequest {
     uint64 from_round = 1;
     //
-    common.Context context = 2;
+    common.Metadata metadata = 2;
 }
 
 message BeaconPacket {
     bytes previous_sig = 1;
     uint64 round = 2;
     bytes signature = 3;
-    common.Context context = 4;
+    common.Metadata metadata = 4;
 }

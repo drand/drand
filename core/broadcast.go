@@ -163,8 +163,8 @@ func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
 	proto := &drand.DKGPacket{
-		Dkg:     dkgproto,
-		Context: common.NewContext(b.version.ToProto()),
+		Dkg:      dkgproto,
+		Metadata: common.NewMetadata(b.version.ToProto()),
 	}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG

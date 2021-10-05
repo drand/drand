@@ -18,7 +18,7 @@ message Packet {
         ResponseBundle response = 2;
         JustificationBundle justification = 3;
     }
-    common.Context context = 4;
+    common.Metadata metadata = 4;
 }
 
 

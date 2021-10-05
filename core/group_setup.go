@@ -301,7 +301,7 @@ func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
 }
 
 func (r *setupReceiver) fetchLeaderKey() error {
-	request := &drand.IdentityRequest{Context: common.NewContext(r.version.ToProto())}
+	request := &drand.IdentityRequest{Metadata: common.NewMetadata(r.version.ToProto())}
 
 	protoID, err := r.client.GetIdentity(context.Background(), r.leader, request)
 	if err != nil {

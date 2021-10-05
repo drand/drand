@@ -71,7 +71,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	}
 
 	response := finalGroup.ToProto()
-	response.Context = common.NewContext(d.version.ToProto())
+	response.Metadata = common.NewMetadata(d.version.ToProto())
 
 	return response, nil
 }
@@ -329,7 +329,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Context:     common.NewContext(d.version.ToProto()),
+		Metadata:    common.NewMetadata(d.version.ToProto()),
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
@@ -415,12 +415,12 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	d.state.Unlock()
 	// send public key to leader
 	id := d.priv.Public.ToProto()
-	ctx := common.NewContext(d.version.ToProto())
+	ctx := common.NewMetadata(d.version.ToProto())
 	prep := &drand.SignalDKGPacket{
 		Node:              id,
 		SecretProof:       in.GetInfo().GetSecret(),
 		PreviousGroupHash: oldHash,
-		Context:           ctx,
+		Metadata:          ctx,
 	}
 
 	// we wait only a certain amount of time for the prepare phase
@@ -568,7 +568,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 	}
 
 	response := finalGroup.ToProto()
-	response.Context = common.NewContext(d.version.ToProto())
+	response.Metadata = common.NewMetadata(d.version.ToProto())
 
 	return response, nil
 }
@@ -576,9 +576,9 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
-	ctx := common.NewContext(d.version.ToProto())
+	ctx := common.NewMetadata(d.version.ToProto())
 
-	return &drand.Pong{Context: ctx}, nil
+	return &drand.Pong{Metadata: ctx}, nil
 }
 
 // Status responds with the actual status of drand process
@@ -645,9 +645,9 @@ func (d *Drand) Share(ctx context.Context, in *drand.ShareRequest) (*drand.Share
 		return nil, err
 	}
 
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 
-	return &drand.ShareResponse{Index: id, Share: buff, Context: msgContext}, nil
+	return &drand.ShareResponse{Index: id, Share: buff, Metadata: metadata}, nil
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
@@ -666,9 +666,9 @@ func (d *Drand) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*dra
 		return nil, err
 	}
 
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 
-	return &drand.PublicKeyResponse{PubKey: protoKey, Context: msgContext}, nil
+	return &drand.PublicKeyResponse{PubKey: protoKey, Metadata: metadata}, nil
 }
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control
@@ -687,9 +687,9 @@ func (d *Drand) PrivateKey(ctx context.Context, in *drand.PrivateKeyRequest) (*d
 		return nil, err
 	}
 
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 
-	return &drand.PrivateKeyResponse{PriKey: protoKey, Context: msgContext}, nil
+	return &drand.PrivateKeyResponse{PriKey: protoKey, Metadata: metadata}, nil
 }
 
 // GroupFile replies with the distributed key in the response
@@ -702,7 +702,7 @@ func (d *Drand) GroupFile(ctx context.Context, in *drand.GroupRequest) (*drand.G
 	}
 
 	protoGroup := d.group.ToProto()
-	protoGroup.Context = common.NewContext(d.version.ToProto())
+	protoGroup.Metadata = common.NewMetadata(d.version.ToProto())
 
 	return protoGroup, nil
 }
@@ -804,13 +804,13 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 
 	// Prepare packet
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(),
 		SecretProof: secret,
 		DkgTimeout:  timeout,
 		Signature:   signature,
-		Context:     msgContext,
+		Metadata:    metadata,
 	}
 
 	// Calculate threshold
@@ -1028,7 +1028,7 @@ func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) 
 	}
 	defer w.Close()
 
-	msgContext := common.NewContext(d.version.ToProto())
+	metadata := common.NewMetadata(d.version.ToProto())
 
-	return &drand.BackupDBResponse{Context: msgContext}, inst.Store().SaveTo(w)
+	return &drand.BackupDBResponse{Metadata: metadata}, inst.Store().SaveTo(w)
 }
