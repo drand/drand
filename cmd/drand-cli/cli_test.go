@@ -281,17 +281,8 @@ func TestStartWithoutGroup(t *testing.T) {
 }
 
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store) {
-	fmt.Println(" + running PING command with ", ctrlPort)
-	var err error
-	for i := 0; i < 3; i++ {
-		ping := []string{"drand", "util", "ping", "--control", ctrlPort}
-		err = CLI().Run(ping)
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	require.NoError(t, err)
+	testPing(t, ctrlPort)
+	testStatus(t, ctrlPort)
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
@@ -341,6 +332,36 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	require.Error(t, err)
 	_, err = fileStore.LoadGroup()
 	require.Error(t, err)
+}
+
+func testPing(t *testing.T, ctrlPort string) {
+	var err error
+
+	fmt.Println(" + running PING command with ", ctrlPort)
+	for i := 0; i < 3; i++ {
+		ping := []string{"drand", "util", "ping", "--control", ctrlPort}
+		err = CLI().Run(ping)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	require.NoError(t, err)
+}
+
+func testStatus(t *testing.T, ctrlPort string) {
+	var err error
+
+	fmt.Println(" + running STATUS command with ", ctrlPort)
+	for i := 0; i < 3; i++ {
+		status := []string{"drand", "util", "status", "--control", ctrlPort}
+		err = CLI().Run(status)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	require.NoError(t, err)
 }
 
 func TestClientTLS(t *testing.T) {

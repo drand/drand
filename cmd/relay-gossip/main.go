@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/metrics"
@@ -18,23 +19,22 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
 
 func main() {
+	version := common.GetAppVersion()
 	app := &cli.App{
 		Name:     "drand-relay-gossip",
-		Version:  version,
+		Version:  version.String(),
 		Usage:    "pubsub relay for drand randomness beacon",
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand gossip relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("drand gossip relay %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
