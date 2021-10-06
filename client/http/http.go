@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -24,6 +25,8 @@ import (
 var errClientClosed = fmt.Errorf("client closed")
 
 const defaultClientExec = "unknown"
+const defaultHTTTPTimeout = 20 * time.Second
+const maxHTTPServerTries = 10
 
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
@@ -45,7 +48,11 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 		Agent:  agent,
 		done:   make(chan struct{}),
 	}
-	chainInfo, err := c.FetchChainInfo(chainHash)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	chainInfo, err := c.FetchChainInfo(ctx, chainHash)
 	if err != nil {
 		return nil, err
 	}
@@ -110,10 +117,54 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 	return clients
 }
 
+func WaitServerToBeReady(t *testing.T, addr string) error {
+	counter := 0
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := Ping(ctx, "http://"+addr)
+		if err == nil {
+			t.Log("Http server is ready to attend requests")
+			return nil
+		}
+
+		counter++
+		if counter == maxHTTPServerTries {
+			return fmt.Errorf("timeout waiting http server to be ready")
+		}
+
+		t.Log("Http server is not ready yet. We will check it again.")
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func Ping(ctx context.Context, root string) error {
+	url := fmt.Sprintf("%s/health", root)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	response, err := nhttp.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	defer response.Body.Close()
+
+	return nil
+}
+
 // Instruments an HTTP client around a transport
 func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	hc := nhttp.Client{}
-	hc.Timeout = nhttp.DefaultClient.Timeout
+	hc.Timeout = defaultHTTTPTimeout
 	hc.Jar = nhttp.DefaultClient.Jar
 	hc.CheckRedirect = nhttp.DefaultClient.CheckRedirect
 	urlLabel := prometheus.Labels{"url": url}
@@ -182,13 +233,13 @@ type httpInfoResponse struct {
 // FetchGroupInfo attempts to initialize an httpClient when
 // it does not know the full group parameters for a drand group. The chain hash
 // is the hash of the chain info.
-func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
+func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*chain.Info, error) {
 	if h.chainInfo != nil {
 		return h.chainInfo, nil
 	}
 
 	resC := make(chan httpInfoResponse, 1)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
