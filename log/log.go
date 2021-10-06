@@ -16,6 +16,12 @@ type Logger interface {
 	Error(keyvals ...interface{})
 	Fatal(keyvals ...interface{})
 	Panic(keyvals ...interface{})
+	Infow(msg string, keyvals ...interface{})
+	Debugw(msg string, keyvals ...interface{})
+	Warnw(msg string, keyvals ...interface{})
+	Errorw(msg string, keyvals ...interface{})
+	Fatalw(msg string, keyvals ...interface{})
+	Panicw(msg string, keyvals ...interface{})
 	With(args ...interface{}) *zap.SugaredLogger
 }
 
