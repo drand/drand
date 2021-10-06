@@ -45,7 +45,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 		out, err := d.setupAutomaticDKG(c, in)
 		return out, err
 	}
-	d.log.Info("init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
+	d.log.Infow("", "init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
 
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
@@ -55,7 +55,7 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	// expect the group
 	group, err := d.leaderRunSetup(newSetup)
 	if err != nil {
-		d.log.Error("init_dkg", "leader setup", "err", err)
+		d.log.Errorw("", "init_dkg", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 
@@ -80,11 +80,11 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
-		d.log.Info("reshare", "already_in_progress", "restart", "reshare", "old")
+		d.log.Infow("", "reshare", "already_in_progress", "restart", "reshare", "old")
 		d.manager.StopPreemptively()
 	}
 	manager, err := newSetup(d)
-	d.log.Info("reshare", "newmanager")
+	d.log.Infow("", "reshare", "newmanager")
 	if err != nil {
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
@@ -112,13 +112,13 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 			for _, k := range group.Nodes {
 				addr = append(addr, k.Address())
 			}
-			d.log.Debug("init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
+			d.log.Debugw("", "init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
 		} else {
-			d.log.Debug("init_dkg", "pre-empted")
+			d.log.Debugw("", "init_dkg", "pre-empted")
 			return nil, errPreempted
 		}
 	case <-time.After(MaxWaitPrepareDKG):
-		d.log.Debug("init_dkg", "time_out")
+		d.log.Debugw("", "init_dkg", "time_out")
 		manager.StopPreemptively()
 		return nil, errors.New("time outs: no key received")
 	}
@@ -166,13 +166,13 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	if leader {
 		// phaser will kick off the first phase for every other nodes so
 		// nodes will send their deals
-		d.log.Info("init_dkg", "START_DKG")
+		d.log.Infow("", "init_dkg", "START_DKG")
 		go phaser.Start()
 	}
-	d.log.Info("init_dkg", "wait_dkg_end")
+	d.log.Infow("", "init_dkg", "wait_dkg_end")
 	finalGroup, err := d.WaitDKG()
 	if err != nil {
-		d.log.Error("init_dkg", err)
+		d.log.Errorw("", "init_dkg", err)
 		d.state.Lock()
 		if d.dkgInfo == dkgInfo {
 			d.cleanupDKG()
@@ -184,7 +184,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	d.cleanupDKG()
 	d.dkgDone = true
 	d.state.Unlock()
-	d.log.Info("init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
+	d.log.Infow("", "init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 	// beacon will start at the genesis time specified
 	go d.StartBeacon(false)
 	return finalGroup, nil
@@ -204,7 +204,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	oldNode := oldGroup.Find(d.priv.Public)
 	oldPresent := oldNode != nil
 	if leader && !oldPresent {
-		d.log.Error("run_reshare", "invalid", "leader", leader, "old_present", oldPresent)
+		d.log.Errorw("", "run_reshare", "invalid", "leader", leader, "old_present", oldPresent)
 		return nil, errors.New("can not be a leader if not present in the old group")
 	}
 	newNode := newGroup.Find(d.priv.Public)
@@ -264,7 +264,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	d.state.Lock()
 	d.dkgInfo = info
 	if leader {
-		d.log.Info("dkg_reshare", "leader_start", "target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
+		d.log.Infow("", "dkg_reshare", "leader_start", "target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
 		d.dkgInfo.started = true
 	}
 	d.state.Unlock()
@@ -276,7 +276,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		go phaser.Start()
 	}
 
-	d.log.Info("dkg_reshare", "wait_dkg_end")
+	d.log.Infow("", "dkg_reshare", "wait_dkg_end")
 	finalGroup, err := d.WaitDKG()
 	if err != nil {
 		d.state.Lock()
@@ -286,7 +286,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: err during DKG: %v", err)
 	}
-	d.log.Info("dkg_reshare", "finished", "leader", leader)
+	d.log.Infow("", "dkg_reshare", "finished", "leader", leader)
 	// runs the transition of the beacon
 	go d.transition(oldGroup, oldPresent, newPresent)
 	return finalGroup, nil
@@ -296,18 +296,18 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
 func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	d.log.Info("init_dkg", "begin", "leader", false)
+	d.log.Infow("", "init_dkg", "begin", "leader", false)
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
 	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
-		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
+		d.log.Infow("", "dkg_setup", "already_in_progress", "restart", "dkg")
 		d.receiver.stop()
 	}
 	receiver, err := newSetupReceiver(d.version, d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
-		d.log.Error("setup", "fail", "err", err)
+		d.log.Errorw("", "setup", "fail", "err", err)
 		d.state.Unlock()
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 		Metadata:    common.NewMetadata(d.version.ToProto()),
 	}
 
-	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
+	d.log.Debugw("", "init_dkg", "send_key", "leader", lpeer.Address())
 	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
 	defer cancel()
 
@@ -341,26 +341,26 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
-	d.log.Debug("init_dkg", "wait_group")
+	d.log.Debugw("", "init_dkg", "wait_group")
 
 	group, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
 		return nil, err
 	}
 	if group == nil {
-		d.log.Debug("init_dkg", "wait_group", "canceled", "nil_group")
+		d.log.Debugw("", "init_dkg", "wait_group", "canceled", "nil_group")
 		return nil, errors.New("canceled operation")
 	}
 
 	now := d.opts.clock.Now().Unix()
 	if group.GenesisTime < now {
-		d.log.Error("genesis", "invalid", "given", group.GenesisTime)
+		d.log.Errorw("", "genesis", "invalid", "given", group.GenesisTime)
 		return nil, errors.New("control: group with genesis time in the past")
 	}
 
 	node := group.Find(d.priv.Public)
 	if node == nil {
-		d.log.Error("init_dkg", "absent_public_key_in_received_group")
+		d.log.Errorw("", "init_dkg", "absent_public_key_in_received_group")
 		return nil, errors.New("drand: public key not found in group")
 	}
 	d.state.Lock()
@@ -385,18 +385,18 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	d.state.Lock()
 	if d.receiver != nil {
 		if !in.GetInfo().GetForce() {
-			d.log.Info("reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
+			d.log.Infow("", "reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
 			d.state.Unlock()
 			return nil, errors.New("reshare already in progress; use --force")
 		}
-		d.log.Info("reshare_setup", "already_in_progress", "restart", "reshare")
+		d.log.Infow("", "reshare_setup", "already_in_progress", "restart", "reshare")
 		d.receiver.stop()
 		d.receiver = nil
 	}
 
 	receiver, err := newSetupReceiver(d.version, d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
-		d.log.Error("setup", "fail", "err", err)
+		d.log.Errorw("", "setup", "fail", "err", err)
 		d.state.Unlock()
 		return nil, err
 	}
@@ -427,16 +427,16 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
 	defer cancel()
 
-	d.log.Info("setup_reshare", "signaling_key_to_leader")
+	d.log.Infow("", "setup_reshare", "signaling_key_to_leader")
 	err = d.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
-		d.log.Error("setup_reshare", "failed to signal key to leader", "err", err)
+		d.log.Errorw("", "setup_reshare", "failed to signal key to leader", "err", err)
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
 	newGroup, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
-		d.log.Error("setup_reshare", "failed to receive dkg info", "err", err)
+		d.log.Errorw("", "setup_reshare", "failed to receive dkg info", "err", err)
 		return nil, err
 	}
 
@@ -450,18 +450,18 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 		// It is ok to not have our key found in the new group since we may just
 		// be a node that is leaving the network, but leaving gracefully, by
 		// still participating in the resharing.
-		d.log.Info("setup_reshare", "not_found_in_new_group")
+		d.log.Infow("", "setup_reshare", "not_found_in_new_group")
 	} else {
 		d.state.Lock()
 		d.index = int(node.Index)
 		d.state.Unlock()
-		d.log.Info("setup_reshare", "participate_newgroup", "index", node.Index)
+		d.log.Infow("", "setup_reshare", "participate_newgroup", "index", node.Index)
 	}
 
 	// run the dkg !
 	finalGroup, err := d.runResharing(false, oldGroup, newGroup, dkgTimeout)
 	if err != nil {
-		d.log.Error("setup_reshare", "failed to run resharing", "err", err)
+		d.log.Errorw("", "setup_reshare", "failed to run resharing", "err", err)
 		return nil, err
 	}
 	return finalGroup.ToProto(), nil
@@ -469,22 +469,22 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 
 func (d *Drand) validateGroupTransition(oldGroup, newGroup *key.Group) error {
 	if oldGroup.GenesisTime != newGroup.GenesisTime {
-		d.log.Error("setup_reshare", "invalid genesis time in received group")
+		d.log.Errorw("", "setup_reshare", "invalid genesis time in received group")
 		return errors.New("control: old and new group have different genesis time")
 	}
 
 	if oldGroup.Period != newGroup.Period {
-		d.log.Error("setup_reshare", "invalid period time in received group")
+		d.log.Errorw("", "setup_reshare", "invalid period time in received group")
 		return errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
 
 	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
-		d.log.Error("setup_reshare", "invalid genesis seed in received group")
+		d.log.Errorw("", "setup_reshare", "invalid genesis seed in received group")
 		return errors.New("control: old and new group have different genesis seed")
 	}
 	now := d.opts.clock.Now().Unix()
 	if newGroup.TransitionTime < now {
-		d.log.Error("setup_reshare", "invalid_transition", "given", newGroup.TransitionTime, "now", now)
+		d.log.Errorw("", "setup_reshare", "invalid_transition", "given", newGroup.TransitionTime, "now", now)
 		return errors.New("control: new group with transition time in the past")
 	}
 	return nil
@@ -498,7 +498,7 @@ func (d *Drand) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group, err err
 			d.state.Unlock()
 			return nil, errors.New("drand: can't init-reshare if no old group provided")
 		}
-		d.log.With("module", "control").Debug("init_reshare", "using_stored_group")
+		d.log.With("module", "control").Debugw("", "init_reshare", "using_stored_group")
 		oldGroup = d.group
 		err = nil
 	}
@@ -515,11 +515,11 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 	}
 
 	if !in.GetInfo().GetLeader() {
-		d.log.Info("init_reshare", "begin", "leader", false)
+		d.log.Infow("", "init_reshare", "begin", "leader", false)
 		return d.setupAutomaticResharing(c, oldGroup, in)
 	}
 
-	d.log.Info("init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
+	d.log.Infow("", "init_reshare", "begin", "leader", true, "time", d.opts.clock.Now())
 
 	newSetup := func(d *Drand) (*setupManager, error) {
 		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in)
@@ -527,7 +527,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 
 	newGroup, err := d.leaderRunSetup(newSetup)
 	if err != nil {
-		d.log.Error("init_reshare", "leader setup", "err", err)
+		d.log.Errorw("", "init_reshare", "leader setup", "err", err)
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
 	if d.setupCB != nil {
@@ -558,7 +558,7 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		newGroup,
 		in.GetInfo().GetSecret(),
 		in.GetInfo().GetTimeout()); err != nil {
-		d.log.Error("push_group", err)
+		d.log.Errorw("", "push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
 
@@ -746,7 +746,7 @@ func (d *Drand) getPhaser(timeout uint32) *dkg.TimePhaser {
 	}
 	return dkg.NewTimePhaserFunc(func(phase dkg.Phase) {
 		d.opts.clock.Sleep(tDuration)
-		d.log.Debug("phaser_finished", phase)
+		d.log.Debugw("", "phaser_finished", phase)
 	})
 }
 
@@ -799,7 +799,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
-		d.log.Error("setup", "leader", "group_signature", err)
+		d.log.Errorw("", "setup", "leader", "group_signature", err)
 		return fmt.Errorf("drand: error signing group: %w", err)
 	}
 
@@ -835,10 +835,10 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 		case ok := <-resultsCh:
 			total--
 			if ok.err != nil {
-				d.log.Error("push_dkg", "failed to push", "to", ok.address, "err", ok.err)
+				d.log.Errorw("", "push_dkg", "failed to push", "to", ok.address, "err", ok.err)
 				continue
 			}
-			d.log.Debug("push_dkg", "sending_group", "success_to", ok.address, "left", total)
+			d.log.Debugw("", "push_dkg", "sending_group", "success_to", ok.address, "left", total)
 			if nodesContainAddr(outgoing, ok.address) {
 				previousThreshold--
 			}
@@ -847,7 +847,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 			}
 		case <-d.opts.clock.After(time.Minute):
 			if previousThreshold <= 0 && newThreshold <= 0 {
-				d.log.Info("push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
+				d.log.Infow("", "push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
 				return nil
 			}
 			d.log.Warn("push_dkg", "sending_group", "status", "timeout")
@@ -856,10 +856,10 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 
 	if previousThreshold > 0 || newThreshold > 0 {
-		d.log.Info("push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
+		d.log.Infow("", "push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
 		return errors.New("push group failure")
 	}
-	d.log.Info("push_dkg", "sending_group", "status", "all succeeded")
+	d.log.Infow("", "push_dkg", "sending_group", "status", "all succeeded")
 
 	return nil
 }
@@ -915,7 +915,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	if err != nil {
 		return err
 	}
-	d.log.Debug("start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
+	d.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
 	hashStr := req.GetInfoHash()
 	hash, err := hex.DecodeString(hashStr)
@@ -928,13 +928,13 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 	store, err := d.createBoltStore()
 	if err != nil {
-		d.log.Error("start_follow_chain", "unable to create store", "err", err)
+		d.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %s", err)
 	}
 
 	// TODO find a better place to put that
 	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
-		d.log.Error("start_follow_chain", "unable to insert genesis block", "err", err)
+		d.log.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
 		store.Close()
 		return fmt.Errorf("unable to insert genesis block: %s", err)
 	}
@@ -949,7 +949,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	defer cbStore.RemoveCallback(addr)
 
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
-		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
+		d.log.Errorw("", "start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
 		return err
 	}
 
@@ -971,12 +971,12 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway, pe
 	for _, peer := range peers {
 		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))
 		if err != nil {
-			l.Debug("start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			l.Debugw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 		info, err = chain.InfoFromProto(ci)
 		if err != nil {
-			l.Debug("start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			l.Debugw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 	}
@@ -1003,7 +1003,7 @@ func sendProgressCallback(
 			Target:  chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime),
 		})
 		if err != nil {
-			l.Error("send_progress_callback", "sending_progress", "err", err)
+			l.Errorw("", "send_progress_callback", "sending_progress", "err", err)
 		}
 		if upTo > 0 && b.Round == upTo {
 			close(done)

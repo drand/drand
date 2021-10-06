@@ -62,7 +62,7 @@ func (b *boltStore) Len() int {
 
 func (b *boltStore) Close() {
 	if err := b.db.Close(); err != nil {
-		log.DefaultLogger().Debug("boltdb", "close", "err", err)
+		log.DefaultLogger().Debugw("", "boltdb", "close", "err", err)
 	}
 }
 

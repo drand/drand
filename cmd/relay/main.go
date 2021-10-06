@@ -114,6 +114,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.DefaultLogger().Fatal("binary", "relay", "err", err)
+		log.DefaultLogger().Fatalw("", "binary", "relay", "err", err)
 	}
 }

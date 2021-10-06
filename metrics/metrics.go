@@ -237,7 +237,7 @@ type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
 func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
-	log.DefaultLogger().Debug("metrics", "private listener started", "at", metricsBind)
+	log.DefaultLogger().Debugw("", "metrics", "private listener started", "at", metricsBind)
 	if err := bindMetrics(); err != nil {
 		log.DefaultLogger().Warn("metrics", "metric setup failed", "err", err)
 		return nil

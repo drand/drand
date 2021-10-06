@@ -129,7 +129,7 @@ var clientCmd = &cli.Command{
 		}
 
 		for rand := range c.Watch(context.Background()) {
-			log.DefaultLogger().Info("client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
+			log.DefaultLogger().Infow("", "client", "got randomness", "round", rand.Round(), "signature", rand.Signature()[:16])
 		}
 
 		return nil

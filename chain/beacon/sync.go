@@ -68,7 +68,7 @@ func (s *syncer) Follow(c context.Context, upTo uint64, nodes []net.Peer) error 
 		s.Unlock()
 	}()
 
-	s.l.Debug("syncer", "starting", "up_to", upTo, "nodes", peersToString(nodes))
+	s.l.Debugw("", "syncer", "starting", "up_to", upTo, "nodes", peersToString(nodes))
 
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(nodes)) {
@@ -91,36 +91,36 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 		FromRound: last.Round + 1,
 	})
 	if err != nil {
-		s.l.Debug("syncer", "unable_to_sync", "with_peer", n.Address(), "err", err)
+		s.l.Debugw("", "syncer", "unable_to_sync", "with_peer", n.Address(), "err", err)
 		return false
 	}
 
-	s.l.Debug("syncer", "start_follow", "with_peer", n.Address(), "from_round", last.Round+1)
+	s.l.Debugw("", "syncer", "start_follow", "with_peer", n.Address(), "from_round", last.Round+1)
 
 	for beaconPacket := range beaconCh {
-		s.l.Debug("syncer", "new_beacon_fetched", "with_peer", n.Address(), "from_round", last.Round+1, "got_round", beaconPacket.GetRound())
+		s.l.Debugw("", "syncer", "new_beacon_fetched", "with_peer", n.Address(), "from_round", last.Round+1, "got_round", beaconPacket.GetRound())
 		beacon := protoToBeacon(beaconPacket)
 
 		// verify the signature validity
 		if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
-			s.l.Debug("syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
+			s.l.Debugw("", "syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
 			return false
 		}
 
 		if err := s.store.Put(beacon); err != nil {
-			s.l.Debug("syncer", "unable to save", "with_peer", n.Address(), "err", err)
+			s.l.Debugw("", "syncer", "unable to save", "with_peer", n.Address(), "err", err)
 			return false
 		}
 		last = beacon
 		if last.Round == upTo {
-			s.l.Debug("syncer", "syncing finished to", "round", upTo)
+			s.l.Debugw("", "syncer", "syncing finished to", "round", upTo)
 			return true
 		}
 	}
 	// see if this was a cancellation from the call itself
 	select {
 	case <-global.Done():
-		s.l.Debug("syncer", "follow canceled", "err?", global.Err())
+		s.l.Debugw("", "syncer", "follow canceled", "err?", global.Err())
 		if global.Err() == nil {
 			return true
 		}
@@ -133,7 +133,7 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncChainServer) error {
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
-	s.l.Debug("syncer", "sync_request", "from", addr, "from_round", fromRound)
+	s.l.Debugw("", "syncer", "sync_request", "from", addr, "from_round", fromRound)
 
 	last, err := s.store.Last()
 	if err != nil {
@@ -149,7 +149,7 @@ func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncCha
 		s.store.Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(fromRound); bb != nil; bb = c.Next() {
 				if err = stream.Send(beaconToProto(bb)); err != nil {
-					s.l.Debug("syncer", "streaming_send", "err", err)
+					s.l.Debugw("", "syncer", "streaming_send", "err", err)
 					return
 				}
 			}
@@ -163,7 +163,7 @@ func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncCha
 	s.store.AddCallback(addr, func(b *chain.Beacon) {
 		err := stream.Send(beaconToProto(b))
 		if err != nil {
-			s.l.Debug("syncer", "streaming_send", "err", err)
+			s.l.Debugw("", "syncer", "streaming_send", "err", err)
 			done <- nil
 		}
 	})

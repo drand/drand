@@ -92,7 +92,7 @@ func (c *watchAggregator) startAutoWatch(full bool) {
 				select {
 				case _, ok := <-results:
 					if !ok {
-						c.log.Info("watch_aggregator", "auto watch ended")
+						c.log.Infow("", "watch_aggregator", "auto watch ended")
 						break LOOP
 					}
 				case <-ctx.Done():
@@ -108,7 +108,7 @@ func (c *watchAggregator) startAutoWatch(full bool) {
 			case <-ctx.Done():
 				t.Stop()
 			}
-			c.log.Info("watch_aggregator", "retrying auto watch")
+			c.log.Infow("", "watch_aggregator", "retrying auto watch")
 		}
 	}()
 }

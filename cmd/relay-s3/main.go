@@ -100,14 +100,14 @@ func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc s
 						return
 					}
 				}
-				log.DefaultLogger().Info("relay_s3", "got randomness", "round", res.Round())
+				log.DefaultLogger().Infow("", "relay_s3", "got randomness", "round", res.Round())
 				go func(res client.Result) {
 					url, err := uploadRandomness(ctx, upr, buc, res)
 					if err != nil {
-						log.DefaultLogger().Error("relay_s3", "failed to upload randomness", "err", err)
+						log.DefaultLogger().Errorw("", "relay_s3", "failed to upload randomness", "err", err)
 						return
 					}
-					log.DefaultLogger().Info("relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
+					log.DefaultLogger().Infow("", "relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
 				}(res)
 			case <-ctx.Done():
 				return
@@ -176,15 +176,15 @@ var syncCmd = &cli.Command{
 			// TODO: check if bucket already has this round
 			r, err := c.Get(ctx, rnd)
 			if err != nil {
-				log.DefaultLogger().Error("relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
+				log.DefaultLogger().Errorw("", "relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
 				continue
 			}
 			url, err := uploadRandomness(ctx, upr, buc, r)
 			if err != nil {
-				log.DefaultLogger().Error("relay_s3_sync", "failed to upload randomness", "err", err)
+				log.DefaultLogger().Errorw("", "relay_s3_sync", "failed to upload randomness", "err", err)
 				continue
 			}
-			log.DefaultLogger().Info("relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
+			log.DefaultLogger().Infow("", "relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
 		}
 
 		return nil
