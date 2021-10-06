@@ -297,6 +297,30 @@ func pingpongCmd(c *cli.Context) error {
 	return nil
 }
 
+func statusCmd(c *cli.Context) error {
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Status()
+	if err != nil {
+		return fmt.Errorf("drand: can't get the status of the daemon ... %s", err)
+	}
+
+	if c.IsSet(jsonFlag.Name) {
+		str, err := json.Marshal(resp)
+		if err != nil {
+			return fmt.Errorf("cannot marshal the response ... %s", err)
+		}
+		fmt.Fprintf(output, "%s \n", string(str))
+	} else {
+		fmt.Fprintf(output, "drand daemon is alive on port %s and its status is: \n", controlPort(c))
+		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
+	}
+
+	return nil
+}
+
 func showGroupCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
