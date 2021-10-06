@@ -9,32 +9,45 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f # pin@v2
         with:
           fetch-depth: 0
-      -
-        name: Set up Go
-        uses: actions/setup-go@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@331ce1d993939866bb63c32c6cbbfd48fa76fc57 # pin@v2
         with:
           go-version: '1.17'
-      -
-        name: Install Protoc
-        uses: arduino/setup-protoc@v1.1.2
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@64c0c85d18e984422218383b81c52f8b077404d3 # pin@v1.1.2
         with:
           version: '3.14.0'
-      -
-        name: Install Protoc-gen-go
+
+      - name: Install Protoc-gen-go
         run: |
           GO111MODULE=off go get github.com/golang/protobuf/protoc-gen-go@v1.5.2
           GO111MODULE=off go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
           go mod tidy
-      -
-        name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+
+      - name: Get latest release version number
+        id: get_version
+        uses: battila7/get-version-action@d97fbc34ceb64d1f5d95f4dfd6dce33521ccccf5 # pin@v2
+
+      - name: Parse semver string
+        id: semver_parser
+        uses: booxmedialtd/ws-action-parse-semver@3576f3a20a39f8752fe0d8195f5ed384090285dc # pin@v1
+        with:
+          input_string: ${{ steps.get_version.outputs.version }}
+          version_extractor_regex: 'v(.*)$'
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@5a54d7e660bda43b405e8463261b3d25631ffe86 # pin@v2
         with:
           version: latest
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MAJOR: ${{ steps.semver_parser.outputs.major }}
+          MINOR: ${{ steps.semver_parser.outputs.minor }}
+          PATCH: ${{ steps.semver_parser.outputs.patch }}

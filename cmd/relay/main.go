@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -19,10 +20,8 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -46,6 +45,8 @@ var metricsFlag = &cli.StringFlag{
 
 // Relay a GRPC connection to an HTTP server.
 func Relay(c *cli.Context) error {
+	version := common.GetAppVersion()
+
 	if c.IsSet(metricsFlag.Name) {
 		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
@@ -98,9 +99,11 @@ func Relay(c *cli.Context) error {
 }
 
 func main() {
+	version := common.GetAppVersion()
+
 	app := &cli.App{
 		Name:    "relay",
-		Version: version,
+		Version: version.String(),
 		Usage:   "Relay a Drand group to a public HTTP Rest API",
 		Flags:   append(lib.ClientFlags, listenFlag, accessLogFlag, metricsFlag),
 		Action:  Relay,
