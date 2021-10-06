@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/utils"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/utils"

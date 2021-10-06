@@ -11,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/utils"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/key"

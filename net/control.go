@@ -171,7 +171,7 @@ func (c *ControlClient) InitDKGLeader(
 		BeaconPeriod:    uint32(beaconPeriod.Seconds()),
 		CatchupPeriod:   uint32(catchupPeriod.Seconds()),
 		DecouplePrevSig: decouplePrevSig,
-		Metadata:      metadata,
+		Metadata:        metadata,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)
