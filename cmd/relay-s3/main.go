@@ -12,16 +12,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	json "github.com/nikkolasg/hexjson"
 	cli "github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -39,14 +38,16 @@ var (
 )
 
 func main() {
+	version := common.GetAppVersion()
+
 	app := &cli.App{
 		Name:     "drand-relay-s3",
-		Version:  version,
+		Version:  version.String(),
 		Usage:    "AWS S3 relay for randomness beacon",
 		Commands: []*cli.Command{runCmd, syncCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand AWS S3 relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("drand AWS S3 relay %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)

@@ -14,7 +14,9 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	clock "github.com/jonboulle/clockwork"
 )
 
@@ -278,16 +280,19 @@ type setupReceiver struct {
 	leaderID *key.Identity
 	secret   []byte
 	done     bool
+	version  utils.Version
 }
 
-func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
+func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
+	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
 	setup := &setupReceiver{
-		ch:     make(chan *dkgGroup, 1),
-		l:      l,
-		leader: net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
-		client: client,
-		clock:  c,
-		secret: hashSecret(in.GetSecret()),
+		ch:      make(chan *dkgGroup, 1),
+		l:       l,
+		leader:  net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
+		client:  client,
+		clock:   c,
+		secret:  hashSecret(in.GetSecret()),
+		version: version,
 	}
 	if err := setup.fetchLeaderKey(); err != nil {
 		return nil, err
@@ -296,14 +301,19 @@ func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in
 }
 
 func (r *setupReceiver) fetchLeaderKey() error {
-	protoID, err := r.client.GetIdentity(context.Background(), r.leader, new(drand.IdentityRequest))
+	request := &drand.IdentityRequest{Metadata: common.NewMetadata(r.version.ToProto())}
+
+	protoID, err := r.client.GetIdentity(context.Background(), r.leader, request)
 	if err != nil {
 		return err
 	}
-	id, err := key.IdentityFromProto(protoID)
+
+	identity := &drand.Identity{Signature: protoID.Signature, Tls: protoID.Tls, Address: protoID.Address, Key: protoID.Key}
+	id, err := key.IdentityFromProto(identity)
 	if err != nil {
 		return err
 	}
+
 	r.leaderID = id
 	return nil
 }

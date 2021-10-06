@@ -21,6 +21,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -35,10 +36,8 @@ import (
 var output io.Writer = os.Stdout
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -46,7 +45,8 @@ var (
 const defaultPort = "8080"
 
 func banner() {
-	fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	version := common.GetAppVersion()
+	fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version.String(), buildDate, gitCommit)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -445,17 +445,19 @@ var appCommands = []*cli.Command{
 
 // CLI runs the drand app
 func CLI() *cli.App {
+	version := common.GetAppVersion()
+
 	app := cli.NewApp()
 	app.Name = "drand"
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+		fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
 		// override to prevent default behavior of calling OS.exit(1),
 		// when tests expect to be able to run multiple commands.
 	}
-	app.Version = version
+	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
 	app.Commands = appCommands
@@ -649,10 +651,12 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
 	client := net.NewGrpcClientFromCertManager(conf.Certs())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	identity, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
+	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
 	if err != nil {
 		return err
 	}
+
+	identity := &drand.Identity{Signature: identityResp.Signature, Tls: identityResp.Tls, Address: identityResp.Address, Key: identityResp.Key}
 	id, err := key.IdentityFromProto(identity)
 	if err != nil {
 		return err
@@ -718,6 +722,7 @@ func getGroup(c *cli.Context) (*key.Group, error) {
 
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
+	version := common.GetAppVersion()
 
 	if c.IsSet(verboseFlag.Name) {
 		opts = append(opts, core.WithLogLevel(log.LogDebug))

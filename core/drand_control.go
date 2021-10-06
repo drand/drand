@@ -19,6 +19,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
@@ -63,11 +64,16 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	if err := d.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		return nil, err
 	}
+
 	finalGroup, err := d.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
 	if err != nil {
 		return nil, err
 	}
-	return finalGroup.ToProto(), nil
+
+	response := finalGroup.ToProto()
+	response.Metadata = common.NewMetadata(d.version.ToProto())
+
+	return response, nil
 }
 
 func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (group *key.Group, err error) {
@@ -135,7 +141,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+	board := newEchoBroadcast(d.log, d.version, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
@@ -239,7 +245,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
+	board := newEchoBroadcast(d.log, d.version, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 		return dkg.VerifyPacketSignature(config, p)
 	})
 	phaser := d.getPhaser(timeout)
@@ -299,7 +305,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 		d.log.Info("dkg_setup", "already_in_progress", "restart", "dkg")
 		d.receiver.stop()
 	}
-	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
+	receiver, err := newSetupReceiver(d.version, d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
 		d.state.Unlock()
@@ -319,9 +325,11 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	}(receiver)
 	// send public key to leader
 	id := d.priv.Public.ToProto()
+
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
+		Metadata:    common.NewMetadata(d.version.ToProto()),
 	}
 
 	d.log.Debug("init_dkg", "send_key", "leader", lpeer.Address())
@@ -386,7 +394,7 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 		d.receiver = nil
 	}
 
-	receiver, err := newSetupReceiver(d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
+	receiver, err := newSetupReceiver(d.version, d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
 		d.log.Error("setup", "fail", "err", err)
 		d.state.Unlock()
@@ -407,10 +415,12 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 	d.state.Unlock()
 	// send public key to leader
 	id := d.priv.Public.ToProto()
+	ctx := common.NewMetadata(d.version.ToProto())
 	prep := &drand.SignalDKGPacket{
 		Node:              id,
 		SecretProof:       in.GetInfo().GetSecret(),
 		PreviousGroupHash: oldHash,
+		Metadata:          ctx,
 	}
 
 	// we wait only a certain amount of time for the prepare phase
@@ -556,13 +566,19 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 	if err != nil {
 		return nil, err
 	}
-	return finalGroup.ToProto(), nil
+
+	response := finalGroup.ToProto()
+	response.Metadata = common.NewMetadata(d.version.ToProto())
+
+	return response, nil
 }
 
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
-	return &drand.Pong{}, nil
+	ctx := common.NewMetadata(d.version.ToProto())
+
+	return &drand.Pong{Metadata: ctx}, nil
 }
 
 // Status responds with the actual status of drand process
@@ -622,12 +638,16 @@ func (d *Drand) Share(ctx context.Context, in *drand.ShareRequest) (*drand.Share
 	if err != nil {
 		return nil, err
 	}
+
 	id := uint32(share.Share.I)
 	buff, err := share.Share.V.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return &drand.ShareResponse{Index: id, Share: buff}, nil
+
+	metadata := common.NewMetadata(d.version.ToProto())
+
+	return &drand.ShareResponse{Index: id, Share: buff, Metadata: metadata}, nil
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
@@ -635,15 +655,20 @@ func (d *Drand) Share(ctx context.Context, in *drand.ShareRequest) (*drand.Share
 func (d *Drand) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
+
 	keyPair, err := d.store.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	}
+
 	protoKey, err := keyPair.Public.Key.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return &drand.PublicKeyResponse{PubKey: protoKey}, nil
+
+	metadata := common.NewMetadata(d.version.ToProto())
+
+	return &drand.PublicKeyResponse{PubKey: protoKey, Metadata: metadata}, nil
 }
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control
@@ -651,25 +676,34 @@ func (d *Drand) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*dra
 func (d *Drand) PrivateKey(ctx context.Context, in *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
+
 	keyPair, err := d.store.LoadKeyPair()
 	if err != nil {
 		return nil, err
 	}
+
 	protoKey, err := keyPair.Key.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
-	return &drand.PrivateKeyResponse{PriKey: protoKey}, nil
+
+	metadata := common.NewMetadata(d.version.ToProto())
+
+	return &drand.PrivateKeyResponse{PriKey: protoKey, Metadata: metadata}, nil
 }
 
 // GroupFile replies with the distributed key in the response
 func (d *Drand) GroupFile(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
+
 	if d.group == nil {
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
+
 	protoGroup := d.group.ToProto()
+	protoGroup.Metadata = common.NewMetadata(d.version.ToProto())
+
 	return protoGroup, nil
 }
 
@@ -770,11 +804,13 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 
 	// Prepare packet
+	metadata := common.NewMetadata(d.version.ToProto())
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(),
 		SecretProof: secret,
 		DkgTimeout:  timeout,
 		Signature:   signature,
+		Metadata:    metadata,
 	}
 
 	// Calculate threshold
@@ -843,10 +879,12 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	d.state.Lock()
+
 	if d.syncerCancel != nil {
 		d.state.Unlock()
 		return errors.New("syncing is already in progress")
 	}
+
 	// context given to the syncer
 	// NOTE: this means that if the client quits the requests, the syncing
 	// context will signal and it will stop. If we want the following to
@@ -854,6 +892,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	// ctx, cancel := context.WithCancel(context.Background())
 	ctx, cancel := context.WithCancel(stream.Context())
 	d.syncerCancel = cancel
+
 	d.state.Unlock()
 	defer func() {
 		d.state.Lock()
@@ -902,14 +941,18 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(store)
 	defer cbStore.Close()
+
 	syncer := beacon.NewSyncer(d.log, cbStore, info, d.privGateway)
 	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, d.opts.clock, d.log)
+
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
+
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
 		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
 		return err
 	}
+
 	// wait for all the callbacks to be called and progress sent before returning
 	if req.GetUpTo() > 0 {
 		select {
@@ -985,5 +1028,7 @@ func (d *Drand) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) 
 	}
 	defer w.Close()
 
-	return &drand.BackupDBResponse{}, inst.Store().SaveTo(w)
+	metadata := common.NewMetadata(d.version.ToProto())
+
+	return &drand.BackupDBResponse{Metadata: metadata}, inst.Store().SaveTo(w)
 }
