@@ -176,10 +176,10 @@ func (g *restListener) Start() {
 
 func (g *restListener) Stop(ctx context.Context) {
 	if err := g.lis.Close(); err != nil {
-		log.DefaultLogger().Debug("grpc listener", "grpc shutdown", "err", err)
+		log.DefaultLogger().Debugw("", "grpc listener", "grpc shutdown", "err", err)
 	}
 	if err := g.restServer.Shutdown(ctx); err != nil {
-		log.DefaultLogger().Debug("grpc listener", "http shutdown", "err", err)
+		log.DefaultLogger().Debugw("", "grpc listener", "http shutdown", "err", err)
 	}
 }
 

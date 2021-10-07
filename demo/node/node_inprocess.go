@@ -139,7 +139,7 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	}
 	cl, err := net.NewControlClient(l.ctrlAddr)
 	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
+		l.log.Errorw("", "drand", "can't instantiate control client", "err", err)
 		return nil
 	}
 	l.ctrlClient = cl
@@ -159,7 +159,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 		grp, err = cl.InitDKG(leader, nil, secretDKG)
 	}
 	if err != nil {
-		l.log.Error("drand", "dkg run failed", "err", err)
+		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return nil
 	}
 	kg, _ := key.GroupFromProto(grp)
@@ -171,12 +171,12 @@ func (l *LocalNode) GetGroup() *key.Group {
 
 	grp, err := cl.GroupFile()
 	if err != nil {
-		l.log.Error("drand", "can't  get group", "err", err)
+		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
 	}
 	group, err := key.GroupFromProto(grp)
 	if err != nil {
-		l.log.Error("drand", "can't deserialize group", "err", err)
+		l.log.Errorw("", "drand", "can't deserialize group", "err", err)
 		return nil
 	}
 	return group
@@ -195,7 +195,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false)
 	}
 	if err != nil {
-		l.log.Error("drand", "reshare failed", "err", err)
+		l.log.Errorw("", "drand", "reshare failed", "err", err)
 		return nil
 	}
 	kg, _ := key.GroupFromProto(grp)
@@ -206,7 +206,7 @@ func (l *LocalNode) ChainInfo(group string) bool {
 	cl := l.ctrl()
 	ci, err := cl.ChainInfo()
 	if err != nil {
-		l.log.Error("drand", "can't get chain-info", "err", err)
+		l.log.Errorw("", "drand", "can't get chain-info", "err", err)
 		return false
 	}
 	sdist := hex.EncodeToString(ci.PublicKey)
@@ -217,7 +217,7 @@ func (l *LocalNode) ChainInfo(group string) bool {
 func (l *LocalNode) Ping() bool {
 	cl := l.ctrl()
 	if err := cl.Ping(); err != nil {
-		l.log.Error("drand", "can't ping", "err", err)
+		l.log.Errorw("", "drand", "can't ping", "err", err)
 		return false
 	}
 	return true
@@ -232,7 +232,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 
 	group := l.GetGroup()
 	if group == nil {
-		l.log.Error("drand", "can't get group")
+		l.log.Errorw("", "drand", "can't get group")
 		return
 	}
 
@@ -242,7 +242,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	defer cancel()
 	r, err := c.Get(ctx, round)
 	if err != nil || r == nil {
-		l.log.Error("drand", "can't get becon", "err", err)
+		l.log.Errorw("", "drand", "can't get becon", "err", err)
 	}
 	if r == nil {
 		return
@@ -269,7 +269,7 @@ func (l *LocalNode) Stop() {
 	cl := l.ctrl()
 	_, err := cl.Shutdown()
 	if err != nil {
-		l.log.Error("drand", "failed to shutdown", "err", err)
+		l.log.Errorw("", "drand", "failed to shutdown", "err", err)
 	}
 	<-l.daemon.WaitExit()
 }

@@ -40,6 +40,6 @@ func (p *CertManager) Add(certPath string) error {
 	if !p.pool.AppendCertsFromPEM(b) {
 		return fmt.Errorf("peer cert: failed to append certificate %s", certPath)
 	}
-	log.DefaultLogger().Debug("cert_manager", "add", "server cert path", certPath)
+	log.DefaultLogger().Debugw("", "cert_manager", "add", "server cert path", certPath)
 	return nil
 }

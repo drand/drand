@@ -190,7 +190,7 @@ func (oc *optimizingClient) testSpeed() {
 					break LOOP
 				}
 				if rr.err != nil {
-					oc.log.Info("optimizing_client", "endpoint down when speed tested", "client", fmt.Sprintf("%s", rr.client), "err", rr.err)
+					oc.log.Infow("", "optimizing_client", "endpoint down when speed tested", "client", fmt.Sprintf("%s", rr.client), "err", rr.err)
 				}
 				stats = append(stats, rr.stat)
 			case <-oc.done:
@@ -402,7 +402,7 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 
 	info, err := oc.Info(ctx)
 	if err != nil {
-		oc.log.Error("optimizing_client", "failed to learn info", "err", err)
+		oc.log.Errorw("", "optimizing_client", "failed to learn info", "err", err)
 		close(outChan)
 		return outChan
 	}
@@ -499,7 +499,7 @@ func (ws *watchState) tryRepopulate(results chan watchResult, done chan Client) 
 		cctx, cancel := context.WithCancel(ws.ctx)
 
 		ws.active = append(ws.active, watchingClient{c, cancel})
-		ws.optimizer.log.Info("optimizing_client", "watching on client", "client", fmt.Sprintf("%s", c))
+		ws.optimizer.log.Infow("", "optimizing_client", "watching on client", "client", fmt.Sprintf("%s", c))
 		go ws.watchNext(cctx, c, results, done)
 	}
 }
@@ -511,7 +511,7 @@ func (ws *watchState) watchNext(ctx context.Context, c Client, out chan watchRes
 	for r := range resultStream {
 		out <- watchResult{r, c}
 	}
-	ws.optimizer.log.Info("optimizing_client", "watch ended", "client", fmt.Sprintf("%s", c))
+	ws.optimizer.log.Infow("", "optimizing_client", "watch ended", "client", fmt.Sprintf("%s", c))
 }
 
 func (ws *watchState) clean() {

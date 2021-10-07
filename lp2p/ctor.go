@@ -141,7 +141,7 @@ func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, 
 		if err != nil {
 			return nil, xerrors.Errorf("unmarshaling ed25519 key: %w", err)
 		}
-		log.Info("load_or_create_priv_key", "loaded private key")
+		log.Infow("", "load_or_create_priv_key", "loaded private key")
 
 	case xerrors.Is(err, os.ErrNotExist):
 		priv, _, err = crypto.GenerateEd25519Key(rand.Reader)
