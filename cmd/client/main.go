@@ -63,6 +63,11 @@ var clientMetricsIDFlag = &cli.StringFlag{
 	Usage: "Unique identifier for the client instance, used by the metrics system.",
 }
 
+var jsonFlag = &cli.BoolFlag{
+	Name:  "json",
+	Usage: "Set the output as json format",
+}
+
 func main() {
 	version := common.GetAppVersion()
 
@@ -88,13 +93,14 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
-	// configure logging
-	_ = log.DefaultLogger()
+	var level int
 	if c.Bool(verboseFlag.Name) {
-		log.SetDefaultLogger(os.Stderr, log.LogDebug)
+		level = log.LogDebug
 	} else {
-		log.SetDefaultLogger(os.Stderr, log.LogInfo)
+		level = log.LogInfo
 	}
+
+	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(jsonFlag.Name))
 
 	opts := []client.Option{}
 
