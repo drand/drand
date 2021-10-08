@@ -2,7 +2,6 @@ package log
 
 import (
 	"os"
-	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -39,48 +38,61 @@ const (
 // logger.
 const DefaultLevel = LogInfo
 
-var defaultLoggerSet sync.Once
-
-// SetDefaultLogger updates the default logger to wrap a provided kit logger.
-func SetDefaultLogger(output zapcore.WriteSyncer, level int) {
-	if output == nil {
-		output = os.Stdout
+// ConfigureDefaultLogger updates the default logger to wrap a provided kit logger.
+func ConfigureDefaultLogger(output zapcore.WriteSyncer, level int, jsonFormat bool) {
+	if jsonFormat {
+		zap.ReplaceGlobals(NewZapLogger(output, getJsonEncoder(), level))
+	} else {
+		zap.ReplaceGlobals(NewZapLogger(output, getConsoleEncoder(), level))
 	}
-
-	zap.ReplaceGlobals(NewZapLogger(output, level))
 }
 
 // DefaultLogger is the default logger that only logs at the `DefaultLevel`.
 func DefaultLogger() Logger {
-	defaultLoggerSet.Do(func() {
-		SetDefaultLogger(nil, DefaultLevel)
-	})
+	if zap.S() == nil {
+		zap.ReplaceGlobals(NewZapLogger(nil, getConsoleEncoder(), DefaultLevel))
+	}
 
 	return zap.S()
 }
 
 // NewLogger returns a kit logger that prints statements at the given level.
 func NewLogger(output zapcore.WriteSyncer, level int) Logger {
-	logger := NewZapLogger(output, level)
-
+	logger := NewZapLogger(output, getConsoleEncoder(), level)
 	return logger.Sugar()
 }
 
-func NewZapLogger(output zapcore.WriteSyncer, level int) *zap.Logger {
+// NewJSONLogger returns a kit logger that prints statements at the given level as JSON output.
+func NewJSONLogger(output zapcore.WriteSyncer, level int) Logger {
+	logger := NewZapLogger(output, getJsonEncoder(), level)
+	return logger.Sugar()
+}
+
+func NewZapLogger(output zapcore.WriteSyncer, encoder zapcore.Encoder, level int) *zap.Logger {
 	if output == nil {
 		output = os.Stdout
 	}
 
+	core := zapcore.NewCore(encoder, output, zapcore.Level(level))
+	logger := zap.New(core, zap.WithCaller(true))
+
+	return logger
+}
+
+func getJsonEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	encoder := zapcore.NewConsoleEncoder(encoderConfig)
+	return zapcore.NewJSONEncoder(encoderConfig)
+}
 
-	core := zapcore.NewCore(encoder, output, zapcore.Level(level))
+func getConsoleEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
 
-	logger := zap.New(core, zap.WithCaller(true))
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	return logger
+	return zapcore.NewJSONEncoder(encoderConfig)
 }

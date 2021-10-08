@@ -86,7 +86,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		return err
 	}
 	opts := []core.ConfigOption{
-		core.WithLogLevel(log.LogDebug),
+		core.WithLogLevel(log.LogDebug, false),
 		core.WithConfigFolder(l.base),
 		core.WithTrustedCerts(certs...),
 		core.WithPublicListenAddress(l.pubAddr),
