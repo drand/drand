@@ -41,7 +41,7 @@ const DefaultLevel = LogInfo
 // ConfigureDefaultLogger updates the default logger to wrap a provided kit logger.
 func ConfigureDefaultLogger(output zapcore.WriteSyncer, level int, jsonFormat bool) {
 	if jsonFormat {
-		zap.ReplaceGlobals(NewZapLogger(output, getJsonEncoder(), level))
+		zap.ReplaceGlobals(NewZapLogger(output, getJSONEncoder(), level))
 	} else {
 		zap.ReplaceGlobals(NewZapLogger(output, getConsoleEncoder(), level))
 	}
@@ -64,7 +64,7 @@ func NewLogger(output zapcore.WriteSyncer, level int) Logger {
 
 // NewJSONLogger returns a kit logger that prints statements at the given level as JSON output.
 func NewJSONLogger(output zapcore.WriteSyncer, level int) Logger {
-	logger := NewZapLogger(output, getJsonEncoder(), level)
+	logger := NewZapLogger(output, getJSONEncoder(), level)
 	return logger.Sugar()
 }
 
@@ -79,7 +79,7 @@ func NewZapLogger(output zapcore.WriteSyncer, encoder zapcore.Encoder, level int
 	return logger
 }
 
-func getJsonEncoder() zapcore.Encoder {
+func getJSONEncoder() zapcore.Encoder {
 	encoderConfig := zap.NewProductionEncoderConfig()
 
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
