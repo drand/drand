@@ -80,7 +80,7 @@ var (
 	}
 
 	// JsonFlag is the CLI flag for enabling JSON output for logger
-	JsonFlag = &cli.BoolFlag{
+	JSONFlag = &cli.BoolFlag{
 		Name:  "json",
 		Usage: "Set the output as json format",
 	}
@@ -96,6 +96,7 @@ var ClientFlags = []cli.Flag{
 	InsecureFlag,
 	RelayFlag,
 	PortFlag,
+	JSONFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied

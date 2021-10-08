@@ -95,7 +95,7 @@ func Client(c *cli.Context) error {
 		level = log.LogInfo
 	}
 
-	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JsonFlag.Name))
+	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
 
 	opts := []client.Option{}
 
