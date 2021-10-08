@@ -94,5 +94,5 @@ func getConsoleEncoder() zapcore.Encoder {
 	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-	return zapcore.NewJSONEncoder(encoderConfig)
+	return zapcore.NewConsoleEncoder(encoderConfig)
 }
