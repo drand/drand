@@ -88,13 +88,14 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
-	// configure logging
-	_ = log.DefaultLogger()
+	var level int
 	if c.Bool(verboseFlag.Name) {
-		log.SetDefaultLogger(os.Stderr, log.LogDebug)
+		level = log.LogDebug
 	} else {
-		log.SetDefaultLogger(os.Stderr, log.LogInfo)
+		level = log.LogInfo
 	}
+
+	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
 
 	opts := []client.Option{}
 
