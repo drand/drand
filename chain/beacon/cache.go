@@ -94,7 +94,7 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 		toEvict := c.rcvd[idx][0]
 		round, ok := c.rounds[toEvict]
 		if !ok {
-			c.l.Error("cache", "miss", "node", idx, "not_present_for", p.GetRound())
+			c.l.Errorw("", "cache", "miss", "node", idx, "not_present_for", p.GetRound())
 			return nil
 		}
 		round.flushIndex(idx)

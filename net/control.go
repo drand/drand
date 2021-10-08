@@ -28,7 +28,7 @@ type ControlListener struct {
 func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
 	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {
-		log.DefaultLogger().Error("grpc listener", "failure", "err", err)
+		log.DefaultLogger().Errorw("", "grpc listener", "failure", "err", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()
@@ -39,7 +39,7 @@ func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) Cont
 // Start the listener for the control commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
-		log.DefaultLogger().Error("control listener", "serve ended", "err", err)
+		log.DefaultLogger().Errorw("", "control listener", "serve ended", "err", err)
 	}
 }
 
@@ -67,7 +67,7 @@ func NewControlClient(addr string) (*ControlClient, error) {
 
 	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
-		log.DefaultLogger().Error("control client", "connect failure", "err", err)
+		log.DefaultLogger().Errorw("", "control client", "connect failure", "err", err)
 		return nil, err
 	}
 

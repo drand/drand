@@ -91,9 +91,9 @@ func Client(c *cli.Context) error {
 	// configure logging
 	_ = log.DefaultLogger()
 	if c.Bool(verboseFlag.Name) {
-		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogDebug)
+		log.SetDefaultLogger(os.Stderr, log.LogDebug)
 	} else {
-		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogInfo)
+		log.SetDefaultLogger(os.Stderr, log.LogInfo)
 	}
 
 	opts := []client.Option{}
@@ -158,7 +158,7 @@ func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometh
 			Timeout: 10 * time.Second,
 		}))
 		go func() {
-			log.DefaultLogger().Fatal("client", http.ListenAndServe(address, nil))
+			log.DefaultLogger().Fatalw("", "client", http.ListenAndServe(address, nil))
 		}()
 	}
 	return b
@@ -175,7 +175,7 @@ func (b *prometheusBridge) pushLoop() {
 	for {
 		time.Sleep(time.Second * time.Duration(b.pushIntervalSec))
 		if err := b.pusher.Push(); err != nil {
-			log.DefaultLogger().Info("client_metrics", "prometheus gateway push (%v)", err)
+			log.DefaultLogger().Infow("", "client_metrics", "prometheus gateway push (%v)", err)
 		}
 	}
 }

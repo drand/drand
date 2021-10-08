@@ -72,7 +72,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 	}
 
 	for _, a := range addrs {
-		l.Info("relay_node", "has addr", "addr", fmt.Sprintf("%s/p2p/%s", a, h.ID()))
+		l.Infow("", "relay_node", "has addr", "addr", fmt.Sprintf("%s/p2p/%s", a, h.ID()))
 	}
 
 	t, err := ps.Join(PubSubTopic(cfg.ChainHash))
@@ -148,7 +148,7 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 
 				rd, ok := res.(*client.RandomData)
 				if !ok {
-					g.l.Error("relay_node", "unexpected client result type")
+					g.l.Errorw("", "relay_node", "unexpected client result type")
 					continue
 				}
 
@@ -159,17 +159,17 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 					Randomness:        res.Randomness(),
 				})
 				if err != nil {
-					g.l.Error("relay_node", "err marshaling", "err", err)
+					g.l.Errorw("", "relay_node", "err marshaling", "err", err)
 					continue
 				}
 
 				err = g.t.Publish(ctx, randB)
 				if err != nil {
-					g.l.Error("relay_node", "err publishing on pubsub", "err", err)
+					g.l.Errorw("", "relay_node", "err publishing on pubsub", "err", err)
 					continue
 				}
 
-				g.l.Info("relay_node", "Published randomness on pubsub", "round", res.Round())
+				g.l.Infow("", "relay_node", "Published randomness on pubsub", "round", res.Round())
 			case <-g.done:
 				return
 			}

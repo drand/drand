@@ -90,7 +90,7 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		logger.Error("INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
+		logger.Errorw("", "INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
 	}
 
 	// trick to always set the listening address by default based on the
@@ -120,7 +120,7 @@ func setupDrand(d *Drand, c *Config) error {
 	// do not actually use it, so we are passing a background context to be safe.
 	ctx := context.Background()
 	var err error
-	d.log.Info("network", "init", "insecure", c.insecure)
+	d.log.Infow("", "network", "init", "insecure", c.insecure)
 	if pubAddr != "" {
 		handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
 		if err != nil {
@@ -137,7 +137,7 @@ func setupDrand(d *Drand, c *Config) error {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
+	d.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
 	d.privGateway.StartAll()
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
@@ -161,7 +161,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.log.Debug("serving", d.priv.Public.Address())
+	d.log.Debugw("", "serving", d.priv.Public.Address())
 	d.dkgDone = true
 	return d, nil
 }
@@ -178,7 +178,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	waitCh := d.dkgInfo.proto.WaitEnd()
 	d.state.Unlock()
 
-	d.log.Debug("waiting_dkg_end", time.Now())
+	d.log.Debugw("", "waiting_dkg_end", time.Now())
 	res := <-waitCh
 	if res.Error != nil {
 		return nil, fmt.Errorf("drand: error from dkg: %v", res.Error)
@@ -211,7 +211,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %d, pub: %s}", node.Address(), node.Index, node.Key))
 	}
-	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
+	d.log.Debugw("", "dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
 	if err := d.store.SaveGroup(d.group); err != nil {
 		return nil, err
 	}
@@ -226,15 +226,15 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 func (d *Drand) StartBeacon(catchup bool) {
 	b, err := d.newBeacon()
 	if err != nil {
-		d.log.Error("init_beacon", err)
+		d.log.Errorw("", "init_beacon", err)
 		return
 	}
 
-	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
+	d.log.Infow("", "beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
-		d.log.Error("beacon_start", err)
+		d.log.Errorw("", "beacon_start", err)
 	}
 }
 
@@ -255,9 +255,9 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	if !newPresent {
 		// an old node is leaving the network
 		if err := d.beacon.StopAt(timeToStop); err != nil {
-			d.log.Error("leaving_group", err)
+			d.log.Errorw("", "leaving_group", err)
 		} else {
-			d.log.Info("leaving_group", "done", "time", d.opts.clock.Now())
+			d.log.Infow("", "leaving_group", "done", "time", d.opts.clock.Now())
 		}
 		return
 	}
@@ -273,12 +273,12 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	} else {
 		b, err := d.newBeacon()
 		if err != nil {
-			d.log.Fatal("transition", "new_node", "err", err)
+			d.log.Fatalw("", "transition", "new_node", "err", err)
 		}
 		if err := b.Transition(oldGroup); err != nil {
-			d.log.Error("sync_before", err)
+			d.log.Errorw("", "sync_before", err)
 		}
-		d.log.Info("transition_new", "done")
+		d.log.Infow("", "transition_new", "done")
 	}
 }
 
@@ -357,7 +357,7 @@ func checkGroup(l log.Logger, group *key.Group) {
 	for _, n := range unsigned {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
-	l.Info("UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
+	l.Infow("", "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
 
 // dkgInfo is a simpler wrapper that keeps the relevant config and logic

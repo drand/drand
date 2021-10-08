@@ -79,7 +79,7 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 	metrics.LastBeaconRound.Set(float64(b.GetRound()))
 	metrics.GroupSize.Set(float64(d.group.Len()))
 	metrics.GroupThreshold.Set(float64(d.group.Threshold))
-	d.l.Info("NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
+	d.l.Infow("", "NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
 	return nil
 }
 

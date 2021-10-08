@@ -62,7 +62,7 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 
 	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
-		v.log.Error("verifying_client", "could not get info", "err", err)
+		v.log.Errorw("", "verifying_client", "could not get info", "err", err)
 		close(outCh)
 		return outCh
 	}
@@ -105,7 +105,7 @@ func asRandomData(r Result) *RandomData {
 func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round uint64) ([]byte, error) {
 	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
-		v.log.Error("drand_client", "could not get info to verify round 1", "err", err)
+		v.log.Errorw("", "drand_client", "could not get info to verify round 1", "err", err)
 		return []byte{}, fmt.Errorf("could not get info: %w", err)
 	}
 

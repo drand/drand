@@ -86,7 +86,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debug("echoBroadcast", "push", "deal")
+	b.l.Debugw("", "echoBroadcast", "push", "deal")
 	b.sendout(h, bundle, true)
 }
 
@@ -95,7 +95,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debug("echoBroadcast", "push", "response", bundle.String())
+	b.l.Debugw("", "echoBroadcast", "push", "response", bundle.String())
 	b.sendout(h, bundle, true)
 }
 
@@ -104,7 +104,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debug("echoBroadcast", "push", "justification")
+	b.l.Debugw("", "echoBroadcast", "push", "justification")
 	b.sendout(h, bundle, true)
 }
 
@@ -115,7 +115,7 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	addr := net.RemoteAddress(c)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
 	if err != nil {
-		b.l.Debug("echoBroadcast", "received invalid packet", "from", addr, "err", err)
+		b.l.Debugw("", "echoBroadcast", "received invalid packet", "from", addr, "err", err)
 		return nil, errors.New("invalid packet")
 	}
 
@@ -123,15 +123,15 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	if b.hashes.exists(hash) {
 		// if we already seen this one, no need to verify even because that
 		// means we already broadcasted it
-		b.l.Debug("echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+		b.l.Debugw("", "echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return new(drand.Empty), nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
-		b.l.Debug("echoBroadcast", "received invalid signature", "from", addr)
+		b.l.Debugw("", "echoBroadcast", "received invalid signature", "from", addr)
 		return nil, errors.New("invalid packet")
 	}
 
-	b.l.Debug("echoBroadcast", "received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+	b.l.Debugw("", "echoBroadcast", "received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil
@@ -146,7 +146,7 @@ func (b *echoBroadcast) passToApplication(p packet) {
 	case *dkg.JustificationBundle:
 		b.justCh <- *pp
 	default:
-		b.l.Error("echoBroadcast", "application channel full")
+		b.l.Errorw("", "echoBroadcast", "application channel full")
 	}
 }
 
@@ -157,7 +157,7 @@ func (b *echoBroadcast) passToApplication(p packet) {
 func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	dkgproto, err := dkgPacketToProto(p)
 	if err != nil {
-		b.l.Error("echoBroadcast", "can't send packet", "err", err)
+		b.l.Errorw("", "echoBroadcast", "can't send packet", "err", err)
 		return
 	}
 	// we register we saw that packet and we broadcast it
@@ -304,7 +304,7 @@ func (s *sender) sendPacket(p broadcastPacket) {
 	select {
 	case s.newCh <- p:
 	default:
-		s.l.Debug("echoBroadcast", "sender queue full", "endpoint", s.to.Address())
+		s.l.Debugw("", "echoBroadcast", "sender queue full", "endpoint", s.to.Address())
 	}
 }
 
@@ -317,9 +317,9 @@ func (s *sender) run() {
 func (s *sender) sendDirect(newPacket broadcastPacket) {
 	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
 	if err != nil {
-		s.l.Debug("echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
+		s.l.Debugw("", "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
 	} else {
-		s.l.Debug("echoBroadcast", "sending out", "to", s.to.Address())
+		s.l.Debugw("", "echoBroadcast", "sending out", "to", s.to.Address())
 	}
 }
 

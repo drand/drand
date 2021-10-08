@@ -28,7 +28,7 @@ func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Emp
 	addr := net.RemoteAddress(c)
 
 	if !d.dkgInfo.started {
-		d.log.Info("init_dkg", "START DKG", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.log.Infow("", "init_dkg", "START DKG", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
 		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}
@@ -75,10 +75,10 @@ func (d *Drand) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dra
 		beaconResp, err = d.beacon.Store().Get(in.GetRound())
 	}
 	if err != nil || beaconResp == nil {
-		d.log.Debug("public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
+		d.log.Debugw("", "public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
 		return nil, fmt.Errorf("can't retrieve beacon: %w %s", err, beaconResp)
 	}
-	d.log.Info("public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
+	d.log.Infow("", "public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
 
 	response := beaconToProto(beaconResp)
 	response.Metadata = common.NewMetadata(d.version.ToProto())
@@ -104,14 +104,14 @@ func (d *Drand) PublicRandStream(req *drand.PublicRandRequest, stream drand.Publ
 	}
 	addr := net.RemoteAddress(stream.Context())
 	done := make(chan error, 1)
-	d.log.Debug("request", "stream", "from", addr, "round", req.GetRound())
+	d.log.Debugw("", "request", "stream", "from", addr, "round", req.GetRound())
 	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
 		// we need to stream from store first
 		var err error
 		b.Store().Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
 				if err = stream.Send(beaconToProto(bb)); err != nil {
-					d.log.Debug("stream", err)
+					d.log.Debugw("", "stream", err)
 					return
 				}
 			}
@@ -146,7 +146,7 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 	}
 	msg, err := ecies.Decrypt(key.KeyGroup, d.priv.Key, priv.GetRequest(), EciesHash)
 	if err != nil {
-		d.log.With("module", "public").Error("private", "invalid ECIES", "err", err.Error())
+		d.log.With("module", "public").Errorw("", "private", "invalid ECIES", "err", err.Error())
 		return nil, errors.New("invalid ECIES request")
 	}
 
@@ -168,7 +168,7 @@ func (d *Drand) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (
 
 // Home provides the address the local node is listening
 func (d *Drand) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	d.log.With("module", "public").Info("home", net.RemoteAddress(c))
+	d.log.With("module", "public").Infow("", "home", net.RemoteAddress(c))
 
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
@@ -218,7 +218,7 @@ func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*dran
 	if d.receiver == nil {
 		return nil, errors.New("no receiver setup")
 	}
-	d.log.Info("push_group", "received_new")
+	d.log.Infow("", "push_group", "received_new")
 
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.
