@@ -28,6 +28,6 @@ func WaitServerToBeReady(t *testing.T, addr string) error {
 		}
 
 		t.Log("Http server is not ready yet. We will check it again.")
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 }
