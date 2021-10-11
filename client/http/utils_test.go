@@ -27,7 +27,7 @@ func WaitServerToBeReady(t *testing.T, addr string) error {
 			return fmt.Errorf("timeout waiting http server to be ready")
 		}
 
-		t.Log("Http server is not ready yet. We will check it again.")
+		t.Logf("Http server is not ready yet. We will check it again. Err: %s", err)
 		time.Sleep(2 * time.Second)
 	}
 }
