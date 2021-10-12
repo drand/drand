@@ -24,7 +24,7 @@ var state sync.Mutex
 
 func registerGRPCMetrics() error {
 	if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics); err != nil {
-		log.DefaultLogger().Warn("grpc Listener", "failed metrics registration", "err", err)
+		log.DefaultLogger().Warnw("", "grpc Listener", "failed metrics registration", "err", err)
 		return err
 	}
 

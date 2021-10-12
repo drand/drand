@@ -72,7 +72,7 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 		defer close(outCh)
 		for r := range inCh {
 			if err := v.verify(ctx, info, asRandomData(r)); err != nil {
-				v.log.Warn("verifying_client", "skipping invalid watch round", "round", r.Round(), "err", err)
+				v.log.Warnw("", "verifying_client", "skipping invalid watch round", "round", r.Round(), "err", err)
 				continue
 			}
 			outCh <- r
@@ -135,7 +135,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	var next Result
 	for trustRound < round-1 {
 		trustRound++
-		v.log.Warn("verifying_client", "loading round to verify", "round", trustRound)
+		v.log.Warnw("", "verifying_client", "loading round to verify", "round", trustRound)
 		next, err = v.indirectClient.Get(ctx, trustRound)
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
@@ -146,7 +146,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 
 		ipk := info.PublicKey.Clone()
 		if err := chain.VerifyBeacon(ipk, &b); err != nil {
-			v.log.Warn("verifying_client", "failed to verify value", "b", b, "err", err)
+			v.log.Warnw("", "verifying_client", "failed to verify value", "b", b, "err", err)
 			return []byte{}, fmt.Errorf("verifying beacon: %w", err)
 		}
 		trustPrevSig = next.Signature()

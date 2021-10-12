@@ -34,7 +34,7 @@ func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
 
 	rcvVer := utils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
 	if !d.version.IsCompatible(rcvVer) {
-		d.log.Warn("node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+		d.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
 		return nil, status.Error(codes.PermissionDenied, "Node Version not valid")
 	}
 
@@ -61,7 +61,7 @@ func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream
 
 	rcvVer := utils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
 	if !d.version.IsCompatible(rcvVer) {
-		d.log.Warn("node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+		d.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
 		return status.Error(codes.PermissionDenied, "Node Version not valid")
 	}
 
