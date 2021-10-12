@@ -320,7 +320,8 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
 	} else {
-		h.log.Warnw("", "http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
+		h.log.Warnw("", "http_server", "latest rand in the past",
+			"client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
