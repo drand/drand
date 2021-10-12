@@ -78,6 +78,12 @@ var (
 		Name:  "port",
 		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
+
+	// JsonFlag is the CLI flag for enabling JSON output for logger
+	JSONFlag = &cli.BoolFlag{
+		Name:  "json",
+		Usage: "Set the output as json format",
+	}
 )
 
 // ClientFlags is a list of common flags for client creation
@@ -90,6 +96,7 @@ var ClientFlags = []cli.Flag{
 	InsecureFlag,
 	RelayFlag,
 	PortFlag,
+	JSONFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied

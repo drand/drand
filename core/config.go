@@ -247,9 +247,13 @@ func WithControlPort(port string) ConfigOption {
 }
 
 // WithLogLevel sets the logging verbosity to the given level.
-func WithLogLevel(level int) ConfigOption {
+func WithLogLevel(level int, jsonFormat bool) ConfigOption {
 	return func(d *Config) {
-		d.logger = log.NewLogger(nil, level)
+		if jsonFormat {
+			d.logger = log.NewJSONLogger(nil, level)
+		} else {
+			d.logger = log.NewLogger(nil, level)
+		}
 	}
 }
 
