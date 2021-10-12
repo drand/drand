@@ -91,7 +91,7 @@ func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc s
 			select {
 			case res, ok := <-ch:
 				if !ok {
-					log.DefaultLogger().Warn("relay_s3", "watch channel closed")
+					log.DefaultLogger().Warnw("", "relay_s3", "watch channel closed")
 					t := time.NewTimer(time.Second)
 					select {
 					case <-t.C:

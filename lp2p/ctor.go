@@ -119,7 +119,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {
-				log.Warn("construct_host", "could not bootstrap", "addr", ai)
+				log.Warnw("", "construct_host", "could not bootstrap", "addr", ai)
 			}
 		}
 	}()

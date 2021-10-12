@@ -142,7 +142,7 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 			select {
 			case res, ok := <-results:
 				if !ok {
-					g.l.Warn("relay_node", "watch channel closed")
+					g.l.Warnw("", "relay_node", "watch channel closed")
 					break LOOP
 				}
 

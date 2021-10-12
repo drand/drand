@@ -55,7 +55,7 @@ func (b *boltStore) Len() int {
 		return nil
 	})
 	if err != nil {
-		log.DefaultLogger().Warn("boltdb", "error getting length", "err", err)
+		log.DefaultLogger().Warnw("", "boltdb", "error getting length", "err", err)
 	}
 	return length
 }
@@ -145,7 +145,7 @@ func (b *boltStore) Cursor(fn func(chain.Cursor)) {
 		return nil
 	})
 	if err != nil {
-		log.DefaultLogger().Warn("boltdb", "error getting cursor", "err", err)
+		log.DefaultLogger().Warnw("", "boltdb", "error getting cursor", "err", err)
 	}
 }
 

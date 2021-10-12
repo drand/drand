@@ -91,7 +91,7 @@ func Relay(c *cli.Context) error {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
-		log.DefaultLogger().Warn("binary", "relay", "startup failed", rr.Code)
+		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())

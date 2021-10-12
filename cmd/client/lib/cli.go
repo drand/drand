@@ -179,19 +179,19 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 		if *info != nil {
 			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 		} else {
 			hc, err = http.New(url, hash, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				skipped = append(skipped, url)
 				continue
 			}
 			*info, err = hc.Info(context.Background())
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load Info from URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load Info from URL", "url", url, "err", err)
 				continue
 			}
 		}
@@ -201,7 +201,7 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 		for _, url := range skipped {
 			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 			clients = append(clients, hc)

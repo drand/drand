@@ -114,7 +114,7 @@ RESET:
 	for {
 		next, ok := <-stream
 		if !ok {
-			h.log.Warn("http_server", "random stream round failed")
+			h.log.Warnw("", "http_server", "random stream round failed")
 			h.pendingLk.Lock()
 			h.latestRound = 0
 			h.pendingLk.Unlock()
@@ -129,7 +129,7 @@ RESET:
 		h.pendingLk.Lock()
 		if h.latestRound+1 != next.Round() && h.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
-			h.log.Warn("http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round()))
+			h.log.Warnw("", "http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round()))
 			b = []byte{}
 		}
 		h.latestRound = next.Round()
@@ -168,11 +168,11 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 	defer cancel()
 	info, err := h.client.Info(ctx)
 	if err != nil {
-		h.log.Warn("msg", "chain info fetch failed", "err", err)
+		h.log.Warnw("", "msg", "chain info fetch failed", "err", err)
 		return nil
 	}
 	if info == nil {
-		h.log.Warn("msg", "chain info fetch didn't return group info")
+		h.log.Warnw("", "msg", "chain info fetch didn't return group info")
 		return nil
 	}
 	h.chainInfo = info
@@ -241,7 +241,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	roundN, err := strconv.ParseUint(round, roundNumBase, roundNumSize)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		h.log.Warn("http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		h.log.Warnw("", "http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
@@ -249,7 +249,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	roundExpectedTime := time.Now()
 	if info == nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		h.log.Warnw("", "http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
@@ -259,20 +259,20 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		timeToExpected := int(time.Until(roundExpectedTime).Seconds())
 		w.Header().Set("Cache-Control", fmt.Sprintf("public, must-revalidate, max-age=%d", timeToExpected))
 		w.WriteHeader(http.StatusNotFound)
-		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		h.log.Warnw("", "http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
 	data, err := h.getRand(r.Context(), info, roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		h.log.Warnw("", "http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 	if data == nil {
 		w.Header().Set("Cache-Control", "must-revalidate, no-cache, max-age=0")
 		w.WriteHeader(http.StatusNotFound)
-		h.log.Warn("http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		h.log.Warnw("", "http_server", "request in the future", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
@@ -291,14 +291,14 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		h.log.Warnw("", "http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
 	data, err := json.Marshal(resp)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("http_server", "failed to marshal randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		h.log.Warnw("", "http_server", "failed to marshal randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
@@ -320,7 +320,8 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		seconds := int(math.Ceil(remaining.Seconds()))
 		w.Header().Set("Cache-Control", fmt.Sprintf("max-age:%d, public", seconds))
 	} else {
-		h.log.Warn("http_server", "latest rand in the past", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
+		h.log.Warnw("", "http_server", "latest rand in the past",
+			"client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "remaining", remaining)
 	}
 
 	w.Header().Set("Expires", nextTime.Format(http.TimeFormat))
@@ -332,14 +333,14 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	info := h.getChainInfo(r.Context())
 	if info == nil {
 		w.WriteHeader(http.StatusNoContent)
-		h.log.Warn("http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		h.log.Warnw("", "http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 	var chainBuff bytes.Buffer
 	err := info.ToJSON(&chainBuff)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warn("http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		h.log.Warnw("", "http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
