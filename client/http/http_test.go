@@ -1,4 +1,4 @@
-package http
+package http_test
 
 import (
 	"context"
@@ -7,7 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/test"
+
 	"github.com/drand/drand/client"
+	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/client/test/http/mock"
 )
 
@@ -15,12 +18,12 @@ func TestHTTPClient(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
 	defer cancel()
 
-	err := WaitServerToBeReady(t, addr)
+	err := test.WaitServerToBeReady(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := nhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,12 +55,12 @@ func TestHTTPGetLatest(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	err := WaitServerToBeReady(t, addr)
+	err := test.WaitServerToBeReady(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := nhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,12 +89,12 @@ func TestForURLsCreation(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	err := WaitServerToBeReady(t, addr)
+	err := test.WaitServerToBeReady(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	clients := ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
+	clients := nhttp.ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
 		t.Fatal("expect both urls returned")
 	}
@@ -103,12 +106,12 @@ func TestHTTPWatch(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	err := WaitServerToBeReady(t, addr)
+	err := test.WaitServerToBeReady(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := nhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,12 +135,12 @@ func TestHTTPClientClose(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
-	err := WaitServerToBeReady(t, addr)
+	err := test.WaitServerToBeReady(t, addr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
+	httpClient, err := nhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +166,7 @@ func TestHTTPClientClose(t *testing.T) {
 	}
 
 	_, err = httpClient.Get(context.Background(), 0)
-	if err != errClientClosed {
+	if err != nhttp.ErrClientClosed {
 		t.Fatal("unexpected error from closed client", err)
 	}
 

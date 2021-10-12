@@ -21,7 +21,7 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-var errClientClosed = fmt.Errorf("client closed")
+var ErrClientClosed = fmt.Errorf("client closed")
 
 const defaultClientExec = "unknown"
 const defaultHTTTPTimeout = 60 * time.Second
@@ -261,7 +261,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 		}
 		return res.chainInfo, nil
 	case <-h.done:
-		return nil, errClientClosed
+		return nil, ErrClientClosed
 	}
 }
 
@@ -318,7 +318,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		}
 		return res.result, nil
 	case <-h.done:
-		return nil, errClientClosed
+		return nil, ErrClientClosed
 	}
 }
 

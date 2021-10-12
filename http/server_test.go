@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/test"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/protobuf/drand"
@@ -47,7 +49,7 @@ func TestHTTPRelay(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	WaitServerToBeReady(t, listener.Addr().String())
+	test.WaitServerToBeReady(t, listener.Addr().String())
 
 	getChain := fmt.Sprintf("http://%s/info", listener.Addr().String())
 	resp, err := http.Get(getChain)
@@ -125,7 +127,7 @@ func TestHTTPWaiting(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	WaitServerToBeReady(t, listener.Addr().String())
+	test.WaitServerToBeReady(t, listener.Addr().String())
 
 	// The first request will trigger background watch. 1 get (1969)
 	next, err := http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
@@ -187,7 +189,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	WaitServerToBeReady(t, listener.Addr().String())
+	test.WaitServerToBeReady(t, listener.Addr().String())
 
 	// watching sets latest round, future rounds should become inaccessible.
 	u := fmt.Sprintf("http://%s/public/2000", listener.Addr().String())
@@ -219,7 +221,7 @@ func TestHTTPHealth(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	WaitServerToBeReady(t, listener.Addr().String())
+	test.WaitServerToBeReady(t, listener.Addr().String())
 
 	resp, _ := http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
 	defer func() { _ = resp.Body.Close() }()
