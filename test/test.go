@@ -3,16 +3,11 @@
 package test
 
 import (
-	"context"
 	"encoding/hex"
-	"fmt"
 	n "net"
 	"strconv"
 	"sync"
-	"testing"
 	"time"
-
-	"github.com/drand/drand/client/http"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -20,8 +15,6 @@ import (
 	"github.com/drand/kyber/pairing/bn256"
 	"github.com/drand/kyber/util/random"
 )
-
-const maxHTTPServerTries = 10
 
 type testPeer struct {
 	a string
@@ -176,27 +169,4 @@ func StringToPoint(s string) (kyber.Point, error) {
 	}
 	p := g.Point()
 	return p, p.UnmarshalBinary(buff)
-}
-
-func WaitServerToBeReady(t *testing.T, addr string) error {
-	counter := 0
-
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-
-		err := http.Ping(ctx, "http://"+addr)
-		if err == nil {
-			t.Log("Http server is ready to attend requests")
-			return nil
-		}
-
-		counter++
-		if counter == maxHTTPServerTries {
-			return fmt.Errorf("timeout waiting http server to be ready")
-		}
-
-		t.Logf("Http server is not ready yet. We will check it again. Err: %s", err)
-		time.Sleep(2 * time.Second)
-	}
 }

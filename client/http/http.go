@@ -21,10 +21,13 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-var ErrClientClosed = fmt.Errorf("client closed")
+var errClientClosed = fmt.Errorf("client closed")
 
 const defaultClientExec = "unknown"
 const defaultHTTTPTimeout = 60 * time.Second
+
+const httpWaitMaxCounter = 10
+const httpWaitInterval = 2 * time.Second
 
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
@@ -170,6 +173,27 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	return &hc
 }
 
+func IsServerReady(addr string) error {
+	counter := 0
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := Ping(ctx, "http://"+addr)
+		if err == nil {
+			return nil
+		}
+
+		counter++
+		if counter == httpWaitMaxCounter {
+			return fmt.Errorf("timeout waiting http server to be ready")
+		}
+
+		time.Sleep(httpWaitInterval)
+	}
+}
+
 // httpClient implements Client through http requests to a Drand relay.
 type httpClient struct {
 	root      string
@@ -261,7 +285,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 		}
 		return res.chainInfo, nil
 	case <-h.done:
-		return nil, ErrClientClosed
+		return nil, errClientClosed
 	}
 }
 
@@ -318,7 +342,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		}
 		return res.result, nil
 	case <-h.done:
-		return nil, ErrClientClosed
+		return nil, errClientClosed
 	}
 }
 
