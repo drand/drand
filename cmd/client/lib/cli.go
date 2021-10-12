@@ -78,6 +78,12 @@ var (
 		Name:  "port",
 		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
+
+	// JsonFlag is the CLI flag for enabling JSON output for logger
+	JSONFlag = &cli.BoolFlag{
+		Name:  "json",
+		Usage: "Set the output as json format",
+	}
 )
 
 // ClientFlags is a list of common flags for client creation
@@ -90,6 +96,7 @@ var ClientFlags = []cli.Flag{
 	InsecureFlag,
 	RelayFlag,
 	PortFlag,
+	JSONFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied
@@ -172,19 +179,19 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 		if *info != nil {
 			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 		} else {
 			hc, err = http.New(url, hash, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				skipped = append(skipped, url)
 				continue
 			}
 			*info, err = hc.Info(context.Background())
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load Info from URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load Info from URL", "url", url, "err", err)
 				continue
 			}
 		}
@@ -194,7 +201,7 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 		for _, url := range skipped {
 			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
 			if err != nil {
-				log.DefaultLogger().Warn("client", "failed to load URL", "url", url, "err", err)
+				log.DefaultLogger().Warnw("", "client", "failed to load URL", "url", url, "err", err)
 				continue
 			}
 			clients = append(clients, hc)

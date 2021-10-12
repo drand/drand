@@ -259,7 +259,8 @@ var appCommands = []*cli.Command{
 		Usage: "Start the drand daemon.",
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
-			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag, skipValidationFlag),
+			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag,
+			skipValidationFlag, jsonFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return startCmd(c)
@@ -725,9 +726,9 @@ func contextToConfig(c *cli.Context) *core.Config {
 	version := common.GetAppVersion()
 
 	if c.IsSet(verboseFlag.Name) {
-		opts = append(opts, core.WithLogLevel(log.LogDebug))
+		opts = append(opts, core.WithLogLevel(log.LogDebug, jsonFlag.Value))
 	} else {
-		opts = append(opts, core.WithLogLevel(log.LogInfo))
+		opts = append(opts, core.WithLogLevel(log.LogInfo, jsonFlag.Value))
 	}
 
 	if c.IsSet(pubListenFlag.Name) {

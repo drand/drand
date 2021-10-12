@@ -234,18 +234,18 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 			reply, err := stream.Recv()
 			if err == io.EOF {
 				log.DefaultLogger().Infow("", "grpc client", "chain sync", "error", "eof", "to", p.Address())
-				fmt.Println(" --- STREAM EOF")
+				log.DefaultLogger().Debugw(" --- STREAM EOF")
 				return
 			}
 			if err != nil {
 				log.DefaultLogger().Infow("", "grpc client", "chain sync", "error", err, "to", p.Address())
-				fmt.Println(" --- STREAM ERR:", err)
+				log.DefaultLogger().Debugw(fmt.Sprintf("--- STREAM ERR: %s", err))
 				return
 			}
 			select {
 			case <-ctx.Done():
 				log.DefaultLogger().Infow("", "grpc client", "chain sync", "error", "context done", "to", p.Address())
-				fmt.Println(" --- STREAM CONTEXT DONE")
+				log.DefaultLogger().Debugw(" --- STREAM CONTEXT DONE")
 				return
 			default:
 				resp <- reply

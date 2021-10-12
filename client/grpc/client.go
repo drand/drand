@@ -108,7 +108,7 @@ func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out c
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {
 			if stream.Context().Err() == nil {
-				g.l.Warn("grpc_client", "public rand stream", "err", err)
+				g.l.Warnw("", "grpc_client", "public rand stream", "err", err)
 			}
 			return
 		}

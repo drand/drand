@@ -850,7 +850,7 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 				d.log.Infow("", "push_dkg", "sending_group", "status", "enough succeeded", "missed", total)
 				return nil
 			}
-			d.log.Warn("push_dkg", "sending_group", "status", "timeout")
+			d.log.Warnw("", "push_dkg", "sending_group", "status", "timeout")
 			return errors.New("push group timeout")
 		}
 	}

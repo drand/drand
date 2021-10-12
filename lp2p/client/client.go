@@ -93,13 +93,13 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				return
 			}
 			if err != nil {
-				c.log.Warn("gossip client", "topic.Next error", "err", err)
+				c.log.Warnw("", "gossip client", "topic.Next error", "err", err)
 				continue
 			}
 			var rand drand.PublicRandResponse
 			err = proto.Unmarshal(msg.Data, &rand)
 			if err != nil {
-				c.log.Warn("gossip client", "unmarshal random error", "err", err)
+				c.log.Warnw("", "gossip client", "unmarshal random error", "err", err)
 				continue
 			}
 
@@ -115,7 +115,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				select {
 				case ch <- rand:
 				default:
-					c.log.Warn("gossip client", "randomness notification dropped due to a full channel")
+					c.log.Warnw("", "gossip client", "randomness notification dropped due to a full channel")
 				}
 			}
 			c.subs.Unlock()
@@ -175,7 +175,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 				select {
 				case outerCh <- dat:
 				default:
-					c.log.Warn("gossip client", "randomness notification dropped due to a full channel")
+					c.log.Warnw("", "gossip client", "randomness notification dropped due to a full channel")
 				}
 			case <-ctx.Done():
 				close(outerCh)
