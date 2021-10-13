@@ -810,10 +810,12 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	defer cancel()
 
 	// get last round first
+	t.Logf("Getting round %d", 0)
 	resp, err := client.Get(ctx, 0)
 	require.NoError(t, err)
 
 	//  run streaming and expect responses
+	t.Log("Watching new rounds generated")
 	rc := client.Watch(ctx)
 
 	// expect first round now since node already has it
@@ -822,6 +824,8 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	if !ok {
 		panic("expected beacon")
 	}
+
+	t.Logf("Round received %d", beacon.Round())
 	require.Equal(t, beacon.Round(), resp.Round()+1)
 
 	nTry := 4
@@ -834,6 +838,8 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 		beacon, ok = <-rc
 
 		require.True(t, ok)
+
+		t.Logf("Round received %d", beacon.Round())
 		require.Equal(t, round, beacon.Round())
 	}
 }

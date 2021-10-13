@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
@@ -46,24 +45,15 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.
 		t.Fatal("could not use server after 3 attempts.")
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	addr := ""
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpServer := http.Server{Handler: handler}
-	go func() {
-		listener, err := net.Listen("tcp", ":0")
-		if err != nil {
-			t.Fatal(err)
-		}
-		addr = listener.Addr().String()
-		wg.Done()
+	go httpServer.Serve(listener)
 
-		httpServer.Serve(listener)
-	}()
-	wg.Wait()
-
-	return addr, chainInfo, func() {
+	return listener.Addr().String(), chainInfo, func() {
 		httpServer.Shutdown(context.Background())
 		cancel()
 	}, server.(mock.MockService).EmitRand

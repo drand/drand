@@ -15,6 +15,11 @@ func TestHTTPClient(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
 	defer cancel()
 
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +52,11 @@ func TestHTTPGetLatest(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
 		t.Fatal(err)
@@ -76,6 +86,11 @@ func TestForURLsCreation(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
 
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	clients := ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
 		t.Fatal("expect both urls returned")
@@ -87,6 +102,11 @@ func TestForURLsCreation(t *testing.T) {
 func TestHTTPWatch(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
@@ -111,6 +131,11 @@ func TestHTTPWatch(t *testing.T) {
 func TestHTTPClientClose(t *testing.T) {
 	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
