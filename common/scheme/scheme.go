@@ -41,7 +41,7 @@ func GetSchemeByIDWithDefault(id string) (scheme Scheme, err error) {
 
 	sch, ok := GetSchemeByID(id)
 	if !ok {
-		return Scheme{}, fmt.Errorf("scheme is not valid")
+		return Scheme{}, fmt.Errorf("scheme [%s] is not valid", id)
 	}
 
 	return sch, nil

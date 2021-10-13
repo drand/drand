@@ -20,9 +20,9 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 		return nil, err
 	}
 
-	sch, ok := scheme.GetSchemeByID(p.SchemeID)
-	if !ok {
-		return nil, fmt.Errorf("scheme id received is not valid")
+	sch, err := scheme.GetSchemeByIDWithDefault(p.SchemeID)
+	if err != nil {
+		return nil, fmt.Errorf("scheme id received is not valid. Err: %s", err)
 	}
 
 	return &Info{
