@@ -43,8 +43,9 @@ type Handler struct {
 	// keeps the cryptographic info (group share etc)
 	crypto *cryptoStore
 	// main logic that treats incoming packet / new beacons created
-	chain  *chainStore
-	ticker *ticker
+	chain    *chainStore
+	ticker   *ticker
+	verifier *chain.Verifier
 
 	close   chan bool
 	addr    string
@@ -77,16 +78,19 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	store := newChainStore(logger, conf, c, crypto, s, ticker)
+	verifier := chain.NewVerifier(conf.Group.Scheme)
+
 	handler := &Handler{
-		conf:    conf,
-		client:  c,
-		crypto:  crypto,
-		chain:   store,
-		ticker:  ticker,
-		addr:    addr,
-		close:   make(chan bool),
-		l:       logger,
-		version: version,
+		conf:     conf,
+		client:   c,
+		crypto:   crypto,
+		chain:    store,
+		verifier: verifier,
+		ticker:   ticker,
+		addr:     addr,
+		close:    make(chan bool),
+		l:        logger,
+		version:  version,
 	}
 	return handler, nil
 }
@@ -110,7 +114,8 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
+	msg := h.verifier.DigestMessage(p.GetRound(), p.GetPreviousSig())
+
 	// XXX Remove that evaluation - find another way to show the current dist.
 	// key being used
 	shortPub := h.crypto.GetPub().Eval(1).V.String()[14:19]
@@ -351,7 +356,9 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		previousSig = upon.PreviousSig
 		round = current.round
 	}
-	msg := chain.Message(round, previousSig)
+
+	msg := h.verifier.DigestMessage(round, previousSig)
+
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
 		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
@@ -425,6 +432,11 @@ func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
 // RemoveCallback is a proxy method to remove a callback on the backend store
 func (h *Handler) RemoveCallback(id string) {
 	h.chain.RemoveCallback(id)
+}
+
+// GetConfg returns the conf used by the handler
+func (h *Handler) GetConfg() *Config {
+	return h.conf
 }
 
 // SyncChain is a proxy method to sync a chain

@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/briandowns/spinner"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
@@ -156,6 +158,11 @@ func leadShareCmd(c *cli.Context) error {
 		return fmt.Errorf("catchup period given is invalid: %v", err)
 	}
 
+	var sch scheme.Scheme
+	if sch, err = scheme.GetSchemeByIDWithDefault(c.String(schemeFlag.Name)); err != nil {
+		return fmt.Errorf("scheme given is invalid: %v", err)
+	}
+
 	offset := int(core.DefaultGenesisOffset.Seconds())
 	if c.IsSet(beaconOffset.Name) {
 		offset = c.Int(beaconOffset.Name)
@@ -165,7 +172,8 @@ func leadShareCmd(c *cli.Context) error {
 		"file will not be written out to the specified output. To get the "+
 		"group file once the setup phase is done, you can run the `drand show "+
 		"group` command")
-	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period, catchupPeriod, args.timeout, args.entropy, args.secret, offset)
+	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period,
+		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.ID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
@@ -318,6 +326,26 @@ func statusCmd(c *cli.Context) error {
 		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
 	}
 
+	return nil
+}
+
+func schemesCmd(c *cli.Context) error {
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
+	resp, err := client.ListSchemes()
+	if err != nil {
+		return fmt.Errorf("drand: can't get the list of scheme ids availables ... %s", err)
+	}
+
+	fmt.Fprintf(output, "Drand supports the following list of schemes: \n")
+
+	for i, id := range resp.Ids {
+		fmt.Fprintf(output, "%d) %s \n", i, id)
+	}
+
+	fmt.Fprintf(output, "\nChoose one of them and set it on --scheme flag \n")
 	return nil
 }
 

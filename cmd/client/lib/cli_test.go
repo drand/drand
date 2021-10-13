@@ -13,6 +13,7 @@ import (
 
 	"github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test/mock"
 	"github.com/urfave/cli/v2"
 )
@@ -49,34 +50,47 @@ func TestClientLib(t *testing.T) {
 		t.Fatal("need to specify a connection method.", err)
 	}
 
-	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false)
+	grpcLis, _ := mock.NewMockGRPCPublicServer(":0", false, sch)
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
-	err = run([]string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"})
+	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure", "--scheme", sch.ID}
+
+	fmt.Printf("%+v", args)
+	err = run(args)
 	if err != nil {
 		t.Fatal("GRPC should work", err)
 	}
 
-	err = run([]string{"mock-client", "--url", "https://" + addr})
+	args = []string{"mock-client", "--url", "https://" + addr, "--scheme", sch.ID}
+
+	err = run(args)
 	if err == nil {
 		t.Fatal("http needs insecure or hash", err)
 	}
 
-	err = run([]string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())})
+	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash()), "--scheme", sch.ID}
+
+	err = run(args)
 	if err != nil {
 		t.Fatal("http should construct", err)
 	}
 
-	err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr})
+	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--scheme", sch.ID}
+
+	err = run(args)
 	if err == nil {
 		t.Fatal("relays need URL or hash", err)
 	}
 
-	err = run([]string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())})
+	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash()), "--scheme", sch.ID}
+
+	err = run(args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +104,9 @@ func TestClientLibGroupConfTOML(t *testing.T) {
 }
 
 func TestClientLibGroupConfJSON(t *testing.T) {
-	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	addr, info, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
 	var b bytes.Buffer

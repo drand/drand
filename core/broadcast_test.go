@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/utils"
-
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
@@ -64,7 +64,9 @@ func TestBroadcastSet(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 5
-	drands, group, dir, _ := BatchNewDrand(t, n, true)
+	sch := scheme.GetSchemeFromEnv()
+
+	drands, group, dir, _ := BatchNewDrand(t, n, true, sch)
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
 

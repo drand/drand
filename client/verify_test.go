@@ -7,17 +7,26 @@ import (
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/common/scheme"
 )
 
 func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error) {
-	info, results := mock.VerifiableResults(n)
+	sch := scheme.GetSchemeFromEnv()
+
+	info, results := mock.VerifiableResults(n, sch)
 	mc := client.MockClient{Results: results, StrictRounds: true}
-	c, err := client.Wrap(
+
+	var c client.Client
+	var err error
+
+	c, err = client.Wrap(
 		[]client.Client{client.MockClientWithInfo(info), &mc},
 		client.WithChainInfo(info),
 		client.WithVerifiedResult(&results[0]),
 		client.WithFullChainVerification(),
+		client.WithScheme(sch),
 	)
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -25,30 +34,23 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 }
 
 func TestVerify(t *testing.T) {
-	c, results, err := mockClientWithVerifiableResults(3)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := c.Get(context.Background(), results[1].Round())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res.Round() != results[1].Round() {
-		t.Fatal("expected to get result.", results[1].Round(), res.Round(), fmt.Sprintf("%v", c))
-	}
+	VerifyFuncTest(t, 3, 1)
 }
 
 func TestVerifyWithOldVerifiedResult(t *testing.T) {
-	c, results, err := mockClientWithVerifiableResults(5)
+	VerifyFuncTest(t, 5, 4)
+}
+
+func VerifyFuncTest(t *testing.T, clients, upTo int) {
+	c, results, err := mockClientWithVerifiableResults(clients)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// should automatically load rounds 1, 2 and 3 to verify 4
-	res, err := c.Get(context.Background(), results[4].Round())
+	res, err := c.Get(context.Background(), results[upTo].Round())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Round() != results[4].Round() {
-		t.Fatal("expected to get result.", results[4].Round(), res.Round(), fmt.Sprintf("%v", c))
+	if res.Round() != results[upTo].Round() {
+		t.Fatal("expected to get result.", results[upTo].Round(), res.Round(), fmt.Sprintf("%v", c))
 	}
 }

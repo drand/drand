@@ -25,6 +25,7 @@ type chainStore struct {
 	conf        *Config
 	client      net.ProtocolClient
 	sync        Syncer
+	verifier    *chain.Verifier
 	crypto      *cryptoStore
 	ticker      *ticker
 	done        chan bool
@@ -46,12 +47,16 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	cbs := NewCallbackStore(ds)
 	// we give the final append store to the syncer
 	syncer := NewSyncer(l, cbs, c.chain, cl)
+	//
+	verifier := chain.NewVerifier(cf.Group.Scheme)
+
 	cs := &chainStore{
 		CallbackStore:   cbs,
 		l:               l,
 		conf:            cf,
 		client:          cl,
 		sync:            syncer,
+		verifier:        verifier,
 		crypto:          c,
 		ticker:          t,
 		done:            make(chan bool, 1),
@@ -133,7 +138,8 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
-			msg := roundCache.Msg()
+			msg := c.verifier.DigestMessage(roundCache.round, roundCache.prev)
+
 			finalSig, err := key.Scheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
 				c.l.Debugw("", "invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))

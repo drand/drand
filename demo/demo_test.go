@@ -3,11 +3,15 @@ package main
 import (
 	"testing"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/demo/lib"
 )
 
 func TestLocalOrchestration(t *testing.T) {
-	o := lib.NewOrchestrator(3, 2, "4s", true, "", false)
+	sch := scheme.GetSchemeFromEnv()
+
+	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch)
 	defer o.Shutdown()
 	o.StartCurrentNodes()
 	o.RunDKG("3")

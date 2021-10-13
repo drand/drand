@@ -12,6 +12,7 @@ import (
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 	"github.com/stretchr/testify/require"
@@ -21,8 +22,9 @@ import (
 
 func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	t.Helper()
+	sch := scheme.GetSchemeFromEnv()
 
-	l, s := mock.NewMockGRPCPublicServer(":0", true)
+	l, s := mock.NewMockGRPCPublicServer(":0", true, sch)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -34,6 +36,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	c, _ := withClient(t)
 
 	handler, err := New(ctx, c, "", nil)

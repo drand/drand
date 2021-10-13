@@ -6,6 +6,8 @@ import (
 	"encoding/binary"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/kyber"
@@ -16,6 +18,7 @@ import (
 type Info struct {
 	PublicKey   kyber.Point   `json:"public_key"`
 	Period      time.Duration `json:"period"`
+	Scheme      scheme.Scheme `json:"scheme"`
 	GenesisTime int64         `json:"genesis_time"`
 	GroupHash   []byte        `json:"group_hash"`
 }
@@ -24,6 +27,7 @@ type Info struct {
 func NewChainInfo(g *key.Group) *Info {
 	return &Info{
 		Period:      g.Period,
+		Scheme:      g.Scheme,
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
 		GroupHash:   g.GetGenesisSeed(),
