@@ -9,7 +9,6 @@ import (
 	"os"
 	"path"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/drand/drand/chain"
