@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
+
+	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
@@ -17,10 +20,14 @@ const clientStartupTimeoutDefault = time.Second * 5
 
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
+	sch, _ := scheme.GetSchemeByIDWithDefault("")
+
 	cfg := clientConfig{
 		cacheSize: 32,
 		log:       log.DefaultLogger(),
+		scheme:    sch,
 	}
+
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
 			return nil, err
@@ -76,7 +83,8 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		opts := Opts{scheme: cfg.scheme, strict: cfg.fullVerify}
+		nv := newVerifyingClient(source, cfg.previousResult, opts)
 		verifiers = append(verifiers, nv)
 		if source == wc {
 			wc = nv
@@ -166,6 +174,8 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
+	// scheme
+	scheme scheme.Scheme
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -213,6 +223,27 @@ func From(c ...Client) Option {
 func Insecurely() Option {
 	return func(cfg *clientConfig) error {
 		cfg.insecure = true
+		return nil
+	}
+}
+
+// WithScheme
+func WithScheme(sch scheme.Scheme) Option {
+	return func(cfg *clientConfig) error {
+		cfg.scheme = sch
+		return nil
+	}
+}
+
+// WithSchemeID
+func WithSchemeID(schID string) Option {
+	return func(cfg *clientConfig) error {
+		sch, ok := scheme.GetSchemeByID(schID)
+		if !ok {
+			return fmt.Errorf("scheme is not valid")
+		}
+
+		cfg.scheme = sch
 		return nil
 	}
 }

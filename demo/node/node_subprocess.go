@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -46,9 +48,10 @@ type NodeProc struct {
 	tls        bool
 	groupPath  string
 	binary     string
+	scheme     scheme.Scheme
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string) Node {
+func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -63,6 +66,7 @@ func NewNode(i int, period string, base string, tls bool, binary string) Node {
 		publicPath: publicPath,
 		groupPath:  groupPath,
 		period:     period,
+		scheme:     sch,
 		binary:     binary,
 	}
 	n.setup()
@@ -179,6 +183,12 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 		args = append(args, pair("--timeout", timeout)...)
 		args = append(args, pair("--period", n.period)...)
+
+		// TODO The momento master supports this new flag, we will be able to remove this
+		if n.scheme.DecouplePrevSig {
+			args = append(args, pair("--scheme", n.scheme.ID)...)
+		}
+
 		// make genesis time offset
 		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)
 	} else {

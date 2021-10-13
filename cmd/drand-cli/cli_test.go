@@ -19,6 +19,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -134,8 +135,11 @@ func TestStartAndStop(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
+
 	n := 5
-	_, group := test.BatchIdentities(n)
+	sch := scheme.GetSchemeFromEnv()
+
+	_, group := test.BatchIdentities(n, sch)
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
@@ -243,7 +247,8 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
-	_, group := test.BatchIdentities(5)
+	sch := scheme.GetSchemeFromEnv()
+	_, group := test.BatchIdentities(5, sch)
 
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
@@ -283,6 +288,7 @@ func TestStartWithoutGroup(t *testing.T) {
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store) {
 	testPing(t, ctrlPort)
 	testStatus(t, ctrlPort)
+	testListSchemes(t, ctrlPort)
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
 
@@ -364,6 +370,21 @@ func testStatus(t *testing.T, ctrlPort string) {
 	require.NoError(t, err)
 }
 
+func testListSchemes(t *testing.T, ctrlPort string) {
+	var err error
+
+	fmt.Println(" + running list schemes command with ", ctrlPort)
+	for i := 0; i < 3; i++ {
+		schemes := []string{"drand", "util", "list-schemes", "--control", ctrlPort}
+		err = CLI().Run(schemes)
+		if err == nil {
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	require.NoError(t, err)
+}
+
 func TestClientTLS(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
@@ -395,7 +416,8 @@ func TestClientTLS(t *testing.T) {
 	}
 
 	// fake group
-	_, group := test.BatchTLSIdentities(5)
+	sch := scheme.GetSchemeFromEnv()
+	_, group := test.BatchTLSIdentities(5, sch)
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients

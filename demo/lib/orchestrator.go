@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/chain"
@@ -36,6 +38,7 @@ type Orchestrator struct {
 	thr          int
 	newThr       int
 	period       string
+	scheme       scheme.Scheme
 	periodD      time.Duration
 	basePath     string
 	groupPath    string
@@ -58,19 +61,20 @@ type Orchestrator struct {
 	binary       string
 }
 
-func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool) *Orchestrator {
+func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool, sch scheme.Scheme) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
 	checkErr(os.MkdirAll(certFolder, 0740))
-	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary)
+	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary, sch)
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
 		n:            n,
 		thr:          thr,
+		scheme:       sch,
 		basePath:     basePath,
 		groupPath:    path.Join(basePath, "group.toml"),
 		newGroupPath: path.Join(basePath, "group2.toml"),
@@ -338,7 +342,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary)
+	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary, e.scheme)
 }
 
 // UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
@@ -464,15 +468,15 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}
 }
 
-func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string) ([]node.Node, []string) {
+func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string, sch scheme.Scheme) ([]node.Node, []string) {
 	var nodes []node.Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
 		var n node.Node
 		if binary != "" {
-			n = node.NewNode(idx, period, basePath, tls, binary)
+			n = node.NewNode(idx, period, basePath, tls, binary, sch)
 		} else {
-			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1")
+			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1", sch)
 		}
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)

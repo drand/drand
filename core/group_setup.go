@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -48,6 +50,7 @@ type setupManager struct {
 	beaconOffset  time.Duration
 	catchupPeriod time.Duration
 	beaconPeriod  time.Duration
+	scheme        common2.Scheme
 	dkgTimeout    time.Duration
 	clock         clock.Clock
 	leaderKey     *key.Identity
@@ -70,6 +73,7 @@ func newDKGSetup(
 	leaderKey *key.Identity,
 	beaconPeriod,
 	catchupPeriod uint32,
+	schemeID string,
 	in *drand.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
@@ -86,12 +90,18 @@ func newDKGSetup(
 		offset = DefaultGenesisOffset
 	}
 
+	sch, ok := common2.GetSchemeByID(schemeID)
+	if !ok {
+		return nil, fmt.Errorf("scheme id received is not valid")
+	}
+
 	sm := &setupManager{
 		expected:      n,
 		thr:           thr,
 		beaconOffset:  offset,
 		beaconPeriod:  time.Duration(beaconPeriod) * time.Second,
 		catchupPeriod: time.Duration(catchupPeriod) * time.Second,
+		scheme:        sch,
 		dkgTimeout:    dkgTimeout,
 		l:             l,
 		startDKG:      make(chan *key.Group, 1),
@@ -113,11 +123,12 @@ func newReshareSetup(
 	in *drand.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
+	schemeID := oldGroup.Scheme.ID
 	catchupPeriod := in.CatchupPeriod
 	if !in.CatchupPeriodChanged {
 		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
 	}
-	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, in.GetInfo())
+	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, schemeID, in.GetInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -226,14 +237,14 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
 		genesis += (ps - genesis%ps)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme)
 	} else {
 		genesis := s.oldGroup.GenesisTime
 		atLeast := s.clock.Now().Add(totalDKG).Unix()
 		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}

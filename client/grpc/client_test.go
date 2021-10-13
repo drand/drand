@@ -7,14 +7,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/test/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func TestClient(t *testing.T) {
-	l, server := mock.NewMockGRPCPublicServer("localhost:0", false)
+	sch := scheme.GetSchemeFromEnv()
+	l, server := mock.NewMockGRPCPublicServer("localhost:0", false, sch)
 	addr := l.Addr()
+
 	go l.Start()
 	defer l.Stop(context.Background())
 
@@ -60,8 +64,10 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
-	l, _ := mock.NewMockGRPCPublicServer("localhost:0", false)
+	sch := scheme.GetSchemeFromEnv()
+	l, _ := mock.NewMockGRPCPublicServer("localhost:0", false, sch)
 	addr := l.Addr()
+
 	go l.Start()
 	defer l.Stop(context.Background())
 

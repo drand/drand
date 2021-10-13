@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/http"
@@ -34,14 +36,21 @@ func TestClientConstraints(t *testing.T) {
 }
 
 func TestClientMultiple(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
-	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false)
+
+	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel2()
 
-	c, e := client.New(
+	var c client.Client
+	var e error
+	c, e = client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
+		client.WithScheme(sch),
 		client.WithChainHash(chainInfo.Hash()))
+
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -76,11 +85,17 @@ func TestClientWithChainInfo(t *testing.T) {
 }
 
 func TestClientCache(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	c, e := client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+	var c client.Client
+	var e error
+	c, e = client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+		client.WithScheme(sch),
 		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
+
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -102,13 +117,18 @@ func TestClientCache(t *testing.T) {
 }
 
 func TestClientWithoutCache(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
-	c, e := client.New(
+	var c client.Client
+	var e error
+	c, e = client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+		client.WithScheme(sch),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithCacheSize(0))
+
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -125,7 +145,8 @@ func TestClientWithoutCache(t *testing.T) {
 }
 
 func TestClientWithWatcher(t *testing.T) {
-	info, results := mock.VerifiableResults(2)
+	sch := scheme.GetSchemeFromEnv()
+	info, results := mock.VerifiableResults(2, sch)
 
 	ch := make(chan client.Result, len(results))
 	for i := range results {
@@ -137,10 +158,14 @@ func TestClientWithWatcher(t *testing.T) {
 		return &client.MockClient{WatchCh: ch}, nil
 	}
 
-	c, err := client.New(
+	var c client.Client
+	var err error
+	c, err = client.New(
 		client.WithChainInfo(info),
+		client.WithScheme(sch),
 		client.WithWatcher(watcherCtor),
 	)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +224,9 @@ func TestClientChainInfoOverrideError(t *testing.T) {
 }
 
 func TestClientAutoWatch(t *testing.T) {
-	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
 	httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
@@ -217,12 +244,16 @@ func TestClientAutoWatch(t *testing.T) {
 		return &client.MockClient{WatchCh: ch}, nil
 	}
 
-	c, err := client.New(
+	var c client.Client
+	var err error
+	c, err = client.New(
 		client.From(client.MockClientWithInfo(chainInfo)),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
+		client.WithScheme(sch),
 		client.WithAutoWatch(),
 	)
+
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +269,9 @@ func TestClientAutoWatch(t *testing.T) {
 }
 
 func TestClientAutoWatchRetry(t *testing.T) {
-	info, results := mock.VerifiableResults(5)
+	sch := scheme.GetSchemeFromEnv()
+
+	info, results := mock.VerifiableResults(5, sch)
 	resC := make(chan client.Result)
 	defer close(resC)
 
@@ -273,13 +306,17 @@ func TestClientAutoWatchRetry(t *testing.T) {
 		},
 	}
 
-	c, err := client.New(
+	var c client.Client
+	var err error
+	c, err = client.New(
 		client.From(&failer, client.MockClientWithInfo(info)),
 		client.WithChainInfo(info),
 		client.WithAutoWatch(),
 		client.WithAutoWatchRetry(time.Second),
 		client.WithCacheSize(len(results)),
+		client.WithScheme(sch),
 	)
+
 	if err != nil {
 		t.Fatal(err)
 	}

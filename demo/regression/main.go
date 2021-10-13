@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"text/template"
 
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/demo/lib"
 )
 
@@ -75,12 +76,16 @@ func testUpgrade(orch *lib.Orchestrator) (err error) {
 	return nil
 }
 
+// TODO after merge unchained beacon feature, we should add a new test to
+// TODO run regression with decouplePrevSig on true
 func main() {
 	flag.Parse()
 	n := 5
 	thr := 4
 	period := "10s"
-	orch := lib.NewOrchestrator(n, thr, period, true, *build, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch)
 	orch.UpdateBinary(*candidate, 2)
 	orch.UpdateBinary(*candidate, -1)
 	orch.SetupNewNodes(1)
@@ -100,7 +105,8 @@ func main() {
 	if startupErr != nil {
 		// recover with a fully old-node dkg
 		orch.Shutdown()
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false)
+
+		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch)
 		orch.UpdateBinary(*candidate, -1)
 		orch.SetupNewNodes(1)
 		defer orch.Shutdown()
@@ -114,7 +120,8 @@ func main() {
 	if reshareErr != nil {
 		// recover back to a fully old-node dkg
 		orch.Shutdown()
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false)
+
+		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch)
 		orch.UpdateBinary(*candidate, -1)
 		orch.SetupNewNodes(1)
 		defer orch.Shutdown()

@@ -33,6 +33,7 @@ type syncer struct {
 	l         log.Logger
 	store     CallbackStore
 	info      *chain.Info
+	verifier  *chain.Verifier
 	client    net.ProtocolClient
 	following bool
 	sync.Mutex
@@ -40,11 +41,14 @@ type syncer struct {
 
 // NewSyncer returns a syncer implementation
 func NewSyncer(l log.Logger, s CallbackStore, info *chain.Info, client net.ProtocolClient) Syncer {
+	verifier := chain.NewVerifier(info.Scheme)
+
 	return &syncer{
-		store:  s,
-		info:   info,
-		client: client,
-		l:      l,
+		store:    s,
+		info:     info,
+		client:   client,
+		l:        l,
+		verifier: verifier,
 	}
 }
 
@@ -102,7 +106,9 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 		beacon := protoToBeacon(beaconPacket)
 
 		// verify the signature validity
-		if err := chain.VerifyBeacon(s.info.PublicKey, beacon); err != nil {
+		err := s.verifier.VerifyBeacon(*beacon, s.info.PublicKey)
+
+		if err != nil {
 			s.l.Debugw("", "syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
 			return false
 		}

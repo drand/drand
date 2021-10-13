@@ -12,6 +12,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/BurntSushi/toml"
 	kyber "github.com/drand/kyber"
 	dkg "github.com/drand/kyber/share/dkg"
@@ -29,6 +31,8 @@ type Group struct {
 	Threshold int
 	// Period to use for the beacon randomness generation
 	Period time.Duration
+	// Scheme indicates a set of values the process will use to act in specific ways
+	Scheme scheme.Scheme
 	// CatchupPeriod is a delay to insert while in a catchup mode
 	// also can be thought of as the minimum period allowed between
 	// beacon and subsequent partial generation
@@ -172,6 +176,7 @@ type GroupTOML struct {
 	TransitionTime int64           `toml:",omitempty"`
 	GenesisSeed    string          `toml:",omitempty"`
 	PublicKey      *DistPublicTOML `toml:",omitempty"`
+	SchemeID       string
 }
 
 // FromTOML decodes the group from the toml struct
@@ -187,6 +192,10 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
 			return fmt.Errorf("group: unwrapping node[%d]: %v", i, err)
 		}
+	}
+
+	if g.Scheme, err = scheme.GetSchemeByIDWithDefault(gt.SchemeID); err != nil {
+		return err
 	}
 
 	if g.Threshold < dkg.MinimumT(len(gt.Nodes)) {
@@ -239,6 +248,7 @@ func (g *Group) TOML() interface{} {
 	if g.PublicKey != nil {
 		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
 	}
+	gtoml.SchemeID = g.Scheme.ID
 	gtoml.Period = g.Period.String()
 	gtoml.CatchupPeriod = g.CatchupPeriod.String()
 	gtoml.GenesisTime = g.GenesisTime
@@ -267,13 +277,14 @@ func (g *Group) TOMLValue() interface{} {
 // NewGroup returns a group from the given information to be used as a new group
 // in a setup or resharing phase. Every identity is map to a Node struct whose
 // index is the position in the list of identity.
-func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration) *Group {
+func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration, sch scheme.Scheme) *Group {
 	return &Group{
 		Nodes:         copyAndSort(list),
 		Threshold:     threshold,
 		GenesisTime:   genesis,
 		Period:        period,
 		CatchupPeriod: catchupPeriod,
+		Scheme:        sch,
 	}
 }
 
@@ -282,7 +293,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 // The threshold is automatically guessed from the length of the distributed
 // key.
 // Note: only used in tests
-func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64) *Group {
+func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64, sch scheme.Scheme) *Group {
 	return &Group{
 		Nodes:          list,
 		Threshold:      len(public.Coefficients),
@@ -291,6 +302,7 @@ func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Dura
 		CatchupPeriod:  period / 2,
 		GenesisTime:    genesis,
 		TransitionTime: transition,
+		Scheme:         sch,
 	}
 }
 
@@ -326,6 +338,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 
 	n := len(nodes)
 	thr := int(g.GetThreshold())
+
 	if thr < MinimumT(n) {
 		return nil, fmt.Errorf("invalid threshold: %d vs %d (minimum)", thr, MinimumT(n))
 	}
@@ -338,6 +351,12 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	period := time.Duration(g.GetPeriod()) * time.Second
 	if period == time.Duration(0) {
 		return nil, fmt.Errorf("period time is zero")
+	}
+
+	var sch scheme.Scheme
+	var err error
+	if sch, err = scheme.GetSchemeByIDWithDefault(g.GetSchemeID()); err != nil {
+		return nil, err
 	}
 
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
@@ -358,6 +377,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		Nodes:          nodes,
 		GenesisTime:    genesisTime,
 		TransitionTime: int64(g.GetTransitionTime()),
+		Scheme:         sch,
 	}
 
 	if g.GetGenesisSeed() != nil {
@@ -397,6 +417,7 @@ func (g *Group) ToProto() *proto.GroupPacket {
 	out.GenesisTime = uint64(g.GenesisTime)
 	out.TransitionTime = uint64(g.TransitionTime)
 	out.GenesisSeed = g.GetGenesisSeed()
+	out.SchemeID = g.Scheme.ID
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))
 		for i, c := range g.PublicKey.Coefficients {
