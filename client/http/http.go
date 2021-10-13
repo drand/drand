@@ -24,6 +24,10 @@ import (
 var errClientClosed = fmt.Errorf("client closed")
 
 const defaultClientExec = "unknown"
+const defaultHTTTPTimeout = 60 * time.Second
+
+const httpWaitMaxCounter = 10
+const httpWaitInterval = 2 * time.Second
 
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
@@ -45,7 +49,11 @@ func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Cli
 		Agent:  agent,
 		done:   make(chan struct{}),
 	}
-	chainInfo, err := c.FetchChainInfo(chainHash)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	chainInfo, err := c.FetchChainInfo(ctx, chainHash)
 	if err != nil {
 		return nil, err
 	}
@@ -110,10 +118,31 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 	return clients
 }
 
+func Ping(ctx context.Context, root string) error {
+	url := fmt.Sprintf("%s/health", root)
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	response, err := nhttp.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	defer response.Body.Close()
+
+	return nil
+}
+
 // Instruments an HTTP client around a transport
 func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	hc := nhttp.Client{}
-	hc.Timeout = nhttp.DefaultClient.Timeout
+	hc.Timeout = defaultHTTTPTimeout
 	hc.Jar = nhttp.DefaultClient.Jar
 	hc.CheckRedirect = nhttp.DefaultClient.CheckRedirect
 	urlLabel := prometheus.Labels{"url": url}
@@ -142,6 +171,27 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	hc.Transport = transport
 
 	return &hc
+}
+
+func IsServerReady(addr string) error {
+	counter := 0
+
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+
+		err := Ping(ctx, "http://"+addr)
+		if err == nil {
+			return nil
+		}
+
+		counter++
+		if counter == httpWaitMaxCounter {
+			return fmt.Errorf("timeout waiting http server to be ready")
+		}
+
+		time.Sleep(httpWaitInterval)
+	}
 }
 
 // httpClient implements Client through http requests to a Drand relay.
@@ -182,13 +232,13 @@ type httpInfoResponse struct {
 // FetchGroupInfo attempts to initialize an httpClient when
 // it does not know the full group parameters for a drand group. The chain hash
 // is the hash of the chain info.
-func (h *httpClient) FetchChainInfo(chainHash []byte) (*chain.Info, error) {
+func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*chain.Info, error) {
 	if h.chainInfo != nil {
 		return h.chainInfo, nil
 	}
 
 	resC := make(chan httpInfoResponse, 1)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
