@@ -18,7 +18,6 @@ type Opts struct {
 
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
 func newVerifyingClient(c Client, previousResult Result, opts Opts) Client {
-	opts.scheme, _ = scheme.GetSchemeByIDWithDefault(opts.scheme.ID)
 	verifier := chain.NewVerifier(opts.scheme)
 
 	return &verifyingClient{

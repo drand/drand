@@ -20,10 +20,14 @@ const clientStartupTimeoutDefault = time.Second * 5
 
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
+	sch, _ := scheme.GetSchemeByIDWithDefault("")
+
 	cfg := clientConfig{
 		cacheSize: 32,
 		log:       log.DefaultLogger(),
+		scheme:    sch,
 	}
+
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
 			return nil, err
