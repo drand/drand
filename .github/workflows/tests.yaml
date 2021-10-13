@@ -29,7 +29,7 @@ jobs:
           make drand-relay-gossip
           make drand-relay-s3
 
-  test_coupled:
+  test_chained:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,7 +50,7 @@ jobs:
       - name: Integration tests
         run: make test-integration
 
-  test_decoupled:
+  test_unchained:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
