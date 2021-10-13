@@ -22,7 +22,7 @@ type ControlClient interface {
 	PingPong(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error)
 	// Status responds with the actual status of drand process
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
-	// Status responds with the list of ids for the available schemes
+	// ListSchemes responds with the list of ids for the available schemes
 	ListSchemes(ctx context.Context, in *ListSchemesRequest, opts ...grpc.CallOption) (*ListSchemesResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error)
@@ -202,7 +202,7 @@ type ControlServer interface {
 	PingPong(context.Context, *Ping) (*Pong, error)
 	// Status responds with the actual status of drand process
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
-	// Status responds with the list of ids for the available schemes
+	// ListSchemes responds with the list of ids for the available schemes
 	ListSchemes(context.Context, *ListSchemesRequest) (*ListSchemesResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error)
