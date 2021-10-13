@@ -9,10 +9,10 @@ import (
 	"time"
 
 	nhttp "github.com/drand/drand/client/http"
-	"github.com/drand/drand/utils"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 	"github.com/stretchr/testify/require"
@@ -20,10 +20,11 @@ import (
 	json "github.com/nikkolasg/hexjson"
 )
 
-func withClient(t *testing.T, decouplePrevSig bool) (c client.Client, emit func(bool)) {
+func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	t.Helper()
+	sch := scheme.GetSchemeFromEnv()
 
-	l, s := mock.NewMockGRPCPublicServer(":0", true, decouplePrevSig)
+	l, s := mock.NewMockGRPCPublicServer(":0", true, sch)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -35,7 +36,8 @@ func withClient(t *testing.T, decouplePrevSig bool) (c client.Client, emit func(
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, _ := withClient(t, utils.PrevSigDecoupling())
+
+	c, _ := withClient(t)
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
@@ -113,7 +115,7 @@ func validateEndpoint(endpoint string, round float64) error {
 func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, push := withClient(t, utils.PrevSigDecoupling())
+	c, push := withClient(t)
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
@@ -175,7 +177,7 @@ func TestHTTPWaiting(t *testing.T) {
 func TestHTTPWatchFuture(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, _ := withClient(t, utils.PrevSigDecoupling())
+	c, _ := withClient(t)
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {
@@ -207,7 +209,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 func TestHTTPHealth(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, push := withClient(t, utils.PrevSigDecoupling())
+	c, push := withClient(t)
 
 	handler, err := New(ctx, c, "", nil)
 	if err != nil {

@@ -5,22 +5,28 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
 type Opts struct {
-	strict          bool
-	decouplePrevSig bool
+	strict bool
+	scheme scheme.Scheme
 }
 
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
 func newVerifyingClient(c Client, previousResult Result, opts Opts) Client {
+	opts.scheme, _ = scheme.GetSchemeByIDWithDefault(opts.scheme.ID)
+	verifier := chain.NewVerifier(opts.scheme)
+
 	return &verifyingClient{
 		Client:         c,
 		indirectClient: c,
 		pointOfTrust:   previousResult,
 		opts:           opts,
+		verifier:       verifier,
 	}
 }
 
@@ -36,7 +42,8 @@ type verifyingClient struct {
 	potLk        sync.Mutex
 	opts         Opts
 
-	log log.Logger
+	verifier *chain.Verifier
+	log      log.Logger
 }
 
 // SetLog configures the client log output.
@@ -150,7 +157,10 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		b.Signature = next.Signature()
 
 		ipk := info.PublicKey.Clone()
-		if err := b.Verify(ipk, v.opts.decouplePrevSig); err != nil {
+
+		err = v.verifier.VerifyBeacon(b, ipk)
+
+		if err != nil {
 			v.log.Warnw("", "verifying_client", "failed to verify value", "b", b, "err", err)
 			return []byte{}, fmt.Errorf("verifying beacon: %w", err)
 		}
@@ -184,7 +194,10 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 	}
 
 	ipk := info.PublicKey.Clone()
-	if err = b.Verify(ipk, v.opts.decouplePrevSig); err != nil {
+
+	err = v.verifier.VerifyBeacon(b, ipk)
+
+	if err != nil {
 		return fmt.Errorf("verification of %v failed: %w", b, err)
 	}
 

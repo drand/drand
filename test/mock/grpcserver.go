@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -43,10 +45,10 @@ func newMockServer(d *Data) *Server {
 		EmptyServer: new(testnet.EmptyServer),
 		d:           d,
 		chainInfo: &drand.ChainInfoPacket{
-			Period:          uint32(d.Period.Seconds()),
-			GenesisTime:     int64(d.Genesis),
-			PublicKey:       d.Public,
-			DecouplePrevSig: d.DecouplePrevSig,
+			Period:      uint32(d.Period.Seconds()),
+			GenesisTime: int64(d.Genesis),
+			PublicKey:   d.Public,
+			SchemeID:    d.Scheme.ID,
 		},
 	}
 }
@@ -135,7 +137,7 @@ func testValid(d *Data) {
 	sig := decodeHex(d.Signature)
 
 	var msg, invMsg []byte
-	if !d.DecouplePrevSig {
+	if !d.Scheme.DecouplePrevSig {
 		prev := decodeHex(d.PreviousSignature)
 		msg = sha256Hash(append(prev[:], roundToBytes(d.Round)...))
 		invMsg = sha256Hash(append(prev[:], roundToBytes(d.Round-1)...))
@@ -173,10 +175,10 @@ type Data struct {
 	Genesis           int64
 	Period            time.Duration
 	BadSecondRound    bool
-	DecouplePrevSig   bool
+	Scheme            scheme.Scheme
 }
 
-func generateMockData(decouplePrevSig bool) *Data {
+func generateMockData(sch scheme.Scheme) *Data {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 	var previous [32]byte
@@ -187,7 +189,7 @@ func generateMockData(decouplePrevSig bool) *Data {
 	prevRound := uint64(1968)
 
 	var msg []byte
-	if !decouplePrevSig {
+	if !sch.DecouplePrevSig {
 		msg = sha256Hash(append(previous[:], roundToBytes(round)...))
 	} else {
 		msg = sha256Hash(roundToBytes(round))
@@ -212,7 +214,7 @@ func generateMockData(decouplePrevSig bool) *Data {
 		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
 		Period:            period,
 		BadSecondRound:    true,
-		DecouplePrevSig:   decouplePrevSig,
+		Scheme:            sch,
 	}
 	return d
 }
@@ -222,7 +224,7 @@ func nextMockData(d *Data) *Data {
 	previous := decodeHex(d.PreviousSignature)
 
 	var msg []byte
-	if !d.DecouplePrevSig {
+	if !d.Scheme.DecouplePrevSig {
 		msg = sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
 	} else {
 		msg = sha256Hash(roundToBytes(d.Round + 1))
@@ -245,16 +247,18 @@ func nextMockData(d *Data) *Data {
 		Genesis:           d.Genesis,
 		Period:            d.Period,
 		BadSecondRound:    d.BadSecondRound,
-		DecouplePrevSig:   d.DecouplePrevSig,
+		Scheme:            d.Scheme,
 	}
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(bind string, badSecondRound bool, decouplePrevSig bool) (net.Listener, net.Service) {
-	d := generateMockData(decouplePrevSig)
+func NewMockGRPCPublicServer(bind string, badSecondRound bool, sch scheme.Scheme) (net.Listener, net.Service) {
+	d := generateMockData(sch)
 	testValid(d)
+
 	d.BadSecondRound = badSecondRound
-	d.DecouplePrevSig = decouplePrevSig
+	d.Scheme = sch
+
 	server := newMockServer(d)
 	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
@@ -265,11 +269,13 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool, decouplePrevSig b
 }
 
 // NewMockServer creates a server interface not bound to a newtork port
-func NewMockServer(badSecondRound bool, decouplePrevSig bool) net.Service {
-	d := generateMockData(decouplePrevSig)
+func NewMockServer(badSecondRound bool, sch scheme.Scheme) net.Service {
+	d := generateMockData(sch)
 	testValid(d)
+
 	d.BadSecondRound = badSecondRound
-	d.DecouplePrevSig = decouplePrevSig
+	d.Scheme = sch
+
 	server := newMockServer(d)
 	return server
 }
@@ -290,8 +296,8 @@ func roundToBytes(r int) []byte {
 }
 
 // NewMockBeacon provides a random beacon and the chain it validates against
-func NewMockBeacon(decouplePrevSig bool) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
-	d := generateMockData(decouplePrevSig)
+func NewMockBeacon(sch scheme.Scheme) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData(sch)
 	s := newMockServer(d)
 	c, _ := s.ChainInfo(context.Background(), nil)
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})

@@ -5,6 +5,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/key"
@@ -18,12 +20,17 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 		return nil, err
 	}
 
+	sch, ok := scheme.GetSchemeByID(p.SchemeID)
+	if !ok {
+		return nil, fmt.Errorf("scheme id received is not valid")
+	}
+
 	return &Info{
-		PublicKey:       public,
-		GenesisTime:     p.GenesisTime,
-		Period:          time.Duration(p.Period) * time.Second,
-		GroupHash:       p.GroupHash,
-		DecouplePrevSig: p.DecouplePrevSig,
+		PublicKey:   public,
+		GenesisTime: p.GenesisTime,
+		Period:      time.Duration(p.Period) * time.Second,
+		GroupHash:   p.GroupHash,
+		Scheme:      sch,
 	}, nil
 }
 
@@ -31,12 +38,12 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 func (c *Info) ToProto() *drand.ChainInfoPacket {
 	buff, _ := c.PublicKey.MarshalBinary()
 	return &drand.ChainInfoPacket{
-		PublicKey:       buff,
-		GenesisTime:     c.GenesisTime,
-		Period:          uint32(c.Period.Seconds()),
-		Hash:            c.Hash(),
-		GroupHash:       c.GroupHash,
-		DecouplePrevSig: c.DecouplePrevSig,
+		PublicKey:   buff,
+		GenesisTime: c.GenesisTime,
+		Period:      uint32(c.Period.Seconds()),
+		Hash:        c.Hash(),
+		GroupHash:   c.GroupHash,
+		SchemeID:    c.Scheme.ID,
 	}
 }
 

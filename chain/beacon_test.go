@@ -3,8 +3,8 @@ package chain
 import (
 	"testing"
 
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/util/random"
 )
 
@@ -12,9 +12,13 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 
+	sch := scheme.GetSchemeFromEnv()
+	verifier := NewVerifier(sch)
+
 	var round uint64 = 16
 	prevSig := []byte("My Sweet Previous Signature")
-	msg := Message(round, prevSig, utils.PrevSigDecoupling())
+
+	msg := verifier.DigestMessage(round, prevSig)
 
 	sig, _ := key.AuthScheme.Sign(secret, msg)
 	b.ResetTimer()
@@ -24,7 +28,8 @@ func BenchmarkVerifyBeacon(b *testing.B) {
 			Round:       16,
 			Signature:   sig,
 		}
-		err := b.Verify(public, utils.PrevSigDecoupling())
+
+		err := verifier.VerifyBeacon(b, public)
 		if err != nil {
 			panic(err)
 		}

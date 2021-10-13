@@ -5,34 +5,27 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/drand/drand/utils"
-
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/common/scheme"
 )
 
-func mockClientWithVerifiableResults(n int, decouplePrevSig bool) (client.Client, []mock.Result, error) {
-	info, results := mock.VerifiableResults(n, decouplePrevSig)
+func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error) {
+	sch := scheme.GetSchemeFromEnv()
+
+	info, results := mock.VerifiableResults(n, sch)
 	mc := client.MockClient{Results: results, StrictRounds: true}
 
 	var c client.Client
 	var err error
-	if decouplePrevSig {
-		c, err = client.Wrap(
-			[]client.Client{client.MockClientWithInfo(info), &mc},
-			client.WithChainInfo(info),
-			client.WithVerifiedResult(&results[0]),
-			client.WithFullChainVerification(),
-			client.DecouplePrevSig(),
-		)
-	} else {
-		c, err = client.Wrap(
-			[]client.Client{client.MockClientWithInfo(info), &mc},
-			client.WithChainInfo(info),
-			client.WithVerifiedResult(&results[0]),
-			client.WithFullChainVerification(),
-		)
-	}
+
+	c, err = client.Wrap(
+		[]client.Client{client.MockClientWithInfo(info), &mc},
+		client.WithChainInfo(info),
+		client.WithVerifiedResult(&results[0]),
+		client.WithFullChainVerification(),
+		client.WithScheme(sch),
+	)
 
 	if err != nil {
 		return nil, nil, err
@@ -49,7 +42,7 @@ func TestVerifyWithOldVerifiedResult(t *testing.T) {
 }
 
 func VerifyFuncTest(t *testing.T, clients, upTo int) {
-	c, results, err := mockClientWithVerifiableResults(clients, utils.PrevSigDecoupling())
+	c, results, err := mockClientWithVerifiableResults(clients)
 	if err != nil {
 		t.Fatal(err)
 	}

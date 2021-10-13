@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
+
+	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
@@ -76,7 +79,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		opts := Opts{decouplePrevSig: cfg.decouplePrevSig, strict: cfg.fullVerify}
+		opts := Opts{scheme: cfg.scheme, strict: cfg.fullVerify}
 		nv := newVerifyingClient(source, cfg.previousResult, opts)
 		verifiers = append(verifiers, nv)
 		if source == wc {
@@ -167,8 +170,8 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
-	// decoupledPrevSig
-	decouplePrevSig bool
+	// scheme
+	scheme scheme.Scheme
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -220,10 +223,23 @@ func Insecurely() Option {
 	}
 }
 
-// DecouplePrevSig
-func DecouplePrevSig() Option {
+// WithScheme
+func WithScheme(sch scheme.Scheme) Option {
 	return func(cfg *clientConfig) error {
-		cfg.decouplePrevSig = true
+		cfg.scheme = sch
+		return nil
+	}
+}
+
+// WithSchemeID
+func WithSchemeID(schID string) Option {
+	return func(cfg *clientConfig) error {
+		sch, ok := scheme.GetSchemeByID(schID)
+		if !ok {
+			return fmt.Errorf("scheme is not valid")
+		}
+
+		cfg.scheme = sch
 		return nil
 	}
 }

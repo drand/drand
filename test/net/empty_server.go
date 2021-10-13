@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/protobuf/drand"
@@ -78,6 +79,11 @@ func (s *EmptyServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error
 
 // PingPong is an empty implementation
 func (s *EmptyServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error) {
+	return nil, nil
+}
+
+// ListSchemes is an empty implementation
+func (s *EmptyServer) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
 	return nil, nil
 }
 

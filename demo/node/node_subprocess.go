@@ -15,6 +15,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -34,22 +36,22 @@ type NodeProc struct {
 	// certificate key
 	keyPath string
 	// where all public certs are stored
-	certFolder      string
-	startCmd        *exec.Cmd
-	logPath         string
-	privAddr        string
-	pubAddr         string
-	priv            *key.Pair
-	store           key.Store
-	cancel          context.CancelFunc
-	ctrl            string
-	tls             bool
-	groupPath       string
-	binary          string
-	decouplePrevSig bool
+	certFolder string
+	startCmd   *exec.Cmd
+	logPath    string
+	privAddr   string
+	pubAddr    string
+	priv       *key.Pair
+	store      key.Store
+	cancel     context.CancelFunc
+	ctrl       string
+	tls        bool
+	groupPath  string
+	binary     string
+	scheme     scheme.Scheme
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string, decouplePrevSig bool) Node {
+func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -57,15 +59,15 @@ func NewNode(i int, period string, base string, tls bool, binary string, decoupl
 	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
 	n := &NodeProc{
-		tls:             tls,
-		base:            nbase,
-		i:               i,
-		logPath:         logPath,
-		publicPath:      publicPath,
-		groupPath:       groupPath,
-		period:          period,
-		decouplePrevSig: decouplePrevSig,
-		binary:          binary,
+		tls:        tls,
+		base:       nbase,
+		i:          i,
+		logPath:    logPath,
+		publicPath: publicPath,
+		groupPath:  groupPath,
+		period:     period,
+		scheme:     sch,
+		binary:     binary,
 	}
 	n.setup()
 	return n
@@ -182,8 +184,9 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 		args = append(args, pair("--timeout", timeout)...)
 		args = append(args, pair("--period", n.period)...)
 
-		if n.decouplePrevSig {
-			args = append(args, pair("--decouple-prev-sig", strconv.FormatBool(n.decouplePrevSig))...)
+		// TODO The momento master supports this new flag, we will be able to remove this
+		if n.scheme.DecouplePrevSig {
+			args = append(args, pair("--scheme", n.scheme.ID)...)
 		}
 
 		// make genesis time offset

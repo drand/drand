@@ -17,6 +17,8 @@ service Control {
     rpc PingPong(Ping) returns (Pong) { }
     // Status responds with the actual status of drand process
     rpc Status(StatusRequest) returns (StatusResponse) { }
+    // ListSchemes responds with the list of ids for the available schemes
+    rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) { }
     // InitDKG sends information to daemon to start a fresh DKG protocol 
     rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) { }
     // InitReshares sends all informations so that the drand node knows how to
@@ -91,8 +93,8 @@ message InitDKGPacket {
     uint32 beacon_period = 3;
     // the minimum beacon period when in catchup.
     uint32 catchup_period = 4;
-    // indicates if the node should not use the prev sig to generate the next one
-    bool decouple_prev_sig = 5;
+    // indicates a set of values the process will use to act in specific ways
+    string schemeID = 5;
     common.Metadata metadata = 6;
 }
 
@@ -168,6 +170,15 @@ message StatusResponse {
     ReshareStatus reshare = 2;
     BeaconStatus beacon = 3;
     ChainStoreStatus chain_store = 4;
+}
+
+message ListSchemesRequest {
+    common.Metadata metadata = 1;
+}
+
+message ListSchemesResponse {
+    repeated string ids = 1;
+    common.Metadata metadata = 2;
 }
 
 message DkgStatus{

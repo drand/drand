@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/drand/drand/common/scheme"
+
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
@@ -248,9 +250,10 @@ var upToFlag = &cli.IntFlag{
 	Value: 0,
 }
 
-var decouplePrevSigFlag = &cli.BoolFlag{
-	Name:  "decouple-prev-sig",
-	Usage: "Indicates if the previous signature should be used to generate the next one or not",
+var schemeFlag = &cli.StringFlag{
+	Name:  "scheme",
+	Usage: "Indicates a set of values drand will use to configure the randomness generation process",
+	Value: scheme.DefaultSchemeID,
 }
 
 var jsonFlag = &cli.BoolFlag{
@@ -286,7 +289,7 @@ var appCommands = []*cli.Command{
 		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag, decouplePrevSigFlag),
+			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag, schemeFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)
@@ -366,13 +369,19 @@ var appCommands = []*cli.Command{
 			},
 			{
 				Name:   "ping",
-				Usage:  "pings the daemon checking its state\n",
+				Usage:  "Pings the daemon checking its state\n",
 				Flags:  toArray(controlFlag),
 				Action: pingpongCmd,
 			},
 			{
+				Name:   "list-schemes",
+				Usage:  "List all scheme ids available to use\n",
+				Flags:  toArray(controlFlag),
+				Action: schemesCmd,
+			},
+			{
 				Name:   "status",
-				Usage:  "get the status of many modules of running the daemon\n",
+				Usage:  "Get the status of many modules of running the daemon\n",
 				Flags:  toArray(controlFlag, jsonFlag),
 				Action: statusCmd,
 			},

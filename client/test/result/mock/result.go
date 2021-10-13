@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/kyber/share"
@@ -81,7 +83,7 @@ func roundToBytes(r int) []byte {
 }
 
 // VerifiableResults creates a set of results that will pass a `chain.Verify` check.
-func VerifiableResults(count int, decouplePrevSig bool) (*chain.Info, []Result) {
+func VerifiableResults(count int, sch scheme.Scheme) (*chain.Info, []Result) {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 	previous := make([]byte, 32)
@@ -93,7 +95,7 @@ func VerifiableResults(count int, decouplePrevSig bool) (*chain.Info, []Result) 
 	for i := range out {
 
 		var msg []byte
-		if !decouplePrevSig {
+		if !sch.DecouplePrevSig {
 			msg = sha256Hash(append(previous[:], roundToBytes(i+1)...))
 		} else {
 			msg = sha256Hash(roundToBytes(i + 1))
@@ -117,11 +119,11 @@ func VerifiableResults(count int, decouplePrevSig bool) (*chain.Info, []Result) 
 		copy(previous[:], sig)
 	}
 	info := chain.Info{
-		PublicKey:       public,
-		Period:          time.Second,
-		GenesisTime:     time.Now().Unix() - int64(count),
-		GroupHash:       out[0].PSig,
-		DecouplePrevSig: decouplePrevSig,
+		PublicKey:   public,
+		Period:      time.Second,
+		GenesisTime: time.Now().Unix() - int64(count),
+		GroupHash:   out[0].PSig,
+		Scheme:      sch,
 	}
 
 	return &info, out

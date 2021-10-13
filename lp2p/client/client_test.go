@@ -11,13 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/utils"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	dhttp "github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/test"
@@ -31,7 +30,9 @@ import (
 
 func TestGRPCClientTestFunc(t *testing.T) {
 	// start mock drand node
-	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false, utils.PrevSigDecoupling())
+	sch := scheme.GetSchemeFromEnv()
+
+	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false, sch)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
@@ -117,7 +118,9 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 }
 
 func HTTPClientTestFunc(t *testing.T) {
-	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, utils.PrevSigDecoupling())
+	sch := scheme.GetSchemeFromEnv()
+
+	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer stop()
 
 	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")

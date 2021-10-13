@@ -69,9 +69,9 @@ jobs:
             ${{ runner.os }}-go-
       - run: go get -v -t -d ./...
       - name: Unit tests
-        run: DECOUPLE_PREV_SIG=true make test-unit
+        run: SCHEME_ID=pedersen-bls-unchained make test-unit
       - name: Integration tests
-        run: DECOUPLE_PREV_SIG=true make test-integration
+        run: SCHEME_ID=pedersen-bls-unchained make test-integration
 
   coverage:
     runs-on: ubuntu-latest
