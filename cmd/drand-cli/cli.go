@@ -261,6 +261,12 @@ var jsonFlag = &cli.BoolFlag{
 	Usage: "Set the output as json format",
 }
 
+var beaconIDFlag = &cli.StringFlag{
+	Name:  "id",
+	Usage: "Indicates the id for the randomness generation process which will be started",
+	Value: "",
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -289,7 +295,8 @@ var appCommands = []*cli.Command{
 		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag, schemeFlag),
+			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag,
+			schemeFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)

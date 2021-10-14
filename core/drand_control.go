@@ -35,35 +35,39 @@ var errPreempted = errors.New("time out: pre-empted")
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	isLeader := in.GetInfo().GetLeader()
+	beaconID := in.GetMetadata().GetBeaconID()
+
 	d.state.Lock()
 	if d.dkgDone {
 		d.state.Unlock()
-		return nil, errors.New("dkg phase already done - call reshare")
+		return nil, errors.New(fmt.Sprintf("beacon id [%s] - dkg phase already done - call reshare", d.beaconID))
 	}
 	d.state.Unlock()
+
+	isLeader := in.GetInfo().GetLeader()
 	if !isLeader {
 		// different logic for leader than the rest
 		out, err := d.setupAutomaticDKG(c, in)
 		return out, err
 	}
-	d.log.Infow("", "init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
+
+	d.log.Infow("", "beacon_id", beaconID, "init_dkg", "begin", "time", d.opts.clock.Now().Unix(), "leader", true)
 
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
-		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), in.GetSchemeID(), in.GetInfo())
+		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), in.GetMetadata().GetBeaconID(), in.GetSchemeID(), in.GetInfo())
 	}
 
 	// expect the group
 	group, err := d.leaderRunSetup(newSetup)
 	if err != nil {
-		d.log.Errorw("", "init_dkg", "leader setup", "err", err)
-		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
+		d.log.Errorw("", "beacon_id", beaconID, "init_dkg", "leader setup", "err", err)
+		return nil, fmt.Errorf("beacon id [%s] - drand: invalid setup configuration: %s", beaconID, err)
 	}
 
 	// send it to everyone in the group nodes
 	nodes := group.Nodes
-	if err := d.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
+	if err := d.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout(), beaconID); err != nil {
 		return nil, err
 	}
 
@@ -71,6 +75,11 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 	if err != nil {
 		return nil, err
 	}
+
+	// After DKG finishes successfully, we can set beaconID on drand.
+	d.state.Lock()
+	d.beaconID = beaconID
+	d.state.Unlock()
 
 	response := finalGroup.ToProto()
 	response.Metadata = common.NewMetadata(d.version.ToProto())
@@ -81,19 +90,24 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (group *key.Group, err error) {
 	// setup the manager
 	d.state.Lock()
+
 	if d.manager != nil {
 		d.log.Infow("", "reshare", "already_in_progress", "restart", "reshare", "old")
 		d.manager.StopPreemptively()
 	}
+
 	manager, err := newSetup(d)
 	d.log.Infow("", "reshare", "newmanager")
 	if err != nil {
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
 	}
+
 	go manager.run()
+
 	d.manager = manager
 	d.state.Unlock()
+
 	defer func() {
 		// don't clear manager if pre-empted
 		if err == errPreempted {
@@ -105,6 +119,8 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 		d.state.Unlock()
 	}()
 
+	beaconID := manager.beaconID
+
 	// wait to receive the keys & send them to the other nodes
 	var ok bool
 	select {
@@ -114,16 +130,17 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 			for _, k := range group.Nodes {
 				addr = append(addr, k.Address())
 			}
-			d.log.Debugw("", "init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
+			d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
 		} else {
-			d.log.Debugw("", "init_dkg", "pre-empted")
+			d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "pre-empted")
 			return nil, errPreempted
 		}
 	case <-time.After(MaxWaitPrepareDKG):
-		d.log.Debugw("", "init_dkg", "time_out")
+		d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "time_out")
 		manager.StopPreemptively()
 		return nil, errors.New("time outs: no key received")
 	}
+
 	return group, nil
 }
 
@@ -554,12 +571,17 @@ func (d *Drand) InitReshare(c context.Context, in *drand.InitResharePacket) (*dr
 		return nil, errors.New("control: old and new group have different genesis seed")
 	}
 
+	d.state.Lock()
+	beaconID := d.beaconID
+	d.state.Unlock()
+
 	// send it to everyone in the group nodes
 	if err := d.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes,
 		oldGroup.Threshold,
 		newGroup,
 		in.GetInfo().GetSecret(),
-		in.GetInfo().GetTimeout()); err != nil {
+		in.GetInfo().GetTimeout(),
+		beaconID); err != nil {
 		d.log.Errorw("", "push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
@@ -803,7 +825,7 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 
 // pushDKGInfo sends the information to run the DKG to all specified nodes.
 // The call is blocking until all nodes have replied or after one minute timeouts.
-func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32) error {
+func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32, beaconID string) error {
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
@@ -813,6 +835,8 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 
 	// Prepare packet
 	metadata := common.NewMetadata(d.version.ToProto())
+	metadata.BeaconID = beaconID
+
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(),
 		SecretProof: secret,

@@ -33,6 +33,8 @@ type Group struct {
 	Period time.Duration
 	// Scheme indicates a set of values the process will use to act in specific ways
 	Scheme scheme.Scheme
+	// ID is the unique identifier for this group
+	ID string
 	// CatchupPeriod is a delay to insert while in a catchup mode
 	// also can be thought of as the minimum period allowed between
 	// beacon and subsequent partial generation
@@ -132,6 +134,9 @@ func (g *Group) String() string {
 
 // Equal indicates if two groups are equal
 func (g *Group) Equal(g2 *Group) bool {
+	if g.ID != g2.ID {
+		return false
+	}
 	if g.Threshold != g2.Threshold {
 		return false
 	}
@@ -147,11 +152,13 @@ func (g *Group) Equal(g2 *Group) bool {
 	if g.TransitionTime != g2.TransitionTime {
 		return false
 	}
+
 	for i := 0; i < g.Len(); i++ {
 		if !g.Nodes[i].Equal(g2.Nodes[i]) {
 			return false
 		}
 	}
+
 	if g.PublicKey != nil {
 		if g2.PublicKey != nil {
 			// both keys aren't nil so we verify
@@ -163,6 +170,7 @@ func (g *Group) Equal(g2 *Group) bool {
 		// g is nil g2 is not nil
 		return false
 	}
+
 	return true
 }
 
@@ -177,6 +185,7 @@ type GroupTOML struct {
 	GenesisSeed    string          `toml:",omitempty"`
 	PublicKey      *DistPublicTOML `toml:",omitempty"`
 	SchemeID       string
+	ID             string
 }
 
 // FromTOML decodes the group from the toml struct
@@ -232,6 +241,9 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 			return fmt.Errorf("group: decoding genesis seed %v", err)
 		}
 	}
+
+	g.ID = gt.ID
+
 	return nil
 }
 
@@ -248,6 +260,8 @@ func (g *Group) TOML() interface{} {
 	if g.PublicKey != nil {
 		gtoml.PublicKey = g.PublicKey.TOML().(*DistPublicTOML)
 	}
+
+	gtoml.ID = g.ID
 	gtoml.SchemeID = g.Scheme.ID
 	gtoml.Period = g.Period.String()
 	gtoml.CatchupPeriod = g.CatchupPeriod.String()
@@ -277,7 +291,7 @@ func (g *Group) TOMLValue() interface{} {
 // NewGroup returns a group from the given information to be used as a new group
 // in a setup or resharing phase. Every identity is map to a Node struct whose
 // index is the position in the list of identity.
-func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration, sch scheme.Scheme) *Group {
+func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration, sch scheme.Scheme, beaconID string) *Group {
 	return &Group{
 		Nodes:         copyAndSort(list),
 		Threshold:     threshold,
@@ -285,6 +299,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 		Period:        period,
 		CatchupPeriod: catchupPeriod,
 		Scheme:        sch,
+		ID:            beaconID,
 	}
 }
 
@@ -293,7 +308,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 // The threshold is automatically guessed from the length of the distributed
 // key.
 // Note: only used in tests
-func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64, sch scheme.Scheme) *Group {
+func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64, sch scheme.Scheme, beaconID string) *Group {
 	return &Group{
 		Nodes:          list,
 		Threshold:      len(public.Coefficients),
@@ -303,6 +318,7 @@ func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Dura
 		GenesisTime:    genesis,
 		TransitionTime: transition,
 		Scheme:         sch,
+		ID:             beaconID,
 	}
 }
 
@@ -360,6 +376,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	}
 
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
+	beaconID := g.GetID()
 
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
@@ -378,6 +395,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		GenesisTime:    genesisTime,
 		TransitionTime: int64(g.GetTransitionTime()),
 		Scheme:         sch,
+		ID:             beaconID,
 	}
 
 	if g.GetGenesisSeed() != nil {
@@ -398,6 +416,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 func (g *Group) ToProto() *proto.GroupPacket {
 	var out = new(proto.GroupPacket)
 	var ids = make([]*proto.Node, len(g.Nodes))
+
 	for i, id := range g.Nodes {
 		key, _ := id.Key.MarshalBinary()
 		ids[i] = &proto.Node{
@@ -410,6 +429,7 @@ func (g *Group) ToProto() *proto.GroupPacket {
 			Index: id.Index,
 		}
 	}
+
 	out.Nodes = ids
 	out.Period = uint32(g.Period.Seconds())
 	out.CatchupPeriod = uint32(g.CatchupPeriod.Seconds())
@@ -418,6 +438,8 @@ func (g *Group) ToProto() *proto.GroupPacket {
 	out.TransitionTime = uint64(g.TransitionTime)
 	out.GenesisSeed = g.GetGenesisSeed()
 	out.SchemeID = g.Scheme.ID
+	out.ID = g.ID
+
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))
 		for i, c := range g.PublicKey.Coefficients {

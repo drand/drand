@@ -45,6 +45,7 @@ message GroupPacket {
     uint32 catchup_period = 8;
     string schemeID = 9;
     common.Metadata metadata = 10;
+    string ID = 11;
 }
 message GroupRequest {
     common.Metadata metadata = 1;
