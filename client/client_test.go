@@ -48,7 +48,7 @@ func TestClientMultiple(t *testing.T) {
 	var e error
 	c, e = client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
-		client.WithScheme(sch),
+		client.WithSchemeID(sch.ID),
 		client.WithChainHash(chainInfo.Hash()))
 
 	if e != nil {
@@ -93,7 +93,7 @@ func TestClientCache(t *testing.T) {
 	var c client.Client
 	var e error
 	c, e = client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithScheme(sch),
+		client.WithSchemeID(sch.ID),
 		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
 
 	if e != nil {
@@ -125,7 +125,7 @@ func TestClientWithoutCache(t *testing.T) {
 	var e error
 	c, e = client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithScheme(sch),
+		client.WithSchemeID(sch.ID),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithCacheSize(0))
 
@@ -162,7 +162,7 @@ func TestClientWithWatcher(t *testing.T) {
 	var err error
 	c, err = client.New(
 		client.WithChainInfo(info),
-		client.WithScheme(sch),
+		client.WithSchemeID(sch.ID),
 		client.WithWatcher(watcherCtor),
 	)
 
@@ -250,7 +250,7 @@ func TestClientAutoWatch(t *testing.T) {
 		client.From(client.MockClientWithInfo(chainInfo)),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
-		client.WithScheme(sch),
+		client.WithSchemeID(sch.ID),
 		client.WithAutoWatch(),
 	)
 
@@ -314,7 +314,7 @@ func TestClientAutoWatchRetry(t *testing.T) {
 		client.WithAutoWatch(),
 		client.WithAutoWatchRetry(time.Second),
 		client.WithCacheSize(len(results)),
-		client.WithScheme(sch),
+		client.WithSchemeID(sch.ID),
 	)
 
 	if err != nil {
