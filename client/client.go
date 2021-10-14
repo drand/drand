@@ -174,7 +174,7 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
-	// scheme
+	// scheme holds a set of values the client will use to act in specific ways, regarding signature verification, etc
 	scheme scheme.Scheme
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
@@ -227,7 +227,8 @@ func Insecurely() Option {
 	}
 }
 
-// WithScheme
+// WithScheme allows user to set a scheme. The scheme
+//// is use to customize some behaviours inside the client
 func WithScheme(sch scheme.Scheme) Option {
 	return func(cfg *clientConfig) error {
 		cfg.scheme = sch
@@ -235,7 +236,8 @@ func WithScheme(sch scheme.Scheme) Option {
 	}
 }
 
-// WithSchemeID
+// WithSchemeID allows user to set a scheme using its ID. The scheme
+// is use to customize some behaviours inside the client
 func WithSchemeID(schID string) Option {
 	return func(cfg *clientConfig) error {
 		sch, ok := scheme.GetSchemeByID(schID)
