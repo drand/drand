@@ -58,7 +58,7 @@ func TestClientLib(t *testing.T) {
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
-	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure", "--scheme", sch.ID}
+	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"}
 
 	fmt.Printf("%+v", args)
 	err = run(args)
@@ -66,28 +66,28 @@ func TestClientLib(t *testing.T) {
 		t.Fatal("GRPC should work", err)
 	}
 
-	args = []string{"mock-client", "--url", "https://" + addr, "--scheme", sch.ID}
+	args = []string{"mock-client", "--url", "https://" + addr}
 
 	err = run(args)
 	if err == nil {
 		t.Fatal("http needs insecure or hash", err)
 	}
 
-	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash()), "--scheme", sch.ID}
+	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())}
 
 	err = run(args)
 	if err != nil {
 		t.Fatal("http should construct", err)
 	}
 
-	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--scheme", sch.ID}
+	args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
 
 	err = run(args)
 	if err == nil {
 		t.Fatal("relays need URL or hash", err)
 	}
 
-	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash()), "--scheme", sch.ID}
+	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
 
 	err = run(args)
 	if err != nil {

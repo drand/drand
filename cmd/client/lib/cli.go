@@ -11,8 +11,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -105,7 +103,6 @@ var ClientFlags = []cli.Flag{
 	RelayFlag,
 	PortFlag,
 	JSONFlag,
-	SchemeFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied
@@ -151,13 +148,6 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
 	}
-
-	schemeFound, err := scheme.GetSchemeByIDWithDefault(c.String(SchemeFlag.Name))
-	if err != nil {
-		return nil, fmt.Errorf("scheme %s given is invalid", c.String(SchemeFlag.Name))
-	}
-
-	opts = append(opts, client.WithSchemeID(schemeFound.ID))
 
 	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
 
