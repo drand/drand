@@ -228,7 +228,7 @@ func Insecurely() Option {
 }
 
 // WithScheme allows user to set a scheme. The scheme
-// is use to customize some behaviors inside the client
+// is used to customize some behaviors inside the client
 func WithScheme(sch scheme.Scheme) Option {
 	return func(cfg *clientConfig) error {
 		cfg.scheme = sch
@@ -237,7 +237,7 @@ func WithScheme(sch scheme.Scheme) Option {
 }
 
 // WithSchemeID allows user to set a scheme using its ID. The scheme
-// is use to customize some behaviors inside the client
+// is used to customize some behaviors inside the client
 func WithSchemeID(schID string) Option {
 	return func(cfg *clientConfig) error {
 		sch, ok := scheme.GetSchemeByID(schID)
