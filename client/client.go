@@ -176,6 +176,8 @@ type clientConfig struct {
 	insecure bool
 	// scheme holds a set of values the client will use to act in specific ways, regarding signature verification, etc
 	scheme scheme.Scheme
+	// beaconID
+	beaconID string
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -237,6 +239,14 @@ func WithSchemeID(schID string) Option {
 		}
 
 		cfg.scheme = sch
+		return nil
+	}
+}
+
+// WithBeaconID indicates the id for the randomness generation process which will be queried
+func WithBeaconID(beaconID string) Option {
+	return func(cfg *clientConfig) error {
+		cfg.beaconID = beaconID
 		return nil
 	}
 }
