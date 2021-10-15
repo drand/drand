@@ -183,11 +183,7 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
 		args = append(args, pair("--timeout", timeout)...)
 		args = append(args, pair("--period", n.period)...)
-
-		// TODO The momento master supports this new flag, we will be able to remove this
-		if n.scheme.DecouplePrevSig {
-			args = append(args, pair("--scheme", n.scheme.ID)...)
-		}
+		args = append(args, pair("--scheme", n.scheme.ID)...)
 
 		// make genesis time offset
 		args = append(args, pair("--beacon-delay", strconv.Itoa(beaconOffset))...)

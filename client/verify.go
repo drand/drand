@@ -13,6 +13,8 @@ import (
 
 type Opts struct {
 	strict bool
+
+	// scheme holds a set of values the verifying process will use to act in specific ways, regarding signature verification, etc
 	scheme scheme.Scheme
 }
 
