@@ -12,6 +12,10 @@ import (
 	"sort"
 	"time"
 
+	"github.com/drand/drand/utils"
+
+	"github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/BurntSushi/toml"
@@ -376,7 +380,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	}
 
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
-	beaconID := g.GetID()
+	beaconID := g.GetMetadata().GetBeaconID()
 
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
@@ -413,7 +417,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 }
 
 // ToProto encodes a local group object into its wire format
-func (g *Group) ToProto() *proto.GroupPacket {
+func (g *Group) ToProto(version utils.Version) *proto.GroupPacket {
 	var out = new(proto.GroupPacket)
 	var ids = make([]*proto.Node, len(g.Nodes))
 
@@ -438,7 +442,9 @@ func (g *Group) ToProto() *proto.GroupPacket {
 	out.TransitionTime = uint64(g.TransitionTime)
 	out.GenesisSeed = g.GetGenesisSeed()
 	out.SchemeID = g.Scheme.ID
-	out.ID = g.ID
+
+	out.Metadata = common.NewMetadata(version.ToProto())
+	out.Metadata.BeaconID = g.ID
 
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))

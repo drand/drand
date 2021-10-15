@@ -36,8 +36,7 @@ type Drand struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
-	beacon   *beacon.Handler
-	beaconID string
+	beacon *beacon.Handler
 
 	// dkg private share. can be nil if dkg not finished yet.
 	share   *key.Share
