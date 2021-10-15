@@ -9,7 +9,9 @@ import (
 	"github.com/drand/kyber"
 )
 
+// Verifier allows verifying the beacons signature based on a scheme.
 type Verifier struct {
+	// scheme holds a set of values the verifying process will use to act in specific ways, regarding signature verification, etc
 	scheme scheme.Scheme
 }
 

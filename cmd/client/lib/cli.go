@@ -157,7 +157,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		return nil, fmt.Errorf("scheme %s given is invalid", c.String(SchemeFlag.Name))
 	}
 
-	opts = append(opts, client.WithScheme(schemeFound))
+	opts = append(opts, client.WithSchemeID(schemeFound.ID))
 
 	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
 
