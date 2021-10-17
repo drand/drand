@@ -172,7 +172,7 @@ func leadShareCmd(c *cli.Context) error {
 
 	beaconID := c.String(beaconIDFlag.Name)
 
-	fmt.Fprintln(output, "Initiating the DKG as a leader")
+	fmt.Fprintln(output, fmt.Sprintf("Initiating the DKG as a leader. Beacon ID: [%s]", beaconID))
 	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
 		"file will not be written out to the specified output. To get the "+
 		"group file once the setup phase is done, you can run the `drand show "+

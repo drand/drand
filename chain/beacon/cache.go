@@ -18,13 +18,15 @@ type partialCache struct {
 	rounds map[string]*roundCache
 	rcvd   map[int][]string
 	l      log.Logger
+	id     string
 }
 
-func newPartialCache(l log.Logger) *partialCache {
+func newPartialCache(l log.Logger, id string) *partialCache {
 	return &partialCache{
 		rounds: make(map[string]*roundCache),
 		rcvd:   make(map[int][]string),
 		l:      l,
+		id:     id,
 	}
 }
 
@@ -87,13 +89,14 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 	if round, ok := c.rounds[id]; ok {
 		return round
 	}
+
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if len(c.rcvd[idx]) >= MaxPartialsPerNode {
 		// this node has submitted too many partials - we take the last one off
 		toEvict := c.rcvd[idx][0]
 		round, ok := c.rounds[toEvict]
 		if !ok {
-			c.l.Errorw("", "cache", "miss", "node", idx, "not_present_for", p.GetRound())
+			c.l.Errorw("", "beacon_id", c, id, "cache", "miss", "node", idx, "not_present_for", p.GetRound())
 			return nil
 		}
 		round.flushIndex(idx)

@@ -942,11 +942,14 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		// XXX add TLS disable later
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
-	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log)
+
+	beaconID := req.GetMetadata().GetBeaconID()
+	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log, beaconID)
 	if err != nil {
 		return err
 	}
-	d.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
+
+	d.log.Debugw("", "beacon_id", beaconID, "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
 
 	hashStr := req.GetInfoHash()
 	hash, err := hex.DecodeString(hashStr)
@@ -959,13 +962,13 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 	store, err := d.createBoltStore()
 	if err != nil {
-		d.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
+		d.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %s", err)
 	}
 
 	// TODO find a better place to put that
 	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
-		d.log.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
+		d.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "unable to insert genesis block", "err", err)
 		store.Close()
 		return fmt.Errorf("unable to insert genesis block: %s", err)
 	}
@@ -980,7 +983,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	defer cbStore.RemoveCallback(addr)
 
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
-		d.log.Errorw("", "start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
+		d.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
 		return err
 	}
 
@@ -997,17 +1000,17 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
-func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway, peers []net.Peer, l log.Logger) (*chain.Info, error) {
+func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway, peers []net.Peer, l log.Logger, beaconID string) (*chain.Info, error) {
 	var info *chain.Info
 	for _, peer := range peers {
 		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))
 		if err != nil {
-			l.Debugw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			l.Debugw("", "beacon_id", beaconID, "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 		info, err = chain.InfoFromProto(ci)
 		if err != nil {
-			l.Debugw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			l.Debugw("", "beacon_id", beaconID, "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 	}
