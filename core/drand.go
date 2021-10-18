@@ -256,7 +256,7 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	// NOTE: this limits the round time of drand - for now it is not a use
 	// case to go that fast
 
-	beaconID := oldGroup
+	beaconID := oldGroup.ID
 	timeToStop := d.group.TransitionTime - 1
 
 	if !newPresent {

@@ -9,9 +9,9 @@ import (
 )
 
 func TestClientPrivate(t *testing.T) {
-	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
+	sch := scheme.GetSchemeFromEnv()
 
-	drands, _, dir, _ := BatchNewDrand(t, 1, false, sch, beaconID, WithPrivateRandomness())
+	drands, _, dir, _ := BatchNewDrand(t, 1, false, sch, BeaconIDForTesting, WithPrivateRandomness())
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 
