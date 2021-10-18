@@ -132,8 +132,9 @@ func BatchIdentities(n int, sch scheme.Scheme) ([]*key.Pair, *key.Group) {
 	for i := 0; i < thr; i++ {
 		dpub = append(dpub, key.KeyGroup.Point().Pick(random.New()))
 	}
+
 	dp := &key.DistPublic{Coefficients: dpub}
-	group := key.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0, sch)
+	group := key.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0, sch, "test_beacon")
 	group.Threshold = thr
 	return privs, group
 }
