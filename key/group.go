@@ -295,7 +295,8 @@ func (g *Group) TOMLValue() interface{} {
 // NewGroup returns a group from the given information to be used as a new group
 // in a setup or resharing phase. Every identity is map to a Node struct whose
 // index is the position in the list of identity.
-func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration, sch scheme.Scheme, beaconID string) *Group {
+func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration,
+	sch scheme.Scheme, beaconID string) *Group {
 	return &Group{
 		Nodes:         copyAndSort(list),
 		Threshold:     threshold,
@@ -312,7 +313,8 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 // The threshold is automatically guessed from the length of the distributed
 // key.
 // Note: only used in tests
-func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration, transition int64, sch scheme.Scheme, beaconID string) *Group {
+func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Duration,
+	transition int64, sch scheme.Scheme, beaconID string) *Group {
 	return &Group{
 		Nodes:          list,
 		Threshold:      len(public.Coefficients),

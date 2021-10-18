@@ -239,7 +239,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
-			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID)
+			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, "test_beacon")
 		require.NoError(d.t, err)
 
 		d.t.Log("[RunDKG] Leader obtain group")
