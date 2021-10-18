@@ -8,6 +8,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/drand/drand/utils"
+
+	"github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -96,8 +100,12 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 	}
 
 	beaconID := s.info.ID
+	metadata := common.NewMetadata(utils.Version{Major: 0, Minor: 0, Patch: 0}.ToProto()) // FIXME We should set node version here
+	metadata.BeaconID = beaconID
+
 	beaconCh, err := s.client.SyncChain(cnode, n, &proto.SyncRequest{
 		FromRound: last.Round + 1,
+		Metadata:  metadata,
 	})
 
 	if err != nil {

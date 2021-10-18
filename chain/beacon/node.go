@@ -291,7 +291,7 @@ func (h *Handler) run(startTime int64) {
 	h.l.Debugw("", "beacon_id", beaconID, "run_round", "wait", "until", startTime)
 
 	var current roundInfo
-	setRunnig := sync.Once{}
+	setRunning := sync.Once{}
 
 	h.Lock()
 	h.running = true
@@ -301,7 +301,7 @@ func (h *Handler) run(startTime int64) {
 		select {
 		case current = <-chanTick:
 
-			setRunnig.Do(func() {
+			setRunning.Do(func() {
 				h.Lock()
 				h.serving = true
 				h.Unlock()
@@ -375,12 +375,15 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	}
 	h.l.Debugw("", "beacon_id", beaconID, "broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
 	metadata := common.NewMetadata(h.version.ToProto())
+	metadata.BeaconID = beaconID
+
 	packet := &proto.PartialBeaconPacket{
 		Round:       round,
 		PreviousSig: previousSig,
 		PartialSig:  currSig,
 		Metadata:    metadata,
 	}
+
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {
 		if h.addr == id.Address() {
