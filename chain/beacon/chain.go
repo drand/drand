@@ -134,7 +134,8 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 
-			c.l.Debugw("", "beacon_id", beaconID, "store_partial", partial.addr, "round", roundCache.round, "len_partials", fmt.Sprintf("%d/%d", roundCache.Len(), thr))
+			c.l.Debugw("", "beacon_id", beaconID, "store_partial", partial.addr,
+				"round", roundCache.round, "len_partials", fmt.Sprintf("%d/%d", roundCache.Len(), thr))
 			if roundCache.Len() < thr {
 				break
 			}

@@ -177,11 +177,11 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 	}
 
 	if err := newID.ValidSignature(); err != nil {
-		s.l.Infow("", "beacon_id", s.beaconID,"setup", "invalid_sig", "id", addr, "err", err)
+		s.l.Infow("", "beacon_id", s.beaconID, "setup", "invalid_sig", "id", addr, "err", err)
 		return fmt.Errorf("invalid sig: %s", err)
 	}
 
-	s.l.Debugw("", "beacon_id", s.beaconID,"setup", "received_new_key", "id", newID.String())
+	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "received_new_key", "id", newID.String())
 
 	s.pushKeyCh <- pushKey{
 		addr: addr,
@@ -202,11 +202,11 @@ func (s *setupManager) run() {
 			for _, id := range inKeys {
 				if id.Address() == pk.id.Address() {
 					found = true
-					s.l.Debugw("", "beacon_id", s.beaconID,"setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					s.l.Debugw("", "beacon_id", s.beaconID, "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				} else if id.Key.Equal(pk.id.Key) {
 					found = true
-					s.l.Debugw("", "beacon_id", s.beaconID,"setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					s.l.Debugw("", "beacon_id", s.beaconID, "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				}
 			}
@@ -215,7 +215,7 @@ func (s *setupManager) run() {
 				break
 			}
 			inKeys = append(inKeys, pk.id)
-			s.l.Debugw("", "beacon_id", s.beaconID,"setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
+			s.l.Debugw("", "beacon_id", s.beaconID, "setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
 			if len(inKeys) == s.expected {
@@ -230,7 +230,7 @@ func (s *setupManager) run() {
 				}
 			}
 		case <-s.doneCh:
-			s.l.Debugw("", "beacon_id", s.beaconID,"setup", "preempted", "collected_keys", len(inKeys))
+			s.l.Debugw("", "beacon_id", s.beaconID, "setup", "preempted", "collected_keys", len(inKeys))
 			return
 		}
 	}

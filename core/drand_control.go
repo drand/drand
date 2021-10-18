@@ -55,7 +55,8 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
-		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(), in.GetCatchupPeriod(), beaconID, in.GetSchemeID(), in.GetInfo())
+		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(),
+			in.GetCatchupPeriod(), beaconID, in.GetSchemeID(), in.GetInfo())
 	}
 
 	// expect the group
@@ -199,7 +200,8 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 	d.cleanupDKG()
 	d.dkgDone = true
 	d.state.Unlock()
-	d.log.Infow("", "beacon_id", beaconID, "init_dkg", "dkg_done", "starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
+	d.log.Infow("", "beacon_id", beaconID, "init_dkg", "dkg_done",
+		"starting_beacon_time", finalGroup.GenesisTime, "now", d.opts.clock.Now().Unix())
 
 	// beacon will start at the genesis time specified
 	go d.StartBeacon(false)
@@ -824,7 +826,8 @@ func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet
 
 // pushDKGInfo sends the information to run the DKG to all specified nodes.
 // The call is blocking until all nodes have replied or after one minute timeouts.
-func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group, secret []byte, timeout uint32, beaconID string) error {
+func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group,
+	secret []byte, timeout uint32, beaconID string) error {
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(d.priv.Key, group.Hash())
 	if err != nil {
@@ -887,7 +890,8 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	}
 
 	if previousThreshold > 0 || newThreshold > 0 {
-		d.log.Infow("", "beacon_id", beaconID, "push_dkg", "sending_group", "status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
+		d.log.Infow("", "beacon_id", beaconID, "push_dkg", "sending_group",
+			"status", "not enough succeeded", "prev", previousThreshold, "new", newThreshold)
 		return errors.New("push group failure")
 	}
 	d.log.Infow("", "beacon_id", beaconID, "push_dkg", "sending_group", "status", "all succeeded")
@@ -1000,7 +1004,8 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
-func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway, peers []net.Peer, l log.Logger, beaconID string) (*chain.Info, error) {
+func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
+	peers []net.Peer, l log.Logger, beaconID string) (*chain.Info, error) {
 	var info *chain.Info
 	for _, peer := range peers {
 		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))

@@ -116,14 +116,16 @@ func (s *syncer) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
 	s.l.Debugw("", "beacon_id", beaconID, "syncer", "start_follow", "with_peer", n.Address(), "from_round", last.Round+1)
 
 	for beaconPacket := range beaconCh {
-		s.l.Debugw("", "beacon_id", beaconID, "syncer", "new_beacon_fetched", "with_peer", n.Address(), "from_round", last.Round+1, "got_round", beaconPacket.GetRound())
+		s.l.Debugw("", "beacon_id", beaconID, "syncer", "new_beacon_fetched",
+			"with_peer", n.Address(), "from_round", last.Round+1, "got_round", beaconPacket.GetRound())
 		beacon := protoToBeacon(beaconPacket)
 
 		// verify the signature validity
 		err := s.verifier.VerifyBeacon(*beacon, s.info.PublicKey)
 
 		if err != nil {
-			s.l.Debugw("", "beacon_id", beaconID, "syncer", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
+			s.l.Debugw("", "beacon_id", beaconID, "syncer", "invalid_beacon",
+				"with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
 			return false
 		}
 

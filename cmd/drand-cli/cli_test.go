@@ -33,6 +33,7 @@ import (
 )
 
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
+const BeaconIDForTesting = "test_beacon"
 
 func TestDeleteBeacon(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
@@ -137,7 +138,7 @@ func TestStartAndStop(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	n := 5
-	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
 
 	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
@@ -247,7 +248,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
-	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
 
 	_, group := test.BatchIdentities(5, sch, beaconID)
 
@@ -417,7 +418,7 @@ func TestClientTLS(t *testing.T) {
 	}
 
 	// fake group
-	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
 
 	_, group := test.BatchTLSIdentities(5, sch, beaconID)
 	// fake dkg outuput

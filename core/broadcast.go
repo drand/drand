@@ -132,7 +132,8 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 		return nil, errors.New("invalid packet")
 	}
 
-	b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+	b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast",
+		"received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil

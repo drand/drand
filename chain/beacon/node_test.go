@@ -31,6 +31,8 @@ import (
 
 // TODO make beacon tests not dependant on key.Scheme
 
+const BeaconID = "test_beacon"
+
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
 	disable bool
@@ -398,7 +400,7 @@ func TestBeaconSync(t *testing.T) {
 
 	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconID
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
@@ -477,7 +479,7 @@ func TestBeaconSimple(t *testing.T) {
 	period := 2 * time.Second
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconID
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
@@ -538,7 +540,7 @@ func TestBeaconThreshold(t *testing.T) {
 
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconID
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer func() { go bt.CleanUp() }()
