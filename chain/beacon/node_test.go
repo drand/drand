@@ -118,44 +118,46 @@ type node struct {
 }
 
 type BeaconTest struct {
-	paths   []string
-	n       int
-	thr     int
-	shares  []*key.Share
-	period  time.Duration
-	group   *key.Group
-	privs   []*key.Pair
-	dpublic kyber.Point
-	nodes   map[int]*node
-	time    clock.FakeClock
-	prefix  string
-	scheme  scheme.Scheme
+	paths    []string
+	n        int
+	thr      int
+	beaconID string
+	shares   []*key.Share
+	period   time.Duration
+	group    *key.Group
+	privs    []*key.Pair
+	dpublic  kyber.Point
+	nodes    map[int]*node
+	time     clock.FakeClock
+	prefix   string
+	scheme   scheme.Scheme
 }
 
-func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme) *BeaconTest {
+func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme, beaconID string) *BeaconTest {
 	prefix, err := ioutil.TempDir(os.TempDir(), "beacon-test")
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(t, n, thr)
-	privs, group := test.BatchIdentities(n, sch)
+	privs, group := test.BatchIdentities(n, sch, beaconID)
 	group.Threshold = thr
 	group.Period = period
 	group.GenesisTime = genesisTime
 	group.PublicKey = &key.DistPublic{Coefficients: commits}
 
 	bt := &BeaconTest{
-		prefix:  prefix,
-		n:       n,
-		privs:   privs,
-		thr:     thr,
-		period:  period,
-		scheme:  sch,
-		paths:   paths,
-		shares:  shares,
-		group:   group,
-		dpublic: group.PublicKey.PubPoly().Commit(),
-		nodes:   make(map[int]*node),
-		time:    clock.NewFakeClock(),
+		prefix:   prefix,
+		n:        n,
+		privs:    privs,
+		thr:      thr,
+		period:   period,
+		beaconID: beaconID,
+		scheme:   sch,
+		paths:    paths,
+		shares:   shares,
+		group:    group,
+		dpublic:  group.PublicKey.PubPoly().Commit(),
+		nodes:    make(map[int]*node),
+		time:     clock.NewFakeClock(),
 	}
 
 	for i := 0; i < n; i++ {
@@ -396,9 +398,9 @@ func TestBeaconSync(t *testing.T) {
 
 	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
@@ -475,9 +477,9 @@ func TestBeaconSimple(t *testing.T) {
 	period := 2 * time.Second
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
@@ -536,9 +538,9 @@ func TestBeaconThreshold(t *testing.T) {
 
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer func() { go bt.CleanUp() }()
 
 	verifier := chain.NewVerifier(sch)
