@@ -502,16 +502,20 @@ func followCmd(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %s", err)
 	}
+
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 	channel, errCh, err := ctrlClient.StartFollowChain(
 		c.Context,
 		c.String(hashInfoFlag.Name),
 		addrs,
 		!c.Bool(insecureFlag.Name),
-		uint64(c.Int(upToFlag.Name)))
+		uint64(c.Int(upToFlag.Name)),
+		c.String(beaconIDFlag.Name))
+
 	if err != nil {
 		return fmt.Errorf("error asking to follow chain: %s", err)
 	}
+
 	var current uint64
 	var target uint64
 	s := spinner.New(spinner.CharSets[9], refreshRate)

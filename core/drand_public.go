@@ -185,10 +185,8 @@ func (d *Drand) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*dra
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
 
-	metadata := common.NewMetadata(d.version.ToProto())
-
 	response := chain.NewChainInfo(d.group).ToProto()
-	response.Metadata = metadata
+	response.Metadata.NodeVersion = d.version.ToProto()
 
 	return response, nil
 }

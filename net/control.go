@@ -250,9 +250,11 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	hash string,
 	nodes []string,
 	tls bool,
-	upTo uint64) (outCh chan *control.FollowProgress,
+	upTo uint64,
+	beaconID string) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata.BeaconID = beaconID
 
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,

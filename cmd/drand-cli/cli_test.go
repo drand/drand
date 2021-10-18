@@ -137,9 +137,9 @@ func TestStartAndStop(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	n := 5
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
 
-	_, group := test.BatchIdentities(n, sch)
+	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
@@ -247,8 +247,9 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
-	sch := scheme.GetSchemeFromEnv()
-	_, group := test.BatchIdentities(5, sch)
+	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+
+	_, group := test.BatchIdentities(5, sch, beaconID)
 
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
@@ -416,8 +417,9 @@ func TestClientTLS(t *testing.T) {
 	}
 
 	// fake group
-	sch := scheme.GetSchemeFromEnv()
-	_, group := test.BatchTLSIdentities(5, sch)
+	sch, beaconID := scheme.GetSchemeFromEnv(), "test_beacon"
+
+	_, group := test.BatchTLSIdentities(5, sch, beaconID)
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients
