@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
@@ -948,7 +950,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	}
 
 	beaconID := req.GetMetadata().GetBeaconID()
-	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log, beaconID)
+	info, err := chainInfoFromPeers(stream.Context(), d.privGateway, peers, d.log, d.version, beaconID)
 	if err != nil {
 		return err
 	}
@@ -957,11 +959,15 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 	hashStr := req.GetInfoHash()
 	hash, err := hex.DecodeString(hashStr)
+
 	if err != nil {
 		return fmt.Errorf("invalid hash info hex: %v", err)
 	}
 	if !bytes.Equal(info.Hash(), hash) {
 		return errors.New("invalid chain info hash")
+	}
+	if beaconID != info.ID {
+		return errors.New("invalid beacon id on chain info")
 	}
 
 	store, err := d.createBoltStore()
@@ -1005,7 +1011,10 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
 func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
-	peers []net.Peer, l log.Logger, beaconID string) (*chain.Info, error) {
+	peers []net.Peer, l log.Logger, version utils.Version, beaconID string) (*chain.Info, error) {
+	request := new(drand.ChainInfoRequest)
+	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
+
 	var info *chain.Info
 	for _, peer := range peers {
 		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))
