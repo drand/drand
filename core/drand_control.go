@@ -911,6 +911,7 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
+// nolint:funlen
 // StartFollowChain syncs up with a chain from other nodes
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the

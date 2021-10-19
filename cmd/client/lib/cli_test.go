@@ -110,7 +110,7 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 	defer cancel()
 
 	var b bytes.Buffer
-	info.ToJSON(&b)
+	info.ToJSON(&b, nil)
 
 	tmpDir, err := ioutil.TempDir(os.TempDir(), "drand")
 	if err != nil {

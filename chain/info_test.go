@@ -46,14 +46,14 @@ func TestChainInfo(t *testing.T) {
 	var c12Buff bytes.Buffer
 	var c2Buff bytes.Buffer
 
-	err := c1.ToJSON(&c1Buff)
+	err := c1.ToJSON(&c1Buff, nil)
 	require.NoError(t, err)
 
-	err = c12.ToJSON(&c12Buff)
+	err = c12.ToJSON(&c12Buff, nil)
 	require.NoError(t, err)
 	require.Equal(t, c1Buff.Bytes(), c12Buff.Bytes())
 
-	err = c2.ToJSON(&c2Buff)
+	err = c2.ToJSON(&c2Buff, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, c1Buff.Bytes(), c2Buff.Bytes())
 
