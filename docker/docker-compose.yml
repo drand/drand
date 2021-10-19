@@ -65,3 +65,19 @@ services:
       DRAND_PUBLIC_ADDRESS: "drand_3:8380"
       DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkgprocessonthenodes"
 
+  drand_4:
+    container_name: drand_4
+    image: docker.io/drandorg/go-drand:latest
+    user: drand
+    volumes:
+      - ./data_4:/data/drand
+    ports:
+      - "0.0.0.0:5430:8480"
+      - "0.0.0.0:5431:8481"
+      - "0.0.0.0:5432:8888"
+    entrypoint: /sbin/tini -- /usr/local/bin/entrypoint.sh
+    command: start --verbose --control 8888 --private-listen 0.0.0.0:8480 --public-listen 0.0.0.0:8481 --tls-disable true
+    environment:
+      DRAND_PUBLIC_ADDRESS: "drand_4:8480"
+      DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkgprocessonthenodes"
+
