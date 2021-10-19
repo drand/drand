@@ -501,7 +501,7 @@ func (d *Drand) validateGroupTransition(oldGroup, newGroup *key.Group) error {
 
 	if oldGroup.ID != newGroup.ID {
 		d.log.Errorw("", "beacon_id", oldGroup.ID, "setup_reshare", "invalid ID in received group")
-		return errors.New("control: old and new group have different IDs - unsupported feature at the moment")
+		return errors.New("control: old and new group have different ID - unsupported feature at the moment")
 	}
 
 	if !bytes.Equal(oldGroup.GetGenesisSeed(), newGroup.GetGenesisSeed()) {
