@@ -98,21 +98,32 @@ func (g *Group) DKGNodes() []dkg.Node {
 // Hash provides a compact hash of a group
 func (g *Group) Hash() []byte {
 	h := hashFunc()
+
 	sort.Slice(g.Nodes, func(i, j int) bool {
 		return g.Nodes[i].Index < g.Nodes[j].Index
 	})
+
 	// all nodes public keys and positions
 	for _, n := range g.Nodes {
 		_, _ = h.Write(n.Hash())
 	}
+
 	_ = binary.Write(h, binary.LittleEndian, uint32(g.Threshold))
 	_ = binary.Write(h, binary.LittleEndian, uint64(g.GenesisTime))
+
 	if g.TransitionTime != 0 {
 		_ = binary.Write(h, binary.LittleEndian, g.TransitionTime)
 	}
+
 	if g.PublicKey != nil {
 		_, _ = h.Write(g.PublicKey.Hash())
 	}
+
+	// Use it only if ID is not empty. Keep backward compatibility
+	if g.ID != "" {
+		_, _ = h.Write([]byte(g.ID))
+	}
+
 	return h.Sum(nil)
 }
 

@@ -43,13 +43,20 @@ func (c *Info) Hash() []byte {
 	h := sha256.New()
 	_ = binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
 	_ = binary.Write(h, binary.BigEndian, c.GenesisTime)
+
 	buff, err := c.PublicKey.MarshalBinary()
 	if err != nil {
 		log.DefaultLogger().Warnw("", "info", "failed to hash pubkey", "err", err)
 	}
+
 	_, _ = h.Write(buff)
 	_, _ = h.Write(c.GroupHash)
-	_, _ = h.Write([]byte(c.ID))
+
+	// Use it only if ID is not empty. Keep backward compatibility
+	if c.ID != "" {
+		_, _ = h.Write([]byte(c.ID))
+	}
+
 	return h.Sum(nil)
 }
 
