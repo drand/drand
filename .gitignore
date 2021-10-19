@@ -16,3 +16,4 @@ drand-relay-gossip
 drand-relay-http
 drand-relay-s3
 docker/data*
+**/nohup.out
