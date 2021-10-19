@@ -93,13 +93,6 @@ var (
 		Name:  "json",
 		Usage: "Set the output as json format",
 	}
-
-	// BeaconIDFlag indicates the id for the randomness generation process which will be queried
-	BeaconIDFlag = &cli.StringFlag{
-		Name:  "id",
-		Usage: "Indicates the id for the randomness generation process which will be queried",
-		Value: "",
-	}
 )
 
 // ClientFlags is a list of common flags for client creation
@@ -114,7 +107,6 @@ var ClientFlags = []cli.Flag{
 	PortFlag,
 	JSONFlag,
 	SchemeFlag,
-	BeaconIDFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied
@@ -159,10 +151,6 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
-	}
-
-	if c.IsSet(BeaconIDFlag.Name) {
-		opts = append(opts, client.WithBeaconID(c.String(BeaconIDFlag.Name)))
 	}
 
 	schemeFound, err := scheme.GetSchemeByIDWithDefault(c.String(SchemeFlag.Name))
