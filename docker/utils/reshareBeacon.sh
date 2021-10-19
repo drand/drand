@@ -1,9 +1,9 @@
 #bin/sh
 
-# TODO Previous tasks
-# TODO Run dkg first with startBeacon.sh script
-# TODO Copy group file .drand/groups/drand_group.toml from node 0 to node 4 volume
-# TODO You are ready to run this script
+# README - Previous tasks
+# 1) Run dkg first with startBeacon.sh script
+# 2) Copy group file .drand/groups/drand_group.toml from node 0 to node 4 volume
+# 3) You are ready to run this script
 
 # Start leader
 nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader --nodes 5 --threshold 4 --period "5"' &
