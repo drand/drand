@@ -30,7 +30,11 @@ func TestClientConstraints(t *testing.T) {
 		t.Fatal("Client needs root of trust unless insecure specified explicitly")
 	}
 
-	if _, e := client.New(client.From(client.MockClientWithResults(0, 5)), client.Insecurely()); e != nil {
+	c := client.MockClientWithResults(0, 5)
+	// As we will run is insecurely, we will set chain info so client can fetch it
+	c.OptionalInfo = fakeChainInfo()
+
+	if _, e := client.New(client.From(c), client.Insecurely()); e != nil {
 		t.Fatal(e)
 	}
 }
