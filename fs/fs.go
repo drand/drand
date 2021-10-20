@@ -86,6 +86,22 @@ func Files(folderPath string) ([]string, error) {
 	return files, nil
 }
 
+// Folders returns the list of folder names included in the given path or error if
+// any.
+func Folders(folderPath string) ([]string, error) {
+	fi, err := ioutil.ReadDir(folderPath)
+	if err != nil {
+		return nil, err
+	}
+	var folders []string
+	for _, f := range fi {
+		if f.IsDir() {
+			folders = append(folders, path.Join(folderPath, f.Name()))
+		}
+	}
+	return folders, nil
+}
+
 // FileExists returns true if the given name is a file in the given path. name
 // must be the "basename" of the file and path must be the folder where it lies.
 func FileExists(filePath, name string) bool {
@@ -101,4 +117,37 @@ func FileExists(filePath, name string) bool {
 	}
 
 	return false
+}
+
+func MoveFile(origFilePath, destFilePath string) {
+	if err := os.Rename(origFilePath, destFilePath); err != nil {
+		panic(err)
+	}
+}
+
+func MoveFolder(origFolderPath, destFolderPath string) error {
+	fi, err := ioutil.ReadDir(origFolderPath)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range fi {
+		tmp1 := path.Join(origFolderPath, file.Name())
+		tmp2 := path.Join(destFolderPath, file.Name())
+
+		if !file.IsDir() {
+			MoveFile(tmp1, tmp2)
+		} else {
+			CreateSecureFolder(tmp2)
+			if err := MoveFolder(tmp1, tmp2); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := os.RemoveAll(origFolderPath); err != nil {
+		return err
+	}
+
+	return nil
 }
