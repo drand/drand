@@ -524,7 +524,7 @@ func (d *Drand) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group, err err
 			d.state.Unlock()
 			return nil, errors.New("drand: can't init-reshare if no old group provided")
 		}
-		d.log.With("module", "control").Debugw("", "init_reshare", "using_stored_group")
+		d.log.With("module", "control").Debugw("", "beacon_id", d.group.ID, "init_reshare", "using_stored_group")
 		oldGroup = d.group
 		err = nil
 	}
