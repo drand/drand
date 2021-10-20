@@ -17,6 +17,7 @@ import (
 // very any beacon present in a randomness chain.
 type Info struct {
 	PublicKey   kyber.Point   `json:"public_key"`
+	ID          string        `json:"id"`
 	Period      time.Duration `json:"period"`
 	Scheme      scheme.Scheme `json:"scheme"`
 	GenesisTime int64         `json:"genesis_time"`
@@ -26,6 +27,7 @@ type Info struct {
 // NewChainInfo makes a chain Info from a group
 func NewChainInfo(g *key.Group) *Info {
 	return &Info{
+		ID:          g.ID,
 		Period:      g.Period,
 		Scheme:      g.Scheme,
 		PublicKey:   g.PublicKey.Key(),
@@ -41,12 +43,20 @@ func (c *Info) Hash() []byte {
 	h := sha256.New()
 	_ = binary.Write(h, binary.BigEndian, uint32(c.Period.Seconds()))
 	_ = binary.Write(h, binary.BigEndian, c.GenesisTime)
+
 	buff, err := c.PublicKey.MarshalBinary()
 	if err != nil {
 		log.DefaultLogger().Warnw("", "info", "failed to hash pubkey", "err", err)
 	}
+
 	_, _ = h.Write(buff)
 	_, _ = h.Write(c.GroupHash)
+
+	// Use it only if ID is not empty. Keep backward compatibility
+	if c.ID != "" {
+		_, _ = h.Write([]byte(c.ID))
+	}
+
 	return h.Sum(nil)
 }
 
@@ -55,5 +65,6 @@ func (c *Info) Equal(c2 *Info) bool {
 	return c.GenesisTime == c2.GenesisTime &&
 		c.Period == c2.Period &&
 		c.PublicKey.Equal(c2.PublicKey) &&
-		bytes.Equal(c.GroupHash, c2.GroupHash)
+		bytes.Equal(c.GroupHash, c2.GroupHash) &&
+		c.ID == c2.ID
 }

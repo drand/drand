@@ -66,7 +66,7 @@ func TestBroadcast(t *testing.T) {
 	n := 5
 	sch := scheme.GetSchemeFromEnv()
 
-	drands, group, dir, _ := BatchNewDrand(t, n, true, sch)
+	drands, group, dir, _ := BatchNewDrand(t, n, true, sch, BeaconIDForTesting)
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
 

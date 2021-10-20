@@ -43,6 +43,22 @@ func TestValidateGroupTransitionPeriod(t *testing.T) {
 	}
 }
 
+func TestValidateGroupTransitionBeaconID(t *testing.T) {
+	d := Drand{log: log.DefaultLogger()}
+	var oldgrp, newgrp key.Group
+
+	oldgrp = key.Group{ID: "beacon_test_1"}
+	newgrp = key.Group{ID: "beacon_test_2"}
+
+	err := d.validateGroupTransition(&oldgrp, &newgrp)
+	if err == nil {
+		t.Fatal("expected error validating group period")
+	}
+	if err.Error() != "control: old and new group have different ID - unsupported feature at the moment" {
+		t.Fatal("unexpected validation error", err)
+	}
+}
+
 func TestValidateGroupTransitionGenesisSeed(t *testing.T) {
 	d := Drand{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group

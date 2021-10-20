@@ -27,6 +27,7 @@ type LocalNode struct {
 	base       string
 	i          int
 	period     string
+	beaconID   string
 	scheme     scheme.Scheme
 	publicPath string
 	certPath   string
@@ -47,7 +48,7 @@ type LocalNode struct {
 	daemon *core.Drand
 }
 
-func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, sch scheme.Scheme) Node {
+func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, sch scheme.Scheme, beaconID string) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -71,6 +72,7 @@ func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, 
 		privAddr: test.FreeBind(bindAddr),
 		ctrlAddr: test.FreeBind("localhost"),
 		scheme:   sch,
+		beaconID: beaconID,
 	}
 
 	var priv *key.Pair
@@ -157,7 +159,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.scheme.ID)
+		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
 		grp, err = cl.InitDKG(leader, nil, secretDKG)

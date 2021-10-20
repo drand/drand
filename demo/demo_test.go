@@ -11,7 +11,7 @@ import (
 func TestLocalOrchestration(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 
-	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch)
+	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch, "beacon_test")
 	defer o.Shutdown()
 	o.StartCurrentNodes()
 	o.RunDKG("3")

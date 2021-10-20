@@ -39,7 +39,7 @@ func TestRunDKG(t *testing.T) {
 	expectedBeaconPeriod := 5 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, sch)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -65,7 +65,7 @@ func TestRunDKGLarge(t *testing.T) {
 	expectedBeaconPeriod := 5 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, sch)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), expectedBeaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -87,7 +87,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	beaconPeriod := 1 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), beaconPeriod, sch)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), beaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	// Run DKG
@@ -136,7 +136,7 @@ func TestRunDKGBroadcastDeny(t *testing.T) {
 	beaconPeriod := 1 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, thr, beaconPeriod, sch)
+	dt := NewDrandTestScenario(t, n, thr, beaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	// close connection between a pair of nodes
@@ -171,7 +171,7 @@ func TestRunDKGReshareForce(t *testing.T) {
 	beaconPeriod := 2 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, sch)
+	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -216,7 +216,7 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	timeout, beaconPeriod := 1*time.Second, 2*time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, sch)
+	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -269,7 +269,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	offline := 1
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, sch)
+	dt := NewDrandTestScenario(t, oldNodes, oldThreshold, beaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -378,7 +378,7 @@ func TestRunDKGResharePreempt(t *testing.T) {
 	beaconPeriod := 2 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, oldN, Thr, beaconPeriod, sch)
+	dt := NewDrandTestScenario(t, oldN, Thr, beaconPeriod, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group1 := dt.RunDKG()
@@ -473,7 +473,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	p := 1 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, thr, p, sch)
+	dt := NewDrandTestScenario(t, n, thr, p, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -529,7 +529,7 @@ func TestDrandPublicRand(t *testing.T) {
 	p := 1 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, thr, p, sch)
+	dt := NewDrandTestScenario(t, n, thr, p, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -594,7 +594,7 @@ func TestDrandPublicStream(t *testing.T) {
 	p := 1 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, thr, p, sch)
+	dt := NewDrandTestScenario(t, n, thr, p, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -694,7 +694,7 @@ func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, sch)
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()
@@ -735,7 +735,7 @@ func TestDrandFollowChain(t *testing.T) {
 	t.Logf("Trying to follow with an invalid address\n")
 
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000)
+	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, BeaconIDForTesting)
 
 	select {
 	case <-errCh:
@@ -745,7 +745,7 @@ func TestDrandFollowChain(t *testing.T) {
 		panic("should have errored")
 	}
 
-	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000)
+	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, BeaconIDForTesting)
 	select {
 	case <-errCh:
 		t.Logf("An error was received as the address is invalid")
@@ -758,7 +758,8 @@ func TestDrandFollowChain(t *testing.T) {
 		ctx, cancel = context.WithCancel(context.Background())
 
 		t.Logf("Starting to follow chain with a valid address\n")
-		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo)
+		t.Logf("%s", hash)
+		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, BeaconIDForTesting)
 		require.NoError(t, err)
 
 		var goon = true
@@ -804,7 +805,7 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	p := 1 * time.Second
 	sch := scheme.GetSchemeFromEnv()
 
-	dt := NewDrandTestScenario(t, n, thr, p, sch)
+	dt := NewDrandTestScenario(t, n, thr, p, sch, BeaconIDForTesting)
 	defer dt.Cleanup()
 
 	group := dt.RunDKG()

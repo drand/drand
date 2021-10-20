@@ -148,10 +148,12 @@ func leadShareCmd(c *cli.Context) error {
 		return fmt.Errorf("leader flag indicated requires the beacon period flag as well")
 	}
 	periodStr := c.String(periodFlag.Name)
+
 	period, err := time.ParseDuration(periodStr)
 	if err != nil {
 		return fmt.Errorf("period given is invalid: %v", err)
 	}
+
 	catchupPeriod := time.Duration(0)
 	catchupPeriodStr := c.String(catchupPeriodFlag.Name)
 	if catchupPeriod, err = time.ParseDuration(catchupPeriodStr); err != nil {
@@ -167,13 +169,17 @@ func leadShareCmd(c *cli.Context) error {
 	if c.IsSet(beaconOffset.Name) {
 		offset = c.Int(beaconOffset.Name)
 	}
-	fmt.Fprintln(output, "Initiating the DKG as a leader")
+
+	beaconID := c.String(beaconIDFlag.Name)
+
+	str1 := fmt.Sprintf("Initiating the DKG as a leader. Beacon ID: [%s]", beaconID)
+	fmt.Fprintln(output, str1)
 	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
 		"file will not be written out to the specified output. To get the "+
 		"group file once the setup phase is done, you can run the `drand show "+
-		"group` command")
+		"group` command\n")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period,
-		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.ID)
+		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.ID, beaconID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
@@ -497,16 +503,20 @@ func followCmd(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %s", err)
 	}
+
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 	channel, errCh, err := ctrlClient.StartFollowChain(
 		c.Context,
 		c.String(hashInfoFlag.Name),
 		addrs,
 		!c.Bool(insecureFlag.Name),
-		uint64(c.Int(upToFlag.Name)))
+		uint64(c.Int(upToFlag.Name)),
+		c.String(beaconIDFlag.Name))
+
 	if err != nil {
 		return fmt.Errorf("error asking to follow chain: %s", err)
 	}
+
 	var current uint64
 	var target uint64
 	s := spinner.New(spinner.CharSets[9], refreshRate)

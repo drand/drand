@@ -33,6 +33,7 @@ import (
 )
 
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
+const BeaconIDForTesting = "test_beacon"
 
 func TestDeleteBeacon(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
@@ -137,9 +138,9 @@ func TestStartAndStop(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	n := 5
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
 
-	_, group := test.BatchIdentities(n, sch)
+	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
@@ -247,8 +248,9 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND GROUP ---")
 	// fake group
-	sch := scheme.GetSchemeFromEnv()
-	_, group := test.BatchIdentities(5, sch)
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
+
+	_, group := test.BatchIdentities(5, sch, beaconID)
 
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
@@ -302,7 +304,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	require.NoError(t, CLI().Run(getCmd))
 
 	fmt.Printf("\n Running CHAIN-INFO command\n")
-	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfo)
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-disable", address}
@@ -318,7 +320,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	testCommand(t, shareCmd, expectedShareOutput)
 
 	showChainInfo := []string{"drand", "show", "chain-info", "--control", ctrlPort}
-	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	buffCi, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	testCommand(t, showChainInfo, string(buffCi))
 
@@ -416,8 +418,9 @@ func TestClientTLS(t *testing.T) {
 	}
 
 	// fake group
-	sch := scheme.GetSchemeFromEnv()
-	_, group := test.BatchTLSIdentities(5, sch)
+	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
+
+	_, group := test.BatchTLSIdentities(5, sch, beaconID)
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients
@@ -470,7 +473,7 @@ func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath s
 	require.Nil(t, err)
 
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
-	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(), "", "    ")
+	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
 	require.NoError(t, err)
 	expectedOutput := string(chainInfoBuff)
 	testCommand(t, chainInfoCmd, expectedOutput)
