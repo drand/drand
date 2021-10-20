@@ -785,7 +785,7 @@ func TestDrandFollowChain(t *testing.T) {
 		cancel()
 
 		// check if the beacon is in the database
-		store, err := newNode.drand.createBoltStore()
+		store, err := newNode.drand.createBoltStore(BeaconIDForTesting)
 		require.NoError(t, err)
 		defer store.Close()
 

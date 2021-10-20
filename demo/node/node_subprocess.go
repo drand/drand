@@ -48,9 +48,10 @@ type NodeProc struct {
 	groupPath  string
 	binary     string
 	scheme     scheme.Scheme
+	beaconID   string
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme) Node {
+func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme, beaconID string) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -67,6 +68,7 @@ func NewNode(i int, period string, base string, tls bool, binary string, sch sch
 		period:     period,
 		scheme:     sch,
 		binary:     binary,
+		beaconID:   beaconID,
 	}
 	n.setup()
 	return n
@@ -113,7 +115,7 @@ func (n *NodeProc) setup() {
 	runCommand(newKey)
 
 	// verify it's done
-	n.store = key.NewFileStore(n.base)
+	n.store = key.NewFileStore(n.base, n.beaconID)
 	n.priv, err = n.store.LoadKeyPair()
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))

@@ -475,7 +475,7 @@ func createNodes(n int, offset int, period, basePath, certFolder string, tls boo
 		idx := i + offset
 		var n node.Node
 		if binary != "" {
-			n = node.NewNode(idx, period, basePath, tls, binary, sch)
+			n = node.NewNode(idx, period, basePath, tls, binary, sch, beaconID)
 		} else {
 			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1", sch, beaconID)
 		}
