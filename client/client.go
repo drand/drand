@@ -43,6 +43,7 @@ func trySetLog(c Client, l log.Logger) {
 	}
 }
 
+//nolint:gocyclo
 // makeClient creates a client from a configuration.
 func makeClient(cfg *clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
