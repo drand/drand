@@ -3,6 +3,8 @@ package drand
 import (
 	"fmt"
 
+	"github.com/drand/drand/common/migration"
+
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/metrics"
@@ -12,14 +14,24 @@ import (
 
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
+
+	migration.MigrateOldFolderStructure(conf.ConfigFolder())
+
+	stores, err := key.NewFileStores(conf.ConfigFolder())
+	if err != nil {
+		return fmt.Errorf("can't read file stores %s", err)
+	}
+
 	var drand *core.Drand
+
 	// determine if we already ran a DKG or not
+	beaconID, fs := key.GetFirstStore(stores)
 	_, errG := fs.LoadGroup()
 	_, errS := fs.LoadShare()
+
 	// XXX place that logic inside core/ directly with only one method
 	freshRun := errG != nil || errS != nil
-	var err error
+
 	if freshRun {
 		fmt.Println("drand: will run as fresh install -> expect to run DKG.")
 		drand, err = core.NewDrand(fs, conf)
@@ -27,7 +39,7 @@ func startCmd(c *cli.Context) error {
 			return fmt.Errorf("can't instantiate drand instance %s", err)
 		}
 	} else {
-		fmt.Println("drand: will already start running randomness beacon")
+		fmt.Printf("drand: will already start running randomness beacon. BeaconID: [%s]\n", beaconID)
 		drand, err = core.LoadDrand(fs, conf)
 		if err != nil {
 			return fmt.Errorf("can't load drand instance %s", err)

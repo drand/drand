@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/drand/drand/common/migration"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/briandowns/spinner"
@@ -485,22 +487,30 @@ func entropyInfoFromReader(c *cli.Context) (*control.EntropyInfo, error) {
 	}
 	return nil, nil
 }
+
 func selfSign(c *cli.Context) error {
 	conf := contextToConfig(c)
-	fs := key.NewFileStore(conf.ConfigFolder())
+	beaconID := getBeaconID(c)
+
+	migration.MigrateOldFolderStructure(conf.ConfigFolder())
+
+	fs := key.NewFileStore(conf.ConfigFolder(), beaconID)
 	pair, err := fs.LoadKeyPair()
+
 	if err != nil {
-		return fmt.Errorf("loading private/public: %s", err)
+		return fmt.Errorf("beacon id [%s] - loading private/public: %s", beaconID, err)
 	}
 	if pair.Public.ValidSignature() == nil {
-		fmt.Fprintln(output, "Public identity already self signed.")
+		fmt.Fprintf(output, "beacon id [%s] - public identity already self signed.\n", beaconID)
 		return nil
 	}
+
 	pair.SelfSign()
 	if err := fs.SaveKeyPair(pair); err != nil {
-		return fmt.Errorf("saving identity: %s", err)
+		return fmt.Errorf("beacon id [%s] - saving identity: %s", beaconID, err)
 	}
-	fmt.Fprintln(output, "Public identity self signed")
+
+	fmt.Fprintf(output, "beacon id [%s] - Public identity self signed", beaconID)
 	fmt.Fprintln(output, printJSON(pair.Public.TOML()))
 	return nil
 }
