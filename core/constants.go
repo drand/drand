@@ -18,8 +18,8 @@ func DefaultConfigFolder() string {
 	return path.Join(fs.HomeFolder(), DefaultConfigFolderName)
 }
 
-// DefaultDBFolder is the name of the folder in which the db file is saved. By
-// default it is relative to the DefaultConfigFolder path.
+// DefaultDBFolder is the name of the folder in which the db file is saved.
+// It is relative to the DefaultConfigFolder path.
 const DefaultDBFolder = "db"
 
 // DefaultBeaconPeriod is the period in which the beacon logic creates new
