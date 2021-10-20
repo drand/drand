@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client/test/result/mock"
 )
@@ -83,7 +85,8 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
-	return nil, errors.New("not supported (mock client info)")
+	sch := scheme.GetSchemeFromEnv()
+	return &chain.Info{Scheme: sch}, nil
 }
 
 // RoundAt will return the most recent round of randomness
