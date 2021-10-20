@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/utils"
+
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	kyber "github.com/drand/kyber"
@@ -38,7 +40,7 @@ func TestGroupProtobuf(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 
 	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
-	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch)
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, "test_beacon")
 	group.Threshold = thr
 	group.Period = time.Second * 4
 	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
@@ -75,8 +77,9 @@ func TestGroupProtobuf(t *testing.T) {
 		isErr:  false,
 	})
 
+	version := utils.Version{Major: 0, Minor: 0, Patch: 0}
 	for i, tv := range vectors {
-		protoGroup := tv.group.ToProto()
+		protoGroup := tv.group.ToProto(version)
 		if tv.change != nil {
 			tv.change(protoGroup)
 		}
@@ -103,7 +106,7 @@ func TestGroupUnsignedIdentities(t *testing.T) {
 	ids := newIds(5)
 	sch := scheme.GetSchemeFromEnv()
 
-	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61, sch)
+	group := LoadGroup(ids, 1, &DistPublic{[]kyber.Point{KeyGroup.Point()}}, 30*time.Second, 61, sch, "test_beacon")
 	require.Nil(t, group.UnsignedIdentities())
 
 	ids[0].Signature = nil
@@ -118,7 +121,7 @@ func TestGroupSaveLoad(t *testing.T) {
 	dpub := []kyber.Point{KeyGroup.Point().Pick(random.New())}
 	sch := scheme.GetSchemeFromEnv()
 
-	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch)
+	group := LoadGroup(ids, 1, &DistPublic{dpub}, 30*time.Second, 61, sch, "test_beacon")
 	group.Threshold = 3
 	group.Period = time.Second * 4
 	group.GenesisTime = time.Now().Add(10 * time.Second).Unix()
@@ -162,7 +165,7 @@ func makeGroup(t *testing.T) *Group {
 	fakeKey := KeyGroup.Point().Pick(random.New())
 	sch := scheme.GetSchemeFromEnv()
 
-	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0, sch)
+	group := LoadGroup([]*Node{}, 1, &DistPublic{Coefficients: []kyber.Point{fakeKey}}, 30*time.Second, 0, sch, "test_beacon")
 	group.Threshold = MinimumT(0)
 	return group
 }
@@ -172,8 +175,9 @@ func TestConvertGroup(t *testing.T) {
 	group.Period = 5 * time.Second
 	group.TransitionTime = time.Now().Unix()
 	group.GenesisTime = time.Now().Unix()
+	version := utils.Version{Major: 0, Minor: 0, Patch: 0}
 
-	proto := group.ToProto()
+	proto := group.ToProto(version)
 	received, err := GroupFromProto(proto)
 	require.NoError(t, err)
 	require.True(t, received.Equal(group))

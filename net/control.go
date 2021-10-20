@@ -163,8 +163,10 @@ func (c *ControlClient) InitDKGLeader(
 	entropy *control.EntropyInfo,
 	secret string,
 	offset int,
-	schemeID string) (*control.GroupPacket, error) {
+	schemeID string,
+	beaconID string) (*control.GroupPacket, error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata.BeaconID = beaconID
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -248,9 +250,11 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	hash string,
 	nodes []string,
 	tls bool,
-	upTo uint64) (outCh chan *control.FollowProgress,
+	upTo uint64,
+	beaconID string) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata.BeaconID = beaconID
 
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,

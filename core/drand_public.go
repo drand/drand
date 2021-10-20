@@ -28,7 +28,8 @@ func (d *Drand) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Emp
 	addr := net.RemoteAddress(c)
 
 	if !d.dkgInfo.started {
-		d.log.Infow("", "init_dkg", "START DKG", "signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
+		d.log.Infow("", "beacon_id", d.dkgInfo.target.ID, "init_dkg", "START DKG",
+			"signal from leader", addr, "group", hex.EncodeToString(d.dkgInfo.target.Hash()))
 		d.dkgInfo.started = true
 		go d.dkgInfo.phaser.Start()
 	}
@@ -186,9 +187,7 @@ func (d *Drand) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*dra
 	}
 
 	metadata := common.NewMetadata(d.version.ToProto())
-
-	response := chain.NewChainInfo(d.group).ToProto()
-	response.Metadata = metadata
+	response := chain.NewChainInfo(d.group).ToProto(metadata)
 
 	return response, nil
 }

@@ -80,6 +80,7 @@ var (
 		Name:  "port",
 		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
+
 	// TypeFlag indicates a set of values drand will use to configure the randomness generation process
 	SchemeFlag = &cli.StringFlag{
 		Name:  "scheme",

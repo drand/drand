@@ -337,7 +337,7 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var chainBuff bytes.Buffer
-	err := info.ToJSON(&chainBuff)
+	err := info.ToJSON(&chainBuff, nil)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warnw("", "http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)

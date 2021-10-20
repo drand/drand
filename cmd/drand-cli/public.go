@@ -133,5 +133,5 @@ func printChainInfo(c *cli.Context, ci *chain.Info) error {
 		fmt.Fprintf(output, "%s\n", hex.EncodeToString(ci.Hash()))
 		return nil
 	}
-	return printJSON(ci.ToProto())
+	return printJSON(ci.ToProto(nil))
 }
