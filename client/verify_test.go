@@ -14,7 +14,7 @@ func mockClientWithVerifiableResults(n int) (client.Client, []mock.Result, error
 	sch := scheme.GetSchemeFromEnv()
 
 	info, results := mock.VerifiableResults(n, sch)
-	mc := client.MockClient{Results: results, StrictRounds: true}
+	mc := client.MockClient{Results: results, StrictRounds: true, OptionalInfo: info}
 
 	var c client.Client
 	var err error
