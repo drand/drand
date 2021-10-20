@@ -53,7 +53,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, errors.New("no points of contact specified")
 	}
 
-	if cfg.insecure && (cfg.chainHash != nil || len(cfg.chainHash) != 0 || cfg.chainInfo != nil) {
+	if cfg.insecure && (cfg.chainHash != nil || cfg.chainInfo != nil) {
 		return nil, errors.New("chain hash or chain info cannot be set with insecure flag at the same time")
 	}
 
