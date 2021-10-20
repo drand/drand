@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -51,11 +52,20 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, errors.New("no points of contact specified")
 	}
 
+	if cfg.insecure && (cfg.chainHash != nil || len(cfg.chainHash) != 0 || cfg.chainInfo != nil) {
+		return nil, errors.New("chain hash or chain info cannot be set with insecure flag at the same time")
+	}
+
 	var err error
 
 	// provision cache
 	cache, err := makeCache(cfg.cacheSize)
 	if err != nil {
+		return nil, err
+	}
+
+	// try to populate chain info
+	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
 		return nil, err
 	}
 
@@ -77,7 +87,6 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		// FIXME If the chain info packet is not set by CLI, it will be nil by now. How can it be fixed?
 		opts := Opts{scheme: cfg.chainInfo.Scheme, strict: cfg.fullVerify}
 
 		nv := newVerifyingClient(source, cfg.previousResult, opts)
@@ -129,9 +138,10 @@ func makeOptimizingClient(cfg *clientConfig, verifiers []Client, watcher Client,
 }
 
 func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
-	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
-		return nil, err
+	if cfg.chainInfo == nil {
+		return nil, fmt.Errorf("chain info cannot be nil")
 	}
+
 	w, err := cfg.watcher(cfg.chainInfo, cache)
 	if err != nil {
 		return nil, err
@@ -143,9 +153,6 @@ func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
 func attachMetrics(cfg *clientConfig, c Client) (Client, error) {
 	if cfg.prometheus != nil {
 		if err := metrics.RegisterClientMetrics(cfg.prometheus); err != nil {
-			return nil, err
-		}
-		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
 		}
 		return newWatchLatencyMetricClient(c, cfg.chainInfo), nil
