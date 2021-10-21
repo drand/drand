@@ -161,7 +161,7 @@ func TestStartAndStop(t *testing.T) {
 	require.NoError(t, CLI().Run(args))
 	startCh := make(chan bool)
 	go func() {
-		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath, "--id", beaconID}
+		startArgs := []string{"drand", "start", "--tls-disable", "--folder", tmpPath}
 		startCh <- true
 		CLI().Run(startArgs)
 		startCh <- true
