@@ -91,8 +91,8 @@ func (n *NodeProc) setup() {
 	ctrlPort := test.FreePort()
 	if n.tls {
 		// generate certificate
-		n.certPath = path.Join(n.base, n.beaconID, fmt.Sprintf("server-%d.crt", n.i))
-		n.keyPath = path.Join(n.base, n.beaconID, fmt.Sprintf("server-%d.key", n.i))
+		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
+		n.keyPath = path.Join(n.base, fmt.Sprintf("server-%d.key", n.i))
 		func() {
 			log.SetOutput(new(bytes.Buffer))
 			// XXX how to get rid of that annoying creating cert..
@@ -106,7 +106,14 @@ func (n *NodeProc) setup() {
 
 	// call drand binary
 	n.priv = key.NewKeyPair(n.privAddr)
-	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID}
+
+	args := []string{"generate-keypair", "--folder", n.base}
+
+	// FIXME After merging to master, we can remove this check (master has no --id on this CLI cmd)
+	if n.beaconID != "" {
+		args = append(args, "--id", n.beaconID)
+	}
+
 	if !n.tls {
 		args = append(args, "--tls-disable")
 	}
