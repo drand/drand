@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"net"
 	nhttp "net/http"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/drand/drand/common/scheme"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
@@ -79,6 +80,13 @@ var (
 		Usage: "Local (host:)port for constructed libp2p host to listen on",
 	}
 
+	// TypeFlag indicates a set of values drand will use to configure the randomness generation process
+	SchemeFlag = &cli.StringFlag{
+		Name:  "scheme",
+		Usage: "Indicates a set of values drand will use to configure the randomness generation process",
+		Value: scheme.DefaultSchemeID,
+	}
+
 	// JsonFlag is the CLI flag for enabling JSON output for logger
 	JSONFlag = &cli.BoolFlag{
 		Name:  "json",
@@ -97,6 +105,7 @@ var ClientFlags = []cli.Flag{
 	RelayFlag,
 	PortFlag,
 	JSONFlag,
+	SchemeFlag,
 }
 
 // Create builds a client, and can be invoked from a cli action supplied
@@ -142,6 +151,13 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	if c.Bool(InsecureFlag.Name) {
 		opts = append(opts, client.Insecurely())
 	}
+
+	schemeFound, err := scheme.GetSchemeByIDWithDefault(c.String(SchemeFlag.Name))
+	if err != nil {
+		return nil, fmt.Errorf("scheme %s given is invalid", c.String(SchemeFlag.Name))
+	}
+
+	opts = append(opts, client.WithSchemeID(schemeFound.ID))
 
 	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
 
@@ -292,7 +308,7 @@ func chainInfoFromGroupTOML(filePath string) (*chain.Info, error) {
 }
 
 func chainInfoFromChainInfoJSON(filePath string) (*chain.Info, error) {
-	b, err := ioutil.ReadFile(filePath)
+	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}

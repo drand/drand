@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	gnet "net"
 	"os"
 	"path"
@@ -101,7 +100,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	drands = make([]*Drand, n)
 	tmp := os.TempDir()
 
-	dir, err := ioutil.TempDir(tmp, "drand")
+	dir, err := os.MkdirTemp(tmp, "drand")
 	assert.NoError(t, err)
 
 	certPaths = make([]string, n)

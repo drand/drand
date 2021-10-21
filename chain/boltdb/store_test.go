@@ -1,7 +1,6 @@
 package boltdb
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestStoreBoltOrder(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "drandtest*")
+	tmp, err := os.MkdirTemp("", "drandtest*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
 	store, err := NewBoltStore(tmp, nil)
@@ -49,7 +48,7 @@ func TestStoreBoltOrder(t *testing.T) {
 }
 
 func TestStoreBolt(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "bolttest*")
+	tmp, err := os.MkdirTemp("", "bolttest*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
 

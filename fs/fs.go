@@ -3,7 +3,6 @@ package fs
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
@@ -74,7 +73,7 @@ func CreateSecureFile(file string) (*os.File, error) {
 // Files returns the list of file names included in the given path or error if
 // any.
 func Files(folderPath string) ([]string, error) {
-	fi, err := ioutil.ReadDir(folderPath)
+	fi, err := os.ReadDir(folderPath)
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,6 @@
 package key
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -10,7 +9,7 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
-	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
 	"github.com/stretchr/testify/require"
 )
@@ -134,7 +133,7 @@ func TestGroupSaveLoad(t *testing.T) {
 	require.NotNil(t, gtoml.PublicKey)
 
 	// faking distributed public key coefficients
-	groupFile, err := ioutil.TempFile("", "group.toml")
+	groupFile, err := os.CreateTemp("", "group.toml")
 	require.NoError(t, err)
 	groupPath := groupFile.Name()
 	groupFile.Close()

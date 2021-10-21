@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -282,7 +281,7 @@ func (l *LocalNode) Stop() {
 
 func (l *LocalNode) PrintLog() {
 	fmt.Printf("[-] Printing logs of node %s:\n", l.PrivateAddr())
-	buff, err := ioutil.ReadFile(l.logPath)
+	buff, err := os.ReadFile(l.logPath)
 	if err != nil {
 		fmt.Printf("[-] Can't read logs !\n\n")
 		return

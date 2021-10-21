@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -37,11 +36,11 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
-	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
+	dataDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-datastore")
 	if err != nil {
 		t.Fatal(err)
 	}
-	identityDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-id")
+	identityDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-id")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,11 +122,11 @@ func HTTPClientTestFunc(t *testing.T) {
 	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer stop()
 
-	dataDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
+	dataDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-datastore")
 	if err != nil {
 		t.Fatal(err)
 	}
-	identityDir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-id")
+	identityDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-id")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,11 +179,11 @@ func HTTPClientTestFunc(t *testing.T) {
 }
 
 func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
-	dataDir, err := ioutil.TempDir(os.TempDir(), "client-"+name+"-datastore")
+	dataDir, err := os.MkdirTemp(os.TempDir(), "client-"+name+"-datastore")
 	if err != nil {
 		return nil, err
 	}
-	identityDir, err := ioutil.TempDir(os.TempDir(), "client-"+name+"-id")
+	identityDir, err := os.MkdirTemp(os.TempDir(), "client-"+name+"-id")
 	if err != nil {
 		return nil, err
 	}

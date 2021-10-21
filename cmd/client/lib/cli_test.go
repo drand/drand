@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -59,7 +58,7 @@ func TestClientLib(t *testing.T) {
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
-	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"}
+	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure", "--scheme", sch.ID}
 
 	fmt.Printf("%+v", args)
 	err = run(args)
@@ -67,28 +66,28 @@ func TestClientLib(t *testing.T) {
 		t.Fatal("GRPC should work", err)
 	}
 
-	args = []string{"mock-client", "--url", "https://" + addr}
+	args = []string{"mock-client", "--url", "https://" + addr, "--scheme", sch.ID}
 
 	err = run(args)
 	if err == nil {
 		t.Fatal("http needs insecure or hash", err)
 	}
 
-	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())}
+	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash()), "--scheme", sch.ID}
 
 	err = run(args)
 	if err != nil {
 		t.Fatal("http should construct", err)
 	}
 
-	args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
+	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--scheme", sch.ID}
 
 	err = run(args)
 	if err == nil {
 		t.Fatal("relays need URL or hash", err)
 	}
 
-	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
+	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash()), "--scheme", sch.ID}
 
 	err = run(args)
 	if err != nil {
@@ -112,14 +111,14 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 	var b bytes.Buffer
 	info.ToJSON(&b, nil)
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "drand")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "drand")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	infoPath := filepath.Join(tmpDir, "info.json")
 
-	err = ioutil.WriteFile(infoPath, b.Bytes(), 0644)
+	err = os.WriteFile(infoPath, b.Bytes(), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
