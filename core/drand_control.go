@@ -3,31 +3,23 @@ package core
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"time"
-
-	"github.com/drand/drand/utils"
 
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
-	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
-	clock "github.com/jonboulle/clockwork"
 )
 
 // errPreempted is returned on reshares when a subsequent reshare is started concurrently
@@ -797,32 +789,6 @@ func (d *Drand) getPhaser(timeout uint32, beaconID string) *dkg.TimePhaser {
 	})
 }
 
-func nodesContainAddr(nodes []*key.Node, addr string) bool {
-	for _, n := range nodes {
-		if n.Address() == addr {
-			return true
-		}
-	}
-	return false
-}
-
-// nodeUnion takes the union of two sets of nodes
-func nodeUnion(a, b []*key.Node) []*key.Node {
-	out := make([]*key.Node, 0, len(a))
-	out = append(out, a...)
-	for _, n := range b {
-		if !nodesContainAddr(a, n.Address()) {
-			out = append(out, n)
-		}
-	}
-	return out
-}
-
-type pushResult struct {
-	address string
-	err     error
-}
-
 // pushDKGInfoPacket sets a specific DKG info packet to specified nodes, and returns a stream of responses.
 func (d *Drand) pushDKGInfoPacket(ctx context.Context, nodes []*key.Node, packet *drand.DKGInfoPacket) chan pushResult {
 	results := make(chan pushResult, len(nodes))
@@ -913,16 +879,6 @@ func (d *Drand) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold in
 	d.log.Infow("", "beacon_id", beaconID, "push_dkg", "sending_group", "status", "all succeeded")
 
 	return nil
-}
-
-func getNonce(g *key.Group) []byte {
-	h := sha256.New()
-	if g.TransitionTime != 0 {
-		_ = binary.Write(h, binary.BigEndian, g.TransitionTime)
-	} else {
-		_ = binary.Write(h, binary.BigEndian, g.GenesisTime)
-	}
-	return h.Sum(nil)
 }
 
 // nolint:funlen
@@ -1022,57 +978,6 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		}
 	}
 	return ctx.Err()
-}
-
-// chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
-func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
-	peers []net.Peer, l log.Logger, version utils.Version, beaconID string) (*chain.Info, error) {
-	request := new(drand.ChainInfoRequest)
-	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
-
-	var info *chain.Info
-	for _, peer := range peers {
-		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))
-		if err != nil {
-			l.Debugw("", "beacon_id", beaconID, "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
-			continue
-		}
-		info, err = chain.InfoFromProto(ci)
-		if err != nil {
-			l.Debugw("", "beacon_id", beaconID, "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
-			continue
-		}
-	}
-	if info == nil {
-		return nil, errors.New("unable to get a chain info successfully")
-	}
-	return info, nil
-}
-
-// sendProgressCallback returns a function that sends FollowProgress on the
-// passed stream. It also returns a channel that closes when the callback is
-// called with a beacon whose round matches the passed upTo value.
-func sendProgressCallback(
-	stream drand.Control_StartFollowChainServer,
-	upTo uint64,
-	info *chain.Info,
-	clk clock.Clock,
-	l log.Logger,
-) (cb func(b *chain.Beacon), done chan struct{}) {
-	done = make(chan struct{})
-	cb = func(b *chain.Beacon) {
-		err := stream.Send(&drand.FollowProgress{
-			Current: b.Round,
-			Target:  chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime),
-		})
-		if err != nil {
-			l.Errorw("", "send_progress_callback", "sending_progress", "err", err)
-		}
-		if upTo > 0 && b.Round == upTo {
-			close(done)
-		}
-	}
-	return
 }
 
 // BackupDatabase triggers a backup of the primary database.

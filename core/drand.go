@@ -18,7 +18,6 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/utils"
-	"github.com/drand/kyber/share/dkg"
 )
 
 // Drand is the main logic of the program. It reads the keys / group file, it
@@ -363,29 +362,4 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		d.syncerCancel = nil
 	}
 	return d.beacon, nil
-}
-
-func checkGroup(l log.Logger, group *key.Group) {
-	beaconID := group.ID
-
-	unsigned := group.UnsignedIdentities()
-	if unsigned == nil {
-		return
-	}
-	var info []string
-	for _, n := range unsigned {
-		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
-	}
-	l.Infow("", "beacon_id", beaconID, "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
-}
-
-// dkgInfo is a simpler wrapper that keeps the relevant config and logic
-// necessary during the DKG protocol.
-type dkgInfo struct {
-	target  *key.Group
-	board   Broadcast
-	phaser  *dkg.TimePhaser
-	conf    *dkg.Config
-	proto   *dkg.Protocol
-	started bool
 }

@@ -3,16 +3,11 @@ package core
 import (
 	"context"
 
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-type MetadataGetter interface {
-	GetMetadata() *common.Metadata
-}
 
 func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
