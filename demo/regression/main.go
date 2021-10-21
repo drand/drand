@@ -87,9 +87,10 @@ func main() {
 	period := "10s"
 	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
-	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID)
+	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
 	orch.UpdateBinary(*candidate, 2, true)
-	orch.UpdateBinary(*candidate, -1, true)
+
+	orch.UpdateGlobalBinary(*candidate, true)
 	orch.SetupNewNodes(1)
 
 	defer orch.Shutdown()
@@ -108,9 +109,11 @@ func main() {
 		// recover with a fully old-node dkg
 		orch.Shutdown()
 
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID)
-		orch.UpdateBinary(*candidate, -1, true)
+		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+
+		orch.UpdateGlobalBinary(*candidate, true)
 		orch.SetupNewNodes(1)
+
 		defer orch.Shutdown()
 		orch.StartCurrentNodes()
 		orch.RunDKG("4s")
@@ -123,9 +126,11 @@ func main() {
 		// recover back to a fully old-node dkg
 		orch.Shutdown()
 
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID)
-		orch.UpdateBinary(*candidate, -1, true)
+		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+
+		orch.UpdateGlobalBinary(*candidate, true)
 		orch.SetupNewNodes(1)
+
 		defer orch.Shutdown()
 		orch.StartCurrentNodes()
 		orch.RunDKG("4s")

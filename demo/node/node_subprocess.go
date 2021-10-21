@@ -52,7 +52,7 @@ type NodeProc struct {
 	beaconID    string
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme, beaconID string) Node {
+func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -60,16 +60,17 @@ func NewNode(i int, period string, base string, tls bool, binary string, sch sch
 	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
 	n := &NodeProc{
-		tls:        tls,
-		base:       nbase,
-		i:          i,
-		logPath:    logPath,
-		publicPath: publicPath,
-		groupPath:  groupPath,
-		period:     period,
-		scheme:     sch,
-		binary:     binary,
-		beaconID:   beaconID,
+		tls:         tls,
+		base:        nbase,
+		i:           i,
+		logPath:     logPath,
+		publicPath:  publicPath,
+		groupPath:   groupPath,
+		period:      period,
+		scheme:      sch,
+		binary:      binary,
+		beaconID:    beaconID,
+		isCandidate: isCandidate,
 	}
 	n.setup()
 	return n

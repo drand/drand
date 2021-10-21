@@ -47,13 +47,14 @@ func main() {
 	period := "10s"
 	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, sch, beaconID)
+	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, sch, beaconID, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
 	// already the new nodes here, such that when calling "StartCurrentNodes",
 	// the drand nodes will load all of them already.
 	orch.SetupNewNodes(3)
+
 	defer orch.Shutdown()
 	defer func() {
 		// print logs in case things panic
