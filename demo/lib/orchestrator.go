@@ -112,24 +112,18 @@ func (e *Orchestrator) startNodes(nodes []node.Node) {
 		node.Start(e.certFolder)
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	// ping them all
-	counter := 0
 	for {
 		var foundAll = true
 		for _, node := range nodes {
 			if !node.Ping() {
-				counter++
 				foundAll = false
 				break
 			}
 		}
 		if !foundAll {
-			if counter == 20 {
-				panic("can not ping them all... timeout has been reached")
-			}
-
 			fmt.Println("[-] can not ping them all. Sleeping 2s...")
 			time.Sleep(2 * time.Second)
 		} else {

@@ -165,7 +165,7 @@ func (n *NodeProc) Start(certFolder string) error {
 	}
 	args = append(args, "--verbose")
 
-	fmt.Printf("starting node %s with cmd: %s", n.privAddr, args)
+	fmt.Printf("starting node %s with cmd: %s \n", n.privAddr, args)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	n.cancel = cancel
