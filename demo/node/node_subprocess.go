@@ -148,6 +148,7 @@ func (n *NodeProc) Start(certFolder string) error {
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	logFile.Write([]byte("\n\nNEW LOG\n\n"))
 	checkErr(err)
+
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--control", n.ctrl)...)
@@ -163,13 +164,18 @@ func (n *NodeProc) Start(certFolder string) error {
 		args = append(args, "--tls-disable")
 	}
 	args = append(args, "--verbose")
+
+	fmt.Printf("starting node %s with cmd: %s", n.privAddr, args)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	n.cancel = cancel
 	n.certFolder = certFolder
+
 	cmd := exec.CommandContext(ctx, n.binary, args...)
 	n.startCmd = cmd
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
+
 	go func() {
 		defer logFile.Close()
 		// TODO make the "stop" command returns a graceful error code when
