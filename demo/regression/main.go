@@ -88,8 +88,8 @@ func main() {
 	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
 	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID)
-	orch.UpdateBinary(*candidate, 2)
-	orch.UpdateBinary(*candidate, -1)
+	orch.UpdateBinary(*candidate, 2, true)
+	orch.UpdateBinary(*candidate, -1, true)
 	orch.SetupNewNodes(1)
 
 	defer orch.Shutdown()
@@ -109,7 +109,7 @@ func main() {
 		orch.Shutdown()
 
 		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID)
-		orch.UpdateBinary(*candidate, -1)
+		orch.UpdateBinary(*candidate, -1, true)
 		orch.SetupNewNodes(1)
 		defer orch.Shutdown()
 		orch.StartCurrentNodes()
@@ -124,7 +124,7 @@ func main() {
 		orch.Shutdown()
 
 		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID)
-		orch.UpdateBinary(*candidate, -1)
+		orch.UpdateBinary(*candidate, -1, true)
 		orch.SetupNewNodes(1)
 		defer orch.Shutdown()
 		orch.StartCurrentNodes()
@@ -133,7 +133,7 @@ func main() {
 	}
 
 	// upgrade a node to the candidate.
-	orch.UpdateBinary(*candidate, 0)
+	orch.UpdateBinary(*candidate, 0, true)
 	upgradeErr := testUpgrade(orch)
 
 	if startupErr != nil || reshareErr != nil || upgradeErr != nil {

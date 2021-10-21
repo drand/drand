@@ -30,8 +30,10 @@ type LocalNode struct {
 	scheme     scheme.Scheme
 	publicPath string
 	certPath   string
+
 	// certificate key
 	keyPath string
+
 	// where all public certs are stored
 	certFolder string
 	logPath    string

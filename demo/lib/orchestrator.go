@@ -64,11 +64,14 @@ type Orchestrator struct {
 func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool, sch scheme.Scheme, beaconID string) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
+
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
+
 	checkErr(os.MkdirAll(certFolder, 0740))
 	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary, sch, beaconID)
+
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
@@ -348,13 +351,13 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 
 // UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
 // a whole if idx is negative.
-func (e *Orchestrator) UpdateBinary(binary string, idx int) {
+func (e *Orchestrator) UpdateBinary(binary string, idx int, isCandidate bool) {
 	if idx < 0 {
 		e.binary = binary
 	} else {
 		n := e.nodes[idx]
 		if spn, ok := n.(*node.NodeProc); ok {
-			spn.UpdateBinary(binary)
+			spn.UpdateBinary(binary, isCandidate)
 		}
 	}
 }

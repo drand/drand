@@ -35,20 +35,21 @@ type NodeProc struct {
 	// certificate key
 	keyPath string
 	// where all public certs are stored
-	certFolder string
-	startCmd   *exec.Cmd
-	logPath    string
-	privAddr   string
-	pubAddr    string
-	priv       *key.Pair
-	store      key.Store
-	cancel     context.CancelFunc
-	ctrl       string
-	tls        bool
-	groupPath  string
-	binary     string
-	scheme     scheme.Scheme
-	beaconID   string
+	certFolder  string
+	startCmd    *exec.Cmd
+	logPath     string
+	privAddr    string
+	pubAddr     string
+	priv        *key.Pair
+	store       key.Store
+	cancel      context.CancelFunc
+	ctrl        string
+	tls         bool
+	groupPath   string
+	binary      string
+	isCandidate bool
+	scheme      scheme.Scheme
+	beaconID    string
 }
 
 func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme, beaconID string) Node {
@@ -75,8 +76,9 @@ func NewNode(i int, period string, base string, tls bool, binary string, sch sch
 }
 
 // UpdateBinary updates the binary this node uses for control, to e.g. simulate an upgrade
-func (n *NodeProc) UpdateBinary(binary string) {
+func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 	n.binary = binary
+	n.isCandidate = isCandidate
 }
 
 func (n *NodeProc) setup() {
@@ -110,7 +112,7 @@ func (n *NodeProc) setup() {
 	args := []string{"generate-keypair", "--folder", n.base}
 
 	// FIXME After merging to master, we can remove this check (master has no --id on this CLI cmd)
-	if n.beaconID != "" {
+	if n.isCandidate {
 		args = append(args, "--id", n.beaconID)
 	}
 
