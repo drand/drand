@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common/constants"
+
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -64,9 +66,9 @@ func TestBroadcastSet(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 5
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
-	drands, group, dir, _ := BatchNewDrand(t, n, true, sch, BeaconIDForTesting)
+	drands, group, dir, _ := BatchNewDrand(t, n, true, sch, beaconID)
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
 

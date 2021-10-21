@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common/constants"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
@@ -29,8 +31,6 @@ import (
 )
 
 // TODO make beacon tests not dependant on key.Scheme
-
-const BeaconIDForTesting = "test_beacon"
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
@@ -135,7 +135,7 @@ type BeaconTest struct {
 }
 
 func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme, beaconID string) *BeaconTest {
-	prefix, err := os.MkdirTemp(os.TempDir(), "beacon-test")
+	prefix, err := os.MkdirTemp(os.TempDir(), beaconID)
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(t, n, thr)
@@ -399,9 +399,9 @@ func TestBeaconSync(t *testing.T) {
 
 	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, BeaconIDForTesting)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
@@ -478,9 +478,9 @@ func TestBeaconSimple(t *testing.T) {
 	period := 2 * time.Second
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, BeaconIDForTesting)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
@@ -539,9 +539,9 @@ func TestBeaconThreshold(t *testing.T) {
 
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, BeaconIDForTesting)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer func() { go bt.CleanUp() }()
 
 	verifier := chain.NewVerifier(sch)
