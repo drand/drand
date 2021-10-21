@@ -105,10 +105,20 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 	certPaths = make([]string, n)
 	keyPaths := make([]string, n)
+	dirs := make([]string, n)
+
+	for i := 0; i < n; i++ {
+		dirs[i] = path.Join(dir, fmt.Sprintf("drand-%d", i))
+		if err := os.MkdirAll(dirs[i], 0777); err != nil {
+			panic(err)
+		}
+	}
+
 	if !insecure {
 		for i := 0; i < n; i++ {
-			certPath := path.Join(dir, fmt.Sprintf("server-%d.crt", i))
-			keyPath := path.Join(dir, fmt.Sprintf("server-%d.key", i))
+			certPath := path.Join(dirs[i], fmt.Sprintf("server-%d.crt", i))
+			keyPath := path.Join(dirs[i], fmt.Sprintf("server-%d.key", i))
+
 			if httpscerts.Check(certPath, keyPath) != nil {
 				h, _, err := gnet.SplitHostPort(privs[i].Public.Address())
 				assert.NoError(t, err)
@@ -128,8 +138,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		assert.NoError(t, s.SaveKeyPair(privs[i]))
 
 		// give each one their own private folder
-		dbFolder := path.Join(dir, fmt.Sprintf("db-%d", i))
-		confOptions := []ConfigOption{WithDBFolder(dbFolder)}
+		confOptions := []ConfigOption{WithConfigFolder(dirs[i])}
 		if !insecure {
 			confOptions = append(confOptions,
 				WithTLS(certPaths[i], keyPaths[i]),
@@ -277,6 +286,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	// we check that we can fetch the group using control functionalities on the leaderNode node
 	groupProto, err := controlClient.GroupFile()
 	require.NoError(d.t, err)
+	d.t.Logf("[-------] Leader %s FINISHED", leaderNode.addr)
 	group, err := key.GroupFromProto(groupProto)
 	require.NoError(d.t, err)
 
