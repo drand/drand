@@ -119,6 +119,23 @@ func FileExists(filePath, name string) bool {
 	return false
 }
 
+// FolderExists returns true if the given name is a folder in the given path. name
+// must be the "basename" of the file and path must be the folder where it lies.
+func FolderExists(folderPath, name string) bool {
+	list, err := Folders(folderPath)
+	if err != nil {
+		return false
+	}
+
+	for _, l := range list {
+		if l == name {
+			return true
+		}
+	}
+
+	return false
+}
+
 func MoveFile(origFilePath, destFilePath string) {
 	if err := os.Rename(origFilePath, destFilePath); err != nil {
 		panic(err)

@@ -18,9 +18,9 @@ func MigrateOldFolderStructure(baseFolder string) {
 	keyFolderPath := path.Join(baseFolder, key.KeyFolderName)
 	dbFolderPath := path.Join(baseFolder, core.DefaultDBFolder)
 
-	isGroupFound := fs.FileExists(baseFolder, groupFolderPath)
-	isKeyFound := fs.FileExists(baseFolder, keyFolderPath)
-	isDBFound := fs.FileExists(baseFolder, dbFolderPath)
+	isGroupFound := fs.FolderExists(baseFolder, groupFolderPath)
+	isKeyFound := fs.FolderExists(baseFolder, keyFolderPath)
+	isDBFound := fs.FolderExists(baseFolder, dbFolderPath)
 
 	// Create new folders to move actual files found. If one of them exists, we will be sure the all new structures have been created
 	if isGroupFound || isKeyFound || isDBFound {
@@ -41,25 +41,39 @@ func MigrateOldFolderStructure(baseFolder string) {
 	}
 
 	if isGroupFound {
-		if err := fs.MoveFolder(path.Join(baseFolder, key.GroupFolderName),
-			path.Join(baseFolder, constants.DefaultBeaconID, key.GroupFolderName)); err != nil {
+		oldPath := path.Join(baseFolder, key.GroupFolderName)
+		newPath := path.Join(baseFolder, constants.DefaultBeaconID, key.GroupFolderName)
+
+		fmt.Printf("Migrating folder %s to its new path. %s --> %s\n", key.GroupFolderName, oldPath, newPath)
+
+		// Move files to new destinations (only if the folder is found)
+		if err := fs.MoveFolder(oldPath, newPath); err != nil {
 			fmt.Println("Something went wrong with the new group folder. Make sure that you have the appropriate rights.")
 			os.Exit(1)
 		}
 	}
 
 	if isKeyFound {
+		oldPath := path.Join(baseFolder, key.KeyFolderName)
+		newPath := path.Join(baseFolder, constants.DefaultBeaconID, key.KeyFolderName)
+
+		fmt.Printf("Migrating folder %s to its new path. %s --> %s\n", key.KeyFolderName, oldPath, newPath)
+
 		// Move files to new destinations (only if the folder is found)
-		if err := fs.MoveFolder(path.Join(baseFolder, key.KeyFolderName),
-			path.Join(baseFolder, constants.DefaultBeaconID, key.KeyFolderName)); err != nil {
+		if err := fs.MoveFolder(oldPath, newPath); err != nil {
 			fmt.Println("Something went wrong with the new key folder. Make sure that you have the appropriate rights.")
 			os.Exit(1)
 		}
 	}
 
 	if isDBFound {
-		if err := fs.MoveFolder(path.Join(baseFolder, core.DefaultDBFolder),
-			path.Join(baseFolder, constants.DefaultBeaconID, core.DefaultDBFolder)); err != nil {
+		oldPath := path.Join(baseFolder, core.DefaultDBFolder)
+		newPath := path.Join(baseFolder, constants.DefaultBeaconID, core.DefaultDBFolder)
+
+		fmt.Printf("Migrating folder %s to its new path. %s --> %s\n", core.DefaultDBFolder, oldPath, newPath)
+
+		// Move files to new destinations (only if the folder is found)
+		if err := fs.MoveFolder(oldPath, newPath); err != nil {
 			fmt.Println("Something went wrong with the new db folder. Make sure that you have the appropriate rights.")
 			os.Exit(1)
 		}
