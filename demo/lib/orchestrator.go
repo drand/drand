@@ -3,7 +3,6 @@ package lib
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -300,7 +299,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		args := []string{"-k", "-s"}
 		http := "http"
 		if e.tls {
-			tmp, _ := ioutil.TempFile("", "cert")
+			tmp, _ := os.CreateTemp("", "cert")
 			defer os.Remove(tmp.Name())
 			tmp.Close()
 			n.WriteCertificate(tmp.Name())

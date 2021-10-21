@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	gnet "net"
 	"os"
 	"path"
@@ -169,7 +168,7 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestUtilCheck(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "drand-cli-*")
+	tmp, err := os.MkdirTemp("", "drand-cli-*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
 	// try to generate a keypair and make it listen on another address

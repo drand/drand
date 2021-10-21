@@ -3,7 +3,6 @@ package drand
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -37,7 +36,7 @@ type shareArgs struct {
 func (s *shareArgs) loadSecret(c *cli.Context) error {
 	secret := os.Getenv("DRAND_SHARE_SECRET")
 	if c.IsSet(secretFlag.Name) {
-		bytes, err := ioutil.ReadFile(c.String(secretFlag.Name))
+		bytes, err := os.ReadFile(c.String(secretFlag.Name))
 		if err != nil {
 			return err
 		}

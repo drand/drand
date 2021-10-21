@@ -1,7 +1,6 @@
 package net
 
 import (
-	"io/ioutil"
 	"os"
 	"runtime"
 	"testing"
@@ -29,7 +28,7 @@ func TestControlUnix(t *testing.T) {
 		t.Skip("Platform does not support unix.")
 	}
 
-	name, err := ioutil.TempDir("", "unixtxt")
+	name, err := os.MkdirTemp("", "unixtxt")
 	if err != nil {
 		t.Fatal(err)
 	}

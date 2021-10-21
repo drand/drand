@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	mrand "math/rand"
 	"os"
 	"path"
@@ -27,7 +26,7 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	ma "github.com/multiformats/go-multiaddr"
 	"golang.org/x/crypto/blake2b"
-	xerrors "golang.org/x/xerrors"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -128,7 +127,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 // LoadOrCreatePrivKey loads a base64 encoded libp2p private key from a file or creates one if it does not exist.
 func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, error) {
-	privB64, err := ioutil.ReadFile(identityPath)
+	privB64, err := os.ReadFile(identityPath)
 
 	var priv crypto.PrivKey
 	switch {
@@ -156,7 +155,7 @@ func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, 
 		if err != nil {
 			return nil, xerrors.Errorf("creating identity directory and parents: %w", err)
 		}
-		err = ioutil.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), identityFilePerm)
+		err = os.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), identityFilePerm)
 		if err != nil {
 			return nil, xerrors.Errorf("writing identity file: %w", err)
 		}

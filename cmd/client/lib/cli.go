@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"net"
 	nhttp "net/http"
 	"os"
@@ -309,7 +308,7 @@ func chainInfoFromGroupTOML(filePath string) (*chain.Info, error) {
 }
 
 func chainInfoFromChainInfoJSON(filePath string) (*chain.Info, error) {
-	b, err := ioutil.ReadFile(filePath)
+	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, err
 	}

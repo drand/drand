@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -62,7 +61,7 @@ func toRandomDataChain(results ...mock.Result) []client.RandomData {
 
 func tmpDir(t *testing.T) string {
 	t.Helper()
-	dir, err := ioutil.TempDir(os.TempDir(), "test-gossip-relay-node-datastore")
+	dir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-datastore")
 	if err != nil {
 		t.Fatal(err)
 	}
