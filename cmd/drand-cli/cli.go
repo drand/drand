@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -897,7 +896,7 @@ func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
 	stores := make(map[string]string)
 
 	if c.IsSet(allBeaconsFlag.Name) {
-		fi, err := ioutil.ReadDir(conf.ConfigFolder())
+		fi, err := os.ReadDir(conf.ConfigFolder())
 		if err != nil {
 			return nil, fmt.Errorf("error trying to read stores from config folder: %s", err)
 		}

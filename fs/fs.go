@@ -89,7 +89,7 @@ func Files(folderPath string) ([]string, error) {
 // Folders returns the list of folder names included in the given path or error if
 // any.
 func Folders(folderPath string) ([]string, error) {
-	fi, err := ioutil.ReadDir(folderPath)
+	fi, err := os.ReadDir(folderPath)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func MoveFile(origFilePath, destFilePath string) {
 }
 
 func MoveFolder(origFolderPath, destFolderPath string) error {
-	fi, err := ioutil.ReadDir(origFolderPath)
+	fi, err := os.ReadDir(origFolderPath)
 	if err != nil {
 		return err
 	}

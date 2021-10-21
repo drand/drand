@@ -2,7 +2,6 @@ package key
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"reflect"
@@ -72,7 +71,7 @@ func GetFirstStore(stores map[string]Store) (string, Store) {
 // NewFileStores
 func NewFileStores(baseFolder string) (map[string]Store, error) {
 	fileStores := make(map[string]Store)
-	fi, err := ioutil.ReadDir(path.Join(baseFolder))
+	fi, err := os.ReadDir(path.Join(baseFolder))
 	if err != nil {
 		return nil, err
 	}
