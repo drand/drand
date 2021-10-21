@@ -487,7 +487,7 @@ func createNodes(n int, offset int, period, basePath, certFolder string, tls boo
 		}
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
-		fmt.Printf("\t- Created node %s at %s\n", n.PrivateAddr(), basePath)
+		fmt.Printf("\t- Created node %s at %s --> ctrl port: %s\n", n.PrivateAddr(), basePath, n.CtrlAddr())
 	}
 	// write public keys from all nodes
 	var paths []string

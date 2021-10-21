@@ -183,6 +183,10 @@ func (n *NodeProc) PrivateAddr() string {
 	return n.privAddr
 }
 
+func (n *NodeProc) CtrlAddr() string {
+	return n.ctrl
+}
+
 func (n *NodeProc) PublicAddr() string {
 	return n.pubAddr
 }

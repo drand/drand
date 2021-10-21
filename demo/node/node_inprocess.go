@@ -132,6 +132,10 @@ func (l *LocalNode) PrivateAddr() string {
 	return l.privAddr
 }
 
+func (l *LocalNode) CtrlAddr() string {
+	return l.ctrlAddr
+}
+
 func (l *LocalNode) PublicAddr() string {
 	return l.pubAddr
 }
