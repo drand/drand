@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -18,9 +20,12 @@ const clientStartupTimeoutDefault = time.Second * 5
 
 // New Creates a client with specified configuration.
 func New(options ...Option) (Client, error) {
+	sch, _ := scheme.GetSchemeByIDWithDefault("")
+
 	cfg := clientConfig{
 		cacheSize: 32,
 		log:       log.DefaultLogger(),
+		scheme:    sch,
 	}
 
 	for _, opt := range options {
@@ -43,7 +48,6 @@ func trySetLog(c Client, l log.Logger) {
 	}
 }
 
-//nolint:gocyclo
 // makeClient creates a client from a configuration.
 func makeClient(cfg *clientConfig) (Client, error) {
 	if !cfg.insecure && cfg.chainHash == nil && cfg.chainInfo == nil {
@@ -53,20 +57,11 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, errors.New("no points of contact specified")
 	}
 
-	if cfg.insecure && (cfg.chainHash != nil || cfg.chainInfo != nil) {
-		return nil, errors.New("chain hash or chain info cannot be set with insecure flag at the same time")
-	}
-
 	var err error
 
 	// provision cache
 	cache, err := makeCache(cfg.cacheSize)
 	if err != nil {
-		return nil, err
-	}
-
-	// try to populate chain info
-	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
 		return nil, err
 	}
 
@@ -88,8 +83,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		opts := Opts{scheme: cfg.chainInfo.Scheme, strict: cfg.fullVerify}
-
+		opts := Opts{scheme: cfg.scheme, strict: cfg.fullVerify}
 		nv := newVerifyingClient(source, cfg.previousResult, opts)
 		verifiers = append(verifiers, nv)
 		if source == wc {
@@ -139,10 +133,9 @@ func makeOptimizingClient(cfg *clientConfig, verifiers []Client, watcher Client,
 }
 
 func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
-	if cfg.chainInfo == nil {
-		return nil, fmt.Errorf("chain info cannot be nil")
+	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
+		return nil, err
 	}
-
 	w, err := cfg.watcher(cfg.chainInfo, cache)
 	if err != nil {
 		return nil, err
@@ -154,6 +147,9 @@ func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
 func attachMetrics(cfg *clientConfig, c Client) (Client, error) {
 	if cfg.prometheus != nil {
 		if err := metrics.RegisterClientMetrics(cfg.prometheus); err != nil {
+			return nil, err
+		}
+		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
 		}
 		return newWatchLatencyMetricClient(c, cfg.chainInfo), nil
@@ -178,6 +174,8 @@ type clientConfig struct {
 	fullVerify bool
 	// insecure indicates the root of trust does not need to be present.
 	insecure bool
+	// scheme holds a set of values the client will use to act in specific ways, regarding signature verification, etc
+	scheme scheme.Scheme
 	// cache size - how large of a cache to keep locally.
 	cacheSize int
 	// customized client log.
@@ -225,6 +223,20 @@ func From(c ...Client) Option {
 func Insecurely() Option {
 	return func(cfg *clientConfig) error {
 		cfg.insecure = true
+		return nil
+	}
+}
+
+// WithSchemeID allows user to set a scheme using its ID. The scheme
+// is used to customize some behaviors inside the client
+func WithSchemeID(schID string) Option {
+	return func(cfg *clientConfig) error {
+		sch, err := scheme.GetSchemeByIDWithDefault(schID)
+		if err != nil {
+			return fmt.Errorf("scheme is not valid")
+		}
+
+		cfg.scheme = sch
 		return nil
 	}
 }
