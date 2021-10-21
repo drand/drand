@@ -123,8 +123,14 @@ func (n *NodeProc) setup() {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
+	// FIXME After merging to master, we can remove this
 	// verify it's done
-	n.store = key.NewFileStore(n.base, n.beaconID)
+	if n.isCandidate {
+		n.store = key.NewFileStore(n.base, n.beaconID)
+	} else {
+		n.store = key.OldNewFileStore(n.base)
+	}
+
 	n.priv, err = n.store.LoadKeyPair()
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))

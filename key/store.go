@@ -54,7 +54,7 @@ type Tomler interface {
 // fileStore is a Store using filesystem to store informations
 type fileStore struct {
 	baseFolder     string
-	groupID        string
+	beaconID       string
 	privateKeyFile string
 	publicKeyFile  string
 	shareFile      string
@@ -97,10 +97,26 @@ func NewFileStore(baseFolder, beaconID string) Store {
 		beaconID = constants.DefaultBeaconID
 	}
 
-	store := &fileStore{baseFolder: baseFolder, groupID: beaconID}
+	store := &fileStore{baseFolder: baseFolder, beaconID: beaconID}
 
 	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, beaconID, KeyFolderName))
 	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, beaconID, GroupFolderName))
+
+	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
+	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
+	store.groupFile = path.Join(groupFolder, groupFileName)
+	store.shareFile = path.Join(groupFolder, shareFileName)
+	store.distKeyFile = path.Join(groupFolder, distKeyFileName)
+	return store
+}
+
+// FIXME After merging to master, we can remove this (created only for regression test)
+// deprecated
+func OldNewFileStore(baseFolder string) Store {
+	store := &fileStore{baseFolder: baseFolder}
+
+	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))
+	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, GroupFolderName))
 
 	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
 	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
