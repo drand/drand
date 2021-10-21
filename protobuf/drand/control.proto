@@ -162,6 +162,7 @@ message Pong {
 }
 
 message StatusRequest {
+    common.Metadata metadata = 1;
 }
 
 

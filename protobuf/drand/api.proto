@@ -75,6 +75,7 @@ message PrivateRandResponse {
 
 
 message HomeRequest {
+    common.Metadata metadata = 1;
 }
 
 message HomeResponse {
