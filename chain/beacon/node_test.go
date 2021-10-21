@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"sync"
@@ -136,7 +135,7 @@ type BeaconTest struct {
 }
 
 func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme, beaconID string) *BeaconTest {
-	prefix, err := ioutil.TempDir(os.TempDir(), "beacon-test")
+	prefix, err := os.MkdirTemp(os.TempDir(), "beacon-test")
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(t, n, thr)

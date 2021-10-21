@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -126,7 +125,7 @@ func (n *NodeProc) setup() {
 
 func (n *NodeProc) Start(certFolder string) error {
 	// create log file
-	//logFile, err := os.Create(n.logPath)
+	// logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	logFile.Write([]byte("\n\nNEW LOG\n\n"))
@@ -276,7 +275,7 @@ func (n *NodeProc) Ping() bool {
 	out, err := cmd.CombinedOutput()
 	fmt.Printf(" -- ping output : %s - err %s\n", out, err)
 	if err != nil {
-		//fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.privAddr, err, string(out))
+		// fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.privAddr, err, string(out))
 		return false
 	}
 	return true
@@ -333,7 +332,7 @@ func (n *NodeProc) Stop() {
 
 func (n *NodeProc) PrintLog() {
 	fmt.Printf("[-] Printing logs of node %s:\n", n.privAddr)
-	buff, err := ioutil.ReadFile(n.logPath)
+	buff, err := os.ReadFile(n.logPath)
 	if err != nil {
 		fmt.Printf("[-] Can't read logs !\n\n")
 		return

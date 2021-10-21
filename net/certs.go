@@ -3,7 +3,7 @@ package net
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/drand/drand/log"
 )
@@ -33,7 +33,7 @@ func (p *CertManager) Pool() *x509.CertPool {
 // Add tries to add the certificate at the given path to the pool and returns an
 // error otherwise
 func (p *CertManager) Add(certPath string) error {
-	b, err := ioutil.ReadFile(certPath)
+	b, err := os.ReadFile(certPath)
 	if err != nil {
 		return err
 	}

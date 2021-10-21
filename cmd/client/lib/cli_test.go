@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -112,14 +111,14 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 	var b bytes.Buffer
 	info.ToJSON(&b, nil)
 
-	tmpDir, err := ioutil.TempDir(os.TempDir(), "drand")
+	tmpDir, err := os.MkdirTemp(os.TempDir(), "drand")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	infoPath := filepath.Join(tmpDir, "info.json")
 
-	err = ioutil.WriteFile(infoPath, b.Bytes(), 0644)
+	err = os.WriteFile(infoPath, b.Bytes(), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

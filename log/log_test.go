@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-	"io/ioutil"
 	"testing"
 
 	"go.uber.org/zap/zapcore"
@@ -79,7 +78,7 @@ func TestLoggerKit(t *testing.T) {
 }
 
 func requireContains(t *testing.T, r io.Reader, outs []string, present bool) {
-	out, err := ioutil.ReadAll(r)
+	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 	if !present {
 		require.Equal(t, string(out), "")
