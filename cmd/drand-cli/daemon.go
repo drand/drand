@@ -12,44 +12,57 @@ import (
 
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	stores, err := key.NewFileStores(conf.ConfigFolderMB())
+
+	// Create drand daemon
+	drandDaemon, err := core.NewDrandDaemon(conf)
 	if err != nil {
-		return fmt.Errorf("can't read file stores %s", err)
+		return fmt.Errorf("can't instantiate drand daemon %s", err)
 	}
 
-	var drand *core.Drand
+	// Start drand daemon
+	drandDaemon.Init()
 
-	// determine if we already ran a DKG or not
-	beaconID, fs := key.GetFirstStore(stores)
-	_, errG := fs.LoadGroup()
-	_, errS := fs.LoadShare()
+	// Load possible existing stores
+	stores, err := key.NewFileStores(conf.ConfigFolder())
 
-	// XXX place that logic inside core/ directly with only one method
-	freshRun := errG != nil || errS != nil
+	for beaconID, fs := range stores {
+		var bp *core.BeaconProcess
 
-	if freshRun {
-		fmt.Println("drand: will run as fresh install -> expect to run DKG.")
-		drand, err = core.NewDrand(fs, conf)
-		if err != nil {
-			return fmt.Errorf("can't instantiate drand instance %s", err)
+		_, errG := fs.LoadGroup()
+		_, errS := fs.LoadShare()
+
+		// XXX place that logic inside core/ directly with only one method
+		freshRun := errG != nil || errS != nil
+
+		if freshRun {
+			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
+			bp, err = drandDaemon.CreateNewBeaconProcess(beaconID, fs)
+			if err != nil {
+				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+			}
+		} else {
+			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
+			bp, err = drandDaemon.CreateNewBeaconProcess(beaconID, fs)
+			if err != nil {
+				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+			}
+
+			bp.Load()
+
+			// XXX make it configurable so that new share holder can still start if
+			// nobody started.
+			// drand.StartBeacon(!c.Bool(pushFlag.Name))
+			catchup := true
+			bp.StartBeacon(catchup)
 		}
-	} else {
-		fmt.Printf("drand: will already start running randomness beacon. BeaconID: [%s]\n", beaconID)
-		drand, err = core.LoadDrand(fs, conf)
-		if err != nil {
-			return fmt.Errorf("can't load drand instance %s", err)
+
+		// Start metrics server
+		if c.IsSet(metricsFlag.Name) {
+			_ = metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), bp.PeerMetrics)
 		}
-		// XXX make it configurable so that new share holder can still start if
-		// nobody started.
-		// drand.StartBeacon(!c.Bool(pushFlag.Name))
-		catchup := true
-		drand.StartBeacon(catchup)
 	}
-	// Start metrics server
-	if c.IsSet(metricsFlag.Name) {
-		_ = metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), drand.PeerMetrics)
-	}
-	<-drand.WaitExit()
+
+	<-drandDaemon.WaitExit()
 
 	return nil
 }
