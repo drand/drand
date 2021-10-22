@@ -18,8 +18,7 @@ import (
 )
 
 type DrandDaemon struct {
-	candidates      map[string]bool
-	stores          map[string]*key.Store
+	initialStores   map[string]*key.Store
 	beaconProcesses map[string]*BeaconProcess
 
 	privGateway *net.PrivateGateway
@@ -44,10 +43,12 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 	}
 
 	return &DrandDaemon{
-		opts:    c,
-		log:     logger,
-		exitCh:  make(chan bool, 1),
-		version: common.GetAppVersion(),
+		opts:            c,
+		log:             logger,
+		exitCh:          make(chan bool, 1),
+		version:         common.GetAppVersion(),
+		initialStores:   make(map[string]*key.Store),
+		beaconProcesses: make(map[string]*BeaconProcess),
 	}, nil
 }
 
@@ -95,7 +96,7 @@ func (dd *DrandDaemon) Init() error {
 	return nil
 }
 
-func (dd *DrandDaemon) CreateNewBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
+func (dd *DrandDaemon) AddNewBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
 	priv, err := store.LoadKeyPair()
 	if err != nil {
 		return nil, err

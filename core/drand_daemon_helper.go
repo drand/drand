@@ -7,16 +7,19 @@ import (
 	"github.com/drand/drand/protobuf/common"
 )
 
-func (dd *DrandDaemon) getBeaconProcess(metadata *common.Metadata) (*BeaconProcess, error) {
+func (dd *DrandDaemon) getBeaconProcess(metadata *common.Metadata) (*BeaconProcess, string, error) {
 	beaconID := ""
 	if beaconID = metadata.GetBeaconID(); beaconID == "" {
 		beaconID = constants.DefaultBeaconID
 	}
 
-	if _, isBeaconRunning := dd.beaconProcesses[beaconID]; isBeaconRunning {
-		return nil, fmt.Errorf("beacon id is not running")
+	dd.state.Lock()
+	bp, isBeaconRunning := dd.beaconProcesses[beaconID]
+	dd.state.Unlock()
+
+	if !isBeaconRunning {
+		return nil, "", fmt.Errorf("beacon id is not running")
 	}
 
-	bp, _ := dd.beaconProcesses[beaconID]
-	return bp, nil
+	return bp, beaconID, nil
 }
