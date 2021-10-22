@@ -533,18 +533,20 @@ func (d *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group,
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
 func (d *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	d.log.Infow("", "init_dkg", "begin", "leader", false)
+	beaconID := in.GetMetadata().GetBeaconID()
+	d.log.Infow("", "beacon_id", beaconID, "init_dkg", "begin", "leader", false)
+
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
 	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
 	d.state.Lock()
 	if d.receiver != nil {
-		d.log.Infow("", "dkg_setup", "already_in_progress", "restart", "dkg")
+		d.log.Infow("", "beacon_id", beaconID, "dkg_setup", "already_in_progress", "restart", "dkg")
 		d.receiver.stop()
 	}
 	receiver, err := newSetupReceiver(d.version, d.log, d.opts.clock, d.privGateway.ProtocolClient, in.GetInfo())
 	if err != nil {
-		d.log.Errorw("", "setup", "fail", "err", err)
+		d.log.Errorw("", "beacon_id", beaconID, "setup", "fail", "err", err)
 		d.state.Unlock()
 		return nil, err
 	}
@@ -560,16 +562,19 @@ func (d *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPa
 		}
 		d.state.Unlock()
 	}(receiver)
+
 	// send public key to leader
 	id := d.priv.Public.ToProto()
+	metadata := common.NewMetadata(d.version.ToProto())
+	metadata.BeaconID = beaconID
 
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Metadata:    common.NewMetadata(d.version.ToProto()),
+		Metadata:    metadata,
 	}
 
-	d.log.Debugw("", "init_dkg", "send_key", "leader", lpeer.Address())
+	d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "send_key", "leader", lpeer.Address())
 	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
 	defer cancel()
 
@@ -578,26 +583,26 @@ func (d *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPa
 		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
 	}
 
-	d.log.Debugw("", "init_dkg", "wait_group")
+	d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "wait_group")
 
 	group, dkgTimeout, err := d.receiver.WaitDKGInfo(nc)
 	if err != nil {
 		return nil, err
 	}
 	if group == nil {
-		d.log.Debugw("", "init_dkg", "wait_group", "canceled", "nil_group")
+		d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "wait_group", "canceled", "nil_group")
 		return nil, errors.New("canceled operation")
 	}
 
 	now := d.opts.clock.Now().Unix()
 	if group.GenesisTime < now {
-		d.log.Errorw("", "genesis", "invalid", "given", group.GenesisTime)
+		d.log.Errorw("", "beacon_id", beaconID, "genesis", "invalid", "given", group.GenesisTime)
 		return nil, errors.New("control: group with genesis time in the past")
 	}
 
 	node := group.Find(d.priv.Public)
 	if node == nil {
-		d.log.Errorw("", "init_dkg", "absent_public_key_in_received_group")
+		d.log.Errorw("", "beacon_id", beaconID, "init_dkg", "absent_public_key_in_received_group")
 		return nil, errors.New("drand: public key not found in group")
 	}
 	d.state.Lock()

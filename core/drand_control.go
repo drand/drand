@@ -318,6 +318,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 	beaconID := in.GetMetadata().GetBeaconID()
 
 	d.log.Infow("", "beacon_id", beaconID, "init_dkg", "begin", "leader", false)
+
 	// determine the leader's address
 	laddr := in.GetInfo().GetLeaderAddress()
 	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
@@ -347,12 +348,12 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 
 	// send public key to leader
 	id := d.priv.Public.ToProto()
-	metadata := &common.Metadata{NodeVersion: d.version.ToProto(), BeaconID: beaconID}
+	metadata := common.Metadata{BeaconID: beaconID, NodeVersion: d.version.ToProto()}
 
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Metadata:    metadata,
+		Metadata:    &metadata,
 	}
 
 	d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "send_key", "leader", lpeer.Address())
@@ -371,7 +372,7 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 		return nil, err
 	}
 	if group == nil {
-		d.log.Debugw("", "init_dkg", "wait_group", "canceled", "nil_group")
+		d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "wait_group", "canceled", "nil_group")
 		return nil, errors.New("canceled operation")
 	}
 
@@ -441,7 +442,7 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 
 	// send public key to leader
 	id := d.priv.Public.ToProto()
-	metadata := common.Metadata{NodeVersion: d.version.ToProto(), BeaconID: beaconID}
+	metadata := common.Metadata{BeaconID: beaconID, NodeVersion: d.version.ToProto()}
 
 	prep := &drand.SignalDKGPacket{
 		Node:              id,
