@@ -260,7 +260,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 		go func(n *MockNode) {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
-			groupPacket, err := client.InitDKG(leaderNode.drand.priv.Public, nil, secret)
+			groupPacket, err := client.InitDKG(leaderNode.drand.priv.Public, nil, secret, d.beaconID)
 			require.NoError(d.t, err)
 			group, err := key.GroupFromProto(groupPacket)
 			require.NoError(d.t, err)
@@ -511,7 +511,7 @@ func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force 
 	require.NoError(d.t, err)
 
 	d.t.Logf("[reshare:node] init reshare")
-	_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force)
+	_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force, d.beaconID)
 	if err != nil {
 		d.t.Log("[reshare:node] error in NON LEADER: ", err)
 		errCh <- err
@@ -536,7 +536,7 @@ func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan e
 
 	// Start reshare
 	d.t.Logf("[reshare:leader] init reshare")
-	finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, 0, secret, "", testBeaconOffset)
+	finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
 	if err != nil {
 		d.t.Log("[reshare:leader] error: ", err)
 		errCh <- err

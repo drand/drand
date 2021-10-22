@@ -159,9 +159,10 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Auth:           key.DKGAuthScheme,
 	}
 	phaser := d.getPhaser(timeout)
-	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
-		return dkg.VerifyPacketSignature(config, p)
-	})
+	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
+		d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+			return dkg.VerifyPacketSignature(config, p)
+		})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
@@ -268,9 +269,10 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient, d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
-		return dkg.VerifyPacketSignature(config, p)
-	})
+	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
+		d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
+			return dkg.VerifyPacketSignature(config, p)
+		})
 	phaser := d.getPhaser(timeout)
 
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
@@ -287,7 +289,8 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	d.state.Lock()
 	d.dkgInfo = info
 	if leader {
-		d.log.Infow("", "beacon_id", beaconID, "dkg_reshare", "leader_start", "target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
+		d.log.Infow("", "beacon_id", beaconID, "dkg_reshare", "leader_start",
+			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
 		d.dkgInfo.started = true
 	}
 	d.state.Unlock()
@@ -315,6 +318,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	return finalGroup, nil
 }
 
+//nolint:funlen
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
@@ -351,12 +355,12 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 
 	// send public key to leader
 	id := d.priv.Public.ToProto()
-	metadata := common.Metadata{NodeVersion: d.version.ToProto(), BeaconID: beaconID}
+	metadata := &common.Metadata{NodeVersion: d.version.ToProto(), BeaconID: beaconID}
 
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Metadata:    &metadata,
+		Metadata:    metadata,
 	}
 
 	d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "send_key", "leader", lpeer.Address())
