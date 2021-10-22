@@ -13,6 +13,9 @@ import (
 	"github.com/drand/drand/fs"
 )
 
+// MigrateOldFolderStructure will migrate the file store structure from drand-single-beacon version
+// to the new structure created to support multi-beacon feature. This should be called on any function
+// which reads file store from disk, so we are sure the structure is the correct one.
 func MigrateOldFolderStructure(baseFolder string) {
 	groupFolderPath := path.Join(baseFolder, key.GroupFolderName)
 	keyFolderPath := path.Join(baseFolder, key.KeyFolderName)

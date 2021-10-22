@@ -112,7 +112,7 @@ func (n *NodeProc) setup() {
 
 	args := []string{"generate-keypair", "--folder", n.base}
 
-	// FIXME After merging to master, we can remove this check (master has no --id on this CLI cmd)
+	// FIXME After merging to master, we MUST remove this check (master has no --id on this CLI cmd)
 	if n.isCandidate {
 		args = append(args, "--id", n.beaconID)
 	}
@@ -124,14 +124,16 @@ func (n *NodeProc) setup() {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
-	// FIXME After merging to master, we can remove this
-	// verify it's done
+	// FIXME After merging to master, we MUST remove this as master will be able to handle the new files structure.
+	// We have to act differently because the previous version cannot handle the new files structure. We will load
+	// the store accordingly to the drand version we are running.
 	if n.isCandidate {
 		n.store = key.NewFileStore(n.base, n.beaconID)
 	} else {
 		n.store = key.OldNewFileStore(n.base)
 	}
 
+	// verify it's done
 	n.priv, err = n.store.LoadKeyPair()
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))

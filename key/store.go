@@ -61,6 +61,7 @@ type fileStore struct {
 	groupFile      string
 }
 
+// GetFirstStore will return the first store from the stores map
 func GetFirstStore(stores map[string]Store) (string, Store) {
 	for k, v := range stores {
 		return k, v
@@ -68,7 +69,8 @@ func GetFirstStore(stores map[string]Store) (string, Store) {
 	return "", nil
 }
 
-// NewFileStores
+// NewFileStores will list all folder on base path and load every file store it can find. It will
+// return a map with a beacon id as key and a file store as value.
 func NewFileStores(baseFolder string) (map[string]Store, error) {
 	fileStores := make(map[string]Store)
 	fi, err := os.ReadDir(path.Join(baseFolder))
@@ -106,11 +108,14 @@ func NewFileStore(baseFolder, beaconID string) Store {
 	store.groupFile = path.Join(groupFolder, groupFileName)
 	store.shareFile = path.Join(groupFolder, shareFileName)
 	store.distKeyFile = path.Join(groupFolder, distKeyFileName)
+
 	return store
 }
 
-// FIXME After merging to master, we can remove this (created only for regression test)
+// FIXME After merging to master, we should remove this as master will be able to handle the new files structure. (created only for regression test)
 // deprecated
+// OldNewFileStore is used to create the config folder and all the subfolders in an old way.
+// If a folder alredy exists, we simply check the rights
 func OldNewFileStore(baseFolder string) Store {
 	store := &fileStore{baseFolder: baseFolder}
 
