@@ -14,10 +14,10 @@ func (dd *DrandDaemon) getBeaconProcess(metadata *common.Metadata) (*BeaconProce
 	}
 
 	dd.state.Lock()
-	bp, isBeaconRunning := dd.beaconProcesses[beaconID]
+	bp, isBpCreated := dd.beaconProcesses[beaconID]
 	dd.state.Unlock()
 
-	if !isBeaconRunning {
+	if !isBpCreated {
 		return nil, "", fmt.Errorf("beacon id is not running")
 	}
 
