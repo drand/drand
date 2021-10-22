@@ -141,7 +141,7 @@ func MoveFile(origFilePath, destFilePath string) error {
 	return os.Rename(origFilePath, destFilePath)
 }
 
-// MoveFolder moves
+// MoveFolder moves files inside a folder to another folder recursively
 func MoveFolder(origFolderPath, destFolderPath string) error {
 	fi, err := os.ReadDir(origFolderPath)
 	if err != nil {
