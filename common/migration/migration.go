@@ -27,15 +27,15 @@ func MigrateOldFolderStructure(baseFolder string) error {
 	// Create new folders to move actual files found. If one of them exists, we will be sure the all new structures have been created
 	if isGroupFound || isKeyFound || isDBFound {
 		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, key.GroupFolderName)) == "" {
-			return fmt.Errorf("Something went wrong with the group folder. Make sure that you have the appropriate rights.")
+			return fmt.Errorf("something went wrong with the group folder. Make sure that you have the appropriate rights")
 		}
 
 		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, key.KeyFolderName)) == "" {
-			return fmt.Errorf("Something went wrong with the key folder. Make sure that you have the appropriate rights.")
+			return fmt.Errorf("something went wrong with the key folder. Make sure that you have the appropriate rights")
 		}
 
 		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, core.DefaultDBFolder)) == "" {
-			return fmt.Errorf("Something went wrong with the db folder. Make sure that you have the appropriate rights.")
+			return fmt.Errorf("something went wrong with the db folder. Make sure that you have the appropriate rights")
 		}
 	}
 
@@ -45,7 +45,7 @@ func MigrateOldFolderStructure(baseFolder string) error {
 
 		// Move files to new destinations (only if the folder is found)
 		if err := fs.MoveFolder(oldPath, newPath); err != nil {
-			return fmt.Errorf("Something went wrong with the new group folder. Make sure that you have the appropriate rights.")
+			return fmt.Errorf("something went wrong with the new group folder. Make sure that you have the appropriate rights")
 		}
 	}
 
@@ -55,7 +55,7 @@ func MigrateOldFolderStructure(baseFolder string) error {
 
 		// Move files to new destinations (only if the folder is found)
 		if err := fs.MoveFolder(oldPath, newPath); err != nil {
-			return fmt.Errorf("Something went wrong with the new key folder. Make sure that you have the appropriate rights.")
+			return fmt.Errorf("something went wrong with the new key folder. Make sure that you have the appropriate rights")
 		}
 	}
 
@@ -65,7 +65,7 @@ func MigrateOldFolderStructure(baseFolder string) error {
 
 		// Move files to new destinations (only if the folder is found)
 		if err := fs.MoveFolder(oldPath, newPath); err != nil {
-			return fmt.Errorf("Something went wrong with the new db folder. Make sure that you have the appropriate rights.")
+			return fmt.Errorf("something went wrong with the new db folder. Make sure that you have the appropriate rights")
 		}
 	}
 
