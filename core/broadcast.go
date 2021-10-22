@@ -69,8 +69,7 @@ var _ Broadcast = (*echoBroadcast)(nil)
 // Packet, namely that the signature is correct.
 type verifier func(packet) error
 
-func newEchoBroadcast(l log.Logger, version utils.Version, beaconID string,
-	c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
+func newEchoBroadcast(l log.Logger, version utils.Version, beaconID string, c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
 	return &echoBroadcast{
 		l:          l,
 		version:    version,

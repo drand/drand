@@ -150,11 +150,10 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Nonce:          getNonce(group),
 		Auth:           key.DKGAuthScheme,
 	}
-	phaser := d.getPhaser(timeout, beaconID)
-	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
-		d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
-			return dkg.VerifyPacketSignature(config, p)
-		})
+	phaser := d.getPhaser(timeout)
+	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+		return dkg.VerifyPacketSignature(config, p)
+	})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
