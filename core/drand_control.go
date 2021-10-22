@@ -348,13 +348,15 @@ func (d *Drand) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*
 		}
 		d.state.Unlock()
 	}(receiver)
+
 	// send public key to leader
 	id := d.priv.Public.ToProto()
+	metadata := common.Metadata{NodeVersion: d.version.ToProto(), BeaconID: beaconID}
 
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Metadata:    common.NewMetadata(d.version.ToProto()),
+		Metadata:    &metadata,
 	}
 
 	d.log.Debugw("", "beacon_id", beaconID, "init_dkg", "send_key", "leader", lpeer.Address())
@@ -440,14 +442,16 @@ func (d *Drand) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, 
 		d.state.Unlock()
 	}(d.receiver)
 	d.state.Unlock()
+
 	// send public key to leader
 	id := d.priv.Public.ToProto()
-	ctx := common.NewMetadata(d.version.ToProto())
+	metadata := common.Metadata{NodeVersion: d.version.ToProto(), BeaconID: beaconID}
+
 	prep := &drand.SignalDKGPacket{
 		Node:              id,
 		SecretProof:       in.GetInfo().GetSecret(),
 		PreviousGroupHash: oldHash,
-		Metadata:          ctx,
+		Metadata:          &metadata,
 	}
 
 	// we wait only a certain amount of time for the prepare phase
