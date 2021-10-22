@@ -94,7 +94,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 	}
 
 	manager, err := newSetup(d)
-	d.log.Infow("", "reshare", "newmanager")
+	d.log.Infow("", "beacon_id", d.manager.beaconID, "reshare", "newmanager")
 	if err != nil {
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
@@ -158,7 +158,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Nonce:          getNonce(group),
 		Auth:           key.DKGAuthScheme,
 	}
-	phaser := d.getPhaser(timeout)
+	phaser := d.getPhaser(timeout, beaconID)
 	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
 		d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
@@ -273,7 +273,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
 		})
-	phaser := d.getPhaser(timeout)
+	phaser := d.getPhaser(timeout, beaconID)
 
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
@@ -786,14 +786,14 @@ func extractEntropy(i *drand.EntropyInfo) (io.Reader, bool) {
 	return r, user
 }
 
-func (d *Drand) getPhaser(timeout uint32) *dkg.TimePhaser {
+func (d *Drand) getPhaser(timeout uint32, beaconID string) *dkg.TimePhaser {
 	tDuration := time.Duration(timeout) * time.Second
 	if timeout == 0 {
 		tDuration = DefaultDKGTimeout
 	}
 	return dkg.NewTimePhaserFunc(func(phase dkg.Phase) {
 		d.opts.clock.Sleep(tDuration)
-		d.log.Debugw("", "phaser_finished", phase)
+		d.log.Debugw("", "beacon_id", beaconID, "phaser_finished", phase)
 	})
 }
 
