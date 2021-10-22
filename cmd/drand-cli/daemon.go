@@ -20,10 +20,15 @@ func startCmd(c *cli.Context) error {
 	}
 
 	// Start drand daemon
-	drandDaemon.Init()
+	if err := drandDaemon.Init(); err != nil {
+		return err
+	}
 
 	// Load possible existing stores
 	stores, err := key.NewFileStores(conf.ConfigFolder())
+	if err != nil {
+		return err
+	}
 
 	for beaconID, fs := range stores {
 		var bp *core.BeaconProcess
@@ -47,7 +52,9 @@ func startCmd(c *cli.Context) error {
 				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
 			}
 
-			bp.Load()
+			if _, err := bp.Load(); err != nil {
+				return err
+			}
 
 			// XXX make it configurable so that new share holder can still start if
 			// nobody started.
