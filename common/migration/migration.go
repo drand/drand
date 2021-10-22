@@ -19,13 +19,19 @@ func MigrateOldFolderStructure(baseFolder string) error {
 	groupFolderPath := path.Join(baseFolder, key.GroupFolderName)
 	keyFolderPath := path.Join(baseFolder, key.KeyFolderName)
 	dbFolderPath := path.Join(baseFolder, core.DefaultDBFolder)
+	defaultBeaconPath := path.Join(baseFolder, constants.DefaultBeaconID)
 
 	isGroupFound := fs.FolderExists(baseFolder, groupFolderPath)
 	isKeyFound := fs.FolderExists(baseFolder, keyFolderPath)
 	isDBFound := fs.FolderExists(baseFolder, dbFolderPath)
+	isDefaultBeaconFound := fs.FolderExists(baseFolder, defaultBeaconPath)
 
 	// Create new folders to move actual files found. If one of them exists, we will be sure the all new structures have been created
 	if isGroupFound || isKeyFound || isDBFound {
+		if isDefaultBeaconFound {
+			return fmt.Errorf("default beacon folder already exists. Cannot move files into it. Remove it first")
+		}
+
 		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, key.GroupFolderName)) == "" {
 			return fmt.Errorf("something went wrong with the group folder. Make sure that you have the appropriate rights")
 		}
