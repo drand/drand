@@ -161,7 +161,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitDKG(leader, nil, secretDKG)
+		grp, err = cl.InitDKG(leader, nil, secretDKG, l.beaconID)
 	}
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
@@ -194,10 +194,10 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset)
+		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false)
+		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false, l.beaconID)
 	}
 	if err != nil {
 		l.log.Errorw("", "drand", "reshare failed", "err", err)

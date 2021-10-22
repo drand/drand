@@ -109,8 +109,9 @@ func (c *ControlClient) InitReshareLeader(
 	nodes, threshold int,
 	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
-	offset int) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	offset int,
+	beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -126,15 +127,15 @@ func (c *ControlClient) InitReshareLeader(
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
-		Metadata:             metadata,
+		Metadata:             &metadata,
 	}
 
 	return c.client.InitReshare(ctx.Background(), request)
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -147,7 +148,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			Secret:        []byte(secret),
 			Force:         force,
 		},
-		Metadata: metadata,
+		Metadata: &metadata,
 	}
 
 	return c.client.InitReshare(ctx.Background(), request)
@@ -188,8 +189,8 @@ func (c *ControlClient) InitDKGLeader(
 }
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
-func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret, beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -199,7 +200,7 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			Secret:        []byte(secret),
 		},
 		Entropy:  entropy,
-		Metadata: metadata,
+		Metadata: &metadata,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)

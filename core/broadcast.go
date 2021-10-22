@@ -48,8 +48,9 @@ type Broadcast interface {
 // DKG library allows to use fast sync the fast sync mode.
 type echoBroadcast struct {
 	sync.Mutex
-	l       log.Logger
-	version utils.Version
+	l        log.Logger
+	version  utils.Version
+	beaconID string
 	// responsible for sending out the messages
 	dispatcher *dispatcher
 	// list of messages already retransmitted comparison by hash
@@ -68,10 +69,12 @@ var _ Broadcast = (*echoBroadcast)(nil)
 // Packet, namely that the signature is correct.
 type verifier func(packet) error
 
-func newEchoBroadcast(l log.Logger, version utils.Version, c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
+func newEchoBroadcast(l log.Logger, version utils.Version, beaconID string,
+	c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
 	return &echoBroadcast{
 		l:          l,
 		version:    version,
+		beaconID:   beaconID,
 		dispatcher: newDispatcher(l, c, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
@@ -86,7 +89,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "echoBroadcast", "push", "deal")
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "deal")
 	b.sendout(h, bundle, true)
 }
 
@@ -95,7 +98,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "echoBroadcast", "push", "response", bundle.String())
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "response", bundle.String())
 	b.sendout(h, bundle, true)
 }
 
@@ -104,7 +107,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "echoBroadcast", "push", "justification")
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "justification")
 	b.sendout(h, bundle, true)
 }
 
@@ -164,9 +167,11 @@ func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	}
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
+
+	metadata := common.Metadata{NodeVersion: b.version.ToProto(), BeaconID: b.beaconID}
 	proto := &drand.DKGPacket{
 		Dkg:      dkgproto,
-		Metadata: common.NewMetadata(b.version.ToProto()),
+		Metadata: &metadata,
 	}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG

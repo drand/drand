@@ -110,8 +110,10 @@ func shareCmd(c *cli.Context) error {
 		return fmt.Errorf("could not create client: %v", err)
 	}
 
-	fmt.Fprintln(output, "Participating to the setup of the DKG")
-	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret)
+	beaconID := c.String(beaconIDFlag.Name)
+
+	fmt.Fprintf(output, "Participating to the setup of the DKG. Beacon ID: [%s] \n", beaconID)
+	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret, beaconID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
@@ -172,6 +174,7 @@ func leadShareCmd(c *cli.Context) error {
 	beaconID := c.String(beaconIDFlag.Name)
 
 	str1 := fmt.Sprintf("Initiating the DKG as a leader. Beacon ID: [%s]", beaconID)
+
 	fmt.Fprintln(output, str1)
 	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
 		"file will not be written out to the specified output. To get the "+
@@ -224,8 +227,11 @@ func reshareCmd(c *cli.Context) error {
 		oldPath = c.String(oldGroupFlag.Name)
 	}
 
-	fmt.Fprintln(output, "Participating to the resharing")
-	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath, args.force)
+	beaconID := c.String(beaconIDFlag.Name)
+
+	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s] \n", beaconID)
+
+	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath, args.force, beaconID)
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
 	}
@@ -277,8 +283,12 @@ func leadReshareCmd(c *cli.Context) error {
 			return fmt.Errorf("catchup period given is invalid: %v", err)
 		}
 	}
-	fmt.Fprintln(output, "Initiating the resharing as a leader")
-	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout, catchupPeriod, args.secret, oldPath, offset)
+
+	beaconID := c.String(beaconIDFlag.Name)
+
+	fmt.Fprintf(output, "Initiating the resharing as a leader. Beacon ID: [%s] \n", beaconID)
+	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout,
+		catchupPeriod, args.secret, oldPath, offset, beaconID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)
