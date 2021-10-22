@@ -289,8 +289,7 @@ func leadReshareCmd(c *cli.Context) error {
 	beaconID := c.String(beaconIDFlag.Name)
 
 	fmt.Fprintf(output, "Initiating the resharing as a leader. Beacon ID: [%s] \n", beaconID)
-	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout,
-		catchupPeriod, args.secret, oldPath, offset, beaconID)
+	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout, catchupPeriod, args.secret, oldPath, offset, beaconID)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %v", shareErr)

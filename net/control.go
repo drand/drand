@@ -189,7 +189,7 @@ func (c *ControlClient) InitDKGLeader(
 }
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
-func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret, beaconID string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string, beaconID string) (*control.GroupPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitDKGPacket{
