@@ -83,7 +83,7 @@ func TestBroadcast(t *testing.T) {
 	for _, d := range drands {
 		id := d.priv.Public.Address()
 		version := utils.Version{Major: 0, Minor: 0, Patch: 0}
-		b := newEchoBroadcast(d.log, version, BeaconIDForTesting, d.privGateway.ProtocolClient,
+		b := newEchoBroadcast(d.log, version, beaconID, d.privGateway.ProtocolClient,
 			id, group.Nodes, func(dkg.Packet) error { return nil })
 
 		d.dkgInfo = &dkgInfo{
