@@ -63,7 +63,8 @@ func (d *Config) ConfigFolder() string {
 	return d.configFolder
 }
 
-// DBFolder
+// DBFolder returns the folder under which drand stores db file specifically.
+// If beacon id is empty, it will use the default value
 func (d *Config) DBFolder(beaconID string) string {
 	if beaconID == "" {
 		beaconID = constants.DefaultBeaconID

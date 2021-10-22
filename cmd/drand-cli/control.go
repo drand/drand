@@ -492,7 +492,9 @@ func selfSign(c *cli.Context) error {
 	conf := contextToConfig(c)
 	beaconID := getBeaconID(c)
 
-	migration.MigrateOldFolderStructure(conf.ConfigFolder())
+	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
+		return err
+	}
 
 	fs := key.NewFileStore(conf.ConfigFolder(), beaconID)
 	pair, err := fs.LoadKeyPair()

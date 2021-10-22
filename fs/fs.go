@@ -136,12 +136,12 @@ func FolderExists(folderPath, name string) bool {
 	return false
 }
 
-func MoveFile(origFilePath, destFilePath string) {
-	if err := os.Rename(origFilePath, destFilePath); err != nil {
-		panic(err)
-	}
+// MoveFile moves a file or folder from one path to another
+func MoveFile(origFilePath, destFilePath string) error {
+	return os.Rename(origFilePath, destFilePath)
 }
 
+// MoveFolder moves
 func MoveFolder(origFolderPath, destFolderPath string) error {
 	fi, err := os.ReadDir(origFolderPath)
 	if err != nil {
@@ -153,7 +153,9 @@ func MoveFolder(origFolderPath, destFolderPath string) error {
 		tmp2 := path.Join(destFolderPath, file.Name())
 
 		if !file.IsDir() {
-			MoveFile(tmp1, tmp2)
+			if err := MoveFile(tmp1, tmp2); err != nil {
+				return err
+			}
 		} else {
 			CreateSecureFolder(tmp2)
 			if err := MoveFolder(tmp1, tmp2); err != nil {

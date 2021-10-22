@@ -15,7 +15,9 @@ import (
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 
-	migration.MigrateOldFolderStructure(conf.ConfigFolder())
+	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
+		return err
+	}
 
 	stores, err := key.NewFileStores(conf.ConfigFolder())
 	if err != nil {
