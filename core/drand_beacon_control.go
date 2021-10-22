@@ -23,12 +23,16 @@ import (
 
 	"github.com/drand/drand/net"
 	"github.com/drand/kyber/share/dkg"
+	vss "github.com/drand/kyber/share/vss/pedersen"
 
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 
 	"github.com/drand/drand/key"
 )
+
+// errPreempted is returned on reshares when a subsequent reshare is started concurrently
+var errPreempted = errors.New("time out: pre-empted")
 
 // Control services
 
@@ -767,6 +771,23 @@ func extractEntropy(i *drand.EntropyInfo) (io.Reader, bool) {
 	r := entropy.NewScriptReader(i.Script)
 	user := i.UserOnly
 	return r, user
+}
+
+func extractGroup(i *drand.GroupInfo) (*key.Group, error) {
+	var g = new(key.Group)
+	switch x := i.Location.(type) {
+	case *drand.GroupInfo_Path:
+		// search group file via local filesystem path
+		if err := key.Load(x.Path, g); err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.New("control: can't allow new empty group")
+	}
+	if g.Threshold < vss.MinimumT(g.Len()) {
+		return nil, errors.New("control: threshold of new group too low ")
+	}
+	return g, nil
 }
 
 func (d *BeaconProcess) getPhaser(timeout uint32, beaconID string) *dkg.TimePhaser {
