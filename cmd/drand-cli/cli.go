@@ -289,6 +289,7 @@ var appCommands = []*cli.Command{
 			banner()
 			return startCmd(c)
 		},
+		Before: runMigration,
 	},
 	{
 		Name:  "stop",
@@ -329,6 +330,7 @@ var appCommands = []*cli.Command{
 			banner()
 			return keygenCmd(c)
 		},
+		Before: runMigration,
 	},
 
 	{
@@ -407,6 +409,7 @@ var appCommands = []*cli.Command{
 				Usage:  "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
 				Flags:  toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
 				Action: resetCmd,
+				Before: runMigration,
 			},
 			{
 				Name: "del-beacon",
@@ -414,18 +417,21 @@ var appCommands = []*cli.Command{
 					" You MUST restart the daemon after that command.",
 				Flags:  toArray(folderFlag, beaconIDFlag, allBeaconsFlag),
 				Action: deleteBeaconCmd,
+				Before: runMigration,
 			},
 			{
 				Name:   "self-sign",
 				Usage:  "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
 				Flags:  toArray(folderFlag, beaconIDFlag),
 				Action: selfSign,
+				Before: runMigration,
 			},
 			{
 				Name:   "backup",
 				Usage:  "backs up the primary drand database to a secondary location.",
 				Flags:  toArray(outFlag, controlFlag),
 				Action: backupDBCmd,
+				Before: runMigration,
 			},
 		},
 	},
@@ -494,7 +500,7 @@ func CLI() *cli.App {
 	// =====Commands=====
 	app.Commands = appCommands
 	app.Flags = toArray(verboseFlag, folderFlag)
-	app.Before = runChecks
+	app.Before = testWindows
 	return app
 }
 
@@ -557,11 +563,7 @@ func askPort() string {
 	}
 }
 
-func runChecks(c *cli.Context) error {
-	if err := testWindows(c); err != nil {
-		return err
-	}
-
+func runMigration(c *cli.Context) error {
 	config := contextToConfig(c)
 	if err := migration.MigrateOldFolderStructure(config.ConfigFolder()); err != nil {
 		return err
