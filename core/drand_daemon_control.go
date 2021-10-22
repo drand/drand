@@ -12,6 +12,9 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
+// InitDKG take a InitDKGPacket, extracts the informations needed and wait for
+// the DKG protocol to finish. If the request specifies this node is a leader,
+// it starts the DKG protocol.
 func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	bp, beaconID, err := dd.getBeaconProcess(in.GetMetadata())
 	if err != nil {
@@ -36,9 +39,21 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol.
 func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, beaconID, err := dd.getBeaconProcess(in.GetMetadata())
 	if err != nil {
-		return nil, err
+		store, isStoreLoaded := dd.initialStores[beaconID]
+		if !isStoreLoaded {
+			dd.log.Infow("", "beacon_id", beaconID, "init_reshare", "loading store from disk")
+
+			newStore := key.NewFileStore(dd.opts.ConfigFolder(), beaconID)
+			store = &newStore
+		}
+
+		dd.log.Infow("", "beacon_id", beaconID, "init_reshare", "instantiating a new beacon process")
+		bp, err = dd.AddNewBeaconProcess(beaconID, *store)
+		if err != nil {
+			return nil, fmt.Errorf("something went wrong try to initiate DKG")
+		}
 	}
 
 	return bp.InitReshare(ctx, in)
