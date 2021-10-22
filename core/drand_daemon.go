@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/drand/drand/common"
@@ -97,24 +96,9 @@ func (dd *DrandDaemon) Init() error {
 }
 
 func (dd *DrandDaemon) AddNewBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
-	priv, err := store.LoadKeyPair()
+	bp, err := NewBeaconProcess(dd.log, dd.version, store, dd.opts, dd.privGateway, dd.pubGateway, dd.control)
 	if err != nil {
 		return nil, err
-	}
-	if err := priv.Public.ValidSignature(); err != nil {
-		return nil, fmt.Errorf("INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
-	}
-
-	bp := &BeaconProcess{
-		store:       store,
-		log:         dd.log,
-		priv:        priv,
-		version:     dd.version,
-		opts:        dd.opts,
-		privGateway: dd.privGateway,
-		pubGateway:  dd.pubGateway,
-		control:     dd.control,
-		exitCh:      make(chan bool, 1),
 	}
 
 	dd.state.Lock()

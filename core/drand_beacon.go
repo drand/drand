@@ -70,6 +70,32 @@ type BeaconProcess struct {
 	version utils.Version
 }
 
+func NewBeaconProcess(log log.Logger, version utils.Version, store key.Store,
+	opts *Config, privGateway *net.PrivateGateway, pubGateway *net.PublicGateway,
+	control net.ControlListener) (*BeaconProcess, error) {
+
+	priv, err := store.LoadKeyPair()
+	if err != nil {
+		return nil, err
+	}
+	if err := priv.Public.ValidSignature(); err != nil {
+		return nil, fmt.Errorf("INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
+	}
+
+	bp := &BeaconProcess{
+		store:       store,
+		log:         log,
+		priv:        priv,
+		version:     version,
+		opts:        opts,
+		privGateway: privGateway,
+		pubGateway:  pubGateway,
+		control:     control,
+		exitCh:      make(chan bool, 1),
+	}
+	return bp, nil
+}
+
 // LoadDrand restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
 func (bp *BeaconProcess) Load() (*BeaconProcess, error) {
