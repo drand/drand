@@ -3,8 +3,6 @@ package drand
 import (
 	"fmt"
 
-	"github.com/drand/drand/common/migration"
-
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/metrics"
@@ -14,11 +12,6 @@ import (
 
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-
-	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
-		return err
-	}
-
 	stores, err := key.NewFileStores(conf.ConfigFolder())
 	if err != nil {
 		return fmt.Errorf("can't read file stores %s", err)

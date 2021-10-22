@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drand/drand/common/migration"
-
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/briandowns/spinner"
@@ -491,10 +489,6 @@ func entropyInfoFromReader(c *cli.Context) (*control.EntropyInfo, error) {
 func selfSign(c *cli.Context) error {
 	conf := contextToConfig(c)
 	beaconID := getBeaconID(c)
-
-	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
-		return err
-	}
 
 	fs := key.NewFileStore(conf.ConfigFolder(), beaconID)
 	pair, err := fs.LoadKeyPair()

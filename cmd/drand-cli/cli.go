@@ -494,15 +494,12 @@ func CLI() *cli.App {
 	// =====Commands=====
 	app.Commands = appCommands
 	app.Flags = toArray(verboseFlag, folderFlag)
-	app.Before = testWindows
+	app.Before = runChecks
 	return app
 }
 
 func resetCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
-		return err
-	}
 
 	fmt.Fprintf(output, "You are about to delete your local share, group file and generated random beacons. "+
 		"Are you sure you wish to perform this operation? [y/N]")
@@ -560,6 +557,19 @@ func askPort() string {
 	}
 }
 
+func runChecks(c *cli.Context) error {
+	if err := testWindows(c); err != nil {
+		return err
+	}
+
+	config := contextToConfig(c)
+	if err := migration.MigrateOldFolderStructure(config.ConfigFolder()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func testWindows(c *cli.Context) error {
 	// x509 not available on windows: must run without TLS
 	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
@@ -591,10 +601,6 @@ func keygenCmd(c *cli.Context) error {
 	}
 
 	config := contextToConfig(c)
-	if err := migration.MigrateOldFolderStructure(config.ConfigFolder()); err != nil {
-		return err
-	}
-
 	beaconID := getBeaconID(c)
 	fileStore := key.NewFileStore(config.ConfigFolder(), beaconID)
 
@@ -730,9 +736,6 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
 // the head of the chain
 func deleteBeaconCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
-		return err
-	}
 
 	startRoundStr := c.Args().First()
 	sr, err := strconv.Atoi(startRoundStr)
