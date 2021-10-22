@@ -94,7 +94,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 	}
 
 	manager, err := newSetup(d)
-	d.log.Infow("", "beacon_id", d.manager.beaconID, "reshare", "newmanager")
+	d.log.Infow("", "beacon_id", manager.beaconID, "reshare", "newmanager")
 	if err != nil {
 		d.state.Unlock()
 		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
