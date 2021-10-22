@@ -18,7 +18,7 @@ func (dd *DrandDaemon) getBeaconProcess(metadata *common.Metadata) (*BeaconProce
 	dd.state.Unlock()
 
 	if !isBpCreated {
-		return nil, "", fmt.Errorf("beacon id is not running")
+		return nil, beaconID, fmt.Errorf("beacon id [%s] is not running", beaconID)
 	}
 
 	return bp, beaconID, nil

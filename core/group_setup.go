@@ -300,19 +300,24 @@ type setupReceiver struct {
 	secret   []byte
 	done     bool
 	version  utils.Version
+	beaconID string
 }
 
 func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
 	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
+	beaconID := in.GetMetadata().GetBeaconID()
+
 	setup := &setupReceiver{
-		ch:      make(chan *dkgGroup, 1),
-		l:       l,
-		leader:  net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
-		client:  client,
-		clock:   c,
-		secret:  hashSecret(in.GetSecret()),
-		version: version,
+		ch:       make(chan *dkgGroup, 1),
+		l:        l,
+		leader:   net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
+		client:   client,
+		clock:    c,
+		secret:   hashSecret(in.GetSecret()),
+		version:  version,
+		beaconID: beaconID,
 	}
+
 	if err := setup.fetchLeaderKey(); err != nil {
 		return nil, err
 	}
@@ -320,7 +325,7 @@ func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
 }
 
 func (r *setupReceiver) fetchLeaderKey() error {
-	request := &drand.IdentityRequest{Metadata: common.NewMetadata(r.version.ToProto())}
+	request := &drand.IdentityRequest{Metadata: &common.Metadata{NodeVersion: r.version.ToProto(), BeaconID: r.beaconID}}
 
 	protoID, err := r.client.GetIdentity(context.Background(), r.leader, request)
 	if err != nil {

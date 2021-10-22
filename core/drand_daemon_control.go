@@ -17,10 +17,13 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 	if err != nil {
 		store, isStoreLoaded := dd.initialStores[beaconID]
 		if !isStoreLoaded {
+			dd.log.Infow("", "beacon_id", beaconID, "init_dkg", "loading store from disk")
+
 			newStore := key.NewFileStore(dd.opts.ConfigFolder(), beaconID)
 			store = &newStore
 		}
 
+		dd.log.Infow("", "beacon_id", beaconID, "init_dkg", "instantiating a new beacon process")
 		bp, err = dd.AddNewBeaconProcess(beaconID, *store)
 		if err != nil {
 			return nil, fmt.Errorf("something went wrong try to initiate DKG")
