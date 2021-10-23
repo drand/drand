@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/drand/drand/common/migration"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/briandowns/spinner"
@@ -341,6 +343,16 @@ func statusCmd(c *cli.Context) error {
 		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
 	}
 
+	return nil
+}
+
+func migrateCmd(c *cli.Context) error {
+	conf := contextToConfig(c)
+	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
+		return fmt.Errorf("cannot migrate folder structure, please try again")
+	}
+
+	fmt.Fprintf(output, "folder structure is now ready to support multi-beacon drand\n")
 	return nil
 }
 

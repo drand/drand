@@ -405,6 +405,12 @@ var appCommands = []*cli.Command{
 				Action: statusCmd,
 			},
 			{
+				Name:   "migrate",
+				Usage:  "Migrate folder structure to support multi-beacon drand. You DO NOT have to run it while drand is running.\n",
+				Flags:  toArray(folderFlag),
+				Action: migrateCmd,
+			},
+			{
 				Name:   "reset",
 				Usage:  "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
 				Flags:  toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
