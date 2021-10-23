@@ -6,7 +6,7 @@ import (
 	"path"
 	"reflect"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/fs"
@@ -85,7 +85,7 @@ func NewFileStores(baseFolder string) (map[string]Store, error) {
 	}
 
 	if len(fileStores) == 0 {
-		fileStores[constants.DefaultBeaconID] = NewFileStore(baseFolder, constants.DefaultBeaconID)
+		fileStores[common.DefaultBeaconID] = NewFileStore(baseFolder, common.DefaultBeaconID)
 	}
 
 	return fileStores, nil
@@ -95,7 +95,7 @@ func NewFileStores(baseFolder string) (map[string]Store, error) {
 // If a folder alredy exists, we simply check the rights
 func NewFileStore(baseFolder, beaconID string) Store {
 	if beaconID == "" {
-		beaconID = constants.DefaultBeaconID
+		beaconID = common.DefaultBeaconID
 	}
 
 	store := &fileStore{baseFolder: baseFolder, beaconID: beaconID}

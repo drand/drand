@@ -17,9 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/drand/drand/common/migration"
-
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
 
@@ -912,7 +910,7 @@ func testEmptyGroup(filePath string) error {
 func getBeaconID(c *cli.Context) string {
 	beaconID := c.String(beaconIDFlag.Name)
 	if beaconID == "" {
-		beaconID = constants.DefaultBeaconID
+		beaconID = common.DefaultBeaconID
 	}
 
 	return beaconID

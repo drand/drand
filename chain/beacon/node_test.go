@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/common/scheme"
 
@@ -399,7 +399,7 @@ func TestBeaconSync(t *testing.T) {
 
 	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
@@ -478,7 +478,7 @@ func TestBeaconSimple(t *testing.T) {
 	period := 2 * time.Second
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
@@ -539,7 +539,7 @@ func TestBeaconThreshold(t *testing.T) {
 
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer func() { go bt.CleanUp() }()

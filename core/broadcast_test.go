@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
@@ -66,7 +66,7 @@ func TestBroadcastSet(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 5
-	sch, beaconID := scheme.GetSchemeFromEnv(), constants.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
 	drands, group, dir, _ := BatchNewDrand(t, n, true, sch, beaconID)
 	defer os.RemoveAll(dir)

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drand/drand/common/migration"
+	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
 

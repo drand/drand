@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	json "github.com/nikkolasg/hexjson"
 
@@ -43,7 +43,7 @@ func TestMigrate(t *testing.T) {
 	app := CLI()
 	require.NoError(t, app.Run(args))
 
-	defaultBeaconPath := path.Join(tmp, constants.DefaultBeaconID)
+	defaultBeaconPath := path.Join(tmp, common.DefaultBeaconID)
 	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
 	newKeyFilePath := path.Join(defaultBeaconPath, key.KeyFolderName)
 	newDBFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
@@ -60,7 +60,7 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestResetError(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -72,7 +72,7 @@ func TestResetError(t *testing.T) {
 }
 
 func TestDeleteBeaconError(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -84,7 +84,7 @@ func TestDeleteBeaconError(t *testing.T) {
 }
 
 func TestDeleteBeacon(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -139,7 +139,7 @@ func TestDeleteBeacon(t *testing.T) {
 }
 
 func TestKeySelfSignError(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -151,7 +151,7 @@ func TestKeySelfSignError(t *testing.T) {
 }
 
 func TestKeySelfSign(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -176,7 +176,7 @@ func TestKeySelfSign(t *testing.T) {
 }
 
 func TestKeyGenError(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -188,7 +188,7 @@ func TestKeyGenError(t *testing.T) {
 }
 
 func TestKeyGen(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -223,7 +223,7 @@ func TestStartAndStop(t *testing.T) {
 
 	n := 5
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
@@ -256,7 +256,7 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestUtilCheck(t *testing.T) {
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp, err := os.MkdirTemp("", "drand-cli-*")
 	require.NoError(t, err)
@@ -298,7 +298,7 @@ func TestUtilCheck(t *testing.T) {
 
 func TestStartWithoutGroup(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
@@ -487,7 +487,7 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 
 func TestClientTLS(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)

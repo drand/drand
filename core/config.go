@@ -4,7 +4,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
@@ -67,7 +67,7 @@ func (d *Config) ConfigFolder() string {
 // If beacon id is empty, it will use the default value
 func (d *Config) DBFolder(beaconID string) string {
 	if beaconID == "" {
-		beaconID = constants.DefaultBeaconID
+		beaconID = common.DefaultBeaconID
 	}
 
 	return path.Join(d.configFolder, beaconID, DefaultDBFolder)

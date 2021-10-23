@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -31,7 +31,7 @@ func MigrateOldFolderStructure(baseFolder string) error {
 	groupFolderPath := path.Join(baseFolder, key.GroupFolderName)
 	keyFolderPath := path.Join(baseFolder, key.KeyFolderName)
 	dbFolderPath := path.Join(baseFolder, core.DefaultDBFolder)
-	defaultBeaconPath := path.Join(baseFolder, constants.DefaultBeaconID)
+	defaultBeaconPath := path.Join(baseFolder, common.DefaultBeaconID)
 
 	isGroupFound := fs.FolderExists(baseFolder, groupFolderPath)
 	isKeyFound := fs.FolderExists(baseFolder, keyFolderPath)
@@ -44,22 +44,22 @@ func MigrateOldFolderStructure(baseFolder string) error {
 			return fmt.Errorf("default beacon folder already exists. Cannot move files into it. Remove it first")
 		}
 
-		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, key.GroupFolderName)) == "" {
+		if fs.CreateSecureFolder(path.Join(baseFolder, common.DefaultBeaconID, key.GroupFolderName)) == "" {
 			return fmt.Errorf("something went wrong with the group folder. Make sure that you have the appropriate rights")
 		}
 
-		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, key.KeyFolderName)) == "" {
+		if fs.CreateSecureFolder(path.Join(baseFolder, common.DefaultBeaconID, key.KeyFolderName)) == "" {
 			return fmt.Errorf("something went wrong with the key folder. Make sure that you have the appropriate rights")
 		}
 
-		if fs.CreateSecureFolder(path.Join(baseFolder, constants.DefaultBeaconID, core.DefaultDBFolder)) == "" {
+		if fs.CreateSecureFolder(path.Join(baseFolder, common.DefaultBeaconID, core.DefaultDBFolder)) == "" {
 			return fmt.Errorf("something went wrong with the db folder. Make sure that you have the appropriate rights")
 		}
 	}
 
 	if isGroupFound {
 		oldPath := path.Join(baseFolder, key.GroupFolderName)
-		newPath := path.Join(baseFolder, constants.DefaultBeaconID, key.GroupFolderName)
+		newPath := path.Join(baseFolder, common.DefaultBeaconID, key.GroupFolderName)
 
 		// Move files to new destinations (only if the folder is found)
 		if err := fs.MoveFolder(oldPath, newPath); err != nil {
@@ -69,7 +69,7 @@ func MigrateOldFolderStructure(baseFolder string) error {
 
 	if isKeyFound {
 		oldPath := path.Join(baseFolder, key.KeyFolderName)
-		newPath := path.Join(baseFolder, constants.DefaultBeaconID, key.KeyFolderName)
+		newPath := path.Join(baseFolder, common.DefaultBeaconID, key.KeyFolderName)
 
 		// Move files to new destinations (only if the folder is found)
 		if err := fs.MoveFolder(oldPath, newPath); err != nil {
@@ -79,7 +79,7 @@ func MigrateOldFolderStructure(baseFolder string) error {
 
 	if isDBFound {
 		oldPath := path.Join(baseFolder, core.DefaultDBFolder)
-		newPath := path.Join(baseFolder, constants.DefaultBeaconID, core.DefaultDBFolder)
+		newPath := path.Join(baseFolder, common.DefaultBeaconID, core.DefaultDBFolder)
 
 		// Move files to new destinations (only if the folder is found)
 		if err := fs.MoveFolder(oldPath, newPath); err != nil {

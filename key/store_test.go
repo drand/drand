@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/drand/drand/common/constants"
+	"github.com/drand/drand/common"
 
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
@@ -15,7 +15,7 @@ import (
 func TestKeysSaveLoad(t *testing.T) {
 	n := 4
 	ps, group := BatchIdentities(n)
-	beaconID := constants.GetBeaconIDFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	tmp := os.TempDir()
 	tmp = path.Join(tmp, "drand-key")
