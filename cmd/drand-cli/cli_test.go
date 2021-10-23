@@ -35,6 +35,66 @@ import (
 
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 
+func TestMigrate(t *testing.T) {
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	args := []string{"drand", "util", "migrate", "--folder", tmp}
+	app := CLI()
+	require.NoError(t, app.Run(args))
+
+	defaultBeaconPath := path.Join(tmp, constants.DefaultBeaconID)
+	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
+	newKeyFilePath := path.Join(defaultBeaconPath, key.KeyFolderName)
+	newDbFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
+
+	if !fs.FolderExists(defaultBeaconPath, newGroupFilePath) {
+		t.Errorf("group folder should have been migrated")
+	}
+	if !fs.FolderExists(defaultBeaconPath, newKeyFilePath) {
+		t.Errorf("key folder should have been migrated")
+	}
+	if !fs.FolderExists(defaultBeaconPath, newDbFilePath) {
+		t.Errorf("db folder should have been migrated")
+	}
+}
+
+func TestResetError(t *testing.T) {
+	beaconID := constants.GetBeaconIDFromEnv()
+
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	// that command should delete round 3 and 4
+	args := []string{"drand", "util", "reset", "--folder", tmp, "--id", beaconID}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
+
+func TestDeleteBeaconError(t *testing.T) {
+	beaconID := constants.GetBeaconIDFromEnv()
+
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	// that command should delete round 3 and 4
+	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
+
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := constants.GetBeaconIDFromEnv()
 
@@ -90,6 +150,22 @@ func TestDeleteBeacon(t *testing.T) {
 	require.Nil(t, b)
 }
 
+func TestKeySelfSignError(t *testing.T) {
+	beaconID := constants.GetBeaconIDFromEnv()
+
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	// that command should delete round 3 and 4
+	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
+
 func TestKeySelfSign(t *testing.T) {
 	beaconID := constants.GetBeaconIDFromEnv()
 
@@ -113,6 +189,22 @@ func TestKeySelfSign(t *testing.T) {
 
 	expectedOutput = "identity self signed"
 	testCommand(t, selfSign, expectedOutput)
+}
+
+func TestKeyGenError(t *testing.T) {
+	beaconID := constants.GetBeaconIDFromEnv()
+
+	tmp := path.Join(os.TempDir(), "drand")
+	defer os.RemoveAll(tmp)
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	// that command should delete round 3 and 4
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
+	app := CLI()
+	require.Error(t, app.Run(args))
 }
 
 func TestKeyGen(t *testing.T) {
