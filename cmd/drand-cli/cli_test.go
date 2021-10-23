@@ -229,7 +229,7 @@ func TestStartAndStop(t *testing.T) {
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	args := []string{"drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath, "--id", beaconID}
+	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, "127.0.0.1:8080"}
 	require.NoError(t, CLI().Run(args))
 	startCh := make(chan bool)
 	go func() {
