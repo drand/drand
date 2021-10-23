@@ -36,12 +36,8 @@ import (
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 
 func TestMigrate(t *testing.T) {
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
-
-	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	args := []string{"drand", "util", "migrate", "--folder", tmp}
 	app := CLI()
@@ -50,7 +46,7 @@ func TestMigrate(t *testing.T) {
 	defaultBeaconPath := path.Join(tmp, constants.DefaultBeaconID)
 	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
 	newKeyFilePath := path.Join(defaultBeaconPath, key.KeyFolderName)
-	newDbFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
+	newDBFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
 
 	if !fs.FolderExists(defaultBeaconPath, newGroupFilePath) {
 		t.Errorf("group folder should have been migrated")
@@ -58,7 +54,7 @@ func TestMigrate(t *testing.T) {
 	if !fs.FolderExists(defaultBeaconPath, newKeyFilePath) {
 		t.Errorf("key folder should have been migrated")
 	}
-	if !fs.FolderExists(defaultBeaconPath, newDbFilePath) {
+	if !fs.FolderExists(defaultBeaconPath, newDBFilePath) {
 		t.Errorf("db folder should have been migrated")
 	}
 }
@@ -66,12 +62,8 @@ func TestMigrate(t *testing.T) {
 func TestResetError(t *testing.T) {
 	beaconID := constants.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
-
-	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "reset", "--folder", tmp, "--id", beaconID}
@@ -82,12 +74,8 @@ func TestResetError(t *testing.T) {
 func TestDeleteBeaconError(t *testing.T) {
 	beaconID := constants.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
-
-	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
@@ -153,12 +141,8 @@ func TestDeleteBeacon(t *testing.T) {
 func TestKeySelfSignError(t *testing.T) {
 	beaconID := constants.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
-
-	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
@@ -194,12 +178,8 @@ func TestKeySelfSign(t *testing.T) {
 func TestKeyGenError(t *testing.T) {
 	beaconID := constants.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
+	tmp := getOldFolderStructure()
 	defer os.RemoveAll(tmp)
-
-	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
-	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	// that command should delete round 3 and 4
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
@@ -636,4 +616,14 @@ func testCommand(t *testing.T, args []string, exp string) {
 	fmt.Println("GOT: ", strings.Trim(buff.String(), "\n"), " --")
 	fmt.Println("CONTAINS: ", strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
+}
+
+func getOldFolderStructure() string {
+	tmp := path.Join(os.TempDir(), "drand")
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	return tmp
 }
