@@ -330,7 +330,7 @@ var appCommands = []*cli.Command{
 			banner()
 			return keygenCmd(c)
 		},
-		Before: runMigration,
+		Before: checkMigration,
 	},
 
 	{
@@ -409,7 +409,7 @@ var appCommands = []*cli.Command{
 				Usage:  "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
 				Flags:  toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
 				Action: resetCmd,
-				Before: runMigration,
+				Before: checkMigration,
 			},
 			{
 				Name: "del-beacon",
@@ -417,21 +417,21 @@ var appCommands = []*cli.Command{
 					" You MUST restart the daemon after that command.",
 				Flags:  toArray(folderFlag, beaconIDFlag, allBeaconsFlag),
 				Action: deleteBeaconCmd,
-				Before: runMigration,
+				Before: checkMigration,
 			},
 			{
 				Name:   "self-sign",
 				Usage:  "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
 				Flags:  toArray(folderFlag, beaconIDFlag),
 				Action: selfSign,
-				Before: runMigration,
+				Before: checkMigration,
 			},
 			{
 				Name:   "backup",
 				Usage:  "backs up the primary drand database to a secondary location.",
 				Flags:  toArray(outFlag, controlFlag),
 				Action: backupDBCmd,
-				Before: runMigration,
+				Before: checkMigration,
 			},
 		},
 	},
@@ -567,6 +567,16 @@ func runMigration(c *cli.Context) error {
 	config := contextToConfig(c)
 	if err := migration.MigrateOldFolderStructure(config.ConfigFolder()); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func checkMigration(c *cli.Context) error {
+	config := contextToConfig(c)
+	if isPresent := migration.CheckOldFolderStructure(config.ConfigFolder()); isPresent {
+		return fmt.Errorf("single-beacon drand folder structure was found, " +
+			"please first migrate it with 'drand util migrate' command")
 	}
 
 	return nil
