@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/core"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/key"
@@ -92,6 +94,7 @@ func (n *NodeProc) setup() {
 	n.privAddr = host + ":" + freePort
 	n.pubAddr = host + ":" + freePortREST
 	ctrlPort := test.FreePort()
+
 	if n.tls {
 		// generate certificate
 		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
@@ -128,7 +131,8 @@ func (n *NodeProc) setup() {
 	// We have to act differently because the previous version cannot handle the new files structure. We will load
 	// the store accordingly to the drand version we are running.
 	if n.isCandidate {
-		n.store = key.NewFileStore(n.base, n.beaconID)
+		config := core.NewConfig(core.WithConfigFolder(n.base))
+		n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 	} else {
 		n.store = key.NewFileStoreSB(n.base)
 	}
