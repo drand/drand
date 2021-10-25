@@ -348,7 +348,7 @@ func statusCmd(c *cli.Context) error {
 
 func migrateCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	if err := migration.MigrateOldFolderStructure(conf.ConfigFolder()); err != nil {
+	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
 		return fmt.Errorf("cannot migrate folder structure, please try again")
 	}
 

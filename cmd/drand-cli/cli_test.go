@@ -36,7 +36,7 @@ import (
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 
 func TestMigrate(t *testing.T) {
-	tmp := getOldFolderStructure()
+	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
 	args := []string{"drand", "util", "migrate", "--folder", tmp}
@@ -62,7 +62,7 @@ func TestMigrate(t *testing.T) {
 func TestResetError(t *testing.T) {
 	beaconID := common.GetBeaconIDFromEnv()
 
-	tmp := getOldFolderStructure()
+	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
 	// that command should delete round 3 and 4
@@ -74,7 +74,7 @@ func TestResetError(t *testing.T) {
 func TestDeleteBeaconError(t *testing.T) {
 	beaconID := common.GetBeaconIDFromEnv()
 
-	tmp := getOldFolderStructure()
+	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
 	// that command should delete round 3 and 4
@@ -141,7 +141,7 @@ func TestDeleteBeacon(t *testing.T) {
 func TestKeySelfSignError(t *testing.T) {
 	beaconID := common.GetBeaconIDFromEnv()
 
-	tmp := getOldFolderStructure()
+	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
 	// that command should delete round 3 and 4
@@ -178,7 +178,7 @@ func TestKeySelfSign(t *testing.T) {
 func TestKeyGenError(t *testing.T) {
 	beaconID := common.GetBeaconIDFromEnv()
 
-	tmp := getOldFolderStructure()
+	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
 	// that command should delete round 3 and 4
@@ -618,7 +618,8 @@ func testCommand(t *testing.T, args []string, exp string) {
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }
 
-func getOldFolderStructure() string {
+// getSBFolderStructure create a new single-beacon folder structure on a temporal folder
+func getSBFolderStructure() string {
 	tmp := path.Join(os.TempDir(), "drand")
 
 	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))

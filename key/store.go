@@ -115,9 +115,9 @@ func NewFileStore(baseFolder, beaconID string) Store {
 // FIXME After merging to master, we should remove this as master will be able
 // to handle the new files structure. (created only for regression test)
 // deprecated
-// OldNewFileStore is used to create the config folder and all the subfolders in an old way.
+// NewFileStoreSB is used to create the config folder and all the subfolders in an old way.
 // If a folder alredy exists, we simply check the rights
-func OldNewFileStore(baseFolder string) Store {
+func NewFileStoreSB(baseFolder string) Store {
 	store := &fileStore{baseFolder: baseFolder}
 
 	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))

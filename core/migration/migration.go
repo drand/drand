@@ -12,7 +12,8 @@ import (
 	"github.com/drand/drand/fs"
 )
 
-func CheckOldFolderStructure(baseFolder string) bool {
+// CheckSBFolderStructure checks if the file structure is single-beacon drand version or not
+func CheckSBFolderStructure(baseFolder string) bool {
 	groupFolderPath := path.Join(baseFolder, key.GroupFolderName)
 	keyFolderPath := path.Join(baseFolder, key.KeyFolderName)
 	dbFolderPath := path.Join(baseFolder, core.DefaultDBFolder)
@@ -24,10 +25,10 @@ func CheckOldFolderStructure(baseFolder string) bool {
 	return isGroupFound || isKeyFound || isDBFound
 }
 
-// MigrateOldFolderStructure will migrate the file store structure from drand-single-beacon version
+// MigrateSBFolderStructure will migrate the file store structure from single-beacon drand version
 // to the new structure created to support multi-beacon feature. This should be called on any function
 // which reads file store from disk, so we are sure the structure is the correct one.
-func MigrateOldFolderStructure(baseFolder string) error {
+func MigrateSBFolderStructure(baseFolder string) error {
 	groupFolderPath := path.Join(baseFolder, key.GroupFolderName)
 	keyFolderPath := path.Join(baseFolder, key.KeyFolderName)
 	dbFolderPath := path.Join(baseFolder, core.DefaultDBFolder)

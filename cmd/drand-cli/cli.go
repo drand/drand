@@ -569,7 +569,7 @@ func askPort() string {
 
 func runMigration(c *cli.Context) error {
 	config := contextToConfig(c)
-	if err := migration.MigrateOldFolderStructure(config.ConfigFolder()); err != nil {
+	if err := migration.MigrateSBFolderStructure(config.ConfigFolder()); err != nil {
 		return err
 	}
 
@@ -578,7 +578,7 @@ func runMigration(c *cli.Context) error {
 
 func checkMigration(c *cli.Context) error {
 	config := contextToConfig(c)
-	if isPresent := migration.CheckOldFolderStructure(config.ConfigFolder()); isPresent {
+	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
 		return fmt.Errorf("single-beacon drand folder structure was found, " +
 			"please first migrate it with 'drand util migrate' command")
 	}

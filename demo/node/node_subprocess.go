@@ -130,7 +130,7 @@ func (n *NodeProc) setup() {
 	if n.isCandidate {
 		n.store = key.NewFileStore(n.base, n.beaconID)
 	} else {
-		n.store = key.OldNewFileStore(n.base)
+		n.store = key.NewFileStoreSB(n.base)
 	}
 
 	// verify it's done
