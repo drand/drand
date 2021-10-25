@@ -12,7 +12,7 @@ import (
 
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
-	stores, err := key.NewFileStores(conf.ConfigFolder())
+	stores, err := key.NewFileStores(conf.ConfigFolderMB())
 	if err != nil {
 		return fmt.Errorf("can't read file stores %s", err)
 	}

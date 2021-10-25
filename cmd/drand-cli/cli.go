@@ -538,7 +538,7 @@ func resetCmd(c *cli.Context) error {
 			os.Exit(1)
 		}
 
-		if err := os.RemoveAll(path.Join(conf.ConfigFolder(), key)); err != nil {
+		if err := os.RemoveAll(path.Join(conf.ConfigFolderMB(), key)); err != nil {
 			fmt.Fprintf(output, "drand: beacon id [%s] - err reseting beacons database: %v\n", key, err)
 			os.Exit(1)
 		}
@@ -618,17 +618,17 @@ func keygenCmd(c *cli.Context) error {
 
 	config := contextToConfig(c)
 	beaconID := getBeaconID(c)
-	fileStore := key.NewFileStore(config.ConfigFolder(), beaconID)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	if _, err := fileStore.LoadKeyPair(); err == nil {
-		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolder())
+		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolderMB())
 		return nil
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {
 		return fmt.Errorf("could not save key: %s", err)
 	}
 
-	fullpath := path.Join(config.ConfigFolder(), beaconID, key.KeyFolderName)
+	fullpath := path.Join(config.ConfigFolderMB(), beaconID, key.KeyFolderName)
 	absPath, err := filepath.Abs(fullpath)
 
 	if err != nil {
@@ -921,24 +921,24 @@ func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
 	stores := make(map[string]string)
 
 	if c.IsSet(allBeaconsFlag.Name) {
-		fi, err := os.ReadDir(conf.ConfigFolder())
+		fi, err := os.ReadDir(conf.ConfigFolderMB())
 		if err != nil {
 			return nil, fmt.Errorf("error trying to read stores from config folder: %s", err)
 		}
 		for _, f := range fi {
 			if f.IsDir() {
-				stores[f.Name()] = path.Join(conf.ConfigFolder(), f.Name())
+				stores[f.Name()] = path.Join(conf.ConfigFolderMB(), f.Name())
 			}
 		}
 	} else {
 		beaconID := getBeaconID(c)
 
-		isPresent, err := fs.Exists(path.Join(conf.ConfigFolder(), beaconID))
+		isPresent, err := fs.Exists(path.Join(conf.ConfigFolderMB(), beaconID))
 		if err != nil || !isPresent {
 			return nil, fmt.Errorf("beacon id [%s] - error trying to read store: %s", beaconID, err)
 		}
 
-		stores[beaconID] = path.Join(conf.ConfigFolder(), beaconID)
+		stores[beaconID] = path.Join(conf.ConfigFolderMB(), beaconID)
 	}
 
 	return stores, nil
@@ -948,12 +948,12 @@ func getKeyStores(c *cli.Context) (map[string]key.Store, error) {
 	conf := contextToConfig(c)
 
 	if c.IsSet(allBeaconsFlag.Name) {
-		return key.NewFileStores(conf.ConfigFolder())
+		return key.NewFileStores(conf.ConfigFolderMB())
 	}
 
 	beaconID := getBeaconID(c)
 
-	store := key.NewFileStore(conf.ConfigFolder(), beaconID)
+	store := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
 	stores := map[string]key.Store{beaconID: store}
 
 	return stores, nil

@@ -63,6 +63,12 @@ func (d *Config) ConfigFolder() string {
 	return d.configFolder
 }
 
+// ConfigFolderMB returns the folder under which multi-beacon drand stores all its
+// configuration.
+func (d *Config) ConfigFolderMB() string {
+	return path.Join(d.configFolder, common.MultiBeaconFolder)
+}
+
 // DBFolder returns the folder under which drand stores db file specifically.
 // If beacon id is empty, it will use the default value
 func (d *Config) DBFolder(beaconID string) string {
@@ -70,7 +76,7 @@ func (d *Config) DBFolder(beaconID string) string {
 		beaconID = common.DefaultBeaconID
 	}
 
-	return path.Join(d.configFolder, beaconID, DefaultDBFolder)
+	return path.Join(d.ConfigFolderMB(), beaconID, DefaultDBFolder)
 }
 
 // Certs returns all custom certs currently being trusted by drand.

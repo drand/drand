@@ -108,7 +108,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		opts = append(opts, core.WithInsecure())
 	}
 	conf := core.NewConfig(opts...)
-	fs := key.NewFileStore(conf.ConfigFolder(), l.beaconID)
+	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	fs.SaveKeyPair(l.priv)
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
 	if l.daemon == nil {

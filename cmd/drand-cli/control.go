@@ -502,7 +502,7 @@ func selfSign(c *cli.Context) error {
 	conf := contextToConfig(c)
 	beaconID := getBeaconID(c)
 
-	fs := key.NewFileStore(conf.ConfigFolder(), beaconID)
+	fs := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
 	pair, err := fs.LoadKeyPair()
 
 	if err != nil {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"strings"
 	"sync"
 	"time"
@@ -139,7 +138,7 @@ func setupDrand(d *Drand, c *Config) error {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
+	d.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolderMB())
 	d.privGateway.StartAll()
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
@@ -321,10 +320,10 @@ func (d *Drand) WaitExit() chan bool {
 
 func (d *Drand) createBoltStore(dbName string) (chain.Store, error) {
 	if dbName == "" {
-		dbName = "default"
+		dbName = common.DefaultBeaconID
 	}
 
-	dbPath := path.Join(d.opts.ConfigFolder(), dbName, DefaultDBFolder)
+	dbPath := d.opts.DBFolder(dbName)
 	fs.CreateSecureFolder(dbPath)
 
 	return boltdb.NewBoltStore(dbPath, d.opts.boltOpts)

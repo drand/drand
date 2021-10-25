@@ -6,6 +6,9 @@ import "os"
 // value should not be changed for backward-compatibility reasons
 const DefaultBeaconID = "default"
 
+// MultiBeaconFolder
+const MultiBeaconFolder = "multibeacon"
+
 // GetBeaconIDFromEnv read beacon id from an environmental variable.
 // It is used for testing purpose.
 func GetBeaconIDFromEnv() string {
