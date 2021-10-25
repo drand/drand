@@ -288,8 +288,14 @@ func TestUtilCheck(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
-	go CLI().RunContext(ctx, listen)
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
+	go func() {
+		err := CLI().RunContext(ctx, listen)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	time.Sleep(200 * time.Millisecond)
 
 	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
@@ -325,13 +331,21 @@ func TestStartWithoutGroup(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
+		"--private-listen", priv.Public.Address(),
 		"--tls-disable",
 		"--verbose",
 		"--folder", tmpPath,
 		"--control", ctrlPort1,
 		"--metrics", "127.0.0.1:" + metricsPort,
 	}
-	go CLI().Run(startArgs)
+
+	go func() {
+		err := CLI().Run(startArgs)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println("--- DRAND SHARE --- (expected to fail)")
@@ -340,6 +354,8 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
+
+	fmt.Println("--- DRAND STOP --- (failing instanace)")
 	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")
@@ -376,8 +392,24 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
-	start2 := []string{"drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
-	go CLI().Run(start2)
+	start2 := []string{
+		"drand",
+		"start",
+		"--control", ctrlPort2,
+		"--private-listen", priv.Public.Address(),
+		"--tls-disable",
+		"--folder", tmpPath,
+		"--verbose",
+		"--private-rand",
+	}
+
+	go func() {
+		err := CLI().Run(start2)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 
 	time.Sleep(500 * time.Millisecond)
@@ -545,6 +577,7 @@ func TestClientTLS(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
+		"--private-listen", priv.Public.Address(),
 		"--tls-cert", certPath,
 		"--tls-key", keyPath,
 		"--control", ctrlPort,
