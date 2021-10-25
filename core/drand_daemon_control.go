@@ -29,7 +29,7 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 		dd.log.Infow("", "beacon_id", beaconID, "init_dkg", "instantiating a new beacon process")
 		bp, err = dd.AddNewBeaconProcess(beaconID, *store)
 		if err != nil {
-			return nil, fmt.Errorf("something went wrong try to initiate DKG")
+			return nil, fmt.Errorf("something went wrong try to initiate DKG. err: %s", err)
 		}
 	}
 

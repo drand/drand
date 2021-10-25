@@ -79,7 +79,7 @@ func NewBeaconProcess(log log.Logger, version utils.Version, store key.Store,
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		return nil, fmt.Errorf("INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
+		return nil, fmt.Errorf("INVALID SELF SIGNATURE %s. Action: run `drand util self-sign`", err)
 	}
 
 	bp := &BeaconProcess{
@@ -226,6 +226,7 @@ func (d *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent b
 	newShare := d.share
 	d.state.Unlock()
 
+	d.log.Infow("", "--->", d.beacon)
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
 		d.beacon.TransitionNewGroup(newShare, newGroup)
