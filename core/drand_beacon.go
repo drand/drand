@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/net"
 
@@ -255,10 +256,10 @@ func (d *BeaconProcess) WaitExit() chan bool {
 
 func (d *BeaconProcess) createBoltStore(dbName string) (chain.Store, error) {
 	if dbName == "" {
-		dbName = "default"
+		dbName = common.DefaultBeaconID
 	}
 
-	dbPath := path.Join(d.opts.ConfigFolder(), dbName, DefaultDBFolder)
+	dbPath := d.opts.DBFolder(dbName)
 	fs.CreateSecureFolder(dbPath)
 
 	return boltdb.NewBoltStore(dbPath, d.opts.boltOpts)

@@ -97,7 +97,7 @@ func (dd *DrandDaemon) init() error {
 	dd.control = net.NewTCPGrpcControlListener(dd, p)
 	go dd.control.Start()
 
-	dd.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", c.ConfigFolder())
+	dd.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", c.ConfigFolderMB())
 	dd.privGateway.StartAll()
 	if dd.pubGateway != nil {
 		dd.pubGateway.StartAll()

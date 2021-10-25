@@ -22,7 +22,7 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 		if !isStoreLoaded {
 			dd.log.Infow("", "beacon_id", beaconID, "init_dkg", "loading store from disk")
 
-			newStore := key.NewFileStore(dd.opts.ConfigFolder(), beaconID)
+			newStore := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
 			store = &newStore
 		}
 
@@ -45,7 +45,7 @@ func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePac
 		if !isStoreLoaded {
 			dd.log.Infow("", "beacon_id", beaconID, "init_reshare", "loading store from disk")
 
-			newStore := key.NewFileStore(dd.opts.ConfigFolder(), beaconID)
+			newStore := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
 			store = &newStore
 		}
 

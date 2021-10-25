@@ -120,7 +120,7 @@ func (l *LocalNode) Start(certFolder string) error {
 	}
 
 	// Load possible existing stores
-	stores, err := key.NewFileStores(conf.ConfigFolder())
+	stores, err := key.NewFileStores(conf.ConfigFolderMB())
 	if err != nil {
 		return err
 	}
