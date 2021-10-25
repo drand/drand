@@ -126,13 +126,10 @@ func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*
 
 // Shutdown stops the node
 func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
+	dd.Stop(ctx)
 
-	bp.StopBeacon()
-	return nil, nil
+	metadata := common.NewMetadata(dd.version.ToProto())
+	return &drand.ShutdownResponse{Metadata: metadata}, nil
 }
 
 // BackupDatabase triggers a backup of the primary database.
