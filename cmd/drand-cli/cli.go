@@ -435,7 +435,6 @@ var appCommands = []*cli.Command{
 				Usage:  "backs up the primary drand database to a secondary location.",
 				Flags:  toArray(outFlag, controlFlag),
 				Action: backupDBCmd,
-				Before: checkMigration,
 			},
 		},
 	},
