@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/drand/drand/common"
@@ -41,23 +42,33 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		return nil, errors.New("config: need to set WithInsecure if no certificate and private key path given")
 	}
 
-	return &DrandDaemon{
+	drandDaemon := &DrandDaemon{
 		opts:            c,
 		log:             logger,
 		exitCh:          make(chan bool, 1),
 		version:         common.GetAppVersion(),
 		initialStores:   make(map[string]*key.Store),
 		beaconProcesses: make(map[string]*BeaconProcess),
-	}, nil
+	}
+
+	if err := drandDaemon.init(); err != nil {
+		return nil, err
+	}
+
+	return drandDaemon, nil
 }
 
-func (dd *DrandDaemon) Init() error {
+func (dd *DrandDaemon) init() error {
 	c := dd.opts
 
 	// Set the private API address to the command-line flag, if given.
 	// Otherwise, set it to the address associated with stored private key.
 	privAddr := c.PrivateListenAddress("")
 	pubAddr := c.PublicListenAddress("")
+
+	if privAddr == "" {
+		return fmt.Errorf("private listen address cannot be empty")
+	}
 
 	// ctx is used to create the gateway below.
 	// Gateway constructors (specifically, the generated gateway stubs that require it)
@@ -96,6 +107,10 @@ func (dd *DrandDaemon) Init() error {
 }
 
 func (dd *DrandDaemon) AddNewBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+
 	bp, err := NewBeaconProcess(dd.log, dd.version, store, dd.opts, dd.privGateway, dd.pubGateway, dd.control)
 	if err != nil {
 		return nil, err

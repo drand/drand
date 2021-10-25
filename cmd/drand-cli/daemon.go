@@ -13,15 +13,10 @@ import (
 func startCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 
-	// Create drand daemon
+	// Create and start drand daemon
 	drandDaemon, err := core.NewDrandDaemon(conf)
 	if err != nil {
 		return fmt.Errorf("can't instantiate drand daemon %s", err)
-	}
-
-	// Start drand daemon
-	if err := drandDaemon.Init(); err != nil {
-		return err
 	}
 
 	// Load possible existing stores
