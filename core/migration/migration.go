@@ -49,47 +49,51 @@ func MigrateSBFolderStructure(baseFolder string) error {
 		return nil
 	}
 
+	if fs.CreateSecureFolder(path.Join(baseFolder, common.MultiBeaconFolder)) == "" {
+		return fmt.Errorf("something went wrong with the multi beacon folder. Make sure that you have the appropriate rights")
+	}
+
 	// Create new folders to move actual files found. If one of them exists, we will be sure the all new structures have been created
 	if isGroupFound || isKeyFound || isDBFound {
-		if fs.CreateSecureFolder(path.Join(baseFolder, common.DefaultBeaconID, key.GroupFolderName)) == "" {
+		if fs.CreateSecureFolder(path.Join(baseFolder, common.MultiBeaconFolder, common.DefaultBeaconID, key.GroupFolderName)) == "" {
 			return fmt.Errorf("something went wrong with the group folder. Make sure that you have the appropriate rights")
 		}
 
-		if fs.CreateSecureFolder(path.Join(baseFolder, common.DefaultBeaconID, key.KeyFolderName)) == "" {
+		if fs.CreateSecureFolder(path.Join(baseFolder, common.MultiBeaconFolder, common.DefaultBeaconID, key.KeyFolderName)) == "" {
 			return fmt.Errorf("something went wrong with the key folder. Make sure that you have the appropriate rights")
 		}
 
-		if fs.CreateSecureFolder(path.Join(baseFolder, common.DefaultBeaconID, core.DefaultDBFolder)) == "" {
+		if fs.CreateSecureFolder(path.Join(baseFolder, common.MultiBeaconFolder, common.DefaultBeaconID, core.DefaultDBFolder)) == "" {
 			return fmt.Errorf("something went wrong with the db folder. Make sure that you have the appropriate rights")
 		}
 	}
 
 	if isGroupFound {
 		oldPath := path.Join(baseFolder, key.GroupFolderName)
-		newPath := path.Join(baseFolder, common.DefaultBeaconID, key.GroupFolderName)
+		newPath := path.Join(baseFolder, common.MultiBeaconFolder, common.DefaultBeaconID, key.GroupFolderName)
 
-		// Move files to new destinations (only if the folder is found)
-		if err := fs.MoveFolder(oldPath, newPath); err != nil {
+		// Copy files to new destinations (only if the folder is found)
+		if err := fs.CopyFolder(oldPath, newPath); err != nil {
 			return fmt.Errorf("something went wrong with the new group folder. Make sure that you have the appropriate rights")
 		}
 	}
 
 	if isKeyFound {
 		oldPath := path.Join(baseFolder, key.KeyFolderName)
-		newPath := path.Join(baseFolder, common.DefaultBeaconID, key.KeyFolderName)
+		newPath := path.Join(baseFolder, common.MultiBeaconFolder, common.DefaultBeaconID, key.KeyFolderName)
 
-		// Move files to new destinations (only if the folder is found)
-		if err := fs.MoveFolder(oldPath, newPath); err != nil {
+		// Copy files to new destinations (only if the folder is found)
+		if err := fs.CopyFolder(oldPath, newPath); err != nil {
 			return fmt.Errorf("something went wrong with the new key folder. Make sure that you have the appropriate rights")
 		}
 	}
 
 	if isDBFound {
 		oldPath := path.Join(baseFolder, core.DefaultDBFolder)
-		newPath := path.Join(baseFolder, common.DefaultBeaconID, core.DefaultDBFolder)
+		newPath := path.Join(baseFolder, common.MultiBeaconFolder, common.DefaultBeaconID, core.DefaultDBFolder)
 
-		// Move files to new destinations (only if the folder is found)
-		if err := fs.MoveFolder(oldPath, newPath); err != nil {
+		// Copy files to new destinations (only if the folder is found)
+		if err := fs.CopyFolder(oldPath, newPath); err != nil {
 			return fmt.Errorf("something went wrong with the new db folder. Make sure that you have the appropriate rights")
 		}
 	}

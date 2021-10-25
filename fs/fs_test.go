@@ -51,7 +51,7 @@ func TestSecureDirAlreadyHere(t *testing.T) {
 	}
 }
 
-func TestMoveFile(t *testing.T) {
+func TestCopyFolder(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "tmp")
 	folder1Path := path.Join(tmpPath, "folder1")
 	subFolder1Path := path.Join(folder1Path, "folder1")
@@ -66,7 +66,7 @@ func TestMoveFile(t *testing.T) {
 		t.Errorf(err)
 	}
 
-	if err := MoveFolder(folder1Path, subFolder2Path); err != nil {
+	if err := CopyFolder(folder1Path, subFolder2Path); err != nil {
 		t.Errorf(err.Error())
 	}
 

@@ -136,13 +136,23 @@ func FolderExists(folderPath, name string) bool {
 	return false
 }
 
-// MoveFile moves a file or folder from one path to another
-func MoveFile(origFilePath, destFilePath string) error {
-	return os.Rename(origFilePath, destFilePath)
+// CopyFile copy a file or folder from one path to another
+func CopyFile(origFilePath, destFilePath string) error {
+	input, err := os.ReadFile(origFilePath)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(destFilePath, input, rwFilePermission)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// MoveFolder moves files inside a folder to another folder recursively
-func MoveFolder(origFolderPath, destFolderPath string) error {
+// CopyFolder copy files inside a folder to another folder recursively
+func CopyFolder(origFolderPath, destFolderPath string) error {
 	fi, err := os.ReadDir(origFolderPath)
 	if err != nil {
 		return err
@@ -153,19 +163,15 @@ func MoveFolder(origFolderPath, destFolderPath string) error {
 		tmp2 := path.Join(destFolderPath, file.Name())
 
 		if !file.IsDir() {
-			if err := MoveFile(tmp1, tmp2); err != nil {
+			if err := CopyFile(tmp1, tmp2); err != nil {
 				return err
 			}
 		} else {
 			CreateSecureFolder(tmp2)
-			if err := MoveFolder(tmp1, tmp2); err != nil {
+			if err := CopyFolder(tmp1, tmp2); err != nil {
 				return err
 			}
 		}
-	}
-
-	if err := os.RemoveAll(origFolderPath); err != nil {
-		return err
 	}
 
 	return nil
