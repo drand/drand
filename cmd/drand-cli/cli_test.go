@@ -43,7 +43,9 @@ func TestMigrate(t *testing.T) {
 	app := CLI()
 	require.NoError(t, app.Run(args))
 
-	defaultBeaconPath := path.Join(tmp, common.DefaultBeaconID)
+	config := core.NewConfig(core.WithConfigFolder(tmp))
+	defaultBeaconPath := path.Join(config.ConfigFolderMB(), common.DefaultBeaconID)
+
 	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
 	newKeyFilePath := path.Join(defaultBeaconPath, key.KeyFolderName)
 	newDBFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
