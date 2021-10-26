@@ -67,7 +67,6 @@ func TestResetError(t *testing.T) {
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
-	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "reset", "--folder", tmp, "--id", beaconID}
 	app := CLI()
 	require.Error(t, app.Run(args))
@@ -122,7 +121,6 @@ func TestDeleteBeacon(t *testing.T) {
 
 	store.Close()
 
-	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
 	app := CLI()
 	require.NoError(t, app.Run(args))
@@ -146,7 +144,6 @@ func TestKeySelfSignError(t *testing.T) {
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
-	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
 	app := CLI()
 	require.Error(t, app.Run(args))
@@ -185,7 +182,6 @@ func TestKeyGenError(t *testing.T) {
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
 
-	// that command should delete round 3 and 4
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
 	app := CLI()
 	require.Error(t, app.Run(args))

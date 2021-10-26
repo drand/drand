@@ -578,8 +578,8 @@ func runMigration(c *cli.Context) error {
 func checkMigration(c *cli.Context) error {
 	config := contextToConfig(c)
 	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
-		return fmt.Errorf("single-beacon drand folder structure was found, " +
-			"please first migrate it with 'drand util migrate' command")
+		return fmt.Errorf("single-beacon drand folder structure was not migrated, " +
+			"please first do it with 'drand util migrate' command")
 	}
 
 	return nil
