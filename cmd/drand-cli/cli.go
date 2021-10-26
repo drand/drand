@@ -582,6 +582,11 @@ func checkMigration(c *cli.Context) error {
 			"please first do it with 'drand util migrate' command")
 	}
 
+	if fs.CreateSecureFolder(config.ConfigFolderMB()) == "" {
+		return fmt.Errorf("something went wrong with the multi beacon folder. " +
+			"Make sure that you have the appropriate rights")
+	}
+
 	return nil
 }
 
