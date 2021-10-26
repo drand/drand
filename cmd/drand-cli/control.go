@@ -349,7 +349,7 @@ func statusCmd(c *cli.Context) error {
 func migrateCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
-		return fmt.Errorf("cannot migrate folder structure, please try again. err: ", err)
+		return fmt.Errorf("cannot migrate folder structure, please try again. err: %s", err)
 	}
 
 	fmt.Fprintf(output, "folder structure is now ready to support multi-beacon drand\n")
