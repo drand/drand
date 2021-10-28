@@ -11,6 +11,7 @@ services:
       - "0.0.0.0:5030:8080"
       - "0.0.0.0:5031:8081"
       - "0.0.0.0:5032:8888"
+      - "0.0.0.0:9080:9080"
     entrypoint: /sbin/tini -- /usr/local/bin/entrypoint.sh
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8080 --public-listen 0.0.0.0:8081 --tls-disable true
     environment:
@@ -27,6 +28,7 @@ services:
       - "0.0.0.0:5130:8180"
       - "0.0.0.0:5131:8181"
       - "0.0.0.0:5132:8888"
+      - "0.0.0.0:9180:9180"
     entrypoint: /sbin/tini -- /usr/local/bin/entrypoint.sh
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8180 --public-listen 0.0.0.0:8181 --tls-disable true
     environment:
@@ -43,6 +45,7 @@ services:
       - "0.0.0.0:5230:8280"
       - "0.0.0.0:5231:8281"
       - "0.0.0.0:5232:8888"
+      - "0.0.0.0:9280:9280"
     entrypoint: /sbin/tini -- /usr/local/bin/entrypoint.sh
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8280 --public-listen 0.0.0.0:8281 --tls-disable true
     environment:
@@ -59,6 +62,7 @@ services:
       - "0.0.0.0:5330:8380"
       - "0.0.0.0:5331:8381"
       - "0.0.0.0:5332:8888"
+      - "0.0.0.0:9380:9380"
     entrypoint: /sbin/tini -- /usr/local/bin/entrypoint.sh
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8380 --public-listen 0.0.0.0:8381 --tls-disable true
     environment:
@@ -75,6 +79,7 @@ services:
       - "0.0.0.0:5430:8480"
       - "0.0.0.0:5431:8481"
       - "0.0.0.0:5432:8888"
+      - "0.0.0.0:9480:9480"
     entrypoint: /sbin/tini -- /usr/local/bin/entrypoint.sh
     command: start --verbose --control 8888 --private-listen 0.0.0.0:8480 --public-listen 0.0.0.0:8481 --tls-disable true
     environment:
