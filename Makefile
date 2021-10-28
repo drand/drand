@@ -113,7 +113,7 @@ build_docker:
 	docker build --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
 
 build_docker_dev:
-	docker build -f Dockerfile.dev --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
+	docker build -f test/docker/Dockerfile --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
 install_deps_linux:
