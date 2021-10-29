@@ -112,25 +112,6 @@ func NewFileStore(baseFolder, beaconID string) Store {
 	return store
 }
 
-// FIXME After merging to master, we should remove this as master will be able
-// to handle the new files structure. (created only for regression test)
-// deprecated
-// NewFileStoreSB is used to create the config folder and all the subfolders in an old way.
-// If a folder alredy exists, we simply check the rights
-func NewFileStoreSB(baseFolder string) Store {
-	store := &fileStore{baseFolder: baseFolder}
-
-	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))
-	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, GroupFolderName))
-
-	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
-	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
-	store.groupFile = path.Join(groupFolder, groupFileName)
-	store.shareFile = path.Join(groupFolder, shareFileName)
-	store.distKeyFile = path.Join(groupFolder, distKeyFileName)
-	return store
-}
-
 // SaveKeyPair first saves the private key in a file with tight permissions and then
 // saves the public part in another file.
 func (f *fileStore) SaveKeyPair(p *Pair) error {

@@ -113,12 +113,7 @@ func (n *NodeProc) setup() {
 	// call drand binary
 	n.priv = key.NewKeyPair(n.privAddr)
 
-	args := []string{"generate-keypair", "--folder", n.base}
-
-	// FIXME After merging to master, we MUST remove this check (master has no --id on this CLI cmd)
-	if n.isCandidate {
-		args = append(args, "--id", n.beaconID)
-	}
+	args := []string{"generate-keypair", "--folder", n.base, "--id", n.beaconID}
 
 	if !n.tls {
 		args = append(args, "--tls-disable")
@@ -127,15 +122,8 @@ func (n *NodeProc) setup() {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
-	// FIXME After merging to master, we MUST remove this as master will be able to handle the new files structure.
-	// We have to act differently because the previous version cannot handle the new files structure. We will load
-	// the store accordingly to the drand version we are running.
-	if n.isCandidate {
-		config := core.NewConfig(core.WithConfigFolder(n.base))
-		n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
-	} else {
-		n.store = key.NewFileStoreSB(n.base)
-	}
+	config := core.NewConfig(core.WithConfigFolder(n.base))
+	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done
 	n.priv, err = n.store.LoadKeyPair()
