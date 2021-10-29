@@ -24,6 +24,7 @@ var beaconBucket = []byte("beacons")
 // BoltFileName is the name of the file boltdb writes to
 const BoltFileName = "drand.db"
 
+// BoltStoreOpenPerm is the permission we will use to read bolt store file from disk
 const BoltStoreOpenPerm = 0660
 
 // NewBoltStore returns a Store implementation using the boltdb storage engine.

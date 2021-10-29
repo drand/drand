@@ -985,7 +985,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 		return errors.New("invalid beacon id on chain info")
 	}
 
-	store, err := d.createBoltStore()
+	store, err := d.createBoltStore(beaconID)
 	if err != nil {
 		d.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %s", err)

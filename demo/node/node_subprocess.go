@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/core"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/key"
@@ -35,22 +37,24 @@ type NodeProc struct {
 	// certificate key
 	keyPath string
 	// where all public certs are stored
-	certFolder string
-	startCmd   *exec.Cmd
-	logPath    string
-	privAddr   string
-	pubAddr    string
-	priv       *key.Pair
-	store      key.Store
-	cancel     context.CancelFunc
-	ctrl       string
-	tls        bool
-	groupPath  string
-	binary     string
-	scheme     scheme.Scheme
+	certFolder  string
+	startCmd    *exec.Cmd
+	logPath     string
+	privAddr    string
+	pubAddr     string
+	priv        *key.Pair
+	store       key.Store
+	cancel      context.CancelFunc
+	ctrl        string
+	tls         bool
+	groupPath   string
+	binary      string
+	isCandidate bool
+	scheme      scheme.Scheme
+	beaconID    string
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme) Node {
+func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -58,23 +62,26 @@ func NewNode(i int, period string, base string, tls bool, binary string, sch sch
 	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
 	n := &NodeProc{
-		tls:        tls,
-		base:       nbase,
-		i:          i,
-		logPath:    logPath,
-		publicPath: publicPath,
-		groupPath:  groupPath,
-		period:     period,
-		scheme:     sch,
-		binary:     binary,
+		tls:         tls,
+		base:        nbase,
+		i:           i,
+		logPath:     logPath,
+		publicPath:  publicPath,
+		groupPath:   groupPath,
+		period:      period,
+		scheme:      sch,
+		binary:      binary,
+		beaconID:    beaconID,
+		isCandidate: isCandidate,
 	}
 	n.setup()
 	return n
 }
 
 // UpdateBinary updates the binary this node uses for control, to e.g. simulate an upgrade
-func (n *NodeProc) UpdateBinary(binary string) {
+func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 	n.binary = binary
+	n.isCandidate = isCandidate
 }
 
 func (n *NodeProc) setup() {
@@ -87,6 +94,7 @@ func (n *NodeProc) setup() {
 	n.privAddr = host + ":" + freePort
 	n.pubAddr = host + ":" + freePortREST
 	ctrlPort := test.FreePort()
+
 	if n.tls {
 		// generate certificate
 		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
@@ -104,7 +112,14 @@ func (n *NodeProc) setup() {
 
 	// call drand binary
 	n.priv = key.NewKeyPair(n.privAddr)
+
 	args := []string{"generate-keypair", "--folder", n.base}
+
+	// FIXME After merging to master, we MUST remove this check (master has no --id on this CLI cmd)
+	if n.isCandidate {
+		args = append(args, "--id", n.beaconID)
+	}
+
 	if !n.tls {
 		args = append(args, "--tls-disable")
 	}
@@ -112,8 +127,17 @@ func (n *NodeProc) setup() {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
+	// FIXME After merging to master, we MUST remove this as master will be able to handle the new files structure.
+	// We have to act differently because the previous version cannot handle the new files structure. We will load
+	// the store accordingly to the drand version we are running.
+	if n.isCandidate {
+		config := core.NewConfig(core.WithConfigFolder(n.base))
+		n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
+	} else {
+		n.store = key.NewFileStoreSB(n.base)
+	}
+
 	// verify it's done
-	n.store = key.NewFileStore(n.base)
 	n.priv, err = n.store.LoadKeyPair()
 	if n.priv.Public.Address() != n.privAddr {
 		panic(fmt.Errorf("[-] Private key stored has address %s vs generated %s || base %s", n.priv.Public.Address(), n.privAddr, n.base))
@@ -130,6 +154,7 @@ func (n *NodeProc) Start(certFolder string) error {
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	logFile.Write([]byte("\n\nNEW LOG\n\n"))
 	checkErr(err)
+
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
 	args = append(args, pair("--control", n.ctrl)...)
@@ -145,13 +170,18 @@ func (n *NodeProc) Start(certFolder string) error {
 		args = append(args, "--tls-disable")
 	}
 	args = append(args, "--verbose")
+
+	fmt.Printf("starting node %s with cmd: %s \n", n.privAddr, args)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	n.cancel = cancel
 	n.certFolder = certFolder
+
 	cmd := exec.CommandContext(ctx, n.binary, args...)
 	n.startCmd = cmd
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
+
 	go func() {
 		defer logFile.Close()
 		// TODO make the "stop" command returns a graceful error code when
@@ -163,6 +193,10 @@ func (n *NodeProc) Start(certFolder string) error {
 
 func (n *NodeProc) PrivateAddr() string {
 	return n.privAddr
+}
+
+func (n *NodeProc) CtrlAddr() string {
+	return n.ctrl
 }
 
 func (n *NodeProc) PublicAddr() string {

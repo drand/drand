@@ -6,6 +6,8 @@ import (
 	"path"
 	"reflect"
 
+	"github.com/drand/drand/common"
+
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/fs"
 )
@@ -51,6 +53,7 @@ type Tomler interface {
 // fileStore is a Store using filesystem to store informations
 type fileStore struct {
 	baseFolder     string
+	beaconID       string
 	privateKeyFile string
 	publicKeyFile  string
 	shareFile      string
@@ -58,17 +61,68 @@ type fileStore struct {
 	groupFile      string
 }
 
+// GetFirstStore will return the first store from the stores map
+func GetFirstStore(stores map[string]Store) (string, Store) {
+	for k, v := range stores {
+		return k, v
+	}
+	return "", nil
+}
+
+// NewFileStores will list all folder on base path and load every file store it can find. It will
+// return a map with a beacon id as key and a file store as value.
+func NewFileStores(baseFolder string) (map[string]Store, error) {
+	fileStores := make(map[string]Store)
+	fi, err := os.ReadDir(path.Join(baseFolder))
+	if err != nil {
+		return nil, err
+	}
+
+	for _, f := range fi {
+		if f.IsDir() {
+			fileStores[f.Name()] = NewFileStore(baseFolder, f.Name())
+		}
+	}
+
+	if len(fileStores) == 0 {
+		fileStores[common.DefaultBeaconID] = NewFileStore(baseFolder, common.DefaultBeaconID)
+	}
+
+	return fileStores, nil
+}
+
 // NewFileStore is used to create the config folder and all the subfolders.
 // If a folder alredy exists, we simply check the rights
-func NewFileStore(baseFolder string) Store {
-	// config folder
-	if fs.CreateSecureFolder(baseFolder) == "" {
-		fmt.Println("Something went wrong with the config folder. Make sure that you have the appropriate rights.")
-		os.Exit(1)
+func NewFileStore(baseFolder, beaconID string) Store {
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
 	}
+
+	store := &fileStore{baseFolder: baseFolder, beaconID: beaconID}
+
+	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, beaconID, KeyFolderName))
+	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, beaconID, GroupFolderName))
+
+	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
+	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
+	store.groupFile = path.Join(groupFolder, groupFileName)
+	store.shareFile = path.Join(groupFolder, shareFileName)
+	store.distKeyFile = path.Join(groupFolder, distKeyFileName)
+
+	return store
+}
+
+// FIXME After merging to master, we should remove this as master will be able
+// to handle the new files structure. (created only for regression test)
+// deprecated
+// NewFileStoreSB is used to create the config folder and all the subfolders in an old way.
+// If a folder alredy exists, we simply check the rights
+func NewFileStoreSB(baseFolder string) Store {
 	store := &fileStore{baseFolder: baseFolder}
+
 	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, KeyFolderName))
 	groupFolder := fs.CreateSecureFolder(path.Join(baseFolder, GroupFolderName))
+
 	store.privateKeyFile = path.Join(keyFolder, keyFileName) + privateExtension
 	store.publicKeyFile = path.Join(keyFolder, keyFileName) + publicExtension
 	store.groupFile = path.Join(groupFolder, groupFileName)

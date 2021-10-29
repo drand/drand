@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -64,9 +66,9 @@ func TestBroadcastSet(t *testing.T) {
 
 func TestBroadcast(t *testing.T) {
 	n := 5
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
-	drands, group, dir, _ := BatchNewDrand(t, n, true, sch, BeaconIDForTesting)
+	drands, group, dir, _ := BatchNewDrand(t, n, true, sch, beaconID)
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
 
@@ -81,7 +83,7 @@ func TestBroadcast(t *testing.T) {
 	for _, d := range drands {
 		id := d.priv.Public.Address()
 		version := utils.Version{Major: 0, Minor: 0, Patch: 0}
-		b := newEchoBroadcast(d.log, version, BeaconIDForTesting, d.privGateway.ProtocolClient,
+		b := newEchoBroadcast(d.log, version, beaconID, d.privGateway.ProtocolClient,
 			id, group.Nodes, func(dkg.Packet) error { return nil })
 
 		d.dkgInfo = &dkgInfo{

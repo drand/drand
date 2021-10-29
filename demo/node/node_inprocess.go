@@ -30,8 +30,10 @@ type LocalNode struct {
 	scheme     scheme.Scheme
 	publicPath string
 	certPath   string
+
 	// certificate key
 	keyPath string
+
 	// where all public certs are stored
 	certFolder string
 	logPath    string
@@ -106,7 +108,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		opts = append(opts, core.WithInsecure())
 	}
 	conf := core.NewConfig(opts...)
-	fs := key.NewFileStore(conf.ConfigFolder())
+	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	fs.SaveKeyPair(l.priv)
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
 	if l.daemon == nil {
@@ -128,6 +130,10 @@ func (l *LocalNode) Start(certFolder string) error {
 
 func (l *LocalNode) PrivateAddr() string {
 	return l.privAddr
+}
+
+func (l *LocalNode) CtrlAddr() string {
+	return l.ctrlAddr
 }
 
 func (l *LocalNode) PublicAddr() string {

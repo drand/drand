@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/BurntSushi/toml"
@@ -32,16 +34,66 @@ import (
 )
 
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
-const BeaconIDForTesting = "test_beacon"
+
+func TestMigrate(t *testing.T) {
+	tmp := getSBFolderStructure()
+	defer os.RemoveAll(tmp)
+
+	args := []string{"drand", "util", "migrate", "--folder", tmp}
+	app := CLI()
+	require.NoError(t, app.Run(args))
+
+	config := core.NewConfig(core.WithConfigFolder(tmp))
+	defaultBeaconPath := path.Join(config.ConfigFolderMB(), common.DefaultBeaconID)
+
+	newGroupFilePath := path.Join(defaultBeaconPath, key.GroupFolderName)
+	newKeyFilePath := path.Join(defaultBeaconPath, key.KeyFolderName)
+	newDBFilePath := path.Join(defaultBeaconPath, core.DefaultDBFolder)
+
+	if !fs.FolderExists(defaultBeaconPath, newGroupFilePath) {
+		t.Errorf("group folder should have been migrated")
+	}
+	if !fs.FolderExists(defaultBeaconPath, newKeyFilePath) {
+		t.Errorf("key folder should have been migrated")
+	}
+	if !fs.FolderExists(defaultBeaconPath, newDBFilePath) {
+		t.Errorf("db folder should have been migrated")
+	}
+}
+
+func TestResetError(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
+	tmp := getSBFolderStructure()
+	defer os.RemoveAll(tmp)
+
+	args := []string{"drand", "util", "reset", "--folder", tmp, "--id", beaconID}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
+
+func TestDeleteBeaconError(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
+	tmp := getSBFolderStructure()
+	defer os.RemoveAll(tmp)
+
+	// that command should delete round 3 and 4
+	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
 
 func TestDeleteBeacon(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
 
 	var opt = core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
-	fs.CreateSecureFolder(conf.DBFolder())
-	store, err := boltdb.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+	fs.CreateSecureFolder(conf.DBFolder(beaconID))
+	store, err := boltdb.NewBoltStore(conf.DBFolder(beaconID), conf.BoltOptions())
 	require.NoError(t, err)
 	store.Put(&chain.Beacon{
 		Round:     1,
@@ -68,35 +120,53 @@ func TestDeleteBeacon(t *testing.T) {
 	require.NotNil(t, b)
 
 	store.Close()
-	// that command should delete round 3 and 4
-	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "3"}
+
+	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
 	app := CLI()
 	require.NoError(t, app.Run(args))
-	store, err = boltdb.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+
+	store, err = boltdb.NewBoltStore(conf.DBFolder(beaconID), conf.BoltOptions())
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail
 	b, err = store.Get(3)
 	require.Error(t, err)
 	require.Nil(t, b)
+
 	b, err = store.Get(4)
 	require.Error(t, err)
 	require.Nil(t, b)
 }
 
+func TestKeySelfSignError(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
+	tmp := getSBFolderStructure()
+	defer os.RemoveAll(tmp)
+
+	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
+
 func TestKeySelfSign(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "127.0.0.1:8081"}
+
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
 	require.NoError(t, CLI().Run(args))
 
-	selfSign := []string{"drand", "util", "self-sign", "--folder", tmp}
+	selfSign := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
 	// try self sign, it should only print that it's already the case
 	expectedOutput := "already self signed"
 	testCommand(t, selfSign, expectedOutput)
 
 	// load, remove signature and save
-	fileStore := key.NewFileStore(tmp)
+	config := core.NewConfig(core.WithConfigFolder(tmp))
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
+
 	pair, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	pair.Public.Signature = nil
@@ -106,25 +176,40 @@ func TestKeySelfSign(t *testing.T) {
 	testCommand(t, selfSign, expectedOutput)
 }
 
+func TestKeyGenError(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
+	tmp := getSBFolderStructure()
+	defer os.RemoveAll(tmp)
+
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
+	app := CLI()
+	require.Error(t, app.Run(args))
+}
+
 func TestKeyGen(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
-	args := []string{"drand", "generate-keypair", "--folder", tmp, "127.0.0.1:8081"}
+
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
 	require.NoError(t, CLI().Run(args))
 
 	config := core.NewConfig(core.WithConfigFolder(tmp))
-	fileStore := key.NewFileStore(config.ConfigFolder())
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	priv, err := fileStore.LoadKeyPair()
 	require.NoError(t, err)
 	require.NotNil(t, priv.Public)
 
 	tmp2 := path.Join(os.TempDir(), "drand2")
 	defer os.RemoveAll(tmp2)
-	args = []string{"drand", "generate-keypair", "--folder", tmp2}
+
+	args = []string{"drand", "generate-keypair", "--folder", tmp2, "--id", beaconID}
 	require.Error(t, CLI().Run(args))
 
 	config = core.NewConfig(core.WithConfigFolder(tmp2))
-	fileStore = key.NewFileStore(config.ConfigFolder())
+	fileStore = key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	priv, err = fileStore.LoadKeyPair()
 	require.Error(t, err)
 	require.Nil(t, priv)
@@ -137,13 +222,14 @@ func TestStartAndStop(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	n := 5
-	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
+	sch := scheme.GetSchemeFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
 
 	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
 
-	args := []string{"drand", "generate-keypair", "127.0.0.1:8080", "--tls-disable", "--folder", tmpPath}
+	args := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmpPath, "--id", beaconID, "127.0.0.1:8080"}
 	require.NoError(t, CLI().Run(args))
 	startCh := make(chan bool)
 	go func() {
@@ -158,8 +244,10 @@ func TestStartAndStop(t *testing.T) {
 	}()
 	<-startCh
 	time.Sleep(200 * time.Millisecond)
+
 	stopArgs := []string{"drand", "stop"}
 	CLI().Run(stopArgs)
+
 	select {
 	case <-startCh:
 	case <-time.After(1 * time.Second):
@@ -168,13 +256,16 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestUtilCheck(t *testing.T) {
+	beaconID := common.GetBeaconIDFromEnv()
+
 	tmp, err := os.MkdirTemp("", "drand-cli-*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
+
 	// try to generate a keypair and make it listen on another address
 	keyPort := test.FreePort()
 	keyAddr := "127.0.0.1:" + keyPort
-	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, keyAddr}
+	generate := []string{"drand", "generate-keypair", "--tls-disable", "--folder", tmp, "--id", beaconID, keyAddr}
 	require.NoError(t, CLI().Run(generate))
 
 	listenPort := test.FreePort()
@@ -182,6 +273,7 @@ func TestUtilCheck(t *testing.T) {
 	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	go CLI().RunContext(ctx, listen)
 	// XXX can we maybe try to bind continuously to not having to wait
 	time.Sleep(200 * time.Millisecond)
@@ -195,6 +287,7 @@ func TestUtilCheck(t *testing.T) {
 	cancel()
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
+
 	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
 	go CLI().RunContext(ctx, listen)
 	time.Sleep(200 * time.Millisecond)
@@ -204,6 +297,9 @@ func TestUtilCheck(t *testing.T) {
 }
 
 func TestStartWithoutGroup(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
+
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer func() {
@@ -223,7 +319,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	fileStore := key.NewFileStore(config.ConfigFolder())
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	require.NoError(t, fileStore.SaveKeyPair(priv))
 
 	startArgs := []string{
@@ -241,14 +337,14 @@ func TestStartWithoutGroup(t *testing.T) {
 	fmt.Println("--- DRAND SHARE --- (expected to fail)")
 	// this must fail because not enough arguments
 	// TODO - test vectors testing on the inputs
-	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1}
+
+	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
 	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")
-	// fake group
-	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
 
+	// fake group
 	_, group := test.BatchIdentities(5, sch, beaconID)
 
 	// fake dkg outuput
@@ -260,6 +356,7 @@ func TestStartWithoutGroup(t *testing.T) {
 		},
 	}
 	priv.Public.TLS = false
+
 	group.Period = 5 * time.Second
 	group.GenesisTime = time.Now().Unix() - 10
 	group.PublicKey = distKey
@@ -267,6 +364,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	group.Nodes[1] = &key.Node{Identity: priv.Public, Index: 1}
 	groupPath := path.Join(tmpPath, "drand_group.toml")
 	require.NoError(t, key.Save(groupPath, group, false))
+
 	// save it also to somewhere drand will find it
 	require.NoError(t, fileStore.SaveGroup(group))
 
@@ -281,12 +379,13 @@ func TestStartWithoutGroup(t *testing.T) {
 	start2 := []string{"drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
 	go CLI().Run(start2)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
+
 	time.Sleep(500 * time.Millisecond)
 
-	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore)
+	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore, beaconID)
 }
 
-func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store) {
+func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	testPing(t, ctrlPort)
 	testStatus(t, ctrlPort)
 	testListSchemes(t, ctrlPort)
@@ -328,7 +427,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	testCommand(t, showChainInfo, expectedOutput)
 
 	// reset state
-	resetCmd := []string{"drand", "util", "reset", "--folder", rootPath}
+	resetCmd := []string{"drand", "util", "reset", "--folder", rootPath, "--id", beaconID}
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	_, err = w.Write([]byte("y\n"))
@@ -387,6 +486,9 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 }
 
 func TestClientTLS(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
+
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
 	defer os.RemoveAll(tmpPath)
@@ -405,7 +507,7 @@ func TestClientTLS(t *testing.T) {
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
 
 	config := core.NewConfig(core.WithConfigFolder(tmpPath))
-	fileStore := key.NewFileStore(config.ConfigFolder())
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 	fileStore.SaveKeyPair(priv)
 
 	if httpscerts.Check(certPath, keyPath) != nil {
@@ -417,8 +519,6 @@ func TestClientTLS(t *testing.T) {
 	}
 
 	// fake group
-	sch, beaconID := scheme.GetSchemeFromEnv(), BeaconIDForTesting
-
 	_, group := test.BatchTLSIdentities(5, sch, beaconID)
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
@@ -516,4 +616,15 @@ func testCommand(t *testing.T, args []string, exp string) {
 	fmt.Println("GOT: ", strings.Trim(buff.String(), "\n"), " --")
 	fmt.Println("CONTAINS: ", strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
+}
+
+// getSBFolderStructure create a new single-beacon folder structure on a temporal folder
+func getSBFolderStructure() string {
+	tmp := path.Join(os.TempDir(), "drand")
+
+	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
+	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
+
+	return tmp
 }
