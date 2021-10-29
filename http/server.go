@@ -101,7 +101,7 @@ func (h *handler) start() {
 
 func (h *handler) Watch(ctx context.Context, ready chan bool) {
 RESET:
-	watchCtx, cncl := context.WithCancel(context.Background())
+	watchCtx, cncl := context.WithCancel(ctx)
 	stream := h.client.Watch(watchCtx)
 
 	// signal that the watch is ready
