@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/utils"
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/key"
@@ -54,12 +54,12 @@ type Handler struct {
 	serving bool
 	stopped bool
 	l       log.Logger
-	version utils.Version
+	version commonutils.Version
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version utils.Version) (*Handler, error) {
+func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version commonutils.Version) (*Handler, error) {
 	if conf.Share == nil || conf.Group == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}

@@ -13,12 +13,12 @@ import (
 	common2 "github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/utils"
 	clock "github.com/jonboulle/clockwork"
 )
 
@@ -299,10 +299,10 @@ type setupReceiver struct {
 	leaderID *key.Identity
 	secret   []byte
 	done     bool
-	version  utils.Version
+	version  commonutils.Version
 }
 
-func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
+func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
 	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
 	setup := &setupReceiver{
 		ch:      make(chan *dkgGroup, 1),

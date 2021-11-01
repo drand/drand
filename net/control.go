@@ -11,7 +11,6 @@ import (
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
 	control "github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/utils"
 
 	"google.golang.org/grpc"
 )
@@ -53,7 +52,7 @@ func (g *ControlListener) Stop() {
 type ControlClient struct {
 	conn    *grpc.ClientConn
 	client  control.ControlClient
-	version utils.Version
+	version common.Version
 }
 
 // NewControlClient creates a client capable of issuing control commands to a
