@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/drand/drand/common"
+
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/demo/lib"
 )
 
@@ -39,18 +42,19 @@ func main() {
 	if *testF {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
-	nRound := 2
-	n := 6
-	thr := 4
+	nRound, n := 2, 6
+	thr, newThr := 4, 5
 	period := "10s"
-	newThr := 5
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl)
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+
+	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, sch, beaconID, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
 	// already the new nodes here, such that when calling "StartCurrentNodes",
 	// the drand nodes will load all of them already.
 	orch.SetupNewNodes(3)
+
 	defer orch.Shutdown()
 	defer func() {
 		// print logs in case things panic

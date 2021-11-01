@@ -4,11 +4,16 @@ import (
 	"os"
 	"testing"
 
+	"github.com/drand/drand/common"
+
+	"github.com/drand/drand/common/scheme"
 	"github.com/stretchr/testify/require"
 )
 
 func TestClientPrivate(t *testing.T) {
-	drands, _, dir, _ := BatchNewDrand(1, false, WithPrivateRandomness())
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+
+	drands, _, dir, _ := BatchNewDrand(t, 1, false, sch, beaconID, WithPrivateRandomness())
 	defer CloseAllDrands(drands)
 	defer os.RemoveAll(dir)
 

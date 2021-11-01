@@ -10,11 +10,15 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	clock "github.com/jonboulle/clockwork"
 )
 
@@ -35,7 +39,7 @@ import (
 // the group file, with a genesis time that is current() + 10m
 // * Leader sends group file to nodes and already start sending the first DKG
 // packet
-// * Node verify they are included and if so, run the DKG as well (processing
+// * MockNode verify they are included and if so, run the DKG as well (processing
 // the first packet of the leader will make them broadcast their deals)
 // Once dkg is finished, all nodes wait for the genesis time to start the
 // randomness generation
@@ -46,6 +50,8 @@ type setupManager struct {
 	beaconOffset  time.Duration
 	catchupPeriod time.Duration
 	beaconPeriod  time.Duration
+	beaconID      string
+	scheme        common2.Scheme
 	dkgTimeout    time.Duration
 	clock         clock.Clock
 	leaderKey     *key.Identity
@@ -68,6 +74,8 @@ func newDKGSetup(
 	leaderKey *key.Identity,
 	beaconPeriod,
 	catchupPeriod uint32,
+	beaconID string,
+	schemeID string,
 	in *drand.SetupInfoPacket) (*setupManager, error) {
 	n, thr, dkgTimeout, err := validInitPacket(in)
 	if err != nil {
@@ -84,12 +92,19 @@ func newDKGSetup(
 		offset = DefaultGenesisOffset
 	}
 
+	sch, ok := common2.GetSchemeByID(schemeID)
+	if !ok {
+		return nil, fmt.Errorf("scheme id received is not valid")
+	}
+
 	sm := &setupManager{
 		expected:      n,
 		thr:           thr,
 		beaconOffset:  offset,
 		beaconPeriod:  time.Duration(beaconPeriod) * time.Second,
 		catchupPeriod: time.Duration(catchupPeriod) * time.Second,
+		scheme:        sch,
+		beaconID:      beaconID,
 		dkgTimeout:    dkgTimeout,
 		l:             l,
 		startDKG:      make(chan *key.Group, 1),
@@ -111,11 +126,15 @@ func newReshareSetup(
 	in *drand.InitResharePacket) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
+	schemeID := oldGroup.Scheme.ID
+	beaconID := oldGroup.ID
+
 	catchupPeriod := in.CatchupPeriod
 	if !in.CatchupPeriodChanged {
 		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
 	}
-	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, in.GetInfo())
+
+	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, beaconID, schemeID, in.GetInfo())
 	if err != nil {
 		return nil, err
 	}
@@ -123,10 +142,12 @@ func newReshareSetup(
 	sm.oldGroup = oldGroup
 	sm.oldHash = oldGroup.Hash()
 	sm.isResharing = true
+
 	offset := time.Duration(in.GetInfo().GetBeaconOffset()) * time.Second
 	if offset == 0 {
 		offset = DefaultResharingOffset
 	}
+
 	sm.beaconOffset = offset
 	return sm, nil
 }
@@ -151,16 +172,16 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 
 	newID, err := key.IdentityFromProto(p.GetNode())
 	if err != nil {
-		s.l.Info("setup", "error_decoding", "id", addr, "err", err)
+		s.l.Infow("", "beacon_id", s.beaconID, "setup", "error_decoding", "id", addr, "err", err)
 		return fmt.Errorf("invalid id: %v", err)
 	}
 
 	if err := newID.ValidSignature(); err != nil {
-		s.l.Info("setup", "invalid_sig", "id", addr, "err", err)
+		s.l.Infow("", "beacon_id", s.beaconID, "setup", "invalid_sig", "id", addr, "err", err)
 		return fmt.Errorf("invalid sig: %s", err)
 	}
 
-	s.l.Debug("setup", "received_new_key", "id", newID.String())
+	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "received_new_key", "id", newID.String())
 
 	s.pushKeyCh <- pushKey{
 		addr: addr,
@@ -181,11 +202,11 @@ func (s *setupManager) run() {
 			for _, id := range inKeys {
 				if id.Address() == pk.id.Address() {
 					found = true
-					s.l.Debug("setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					s.l.Debugw("", "beacon_id", s.beaconID, "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				} else if id.Key.Equal(pk.id.Key) {
 					found = true
-					s.l.Debug("setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					s.l.Debugw("", "beacon_id", s.beaconID, "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				}
 			}
@@ -194,7 +215,7 @@ func (s *setupManager) run() {
 				break
 			}
 			inKeys = append(inKeys, pk.id)
-			s.l.Debug("setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
+			s.l.Debugw("", "beacon_id", s.beaconID, "setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
 			if len(inKeys) == s.expected {
@@ -209,7 +230,7 @@ func (s *setupManager) run() {
 				}
 			}
 		case <-s.doneCh:
-			s.l.Debug("setup", "preempted", "collected_keys", len(inKeys))
+			s.l.Debugw("", "beacon_id", s.beaconID, "setup", "preempted", "collected_keys", len(inKeys))
 			return
 		}
 	}
@@ -224,18 +245,18 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		// round the genesis time to a period modulo
 		ps := int64(s.beaconPeriod.Seconds())
 		genesis += (ps - genesis%ps)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme, s.beaconID)
 	} else {
 		genesis := s.oldGroup.GenesisTime
 		atLeast := s.clock.Now().Add(totalDKG).Unix()
 		// transitioning to the next round time that is at least
 		// "DefaultResharingOffset" time from now.
 		_, transition := chain.NextRound(atLeast, s.beaconPeriod, s.oldGroup.GenesisTime)
-		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod)
+		group = key.NewGroup(keys, s.thr, genesis, s.beaconPeriod, s.catchupPeriod, s.scheme, s.beaconID)
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
-	s.l.Debug("setup", "created_group")
+	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "created_group")
 	fmt.Printf("Generated group:\n%s\n", group.String())
 	// signal the leader it's ready to run the DKG
 	s.startDKG <- group
@@ -278,16 +299,19 @@ type setupReceiver struct {
 	leaderID *key.Identity
 	secret   []byte
 	done     bool
+	version  utils.Version
 }
 
-func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
+func newSetupReceiver(version utils.Version, l log.Logger, c clock.Clock,
+	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
 	setup := &setupReceiver{
-		ch:     make(chan *dkgGroup, 1),
-		l:      l,
-		leader: net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
-		client: client,
-		clock:  c,
-		secret: hashSecret(in.GetSecret()),
+		ch:      make(chan *dkgGroup, 1),
+		l:       l,
+		leader:  net.CreatePeer(in.GetLeaderAddress(), in.GetLeaderTls()),
+		client:  client,
+		clock:   c,
+		secret:  hashSecret(in.GetSecret()),
+		version: version,
 	}
 	if err := setup.fetchLeaderKey(); err != nil {
 		return nil, err
@@ -296,14 +320,19 @@ func newSetupReceiver(l log.Logger, c clock.Clock, client net.ProtocolClient, in
 }
 
 func (r *setupReceiver) fetchLeaderKey() error {
-	protoID, err := r.client.GetIdentity(context.Background(), r.leader, new(drand.IdentityRequest))
+	request := &drand.IdentityRequest{Metadata: common.NewMetadata(r.version.ToProto())}
+
+	protoID, err := r.client.GetIdentity(context.Background(), r.leader, request)
 	if err != nil {
 		return err
 	}
-	id, err := key.IdentityFromProto(protoID)
+
+	identity := &drand.Identity{Signature: protoID.Signature, Tls: protoID.Tls, Address: protoID.Address, Key: protoID.Key}
+	id, err := key.IdentityFromProto(identity)
 	if err != nil {
 		return err
 	}
+
 	r.leaderID = id
 	return nil
 }
@@ -317,8 +346,10 @@ type dkgGroup struct {
 // leader. It runs some routines verification of the group before passing it on
 // to the routine that waits for the group to start the DKG.
 func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
+	beaconID := pg.GetMetadata().GetBeaconID()
+
 	if !correctSecret(r.secret, pg.GetSecretProof()) {
-		r.l.Debug("received", "invalid_secret_proof")
+		r.l.Debugw("", "beacon_id", beaconID, "received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
 	// verify things are all in order
@@ -327,7 +358,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 		return fmt.Errorf("group from leader invalid: %s", err)
 	}
 	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
-		r.l.Error("received", "group", "invalid_sig", err)
+		r.l.Errorw("", "beacon_id", beaconID, "received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %s", err)
 	}
 	checkGroup(r.l, group)
@@ -344,10 +375,10 @@ func (r *setupReceiver) WaitDKGInfo(ctx context.Context) (*key.Group, uint32, er
 		if dkgGroup == nil {
 			return nil, 0, errors.New("unable to fetch group")
 		}
-		r.l.Debug("init_dkg", "received_group")
+		r.l.Debugw("", "beacon_id", dkgGroup.group.ID, "init_dkg", "received_group")
 		return dkgGroup.group, dkgGroup.timeout, nil
 	case <-r.clock.After(MaxWaitPrepareDKG):
-		r.l.Error("init_dkg", "wait_group", "err", "timeout")
+		r.l.Errorw("", "init_dkg", "wait_group", "err", "timeout")
 		return nil, 0, errors.New("wait_group timeouts from coordinator")
 	case <-ctx.Done():
 		return nil, 0, ctx.Err()

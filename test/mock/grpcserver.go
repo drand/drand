@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
@@ -46,6 +48,7 @@ func newMockServer(d *Data) *Server {
 			Period:      uint32(d.Period.Seconds()),
 			GenesisTime: int64(d.Genesis),
 			PublicKey:   d.Public,
+			SchemeID:    d.Scheme.ID,
 		},
 	}
 }
@@ -132,12 +135,20 @@ func testValid(d *Data) {
 		panic(err)
 	}
 	sig := decodeHex(d.Signature)
-	prev := decodeHex(d.PreviousSignature)
-	msg := sha256Hash(append(prev, roundToBytes(d.Round)...))
+
+	var msg, invMsg []byte
+	if !d.Scheme.DecouplePrevSig {
+		prev := decodeHex(d.PreviousSignature)
+		msg = sha256Hash(append(prev[:], roundToBytes(d.Round)...))
+		invMsg = sha256Hash(append(prev[:], roundToBytes(d.Round-1)...))
+	} else {
+		msg = sha256Hash(roundToBytes(d.Round))
+		invMsg = sha256Hash(roundToBytes(d.Round - 1))
+	}
+
 	if err := key.Scheme.VerifyRecovered(pubPoint, msg, sig); err != nil {
 		panic(err)
 	}
-	invMsg := sha256Hash(append(prev, roundToBytes(d.Round-1)...))
 	if err := key.Scheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
 		panic("should be invalid signature")
 	}
@@ -164,9 +175,10 @@ type Data struct {
 	Genesis           int64
 	Period            time.Duration
 	BadSecondRound    bool
+	Scheme            scheme.Scheme
 }
 
-func generateMockData() *Data {
+func generateMockData(sch scheme.Scheme) *Data {
 	secret := key.KeyGroup.Scalar().Pick(random.New())
 	public := key.KeyGroup.Point().Mul(secret, nil)
 	var previous [32]byte
@@ -175,7 +187,14 @@ func generateMockData() *Data {
 	}
 	round := 1969
 	prevRound := uint64(1968)
-	msg := sha256Hash(append(previous[:], roundToBytes(round)...))
+
+	var msg []byte
+	if !sch.DecouplePrevSig {
+		msg = sha256Hash(append(previous[:], roundToBytes(round)...))
+	} else {
+		msg = sha256Hash(roundToBytes(round))
+	}
+
 	sshare := share.PriShare{I: 0, V: secret}
 	tsig, err := key.Scheme.Sign(&sshare, msg)
 	if err != nil {
@@ -195,6 +214,7 @@ func generateMockData() *Data {
 		Genesis:           time.Now().Add(period * 1969 * -1).Unix(),
 		Period:            period,
 		BadSecondRound:    true,
+		Scheme:            sch,
 	}
 	return d
 }
@@ -202,7 +222,14 @@ func generateMockData() *Data {
 // nextMockData generates a valid Data for the next round when given the current round data.
 func nextMockData(d *Data) *Data {
 	previous := decodeHex(d.PreviousSignature)
-	msg := sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
+
+	var msg []byte
+	if !d.Scheme.DecouplePrevSig {
+		msg = sha256Hash(append(previous[:], roundToBytes(d.Round+1)...))
+	} else {
+		msg = sha256Hash(roundToBytes(d.Round + 1))
+	}
+
 	sshare := share.PriShare{I: 0, V: d.secret}
 	tsig, err := key.Scheme.Sign(&sshare, msg)
 	if err != nil {
@@ -220,14 +247,18 @@ func nextMockData(d *Data) *Data {
 		Genesis:           d.Genesis,
 		Period:            d.Period,
 		BadSecondRound:    d.BadSecondRound,
+		Scheme:            d.Scheme,
 	}
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, net.Service) {
-	d := generateMockData()
+func NewMockGRPCPublicServer(bind string, badSecondRound bool, sch scheme.Scheme) (net.Listener, net.Service) {
+	d := generateMockData(sch)
 	testValid(d)
+
 	d.BadSecondRound = badSecondRound
+	d.Scheme = sch
+
 	server := newMockServer(d)
 	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
@@ -238,10 +269,13 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool) (net.Listener, ne
 }
 
 // NewMockServer creates a server interface not bound to a newtork port
-func NewMockServer(badSecondRound bool) net.Service {
-	d := generateMockData()
+func NewMockServer(badSecondRound bool, sch scheme.Scheme) net.Service {
+	d := generateMockData(sch)
 	testValid(d)
+
 	d.BadSecondRound = badSecondRound
+	d.Scheme = sch
+
 	server := newMockServer(d)
 	return server
 }
@@ -254,13 +288,16 @@ func sha256Hash(in []byte) []byte {
 
 func roundToBytes(r int) []byte {
 	var buff bytes.Buffer
-	binary.Write(&buff, binary.BigEndian, uint64(r))
+	err := binary.Write(&buff, binary.BigEndian, uint64(r))
+	if err != nil {
+		return nil
+	}
 	return buff.Bytes()
 }
 
 // NewMockBeacon provides a random beacon and the chain it validates against
-func NewMockBeacon() (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
-	d := generateMockData()
+func NewMockBeacon(sch scheme.Scheme) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+	d := generateMockData(sch)
 	s := newMockServer(d)
 	c, _ := s.ChainInfo(context.Background(), nil)
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})

@@ -11,7 +11,9 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -46,7 +48,9 @@ type Broadcast interface {
 // DKG library allows to use fast sync the fast sync mode.
 type echoBroadcast struct {
 	sync.Mutex
-	l log.Logger
+	l        log.Logger
+	version  utils.Version
+	beaconID string
 	// responsible for sending out the messages
 	dispatcher *dispatcher
 	// list of messages already retransmitted comparison by hash
@@ -65,9 +69,12 @@ var _ Broadcast = (*echoBroadcast)(nil)
 // Packet, namely that the signature is correct.
 type verifier func(packet) error
 
-func newEchoBroadcast(l log.Logger, c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
+func newEchoBroadcast(l log.Logger, version utils.Version, beaconID string,
+	c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
 	return &echoBroadcast{
 		l:          l,
+		version:    version,
+		beaconID:   beaconID,
 		dispatcher: newDispatcher(l, c, to, own),
 		dealCh:     make(chan dkg.DealBundle, len(to)),
 		respCh:     make(chan dkg.ResponseBundle, len(to)),
@@ -82,7 +89,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debug("echoBroadcast", "push", "deal")
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "deal")
 	b.sendout(h, bundle, true)
 }
 
@@ -91,7 +98,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debug("echoBroadcast", "push", "response", bundle.String())
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "response", bundle.String())
 	b.sendout(h, bundle, true)
 }
 
@@ -100,17 +107,19 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debug("echoBroadcast", "push", "justification")
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "justification")
 	b.sendout(h, bundle, true)
 }
 
 func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
 	b.Lock()
 	defer b.Unlock()
+
 	addr := net.RemoteAddress(c)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
+	beaconID := p.GetMetadata().GetBeaconID()
 	if err != nil {
-		b.l.Debug("echoBroadcast", "received invalid packet", "from", addr, "err", err)
+		b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "received invalid packet", "from", addr, "err", err)
 		return nil, errors.New("invalid packet")
 	}
 
@@ -118,15 +127,16 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	if b.hashes.exists(hash) {
 		// if we already seen this one, no need to verify even because that
 		// means we already broadcasted it
-		b.l.Debug("echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+		b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return new(drand.Empty), nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
-		b.l.Debug("echoBroadcast", "received invalid signature", "from", addr)
+		b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "received invalid signature", "from", addr)
 		return nil, errors.New("invalid packet")
 	}
 
-	b.l.Debug("echoBroadcast", "received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+	b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast",
+		"received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil
@@ -141,7 +151,7 @@ func (b *echoBroadcast) passToApplication(p packet) {
 	case *dkg.JustificationBundle:
 		b.justCh <- *pp
 	default:
-		b.l.Error("echoBroadcast", "application channel full")
+		b.l.Errorw("", "echoBroadcast", "application channel full")
 	}
 }
 
@@ -152,13 +162,16 @@ func (b *echoBroadcast) passToApplication(p packet) {
 func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	dkgproto, err := dkgPacketToProto(p)
 	if err != nil {
-		b.l.Error("echoBroadcast", "can't send packet", "err", err)
+		b.l.Errorw("", "echoBroadcast", "can't send packet", "err", err)
 		return
 	}
 	// we register we saw that packet and we broadcast it
 	b.hashes.put(h)
+
+	metadata := common.Metadata{NodeVersion: b.version.ToProto(), BeaconID: b.beaconID}
 	proto := &drand.DKGPacket{
-		Dkg: dkgproto,
+		Dkg:      dkgproto,
+		Metadata: &metadata,
 	}
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG
@@ -295,10 +308,11 @@ func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize i
 }
 
 func (s *sender) sendPacket(p broadcastPacket) {
+	beaconID := p.GetMetadata().GetBeaconID()
 	select {
 	case s.newCh <- p:
 	default:
-		s.l.Debug("echoBroadcast", "sender queue full", "endpoint", s.to.Address())
+		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sender queue full", "endpoint", s.to.Address())
 	}
 }
 
@@ -309,11 +323,12 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
+	beaconID := newPacket.GetMetadata().GetBeaconID()
 	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
 	if err != nil {
-		s.l.Debug("echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
+		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
 	} else {
-		s.l.Debug("echoBroadcast", "sending out", "to", s.to.Address())
+		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sending out", "to", s.to.Address())
 	}
 }
 

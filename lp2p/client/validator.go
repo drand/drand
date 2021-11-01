@@ -22,7 +22,7 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 		}
 
 		if info == nil {
-			c.log.Warn("gossip validator", "Not validating received randomness due to lack of trust root.")
+			c.log.Warnw("", "gossip validator", "Not validating received randomness due to lack of trust root.")
 			return pubsub.ValidationAccept
 		}
 
@@ -61,7 +61,11 @@ func randomnessValidator(info *chain.Info, cache client.Cache, c *Client) pubsub
 			}
 		}
 
-		if err := chain.VerifyBeacon(info.PublicKey, &b); err != nil {
+		verifier := chain.NewVerifier(info.Scheme)
+
+		err = verifier.VerifyBeacon(b, info.PublicKey)
+
+		if err != nil {
 			return pubsub.ValidationReject
 		}
 		return pubsub.ValidationAccept

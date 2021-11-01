@@ -13,15 +13,14 @@ import (
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -65,9 +64,11 @@ var clientMetricsIDFlag = &cli.StringFlag{
 }
 
 func main() {
+	version := common.GetAppVersion()
+
 	app := cli.NewApp()
 	app.Name = "drand-client"
-	app.Version = version
+	app.Version = version.String()
 	app.Usage = "CDN Drand client for loading randomness from an HTTP endpoint"
 	app.Flags = lib.ClientFlags
 	app.Flags = append(app.Flags,
@@ -76,7 +77,7 @@ func main() {
 		clientMetricsPushIntervalFlag, verboseFlag)
 	app.Action = Client
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand client %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("drand client %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
@@ -87,13 +88,14 @@ func main() {
 
 // Client loads randomness from a server
 func Client(c *cli.Context) error {
-	// configure logging
-	_ = log.DefaultLogger()
+	var level int
 	if c.Bool(verboseFlag.Name) {
-		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogDebug)
+		level = log.LogDebug
 	} else {
-		log.SetDefaultLogger(log.LoggerTo(os.Stderr), log.LogInfo)
+		level = log.LogInfo
 	}
+
+	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
 
 	opts := []client.Option{}
 
@@ -157,7 +159,7 @@ func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometh
 			Timeout: 10 * time.Second,
 		}))
 		go func() {
-			log.DefaultLogger().Fatal("client", http.ListenAndServe(address, nil))
+			log.DefaultLogger().Fatalw("", "client", http.ListenAndServe(address, nil))
 		}()
 	}
 	return b
@@ -174,7 +176,7 @@ func (b *prometheusBridge) pushLoop() {
 	for {
 		time.Sleep(time.Second * time.Duration(b.pushIntervalSec))
 		if err := b.pusher.Push(); err != nil {
-			log.DefaultLogger().Info("client_metrics", "prometheus gateway push (%v)", err)
+			log.DefaultLogger().Infow("", "client_metrics", "prometheus gateway push (%v)", err)
 		}
 	}
 }

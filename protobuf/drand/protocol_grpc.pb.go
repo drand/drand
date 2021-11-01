@@ -19,7 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ProtocolClient interface {
 	// GetIdentity returns the identity of the drand node
-	GetIdentity(ctx context.Context, in *IdentityRequest, opts ...grpc.CallOption) (*Identity, error)
+	GetIdentity(ctx context.Context, in *IdentityRequest, opts ...grpc.CallOption) (*IdentityResponse, error)
 	// SignalDKGParticipant is called by non-coordinators nodes that sends their
 	// public keys and secret proof they have to the coordinator so that he can
 	// create the group.
@@ -44,8 +44,8 @@ func NewProtocolClient(cc grpc.ClientConnInterface) ProtocolClient {
 	return &protocolClient{cc}
 }
 
-func (c *protocolClient) GetIdentity(ctx context.Context, in *IdentityRequest, opts ...grpc.CallOption) (*Identity, error) {
-	out := new(Identity)
+func (c *protocolClient) GetIdentity(ctx context.Context, in *IdentityRequest, opts ...grpc.CallOption) (*IdentityResponse, error) {
+	out := new(IdentityResponse)
 	err := c.cc.Invoke(ctx, "/drand.Protocol/GetIdentity", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func (x *protocolSyncChainClient) Recv() (*BeaconPacket, error) {
 // for forward compatibility
 type ProtocolServer interface {
 	// GetIdentity returns the identity of the drand node
-	GetIdentity(context.Context, *IdentityRequest) (*Identity, error)
+	GetIdentity(context.Context, *IdentityRequest) (*IdentityResponse, error)
 	// SignalDKGParticipant is called by non-coordinators nodes that sends their
 	// public keys and secret proof they have to the coordinator so that he can
 	// create the group.
@@ -147,7 +147,7 @@ type ProtocolServer interface {
 type UnimplementedProtocolServer struct {
 }
 
-func (UnimplementedProtocolServer) GetIdentity(context.Context, *IdentityRequest) (*Identity, error) {
+func (UnimplementedProtocolServer) GetIdentity(context.Context, *IdentityRequest) (*IdentityResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIdentity not implemented")
 }
 func (UnimplementedProtocolServer) SignalDKGParticipant(context.Context, *SignalDKGPacket) (*Empty, error) {

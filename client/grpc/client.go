@@ -38,7 +38,7 @@ func New(address, certPath string, insecure bool) (client.Client, error) {
 	} else if insecure {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})))
 	}
 	opts = append(opts,
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
@@ -108,7 +108,7 @@ func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out c
 		next, err := stream.Recv()
 		if err != nil || stream.Context().Err() != nil {
 			if stream.Context().Err() == nil {
-				g.l.Warn("grpc_client", "public rand stream", "err", err)
+				g.l.Warnw("", "grpc_client", "public rand stream", "err", err)
 			}
 			return
 		}

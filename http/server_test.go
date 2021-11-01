@@ -8,8 +8,11 @@ import (
 	"testing"
 	"time"
 
+	nhttp "github.com/drand/drand/client/http"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
 	"github.com/stretchr/testify/require"
@@ -19,8 +22,9 @@ import (
 
 func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	t.Helper()
+	sch := scheme.GetSchemeFromEnv()
 
-	l, s := mock.NewMockGRPCPublicServer(":0", true)
+	l, s := mock.NewMockGRPCPublicServer(":0", true, sch)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -32,6 +36,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	c, _ := withClient(t)
 
 	handler, err := New(ctx, c, "", nil)
@@ -46,7 +51,8 @@ func TestHTTPRelay(t *testing.T) {
 	server := http.Server{Handler: handler}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
-	time.Sleep(100 * time.Millisecond)
+
+	nhttp.IsServerReady(listener.Addr().String())
 
 	getChain := fmt.Sprintf("http://%s/info", listener.Addr().String())
 	resp, err := http.Get(getChain)
@@ -124,6 +130,8 @@ func TestHTTPWaiting(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
+	nhttp.IsServerReady(listener.Addr().String())
+
 	// The first request will trigger background watch. 1 get (1969)
 	next, err := http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
 	if err != nil {
@@ -184,6 +192,8 @@ func TestHTTPWatchFuture(t *testing.T) {
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
+	nhttp.IsServerReady(listener.Addr().String())
+
 	// watching sets latest round, future rounds should become inaccessible.
 	u := fmt.Sprintf("http://%s/public/2000", listener.Addr().String())
 	resp, err := http.Get(u)
@@ -213,6 +223,8 @@ func TestHTTPHealth(t *testing.T) {
 	server := http.Server{Handler: handler}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
+
+	nhttp.IsServerReady(listener.Addr().String())
 
 	resp, _ := http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
 	defer func() { _ = resp.Body.Close() }()

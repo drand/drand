@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
@@ -19,13 +18,15 @@ type partialCache struct {
 	rounds map[string]*roundCache
 	rcvd   map[int][]string
 	l      log.Logger
+	id     string
 }
 
-func newPartialCache(l log.Logger) *partialCache {
+func newPartialCache(l log.Logger, id string) *partialCache {
 	return &partialCache{
 		rounds: make(map[string]*roundCache),
 		rcvd:   make(map[int][]string),
 		l:      l,
+		id:     id,
 	}
 }
 
@@ -88,13 +89,14 @@ func (c *partialCache) getCache(id string, p *drand.PartialBeaconPacket) *roundC
 	if round, ok := c.rounds[id]; ok {
 		return round
 	}
+
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if len(c.rcvd[idx]) >= MaxPartialsPerNode {
 		// this node has submitted too many partials - we take the last one off
 		toEvict := c.rcvd[idx][0]
 		round, ok := c.rounds[toEvict]
 		if !ok {
-			c.l.Error("cache", "miss", "node", idx, "not_present_for", p.GetRound())
+			c.l.Errorw("", "beacon_id", id, "cache", "miss", "node", idx, "not_present_for", p.GetRound())
 			return nil
 		}
 		round.flushIndex(idx)
@@ -139,11 +141,6 @@ func (r *roundCache) append(p *drand.PartialBeaconPacket) bool {
 // Len shows how many items are in the cache
 func (r *roundCache) Len() int {
 	return len(r.sigs)
-}
-
-// Msg provides the chain for the current round
-func (r *roundCache) Msg() []byte {
-	return chain.Message(r.round, r.prev)
 }
 
 // Partials provides all cached partial signatures

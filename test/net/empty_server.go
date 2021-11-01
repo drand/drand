@@ -3,6 +3,8 @@ package net
 import (
 	"context"
 
+	"google.golang.org/grpc"
+
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -10,7 +12,7 @@ import (
 type EmptyServer struct{}
 
 // GetIdentity returns the identity of the server
-func (s *EmptyServer) GetIdentity(ctx context.Context, in *drand.IdentityRequest) (*drand.Identity, error) {
+func (s *EmptyServer) GetIdentity(ctx context.Context, in *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	return nil, nil
 }
 
@@ -75,6 +77,16 @@ func (s *EmptyServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error
 	return nil, nil
 }
 
+// PingPong is an empty implementation
+func (s *EmptyServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error) {
+	return nil, nil
+}
+
+// ListSchemes is an empty implementation
+func (s *EmptyServer) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+	return nil, nil
+}
+
 // InitDKG is an empty implementation
 func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	return nil, nil
@@ -118,4 +130,14 @@ func (s *EmptyServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.
 // BackupDatabase is an empty implementation
 func (s *EmptyServer) BackupDatabase(context.Context, *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
 	return nil, nil
+}
+
+// Shutdown is an empty implementation
+func (s *EmptyServer) NodeVersionValidator(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
+	return handler(ctx, req)
+}
+
+// Shutdown is an empty implementation
+func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return handler(srv, ss)
 }

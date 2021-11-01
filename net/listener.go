@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+	"sync"
 
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
 
+	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	http_grpc "github.com/weaveworks/common/httpgrpc"
 	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
@@ -17,10 +19,17 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func registerGRPCMetrics() {
+var isGrpcPrometheusMetricsRegisted = false
+var state sync.Mutex
+
+func registerGRPCMetrics() error {
 	if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics); err != nil {
-		log.DefaultLogger().Warn("grpc Listener", "failed metrics registration", "err", err)
+		log.DefaultLogger().Warnw("", "grpc Listener", "failed metrics registration", "err", err)
+		return err
 	}
+
+	isGrpcPrometheusMetricsRegisted = true
+	return nil
 }
 
 // NewGRPCListenerForPrivate creates a new listener for the Public and Protocol APIs over GRPC.
@@ -42,10 +51,13 @@ func NewGRPCListenerForPrivate(
 		}
 		opts = append(opts, grpc.Creds(grpcCreds))
 	}
+
 	opts = append(opts,
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor))
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_prometheus.StreamServerInterceptor, s.NodeVersionStreamValidator)),
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_prometheus.UnaryServerInterceptor, s.NodeVersionValidator)))
+
 	grpcServer := grpc.NewServer(opts...)
+
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
 
@@ -68,9 +80,18 @@ func NewGRPCListenerForPrivate(
 		gr.lis = tls.NewListener(lis, gr.restServer.TLSConfig)
 		g = gr
 	}
+
 	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandler()))
 	grpc_prometheus.Register(grpcServer)
-	registerGRPCMetrics()
+
+	state.Lock()
+	defer state.Unlock()
+	if !isGrpcPrometheusMetricsRegisted {
+		if err := registerGRPCMetrics(); err != nil {
+			return nil, err
+		}
+	}
+
 	return g, nil
 }
 
@@ -155,10 +176,10 @@ func (g *restListener) Start() {
 
 func (g *restListener) Stop(ctx context.Context) {
 	if err := g.lis.Close(); err != nil {
-		log.DefaultLogger().Debug("grpc listener", "grpc shutdown", "err", err)
+		log.DefaultLogger().Debugw("", "grpc listener", "grpc shutdown", "err", err)
 	}
 	if err := g.restServer.Shutdown(ctx); err != nil {
-		log.DefaultLogger().Debug("grpc listener", "http shutdown", "err", err)
+		log.DefaultLogger().Debugw("", "grpc listener", "http shutdown", "err", err)
 	}
 }
 

@@ -1,0 +1,19 @@
+/*
+ * Protobuf file containing empty message definition
+ */
+syntax = "proto3";
+
+package common;
+
+option go_package = "github.com/drand/drand/protobuf/common";
+
+message NodeVersion {
+    uint32 major = 1;
+    uint32 minor = 2;
+    uint32 patch = 3;
+}
+
+message Metadata {
+    NodeVersion node_version = 1;
+    string beaconID = 2;
+}

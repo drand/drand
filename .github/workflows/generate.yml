@@ -10,23 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout
+      uses: actions/checkout@v2
     - uses: actions/cache@v2
       id: generate-dep-cache
       with:
         path: ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+    - uses: actions/setup-go@v2
+      with:
+        go-version: '^1.17'
     - name: Fetch Dependencies
       run: go get ./...
-    -
-      name: Install Protoc
+    - name: Install Protoc
       uses: arduino/setup-protoc@v1.1.2
       with:
         version: '3.14.0'
-    -
-      name: Install Protoc-gen-go
+    - name: Install Protoc-gen-go
       run: |
-        go get github.com/golang/protobuf/protoc-gen-go@v1.4.3
+        go get github.com/golang/protobuf/protoc-gen-go@v1.5.2
         go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
     - name: Generate
       run: go generate ./...&& go mod tidy

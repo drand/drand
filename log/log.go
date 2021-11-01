@@ -1,13 +1,10 @@
 package log
 
 import (
-	"io"
 	"os"
-	"sync"
-	"time"
 
-	"github.com/go-kit/kit/log"
-	lvl "github.com/go-kit/kit/log/level"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // Logger is a interface that can log to different levels.
@@ -17,116 +14,85 @@ type Logger interface {
 	Warn(keyvals ...interface{})
 	Error(keyvals ...interface{})
 	Fatal(keyvals ...interface{})
-	// With returns a new Logger that inserts the given key value pairs for each
-	// statements at each levels
-	With(keyvals ...interface{}) Logger
+	Panic(keyvals ...interface{})
+	Infow(msg string, keyvals ...interface{})
+	Debugw(msg string, keyvals ...interface{})
+	Warnw(msg string, keyvals ...interface{})
+	Errorw(msg string, keyvals ...interface{})
+	Fatalw(msg string, keyvals ...interface{})
+	Panicw(msg string, keyvals ...interface{})
+	With(args ...interface{}) *zap.SugaredLogger
 }
 
 const (
-	// LogNone forbids any log entries
-	LogNone int = iota
-	// LogInfo sets the logging verbosity to info
-	LogInfo
-	// LogDebug sets the logging verbosity to debug
-	LogDebug
+	LogInfo  = int(zapcore.InfoLevel)
+	LogDebug = int(zapcore.DebugLevel)
+	LogError = int(zapcore.ErrorLevel)
+	LogFatal = int(zapcore.FatalLevel)
+	LogPanic = int(zapcore.PanicLevel)
+	LogWarn  = int(zapcore.WarnLevel)
 )
-
-const logStackDepth = 6
 
 // DefaultLevel is the default level where statements are logged. Change the
 // value of this variable before init() to change the level of the default
 // logger.
-var DefaultLevel = LogInfo
+const DefaultLevel = LogInfo
 
-var defaultLogger Logger
-
-var defaultLoggerSet sync.Once
-
-// SetDefaultLogger updates the default logger to wrap a provided kit logger.
-func SetDefaultLogger(l log.Logger, level int) {
-	defaultLogger = NewLogger(l, level)
-}
-
-// LoggerTo provides a base logger to a specified output stream.
-func LoggerTo(out io.Writer) log.Logger {
-	return log.NewLogfmtLogger(log.NewSyncWriter(out))
-}
-
-func setDefaultLogger() {
-	SetDefaultLogger(nil, DefaultLevel)
+// ConfigureDefaultLogger updates the default logger to wrap a provided kit logger.
+func ConfigureDefaultLogger(output zapcore.WriteSyncer, level int, jsonFormat bool) {
+	if jsonFormat {
+		zap.ReplaceGlobals(NewZapLogger(output, getJSONEncoder(), level))
+	} else {
+		zap.ReplaceGlobals(NewZapLogger(output, getConsoleEncoder(), level))
+	}
 }
 
 // DefaultLogger is the default logger that only logs at the `DefaultLevel`.
 func DefaultLogger() Logger {
-	defaultLoggerSet.Do(setDefaultLogger)
-	return defaultLogger
-}
+	if zap.S() == nil {
+		zap.ReplaceGlobals(NewZapLogger(nil, getConsoleEncoder(), DefaultLevel))
+	}
 
-type kitLogger struct {
-	log.Logger
+	return zap.S()
 }
 
 // NewLogger returns a kit logger that prints statements at the given level.
-func NewLogger(l log.Logger, level int) Logger {
-	var opt lvl.Option
-	switch level {
-	case LogNone:
-		opt = lvl.AllowNone()
-	case LogInfo:
-		opt = lvl.AllowInfo()
-	case LogDebug:
-		opt = lvl.AllowDebug()
-	default:
-		panic("unknown log level")
+func NewLogger(output zapcore.WriteSyncer, level int) Logger {
+	logger := NewZapLogger(output, getConsoleEncoder(), level)
+	return logger.Sugar()
+}
+
+// NewJSONLogger returns a kit logger that prints statements at the given level as JSON output.
+func NewJSONLogger(output zapcore.WriteSyncer, level int) Logger {
+	logger := NewZapLogger(output, getJSONEncoder(), level)
+	return logger.Sugar()
+}
+
+func NewZapLogger(output zapcore.WriteSyncer, encoder zapcore.Encoder, level int) *zap.Logger {
+	if output == nil {
+		output = os.Stdout
 	}
-	return NewKitLogger(l, opt)
+
+	core := zapcore.NewCore(encoder, output, zapcore.Level(level))
+	logger := zap.New(core, zap.WithCaller(true))
+
+	return logger
 }
 
-// NewKitLoggerFrom returns a Logger out of a go-kit/kit/log logger interface. The
-// caller can set the options that it needs to the logger first.
-// The underlying logger should already be synchronized.
-func NewKitLoggerFrom(l log.Logger) Logger {
-	return &kitLogger{l}
+func getJSONEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
+
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+
+	return zapcore.NewJSONEncoder(encoderConfig)
 }
 
-// NewKitLogger returns a Logger based on go-kit/kit/log default logger
-// structure that outputs to stderr. You can pass in options to only allow
-// certain levels. By default, it also includes the caller stack.
-func NewKitLogger(logger log.Logger, opts ...lvl.Option) Logger {
-	if logger == nil {
-		logger = LoggerTo(os.Stdout)
-	}
-	for _, opt := range opts {
-		logger = lvl.NewFilter(logger, opt)
-	}
-	timestamp := log.TimestampFormat(time.Now, time.RFC1123)
-	logger = log.With(logger, "ts", timestamp)
-	logger = log.With(logger, "call", log.Caller(logStackDepth))
-	return NewKitLoggerFrom(logger)
-}
+func getConsoleEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
 
-func (k *kitLogger) Info(kv ...interface{}) {
-	_ = lvl.Info(k.Logger).Log(kv...)
-}
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
-func (k *kitLogger) Debug(kv ...interface{}) {
-	_ = lvl.Debug(k.Logger).Log(kv...)
-}
-
-func (k *kitLogger) Warn(kv ...interface{}) {
-	_ = lvl.Warn(k.Logger).Log(kv...)
-}
-
-func (k *kitLogger) Error(kv ...interface{}) {
-	_ = lvl.Error(k.Logger).Log(kv...)
-}
-
-func (k *kitLogger) Fatal(kv ...interface{}) {
-	_ = lvl.Error(k.Logger).Log(kv...)
-	os.Exit(1)
-}
-
-func (k *kitLogger) With(kv ...interface{}) Logger {
-	newLogger := log.With(k.Logger, kv...)
-	return NewKitLoggerFrom(newLogger)
+	return zapcore.NewConsoleEncoder(encoderConfig)
 }

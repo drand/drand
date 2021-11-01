@@ -4,6 +4,8 @@ import (
 	"path"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -19,7 +21,6 @@ type ConfigOption func(*Config)
 // Config holds all relevant information for a drand node to run.
 type Config struct {
 	configFolder      string
-	dbFolder          string
 	version           string
 	privateListenAddr string
 	publicListenAddr  string
@@ -50,7 +51,6 @@ func NewConfig(opts ...ConfigOption) *Config {
 		logger:      log.DefaultLogger(),
 		clock:       clock.NewRealClock(),
 	}
-	d.dbFolder = path.Join(d.configFolder, DefaultDBFolder)
 	for i := range opts {
 		opts[i](d)
 	}
@@ -63,9 +63,20 @@ func (d *Config) ConfigFolder() string {
 	return d.configFolder
 }
 
-// DBFolder returns the folder under which drand stores all generated beacons.
-func (d *Config) DBFolder() string {
-	return d.dbFolder
+// ConfigFolderMB returns the folder under which multi-beacon drand stores all its
+// configuration.
+func (d *Config) ConfigFolderMB() string {
+	return path.Join(d.configFolder, common.MultiBeaconFolder)
+}
+
+// DBFolder returns the folder under which drand stores db file specifically.
+// If beacon id is empty, it will use the default value
+func (d *Config) DBFolder(beaconID string) string {
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+
+	return path.Join(d.ConfigFolderMB(), beaconID, DefaultDBFolder)
 }
 
 // Certs returns all custom certs currently being trusted by drand.
@@ -153,19 +164,10 @@ func (d *Config) BoltOptions() *bolt.Options {
 	return d.boltOpts
 }
 
-// WithDBFolder sets the path folder for the db file. This path is NOT relative
-// to the DrandFolder path if set.
-func WithDBFolder(folder string) ConfigOption {
-	return func(d *Config) {
-		d.dbFolder = folder
-	}
-}
-
 // WithConfigFolder sets the base configuration folder to the given string.
 func WithConfigFolder(folder string) ConfigOption {
 	return func(d *Config) {
 		d.configFolder = folder
-		d.dbFolder = path.Join(d.configFolder, DefaultDBFolder)
 	}
 }
 
@@ -247,9 +249,13 @@ func WithControlPort(port string) ConfigOption {
 }
 
 // WithLogLevel sets the logging verbosity to the given level.
-func WithLogLevel(level int) ConfigOption {
+func WithLogLevel(level int, jsonFormat bool) ConfigOption {
 	return func(d *Config) {
-		d.logger = log.NewLogger(nil, level)
+		if jsonFormat {
+			d.logger = log.NewJSONLogger(nil, level)
+		} else {
+			d.logger = log.NewLogger(nil, level)
+		}
 	}
 }
 

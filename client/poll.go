@@ -15,7 +15,7 @@ func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, l log.
 	r := c.RoundAt(time.Now())
 	val, err := c.Get(ctx, r)
 	if err != nil {
-		l.Error("polling_client", "failed synchronous get", "from", c, "err", err)
+		l.Errorw("", "polling_client", "failed synchronous get", "from", c, "err", err)
 		close(ch)
 		return ch
 	}
@@ -36,7 +36,7 @@ func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, l log.
 		if err == nil {
 			ch <- r
 		} else {
-			l.Error("polling_client", "failed first async get", "from", c, "err", err)
+			l.Errorw("", "polling_client", "failed first async get", "from", c, "err", err)
 		}
 
 		// Then tick each period.
@@ -49,7 +49,7 @@ func PollingWatcher(ctx context.Context, c Client, chainInfo *chain.Info, l log.
 				if err == nil {
 					ch <- r
 				} else {
-					l.Error("polling_client", "failed subsequent watch poll", "from", c, "err", err)
+					l.Errorw("", "polling_client", "failed subsequent watch poll", "from", c, "err", err)
 				}
 				// TODO: keep trying on errors?
 			case <-ctx.Done():

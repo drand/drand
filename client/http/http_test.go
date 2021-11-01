@@ -9,11 +9,18 @@ import (
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/test/http/mock"
+	"github.com/drand/drand/common/scheme"
 )
 
 func TestHTTPClient(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true)
+	sch := scheme.GetSchemeFromEnv()
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, true, sch)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
@@ -44,8 +51,14 @@ func TestHTTPClient(t *testing.T) {
 }
 
 func TestHTTPGetLatest(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
@@ -73,8 +86,14 @@ func TestHTTPGetLatest(t *testing.T) {
 }
 
 func TestForURLsCreation(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	clients := ForURLs([]string{"http://invalid.domain/", "http://" + addr}, chainInfo.Hash())
 	if len(clients) != 2 {
@@ -85,8 +104,14 @@ func TestForURLsCreation(t *testing.T) {
 }
 
 func TestHTTPWatch(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
@@ -109,8 +134,15 @@ func TestHTTPWatch(t *testing.T) {
 }
 
 func TestHTTPClientClose(t *testing.T) {
-	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false)
+	sch := scheme.GetSchemeFromEnv()
+
+	addr, chainInfo, cancel, _ := mock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
+
+	err := IsServerReady(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	httpClient, err := New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {

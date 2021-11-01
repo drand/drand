@@ -17,10 +17,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/drand/drand/core/migration"
+
+	"github.com/drand/drand/common/scheme"
+
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -35,10 +40,8 @@ import (
 var output io.Writer = os.Stdout
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -46,7 +49,8 @@ var (
 const defaultPort = "8080"
 
 func banner() {
-	fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+	version := common.GetAppVersion()
+	fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version.String(), buildDate, gitCommit)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -248,17 +252,42 @@ var upToFlag = &cli.IntFlag{
 	Value: 0,
 }
 
+var schemeFlag = &cli.StringFlag{
+	Name:  "scheme",
+	Usage: "Indicates a set of values drand will use to configure the randomness generation process",
+	Value: scheme.DefaultSchemeID,
+}
+
+var jsonFlag = &cli.BoolFlag{
+	Name:  "json",
+	Usage: "Set the output as json format",
+}
+
+var beaconIDFlag = &cli.StringFlag{
+	Name:  "id",
+	Usage: "Indicates the id for the randomness generation process which will be started",
+	Value: "",
+}
+
+var allBeaconsFlag = &cli.BoolFlag{
+	Name:  "all",
+	Usage: "Indicates if we have to reset all beacons chains",
+	Value: false,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
 		Usage: "Start the drand daemon.",
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
-			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag, skipValidationFlag),
+			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag,
+			skipValidationFlag, jsonFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return startCmd(c)
 		},
+		Before: runMigration,
 	},
 	{
 		Name:  "stop",
@@ -275,7 +304,8 @@ var appCommands = []*cli.Command{
 		Flags: toArray(insecureFlag, controlFlag, oldGroupFlag,
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
-			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag),
+			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag,
+			schemeFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)
@@ -285,7 +315,7 @@ var appCommands = []*cli.Command{
 		Name:  "follow",
 		Usage: "follow and store a randomness chain",
 		Flags: toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag,
-			tlsCertFlag, insecureFlag, upToFlag),
+			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag),
 		Action: followCmd,
 	},
 	{
@@ -293,11 +323,12 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 			"for this node.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(folderFlag, insecureFlag),
+		Flags:     toArray(folderFlag, insecureFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return keygenCmd(c)
 		},
+		Before: checkMigration,
 	},
 
 	{
@@ -355,28 +386,49 @@ var appCommands = []*cli.Command{
 			},
 			{
 				Name:   "ping",
-				Usage:  "pings the daemon checking its state\n",
+				Usage:  "Pings the daemon checking its state\n",
 				Flags:  toArray(controlFlag),
 				Action: pingpongCmd,
 			},
 			{
+				Name:   "list-schemes",
+				Usage:  "List all scheme ids available to use\n",
+				Flags:  toArray(controlFlag),
+				Action: schemesCmd,
+			},
+			{
+				Name:   "status",
+				Usage:  "Get the status of many modules of running the daemon\n",
+				Flags:  toArray(controlFlag, jsonFlag),
+				Action: statusCmd,
+			},
+			{
+				Name:   "migrate",
+				Usage:  "Migrate folder structure to support multi-beacon drand. You DO NOT have to run it while drand is running.\n",
+				Flags:  toArray(folderFlag),
+				Action: migrateCmd,
+			},
+			{
 				Name:   "reset",
 				Usage:  "Resets the local distributed information (share, group file and random beacons). It KEEPS the private/public key pair.",
-				Flags:  toArray(folderFlag, controlFlag),
+				Flags:  toArray(folderFlag, controlFlag, beaconIDFlag, allBeaconsFlag),
 				Action: resetCmd,
+				Before: checkMigration,
 			},
 			{
 				Name: "del-beacon",
 				Usage: "Delete all beacons from the given `ROUND` number until the head of the chain. " +
 					" You MUST restart the daemon after that command.",
-				Flags:  toArray(folderFlag),
+				Flags:  toArray(folderFlag, beaconIDFlag, allBeaconsFlag),
 				Action: deleteBeaconCmd,
+				Before: checkMigration,
 			},
 			{
 				Name:   "self-sign",
 				Usage:  "Signs the public identity of this node. Needed for backward compatibility with previous versions.",
-				Flags:  toArray(folderFlag),
+				Flags:  toArray(folderFlag, beaconIDFlag),
 				Action: selfSign,
+				Before: checkMigration,
 			},
 			{
 				Name:   "backup",
@@ -434,17 +486,19 @@ var appCommands = []*cli.Command{
 
 // CLI runs the drand app
 func CLI() *cli.App {
+	version := common.GetAppVersion()
+
 	app := cli.NewApp()
 	app.Name = "drand"
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Fprintf(output, "drand %v (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+		fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
 	}
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
 		// override to prevent default behavior of calling OS.exit(1),
 		// when tests expect to be able to run multiple commands.
 	}
-	app.Version = version
+	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
 	app.Commands = appCommands
@@ -455,28 +509,42 @@ func CLI() *cli.App {
 
 func resetCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
+
 	fmt.Fprintf(output, "You are about to delete your local share, group file and generated random beacons. "+
 		"Are you sure you wish to perform this operation? [y/N]")
 	reader := bufio.NewReader(os.Stdin)
+
 	answer, err := reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("error reading: %s", err)
 	}
+
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	if answer != "y" {
 		fmt.Fprintf(output, "drand: not reseting the state.")
 		return nil
 	}
-	store := key.NewFileStore(conf.ConfigFolder())
-	if err := store.Reset(); err != nil {
-		fmt.Fprintf(output, "drand: err reseting key store: %v\n", err)
+
+	stores, err := getKeyStores(c)
+	if err != nil {
+		fmt.Fprintf(output, "drand: err reading beacons database: %v\n", err)
 		os.Exit(1)
 	}
-	if err := os.RemoveAll(conf.DBFolder()); err != nil {
-		fmt.Fprintf(output, "drand: err reseting beacons database: %v\n", err)
-		os.Exit(1)
+
+	for key, store := range stores {
+		if err := store.Reset(); err != nil {
+			fmt.Fprintf(output, "drand: beacon id [%s] - err reseting key store: %v\n", key, err)
+			os.Exit(1)
+		}
+
+		if err := os.RemoveAll(path.Join(conf.ConfigFolderMB(), key)); err != nil {
+			fmt.Fprintf(output, "drand: beacon id [%s] - err reseting beacons database: %v\n", key, err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("drand: beacon id [%s] - database reset\n", key)
 	}
-	fmt.Println("drand: database reset")
+
 	return nil
 }
 
@@ -498,6 +566,30 @@ func askPort() string {
 	}
 }
 
+func runMigration(c *cli.Context) error {
+	config := contextToConfig(c)
+	if err := migration.MigrateSBFolderStructure(config.ConfigFolder()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkMigration(c *cli.Context) error {
+	config := contextToConfig(c)
+	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
+		return fmt.Errorf("single-beacon drand folder structure was not migrated, " +
+			"please first do it with 'drand util migrate' command")
+	}
+
+	if fs.CreateSecureFolder(config.ConfigFolderMB()) == "" {
+		return fmt.Errorf("something went wrong with the multi beacon folder. " +
+			"Make sure that you have the appropriate rights")
+	}
+
+	return nil
+}
+
 func testWindows(c *cli.Context) error {
 	// x509 not available on windows: must run without TLS
 	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
@@ -511,12 +603,14 @@ func keygenCmd(c *cli.Context) error {
 	if !args.Present() {
 		return errors.New("missing drand address in argument. Abort")
 	}
+
 	addr := args.First()
 	var validID = regexp.MustCompile(`:\d+$`)
 	if !validID.MatchString(addr) {
 		fmt.Println("Invalid port.")
 		addr = addr + ":" + askPort()
 	}
+
 	var priv *key.Pair
 	if c.Bool(insecureFlag.Name) {
 		fmt.Println("Generating private / public key pair without TLS.")
@@ -527,21 +621,25 @@ func keygenCmd(c *cli.Context) error {
 	}
 
 	config := contextToConfig(c)
-	fileStore := key.NewFileStore(config.ConfigFolder())
+	beaconID := getBeaconID(c)
+	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	if _, err := fileStore.LoadKeyPair(); err == nil {
-		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolder())
+		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolderMB())
 		return nil
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {
 		return fmt.Errorf("could not save key: %s", err)
 	}
-	fullpath := path.Join(config.ConfigFolder(), key.KeyFolderName)
+
+	fullpath := path.Join(config.ConfigFolderMB(), beaconID, key.KeyFolderName)
 	absPath, err := filepath.Abs(fullpath)
+
 	if err != nil {
 		return fmt.Errorf("err getting full path: %s", err)
 	}
 	fmt.Println("Generated keys at ", absPath)
+
 	var buff bytes.Buffer
 	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
 		panic(err)
@@ -638,10 +736,12 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
 	client := net.NewGrpcClientFromCertManager(conf.Certs())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	identity, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
+	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
 	if err != nil {
 		return err
 	}
+
+	identity := &drand.Identity{Signature: identityResp.Signature, Tls: identityResp.Tls, Address: identityResp.Address, Key: identityResp.Key}
 	id, err := key.IdentityFromProto(identity)
 	if err != nil {
 		return err
@@ -656,34 +756,46 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
 // the head of the chain
 func deleteBeaconCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
+
 	startRoundStr := c.Args().First()
 	sr, err := strconv.Atoi(startRoundStr)
 	if err != nil {
 		return fmt.Errorf("given round not valid: %d", sr)
 	}
+
 	startRound := uint64(sr)
-	store, err := boltdb.NewBoltStore(conf.DBFolder(), conf.BoltOptions())
+
+	stores, err := getDBStoresPaths(c)
 	if err != nil {
-		return fmt.Errorf("invalid bolt store creation: %s", err)
+		return err
 	}
-	defer store.Close()
-	lastBeacon, err := store.Last()
-	if err != nil {
-		return fmt.Errorf("can't fetch last beacon: %s", err)
-	}
-	if startRound > lastBeacon.Round {
-		return fmt.Errorf("given round is ahead of the chain: %d", lastBeacon.Round)
-	}
-	if c.IsSet(verboseFlag.Name) {
-		fmt.Println("Planning to delete ", lastBeacon.Round-startRound, " beacons")
-	}
-	for round := startRound; round <= lastBeacon.Round; round++ {
-		err := store.Del(round)
+
+	for beaconID, storePath := range stores {
+		store, err := boltdb.NewBoltStore(path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
 		if err != nil {
-			return fmt.Errorf("error deleting round %d: %s", round, err)
+			return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %s", beaconID, err)
+		}
+		defer store.Close()
+
+		lastBeacon, err := store.Last()
+		if err != nil {
+			return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %s", beaconID, err)
+		}
+		if startRound > lastBeacon.Round {
+			return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
 		}
 		if c.IsSet(verboseFlag.Name) {
-			fmt.Println("- Deleted beacon round ", round)
+			fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, (lastBeacon.Round - startRound))
+		}
+
+		for round := startRound; round <= lastBeacon.Round; round++ {
+			err := store.Del(round)
+			if err != nil {
+				return fmt.Errorf("beacon id [%s] - error deleting round %d: %s", beaconID, round, err)
+			}
+			if c.IsSet(verboseFlag.Name) {
+				fmt.Printf("beacon id [%s] - deleted beacon round %d \n", beaconID, round)
+			}
 		}
 	}
 	return nil
@@ -707,11 +819,12 @@ func getGroup(c *cli.Context) (*key.Group, error) {
 
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
+	version := common.GetAppVersion()
 
 	if c.IsSet(verboseFlag.Name) {
-		opts = append(opts, core.WithLogLevel(log.LogDebug))
+		opts = append(opts, core.WithLogLevel(log.LogDebug, jsonFlag.Value))
 	} else {
-		opts = append(opts, core.WithLogLevel(log.LogInfo))
+		opts = append(opts, core.WithLogLevel(log.LogInfo, jsonFlag.Value))
 	}
 
 	if c.IsSet(pubListenFlag.Name) {
@@ -796,4 +909,56 @@ func testEmptyGroup(filePath string) error {
 		return errors.New("group file empty")
 	}
 	return nil
+}
+
+func getBeaconID(c *cli.Context) string {
+	beaconID := c.String(beaconIDFlag.Name)
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+
+	return beaconID
+}
+
+func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
+	conf := contextToConfig(c)
+	stores := make(map[string]string)
+
+	if c.IsSet(allBeaconsFlag.Name) {
+		fi, err := os.ReadDir(conf.ConfigFolderMB())
+		if err != nil {
+			return nil, fmt.Errorf("error trying to read stores from config folder: %s", err)
+		}
+		for _, f := range fi {
+			if f.IsDir() {
+				stores[f.Name()] = path.Join(conf.ConfigFolderMB(), f.Name())
+			}
+		}
+	} else {
+		beaconID := getBeaconID(c)
+
+		isPresent, err := fs.Exists(path.Join(conf.ConfigFolderMB(), beaconID))
+		if err != nil || !isPresent {
+			return nil, fmt.Errorf("beacon id [%s] - error trying to read store: %s", beaconID, err)
+		}
+
+		stores[beaconID] = path.Join(conf.ConfigFolderMB(), beaconID)
+	}
+
+	return stores, nil
+}
+
+func getKeyStores(c *cli.Context) (map[string]key.Store, error) {
+	conf := contextToConfig(c)
+
+	if c.IsSet(allBeaconsFlag.Name) {
+		return key.NewFileStores(conf.ConfigFolderMB())
+	}
+
+	beaconID := getBeaconID(c)
+
+	store := key.NewFileStore(conf.ConfigFolderMB(), beaconID)
+	stores := map[string]key.Store{beaconID: store}
+
+	return stores, nil
 }

@@ -7,9 +7,6 @@ import (
 	"fmt"
 
 	json "github.com/nikkolasg/hexjson"
-
-	"github.com/drand/drand/key"
-	"github.com/drand/kyber"
 )
 
 // Beacon holds the randomness as well as the info to verify it.
@@ -58,37 +55,6 @@ func RandomnessFromSignature(sig []byte) []byte {
 
 func (b *Beacon) String() string {
 	return fmt.Sprintf("{ round: %d, sig: %s, prevSig: %s }", b.Round, shortSigStr(b.Signature), shortSigStr(b.PreviousSig))
-}
-
-// VerifyBeacon returns an error if the given beacon does not verify given the
-// public key. The public key "point" can be obtained from the
-// `key.DistPublic.Key()` method. The distributed public is the one written in
-// the configuration file of the network.
-func VerifyBeacon(pubkey kyber.Point, b *Beacon) error {
-	prevSig := b.PreviousSig
-	round := b.Round
-	msg := Message(round, prevSig)
-	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
-}
-
-// Verify is similar to verify beacon but doesn't require to get the full beacon
-// structure.
-func Verify(pubkey kyber.Point, prevSig, signature []byte, round uint64) error {
-	return VerifyBeacon(pubkey, &Beacon{
-		Round:       round,
-		PreviousSig: prevSig,
-		Signature:   signature,
-	})
-}
-
-// Message returns a slice of bytes as the message to sign or to verify
-// alongside a beacon signature.
-// H ( prevSig || currRound)
-func Message(currRound uint64, prevSig []byte) []byte {
-	h := sha256.New()
-	_, _ = h.Write(prevSig)
-	_, _ = h.Write(RoundToBytes(currRound))
-	return h.Sum(nil)
 }
 
 func shortSigStr(sig []byte) string {

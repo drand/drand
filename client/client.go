@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/drand/drand/chain"
@@ -21,6 +22,7 @@ func New(options ...Option) (Client, error) {
 		cacheSize: 32,
 		log:       log.DefaultLogger(),
 	}
+
 	for _, opt := range options {
 		if err := opt(&cfg); err != nil {
 			return nil, err
@@ -58,6 +60,11 @@ func makeClient(cfg *clientConfig) (Client, error) {
 		return nil, err
 	}
 
+	// try to populate chain info
+	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
+		return nil, err
+	}
+
 	// provision watcher client
 	var wc Client
 	if cfg.watcher != nil {
@@ -76,7 +83,9 @@ func makeClient(cfg *clientConfig) (Client, error) {
 
 	verifiers := make([]Client, 0, len(cfg.clients))
 	for _, source := range cfg.clients {
-		nv := newVerifyingClient(source, cfg.previousResult, cfg.fullVerify)
+		opts := Opts{scheme: cfg.chainInfo.Scheme, strict: cfg.fullVerify}
+
+		nv := newVerifyingClient(source, cfg.previousResult, opts)
 		verifiers = append(verifiers, nv)
 		if source == wc {
 			wc = nv
@@ -125,9 +134,10 @@ func makeOptimizingClient(cfg *clientConfig, verifiers []Client, watcher Client,
 }
 
 func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
-	if err := cfg.tryPopulateInfo(cfg.clients...); err != nil {
-		return nil, err
+	if cfg.chainInfo == nil {
+		return nil, fmt.Errorf("chain info cannot be nil")
 	}
+
 	w, err := cfg.watcher(cfg.chainInfo, cache)
 	if err != nil {
 		return nil, err
@@ -139,9 +149,6 @@ func makeWatcherClient(cfg *clientConfig, cache Cache) (Client, error) {
 func attachMetrics(cfg *clientConfig, c Client) (Client, error) {
 	if cfg.prometheus != nil {
 		if err := metrics.RegisterClientMetrics(cfg.prometheus); err != nil {
-			return nil, err
-		}
-		if err := cfg.tryPopulateInfo(c); err != nil {
 			return nil, err
 		}
 		return newWatchLatencyMetricClient(c, cfg.chainInfo), nil

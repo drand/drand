@@ -11,7 +11,9 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/key"
@@ -41,19 +43,23 @@ type Handler struct {
 	// keeps the cryptographic info (group share etc)
 	crypto *cryptoStore
 	// main logic that treats incoming packet / new beacons created
-	chain  *chainStore
-	ticker *ticker
+	chain    *chainStore
+	ticker   *ticker
+	verifier *chain.Verifier
 
 	close   chan bool
 	addr    string
 	started bool
+	running bool
+	serving bool
 	stopped bool
 	l       log.Logger
+	version utils.Version
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger) (*Handler, error) {
+func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version utils.Version) (*Handler, error) {
 	if conf.Share == nil || conf.Group == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}
@@ -72,15 +78,19 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger)
 
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	store := newChainStore(logger, conf, c, crypto, s, ticker)
+	verifier := chain.NewVerifier(conf.Group.Scheme)
+
 	handler := &Handler{
-		conf:   conf,
-		client: c,
-		crypto: crypto,
-		chain:  store,
-		ticker: ticker,
-		addr:   addr,
-		close:  make(chan bool),
-		l:      logger,
+		conf:     conf,
+		client:   c,
+		crypto:   crypto,
+		chain:    store,
+		verifier: verifier,
+		ticker:   ticker,
+		addr:     addr,
+		close:    make(chan bool),
+		l:        logger,
+		version:  version,
 	}
 	return handler, nil
 }
@@ -90,8 +100,9 @@ var errOutOfRound = "out-of-round beacon request"
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
+	beaconID := h.conf.Group.ID
 	addr := net.RemoteAddress(c)
-	h.l.Debug("received", "request", "from", addr, "round", p.GetRound())
+	h.l.Debugw("", "beacon_id", beaconID, "received", "request", "from", addr, "round", p.GetRound())
 
 	nextRound, _ := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	currentRound := nextRound - 1
@@ -100,31 +111,35 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	// possible, if a node receives a packet very fast just before his local
 	// clock passed to the next round
 	if p.GetRound() > nextRound {
-		h.l.Error("process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
+		h.l.Errorw("", "beacon_id", beaconID, "process_partial", addr, "invalid_future_round", p.GetRound(), "current_round", currentRound)
 		return nil, fmt.Errorf("invalid round: %d instead of %d", p.GetRound(), currentRound)
 	}
 
-	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
+	msg := h.verifier.DigestMessage(p.GetRound(), p.GetPreviousSig())
+
 	// XXX Remove that evaluation - find another way to show the current dist.
 	// key being used
 	shortPub := h.crypto.GetPub().Eval(1).V.String()[14:19]
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
-		h.l.Error("process_partial", addr, "err", err,
+		h.l.Errorw("", "beacon_id", beaconID,
+			"process_partial", addr, "err", err,
 			"prev_sig", shortSigStr(p.GetPreviousSig()),
 			"curr_round", currentRound,
 			"msg_sign", shortSigStr(msg),
 			"short_pub", shortPub)
 		return nil, err
 	}
-	h.l.Debug("process_partial", addr,
+	h.l.Debugw("", "beacon_id", beaconID,
+		"process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSig()),
 		"curr_round", currentRound, "msg_sign",
 		shortSigStr(msg), "short_pub", shortPub,
 		"status", "OK")
 	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == h.crypto.Index() {
-		h.l.Error("process_partial", addr,
+		h.l.Errorw("", "beacon_id", beaconID,
+			"process_partial", addr,
 			"index_got", idx,
 			"index_our", h.crypto.Index(),
 			"advance_packet", p.GetRound(),
@@ -149,13 +164,20 @@ func (h *Handler) Store() chain.Store {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start() error {
+	beaconID := h.conf.Group.ID
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
-		h.l.Error("genesis_time", "past", "call", "catchup")
+		h.l.Errorw("", "beacon_id", beaconID, "genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
 	}
+
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	_, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
-	h.l.Info("beacon", "start")
+	h.l.Infow("", "beacon_id", beaconID, "beacon", "start")
 	go h.run(tTime)
+
 	return nil
 }
 
@@ -165,6 +187,10 @@ func (h *Handler) Start() error {
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup() {
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
 	h.chain.RunSync(context.Background(), nRound, nil)
@@ -175,30 +201,39 @@ func (h *Handler) Catchup() {
 // randomness. To sync, he contact the nodes listed in the previous group file
 // given.
 func (h *Handler) Transition(prevGroup *key.Group) error {
+	beaconID := h.conf.Group.ID
 	targetTime := h.conf.Group.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
-		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		h.l.Fatalw("", "beacon_id", beaconID, "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return nil
 	}
+
+	h.Lock()
+	h.started = true
+	h.Unlock()
+
 	go h.run(targetTime)
+
 	// we run the sync up until (inclusive) one round before the transition
-	h.l.Debug("new_node", "following chain", "to_round", tRound-1)
+	h.l.Debugw("", "beacon_id", beaconID, "new_node", "following chain", "to_round", tRound-1)
 	h.chain.RunSync(context.Background(), tRound-1, toPeers(prevGroup.Nodes))
+
 	return nil
 }
 
 // TransitionNewGroup prepares the node to transition to the new group
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
+	beaconID := h.conf.Group.ID
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	if tTime != targetTime {
-		h.l.Fatal("transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+		h.l.Fatalw("", "beacon_id", beaconID, "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
-	h.l.Debug("transition", "new_group", "at_round", tRound)
+	h.l.Debugw("", "beacon_id", beaconID, "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
@@ -211,20 +246,73 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	})
 }
 
+func (h *Handler) IsStarted() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.started
+}
+
+func (h *Handler) IsServing() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.serving
+}
+
+func (h *Handler) IsRunning() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.running
+}
+
+func (h *Handler) IsStopped() bool {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.stopped
+}
+
+func (h *Handler) Reset() {
+	h.Lock()
+	defer h.Unlock()
+
+	h.stopped = false
+	h.started = false
+	h.running = false
+	h.serving = false
+}
+
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
+	beaconID := h.conf.Group.ID
 	chanTick := h.ticker.ChannelAt(startTime)
-	h.l.Debug("run_round", "wait", "until", startTime)
+	h.l.Debugw("", "beacon_id", beaconID, "run_round", "wait", "until", startTime)
+
 	var current roundInfo
+	setRunning := sync.Once{}
+
+	h.Lock()
+	h.running = true
+	h.Unlock()
+
 	for {
 		select {
 		case current = <-chanTick:
+
+			setRunning.Do(func() {
+				h.Lock()
+				h.serving = true
+				h.Unlock()
+			})
+
 			lastBeacon, err := h.chain.Last()
 			if err != nil {
-				h.l.Error("beacon_loop", "loading_last", "err", err)
+				h.l.Errorw("", "beacon_id", beaconID, "beacon_loop", "loading_last", "err", err)
 				break
 			}
-			h.l.Debug("beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
+			h.l.Debugw("", "beacon_id", beaconID, "beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
 			h.broadcastNextPartial(current, lastBeacon)
 			// if the next round of the last beacon we generated is not the round we
 			// are now, that means there is a gap between the two rounds. In other
@@ -237,7 +325,7 @@ func (h *Handler) run(startTime int64) {
 				// network conditions allow for it.
 				// XXX find a way to start the catchup as soon as the runsync is
 				// done. Not critical but leads to faster network recovery.
-				h.l.Debug("beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
+				h.l.Debugw("", "beacon_id", beaconID, "beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
 				go h.chain.RunSync(context.Background(), current.round, nil)
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
@@ -257,7 +345,7 @@ func (h *Handler) run(startTime int64) {
 				}(current, b)
 			}
 		case <-h.close:
-			h.l.Debug("beacon_loop", "finished")
+			h.l.Debugw("", "beacon_id", beaconID, "beacon_loop", "finished")
 			return
 		}
 	}
@@ -267,6 +355,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	ctx := context.Background()
 	previousSig := upon.Signature
 	round := upon.Round + 1
+	beaconID := h.conf.Group.ID
 	if current.round == upon.Round {
 		// we already have the beacon of the current round for some reasons - on
 		// CI it happens due to time shifts -
@@ -276,30 +365,37 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 		previousSig = upon.PreviousSig
 		round = current.round
 	}
-	msg := chain.Message(round, previousSig)
+
+	msg := h.verifier.DigestMessage(round, previousSig)
+
 	currSig, err := h.crypto.SignPartial(msg)
 	if err != nil {
-		h.l.Fatal("beacon_round", "err creating signature", "err", err, "round", round)
+		h.l.Fatal("beacon_id", beaconID, "beacon_round", "err creating signature", "err", err, "round", round)
 		return
 	}
-	h.l.Debug("broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
+	h.l.Debugw("", "beacon_id", beaconID, "broadcast_partial", round, "from_prev_sig", shortSigStr(previousSig), "msg_sign", shortSigStr(msg))
+	metadata := common.NewMetadata(h.version.ToProto())
+	metadata.BeaconID = beaconID
+
 	packet := &proto.PartialBeaconPacket{
 		Round:       round,
 		PreviousSig: previousSig,
 		PartialSig:  currSig,
+		Metadata:    metadata,
 	}
+
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {
 		if h.addr == id.Address() {
 			continue
 		}
 		go func(i *key.Identity) {
-			h.l.Debug("beacon_round", round, "send_to", i.Address())
+			h.l.Debugw("", "beacon_id", beaconID, "beacon_round", round, "send_to", i.Address())
 			err := h.client.PartialBeacon(ctx, i, packet)
 			if err != nil {
-				h.l.Error("beacon_round", round, "err_request", err, "from", i.Address())
+				h.l.Errorw("", "beacon_id", beaconID, "beacon_round", round, "err_request", err, "from", i.Address())
 				if strings.Contains(err.Error(), errOutOfRound) {
-					h.l.Error("beacon_round", round, "node", i.Addr, "reply", "out-of-round")
+					h.l.Errorw("", "beacon_id", beaconID, "beacon_round", round, "node", i.Addr, "reply", "out-of-round")
 				}
 				return
 			}
@@ -316,22 +412,29 @@ func (h *Handler) Stop() {
 		return
 	}
 	close(h.close)
+
 	h.chain.Stop()
 	h.ticker.Stop()
+
+	beaconID := h.conf.Group.ID
 	h.stopped = true
-	h.l.Info("beacon", "stop")
+	h.running = false
+	h.l.Infow("", "beacon_id", beaconID, "beacon", "stop")
 }
 
 // StopAt will stop the handler at the given time. It is useful when
 // transitionining for a resharing.
 func (h *Handler) StopAt(stopTime int64) error {
 	now := h.conf.Clock.Now().Unix()
+	beaconID := h.conf.Group.ID
+
 	if stopTime <= now {
 		// actually we can stop in the present but with "Stop"
 		return errors.New("can't stop in the past or present")
 	}
 	duration := time.Duration(stopTime-now) * time.Second
-	h.l.Debug("stop_at", stopTime, "sleep_for", duration.Seconds())
+
+	h.l.Debugw("", "beacon_id", beaconID, "stop_at", stopTime, "sleep_for", duration.Seconds())
 	h.conf.Clock.Sleep(duration)
 	h.Stop()
 	return nil
@@ -345,6 +448,11 @@ func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
 // RemoveCallback is a proxy method to remove a callback on the backend store
 func (h *Handler) RemoveCallback(id string) {
 	h.chain.RemoveCallback(id)
+}
+
+// GetConfg returns the conf used by the handler
+func (h *Handler) GetConfg() *Config {
+	return h.conf
 }
 
 // SyncChain is a proxy method to sync a chain

@@ -24,10 +24,13 @@ var beaconBucket = []byte("beacons")
 // BoltFileName is the name of the file boltdb writes to
 const BoltFileName = "drand.db"
 
+// BoltStoreOpenPerm is the permission we will use to read bolt store file from disk
+const BoltStoreOpenPerm = 0660
+
 // NewBoltStore returns a Store implementation using the boltdb storage engine.
 func NewBoltStore(folder string, opts *bolt.Options) (chain.Store, error) {
 	dbPath := path.Join(folder, BoltFileName)
-	db, err := bolt.Open(dbPath, 0660, opts)
+	db, err := bolt.Open(dbPath, BoltStoreOpenPerm, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -53,14 +56,14 @@ func (b *boltStore) Len() int {
 		return nil
 	})
 	if err != nil {
-		log.DefaultLogger().Warn("boltdb", "error getting length", "err", err)
+		log.DefaultLogger().Warnw("", "boltdb", "error getting length", "err", err)
 	}
 	return length
 }
 
 func (b *boltStore) Close() {
 	if err := b.db.Close(); err != nil {
-		log.DefaultLogger().Debug("boltdb", "close", "err", err)
+		log.DefaultLogger().Debugw("", "boltdb", "close", "err", err)
 	}
 }
 
@@ -143,7 +146,7 @@ func (b *boltStore) Cursor(fn func(chain.Cursor)) {
 		return nil
 	})
 	if err != nil {
-		log.DefaultLogger().Warn("boltdb", "error getting cursor", "err", err)
+		log.DefaultLogger().Warnw("", "boltdb", "error getting cursor", "err", err)
 	}
 }
 

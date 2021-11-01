@@ -11,11 +11,13 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -35,6 +37,7 @@ type Drand struct {
 	control     net.ControlListener
 
 	beacon *beacon.Handler
+
 	// dkg private share. can be nil if dkg not finished yet.
 	share   *key.Share
 	dkgDone bool
@@ -61,9 +64,12 @@ type Drand struct {
 	// XXX need boundaries between gRPC and control plane such that we can give
 	// a list of paramteres at each DKG (inluding this callback)
 	setupCB func(*key.Group)
+
+	// version indicates the base code variant
+	version utils.Version
 }
 
-// NewDrand returns an drand struct. It assumes the private key pair
+// NewDrand returns a drand struct. It assumes the private key pair
 // has been generated and saved already.
 func NewDrand(s key.Store, c *Config) (*Drand, error) {
 	d, err := initDrand(s, c)
@@ -85,18 +91,19 @@ func initDrand(s key.Store, c *Config) (*Drand, error) {
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		logger.Error("INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
+		logger.Errorw("", "INVALID SELF SIGNATURE", err, "action", "run `drand util self-sign`")
 	}
 
 	// trick to always set the listening address by default based on the
 	// identity. If there is an option to set the address, it will override the
 	// default set here..
 	d := &Drand{
-		store:  s,
-		priv:   priv,
-		opts:   c,
-		log:    logger,
-		exitCh: make(chan bool, 1),
+		store:   s,
+		priv:    priv,
+		opts:    c,
+		log:     logger,
+		exitCh:  make(chan bool, 1),
+		version: common.GetAppVersion(),
 	}
 	if err := setupDrand(d, c); err != nil {
 		return nil, err
@@ -114,7 +121,7 @@ func setupDrand(d *Drand, c *Config) error {
 	// do not actually use it, so we are passing a background context to be safe.
 	ctx := context.Background()
 	var err error
-	d.log.Info("network", "init", "insecure", c.insecure)
+	d.log.Infow("", "network", "init", "insecure", c.insecure)
 	if pubAddr != "" {
 		handler, err := http.New(ctx, &drandProxy{d}, c.Version(), d.log.With("server", "http"))
 		if err != nil {
@@ -131,7 +138,7 @@ func setupDrand(d *Drand, c *Config) error {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Info("private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
+	d.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolderMB())
 	d.privGateway.StartAll()
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
@@ -155,7 +162,7 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.log.Debug("serving", d.priv.Public.Address())
+	d.log.Debugw("", "beacon_id", d.group.ID, "serving", d.priv.Public.Address())
 	d.dkgDone = true
 	return d, nil
 }
@@ -165,14 +172,16 @@ func LoadDrand(s key.Store, c *Config) (*Drand, error) {
 // private share. These should be loadable by the store.
 func (d *Drand) WaitDKG() (*key.Group, error) {
 	d.state.Lock()
+
 	if d.dkgInfo == nil {
 		d.state.Unlock()
 		return nil, errors.New("no dkg info set")
 	}
 	waitCh := d.dkgInfo.proto.WaitEnd()
+	d.log.Debugw("", "beacon_id", d.dkgInfo.target.ID, "waiting_dkg_end", time.Now())
+
 	d.state.Unlock()
 
-	d.log.Debug("waiting_dkg_end", time.Now())
 	res := <-waitCh
 	if res.Error != nil {
 		return nil, fmt.Errorf("drand: error from dkg: %v", res.Error)
@@ -205,7 +214,7 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %d, pub: %s}", node.Address(), node.Index, node.Key))
 	}
-	d.log.Debug("dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
+	d.log.Debugw("", "beacon_id", d.group.ID, "dkg_end", time.Now(), "certified", d.group.Len(), "list", "["+strings.Join(output, ",")+"]")
 	if err := d.store.SaveGroup(d.group); err != nil {
 		return nil, err
 	}
@@ -218,17 +227,18 @@ func (d *Drand) WaitDKG() (*key.Group, error) {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (d *Drand) StartBeacon(catchup bool) {
+	beaconID := d.group.ID
 	b, err := d.newBeacon()
 	if err != nil {
-		d.log.Error("init_beacon", err)
+		d.log.Errorw("", "beacon_id", beaconID, "init_beacon", err)
 		return
 	}
 
-	d.log.Info("beacon_start", time.Now(), "catchup", catchup)
+	d.log.Infow("", "beacon_id", beaconID, "beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
-		d.log.Error("beacon_start", err)
+		d.log.Errorw("", "beacon_id", beaconID, "beacon_start", err)
 	}
 }
 
@@ -245,13 +255,16 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	// the same time as the new node
 	// NOTE: this limits the round time of drand - for now it is not a use
 	// case to go that fast
+
+	beaconID := oldGroup.ID
 	timeToStop := d.group.TransitionTime - 1
+
 	if !newPresent {
 		// an old node is leaving the network
 		if err := d.beacon.StopAt(timeToStop); err != nil {
-			d.log.Error("leaving_group", err)
+			d.log.Errorw("", "beacon_id", beaconID, "leaving_group", err)
 		} else {
-			d.log.Info("leaving_group", "done", "time", d.opts.clock.Now())
+			d.log.Infow("", "beacon_id", beaconID, "leaving_group", "done", "time", d.opts.clock.Now())
 		}
 		return
 	}
@@ -267,12 +280,12 @@ func (d *Drand) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
 	} else {
 		b, err := d.newBeacon()
 		if err != nil {
-			d.log.Fatal("transition", "new_node", "err", err)
+			d.log.Fatalw("", "beacon_id", beaconID, "transition", "new_node", "err", err)
 		}
 		if err := b.Transition(oldGroup); err != nil {
-			d.log.Error("sync_before", err)
+			d.log.Errorw("", "beacon_id", beaconID, "sync_before", err)
 		}
-		d.log.Info("transition_new", "done")
+		d.log.Infow("", "beacon_id", beaconID, "transition_new", "done")
 	}
 }
 
@@ -305,20 +318,24 @@ func (d *Drand) WaitExit() chan bool {
 	return d.exitCh
 }
 
-func (d *Drand) createBoltStore() (chain.Store, error) {
-	fs.CreateSecureFolder(d.opts.DBFolder())
-	return boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+func (d *Drand) createBoltStore(dbName string) (chain.Store, error) {
+	if dbName == "" {
+		dbName = common.DefaultBeaconID
+	}
+
+	dbPath := d.opts.DBFolder(dbName)
+	fs.CreateSecureFolder(dbPath)
+
+	return boltdb.NewBoltStore(dbPath, d.opts.boltOpts)
 }
 
 func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	store, err := d.createBoltStore()
-	if err != nil {
-		return nil, err
-	}
+
 	pub := d.priv.Public
 	node := d.group.Find(pub)
+
 	if node == nil {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
@@ -328,7 +345,13 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
-	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log)
+
+	store, err := d.createBoltStore(d.group.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log, d.version)
 	if err != nil {
 		return nil, err
 	}
@@ -343,6 +366,8 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 }
 
 func checkGroup(l log.Logger, group *key.Group) {
+	beaconID := group.ID
+
 	unsigned := group.UnsignedIdentities()
 	if unsigned == nil {
 		return
@@ -351,7 +376,7 @@ func checkGroup(l log.Logger, group *key.Group) {
 	for _, n := range unsigned {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
-	l.Info("UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
+	l.Infow("", "beacon_id", beaconID, "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
 
 // dkgInfo is a simpler wrapper that keeps the relevant config and logic

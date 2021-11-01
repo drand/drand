@@ -7,11 +7,16 @@ import (
 	"strings"
 	"time"
 
-	control "github.com/drand/drand/protobuf/drand"
-
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
+	protoCommon "github.com/drand/drand/protobuf/common"
+	control "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/utils"
+
 	"google.golang.org/grpc"
 )
+
+const grpcDefaultIPNetwork = "tcp"
 
 // ControlListener is used to keep state of the connections of our drand instance
 type ControlListener struct {
@@ -23,7 +28,7 @@ type ControlListener struct {
 func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
 	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {
-		log.DefaultLogger().Error("grpc listener", "failure", "err", err)
+		log.DefaultLogger().Errorw("", "grpc listener", "failure", "err", err)
 		return ControlListener{}
 	}
 	grpcServer := grpc.NewServer()
@@ -34,7 +39,7 @@ func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) Cont
 // Start the listener for the control commands
 func (g *ControlListener) Start() {
 	if err := g.conns.Serve(g.lis); err != nil {
-		log.DefaultLogger().Error("control listener", "serve ended", "err", err)
+		log.DefaultLogger().Errorw("", "control listener", "serve ended", "err", err)
 	}
 }
 
@@ -46,11 +51,10 @@ func (g *ControlListener) Stop() {
 // ControlClient is a struct that implement control.ControlClient and is used to
 // request a Share to a ControlListener on a specific port
 type ControlClient struct {
-	conn   *grpc.ClientConn
-	client control.ControlClient
+	conn    *grpc.ClientConn
+	client  control.ControlClient
+	version utils.Version
 }
-
-const grpcDefaultIPNetwork = "tcp"
 
 // NewControlClient creates a client capable of issuing control commands to a
 // localhost running drand node.
@@ -60,19 +64,42 @@ func NewControlClient(addr string) (*ControlClient, error) {
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)
 	}
+
 	conn, err := grpc.Dial(host, grpc.WithInsecure())
 	if err != nil {
-		log.DefaultLogger().Error("control client", "connect failure", "err", err)
+		log.DefaultLogger().Errorw("", "control client", "connect failure", "err", err)
 		return nil, err
 	}
+
 	c := control.NewControlClient(conn)
-	return &ControlClient{conn: conn, client: c}, nil
+
+	return &ControlClient{
+		conn:    conn,
+		client:  c,
+		version: common.GetAppVersion(),
+	}, nil
 }
 
 // Ping the drand daemon to check if it's up and running
 func (c *ControlClient) Ping() error {
-	_, err := c.client.PingPong(ctx.Background(), &control.Ping{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+
+	_, err := c.client.PingPong(ctx.Background(), &control.Ping{Metadata: metadata})
 	return err
+}
+
+// Status gets the current daemon status
+func (c *ControlClient) Status() (*control.StatusResponse, error) {
+	resp, err := c.client.Status(ctx.Background(), &control.StatusRequest{})
+	return resp, err
+}
+
+// ListSchemes responds with the list of ids for the available schemes
+func (c *ControlClient) ListSchemes() (*control.ListSchemesResponse, error) {
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+
+	resp, err := c.client.ListSchemes(ctx.Background(), &control.ListSchemesRequest{Metadata: metadata})
+	return resp, err
 }
 
 // InitReshareLeader sets up the node to be ready for a resharing protocol.
@@ -82,7 +109,10 @@ func (c *ControlClient) InitReshareLeader(
 	nodes, threshold int,
 	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
-	offset int) (*control.GroupPacket, error) {
+	offset int,
+	beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -97,12 +127,16 @@ func (c *ControlClient) InitReshareLeader(
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
+		Metadata:             &metadata,
 	}
+
 	return c.client.InitReshare(ctx.Background(), request)
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
 			Location: &control.GroupInfo_Path{Path: oldPath},
@@ -114,7 +148,9 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			Secret:        []byte(secret),
 			Force:         force,
 		},
+		Metadata: &metadata,
 	}
+
 	return c.client.InitReshare(ctx.Background(), request)
 }
 
@@ -122,11 +158,17 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 // groupPart
 // NOTE: only group referral via filesystem path is supported at the moment.
 // XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(nodes, threshold int,
+func (c *ControlClient) InitDKGLeader(
+	nodes, threshold int,
 	beaconPeriod, catchupPeriod, timeout time.Duration,
 	entropy *control.EntropyInfo,
 	secret string,
-	offset int) (*control.GroupPacket, error) {
+	offset int,
+	schemeID string,
+	beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata.BeaconID = beaconID
+
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Nodes:        uint32(nodes),
@@ -139,12 +181,17 @@ func (c *ControlClient) InitDKGLeader(nodes, threshold int,
 		Entropy:       entropy,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
+		SchemeID:      schemeID,
+		Metadata:      metadata,
 	}
+
 	return c.client.InitDKG(ctx.Background(), request)
 }
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
-func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret, beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
 			Leader:        false,
@@ -152,40 +199,49 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			LeaderTls:     leader.IsTLS(),
 			Secret:        []byte(secret),
 		},
-		Entropy: entropy,
+		Entropy:  entropy,
+		Metadata: &metadata,
 	}
+
 	return c.client.InitDKG(ctx.Background(), request)
 }
 
 // Share returns the share of the remote node
 func (c *ControlClient) Share() (*control.ShareResponse, error) {
-	return c.client.Share(ctx.Background(), &control.ShareRequest{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+
+	return c.client.Share(ctx.Background(), &control.ShareRequest{Metadata: metadata})
 }
 
 // PublicKey returns the public key of the remote node
 func (c *ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
-	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Metadata: metadata})
 }
 
 // PrivateKey returns the private key of the remote node
 func (c *ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
-	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Metadata: metadata})
 }
 
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
-	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Metadata: metadata})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
 // time
 func (c *ControlClient) GroupFile() (*control.GroupPacket, error) {
-	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Metadata: metadata})
 }
 
 // Shutdown stops the daemon
 func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
-	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: metadata})
 }
 
 const progressFollowQueue = 100
@@ -195,13 +251,18 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	hash string,
 	nodes []string,
 	tls bool,
-	upTo uint64) (outCh chan *control.FollowProgress,
+	upTo uint64,
+	beaconID string) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata.BeaconID = beaconID
+
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,
 		Nodes:    nodes,
 		IsTls:    tls,
 		UpTo:     upTo,
+		Metadata: metadata,
 	})
 	if err != nil {
 		return nil, nil, err
@@ -231,7 +292,8 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 
 // BackupDB backs up the database to afile
 func (c *ControlClient) BackupDB(outFile string) error {
-	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile})
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: metadata})
 	return err
 }
 
@@ -251,9 +313,17 @@ type DefaultControlServer struct {
 	C control.ControlServer
 }
 
-// PingPong sends aping to the server
+// PingPong sends a ping to the server
 func (s *DefaultControlServer) PingPong(c ctx.Context, in *control.Ping) (*control.Pong, error) {
 	return &control.Pong{}, nil
+}
+
+// Status initiates a status request
+func (s *DefaultControlServer) Status(c ctx.Context, in *control.StatusRequest) (*control.StatusResponse, error) {
+	if s.C == nil {
+		return &control.StatusResponse{}, nil
+	}
+	return s.C.Status(c, in)
 }
 
 // Share initiates a share request

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	mrand "math/rand"
 	"os"
 	"path"
@@ -27,7 +26,7 @@ import (
 	libp2ptls "github.com/libp2p/go-libp2p-tls"
 	ma "github.com/multiformats/go-multiaddr"
 	"golang.org/x/crypto/blake2b"
-	xerrors "golang.org/x/xerrors"
+	"golang.org/x/xerrors"
 )
 
 const (
@@ -39,6 +38,8 @@ const (
 	highWater                 = 200
 	gracePeriod               = time.Minute
 	bootstrapTimeout          = 5 * time.Second
+	allDirPerm                = 0755
+	identityFilePerm          = 0600
 )
 
 // PubSubTopic generates a drand pubsub topic from a chain hash.
@@ -117,7 +118,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 			err := h.Connect(ctx, ai)
 			cancel()
 			if err != nil {
-				log.Warn("construct_host", "could not bootstrap", "addr", ai)
+				log.Warnw("", "construct_host", "could not bootstrap", "addr", ai)
 			}
 		}
 	}()
@@ -126,7 +127,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 // LoadOrCreatePrivKey loads a base64 encoded libp2p private key from a file or creates one if it does not exist.
 func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, error) {
-	privB64, err := ioutil.ReadFile(identityPath)
+	privB64, err := os.ReadFile(identityPath)
 
 	var priv crypto.PrivKey
 	switch {
@@ -139,7 +140,7 @@ func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, 
 		if err != nil {
 			return nil, xerrors.Errorf("unmarshaling ed25519 key: %w", err)
 		}
-		log.Info("load_or_create_priv_key", "loaded private key")
+		log.Infow("", "load_or_create_priv_key", "loaded private key")
 
 	case xerrors.Is(err, os.ErrNotExist):
 		priv, _, err = crypto.GenerateEd25519Key(rand.Reader)
@@ -150,11 +151,11 @@ func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, 
 		if err != nil {
 			return nil, xerrors.Errorf("marshaling private key: %w", err)
 		}
-		err = os.MkdirAll(path.Dir(identityPath), 0755)
+		err = os.MkdirAll(path.Dir(identityPath), allDirPerm)
 		if err != nil {
 			return nil, xerrors.Errorf("creating identity directory and parents: %w", err)
 		}
-		err = ioutil.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), 0600)
+		err = os.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), identityFilePerm)
 		if err != nil {
 			return nil, xerrors.Errorf("writing identity file: %w", err)
 		}

@@ -3,13 +3,13 @@ package net
 import (
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/drand/drand/log"
 )
 
 // CertManager is used to managed certificates. It is most commonly used for
-// testing with self signed certificate. By default, it returns the bundled set
+// testing with self-signed certificate. By default, it returns the bundled set
 // of certificates coming with the OS (Go's implementation).
 type CertManager struct {
 	pool *x509.CertPool
@@ -33,13 +33,13 @@ func (p *CertManager) Pool() *x509.CertPool {
 // Add tries to add the certificate at the given path to the pool and returns an
 // error otherwise
 func (p *CertManager) Add(certPath string) error {
-	b, err := ioutil.ReadFile(certPath)
+	b, err := os.ReadFile(certPath)
 	if err != nil {
 		return err
 	}
 	if !p.pool.AppendCertsFromPEM(b) {
 		return fmt.Errorf("peer cert: failed to append certificate %s", certPath)
 	}
-	log.DefaultLogger().Debug("cert_manager", "add", "server cert path", certPath)
+	log.DefaultLogger().Debugw("", "cert_manager", "add", "server cert path", certPath)
 	return nil
 }

@@ -8,10 +8,13 @@ package drand;
 option go_package = "github.com/drand/drand/protobuf/drand";
 /*option go_package = "drand";*/
 
-message Empty {
+import "common/common.proto";
 
+message Empty {
+    common.Metadata metadata = 1;
 }
 
+// REMINDER: This fields should be kept in sync with IdentityResponse message
 message Identity {
     string address = 1;
     bytes key = 2;
@@ -40,12 +43,15 @@ message GroupPacket {
     repeated bytes dist_key = 7;
     // catchup_period in seconds
     uint32 catchup_period = 8;
+    string schemeID = 9;
+    common.Metadata metadata = 10;
 }
 message GroupRequest {
-
+    common.Metadata metadata = 1;
 }
 
 message ChainInfoRequest {
+    common.Metadata metadata = 1;
 }
 
 message ChainInfoPacket {
@@ -60,4 +66,7 @@ message ChainInfoPacket {
     bytes hash = 4;
     // hash of the genesis group
     bytes groupHash = 5;
+    // indicates a set of values the process will use to act in specific ways
+    string schemeID = 6;
+    common.Metadata metadata = 7;
 }

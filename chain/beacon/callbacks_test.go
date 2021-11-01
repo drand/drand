@@ -1,7 +1,6 @@
 package beacon
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -12,7 +11,7 @@ import (
 )
 
 func TestStoreCallback(t *testing.T) {
-	dir, err := ioutil.TempDir("", "*")
+	dir, err := os.MkdirTemp("", "*")
 	require.NoError(t, err)
 	defer os.RemoveAll(dir)
 	bbstore, err := boltdb.NewBoltStore(dir, nil)

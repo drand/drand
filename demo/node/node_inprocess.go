@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"time"
+
+	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
@@ -25,10 +26,14 @@ type LocalNode struct {
 	base       string
 	i          int
 	period     string
+	beaconID   string
+	scheme     scheme.Scheme
 	publicPath string
 	certPath   string
+
 	// certificate key
 	keyPath string
+
 	// where all public certs are stored
 	certFolder string
 	logPath    string
@@ -44,7 +49,7 @@ type LocalNode struct {
 	daemon *core.Drand
 }
 
-func NewLocalNode(i int, period string, base string, tls bool, bindAddr string) Node {
+func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, sch scheme.Scheme, beaconID string) Node {
 	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -67,6 +72,8 @@ func NewLocalNode(i int, period string, base string, tls bool, bindAddr string) 
 		pubAddr:  test.FreeBind(bindAddr),
 		privAddr: test.FreeBind(bindAddr),
 		ctrlAddr: test.FreeBind("localhost"),
+		scheme:   sch,
+		beaconID: beaconID,
 	}
 
 	var priv *key.Pair
@@ -86,7 +93,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		return err
 	}
 	opts := []core.ConfigOption{
-		core.WithLogLevel(log.LogDebug),
+		core.WithLogLevel(log.LogDebug, false),
 		core.WithConfigFolder(l.base),
 		core.WithTrustedCerts(certs...),
 		core.WithPublicListenAddress(l.pubAddr),
@@ -101,7 +108,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		opts = append(opts, core.WithInsecure())
 	}
 	conf := core.NewConfig(opts...)
-	fs := key.NewFileStore(conf.ConfigFolder())
+	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	fs.SaveKeyPair(l.priv)
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
 	if l.daemon == nil {
@@ -125,6 +132,10 @@ func (l *LocalNode) PrivateAddr() string {
 	return l.privAddr
 }
 
+func (l *LocalNode) CtrlAddr() string {
+	return l.ctrlAddr
+}
+
 func (l *LocalNode) PublicAddr() string {
 	return l.pubAddr
 }
@@ -139,7 +150,7 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	}
 	cl, err := net.NewControlClient(l.ctrlAddr)
 	if err != nil {
-		l.log.Error("drand", "can't instantiate control client", "err", err)
+		l.log.Errorw("", "drand", "can't instantiate control client", "err", err)
 		return nil
 	}
 	l.ctrlClient = cl
@@ -153,13 +164,13 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset)
+		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitDKG(leader, nil, secretDKG)
+		grp, err = cl.InitDKG(leader, nil, secretDKG, l.beaconID)
 	}
 	if err != nil {
-		l.log.Error("drand", "dkg run failed", "err", err)
+		l.log.Errorw("", "drand", "dkg run failed", "err", err)
 		return nil
 	}
 	kg, _ := key.GroupFromProto(grp)
@@ -171,12 +182,12 @@ func (l *LocalNode) GetGroup() *key.Group {
 
 	grp, err := cl.GroupFile()
 	if err != nil {
-		l.log.Error("drand", "can't  get group", "err", err)
+		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
 	}
 	group, err := key.GroupFromProto(grp)
 	if err != nil {
-		l.log.Error("drand", "can't deserialize group", "err", err)
+		l.log.Errorw("", "drand", "can't deserialize group", "err", err)
 		return nil
 	}
 	return group
@@ -189,13 +200,13 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset)
+		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false)
+		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false, l.beaconID)
 	}
 	if err != nil {
-		l.log.Error("drand", "reshare failed", "err", err)
+		l.log.Errorw("", "drand", "reshare failed", "err", err)
 		return nil
 	}
 	kg, _ := key.GroupFromProto(grp)
@@ -206,7 +217,7 @@ func (l *LocalNode) ChainInfo(group string) bool {
 	cl := l.ctrl()
 	ci, err := cl.ChainInfo()
 	if err != nil {
-		l.log.Error("drand", "can't get chain-info", "err", err)
+		l.log.Errorw("", "drand", "can't get chain-info", "err", err)
 		return false
 	}
 	sdist := hex.EncodeToString(ci.PublicKey)
@@ -217,7 +228,7 @@ func (l *LocalNode) ChainInfo(group string) bool {
 func (l *LocalNode) Ping() bool {
 	cl := l.ctrl()
 	if err := cl.Ping(); err != nil {
-		l.log.Error("drand", "can't ping", "err", err)
+		l.log.Errorw("", "drand", "can't ping", "err", err)
 		return false
 	}
 	return true
@@ -232,7 +243,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 
 	group := l.GetGroup()
 	if group == nil {
-		l.log.Error("drand", "can't get group")
+		l.log.Errorw("", "drand", "can't get group")
 		return
 	}
 
@@ -242,7 +253,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	defer cancel()
 	r, err := c.Get(ctx, round)
 	if err != nil || r == nil {
-		l.log.Error("drand", "can't get becon", "err", err)
+		l.log.Errorw("", "drand", "can't get becon", "err", err)
 	}
 	if r == nil {
 		return
@@ -269,14 +280,14 @@ func (l *LocalNode) Stop() {
 	cl := l.ctrl()
 	_, err := cl.Shutdown()
 	if err != nil {
-		l.log.Error("drand", "failed to shutdown", "err", err)
+		l.log.Errorw("", "drand", "failed to shutdown", "err", err)
 	}
 	<-l.daemon.WaitExit()
 }
 
 func (l *LocalNode) PrintLog() {
 	fmt.Printf("[-] Printing logs of node %s:\n", l.PrivateAddr())
-	buff, err := ioutil.ReadFile(l.logPath)
+	buff, err := os.ReadFile(l.logPath)
 	if err != nil {
 		fmt.Printf("[-] Can't read logs !\n\n")
 		return

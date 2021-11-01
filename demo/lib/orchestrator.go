@@ -3,7 +3,6 @@ package lib
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/common/scheme"
 
 	json "github.com/nikkolasg/hexjson"
 
@@ -32,56 +33,65 @@ var afterPeriodWait = 5 * time.Second
 
 // Orchestrator controls a set of nodes
 type Orchestrator struct {
-	n            int
-	thr          int
-	newThr       int
-	period       string
-	periodD      time.Duration
-	basePath     string
-	groupPath    string
-	newGroupPath string
-	certFolder   string
-	nodes        []node.Node
-	paths        []string
-	newNodes     []node.Node
-	newPaths     []string
-	genesis      int64
-	transition   int64
-	group        *key.Group
-	newGroup     *key.Group
-	resharePaths []string
-	reshareIndex []int
-	reshareThr   int
-	reshareNodes []node.Node
-	tls          bool
-	withCurl     bool
-	binary       string
+	n                 int
+	thr               int
+	newThr            int
+	beaconID          string
+	period            string
+	scheme            scheme.Scheme
+	periodD           time.Duration
+	basePath          string
+	groupPath         string
+	newGroupPath      string
+	certFolder        string
+	nodes             []node.Node
+	paths             []string
+	newNodes          []node.Node
+	newPaths          []string
+	genesis           int64
+	transition        int64
+	group             *key.Group
+	newGroup          *key.Group
+	resharePaths      []string
+	reshareIndex      []int
+	reshareThr        int
+	reshareNodes      []node.Node
+	tls               bool
+	withCurl          bool
+	binary            string
+	isBinaryCandidate bool
 }
 
-func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool) *Orchestrator {
+func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool, sch scheme.Scheme, beaconID string, isCandidate bool) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
 	os.RemoveAll(basePath)
+
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
+
 	checkErr(os.MkdirAll(certFolder, 0740))
-	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary)
+	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary, sch, beaconID, isCandidate)
+
 	periodD, err := time.ParseDuration(period)
 	checkErr(err)
 	e := &Orchestrator{
-		n:            n,
-		thr:          thr,
-		basePath:     basePath,
-		groupPath:    path.Join(basePath, "group.toml"),
-		newGroupPath: path.Join(basePath, "group2.toml"),
-		period:       period,
-		periodD:      periodD,
-		nodes:        nodes,
-		paths:        paths,
-		certFolder:   certFolder,
-		tls:          tls,
-		withCurl:     withCurl,
-		binary:       binary,
+		n:                 n,
+		thr:               thr,
+		scheme:            sch,
+		basePath:          basePath,
+		groupPath:         path.Join(basePath, "group.toml"),
+		newGroupPath:      path.Join(basePath, "group2.toml"),
+		period:            period,
+		periodD:           periodD,
+		nodes:             nodes,
+		paths:             paths,
+		certFolder:        certFolder,
+		tls:               tls,
+		withCurl:          withCurl,
+		binary:            binary,
+		isBinaryCandidate: isCandidate,
+		beaconID:          beaconID,
 	}
 	return e
 }
@@ -101,7 +111,9 @@ func (e *Orchestrator) startNodes(nodes []node.Node) {
 		fmt.Printf("\t- Starting node %s\n", node.PrivateAddr())
 		node.Start(e.certFolder)
 	}
-	time.Sleep(1 * time.Second)
+
+	time.Sleep(2 * time.Second)
+
 	// ping them all
 	for {
 		var foundAll = true
@@ -294,7 +306,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		args := []string{"-k", "-s"}
 		http := "http"
 		if e.tls {
-			tmp, _ := ioutil.TempFile("", "cert")
+			tmp, _ := os.CreateTemp("", "cert")
 			defer os.Remove(tmp.Name())
 			tmp.Close()
 			n.WriteCertificate(tmp.Name())
@@ -338,20 +350,21 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary)
+	e.newNodes, e.newPaths = createNodes(n, len(e.nodes)+1, e.period, e.basePath, e.certFolder, e.tls, e.binary, e.scheme, e.beaconID, e.isBinaryCandidate)
 }
 
-// UpdateBinary will either set the 'bianry' to use for the node at 'idx', or on the orchestrator as
-// a whole if idx is negative.
-func (e *Orchestrator) UpdateBinary(binary string, idx int) {
-	if idx < 0 {
-		e.binary = binary
-	} else {
-		n := e.nodes[idx]
-		if spn, ok := n.(*node.NodeProc); ok {
-			spn.UpdateBinary(binary)
-		}
+// UpdateBinary will set the 'binary' to use for the node at 'idx'
+func (e *Orchestrator) UpdateBinary(binary string, idx uint, isCandidate bool) {
+	n := e.nodes[idx]
+	if spn, ok := n.(*node.NodeProc); ok {
+		spn.UpdateBinary(binary, isCandidate)
 	}
+}
+
+// UpdateBinary will set the 'bianry' to use on the orchestrator as a whole
+func (e *Orchestrator) UpdateGlobalBinary(binary string, isCandidate bool) {
+	e.binary = binary
+	e.isBinaryCandidate = isCandidate
 }
 
 func (e *Orchestrator) CreateResharingGroup(oldToRemove, threshold int) {
@@ -464,19 +477,19 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	}
 }
 
-func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string) ([]node.Node, []string) {
+func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool) ([]node.Node, []string) {
 	var nodes []node.Node
 	for i := 0; i < n; i++ {
 		idx := i + offset
 		var n node.Node
 		if binary != "" {
-			n = node.NewNode(idx, period, basePath, tls, binary)
+			n = node.NewNode(idx, period, basePath, tls, binary, sch, beaconID, isCandidate)
 		} else {
-			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1")
+			n = node.NewLocalNode(idx, period, basePath, tls, "127.0.0.1", sch, beaconID)
 		}
 		n.WriteCertificate(path.Join(certFolder, fmt.Sprintf("cert-%d", idx)))
 		nodes = append(nodes, n)
-		fmt.Printf("\t- Created node %s at %s\n", n.PrivateAddr(), basePath)
+		fmt.Printf("\t- Created node %s at %s --> ctrl port: %s\n", n.PrivateAddr(), basePath, n.CtrlAddr())
 	}
 	// write public keys from all nodes
 	var paths []string

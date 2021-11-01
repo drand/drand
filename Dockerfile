@@ -1,7 +1,9 @@
-FROM golang:1.14.2-buster AS builder
+FROM golang:1.17.1-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
-ARG version=unknown
+ARG major=0
+ARG minor=0
+ARG patch=0
 ARG gitCommit
 
 ENV GOPATH /go
@@ -32,7 +34,9 @@ RUN \
   go install \
     -mod=readonly \
     -ldflags \
-        "-X github.com/drand/drand/cmd/drand-cli.version=${version} \
+        "-X github.com/drand/drand/common.MAJOR=${major} \
+        -X github.com/drand/drand/common.MINOR=${minor} \
+        -X github.com/drand/drand/common.PATCH=${patch} \
         -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
         -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
 

@@ -12,7 +12,7 @@ import (
 
 // PrivateGateway is the main interface to communicate to other drand nodes. It
 // acts as a listener to receive incoming requests and acts a client connecting
-// to drand particpants.
+// to drand participants.
 // The gateway fixes all drand functionalities offered by drand.
 type PrivateGateway struct {
 	Listener
@@ -45,6 +45,7 @@ type Service interface {
 	drand.PublicServer
 	drand.ControlServer
 	drand.ProtocolServer
+	drand.Interceptors
 }
 
 // NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the
@@ -54,15 +55,12 @@ func NewGRPCPrivateGateway(ctx context.Context,
 	listen, certPath, keyPath string,
 	certs *CertManager,
 	s Service,
-	insecure bool,
-	opts ...grpc.DialOption) (*PrivateGateway, error) {
+	insecure bool, opts ...grpc.DialOption) (*PrivateGateway, error) {
 	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, insecure, grpc.ConnectionTimeout(time.Second))
 	if err != nil {
 		return nil, err
 	}
-	pg := &PrivateGateway{
-		Listener: l,
-	}
+	pg := &PrivateGateway{Listener: l}
 	if !insecure {
 		pg.ProtocolClient = NewGrpcClientFromCertManager(certs, opts...)
 	} else {

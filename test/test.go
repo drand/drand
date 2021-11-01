@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/kyber"
@@ -123,22 +125,23 @@ func GenerateIDs(n int) []*key.Pair {
 }
 
 // BatchIdentities generates n insecure identities
-func BatchIdentities(n int) ([]*key.Pair, *key.Group) {
+func BatchIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
 	privs := GenerateIDs(n)
 	thr := key.MinimumT(n)
 	var dpub []kyber.Point
 	for i := 0; i < thr; i++ {
 		dpub = append(dpub, key.KeyGroup.Point().Pick(random.New()))
 	}
+
 	dp := &key.DistPublic{Coefficients: dpub}
-	group := key.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0)
+	group := key.LoadGroup(ListFromPrivates(privs), 1, dp, 30*time.Second, 0, sch, beaconID)
 	group.Threshold = thr
 	return privs, group
 }
 
 // BatchTLSIdentities generates n secure (TLS) identities
-func BatchTLSIdentities(n int) ([]*key.Pair, *key.Group) {
-	pairs, group := BatchIdentities(n)
+func BatchTLSIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
+	pairs, group := BatchIdentities(n, sch, beaconID)
 	for i := 0; i < n; i++ {
 		pairs[i].Public.TLS = true
 	}

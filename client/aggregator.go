@@ -92,7 +92,7 @@ func (c *watchAggregator) startAutoWatch(full bool) {
 				select {
 				case _, ok := <-results:
 					if !ok {
-						c.log.Info("watch_aggregator", "auto watch ended")
+						c.log.Infow("", "watch_aggregator", "auto watch ended")
 						break LOOP
 					}
 				case <-ctx.Done():
@@ -108,7 +108,7 @@ func (c *watchAggregator) startAutoWatch(full bool) {
 			case <-ctx.Done():
 				t.Stop()
 			}
-			c.log.Info("watch_aggregator", "retrying auto watch")
+			c.log.Infow("", "watch_aggregator", "retrying auto watch")
 		}
 	}()
 }
@@ -120,7 +120,7 @@ func (c *watchAggregator) passiveWatch(ctx context.Context) <-chan Result {
 	defer c.subscriberLock.Unlock()
 
 	if c.cancelPassive != nil {
-		c.log.Warn("watch_aggregator", "only support one passive watch")
+		c.log.Warnw("", "watch_aggregator", "only support one passive watch")
 		return nil
 	}
 
@@ -167,7 +167,7 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 		c.subscriberLock.Lock()
 		if len(c.subscribers) == 0 {
 			c.subscriberLock.Unlock()
-			c.log.Warn("watch_aggregator", "no subscribers to distribute results to")
+			c.log.Warnw("", "watch_aggregator", "no subscribers to distribute results to")
 			return
 		}
 		aCtx := c.subscribers[0].ctx
@@ -192,7 +192,7 @@ func (c *watchAggregator) distribute(in <-chan Result, cancel context.CancelFunc
 					select {
 					case s.c <- m:
 					default:
-						c.log.Warn("watch_aggregator", "dropped watch message to subscriber. full channel")
+						c.log.Warnw("", "watch_aggregator", "dropped watch message to subscriber. full channel")
 					}
 				}
 			} else {

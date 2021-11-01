@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	dhttp "github.com/drand/drand/http"
@@ -15,10 +17,10 @@ import (
 )
 
 // NewMockHTTPPublicServer creates a mock drand HTTP server for testing.
-func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.Info, context.CancelFunc, func(bool)) {
+func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Scheme) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 
-	server := mock.NewMockServer(badSecondRound)
+	server := mock.NewMockServer(badSecondRound, sch)
 	client := core.Proxy(server)
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -49,8 +51,10 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool) (string, *chain.
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	httpServer := http.Server{Handler: handler}
 	go httpServer.Serve(listener)
+
 	return listener.Addr().String(), chainInfo, func() {
 		httpServer.Shutdown(context.Background())
 		cancel()

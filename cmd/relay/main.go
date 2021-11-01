@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -19,13 +20,13 @@ import (
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
+
+const accessLogPermFolder = 0666
 
 var accessLogFlag = &cli.StringFlag{
 	Name:  "access-log",
@@ -44,6 +45,8 @@ var metricsFlag = &cli.StringFlag{
 
 // Relay a GRPC connection to an HTTP server.
 func Relay(c *cli.Context) error {
+	version := common.GetAppVersion()
+
 	if c.IsSet(metricsFlag.Name) {
 		metricsListener := metrics.Start(c.String(metricsFlag.Name), pprof.WithProfile(), nil)
 		defer metricsListener.Close()
@@ -64,7 +67,7 @@ func Relay(c *cli.Context) error {
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
-		logFile, err := os.OpenFile(c.String(accessLogFlag.Name), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+		logFile, err := os.OpenFile(c.String(accessLogFlag.Name), os.O_CREATE|os.O_APPEND|os.O_WRONLY, accessLogPermFolder)
 		if err != nil {
 			return fmt.Errorf("failed to open access log: %w", err)
 		}
@@ -88,7 +91,7 @@ func Relay(c *cli.Context) error {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
-		log.DefaultLogger().Warn("binary", "relay", "startup failed", rr.Code)
+		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
@@ -96,9 +99,11 @@ func Relay(c *cli.Context) error {
 }
 
 func main() {
+	version := common.GetAppVersion()
+
 	app := &cli.App{
 		Name:    "relay",
-		Version: version,
+		Version: version.String(),
 		Usage:   "Relay a Drand group to a public HTTP Rest API",
 		Flags:   append(lib.ClientFlags, listenFlag, accessLogFlag, metricsFlag),
 		Action:  Relay,
@@ -109,6 +114,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.DefaultLogger().Fatal("binary", "relay", "err", err)
+		log.DefaultLogger().Fatalw("", "binary", "relay", "err", err)
 	}
 }

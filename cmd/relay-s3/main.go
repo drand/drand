@@ -12,16 +12,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	json "github.com/nikkolasg/hexjson"
 	cli "github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.version=`git describe --tags`
-//   -X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
 var (
-	version   = "master"
 	gitCommit = "none"
 	buildDate = "unknown"
 )
@@ -39,14 +38,16 @@ var (
 )
 
 func main() {
+	version := common.GetAppVersion()
+
 	app := &cli.App{
 		Name:     "drand-relay-s3",
-		Version:  version,
+		Version:  version.String(),
 		Usage:    "AWS S3 relay for randomness beacon",
 		Commands: []*cli.Command{runCmd, syncCmd},
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Printf("drand AWS S3 relay %v (date %v, commit %v)\n", version, buildDate, gitCommit)
+		fmt.Printf("drand AWS S3 relay %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
 
 	err := app.Run(os.Args)
@@ -90,7 +91,7 @@ func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc s
 			select {
 			case res, ok := <-ch:
 				if !ok {
-					log.DefaultLogger().Warn("relay_s3", "watch channel closed")
+					log.DefaultLogger().Warnw("", "relay_s3", "watch channel closed")
 					t := time.NewTimer(time.Second)
 					select {
 					case <-t.C:
@@ -99,14 +100,14 @@ func watch(ctx context.Context, c client.Watcher, upr *s3manager.Uploader, buc s
 						return
 					}
 				}
-				log.DefaultLogger().Info("relay_s3", "got randomness", "round", res.Round())
+				log.DefaultLogger().Infow("", "relay_s3", "got randomness", "round", res.Round())
 				go func(res client.Result) {
 					url, err := uploadRandomness(ctx, upr, buc, res)
 					if err != nil {
-						log.DefaultLogger().Error("relay_s3", "failed to upload randomness", "err", err)
+						log.DefaultLogger().Errorw("", "relay_s3", "failed to upload randomness", "err", err)
 						return
 					}
-					log.DefaultLogger().Info("relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
+					log.DefaultLogger().Infow("", "relay_s3", "uploaded randomness", "round", res.Round(), "location", url)
 				}(res)
 			case <-ctx.Done():
 				return
@@ -175,15 +176,15 @@ var syncCmd = &cli.Command{
 			// TODO: check if bucket already has this round
 			r, err := c.Get(ctx, rnd)
 			if err != nil {
-				log.DefaultLogger().Error("relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
+				log.DefaultLogger().Errorw("", "relay_s3_sync", "failed to get randomness", "round", rnd, "err", err)
 				continue
 			}
 			url, err := uploadRandomness(ctx, upr, buc, r)
 			if err != nil {
-				log.DefaultLogger().Error("relay_s3_sync", "failed to upload randomness", "err", err)
+				log.DefaultLogger().Errorw("", "relay_s3_sync", "failed to upload randomness", "err", err)
 				continue
 			}
-			log.DefaultLogger().Info("relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
+			log.DefaultLogger().Infow("", "relay_s3_sync", "uploaded randomness", "round", r.Round(), "location", url)
 		}
 
 		return nil

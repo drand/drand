@@ -5,17 +5,29 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
+type Opts struct {
+	strict bool
+
+	// scheme holds a set of values the verifying process will use to act in specific ways, regarding signature verification, etc
+	scheme scheme.Scheme
+}
+
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
-func newVerifyingClient(c Client, previousResult Result, strict bool) Client {
+func newVerifyingClient(c Client, previousResult Result, opts Opts) Client {
+	verifier := chain.NewVerifier(opts.scheme)
+
 	return &verifyingClient{
 		Client:         c,
 		indirectClient: c,
 		pointOfTrust:   previousResult,
-		strict:         strict,
+		opts:           opts,
+		verifier:       verifier,
 	}
 }
 
@@ -29,9 +41,10 @@ type verifyingClient struct {
 
 	pointOfTrust Result
 	potLk        sync.Mutex
-	strict       bool
+	opts         Opts
 
-	log log.Logger
+	verifier *chain.Verifier
+	log      log.Logger
 }
 
 // SetLog configures the client log output.
@@ -62,7 +75,7 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 
 	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
-		v.log.Error("verifying_client", "could not get info", "err", err)
+		v.log.Errorw("", "verifying_client", "could not get info", "err", err)
 		close(outCh)
 		return outCh
 	}
@@ -72,7 +85,7 @@ func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
 		defer close(outCh)
 		for r := range inCh {
 			if err := v.verify(ctx, info, asRandomData(r)); err != nil {
-				v.log.Warn("verifying_client", "skipping invalid watch round", "round", r.Round(), "err", err)
+				v.log.Warnw("", "verifying_client", "skipping invalid watch round", "round", r.Round(), "err", err)
 				continue
 			}
 			outCh <- r
@@ -105,7 +118,7 @@ func asRandomData(r Result) *RandomData {
 func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round uint64) ([]byte, error) {
 	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
-		v.log.Error("drand_client", "could not get info to verify round 1", "err", err)
+		v.log.Errorw("", "drand_client", "could not get info to verify round 1", "err", err)
 		return []byte{}, fmt.Errorf("could not get info: %w", err)
 	}
 
@@ -135,7 +148,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	var next Result
 	for trustRound < round-1 {
 		trustRound++
-		v.log.Warn("verifying_client", "loading round to verify", "round", trustRound)
+		v.log.Warnw("", "verifying_client", "loading round to verify", "round", trustRound)
 		next, err = v.indirectClient.Get(ctx, trustRound)
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
@@ -145,8 +158,11 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		b.Signature = next.Signature()
 
 		ipk := info.PublicKey.Clone()
-		if err := chain.VerifyBeacon(ipk, &b); err != nil {
-			v.log.Warn("verifying_client", "failed to verify value", "b", b, "err", err)
+
+		err = v.verifier.VerifyBeacon(b, ipk)
+
+		if err != nil {
+			v.log.Warnw("", "verifying_client", "failed to verify value", "b", b, "err", err)
 			return []byte{}, fmt.Errorf("verifying beacon: %w", err)
 		}
 		trustPrevSig = next.Signature()
@@ -165,7 +181,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
 	ps := r.PreviousSignature
-	if v.strict || r.PreviousSignature == nil {
+	if v.opts.strict || r.PreviousSignature == nil {
 		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
 		if err != nil {
 			return
@@ -179,7 +195,10 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 	}
 
 	ipk := info.PublicKey.Clone()
-	if err = chain.VerifyBeacon(ipk, &b); err != nil {
+
+	err = v.verifier.VerifyBeacon(b, ipk)
+
+	if err != nil {
 		return fmt.Errorf("verification of %v failed: %w", b, err)
 	}
 

@@ -2,7 +2,6 @@ package lp2p
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestCreateThenLoadPrivKey(t *testing.T) {
-	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +35,7 @@ func TestCreateThenLoadPrivKey(t *testing.T) {
 }
 
 func TestCreatePrivKeyMkdirp(t *testing.T) {
-	dir, err := ioutil.TempDir(os.TempDir(), "test")
+	dir, err := os.MkdirTemp(os.TempDir(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
