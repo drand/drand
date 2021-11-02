@@ -481,7 +481,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 			return fmt.Errorf("timeout waiting node %s to reach %d round", node.addr, round)
 		}
 
-		t.Logf("node %s is on %d round, waiting some time to ask again...", node.addr, status.ChainStore.LastRound)
+		t.Logf("node %s is on %d round (vs expected %d), waiting some time to ask again...", node.addr, status.ChainStore.LastRound, round)
 		time.Sleep(1000 * time.Millisecond)
 	}
 }

@@ -607,21 +607,20 @@ func TestDrandPublicStream(t *testing.T) {
 	dt.SetMockClock(t, group.GenesisTime)
 	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
-	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
-	require.NoError(t, err)
-
 	// do a few periods
 	for i := 0; i < 3; i++ {
 		dt.AdvanceMockClock(t, group.Period)
 
-		err = dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
+		// +2 because rounds start at 1, and at genesis time, drand generates
+		// first round already
+		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
 		require.NoError(t, err)
 	}
 
 	cm := root.drand.opts.certmanager
 	client := net.NewGrpcClientFromCertManager(cm)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	// get last round first
@@ -819,6 +818,10 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	// do a few periods
 	for i := 0; i < 3; i++ {
 		dt.AdvanceMockClock(t, group.Period)
+		// +2 because rounds start at 1, and at genesis time, drand generates
+		// first round already
+		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
+		require.NoError(t, err)
 	}
 
 	client := &drandProxy{root.drand}
@@ -851,6 +854,9 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 	for round := initRound; round < maxRound; round++ {
 		// move time to next period
 		dt.AdvanceMockClock(t, group.Period)
+		err := dt.WaitUntilRound(t, dt.nodes[0], round)
+		require.NoError(t, err)
+
 		beacon, ok = <-rc
 
 		require.True(t, ok)
