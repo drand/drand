@@ -342,18 +342,15 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	transitionTime := resharedGroup.TransitionTime
 	now := dt.Now().Unix()
 
-	// get rounds from first node in the "old" group - since he's the leader for
-	// the new group, he's alive
-	t.Log("Check Beacon Public on Leader")
-	lastBeacon := dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
-
 	// move to the transition time period by period - do not skip potential
 	// periods as to emulate the normal time behavior
 	for now < transitionTime-1 {
+
 		dt.AdvanceMockClock(t, beaconPeriod)
 
 		t.Log("Check Beacon Public on Leader")
-		lastBeacon = dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
+		dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
+
 		now = dt.Now().Unix()
 	}
 
@@ -362,8 +359,19 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	time.Sleep(getSleepDuration())
 
 	// test that all nodes in the new group have generated a new beacon
-	t.Log("Check Beacon Length")
-	dt.CheckBeaconLength(t, dt.resharedNodes, int(lastBeacon.Round+1))
+	root := dt.resharedNodes[0].drand
+	rootID := root.priv.Public
+	cm := root.opts.certmanager
+	client := net.NewGrpcClientFromCertManager(cm)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+	for _, n := range dt.resharedNodes[1:] {
+		resp2, err := client.PublicRand(ctx, n.drand.priv.Public, new(drand.PublicRandRequest))
+		require.NoError(t, err)
+		require.Equal(t, resp, resp2)
+	}
 }
 
 // nolint:funlen
