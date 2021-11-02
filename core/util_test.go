@@ -546,7 +546,10 @@ func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan e
 
 	// Start reshare
 	d.t.Logf("[reshare:leader] init reshare")
-	finalGroup, err := client.InitReshareLeader(d.newN, d.newThr, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
+	d.Lock()
+	nn, nt := d.newN, d.newThr
+	d.Unlock()
+	finalGroup, err := client.InitReshareLeader(nn, nt, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
 	if err != nil {
 		d.t.Log("[reshare:leader] error: ", err)
 		errCh <- err
