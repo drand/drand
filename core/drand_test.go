@@ -704,13 +704,12 @@ func TestDrandFollowChain(t *testing.T) {
 	dt.SetMockClock(t, group.GenesisTime)
 	dt.WaitUntilChainIsServing(t, dt.nodes[0])
 
-	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
-	require.NoError(t, err)
-
 	// do a few periods
 	for i := 0; i < 6; i++ {
 		dt.AdvanceMockClock(t, group.Period)
 
+		// +2 because rounds start at 1, and at genesis time, drand generates
+		// first round already
 		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
 		require.NoError(t, err)
 	}
