@@ -262,6 +262,7 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
 }
 
+// nolint:funlen
 // The test creates the scenario where one node made a complaint during the DKG, at the second phase, so normally,
 // there should be a "Justification" at the third phase. In this case, there is not. This scenario
 // can happen if there is an offline node right at the beginning of DKG that don't even send any message.
@@ -345,12 +346,9 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	// move to the transition time period by period - do not skip potential
 	// periods as to emulate the normal time behavior
 	for now < transitionTime-1 {
-
 		dt.AdvanceMockClock(t, beaconPeriod)
-
 		t.Log("Check Beacon Public on Leader")
 		dt.CheckPublicBeacon(dt.Ids(1, false)[0], false)
-
 		now = dt.Now().Unix()
 	}
 

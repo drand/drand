@@ -564,7 +564,7 @@ func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan e
 	groupReceivedCh <- fg
 }
 
-// nolint:gocyclo
+// nolint:gocyclo,gocritic
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
