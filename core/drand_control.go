@@ -90,6 +90,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 
 	if d.manager != nil {
 		d.log.Infow("", "beacon_id", d.manager.beaconID, "reshare", "already_in_progress", "restart", "reshare", "old")
+		fmt.Println("\n\n PRE EMPTIVE STOP")
 		d.manager.StopPreemptively()
 	}
 
@@ -108,6 +109,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 	defer func() {
 		// don't clear manager if pre-empted
 		if err == errPreempted {
+			fmt.Println("PRE EMPTION ERROR ", err)
 			return
 		}
 		d.state.Lock()

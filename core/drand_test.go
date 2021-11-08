@@ -183,18 +183,19 @@ func TestRunDKGReshareForce(t *testing.T) {
 
 	// run the resharing
 	stateCh := make(chan int)
+	errFirstTry := make(chan error)
 	go func() {
 		t.Log("[ReshareForce] Start reshare")
 		_, err := dt.RunReshare(t, stateCh, oldNodes, 0, oldThreshold, timeout, false, true, false)
-		require.Error(t, err)
+		errFirstTry <- err
 	}()
 
-LOOP:
-	for {
+	var resharingRunning bool
+	for !resharingRunning {
 		select {
 		case state := <-stateCh:
 			if state == ReshareUnlock {
-				break LOOP
+				resharingRunning = true
 			}
 		case <-time.After(2 * time.Minute):
 			t.Errorf("Timeout waiting reshare process to get unlock phase")
@@ -204,7 +205,16 @@ LOOP:
 	// force
 	t.Log("[reshare] Start again!")
 	group3, err := dt.RunReshare(t, nil, oldNodes, 0, oldThreshold, timeout, true, false, false)
-	require.NoError(t, err)
+
+	// first resharing should fail
+	select {
+	case err := <-errFirstTry:
+		require.Error(t, err)
+	case <-time.After(2 * time.Minute):
+		t.Errorf("timeout of the first resharing output")
+	}
+	// second resharing should succeed
+	require.NoError(t, err, "second resharing failed")
 
 	t.Log("[reshare] Move to response phase!")
 	t.Logf("[reshare] Group: %s", group3)
