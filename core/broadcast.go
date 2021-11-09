@@ -8,12 +8,12 @@ import (
 	"math/rand"
 	"sync"
 
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -49,7 +49,7 @@ type Broadcast interface {
 type echoBroadcast struct {
 	sync.Mutex
 	l        log.Logger
-	version  utils.Version
+	version  commonutils.Version
 	beaconID string
 	// responsible for sending out the messages
 	dispatcher *dispatcher
@@ -69,7 +69,7 @@ var _ Broadcast = (*echoBroadcast)(nil)
 // Packet, namely that the signature is correct.
 type verifier func(packet) error
 
-func newEchoBroadcast(l log.Logger, version utils.Version, beaconID string,
+func newEchoBroadcast(l log.Logger, version commonutils.Version, beaconID string,
 	c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
 	return &echoBroadcast{
 		l:          l,
