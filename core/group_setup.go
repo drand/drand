@@ -68,7 +68,6 @@ type setupManager struct {
 	hashedSecret []byte
 }
 
-// nolint:gocritic
 func newDKGSetup(
 	l log.Logger,
 	c clock.Clock,

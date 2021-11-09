@@ -585,6 +585,7 @@ func (r *reshareConfig) RelyOnTimeout() bool {
 	return false
 }
 
+// nolint: gocritic
 func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	expDeals := r.expDeals
 	if r.expDeals == 0 {
@@ -599,7 +600,7 @@ func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	return expDeals, expResps
 }
 
-// nolint:gocyclo,gocritic
+// nolint:gocyclo
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
@@ -719,7 +720,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			}
 			d.AdvanceMockClock(t, c.timeout)
 			t.Logf("[reshare] Advance clock: %d", d.Now().Unix())
-		case _ = <-outgoingChan:
+		case <-outgoingChan:
 			continue
 		case p := <-incomingChan:
 			if relyOnTimeout {
