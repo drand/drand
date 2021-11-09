@@ -600,13 +600,12 @@ func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	return expDeals, expResps
 }
 
-// nolint:gocyclo
+// nolint:gocyclo, funlen
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
 func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Group, error) {
-
 	if c.ignoreErr {
 		d.t.Log("[reshare] WARNING IGNORING ERRORS!!!")
 	}
