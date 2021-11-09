@@ -269,10 +269,14 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
+	var board Broadcast = newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
 		d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
 		})
+
+	if d.dkgBoardSetup != nil {
+		board = d.dkgBoardSetup(board)
+	}
 	phaser := d.getPhaser(timeout, beaconID)
 
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)

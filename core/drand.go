@@ -66,6 +66,10 @@ type Drand struct {
 
 	// version indicates the base code variant
 	version common.Version
+
+	// only used for testing at the moment - may be useful later
+	// to pinpoint the exact messages from all nodes during dkg
+	dkgBoardSetup func(Broadcast) Broadcast
 }
 
 // NewDrand returns a drand struct. It assumes the private key pair
