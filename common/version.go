@@ -1,9 +1,9 @@
-package utils
+package common
 
 import (
 	"fmt"
 
-	"github.com/drand/drand/protobuf/common"
+	pbcommon "github.com/drand/drand/protobuf/common"
 )
 
 const (
@@ -29,8 +29,8 @@ func (v Version) IsCompatible(verRcv Version) bool {
 	return false
 }
 
-func (v Version) ToProto() *common.NodeVersion {
-	return &common.NodeVersion{Minor: v.Minor, Major: v.Major, Patch: v.Patch}
+func (v Version) ToProto() *pbcommon.NodeVersion {
+	return &pbcommon.NodeVersion{Minor: v.Minor, Major: v.Major, Patch: v.Patch}
 }
 
 func (v Version) String() string {

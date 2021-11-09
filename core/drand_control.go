@@ -13,12 +13,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/utils"
-
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
+	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -1026,7 +1024,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
 func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
-	peers []net.Peer, l log.Logger, version utils.Version, beaconID string) (*chain.Info, error) {
+	peers []net.Peer, l log.Logger, version commonutils.Version, beaconID string) (*chain.Info, error) {
 	request := new(drand.ChainInfoRequest)
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
 
