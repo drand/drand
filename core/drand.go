@@ -17,7 +17,6 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -66,7 +65,7 @@ type Drand struct {
 	setupCB func(*key.Group)
 
 	// version indicates the base code variant
-	version utils.Version
+	version common.Version
 }
 
 // NewDrand returns a drand struct. It assumes the private key pair
