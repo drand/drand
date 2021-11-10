@@ -88,6 +88,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 
 	if d.manager != nil {
 		d.log.Infow("", "beacon_id", d.manager.beaconID, "reshare", "already_in_progress", "restart", "reshare", "old")
+		fmt.Println("\n\n PRE EMPTIVE STOP")
 		d.manager.StopPreemptively()
 	}
 
@@ -106,6 +107,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 	defer func() {
 		// don't clear manager if pre-empted
 		if err == errPreempted {
+			fmt.Println("PRE EMPTION ERROR ", err)
 			return
 		}
 		d.state.Lock()
@@ -267,10 +269,14 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
+	var board Broadcast = newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,
 		d.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
 		})
+
+	if d.dkgBoardSetup != nil {
+		board = d.dkgBoardSetup(board)
+	}
 	phaser := d.getPhaser(timeout, beaconID)
 
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)

@@ -102,8 +102,20 @@ func (h *handler) start() {
 }
 
 func (h *handler) Watch(ctx context.Context, ready chan bool) {
-RESET:
-	stream := h.client.Watch(context.Background())
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		h.watchWithTimeout(ctx, ready)
+	}
+}
+
+func (h *handler) watchWithTimeout(ctx context.Context, ready chan bool) {
+	watchCtx, cncl := context.WithCancel(ctx)
+	defer cncl()
+	stream := h.client.Watch(watchCtx)
 
 	// signal that the watch is ready
 	select {
@@ -111,8 +123,22 @@ RESET:
 	default:
 	}
 
+	expectedRoundDelayBackoff := time.Minute
+	h.chainInfoLk.RLock()
+	if h.chainInfo != nil {
+		expectedRoundDelayBackoff = h.chainInfo.Period * 2
+	}
+	h.chainInfoLk.RUnlock()
 	for {
-		next, ok := <-stream
+		var next client.Result
+		var ok bool
+		select {
+		case <-ctx.Done():
+			return
+		case next, ok = <-stream:
+		case <-time.After(expectedRoundDelayBackoff):
+			return
+		}
 		if !ok {
 			h.log.Warnw("", "http_server", "random stream round failed")
 			h.pendingLk.Lock()
@@ -121,7 +147,7 @@ RESET:
 			// backoff on failures a bit to not fall into a tight loop.
 			// TODO: tuning.
 			time.Sleep(watchConnectBackoff)
-			goto RESET
+			return
 		}
 
 		b, _ := json.Marshal(next)
@@ -140,12 +166,6 @@ RESET:
 			waiter <- b
 		}
 		h.pendingLk.Unlock()
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
 	}
 }
 
