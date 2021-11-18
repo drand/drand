@@ -10,6 +10,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
+	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
 
 	"google.golang.org/grpc"
@@ -77,6 +78,16 @@ func NewControlClient(addr string) (*ControlClient, error) {
 		client:  c,
 		version: common.GetAppVersion(),
 	}, nil
+}
+
+func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []string) (map[string]*drand.StatusResponse, error) {
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	packet := drand.RemoteStatusRequest{
+		Metadata:  metadata,
+		Addresses: addresses,
+	}
+	resp, err := c.client.RemoteStatus(ct, &packet)
+	return resp.GetStatuses(), err
 }
 
 // Ping the drand daemon to check if it's up and running
@@ -323,6 +334,13 @@ func (s *DefaultControlServer) Status(c ctx.Context, in *control.StatusRequest) 
 		return &control.StatusResponse{}, nil
 	}
 	return s.C.Status(c, in)
+}
+
+func (s *DefaultControlServer) RemoteStatus(c ctx.Context, in *control.RemoteStatusRequest) (*control.RemoteStatusResponse, error) {
+	if s.C == nil {
+		return &control.RemoteStatusResponse{}, nil
+	}
+	return s.C.RemoteStatus(c, in)
 }
 
 // Share initiates a share request

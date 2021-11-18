@@ -17,6 +17,7 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
@@ -308,6 +309,46 @@ func getTimeout(c *cli.Context) (timeout time.Duration, err error) {
 		return time.ParseDuration(str)
 	}
 	return core.DefaultDKGTimeout, nil
+}
+
+func remoteStatusCmd(c *cli.Context) error {
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
+	addresses := c.Args().Slice()
+	resp, err := client.RemoteStatus(c.Context, addresses)
+	if err != nil {
+		return err
+	}
+	// set default value for all keys so json output outputs something for all
+	// keys
+	defaultMap := make(map[string]*drand.StatusResponse)
+	for _, addr := range addresses {
+		if resp, ok := resp[addr]; !ok {
+			defaultMap[addr] = nil
+		} else {
+			defaultMap[addr] = resp
+		}
+	}
+
+	if c.IsSet(jsonFlag.Name) {
+		str, err := json.Marshal(defaultMap)
+		if err != nil {
+			return fmt.Errorf("cannot marshal the response ... %s", err)
+		}
+		fmt.Fprintf(output, "%s \n", string(str))
+	} else {
+		for addr, resp := range defaultMap {
+			fmt.Fprintf(output, "Status of node %s\n", addr)
+			if resp == nil {
+				fmt.Fprintf(output, "\t- NO STATUS; can't connect\n")
+			} else {
+				fmt.Fprintf(output, "%s\n", core.StatusResponseToString(resp))
+			}
+		}
+	}
+	return nil
 }
 
 func pingpongCmd(c *cli.Context) error {

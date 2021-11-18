@@ -10,6 +10,50 @@ option go_package = "github.com/drand/drand/protobuf/drand";
 
 import "common/common.proto";
 
+// TODO make doc for these
+message DkgStatus{
+    uint32 status = 1;
+}
+
+message ReshareStatus{
+    uint32 status = 1;
+}
+
+message BeaconStatus{
+    uint32 status = 1;
+    bool is_running = 2;
+    bool is_stopped = 3;
+    bool is_started = 4;
+    bool is_serving = 5;
+}
+
+message ChainStoreStatus{
+    bool is_empty = 1;
+    uint64 last_round = 2;
+    uint64 length = 3;
+}
+
+
+message StatusRequest {
+    // the check_conn contains the list of addresses to check connectivity to,
+    // i.e. calls Home() on it.
+    // If the field is absent or empty, then there is no connectivity checks.
+    repeated string check_conn = 1;
+}
+
+
+// StatusResponse contains different indicators of the status of the local drand
+// node process and as well some view on the connectivity with other nodes if
+// ask during the StatusRequest.
+message StatusResponse {
+    DkgStatus dkg = 1;
+    ReshareStatus reshare = 2;
+    BeaconStatus beacon = 3;
+    ChainStoreStatus chain_store = 4;
+    map<string,bool> connections = 5;
+}
+
+
 message Empty {
     common.Metadata metadata = 1;
 }

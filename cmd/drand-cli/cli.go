@@ -385,6 +385,12 @@ var appCommands = []*cli.Command{
 				Action: checkConnection,
 			},
 			{
+				Name:   "remote-status",
+				Usage:  "Ask for the statuses of remote nodes indicated by `ADDRESS1 ADDRESS2 ADDRESS3...`, including the network visibility over the rest of the addresses given",
+				Flags:  toArray(controlFlag, jsonFlag),
+				Action: remoteStatusCmd,
+			},
+			{
 				Name:   "ping",
 				Usage:  "Pings the daemon checking its state\n",
 				Flags:  toArray(controlFlag),
