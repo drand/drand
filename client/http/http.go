@@ -26,7 +26,7 @@ var errClientClosed = fmt.Errorf("client closed")
 const defaultClientExec = "unknown"
 const defaultHTTTPTimeout = 60 * time.Second
 
-const httpWaitMaxCounter = 10
+const httpWaitMaxCounter = 20
 const httpWaitInterval = 2 * time.Second
 
 // New creates a new client pointing to an HTTP endpoint
