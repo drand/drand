@@ -177,7 +177,7 @@ func IsServerReady(addr string) error {
 	counter := 0
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
 		err := Ping(ctx, "http://"+addr)
