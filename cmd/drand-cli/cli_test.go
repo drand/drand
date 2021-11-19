@@ -633,15 +633,11 @@ func getSBFolderStructure() string {
 
 func TestDrandStatus(t *testing.T) {
 	n := 4
-	instances := launchDrandInstances(t, n)
+	instances, path := launchDrandInstances(t, n)
+	defer os.RemoveAll(path)
 	allAddresses := make([]string, 0, n)
-	for i := 0; i < n; i++ {
-		allAddresses = append(allAddresses, instances[i].addr)
-	}
-
-	// check that each individual status works well
 	for _, instance := range instances {
-		testStatus(t, instance.ctrlPort)
+		allAddresses = append(allAddresses, instance.addr)
 	}
 
 	defer func() { output = os.Stdout }()
@@ -706,7 +702,7 @@ func (d *drandInstance) stop() error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort})
 }
 
-func (d *drandInstance) run() error {
+func (d *drandInstance) run(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
@@ -717,10 +713,13 @@ func (d *drandInstance) run() error {
 		"--folder", d.path,
 		"--metrics", d.metrics,
 	}
-	return CLI().Run(startArgs)
+	go CLI().Run(startArgs)
+	// make sure we run each one sequentially
+	testStatus(t, d.ctrlPort)
+
 }
 
-func launchDrandInstances(t *testing.T, n int) []*drandInstance {
+func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	beaconID := common.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
@@ -729,7 +728,7 @@ func launchDrandInstances(t *testing.T, n int) []*drandInstance {
 	require.NoError(t, err)
 
 	var ins = make([]*drandInstance, 0, n)
-	for i := 0; i < n; i++ {
+	for i := 1; i <= n; i++ {
 		nodePath, err := ioutil.TempDir(tmpPath, "node")
 		require.NoError(t, err)
 
@@ -770,7 +769,7 @@ func launchDrandInstances(t *testing.T, n int) []*drandInstance {
 	}
 
 	for _, instance := range ins {
-		go instance.run()
+		instance.run(t)
 	}
-	return ins
+	return ins, tmpPath
 }
