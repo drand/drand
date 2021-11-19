@@ -55,8 +55,18 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
-		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(),
-			in.GetCatchupPeriod(), beaconID, in.GetSchemeID(), in.GetInfo())
+		return newDKGSetup(
+			&setupConfig{
+				d.log,
+				d.opts.clock,
+				d.priv.Public,
+				in.GetBeaconPeriod(),
+				in.GetCatchupPeriod(),
+				beaconID,
+				in.GetSchemeID(),
+				in.GetInfo(),
+			},
+		)
 	}
 
 	// expect the group
@@ -706,7 +716,7 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 		// TODO check if TLS or not
 		p := net.CreatePeer(addr.GetAddress(), addr.GetTls())
 		// Simply try to ping him see if he replies
-		tc, cancel := context.WithTimeout(c, time.Second*10)
+		tc, cancel := context.WithTimeout(c, callMaxTimeout)
 		defer cancel()
 		_, err := d.privGateway.Home(tc, p, &drand.HomeRequest{})
 		if err != nil {
@@ -979,8 +989,8 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
-// nolint:funlen
 // StartFollowChain syncs up with a chain from other nodes
+//nolint:funlen
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating

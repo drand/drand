@@ -87,7 +87,7 @@ func Relay(c *cli.Context) error {
 	}
 
 	// jumpstart bootup
-	req, _ := http.NewRequest("GET", "/public/0", nil)
+	req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {

@@ -28,6 +28,7 @@ const defaultHTTTPTimeout = 60 * time.Second
 
 const httpWaitMaxCounter = 20
 const httpWaitInterval = 2 * time.Second
+const maxTimeoutHTTPRequest = 5 * time.Second
 
 // New creates a new client pointing to an HTTP endpoint
 func New(url string, chainHash []byte, transport nhttp.RoundTripper) (client.Client, error) {
@@ -124,7 +125,7 @@ func Ping(ctx context.Context, root string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -177,7 +178,7 @@ func IsServerReady(addr string) error {
 	counter := 0
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), maxTimeoutHTTPRequest)
 		defer cancel()
 
 		err := Ping(ctx, "http://"+addr)
@@ -242,7 +243,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 	defer cancel()
 
 	go func() {
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo", h.root), nil)
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo", h.root), nhttp.NoBody)
 		if err != nil {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
@@ -308,7 +309,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 	defer cancel()
 
 	go func() {
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nil)
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
 		if err != nil {
 			resC <- httpGetResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return

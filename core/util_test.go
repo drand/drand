@@ -41,6 +41,7 @@ type MockNode struct {
 	clock    clock.FakeClock
 }
 
+//nolint:gocritic
 type DrandTestScenario struct {
 	sync.Mutex
 
@@ -585,7 +586,7 @@ func (r *reshareConfig) RelyOnTimeout() bool {
 	return false
 }
 
-// nolint: gocritic
+//nolint:gocritic
 func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	expDeals := r.expDeals
 	if r.expDeals == 0 {
@@ -694,7 +695,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	var howManyDeals int
 	var howManyResps int
 	var expDeals, expResps = c.ExpectedDealsAndResps()
-	var relyOnTimeout bool = c.RelyOnTimeout()
+	var relyOnTimeout = c.RelyOnTimeout()
 	for {
 		select {
 		case finalGroup := <-leaderGroupReadyCh:

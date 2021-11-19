@@ -17,8 +17,9 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
-	control "github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/protobuf/drand" //nolint:stylecheck
+
+	control "github.com/drand/drand/protobuf/drand" //nolint:stylecheck
 
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"

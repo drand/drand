@@ -68,32 +68,34 @@ type setupManager struct {
 	hashedSecret []byte
 }
 
-// nolint: gocritic
-func newDKGSetup(
-	l log.Logger,
-	c clock.Clock,
-	leaderKey *key.Identity,
-	beaconPeriod,
-	catchupPeriod uint32,
-	beaconID string,
-	schemeID string,
-	in *drand.SetupInfoPacket) (*setupManager, error) {
-	n, thr, dkgTimeout, err := validInitPacket(in)
+type setupConfig struct {
+	l             log.Logger
+	c             clock.Clock
+	leaderKey     *key.Identity
+	beaconPeriod  uint32
+	catchupPeriod uint32
+	beaconID      string
+	schemeID      string
+	info          *drand.SetupInfoPacket
+}
+
+func newDKGSetup(c *setupConfig) (*setupManager, error) {
+	n, thr, dkgTimeout, err := validInitPacket(c.info)
 	if err != nil {
 		return nil, err
 	}
-	secret := hashSecret(in.GetSecret())
+	secret := hashSecret(c.info.GetSecret())
 	verifyKeys := func(keys []*key.Identity) bool {
 		// XXX Later we can add specific name list of DNS, or prexisting
 		// keys..
 		return true
 	}
-	offset := time.Duration(in.GetBeaconOffset()) * time.Second
-	if in.GetBeaconOffset() == 0 {
+	offset := time.Duration(c.info.GetBeaconOffset()) * time.Second
+	if c.info.GetBeaconOffset() == 0 {
 		offset = DefaultGenesisOffset
 	}
 
-	sch, ok := common2.GetSchemeByID(schemeID)
+	sch, ok := common2.GetSchemeByID(c.schemeID)
 	if !ok {
 		return nil, fmt.Errorf("scheme id received is not valid")
 	}
@@ -102,18 +104,18 @@ func newDKGSetup(
 		expected:      n,
 		thr:           thr,
 		beaconOffset:  offset,
-		beaconPeriod:  time.Duration(beaconPeriod) * time.Second,
-		catchupPeriod: time.Duration(catchupPeriod) * time.Second,
+		beaconPeriod:  time.Duration(c.beaconPeriod) * time.Second,
+		catchupPeriod: time.Duration(c.catchupPeriod) * time.Second,
 		scheme:        sch,
-		beaconID:      beaconID,
+		beaconID:      c.beaconID,
 		dkgTimeout:    dkgTimeout,
-		l:             l,
+		l:             c.l,
 		startDKG:      make(chan *key.Group, 1),
 		pushKeyCh:     make(chan pushKey, n),
 		verifyKeys:    verifyKeys,
 		doneCh:        make(chan bool, 1),
-		clock:         c,
-		leaderKey:     leaderKey,
+		clock:         c.c,
+		leaderKey:     c.leaderKey,
 		hashedSecret:  secret,
 	}
 	return sm, nil
@@ -135,7 +137,7 @@ func newReshareSetup(
 		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
 	}
 
-	sm, err := newDKGSetup(l, c, leaderKey, beaconPeriod, catchupPeriod, beaconID, schemeID, in.GetInfo())
+	sm, err := newDKGSetup(&setupConfig{l, c, leaderKey, beaconPeriod, catchupPeriod, beaconID, schemeID, in.GetInfo()})
 	if err != nil {
 		return nil, err
 	}

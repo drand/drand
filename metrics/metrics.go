@@ -288,8 +288,8 @@ type lazyPeerHandler struct {
 
 func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	addr := strings.Replace(r.URL.Path, "/peer/", "", 1)
-	if strings.Contains(addr, "/") {
-		addr = addr[:strings.Index(addr, "/")]
+	if index := strings.Index(addr, "/"); index != -1 {
+		addr = addr[:index]
 	}
 
 	handlers, err := l.peerHandler(r.Context())

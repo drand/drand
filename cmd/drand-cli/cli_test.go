@@ -717,7 +717,7 @@ func (d *drandInstance) run(t *testing.T) {
 	testStatus(t, d.ctrlPort)
 }
 
-// nolint: gocritic
+//nolint: gocritic
 func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	beaconID := common.GetBeaconIDFromEnv()
 

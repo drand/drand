@@ -10,7 +10,11 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
+
+	//nolint:stylecheck
 	"github.com/drand/drand/protobuf/drand"
+
+	//nolint:stylecheck
 	control "github.com/drand/drand/protobuf/drand"
 
 	"google.golang.org/grpc"

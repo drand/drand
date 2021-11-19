@@ -9,6 +9,7 @@ issues:
     - path: protobuf/gen.go
       linters:
         - lll
+      source: "^//go:generate "
     # https://github.com/go-critic/go-critic/issues/926
     - linters:
         - gocritic
