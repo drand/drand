@@ -432,7 +432,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	resetCmd := []string{"drand", "util", "reset", "--folder", rootPath, "--id", beaconID}
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = w.Write([]byte("y\n"))
+	_, err = w.WriteString("y\n")
 	require.NoError(t, err)
 	os.Stdin = r
 	require.NoError(t, CLI().Run(resetCmd))
@@ -633,8 +633,8 @@ func getSBFolderStructure() string {
 
 func TestDrandStatus(t *testing.T) {
 	n := 4
-	instances, path := launchDrandInstances(t, n)
-	defer os.RemoveAll(path)
+	instances, tempPath := launchDrandInstances(t, n)
+	defer os.RemoveAll(tempPath)
 	allAddresses := make([]string, 0, n)
 	for _, instance := range instances {
 		allAddresses = append(allAddresses, instance.addr)
@@ -684,7 +684,6 @@ func TestDrandStatus(t *testing.T) {
 				require.True(t, strings.Contains(buff.String(), instance.addr+" -> X"))
 			}
 		}
-
 	}
 }
 
@@ -716,9 +715,9 @@ func (d *drandInstance) run(t *testing.T) {
 	go CLI().Run(startArgs)
 	// make sure we run each one sequentially
 	testStatus(t, d.ctrlPort)
-
 }
 
+// nolint: gocritic
 func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	beaconID := common.GetBeaconIDFromEnv()
 

@@ -17,7 +17,6 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
@@ -323,7 +322,7 @@ func remoteStatusCmd(c *cli.Context) error {
 	}
 	// set default value for all keys so json output outputs something for all
 	// keys
-	defaultMap := make(map[string]*drand.StatusResponse)
+	defaultMap := make(map[string]*control.StatusResponse)
 	for _, addr := range addresses {
 		if resp, ok := resp[addr]; !ok {
 			defaultMap[addr] = nil
