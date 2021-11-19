@@ -28,8 +28,8 @@ jobs:
         version: '3.17.x'
     - name: Install Protoc-gen-go
       run: |
-        go get github.com/golang/protobuf/protoc-gen-go@v1.27
-        go get google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1
     - name: Generate
       run: go generate ./...&& go mod tidy
     - name: Check
