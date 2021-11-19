@@ -17,6 +17,7 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
 	control "github.com/drand/drand/protobuf/drand"
 
 	json "github.com/nikkolasg/hexjson"
@@ -315,7 +316,15 @@ func remoteStatusCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	addresses := c.Args().Slice()
+	ips := c.Args().Slice()
+	isTLS := !c.IsSet(insecureFlag.Name)
+	addresses := make([]*drand.Address, len(ips))
+	for i := 0; i < len(ips); i++ {
+		addresses[i] = &drand.Address{
+			Address: ips[i],
+			Tls:     isTLS,
+		}
+	}
 	resp, err := client.RemoteStatus(c.Context, addresses)
 	if err != nil {
 		return err
@@ -324,10 +333,10 @@ func remoteStatusCmd(c *cli.Context) error {
 	// keys
 	defaultMap := make(map[string]*control.StatusResponse)
 	for _, addr := range addresses {
-		if resp, ok := resp[addr]; !ok {
-			defaultMap[addr] = nil
+		if resp, ok := resp[addr.GetAddress()]; !ok {
+			defaultMap[addr.GetAddress()] = nil
 		} else {
-			defaultMap[addr] = resp
+			defaultMap[addr.GetAddress()] = resp
 		}
 	}
 

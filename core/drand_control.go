@@ -630,19 +630,18 @@ func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error)
 func (d *Drand) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	var replies = make(map[string]*drand.StatusResponse)
 	for _, addr := range in.GetAddresses() {
-		if addr == d.priv.Public.Addr {
+		if addr.Address == d.priv.Public.Addr {
 			// no need to reach us
 			continue
 		}
-		// TODO: check if TLS or not
-		p := net.CreatePeer(addr, true)
+		p := net.CreatePeer(addr.GetAddress(), addr.Tls)
 		resp, err := d.privGateway.Status(c, p, &drand.StatusRequest{
 			CheckConn: in.GetAddresses(),
 		})
 		if err != nil {
 			d.log.Debug("Remote Status", addr, " FAIL", err)
 		} else {
-			replies[addr] = resp
+			replies[addr.GetAddress()] = resp
 		}
 	}
 	return &drand.RemoteStatusResponse{
@@ -701,21 +700,20 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 	// remote network connectivity
 	var resp = make(map[string]bool)
 	for _, addr := range in.GetCheckConn() {
-		if addr == d.priv.Public.Addr {
+		if addr.GetAddress() == d.priv.Public.Addr {
 			continue
 		}
 		// TODO check if TLS or not
-		p := net.CreatePeer(addr, true)
+		p := net.CreatePeer(addr.GetAddress(), addr.GetTls())
 		// Simply try to ping him see if he replies
 		tc, cancel := context.WithTimeout(c, time.Second*10)
 		defer cancel()
 		_, err := d.privGateway.Home(tc, p, &drand.HomeRequest{})
 		if err != nil {
 			d.log.Debugw("Status asked remote", addr, " FAIL", err)
-			resp[addr] = false
-			fmt.Printf("%s --> asked Home() on %s --> FAIL -> %s\n", d.priv.Public.Addr, addr, err)
+			resp[addr.GetAddress()] = false
 		} else {
-			resp[addr] = true
+			resp[addr.GetAddress()] = true
 		}
 	}
 	packet := &drand.StatusResponse{

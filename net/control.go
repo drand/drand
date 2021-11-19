@@ -80,7 +80,7 @@ func NewControlClient(addr string) (*ControlClient, error) {
 	}, nil
 }
 
-func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []string) (map[string]*drand.StatusResponse, error) {
+func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []*drand.Address) (map[string]*drand.StatusResponse, error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	packet := drand.RemoteStatusRequest{
 		Metadata:  metadata,

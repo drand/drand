@@ -33,12 +33,17 @@ message ChainStoreStatus{
     uint64 length = 3;
 }
 
+message Address {
+    string address = 1;
+    bool tls = 2;
+}
+
 
 message StatusRequest {
     // the check_conn contains the list of addresses to check connectivity to,
     // i.e. calls Home() on it.
     // If the field is absent or empty, then there is no connectivity checks.
-    repeated string check_conn = 1;
+    repeated Address check_conn = 1;
 }
 
 

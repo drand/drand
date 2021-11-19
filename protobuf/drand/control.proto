@@ -168,7 +168,7 @@ message Pong {
 // process should ask the status to.
 message RemoteStatusRequest {
     common.Metadata metadata = 1;
-    repeated string addresses = 2;
+    repeated Address addresses = 2;
 }
 
 // RemoteStatusResponse contains the statuses reponses of all nodes given in the
