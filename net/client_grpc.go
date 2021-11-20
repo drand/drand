@@ -268,6 +268,19 @@ func (g *grpcClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*
 	return resp, err
 }
 
+func (g *grpcClient) Status(ctx context.Context, p Peer, in *drand.StatusRequest, opts ...grpc.CallOption) (*drand.StatusResponse, error) {
+	var resp *drand.StatusResponse
+	c, err := g.conn(p)
+	if err != nil {
+		return nil, err
+	}
+	client := drand.NewProtocolClient(c)
+	ctx, cancel := g.getTimeoutContext(ctx)
+	defer cancel()
+	resp, err = client.Status(ctx, in, opts...)
+	return resp, err
+}
+
 // conn retrieve an already existing conn to the given peer or create a new one
 func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	g.Lock()

@@ -5,24 +5,14 @@ on:
     branches: [ master ]
 
 jobs:
-  lint:
+  golangci:
+    name: lint
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - uses: actions/setup-go@v2
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v2
       with:
-        go-version: '^1.17'
-    - uses: actions/cache@v2
-      id: lint-dep-cache
-      with:
-        path: ~/go/pkg/mod
-        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-    - name: Fetch Dependencies
-      run: go get ./...
-    - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v2.3.0
-      with:
-        version: v1.41
+        version: v1.43
         args: --timeout 5m

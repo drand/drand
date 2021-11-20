@@ -56,3 +56,5 @@ var DefaultResharingOffset = 30 * time.Second
 
 // PrivateRandLength is the length of expected private randomness buffers
 const PrivateRandLength = 32
+
+const callMaxTimeout = 10 * time.Second

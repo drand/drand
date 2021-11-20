@@ -55,8 +55,18 @@ func (d *Drand) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.Grou
 
 	// setup the manager
 	newSetup := func(d *Drand) (*setupManager, error) {
-		return newDKGSetup(d.log, d.opts.clock, d.priv.Public, in.GetBeaconPeriod(),
-			in.GetCatchupPeriod(), beaconID, in.GetSchemeID(), in.GetInfo())
+		return newDKGSetup(
+			&setupConfig{
+				d.log,
+				d.opts.clock,
+				d.priv.Public,
+				in.GetBeaconPeriod(),
+				in.GetCatchupPeriod(),
+				beaconID,
+				in.GetSchemeID(),
+				in.GetInfo(),
+			},
+		)
 	}
 
 	// expect the group
@@ -627,6 +637,28 @@ func (d *Drand) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error)
 	return &drand.Pong{Metadata: ctx}, nil
 }
 
+func (d *Drand) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
+	var replies = make(map[string]*drand.StatusResponse)
+	for _, addr := range in.GetAddresses() {
+		if addr.Address == d.priv.Public.Addr {
+			// no need to reach us
+			continue
+		}
+		p := net.CreatePeer(addr.GetAddress(), addr.Tls)
+		resp, err := d.privGateway.Status(c, p, &drand.StatusRequest{
+			CheckConn: in.GetAddresses(),
+		})
+		if err != nil {
+			d.log.Debug("Remote Status", addr, " FAIL", err)
+		} else {
+			replies[addr.GetAddress()] = resp
+		}
+	}
+	return &drand.RemoteStatusResponse{
+		Statuses: replies,
+	}, nil
+}
+
 // Status responds with the actual status of drand process
 func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	d.state.Lock()
@@ -675,7 +707,35 @@ func (d *Drand) Status(c context.Context, in *drand.StatusRequest) (*drand.Statu
 		}
 	}
 
-	return &drand.StatusResponse{Dkg: &dkgStatus, Reshare: &reshareStatus, ChainStore: &chainStore, Beacon: &beaconStatus}, nil
+	// remote network connectivity
+	var resp = make(map[string]bool)
+	for _, addr := range in.GetCheckConn() {
+		if addr.GetAddress() == d.priv.Public.Addr {
+			continue
+		}
+		// TODO check if TLS or not
+		p := net.CreatePeer(addr.GetAddress(), addr.GetTls())
+		// Simply try to ping him see if he replies
+		tc, cancel := context.WithTimeout(c, callMaxTimeout)
+		defer cancel()
+		_, err := d.privGateway.Home(tc, p, &drand.HomeRequest{})
+		if err != nil {
+			d.log.Debugw("Status asked remote", addr, " FAIL", err)
+			resp[addr.GetAddress()] = false
+		} else {
+			resp[addr.GetAddress()] = true
+		}
+	}
+	packet := &drand.StatusResponse{
+		Dkg:        &dkgStatus,
+		Reshare:    &reshareStatus,
+		ChainStore: &chainStore,
+		Beacon:     &beaconStatus,
+	}
+	if len(resp) > 0 {
+		packet.Connections = resp
+	}
+	return packet, nil
 }
 
 func (d *Drand) ListSchemes(c context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
@@ -929,8 +989,8 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
-// nolint:funlen
 // StartFollowChain syncs up with a chain from other nodes
+//nolint:funlen
 func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
