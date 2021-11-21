@@ -327,8 +327,6 @@ func (s *sender) sendDirect(newPacket broadcastPacket) {
 	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
 	if err != nil {
 		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
-	} else {
-		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sending out", "to", s.to.Address())
 	}
 }
 
