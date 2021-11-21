@@ -167,6 +167,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
 		Auth:           key.DKGAuthScheme,
+		Logger:         func(kv ...interface{}) { d.log.Debug(kv...) },
 	}
 	phaser := d.getPhaser(timeout, beaconID)
 	board := newEchoBroadcast(d.log, d.version, beaconID, d.privGateway.ProtocolClient,

@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go v1.32.11
 	github.com/briandowns/spinner v1.11.1
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
-	github.com/drand/kyber v1.1.6
+	github.com/drand/kyber v1.1.8-0.20211121211549-46fccf25d82f
 	github.com/drand/kyber-bls12381 v0.2.1
 	github.com/gogo/googleapis v1.4.0 // indirect
 	github.com/gogo/status v1.1.0 // indirect
