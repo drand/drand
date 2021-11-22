@@ -30,7 +30,11 @@ func TestClientConstraints(t *testing.T) {
 		t.Fatal("Client needs root of trust unless insecure specified explicitly")
 	}
 
-	if _, e := client.New(client.From(client.MockClientWithResults(0, 5)), client.Insecurely()); e != nil {
+	c := client.MockClientWithResults(0, 5)
+	// As we will run is insecurely, we will set chain info so client can fetch it
+	c.OptionalInfo = fakeChainInfo()
+
+	if _, e := client.New(client.From(c), client.Insecurely()); e != nil {
 		t.Fatal(e)
 	}
 }
@@ -48,7 +52,6 @@ func TestClientMultiple(t *testing.T) {
 	var e error
 	c, e = client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
-		client.WithSchemeID(sch.ID),
 		client.WithChainHash(chainInfo.Hash()))
 
 	if e != nil {
@@ -93,7 +96,6 @@ func TestClientCache(t *testing.T) {
 	var c client.Client
 	var e error
 	c, e = client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithSchemeID(sch.ID),
 		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
 
 	if e != nil {
@@ -125,7 +127,6 @@ func TestClientWithoutCache(t *testing.T) {
 	var e error
 	c, e = client.New(
 		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
-		client.WithSchemeID(sch.ID),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithCacheSize(0))
 
@@ -162,7 +163,6 @@ func TestClientWithWatcher(t *testing.T) {
 	var err error
 	c, err = client.New(
 		client.WithChainInfo(info),
-		client.WithSchemeID(sch.ID),
 		client.WithWatcher(watcherCtor),
 	)
 
@@ -250,7 +250,6 @@ func TestClientAutoWatch(t *testing.T) {
 		client.From(client.MockClientWithInfo(chainInfo)),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithWatcher(watcherCtor),
-		client.WithSchemeID(sch.ID),
 		client.WithAutoWatch(),
 	)
 
@@ -314,7 +313,6 @@ func TestClientAutoWatchRetry(t *testing.T) {
 		client.WithAutoWatch(),
 		client.WithAutoWatchRetry(time.Second),
 		client.WithCacheSize(len(results)),
-		client.WithSchemeID(sch.ID),
 	)
 
 	if err != nil {

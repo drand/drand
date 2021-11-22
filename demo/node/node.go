@@ -8,6 +8,7 @@ import (
 type Node interface {
 	Start(certFolder string) error
 	PrivateAddr() string
+	CtrlAddr() string
 	PublicAddr() string
 	Index() int
 	RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group

@@ -11,11 +11,13 @@ import (
 )
 
 // MockClient provide a mocked client interface
+//nolint:gocritic
 type MockClient struct {
 	sync.Mutex
-	WatchCh chan Result
-	WatchF  func(context.Context) <-chan Result
-	Results []mock.Result
+	OptionalInfo *chain.Info
+	WatchCh      chan Result
+	WatchF       func(context.Context) <-chan Result
+	Results      []mock.Result
 	// Delay causes results to be delivered after this period of time has
 	// passed. Note that if the context is canceled a result is still consumed
 	// from Results.
@@ -83,6 +85,9 @@ func (m *MockClient) Watch(ctx context.Context) <-chan Result {
 }
 
 func (m *MockClient) Info(ctx context.Context) (*chain.Info, error) {
+	if m.OptionalInfo != nil {
+		return m.OptionalInfo, nil
+	}
 	return nil, errors.New("not supported (mock client info)")
 }
 

@@ -30,8 +30,10 @@ type LocalNode struct {
 	scheme     scheme.Scheme
 	publicPath string
 	certPath   string
+
 	// certificate key
 	keyPath string
+
 	// where all public certs are stored
 	certFolder string
 	logPath    string
@@ -106,7 +108,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		opts = append(opts, core.WithInsecure())
 	}
 	conf := core.NewConfig(opts...)
-	fs := key.NewFileStore(conf.ConfigFolder())
+	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	fs.SaveKeyPair(l.priv)
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
 	if l.daemon == nil {
@@ -128,6 +130,10 @@ func (l *LocalNode) Start(certFolder string) error {
 
 func (l *LocalNode) PrivateAddr() string {
 	return l.privAddr
+}
+
+func (l *LocalNode) CtrlAddr() string {
+	return l.ctrlAddr
 }
 
 func (l *LocalNode) PublicAddr() string {
@@ -161,7 +167,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitDKG(leader, nil, secretDKG)
+		grp, err = cl.InitDKG(leader, nil, secretDKG, l.beaconID)
 	}
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
@@ -194,10 +200,10 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset)
+		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false)
+		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false, l.beaconID)
 	}
 	if err != nil {
 		l.log.Errorw("", "drand", "reshare failed", "err", err)

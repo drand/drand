@@ -214,10 +214,13 @@ func (d *Drand) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPack
 func (d *Drand) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
+
+	beaconID := in.GetMetadata().GetBeaconID()
 	if d.receiver == nil {
 		return nil, errors.New("no receiver setup")
 	}
-	d.log.Infow("", "push_group", "received_new")
+
+	d.log.Infow("", "beacon_id", beaconID, "push_group", "received_new")
 
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.

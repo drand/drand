@@ -44,6 +44,8 @@ type ControlClient interface {
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error)
 	BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error)
+	// RemoteStatus request the status of some remote drand nodes
+	RemoteStatus(ctx context.Context, in *RemoteStatusRequest, opts ...grpc.CallOption) (*RemoteStatusResponse, error)
 }
 
 type controlClient struct {
@@ -194,6 +196,15 @@ func (c *controlClient) BackupDatabase(ctx context.Context, in *BackupDBRequest,
 	return out, nil
 }
 
+func (c *controlClient) RemoteStatus(ctx context.Context, in *RemoteStatusRequest, opts ...grpc.CallOption) (*RemoteStatusResponse, error) {
+	out := new(RemoteStatusResponse)
+	err := c.cc.Invoke(ctx, "/drand.Control/RemoteStatus", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ControlServer is the server API for Control service.
 // All implementations should embed UnimplementedControlServer
 // for forward compatibility
@@ -224,6 +235,8 @@ type ControlServer interface {
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error
 	BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error)
+	// RemoteStatus request the status of some remote drand nodes
+	RemoteStatus(context.Context, *RemoteStatusRequest) (*RemoteStatusResponse, error)
 }
 
 // UnimplementedControlServer should be embedded to have forward compatible implementations.
@@ -268,6 +281,9 @@ func (UnimplementedControlServer) StartFollowChain(*StartFollowRequest, Control_
 }
 func (UnimplementedControlServer) BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BackupDatabase not implemented")
+}
+func (UnimplementedControlServer) RemoteStatus(context.Context, *RemoteStatusRequest) (*RemoteStatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoteStatus not implemented")
 }
 
 // UnsafeControlServer may be embedded to opt out of forward compatibility for this service.
@@ -518,6 +534,24 @@ func _Control_BackupDatabase_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Control_RemoteStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).RemoteStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/drand.Control/RemoteStatus",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).RemoteStatus(ctx, req.(*RemoteStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Control_ServiceDesc is the grpc.ServiceDesc for Control service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -572,6 +606,10 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "BackupDatabase",
 			Handler:    _Control_BackupDatabase_Handler,
+		},
+		{
+			MethodName: "RemoteStatus",
+			Handler:    _Control_RemoteStatus_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

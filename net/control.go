@@ -10,8 +10,12 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
+
+	//nolint:stylecheck
+	"github.com/drand/drand/protobuf/drand"
+
+	//nolint:stylecheck
 	control "github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/utils"
 
 	"google.golang.org/grpc"
 )
@@ -53,7 +57,7 @@ func (g *ControlListener) Stop() {
 type ControlClient struct {
 	conn    *grpc.ClientConn
 	client  control.ControlClient
-	version utils.Version
+	version common.Version
 }
 
 // NewControlClient creates a client capable of issuing control commands to a
@@ -78,6 +82,16 @@ func NewControlClient(addr string) (*ControlClient, error) {
 		client:  c,
 		version: common.GetAppVersion(),
 	}, nil
+}
+
+func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []*drand.Address) (map[string]*drand.StatusResponse, error) {
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	packet := drand.RemoteStatusRequest{
+		Metadata:  metadata,
+		Addresses: addresses,
+	}
+	resp, err := c.client.RemoteStatus(ct, &packet)
+	return resp.GetStatuses(), err
 }
 
 // Ping the drand daemon to check if it's up and running
@@ -109,8 +123,9 @@ func (c *ControlClient) InitReshareLeader(
 	nodes, threshold int,
 	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
-	offset int) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	offset int,
+	beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -126,15 +141,15 @@ func (c *ControlClient) InitReshareLeader(
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
-		Metadata:             metadata,
+		Metadata:             &metadata,
 	}
 
 	return c.client.InitReshare(ctx.Background(), request)
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -147,7 +162,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			Secret:        []byte(secret),
 			Force:         force,
 		},
-		Metadata: metadata,
+		Metadata: &metadata,
 	}
 
 	return c.client.InitReshare(ctx.Background(), request)
@@ -188,8 +203,8 @@ func (c *ControlClient) InitDKGLeader(
 }
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
-func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret string) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret, beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -199,7 +214,7 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			Secret:        []byte(secret),
 		},
 		Entropy:  entropy,
-		Metadata: metadata,
+		Metadata: &metadata,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)
@@ -323,6 +338,13 @@ func (s *DefaultControlServer) Status(c ctx.Context, in *control.StatusRequest) 
 		return &control.StatusResponse{}, nil
 	}
 	return s.C.Status(c, in)
+}
+
+func (s *DefaultControlServer) RemoteStatus(c ctx.Context, in *control.RemoteStatusRequest) (*control.RemoteStatusResponse, error) {
+	if s.C == nil {
+		return &control.RemoteStatusResponse{}, nil
+	}
+	return s.C.RemoteStatus(c, in)
 }
 
 // Share initiates a share request

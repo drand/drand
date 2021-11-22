@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
@@ -20,7 +22,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	testnet "github.com/drand/drand/test/net"
-	"github.com/drand/drand/utils"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
@@ -29,8 +30,6 @@ import (
 )
 
 // TODO make beacon tests not dependant on key.Scheme
-
-const BeaconIDForTesting = "test_beacon"
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
@@ -135,7 +134,7 @@ type BeaconTest struct {
 }
 
 func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme, beaconID string) *BeaconTest {
-	prefix, err := os.MkdirTemp(os.TempDir(), "beacon-test")
+	prefix, err := os.MkdirTemp(os.TempDir(), beaconID)
 	checkErr(err)
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(t, n, thr)
@@ -204,7 +203,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	}
 
 	logger := log.NewLogger(nil, log.LogDebug)
-	version := utils.Version{Major: 0, Minor: 0, Patch: 0}
+	version := common.Version{Major: 0, Minor: 0, Patch: 0}
 	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, logger, version)
 	checkErr(err)
 	if node.callback != nil {
@@ -399,9 +398,9 @@ func TestBeaconSync(t *testing.T) {
 
 	genesisOffset := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(genesisOffset).Unix()
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, BeaconIDForTesting)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
@@ -478,9 +477,9 @@ func TestBeaconSimple(t *testing.T) {
 	period := 2 * time.Second
 
 	genesisTime := clock.NewFakeClock().Now().Unix() + 2
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, BeaconIDForTesting)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
@@ -539,9 +538,9 @@ func TestBeaconThreshold(t *testing.T) {
 
 	offsetGenesis := 2 * time.Second
 	genesisTime := clock.NewFakeClock().Now().Add(offsetGenesis).Unix()
-	sch := scheme.GetSchemeFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
-	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, BeaconIDForTesting)
+	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
 	defer func() { go bt.CleanUp() }()
 
 	verifier := chain.NewVerifier(sch)

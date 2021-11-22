@@ -17,7 +17,6 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/utils"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -66,7 +65,11 @@ type Drand struct {
 	setupCB func(*key.Group)
 
 	// version indicates the base code variant
-	version utils.Version
+	version common.Version
+
+	// only used for testing at the moment - may be useful later
+	// to pinpoint the exact messages from all nodes during dkg
+	dkgBoardSetup func(Broadcast) Broadcast
 }
 
 // NewDrand returns a drand struct. It assumes the private key pair
@@ -138,7 +141,7 @@ func setupDrand(d *Drand, c *Config) error {
 	p := c.ControlPort()
 	d.control = net.NewTCPGrpcControlListener(d, p)
 	go d.control.Start()
-	d.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolder())
+	d.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", d.opts.ConfigFolderMB())
 	d.privGateway.StartAll()
 	if d.pubGateway != nil {
 		d.pubGateway.StartAll()
@@ -318,20 +321,24 @@ func (d *Drand) WaitExit() chan bool {
 	return d.exitCh
 }
 
-func (d *Drand) createBoltStore() (chain.Store, error) {
-	fs.CreateSecureFolder(d.opts.DBFolder())
-	return boltdb.NewBoltStore(d.opts.dbFolder, d.opts.boltOpts)
+func (d *Drand) createBoltStore(dbName string) (chain.Store, error) {
+	if dbName == "" {
+		dbName = common.DefaultBeaconID
+	}
+
+	dbPath := d.opts.DBFolder(dbName)
+	fs.CreateSecureFolder(dbPath)
+
+	return boltdb.NewBoltStore(dbPath, d.opts.boltOpts)
 }
 
 func (d *Drand) newBeacon() (*beacon.Handler, error) {
 	d.state.Lock()
 	defer d.state.Unlock()
-	store, err := d.createBoltStore()
-	if err != nil {
-		return nil, err
-	}
+
 	pub := d.priv.Public
 	node := d.group.Find(pub)
+
 	if node == nil {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
@@ -341,6 +348,12 @@ func (d *Drand) newBeacon() (*beacon.Handler, error) {
 		Share:  d.share,
 		Clock:  d.opts.clock,
 	}
+
+	store, err := d.createBoltStore(d.group.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	b, err := beacon.NewHandler(d.privGateway.ProtocolClient, store, conf, d.log, d.version)
 	if err != nil {
 		return nil, err

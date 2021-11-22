@@ -34,6 +34,8 @@ type ProtocolClient interface {
 	PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
 	SyncChain(ctx context.Context, in *SyncRequest, opts ...grpc.CallOption) (Protocol_SyncChainClient, error)
+	// Status responds with the actual status of drand process
+	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 }
 
 type protocolClient struct {
@@ -121,6 +123,15 @@ func (x *protocolSyncChainClient) Recv() (*BeaconPacket, error) {
 	return m, nil
 }
 
+func (c *protocolClient) Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error) {
+	out := new(StatusResponse)
+	err := c.cc.Invoke(ctx, "/drand.Protocol/Status", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProtocolServer is the server API for Protocol service.
 // All implementations should embed UnimplementedProtocolServer
 // for forward compatibility
@@ -141,6 +152,8 @@ type ProtocolServer interface {
 	PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
 	SyncChain(*SyncRequest, Protocol_SyncChainServer) error
+	// Status responds with the actual status of drand process
+	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 }
 
 // UnimplementedProtocolServer should be embedded to have forward compatible implementations.
@@ -164,6 +177,9 @@ func (UnimplementedProtocolServer) PartialBeacon(context.Context, *PartialBeacon
 }
 func (UnimplementedProtocolServer) SyncChain(*SyncRequest, Protocol_SyncChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method SyncChain not implemented")
+}
+func (UnimplementedProtocolServer) Status(context.Context, *StatusRequest) (*StatusResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Status not implemented")
 }
 
 // UnsafeProtocolServer may be embedded to opt out of forward compatibility for this service.
@@ -288,6 +304,24 @@ func (x *protocolSyncChainServer) Send(m *BeaconPacket) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _Protocol_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProtocolServer).Status(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/drand.Protocol/Status",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProtocolServer).Status(ctx, req.(*StatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Protocol_ServiceDesc is the grpc.ServiceDesc for Protocol service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -314,6 +348,10 @@ var Protocol_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PartialBeacon",
 			Handler:    _Protocol_PartialBeacon_Handler,
+		},
+		{
+			MethodName: "Status",
+			Handler:    _Protocol_Status_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

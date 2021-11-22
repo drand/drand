@@ -12,18 +12,15 @@ import (
 	"sort"
 	"time"
 
-	"github.com/drand/drand/utils"
-
-	"github.com/drand/drand/protobuf/common"
-
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/protobuf/common"
+	proto "github.com/drand/drand/protobuf/drand"
 
 	"github.com/BurntSushi/toml"
 	kyber "github.com/drand/kyber"
 	dkg "github.com/drand/kyber/share/dkg"
 	"golang.org/x/crypto/blake2b"
-
-	proto "github.com/drand/drand/protobuf/drand"
 )
 
 // XXX new256 returns an error so we make a wrapper around
@@ -430,7 +427,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 }
 
 // ToProto encodes a local group object into its wire format
-func (g *Group) ToProto(version utils.Version) *proto.GroupPacket {
+func (g *Group) ToProto(version commonutils.Version) *proto.GroupPacket {
 	var out = new(proto.GroupPacket)
 	var ids = make([]*proto.Node, len(g.Nodes))
 

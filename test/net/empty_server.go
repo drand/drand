@@ -67,6 +67,11 @@ func (s *EmptyServer) StartFollowChain(*drand.StartFollowRequest, drand.Control_
 	return nil
 }
 
+// Status method
+func (s *EmptyServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error) {
+	return nil, nil
+}
+
 // PartialBeacon is an empty implementation
 func (s *EmptyServer) PartialBeacon(context.Context, *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	return nil, nil
@@ -74,11 +79,6 @@ func (s *EmptyServer) PartialBeacon(context.Context, *drand.PartialBeaconPacket)
 
 // PingPong is an empty implementation
 func (s *EmptyServer) PingPong(context.Context, *drand.Ping) (*drand.Pong, error) {
-	return nil, nil
-}
-
-// PingPong is an empty implementation
-func (s *EmptyServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error) {
 	return nil, nil
 }
 
@@ -124,6 +124,11 @@ func (s *EmptyServer) GroupFile(context.Context, *drand.GroupRequest) (*drand.Gr
 
 // Shutdown is an empty implementation
 func (s *EmptyServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
+	return nil, nil
+}
+
+// RemoteStatus is an empty implementation
+func (s *EmptyServer) RemoteStatus(context.Context, *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	return nil, nil
 }
 

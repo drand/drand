@@ -25,7 +25,6 @@ func HomeFolder() string {
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, defaultDirectoryPermission); err != nil {
-			fmt.Println("folder", folder, ",err", err)
 			panic(err)
 		}
 	} else {
@@ -86,6 +85,22 @@ func Files(folderPath string) ([]string, error) {
 	return files, nil
 }
 
+// Folders returns the list of folder names included in the given path or error if
+// any.
+func Folders(folderPath string) ([]string, error) {
+	fi, err := os.ReadDir(folderPath)
+	if err != nil {
+		return nil, err
+	}
+	var folders []string
+	for _, f := range fi {
+		if f.IsDir() {
+			folders = append(folders, path.Join(folderPath, f.Name()))
+		}
+	}
+	return folders, nil
+}
+
 // FileExists returns true if the given name is a file in the given path. name
 // must be the "basename" of the file and path must be the folder where it lies.
 func FileExists(filePath, name string) bool {
@@ -101,4 +116,62 @@ func FileExists(filePath, name string) bool {
 	}
 
 	return false
+}
+
+// FolderExists returns true if the given name is a folder in the given path. name
+// must be the "basename" of the file and path must be the folder where it lies.
+func FolderExists(folderPath, name string) bool {
+	list, err := Folders(folderPath)
+	if err != nil {
+		return false
+	}
+
+	for _, l := range list {
+		if l == name {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CopyFile copy a file or folder from one path to another
+func CopyFile(origFilePath, destFilePath string) error {
+	input, err := os.ReadFile(origFilePath)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(destFilePath, input, rwFilePermission)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CopyFolder copy files inside a folder to another folder recursively
+func CopyFolder(origFolderPath, destFolderPath string) error {
+	fi, err := os.ReadDir(origFolderPath)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range fi {
+		tmp1 := path.Join(origFolderPath, file.Name())
+		tmp2 := path.Join(destFolderPath, file.Name())
+
+		if !file.IsDir() {
+			if err := CopyFile(tmp1, tmp2); err != nil {
+				return err
+			}
+		} else {
+			CreateSecureFolder(tmp2)
+			if err := CopyFolder(tmp1, tmp2); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
