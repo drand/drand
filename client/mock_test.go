@@ -11,6 +11,7 @@ import (
 )
 
 // MockClient provide a mocked client interface
+//nolint:gocritic
 type MockClient struct {
 	sync.Mutex
 	OptionalInfo *chain.Info

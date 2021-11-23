@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	gnet "net"
 	"os"
+	"os/exec"
 	"path"
 	"strconv"
 	"strings"
@@ -462,7 +464,7 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	resetCmd := []string{"drand", "util", "reset", "--folder", rootPath, "--id", beaconID}
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = w.Write([]byte("y\n"))
+	_, err = w.WriteString("y\n")
 	require.NoError(t, err)
 	os.Stdin = r
 	require.NoError(t, CLI().Run(resetCmd))
@@ -526,9 +528,9 @@ func TestClientTLS(t *testing.T) {
 	defer os.RemoveAll(tmpPath)
 
 	groupPath := path.Join(tmpPath, "group.toml")
-	pubPath := path.Join(tmpPath, "pub.key")
 	certPath := path.Join(tmpPath, "server.pem")
 	keyPath := path.Join(tmpPath, "key.pem")
+	pubPath := path.Join(tmpPath, "pub.key")
 
 	freePort := test.FreePort()
 	addr := "127.0.0.1:" + freePort
@@ -660,4 +662,146 @@ func getSBFolderStructure() string {
 	fs.CreateSecureFolder(path.Join(tmp, core.DefaultDBFolder))
 
 	return tmp
+}
+
+func TestDrandStatus(t *testing.T) {
+	n := 4
+	instances, tempPath := launchDrandInstances(t, n)
+	defer os.RemoveAll(tempPath)
+	allAddresses := make([]string, 0, n)
+	for _, instance := range instances {
+		allAddresses = append(allAddresses, instance.addr)
+	}
+
+	defer func() { output = os.Stdout }()
+
+	// check that each node can reach each other
+	for i, instance := range instances {
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote = append(remote, allAddresses...)
+		var buff bytes.Buffer
+		output = &buff
+
+		err := CLI().Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			require.True(t, strings.Contains(buff.String(), instance.addr+" -> OK"))
+		}
+	}
+	// stop one and check that all nodes report this node down
+	toStop := 2
+	insToStop := instances[toStop]
+	insToStop.stop()
+
+	for i, instance := range instances {
+		if i == toStop {
+			continue
+		}
+		remote := []string{"drand", "util", "remote-status", "--control", instance.ctrlPort}
+		remote = append(remote, allAddresses...)
+		var buff bytes.Buffer
+		output = &buff
+
+		err := CLI().Run(remote)
+		require.NoError(t, err)
+		for j, instance := range instances {
+			if i == j {
+				continue
+			}
+			if j != toStop {
+				require.True(t, strings.Contains(buff.String(), instance.addr+" -> OK"))
+			} else {
+				require.True(t, strings.Contains(buff.String(), instance.addr+" -> X"))
+			}
+		}
+	}
+}
+
+type drandInstance struct {
+	path     string
+	ctrlPort string
+	addr     string
+	metrics  string
+	certPath string
+	keyPath  string
+	certsDir string
+}
+
+func (d *drandInstance) stop() error {
+	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort})
+}
+
+func (d *drandInstance) run(t *testing.T) {
+	startArgs := []string{
+		"drand",
+		"start",
+		"--tls-cert", d.certPath,
+		"--tls-key", d.keyPath,
+		"--certs-dir", d.certsDir,
+		"--control", d.ctrlPort,
+		"--folder", d.path,
+		"--metrics", d.metrics,
+	}
+	go CLI().Run(startArgs)
+	// make sure we run each one sequentially
+	testStatus(t, d.ctrlPort)
+}
+
+//nolint: gocritic
+func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
+	beaconID := common.GetBeaconIDFromEnv()
+
+	tmpPath := path.Join(os.TempDir(), "drand")
+	os.Mkdir(tmpPath, 0740)
+	certsDir, err := ioutil.TempDir(tmpPath, "certs")
+	require.NoError(t, err)
+
+	var ins = make([]*drandInstance, 0, n)
+	for i := 1; i <= n; i++ {
+		nodePath, err := ioutil.TempDir(tmpPath, "node")
+		require.NoError(t, err)
+
+		certPath := path.Join(nodePath, "cert")
+		keyPath := path.Join(nodePath, "tlskey")
+		pubPath := path.Join(tmpPath, "pub.key")
+
+		freePort := test.FreePort()
+		addr := "127.0.0." + strconv.Itoa(i) + ":" + freePort
+		ctrlPort := test.FreePort()
+		metricsPort := test.FreePort()
+
+		// generate key so it loads
+		// XXX let's remove this requirement - no need for longterm keys
+		priv := key.NewTLSKeyPair(addr)
+		require.NoError(t, key.Save(pubPath, priv.Public, false))
+		config := core.NewConfig(core.WithConfigFolder(nodePath))
+		fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
+		fileStore.SaveKeyPair(priv)
+
+		h, _, _ := gnet.SplitHostPort(addr)
+		if err := httpscerts.Generate(certPath, keyPath, h); err != nil {
+			panic(err)
+		}
+		// copy into one folder for giving a common CERT folder
+		_, err = exec.Command("cp", certPath, path.Join(certsDir, fmt.Sprintf("cert-%d", i))).Output()
+		require.NoError(t, err)
+
+		ins = append(ins, &drandInstance{
+			addr:     addr,
+			ctrlPort: ctrlPort,
+			path:     nodePath,
+			keyPath:  keyPath,
+			metrics:  metricsPort,
+			certPath: certPath,
+			certsDir: certsDir,
+		})
+	}
+
+	for _, instance := range ins {
+		instance.run(t)
+	}
+	return ins, tmpPath
 }

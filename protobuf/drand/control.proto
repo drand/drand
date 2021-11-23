@@ -42,6 +42,9 @@ service Control {
     rpc StartFollowChain(StartFollowRequest) returns (stream FollowProgress) { }
 
     rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) { }
+
+    // RemoteStatus request the status of some remote drand nodes
+    rpc RemoteStatus(RemoteStatusRequest) returns (RemoteStatusResponse) { }
 }
 
 // SetupInfoPacket contains all information necessary to run an "automatic"
@@ -161,16 +164,18 @@ message Pong {
     common.Metadata metadata = 1;
 }
 
-message StatusRequest {
+// RemoteStatusRequest contains the list of addresses that the local drand node
+// process should ask the status to.
+message RemoteStatusRequest {
     common.Metadata metadata = 1;
+    repeated Address addresses = 2;
 }
 
-
-message StatusResponse {
-    DkgStatus dkg = 1;
-    ReshareStatus reshare = 2;
-    BeaconStatus beacon = 3;
-    ChainStoreStatus chain_store = 4;
+// RemoteStatusResponse contains the statuses reponses of all nodes given in the
+// requests. If a node did not reply, then the address key is absent from the
+// map
+message RemoteStatusResponse {
+    map<string,StatusResponse> statuses = 1;  
 }
 
 message ListSchemesRequest {
@@ -180,28 +185,6 @@ message ListSchemesRequest {
 message ListSchemesResponse {
     repeated string ids = 1;
     common.Metadata metadata = 2;
-}
-
-message DkgStatus{
-    uint32 status = 1;
-}
-
-message ReshareStatus{
-    uint32 status = 1;
-}
-
-message BeaconStatus{
-    uint32 status = 1;
-    bool is_running = 2;
-    bool is_stopped = 3;
-    bool is_started = 4;
-    bool is_serving = 5;
-}
-
-message ChainStoreStatus{
-    bool is_empty = 1;
-    uint64 last_round = 2;
-    uint64 length = 3;
 }
 
 // PublicKeyRequest requests the public key of a drand node

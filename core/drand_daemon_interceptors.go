@@ -3,8 +3,8 @@ package core
 import (
 	"context"
 
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,9 +32,9 @@ func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{}
 		return handler(ctx, req)
 	}
 
-	rcvVer := utils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
-	if !dd.version.IsCompatible(rcvVer) {
-		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
+	if !d.version.IsCompatible(rcvVer) {
+		d.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
 		return nil, status.Error(codes.PermissionDenied, "Node Version not valid")
 	}
 
@@ -59,9 +59,9 @@ func (dd *DrandDaemon) NodeVersionStreamValidator(srv interface{}, ss grpc.Serve
 		return handler(srv, ss)
 	}
 
-	rcvVer := utils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
-	if !dd.version.IsCompatible(rcvVer) {
-		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
+	if !d.version.IsCompatible(rcvVer) {
+		d.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
 		return status.Error(codes.PermissionDenied, "Node Version not valid")
 	}
 

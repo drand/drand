@@ -80,12 +80,13 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 
 // PublicRandStream is part of the public drand service.
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
+	streamDone := make(chan error, 1)
 	s.l.Lock()
-	s.streamDone = make(chan error, 1)
+	s.streamDone = streamDone
 	s.stream = stream
 	s.l.Unlock()
 
-	err := <-s.streamDone
+	err := <-streamDone
 	s.l.Lock()
 	s.stream = nil
 	s.l.Unlock()

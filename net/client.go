@@ -34,6 +34,7 @@ type ProtocolClient interface {
 	BroadcastDKG(c context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) error
 	SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error
 	PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoPacket, opts ...grpc.CallOption) error
+	Status(context.Context, Peer, *drand.StatusRequest, ...grpc.CallOption) (*drand.StatusResponse, error)
 }
 
 // PublicClient holds all the methods of the public API . See

@@ -22,13 +22,19 @@ import (
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
+	"github.com/drand/kyber/share/dkg"
 )
 
+// Drand is the main logic of the program. It reads the keys / group file, it
+// can start the DKG, read/write shars to files and can initiate/respond to TBlS
+// signature requests.
 type BeaconProcess struct {
 	opts *Config
 	priv *key.Pair
 	// current group this drand node is using
 	group *key.Group
+	index int
 
 	store       key.Store
 	privGateway *net.PrivateGateway
@@ -36,6 +42,7 @@ type BeaconProcess struct {
 	control     net.ControlListener
 
 	beacon *beacon.Handler
+
 	// dkg private share. can be nil if dkg not finished yet.
 	share   *key.Share
 	dkgDone bool
@@ -47,9 +54,6 @@ type BeaconProcess struct {
 	// dkgInfo contains all the information related to an upcoming or in
 	// progress dkg protocol. It is nil for the rest of the time.
 	dkgInfo *dkgInfo
-
-	index int
-
 	// general logger
 	log log.Logger
 
@@ -68,7 +72,11 @@ type BeaconProcess struct {
 	setupCB func(*key.Group)
 
 	// version indicates the base code variant
-	version utils.Version
+	version common.Version
+
+	// only used for testing at the moment - may be useful later
+	// to pinpoint the exact messages from all nodes during dkg
+	dkgBoardSetup func(Broadcast) Broadcast
 }
 
 func NewBeaconProcess(log log.Logger, version utils.Version, store key.Store,

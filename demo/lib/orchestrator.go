@@ -283,21 +283,32 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 	var rand *drand.PublicRandResponse
 	var lastIndex int
 	for _, node := range nodes {
-		randResp, cmd := node.GetBeacon(group, currRound)
-		if rand == nil {
-			rand = randResp
-			lastIndex = node.Index()
-			fmt.Printf("\t - Example command is: \"%s\"\n", cmd)
-		} else {
-			if randResp.GetRound() != rand.GetRound() {
-				fmt.Println("last index", lastIndex, " vs current index ", node.Index())
-				fmt.Println(rand.String())
-				fmt.Println(randResp.String())
-				panic("[-] Inconsistent beacon rounds between nodes")
-
-			} else if !bytes.Equal(randResp.GetSignature(), rand.GetSignature()) {
-				panic("[-] Inconsistent beacon signature between nodes")
+		const maxTrials = 3
+		for i := 0; i < maxTrials; i++ {
+			randResp, cmd := node.GetBeacon(group, currRound)
+			if rand == nil {
+				rand = randResp
+				lastIndex = node.Index()
+				fmt.Printf("\t - Example command is: \"%s\"\n", cmd)
+				break
+			} else {
+				if !bytes.Equal(randResp.GetSignature(), rand.GetSignature()) {
+					panic("[-] Inconsistent beacon signature between nodes")
+				}
+				if randResp.GetRound() != rand.GetRound() {
+					fmt.Println("[-] Mismatch between last index", lastIndex, " vs current index ", node.Index(), " - trying again in some time...")
+					time.Sleep(100 * time.Millisecond)
+					// we try again
+					continue
+				}
+				// everything is good
+				break
 			}
+			// after three times it still doesn't work that means the node is
+			// really behind for some weird reasons
+			fmt.Println(rand.String())
+			fmt.Println(randResp.String())
+			panic("[-] Inconsistent beacon rounds between nodes")
 		}
 	}
 	fmt.Println("[+] Checking randomness via HTTP API using curl")

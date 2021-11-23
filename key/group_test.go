@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/utils"
-
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber"
@@ -76,7 +75,7 @@ func TestGroupProtobuf(t *testing.T) {
 		isErr:  false,
 	})
 
-	version := utils.Version{Major: 0, Minor: 0, Patch: 0}
+	version := common.Version{Major: 0, Minor: 0, Patch: 0}
 	for i, tv := range vectors {
 		protoGroup := tv.group.ToProto(version)
 		if tv.change != nil {
@@ -174,7 +173,7 @@ func TestConvertGroup(t *testing.T) {
 	group.Period = 5 * time.Second
 	group.TransitionTime = time.Now().Unix()
 	group.GenesisTime = time.Now().Unix()
-	version := utils.Version{Major: 0, Minor: 0, Patch: 0}
+	version := common.Version{Major: 0, Minor: 0, Patch: 0}
 
 	proto := group.ToProto(version)
 	received, err := GroupFromProto(proto)

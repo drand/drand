@@ -80,7 +80,6 @@ func StatusResponseToString(status *drand.StatusResponse) string {
 	fmt.Fprintf(output, " - Status: %s \n", reshareStatus)
 	fmt.Fprintf(output, "* ChainStore \n")
 	fmt.Fprintf(output, " - IsEmpty: %t \n", status.ChainStore.IsEmpty)
-	fmt.Fprintf(output, " - Length: %d \n", status.ChainStore.Length)
 	fmt.Fprintf(output, " - LastRound: %d \n", status.ChainStore.LastRound)
 	fmt.Fprintf(output, "* Beacons \n")
 	fmt.Fprintf(output, " - Status: %s \n", beaconStatus)
@@ -88,6 +87,15 @@ func StatusResponseToString(status *drand.StatusResponse) string {
 	fmt.Fprintf(output, " - Started: %t \n", status.Beacon.IsStarted)
 	fmt.Fprintf(output, " - Serving: %t \n", status.Beacon.IsServing)
 	fmt.Fprintf(output, " - Running: %t \n", status.Beacon.IsRunning)
-
+	if conns := status.GetConnections(); len(conns) > 0 {
+		fmt.Fprintf(output, "* Network visibility\n")
+		for addr, ok := range conns {
+			if ok {
+				fmt.Fprintf(output, " - %s -> OK\n", addr)
+			} else {
+				fmt.Fprintf(output, " - %s -> X no connection\n", addr)
+			}
+		}
+	}
 	return output.String()
 }

@@ -25,7 +25,6 @@ func HomeFolder() string {
 func CreateSecureFolder(folder string) string {
 	if exists, _ := Exists(folder); !exists {
 		if err := os.MkdirAll(folder, defaultDirectoryPermission); err != nil {
-			fmt.Println("folder", folder, ",err", err)
 			panic(err)
 		}
 	} else {
