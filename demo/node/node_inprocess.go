@@ -136,13 +136,13 @@ func (l *LocalNode) Start(certFolder string) error {
 
 		if freshRun {
 			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
-			bp, err = drandDaemon.AddNewBeaconProcess(beaconID, fs)
+			bp, err = drandDaemon.InstantiateBeaconProcess(beaconID, fs)
 			if err != nil {
 				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
 			}
 		} else {
 			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
-			bp, err = drandDaemon.AddNewBeaconProcess(beaconID, fs)
+			bp, err = drandDaemon.InstantiateBeaconProcess(beaconID, fs)
 			if err != nil {
 				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
 			}

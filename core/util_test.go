@@ -163,7 +163,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		daemon, err := NewDrandDaemon(NewConfig(confOptions...))
 		assert.NoError(t, err)
 
-		bp, err := daemon.AddNewBeaconProcess(beaconID, s)
+		bp, err := daemon.InstantiateBeaconProcess(beaconID, s)
 		assert.NoError(t, err)
 
 		daemons[i] = daemon

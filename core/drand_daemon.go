@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"
 	"sync"
 
@@ -114,7 +116,7 @@ func (dd *DrandDaemon) init() error {
 	return nil
 }
 
-func (dd *DrandDaemon) AddNewBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
+func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
 	if beaconID == "" {
 		beaconID = common.DefaultBeaconID
 	}
@@ -129,4 +131,47 @@ func (dd *DrandDaemon) AddNewBeaconProcess(beaconID string, store key.Store) (*B
 	dd.state.Unlock()
 
 	return bp, nil
+}
+
+// LoadBeacons checks for existing stores and creates the corresponding BeaconProcess
+// accordingly to each stored BeaconID
+func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
+	// Load possible existing stores
+	stores, err := key.NewFileStores(dd.opts.ConfigFolderMB())
+	if err != nil {
+		fmt.Println("[LoadBeacons]- Could not load stores")
+		return err
+	}
+
+	for beaconID, fs := range stores {
+		bp, err := dd.InstantiateBeaconProcess(beaconID, fs)
+		if err != nil {
+			fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+			return err
+		}
+
+		err, freshRun := bp.Load()
+		fmt.Printf("FreshRun? %d", freshRun)
+		if err != nil {
+			return err
+		}
+
+		if freshRun {
+			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
+		} else {
+			fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
+			// XXX make it configurable so that new share holder can still start if
+			// nobody started.
+			// drand.StartBeacon(!c.Bool(pushFlag.Name))
+			catchup := true
+			bp.StartBeacon(catchup)
+		}
+
+		// Start metrics server
+		if metricsFlag != "" {
+			_ = metrics.Start(metricsFlag, pprof.WithProfile(), bp.PeerMetrics)
+		}
+	}
+
+	return nil
 }

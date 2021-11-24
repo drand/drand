@@ -102,25 +102,28 @@ func NewBeaconProcess(log log.Logger, version common.Version, store key.Store,
 
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
-func (bp *BeaconProcess) Load() (*BeaconProcess, error) {
-	var err error
+// Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
+func (bp *BeaconProcess) Load() (error, bool) {
+	if bp.isFreshRun() {
+		return nil, true
+	}
 
+	var err error
 	bp.group, err = bp.store.LoadGroup()
 	if err != nil {
-		return nil, err
+		return err, false
 	}
 
 	checkGroup(bp.log, bp.group)
 	bp.share, err = bp.store.LoadShare()
 	if err != nil {
-		return nil, err
+		return err, false
 	}
 
 	bp.log.Debugw("", "beacon_id", bp.group.ID, "serving", bp.priv.Public.Address())
-	bp.dkgDone = true
+	bp.dkgDone = false
 
-	return bp, nil
-
+	return nil, false
 }
 
 // WaitDKG waits on the running dkg protocol. In case of an error, it returns
@@ -328,6 +331,13 @@ func (bp *BeaconProcess) StopBeacon() {
 
 	bp.beacon.Stop()
 	bp.beacon = nil
+}
+
+func (bp *BeaconProcess) isFreshRun() bool {
+	_, errG := bp.store.LoadGroup()
+	_, errS := bp.store.LoadShare()
+
+	return errG != nil || errS != nil
 }
 
 // dkgInfo is a simpler wrapper that keeps the relevant config and logic
