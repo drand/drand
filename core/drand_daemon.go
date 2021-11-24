@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/protobuf/drand"
 	"sync"
 
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/http"
-
-	"github.com/drand/drand/utils"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -33,7 +32,16 @@ type DrandDaemon struct {
 	exitCh chan bool
 
 	// version indicates the base code variant
-	version utils.Version
+	version common.Version
+}
+
+func (dd *DrandDaemon) RemoteStatus(ctx context.Context, request *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
+	bp, _, err := dd.getBeaconProcess(request.Metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return bp.RemoteStatus(ctx, request)
 }
 
 func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
