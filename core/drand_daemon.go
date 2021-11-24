@@ -37,15 +37,7 @@ type DrandDaemon struct {
 	version common.Version
 }
 
-func (dd *DrandDaemon) RemoteStatus(ctx context.Context, request *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
-	bp, _, err := dd.getBeaconProcess(request.Metadata)
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.RemoteStatus(ctx, request)
-}
-
+//NewDrandDaemon creates a new instance of DrandDaemon
 func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 	logger := c.Logger()
 	if !c.insecure && (c.certPath == "" || c.keyPath == "") {
@@ -66,6 +58,16 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 	}
 
 	return drandDaemon, nil
+}
+
+
+func (dd *DrandDaemon) RemoteStatus(ctx context.Context, request *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
+	bp, _, err := dd.getBeaconProcess(request.Metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return bp.RemoteStatus(ctx, request)
 }
 
 func (dd *DrandDaemon) init() error {
@@ -116,6 +118,7 @@ func (dd *DrandDaemon) init() error {
 	return nil
 }
 
+//InstantiateBeaconProcess creates a new BeaconProcess linked to beacon with id 'beaconID'
 func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
 	if beaconID == "" {
 		beaconID = common.DefaultBeaconID
