@@ -771,9 +771,9 @@ type DenyClient struct {
 	deny []string
 }
 
-func (d *BeaconProcess) DenyBroadcastTo(t *testing.T, addresses ...string) {
-	client := d.privGateway.ProtocolClient
-	d.privGateway.ProtocolClient = &DenyClient{
+func (bp *BeaconProcess) DenyBroadcastTo(t *testing.T, addresses ...string) {
+	client := bp.privGateway.ProtocolClient
+	bp.privGateway.ProtocolClient = &DenyClient{
 		t:              t,
 		ProtocolClient: client,
 		deny:           addresses,
