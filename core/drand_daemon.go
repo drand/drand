@@ -139,7 +139,6 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 	// Load possible existing stores
 	stores, err := key.NewFileStores(dd.opts.ConfigFolderMB())
 	if err != nil {
-		fmt.Println("[LoadBeacons]- Could not load stores")
 		return err
 	}
 
@@ -151,7 +150,6 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 		}
 
 		err, freshRun := bp.Load()
-		fmt.Printf("FreshRun? %d", freshRun)
 		if err != nil {
 			return err
 		}
