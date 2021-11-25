@@ -339,9 +339,10 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		Auth:           key.DKGAuthScheme,
 	}
 	phaser := bp.getPhaser(timeout, beaconID)
-	board := newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient, bp.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
-		return dkg.VerifyPacketSignature(config, p)
-	})
+	board := newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient,
+		bp.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
+			return dkg.VerifyPacketSignature(config, p)
+		})
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
@@ -473,7 +474,8 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	bp.state.Lock()
 	bp.dkgInfo = info
 	if leader {
-		bp.log.Infow("", "beacon_id", beaconID, "dkg_reshare", "leader_start", "target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
+		bp.log.Infow("", "beacon_id", beaconID, "dkg_reshare", "leader_start",
+			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
 		bp.dkgInfo.started = true
 	}
 	bp.state.Unlock()
@@ -592,7 +594,8 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
-func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
+func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (
+	*drand.GroupPacket, error) {
 	beaconID := oldGroup.ID
 	oldHash := oldGroup.Hash()
 

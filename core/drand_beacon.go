@@ -16,7 +16,7 @@ import (
 
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
+	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/kyber/share/dkg"
 )
@@ -34,7 +34,6 @@ type BeaconProcess struct {
 	store       key.Store
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
-	control     net.ControlListener
 
 	beacon *beacon.Handler
 
@@ -50,7 +49,7 @@ type BeaconProcess struct {
 	// progress dkg protocol. It is nil for the rest of the time.
 	dkgInfo *dkgInfo
 	// general logger
-	log log.Logger
+	log dlog.Logger
 
 	// global state lock
 	state  sync.Mutex
@@ -74,10 +73,8 @@ type BeaconProcess struct {
 	dkgBoardSetup func(Broadcast) Broadcast
 }
 
-func NewBeaconProcess(log log.Logger, version common.Version, store key.Store,
-	opts *Config, privGateway *net.PrivateGateway, pubGateway *net.PublicGateway,
-	control net.ControlListener) (*BeaconProcess, error) {
-
+func NewBeaconProcess(log dlog.Logger, version common.Version, store key.Store,
+	opts *Config, privGateway *net.PrivateGateway, pubGateway *net.PublicGateway) (*BeaconProcess, error) {
 	priv, err := store.LoadKeyPair()
 	if err != nil {
 		return nil, err
@@ -94,7 +91,6 @@ func NewBeaconProcess(log log.Logger, version common.Version, store key.Store,
 		opts:        opts,
 		privGateway: privGateway,
 		pubGateway:  pubGateway,
-		control:     control,
 		exitCh:      make(chan bool, 1),
 	}
 	return bp, nil
@@ -103,27 +99,27 @@ func NewBeaconProcess(log log.Logger, version common.Version, store key.Store,
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
-func (bp *BeaconProcess) Load() (error, bool) {
+func (bp *BeaconProcess) Load() (bool, error) {
 	if bp.isFreshRun() {
-		return nil, true
+		return true, nil
 	}
 
 	var err error
 	bp.group, err = bp.store.LoadGroup()
 	if err != nil {
-		return err, false
+		return false, err
 	}
 
 	checkGroup(bp.log, bp.group)
 	bp.share, err = bp.store.LoadShare()
 	if err != nil {
-		return err, false
+		return false, err
 	}
 
 	bp.log.Debugw("", "beacon_id", bp.group.ID, "serving", bp.priv.Public.Address())
 	bp.dkgDone = false
 
-	return nil, false
+	return false, nil
 }
 
 // WaitDKG waits on the running dkg protocol. In case of an error, it returns
@@ -307,7 +303,7 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	return bp.beacon, nil
 }
 
-func checkGroup(l log.Logger, group *key.Group) {
+func checkGroup(l dlog.Logger, group *key.Group) {
 	beaconID := group.ID
 
 	unsigned := group.UnsignedIdentities()

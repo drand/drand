@@ -149,7 +149,6 @@ func (dd *DrandDaemon) StartFollowChain(in *drand.StartFollowRequest, stream dra
 	}
 
 	return bp.StartFollowChain(in, stream)
-
 }
 
 ///////////

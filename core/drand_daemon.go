@@ -37,7 +37,7 @@ type DrandDaemon struct {
 	version common.Version
 }
 
-//NewDrandDaemon creates a new instance of DrandDaemon
+// NewDrandDaemon creates a new instance of DrandDaemon
 func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 	logger := c.Logger()
 	if !c.insecure && (c.certPath == "" || c.keyPath == "") {
@@ -59,7 +59,6 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 
 	return drandDaemon, nil
 }
-
 
 func (dd *DrandDaemon) RemoteStatus(ctx context.Context, request *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	bp, _, err := dd.getBeaconProcess(request.Metadata)
@@ -118,13 +117,13 @@ func (dd *DrandDaemon) init() error {
 	return nil
 }
 
-//InstantiateBeaconProcess creates a new BeaconProcess linked to beacon with id 'beaconID'
+// InstantiateBeaconProcess creates a new BeaconProcess linked to beacon with id 'beaconID'
 func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
 	if beaconID == "" {
 		beaconID = common.DefaultBeaconID
 	}
 
-	bp, err := NewBeaconProcess(dd.log, dd.version, store, dd.opts, dd.privGateway, dd.pubGateway, dd.control)
+	bp, err := NewBeaconProcess(dd.log, dd.version, store, dd.opts, dd.privGateway, dd.pubGateway)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +151,7 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 			return err
 		}
 
-		err, freshRun := bp.Load()
+		freshRun, err := bp.Load()
 		if err != nil {
 			return err
 		}
