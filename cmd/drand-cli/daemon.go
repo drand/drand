@@ -2,6 +2,7 @@ package drand
 
 import (
 	"fmt"
+
 	"github.com/drand/drand/core"
 	"github.com/urfave/cli/v2"
 )

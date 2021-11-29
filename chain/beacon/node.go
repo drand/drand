@@ -33,7 +33,6 @@ type Config struct {
 	Clock clock.Clock
 }
 
-//nolint:gocritic
 // Handler holds the logic to initiate, and react to the TBLS protocol. Each time
 // a full signature can be recosntructed, it saves it to the given Store.
 type Handler struct {

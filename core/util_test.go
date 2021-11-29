@@ -42,7 +42,6 @@ type MockNode struct {
 	clock    clock.FakeClock
 }
 
-//nolint:gocritic
 type DrandTestScenario struct {
 	sync.Mutex
 

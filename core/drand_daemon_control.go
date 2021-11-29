@@ -151,7 +151,7 @@ func (dd *DrandDaemon) StartFollowChain(in *drand.StartFollowRequest, stream dra
 	return bp.StartFollowChain(in, stream)
 }
 
-///////////
+// /////////
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {

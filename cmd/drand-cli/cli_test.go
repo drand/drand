@@ -304,6 +304,7 @@ func TestUtilCheck(t *testing.T) {
 	require.NoError(t, CLI().Run(check))
 }
 
+//nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := common.GetBeaconIDFromEnv()
@@ -319,9 +320,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	pubPath := path.Join(tmpPath, "pub.key")
 	port1, _ := strconv.Atoi(test.FreePort())
 	addr := "127.0.0.1:" + strconv.Itoa(port1)
-	ctrlPort1 := test.FreePort()
-	ctrlPort2 := test.FreePort()
-	metricsPort := test.FreePort()
+
+	ctrlPort1, ctrlPort2, metricsPort := test.FreePort(), test.FreePort(), test.FreePort()
 
 	priv := key.NewKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))

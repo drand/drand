@@ -260,7 +260,7 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 	return &drand.BackupDBResponse{Metadata: metadata}, inst.Store().SaveTo(w)
 }
 
-//////////
+// ////////
 
 func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupManager, error)) (group *key.Group, err error) {
 	// setup the manager
@@ -504,6 +504,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	return finalGroup, nil
 }
 
+//nolint:funlen
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
