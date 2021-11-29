@@ -744,8 +744,14 @@ func (d *drandInstance) run(t *testing.T) {
 		"--control", d.ctrlPort,
 		"--folder", d.path,
 		"--metrics", d.metrics,
+		"--private-listen", d.addr,
 	}
-	go CLI().Run(startArgs)
+
+	go func() {
+		err := CLI().Run(startArgs)
+		require.NoError(t, err)
+	}()
+
 	// make sure we run each one sequentially
 	testStatus(t, d.ctrlPort)
 }
@@ -765,7 +771,7 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		require.NoError(t, err)
 
 		certPath := path.Join(nodePath, "cert")
-		keyPath := path.Join(nodePath, "tlskey")
+		keyPath := path.Join(nodePath, "tls.key")
 		pubPath := path.Join(tmpPath, "pub.key")
 
 		freePort := test.FreePort()
