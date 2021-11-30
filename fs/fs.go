@@ -3,6 +3,7 @@ package fs
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path"
@@ -137,13 +138,25 @@ func FolderExists(folderPath, name string) bool {
 
 // CopyFile copy a file or folder from one path to another
 func CopyFile(origFilePath, destFilePath string) error {
-	input, err := os.ReadFile(origFilePath)
+	var src, dest *os.File
+	var err error
+
+	if src, err = os.Open(origFilePath); err != nil {
+		return err
+	}
+	defer src.Close()
+
+	if dest, err = os.Create(destFilePath); err != nil {
+		return err
+	}
+	defer dest.Close()
+
+	_, err = io.Copy(dest, src)
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile(destFilePath, input, rwFilePermission)
-	if err != nil {
+	if err = os.Chmod(destFilePath, rwFilePermission); err != nil {
 		return err
 	}
 
