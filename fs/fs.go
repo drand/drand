@@ -156,7 +156,7 @@ func CopyFile(origFilePath, destFilePath string) error {
 		return err
 	}
 
-	if err = os.Chmod(destFilePath, rwFilePermission); err != nil {
+	if err := os.Chmod(destFilePath, rwFilePermission); err != nil {
 		return err
 	}
 

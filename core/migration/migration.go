@@ -31,7 +31,7 @@ func CheckSBFolderStructure(baseFolder string) bool {
 // MigrateSBFolderStructure will migrate the file store structure from single-beacon drand version
 // to the new structure created to support multi-beacon feature. This should be called on any function
 // which reads file store from disk, so we are sure the structure is the correct one. It will check if
-// the process ends successfully or not. If something went wrong, a rollback process will be exectued.
+// the process ends successfully or not. If something went wrong, a rollback process will be executed.
 func MigrateSBFolderStructure(baseFolder string) error {
 	if err := runSBMigration(baseFolder); err != nil {
 		multiBeaconFolderPath := path.Join(baseFolder, common.MultiBeaconFolder)
@@ -39,7 +39,8 @@ func MigrateSBFolderStructure(baseFolder string) error {
 
 		if isMigrationDone {
 			if localErr := os.RemoveAll(multiBeaconFolderPath); localErr != nil {
-				return fmt.Errorf("we could not rollback the migration, please remove %s before run daemon again. Err: %s", multiBeaconFolderPath, err.Error())
+				return fmt.Errorf("we could not rollback the migration, please remove %s before run daemon again. Err: %s",
+					multiBeaconFolderPath, err.Error())
 			}
 		}
 
