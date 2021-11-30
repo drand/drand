@@ -328,6 +328,7 @@ func (h *Handler) run(startTime int64) {
 				go h.chain.RunSync(context.Background(), current.round, nil)
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
+			h.l.Debug("beacon_loop", "catchupmode", "last_is", b.Round, "current", current.round, "catchup_launch", b.Round < current.round)
 			if b.Round < current.round {
 				// When network is down, all alive nodes will broadcast their
 				// signatures periodically with the same period. As soon as one
