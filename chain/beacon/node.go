@@ -252,7 +252,9 @@ func (h *Handler) run(startTime int64) {
 				// channel will trigger again etc until we arrive at the correct
 				// round.
 				go func(c roundInfo, latest *chain.Beacon) {
+					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "seep_for", h.conf.Group.CatchupPeriod)
 					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
+					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "broadcast")
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
 			}
