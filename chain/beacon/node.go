@@ -87,7 +87,8 @@ func NewHandler(c net.PrivateGateway, s chain.Store, conf *Config, l log.Logger,
 		Clock:  conf.Clock,
 		Client: c,
 		// TODO
-		Frequency: time.Duration(1 * time.Second),
+		Frequency:  time.Duration(1 * time.Second),
+		Aggregator: syncChain.NewMaxAggregator(),
 	})
 
 	handler := &Handler{
@@ -311,10 +312,8 @@ func (h *Handler) run(startTime int64) {
 	var catchupMode bool
 	for {
 		select {
-		case beat := <-h.beats.Beats():
-			if beat.LastRound > highestSeenRound {
-				highestSeenRound = beat.LastRound
-			}
+		case r := <-h.beats.Beats():
+			highestSeenRound = r.(uint64)
 		case current = <-chanTick:
 			setRunning.Do(func() {
 				h.Lock()
