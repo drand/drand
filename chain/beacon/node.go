@@ -333,7 +333,8 @@ func (h *Handler) run(startTime int64) {
 				// now we look if WE are late or the NETWORK is late
 				if highestSeenRound > lastBeacon.Round {
 					catchupMode = false
-					// WE are latethen run sync
+					// WE are latethen run sync. Once we are caught up with
+					// others, then we'll switch to catchup mode eventually.
 					go h.chain.RunSync(context.Background(), current.round, nil)
 				} else {
 					// the network is late, then we run catchup mode
