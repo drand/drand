@@ -112,7 +112,6 @@ func (h *heartbeat) run() {
 			}
 			currentGroup = ng
 			cancel() // we cancel current sync operations
-			ctx, cancel = context.WithCancel(context.Background())
 		case beat := <-h.beats:
 			agg.PushBeat(beat)
 		case <-h.c.Clock.After(h.c.Frequency):
@@ -127,6 +126,7 @@ func (h *heartbeat) run() {
 			default:
 				h.c.Log.Debugw("heartbeat", "aggregated heartbeat full")
 			}
+			ctx, cancel = context.WithCancel(context.Background())
 			// launh a new fetch
 			for i := range rand.Perm(len(currentGroup)) {
 				h.newFetch <- fetchInfo{ctx: ctx, id: currentGroup[i]}
@@ -152,8 +152,11 @@ func (h *heartbeat) worker() {
 }
 
 func (h *heartbeat) fetch(fi fetchInfo) {
+	// only wait a certain time for each trial
+	localCtx, cancel := context.WithTimeout(fi.ctx, MaxSyncWaitTime)
+	defer cancel()
 	// TODO what happens when stream breaks - does it try again?
-	r, err := h.c.Client.PublicRand(fi.ctx, fi.id, &drand.PublicRandRequest{})
+	r, err := h.c.Client.PublicRand(localCtx, fi.id, &drand.PublicRandRequest{})
 	if err != nil {
 		h.c.Log.Error("heartbeat", "can not contact node", err)
 		return
