@@ -2,6 +2,7 @@
 package fs
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 const defaultDirectoryPermission = 0740
 const rwFilePermission = 0600
+const copyChunkSize = 1024
 
 // HomeFolder returns the home folder of the current user.
 func HomeFolder() string {
@@ -144,15 +146,50 @@ func CopyFile(origFilePath, destFilePath string) error {
 	if src, err = os.Open(origFilePath); err != nil {
 		return err
 	}
-	defer src.Close()
+
+	// close fi on exit and check for its returned error
+	defer func() {
+		if err := src.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	// make a reader buffer
+	srcReader := bufio.NewReader(src)
 
 	if dest, err = os.Create(destFilePath); err != nil {
 		return err
 	}
-	defer dest.Close()
+	// close fo on exit and check for its returned error
+	defer func() {
+		if err := dest.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
-	_, err = io.Copy(dest, src)
-	if err != nil {
+	// make a writer buffer
+	destWriter := bufio.NewWriter(dest)
+
+	// make a buffer to keep chunks that are read
+	buf := make([]byte, copyChunkSize)
+	for {
+		// read a chunk
+		n, err := srcReader.Read(buf)
+		if err != nil && err != io.EOF {
+			return err
+		}
+
+		if n == 0 {
+			break
+		}
+
+		// write a chunk
+		if _, err := destWriter.Write(buf[:n]); err != nil {
+			return err
+		}
+	}
+
+	if err := destWriter.Flush(); err != nil {
 		return err
 	}
 
