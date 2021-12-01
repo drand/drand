@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/chain"
+	syncChain "github.com/drand/drand/chain/sync"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/common"
@@ -47,6 +48,7 @@ type Handler struct {
 	chain    *chainStore
 	ticker   *ticker
 	verifier *chain.Verifier
+	beats    syncChain.Heartbeat
 
 	close   chan bool
 	addr    string
@@ -60,7 +62,7 @@ type Handler struct {
 
 // NewHandler returns a fresh handler ready to serve and create randomness
 // beacon
-func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger, version commonutils.Version) (*Handler, error) {
+func NewHandler(c net.PrivateGateway, s chain.Store, conf *Config, l log.Logger, version commonutils.Version) (*Handler, error) {
 	if conf.Share == nil || conf.Group == nil {
 		return nil, errors.New("beacon: invalid configuration")
 	}
@@ -80,9 +82,17 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	ticker := newTicker(conf.Clock, conf.Group.Period, conf.Group.GenesisTime)
 	store := newChainStore(logger, conf, c, crypto, s, ticker)
 	verifier := chain.NewVerifier(conf.Group.Scheme)
+	beats := syncChain.NewHeartbeat(&syncChain.HeartbeatConfig{
+		Log:    l,
+		Clock:  conf.Clock,
+		Client: c,
+		// TODO
+		Frequency: time.Duration(1 * time.Second),
+	})
 
 	handler := &Handler{
 		conf:     conf,
+		beats:    beats,
 		client:   c,
 		crypto:   crypto,
 		chain:    store,
@@ -297,11 +307,15 @@ func (h *Handler) run(startTime int64) {
 	h.Lock()
 	h.running = true
 	h.Unlock()
-
+	var highestSeenRound uint64
+	var catchupMode bool
 	for {
 		select {
+		case beat := <-h.beats.Beats():
+			if beat.LastRound > highestSeenRound {
+				highestSeenRound = beat.LastRound
+			}
 		case current = <-chanTick:
-
 			setRunning.Do(func() {
 				h.Lock()
 				h.serving = true
@@ -315,35 +329,32 @@ func (h *Handler) run(startTime int64) {
 			}
 			h.l.Debugw("", "beacon_id", beaconID, "beacon_loop", "new_round", "round", current.round, "lastbeacon", lastBeacon.Round)
 			h.broadcastNextPartial(current, lastBeacon)
-			// if the next round of the last beacon we generated is not the round we
-			// are now, that means there is a gap between the two rounds. In other
-			// words, the chain has halted for that amount of rounds or our
-			// network is not functioning properly.
 			if lastBeacon.Round+1 < current.round {
-				// We also launch a sync with the other nodes. If there is one node
-				// that has a higher beacon, we'll build on it next epoch. If
-				// nobody has a higher beacon, then this one will be next if the
-				// network conditions allow for it.
-				// XXX find a way to start the catchup as soon as the runsync is
-				// done. Not critical but leads to faster network recovery.
-				h.l.Debugw("", "beacon_id", beaconID, "beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
-				go h.chain.RunSync(context.Background(), current.round, nil)
+				// now we look if WE are late or the NETWORK is late
+				if highestSeenRound > lastBeacon.Round {
+					catchupMode = false
+					// WE are latethen run sync
+					go h.chain.RunSync(context.Background(), current.round, nil)
+				} else {
+					// the network is late, then we run catchup mode
+					// we already broadcasted for this round so we can wait the
+					// next time the catchup period beat wakes up
+					catchupMode = true
+				}
+			} else {
+				// always set it to false
+				catchupMode = false
 			}
-		case b := <-h.chain.AppendedBeaconNoSync():
-			if b.Round < current.round {
-				// When network is down, all alive nodes will broadcast their
-				// signatures periodically with the same period. As soon as one
-				// new beacon is created,i.e. network is up again, this channel
-				// will be triggered and we enter fast mode here.
-				// Since that last node is late, nodes must now hurry up to do
-				// the next beacons in time -> we run the next beacon now
-				// already. If that next beacon is created soon after, this
-				// channel will trigger again etc until we arrive at the correct
-				// round.
-				go func(c roundInfo, latest *chain.Beacon) {
-					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
-					h.broadcastNextPartial(c, latest)
-				}(current, b)
+		case <-h.conf.Clock.After(h.conf.Group.CatchupPeriod):
+			if catchupMode {
+				lastBeacon, err := h.chain.Last()
+				if err != nil {
+					h.l.Errorw("", "beacon_id", beaconID, "beacon_loop", "loading_last", "err", err)
+					break
+				}
+				// we can pass 0 here since we're late in schedule anyway so we wont
+				// enter the edge case of already having the current round
+				h.broadcastNextPartial(roundInfo{0, 0}, lastBeacon)
 			}
 		case <-h.close:
 			h.l.Debugw("", "beacon_id", beaconID, "beacon_loop", "finished")
