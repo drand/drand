@@ -172,21 +172,8 @@ func CopyFile(origFilePath, destFilePath string) error {
 
 	// make a buffer to keep chunks that are read
 	buf := make([]byte, copyChunkSize)
-	for {
-		// read a chunk
-		n, err := srcReader.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-
-		if n == 0 {
-			break
-		}
-
-		// write a chunk
-		if _, err := destWriter.Write(buf[:n]); err != nil {
-			return err
-		}
+	if _, err := io.CopyBuffer(destWriter, srcReader, buf); err != nil {
+		return err
 	}
 
 	if err := destWriter.Flush(); err != nil {
