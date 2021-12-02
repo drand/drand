@@ -124,7 +124,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 		beaconID = common.DefaultBeaconID
 	}
 
-	bp, err := NewBeaconProcess(dd.log, dd.version, store, dd.opts, dd.privGateway, dd.pubGateway)
+	bp, err := NewBeaconProcess(dd.log, store, dd.opts, dd.privGateway, dd.pubGateway)
 	if err != nil {
 		return nil, err
 	}

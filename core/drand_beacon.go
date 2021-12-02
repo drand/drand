@@ -73,8 +73,8 @@ type BeaconProcess struct {
 	dkgBoardSetup func(Broadcast) Broadcast
 }
 
-func NewBeaconProcess(log dlog.Logger, version common.Version, store key.Store,
-	opts *Config, privGateway *net.PrivateGateway, pubGateway *net.PublicGateway) (*BeaconProcess, error) {
+func NewBeaconProcess(log dlog.Logger, store key.Store, opts *Config, privGateway *net.PrivateGateway,
+	pubGateway *net.PublicGateway) (*BeaconProcess, error) {
 	priv, err := store.LoadKeyPair()
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func NewBeaconProcess(log dlog.Logger, version common.Version, store key.Store,
 		store:       store,
 		log:         log,
 		priv:        priv,
-		version:     version,
+		version:     common.GetAppVersion(),
 		opts:        opts,
 		privGateway: privGateway,
 		pubGateway:  pubGateway,
