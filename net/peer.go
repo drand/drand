@@ -88,5 +88,9 @@ func RemoteAddress(c context.Context) string {
 	if len(vals) > 0 {
 		return vals[0]
 	}
+	vals = md.Get("x-forwarded-for")
+	if len(vals) > 0 {
+		return vals[0]
+	}
 	return str
 }
