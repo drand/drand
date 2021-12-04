@@ -14,8 +14,7 @@ type Config struct {
 	// how many nodes do we send to
 	Factor int
 	// used by the gossiper to send a msg
-	Send     func(Packet) error
-	PreCheck chan PreCheckFn
+	Send func(Packet) error
 	// Maximum retention buffer size. This is the maximum number of packets ID
 	// we keep track of, to not re-send again.
 	BufferSize int
@@ -39,8 +38,6 @@ func (c *Config) fillDefault() {
 		c.RateLimit = defaultRateLimit
 	}
 }
-
-type PreCheckFn func(Packet) bool
 
 type Packet struct {
 	Peer net.Peer
