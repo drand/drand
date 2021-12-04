@@ -41,10 +41,10 @@ func (c *Config) fillDefault() {
 
 type Packet struct {
 	Peer net.Peer
-	Msg  Idable
+	Msg  MsgWithID
 }
 
-type Idable interface {
+type MsgWithID interface {
 	String() string
 }
 
@@ -53,7 +53,7 @@ type Gossiper interface {
 	// message will simply send the packet again, but it will not be gossiped by
 	// others (unless after some time where the first message is
 	// "dropped" by the gossiper).
-	Gossip(Idable)
+	Gossip(MsgWithID)
 	// Method to call to pass messages to the gossiper
 	NewIncoming(Packet)
 	// Delivery is a chan that returns the packet ready for application
@@ -67,18 +67,19 @@ type netGossip struct {
 	chosen []net.Peer
 	set    set
 	// channel that receives the msgs to gossip from application
-	newToSend chan Idable
+	newToSend chan MsgWithID
 	// channel that receives the msgs from other nodes in gossip layer
 	toGossip chan Packet
 	// channel that delivers packet to the application
 	delivery chan Packet
 	// internal channel that receives packet to send to network and actually
 	// sends them
-	sending chan Idable
+	sending chan MsgWithID
 	stop    chan bool
 }
 
 func NewGossiper(c *Config) Gossiper {
+	c.fillDefault()
 	chosen := make([]net.Peer, c.Factor)
 	for i, j := range rand.Perm(len(c.Nodes)) {
 		if i < c.Factor {
@@ -90,10 +91,10 @@ func NewGossiper(c *Config) Gossiper {
 		c:         c,
 		chosen:    chosen,
 		set:       newRingSet(c.BufferSize),
-		newToSend: make(chan Idable, c.RateLimit),
+		newToSend: make(chan MsgWithID, c.RateLimit),
 		toGossip:  make(chan Packet, c.RateLimit*c.Factor),
 		delivery:  make(chan Packet, c.RateLimit),
-		sending:   make(chan Idable, c.RateLimit*c.Factor),
+		sending:   make(chan MsgWithID, c.RateLimit*c.Factor),
 		stop:      make(chan bool, 1),
 	}
 	go ng.run()
@@ -101,7 +102,7 @@ func NewGossiper(c *Config) Gossiper {
 	return ng
 }
 
-func (g *netGossip) Gossip(i Idable) {
+func (g *netGossip) Gossip(i MsgWithID) {
 	g.newToSend <- i
 }
 
@@ -125,7 +126,7 @@ func (g *netGossip) run() {
 			return
 		case msg := <-g.newToSend:
 			g.set.putIfAbsent(msg.String())
-			g.send(msg)
+			g.sending <- msg
 		case p := <-g.toGossip:
 			// check if we havent received it yet
 			isNew := g.set.putIfAbsent(p.Msg.String())
@@ -134,13 +135,9 @@ func (g *netGossip) run() {
 			}
 			// deliver and gossip
 			g.delivery <- p
-			g.send(p.Msg)
+			g.sending <- p.Msg
 		}
 	}
-}
-
-func (g *netGossip) send(msg Idable) {
-
 }
 
 func (g *netGossip) sendLoop() {
