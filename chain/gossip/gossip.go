@@ -2,24 +2,28 @@ package gossip
 
 import (
 	"container/ring"
-	"log"
+	"fmt"
 	"math/rand"
 
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 )
 
 type Config struct {
-	Log   log.Logger
-	Nodes []net.Peer
+	Log log.Logger
+	// the list of neighboors we're talking to
+	Neighboors []net.Peer
 	// how many nodes do we send to
 	Factor int
 	// used by the gossiper to send a msg
 	Send func(Packet) error
 	// Maximum retention buffer size. This is the maximum number of packets ID
-	// we keep track of, to not re-send again.
+	// we keep track of, to not re-send again. ADvice is to set it to the max number
+	// of messages you expect to receive in a short period.
 	BufferSize int
 	// size of the channel where we can send packets to gossip - define rate
-	// limit
+	// limit. Advice is to set it to the number of messages you expect to send
+	// in a short period.
 	RateLimit int
 }
 
@@ -63,9 +67,7 @@ type Gossiper interface {
 }
 
 type netGossip struct {
-	c      *Config
-	chosen []net.Peer
-	set    set
+	c *Config
 	// channel that receives the msgs to gossip from application
 	newToSend chan MsgWithID
 	// channel that receives the msgs from other nodes in gossip layer
@@ -74,31 +76,45 @@ type netGossip struct {
 	delivery chan Packet
 	// internal channel that receives packet to send to network and actually
 	// sends them
-	sending chan MsgWithID
-	stop    chan bool
+	gossiping chan MsgWithID
+	// priority channel queue when application wants to send msg to network: it
+	// is sent immediatly, and does not need to wait before the rest of the
+	// gossiping messages are sent
+	priority chan MsgWithID
+	stop     chan bool
+}
+
+// PickKNeighbors returns k randomly chosen peers from the list. If us is
+// non-nil, it will exclude "us" from the list of chosen list.
+func PickKNeighbors(nodes []net.Peer, k int, us net.Peer) []net.Peer {
+	chosen := make([]net.Peer, 0, k)
+	for _, j := range rand.Perm(len(nodes)) {
+		if len(chosen) == k {
+			break
+		}
+		if us != nil && us.Address() == nodes[j].Address() {
+			continue
+		}
+		chosen = append(chosen, nodes[j])
+	}
+	return chosen
 }
 
 func NewGossiper(c *Config) Gossiper {
 	c.fillDefault()
-	chosen := make([]net.Peer, c.Factor)
-	for i, j := range rand.Perm(len(c.Nodes)) {
-		if i < c.Factor {
-			break
-		}
-		chosen[i] = c.Nodes[j]
-	}
 	ng := &netGossip{
-		c:         c,
-		chosen:    chosen,
-		set:       newRingSet(c.BufferSize),
+		c: c,
+
 		newToSend: make(chan MsgWithID, c.RateLimit),
 		toGossip:  make(chan Packet, c.RateLimit*c.Factor),
 		delivery:  make(chan Packet, c.RateLimit),
-		sending:   make(chan MsgWithID, c.RateLimit*c.Factor),
+		gossiping: make(chan MsgWithID, c.RateLimit*c.Factor),
+		priority:  make(chan MsgWithID, c.RateLimit),
 		stop:      make(chan bool, 1),
 	}
-	go ng.run()
-	go ng.sendLoop()
+	go ng.logicLoop()
+	go ng.sendLoop(ng.gossiping)
+	go ng.sendLoop(ng.priority)
 	return ng
 }
 
@@ -116,35 +132,47 @@ func (g *netGossip) Delivery() chan Packet {
 
 func (g *netGossip) Stop() {
 	close(g.stop)
-	close(g.sending)
+	close(g.gossiping)
+	close(g.priority)
 }
 
-func (g *netGossip) run() {
+func (g *netGossip) logicLoop() {
+	set := newRingSet(g.c.BufferSize)
 	for {
 		select {
 		case <-g.stop:
 			return
 		case msg := <-g.newToSend:
-			g.set.putIfAbsent(msg.String())
-			g.sending <- msg
+			set.tryInsert(msg.String())
+			g.priority <- msg
 		case p := <-g.toGossip:
 			// check if we havent received it yet
-			isNew := g.set.putIfAbsent(p.Msg.String())
+			isNew := set.tryInsert(p.Msg.String())
 			if !isNew {
 				continue
 			}
 			// deliver and gossip
 			g.delivery <- p
-			g.sending <- p.Msg
+			// try to gossip - if we can't we should continue the logic loop
+			// continue sowe can always send packets out on the priority lane.
+			// In these cases, it is acceptable to drop a packet meant to be for
+			// gossiping
+			select {
+			case g.gossiping <- p.Msg:
+			default:
+				g.c.Log.Debug("gossip", "gossip channel full")
+			}
 		}
 	}
 }
 
-func (g *netGossip) sendLoop() {
-	// for each packet, we send to the chosen nodes
-	for msg := range g.sending {
-		for _, n := range g.chosen {
-			g.c.Send(Packet{Peer: n, Msg: msg})
+func (g *netGossip) sendLoop(over chan MsgWithID) {
+	// for each packet, we send to the neighbors
+	for msg := range over {
+		for _, n := range g.c.Neighboors {
+			packet := Packet{Peer: n, Msg: msg}
+			fmt.Println("sending packet", packet)
+			g.c.Send(packet)
 		}
 	}
 }
@@ -155,7 +183,7 @@ type id = string
 type set interface {
 	// stores the given id in the set if it is not presetn already. It returns
 	// false if it was already present, true otherwise.
-	putIfAbsent(id) bool
+	tryInsert(id) bool
 }
 
 type ringSet struct {
@@ -172,7 +200,7 @@ func newRingSet(size int) set {
 	}
 }
 
-func (f *ringSet) putIfAbsent(i id) bool {
+func (f *ringSet) tryInsert(i id) bool {
 	_, ok := f.set[i]
 	if ok {
 		return false
