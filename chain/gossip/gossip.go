@@ -4,25 +4,46 @@ import (
 	"container/ring"
 	"fmt"
 	"math/rand"
+	"sync"
 
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 )
 
+type Gossiper interface {
+	// Send a new message through the gossip network. calling twice with same
+	// message will simply send the packet again, but it will not be gossiped by
+	// others (unless after some time where the first message is
+	// "dropped" by the gossiper).
+	Gossip(MsgWithID)
+	// Method to call to pass messages to the gossiper
+	NewIncoming(Packet)
+	// Delivery is a chan that returns the packet ready for application
+	// processing
+	Delivery() chan Packet
+	// NewPeers will make the gossiper resample a new list of peers All new
+	// "Gossip()" messages will be delivered to a subset of this new list. Due
+	// to asynchronous nature of gossiper, it makes no guarantee about messages
+	// curently being gossiped.
+	NewPeers([]net.Peer)
+	Stop()
+}
+
 type Config struct {
 	Log log.Logger
-	// the list of neighboors we're talking to
-	Neighboors []net.Peer
+	// the full list of nodes gossiping will pick from - our own identity should
+	// be excluded from
+	List []net.Peer
 	// how many nodes do we send to
 	Factor int
 	// used by the gossiper to send a msg
 	Send func(Packet) error
 	// Maximum retention buffer size. This is the maximum number of packets ID
 	// we keep track of, to not re-send again. ADvice is to set it to the max number
-	// of messages you expect to receive in a short period.
+	// of different messages you expect to see in the network in a period
 	BufferSize int
 	// size of the channel where we can send packets to gossip - define rate
-	// limit. Advice is to set it to the number of messages you expect to send
+	// limit. Advice is to set it to the number of messages you expect to gossip
 	// in a short period.
 	RateLimit int
 }
@@ -43,31 +64,22 @@ func (c *Config) fillDefault() {
 	}
 }
 
+// Packet is the generic struct that contains the origin/destination and the
+// associated packet
 type Packet struct {
 	Peer net.Peer
 	Msg  MsgWithID
 }
 
+// MsgWithID is the interface to differentiate messages between themselves.
 type MsgWithID interface {
 	String() string
 }
 
-type Gossiper interface {
-	// Send a new message through the gossip network. calling twice with same
-	// message will simply send the packet again, but it will not be gossiped by
-	// others (unless after some time where the first message is
-	// "dropped" by the gossiper).
-	Gossip(MsgWithID)
-	// Method to call to pass messages to the gossiper
-	NewIncoming(Packet)
-	// Delivery is a chan that returns the packet ready for application
-	// processing
-	Delivery() chan Packet
-	Stop()
-}
-
 type netGossip struct {
 	c *Config
+	// list of peers we send messages to
+	neighbors *peerList
 	// channel that receives the msgs to gossip from application
 	newToSend chan MsgWithID
 	// channel that receives the msgs from other nodes in gossip layer
@@ -84,16 +96,13 @@ type netGossip struct {
 	stop     chan bool
 }
 
-// PickKNeighbors returns k randomly chosen peers from the list. If us is
+// pickKNeighbors returns k randomly chosen peers from the list. If us is
 // non-nil, it will exclude "us" from the list of chosen list.
-func PickKNeighbors(nodes []net.Peer, k int, us net.Peer) []net.Peer {
+func pickKNeighbors(nodes []net.Peer, k int) []net.Peer {
 	chosen := make([]net.Peer, 0, k)
 	for _, j := range rand.Perm(len(nodes)) {
 		if len(chosen) == k {
 			break
-		}
-		if us != nil && us.Address() == nodes[j].Address() {
-			continue
 		}
 		chosen = append(chosen, nodes[j])
 	}
@@ -103,16 +112,21 @@ func PickKNeighbors(nodes []net.Peer, k int, us net.Peer) []net.Peer {
 func NewGossiper(c *Config) Gossiper {
 	c.fillDefault()
 	ng := &netGossip{
-		c: c,
-
+		c:         c,
+		neighbors: &peerList{n: pickKNeighbors(c.List, c.Factor)},
 		newToSend: make(chan MsgWithID, c.RateLimit),
-		toGossip:  make(chan Packet, c.RateLimit*c.Factor),
-		delivery:  make(chan Packet, c.RateLimit),
+		// expect BufferSize different messages to gossip
+		toGossip: make(chan Packet, c.BufferSize),
+		// only RateLimit deliveries max
+		delivery: make(chan Packet, c.RateLimit),
+		// each msg to re-gossip - only up to BufferSize
 		gossiping: make(chan MsgWithID, c.RateLimit*c.Factor),
-		priority:  make(chan MsgWithID, c.RateLimit),
-		stop:      make(chan bool, 1),
+		// only send RateLimit max msg in a period
+		priority: make(chan MsgWithID, c.RateLimit),
+		stop:     make(chan bool, 1),
 	}
 	go ng.logicLoop()
+	// XXX can spawn multiple of those if we want
 	go ng.sendLoop(ng.gossiping)
 	go ng.sendLoop(ng.priority)
 	return ng
@@ -130,10 +144,15 @@ func (g *netGossip) Delivery() chan Packet {
 	return g.delivery
 }
 
+func (g *netGossip) NewPeers(list []net.Peer) {
+	g.neighbors.Update(pickKNeighbors(list, g.c.Factor))
+}
+
 func (g *netGossip) Stop() {
 	close(g.stop)
 	close(g.gossiping)
 	close(g.priority)
+	close(g.delivery)
 }
 
 func (g *netGossip) logicLoop() {
@@ -143,6 +162,8 @@ func (g *netGossip) logicLoop() {
 		case <-g.stop:
 			return
 		case msg := <-g.newToSend:
+			// no checking if present or not = we can always resend a packet we
+			// already sent recently
 			set.tryInsert(msg.String())
 			g.priority <- msg
 		case p := <-g.toGossip:
@@ -169,9 +190,9 @@ func (g *netGossip) logicLoop() {
 func (g *netGossip) sendLoop(over chan MsgWithID) {
 	// for each packet, we send to the neighbors
 	for msg := range over {
-		for _, n := range g.c.Neighboors {
+		for _, n := range g.neighbors.Nodes() {
 			packet := Packet{Peer: n, Msg: msg}
-			fmt.Println("sending packet", packet)
+			fmt.Println("SEND PACKET to -> ", n, "while neighbors: ", g.neighbors)
 			g.c.Send(packet)
 		}
 	}
@@ -217,4 +238,21 @@ func (f *ringSet) tryInsert(i id) bool {
 	// go the next oldest value,first in the ring now
 	f.arrivals = f.arrivals.Next()
 	return true
+}
+
+type peerList struct {
+	sync.RWMutex
+	n []net.Peer
+}
+
+func (p *peerList) Update(newList []net.Peer) {
+	p.Lock()
+	defer p.Unlock()
+	p.n = newList
+}
+
+func (p *peerList) Nodes() []net.Peer {
+	p.Lock()
+	defer p.Unlock()
+	return p.n
 }

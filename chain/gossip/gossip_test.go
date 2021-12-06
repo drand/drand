@@ -45,7 +45,7 @@ func NewNetwork(n int, factor, bufferSize, rateLimit int) *network {
 			Gossiper: NewGossiper(&Config{
 				Log:        l,
 				Factor:     factor,
-				Neighboors: PickKNeighbors(peers, factor, peers[i]),
+				List:       cutPeers(peers, i),
 				Send:       net.Send,
 				BufferSize: bufferSize,
 				RateLimit:  rateLimit,
@@ -54,6 +54,13 @@ func NewNetwork(n int, factor, bufferSize, rateLimit int) *network {
 	}
 	net.nodes = nodes
 	return net
+}
+
+func cutPeers(peers []net.Peer, us int) []net.Peer {
+	filtered := make([]net.Peer, len(peers))
+	copy(filtered, peers)
+	peers = append(filtered[:us], filtered[us+1:]...)
+	return filtered
 }
 
 type deliveredPacket struct {
@@ -106,7 +113,7 @@ func (n *node) receivePacket(p Packet) {
 
 type message = bytes.Buffer
 
-func TestGossipNormal(t *testing.T) {
+func TestGossip(t *testing.T) {
 	n := 20
 	factor := 5
 	network := NewNetwork(n, factor, n, 0)
@@ -129,7 +136,7 @@ func TestGossipNormal(t *testing.T) {
 	// packet - it's not always "factor" because the choice is random
 	var expGossip = make(map[string]int)
 	for _, n := range network.nodes {
-		chosen := n.Gossiper.(*netGossip).c.Neighboors
+		chosen := n.Gossiper.(*netGossip).neighbors
 		for _, n2 := range chosen {
 			expGossip[n2.Address()] += 1
 		}
@@ -170,10 +177,8 @@ func TestPickNeighbors(t *testing.T) {
 		peers[i] = net.CreatePeer(fmt.Sprintf("node-%d", i), true)
 	}
 	factor := 5
-	require.Len(t, PickKNeighbors(peers, factor, nil), factor)
-	require.Len(t, PickKNeighbors(peers, factor, peers[0]), factor)
-	require.Len(t, PickKNeighbors(peers, factor, peers[2]), factor)
-	require.NotContains(t, PickKNeighbors(peers, factor, peers[2]), peers[2])
+	require.Len(t, pickKNeighbors(peers, factor), factor)
+	require.Len(t, pickKNeighbors(peers[:3], factor), 3)
 }
 
 func TestRingSet(t *testing.T) {
