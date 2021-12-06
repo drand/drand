@@ -137,7 +137,7 @@ func TestGossip(t *testing.T) {
 	var expGossip = make(map[string]int)
 	for _, n := range network.nodes {
 		chosen := n.Gossiper.(*netGossip).neighbors
-		for _, n2 := range chosen {
+		for _, n2 := range chosen.Nodes() {
 			expGossip[n2.Address()] += 1
 		}
 	}
