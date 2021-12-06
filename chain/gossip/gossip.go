@@ -2,7 +2,6 @@ package gossip
 
 import (
 	"container/ring"
-	"fmt"
 	"math/rand"
 	"sync"
 
@@ -192,7 +191,6 @@ func (g *netGossip) sendLoop(over chan MsgWithID) {
 	for msg := range over {
 		for _, n := range g.neighbors.Nodes() {
 			packet := Packet{Peer: n, Msg: msg}
-			fmt.Println("SEND PACKET to -> ", n, "while neighbors: ", g.neighbors)
 			g.c.Send(packet)
 		}
 	}
