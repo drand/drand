@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/drand/drand/core/migration"
 
@@ -45,6 +46,8 @@ var (
 	gitCommit = "none"
 	buildDate = "unknown"
 )
+
+var SetVersionPrinter sync.Once
 
 const defaultPort = "8080"
 
@@ -498,9 +501,12 @@ func CLI() *cli.App {
 
 	app := cli.NewApp()
 	app.Name = "drand"
-	cli.VersionPrinter = func(c *cli.Context) {
-		fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
-	}
+
+	SetVersionPrinter.Do(func() {
+		cli.VersionPrinter = func(c *cli.Context) {
+			fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+		}
+	})
 
 	app.ExitErrHandler = func(context *cli.Context, err error) {
 		// override to prevent default behavior of calling OS.exit(1),

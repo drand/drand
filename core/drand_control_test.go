@@ -12,7 +12,7 @@ import (
 )
 
 func TestValidateGroupTransitionGenesisTime(t *testing.T) {
-	d := Drand{log: log.DefaultLogger()}
+	d := BeaconProcess{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group
 
 	oldgrp = key.Group{GenesisTime: 0}
@@ -28,7 +28,7 @@ func TestValidateGroupTransitionGenesisTime(t *testing.T) {
 }
 
 func TestValidateGroupTransitionPeriod(t *testing.T) {
-	d := Drand{log: log.DefaultLogger()}
+	d := BeaconProcess{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group
 
 	oldgrp = key.Group{Period: 10}
@@ -44,7 +44,7 @@ func TestValidateGroupTransitionPeriod(t *testing.T) {
 }
 
 func TestValidateGroupTransitionBeaconID(t *testing.T) {
-	d := Drand{log: log.DefaultLogger()}
+	d := BeaconProcess{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group
 
 	oldgrp = key.Group{ID: "beacon_test_1"}
@@ -60,7 +60,7 @@ func TestValidateGroupTransitionBeaconID(t *testing.T) {
 }
 
 func TestValidateGroupTransitionGenesisSeed(t *testing.T) {
-	d := Drand{log: log.DefaultLogger()}
+	d := BeaconProcess{log: log.DefaultLogger()}
 	var oldgrp, newgrp key.Group
 
 	randomDistPublic := func(n int) *key.DistPublic {
@@ -85,7 +85,7 @@ func TestValidateGroupTransitionGenesisSeed(t *testing.T) {
 }
 
 func TestValidateGroupTransitionTime(t *testing.T) {
-	d := Drand{
+	d := BeaconProcess{
 		log:  log.DefaultLogger(),
 		opts: &Config{clock: clock.NewRealClock()},
 	}

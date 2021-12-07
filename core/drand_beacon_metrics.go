@@ -9,12 +9,12 @@ import (
 )
 
 // PeerMetrics exports a handler for retreiving metric information from group peers
-func (d *Drand) PeerMetrics(c context.Context) (map[string]http.Handler, error) {
-	if d.group == nil {
+func (bp *BeaconProcess) PeerMetrics(c context.Context) (map[string]http.Handler, error) {
+	if bp.group == nil {
 		return nil, errors.New("no group yet")
 	}
 
-	pc := d.privGateway.ProtocolClient
+	pc := bp.privGateway.ProtocolClient
 	hc, ok := pc.(net.HTTPClient)
 	if !ok {
 		return nil, errors.New("implementation does not support metrics")
@@ -22,7 +22,7 @@ func (d *Drand) PeerMetrics(c context.Context) (map[string]http.Handler, error) 
 
 	handlers := make(map[string]http.Handler)
 	var err error
-	for _, n := range d.group.Nodes {
+	for _, n := range bp.group.Nodes {
 		p := net.CreatePeer(n.Address(), n.IsTLS())
 		if h, e := hc.HandleHTTP(p); e == nil {
 			handlers[n.Address()] = h
