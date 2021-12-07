@@ -225,6 +225,7 @@ func (h *Handler) run(startTime int64) {
 				break
 			}
 			if lastBeacon.Round+1 < current.round {
+				h.l.Debug("beacon_loop", "catchupmode", "shouldBe", current.round, "onlygot", lastBeacon.Round)
 				go h.broadcastNextPartial(current, lastBeacon)
 			}
 		case current = <-chanTick:
