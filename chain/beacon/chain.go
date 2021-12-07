@@ -29,9 +29,6 @@ type chainStore struct {
 	ticker      *ticker
 	done        chan bool
 	newPartials chan partialInfo
-	// catchupBeacons is used to notify the Handler when a node has aggregated a
-	// beacon.
-	catchupBeacons chan *chain.Beacon
 	// all beacons finally inserted into the store are sent over this cannel for
 	// the aggregation loop to know
 	beaconStoredAgg chan *chain.Beacon
@@ -56,7 +53,6 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 		ticker:          t,
 		done:            make(chan bool, 1),
 		newPartials:     make(chan partialInfo, defaultPartialChanBuffer),
-		catchupBeacons:  make(chan *chain.Beacon, 1),
 		beaconStoredAgg: make(chan *chain.Beacon, defaultNewBeaconBuffer),
 	}
 	// we add callbacks to notify each time a final beacon is stored on the
@@ -182,12 +178,6 @@ func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
 		c.l.Error("chain_store", "error storing beacon", "err", err)
 		return false
 	}
-	select {
-	// only send if it's not full already
-	case c.catchupBeacons <- newB:
-	default:
-		c.l.Debug("chain_store", "catchup", "channel", "full")
-	}
 	return true
 }
 
@@ -210,10 +200,6 @@ func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer)
 	if err := c.sync.Follow(ctx, upTo, peers); err != nil {
 		c.l.Debug("chain_store", "follow_finished", "err", err)
 	}
-}
-
-func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
-	return c.catchupBeacons
 }
 
 type partialInfo struct {
