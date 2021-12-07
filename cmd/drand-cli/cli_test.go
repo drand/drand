@@ -290,14 +290,21 @@ func TestUtilCheck(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
-	go CLI().RunContext(ctx, listen)
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
+	go func() {
+		err := CLI().RunContext(ctx, listen)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	time.Sleep(200 * time.Millisecond)
 
 	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
+//nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := common.GetBeaconIDFromEnv()
@@ -313,9 +320,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	pubPath := path.Join(tmpPath, "pub.key")
 	port1, _ := strconv.Atoi(test.FreePort())
 	addr := "127.0.0.1:" + strconv.Itoa(port1)
-	ctrlPort1 := test.FreePort()
-	ctrlPort2 := test.FreePort()
-	metricsPort := test.FreePort()
+
+	ctrlPort1, ctrlPort2, metricsPort := test.FreePort(), test.FreePort(), test.FreePort()
 
 	priv := key.NewKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
@@ -327,13 +333,21 @@ func TestStartWithoutGroup(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
+		"--private-listen", priv.Public.Address(),
 		"--tls-disable",
 		"--verbose",
 		"--folder", tmpPath,
 		"--control", ctrlPort1,
 		"--metrics", "127.0.0.1:" + metricsPort,
 	}
-	go CLI().Run(startArgs)
+
+	go func() {
+		err := CLI().Run(startArgs)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println("--- DRAND SHARE --- (expected to fail)")
@@ -342,6 +356,8 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
+
+	fmt.Println("--- DRAND STOP --- (failing instanace)")
 	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")
@@ -378,8 +394,24 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
-	start2 := []string{"drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
-	go CLI().Run(start2)
+	start2 := []string{
+		"drand",
+		"start",
+		"--control", ctrlPort2,
+		"--private-listen", priv.Public.Address(),
+		"--tls-disable",
+		"--folder", tmpPath,
+		"--verbose",
+		"--private-rand",
+	}
+
+	go func() {
+		err := CLI().Run(start2)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 
 	time.Sleep(500 * time.Millisecond)
@@ -547,6 +579,7 @@ func TestClientTLS(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
+		"--private-listen", priv.Public.Address(),
 		"--tls-cert", certPath,
 		"--tls-key", keyPath,
 		"--control", ctrlPort,
@@ -711,8 +744,14 @@ func (d *drandInstance) run(t *testing.T) {
 		"--control", d.ctrlPort,
 		"--folder", d.path,
 		"--metrics", d.metrics,
+		"--private-listen", d.addr,
 	}
-	go CLI().Run(startArgs)
+
+	go func() {
+		err := CLI().Run(startArgs)
+		require.NoError(t, err)
+	}()
+
 	// make sure we run each one sequentially
 	testStatus(t, d.ctrlPort)
 }
@@ -732,7 +771,7 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		require.NoError(t, err)
 
 		certPath := path.Join(nodePath, "cert")
-		keyPath := path.Join(nodePath, "tlskey")
+		keyPath := path.Join(nodePath, "tls.key")
 		pubPath := path.Join(tmpPath, "pub.key")
 
 		freePort := test.FreePort()

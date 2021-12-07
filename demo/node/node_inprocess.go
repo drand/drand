@@ -46,7 +46,7 @@ type LocalNode struct {
 
 	log log.Logger
 
-	daemon *core.Drand
+	daemon *core.DrandDaemon
 }
 
 func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, sch scheme.Scheme, beaconID string) Node {
@@ -110,21 +110,57 @@ func (l *LocalNode) Start(certFolder string) error {
 	conf := core.NewConfig(opts...)
 	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	fs.SaveKeyPair(l.priv)
+
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
-	if l.daemon == nil {
-		drand, err := core.NewDrand(fs, conf)
-		if err != nil {
-			return err
-		}
-		l.daemon = drand
-	} else {
-		drand, err := core.LoadDrand(fs, conf)
-		if err != nil {
-			return err
-		}
-		drand.StartBeacon(true)
-		l.daemon = drand
+
+	// Create and start drand daemon
+	drandDaemon, err := core.NewDrandDaemon(conf)
+	if err != nil {
+		return fmt.Errorf("can't instantiate drand daemon %s", err)
 	}
+
+	// Load possible existing stores
+	stores, err := key.NewFileStores(conf.ConfigFolderMB())
+	if err != nil {
+		return err
+	}
+
+	for beaconID, fs := range stores {
+		var bp *core.BeaconProcess
+
+		_, errG := fs.LoadGroup()
+		_, errS := fs.LoadShare()
+
+		// XXX place that logic inside core/ directly with only one method
+		freshRun := errG != nil || errS != nil
+
+		if freshRun {
+			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
+			bp, err = drandDaemon.InstantiateBeaconProcess(beaconID, fs)
+			if err != nil {
+				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+			}
+		} else {
+			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
+			bp, err = drandDaemon.InstantiateBeaconProcess(beaconID, fs)
+			if err != nil {
+				fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+			}
+
+			if _, err := bp.Load(); err != nil {
+				return err
+			}
+
+			// XXX make it configurable so that new share holder can still start if
+			// nobody started.
+			// drand.StartBeacon(!c.Bool(pushFlag.Name))
+			catchup := true
+			bp.StartBeacon(catchup)
+		}
+	}
+
+	l.daemon = drandDaemon
+
 	return nil
 }
 

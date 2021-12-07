@@ -138,6 +138,7 @@ func (c *ControlClient) InitReshareLeader(
 			Timeout:      uint32(timeout.Seconds()),
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
+			Metadata:     &metadata,
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
@@ -161,6 +162,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			LeaderTls:     leader.IsTLS(),
 			Secret:        []byte(secret),
 			Force:         force,
+			Metadata:      &metadata,
 		},
 		Metadata: &metadata,
 	}
@@ -180,8 +182,7 @@ func (c *ControlClient) InitDKGLeader(
 	offset int,
 	schemeID string,
 	beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	metadata.BeaconID = beaconID
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -191,12 +192,13 @@ func (c *ControlClient) InitDKGLeader(
 			Timeout:      uint32(timeout.Seconds()),
 			Secret:       []byte(secret),
 			BeaconOffset: uint32(offset),
+			Metadata:     &metadata,
 		},
 		Entropy:       entropy,
 		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
 		CatchupPeriod: uint32(catchupPeriod.Seconds()),
 		SchemeID:      schemeID,
-		Metadata:      metadata,
+		Metadata:      &metadata,
 	}
 
 	return c.client.InitDKG(ctx.Background(), request)
@@ -212,6 +214,7 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 			LeaderAddress: leader.Address(),
 			LeaderTls:     leader.IsTLS(),
 			Secret:        []byte(secret),
+			Metadata:      &metadata,
 		},
 		Entropy:  entropy,
 		Metadata: &metadata,

@@ -44,6 +44,7 @@ message StatusRequest {
     // i.e. calls Home() on it.
     // If the field is absent or empty, then there is no connectivity checks.
     repeated Address check_conn = 1;
+    common.Metadata metadata = 2;
 }
 
 
