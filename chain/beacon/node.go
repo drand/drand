@@ -117,12 +117,13 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"short_pub", shortPub)
 		return nil, err
 	}
-	h.l.Debug("process_partial", addr,
+	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
+	h.l.Debug("process_partial_from", addr,
+		"index", idx,
 		"prev_sig", shortSigStr(p.GetPreviousSig()),
 		"curr_round", currentRound, "msg_sign",
 		shortSigStr(msg), "short_pub", shortPub,
 		"status", "OK")
-	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == h.crypto.Index() {
 		h.l.Error("process_partial", addr,
 			"index_got", idx,
@@ -241,6 +242,7 @@ func (h *Handler) run(startTime int64) {
 				go h.chain.RunSync(context.Background(), current.round, nil)
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
+			h.l.Debug("beacon_loop", "catchupmode", "last_is", b.Round, "current", current.round, "catchup_launch", b.Round < current.round)
 			if b.Round < current.round {
 				// When network is down, all alive nodes will broadcast their
 				// signatures periodically with the same period. As soon as one
@@ -252,7 +254,9 @@ func (h *Handler) run(startTime int64) {
 				// channel will trigger again etc until we arrive at the correct
 				// round.
 				go func(c roundInfo, latest *chain.Beacon) {
+					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "seep_for", h.conf.Group.CatchupPeriod)
 					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
+					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "broadcast")
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
 			}

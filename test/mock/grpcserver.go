@@ -79,10 +79,11 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	s.l.Lock()
 	s.streamDone = make(chan error, 1)
+	n := s.streamDone
 	s.stream = stream
 	s.l.Unlock()
 
-	err := <-s.streamDone
+	err := <-n
 	s.l.Lock()
 	s.stream = nil
 	s.l.Unlock()
