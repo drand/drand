@@ -117,12 +117,13 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"short_pub", shortPub)
 		return nil, err
 	}
-	h.l.Debug("process_partial", addr,
+	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
+	h.l.Debug("process_partial_from", addr,
+		"index", idx,
 		"prev_sig", shortSigStr(p.GetPreviousSig()),
 		"curr_round", currentRound, "msg_sign",
 		shortSigStr(msg), "short_pub", shortPub,
 		"status", "OK")
-	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == h.crypto.Index() {
 		h.l.Error("process_partial", addr,
 			"index_got", idx,
