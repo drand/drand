@@ -218,7 +218,12 @@ func (h *Handler) run(startTime int64) {
 	var current roundInfo
 	for {
 		select {
-		case <-h.conf.Clock.After(h.conf.Group.CatchupPeriod):
+		case t := <-h.conf.Clock.After(h.conf.Group.CatchupPeriod):
+			if startTime > t.Unix() {
+				// we only look at this if the group already started: no need to
+				// broadcast partials if the new group didn't started
+				continue
+			}
 			lastBeacon, err := h.chain.Last()
 			if err != nil {
 				h.l.Error("beacon_loop", "loading_last", "err", err)
