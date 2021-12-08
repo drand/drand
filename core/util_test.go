@@ -37,7 +37,8 @@ const (
 type MockNode struct {
 	addr     string
 	certPath string
-	drand    *Drand
+	daemon   *DrandDaemon
+	drand    *BeaconProcess
 	clock    clock.FakeClock
 }
 
@@ -89,7 +90,7 @@ type DrandTestScenario struct {
 // client that can reach any drand node.
 // Deprecated: do not use
 func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
-	drands []*Drand, group *key.Group, dir string, certPaths []string,
+	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
 	var privs []*key.Pair
 	if insecure {
@@ -99,7 +100,8 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	}
 
 	ports := test.Ports(n)
-	drands = make([]*Drand, n)
+	daemons = make([]*DrandDaemon, n)
+	drands = make([]*BeaconProcess, n)
 	tmp := os.TempDir()
 
 	dir, err := os.MkdirTemp(tmp, "drand")
@@ -141,6 +143,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		// give each one their own private folder
 		confOptions := []ConfigOption{WithConfigFolder(dirs[i])}
+		confOptions = append(confOptions, WithPrivateListenAddress(privs[i].Public.Address()))
 		if !insecure {
 			confOptions = append(confOptions,
 				WithTLS(certPaths[i], keyPaths[i]),
@@ -157,15 +160,21 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		t.Logf("Create drand %d", i)
 
-		drands[i], err = NewDrand(s, NewConfig(confOptions...))
+		daemon, err := NewDrandDaemon(NewConfig(confOptions...))
 		assert.NoError(t, err)
+
+		bp, err := daemon.InstantiateBeaconProcess(beaconID, s)
+		assert.NoError(t, err)
+
+		daemons[i] = daemon
+		drands[i] = bp
 	}
 
-	return drands, group, dir, certPaths
+	return daemons, drands, group, dir, certPaths
 }
 
 // CloseAllDrands closes all drands
-func CloseAllDrands(drands []*Drand) {
+func CloseAllDrands(drands []*BeaconProcess) {
 	for i := 0; i < len(drands); i++ {
 		drands[i].Stop(context.Background())
 	}
@@ -189,7 +198,7 @@ func getSleepDuration() time.Duration {
 func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch scheme.Scheme, beaconID string) *DrandTestScenario {
 	dt := new(DrandTestScenario)
 
-	drands, _, dir, certPaths := BatchNewDrand(
+	daemons, drands, _, dir, certPaths := BatchNewDrand(
 		t, n, false, sch, beaconID, WithCallOption(grpc.WaitForReady(true)),
 	)
 
@@ -206,7 +215,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch sc
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
-		node := newNode(dt.clock.Now(), dt.certPaths[i], drandInstance)
+		node := newNode(dt.clock.Now(), dt.certPaths[i], daemons[i], drandInstance)
 		dt.nodes = append(dt.nodes, node)
 	}
 
@@ -359,9 +368,15 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 	var maxRetries = 5
 	for range time.Tick(100 * time.Millisecond) {
 		d.t.Logf("[drand] ping %s: %d/%d", dr.priv.Public.Address(), retryCount, maxRetries)
-		if err := controlClient.Ping(); err != nil {
+		response, err := controlClient.Status()
+
+		if err != nil {
 			break
 		}
+		if response.Beacon.Status == uint32(BeaconNotInited) {
+			break
+		}
+
 		retryCount++
 		require.LessOrEqual(d.t, retryCount, maxRetries)
 	}
@@ -375,13 +390,8 @@ func (d *DrandTestScenario) StartDrand(nodeAddress string, catchup, newGroup boo
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
-	// we load it from scratch as if the operator restarted its node
-	newDrand, err := LoadDrand(dr.store, dr.opts)
-	require.NoError(d.t, err)
-	node.drand = newDrand
-
 	d.t.Logf("[drand] Start")
-	newDrand.StartBeacon(catchup)
+	dr.StartBeacon(catchup)
 	d.t.Logf("[drand] Started")
 }
 
@@ -437,11 +447,12 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
 func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNode {
-	newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID,
+	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID,
 		WithCallOption(grpc.WaitForReady(false)), WithLogLevel(log.LogInfo, false))
 	d.newCertPaths = newCertPaths
 	d.newDir = newDir
 	d.newNodes = make([]*MockNode, newNodes)
+
 	// add certificates of new nodes to the old nodes
 	for _, node := range d.nodes {
 		inst := node.drand
@@ -450,10 +461,11 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNod
 			require.NoError(t, err)
 		}
 	}
+
 	// store new part. and add certificate path of current nodes to the new
 	d.newNodes = make([]*MockNode, 0, newNodes)
 	for i, inst := range newDrands {
-		node := newNode(d.clock.Now(), newCertPaths[i], inst)
+		node := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
 		d.newNodes = append(d.newNodes, node)
 		for _, cp := range d.certPaths {
 			err := inst.opts.certmanager.Add(cp)
@@ -759,9 +771,9 @@ type DenyClient struct {
 	deny []string
 }
 
-func (d *Drand) DenyBroadcastTo(t *testing.T, addresses ...string) {
-	client := d.privGateway.ProtocolClient
-	d.privGateway.ProtocolClient = &DenyClient{
+func (bp *BeaconProcess) DenyBroadcastTo(t *testing.T, addresses ...string) {
+	client := bp.privGateway.ProtocolClient
+	bp.privGateway.ProtocolClient = &DenyClient{
 		t:              t,
 		ProtocolClient: client,
 		deny:           addresses,
@@ -801,7 +813,7 @@ func unixSetLimit(soft, max uint64) error {
 }
 
 // newNode creates a node struct from a drand and sets the clock according to the drand test clock.
-func newNode(now time.Time, certPath string, dr *Drand) *MockNode {
+func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProcess) *MockNode {
 	id := dr.priv.Public.Address()
 	c := clock.NewFakeClockAt(now)
 
@@ -811,6 +823,7 @@ func newNode(now time.Time, certPath string, dr *Drand) *MockNode {
 	return &MockNode{
 		certPath: certPath,
 		addr:     id,
+		daemon:   daemon,
 		drand:    dr,
 		clock:    c,
 	}
