@@ -4,14 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
-
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"
+	"sync"
 
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/http"
+	dhttp "github.com/drand/drand/http"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -26,6 +25,8 @@ type DrandDaemon struct {
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
+
+	handler dhttp.DrandHandler
 
 	opts *Config
 	log  log.Logger
@@ -91,13 +92,14 @@ func (dd *DrandDaemon) init() error {
 	dd.log.Infow("", "network", "init", "insecure", c.insecure)
 
 	if pubAddr != "" {
-		handler, err := http.New(ctx, &drandProxy{dd}, c.Version(), dd.log.With("server", "http"))
+		handler, err := dhttp.New(ctx, &drandProxy{dd}, c.Version(), dd.log.With("server", "http"))
 		if err != nil {
 			return err
 		}
-		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler, c.insecure); err != nil {
+		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager, handler.HandlerHttp, c.insecure); err != nil {
 			return err
 		}
+		dd.handler = handler
 	}
 
 	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
@@ -132,6 +134,8 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.state.Lock()
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
+
+	dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, beaconID) // This should receive hash instead of Id
 
 	return bp, nil
 }
