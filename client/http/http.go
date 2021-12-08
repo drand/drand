@@ -230,7 +230,7 @@ type httpInfoResponse struct {
 	err       error
 }
 
-// FetchGroupInfo attempts to initialize an httpClient when
+// FetchChainInfo attempts to initialize an httpClient when
 // it does not know the full group parameters for a drand group. The chain hash
 // is the hash of the chain info.
 func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*chain.Info, error) {
@@ -243,7 +243,12 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 	defer cancel()
 
 	go func() {
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo/%x", h.root, chainHash), nil)
+		url := fmt.Sprintf("%sinfo", h.root)
+		if chainHash != nil && len(chainHash) > 0 {
+			url = fmt.Sprintf("%x/%s", chainHash, url)
+		}
+
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
@@ -295,13 +300,14 @@ type httpGetResponse struct {
 	err    error
 }
 
-// Get returns a the randomness at `round` or an error.
+// Get returns the randomness at `round` or an error.
 func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	var url string
 	if round == 0 {
-		url = fmt.Sprintf("%spublic/latest", h.root)
+		url = fmt.Sprintf("%x/%spublic/latest/", h.chainInfo.Hash(), h.root)
 	} else {
-		url = fmt.Sprintf("%spublic/%d", h.root, round)
+		url = fmt.Sprintf("%spublic/%d/%x", h.root, round, h.chainInfo.Hash())
+		url = fmt.Sprintf("%x/%spublic/%d/", h.chainInfo.Hash(), h.root, round)
 	}
 
 	resC := make(chan httpGetResponse, 1)
