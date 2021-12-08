@@ -16,4 +16,5 @@ message NodeVersion {
 message Metadata {
     NodeVersion node_version = 1;
     string beaconID = 2;
+    bytes chain_hash = 3;
 }
