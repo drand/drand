@@ -155,7 +155,22 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 
 func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
 	if c.IsSet(GRPCConnectFlag.Name) {
-		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
+		hash := make([]byte, 0)
+
+		if c.IsSet(HashFlag.Name) {
+			var err error
+
+			hash, err = hex.DecodeString(c.String(HashFlag.Name))
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if *info != nil && len(hash) == 0 {
+			hash = (*info).Hash()
+		}
+
+		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
 		if err != nil {
 			return nil, err
 		}

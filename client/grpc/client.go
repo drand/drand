@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
@@ -20,14 +22,15 @@ import (
 const grpcDefaultTimeout = 5 * time.Second
 
 type grpcClient struct {
-	address string
-	client  drand.PublicClient
-	conn    *grpc.ClientConn
-	l       log.Logger
+	address   string
+	chainHash []byte
+	client    drand.PublicClient
+	conn      *grpc.ClientConn
+	l         log.Logger
 }
 
 // New creates a drand client backed by a GRPC connection.
-func New(address, certPath string, insecure bool) (client.Client, error) {
+func New(address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
 	opts := []grpc.DialOption{}
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -48,7 +51,8 @@ func New(address, certPath string, insecure bool) (client.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &grpcClient{address, drand.NewPublicClient(conn), conn, log.DefaultLogger()}, nil
+
+	return &grpcClient{address, chainHash, drand.NewPublicClient(conn), conn, log.DefaultLogger()}, nil
 }
 
 func asRD(r *drand.PublicRandResponse) *client.RandomData {
@@ -67,7 +71,9 @@ func (g *grpcClient) String() string {
 
 // Get returns a the randomness at `round` or an error.
 func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, error) {
-	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round})
+	metadata := common.Metadata{ChainHash: g.chainHash}
+
+	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round, Metadata: &metadata})
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +86,9 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 
 // Watch returns new randomness as it becomes available.
 func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
-	stream, err := g.client.PublicRandStream(ctx, &drand.PublicRandRequest{Round: 0})
+	metadata := common.Metadata{ChainHash: g.chainHash}
+
+	stream, err := g.client.PublicRandStream(ctx, &drand.PublicRandRequest{Round: 0, Metadata: &metadata})
 	ch := make(chan client.Result, 1)
 	if err != nil {
 		close(ch)
@@ -92,7 +100,9 @@ func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 
 // Info returns information about the chain.
 func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
-	proto, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
+	metadata := common.Metadata{ChainHash: g.chainHash}
+
+	proto, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: &metadata})
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +129,10 @@ func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out c
 func (g *grpcClient) RoundAt(t time.Time) uint64 {
 	ctx, cancel := context.WithTimeout(context.Background(), grpcDefaultTimeout)
 	defer cancel()
-	info, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{})
+
+	metadata := common.Metadata{ChainHash: g.chainHash}
+
+	info, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: &metadata})
 	if err != nil {
 		return 0
 	}

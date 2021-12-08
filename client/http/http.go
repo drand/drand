@@ -243,7 +243,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 	defer cancel()
 
 	go func() {
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo", h.root), nhttp.NoBody)
+		req, err := nhttp.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%sinfo/%x", h.root, chainHash), nil)
 		if err != nil {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
