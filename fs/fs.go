@@ -12,7 +12,7 @@ import (
 
 const defaultDirectoryPermission = 0740
 const rwFilePermission = 0600
-const copyChunkSize = 1024
+const copyChunkSize = 128 * 1024
 
 // HomeFolder returns the home folder of the current user.
 func HomeFolder() string {
