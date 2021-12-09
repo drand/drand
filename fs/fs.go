@@ -139,9 +139,8 @@ func FolderExists(folderPath, name string) bool {
 }
 
 // CopyFile copy a file or folder from one path to another
-func CopyFile(origFilePath, destFilePath string) error {
+func CopyFile(origFilePath, destFilePath string) (err error) {
 	var src, dest *os.File
-	var err error
 
 	if src, err = os.Open(origFilePath); err != nil {
 		return err
@@ -149,8 +148,8 @@ func CopyFile(origFilePath, destFilePath string) error {
 
 	// close fi on exit and check for its returned error
 	defer func() {
-		if err := src.Close(); err != nil {
-			panic(err)
+		if closeErr := src.Close(); closeErr != nil && err == nil {
+			err = closeErr
 		}
 	}()
 
@@ -162,8 +161,8 @@ func CopyFile(origFilePath, destFilePath string) error {
 	}
 	// close fo on exit and check for its returned error
 	defer func() {
-		if err := dest.Close(); err != nil {
-			panic(err)
+		if closeErr := dest.Close(); closeErr != nil && err == nil {
+			err = closeErr
 		}
 	}()
 
@@ -184,7 +183,7 @@ func CopyFile(origFilePath, destFilePath string) error {
 		return err
 	}
 
-	return nil
+	return err
 }
 
 // CopyFolder copy files inside a folder to another folder recursively
