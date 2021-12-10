@@ -2,7 +2,9 @@
 package fs
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/user"
 	"path"
@@ -10,6 +12,7 @@ import (
 
 const defaultDirectoryPermission = 0740
 const rwFilePermission = 0600
+const copyChunkSize = 128 * 1024
 
 // HomeFolder returns the home folder of the current user.
 func HomeFolder() string {
@@ -136,18 +139,51 @@ func FolderExists(folderPath, name string) bool {
 }
 
 // CopyFile copy a file or folder from one path to another
-func CopyFile(origFilePath, destFilePath string) error {
-	input, err := os.ReadFile(origFilePath)
-	if err != nil {
+func CopyFile(origFilePath, destFilePath string) (err error) {
+	var src, dest *os.File
+
+	if src, err = os.Open(origFilePath); err != nil {
 		return err
 	}
 
-	err = os.WriteFile(destFilePath, input, rwFilePermission)
-	if err != nil {
+	// close fi on exit and check for its returned error
+	defer func() {
+		if closeErr := src.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	// make a reader buffer
+	srcReader := bufio.NewReader(src)
+
+	if dest, err = os.Create(destFilePath); err != nil {
+		return err
+	}
+	// close fo on exit and check for its returned error
+	defer func() {
+		if closeErr := dest.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+
+	// make a writer buffer
+	destWriter := bufio.NewWriter(dest)
+
+	// make a buffer to keep chunks that are read
+	buf := make([]byte, copyChunkSize)
+	if _, err := io.CopyBuffer(destWriter, srcReader, buf); err != nil {
 		return err
 	}
 
-	return nil
+	if err := destWriter.Flush(); err != nil {
+		return err
+	}
+
+	if err := os.Chmod(destFilePath, rwFilePermission); err != nil {
+		return err
+	}
+
+	return err
 }
 
 // CopyFolder copy files inside a folder to another folder recursively
