@@ -44,6 +44,37 @@ type DrandHandler struct {
 	HandlerDrand handler
 }
 
+type handler struct {
+	timeout time.Duration
+
+	context context.Context
+
+	log log.Logger
+
+	version string
+
+	beacons map[string]*beaconHandler
+	state   sync.Mutex
+}
+
+type beaconHandler struct {
+	// NOTE: should only be accessed via getChainInfo
+	chainInfo   *chain.Info
+	chainInfoLk sync.RWMutex
+	log         log.Logger
+
+	// Client to handle beacon
+	client client.Client
+
+	// synchronization for blocking writes until randomness available.
+	pendingLk   sync.RWMutex
+	startOnce   sync.Once
+	pending     []chan []byte
+	context     context.Context
+	latestRound uint64
+	version     string
+}
+
 // New creates an HTTP handler for the public Drand API
 func New(ctx context.Context, c client.Client, version string, logger log.Logger) (DrandHandler, error) {
 	if logger == nil {
@@ -79,13 +110,13 @@ func New(ctx context.Context, c client.Client, version string, logger log.Logger
 	return DrandHandler{instrumented, handler}, nil
 }
 
-func (h *handler) CreateBeaconHandler(client client.Client, chainHash string) {
+func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) {
 	h.state.Lock()
 	defer h.state.Unlock()
 
 	bh := &beaconHandler{
 		context:     h.context,
-		client:      client,
+		client:      c,
 		latestRound: 0,
 		pending:     nil,
 		chainInfo:   nil,
@@ -101,37 +132,6 @@ func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		h(w, r)
 	}
-}
-
-type handler struct {
-	timeout time.Duration
-
-	context context.Context
-
-	log log.Logger
-
-	version string
-
-	beacons map[string]*beaconHandler
-	state   sync.Mutex
-}
-
-type beaconHandler struct {
-	// NOTE: should only be accessed via getChainInfo
-	chainInfo   *chain.Info
-	chainInfoLk sync.RWMutex
-	log         log.Logger
-
-	// Client to handle beacon
-	client client.Client
-
-	// synchronization for blocking writes until randomness available.
-	pendingLk   sync.RWMutex
-	startOnce   sync.Once
-	pending     []chan []byte
-	context     context.Context
-	latestRound uint64
-	version     string
 }
 
 func (h *handler) start(bh *beaconHandler) {

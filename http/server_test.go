@@ -28,7 +28,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	lAddr := l.Addr()
 	go l.Start()
 
-	c, _ = grpc.New(lAddr, "", true)
+	c, _ = grpc.New(lAddr, "", true, []byte(""))
 
 	return c, s.(mock.MockService).EmitRand
 }
@@ -48,7 +48,7 @@ func TestHTTPRelay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.HandlerHttp}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -126,7 +126,7 @@ func TestHTTPWaiting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.HandlerHttp}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -188,7 +188,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.HandlerHttp}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -220,7 +220,7 @@ func TestHTTPHealth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.HandlerHttp}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 

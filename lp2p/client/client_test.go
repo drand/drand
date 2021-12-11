@@ -53,7 +53,7 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	info.GenesisTime -= 10
 
 	// start mock relay-node
-	grpcClient, err := grpc.New(grpcAddr, "", true)
+	grpcClient, err := grpc.New(grpcAddr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}

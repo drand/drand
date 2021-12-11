@@ -72,9 +72,9 @@ func Relay(c *cli.Context) error {
 			return fmt.Errorf("failed to open access log: %w", err)
 		}
 		defer logFile.Close()
-		handler = handlers.CombinedLoggingHandler(logFile, handler)
+		handler.HandlerHttp = handlers.CombinedLoggingHandler(logFile, handler.HandlerHttp)
 	} else {
-		handler = handlers.CombinedLoggingHandler(os.Stdout, handler)
+		handler.HandlerHttp = handlers.CombinedLoggingHandler(os.Stdout, handler.HandlerHttp)
 	}
 
 	bind := "localhost:0"
@@ -89,13 +89,13 @@ func Relay(c *cli.Context) error {
 	// jumpstart bootup
 	req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.HandlerHttp.ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
-	return http.Serve(listener, handler)
+	return http.Serve(listener, handler.HandlerHttp)
 }
 
 func main() {

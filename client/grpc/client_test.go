@@ -22,7 +22,7 @@ func TestClient(t *testing.T) {
 	go l.Start()
 	defer l.Stop(context.Background())
 
-	c, err := New(addr, "", true)
+	c, err := New(addr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestClientClose(t *testing.T) {
 	go l.Start()
 	defer l.Stop(context.Background())
 
-	c, err := New(addr, "", true)
+	c, err := New(addr, "", true, []byte(""))
 	if err != nil {
 		t.Fatal(err)
 	}
