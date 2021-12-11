@@ -89,7 +89,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		opts = append(opts, libp2p.NoListenAddrs)
 	}
 
-	h, err := libp2p.New(ctx, opts...)
+	h, err := libp2p.New(opts...)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}
