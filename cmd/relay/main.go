@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
@@ -65,6 +66,12 @@ func Relay(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
+
+	hash, err := hex.DecodeString(c.String(lib.HashFlag.Name))
+	if err != nil {
+		return fmt.Errorf("failed to decode hash flag: %w", err)
+	}
+	handler.HandlerDrand.CreateBeaconHandler(client, string(hash))
 
 	if c.IsSet(accessLogFlag.Name) {
 		logFile, err := os.OpenFile(c.String(accessLogFlag.Name), os.O_CREATE|os.O_APPEND|os.O_WRONLY, accessLogPermFolder)
