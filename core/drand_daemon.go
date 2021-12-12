@@ -26,7 +26,7 @@ type DrandDaemon struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
-	handler dhttp.DrandHandler
+	handler *dhttp.DrandHandler
 
 	opts *Config
 	log  log.Logger
@@ -103,7 +103,7 @@ func (dd *DrandDaemon) init() error {
 		}
 	}
 
-	dd.handler = handler
+	dd.handler = &handler
 	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
 	if err != nil {
 		return err

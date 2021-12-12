@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +31,7 @@ const (
 	roundNumBase        = 10
 	roundNumSize        = 64
 	chainHashParamKey   = "chainHash"
+	roundParamKey       = "round"
 )
 
 var (
@@ -41,7 +41,7 @@ var (
 
 type DrandHandler struct {
 	HandlerHttp  http.Handler
-	HandlerDrand handler
+	HandlerDrand *handler
 }
 
 type handler struct {
@@ -80,23 +80,23 @@ func New(ctx context.Context, c client.Client, version string, logger log.Logger
 	if logger == nil {
 		logger = log.DefaultLogger()
 	}
-	handler := handler{
+	handler := &handler{
 		timeout: reqTimeout,
 		log:     logger,
 		context: ctx,
 		version: version,
-		beacons: make(map[string]*beaconHandler, 0),
+		beacons: make(map[string]*beaconHandler),
 	}
 
-	mux := chi.NewRouter()
+	mux := chi.NewMux()
 
-	mux.HandleFunc("/{"+chainHashParamKey+"}/public/latest/", withCommonHeaders(version, handler.LatestRand))
-	mux.HandleFunc("/{"+chainHashParamKey+"}/public/", withCommonHeaders(version, handler.PublicRand))
-	mux.HandleFunc("/{"+chainHashParamKey+"}/info/", withCommonHeaders(version, handler.ChainInfo))
-	mux.HandleFunc("/{"+chainHashParamKey+"}/health/", withCommonHeaders(version, handler.Health))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/public/latest", withCommonHeaders(version, handler.LatestRand))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/info", withCommonHeaders(version, handler.ChainInfo))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/health", withCommonHeaders(version, handler.Health))
 
 	mux.HandleFunc("/public/latest", withCommonHeaders(version, handler.LatestRand))
-	mux.HandleFunc("/public", withCommonHeaders(version, handler.PublicRand))
+	mux.HandleFunc("/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
 	mux.HandleFunc("/info", withCommonHeaders(version, handler.ChainInfo))
 	mux.HandleFunc("/health", withCommonHeaders(version, handler.Health))
 
@@ -120,6 +120,8 @@ func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) {
 		latestRound: 0,
 		pending:     nil,
 		chainInfo:   nil,
+		version:     h.version,
+		log:         h.log,
 	}
 
 	h.beacons[chainHash] = bh
@@ -316,7 +318,7 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 
 func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	// Get the round.
-	round := strings.Replace(r.URL.Path, "/public/", "", 1)
+	round := readRound(r)
 	roundN, err := strconv.ParseUint(round, roundNumBase, roundNumSize)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -512,6 +514,11 @@ func readChainHash(r *http.Request) ([]byte, error) {
 	}
 
 	return chainHashHex, nil
+}
+
+func readRound(r *http.Request) string {
+	round := chi.URLParam(r, roundParamKey)
+	return round
 }
 
 func (h *handler) getBeaconHandler(chainHash []byte) (*beaconHandler, error) {

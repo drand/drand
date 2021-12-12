@@ -244,7 +244,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 
 	go func() {
 		url := fmt.Sprintf("%sinfo", h.root)
-		if chainHash != nil && len(chainHash) > 0 {
+		if len(chainHash) > 0 {
 			url = fmt.Sprintf("%x/%s", chainHash, url)
 		}
 
@@ -306,7 +306,6 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 	if round == 0 {
 		url = fmt.Sprintf("%x/%spublic/latest/", h.chainInfo.Hash(), h.root)
 	} else {
-		url = fmt.Sprintf("%spublic/%d/%x", h.root, round, h.chainInfo.Hash())
 		url = fmt.Sprintf("%x/%spublic/%d/", h.chainInfo.Hash(), h.root, round)
 	}
 
