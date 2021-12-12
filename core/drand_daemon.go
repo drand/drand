@@ -91,18 +91,19 @@ func (dd *DrandDaemon) init() error {
 	var err error
 	dd.log.Infow("", "network", "init", "insecure", c.insecure)
 
+	handler, err := dhttp.New(ctx, &drandProxy{dd}, c.Version(), dd.log.With("server", "http"))
+	if err != nil {
+		return err
+	}
+
 	if pubAddr != "" {
-		handler, err := dhttp.New(ctx, &drandProxy{dd}, c.Version(), dd.log.With("server", "http"))
-		if err != nil {
-			return err
-		}
 		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager,
 			handler.HandlerHttp, c.insecure); err != nil {
 			return err
 		}
-		dd.handler = handler
 	}
 
+	dd.handler = handler
 	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
 	if err != nil {
 		return err
