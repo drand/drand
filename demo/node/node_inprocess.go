@@ -275,7 +275,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	if l.tls {
 		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
 	}
-	c, _ := grpc.New(l.privAddr, cert, cert == "")
+	c, _ := grpc.New(l.privAddr, cert, cert == "", []byte(""))
 
 	group := l.GetGroup()
 	if group == nil {

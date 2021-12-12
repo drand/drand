@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"
-	"sync"
 
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"

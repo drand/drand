@@ -329,6 +329,7 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	chainHashHex, err := readChainHash(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	info := h.getChainInfo(r.Context(), chainHashHex)
@@ -431,6 +432,7 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	chainHashHex, err := readChainHash(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	info := h.getChainInfo(r.Context(), chainHashHex)
