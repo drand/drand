@@ -55,7 +55,7 @@ func TestHTTPRelay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHttp}
+	server := http.Server{Handler: handler.HandlerHTTP}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -144,7 +144,7 @@ func TestHTTPWaiting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHttp}
+	server := http.Server{Handler: handler.HandlerHTTP}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -218,7 +218,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHttp}
+	server := http.Server{Handler: handler.HandlerHTTP}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -257,7 +257,7 @@ func TestHTTPHealth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHttp}
+	server := http.Server{Handler: handler.HandlerHTTP}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 

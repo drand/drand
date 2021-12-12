@@ -40,7 +40,7 @@ var (
 )
 
 type DrandHandler struct {
-	HandlerHttp  http.Handler
+	HandlerHTTP  http.Handler
 	HandlerDrand *handler
 }
 

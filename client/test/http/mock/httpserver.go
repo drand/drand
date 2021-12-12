@@ -52,7 +52,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Schem
 		t.Fatal(err)
 	}
 
-	httpServer := http.Server{Handler: handler.HandlerHttp}
+	httpServer := http.Server{Handler: handler.HandlerHTTP}
 	go httpServer.Serve(listener)
 
 	return listener.Addr().String(), chainInfo, func() {

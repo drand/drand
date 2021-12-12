@@ -98,7 +98,7 @@ func (dd *DrandDaemon) init() error {
 
 	if pubAddr != "" {
 		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager,
-			handler.HandlerHttp, c.insecure); err != nil {
+			handler.HandlerHTTP, c.insecure); err != nil {
 			return err
 		}
 	}
