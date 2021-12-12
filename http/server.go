@@ -90,10 +90,10 @@ func New(ctx context.Context, c client.Client, version string, logger log.Logger
 
 	mux := chi.NewRouter()
 
-	mux.HandleFunc("{"+chainHashParamKey+"}/public/latest/", withCommonHeaders(version, handler.LatestRand))
-	mux.HandleFunc("{"+chainHashParamKey+"}/public/", withCommonHeaders(version, handler.PublicRand))
-	mux.HandleFunc("{"+chainHashParamKey+"}/info/", withCommonHeaders(version, handler.ChainInfo))
-	mux.HandleFunc("{"+chainHashParamKey+"}/health/", withCommonHeaders(version, handler.Health))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/public/latest/", withCommonHeaders(version, handler.LatestRand))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/public/", withCommonHeaders(version, handler.PublicRand))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/info/", withCommonHeaders(version, handler.ChainInfo))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/health/", withCommonHeaders(version, handler.Health))
 
 	mux.HandleFunc("/public/latest", withCommonHeaders(version, handler.LatestRand))
 	mux.HandleFunc("/public", withCommonHeaders(version, handler.PublicRand))
