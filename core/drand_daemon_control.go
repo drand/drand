@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/drand/drand/chain"
 
 	"github.com/drand/drand/key"
 
@@ -33,7 +34,16 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 		}
 	}
 
-	return bp.InitDKG(c, in)
+	chainGroup, err := bp.InitDKG(c, in)
+	if err == nil {
+		group, err := key.GroupFromProto(chainGroup)
+		if err == nil {
+			info := chain.NewChainInfo(group)
+			dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+		}
+	}
+
+	return chainGroup, err
 }
 
 // InitReshare receives information about the old and new group from which to
