@@ -2,6 +2,7 @@ package mock
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"testing"
@@ -46,6 +47,8 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Schem
 	if chainInfo == nil {
 		t.Fatal("could not use server after 3 attempts.")
 	}
+
+	handler.HandlerDrand.CreateBeaconHandler(client, fmt.Sprintf("%x", chainInfo.Hash()))
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
