@@ -431,14 +431,15 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	chainHashHex, err := readChainHash(r)
 	if err != nil {
+		h.log.Warnw("", "http_server", "failed to read chain hash", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	info := h.getChainInfo(r.Context(), chainHashHex)
 	if info == nil {
-		w.WriteHeader(http.StatusNoContent)
 		h.log.Warnw("", "http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		http.Error(w, "group not found", http.StatusNoContent)
 		return
 	}
 

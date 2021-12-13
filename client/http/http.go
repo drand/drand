@@ -243,9 +243,11 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 	defer cancel()
 
 	go func() {
-		url := fmt.Sprintf("%sinfo", h.root)
+		url := ""
 		if len(chainHash) > 0 {
-			url = fmt.Sprintf("%x/%s", chainHash, url)
+			url = fmt.Sprintf("%s%x/info", h.root, chainHash)
+		} else {
+			url = fmt.Sprintf("%sinfo", h.root)
 		}
 
 		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
