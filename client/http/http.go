@@ -306,9 +306,9 @@ type httpGetResponse struct {
 func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	var url string
 	if round == 0 {
-		url = fmt.Sprintf("%s%x/public/latest/", h.root, h.chainInfo.Hash())
+		url = fmt.Sprintf("%s%x/public/latest", h.root, h.chainInfo.Hash())
 	} else {
-		url = fmt.Sprintf("%s%x/public/%d/", h.root, h.chainInfo.Hash(), round)
+		url = fmt.Sprintf("%s%x/public/%d", h.root, h.chainInfo.Hash(), round)
 	}
 
 	resC := make(chan httpGetResponse, 1)
