@@ -110,7 +110,7 @@ func New(ctx context.Context, c client.Client, version string, logger log.Logger
 	return DrandHandler{instrumented, handler}, nil
 }
 
-func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) {
+func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) *beaconHandler {
 	h.state.Lock()
 	defer h.state.Unlock()
 
@@ -126,6 +126,16 @@ func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) {
 
 	h.beacons[chainHash] = bh
 	h.log.Infow("Created BeaconHandler", "chainHash", chainHash)
+
+	return bh
+}
+
+func (h *handler) AddDefaultBeaconHandler(bh *beaconHandler) {
+	h.state.Lock()
+	defer h.state.Unlock()
+
+	h.beacons[common.DefaultChainHash] = bh
+	h.log.Infow("Created Default BeaconHandler")
 }
 
 func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -528,7 +538,7 @@ func readRound(r *http.Request) string {
 func (h *handler) getBeaconHandler(chainHash []byte) (*beaconHandler, error) {
 	chainHashStr := fmt.Sprintf("%x", chainHash)
 	if chainHashStr == "" {
-		chainHashStr = common.DefaultBeaconID
+		chainHashStr = common.DefaultChainHash
 	}
 
 	h.state.Lock()

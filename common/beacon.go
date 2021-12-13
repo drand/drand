@@ -6,6 +6,11 @@ import "os"
 // value should not be changed for backward-compatibility reasons
 const DefaultBeaconID = "default"
 
+// DefaultChainHash is the value used when chain hash has an empty value on requests
+// from clients. This value should not be changed for
+// backward-compatibility reasons
+const DefaultChainHash = "default"
+
 // MultiBeaconFolder
 const MultiBeaconFolder = "multibeacon"
 
@@ -13,4 +18,8 @@ const MultiBeaconFolder = "multibeacon"
 // It is used for testing purpose.
 func GetBeaconIDFromEnv() string {
 	return os.Getenv("BEACON_ID")
+}
+
+func IsDefaultBeaconID(beaconID string) bool {
+	return beaconID == DefaultBeaconID || beaconID == ""
 }
