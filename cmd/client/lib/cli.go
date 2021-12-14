@@ -54,6 +54,11 @@ var (
 		Usage:   "The hash (in hex) for the chain to follow",
 		Aliases: []string{"chain-hash"}, // DEPRECATED
 	}
+	// HashListFlag is the CLI flag for the hashes list (in hex) for the relay to follow.
+	HashListFlag = &cli.StringSliceFlag{
+		Name:  "hash-list",
+		Usage: "The hash list (in hex) for the relay to follow",
+	}
 	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
 		Name: "group-conf",

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	client2 "github.com/drand/drand/client"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -67,11 +68,20 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	hash, err := hex.DecodeString(c.String(lib.HashFlag.Name))
-	if err != nil {
-		return fmt.Errorf("failed to decode hash flag: %w", err)
+	hashList := c.StringSlice(lib.HashListFlag.Name)
+	for _, hashHex := range hashList {
+		hash, err := hex.DecodeString(hashHex)
+		if err != nil {
+			return fmt.Errorf("failed to decode hash flag: %w", err)
+		}
+
+		c, err := lib.Create(c, c.IsSet(metricsFlag.Name), client2.WithChainHash(hash))
+		if err != nil {
+			return err
+		}
+
+		handler.HandlerDrand.CreateBeaconHandler(c, string(hash))
 	}
-	handler.HandlerDrand.CreateBeaconHandler(client, string(hash))
 
 	if c.IsSet(accessLogFlag.Name) {
 		logFile, err := os.OpenFile(c.String(accessLogFlag.Name), os.O_CREATE|os.O_APPEND|os.O_WRONLY, accessLogPermFolder)
@@ -112,7 +122,7 @@ func main() {
 		Name:    "relay",
 		Version: version.String(),
 		Usage:   "Relay a Drand group to a public HTTP Rest API",
-		Flags:   append(lib.ClientFlags, listenFlag, accessLogFlag, metricsFlag),
+		Flags:   append(lib.ClientFlags, lib.HashListFlag, listenFlag, accessLogFlag, metricsFlag),
 		Action:  Relay,
 	}
 	cli.VersionPrinter = func(c *cli.Context) {
@@ -121,6 +131,7 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
+		fmt.Println(err)
 		log.DefaultLogger().Fatalw("", "binary", "relay", "err", err)
 	}
 }
