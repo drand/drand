@@ -37,7 +37,6 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 	if err == nil {
 		// Add beacon handler from chain has for http server
 		dd.AddBeaconHandler(beaconID, bp)
-
 	}
 
 	return chainGroup, err

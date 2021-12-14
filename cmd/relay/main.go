@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
-	client2 "github.com/drand/drand/client"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
@@ -46,6 +46,7 @@ var metricsFlag = &cli.StringFlag{
 }
 
 // Relay a GRPC connection to an HTTP server.
+// nolint:gocyclo
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
 
@@ -83,7 +84,7 @@ func Relay(c *cli.Context) error {
 					return fmt.Errorf("failed to decode hash flag: %w", err)
 				}
 
-				c, err := lib.Create(c, c.IsSet(metricsFlag.Name), client2.WithChainHash(hash))
+				c, err := lib.Create(c, c.IsSet(metricsFlag.Name), dclient.WithChainHash(hash))
 				if err != nil {
 					return err
 				}
