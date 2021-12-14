@@ -70,7 +70,10 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
-	cmgr := connmgr.NewConnManager(lowWater, highWater, gracePeriod)
+	cmgr, err := connmgr.NewConnManager(lowWater, highWater, connmgr.WithGracePeriod(gracePeriod))
+	if err != nil {
+		return nil, nil, xerrors.Errorf("constructing connmanager: %+v", err)
+	}
 
 	opts := []libp2p.Option{
 		libp2p.Identity(priv),

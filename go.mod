@@ -6,7 +6,6 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/aws/aws-sdk-go v1.32.11
 	github.com/briandowns/spinner v1.11.1
-	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/drand/kyber v1.1.7
 	github.com/drand/kyber-bls12381 v0.2.1
 	github.com/go-kit/kit v0.10.0
@@ -25,11 +24,11 @@ require (
 	github.com/ipfs/go-ds-badger2 v0.1.2-0.20211203191834-bc6df5c2417c
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
-	github.com/libp2p/go-libp2p v0.16.0
-	github.com/libp2p/go-libp2p-connmgr v0.2.4
-	github.com/libp2p/go-libp2p-core v0.11.0
+	github.com/libp2p/go-libp2p v0.17.0
+	github.com/libp2p/go-libp2p-connmgr v0.3.0
+	github.com/libp2p/go-libp2p-core v0.13.0
 	github.com/libp2p/go-libp2p-noise v0.3.0
-	github.com/libp2p/go-libp2p-peerstore v0.4.0
+	github.com/libp2p/go-libp2p-peerstore v0.6.0
 	github.com/libp2p/go-libp2p-pubsub v0.6.0
 	github.com/libp2p/go-libp2p-tls v0.3.1
 	github.com/multiformats/go-multiaddr v0.4.0
