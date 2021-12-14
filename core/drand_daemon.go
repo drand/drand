@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/chain"
 	"sync"
+
+	"github.com/drand/drand/chain"
 
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
@@ -141,7 +142,10 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 
 	if !bp.isFreshRun() {
 		info := chain.NewChainInfo(bp.group)
-		dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+		bh := dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+		if common.IsDefaultBeaconID(beaconID) {
+			dd.handler.HandlerDrand.AddDefaultBeaconHandler(bh)
+		}
 	}
 
 	return bp, nil

@@ -3,7 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
+
 	"github.com/drand/drand/chain"
+	common2 "github.com/drand/drand/common"
 
 	"github.com/drand/drand/key"
 
@@ -39,7 +41,10 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 		group, err := key.GroupFromProto(chainGroup)
 		if err == nil {
 			info := chain.NewChainInfo(group)
-			dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+			bh := dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+			if common2.IsDefaultBeaconID(beaconID) {
+				dd.handler.HandlerDrand.AddDefaultBeaconHandler(bh)
+			}
 		}
 	}
 
