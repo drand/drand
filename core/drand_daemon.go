@@ -140,15 +140,15 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
-	if !bp.isFreshRun() {
-		info := chain.NewChainInfo(bp.group)
-		bh := dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
-		if common.IsDefaultBeaconID(beaconID) {
-			dd.handler.HandlerDrand.AddDefaultBeaconHandler(bh)
-		}
-	}
-
 	return bp, nil
+}
+
+func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
+	info := chain.NewChainInfo(bp.group)
+	bh := dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+	if common.IsDefaultBeaconID(beaconID) {
+		dd.handler.HandlerDrand.AddDefaultBeaconHandler(bh)
+	}
 }
 
 // LoadBeacons checks for existing stores and creates the corresponding BeaconProcess
@@ -176,6 +176,10 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
 		} else {
 			fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
+
+			// Add beacon handler from chain has for http server
+			dd.AddBeaconHandler(beaconID, bp)
+
 			// XXX make it configurable so that new share holder can still start if
 			// nobody started.
 			// drand.StartBeacon(!c.Bool(pushFlag.Name))

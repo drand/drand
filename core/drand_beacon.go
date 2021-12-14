@@ -333,7 +333,7 @@ func (bp *BeaconProcess) isFreshRun() bool {
 	_, errG := bp.store.LoadGroup()
 	_, errS := bp.store.LoadShare()
 
-	return errG != nil || errS != nil || bp.group == nil
+	return errG != nil || errS != nil
 }
 
 // dkgInfo is a simpler wrapper that keeps the relevant config and logic
