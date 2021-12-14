@@ -68,19 +68,31 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	hashList := c.StringSlice(lib.HashListFlag.Name)
-	for _, hashHex := range hashList {
-		hash, err := hex.DecodeString(hashHex)
+	if c.IsSet(lib.HashFlag.Name) {
+		hash, err := hex.DecodeString(c.String(lib.HashFlag.Name))
 		if err != nil {
 			return fmt.Errorf("failed to decode hash flag: %w", err)
 		}
+		handler.HandlerDrand.CreateBeaconHandler(client, string(hash))
+	} else {
+		if c.IsSet(lib.HashFlag.Name) {
+			hashList := c.StringSlice(lib.HashListFlag.Name)
+			for _, hashHex := range hashList {
+				hash, err := hex.DecodeString(hashHex)
+				if err != nil {
+					return fmt.Errorf("failed to decode hash flag: %w", err)
+				}
 
-		c, err := lib.Create(c, c.IsSet(metricsFlag.Name), client2.WithChainHash(hash))
-		if err != nil {
-			return err
+				c, err := lib.Create(c, c.IsSet(metricsFlag.Name), client2.WithChainHash(hash))
+				if err != nil {
+					return err
+				}
+
+				handler.HandlerDrand.CreateBeaconHandler(c, string(hash))
+			}
+		} else {
+			return fmt.Errorf("must specify flag %s or %s", lib.HashFlag.Name, lib.HashListFlag.Name)
 		}
-
-		handler.HandlerDrand.CreateBeaconHandler(c, string(hash))
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
@@ -131,7 +143,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Println(err)
 		log.DefaultLogger().Fatalw("", "binary", "relay", "err", err)
 	}
 }
