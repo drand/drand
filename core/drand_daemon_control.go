@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/drand/drand/chain"
-	common2 "github.com/drand/drand/common"
-
 	"github.com/drand/drand/key"
 
 	"github.com/drand/drand/common/scheme"
@@ -38,14 +35,9 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 
 	chainGroup, err := bp.InitDKG(c, in)
 	if err == nil {
-		group, err := key.GroupFromProto(chainGroup)
-		if err == nil {
-			info := chain.NewChainInfo(group)
-			bh := dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
-			if common2.IsDefaultBeaconID(beaconID) {
-				dd.handler.HandlerDrand.AddDefaultBeaconHandler(bh)
-			}
-		}
+		// Add beacon handler from chain has for http server
+		dd.AddBeaconHandler(beaconID, bp)
+
 	}
 
 	return chainGroup, err
@@ -71,7 +63,13 @@ func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePac
 		}
 	}
 
-	return bp.InitReshare(ctx, in)
+	groupPacket, err := bp.InitReshare(ctx, in)
+	if err == nil {
+		// Add beacon handler from chain has for http server
+		dd.AddBeaconHandler(beaconID, bp)
+	}
+
+	return groupPacket, err
 }
 
 // PingPong simply responds with an empty packet, proving that this drand node
