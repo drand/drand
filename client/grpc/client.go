@@ -71,9 +71,7 @@ func (g *grpcClient) String() string {
 
 // Get returns a the randomness at `round` or an error.
 func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, error) {
-	metadata := common.Metadata{ChainHash: g.chainHash}
-
-	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round, Metadata: &metadata})
+	curr, err := g.client.PublicRand(ctx, &drand.PublicRandRequest{Round: round, Metadata: g.getMetadata()})
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +84,7 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 
 // Watch returns new randomness as it becomes available.
 func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
-	metadata := common.Metadata{ChainHash: g.chainHash}
-
-	stream, err := g.client.PublicRandStream(ctx, &drand.PublicRandRequest{Round: 0, Metadata: &metadata})
+	stream, err := g.client.PublicRandStream(ctx, &drand.PublicRandRequest{Round: 0, Metadata: g.getMetadata()})
 	ch := make(chan client.Result, 1)
 	if err != nil {
 		close(ch)
@@ -100,9 +96,7 @@ func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 
 // Info returns information about the chain.
 func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
-	metadata := common.Metadata{ChainHash: g.chainHash}
-
-	proto, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: &metadata})
+	proto, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: g.getMetadata()})
 	if err != nil {
 		return nil, err
 	}
@@ -126,13 +120,15 @@ func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out c
 	}
 }
 
+func (g *grpcClient) getMetadata() *common.Metadata {
+	return &common.Metadata{ChainHash: g.chainHash}
+}
+
 func (g *grpcClient) RoundAt(t time.Time) uint64 {
 	ctx, cancel := context.WithTimeout(context.Background(), grpcDefaultTimeout)
 	defer cancel()
 
-	metadata := common.Metadata{ChainHash: g.chainHash}
-
-	info, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: &metadata})
+	info, err := g.client.ChainInfo(ctx, &drand.ChainInfoRequest{Metadata: g.getMetadata()})
 	if err != nil {
 		return 0
 	}

@@ -229,7 +229,6 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	newShare := bp.share
 	bp.state.Unlock()
 
-	bp.log.Infow("", "--->", bp.beacon)
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
 		bp.beacon.TransitionNewGroup(newShare, newGroup)

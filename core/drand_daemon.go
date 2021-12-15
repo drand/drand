@@ -177,7 +177,7 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 		} else {
 			fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
 
-			// Add beacon handler from chain has for http server
+			// Add beacon handler from chain hash for http server
 			dd.AddBeaconHandler(beaconID, bp)
 
 			// XXX make it configurable so that new share holder can still start if

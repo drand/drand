@@ -35,7 +35,7 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 
 	chainGroup, err := bp.InitDKG(c, in)
 	if err == nil {
-		// Add beacon handler from chain has for http server
+		// Add beacon handler from chain hash for http server
 		dd.AddBeaconHandler(beaconID, bp)
 	}
 
@@ -64,7 +64,7 @@ func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePac
 
 	groupPacket, err := bp.InitReshare(ctx, in)
 	if err == nil {
-		// Add beacon handler from chain has for http server
+		// Add beacon handler from chain hash for http server
 		dd.AddBeaconHandler(beaconID, bp)
 	}
 
