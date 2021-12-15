@@ -39,11 +39,16 @@ var (
 	reqTimeout = 5 * time.Second
 )
 
+// DrandHandler keeps the reference to the real http handler used by the server
+// to attend to new request, as well as the slice of logic handlers used to process
+// a request. Each handler will attend to requests for one beacon process. The chain hash
+// is used as key.
 type DrandHandler struct {
 	HandlerHTTP  http.Handler
 	HandlerDrand *handler
 }
 
+//
 type handler struct {
 	timeout time.Duration
 
@@ -110,7 +115,8 @@ func New(ctx context.Context, c client.Client, version string, logger log.Logger
 	return DrandHandler{instrumented, handler}, nil
 }
 
-func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) *beaconHandler {
+// RegisterNewBeaconHandler add a new handler for a beacon process using its chain hash
+func (h *handler) RegisterNewBeaconHandler(c client.Client, chainHash string) *beaconHandler {
 	h.state.Lock()
 	defer h.state.Unlock()
 
@@ -125,17 +131,19 @@ func (h *handler) CreateBeaconHandler(c client.Client, chainHash string) *beacon
 	}
 
 	h.beacons[chainHash] = bh
-	h.log.Infow("Created BeaconHandler", "chainHash", chainHash)
+	h.log.Infow("New beacon handler registered", "chainHash", chainHash)
 
 	return bh
 }
 
-func (h *handler) AddDefaultBeaconHandler(bh *beaconHandler) {
+// RegisterDefaultBeaconHandler add default handler which will be used when a request without
+// a chain hash is received
+func (h *handler) RegisterDefaultBeaconHandler(bh *beaconHandler) {
 	h.state.Lock()
 	defer h.state.Unlock()
 
 	h.beacons[common.DefaultChainHash] = bh
-	h.log.Infow("Created Default BeaconHandler")
+	h.log.Infow("New default beacon handler registered")
 }
 
 func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -329,8 +337,7 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 
 func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	// Get the round.
-	round := readRound(r)
-	roundN, err := strconv.ParseUint(round, roundNumBase, roundNumSize)
+	roundN, err := readRound(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		h.log.Warnw("", "http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
@@ -530,9 +537,9 @@ func readChainHash(r *http.Request) ([]byte, error) {
 	return chainHashHex, nil
 }
 
-func readRound(r *http.Request) string {
+func readRound(r *http.Request) (uint64, error) {
 	round := chi.URLParam(r, roundParamKey)
-	return round
+	return strconv.ParseUint(round, roundNumBase, roundNumSize)
 }
 
 func (h *handler) getBeaconHandler(chainHash []byte) (*beaconHandler, error) {

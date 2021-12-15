@@ -20,6 +20,10 @@ func GetBeaconIDFromEnv() string {
 	return os.Getenv("BEACON_ID")
 }
 
+// IsDefaultBeaconID indicates if the beacon id received is the default one or not.
+// There is a direct relationship between an empty string and the reserved id "default".
+// Internally, empty string is translated to "default" so we can create the beacon folder
+// with a valid name.
 func IsDefaultBeaconID(beaconID string) bool {
 	return beaconID == DefaultBeaconID || beaconID == ""
 }

@@ -47,7 +47,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Schem
 		t.Fatal("could not use server after 3 attempts.")
 	}
 
-	handler.HandlerDrand.CreateBeaconHandler(client, chainInfo.HashString())
+	handler.HandlerDrand.RegisterNewBeaconHandler(client, chainInfo.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {

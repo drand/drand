@@ -49,7 +49,7 @@ func TestHTTPRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.CreateBeaconHandler(c, info.HashString())
+	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
@@ -138,7 +138,7 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.CreateBeaconHandler(c, info.HashString())
+	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -212,7 +212,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.CreateBeaconHandler(c, info.HashString())
+	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -251,7 +251,7 @@ func TestHTTPHealth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.CreateBeaconHandler(c, info.HashString())
+	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {

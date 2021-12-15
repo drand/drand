@@ -145,9 +145,9 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 
 func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
 	info := chain.NewChainInfo(bp.group)
-	bh := dd.handler.HandlerDrand.CreateBeaconHandler(&drandProxy{bp}, info.HashString())
+	bh := dd.handler.HandlerDrand.RegisterNewBeaconHandler(&drandProxy{bp}, info.HashString())
 	if common.IsDefaultBeaconID(beaconID) {
-		dd.handler.HandlerDrand.AddDefaultBeaconHandler(bh)
+		dd.handler.HandlerDrand.RegisterDefaultBeaconHandler(bh)
 	}
 }
 

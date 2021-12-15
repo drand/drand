@@ -74,7 +74,7 @@ func Relay(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to decode hash flag: %w", err)
 		}
-		handler.HandlerDrand.CreateBeaconHandler(client, string(hash))
+		handler.HandlerDrand.RegisterNewBeaconHandler(client, string(hash))
 	} else {
 		if c.IsSet(lib.HashListFlag.Name) {
 			hashList := c.StringSlice(lib.HashListFlag.Name)
@@ -89,7 +89,7 @@ func Relay(c *cli.Context) error {
 					return err
 				}
 
-				handler.HandlerDrand.CreateBeaconHandler(c, fmt.Sprintf("%x", hash))
+				handler.HandlerDrand.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
 			}
 		} else {
 			return fmt.Errorf("must specify flag %s or %s", lib.HashFlag.Name, lib.HashListFlag.Name)
