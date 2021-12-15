@@ -45,7 +45,7 @@ func TestHTTPClient(t *testing.T) {
 	}
 
 	if _, err := httpClient.Get(ctx, full.Rnd+1); err != nil {
-		t.Fatal("http client should not perform verification of results")
+		t.Fatalf("http client should not perform verification of results. err: %s", err)
 	}
 	_ = httpClient.Close()
 }
