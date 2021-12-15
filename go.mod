@@ -21,7 +21,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.0
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ipfs/go-datastore v0.5.0
-	github.com/ipfs/go-ds-badger2 v0.1.2-0.20211203191834-bc6df5c2417c
+	github.com/ipfs/go-ds-badger2 v0.1.2
 	github.com/jonboulle/clockwork v0.1.1-0.20190114141812-62fb9bc030d1
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
 	github.com/libp2p/go-libp2p v0.17.0
