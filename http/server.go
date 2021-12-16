@@ -73,12 +73,12 @@ type beaconHandler struct {
 }
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, c client.Client, version string, logger log.Logger) (DrandHandler, error) {
+func New(ctx context.Context, c client.Client, version string, logger log.Logger) (*DrandHandler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger()
 	}
 
-	handler := DrandHandler{
+	handler := &DrandHandler{
 		timeout: reqTimeout,
 		log:     logger,
 		context: ctx,
@@ -130,10 +130,11 @@ func (h *DrandHandler) RegisterNewBeaconHandler(c client.Client, chainHash strin
 	return bh
 }
 
-func (h *DrandHandler) GetHttpHandler() http.Handler {
+func (h *DrandHandler) GetHTTPHandler() http.Handler {
 	return h.httpHandler
 }
-func (h *DrandHandler) SetHttpHandler(newHandler http.Handler) {
+
+func (h *DrandHandler) SetHTTPHandler(newHandler http.Handler) {
 	h.httpHandler = newHandler
 }
 

@@ -65,7 +65,10 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 			beaconID = common.DefaultBeaconID
 		}
 
+		drandDaemon.state.Lock()
 		bp, isPresent := drandDaemon.beaconProcesses[beaconID]
+		drandDaemon.state.Unlock()
+
 		if isPresent {
 			drandDaemon.AddBeaconHandler(beaconID, bp)
 		}
@@ -114,12 +117,12 @@ func (dd *DrandDaemon) init() error {
 
 	if pubAddr != "" {
 		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager,
-			handler.GetHttpHandler(), c.insecure); err != nil {
+			handler.GetHTTPHandler(), c.insecure); err != nil {
 			return err
 		}
 	}
 
-	dd.handler = &handler
+	dd.handler = handler
 	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
 	if err != nil {
 		return err
