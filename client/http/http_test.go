@@ -27,7 +27,7 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx1, cancel1 := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel1()
 	result, err := httpClient.Get(ctx1, 0)
 	if err != nil {
@@ -44,7 +44,7 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal("no signature provided")
 	}
 
-	ctx2, cancel2 := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel2()
 	if _, err := httpClient.Get(ctx2, full.Rnd+1); err != nil {
 		t.Fatalf("http client should not perform verification of results. err: %s", err)
