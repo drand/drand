@@ -33,13 +33,7 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 		}
 	}
 
-	chainGroup, err := bp.InitDKG(c, in)
-	if err == nil {
-		// Add beacon handler from chain hash for http server
-		dd.AddBeaconHandler(beaconID, bp)
-	}
-
-	return chainGroup, err
+	return bp.InitDKG(c, in)
 }
 
 // InitReshare receives information about the old and new group from which to
@@ -62,13 +56,7 @@ func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePac
 		}
 	}
 
-	groupPacket, err := bp.InitReshare(ctx, in)
-	if err == nil {
-		// Add beacon handler from chain hash for http server
-		dd.AddBeaconHandler(beaconID, bp)
-	}
-
-	return groupPacket, err
+	return bp.InitReshare(ctx, in)
 }
 
 // PingPong simply responds with an empty packet, proving that this drand node

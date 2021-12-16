@@ -30,7 +30,7 @@ type Config struct {
 	dkgTimeout        time.Duration
 	boltOpts          *bolt.Options
 	beaconCbs         []func(*chain.Beacon)
-	dkgCallback       func(*key.Share)
+	dkgCallback       func(*key.Share, *key.Group)
 	insecure          bool
 	certPath          string
 	keyPath           string
@@ -124,9 +124,9 @@ func (d *Config) callbacks(b *chain.Beacon) {
 	}
 }
 
-func (d *Config) applyDkgCallback(share *key.Share) {
+func (d *Config) applyDkgCallback(share *key.Share, group *key.Group) {
 	if d.dkgCallback != nil {
-		d.dkgCallback(share)
+		d.dkgCallback(share, group)
 	}
 }
 
@@ -181,7 +181,7 @@ func WithBeaconCallback(fn func(*chain.Beacon)) ConfigOption {
 
 // WithDKGCallback sets a function that is called when the DKG finishes. It
 // passes in the share of this node and the distributed public key generated.
-func WithDKGCallback(fn func(*key.Share)) ConfigOption {
+func WithDKGCallback(fn func(*key.Share, *key.Group)) ConfigOption {
 	return func(d *Config) {
 		d.dkgCallback = fn
 	}

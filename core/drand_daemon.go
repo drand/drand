@@ -58,6 +58,19 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		beaconProcesses: make(map[string]*BeaconProcess),
 	}
 
+	// Add callback to registera new handler for http server after finishing DKG successfully
+	c.dkgCallback = func(share *key.Share, group *key.Group) {
+		beaconID := group.ID
+		if beaconID == "" {
+			beaconID = common.DefaultBeaconID
+		}
+
+		bp, isPresent := drandDaemon.beaconProcesses[beaconID]
+		if isPresent {
+			drandDaemon.AddBeaconHandler(beaconID, bp)
+		}
+	}
+
 	if err := drandDaemon.init(); err != nil {
 		return nil, err
 	}

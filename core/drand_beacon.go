@@ -173,7 +173,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	if err := bp.store.SaveGroup(bp.group); err != nil {
 		return nil, err
 	}
-	bp.opts.applyDkgCallback(bp.share)
+	bp.opts.applyDkgCallback(bp.share, bp.group)
 	bp.dkgInfo.board.Stop()
 	bp.dkgInfo = nil
 	return bp.group, nil
