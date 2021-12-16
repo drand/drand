@@ -74,7 +74,7 @@ func Relay(c *cli.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to decode hash flag: %w", err)
 		}
-		handler.HandlerDrand.RegisterNewBeaconHandler(client, string(hash))
+		handler.RegisterNewBeaconHandler(client, string(hash))
 	} else {
 		if c.IsSet(lib.HashListFlag.Name) {
 			hashList := c.StringSlice(lib.HashListFlag.Name)
@@ -89,7 +89,7 @@ func Relay(c *cli.Context) error {
 					return err
 				}
 
-				handler.HandlerDrand.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
+				handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
 			}
 		} else {
 			return fmt.Errorf("must specify flag %s or %s", lib.HashFlag.Name, lib.HashListFlag.Name)
@@ -102,9 +102,9 @@ func Relay(c *cli.Context) error {
 			return fmt.Errorf("failed to open access log: %w", err)
 		}
 		defer logFile.Close()
-		handler.HandlerHTTP = handlers.CombinedLoggingHandler(logFile, handler.HandlerHTTP)
+		handler.SetHttpHandler(handlers.CombinedLoggingHandler(logFile, handler.GetHttpHandler()))
 	} else {
-		handler.HandlerHTTP = handlers.CombinedLoggingHandler(os.Stdout, handler.HandlerHTTP)
+		handler.SetHttpHandler(handlers.CombinedLoggingHandler(os.Stdout, handler.GetHttpHandler()))
 	}
 
 	bind := "localhost:0"
@@ -119,13 +119,13 @@ func Relay(c *cli.Context) error {
 	// jumpstart bootup
 	req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
 	rr := httptest.NewRecorder()
-	handler.HandlerHTTP.ServeHTTP(rr, req)
+	handler.GetHttpHandler().ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
-	return http.Serve(listener, handler.HandlerHTTP)
+	return http.Serve(listener, handler.GetHttpHandler())
 }
 
 func main() {

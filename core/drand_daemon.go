@@ -114,7 +114,7 @@ func (dd *DrandDaemon) init() error {
 
 	if pubAddr != "" {
 		if dd.pubGateway, err = net.NewRESTPublicGateway(ctx, pubAddr, c.certPath, c.keyPath, c.certmanager,
-			handler.HandlerHTTP, c.insecure); err != nil {
+			handler.GetHttpHandler(), c.insecure); err != nil {
 			return err
 		}
 	}
@@ -158,9 +158,9 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 
 func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
 	info := chain.NewChainInfo(bp.group)
-	bh := dd.handler.HandlerDrand.RegisterNewBeaconHandler(&drandProxy{bp}, info.HashString())
+	bh := dd.handler.RegisterNewBeaconHandler(&drandProxy{bp}, info.HashString())
 	if common.IsDefaultBeaconID(beaconID) {
-		dd.handler.HandlerDrand.RegisterDefaultBeaconHandler(bh)
+		dd.handler.RegisterDefaultBeaconHandler(bh)
 	}
 }
 

@@ -49,13 +49,13 @@ func TestHTTPRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
+	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHTTP}
+	server := http.Server{Handler: handler.GetHttpHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -138,13 +138,13 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
+	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHTTP}
+	server := http.Server{Handler: handler.GetHttpHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -212,13 +212,13 @@ func TestHTTPWatchFuture(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
+	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHTTP}
+	server := http.Server{Handler: handler.GetHttpHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
@@ -251,13 +251,13 @@ func TestHTTPHealth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	handler.HandlerDrand.RegisterNewBeaconHandler(c, info.HashString())
+	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler.HandlerHTTP}
+	server := http.Server{Handler: handler.GetHttpHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
