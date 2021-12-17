@@ -262,6 +262,10 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		h.log.Warn("http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
+	if roundN == 0 {
+		h.LatestRand(w, r)
+		return
+	}
 
 	info := h.getChainInfo(r.Context())
 	roundExpectedTime := time.Now()
