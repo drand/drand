@@ -51,7 +51,7 @@ type DrandHandler struct {
 	context context.Context
 	log     log.Logger
 	version string
-	state   sync.Mutex
+	state   sync.RWMutex
 }
 
 type beaconHandler struct {
@@ -550,8 +550,8 @@ func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*beaconHandler, error
 		chainHashStr = common.DefaultChainHash
 	}
 
-	h.state.Lock()
-	defer h.state.Unlock()
+	h.state.RLock()
+	defer h.state.RUnlock()
 
 	bh, exists := h.beacons[chainHashStr]
 
