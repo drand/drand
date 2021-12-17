@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/drand/drand/chain"
-
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/protobuf/drand"

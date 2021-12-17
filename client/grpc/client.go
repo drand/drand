@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drand/drand/protobuf/common"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
