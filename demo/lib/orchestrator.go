@@ -314,6 +314,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 	fmt.Println("[+] Checking randomness via HTTP API using curl")
 	var printed bool
 	for _, n := range nodes {
+		time.Sleep(15 * time.Second)
 		args := []string{"-k", "-s"}
 		http := "http"
 		if e.tls {
