@@ -3,14 +3,18 @@ package http
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/common"
+
+	"github.com/go-chi/chi"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -26,6 +30,8 @@ const (
 	catchupExpiryFactor = 2
 	roundNumBase        = 10
 	roundNumSize        = 64
+	chainHashParamKey   = "chainHash"
+	roundParamKey       = "round"
 )
 
 var (
@@ -33,37 +39,113 @@ var (
 	reqTimeout = 5 * time.Second
 )
 
+// DrandHandler keeps the reference to the real http handler used by the server
+// to attend to new request, as well as the slice of logic handlers used to process
+// a request. Each handler will attend to requests for one beacon process. The chain hash
+// is used as key.
+type DrandHandler struct {
+	httpHandler http.Handler
+	beacons     map[string]*beaconHandler
+
+	timeout time.Duration
+	context context.Context
+	log     log.Logger
+	version string
+	state   sync.RWMutex
+}
+
+type beaconHandler struct {
+	// NOTE: should only be accessed via getChainInfo
+	chainInfo   *chain.Info
+	chainInfoLk sync.RWMutex
+	log         log.Logger
+
+	// Client to handle beacon
+	client client.Client
+
+	// synchronization for blocking writes until randomness available.
+	pendingLk   sync.RWMutex
+	startOnce   sync.Once
+	pending     []chan []byte
+	context     context.Context
+	latestRound uint64
+	version     string
+}
+
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, c client.Client, version string, logger log.Logger) (http.Handler, error) {
+func New(ctx context.Context, c client.Client, version string, logger log.Logger) (*DrandHandler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger()
 	}
-	handler := handler{
-		timeout:     reqTimeout,
-		client:      c,
-		chainInfo:   nil,
-		log:         logger,
-		pending:     nil,
-		context:     ctx,
-		latestRound: 0,
-		version:     version,
+
+	handler := &DrandHandler{
+		timeout: reqTimeout,
+		log:     logger,
+		context: ctx,
+		version: version,
+		beacons: make(map[string]*beaconHandler),
 	}
 
-	mux := http.NewServeMux()
-	//TODO: aggregated bulk round responses.
+	mux := chi.NewMux()
+
+	mux.HandleFunc("/{"+chainHashParamKey+"}/public/latest", withCommonHeaders(version, handler.LatestRand))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/info", withCommonHeaders(version, handler.ChainInfo))
+	mux.HandleFunc("/{"+chainHashParamKey+"}/health", withCommonHeaders(version, handler.Health))
+
 	mux.HandleFunc("/public/latest", withCommonHeaders(version, handler.LatestRand))
-	mux.HandleFunc("/public/", withCommonHeaders(version, handler.PublicRand))
+	mux.HandleFunc("/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
 	mux.HandleFunc("/info", withCommonHeaders(version, handler.ChainInfo))
 	mux.HandleFunc("/health", withCommonHeaders(version, handler.Health))
 
-	instrumented := promhttp.InstrumentHandlerCounter(
+	handler.httpHandler = promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
 		promhttp.InstrumentHandlerDuration(
 			metrics.HTTPLatency,
 			promhttp.InstrumentHandlerInFlight(
 				metrics.HTTPInFlight,
 				mux)))
-	return instrumented, nil
+
+	return handler, nil
+}
+
+// RegisterNewBeaconHandler add a new handler for a beacon process using its chain hash
+func (h *DrandHandler) RegisterNewBeaconHandler(c client.Client, chainHash string) *beaconHandler {
+	h.state.Lock()
+	defer h.state.Unlock()
+
+	bh := &beaconHandler{
+		context:     h.context,
+		client:      c,
+		latestRound: 0,
+		pending:     nil,
+		chainInfo:   nil,
+		version:     h.version,
+		log:         h.log,
+	}
+
+	h.beacons[chainHash] = bh
+	h.log.Infow("New beacon handler registered", "chainHash", chainHash)
+
+	return bh
+}
+
+func (h *DrandHandler) GetHTTPHandler() http.Handler {
+	return h.httpHandler
+}
+
+func (h *DrandHandler) SetHTTPHandler(newHandler http.Handler) {
+	h.httpHandler = newHandler
+}
+
+// RegisterDefaultBeaconHandler add default handler which will be used when a request without
+// a chain hash is received
+func (h *DrandHandler) RegisterDefaultBeaconHandler(bh *beaconHandler) {
+	h.state.Lock()
+	defer h.state.Unlock()
+
+	h.beacons[common.DefaultChainHash] = bh
+	h.log.Infow("New default beacon handler registered")
 }
 
 func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
@@ -75,47 +157,32 @@ func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request
 	}
 }
 
-type handler struct {
-	timeout time.Duration
-	client  client.Client
-	// NOTE: should only be accessed via getChainInfo
-	chainInfo   *chain.Info
-	chainInfoLk sync.RWMutex
-	log         log.Logger
+func (h *DrandHandler) start(bh *beaconHandler) {
+	bh.pendingLk.Lock()
+	defer bh.pendingLk.Unlock()
 
-	// synchronization for blocking writes until randomness available.
-	pendingLk   sync.RWMutex
-	startOnce   sync.Once
-	pending     []chan []byte
-	context     context.Context
-	latestRound uint64
-	version     string
-}
-
-func (h *handler) start() {
-	h.pendingLk.Lock()
-	defer h.pendingLk.Unlock()
-	h.pending = make([]chan []byte, 0)
+	bh.pending = make([]chan []byte, 0)
 	ready := make(chan bool)
-	go h.Watch(h.context, ready)
+	go h.Watch(bh, ready)
+
 	<-ready
 }
 
-func (h *handler) Watch(ctx context.Context, ready chan bool) {
+func (h *DrandHandler) Watch(bh *beaconHandler, ready chan bool) {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-bh.context.Done():
 			return
 		default:
 		}
-		h.watchWithTimeout(ctx, ready)
+		h.watchWithTimeout(bh, ready)
 	}
 }
 
-func (h *handler) watchWithTimeout(ctx context.Context, ready chan bool) {
-	watchCtx, cncl := context.WithCancel(ctx)
+func (h *DrandHandler) watchWithTimeout(bh *beaconHandler, ready chan bool) {
+	watchCtx, cncl := context.WithCancel(bh.context)
 	defer cncl()
-	stream := h.client.Watch(watchCtx)
+	stream := bh.client.Watch(watchCtx)
 
 	// signal that the watch is ready
 	select {
@@ -124,16 +191,16 @@ func (h *handler) watchWithTimeout(ctx context.Context, ready chan bool) {
 	}
 
 	expectedRoundDelayBackoff := time.Minute
-	h.chainInfoLk.RLock()
-	if h.chainInfo != nil {
-		expectedRoundDelayBackoff = h.chainInfo.Period * 2
+	bh.chainInfoLk.RLock()
+	if bh.chainInfo != nil {
+		expectedRoundDelayBackoff = bh.chainInfo.Period * 2
 	}
-	h.chainInfoLk.RUnlock()
+	bh.chainInfoLk.RUnlock()
 	for {
 		var next client.Result
 		var ok bool
 		select {
-		case <-ctx.Done():
+		case <-bh.context.Done():
 			return
 		case next, ok = <-stream:
 		case <-time.After(expectedRoundDelayBackoff):
@@ -141,9 +208,9 @@ func (h *handler) watchWithTimeout(ctx context.Context, ready chan bool) {
 		}
 		if !ok {
 			h.log.Warnw("", "http_server", "random stream round failed")
-			h.pendingLk.Lock()
-			h.latestRound = 0
-			h.pendingLk.Unlock()
+			bh.pendingLk.Lock()
+			bh.latestRound = 0
+			bh.pendingLk.Unlock()
 			// backoff on failures a bit to not fall into a tight loop.
 			// TODO: tuning.
 			time.Sleep(watchConnectBackoff)
@@ -152,41 +219,47 @@ func (h *handler) watchWithTimeout(ctx context.Context, ready chan bool) {
 
 		b, _ := json.Marshal(next)
 
-		h.pendingLk.Lock()
-		if h.latestRound+1 != next.Round() && h.latestRound != 0 {
+		bh.pendingLk.Lock()
+		if bh.latestRound+1 != next.Round() && bh.latestRound != 0 {
 			// we missed a round, or similar. don't send bad data to peers.
-			h.log.Warnw("", "http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", h.latestRound+1, next.Round()))
+			h.log.Warnw("", "http_server", "unexpected round for watch", "err", fmt.Sprintf("expected %d, saw %d", bh.latestRound+1, next.Round()))
 			b = []byte{}
 		}
-		h.latestRound = next.Round()
-		pending := h.pending
-		h.pending = make([]chan []byte, 0)
+		bh.latestRound = next.Round()
+		pending := bh.pending
+		bh.pending = make([]chan []byte, 0)
 
 		for _, waiter := range pending {
 			waiter <- b
 		}
-		h.pendingLk.Unlock()
+		bh.pendingLk.Unlock()
 	}
 }
 
-func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
-	h.chainInfoLk.RLock()
-	if h.chainInfo != nil {
-		info := h.chainInfo
-		h.chainInfoLk.RUnlock()
+func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) *chain.Info {
+	bh, err := h.getBeaconHandler(chainHash)
+	if err != nil {
+		return nil
+	}
+
+	bh.chainInfoLk.RLock()
+	if bh.chainInfo != nil {
+		info := bh.chainInfo
+		bh.chainInfoLk.RUnlock()
 		return info
 	}
-	h.chainInfoLk.RUnlock()
+	bh.chainInfoLk.RUnlock()
 
-	h.chainInfoLk.Lock()
-	defer h.chainInfoLk.Unlock()
-	if h.chainInfo != nil {
-		return h.chainInfo
+	bh.chainInfoLk.Lock()
+	defer bh.chainInfoLk.Unlock()
+
+	if bh.chainInfo != nil {
+		return bh.chainInfo
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	info, err := h.client.Info(ctx)
+	info, err := bh.client.Info(ctx)
 	if err != nil {
 		h.log.Warnw("", "msg", "chain info fetch failed", "err", err)
 		return nil
@@ -195,38 +268,47 @@ func (h *handler) getChainInfo(ctx context.Context) *chain.Info {
 		h.log.Warnw("", "msg", "chain info fetch didn't return group info")
 		return nil
 	}
-	h.chainInfo = info
+	bh.chainInfo = info
 	return info
 }
 
-func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) ([]byte, error) {
-	h.startOnce.Do(h.start)
+func (h *DrandHandler) getRand(ctx context.Context, info *chain.Info, round uint64) ([]byte, error) {
+	bh, err := h.getBeaconHandler(info.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	bh.startOnce.Do(func() {
+		h.start(bh)
+	})
+
 	// First see if we should get on the synchronized 'wait for next release' bandwagon.
 	block := false
-	h.pendingLk.RLock()
-	block = (h.latestRound+1 == round) && h.latestRound != 0
-	h.pendingLk.RUnlock()
+	bh.pendingLk.RLock()
+	block = (bh.latestRound+1 == round) && bh.latestRound != 0
+	bh.pendingLk.RUnlock()
 	// If so, prepare, and if we're still sync'd, add ourselves to the list of waiters.
 	if block {
 		ch := make(chan []byte, 1)
 		defer close(ch)
-		h.pendingLk.Lock()
-		block = (h.latestRound+1 == round) && h.latestRound != 0
+		bh.pendingLk.Lock()
+		block = (bh.latestRound+1 == round) && bh.latestRound != 0
 		if block {
-			h.pending = append(h.pending, ch)
+			bh.pending = append(bh.pending, ch)
 		}
-		h.pendingLk.Unlock()
+		bh.pendingLk.Unlock()
+
 		// If that was successful, we can now block until we're notified.
 		if block {
 			select {
 			case r := <-ch:
 				return r, nil
 			case <-ctx.Done():
-				h.pendingLk.Lock()
-				defer h.pendingLk.Unlock()
-				for i, c := range h.pending {
+				bh.pendingLk.Lock()
+				defer bh.pendingLk.Unlock()
+				for i, c := range bh.pending {
 					if c == ch {
-						h.pending = append(h.pending[:i], h.pending[i+1:]...)
+						bh.pending = append(bh.pending[:i], bh.pending[i+1:]...)
 						break
 					}
 				}
@@ -246,7 +328,7 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
 	defer cancel()
-	resp, err := h.client.Get(ctx, round)
+	resp, err := bh.client.Get(ctx, round)
 
 	if err != nil {
 		return nil, err
@@ -255,17 +337,22 @@ func (h *handler) getRand(ctx context.Context, info *chain.Info, round uint64) (
 	return json.Marshal(resp)
 }
 
-func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
+func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	// Get the round.
-	round := strings.Replace(r.URL.Path, "/public/", "", 1)
-	roundN, err := strconv.ParseUint(round, roundNumBase, roundNumSize)
+	roundN, err := readRound(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		h.log.Warnw("", "http_server", "failed to parse client round", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		return
 	}
 
-	info := h.getChainInfo(r.Context())
+	chainHashHex, err := readChainHash(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	info := h.getChainInfo(r.Context(), chainHashHex)
 	roundExpectedTime := time.Now()
 	if info == nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -303,11 +390,23 @@ func (h *handler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "rand.json", roundExpectedTime, bytes.NewReader(data))
 }
 
-func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
+func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
+	chainHashHex, err := readChainHash(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	bh, err := h.getBeaconHandler(chainHashHex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
 
-	resp, err := h.client.Get(ctx, 0)
+	resp, err := bh.client.Get(ctx, 0)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -322,7 +421,7 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info := h.getChainInfo(r.Context())
+	info := h.getChainInfo(r.Context(), chainHashHex)
 	roundTime := time.Now()
 	nextTime := time.Now()
 	if info != nil {
@@ -349,15 +448,23 @@ func (h *handler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
-func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
-	info := h.getChainInfo(r.Context())
-	if info == nil {
-		w.WriteHeader(http.StatusNoContent)
-		h.log.Warnw("", "http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+func (h *DrandHandler) ChainInfo(w http.ResponseWriter, r *http.Request) {
+	chainHashHex, err := readChainHash(r)
+	if err != nil {
+		h.log.Warnw("", "http_server", "failed to read chain hash", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	info := h.getChainInfo(r.Context(), chainHashHex)
+	if info == nil {
+		h.log.Warnw("", "http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
+		http.Error(w, "group not found", http.StatusNoContent)
+		return
+	}
+
 	var chainBuff bytes.Buffer
-	err := info.ToJSON(&chainBuff, nil)
+	err = info.ToJSON(&chainBuff, nil)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warnw("", "http_server", "failed to marshal group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
@@ -371,14 +478,28 @@ func (h *handler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, "info.json", time.Unix(info.GenesisTime, 0), bytes.NewReader(chainBuff.Bytes()))
 }
 
-func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
-	h.startOnce.Do(h.start)
+func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
+	chainHashHex, err := readChainHash(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	h.pendingLk.RLock()
-	lastSeen := h.latestRound
-	h.pendingLk.RUnlock()
+	bh, err := h.getBeaconHandler(chainHashHex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 
-	info := h.getChainInfo(r.Context())
+	bh.startOnce.Do(func() {
+		h.start(bh)
+	})
+
+	bh.pendingLk.RLock()
+	lastSeen := bh.latestRound
+	bh.pendingLk.RUnlock()
+
+	info := h.getChainInfo(r.Context(), chainHashHex)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -401,4 +522,42 @@ func (h *handler) Health(w http.ResponseWriter, r *http.Request) {
 
 	b, _ = json.Marshal(resp)
 	_, _ = w.Write(b)
+}
+
+func readChainHash(r *http.Request) ([]byte, error) {
+	var err error
+	chainHashHex := make([]byte, 0)
+
+	chainHash := chi.URLParam(r, chainHashParamKey)
+	if chainHash != "" {
+		chainHashHex, err = hex.DecodeString(chainHash)
+		if err != nil {
+			return nil, fmt.Errorf("invalid chain hash")
+		}
+	}
+
+	return chainHashHex, nil
+}
+
+func readRound(r *http.Request) (uint64, error) {
+	round := chi.URLParam(r, roundParamKey)
+	return strconv.ParseUint(round, roundNumBase, roundNumSize)
+}
+
+func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*beaconHandler, error) {
+	chainHashStr := fmt.Sprintf("%x", chainHash)
+	if chainHashStr == "" {
+		chainHashStr = common.DefaultChainHash
+	}
+
+	h.state.RLock()
+	defer h.state.RUnlock()
+
+	bh, exists := h.beacons[chainHashStr]
+
+	if !exists {
+		return nil, fmt.Errorf("there's no BeaconHandler for beaconHash %s", chainHash)
+	}
+
+	return bh, nil
 }

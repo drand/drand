@@ -89,8 +89,7 @@ func (n *NodeProc) setup() {
 	// find a free port
 	freePort := test.FreePort()
 	freePortREST := test.FreePort()
-	iStr := strconv.Itoa(n.i)
-	host := "127.0.0." + iStr
+	host := "127.0.0.1"
 	n.privAddr = host + ":" + freePort
 	n.pubAddr = host + ":" + freePortREST
 	ctrlPort := test.FreePort()

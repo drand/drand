@@ -27,9 +27,9 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	result, err := httpClient.Get(ctx, 0)
+	ctx1, cancel1 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel1()
+	result, err := httpClient.Get(ctx1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,8 +44,10 @@ func TestHTTPClient(t *testing.T) {
 		t.Fatal("no signature provided")
 	}
 
-	if _, err := httpClient.Get(ctx, full.Rnd+1); err != nil {
-		t.Fatal("http client should not perform verification of results")
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+	if _, err := httpClient.Get(ctx2, full.Rnd+1); err != nil {
+		t.Fatalf("http client should not perform verification of results. err: %s", err)
 	}
 	_ = httpClient.Close()
 }
@@ -118,7 +120,7 @@ func TestHTTPWatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	result := httpClient.Watch(ctx)
 	first, ok := <-result
