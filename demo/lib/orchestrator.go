@@ -314,7 +314,6 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 	fmt.Println("[+] Checking randomness via HTTP API using curl")
 	var printed bool
 	for _, n := range nodes {
-		time.Sleep(15 * time.Second)
 		args := []string{"-k", "-s"}
 		http := "http"
 		if e.tls {
@@ -331,28 +330,39 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		// behind
 		url += strconv.Itoa(int(currRound))
 		args = append(args, url)
-		cmd := exec.Command("curl", args...)
-		if !printed {
-			fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
-			printed = true
-		}
-		if tryCurl {
-			// curl returns weird error code
-			out, _ := cmd.CombinedOutput()
-			out = append(out, []byte("\n")...)
-			var r = new(drand.PublicRandResponse)
-			checkErr(json.Unmarshal(out, r), string(out))
-			if r.GetRound() != rand.GetRound() {
-				panic("[-] Inconsistent round from curl vs CLI")
-			} else if !bytes.Equal(r.GetSignature(), rand.GetSignature()) {
-				fmt.Printf("curl output: %s\n", out)
-				fmt.Printf("curl output rand: %x\n", r.GetSignature())
-				fmt.Printf("cli output: %s\n", rand)
-				fmt.Printf("cli output rand: %x\n", rand.GetSignature())
-				panic("[-] Inconsistent signature from curl vs CLI")
+
+		const maxCurlRetries = 10
+		for i := 0; i < maxCurlRetries; i++ {
+			cmd := exec.Command("curl", args...)
+			if !printed {
+				fmt.Printf("\t- Example command: \"%s\"\n", strings.Join(cmd.Args, " "))
+				printed = true
 			}
-		} else {
-			fmt.Printf("\t[-] Issue with curl command at the moment\n")
+			if tryCurl {
+				// curl returns weird error code
+				out, _ := cmd.CombinedOutput()
+				if len(out) == 0 {
+					fmt.Println("received empty response from curl. Retrying ...")
+					time.Sleep(afterPeriodWait)
+					continue
+				}
+
+				out = append(out, []byte("\n")...)
+				var r = new(drand.PublicRandResponse)
+				checkErr(json.Unmarshal(out, r), string(out))
+				if r.GetRound() != rand.GetRound() {
+					panic("[-] Inconsistent round from curl vs CLI")
+				} else if !bytes.Equal(r.GetSignature(), rand.GetSignature()) {
+					fmt.Printf("curl output: %s\n", out)
+					fmt.Printf("curl output rand: %x\n", r.GetSignature())
+					fmt.Printf("cli output: %s\n", rand)
+					fmt.Printf("cli output rand: %x\n", rand.GetSignature())
+					panic("[-] Inconsistent signature from curl vs CLI")
+				}
+			} else {
+				fmt.Printf("\t[-] Issue with curl command at the moment\n")
+			}
+			break
 		}
 	}
 	out, err := json.MarshalIndent(rand, "", "    ")
