@@ -277,8 +277,8 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) *chai
 	return info
 }
 
-func (h *DrandHandler) getRand(ctx context.Context, info *chain.Info, round uint64) ([]byte, error) {
-	bh, err := h.getBeaconHandler(info.Hash())
+func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chain.Info, round uint64) ([]byte, error) {
+	bh, err := h.getBeaconHandler(chainHash)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +375,7 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := h.getRand(r.Context(), info, roundN)
+	data, err := h.getRand(r.Context(), chainHashHex, info, roundN)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warnw("", "http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
