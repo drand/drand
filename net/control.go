@@ -84,7 +84,9 @@ func NewControlClient(addr string) (*ControlClient, error) {
 	}, nil
 }
 
-func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []*drand.Address, beaconID string) (map[string]*drand.StatusResponse, error) {
+func (c *ControlClient) RemoteStatus(ct ctx.Context,
+	addresses []*drand.Address,
+	beaconID string) (map[string]*drand.StatusResponse, error) {
 	metadata := protoCommon.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
@@ -320,7 +322,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 }
 
 // BackupDB backs up the database to a file
-func (c *ControlClient) BackupDB(outFile string, beaconID string) error {
+func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
