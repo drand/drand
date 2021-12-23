@@ -92,7 +92,8 @@ func Relay(c *cli.Context) error {
 				handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
 			}
 		} else {
-			return fmt.Errorf("must specify flag %s or %s", lib.HashFlag.Name, lib.HashListFlag.Name)
+			fmt.Println("hash flags were not set. Registering beacon handler for default chain hash")
+			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
 		}
 	}
 
