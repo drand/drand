@@ -158,11 +158,34 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	return bp, nil
 }
 
+// RemoveBeaconProcess remove a BeaconProcess linked to beacon with id 'beaconID'
+func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string) {
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+
+	dd.state.Lock()
+	delete(dd.beaconProcesses, beaconID)
+	dd.state.Unlock()
+}
+
+// AddBeaconHandler adds a handler linked to beacon with chain hash from http server used to
+// expose public services
 func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
 	info := chain.NewChainInfo(bp.group)
 	bh := dd.handler.RegisterNewBeaconHandler(&drandProxy{bp}, info.HashString())
 	if common.IsDefaultBeaconID(beaconID) {
 		dd.handler.RegisterDefaultBeaconHandler(bh)
+	}
+}
+
+// RemoveBeaconHandler removes a handler linked to beacon with chain hash from http server used to
+// expose public services
+func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
+	info := chain.NewChainInfo(bp.group)
+	dd.handler.RemoveBeaconHandler(info.HashString())
+	if common.IsDefaultBeaconID(beaconID) {
+		dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
 	}
 }
 

@@ -126,7 +126,20 @@ func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*
 
 // Shutdown stops the node
 func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
-	dd.Stop(ctx)
+	// If beacon id is empty, we will stop the entire node. Otherwise, we will stop the specific beacon process
+	if in.GetMetadata().GetBeaconID() == "" {
+		dd.Stop(ctx)
+	} else {
+		bp, beaconID, err := dd.getBeaconProcess(in.GetMetadata())
+		if err != nil {
+			return nil, err
+		}
+
+		bp.Stop(ctx)
+
+		dd.RemoveBeaconHandler(beaconID, bp)
+		dd.RemoveBeaconProcess(beaconID)
+	}
 
 	metadata := common.NewMetadata(dd.version.ToProto())
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
