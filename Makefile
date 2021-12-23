@@ -119,13 +119,13 @@ build_docker_dev:
 ############################################ Deps ############################################
 
 install_deps_linux:
-	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.17.0/protoc-3.17.0-linux-x86_64.zip
+	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protoc-3.17.3-linux-x86_64.zip
 	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
 	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
 	rm -f $PROTOC_ZIP
 
 install_deps_darwin:
-	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.17.0/protoc-3.17.0-osx-x86_64.zip
+	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protoc-3.17.3-osx-x86_64.zip
 	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
 	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
 	rm -f $PROTOC_ZIP
