@@ -320,10 +320,10 @@ var appCommands = []*cli.Command{
 		},
 	},
 	{
-		Name:   "resurrect",
+		Name:   "reload",
 		Usage:  "Launch a sharing protocol which has been previously stopped",
 		Flags:  toArray(controlFlag, beaconIDFlag),
-		Action: resurrectCmd,
+		Action: reloadCmd,
 	},
 	{
 		Name:  "follow",

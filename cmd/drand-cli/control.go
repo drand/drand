@@ -197,16 +197,16 @@ func leadShareCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
-func resurrectCmd(c *cli.Context) error {
+func reloadCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
 		return err
 	}
 
 	beaconID := getBeaconID(c)
-	_, err = client.ResurrectBeacon(beaconID)
+	_, err = client.ReloadBeacon(beaconID)
 	if err != nil {
-		return fmt.Errorf("could not resurrect the beacon process [%s]: %s", beaconID, err)
+		return fmt.Errorf("could not reload the beacon process [%s]: %s", beaconID, err)
 	}
 
 	fmt.Fprintf(output, "Beacon process [%s] is alive again \n", beaconID)
