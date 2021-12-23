@@ -138,7 +138,7 @@ func (h *DrandHandler) SetHTTPHandler(newHandler http.Handler) {
 	h.httpHandler = newHandler
 }
 
-func (h *handler) RemoveBeaconHandler(chainHash string) {
+func (h *DrandHandler) RemoveBeaconHandler(chainHash string) {
 	h.state.Lock()
 	defer h.state.Unlock()
 

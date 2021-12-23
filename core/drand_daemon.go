@@ -179,13 +179,13 @@ func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
 	}
 }
 
-// RemoveBeaconProcess removes a handler linked to beacon with chain hash from http server used to
+// RemoveBeaconHandler removes a handler linked to beacon with chain hash from http server used to
 // expose public services
 func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
 	info := chain.NewChainInfo(bp.group)
-	dd.handler.HandlerDrand.RemoveBeaconHandler(info.HashString())
+	dd.handler.RemoveBeaconHandler(info.HashString())
 	if common.IsDefaultBeaconID(beaconID) {
-		dd.handler.HandlerDrand.RemoveBeaconHandler(common.DefaultChainHash)
+		dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
 	}
 }
 
