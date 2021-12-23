@@ -214,10 +214,10 @@ func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
 // expose public services
 func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
 	if bp.group != nil {
-	info := chain.NewChainInfo(bp.group)
-	dd.handler.RemoveBeaconHandler(info.HashString())
-	if common.IsDefaultBeaconID(beaconID) {
-		dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
+		info := chain.NewChainInfo(bp.group)
+		dd.handler.RemoveBeaconHandler(info.HashString())
+		if common.IsDefaultBeaconID(beaconID) {
+			dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
 		}
 	}
 }
