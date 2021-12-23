@@ -160,6 +160,22 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
 }
 
+// ResurrectBeacon
+func (dd *DrandDaemon) ResurrectBeacon(ctx context.Context, in *drand.ResurrectBeaconRequest) (*drand.ResurrectBeaconResponse, error) {
+	bp, beaconID, _ := dd.getBeaconProcess(in.GetMetadata())
+	if bp != nil {
+		return nil, fmt.Errorf("beacon id [%s] is already running", beaconID)
+	}
+
+	_, err := dd.ReloadBeaconFromDisk(beaconID)
+	if err != nil {
+		return nil, err
+	}
+
+	metadata := common.NewMetadata(dd.version.ToProto())
+	return &drand.ResurrectBeaconResponse{Metadata: metadata}, nil
+}
+
 // BackupDatabase triggers a backup of the primary database.
 func (dd *DrandDaemon) BackupDatabase(ctx context.Context, in *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
