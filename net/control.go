@@ -84,12 +84,16 @@ func NewControlClient(addr string) (*ControlClient, error) {
 	}, nil
 }
 
-func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []*drand.Address) (map[string]*drand.StatusResponse, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) RemoteStatus(ct ctx.Context, addresses []*drand.Address, beaconID string) (map[string]*drand.StatusResponse, error) {
+	metadata := protoCommon.Metadata{
+		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
+	}
+
 	packet := drand.RemoteStatusRequest{
-		Metadata:  metadata,
+		Metadata:  &metadata,
 		Addresses: addresses,
 	}
+
 	resp, err := c.client.RemoteStatus(ct, &packet)
 	return resp.GetStatuses(), err
 }
@@ -103,8 +107,12 @@ func (c *ControlClient) Ping() error {
 }
 
 // Status gets the current daemon status
-func (c *ControlClient) Status() (*control.StatusResponse, error) {
-	resp, err := c.client.Status(ctx.Background(), &control.StatusRequest{})
+func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error) {
+	metadata := protoCommon.Metadata{
+		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
+	}
+
+	resp, err := c.client.Status(ctx.Background(), &control.StatusRequest{Metadata: &metadata})
 	return resp, err
 }
 
@@ -224,41 +232,45 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 }
 
 // Share returns the share of the remote node
-func (c *ControlClient) Share() (*control.ShareResponse, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
+func (c *ControlClient) Share(beaconID string) (*control.ShareResponse, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
-	return c.client.Share(ctx.Background(), &control.ShareRequest{Metadata: metadata})
+	return c.client.Share(ctx.Background(), &control.ShareRequest{Metadata: &metadata})
 }
 
 // PublicKey returns the public key of the remote node
-func (c *ControlClient) PublicKey() (*control.PublicKeyResponse, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Metadata: metadata})
+func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
+	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Metadata: &metadata})
 }
 
 // PrivateKey returns the private key of the remote node
-func (c *ControlClient) PrivateKey() (*control.PrivateKeyResponse, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Metadata: metadata})
+func (c *ControlClient) PrivateKey(beaconID string) (*control.PrivateKeyResponse, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
+	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Metadata: &metadata})
 }
 
 // ChainInfo returns the collective key of the remote node
-func (c *ControlClient) ChainInfo() (*control.ChainInfoPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Metadata: metadata})
+func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
+	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Metadata: &metadata})
 }
 
 // GroupFile returns the group file that the drand instance uses at the current
 // time
-func (c *ControlClient) GroupFile() (*control.GroupPacket, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Metadata: metadata})
+func (c *ControlClient) GroupFile(beaconID string) (*control.GroupPacket, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+
+	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Metadata: &metadata})
 }
 
 // Shutdown stops the daemon
-func (c *ControlClient) Shutdown() (*control.ShutdownResponse, error) {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: metadata})
+func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, error) {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: &metadata})
 }
 
 const progressFollowQueue = 100
@@ -307,10 +319,10 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	return outCh, errCh, nil
 }
 
-// BackupDB backs up the database to afile
-func (c *ControlClient) BackupDB(outFile string) error {
-	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: metadata})
+// BackupDB backs up the database to a file
+func (c *ControlClient) BackupDB(outFile string, beaconID string) error {
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
 }
 

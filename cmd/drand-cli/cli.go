@@ -235,10 +235,15 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
-var hashInfoFlag = &cli.StringFlag{
+var hashInfoReq = &cli.StringFlag{
 	Name:     "chain-hash",
 	Usage:    "The hash of the chain info",
 	Required: true,
+}
+
+var hashInfoNoReq = &cli.StringFlag{
+	Name:  "chain-hash",
+	Usage: "The hash of the chain info",
 }
 
 // using a simple string flag because the StringSliceFlag is not intuitive
@@ -295,7 +300,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "stop",
 		Usage: "Stop the drand daemon.\n",
-		Flags: toArray(controlFlag),
+		Flags: toArray(controlFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return stopDaemon(c)
@@ -317,7 +322,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "follow",
 		Usage: "follow and store a randomness chain",
-		Flags: toArray(folderFlag, controlFlag, hashInfoFlag, syncNodeFlag,
+		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag),
 		Action: followCmd,
 	},
@@ -369,7 +374,7 @@ var appCommands = []*cli.Command{
 				Name:      "chain-info",
 				Usage:     "Get the binding chain information that this nodes participates to",
 				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
-				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly),
+				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
 				Action:    getChainInfo,
 			},
 		},
@@ -392,7 +397,7 @@ var appCommands = []*cli.Command{
 				Usage: "Ask for the statuses of remote nodes indicated by " +
 					"`ADDRESS1 ADDRESS2 ADDRESS3...`, including the network " +
 					"visibility over the rest of the addresses given.",
-				Flags:  toArray(controlFlag, jsonFlag),
+				Flags:  toArray(controlFlag, jsonFlag, beaconIDFlag),
 				Action: remoteStatusCmd,
 			},
 			{
@@ -410,7 +415,7 @@ var appCommands = []*cli.Command{
 			{
 				Name:   "status",
 				Usage:  "Get the status of many modules of running the daemon\n",
-				Flags:  toArray(controlFlag, jsonFlag),
+				Flags:  toArray(controlFlag, jsonFlag, beaconIDFlag),
 				Action: statusCmd,
 			},
 			{
@@ -444,7 +449,7 @@ var appCommands = []*cli.Command{
 			{
 				Name:   "backup",
 				Usage:  "backs up the primary drand database to a secondary location.",
-				Flags:  toArray(outFlag, controlFlag),
+				Flags:  toArray(outFlag, controlFlag, beaconIDFlag),
 				Action: backupDBCmd,
 			},
 		},
@@ -462,7 +467,7 @@ var appCommands = []*cli.Command{
 			{
 				Name:   "share",
 				Usage:  "shows the private share\n",
-				Flags:  toArray(controlFlag),
+				Flags:  toArray(controlFlag, beaconIDFlag),
 				Action: showShareCmd,
 			},
 			{
@@ -470,25 +475,25 @@ var appCommands = []*cli.Command{
 				Usage: "shows the current group.toml used. The group.toml " +
 					"may contain the distributed public key if the DKG has been " +
 					"ran already.\n",
-				Flags:  toArray(outFlag, controlFlag, hashOnly),
+				Flags:  toArray(outFlag, controlFlag, hashOnly, beaconIDFlag),
 				Action: showGroupCmd,
 			},
 			{
 				Name:   "chain-info",
 				Usage:  "shows the chain information this node is participating to",
-				Flags:  toArray(controlFlag, hashOnly),
+				Flags:  toArray(controlFlag, hashOnly, beaconIDFlag),
 				Action: showChainInfo,
 			},
 			{
 				Name:   "private",
 				Usage:  "shows the long-term private key of a node.\n",
-				Flags:  toArray(controlFlag),
+				Flags:  toArray(controlFlag, beaconIDFlag),
 				Action: showPrivateCmd,
 			},
 			{
 				Name:   "public",
 				Usage:  "shows the long-term public key of a node.\n",
-				Flags:  toArray(controlFlag),
+				Flags:  toArray(controlFlag, beaconIDFlag),
 				Action: showPublicCmd,
 			},
 		},

@@ -138,8 +138,13 @@ func (h *DrandHandler) SetHTTPHandler(newHandler http.Handler) {
 	h.httpHandler = newHandler
 }
 
-// RegisterDefaultBeaconHandler add default handler which will be used when a request without
-// a chain hash is received
+func (h *handler) RemoveBeaconHandler(chainHash string) {
+	h.state.Lock()
+	defer h.state.Unlock()
+
+	delete(h.beacons, chainHash)
+}
+
 func (h *DrandHandler) RegisterDefaultBeaconHandler(bh *beaconHandler) {
 	h.state.Lock()
 	defer h.state.Unlock()

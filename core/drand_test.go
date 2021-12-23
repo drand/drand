@@ -543,7 +543,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 	chainInfo := chain.NewChainInfo(group)
 	certManager := dt.nodes[0].drand.opts.certmanager
-	client := NewGrpcClientFromCert(certManager)
+	client := NewGrpcClientFromCert(group.Hash(), certManager)
 
 	for i, node := range dt.nodes {
 		d := node.drand

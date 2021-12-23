@@ -210,7 +210,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 func (l *LocalNode) GetGroup() *key.Group {
 	cl := l.ctrl()
 
-	grp, err := cl.GroupFile()
+	grp, err := cl.GroupFile(l.beaconID)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
@@ -245,7 +245,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 
 func (l *LocalNode) ChainInfo(group string) bool {
 	cl := l.ctrl()
-	ci, err := cl.ChainInfo()
+	ci, err := cl.ChainInfo(l.beaconID)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't get chain-info", "err", err)
 		return false
@@ -308,7 +308,7 @@ func (l *LocalNode) WritePublic(p string) {
 
 func (l *LocalNode) Stop() {
 	cl := l.ctrl()
-	_, err := cl.Shutdown()
+	_, err := cl.Shutdown("")
 	if err != nil {
 		l.log.Errorw("", "drand", "failed to shutdown", "err", err)
 	}
