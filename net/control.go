@@ -108,6 +108,16 @@ func (c *ControlClient) Ping() error {
 	return err
 }
 
+// Resurrect
+func (c *ControlClient) ResurrectBeacon(beaconID string) (*control.ResurrectBeaconResponse, error) {
+	metadata := protoCommon.Metadata{
+		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
+	}
+
+	resp, err := c.client.ResurrectBeacon(ctx.Background(), &control.ResurrectBeaconRequest{Metadata: &metadata})
+	return resp, err
+}
+
 // Status gets the current daemon status
 func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error) {
 	metadata := protoCommon.Metadata{
