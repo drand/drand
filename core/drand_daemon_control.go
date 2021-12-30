@@ -138,7 +138,7 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 		bp.Stop(ctx)
 
 		dd.RemoveBeaconHandler(beaconID, bp)
-		dd.RemoveBeaconProcess(beaconID)
+		dd.RemoveBeaconProcess(beaconID, bp)
 	}
 
 	metadata := common.NewMetadata(dd.version.ToProto())
@@ -168,7 +168,7 @@ func (dd *DrandDaemon) StartFollowChain(in *drand.StartFollowRequest, stream dra
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
-	for _, bp := range dd.beaconProcesses {
+	for _, bp := range dd.bpByID {
 		bp.StopBeacon()
 	}
 
