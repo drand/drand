@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+
 	"github.com/drand/drand/common"
 
 	protoCommon "github.com/drand/drand/protobuf/common"
