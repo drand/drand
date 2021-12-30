@@ -8,7 +8,7 @@ import (
 
 // BroadcastDKG is the public method to call during a DKG protocol.
 func (dd *DrandDaemon) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +19,7 @@ func (dd *DrandDaemon) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*dr
 // PartialBeacon receives a beacon generation request and answers
 // with the partial signature from this drand node.
 func (dd *DrandDaemon) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func (dd *DrandDaemon) PartialBeacon(c context.Context, in *drand.PartialBeaconP
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
 func (dd *DrandDaemon) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (dd *DrandDaemon) PublicRand(c context.Context, in *drand.PublicRandRequest
 
 // PublicRandStream exports a stream of new beacons as they are generated over gRPC
 func (dd *DrandDaemon) PublicRandStream(in *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (dd *DrandDaemon) PublicRandStream(in *drand.PublicRandRequest, stream dran
 
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
 func (dd *DrandDaemon) PrivateRand(c context.Context, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (dd *DrandDaemon) PrivateRand(c context.Context, in *drand.PrivateRandReque
 
 // Home provides the address the local node is listening
 func (dd *DrandDaemon) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (dd *DrandDaemon) Home(c context.Context, in *drand.HomeRequest) (*drand.Ho
 
 // ChainInfo replies with the chain information this node participates to
 func (dd *DrandDaemon) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (dd *DrandDaemon) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest
 
 // SignalDKGParticipant receives a dkg signal packet from another member
 func (dd *DrandDaemon) SignalDKGParticipant(ctx context.Context, in *drand.SignalDKGPacket) (*drand.Empty, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (dd *DrandDaemon) SignalDKGParticipant(ctx context.Context, in *drand.Signa
 
 // PushDKGInfo triggers sending DKG info to other members
 func (dd *DrandDaemon) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +101,7 @@ func (dd *DrandDaemon) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket)
 // SyncChain is a inter-node protocol that replies to a syncing request from a
 // given round
 func (dd *DrandDaemon) SyncChain(in *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (dd *DrandDaemon) SyncChain(in *drand.SyncRequest, stream drand.Protocol_Sy
 
 // GetIdentity returns the identity of this drand node
 func (dd *DrandDaemon) GetIdentity(ctx context.Context, in *drand.IdentityRequest) (*drand.IdentityResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}

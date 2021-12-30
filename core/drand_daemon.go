@@ -84,7 +84,12 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 }
 
 func (dd *DrandDaemon) RemoteStatus(ctx context.Context, request *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
-	bp, _, err := dd.getBeaconProcess(request.Metadata)
+	beaconID, err := dd.readBeaconID(request.Metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	bp, err := dd.getBeaconProcessByID(beaconID)
 	if err != nil {
 		return nil, err
 	}

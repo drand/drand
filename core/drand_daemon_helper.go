@@ -8,7 +8,7 @@ import (
 	protoCommon "github.com/drand/drand/protobuf/common"
 )
 
-func (dd *DrandDaemon) getBeaconProcess(metadata *protoCommon.Metadata) (*BeaconProcess, string, error) {
+func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, error) {
 	rcvBeaconID := metadata.GetBeaconID()
 
 	if chainHashHex := metadata.GetChainHash(); len(chainHashHex) != 0 {
@@ -20,7 +20,7 @@ func (dd *DrandDaemon) getBeaconProcess(metadata *protoCommon.Metadata) (*Beacon
 
 		if isChainHashFound {
 			if rcvBeaconID != "" && rcvBeaconID != beaconIDByHash {
-				return nil, beaconIDByHash, fmt.Errorf("beacon id [%s] is not running", beaconIDByHash)
+				return "", fmt.Errorf("invalid chain hash")
 			}
 			rcvBeaconID = beaconIDByHash
 		}
@@ -30,13 +30,26 @@ func (dd *DrandDaemon) getBeaconProcess(metadata *protoCommon.Metadata) (*Beacon
 		rcvBeaconID = common.DefaultBeaconID
 	}
 
+	return rcvBeaconID, nil
+}
+
+func (dd *DrandDaemon) getBeaconProcessByID(beaconID string) (*BeaconProcess, error) {
 	dd.state.Lock()
-	bp, isBeaconIDFound := dd.beaconProcesses[rcvBeaconID]
+	bp, isBeaconIDFound := dd.beaconProcesses[beaconID]
 	dd.state.Unlock()
 
 	if isBeaconIDFound {
-		return bp, rcvBeaconID, nil
+		return bp, nil
 	}
 
-	return nil, rcvBeaconID, fmt.Errorf("beacon id [%s] is not running", rcvBeaconID)
+	return nil, fmt.Errorf("beacon id [%s] is not running", beaconID)
+}
+
+func (dd *DrandDaemon) getBeaconProcessFromRequest(metadata *protoCommon.Metadata) (*BeaconProcess, error) {
+	beaconID, err := dd.readBeaconID(metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return dd.getBeaconProcessByID(beaconID)
 }
