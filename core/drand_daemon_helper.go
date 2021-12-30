@@ -15,7 +15,7 @@ func (dd *DrandDaemon) getBeaconProcess(metadata *protoCommon.Metadata) (*Beacon
 		chainHash := fmt.Sprintf("%x", chainHashHex)
 
 		dd.state.Lock()
-		beaconIDByHash, isChainHashFound := dd.bpByHash[chainHash]
+		beaconIDByHash, isChainHashFound := dd.chainHashes[chainHash]
 		dd.state.Unlock()
 
 		if isChainHashFound {
@@ -31,7 +31,7 @@ func (dd *DrandDaemon) getBeaconProcess(metadata *protoCommon.Metadata) (*Beacon
 	}
 
 	dd.state.Lock()
-	bp, isBeaconIDFound := dd.bpByID[rcvBeaconID]
+	bp, isBeaconIDFound := dd.beaconProcesses[rcvBeaconID]
 	dd.state.Unlock()
 
 	if isBeaconIDFound {

@@ -168,7 +168,7 @@ func (dd *DrandDaemon) StartFollowChain(in *drand.StartFollowRequest, stream dra
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
-	for _, bp := range dd.bpByID {
+	for _, bp := range dd.beaconProcesses {
 		bp.StopBeacon()
 	}
 
