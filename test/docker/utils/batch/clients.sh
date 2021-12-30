@@ -7,9 +7,14 @@ PERIOD_STEP=5
 for (( node = 0; node < 5; node++ )); do
 
   echo "-------------- NODE ${node} --------------"
-  echo "------------Randomness on default------------"
+  echo "------------HTTP Randomness on default------------"
   RAND=`docker exec drand_client /bin/sh -c "drand-client --url http://drand_${node}:8${node}81 --insecure"`
   echo "Value: ${HASH}"
+  echo ""
+
+  echo "------------GRPC Randomness on default----------"
+  RAND=`docker exec drand_client /bin/sh -c "drand-client --grpc-connect drand_${node}:8${node}80 --insecure"`
+  echo "Value: ${RAND}"
   echo ""
 
   echo "------------Hash on default------------"
@@ -17,8 +22,13 @@ for (( node = 0; node < 5; node++ )); do
   echo "Value: ${HASH}"
   echo ""
 
-  echo "------------Randomness on default (chain ${HASH})------------"
+  echo "------------HTTP Randomness on default (chain ${HASH})------------"
   RAND=`docker exec drand_client /bin/sh -c "drand-client --url http://drand_${node}:8${node}81 --insecure --chain-hash ${HASH}"`
+  echo "Value: ${RAND}"
+  echo ""
+
+  echo "------------GRPC Randomness on default (chain ${HASH})----------"
+  RAND=`docker exec drand_client /bin/sh -c "drand-client --grpc-connect drand_${node}:8${node}80 --insecure --chain-hash ${HASH}"`
   echo "Value: ${RAND}"
   echo ""
 
@@ -30,8 +40,23 @@ for (( node = 0; node < 5; node++ )); do
       echo "Value: ${HASH}"
       echo ""
 
-      echo "------------Randomness on beacon_${PERIOD}s (chain ${HASH})-----"
+      echo "------------HTTP - Hash - Randomness on beacon_${PERIOD}s (chain ${HASH})----------"
       RAND=`docker exec drand_client /bin/sh -c "drand-client --url http://drand_${node}:8${node}81 --insecure --chain-hash ${HASH}"`
+      echo "Value: ${RAND}"
+      echo ""
+
+      echo "------------GRPC - Hash - Randomness on beacon_${PERIOD}s (chain ${HASH})----------"
+      RAND=`docker exec drand_client /bin/sh -c "drand-client --grpc-connect drand_${node}:8${node}80 --insecure --chain-hash ${HASH}"`
+      echo "Value: ${RAND}"
+      echo ""
+
+      echo "------------HTTP - Group - Randomness on beacon_${PERIOD}s (chain ${HASH})----------"
+      RAND=`docker exec drand_client /bin/sh -c "drand-client --url http://drand_${node}:8${node}81 --insecure --group-conf /data/drand_${node}/.drand/multibeacon/beacon_${PERIOD}s/groups/drand_group.toml"`
+      echo "Value: ${RAND}"
+      echo ""
+
+      echo "------------GRPC - Group - Randomness on beacon_${PERIOD}s (chain ${HASH})----------"
+      RAND=`docker exec drand_client /bin/sh -c "drand-client --grpc-connect drand_${node}:8${node}80 --insecure --chain-hash ${HASH} --group-conf /data/drand_${node}/.drand/multibeacon/beacon_${PERIOD}s/groups/drand_group.toml"`
       echo "Value: ${RAND}"
       echo ""
 
