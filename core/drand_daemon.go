@@ -268,6 +268,9 @@ func (dd *DrandDaemon) LoadBeacon(beaconID string, store key.Store) (*BeaconProc
 	} else {
 		fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
 
+		// Add beacon chain hash as a new valid one
+		dd.AddNewChainHash(beaconID, bp)
+
 		// Add beacon handler from chain has for http server
 		dd.AddBeaconHandler(beaconID, bp)
 
