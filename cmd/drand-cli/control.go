@@ -317,8 +317,11 @@ func remoteStatusCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	ips := c.Args().Slice()
 	isTLS := !c.IsSet(insecureFlag.Name)
+	beaconID := getBeaconID(c)
+
 	addresses := make([]*drand.Address, len(ips))
 	for i := 0; i < len(ips); i++ {
 		addresses[i] = &drand.Address{
@@ -326,7 +329,8 @@ func remoteStatusCmd(c *cli.Context) error {
 			Tls:     isTLS,
 		}
 	}
-	resp, err := client.RemoteStatus(c.Context, addresses)
+
+	resp, err := client.RemoteStatus(c.Context, addresses, beaconID)
 	if err != nil {
 		return err
 	}
@@ -377,7 +381,9 @@ func statusCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.Status()
+
+	beaconID := getBeaconID(c)
+	resp, err := client.Status(beaconID)
 	if err != nil {
 		return fmt.Errorf("drand: can't get the status of the daemon ... %s", err)
 	}
@@ -411,6 +417,7 @@ func schemesCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	resp, err := client.ListSchemes()
 	if err != nil {
 		return fmt.Errorf("drand: can't get the list of scheme ids availables ... %s", err)
@@ -431,14 +438,18 @@ func showGroupCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	r, err := client.GroupFile()
+
+	beaconID := getBeaconID(c)
+	r, err := client.GroupFile(beaconID)
 	if err != nil {
 		return fmt.Errorf("fetching group file error: %s", err)
 	}
+
 	group, err := key.GroupFromProto(r)
 	if err != nil {
 		return err
 	}
+
 	return groupOut(c, group)
 }
 
@@ -447,14 +458,18 @@ func showChainInfo(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.ChainInfo()
+
+	beaconID := getBeaconID(c)
+	resp, err := client.ChainInfo(beaconID)
 	if err != nil {
 		return fmt.Errorf("could not request chain info: %s", err)
 	}
+
 	ci, err := chain.InfoFromProto(resp)
 	if err != nil {
 		return fmt.Errorf("could not get correct chain info: %s", err)
 	}
+
 	return printChainInfo(c, ci)
 }
 
@@ -463,10 +478,13 @@ func showPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.PrivateKey()
+
+	beaconID := getBeaconID(c)
+	resp, err := client.PrivateKey(beaconID)
 	if err != nil {
 		return fmt.Errorf("could not request drand.private: %s", err)
 	}
+
 	return printJSON(resp)
 }
 
@@ -475,10 +493,13 @@ func showPublicCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.PublicKey()
+
+	beaconID := getBeaconID(c)
+	resp, err := client.PublicKey(beaconID)
 	if err != nil {
 		return fmt.Errorf("drand: could not request drand.public: %s", err)
 	}
+
 	return printJSON(resp)
 }
 
@@ -487,7 +508,9 @@ func showShareCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.Share()
+
+	beaconID := getBeaconID(c)
+	resp, err := client.Share(beaconID)
 	if err != nil {
 		return fmt.Errorf("could not request drand.share: %s", err)
 	}
@@ -499,10 +522,14 @@ func backupDBCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	err = client.BackupDB(c.String(outFlag.Name))
+
+	outDir := c.String(outFlag.Name)
+	beaconID := getBeaconID(c)
+	err = client.BackupDB(outDir, beaconID)
 	if err != nil {
 		return fmt.Errorf("could not back up: %s", err)
 	}
+
 	return nil
 }
 
@@ -584,7 +611,7 @@ func followCmd(c *cli.Context) error {
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 	channel, errCh, err := ctrlClient.StartFollowChain(
 		c.Context,
-		c.String(hashInfoFlag.Name),
+		c.String(hashInfoReq.Name),
 		addrs,
 		!c.Bool(insecureFlag.Name),
 		uint64(c.Int(upToFlag.Name)),

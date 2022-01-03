@@ -295,7 +295,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
 
 	// we check that we can fetch the group using control functionalities on the leaderNode node
-	groupProto, err := controlClient.GroupFile()
+	groupProto, err := controlClient.GroupFile(d.beaconID)
 	require.NoError(d.t, err)
 	d.t.Logf("[-------] Leader %s FINISHED", leaderNode.addr)
 	group, err := key.GroupFromProto(groupProto)
@@ -368,7 +368,7 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 	var maxRetries = 5
 	for range time.Tick(100 * time.Millisecond) {
 		d.t.Logf("[drand] ping %s: %d/%d", dr.priv.Public.Address(), retryCount, maxRetries)
-		response, err := controlClient.Status()
+		response, err := controlClient.Status(d.beaconID)
 
 		if err != nil {
 			break
@@ -482,7 +482,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 	require.NoError(t, err)
 
 	for {
-		status, err := newClient.Status()
+		status, err := newClient.Status(d.beaconID)
 		require.NoError(t, err)
 
 		if !status.ChainStore.IsEmpty && status.ChainStore.LastRound == round {
@@ -507,7 +507,7 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 	require.NoError(t, err)
 
 	for {
-		status, err := newClient.Status()
+		status, err := newClient.Status(d.beaconID)
 		require.NoError(t, err)
 
 		if status.Beacon.IsServing {

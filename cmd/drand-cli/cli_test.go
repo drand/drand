@@ -775,7 +775,7 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		pubPath := path.Join(tmpPath, "pub.key")
 
 		freePort := test.FreePort()
-		addr := "127.0.0." + strconv.Itoa(i) + ":" + freePort
+		addr := "127.0.0.1:" + freePort
 		ctrlPort := test.FreePort()
 		metricsPort := test.FreePort()
 

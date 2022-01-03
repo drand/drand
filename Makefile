@@ -109,6 +109,8 @@ relay-s3:
 drand-relay-s3: relay-s3
 
 build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
+
+build_docker_all: build_docker build_docker_dev
 build_docker:
 	docker build --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
 

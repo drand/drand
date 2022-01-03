@@ -48,10 +48,16 @@ func TestClientMultiple(t *testing.T) {
 	addr2, _, cancel2, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel2()
 
+	httpClients := http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())
+	if len(httpClients) == 0 {
+		t.Error("http clients is empty")
+		return
+	}
+
 	var c client.Client
 	var e error
 	c, e = client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1, "http://" + addr2}, chainInfo.Hash())...),
+		client.From(httpClients...),
 		client.WithChainHash(chainInfo.Hash()))
 
 	if e != nil {
@@ -93,9 +99,15 @@ func TestClientCache(t *testing.T) {
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
+	httpClients := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
+	if len(httpClients) == 0 {
+		t.Error("http clients is empty")
+		return
+	}
+
 	var c client.Client
 	var e error
-	c, e = client.New(client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+	c, e = client.New(client.From(httpClients...),
 		client.WithChainHash(chainInfo.Hash()), client.WithCacheSize(1))
 
 	if e != nil {
@@ -123,10 +135,16 @@ func TestClientWithoutCache(t *testing.T) {
 	addr1, chainInfo, cancel, _ := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer cancel()
 
+	httpClients := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
+	if len(httpClients) == 0 {
+		t.Error("http clients is empty")
+		return
+	}
+
 	var c client.Client
 	var e error
 	c, e = client.New(
-		client.From(http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())...),
+		client.From(httpClients...),
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithCacheSize(0))
 
@@ -230,6 +248,11 @@ func TestClientAutoWatch(t *testing.T) {
 	defer cancel()
 
 	httpClient := http.ForURLs([]string{"http://" + addr1}, chainInfo.Hash())
+	if len(httpClient) == 0 {
+		t.Error("http clients is empty")
+		return
+	}
+
 	r1, _ := httpClient[0].Get(context.Background(), 1)
 	r2, _ := httpClient[0].Get(context.Background(), 2)
 	results := []client.Result{r1, r2}

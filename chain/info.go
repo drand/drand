@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"time"
 
 	"github.com/drand/drand/common/scheme"
@@ -58,6 +59,11 @@ func (c *Info) Hash() []byte {
 	}
 
 	return h.Sum(nil)
+}
+
+// HashString returns the value of Hash in string format
+func (c *Info) HashString() string {
+	return hex.EncodeToString(c.Hash())
 }
 
 // Equal indicates if two Chain Info objects are equivalent

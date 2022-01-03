@@ -29,7 +29,7 @@ func getPrivateCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	grpcClient := core.NewGrpcClientFromCert(defaultManager)
+	grpcClient := core.NewGrpcClientFromCert(nil, defaultManager)
 	var resp []byte
 	for _, public := range ids {
 		resp, err = grpcClient.Private(public.Identity)
@@ -55,6 +55,7 @@ func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
 		return errors.New("get public command takes a group file as argument")
 	}
+
 	certPath := ""
 	if c.IsSet(tlsCertFlag.Name) {
 		certPath = c.String(tlsCertFlag.Name)
@@ -64,6 +65,7 @@ func getPublicRandomness(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+
 	group, err := getGroup(c)
 	if err != nil {
 		return err
@@ -75,7 +77,7 @@ func getPublicRandomness(c *cli.Context) error {
 	var resp client.Result
 	var foundCorrect bool
 	for _, id := range ids {
-		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS)
+		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS, group.Hash())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s", id.Addr, err)
 			break
@@ -100,14 +102,22 @@ func getPublicRandomness(c *cli.Context) error {
 }
 
 func getChainInfo(c *cli.Context) error {
-	var grpcClient = core.NewGrpcClient()
+	var err error
+	chainHash := make([]byte, 0)
+	if c.IsSet(hashInfoNoReq.Name) {
+		if chainHash, err = hex.DecodeString(c.String(hashInfoNoReq.Name)); err != nil {
+			return fmt.Errorf("invalid chain hash given: %s", err)
+		}
+	}
+
+	grpcClient := core.NewGrpcClient(chainHash)
 	if c.IsSet(tlsCertFlag.Name) {
 		defaultManager := net.NewCertManager()
 		certPath := c.String(tlsCertFlag.Name)
 		if err := defaultManager.Add(certPath); err != nil {
 			return err
 		}
-		grpcClient = core.NewGrpcClientFromCert(defaultManager)
+		grpcClient = core.NewGrpcClientFromCert(chainHash, defaultManager)
 	}
 	var ci *chain.Info
 	for _, addr := range c.Args().Slice() {

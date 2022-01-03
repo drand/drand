@@ -16,7 +16,12 @@ import (
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	bp, beaconID, err := dd.getBeaconProcess(in.GetMetadata())
+	beaconID, err := dd.readBeaconID(in.GetMetadata())
+	if err != nil {
+		return nil, err
+	}
+
+	bp, err := dd.getBeaconProcessByID(beaconID)
 	if err != nil {
 		store, isStoreLoaded := dd.initialStores[beaconID]
 		if !isStoreLoaded {
@@ -39,7 +44,12 @@ func (dd *DrandDaemon) InitDKG(c context.Context, in *drand.InitDKGPacket) (*dra
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol.
 func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
-	bp, beaconID, err := dd.getBeaconProcess(in.GetMetadata())
+	beaconID, err := dd.readBeaconID(in.GetMetadata())
+	if err != nil {
+		return nil, err
+	}
+
+	bp, err := dd.getBeaconProcessByID(beaconID)
 	if err != nil {
 		store, isStoreLoaded := dd.initialStores[beaconID]
 		if !isStoreLoaded {
@@ -68,7 +78,7 @@ func (dd *DrandDaemon) PingPong(ctx context.Context, in *drand.Ping) (*drand.Pon
 
 // Status responds with the actual status of drand process
 func (dd *DrandDaemon) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +94,7 @@ func (dd *DrandDaemon) ListSchemes(ctx context.Context, in *drand.ListSchemesReq
 
 // Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
 func (dd *DrandDaemon) Share(ctx context.Context, in *drand.ShareRequest) (*drand.ShareResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +105,7 @@ func (dd *DrandDaemon) Share(ctx context.Context, in *drand.ShareRequest) (*dran
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
 func (dd *DrandDaemon) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +116,7 @@ func (dd *DrandDaemon) PublicKey(ctx context.Context, in *drand.PublicKeyRequest
 // PrivateKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term private key of the drand node running locally
 func (dd *DrandDaemon) PrivateKey(ctx context.Context, in *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +126,7 @@ func (dd *DrandDaemon) PrivateKey(ctx context.Context, in *drand.PrivateKeyReque
 
 // GroupFile replies with the distributed key in the response
 func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +136,25 @@ func (dd *DrandDaemon) GroupFile(ctx context.Context, in *drand.GroupRequest) (*
 
 // Shutdown stops the node
 func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) (*drand.ShutdownResponse, error) {
-	dd.Stop(ctx)
+	// If beacon id is empty, we will stop the entire node. Otherwise, we will stop the specific beacon process
+	if in.GetMetadata().GetBeaconID() == "" {
+		dd.Stop(ctx)
+	} else {
+		beaconID, err := dd.readBeaconID(in.GetMetadata())
+		if err != nil {
+			return nil, err
+		}
+
+		bp, err := dd.getBeaconProcessByID(beaconID)
+		if err != nil {
+			return nil, err
+		}
+
+		bp.Stop(ctx)
+
+		dd.RemoveBeaconHandler(beaconID, bp)
+		dd.RemoveBeaconProcess(beaconID, bp)
+	}
 
 	metadata := common.NewMetadata(dd.version.ToProto())
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
@@ -134,7 +162,7 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 
 // BackupDatabase triggers a backup of the primary database.
 func (dd *DrandDaemon) BackupDatabase(ctx context.Context, in *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +171,7 @@ func (dd *DrandDaemon) BackupDatabase(ctx context.Context, in *drand.BackupDBReq
 }
 
 func (dd *DrandDaemon) StartFollowChain(in *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
-	bp, _, err := dd.getBeaconProcess(in.GetMetadata())
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return err
 	}

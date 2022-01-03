@@ -173,7 +173,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	if err := bp.store.SaveGroup(bp.group); err != nil {
 		return nil, err
 	}
-	bp.opts.applyDkgCallback(bp.share)
+	bp.opts.applyDkgCallback(bp.share, bp.group)
 	bp.dkgInfo.board.Stop()
 	bp.dkgInfo = nil
 	return bp.group, nil
@@ -229,7 +229,6 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	newShare := bp.share
 	bp.state.Unlock()
 
-	bp.log.Infow("", "--->", bp.beacon)
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
 		bp.beacon.TransitionNewGroup(newShare, newGroup)

@@ -28,7 +28,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	lAddr := l.Addr()
 	go l.Start()
 
-	c, _ = grpc.New(lAddr, "", true)
+	c, _ = grpc.New(lAddr, "", true, []byte(""))
 
 	return c, s.(mock.MockService).EmitRand
 }
@@ -44,17 +44,27 @@ func TestHTTPRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	info, err := c.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler.RegisterNewBeaconHandler(c, info.HashString())
+
 	listener, err := net.Listen("tcp", "localhost:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	nhttp.IsServerReady(listener.Addr().String())
+	err = nhttp.IsServerReady(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	getChain := fmt.Sprintf("http://%s/info", listener.Addr().String())
+	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
 	resp, err := http.Get(getChain)
 	require.NoError(t, err)
 	cip := new(drand.ChainInfoPacket)
@@ -64,7 +74,7 @@ func TestHTTPRelay(t *testing.T) {
 	require.NoError(t, resp.Body.Close())
 
 	// Test exported interfaces.
-	u := fmt.Sprintf("http://%s/public/2", listener.Addr().String())
+	u := fmt.Sprintf("http://%s/%s/public/2", listener.Addr().String(), info.HashString())
 	resp, err = http.Get(u)
 	require.NoError(t, err)
 	body := make(map[string]interface{})
@@ -75,7 +85,8 @@ func TestHTTPRelay(t *testing.T) {
 		t.Fatal("expected signature in random response.")
 	}
 
-	resp, err = http.Get(fmt.Sprintf("http://%s/public/latest", listener.Addr().String()))
+	u = fmt.Sprintf("http://%s/%s/public/latest", listener.Addr().String(), info.HashString())
+	resp, err = http.Get(u)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,18 +133,29 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	info, err := c.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler.RegisterNewBeaconHandler(c, info.HashString())
+
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	nhttp.IsServerReady(listener.Addr().String())
+	err = nhttp.IsServerReady(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// The first request will trigger background watch. 1 get (1969)
-	next, err := http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
+	u := fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString())
+	next, err := http.Get(u)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +166,8 @@ func TestHTTPWaiting(t *testing.T) {
 	done := make(chan time.Time)
 	before := time.Now()
 	go func() {
-		if err = validateEndpoint(listener.Addr().String()+"/public/1971", 1971.0); err != nil {
+		endpoint := listener.Addr().String() + "/" + info.HashString() + "/public/1971"
+		if err = validateEndpoint(endpoint, 1971.0); err != nil {
 			done <- time.Unix(0, 0)
 			return
 		}
@@ -184,18 +207,25 @@ func TestHTTPWatchFuture(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	info, err := c.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler.RegisterNewBeaconHandler(c, info.HashString())
+
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
 	nhttp.IsServerReady(listener.Addr().String())
 
 	// watching sets latest round, future rounds should become inaccessible.
-	u := fmt.Sprintf("http://%s/public/2000", listener.Addr().String())
+	u := fmt.Sprintf("http://%s/%s/public/2000", listener.Addr().String(), info.HashString())
 	resp, err := http.Get(u)
 	if err != nil {
 		t.Fatal(err)
@@ -216,30 +246,40 @@ func TestHTTPHealth(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	info, err := c.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	handler.RegisterNewBeaconHandler(c, info.HashString())
+
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := http.Server{Handler: handler}
+	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
-	nhttp.IsServerReady(listener.Addr().String())
+	err = nhttp.IsServerReady(listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	resp, _ := http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
+	resp, _ := http.Get(fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()))
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusOK {
 		t.Fatalf("newly started server not expected to be synced.")
 	}
 
-	resp, _ = http.Get(fmt.Sprintf("http://%s/public/0", listener.Addr().String()))
+	resp, _ = http.Get(fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString()))
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("startup of the server on 1st request should happen")
 	}
 	push(false)
 	// give some time for http server to get it
 	time.Sleep(30 * time.Millisecond)
-	resp, _ = http.Get(fmt.Sprintf("http://%s/health", listener.Addr().String()))
+	resp, _ = http.Get(fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()))
 	if resp.StatusCode != http.StatusOK {
 		var buf [100]byte
 		_, _ = resp.Body.Read(buf[:])
