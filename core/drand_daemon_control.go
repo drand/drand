@@ -162,12 +162,17 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 
 // ReloadBeacon
 func (dd *DrandDaemon) ReloadBeacon(ctx context.Context, in *drand.ReloadBeaconRequest) (*drand.ReloadBeaconResponse, error) {
-	bp, beaconID, _ := dd.getBeaconProcess(in.GetMetadata())
-	if bp != nil {
+	beaconID, err := dd.readBeaconID(in.GetMetadata())
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = dd.getBeaconProcessByID(beaconID)
+	if err == nil {
 		return nil, fmt.Errorf("beacon id [%s] is already running", beaconID)
 	}
 
-	_, err := dd.ReloadBeaconFromDisk(beaconID)
+	_, err = dd.ReloadBeaconFromDisk(beaconID)
 	if err != nil {
 		return nil, err
 	}
