@@ -796,7 +796,7 @@ func (d *drandInstance) stop(beaconID string) error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort, "--id", beaconID})
 }
 
-func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, beaconID string, scheme scheme.Scheme) {
+func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, beaconID string, sch scheme.Scheme) {
 	shareArgs := []string{
 		"drand",
 		"share",
@@ -805,7 +805,7 @@ func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, 
 		"--threshold", strconv.Itoa(threshold),
 		"--period", fmt.Sprintf("%ds", period),
 		"--control", d.ctrlPort,
-		"--scheme", scheme.ID,
+		"--scheme", sch.ID,
 		"--id", beaconID,
 	}
 
@@ -815,11 +815,11 @@ func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, 
 	}()
 }
 
-func (d *drandInstance) share(t *testing.T, leaderUrl, beaconID string) {
+func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 	shareArgs := []string{
 		"drand",
 		"share",
-		"--connect", leaderUrl,
+		"--connect", leaderURL,
 		"--control", d.ctrlPort,
 		"--id", beaconID,
 	}
