@@ -320,6 +320,12 @@ var appCommands = []*cli.Command{
 		},
 	},
 	{
+		Name:   "reload",
+		Usage:  "Launch a sharing protocol which has been previously stopped",
+		Flags:  toArray(controlFlag, beaconIDFlag),
+		Action: reloadCmd,
+	},
+	{
 		Name:  "follow",
 		Usage: "follow and store a randomness chain",
 		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,

@@ -19,6 +19,9 @@ CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
 GIT_REVISION := $(shell git rev-parse HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
+PROTOC_VERSION=3.17.3
+PROTOC_ZIP=protoc-$(PROTOC_VERSION)-linux-x86_64.zip
+
 drand: build
 
 ####################  Lint and fmt process ##################
@@ -119,11 +122,13 @@ build_docker_dev:
 ############################################ Deps ############################################
 
 install_deps_linux:
-	PROTOC_ZIP=protoc-3.14.0-linux-x86_64.zip
-	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/$PROTOC_ZIP
+	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
 	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
 	rm -f $PROTOC_ZIP
 
 install_deps_darwin:
-	brew install protobuf
+	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-osx-x86_64.zip
+	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
+	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
+	rm -f $PROTOC_ZIP

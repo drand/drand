@@ -213,10 +213,12 @@ func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
 // RemoveBeaconHandler removes a handler linked to beacon with chain hash from http server used to
 // expose public services
 func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
-	info := chain.NewChainInfo(bp.group)
-	dd.handler.RemoveBeaconHandler(info.HashString())
-	if common.IsDefaultBeaconID(beaconID) {
-		dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
+	if bp.group != nil {
+		info := chain.NewChainInfo(bp.group)
+		dd.handler.RemoveBeaconHandler(info.HashString())
+		if common.IsDefaultBeaconID(beaconID) {
+			dd.handler.RemoveBeaconHandler(common.DefaultChainHash)
+		}
 	}
 }
 
@@ -230,33 +232,9 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 	}
 
 	for beaconID, fs := range stores {
-		bp, err := dd.InstantiateBeaconProcess(beaconID, fs)
-		if err != nil {
-			fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
-			return err
-		}
-
-		freshRun, err := bp.Load()
+		bp, err := dd.LoadBeacon(beaconID, fs)
 		if err != nil {
 			return err
-		}
-
-		if freshRun {
-			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
-		} else {
-			fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
-
-			// Add beacon chain hash as a new valid one
-			dd.AddNewChainHash(beaconID, bp)
-
-			// Add beacon handler from chain hash for http server
-			dd.AddBeaconHandler(beaconID, bp)
-
-			// XXX make it configurable so that new share holder can still start if
-			// nobody started.
-			// drand.StartBeacon(!c.Bool(pushFlag.Name))
-			catchup := true
-			bp.StartBeacon(catchup)
 		}
 
 		// Start metrics server
@@ -266,4 +244,42 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 	}
 
 	return nil
+}
+
+func (dd *DrandDaemon) ReloadBeaconFromDisk(beaconID string) (*BeaconProcess, error) {
+	store := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
+	return dd.LoadBeacon(beaconID, store)
+}
+
+func (dd *DrandDaemon) LoadBeacon(beaconID string, store key.Store) (*BeaconProcess, error) {
+	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
+	if err != nil {
+		fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+		return nil, err
+	}
+
+	freshRun, err := bp.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	if freshRun {
+		fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
+	} else {
+		fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
+
+		// Add beacon chain hash as a new valid one
+		dd.AddNewChainHash(beaconID, bp)
+
+		// Add beacon handler from chain has for http server
+		dd.AddBeaconHandler(beaconID, bp)
+
+		// XXX make it configurable so that new share holder can still start if
+		// nobody started.
+		// drand.StartBeacon(!c.Bool(pushFlag.Name))
+		catchup := true
+		bp.StartBeacon(catchup)
+	}
+
+	return bp, nil
 }

@@ -39,6 +39,8 @@ service Control {
 
     rpc Shutdown(ShutdownRequest) returns (ShutdownResponse) { }
 
+    rpc ReloadBeacon(ReloadBeaconRequest) returns (ReloadBeaconResponse) { }
+
     rpc StartFollowChain(StartFollowRequest) returns (stream FollowProgress) { }
 
     rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) { }
@@ -231,6 +233,14 @@ message ShutdownRequest {
 }
 
 message ShutdownResponse {
+    common.Metadata metadata = 1;
+}
+
+message ReloadBeaconRequest {
+    common.Metadata metadata = 1;
+}
+
+message ReloadBeaconResponse {
     common.Metadata metadata = 1;
 }
 

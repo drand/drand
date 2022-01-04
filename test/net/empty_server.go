@@ -127,6 +127,11 @@ func (s *EmptyServer) Shutdown(context.Context, *drand.ShutdownRequest) (*drand.
 	return nil, nil
 }
 
+// ReloadBeacon is an empty implementation
+func (s *EmptyServer) ReloadBeacon(context.Context, *drand.ReloadBeaconRequest) (*drand.ReloadBeaconResponse, error) {
+	return nil, nil
+}
+
 // RemoteStatus is an empty implementation
 func (s *EmptyServer) RemoteStatus(context.Context, *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	return nil, nil
