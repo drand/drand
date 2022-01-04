@@ -3,6 +3,7 @@ package beacon
 import (
 	"bytes"
 	"fmt"
+	"github.com/drand/drand/common/scheme"
 	"runtime"
 	"sync"
 	"time"
@@ -50,31 +51,37 @@ func (a *appendStore) Put(b *chain.Beacon) error {
 	return nil
 }
 
-// chainStore is a store that only appends new block with a round whose prev signature
-// is equal to the signature of the last beacon
-type chainedStore struct {
+// schemeStore is a store that run different checks depending on what scheme is being used.
+type schemeStore struct {
 	chain.Store
+	sch  scheme.Scheme
 	last *chain.Beacon
 	sync.Mutex
 }
 
-func newChainedStore(s chain.Store) chain.Store {
+func newSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
 	last, _ := s.Last()
-	return &chainedStore{
+	return &schemeStore{
 		Store: s,
 		last:  last,
+		sch:   sch,
 	}
 }
 
-func (a *chainedStore) Put(b *chain.Beacon) error {
+func (a *schemeStore) Put(b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
-	if !bytes.Equal(a.last.Signature, b.PreviousSig) {
+
+	if a.sch.DecouplePrevSig {
+		b.PreviousSig = nil
+	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {
 		return fmt.Errorf("invalid previous signature")
 	}
+
 	if err := a.Store.Put(b); err != nil {
 		return err
 	}
+
 	a.last = b
 	return nil
 }

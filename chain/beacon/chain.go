@@ -42,19 +42,18 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	// we make sure the chain is increasing monotically
 	as := newAppendStore(store)
 
-	// if unchained scheme is set, we don't need to use chainedStore middleware
-	chainedStore := as
-	if !cf.Group.Scheme.DecouplePrevSig {
-		// we make sure the chain is increasing monotically
-		chainedStore = newChainedStore(as)
-	}
+	//
+	ss := newSchemeStore(as, cf.Group.Scheme)
 
 	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(chainedStore, l, c.GetGroup())
+	ds := newDiscrepancyStore(ss, l, c.GetGroup())
+
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
+
 	// we give the final append store to the syncer
 	syncer := NewSyncer(l, cbs, c.chain, cl)
+
 	//
 	verifier := chain.NewVerifier(cf.Group.Scheme)
 
@@ -99,6 +98,7 @@ func (c *chainStore) Stop() {
 // especially in case of a quick catchup.
 var partialCacheStoreLimit = 3
 
+//nolint:gocyclo
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
@@ -162,13 +162,9 @@ func (c *chainStore) runAggregator() {
 			cache.FlushRounds(partial.p.GetRound())
 
 			newBeacon := &chain.Beacon{
-				Round:     roundCache.round,
-				Signature: finalSig,
-			}
-
-			// Previous signature will be present only if chain works in chained mode
-			if !c.conf.Group.Scheme.DecouplePrevSig {
-				newBeacon.PreviousSig = roundCache.prev
+				Round:       roundCache.round,
+				PreviousSig: roundCache.prev,
+				Signature:   finalSig,
 			}
 
 			c.l.Infow("", "beacon_id", beaconID, "aggregated_beacon", newBeacon.Round)
