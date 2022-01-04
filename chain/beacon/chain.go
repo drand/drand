@@ -41,8 +41,16 @@ type chainStore struct {
 func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoStore, store chain.Store, t *ticker) *chainStore {
 	// we make sure the chain is increasing monotically
 	as := newAppendStore(store)
+
+	// if unchained scheme is set, we don't need to use chainedStore middleware
+	chainedStore := as
+	if !cf.Group.Scheme.DecouplePrevSig {
+		// we make sure the chain is increasing monotically
+		chainedStore = newChainedStore(as)
+	}
+
 	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(as, l, c.GetGroup())
+	ds := newDiscrepancyStore(chainedStore, l, c.GetGroup())
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
 	// we give the final append store to the syncer

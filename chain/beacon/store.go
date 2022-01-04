@@ -43,6 +43,32 @@ func (a *appendStore) Put(b *chain.Beacon) error {
 	if b.Round != a.last.Round+1 {
 		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
 	}
+	if err := a.Store.Put(b); err != nil {
+		return err
+	}
+	a.last = b
+	return nil
+}
+
+// chainStore is a store that only appends new block with a round whose prev signature
+// is equal to the signature of the last beacon
+type chainedStore struct {
+	chain.Store
+	last *chain.Beacon
+	sync.Mutex
+}
+
+func newChainedStore(s chain.Store) chain.Store {
+	last, _ := s.Last()
+	return &chainedStore{
+		Store: s,
+		last:  last,
+	}
+}
+
+func (a *chainedStore) Put(b *chain.Beacon) error {
+	a.Lock()
+	defer a.Unlock()
 	if !bytes.Equal(a.last.Signature, b.PreviousSig) {
 		return fmt.Errorf("invalid previous signature")
 	}
