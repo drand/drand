@@ -3,10 +3,11 @@ package beacon
 import (
 	"bytes"
 	"fmt"
-	"github.com/drand/drand/common/scheme"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
