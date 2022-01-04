@@ -152,11 +152,17 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			cache.FlushRounds(partial.p.GetRound())
+
 			newBeacon := &chain.Beacon{
-				Round:       roundCache.round,
-				PreviousSig: roundCache.prev,
-				Signature:   finalSig,
+				Round:     roundCache.round,
+				Signature: finalSig,
 			}
+
+			// Previous signature will be present only if chain works in chained mode
+			if !c.conf.Group.Scheme.DecouplePrevSig {
+				newBeacon.PreviousSig = roundCache.prev
+			}
+
 			c.l.Infow("", "beacon_id", beaconID, "aggregated_beacon", newBeacon.Round)
 			if c.tryAppend(lastBeacon, newBeacon) {
 				lastBeacon = newBeacon
