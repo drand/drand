@@ -73,6 +73,9 @@ func (a *schemeStore) Put(b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
 
+	// If the scheme is unchained, previous signature is set to nil. In that case,
+	// relationship between signature in the previous beacon and previous signature
+	// on the actual beacon is not necessary. Otherwise, it will be checked.
 	if a.sch.DecouplePrevSig {
 		b.PreviousSig = nil
 	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {

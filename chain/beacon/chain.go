@@ -42,7 +42,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	// we make sure the chain is increasing monotically
 	as := newAppendStore(store)
 
-	//
+	// we add an store to run some checks depending on scheme-related config
 	ss := newSchemeStore(as, cf.Group.Scheme)
 
 	// we write some stats about the timing when new beacon is saved
