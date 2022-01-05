@@ -44,7 +44,8 @@ func TestSchemeStore(t *testing.T) {
 	if sch.DecouplePrevSig && beaconSaved.PreviousSig != nil {
 		t.Errorf("previous signature should be nil")
 	} else if !sch.DecouplePrevSig && !bytes.Equal(beaconSaved.PreviousSig, genesisBeacon.Signature) {
-		t.Errorf("previous signature on last beacon [%s] should be equal to previos beacon signature [%s]", beaconSaved.PreviousSig, genesisBeacon.PreviousSig)
+		t.Errorf("previous signature on last beacon [%s] should be equal to previous beacon signature [%s]",
+			beaconSaved.PreviousSig, genesisBeacon.PreviousSig)
 	}
 
 	newBeacon = &chain.Beacon{
