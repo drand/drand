@@ -60,7 +60,7 @@ type schemeStore struct {
 	sync.Mutex
 }
 
-func newSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
+func NewSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
 	last, _ := s.Last()
 	return &schemeStore{
 		Store: s,
