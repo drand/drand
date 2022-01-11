@@ -133,6 +133,7 @@ func (d *Drand) runDKG(leader bool, group *key.Group, timeout uint32, randomness
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
 		Auth:           key.DKGAuthScheme,
+		Log:            d.log,
 	}
 	phaser := d.getPhaser(timeout)
 	board := newEchoBroadcast(d.log, d.privGateway.ProtocolClient, d.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
@@ -213,6 +214,7 @@ func (d *Drand) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout
 		FastSync:     true,
 		Nonce:        getNonce(newGroup),
 		Auth:         key.DKGAuthScheme,
+		Log:          d.log,
 	}
 	err := func() error {
 		d.state.Lock()
