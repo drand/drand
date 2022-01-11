@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drand/drand/common"
-
 	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
@@ -249,11 +247,11 @@ func reshareCmd(c *cli.Context) error {
 			return fmt.Errorf("could not load drand from path: %s", err)
 		}
 
-		if !common.CompareBeaconIDs(beaconID, oldGroup.ID) {
-			return fmt.Errorf("beacon ID [%s] is not equal to the present inside group file [%s]", beaconID, oldGroup.ID)
-		}
-
 		oldPath = c.String(oldGroupFlag.Name)
+
+		if beaconID != "" {
+			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
+		}
 	}
 
 	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s] \n", beaconID)
