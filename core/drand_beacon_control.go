@@ -104,7 +104,12 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		return nil, err
 	}
 
+	rcvBeaconID := in.GetMetadata().GetBeaconID()
 	beaconID := oldGroup.ID
+
+	if !commonutils.CompareBeaconIDs(rcvBeaconID, beaconID) {
+		return nil, fmt.Errorf("drand: invalid setup configuration: beacon id on flag is different to beacon id on group file")
+	}
 
 	if !in.GetInfo().GetLeader() {
 		bp.log.Infow("", "beacon_id", beaconID, "init_reshare", "begin", "leader", false)
