@@ -337,6 +337,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		Threshold:      group.Threshold,
 		Nonce:          getNonce(group),
 		Auth:           key.DKGAuthScheme,
+		Log:            bp.log,
 	}
 	phaser := bp.getPhaser(timeout, beaconID)
 	board := newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient,
@@ -424,6 +425,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		FastSync:     true,
 		Nonce:        getNonce(newGroup),
 		Auth:         key.DKGAuthScheme,
+		Log:          bp.log,
 	}
 	err := func() error {
 		bp.state.Lock()
