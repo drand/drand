@@ -19,10 +19,15 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 		dd.state.Unlock()
 
 		if isChainHashFound {
+			// check if rcv beacon id on request points to a different id obtained from chain hash
 			if rcvBeaconID != "" && rcvBeaconID != beaconIDByHash {
 				return "", fmt.Errorf("invalid chain hash")
 			}
+
 			rcvBeaconID = beaconIDByHash
+
+			// set beacon id found from chain hash on message to make it available for everyone
+			metadata.BeaconID = beaconIDByHash
 		}
 	}
 

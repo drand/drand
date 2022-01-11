@@ -223,6 +223,10 @@ func reshareCmd(c *cli.Context) error {
 		return err
 	}
 
+	if c.IsSet(periodFlag.Name) {
+		return fmt.Errorf("%s flag is not allowed on resharing", periodFlag.Name)
+	}
+
 	if !c.IsSet(connectFlag.Name) {
 		return fmt.Errorf("need to the address of the coordinator to create the group file")
 	}
@@ -234,6 +238,8 @@ func reshareCmd(c *cli.Context) error {
 		return fmt.Errorf("could not create client: %v", err)
 	}
 
+	beaconID := c.String(beaconIDFlag.Name)
+
 	// resharing case needs the previous group
 	var oldPath string
 	if c.IsSet(transitionFlag.Name) {
@@ -244,10 +250,15 @@ func reshareCmd(c *cli.Context) error {
 		if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
 			return fmt.Errorf("could not load drand from path: %s", err)
 		}
-		oldPath = c.String(oldGroupFlag.Name)
-	}
 
-	beaconID := c.String(beaconIDFlag.Name)
+		oldPath = c.String(oldGroupFlag.Name)
+
+		if beaconID != "" {
+			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
+		}
+
+		beaconID = oldGroup.ID
+	}
 
 	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s] \n", beaconID)
 
@@ -268,6 +279,10 @@ func leadReshareCmd(c *cli.Context) error {
 		return err
 	}
 
+	if c.IsSet(periodFlag.Name) {
+		return fmt.Errorf("%s flag is not allowed on resharing", periodFlag.Name)
+	}
+
 	if !c.IsSet(thresholdFlag.Name) || !c.IsSet(shareNodeFlag.Name) {
 		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
 	}
@@ -278,6 +293,8 @@ func leadReshareCmd(c *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not create client: %v", err)
 	}
+
+	beaconID := c.String(beaconIDFlag.Name)
 
 	// resharing case needs the previous group
 	var oldPath string
@@ -290,6 +307,12 @@ func leadReshareCmd(c *cli.Context) error {
 			return fmt.Errorf("could not load drand from path: %s", err)
 		}
 		oldPath = c.String(oldGroupFlag.Name)
+
+		if beaconID != "" {
+			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
+		}
+
+		beaconID = oldGroup.ID
 	}
 
 	offset := int(core.DefaultResharingOffset.Seconds())
@@ -303,8 +326,6 @@ func leadReshareCmd(c *cli.Context) error {
 			return fmt.Errorf("catchup period given is invalid: %v", err)
 		}
 	}
-
-	beaconID := c.String(beaconIDFlag.Name)
 
 	fmt.Fprintf(output, "Initiating the resharing as a leader. Beacon ID: [%s] \n", beaconID)
 	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout,

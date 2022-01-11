@@ -27,3 +27,17 @@ func GetBeaconIDFromEnv() string {
 func IsDefaultBeaconID(beaconID string) bool {
 	return beaconID == DefaultBeaconID || beaconID == ""
 }
+
+// CompareBeaconIDs indicates if two different beacon ids are equivalent or not.
+// It handles default values too.
+func CompareBeaconIDs(id1, id2 string) bool {
+	if IsDefaultBeaconID(id1) && IsDefaultBeaconID(id2) {
+		return true
+	}
+
+	if id1 != id2 {
+		return false
+	}
+
+	return true
+}
