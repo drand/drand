@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common/scheme"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -43,12 +45,47 @@ func (a *appendStore) Put(b *chain.Beacon) error {
 	if b.Round != a.last.Round+1 {
 		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
 	}
-	if !bytes.Equal(a.last.Signature, b.PreviousSig) {
-		return fmt.Errorf("invalid previous signature")
-	}
 	if err := a.Store.Put(b); err != nil {
 		return err
 	}
+	a.last = b
+	return nil
+}
+
+// schemeStore is a store that run different checks depending on what scheme is being used.
+type schemeStore struct {
+	chain.Store
+	sch  scheme.Scheme
+	last *chain.Beacon
+	sync.Mutex
+}
+
+func NewSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
+	last, _ := s.Last()
+	return &schemeStore{
+		Store: s,
+		last:  last,
+		sch:   sch,
+	}
+}
+
+func (a *schemeStore) Put(b *chain.Beacon) error {
+	a.Lock()
+	defer a.Unlock()
+
+	// If the scheme is unchained, previous signature is set to nil. In that case,
+	// relationship between signature in the previous beacon and previous signature
+	// on the actual beacon is not necessary. Otherwise, it will be checked.
+	if a.sch.DecouplePrevSig {
+		b.PreviousSig = nil
+	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {
+		return fmt.Errorf("invalid previous signature")
+	}
+
+	if err := a.Store.Put(b); err != nil {
+		return err
+	}
+
 	a.last = b
 	return nil
 }
