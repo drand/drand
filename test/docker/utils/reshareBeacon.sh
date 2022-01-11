@@ -8,7 +8,7 @@
 
 ## Default beacon
 # Start leader
-nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader --nodes 5 --threshold 4 --period "5s"' &
+nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader --nodes 5 --threshold 4' &
 
 sleep 3s
 
@@ -25,7 +25,7 @@ sleep 10s
 nohup docker exec -u drand drand_4 /bin/sh -c 'drand generate-keypair --tls-disable --id test_beacon "drand_4:8480"' &
 
 # Start leader
-nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader --nodes 5 --threshold 4 --period "60s" --id test_beacon' &
+nohup docker exec -u drand drand_0 /bin/sh -c 'drand share --transition --leader --nodes 5 --threshold 4 --id test_beacon' &
 
 sleep 3s
 

@@ -214,6 +214,10 @@ func reloadCmd(c *cli.Context) error {
 }
 
 func reshareCmd(c *cli.Context) error {
+	if c.String(periodFlag.Name) != "" {
+		return fmt.Errorf("%s flag is not allowed on resharing", periodFlag.Name)
+	}
+
 	if c.Bool(leaderFlag.Name) {
 		return leadReshareCmd(c)
 	}
