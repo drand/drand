@@ -26,7 +26,7 @@ func TestSchemeStore(t *testing.T) {
 	err = bstore.Put(genesisBeacon)
 	require.NoError(t, err)
 
-	ss := newSchemeStore(bstore, sch)
+	ss := NewSchemeStore(bstore, sch)
 
 	newBeacon := &chain.Beacon{
 		Round:       1,
