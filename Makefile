@@ -19,12 +19,15 @@ CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
 GIT_REVISION := $(shell git rev-parse HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
+PROTOC_VERSION=3.17.3
+PROTOC_ZIP=protoc-$(PROTOC_VERSION)-linux-x86_64.zip
+
 drand: build
 
 ####################  Lint and fmt process ##################
 
 install_lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.41.1
+	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.43.0
 
 lint:
 	golangci-lint --version
@@ -109,17 +112,23 @@ relay-s3:
 drand-relay-s3: relay-s3
 
 build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
+
+build_docker_all: build_docker build_docker_dev
 build_docker:
 	docker build --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
 
+build_docker_dev:
+	docker build -f test/docker/Dockerfile --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
 install_deps_linux:
-	PROTOC_ZIP=protoc-3.14.0-linux-x86_64.zip
-	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v3.14.0/$PROTOC_ZIP
+	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
 	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
 	rm -f $PROTOC_ZIP
 
 install_deps_darwin:
-	brew install protobuf
+	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-osx-x86_64.zip
+	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
+	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
+	rm -f $PROTOC_ZIP

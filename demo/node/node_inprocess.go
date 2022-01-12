@@ -46,7 +46,7 @@ type LocalNode struct {
 
 	log log.Logger
 
-	daemon *core.Drand
+	daemon *core.DrandDaemon
 }
 
 func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, sch scheme.Scheme, beaconID string) Node {
@@ -110,21 +110,51 @@ func (l *LocalNode) Start(certFolder string) error {
 	conf := core.NewConfig(opts...)
 	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	fs.SaveKeyPair(l.priv)
+
 	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
-	if l.daemon == nil {
-		drand, err := core.NewDrand(fs, conf)
-		if err != nil {
-			return err
-		}
-		l.daemon = drand
-	} else {
-		drand, err := core.LoadDrand(fs, conf)
-		if err != nil {
-			return err
-		}
-		drand.StartBeacon(true)
-		l.daemon = drand
+
+	// Create and start drand daemon
+	drandDaemon, err := core.NewDrandDaemon(conf)
+	if err != nil {
+		return fmt.Errorf("can't instantiate drand daemon %s", err)
 	}
+
+	// Load possible existing stores
+	stores, err := key.NewFileStores(conf.ConfigFolderMB())
+	if err != nil {
+		return err
+	}
+
+	for beaconID, fs := range stores {
+		bp, err := drandDaemon.InstantiateBeaconProcess(beaconID, fs)
+		if err != nil {
+			fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+			return err
+		}
+
+		freshRun, err := bp.Load()
+		if err != nil {
+			return err
+		}
+
+		if freshRun {
+			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
+		} else {
+			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
+
+			// Add beacon handler from chain hash for http server
+			drandDaemon.AddBeaconHandler(beaconID, bp)
+
+			// XXX make it configurable so that new share holder can still start if
+			// nobody started.
+			// drand.StartBeacon(!c.Bool(pushFlag.Name))
+			catchup := true
+			bp.StartBeacon(catchup)
+		}
+	}
+
+	l.daemon = drandDaemon
+
 	return nil
 }
 
@@ -180,7 +210,7 @@ func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAd
 func (l *LocalNode) GetGroup() *key.Group {
 	cl := l.ctrl()
 
-	grp, err := cl.GroupFile()
+	grp, err := cl.GroupFile(l.beaconID)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't  get group", "err", err)
 		return nil
@@ -215,7 +245,7 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 
 func (l *LocalNode) ChainInfo(group string) bool {
 	cl := l.ctrl()
-	ci, err := cl.ChainInfo()
+	ci, err := cl.ChainInfo(l.beaconID)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't get chain-info", "err", err)
 		return false
@@ -239,7 +269,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	if l.tls {
 		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
 	}
-	c, _ := grpc.New(l.privAddr, cert, cert == "")
+	c, _ := grpc.New(l.privAddr, cert, cert == "", []byte(""))
 
 	group := l.GetGroup()
 	if group == nil {
@@ -278,7 +308,7 @@ func (l *LocalNode) WritePublic(p string) {
 
 func (l *LocalNode) Stop() {
 	cl := l.ctrl()
-	_, err := cl.Shutdown()
+	_, err := cl.Shutdown("")
 	if err != nil {
 		l.log.Errorw("", "drand", "failed to shutdown", "err", err)
 	}

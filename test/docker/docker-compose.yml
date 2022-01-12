@@ -81,3 +81,30 @@ services:
       DRAND_PUBLIC_ADDRESS: "drand_4:8480"
       DRAND_SHARE_SECRET: "thisisthesecretweshouldsettorundkgprocessonthenodes"
 
+  drand_client:
+    container_name: drand_client
+    image: docker.io/drandorg/go-drand-dev:latest
+    volumes:
+      - ./data_0:/data/drand_0
+      - ./data_1:/data/drand_1
+      - ./data_2:/data/drand_2
+      - ./data_3:/data/drand_3
+      - ./data_4:/data/drand_4
+    command: tail -f /dev/null
+
+  drand_relay:
+    container_name: drand_relay
+    image: docker.io/drandorg/go-drand-dev:latest
+    volumes:
+      - ./data_0:/data/drand_0
+      - ./data_1:/data/drand_1
+      - ./data_2:/data/drand_2
+      - ./data_3:/data/drand_3
+      - ./data_4:/data/drand_4
+    command: tail -f /dev/null
+    ports:
+      - "0.0.0.0:9080:9080"
+      - "0.0.0.0:9180:9180"
+      - "0.0.0.0:9280:9280"
+      - "0.0.0.0:9380:9380"
+

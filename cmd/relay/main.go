@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 
+	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
@@ -44,6 +46,7 @@ var metricsFlag = &cli.StringFlag{
 }
 
 // Relay a GRPC connection to an HTTP server.
+// nolint:gocyclo
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
 
@@ -66,15 +69,43 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
+	if c.IsSet(lib.HashFlag.Name) {
+		hash, err := hex.DecodeString(c.String(lib.HashFlag.Name))
+		if err != nil {
+			return fmt.Errorf("failed to decode hash flag: %w", err)
+		}
+		handler.RegisterNewBeaconHandler(client, string(hash))
+	} else {
+		if c.IsSet(lib.HashListFlag.Name) {
+			hashList := c.StringSlice(lib.HashListFlag.Name)
+			for _, hashHex := range hashList {
+				hash, err := hex.DecodeString(hashHex)
+				if err != nil {
+					return fmt.Errorf("failed to decode hash flag: %w", err)
+				}
+
+				c, err := lib.Create(c, c.IsSet(metricsFlag.Name), dclient.WithChainHash(hash))
+				if err != nil {
+					return err
+				}
+
+				handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
+			}
+		} else {
+			fmt.Println("hash flags were not set. Registering beacon handler for default chain hash")
+			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
+		}
+	}
+
 	if c.IsSet(accessLogFlag.Name) {
 		logFile, err := os.OpenFile(c.String(accessLogFlag.Name), os.O_CREATE|os.O_APPEND|os.O_WRONLY, accessLogPermFolder)
 		if err != nil {
 			return fmt.Errorf("failed to open access log: %w", err)
 		}
 		defer logFile.Close()
-		handler = handlers.CombinedLoggingHandler(logFile, handler)
+		handler.SetHTTPHandler(handlers.CombinedLoggingHandler(logFile, handler.GetHTTPHandler()))
 	} else {
-		handler = handlers.CombinedLoggingHandler(os.Stdout, handler)
+		handler.SetHTTPHandler(handlers.CombinedLoggingHandler(os.Stdout, handler.GetHTTPHandler()))
 	}
 
 	bind := "localhost:0"
@@ -89,13 +120,13 @@ func Relay(c *cli.Context) error {
 	// jumpstart bootup
 	req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
 	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
+	handler.GetHTTPHandler().ServeHTTP(rr, req)
 	if rr.Code != http.StatusOK {
 		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
-	return http.Serve(listener, handler)
+	return http.Serve(listener, handler.GetHTTPHandler())
 }
 
 func main() {
@@ -105,7 +136,7 @@ func main() {
 		Name:    "relay",
 		Version: version.String(),
 		Usage:   "Relay a Drand group to a public HTTP Rest API",
-		Flags:   append(lib.ClientFlags, listenFlag, accessLogFlag, metricsFlag),
+		Flags:   append(lib.ClientFlags, lib.HashListFlag, listenFlag, accessLogFlag, metricsFlag),
 		Action:  Relay,
 	}
 	cli.VersionPrinter = func(c *cli.Context) {

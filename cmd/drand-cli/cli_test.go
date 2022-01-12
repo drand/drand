@@ -290,14 +290,21 @@ func TestUtilCheck(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
-	go CLI().RunContext(ctx, listen)
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
+	go func() {
+		err := CLI().RunContext(ctx, listen)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	time.Sleep(200 * time.Millisecond)
 
 	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
 	require.NoError(t, CLI().Run(check))
 }
 
+//nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := common.GetBeaconIDFromEnv()
@@ -313,9 +320,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	pubPath := path.Join(tmpPath, "pub.key")
 	port1, _ := strconv.Atoi(test.FreePort())
 	addr := "127.0.0.1:" + strconv.Itoa(port1)
-	ctrlPort1 := test.FreePort()
-	ctrlPort2 := test.FreePort()
-	metricsPort := test.FreePort()
+
+	ctrlPort1, ctrlPort2, metricsPort := test.FreePort(), test.FreePort(), test.FreePort()
 
 	priv := key.NewKeyPair(addr)
 	require.NoError(t, key.Save(pubPath, priv.Public, false))
@@ -327,13 +333,21 @@ func TestStartWithoutGroup(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
+		"--private-listen", priv.Public.Address(),
 		"--tls-disable",
 		"--verbose",
 		"--folder", tmpPath,
 		"--control", ctrlPort1,
 		"--metrics", "127.0.0.1:" + metricsPort,
 	}
-	go CLI().Run(startArgs)
+
+	go func() {
+		err := CLI().Run(startArgs)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	time.Sleep(500 * time.Millisecond)
 
 	fmt.Println("--- DRAND SHARE --- (expected to fail)")
@@ -342,6 +356,8 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
+
+	fmt.Println("--- DRAND STOP --- (failing instanace)")
 	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")
@@ -378,8 +394,24 @@ func TestStartWithoutGroup(t *testing.T) {
 
 	fmt.Println(" --- DRAND START --- control ", ctrlPort2)
 
-	start2 := []string{"drand", "start", "--control", ctrlPort2, "--tls-disable", "--folder", tmpPath, "--verbose", "--private-rand"}
-	go CLI().Run(start2)
+	start2 := []string{
+		"drand",
+		"start",
+		"--control", ctrlPort2,
+		"--private-listen", priv.Public.Address(),
+		"--tls-disable",
+		"--folder", tmpPath,
+		"--verbose",
+		"--private-rand",
+	}
+
+	go func() {
+		err := CLI().Run(start2)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}()
+
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort2})
 
 	time.Sleep(500 * time.Millisecond)
@@ -389,7 +421,7 @@ func TestStartWithoutGroup(t *testing.T) {
 
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	testPing(t, ctrlPort)
-	testStatus(t, ctrlPort)
+	testStatus(t, ctrlPort, beaconID)
 	testListSchemes(t, ctrlPort)
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
@@ -457,12 +489,12 @@ func testPing(t *testing.T, ctrlPort string) {
 	require.NoError(t, err)
 }
 
-func testStatus(t *testing.T, ctrlPort string) {
+func testStatus(t *testing.T, ctrlPort, beaconID string) {
 	var err error
 
-	fmt.Println(" + running STATUS command with ", ctrlPort)
+	fmt.Println(" + running STATUS command with ", ctrlPort, " on beacon [", beaconID, "]")
 	for i := 0; i < 3; i++ {
-		status := []string{"drand", "util", "status", "--control", ctrlPort}
+		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
 		err = CLI().Run(status)
 		if err == nil {
 			break
@@ -547,6 +579,7 @@ func TestClientTLS(t *testing.T) {
 	startArgs := []string{
 		"drand",
 		"start",
+		"--private-listen", priv.Public.Address(),
 		"--tls-cert", certPath,
 		"--tls-key", keyPath,
 		"--control", ctrlPort,
@@ -631,6 +664,64 @@ func getSBFolderStructure() string {
 	return tmp
 }
 
+func TestDrandReloadBeacon(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+	beaconID := common.GetBeaconIDFromEnv()
+
+	// beacon id need to have a value in order to stop one beacon process
+	// if beacon id is empty, the id will be "default" internally
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+
+	n := 4
+	instances, tempPath := launchDrandInstances(t, n)
+	defer os.RemoveAll(tempPath)
+
+	for i, inst := range instances {
+		if i == 0 {
+			inst.shareLeader(t, n, n, 2, beaconID, sch)
+		} else {
+			inst.share(t, instances[0].addr, beaconID)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	defer func() {
+		for _, inst := range instances {
+			inst.stopAll()
+		}
+	}()
+
+	time.Sleep(1 * time.Second)
+
+	// try to reload a beacon which is already loaded
+	err := instances[3].reload(beaconID)
+	require.Error(t, err)
+
+	// wait some time to generate some randomness
+	time.Sleep(1 * time.Minute)
+
+	// Stop beacon process... not the entire node
+	err = instances[3].stop(beaconID)
+	require.NoError(t, err)
+
+	// check the node is still alive
+	testPing(t, instances[3].ctrlPort)
+
+	// reload a beacon
+	err = instances[3].reload(beaconID)
+	require.NoError(t, err)
+
+	// test beacon process status
+	testStatus(t, instances[3].ctrlPort, beaconID)
+
+	time.Sleep(5 * time.Second)
+
+	// test beacon process status
+	testStatus(t, instances[3].ctrlPort, beaconID)
+}
+
 func TestDrandStatus(t *testing.T) {
 	n := 4
 	instances, tempPath := launchDrandInstances(t, n)
@@ -661,7 +752,7 @@ func TestDrandStatus(t *testing.T) {
 	// stop one and check that all nodes report this node down
 	toStop := 2
 	insToStop := instances[toStop]
-	insToStop.stop()
+	insToStop.stopAll()
 
 	for i, instance := range instances {
 		if i == toStop {
@@ -697,11 +788,60 @@ type drandInstance struct {
 	certsDir string
 }
 
-func (d *drandInstance) stop() error {
+func (d *drandInstance) stopAll() error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort})
 }
 
-func (d *drandInstance) run(t *testing.T) {
+func (d *drandInstance) stop(beaconID string) error {
+	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort, "--id", beaconID})
+}
+
+func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, beaconID string, sch scheme.Scheme) {
+	shareArgs := []string{
+		"drand",
+		"share",
+		"--leader",
+		"--nodes", strconv.Itoa(nodes),
+		"--threshold", strconv.Itoa(threshold),
+		"--period", fmt.Sprintf("%ds", period),
+		"--control", d.ctrlPort,
+		"--scheme", sch.ID,
+		"--id", beaconID,
+	}
+
+	go func() {
+		err := CLI().Run(shareArgs)
+		require.NoError(t, err)
+	}()
+}
+
+func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
+	shareArgs := []string{
+		"drand",
+		"share",
+		"--connect", leaderURL,
+		"--control", d.ctrlPort,
+		"--id", beaconID,
+	}
+
+	go func() {
+		err := CLI().Run(shareArgs)
+		require.NoError(t, err)
+	}()
+}
+
+func (d *drandInstance) reload(beaconID string) error {
+	reloadArgs := []string{
+		"drand",
+		"reload",
+		"--control", d.ctrlPort,
+		"--id", beaconID,
+	}
+
+	return CLI().Run(reloadArgs)
+}
+
+func (d *drandInstance) run(t *testing.T, beaconID string) {
 	startArgs := []string{
 		"drand",
 		"start",
@@ -711,10 +851,16 @@ func (d *drandInstance) run(t *testing.T) {
 		"--control", d.ctrlPort,
 		"--folder", d.path,
 		"--metrics", d.metrics,
+		"--private-listen", d.addr,
 	}
-	go CLI().Run(startArgs)
+
+	go func() {
+		err := CLI().Run(startArgs)
+		require.NoError(t, err)
+	}()
+
 	// make sure we run each one sequentially
-	testStatus(t, d.ctrlPort)
+	testStatus(t, d.ctrlPort, beaconID)
 }
 
 //nolint: gocritic
@@ -732,11 +878,11 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		require.NoError(t, err)
 
 		certPath := path.Join(nodePath, "cert")
-		keyPath := path.Join(nodePath, "tlskey")
+		keyPath := path.Join(nodePath, "tls.key")
 		pubPath := path.Join(tmpPath, "pub.key")
 
 		freePort := test.FreePort()
-		addr := "127.0.0." + strconv.Itoa(i) + ":" + freePort
+		addr := "127.0.0.1:" + freePort
 		ctrlPort := test.FreePort()
 		metricsPort := test.FreePort()
 
@@ -767,8 +913,9 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		})
 	}
 
+	os.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
 	for _, instance := range ins {
-		instance.run(t)
+		instance.run(t, beaconID)
 	}
 	return ins, tmpPath
 }

@@ -14,7 +14,7 @@ type MetadataGetter interface {
 	GetMetadata() *common.Metadata
 }
 
-func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
+func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{},
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (response interface{}, err error) {
 	reqWithContext, ok := req.(MetadataGetter)
 
@@ -33,15 +33,15 @@ func (d *Drand) NodeVersionValidator(ctx context.Context, req interface{},
 	}
 
 	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
-	if !d.version.IsCompatible(rcvVer) {
-		d.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+	if !dd.version.IsCompatible(rcvVer) {
+		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
 		return nil, status.Error(codes.PermissionDenied, "Node Version not valid")
 	}
 
 	return handler(ctx, req)
 }
 
-func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream,
+func (dd *DrandDaemon) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream,
 	info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	reqWithContext, ok := srv.(MetadataGetter)
 
@@ -60,8 +60,8 @@ func (d *Drand) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream
 	}
 
 	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
-	if !d.version.IsCompatible(rcvVer) {
-		d.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
+	if !dd.version.IsCompatible(rcvVer) {
+		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
 		return status.Error(codes.PermissionDenied, "Node Version not valid")
 	}
 

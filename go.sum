@@ -113,8 +113,8 @@ github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqi
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.2/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber v1.1.4/go.mod h1:9+IgTq7kadePhZg7eRwSD7+bA+bmvqRK+8DtmoV5a3U=
-github.com/drand/kyber v1.1.6 h1:DlD9rmikO/KQ0w1X6EoKKhFTPqFPLnLoYFoq2kw7w10=
-github.com/drand/kyber v1.1.6/go.mod h1:UkHLsI4W6+jT5PvNxmc0cvQAgppjTUpX+XCsN9TXmRo=
+github.com/drand/kyber v1.1.9 h1:XlKRGLH75of0ehRrX8HSdfcsa1Ld5p5/615Hvq/YCWA=
+github.com/drand/kyber v1.1.9/go.mod h1:UkHLsI4W6+jT5PvNxmc0cvQAgppjTUpX+XCsN9TXmRo=
 github.com/drand/kyber-bls12381 v0.2.0/go.mod h1:zQip/bHdeEB6HFZSU3v+d3cQE0GaBVQw9aR2E7AdoeI=
 github.com/drand/kyber-bls12381 v0.2.1 h1:/d5/YAdaCmHpYjF1NZevOEcKGaq6LBbyvkCTIdGqDjs=
 github.com/drand/kyber-bls12381 v0.2.1/go.mod h1:JwWn4nHO9Mp4F5qCie5sVIPQZ0X6cw8XAeMRvc/GXBE=
@@ -141,6 +141,8 @@ github.com/franela/goreq v0.0.0-20171204163338-bcd34c9993f8/go.mod h1:ZhphrRTfi2
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/go-check/check v0.0.0-20180628173108-788fd7840127/go.mod h1:9ES+weclKsC9YodN5RgxqK/VD9HM9JsCSh7rNhMZE98=
+github.com/go-chi/chi v1.5.4 h1:QHdzF2szwjqVV4wmByUnTcsbIg7UGaQ0tPF2t5GcAIs=
+github.com/go-chi/chi v1.5.4/go.mod h1:uaf8YgoFazUOkPBG7fxPftUylNumIev9awIWOENIuEg=
 github.com/go-kit/kit v0.8.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2as=
 github.com/go-kit/kit v0.9.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2as=
 github.com/go-kit/kit v0.10.0 h1:dXFJfIHVvUcpSgDOV+Ne6t7jXri8Tfv2uOLHUZ2XNuo=

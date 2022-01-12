@@ -41,12 +41,19 @@ type chainStore struct {
 func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoStore, store chain.Store, t *ticker) *chainStore {
 	// we make sure the chain is increasing monotically
 	as := newAppendStore(store)
+
+	// we add an store to run some checks depending on scheme-related config
+	ss := NewSchemeStore(as, cf.Group.Scheme)
+
 	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(as, l, c.GetGroup())
+	ds := newDiscrepancyStore(ss, l, c.GetGroup())
+
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
+
 	// we give the final append store to the syncer
 	syncer := NewSyncer(l, cbs, c.chain, cl)
+
 	//
 	verifier := chain.NewVerifier(cf.Group.Scheme)
 
@@ -152,11 +159,13 @@ func (c *chainStore) runAggregator() {
 				break
 			}
 			cache.FlushRounds(partial.p.GetRound())
+
 			newBeacon := &chain.Beacon{
 				Round:       roundCache.round,
 				PreviousSig: roundCache.prev,
 				Signature:   finalSig,
 			}
+
 			c.l.Infow("", "beacon_id", beaconID, "aggregated_beacon", newBeacon.Round)
 			if c.tryAppend(lastBeacon, newBeacon) {
 				lastBeacon = newBeacon

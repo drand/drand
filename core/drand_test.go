@@ -283,10 +283,9 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	nodeToStop := 1
 	leader := 0
 
-	t.Log("Stopping nodes\n")
 	dt.nodes[leader].drand.setupCB = func(g *key.Group) {
 		t.Logf("Stopping node %d \n", nodeToStop)
-		dt.nodes[nodeToStop].drand.Stop(context.Background())
+		dt.nodes[nodeToStop].daemon.Stop(context.Background())
 		t.Logf("Node %d stopped \n", nodeToStop)
 	}
 
@@ -544,7 +543,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 	chainInfo := chain.NewChainInfo(group)
 	certManager := dt.nodes[0].drand.opts.certmanager
-	client := NewGrpcClientFromCert(certManager)
+	client := NewGrpcClientFromCert(group.Hash(), certManager)
 
 	for i, node := range dt.nodes {
 		d := node.drand

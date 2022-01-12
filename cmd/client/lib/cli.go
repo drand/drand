@@ -54,6 +54,11 @@ var (
 		Usage:   "The hash (in hex) for the chain to follow",
 		Aliases: []string{"chain-hash"}, // DEPRECATED
 	}
+	// HashListFlag is the CLI flag for the hashes list (in hex) for the relay to follow.
+	HashListFlag = &cli.StringSliceFlag{
+		Name:  "hash-list",
+		Usage: "The hash list (in hex) for the relay to follow",
+	}
 	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
 		Name: "group-conf",
@@ -155,7 +160,22 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 
 func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error) {
 	if c.IsSet(GRPCConnectFlag.Name) {
-		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name))
+		hash := make([]byte, 0)
+
+		if c.IsSet(HashFlag.Name) {
+			var err error
+
+			hash, err = hex.DecodeString(c.String(HashFlag.Name))
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if *info != nil && len(hash) == 0 {
+			hash = (*info).Hash()
+		}
+
+		gc, err := grpc.New(c.String(GRPCConnectFlag.Name), c.String(CertFlag.Name), c.Bool(InsecureFlag.Name), hash)
 		if err != nil {
 			return nil, err
 		}
