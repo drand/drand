@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 
+	common2 "github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
@@ -378,7 +380,7 @@ var appCommands = []*cli.Command{
 			},
 			{
 				Name:      "chain-info",
-				Usage:     "Get the binding chain information that this nodes participates to",
+				Usage:     "Get the binding chain information that this node participates to",
 				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
 				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
 				Action:    getChainInfo,
@@ -420,7 +422,7 @@ var appCommands = []*cli.Command{
 			},
 			{
 				Name:   "status",
-				Usage:  "Get the status of many modules of running the daemon\n",
+				Usage:  "Get the status of many modules of a running network\n",
 				Flags:  toArray(controlFlag, jsonFlag, beaconIDFlag),
 				Action: statusCmd,
 			},
@@ -709,7 +711,12 @@ func getThreshold(c *cli.Context) (int, error) {
 
 func checkConnection(c *cli.Context) error {
 	var names []string
+	beaconID := ""
+
 	if c.IsSet(groupFlag.Name) {
+		if c.IsSet(beaconIDFlag.Name) {
+			return fmt.Errorf("id flag is not reqired when using group flag")
+		}
 		if err := testEmptyGroup(c.String(groupFlag.Name)); err != nil {
 			return err
 		}
@@ -717,9 +724,11 @@ func checkConnection(c *cli.Context) error {
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
 			return fmt.Errorf("loading group failed: %s", err)
 		}
+
 		for _, id := range group.Nodes {
 			names = append(names, id.Address())
 		}
+		beaconID = group.ID
 	} else if c.Args().Present() {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
@@ -728,6 +737,7 @@ func checkConnection(c *cli.Context) error {
 			}
 			names = append(names, serverAddr)
 		}
+		beaconID = c.String(beaconIDFlag.Name)
 	} else {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
@@ -737,7 +747,7 @@ func checkConnection(c *cli.Context) error {
 	var allGood = true
 	var invalidIds []string
 	for _, address := range names {
-		err := checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name))
+		err := checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name), beaconID)
 		if err != nil {
 			if isVerbose {
 				fmt.Fprintf(output, "drand: error checking id %s: %s\n", address, err)
@@ -756,12 +766,15 @@ func checkConnection(c *cli.Context) error {
 	return nil
 }
 
-func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
+func checkIdentityAddress(conf *core.Config, addr string, tls bool, beaconID string) error {
 	peer := net.CreatePeer(addr, tls)
 	client := net.NewGrpcClientFromCertManager(conf.Certs())
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
+
+	metadata := &common2.Metadata{BeaconID: beaconID}
+	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{Metadata: metadata})
 	if err != nil {
 		return err
 	}
