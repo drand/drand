@@ -397,7 +397,7 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag),
+				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag, beaconIDFlag),
 				Action: checkConnection,
 			},
 			{
