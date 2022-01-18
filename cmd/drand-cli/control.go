@@ -211,7 +211,7 @@ func loadCmd(c *cli.Context) error {
 		return fmt.Errorf("could not reload the beacon process [%s]: %s", beaconID, err)
 	}
 
-	fmt.Fprintf(output, "Beacon process [%s] is alive again \n", beaconID)
+	fmt.Fprintf(output, "Beacon process [%s] was loaded on drand.\n", beaconID)
 	return nil
 }
 

@@ -339,10 +339,14 @@ var appCommands = []*cli.Command{
 		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
 			"for this node.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(folderFlag, insecureFlag, beaconIDFlag),
+		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
-			return keygenCmd(c)
+			err := keygenCmd(c)
+			if err == nil {
+				loadCmd(c)
+			}
+			return err
 		},
 		Before: checkMigration,
 	},
