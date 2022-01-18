@@ -172,7 +172,7 @@ func (dd *DrandDaemon) LoadBeacon(ctx context.Context, in *drand.LoadBeaconReque
 		return nil, fmt.Errorf("beacon id [%s] is already running", beaconID)
 	}
 
-	_, err = dd.ReloadBeaconFromDisk(beaconID)
+	_, err = dd.LoadBeaconFromDisk(beaconID)
 	if err != nil {
 		return nil, err
 	}

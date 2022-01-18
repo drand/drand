@@ -224,7 +224,7 @@ func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
 
 // LoadBeacons checks for existing stores and creates the corresponding BeaconProcess
 // accordingly to each stored BeaconID
-func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
+func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 	// Load possible existing stores
 	stores, err := key.NewFileStores(dd.opts.ConfigFolderMB())
 	if err != nil {
@@ -232,7 +232,7 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 	}
 
 	for beaconID, fs := range stores {
-		bp, err := dd.LoadBeacon(beaconID, fs)
+		bp, err := dd.LoadBeaconFromStore(beaconID, fs)
 		if err != nil {
 			return err
 		}
@@ -246,12 +246,12 @@ func (dd *DrandDaemon) LoadBeacons(metricsFlag string) error {
 	return nil
 }
 
-func (dd *DrandDaemon) ReloadBeaconFromDisk(beaconID string) (*BeaconProcess, error) {
+func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, error) {
 	store := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
-	return dd.LoadBeacon(beaconID, store)
+	return dd.LoadBeaconFromStore(beaconID, store)
 }
 
-func (dd *DrandDaemon) LoadBeacon(beaconID string, store key.Store) (*BeaconProcess, error) {
+func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
 		fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
