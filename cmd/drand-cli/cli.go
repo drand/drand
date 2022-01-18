@@ -337,13 +337,14 @@ var appCommands = []*cli.Command{
 	{
 		Name: "generate-keypair",
 		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
-			"for this node.\n",
+			"for this node, and load it on the drand daemon if it is up and running\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
 		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			err := keygenCmd(c)
 			if err == nil {
+				//nolint:errcheck
 				loadCmd(c)
 			}
 			return err
