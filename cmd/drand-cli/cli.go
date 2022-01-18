@@ -336,16 +336,19 @@ var appCommands = []*cli.Command{
 	},
 	{
 		Name: "generate-keypair",
-		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
-			"for this node, and load it on the drand daemon if it is up and running\n",
+		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
+			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
 		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			err := keygenCmd(c)
 			if err == nil {
-				//nolint:errcheck
-				loadCmd(c)
+				err2 := loadCmd(c)
+				if err2 != nil {
+					fmt.Fprintf(os.Stdout, "Keys couldn't be loaded on drand daemon. If it is not running, "+
+						"these new keys will loaded on startup. Err: %s", err2)
+				}
 			}
 			return err
 		},
