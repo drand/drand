@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 
+	"github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -60,12 +62,9 @@ func (dd *DrandDaemon) PrivateRand(c context.Context, in *drand.PrivateRandReque
 
 // Home provides the address the local node is listening
 func (dd *DrandDaemon) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
+	ctx := common.NewMetadata(dd.version.ToProto())
 
-	return bp.Home(c, in)
+	return &drand.HomeResponse{Metadata: ctx}, nil
 }
 
 // ChainInfo replies with the chain information this node participates to
