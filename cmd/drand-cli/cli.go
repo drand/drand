@@ -415,6 +415,14 @@ var appCommands = []*cli.Command{
 				Action: pingpongCmd,
 			},
 			{
+				Name: "remote-ping",
+				Usage: "Pings node at the given `ADDRESS` (you can put multiple ones)" +
+					" in the group for checking they are up and running. You can " +
+					"also check a whole group's connectivity with the group flag.",
+				Flags:  toArray(groupFlag, verboseFlag),
+				Action: remotePingCmd,
+			},
+			{
 				Name:   "list-schemes",
 				Usage:  "List all scheme ids available to use\n",
 				Flags:  toArray(controlFlag),

@@ -1,8 +1,10 @@
 package drand
 
 import (
+	"context"
 	"fmt"
 	"io"
+	gonet "net"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -410,6 +412,71 @@ func pingpongCmd(c *cli.Context) error {
 		return fmt.Errorf("drand: can't ping the daemon ... %s", err)
 	}
 	fmt.Fprintf(output, "drand daemon is alive on port %s", controlPort(c))
+	return nil
+}
+
+func remotePingCmd(c *cli.Context) error {
+	var names []string
+
+	if c.IsSet(groupFlag.Name) {
+		if err := testEmptyGroup(c.String(groupFlag.Name)); err != nil {
+			return err
+		}
+		group := new(key.Group)
+		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
+			return fmt.Errorf("loading group failed: %s", err)
+		}
+
+		for _, id := range group.Nodes {
+			names = append(names, id.Address())
+		}
+	} else if c.Args().Present() {
+		for _, serverAddr := range c.Args().Slice() {
+			_, _, err := gonet.SplitHostPort(serverAddr)
+			if err != nil {
+				return fmt.Errorf("error for address %s: %s", serverAddr, err)
+			}
+			names = append(names, serverAddr)
+		}
+	} else {
+		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
+	}
+
+	var isVerbose = c.IsSet(verboseFlag.Name)
+	var allGood = true
+	var invalidIds []string
+	for _, address := range names {
+		err := remotePingToNode(address)
+		if err != nil {
+			if isVerbose {
+				fmt.Fprintf(output, "drand: error checking id %s: %s\n", address, err)
+			} else {
+				fmt.Fprintf(output, "drand: error checking id %s\n", address)
+			}
+			allGood = false
+			invalidIds = append(invalidIds, address)
+			continue
+		}
+		fmt.Fprintf(output, "drand: id %s answers correctly\n", address)
+	}
+	if !allGood {
+		return fmt.Errorf("following nodes don't answer: %s", strings.Join(invalidIds, ","))
+	}
+	return nil
+}
+
+func remotePingToNode(addr string) error {
+	peer := net.CreatePeer(addr, false)
+	client := net.NewGrpcClient()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := client.Home(ctx, peer, &drand.HomeRequest{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
