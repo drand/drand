@@ -199,14 +199,14 @@ func leadShareCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
-func reloadCmd(c *cli.Context) error {
+func loadCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
 		return err
 	}
 
 	beaconID := getBeaconID(c)
-	_, err = client.ReloadBeacon(beaconID)
+	_, err = client.LoadBeacon(beaconID)
 	if err != nil {
 		return fmt.Errorf("could not reload the beacon process [%s]: %s", beaconID, err)
 	}

@@ -108,13 +108,13 @@ func (c *ControlClient) Ping() error {
 	return err
 }
 
-// Reload
-func (c *ControlClient) ReloadBeacon(beaconID string) (*control.ReloadBeaconResponse, error) {
+// LoadBeacon
+func (c *ControlClient) LoadBeacon(beaconID string) (*control.LoadBeaconResponse, error) {
 	metadata := protoCommon.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	resp, err := c.client.ReloadBeacon(ctx.Background(), &control.ReloadBeaconRequest{Metadata: &metadata})
+	resp, err := c.client.LoadBeacon(ctx.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
 	return resp, err
 }
 

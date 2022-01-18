@@ -325,7 +325,7 @@ var appCommands = []*cli.Command{
 		Name:   "load",
 		Usage:  "Launch a sharing protocol from filesystem",
 		Flags:  toArray(controlFlag, beaconIDFlag),
-		Action: reloadCmd,
+		Action: loadCmd,
 	},
 	{
 		Name:  "follow",

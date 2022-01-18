@@ -664,7 +664,7 @@ func getSBFolderStructure() string {
 	return tmp
 }
 
-func TestDrandReloadBeacon(t *testing.T) {
+func TestDrandLoadBeacon(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := common.GetBeaconIDFromEnv()
 
