@@ -696,7 +696,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// try to reload a beacon which is already loaded
-	err := instances[3].reload(beaconID)
+	err := instances[3].load(beaconID)
 	require.Error(t, err)
 
 	// wait some time to generate some randomness
@@ -710,7 +710,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 	testPing(t, instances[3].ctrlPort)
 
 	// reload a beacon
-	err = instances[3].reload(beaconID)
+	err = instances[3].load(beaconID)
 	require.NoError(t, err)
 
 	// test beacon process status
@@ -830,10 +830,10 @@ func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 	}()
 }
 
-func (d *drandInstance) reload(beaconID string) error {
+func (d *drandInstance) load(beaconID string) error {
 	reloadArgs := []string{
 		"drand",
-		"reload",
+		"load",
 		"--control", d.ctrlPort,
 		"--id", beaconID,
 	}
