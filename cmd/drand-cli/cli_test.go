@@ -665,7 +665,7 @@ func getSBFolderStructure() string {
 }
 
 func TestDrandListSchemes(t *testing.T) {
-	n := 4
+	n := 5
 	instances, tempPath := launchDrandInstances(t, n)
 	defer os.RemoveAll(tempPath)
 
@@ -678,7 +678,7 @@ func TestDrandListSchemes(t *testing.T) {
 }
 
 func TestDrandListBeaconIDs(t *testing.T) {
-	n := 4
+	n := 3
 	instances, tempPath := launchDrandInstances(t, n)
 	defer os.RemoveAll(tempPath)
 

@@ -87,6 +87,11 @@ func (s *EmptyServer) ListSchemes(context.Context, *drand.ListSchemesRequest) (*
 	return nil, nil
 }
 
+// ListBeaconIDs is an empty implementation
+func (s *EmptyServer) ListBeaconIDs(context.Context, *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
+	return nil, nil
+}
+
 // InitDKG is an empty implementation
 func (s *EmptyServer) InitDKG(context.Context, *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	return nil, nil
