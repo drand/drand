@@ -207,7 +207,7 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconID
 	defer dd.state.Unlock()
 
 	ids := make([]string, 0)
-	for id, _ := range dd.beaconProcesses {
+	for id := range dd.beaconProcesses {
 		ids = append(ids, id)
 	}
 
