@@ -856,6 +856,10 @@ func (bp *BeaconProcess) ListSchemes(c context.Context, in *drand.ListSchemesReq
 	return &drand.ListSchemesResponse{Ids: scheme.ListSchemes(), Metadata: metadata}, nil
 }
 
+func (bp *BeaconProcess) ListBeaconIDs(c context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+	return nil, fmt.Errorf("method not implemented")
+}
+
 func extractGroup(i *drand.GroupInfo) (*key.Group, error) {
 	var g = new(key.Group)
 	switch x := i.Location.(type) {

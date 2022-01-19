@@ -470,6 +470,26 @@ func schemesCmd(c *cli.Context) error {
 	return nil
 }
 
+func beaconIDsCmd(c *cli.Context) error {
+	client, err := controlClient(c)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.ListBeaconIDs()
+	if err != nil {
+		return fmt.Errorf("drand: can't get the list of beacon ids running ... %s", err)
+	}
+
+	fmt.Fprintf(output, "This node is running the following list of networks: \n")
+
+	for i, id := range resp.Ids {
+		fmt.Fprintf(output, "%d) %s \n", i, id)
+	}
+
+	return nil
+}
+
 func showGroupCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {

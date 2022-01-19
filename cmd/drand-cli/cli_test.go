@@ -664,6 +664,32 @@ func getSBFolderStructure() string {
 	return tmp
 }
 
+func TestDrandListSchemes(t *testing.T) {
+	n := 4
+	instances, tempPath := launchDrandInstances(t, n)
+	defer os.RemoveAll(tempPath)
+
+	for _, instance := range instances {
+		remote := []string{"drand", "util", "list-schemes", "--control", instance.ctrlPort}
+
+		err := CLI().Run(remote)
+		require.NoError(t, err)
+	}
+}
+
+func TestDrandListBeaconIDs(t *testing.T) {
+	n := 4
+	instances, tempPath := launchDrandInstances(t, n)
+	defer os.RemoveAll(tempPath)
+
+	for _, instance := range instances {
+		remote := []string{"drand", "util", "list-beacon-ids", "--control", instance.ctrlPort}
+
+		err := CLI().Run(remote)
+		require.NoError(t, err)
+	}
+}
+
 func TestDrandReloadBeacon(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := common.GetBeaconIDFromEnv()

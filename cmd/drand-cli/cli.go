@@ -419,6 +419,12 @@ var appCommands = []*cli.Command{
 				Action: schemesCmd,
 			},
 			{
+				Name:   "list-beacon-ids",
+				Usage:  "List all beacon ids running on the node\n",
+				Flags:  toArray(controlFlag),
+				Action: beaconIDsCmd,
+			},
+			{
 				Name:   "status",
 				Usage:  "Get the status of many modules of running the daemon\n",
 				Flags:  toArray(controlFlag, jsonFlag, beaconIDFlag),
