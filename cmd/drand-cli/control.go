@@ -424,7 +424,8 @@ func statusCmd(c *cli.Context) error {
 	beaconID := c.String(beaconIDFlag.Name)
 
 	if beaconID != "" && (allIds || listIds) {
-		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time", beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
+		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time",
+			beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
 	}
 
 	ids := make([]string, 0)
