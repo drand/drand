@@ -419,21 +419,46 @@ func statusCmd(c *cli.Context) error {
 		return err
 	}
 
-	beaconID := getBeaconID(c)
-	resp, err := client.Status(beaconID)
-	if err != nil {
-		return fmt.Errorf("drand: can't get the status of the daemon ... %s", err)
+	listIds := c.IsSet(listIdsFlag.Name)
+	allIds := c.IsSet(allBeaconsFlag.Name)
+	beaconID := c.String(beaconIDFlag.Name)
+
+	if beaconID != "" && (allIds || listIds) {
+		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time", beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
 	}
 
-	if c.IsSet(jsonFlag.Name) {
-		str, err := json.Marshal(resp)
+	ids := make([]string, 0)
+	if allIds || listIds {
+		resp, err := client.ListBeaconIDs()
 		if err != nil {
-			return fmt.Errorf("cannot marshal the response ... %s", err)
+			return fmt.Errorf("drand: can't get the list of running beacon ids on the daemon ... %s", err)
 		}
-		fmt.Fprintf(output, "%s \n", string(str))
+		ids = resp.Ids
 	} else {
-		fmt.Fprintf(output, "drand daemon is alive on port %s and its status is: \n", controlPort(c))
-		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
+		ids = append(ids, getBeaconID(c))
+	}
+
+	if listIds {
+		fmt.Fprintf(output, "running beacon ids on the node: [%s]\n", strings.Join(ids, ", "))
+		return nil
+	}
+
+	for _, id := range ids {
+		resp, err := client.Status(id)
+		if err != nil {
+			return fmt.Errorf("drand: can't get the status of the network with id [%s]... %s", id, err)
+		}
+
+		if c.IsSet(jsonFlag.Name) {
+			str, err := json.Marshal(resp)
+			if err != nil {
+				return fmt.Errorf("cannot marshal the response ... %s", err)
+			}
+			fmt.Fprintf(output, "%s \n", string(str))
+		} else {
+			fmt.Fprintf(output, "the status of network with id [%s] is: \n", id)
+			fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
+		}
 	}
 
 	return nil

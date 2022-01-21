@@ -276,10 +276,15 @@ var beaconIDFlag = &cli.StringFlag{
 	Usage: "Indicates the id for the randomness generation process which will be started",
 	Value: "",
 }
+var listIdsFlag = &cli.BoolFlag{
+	Name:  "list-ids",
+	Usage: "Indicates if it only have to list the running beacon ids instead of the statuses",
+	Value: false,
+}
 
 var allBeaconsFlag = &cli.BoolFlag{
 	Name:  "all",
-	Usage: "Indicates if we have to reset all beacons chains",
+	Usage: "Indicates if we have to interact with all beacons chains",
 	Value: false,
 }
 
@@ -421,7 +426,7 @@ var appCommands = []*cli.Command{
 			{
 				Name:   "status",
 				Usage:  "Get the status of many modules of running the daemon\n",
-				Flags:  toArray(controlFlag, jsonFlag, beaconIDFlag),
+				Flags:  toArray(controlFlag, jsonFlag, beaconIDFlag, allBeaconsFlag, listIdsFlag),
 				Action: statusCmd,
 			},
 			{
