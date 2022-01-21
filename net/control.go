@@ -118,6 +118,16 @@ func (c *ControlClient) ReloadBeacon(beaconID string) (*control.ReloadBeaconResp
 	return resp, err
 }
 
+// ListBeaconIDs
+func (c *ControlClient) ListBeaconIDs() (*control.ListBeaconIDsResponse, error) {
+	metadata := protoCommon.Metadata{
+		NodeVersion: c.version.ToProto(),
+	}
+
+	resp, err := c.client.ListBeaconIDs(ctx.Background(), &control.ListBeaconIDsRequest{Metadata: &metadata})
+	return resp, err
+}
+
 // Status gets the current daemon status
 func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error) {
 	metadata := protoCommon.Metadata{

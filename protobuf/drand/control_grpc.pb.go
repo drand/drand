@@ -24,6 +24,8 @@ type ControlClient interface {
 	Status(ctx context.Context, in *StatusRequest, opts ...grpc.CallOption) (*StatusResponse, error)
 	// ListSchemes responds with the list of ids for the available schemes
 	ListSchemes(ctx context.Context, in *ListSchemesRequest, opts ...grpc.CallOption) (*ListSchemesResponse, error)
+	// ListBeaconIDs responds with the list of ids for the running networks on the node
+	ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(ctx context.Context, in *InitDKGPacket, opts ...grpc.CallOption) (*GroupPacket, error)
 	// InitReshares sends all informations so that the drand node knows how to
@@ -78,6 +80,15 @@ func (c *controlClient) Status(ctx context.Context, in *StatusRequest, opts ...g
 func (c *controlClient) ListSchemes(ctx context.Context, in *ListSchemesRequest, opts ...grpc.CallOption) (*ListSchemesResponse, error) {
 	out := new(ListSchemesResponse)
 	err := c.cc.Invoke(ctx, "/drand.Control/ListSchemes", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *controlClient) ListBeaconIDs(ctx context.Context, in *ListBeaconIDsRequest, opts ...grpc.CallOption) (*ListBeaconIDsResponse, error) {
+	out := new(ListBeaconIDsResponse)
+	err := c.cc.Invoke(ctx, "/drand.Control/ListBeaconIDs", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +236,8 @@ type ControlServer interface {
 	Status(context.Context, *StatusRequest) (*StatusResponse, error)
 	// ListSchemes responds with the list of ids for the available schemes
 	ListSchemes(context.Context, *ListSchemesRequest) (*ListSchemesResponse, error)
+	// ListBeaconIDs responds with the list of ids for the running networks on the node
+	ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error)
 	// InitDKG sends information to daemon to start a fresh DKG protocol
 	InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error)
 	// InitReshares sends all informations so that the drand node knows how to
@@ -262,6 +275,9 @@ func (UnimplementedControlServer) Status(context.Context, *StatusRequest) (*Stat
 }
 func (UnimplementedControlServer) ListSchemes(context.Context, *ListSchemesRequest) (*ListSchemesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListSchemes not implemented")
+}
+func (UnimplementedControlServer) ListBeaconIDs(context.Context, *ListBeaconIDsRequest) (*ListBeaconIDsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBeaconIDs not implemented")
 }
 func (UnimplementedControlServer) InitDKG(context.Context, *InitDKGPacket) (*GroupPacket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitDKG not implemented")
@@ -361,6 +377,24 @@ func _Control_ListSchemes_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ControlServer).ListSchemes(ctx, req.(*ListSchemesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Control_ListBeaconIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListBeaconIDsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ControlServer).ListBeaconIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/drand.Control/ListBeaconIDs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ControlServer).ListBeaconIDs(ctx, req.(*ListBeaconIDsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -602,6 +636,10 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListSchemes",
 			Handler:    _Control_ListSchemes_Handler,
+		},
+		{
+			MethodName: "ListBeaconIDs",
+			Handler:    _Control_ListBeaconIDs_Handler,
 		},
 		{
 			MethodName: "InitDKG",
