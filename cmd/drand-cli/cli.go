@@ -393,7 +393,7 @@ var appCommands = []*cli.Command{
 			},
 			{
 				Name:      "chain-info",
-				Usage:     "Get the binding chain information that this nodes participates to",
+				Usage:     "Get the binding chain information that this node participates to",
 				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
 				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
 				Action:    getChainInfo,
