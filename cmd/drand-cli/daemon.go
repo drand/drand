@@ -32,10 +32,10 @@ func stopDaemon(c *cli.Context) error {
 		return err
 	}
 
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := getBeaconID(c)
 	_, err = ctrlClient.Shutdown(beaconID)
 
-	if beaconID != "" {
+	if c.IsSet(beaconIDFlag.Name) {
 		if err != nil {
 			return fmt.Errorf("error stopping beacon process [%s]: %w", beaconID, err)
 		}

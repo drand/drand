@@ -258,7 +258,7 @@ func reshareCmd(c *cli.Context) error {
 
 		oldPath = c.String(oldGroupFlag.Name)
 
-		if beaconID != "" {
+		if c.IsSet(beaconIDFlag.Name) {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
@@ -313,7 +313,7 @@ func leadReshareCmd(c *cli.Context) error {
 		}
 		oldPath = c.String(oldGroupFlag.Name)
 
-		if beaconID != "" {
+		if c.IsSet(beaconIDFlag.Name) {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
@@ -442,9 +442,9 @@ func statusCmd(c *cli.Context) error {
 
 	listIds := c.IsSet(listIdsFlag.Name)
 	allIds := c.IsSet(allBeaconsFlag.Name)
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := c.IsSet(beaconIDFlag.Name)
 
-	if beaconID != "" && (allIds || listIds) {
+	if beaconID && (allIds || listIds) {
 		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time",
 			beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
 	}
