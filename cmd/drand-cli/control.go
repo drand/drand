@@ -417,6 +417,7 @@ func pingpongCmd(c *cli.Context) error {
 	return nil
 }
 
+//nolint:gocyclo
 func statusCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
