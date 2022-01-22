@@ -410,7 +410,7 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag),
+				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag, beaconIDFlag),
 				Action: checkConnection,
 			},
 			{
@@ -724,7 +724,12 @@ func getThreshold(c *cli.Context) (int, error) {
 
 func checkConnection(c *cli.Context) error {
 	var names []string
+	beaconID := ""
+
 	if c.IsSet(groupFlag.Name) {
+		if c.IsSet(beaconIDFlag.Name) {
+			return fmt.Errorf("id flag is not reqired when using group flag")
+		}
 		if err := testEmptyGroup(c.String(groupFlag.Name)); err != nil {
 			return err
 		}
@@ -732,9 +737,11 @@ func checkConnection(c *cli.Context) error {
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
 			return fmt.Errorf("loading group failed: %s", err)
 		}
+
 		for _, id := range group.Nodes {
 			names = append(names, id.Address())
 		}
+		beaconID = group.ID
 	} else if c.Args().Present() {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
@@ -743,16 +750,25 @@ func checkConnection(c *cli.Context) error {
 			}
 			names = append(names, serverAddr)
 		}
+		beaconID = c.String(beaconIDFlag.Name)
 	} else {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
-	conf := contextToConfig(c)
 
-	var isVerbose = c.IsSet(verboseFlag.Name)
-	var allGood = true
-	var invalidIds []string
+	conf := contextToConfig(c)
+	isVerbose := c.IsSet(verboseFlag.Name)
+	allGood := true
+	isIdentityCheck := c.IsSet(groupFlag.Name) || beaconID != ""
+	invalidIds := make([]string, 0)
+
 	for _, address := range names {
-		err := checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name))
+		var err error
+		if isIdentityCheck {
+			err = checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name), beaconID)
+		} else {
+			err = remotePingToNode(address)
+		}
+
 		if err != nil {
 			if isVerbose {
 				fmt.Fprintf(output, "drand: error checking id %s: %s\n", address, err)
@@ -771,12 +787,15 @@ func checkConnection(c *cli.Context) error {
 	return nil
 }
 
-func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
+func checkIdentityAddress(conf *core.Config, addr string, tls bool, beaconID string) error {
 	peer := net.CreatePeer(addr, tls)
 	client := net.NewGrpcClientFromCertManager(conf.Certs())
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
+
+	metadata := &common2.Metadata{BeaconID: beaconID}
+	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{Metadata: metadata})
 	if err != nil {
 		return err
 	}

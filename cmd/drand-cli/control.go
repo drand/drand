@@ -1,6 +1,7 @@
 package drand
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -414,6 +415,21 @@ func pingpongCmd(c *cli.Context) error {
 		return fmt.Errorf("drand: can't ping the daemon ... %s", err)
 	}
 	fmt.Fprintf(output, "drand daemon is alive on port %s", controlPort(c))
+	return nil
+}
+
+func remotePingToNode(addr string) error {
+	peer := net.CreatePeer(addr, false)
+	client := net.NewGrpcClient()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := client.Home(ctx, peer, &drand.HomeRequest{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
