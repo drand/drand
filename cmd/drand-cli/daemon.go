@@ -17,7 +17,7 @@ func startCmd(c *cli.Context) error {
 	}
 
 	// Check stores and start BeaconProcess
-	err = drandDaemon.LoadBeacons(c.String(metricsFlag.Name))
+	err = drandDaemon.LoadBeaconsFromDisk(c.String(metricsFlag.Name))
 	if err != nil {
 		return fmt.Errorf("couldn't load existing beacons: %s", err)
 	}

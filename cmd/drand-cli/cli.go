@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 
+	common2 "github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
@@ -325,10 +327,10 @@ var appCommands = []*cli.Command{
 		},
 	},
 	{
-		Name:   "reload",
-		Usage:  "Launch a sharing protocol which has been previously stopped",
+		Name:   "load",
+		Usage:  "Launch a sharing protocol from filesystem",
 		Flags:  toArray(controlFlag, beaconIDFlag),
-		Action: reloadCmd,
+		Action: loadCmd,
 	},
 	{
 		Name:  "follow",
