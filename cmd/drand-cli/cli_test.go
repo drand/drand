@@ -282,7 +282,7 @@ func TestUtilCheck(t *testing.T) {
 
 	// run the check tool it should fail because key and address are not
 	// consistent
-	check := []string{"drand", "util", "check", "--tls-disable", listenAddr}
+	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, listenAddr}
 	require.Error(t, CLI().Run(check))
 
 	// cancel the daemon and make it listen on the right address

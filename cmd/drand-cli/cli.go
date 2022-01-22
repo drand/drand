@@ -758,7 +758,7 @@ func checkConnection(c *cli.Context) error {
 	conf := contextToConfig(c)
 	isVerbose := c.IsSet(verboseFlag.Name)
 	allGood := true
-	isIdentityCheck := c.IsSet(groupFlag.Name) || beaconID != ""
+	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
 	invalidIds := make([]string, 0)
 
 	for _, address := range names {
