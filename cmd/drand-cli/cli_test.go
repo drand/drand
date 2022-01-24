@@ -282,7 +282,7 @@ func TestUtilCheck(t *testing.T) {
 
 	// run the check tool it should fail because key and address are not
 	// consistent
-	check := []string{"drand", "util", "check", "--tls-disable", listenAddr}
+	check := []string{"drand", "util", "check", "--tls-disable", "--id", beaconID, listenAddr}
 	require.Error(t, CLI().Run(check))
 
 	// cancel the daemon and make it listen on the right address
@@ -709,7 +709,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	// try to reload a beacon which is already loaded
-	err := instances[3].reload(beaconID)
+	err := instances[3].load(beaconID)
 	require.Error(t, err)
 
 	// wait some time to generate some randomness
@@ -723,7 +723,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 	testPing(t, instances[3].ctrlPort)
 
 	// reload a beacon
-	err = instances[3].reload(beaconID)
+	err = instances[3].load(beaconID)
 	require.NoError(t, err)
 
 	// test beacon process status
@@ -843,10 +843,10 @@ func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 	}()
 }
 
-func (d *drandInstance) reload(beaconID string) error {
+func (d *drandInstance) load(beaconID string) error {
 	reloadArgs := []string{
 		"drand",
-		"reload",
+		"load",
 		"--control", d.ctrlPort,
 		"--id", beaconID,
 	}

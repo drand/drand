@@ -1,6 +1,7 @@
 package drand
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -201,19 +202,19 @@ func leadShareCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
-func reloadCmd(c *cli.Context) error {
+func loadCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
 		return err
 	}
 
 	beaconID := getBeaconID(c)
-	_, err = client.ReloadBeacon(beaconID)
+	_, err = client.LoadBeacon(beaconID)
 	if err != nil {
 		return fmt.Errorf("could not reload the beacon process [%s]: %s", beaconID, err)
 	}
 
-	fmt.Fprintf(output, "Beacon process [%s] is alive again \n", beaconID)
+	fmt.Fprintf(output, "Beacon process [%s] was loaded on drand.\n", beaconID)
 	return nil
 }
 
@@ -257,7 +258,7 @@ func reshareCmd(c *cli.Context) error {
 
 		oldPath = c.String(oldGroupFlag.Name)
 
-		if beaconID != "" {
+		if c.IsSet(beaconIDFlag.Name) {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
@@ -312,7 +313,7 @@ func leadReshareCmd(c *cli.Context) error {
 		}
 		oldPath = c.String(oldGroupFlag.Name)
 
-		if beaconID != "" {
+		if c.IsSet(beaconIDFlag.Name) {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
@@ -417,6 +418,21 @@ func pingpongCmd(c *cli.Context) error {
 	return nil
 }
 
+func remotePingToNode(addr string) error {
+	peer := net.CreatePeer(addr, false)
+	client := net.NewGrpcClient()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	_, err := client.Home(ctx, peer, &drand.HomeRequest{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 //nolint:gocyclo
 func statusCmd(c *cli.Context) error {
 	client, err := controlClient(c)
@@ -426,9 +442,9 @@ func statusCmd(c *cli.Context) error {
 
 	listIds := c.IsSet(listIdsFlag.Name)
 	allIds := c.IsSet(allBeaconsFlag.Name)
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := c.IsSet(beaconIDFlag.Name)
 
-	if beaconID != "" && (allIds || listIds) {
+	if beaconID && (allIds || listIds) {
 		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time",
 			beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
 	}

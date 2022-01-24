@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 
+	common2 "github.com/drand/drand/protobuf/common"
+
 	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
@@ -325,10 +327,10 @@ var appCommands = []*cli.Command{
 		},
 	},
 	{
-		Name:   "reload",
-		Usage:  "Launch a sharing protocol which has been previously stopped",
+		Name:   "load",
+		Usage:  "Launch a sharing protocol from filesystem",
 		Flags:  toArray(controlFlag, beaconIDFlag),
-		Action: reloadCmd,
+		Action: loadCmd,
 	},
 	{
 		Name:  "follow",
@@ -339,13 +341,27 @@ var appCommands = []*cli.Command{
 	},
 	{
 		Name: "generate-keypair",
-		Usage: "Generate the longterm keypair (drand.private, drand.public)" +
-			"for this node.\n",
+		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
+			"for this node, and load it on the drand daemon if it is up and running.\n",
 		ArgsUsage: "<address> is the address other nodes will be able to contact this node on (specified as 'private-listen' to the daemon)",
-		Flags:     toArray(folderFlag, insecureFlag, beaconIDFlag),
+		Flags:     toArray(controlFlag, folderFlag, insecureFlag, beaconIDFlag),
 		Action: func(c *cli.Context) error {
 			banner()
-			return keygenCmd(c)
+			err := keygenCmd(c)
+
+			// If keys were generated successfully, daemon needs to load them
+			// In other to load them, we run LoadBeacon cmd.
+			//
+			// TIP: If an error is found, it may indicate daemon is not running. If that is the case, keys will be loaded
+			// on drand startup.
+			if err == nil {
+				err2 := loadCmd(c)
+				if err2 != nil {
+					fmt.Fprintf(os.Stdout, "Keys couldn't be loaded on drand daemon. If it is not running, "+
+						"these new keys will loaded on startup. Err: %s", err2)
+				}
+			}
+			return err
 		},
 		Before: checkMigration,
 	},
@@ -383,7 +399,7 @@ var appCommands = []*cli.Command{
 			},
 			{
 				Name:      "chain-info",
-				Usage:     "Get the binding chain information that this nodes participates to",
+				Usage:     "Get the binding chain information that this node participates to",
 				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
 				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
 				Action:    getChainInfo,
@@ -400,7 +416,7 @@ var appCommands = []*cli.Command{
 					" in the group for accessibility over the gRPC communication. If the node " +
 					" is not running behind TLS, you need to pass the tls-disable flag. You can " +
 					"also check a whole group's connectivity with the group flag.",
-				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag),
+				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag, beaconIDFlag),
 				Action: checkConnection,
 			},
 			{
@@ -714,7 +730,12 @@ func getThreshold(c *cli.Context) (int, error) {
 
 func checkConnection(c *cli.Context) error {
 	var names []string
+	beaconID := ""
+
 	if c.IsSet(groupFlag.Name) {
+		if c.IsSet(beaconIDFlag.Name) {
+			return fmt.Errorf("id flag is not reqired when using group flag")
+		}
 		if err := testEmptyGroup(c.String(groupFlag.Name)); err != nil {
 			return err
 		}
@@ -722,9 +743,11 @@ func checkConnection(c *cli.Context) error {
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
 			return fmt.Errorf("loading group failed: %s", err)
 		}
+
 		for _, id := range group.Nodes {
 			names = append(names, id.Address())
 		}
+		beaconID = group.ID
 	} else if c.Args().Present() {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
@@ -733,16 +756,25 @@ func checkConnection(c *cli.Context) error {
 			}
 			names = append(names, serverAddr)
 		}
+		beaconID = c.String(beaconIDFlag.Name)
 	} else {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
-	conf := contextToConfig(c)
 
-	var isVerbose = c.IsSet(verboseFlag.Name)
-	var allGood = true
-	var invalidIds []string
+	conf := contextToConfig(c)
+	isVerbose := c.IsSet(verboseFlag.Name)
+	allGood := true
+	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
+	invalidIds := make([]string, 0)
+
 	for _, address := range names {
-		err := checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name))
+		var err error
+		if isIdentityCheck {
+			err = checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name), beaconID)
+		} else {
+			err = remotePingToNode(address)
+		}
+
 		if err != nil {
 			if isVerbose {
 				fmt.Fprintf(output, "drand: error checking id %s: %s\n", address, err)
@@ -761,12 +793,15 @@ func checkConnection(c *cli.Context) error {
 	return nil
 }
 
-func checkIdentityAddress(conf *core.Config, addr string, tls bool) error {
+func checkIdentityAddress(conf *core.Config, addr string, tls bool, beaconID string) error {
 	peer := net.CreatePeer(addr, tls)
 	client := net.NewGrpcClientFromCertManager(conf.Certs())
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{})
+
+	metadata := &common2.Metadata{BeaconID: beaconID}
+	identityResp, err := client.GetIdentity(ctx, peer, &drand.IdentityRequest{Metadata: metadata})
 	if err != nil {
 		return err
 	}

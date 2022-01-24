@@ -44,7 +44,7 @@ type ControlClient interface {
 	// control functionalities
 	GroupFile(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
-	ReloadBeacon(ctx context.Context, in *ReloadBeaconRequest, opts ...grpc.CallOption) (*ReloadBeaconResponse, error)
+	LoadBeacon(ctx context.Context, in *LoadBeaconRequest, opts ...grpc.CallOption) (*LoadBeaconResponse, error)
 	StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error)
 	BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
@@ -167,9 +167,9 @@ func (c *controlClient) Shutdown(ctx context.Context, in *ShutdownRequest, opts 
 	return out, nil
 }
 
-func (c *controlClient) ReloadBeacon(ctx context.Context, in *ReloadBeaconRequest, opts ...grpc.CallOption) (*ReloadBeaconResponse, error) {
-	out := new(ReloadBeaconResponse)
-	err := c.cc.Invoke(ctx, "/drand.Control/ReloadBeacon", in, out, opts...)
+func (c *controlClient) LoadBeacon(ctx context.Context, in *LoadBeaconRequest, opts ...grpc.CallOption) (*LoadBeaconResponse, error) {
+	out := new(LoadBeaconResponse)
+	err := c.cc.Invoke(ctx, "/drand.Control/LoadBeacon", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +256,7 @@ type ControlServer interface {
 	// control functionalities
 	GroupFile(context.Context, *GroupRequest) (*GroupPacket, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
-	ReloadBeacon(context.Context, *ReloadBeaconRequest) (*ReloadBeaconResponse, error)
+	LoadBeacon(context.Context, *LoadBeaconRequest) (*LoadBeaconResponse, error)
 	StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error
 	BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
@@ -303,8 +303,8 @@ func (UnimplementedControlServer) GroupFile(context.Context, *GroupRequest) (*Gr
 func (UnimplementedControlServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
 }
-func (UnimplementedControlServer) ReloadBeacon(context.Context, *ReloadBeaconRequest) (*ReloadBeaconResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ReloadBeacon not implemented")
+func (UnimplementedControlServer) LoadBeacon(context.Context, *LoadBeaconRequest) (*LoadBeaconResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LoadBeacon not implemented")
 }
 func (UnimplementedControlServer) StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method StartFollowChain not implemented")
@@ -543,20 +543,20 @@ func _Control_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Control_ReloadBeacon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ReloadBeaconRequest)
+func _Control_LoadBeacon_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoadBeaconRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ControlServer).ReloadBeacon(ctx, in)
+		return srv.(ControlServer).LoadBeacon(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/drand.Control/ReloadBeacon",
+		FullMethod: "/drand.Control/LoadBeacon",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ControlServer).ReloadBeacon(ctx, req.(*ReloadBeaconRequest))
+		return srv.(ControlServer).LoadBeacon(ctx, req.(*LoadBeaconRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -674,8 +674,8 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Control_Shutdown_Handler,
 		},
 		{
-			MethodName: "ReloadBeacon",
-			Handler:    _Control_ReloadBeacon_Handler,
+			MethodName: "LoadBeacon",
+			Handler:    _Control_LoadBeacon_Handler,
 		},
 		{
 			MethodName: "BackupDatabase",
