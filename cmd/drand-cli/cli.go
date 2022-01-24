@@ -348,6 +348,12 @@ var appCommands = []*cli.Command{
 		Action: func(c *cli.Context) error {
 			banner()
 			err := keygenCmd(c)
+
+			// If keys were generated successfully, daemon needs to load them
+			// In other to load them, we run LoadBeacon cmd.
+			//
+			// TIP: If an error is found, it may indicate daemon is not running. If that is the case, keys will be loaded
+			// on drand startup.
 			if err == nil {
 				err2 := loadCmd(c)
 				if err2 != nil {
