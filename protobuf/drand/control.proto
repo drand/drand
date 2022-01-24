@@ -19,6 +19,8 @@ service Control {
     rpc Status(StatusRequest) returns (StatusResponse) { }
     // ListSchemes responds with the list of ids for the available schemes
     rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) { }
+    // ListBeaconIDs responds with the list of ids for the running networks on the node
+    rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) { }
     // InitDKG sends information to daemon to start a fresh DKG protocol 
     rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) { }
     // InitReshares sends all informations so that the drand node knows how to
@@ -185,6 +187,15 @@ message ListSchemesRequest {
 }
 
 message ListSchemesResponse {
+    repeated string ids = 1;
+    common.Metadata metadata = 2;
+}
+
+message ListBeaconIDsRequest {
+    common.Metadata metadata = 1;
+}
+
+message ListBeaconIDsResponse {
     repeated string ids = 1;
     common.Metadata metadata = 2;
 }

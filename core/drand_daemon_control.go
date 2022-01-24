@@ -200,6 +200,20 @@ func (dd *DrandDaemon) StartFollowChain(in *drand.StartFollowRequest, stream dra
 	return bp.StartFollowChain(in, stream)
 }
 
+func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
+	metadata := common.NewMetadata(dd.version.ToProto())
+
+	dd.state.Lock()
+	defer dd.state.Unlock()
+
+	ids := make([]string, 0)
+	for id := range dd.beaconProcesses {
+		ids = append(ids, id)
+	}
+
+	return &drand.ListBeaconIDsResponse{Ids: ids, Metadata: metadata}, nil
+}
+
 // /////////
 
 // Stop simply stops all drand operations.

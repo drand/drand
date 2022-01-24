@@ -37,6 +37,10 @@ type shareArgs struct {
 	conf      *core.Config
 }
 
+type beaconIDsStatuses struct {
+	Beacons map[string]*control.StatusResponse `json:"beacons"`
+}
+
 func (s *shareArgs) loadSecret(c *cli.Context) error {
 	secret := os.Getenv("DRAND_SHARE_SECRET")
 	if c.IsSet(secretFlag.Name) {
@@ -413,27 +417,68 @@ func pingpongCmd(c *cli.Context) error {
 	return nil
 }
 
+//nolint:gocyclo
 func statusCmd(c *cli.Context) error {
 	client, err := controlClient(c)
 	if err != nil {
 		return err
 	}
 
-	beaconID := getBeaconID(c)
-	resp, err := client.Status(beaconID)
-	if err != nil {
-		return fmt.Errorf("drand: can't get the status of the daemon ... %s", err)
+	listIds := c.IsSet(listIdsFlag.Name)
+	allIds := c.IsSet(allBeaconsFlag.Name)
+	beaconID := c.String(beaconIDFlag.Name)
+
+	if beaconID != "" && (allIds || listIds) {
+		return fmt.Errorf("drand: can't use --%s with --%s or --%s flags at the same time",
+			beaconIDFlag.Name, allBeaconsFlag.Name, listIdsFlag.Name)
+	}
+
+	beaconIDsList := &control.ListBeaconIDsResponse{}
+	if allIds || listIds {
+		beaconIDsList, err = client.ListBeaconIDs()
+		if err != nil {
+			return fmt.Errorf("drand: can't get the list of running beacon ids on the daemon ... %s", err)
+		}
+	} else {
+		beaconIDsList.Ids = append(beaconIDsList.Ids, getBeaconID(c))
+	}
+
+	if listIds {
+		if c.IsSet(jsonFlag.Name) {
+			str, err := json.Marshal(beaconIDsList)
+			if err != nil {
+				return fmt.Errorf("cannot marshal the response ... %s", err)
+			}
+			fmt.Fprintf(output, "%s \n", string(str))
+			return nil
+		}
+
+		fmt.Fprintf(output, "running beacon ids on the node: [%s]\n", strings.Join(beaconIDsList.Ids, ", "))
+		return nil
+	}
+
+	statuses := beaconIDsStatuses{Beacons: make(map[string]*control.StatusResponse)}
+	for _, id := range beaconIDsList.Ids {
+		resp, err := client.Status(id)
+		if err != nil {
+			return fmt.Errorf("drand: can't get the status of the network with id [%s]... %s", id, err)
+		}
+
+		if c.IsSet(jsonFlag.Name) {
+			statuses.Beacons[id] = resp
+			continue
+		}
+
+		fmt.Fprintf(output, "the status of network with id [%s] is: \n", id)
+		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
 	}
 
 	if c.IsSet(jsonFlag.Name) {
-		str, err := json.Marshal(resp)
+		str, err := json.Marshal(statuses)
 		if err != nil {
 			return fmt.Errorf("cannot marshal the response ... %s", err)
 		}
 		fmt.Fprintf(output, "%s \n", string(str))
-	} else {
-		fmt.Fprintf(output, "drand daemon is alive on port %s and its status is: \n", controlPort(c))
-		fmt.Fprintf(output, "%s \n", core.StatusResponseToString(resp))
 	}
 
 	return nil
