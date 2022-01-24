@@ -772,7 +772,7 @@ func checkConnection(c *cli.Context) error {
 		if isIdentityCheck {
 			err = checkIdentityAddress(conf, address, !c.Bool(insecureFlag.Name), beaconID)
 		} else {
-			err = remotePingToNode(address)
+			err = remotePingToNode(address, !c.Bool(insecureFlag.Name))
 		}
 
 		if err != nil {
