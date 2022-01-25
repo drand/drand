@@ -554,7 +554,10 @@ func CLI() *cli.App {
 }
 
 func resetCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
+	conf, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
 
 	fmt.Fprintf(output, "You are about to delete your local share, group file and generated random beacons. "+
 		"Are you sure you wish to perform this operation? [y/N]")
@@ -613,7 +616,10 @@ func askPort() string {
 }
 
 func runMigration(c *cli.Context) error {
-	config := contextToConfig(c)
+	config, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
 	if err := migration.MigrateSBFolderStructure(config.ConfigFolder()); err != nil {
 		return err
 	}
@@ -622,7 +628,11 @@ func runMigration(c *cli.Context) error {
 }
 
 func checkMigration(c *cli.Context) error {
-	config := contextToConfig(c)
+	config, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
+
 	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
 		return fmt.Errorf("single-beacon drand folder structure was not migrated, " +
 			"please first do it with 'drand util migrate' command")
@@ -666,7 +676,10 @@ func keygenCmd(c *cli.Context) error {
 		priv = key.NewTLSKeyPair(addr)
 	}
 
-	config := contextToConfig(c)
+	config, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
 	beaconID := getBeaconID(c)
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
@@ -688,8 +701,9 @@ func keygenCmd(c *cli.Context) error {
 
 	var buff bytes.Buffer
 	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
-		panic(err)
+		return err
 	}
+
 	buff.WriteString("\n")
 	fmt.Println(buff.String())
 	return nil
@@ -728,6 +742,7 @@ func getThreshold(c *cli.Context) (int, error) {
 	return threshold, nil
 }
 
+//nolint:gocyclo
 func checkConnection(c *cli.Context) error {
 	var names []string
 	beaconID := ""
@@ -761,7 +776,10 @@ func checkConnection(c *cli.Context) error {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
 
-	conf := contextToConfig(c)
+	conf, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
 	isVerbose := c.IsSet(verboseFlag.Name)
 	allGood := true
 	isIdentityCheck := c.IsSet(groupFlag.Name) || c.IsSet(beaconIDFlag.Name)
@@ -820,7 +838,10 @@ func checkIdentityAddress(conf *core.Config, addr string, tls bool, beaconID str
 // deleteBeaconCmd deletes all beacon in the database from the given round until
 // the head of the chain
 func deleteBeaconCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
+	conf, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
 
 	startRoundStr := c.Args().First()
 	sr, err := strconv.Atoi(startRoundStr)
@@ -882,7 +903,7 @@ func getGroup(c *cli.Context) (*key.Group, error) {
 	return g, nil
 }
 
-func contextToConfig(c *cli.Context) *core.Config {
+func contextToConfig(c *cli.Context) (*core.Config, error) {
 	var opts []core.ConfigOption
 	version := common.GetAppVersion()
 
@@ -911,7 +932,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if c.Bool("tls-disable") {
 		opts = append(opts, core.WithInsecure())
 		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
-			panic("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
+			return nil, fmt.Errorf("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
 		}
 	} else {
 		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
@@ -920,7 +941,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if c.IsSet("certs-dir") {
 		paths, err := fs.Files(c.String("certs-dir"))
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
@@ -928,7 +949,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithPrivateRandomness())
 	}
 	conf := core.NewConfig(opts...)
-	return conf
+	return conf, nil
 }
 
 func getNodes(c *cli.Context) ([]*key.Node, error) {
@@ -986,7 +1007,10 @@ func getBeaconID(c *cli.Context) string {
 }
 
 func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
-	conf := contextToConfig(c)
+	conf, err := contextToConfig(c)
+	if err != nil {
+		return nil, err
+	}
 	stores := make(map[string]string)
 
 	if c.IsSet(allBeaconsFlag.Name) {
@@ -1014,7 +1038,10 @@ func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
 }
 
 func getKeyStores(c *cli.Context) (map[string]key.Store, error) {
-	conf := contextToConfig(c)
+	conf, err := contextToConfig(c)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.IsSet(allBeaconsFlag.Name) {
 		return key.NewFileStores(conf.ConfigFolderMB())

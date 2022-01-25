@@ -8,7 +8,10 @@ import (
 )
 
 func startCmd(c *cli.Context) error {
-	conf := contextToConfig(c)
+	conf, err := contextToConfig(c)
+	if err != nil {
+		return err
+	}
 
 	// Create and start drand daemon
 	drandDaemon, err := core.NewDrandDaemon(conf)
