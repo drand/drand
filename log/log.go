@@ -2,6 +2,7 @@ package log
 
 import (
 	"os"
+	"sync"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -38,6 +39,8 @@ const (
 // logger.
 const DefaultLevel = LogInfo
 
+var isDefaultLoggerSet sync.Once
+
 // ConfigureDefaultLogger updates the default logger to wrap a provided kit logger.
 func ConfigureDefaultLogger(output zapcore.WriteSyncer, level int, jsonFormat bool) {
 	if jsonFormat {
@@ -49,9 +52,9 @@ func ConfigureDefaultLogger(output zapcore.WriteSyncer, level int, jsonFormat bo
 
 // DefaultLogger is the default logger that only logs at the `DefaultLevel`.
 func DefaultLogger() Logger {
-	if zap.S() == nil {
+	isDefaultLoggerSet.Do(func() {
 		zap.ReplaceGlobals(NewZapLogger(nil, getConsoleEncoder(), DefaultLevel))
-	}
+	})
 
 	return zap.S()
 }
