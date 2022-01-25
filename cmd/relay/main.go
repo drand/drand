@@ -59,6 +59,12 @@ func Relay(c *cli.Context) error {
 		}
 	}
 
+	hashFlagSet := c.IsSet(lib.HashFlag.Name)
+	hashListFlagSet := c.IsSet(lib.HashListFlag.Name)
+	if hashFlagSet && hashListFlagSet {
+		return fmt.Errorf("--%s and --%s flag cannot be set at the same time", lib.HashFlag.Name, lib.HashListFlag.Name)
+	}
+
 	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 	if err != nil {
 		return err
@@ -69,32 +75,32 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	if c.IsSet(lib.HashFlag.Name) {
-		hash, err := hex.DecodeString(c.String(lib.HashFlag.Name))
+	hashesList := make([]string, 0)
+	if hashFlagSet {
+		hashesList = append(hashesList, c.String(lib.HashFlag.Name))
+	} else if hashListFlagSet {
+		hashesList = c.StringSlice(lib.HashListFlag.Name)
+	} else {
+		hashesList = append(hashesList, common.DefaultChainHash)
+	}
+
+	for _, hash := range hashesList {
+		if hash == common.DefaultChainHash {
+			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
+			continue
+		}
+
+		hashHex, err := hex.DecodeString(hash)
 		if err != nil {
 			return fmt.Errorf("failed to decode hash flag: %w", err)
 		}
-		handler.RegisterNewBeaconHandler(client, string(hash))
-	} else {
-		if c.IsSet(lib.HashListFlag.Name) {
-			hashList := c.StringSlice(lib.HashListFlag.Name)
-			for _, hashHex := range hashList {
-				hash, err := hex.DecodeString(hashHex)
-				if err != nil {
-					return fmt.Errorf("failed to decode hash flag: %w", err)
-				}
 
-				c, err := lib.Create(c, c.IsSet(metricsFlag.Name), dclient.WithChainHash(hash))
-				if err != nil {
-					return err
-				}
-
-				handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
-			}
-		} else {
-			fmt.Println("hash flags were not set. Registering beacon handler for default chain hash")
-			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
+		c, err := lib.Create(c, c.IsSet(metricsFlag.Name), dclient.WithChainHash(hashHex))
+		if err != nil {
+			return err
 		}
+
+		handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hashHex))
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
