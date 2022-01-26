@@ -19,6 +19,7 @@ RUN go mod download
 COPY . $SRC_PATH
 RUN make client
 RUN make relay-http
+RUN make relay-gossip
 
 FROM busybox:1-glibc
 
@@ -28,6 +29,7 @@ ENV DRAND_HOME             /data/drand
 
 COPY --from=builder $SRC_PATH/drand-client /usr/local/bin/drand-client
 COPY --from=builder $SRC_PATH/drand-relay-http /usr/local/bin/drand-relay-http
+COPY --from=builder $SRC_PATH/drand-relay-gossip /usr/local/bin/drand-relay-gossip
 
 VOLUME $DRAND_HOME
 ENTRYPOINT [""]
