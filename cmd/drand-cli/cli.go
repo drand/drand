@@ -741,7 +741,6 @@ func getThreshold(c *cli.Context) (int, error) {
 	return threshold, nil
 }
 
-//nolint:gocyclo
 func checkConnection(c *cli.Context) error {
 	var names []string
 	beaconID := ""
