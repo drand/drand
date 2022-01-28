@@ -93,7 +93,10 @@ func Relay(c *cli.Context) error {
 			return fmt.Errorf("failed to decode chain hash value: %s", err)
 		}
 
-		c.Set(lib.HashFlag.Name, hash)
+		if err := c.Set(lib.HashFlag.Name, hash); err != nil {
+			return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+		}
+
 		c, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 		if err != nil {
 			return err
