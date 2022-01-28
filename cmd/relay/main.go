@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 
-	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
@@ -59,6 +58,11 @@ func Relay(c *cli.Context) error {
 		}
 	}
 
+	hashFlagSet := c.IsSet(lib.HashFlag.Name)
+	if hashFlagSet {
+		return fmt.Errorf("--%s is deprecated on relay http, please use %s instead", lib.HashFlag.Name, lib.HashListFlag.Name)
+	}
+
 	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 	if err != nil {
 		return err
@@ -69,32 +73,32 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	if c.IsSet(lib.HashFlag.Name) {
-		hash, err := hex.DecodeString(c.String(lib.HashFlag.Name))
-		if err != nil {
-			return fmt.Errorf("failed to decode hash flag: %w", err)
-		}
-		handler.RegisterNewBeaconHandler(client, string(hash))
-	} else {
-		if c.IsSet(lib.HashListFlag.Name) {
-			hashList := c.StringSlice(lib.HashListFlag.Name)
-			for _, hashHex := range hashList {
-				hash, err := hex.DecodeString(hashHex)
-				if err != nil {
-					return fmt.Errorf("failed to decode hash flag: %w", err)
-				}
+	hashesList := make([]string, 0)
+	hashesList = append(hashesList, common.DefaultChainHash)
+	if c.IsSet(lib.HashListFlag.Name) {
+		hashesList = c.StringSlice(lib.HashListFlag.Name)
+	}
 
-				c, err := lib.Create(c, c.IsSet(metricsFlag.Name), dclient.WithChainHash(hash))
-				if err != nil {
-					return err
-				}
-
-				handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hash))
-			}
-		} else {
-			fmt.Println("hash flags were not set. Registering beacon handler for default chain hash")
+	for _, hash := range hashesList {
+		if hash == common.DefaultChainHash {
 			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
+			continue
 		}
+
+		if _, err := hex.DecodeString(hash); err != nil {
+			return fmt.Errorf("failed to decode chain hash value: %s", err)
+		}
+
+		if err := c.Set(lib.HashFlag.Name, hash); err != nil {
+			return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+		}
+
+		c, err := lib.Create(c, c.IsSet(metricsFlag.Name))
+		if err != nil {
+			return err
+		}
+
+		handler.RegisterNewBeaconHandler(c, hash)
 	}
 
 	if c.IsSet(accessLogFlag.Name) {

@@ -464,7 +464,7 @@ func (h *DrandHandler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 	info := h.getChainInfo(r.Context(), chainHashHex)
 	if info == nil {
 		h.log.Warnw("", "http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
-		http.Error(w, "group not found", http.StatusNoContent)
+		http.Error(w, "group not found", http.StatusNotFound)
 		return
 	}
 
@@ -561,7 +561,8 @@ func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*beaconHandler, error
 	bh, exists := h.beacons[chainHashStr]
 
 	if !exists {
-		return nil, fmt.Errorf("there's no BeaconHandler for beaconHash %s", chainHash)
+		return nil, fmt.Errorf("there is no BeaconHandler for beaconHash [%s]. "+
+			"Is the chain hash correct?. Please check it", chainHashStr)
 	}
 
 	return bh, nil

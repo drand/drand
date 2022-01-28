@@ -82,7 +82,8 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		panic(err)
+		fmt.Printf("an error was found while executing the command. Err: [%s] \n", err)
+		os.Exit(1)
 	}
 }
 

@@ -418,6 +418,7 @@ var appCommands = []*cli.Command{
 					"also check a whole group's connectivity with the group flag.",
 				Flags:  toArray(groupFlag, certsDirFlag, insecureFlag, verboseFlag, beaconIDFlag),
 				Action: checkConnection,
+				Before: checkArgs,
 			},
 			{
 				Name: "remote-status",
@@ -450,6 +451,7 @@ var appCommands = []*cli.Command{
 				Usage:  "Migrate folder structure to support multi-beacon drand. You DO NOT have to run it while drand is running.\n",
 				Flags:  toArray(folderFlag),
 				Action: migrateCmd,
+				Before: checkArgs,
 			},
 			{
 				Name:   "reset",
@@ -613,7 +615,12 @@ func askPort() string {
 }
 
 func runMigration(c *cli.Context) error {
+	if err := checkArgs(c); err != nil {
+		return err
+	}
+
 	config := contextToConfig(c)
+
 	if err := migration.MigrateSBFolderStructure(config.ConfigFolder()); err != nil {
 		return err
 	}
@@ -622,7 +629,12 @@ func runMigration(c *cli.Context) error {
 }
 
 func checkMigration(c *cli.Context) error {
+	if err := checkArgs(c); err != nil {
+		return err
+	}
+
 	config := contextToConfig(c)
+
 	if isPresent := migration.CheckSBFolderStructure(config.ConfigFolder()); isPresent {
 		return fmt.Errorf("single-beacon drand folder structure was not migrated, " +
 			"please first do it with 'drand util migrate' command")
@@ -688,8 +700,9 @@ func keygenCmd(c *cli.Context) error {
 
 	var buff bytes.Buffer
 	if err := toml.NewEncoder(&buff).Encode(priv.Public.TOML()); err != nil {
-		panic(err)
+		return err
 	}
+
 	buff.WriteString("\n")
 	fmt.Println(buff.String())
 	return nil
@@ -882,6 +895,22 @@ func getGroup(c *cli.Context) (*key.Group, error) {
 	return g, nil
 }
 
+func checkArgs(c *cli.Context) error {
+	if c.Bool("tls-disable") {
+		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
+			return fmt.Errorf("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
+		}
+	}
+	if c.IsSet("certs-dir") {
+		_, err := fs.Files(c.String("certs-dir"))
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func contextToConfig(c *cli.Context) *core.Config {
 	var opts []core.ConfigOption
 	version := common.GetAppVersion()
@@ -910,9 +939,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 
 	if c.Bool("tls-disable") {
 		opts = append(opts, core.WithInsecure())
-		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
-			panic("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
-		}
 	} else {
 		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
 		opts = append(opts, core.WithTLS(certPath, keyPath))
@@ -920,6 +946,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	if c.IsSet("certs-dir") {
 		paths, err := fs.Files(c.String("certs-dir"))
 		if err != nil {
+			// it wouldn't reach here, as it was verified on checkArgs func before
 			panic(err)
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
