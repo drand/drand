@@ -335,8 +335,14 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 			resC <- httpGetResponse{nil, fmt.Errorf("decoding response: %w", err)}
 			return
 		}
-		if len(randResp.Sig) == 0 || len(randResp.PreviousSignature) == 0 {
-			resC <- httpGetResponse{nil, fmt.Errorf("insufficient response")}
+
+		if len(randResp.Sig) == 0 {
+			resC <- httpGetResponse{nil, fmt.Errorf("insufficient response - signature is not present")}
+			return
+		}
+
+		if !h.chainInfo.Scheme.DecouplePrevSig && len(randResp.PreviousSignature) == 0 {
+			resC <- httpGetResponse{nil, fmt.Errorf("insufficient response - prev signature is not present")}
 			return
 		}
 
