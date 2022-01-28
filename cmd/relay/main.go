@@ -59,9 +59,8 @@ func Relay(c *cli.Context) error {
 	}
 
 	hashFlagSet := c.IsSet(lib.HashFlag.Name)
-	hashListFlagSet := c.IsSet(lib.HashListFlag.Name)
-	if hashFlagSet && hashListFlagSet {
-		return fmt.Errorf("--%s and --%s flag cannot be set at the same time", lib.HashFlag.Name, lib.HashListFlag.Name)
+	if hashFlagSet {
+		return fmt.Errorf("--%s is deprecated on relay http, please use %s instead", lib.HashFlag.Name, lib.HashListFlag.Name)
 	}
 
 	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
@@ -75,12 +74,9 @@ func Relay(c *cli.Context) error {
 	}
 
 	hashesList := make([]string, 0)
-	if hashFlagSet {
-		hashesList = append(hashesList, c.String(lib.HashFlag.Name))
-	} else if hashListFlagSet {
+	hashesList = append(hashesList, common.DefaultChainHash)
+	if c.IsSet(lib.HashListFlag.Name) {
 		hashesList = c.StringSlice(lib.HashListFlag.Name)
-	} else {
-		hashesList = append(hashesList, common.DefaultChainHash)
 	}
 
 	for _, hash := range hashesList {
