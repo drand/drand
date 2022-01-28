@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"os"
 
-	dclient "github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
@@ -90,17 +89,17 @@ func Relay(c *cli.Context) error {
 			continue
 		}
 
-		hashHex, err := hex.DecodeString(hash)
-		if err != nil {
-			return fmt.Errorf("failed to decode hash flag: %w", err)
+		if _, err := hex.DecodeString(hash); err != nil {
+			return fmt.Errorf("failed to decode chain hash value: %s", err)
 		}
 
-		c, err := lib.Create(c, c.IsSet(metricsFlag.Name), dclient.WithChainHash(hashHex))
+		c.Set(lib.HashFlag.Name, hash)
+		c, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 		if err != nil {
 			return err
 		}
 
-		handler.RegisterNewBeaconHandler(c, fmt.Sprintf("%x", hashHex))
+		handler.RegisterNewBeaconHandler(c, hash)
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
