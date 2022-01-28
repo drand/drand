@@ -90,10 +90,11 @@ func getShareArgs(c *cli.Context) (*shareArgs, error) {
 		return nil, fmt.Errorf("error getting entropy source: %w", err)
 	}
 
-	args.conf, err = contextToConfig(c)
-	if err != nil {
+	if err := checkArgs(c); err != nil {
 		return nil, err
 	}
+
+	args.conf = contextToConfig(c)
 
 	return args, nil
 }
@@ -504,10 +505,7 @@ func statusCmd(c *cli.Context) error {
 }
 
 func migrateCmd(c *cli.Context) error {
-	conf, err := contextToConfig(c)
-	if err != nil {
-		return err
-	}
+	conf := contextToConfig(c)
 
 	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
 		return fmt.Errorf("cannot migrate folder structure, please try again. err: %s", err)
@@ -681,10 +679,7 @@ func entropyInfoFromReader(c *cli.Context) (*control.EntropyInfo, error) {
 }
 
 func selfSign(c *cli.Context) error {
-	conf, err := contextToConfig(c)
-	if err != nil {
-		return err
-	}
+	conf := contextToConfig(c)
 
 	beaconID := getBeaconID(c)
 
