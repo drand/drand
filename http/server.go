@@ -97,6 +97,7 @@ func New(ctx context.Context, c client.Client, version string, logger log.Logger
 	mux.HandleFunc("/public/{"+roundParamKey+"}", withCommonHeaders(version, handler.PublicRand))
 	mux.HandleFunc("/info", withCommonHeaders(version, handler.ChainInfo))
 	mux.HandleFunc("/health", withCommonHeaders(version, handler.Health))
+	mux.HandleFunc("/chains", withCommonHeaders(version, handler.ChainHashes))
 
 	handler.httpHandler = promhttp.InstrumentHandlerCounter(
 		metrics.HTTPCallCounter,
@@ -526,6 +527,25 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b, _ = json.Marshal(resp)
+	_, _ = w.Write(b)
+}
+
+func (h *DrandHandler) ChainHashes(w http.ResponseWriter, r *http.Request) {
+	chainHashes := make([]string, 0)
+	for chainHash := range h.beacons {
+		if chainHash != common.DefaultChainHash {
+			chainHashes = append(chainHashes, chainHash)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	resp := make(map[string][]string)
+	resp["chains"] = chainHashes
+
+	w.WriteHeader(http.StatusOK)
+	b, _ := json.Marshal(resp)
 	_, _ = w.Write(b)
 }
 
