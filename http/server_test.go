@@ -67,11 +67,22 @@ func TestHTTPRelay(t *testing.T) {
 
 	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
 	resp, err := http.Get(getChains)
+	require.NoError(t, err)
+
 	if resp.StatusCode != 200 {
 		t.Error("expected http status code 200")
 	}
+
+	var chains []string
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&chains))
 	require.NoError(t, resp.Body.Close())
-	require.NoError(t, err)
+
+	if len(chains) != 1 {
+		t.Error("expected chain hash qty not valid")
+	}
+	if chains[0] != info.HashString() {
+		t.Error("expected chain hash not valid")
+	}
 
 	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
 	resp, err = http.Get(getChain)
