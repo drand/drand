@@ -33,6 +33,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	return c, s.(mock.MockService).EmitRand
 }
 
+//nolint:funlen
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -69,6 +70,7 @@ func TestHTTPRelay(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Error("expected http status code 200")
 	}
+	require.NoError(t, resp.Body.Close())
 	require.NoError(t, err)
 
 	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
