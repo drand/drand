@@ -180,8 +180,10 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 }
 
 func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
+	checkPrevSignature := v.opts.strict || (v.verifier.IsPrevSigMeaningful() && r.PreviousSignature == nil)
 	ps := r.PreviousSignature
-	if v.opts.strict || r.PreviousSignature == nil {
+
+	if checkPrevSignature {
 		ps, err = v.getTrustedPreviousSignature(ctx, r.Round())
 		if err != nil {
 			return
