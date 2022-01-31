@@ -341,11 +341,6 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 			return
 		}
 
-		if !h.chainInfo.Scheme.DecouplePrevSig && len(randResp.PreviousSignature) == 0 {
-			resC <- httpGetResponse{nil, fmt.Errorf("insufficient response - prev signature is not present")}
-			return
-		}
-
 		resC <- httpGetResponse{&randResp, nil}
 	}()
 
