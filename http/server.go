@@ -539,13 +539,10 @@ func (h *DrandHandler) ChainHashes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-cache")
-
-	resp := make(map[string][]string)
-	resp["chains"] = chainHashes
+	w.Header().Set("Cache-Control", "max-age=300")
 
 	w.WriteHeader(http.StatusOK)
-	b, _ := json.Marshal(resp)
+	b, _ := json.Marshal(chainHashes)
 	_, _ = w.Write(b)
 }
 
