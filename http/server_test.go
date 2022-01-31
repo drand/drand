@@ -33,6 +33,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	return c, s.(mock.MockService).EmitRand
 }
 
+//nolint:funlen
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -64,8 +65,27 @@ func TestHTTPRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
+	resp, err := http.Get(getChains)
+	require.NoError(t, err)
+
+	if resp.StatusCode != 200 {
+		t.Error("expected http status code 200")
+	}
+
+	var chains []string
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&chains))
+	require.NoError(t, resp.Body.Close())
+
+	if len(chains) != 1 {
+		t.Error("expected chain hash qty not valid")
+	}
+	if chains[0] != info.HashString() {
+		t.Error("expected chain hash not valid")
+	}
+
 	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
-	resp, err := http.Get(getChain)
+	resp, err = http.Get(getChain)
 	require.NoError(t, err)
 	cip := new(drand.ChainInfoPacket)
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(cip))
