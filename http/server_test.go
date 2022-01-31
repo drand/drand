@@ -64,8 +64,15 @@ func TestHTTPRelay(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
+	resp, err := http.Get(getChains)
+	if resp.StatusCode != 200 {
+		t.Error("expected http status code 200")
+	}
+	require.NoError(t, err)
+
 	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
-	resp, err := http.Get(getChain)
+	resp, err = http.Get(getChain)
 	require.NoError(t, err)
 	cip := new(drand.ChainInfoPacket)
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(cip))
