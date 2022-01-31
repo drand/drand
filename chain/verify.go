@@ -43,3 +43,7 @@ func (v Verifier) VerifyBeacon(b Beacon, pubkey kyber.Point) error {
 
 	return key.Scheme.VerifyRecovered(pubkey, msg, b.Signature)
 }
+
+func (v Verifier) IsPrevSigMeaningful() bool {
+	return !v.scheme.DecouplePrevSig
+}
