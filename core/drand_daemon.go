@@ -117,7 +117,7 @@ func (dd *DrandDaemon) init() error {
 	var err error
 	dd.log.Infow("", "network", "init", "insecure", c.insecure)
 
-	handler, err := dhttp.New(ctx, &drandProxy{dd}, c.Version(), dd.log.With("server", "http"))
+	handler, err := dhttp.New(ctx, c.Version(), dd.log.With("server", "http"))
 	if err != nil {
 		return err
 	}

@@ -24,7 +24,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Schem
 	client := core.Proxy(server)
 	ctx, cancel := context.WithCancel(context.Background())
 
-	handler, err := dhttp.New(ctx, client, "", nil)
+	handler, err := dhttp.New(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

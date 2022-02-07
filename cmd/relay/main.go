@@ -63,24 +63,28 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("--%s is deprecated on relay http, please use %s instead", lib.HashFlag.Name, lib.HashListFlag.Name)
 	}
 
-	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
-	if err != nil {
-		return err
-	}
-
-	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger().With("binary", "relay"))
+	handler, err := dhttp.New(c.Context, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger().With("binary", "relay"))
 	if err != nil {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	hashesList := make([]string, 0)
-	hashesList = append(hashesList, common.DefaultChainHash)
+	hashesMap := make(map[string]bool, 0)
+	hashesMap[common.DefaultChainHash] = true
+
 	if c.IsSet(lib.HashListFlag.Name) {
-		hashesList = c.StringSlice(lib.HashListFlag.Name)
+		hashesList := c.StringSlice(lib.HashListFlag.Name)
+		for _, hash := range hashesList {
+			hashesMap[hash] = true
+		}
 	}
 
-	for _, hash := range hashesList {
+	for hash := range hashesMap {
 		if hash == common.DefaultChainHash {
+			client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
+			if err != nil {
+				return err
+			}
+
 			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
 			continue
 		}
