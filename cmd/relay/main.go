@@ -117,11 +117,17 @@ func Relay(c *cli.Context) error {
 	}
 
 	// jumpstart bootup
-	req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
-	rr := httptest.NewRecorder()
-	handler.GetHTTPHandler().ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
+	for hash := range hashesMap {
+		req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
+		if hash != common.DefaultChainHash {
+			req, _ = http.NewRequest("GET", fmt.Sprintf("/%s/public/0", hash), http.NoBody)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.GetHTTPHandler().ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			log.DefaultLogger().Warnw("", "binary", "relay", "chain-hash", hash, "startup failed", rr.Code)
+		}
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
