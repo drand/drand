@@ -68,33 +68,24 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	hashesMap := make(map[string]bool, 0)
-	hashesMap[common.DefaultChainHash] = true
-
+	hashesMap := make(map[string]bool)
 	if c.IsSet(lib.HashListFlag.Name) {
 		hashesList := c.StringSlice(lib.HashListFlag.Name)
 		for _, hash := range hashesList {
 			hashesMap[hash] = true
 		}
+	} else {
+		hashesMap[common.DefaultChainHash] = true
 	}
 
 	for hash := range hashesMap {
-		if hash == common.DefaultChainHash {
-			client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
-			if err != nil {
-				return err
+		if hash != common.DefaultChainHash {
+			if _, err := hex.DecodeString(hash); err != nil {
+				return fmt.Errorf("failed to decode chain hash value: %s", err)
 			}
-
-			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
-			continue
-		}
-
-		if _, err := hex.DecodeString(hash); err != nil {
-			return fmt.Errorf("failed to decode chain hash value: %s", err)
-		}
-
-		if err := c.Set(lib.HashFlag.Name, hash); err != nil {
-			return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+			if err := c.Set(lib.HashFlag.Name, hash); err != nil {
+				return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+			}
 		}
 
 		c, err := lib.Create(c, c.IsSet(metricsFlag.Name))
