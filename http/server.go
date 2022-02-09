@@ -73,7 +73,7 @@ type beaconHandler struct {
 }
 
 // New creates an HTTP handler for the public Drand API
-func New(ctx context.Context, c client.Client, version string, logger log.Logger) (*DrandHandler, error) {
+func New(ctx context.Context, version string, logger log.Logger) (*DrandHandler, error) {
 	if logger == nil {
 		logger = log.DefaultLogger()
 	}
@@ -242,17 +242,17 @@ func (h *DrandHandler) watchWithTimeout(bh *beaconHandler, ready chan bool) {
 	}
 }
 
-func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) *chain.Info {
+func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) (*chain.Info, error) {
 	bh, err := h.getBeaconHandler(chainHash)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	bh.chainInfoLk.RLock()
 	if bh.chainInfo != nil {
 		info := bh.chainInfo
 		bh.chainInfoLk.RUnlock()
-		return info
+		return info, nil
 	}
 	bh.chainInfoLk.RUnlock()
 
@@ -260,7 +260,7 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) *chai
 	defer bh.chainInfoLk.Unlock()
 
 	if bh.chainInfo != nil {
-		return bh.chainInfo
+		return bh.chainInfo, nil
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, h.timeout)
@@ -268,14 +268,14 @@ func (h *DrandHandler) getChainInfo(ctx context.Context, chainHash []byte) *chai
 	info, err := bh.client.Info(ctx)
 	if err != nil {
 		h.log.Warnw("", "msg", "chain info fetch failed", "err", err)
-		return nil
+		return nil, err
 	}
 	if info == nil {
 		h.log.Warnw("", "msg", "chain info fetch didn't return group info")
-		return nil
+		return nil, fmt.Errorf("chain info fetch didn't return group info")
 	}
 	bh.chainInfo = info
-	return info
+	return info, nil
 }
 
 func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chain.Info, round uint64) ([]byte, error) {
@@ -358,9 +358,9 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info := h.getChainInfo(r.Context(), chainHashHex)
+	info, err := h.getChainInfo(r.Context(), chainHashHex)
 	roundExpectedTime := time.Now()
-	if info == nil {
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warnw("", "http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
@@ -427,10 +427,10 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info := h.getChainInfo(r.Context(), chainHashHex)
+	info, err := h.getChainInfo(r.Context(), chainHashHex)
 	roundTime := time.Now()
 	nextTime := time.Now()
-	if info != nil {
+	if err == nil {
 		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
 		next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
 		if next.After(nextTime) {
@@ -462,8 +462,8 @@ func (h *DrandHandler) ChainInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	info := h.getChainInfo(r.Context(), chainHashHex)
-	if info == nil {
+	info, err := h.getChainInfo(r.Context(), chainHashHex)
+	if err != nil {
 		h.log.Warnw("", "http_server", "failed to serve group", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path))
 		http.Error(w, "group not found", http.StatusNotFound)
 		return
@@ -505,7 +505,7 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	lastSeen := bh.latestRound
 	bh.pendingLk.RUnlock()
 
-	info := h.getChainInfo(r.Context(), chainHashHex)
+	info, err := h.getChainInfo(r.Context(), chainHashHex)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -514,7 +514,7 @@ func (h *DrandHandler) Health(w http.ResponseWriter, r *http.Request) {
 	resp["expected"] = 0
 	var b []byte
 
-	if info == nil {
+	if err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	} else {
 		expected := chain.CurrentRound(time.Now().Unix(), info.Period, info.GenesisTime)

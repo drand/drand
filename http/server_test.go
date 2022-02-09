@@ -40,7 +40,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	c, _ := withClient(t)
 
-	handler, err := New(ctx, c, "", nil)
+	handler, err := New(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestHTTPWaiting(t *testing.T) {
 	defer cancel()
 	c, push := withClient(t)
 
-	handler, err := New(ctx, c, "", nil)
+	handler, err := New(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,7 +222,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 	defer cancel()
 	c, _ := withClient(t)
 
-	handler, err := New(ctx, c, "", nil)
+	handler, err := New(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ func TestHTTPHealth(t *testing.T) {
 	defer cancel()
 	c, push := withClient(t)
 
-	handler, err := New(ctx, c, "", nil)
+	handler, err := New(ctx, "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -63,34 +63,29 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("--%s is deprecated on relay http, please use %s instead", lib.HashFlag.Name, lib.HashListFlag.Name)
 	}
 
-	client, err := lib.Create(c, c.IsSet(metricsFlag.Name))
-	if err != nil {
-		return err
-	}
-
-	handler, err := dhttp.New(c.Context, client, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger().With("binary", "relay"))
+	handler, err := dhttp.New(c.Context, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger().With("binary", "relay"))
 	if err != nil {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}
 
-	hashesList := make([]string, 0)
-	hashesList = append(hashesList, common.DefaultChainHash)
+	hashesMap := make(map[string]bool)
 	if c.IsSet(lib.HashListFlag.Name) {
-		hashesList = c.StringSlice(lib.HashListFlag.Name)
+		hashesList := c.StringSlice(lib.HashListFlag.Name)
+		for _, hash := range hashesList {
+			hashesMap[hash] = true
+		}
+	} else {
+		hashesMap[common.DefaultChainHash] = true
 	}
 
-	for _, hash := range hashesList {
-		if hash == common.DefaultChainHash {
-			handler.RegisterNewBeaconHandler(client, common.DefaultChainHash)
-			continue
-		}
-
-		if _, err := hex.DecodeString(hash); err != nil {
-			return fmt.Errorf("failed to decode chain hash value: %s", err)
-		}
-
-		if err := c.Set(lib.HashFlag.Name, hash); err != nil {
-			return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+	for hash := range hashesMap {
+		if hash != common.DefaultChainHash {
+			if _, err := hex.DecodeString(hash); err != nil {
+				return fmt.Errorf("failed to decode chain hash value: %s", err)
+			}
+			if err := c.Set(lib.HashFlag.Name, hash); err != nil {
+				return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+			}
 		}
 
 		c, err := lib.Create(c, c.IsSet(metricsFlag.Name))
@@ -122,11 +117,17 @@ func Relay(c *cli.Context) error {
 	}
 
 	// jumpstart bootup
-	req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
-	rr := httptest.NewRecorder()
-	handler.GetHTTPHandler().ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		log.DefaultLogger().Warnw("", "binary", "relay", "startup failed", rr.Code)
+	for hash := range hashesMap {
+		req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
+		if hash != common.DefaultChainHash {
+			req, _ = http.NewRequest("GET", fmt.Sprintf("/%s/public/0", hash), http.NoBody)
+		}
+
+		rr := httptest.NewRecorder()
+		handler.GetHTTPHandler().ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			log.DefaultLogger().Warnw("", "binary", "relay", "chain-hash", hash, "startup failed", rr.Code)
+		}
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
