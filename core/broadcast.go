@@ -89,7 +89,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "deal")
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "deal", fmt.Sprintf("%x", h[:5]))
 	b.sendout(h, bundle, true)
 }
 
@@ -107,7 +107,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "justification")
+	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "justification", fmt.Sprintf("%x", h[:5]))
 	b.sendout(h, bundle, true)
 }
 

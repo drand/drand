@@ -77,6 +77,23 @@ func TestLoggerKit(t *testing.T) {
 	}
 }
 
+func TestOddKV(t *testing.T) {
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+	syncer := zapcore.AddSync(writer)
+
+	logger := NewLogger(syncer, LogInfo)
+	logger = logger.With([]interface{}{"yard", "bird", "stone"}...)
+
+	logger.Info("msg=", "hello")
+	writer.Flush()
+
+	out := b.String()
+
+	require.Contains(t, string(out), "msg=hello")
+	require.Contains(t, string(out), "Ignored key without a value.")
+}
+
 func requireContains(t *testing.T, r io.Reader, outs []string, present bool) {
 	out, err := io.ReadAll(r)
 	require.NoError(t, err)
@@ -87,4 +104,5 @@ func requireContains(t *testing.T, r io.Reader, outs []string, present bool) {
 	for _, o := range outs {
 		require.Contains(t, string(out), o)
 	}
+	require.NotContains(t, string(out), "Ignored key without a value.")
 }

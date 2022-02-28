@@ -118,9 +118,11 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 
 	msg := h.verifier.DigestMessage(p.GetRound(), p.GetPreviousSig())
 
-	// XXX Remove that evaluation - find another way to show the current dist.
-	// key being used
-	shortPub := h.crypto.GetPub().Eval(1).V.String()[14:19]
+	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
+	if idx < 0 {
+		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
+	}
+	nodeName := h.crypto.GetGroup().Node(uint32(idx)).Identity.Address()
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Errorw("", "beacon_id", beaconID,
@@ -128,23 +130,23 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"prev_sig", shortSigStr(p.GetPreviousSig()),
 			"curr_round", currentRound,
 			"msg_sign", shortSigStr(msg),
-			"short_pub", shortPub)
+			"from_node", nodeName)
 		return nil, err
 	}
 	h.l.Debugw("", "beacon_id", beaconID,
 		"process_partial", addr,
 		"prev_sig", shortSigStr(p.GetPreviousSig()),
-		"curr_round", currentRound, "msg_sign",
-		shortSigStr(msg), "short_pub", shortPub,
+		"curr_round", currentRound,
+		"msg_sign", shortSigStr(msg),
+		"from_node", nodeName,
 		"status", "OK")
-	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
 	if idx == h.crypto.Index() {
 		h.l.Errorw("", "beacon_id", beaconID,
 			"process_partial", addr,
 			"index_got", idx,
 			"index_our", h.crypto.Index(),
 			"advance_packet", p.GetRound(),
-			"pub", shortPub)
+			"from_node", nodeName)
 		// XXX error or not ?
 		return new(proto.Empty), nil
 	}
