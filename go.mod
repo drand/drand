@@ -6,7 +6,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/aws/aws-sdk-go v1.32.11
 	github.com/briandowns/spinner v1.11.1
-	github.com/drand/kyber v1.1.9
+	github.com/drand/kyber v1.1.10
 	github.com/drand/kyber-bls12381 v0.2.1
 	github.com/go-chi/chi v1.5.4
 	github.com/google/uuid v1.3.0
