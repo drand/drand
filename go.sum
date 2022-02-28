@@ -172,8 +172,6 @@ github.com/drand/bls12-381 v0.3.2/go.mod h1:dtcLgPtYT38L3NO6mPDYH0nbpc5tjPassDqi
 github.com/drand/kyber v1.0.1-0.20200110225416-8de27ed8c0e2/go.mod h1:UpXoA0Upd1N9l4TvRPHr1qAUBBERj6JQ/mnKI3BPEmw=
 github.com/drand/kyber v1.0.2/go.mod h1:x6KOpK7avKj0GJ4emhXFP5n7M7W7ChAPmnQh/OL6vRw=
 github.com/drand/kyber v1.1.4/go.mod h1:9+IgTq7kadePhZg7eRwSD7+bA+bmvqRK+8DtmoV5a3U=
-github.com/drand/kyber v1.1.9 h1:XlKRGLH75of0ehRrX8HSdfcsa1Ld5p5/615Hvq/YCWA=
-github.com/drand/kyber v1.1.9/go.mod h1:UkHLsI4W6+jT5PvNxmc0cvQAgppjTUpX+XCsN9TXmRo=
 github.com/drand/kyber v1.1.10 h1:nQz5hahL68HDvdtwshZpe/qo3enM8gaL/Ou4Bnkw6iE=
 github.com/drand/kyber v1.1.10/go.mod h1:UkHLsI4W6+jT5PvNxmc0cvQAgppjTUpX+XCsN9TXmRo=
 github.com/drand/kyber-bls12381 v0.2.0/go.mod h1:zQip/bHdeEB6HFZSU3v+d3cQE0GaBVQw9aR2E7AdoeI=
