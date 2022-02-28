@@ -90,8 +90,8 @@ func TestOddKV(t *testing.T) {
 
 	out := b.String()
 
-	require.Contains(t, string(out), "msg=hello")
-	require.Contains(t, string(out), "Ignored key without a value.")
+	require.Contains(t, out, "msg=hello")
+	require.Contains(t, out, "Ignored key without a value.")
 }
 
 func requireContains(t *testing.T, r io.Reader, outs []string, present bool) {
