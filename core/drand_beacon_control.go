@@ -272,7 +272,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 	bp.state.Lock()
 
 	if bp.manager != nil {
-		bp.log.Infow("", "beacon_id", bp.manager.beaconID, "reshare", "already_in_progress", "restart", "reshare", "old")
+		bp.log.Infow("", "beacon_id", bp.manager.beaconID, "reshare", "already_in_progress", "reshare", "restart")
 		fmt.Println("\n\n PRE EMPTIVE STOP")
 		bp.manager.StopPreemptively()
 	}
@@ -1103,7 +1103,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	defer cbStore.RemoveCallback(addr)
 
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
-		bp.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
+		bp.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "syncer_stopped", "err", err, "state", "leaving_sync")
 		return err
 	}
 
