@@ -174,6 +174,7 @@ func (h *Handler) Start() error {
 	}
 
 	h.Lock()
+	// XXX: do we really need both started and running?
 	h.started = true
 	h.Unlock()
 
@@ -297,6 +298,7 @@ func (h *Handler) run(startTime int64) {
 	setRunning := sync.Once{}
 
 	h.Lock()
+	// XXX: do we really need both started and running?
 	h.running = true
 	h.Unlock()
 

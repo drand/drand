@@ -239,6 +239,22 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 	return addresses
 }
 
+// waitRunning with wait until the Status of the Daemon the client controls is set to "isRunning: True"
+func (d *DrandTestScenario) waitRunning(client *net.ControlClient, node *MockNode) {
+	isRunning := false
+	for !isRunning {
+		r, err := client.Status(d.beaconID)
+		require.NoError(d.t, err)
+		/// XXX: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
+		if r.Beacon.IsRunning {
+			d.t.Log("[DEBUG] ", node.GetAddr(), "    Status: isRunning")
+			isRunning = true
+		} else {
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+}
+
 // RunDKG runs the DKG with the initial nodes created during NewDrandTest
 func (d *DrandTestScenario) RunDKG() *key.Group {
 	// common secret between participants
@@ -248,15 +264,17 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	controlClient, err := net.NewControlClient(leaderNode.drand.opts.controlPort)
 	require.NoError(d.t, err)
 
-	d.t.Log("[RunDKG] Start")
+	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
 
 	// the leaderNode will return the group over this channel
 	var wg sync.WaitGroup
 	wg.Add(d.n)
 
+	d.CheckStatuses(d.nodes)
+
 	// first run the leader and then run the other nodes
 	go func() {
-		d.t.Log("[RunDKG] Leader init")
+		d.t.Log("[RunDKG] Leader (", leaderNode.GetAddr(), ") init")
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
@@ -268,12 +286,11 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 		require.NoError(d.t, err)
 
 		d.t.Logf("[RunDKG] Leader    Finished. GroupHash %x", group.Hash())
+
+		// We need to make sure the daemon is running before continuing
+		d.waitRunning(controlClient, leaderNode)
 		wg.Done()
 	}()
-
-	// make sure the leader is up and running to start the setup
-	// TODO: replace this with a ping loop and refactor to make it reusable
-	time.Sleep(1 * time.Second)
 
 	// all other nodes will send their PK to the leader that will create the group
 	for _, node := range d.nodes[1:] {
@@ -285,13 +302,20 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 			group, err := key.GroupFromProto(groupPacket)
 			require.NoError(d.t, err)
 
-			d.t.Logf("[RunDKG] NonLeader Finished. GroupHash %x", group.Hash())
+			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", node.GetAddr(), group.Hash())
+
+			// We need to make sure the daemon is running before continuing
+			d.waitRunning(client, n)
 			wg.Done()
 		}(node)
 	}
 
+	d.CheckStatuses(d.nodes)
 	// wait for all to return
 	wg.Wait()
+
+	d.CheckStatuses(d.nodes)
+
 	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
 
 	// we check that we can fetch the group using control functionalities on the leaderNode node
@@ -665,7 +689,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	d.resharedNodes = append(d.resharedNodes, leader)
 
 	// leave some time to make sure leader is listening
-	// Note: Remove this. Ping until leader is ready. Use a ping + lambda + retry
+	// TODO: Remove this. Ping until leader is ready. Use a ping + lambda + retry
 	time.Sleep(1 * time.Second)
 
 	// run the current nodes
@@ -730,6 +754,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			if !relyOnTimeout {
 				continue
 			}
+			// XXX: check if this is really intended
 			d.AdvanceMockClock(t, c.timeout)
 			t.Logf("[reshare] Advance clock: %d", d.Now().Unix())
 		case <-outgoingChan:
@@ -874,4 +899,25 @@ func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	}
 	defer b.Unlock()
 	return ret, nil
+}
+
+func (n *MockNode) GetAddr() string {
+	return n.addr
+}
+
+func (d *DrandTestScenario) CheckStatuses(nodes []*MockNode) {
+	// the leaderNode will return the group over this channel
+	var wg sync.WaitGroup
+	wg.Add(len(nodes))
+	for _, node := range nodes {
+		go func(n *MockNode) {
+			client, err := net.NewControlClient(n.drand.opts.controlPort)
+			require.NoError(d.t, err)
+			r, err := client.Status(d.beaconID)
+			require.NoError(d.t, err)
+			d.t.Logf("[DEBUG] Node %s Status: %v", n.GetAddr(), r)
+			wg.Done()
+		}(node)
+	}
+	wg.Wait()
 }
