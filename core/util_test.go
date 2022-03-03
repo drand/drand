@@ -916,6 +916,7 @@ func (d *DrandTestScenario) CheckStatuses(nodes []*MockNode) {
 			r, err := client.Status(d.beaconID)
 			require.NoError(d.t, err)
 			d.t.Logf("[DEBUG] Node %s Status: %v", n.GetAddr(), r)
+			client.Stop()
 			wg.Done()
 		}(node)
 	}
