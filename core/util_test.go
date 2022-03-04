@@ -270,8 +270,6 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	var wg sync.WaitGroup
 	wg.Add(d.n)
 
-	d.CheckStatuses(d.nodes)
-
 	// first run the leader and then run the other nodes
 	go func() {
 		d.t.Log("[RunDKG] Leader (", leaderNode.GetAddr(), ") init")
@@ -310,11 +308,8 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 		}(node)
 	}
 
-	d.CheckStatuses(d.nodes)
 	// wait for all to return
 	wg.Wait()
-
-	d.CheckStatuses(d.nodes)
 
 	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
 
@@ -903,22 +898,4 @@ func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 
 func (n *MockNode) GetAddr() string {
 	return n.addr
-}
-
-func (d *DrandTestScenario) CheckStatuses(nodes []*MockNode) {
-	// the leaderNode will return the group over this channel
-	var wg sync.WaitGroup
-	wg.Add(len(nodes))
-	for _, node := range nodes {
-		go func(n *MockNode) {
-			client, err := net.NewControlClient(n.drand.opts.controlPort)
-			require.NoError(d.t, err)
-			r, err := client.Status(d.beaconID)
-			require.NoError(d.t, err)
-			d.t.Logf("[DEBUG] Node %s Status: %v", n.GetAddr(), r)
-			client.Stop()
-			wg.Done()
-		}(node)
-	}
-	wg.Wait()
 }
