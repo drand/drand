@@ -300,7 +300,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 			group, err := key.GroupFromProto(groupPacket)
 			require.NoError(d.t, err)
 
-			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", node.GetAddr(), group.Hash())
+			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
 
 			// We need to make sure the daemon is running before continuing
 			d.waitRunning(client, n)
