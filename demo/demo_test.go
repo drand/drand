@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/drand/drand/common"
 
@@ -11,6 +14,15 @@ import (
 )
 
 func TestLocalOrchestration(t *testing.T) {
+
+	// Let us have a 2 minutes deadline
+	time.AfterFunc(
+		2*time.Minute,
+		func() {
+			fmt.Println("Deadline reached")
+			os.Exit(1)
+		})
+
 	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
 
 	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch, beaconID, true)
