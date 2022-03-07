@@ -1,7 +1,11 @@
 name: "Build/Tests"
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+      - main
+      - 'release/**'
+  pull_request:
 
 jobs:
   build:
