@@ -82,7 +82,7 @@
   description: "Suggests that having worked on the specific component affected by this issue is important"
 - name: dif/expert
   color: 2f365f
-  description: "Requires extensive knowledge of the history, implications, ramifications of the issue"  
+  description: "Requires extensive knowledge of the history, implications, ramifications of the issue"
 
 ###
 ### Efforts
@@ -104,7 +104,7 @@
   description: "Effort: One Week"
 - name: effort/weeks
   color: 20504f
-  description: "Effort: Multiple Weeks"  
+  description: "Effort: Multiple Weeks"
 
 ###
 ### Impacts
@@ -123,7 +123,7 @@
   description: "Impact: Developer Experience"
 - name: impact/test-flakiness
   color: DDE1E4
-  description: "Impact: Test Flakiness"  
+  description: "Impact: Test Flakiness"
 
 ###
 ### Topics
@@ -139,7 +139,7 @@
   description: "Topic: Documentation"
 - name: topic/architecture
   color: E53599
-  description: "Topic: Architecture"  
+  description: "Topic: Architecture"
 
 ###
 ### Priorities
@@ -165,7 +165,7 @@
   description: "Hint: Good First Issue"
 - name: hint/help-wanted
   color: 008672
-  description: "Hint: Help Wanted"  
+  description: "Hint: Help Wanted"
 - name: hint/needs-participation
   color: 0D937F
   description: "Hint: Needs Participation"
@@ -192,7 +192,7 @@
   description: "Hint: Needs Review"
 - name: hint/desc-outdated
   color: 73F9E5
-  description: "Hint: Description Outdated"  
+  description: "Hint: Description Outdated"
 
 ###
 ### Statuses
@@ -217,7 +217,7 @@
   description: "Status: Waiting"
 - name: status/rotten
   color: 7A4033
-  description: "Status: Rotten"  
+  description: "Status: Rotten"
 - name: status/discarded
   color: 6D3326
   description: "Status: Discarded / Won't fix"

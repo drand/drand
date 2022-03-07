@@ -9,7 +9,7 @@ services:
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
-    networks: 
+    networks:
       - drand-network
     environment:
       PORT: 8080
@@ -21,7 +21,7 @@ services:
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
-    networks: 
+    networks:
       - drand-network
     environment:
       PORT: 8081
@@ -32,7 +32,7 @@ services:
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
-    networks: 
+    networks:
       - drand-network
     environment:
       PORT: 8082
@@ -43,7 +43,7 @@ services:
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
-    networks: 
+    networks:
       - drand-network
     environment:
       PORT: 8083
@@ -54,7 +54,7 @@ services:
     entrypoint: /data/client-script.sh
     volumes:
       - ./data:/data:z
-    networks: 
+    networks:
       - drand-network
     environment:
       PORT: 8084

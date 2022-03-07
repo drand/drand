@@ -36,5 +36,3 @@ ENTRYPOINT [""]
 
 # Defaults for drand go here
 CMD [""]
-
-

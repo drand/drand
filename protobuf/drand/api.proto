@@ -82,5 +82,3 @@ message HomeResponse {
     string status = 1;
     common.Metadata metadata = 2;
 }
-
-

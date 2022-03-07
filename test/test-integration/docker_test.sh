@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 # set -x
 # This script spins off N drand containers and tries to verify any randomness
 # produced.
@@ -28,7 +28,7 @@ fetchTest 2 true
 #drandPublic="/dist_public.toml"
 #drandVol="$distPublic:$drandPublic:z"
 #drandArgs=("--debug" "fetch" "public" "--insecure" "--public" $drandPublic "${addresses[1]}")
-#docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}" 
+#docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}"
 #checkSuccess $? "verify signature?"
 
 #echo "[+] Verifying fetching private randomness"

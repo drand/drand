@@ -83,7 +83,7 @@ message Node {
 // GroupPacket represents a group that is running a drand network (or is in the
 // process of creating one or performing a resharing).
 message GroupPacket {
-    repeated Node nodes = 1; 
+    repeated Node nodes = 1;
     uint32 threshold = 2;
     // period in seconds
     uint32 period = 3;
@@ -105,7 +105,7 @@ message ChainInfoRequest {
 }
 
 message ChainInfoPacket {
-    // marshalled public key 
+    // marshalled public key
     bytes public_key = 1;
     // period in seconds
     uint32 period = 2;

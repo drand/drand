@@ -105,4 +105,3 @@ docker exec drand_client /bin/sh -c 'drand-client --url http://drand_0:8081 --in
 docker exec drand_client /bin/sh -c 'drand-client --url http://drand_1:8181 --insecure --round 1050 --chain-hash 945ae851f30772add04b090fd6ba3d741969e38eee2f26fc77533e0d20a90493 --group-conf ./data/drand_1/.drand/multibeacon/default/groups/drand_group.toml'
 docker exec drand_client /bin/sh -c 'drand-client --url http://drand_2:8281 --insecure --round 1050 --chain-hash 945ae851f30772add04b090fd6ba3d741969e38eee2f26fc77533e0d20a90493 --group-conf ./data/drand_2/.drand/multibeacon/default/groups/drand_group.toml'
 docker exec drand_client /bin/sh -c 'drand-client --url http://drand_3:8381 --insecure --round 1050 --chain-hash 945ae851f30772add04b090fd6ba3d741969e38eee2f26fc77533e0d20a90493 --group-conf ./data/drand_3/.drand/multibeacon/default/groups/drand_group.toml'
-
