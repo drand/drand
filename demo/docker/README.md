@@ -7,7 +7,7 @@ Prerequisites:
 
 Run the demo: `./run.sh`
 
-This commands builds the docker images, and starts the containers: 
+This commands builds the docker images, and starts the containers:
 
 ![Setup](https://user-images.githubusercontent.com/5019664/73373513-06e0cc00-42b9-11ea-9a87-3acf16a20b29.png)
 

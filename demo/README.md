@@ -1,8 +1,8 @@
-# Local demo of drand 
+# Local demo of drand
 
 This folder contains code that spins up drand nodes in the same way as in a real
 world deployment. It uses real processes as drand instances and uses the CLI
-commands. 
+commands.
 
 ## What the demo is doing
 
@@ -15,10 +15,10 @@ the steps the demo is performing:
 * Doing a resharing to an extended group
 * Checking the new network produces valid random beacons
 
-## Run the demo 
+## Run the demo
 
 ```
-go build && ./demo -build 
+go build && ./demo -build
 ```
 
 You can stop the demo by CTRL-C when ever you want.

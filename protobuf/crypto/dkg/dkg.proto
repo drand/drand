@@ -1,7 +1,7 @@
 /*
  * This protobuf file contains the definitions of all the calls and messages
  * used by drand nodes themselves to create the distributed randomness beacon.
- */ 
+ */
 syntax = "proto3";
 
 package dkg;
@@ -27,7 +27,7 @@ message Packet {
 message DealBundle {
     // Index of the dealer that issues these deals
     uint32 dealer_index = 1;
-    // Coefficients of the public polynomial that is created from the 
+    // Coefficients of the public polynomial that is created from the
     // private polynomial from which the shares are derived.
     repeated bytes commits = 2;
     // list of deals for each individual share holders.
@@ -45,7 +45,7 @@ message Deal {
     bytes encrypted_share = 2;
 }
 
-// ResponseBundle is a packet issued by a share holder that contains all the 
+// ResponseBundle is a packet issued by a share holder that contains all the
 // responses (complaint and/or success) to broadcast.
 message ResponseBundle {
     uint32 share_index = 1;
@@ -61,7 +61,7 @@ message ResponseBundle {
 message Response {
     // index of the dealer for which this response is for
     uint32 dealer_index = 1;
-    // Status represents a complaint if set to false, a success if set to 
+    // Status represents a complaint if set to false, a success if set to
     // true.
     bool status = 2;
 }

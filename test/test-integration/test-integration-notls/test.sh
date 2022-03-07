@@ -17,8 +17,8 @@ cleanup () {
 trap 'cleanup ; printf "Tests have been killed via signal.\n"' HUP INT QUIT PIPE TERM
 
 # clear the previous group
-echo -en "Threshold = 3\nPeriod = \"10s\"\n\n" > "${GROUP_FILE}" 
-chmod ugo+rwx "${GROUP_FILE}" 
+echo -en "Threshold = 3\nPeriod = \"10s\"\n\n" > "${GROUP_FILE}"
+chmod ugo+rwx "${GROUP_FILE}"
 rm -f data/*.public
 rm -rf data/TLS_certificates
 rm -rf data/TLS_privatekeys

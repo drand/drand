@@ -21,12 +21,12 @@ service Control {
     rpc ListSchemes(ListSchemesRequest) returns (ListSchemesResponse) { }
     // ListBeaconIDs responds with the list of ids for the running networks on the node
     rpc ListBeaconIDs(ListBeaconIDsRequest) returns (ListBeaconIDsResponse) { }
-    // InitDKG sends information to daemon to start a fresh DKG protocol 
+    // InitDKG sends information to daemon to start a fresh DKG protocol
     rpc InitDKG(InitDKGPacket) returns (drand.GroupPacket) { }
     // InitReshares sends all informations so that the drand node knows how to
     // proceeed during the next resharing protocol.
     rpc InitReshare(InitResharePacket) returns (drand.GroupPacket) { }
-    // Share returns the current private share used by the node 
+    // Share returns the current private share used by the node
     rpc Share(ShareRequest) returns (ShareResponse) { }
     // PublicKey returns the longterm public key of the drand node
     rpc PublicKey(PublicKeyRequest) returns (PublicKeyResponse) { }
@@ -179,7 +179,7 @@ message RemoteStatusRequest {
 // requests. If a node did not reply, then the address key is absent from the
 // map
 message RemoteStatusResponse {
-    map<string,StatusResponse> statuses = 1;  
+    map<string,StatusResponse> statuses = 1;
 }
 
 message ListSchemesRequest {
@@ -257,7 +257,7 @@ message LoadBeaconResponse {
 
 message StartFollowRequest {
     // hex format
-    string info_hash = 1; 
+    string info_hash = 1;
     // nodes to contact to
     repeated string nodes = 2;
     // is TLS enabled on these nodes or not
@@ -270,7 +270,7 @@ message StartFollowRequest {
     common.Metadata metadata = 5;
 }
 
-message FollowProgress { 
+message FollowProgress {
     uint64 current = 1;
     uint64 target = 2;
     common.Metadata metadata = 3;
