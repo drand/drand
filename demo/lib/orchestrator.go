@@ -557,13 +557,13 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		foundNode.Start(e.certFolder)
 		var started bool
-		for trial := 0; trial < 5; trial += 1 {
+		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {
 				fmt.Printf("\t- Node %s started correctly\n", foundNode.PrivateAddr())
 				started = true
 				break
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Duration(trial*trial) * time.Second)
 		}
 		if !started {
 			panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.PrivateAddr()))
