@@ -105,11 +105,14 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	}
 
 	msg := chain.Message(p.GetRound(), p.GetPreviousSig())
-	idx, _ := key.Scheme.IndexOf(p.GetPartialSig())
-	if idx < 0 {
+	idx, err := key.Scheme.IndexOf(p.GetPartialSig())
+	if err != nil || idx < 0 {
 		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
 	}
 	nodeName := h.crypto.GetGroup().Node(uint32(idx)).Identity.Address()
+	if nodeName == nil {
+		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
+	}
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Error("process_partial", addr,
