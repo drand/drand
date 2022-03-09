@@ -68,7 +68,7 @@ test-integration:
 	cd demo && go build && ./demo -build -test -debug
 
 coverage:
-	go get -u github.com/ory/go-acc
+	go install github.com/ory/go-acc@latest
 	go get -v -t -d ./...
 	COVERAGE=true go-acc ./...
 

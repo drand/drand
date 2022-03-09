@@ -556,15 +556,14 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
 		foundNode.Start(e.certFolder)
-		trial := 0
 		var started bool
-		for trial < 5 {
+		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {
 				fmt.Printf("\t- Node %s started correctly\n", foundNode.PrivateAddr())
 				started = true
 				break
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Duration(trial*trial) * time.Second)
 		}
 		if !started {
 			panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.PrivateAddr()))
@@ -583,14 +582,22 @@ func (e *Orchestrator) PrintLogs() {
 }
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
-	for _, node := range e.nodes {
-		fmt.Printf("\t- Stop old node %s\n", node.PrivateAddr())
-		node.Stop()
+	for _, no := range e.nodes {
+		fmt.Printf("\t- Stop old node %s\n", no.PrivateAddr())
+		go func(n node.Node) {
+			n.Stop()
+			fmt.Println("\t- Successfully stopped Node", n.Index(), "(", n.PrivateAddr(), ")")
+		}(no)
 	}
-	for _, node := range e.newNodes {
-		fmt.Printf("\t- Stop new node %s\n", node.PrivateAddr())
-		node.Stop()
+	for _, no := range e.newNodes {
+		fmt.Printf("\t- Stop new node %s\n", no.PrivateAddr())
+		go func(n node.Node) {
+			n.Stop()
+			fmt.Println("\t- Successfully stopped Node", n.Index(), "(", n.PrivateAddr(), ")")
+		}(no)
 	}
+	// We let some time for the nodes to shutdown graciously before the whole terminates
+	time.Sleep(10 * time.Second)
 }
 
 func runCommand(c *exec.Cmd, add ...string) []byte {

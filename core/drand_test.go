@@ -345,6 +345,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	var doneReshare = make(chan *key.Group)
 	go func() {
 		t.Log("[reshare] Start reshare")
+		// XXX: notice that the RunReshare is already running AdvanceMockClock on its own after a while!!
 		group, err := dt.RunReshare(t,
 			&reshareConfig{
 				oldRun:  nodesToKeep,
@@ -357,6 +358,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	}()
 	time.Sleep(3 * time.Second)
 
+	// XXX: this isn't always the case: it can already have reached past this at this point because of the above Sleep.
 	t.Log("Move to response phase")
 	dt.AdvanceMockClock(t, timeout)
 
