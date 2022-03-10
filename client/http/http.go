@@ -174,24 +174,32 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	return &hc
 }
 
-func IsServerReady(addr string) error {
+func IsServerReady(addr string) (er error) {
 	counter := 0
 
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), maxTimeoutHTTPRequest)
-		defer cancel()
+		// using an anonymous function to not leak the defer
+		counter, er = func(count int) (int, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), maxTimeoutHTTPRequest)
+			defer cancel()
 
-		err := Ping(ctx, "http://"+addr)
-		if err == nil {
-			return nil
+			err := Ping(ctx, "http://"+addr)
+			if err == nil {
+				return count, nil
+			}
+
+			count++
+			if count == httpWaitMaxCounter {
+				return count, fmt.Errorf("timeout waiting http server to be ready")
+			}
+
+			time.Sleep(httpWaitInterval)
+			return count, nil
+		}(counter)
+		// abort early
+		if er != nil {
+			return er
 		}
-
-		counter++
-		if counter == httpWaitMaxCounter {
-			return fmt.Errorf("timeout waiting http server to be ready")
-		}
-
-		time.Sleep(httpWaitInterval)
 	}
 }
 

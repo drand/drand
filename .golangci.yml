@@ -1,4 +1,6 @@
 issues:
+  # Let us display all issues of one type at once
+  max-same-issues: 0
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
     - path: _test\.go
