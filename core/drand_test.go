@@ -875,7 +875,11 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 
 	root := dt.nodes[0]
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	if err != nil {
+		t.Log("Error waiting until chain is serving:", err)
+		t.Fail()
+	}
 
 	// do a few periods
 	for i := 0; i < 3; i++ {

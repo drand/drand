@@ -433,6 +433,7 @@ func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
 
 // AdvanceMockClock advances the clock of all drand by the given duration
 func (d *DrandTestScenario) AdvanceMockClock(t *testing.T, p time.Duration) {
+	t.Log("Advancing time by", p, "from", d.clock.Now().Unix())
 	for _, node := range d.nodes {
 		node.clock.Advance(p)
 	}
@@ -515,7 +516,7 @@ func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round u
 		}
 
 		t.Logf("node %s is on %d round (vs expected %d), waiting some time to ask again...", node.addr, status.ChainStore.LastRound, round)
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(d.period)
 	}
 }
 
@@ -530,7 +531,7 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 		require.NoError(t, err)
 
 		if status.Beacon.IsServing {
-			t.Logf("node %s has its beacon chain running", node.addr)
+			t.Logf("node %s has its beacon chain running on round %d", node.addr, status.ChainStore.LastRound)
 			return nil
 		}
 
