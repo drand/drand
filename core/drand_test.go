@@ -21,12 +21,14 @@ import (
 )
 
 func setFDLimit() {
-	fdOpen := 2000
-	_, max, err := unixGetLimit()
+	fdOpen := uint64(3000)
+	curr, max, err := unixGetLimit()
 	if err != nil {
 		panic(err)
 	}
-	if err := unixSetLimit(uint64(fdOpen), max); err != nil {
+	if fdOpen <= curr {
+		return
+	} else if err := unixSetLimit(fdOpen, max); err != nil {
 		panic(err)
 	}
 }

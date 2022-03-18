@@ -212,7 +212,7 @@ func TestClientWithWatcherCtorError(t *testing.T) {
 		client.WithChainInfo(fakeChainInfo()),
 		client.WithWatcher(watcherCtor),
 	)
-	if err != watcherErr {
+	if !errors.Is(err, watcherErr) {
 		t.Fatal(err)
 	}
 }

@@ -162,7 +162,7 @@ func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime i
 
 	for i := 0; i < n; i++ {
 		bt.CreateNode(t, i)
-		t.Logf("Creating node %d/%d", i, n)
+		t.Logf("Creating node %d/%d", i+1, n)
 	}
 	return bt
 }

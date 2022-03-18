@@ -441,6 +441,8 @@ func (d *DrandTestScenario) AdvanceMockClock(t *testing.T, p time.Duration) {
 		node.clock.Advance(p)
 	}
 	d.clock.Advance(p)
+	// we sleep to make sure everyone has the time to get the new time before continuing
+	time.Sleep(10 * time.Millisecond)
 }
 
 // CheckBeaconLength looks if the beacon chain on the given addresses is of the

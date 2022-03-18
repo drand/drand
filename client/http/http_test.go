@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"testing"
@@ -172,7 +173,7 @@ func TestHTTPClientClose(t *testing.T) {
 	}
 
 	_, err = httpClient.Get(context.Background(), 0)
-	if err != errClientClosed {
+	if !errors.Is(err, errClientClosed) {
 		t.Fatal("unexpected error from closed client", err)
 	}
 

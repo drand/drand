@@ -244,7 +244,7 @@ LOOP:
 			}
 			stats = append(stats, rr.stat)
 			res = rr.result
-			if rr.err != errEmptyClientUnsupportedGet && rr.err != nil {
+			if rr.err != nil && !errors.Is(rr.err, errEmptyClientUnsupportedGet) {
 				err = fmt.Errorf("%v - %w", err, rr.err)
 			} else if rr.err == nil {
 				err = nil
@@ -270,7 +270,7 @@ func get(ctx context.Context, client Client, round uint64) *requestResult {
 	var stat requestStat
 
 	// client failure, set a large RTT so it is sent to the back of the list
-	if err != nil && err != ctx.Err() {
+	if err != nil && !errors.Is(err, ctx.Err()) {
 		stat = requestStat{client, math.MaxInt64, start}
 		return &requestResult{client, res, err, &stat}
 	}
@@ -606,7 +606,7 @@ CLIENT_LOOP:
 func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain.Info, err error) {
 	clients := oc.fastestClients()
 	for _, c := range clients {
-		ctx, cancel := context.WithTimeout(context.Background(), oc.requestTimeout)
+		ctx, cancel := context.WithTimeout(ctx, oc.requestTimeout)
 		chainInfo, err = c.Info(ctx)
 		cancel()
 		if err == nil {

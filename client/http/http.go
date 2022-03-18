@@ -119,10 +119,10 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 	return clients
 }
 
-func Ping(ctx context.Context, root string) error {
+func Ping(root string) error {
 	url := fmt.Sprintf("%s/health", root)
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(context.Background(), maxTimeoutHTTPRequest)
 	defer cancel()
 
 	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
@@ -176,30 +176,18 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 
 func IsServerReady(addr string) (er error) {
 	counter := 0
-
 	for {
-		// using an anonymous function to not leak the defer
-		counter, er = func(count int) (int, error) {
-			ctx, cancel := context.WithTimeout(context.Background(), maxTimeoutHTTPRequest)
-			defer cancel()
-
-			err := Ping(ctx, "http://"+addr)
-			if err == nil {
-				return count, nil
-			}
-
-			count++
-			if count == httpWaitMaxCounter {
-				return count, fmt.Errorf("timeout waiting http server to be ready")
-			}
-
-			time.Sleep(httpWaitInterval)
-			return count, nil
-		}(counter)
-		// abort early
-		if er != nil {
-			return er
+		err := Ping("http://" + addr)
+		if err == nil {
+			return nil
 		}
+
+		counter++
+		if counter == httpWaitMaxCounter {
+			return fmt.Errorf("timeout waiting http server to be ready")
+		}
+
+		time.Sleep(httpWaitInterval)
 	}
 }
 
