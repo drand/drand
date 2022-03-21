@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
@@ -95,13 +97,15 @@ type discrepancyStore struct {
 	chain.Store
 	l     log.Logger
 	group *key.Group
+	clock clock.Clock
 }
 
-func newDiscrepancyStore(s chain.Store, l log.Logger, group *key.Group) chain.Store {
+func newDiscrepancyStore(s chain.Store, l log.Logger, group *key.Group, cl clock.Clock) chain.Store {
 	return &discrepancyStore{
 		Store: s,
 		l:     l,
 		group: group,
+		clock: cl,
 	}
 }
 
@@ -109,7 +113,7 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 	if err := d.Store.Put(b); err != nil {
 		return err
 	}
-	actual := time.Now().UnixNano()
+	actual := d.clock.Now().UnixNano()
 	beaconID := d.group.ID
 	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
 	discrepancy := float64(actual-expected) / float64(time.Millisecond)

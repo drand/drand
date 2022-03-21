@@ -122,7 +122,7 @@ func ForURLs(urls []string, chainHash []byte) []client.Client {
 func Ping(ctx context.Context, root string) error {
 	url := fmt.Sprintf("%s/health", root)
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(ctx, maxTimeoutHTTPRequest)
 	defer cancel()
 
 	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
@@ -174,14 +174,11 @@ func instrumentClient(url string, transport nhttp.RoundTripper) *nhttp.Client {
 	return &hc
 }
 
-func IsServerReady(addr string) error {
+func IsServerReady(addr string) (er error) {
 	counter := 0
-
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), maxTimeoutHTTPRequest)
-		defer cancel()
-
-		err := Ping(ctx, "http://"+addr)
+		// Ping is wrapping its context with a Timeout on maxTimeoutHTTPRequest anyway.
+		err := Ping(context.Background(), "http://"+addr)
 		if err == nil {
 			return nil
 		}

@@ -20,14 +20,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setFDLimit() {
-	fdOpen := 2000
-	_, max, err := unixGetLimit()
+func setFDLimit(t *testing.T) {
+	fdOpen := uint64(3000)
+	curr, max, err := unixGetLimit()
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
-	if err := unixSetLimit(uint64(fdOpen), max); err != nil {
-		panic(err)
+	if fdOpen <= curr {
+		t.Logf("Current limit is larger (%d) than ours (%d); not changing it.\n", curr, fdOpen)
+		return
+	} else if err := unixSetLimit(fdOpen, max); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -61,7 +64,7 @@ func TestRunDKGLarge(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	setFDLimit()
+	setFDLimit(t)
 
 	n := 22
 	expectedBeaconPeriod := 5 * time.Second
@@ -875,7 +878,11 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 
 	root := dt.nodes[0]
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	if err != nil {
+		t.Log("Error waiting until chain is serving:", err)
+		t.Fail()
+	}
 
 	// do a few periods
 	for i := 0; i < 3; i++ {

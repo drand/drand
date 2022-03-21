@@ -3,6 +3,7 @@ package net
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -122,7 +123,7 @@ func (g *grpcClient) PublicRandStream(
 	go func() {
 		for {
 			resp, err := stream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				close(outCh)
 				return
 			}

@@ -848,35 +848,44 @@ func deleteBeaconCmd(c *cli.Context) error {
 		return err
 	}
 
+	var er error
 	for beaconID, storePath := range stores {
-		store, err := boltdb.NewBoltStore(path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
-		if err != nil {
-			return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %s", beaconID, err)
+		if er != nil {
+			return er
 		}
-		defer store.Close()
-
-		lastBeacon, err := store.Last()
-		if err != nil {
-			return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %s", beaconID, err)
-		}
-		if startRound > lastBeacon.Round {
-			return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
-		}
-		if c.IsSet(verboseFlag.Name) {
-			fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, (lastBeacon.Round - startRound))
-		}
-
-		for round := startRound; round <= lastBeacon.Round; round++ {
-			err := store.Del(round)
+		// Using an anonymous function to not leak the defer
+		er = func() error {
+			store, err := boltdb.NewBoltStore(path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
 			if err != nil {
-				return fmt.Errorf("beacon id [%s] - error deleting round %d: %s", beaconID, round, err)
+				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %s", beaconID, err)
+			}
+			defer store.Close()
+
+			lastBeacon, err := store.Last()
+			if err != nil {
+				return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %s", beaconID, err)
+			}
+			if startRound > lastBeacon.Round {
+				return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
 			}
 			if c.IsSet(verboseFlag.Name) {
-				fmt.Printf("beacon id [%s] - deleted beacon round %d \n", beaconID, round)
+				fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, (lastBeacon.Round - startRound))
 			}
-		}
+
+			for round := startRound; round <= lastBeacon.Round; round++ {
+				err := store.Del(round)
+				if err != nil {
+					return fmt.Errorf("beacon id [%s] - error deleting round %d: %s", beaconID, round, err)
+				}
+				if c.IsSet(verboseFlag.Name) {
+					fmt.Printf("beacon id [%s] - deleted beacon round %d \n", beaconID, round)
+				}
+			}
+			return nil
+		}()
 	}
-	return nil
+
+	return err
 }
 
 func toArray(flags ...cli.Flag) []cli.Flag {

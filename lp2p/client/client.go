@@ -129,7 +129,7 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 type UnsubFunc func()
 
 // Sub subscribes to notfications about new randomness.
-// Client instnace owns the channel after it is passed to Sub function,
+// Client instance owns the channel after it is passed to Sub function,
 // thus the channel should not be closed by library user
 //
 // It is recommended to use a buffered channel. If the channel is full,

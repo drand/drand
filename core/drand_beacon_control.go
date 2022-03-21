@@ -827,16 +827,19 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 		}
 		// TODO check if TLS or not
 		p := net.CreatePeer(addr.GetAddress(), addr.GetTls())
-		// Simply try to ping him see if he replies
-		tc, cancel := context.WithTimeout(c, callMaxTimeout)
-		defer cancel()
-		_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{})
-		if err != nil {
-			bp.log.Debugw("Status asked remote", addr, " FAIL", err)
-			resp[addr.GetAddress()] = false
-		} else {
-			resp[addr.GetAddress()] = true
-		}
+		// we use an anonymous function to not leak the defer in the for loop
+		func() {
+			// Simply try to ping him see if he replies
+			tc, cancel := context.WithTimeout(c, callMaxTimeout)
+			defer cancel()
+			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{})
+			if err != nil {
+				bp.log.Debugw("Status asked remote", addr, " FAIL", err)
+				resp[addr.GetAddress()] = false
+			} else {
+				resp[addr.GetAddress()] = true
+			}
+		}()
 	}
 	packet := &drand.StatusResponse{
 		Dkg:        &dkgStatus,

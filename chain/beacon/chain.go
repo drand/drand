@@ -46,7 +46,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	ss := NewSchemeStore(as, cf.Group.Scheme)
 
 	// we write some stats about the timing when new beacon is saved
-	ds := newDiscrepancyStore(ss, l, c.GetGroup())
+	ds := newDiscrepancyStore(ss, l, c.GetGroup(), cf.Clock)
 
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
