@@ -2,6 +2,7 @@ package drand
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -29,12 +30,12 @@ import (
 const minimumShareSecretLength = 32
 
 type shareArgs struct {
-	secret    string
-	isTLS     bool
-	timeout   time.Duration
-	threshold int
-	entropy   *control.EntropyInfo
 	force     bool
+	isTLS     bool
+	threshold int
+	timeout   time.Duration
+	secret    string
+	entropy   *control.EntropyInfo
 	conf      *core.Config
 }
 
@@ -120,7 +121,7 @@ func shareCmd(c *cli.Context) error {
 
 	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
 	if err != nil {
-		return fmt.Errorf("could not create client: %v", err)
+		return fmt.Errorf("could not create client: %w", err)
 	}
 
 	beaconID := c.String(beaconIDFlag.Name)
@@ -129,11 +130,11 @@ func shareCmd(c *cli.Context) error {
 	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret, beaconID)
 
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", shareErr)
+		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
-		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
 	return groupOut(c, group)
 }
@@ -155,7 +156,7 @@ func leadShareCmd(c *cli.Context) error {
 
 	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
 	if err != nil {
-		return fmt.Errorf("could not create client: %v", err)
+		return fmt.Errorf("could not create client: %w", err)
 	}
 
 	if !c.IsSet(periodFlag.Name) {
@@ -165,18 +166,18 @@ func leadShareCmd(c *cli.Context) error {
 
 	period, err := time.ParseDuration(periodStr)
 	if err != nil {
-		return fmt.Errorf("period given is invalid: %v", err)
+		return fmt.Errorf("period given is invalid: %w", err)
 	}
 
-	catchupPeriod := time.Duration(0)
+	var catchupPeriod time.Duration
 	catchupPeriodStr := c.String(catchupPeriodFlag.Name)
 	if catchupPeriod, err = time.ParseDuration(catchupPeriodStr); err != nil {
-		return fmt.Errorf("catchup period given is invalid: %v", err)
+		return fmt.Errorf("catchup period given is invalid: %w", err)
 	}
 
 	var sch scheme.Scheme
 	if sch, err = scheme.GetSchemeByIDWithDefault(c.String(schemeFlag.Name)); err != nil {
-		return fmt.Errorf("scheme given is invalid: %v", err)
+		return fmt.Errorf("scheme given is invalid: %w", err)
 	}
 
 	offset := int(core.DefaultGenesisOffset.Seconds())
@@ -192,16 +193,18 @@ func leadShareCmd(c *cli.Context) error {
 	fmt.Fprintln(output, "You can stop the command at any point. If so, the group "+
 		"file will not be written out to the specified output. To get the "+
 		"group file once the setup phase is done, you can run the `drand show "+
-		"group` command\n")
+		"group` command")
+	// new line
+	fmt.Fprintln(output, "")
 	groupP, shareErr := ctrlClient.InitDKGLeader(nodes, args.threshold, period,
 		catchupPeriod, args.timeout, args.entropy, args.secret, offset, sch.ID, beaconID)
 
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", shareErr)
+		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
-		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
 	return groupOut(c, group)
 }
@@ -215,7 +218,7 @@ func loadCmd(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	_, err = client.LoadBeacon(beaconID)
 	if err != nil {
-		return fmt.Errorf("could not reload the beacon process [%s]: %s", beaconID, err)
+		return fmt.Errorf("could not reload the beacon process [%s]: %w", beaconID, err)
 	}
 
 	fmt.Fprintf(output, "Beacon process [%s] was loaded on drand.\n", beaconID)
@@ -244,7 +247,7 @@ func reshareCmd(c *cli.Context) error {
 
 	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
 	if err != nil {
-		return fmt.Errorf("could not create client: %v", err)
+		return fmt.Errorf("could not create client: %w", err)
 	}
 
 	beaconID := c.String(beaconIDFlag.Name)
@@ -257,7 +260,7 @@ func reshareCmd(c *cli.Context) error {
 	} else if c.IsSet(oldGroupFlag.Name) {
 		var oldGroup = new(key.Group)
 		if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
-			return fmt.Errorf("could not load drand from path: %s", err)
+			return fmt.Errorf("could not load drand from path: %w", err)
 		}
 
 		oldPath = c.String(oldGroupFlag.Name)
@@ -273,11 +276,11 @@ func reshareCmd(c *cli.Context) error {
 
 	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath, args.force, beaconID)
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", shareErr)
+		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
-		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
 	return groupOut(c, group)
 }
@@ -300,7 +303,7 @@ func leadReshareCmd(c *cli.Context) error {
 
 	ctrlClient, err := net.NewControlClient(args.conf.ControlPort())
 	if err != nil {
-		return fmt.Errorf("could not create client: %v", err)
+		return fmt.Errorf("could not create client: %w", err)
 	}
 
 	beaconID := c.String(beaconIDFlag.Name)
@@ -313,7 +316,7 @@ func leadReshareCmd(c *cli.Context) error {
 	} else if c.IsSet(oldGroupFlag.Name) {
 		var oldGroup = new(key.Group)
 		if err := key.Load(c.String(oldGroupFlag.Name), oldGroup); err != nil {
-			return fmt.Errorf("could not load drand from path: %s", err)
+			return fmt.Errorf("could not load drand from path: %w", err)
 		}
 		oldPath = c.String(oldGroupFlag.Name)
 
@@ -332,7 +335,7 @@ func leadReshareCmd(c *cli.Context) error {
 	if c.IsSet(catchupPeriodFlag.Name) {
 		catchupPeriodStr := c.String(catchupPeriodFlag.Name)
 		if catchupPeriod, err = time.ParseDuration(catchupPeriodStr); err != nil {
-			return fmt.Errorf("catchup period given is invalid: %v", err)
+			return fmt.Errorf("catchup period given is invalid: %w", err)
 		}
 	}
 
@@ -341,11 +344,11 @@ func leadReshareCmd(c *cli.Context) error {
 		catchupPeriod, args.secret, oldPath, offset, beaconID)
 
 	if shareErr != nil {
-		return fmt.Errorf("error setting up the network: %v", shareErr)
+		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
 	group, err := key.GroupFromProto(groupP)
 	if err != nil {
-		return fmt.Errorf("error interpreting the group from protobuf: %v", err)
+		return fmt.Errorf("error interpreting the group from protobuf: %w", err)
 	}
 	return groupOut(c, group)
 }
@@ -394,7 +397,7 @@ func remoteStatusCmd(c *cli.Context) error {
 	if c.IsSet(jsonFlag.Name) {
 		str, err := json.Marshal(defaultMap)
 		if err != nil {
-			return fmt.Errorf("cannot marshal the response ... %s", err)
+			return fmt.Errorf("cannot marshal the response ... %w", err)
 		}
 		fmt.Fprintf(output, "%s \n", string(str))
 	} else {
@@ -416,7 +419,7 @@ func pingpongCmd(c *cli.Context) error {
 		return err
 	}
 	if err := client.Ping(); err != nil {
-		return fmt.Errorf("drand: can't ping the daemon ... %s", err)
+		return fmt.Errorf("drand: can't ping the daemon ... %w", err)
 	}
 	fmt.Fprintf(output, "drand daemon is alive on port %s", controlPort(c))
 	return nil
@@ -457,7 +460,7 @@ func statusCmd(c *cli.Context) error {
 	if allIds || listIds {
 		beaconIDsList, err = client.ListBeaconIDs()
 		if err != nil {
-			return fmt.Errorf("drand: can't get the list of running beacon ids on the daemon ... %s", err)
+			return fmt.Errorf("drand: can't get the list of running beacon ids on the daemon ... %w", err)
 		}
 	} else {
 		beaconIDsList.Ids = append(beaconIDsList.Ids, getBeaconID(c))
@@ -467,7 +470,7 @@ func statusCmd(c *cli.Context) error {
 		if c.IsSet(jsonFlag.Name) {
 			str, err := json.Marshal(beaconIDsList)
 			if err != nil {
-				return fmt.Errorf("cannot marshal the response ... %s", err)
+				return fmt.Errorf("cannot marshal the response ... %w", err)
 			}
 			fmt.Fprintf(output, "%s \n", string(str))
 			return nil
@@ -481,7 +484,7 @@ func statusCmd(c *cli.Context) error {
 	for _, id := range beaconIDsList.Ids {
 		resp, err := client.Status(id)
 		if err != nil {
-			return fmt.Errorf("drand: can't get the status of the network with id [%s]... %s", id, err)
+			return fmt.Errorf("drand: can't get the status of the network with id [%s]... %w", id, err)
 		}
 
 		if c.IsSet(jsonFlag.Name) {
@@ -496,7 +499,7 @@ func statusCmd(c *cli.Context) error {
 	if c.IsSet(jsonFlag.Name) {
 		str, err := json.Marshal(statuses)
 		if err != nil {
-			return fmt.Errorf("cannot marshal the response ... %s", err)
+			return fmt.Errorf("cannot marshal the response ... %w", err)
 		}
 		fmt.Fprintf(output, "%s \n", string(str))
 	}
@@ -508,7 +511,7 @@ func migrateCmd(c *cli.Context) error {
 	conf := contextToConfig(c)
 
 	if err := migration.MigrateSBFolderStructure(conf.ConfigFolder()); err != nil {
-		return fmt.Errorf("cannot migrate folder structure, please try again. err: %s", err)
+		return fmt.Errorf("cannot migrate folder structure, please try again. err: %w", err)
 	}
 
 	fmt.Fprintf(output, "folder structure is now ready to support multi-beacon drand\n")
@@ -523,7 +526,7 @@ func schemesCmd(c *cli.Context) error {
 
 	resp, err := client.ListSchemes()
 	if err != nil {
-		return fmt.Errorf("drand: can't get the list of scheme ids availables ... %s", err)
+		return fmt.Errorf("drand: can't get the list of scheme ids availables ... %w", err)
 	}
 
 	fmt.Fprintf(output, "Drand supports the following list of schemes: \n")
@@ -545,7 +548,7 @@ func showGroupCmd(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	r, err := client.GroupFile(beaconID)
 	if err != nil {
-		return fmt.Errorf("fetching group file error: %s", err)
+		return fmt.Errorf("fetching group file error: %w", err)
 	}
 
 	group, err := key.GroupFromProto(r)
@@ -565,12 +568,12 @@ func showChainInfo(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	resp, err := client.ChainInfo(beaconID)
 	if err != nil {
-		return fmt.Errorf("could not request chain info: %s", err)
+		return fmt.Errorf("could not request chain info: %w", err)
 	}
 
 	ci, err := chain.InfoFromProto(resp)
 	if err != nil {
-		return fmt.Errorf("could not get correct chain info: %s", err)
+		return fmt.Errorf("could not get correct chain info: %w", err)
 	}
 
 	return printChainInfo(c, ci)
@@ -585,7 +588,7 @@ func showPrivateCmd(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	resp, err := client.PrivateKey(beaconID)
 	if err != nil {
-		return fmt.Errorf("could not request drand.private: %s", err)
+		return fmt.Errorf("could not request drand.private: %w", err)
 	}
 
 	return printJSON(resp)
@@ -600,7 +603,7 @@ func showPublicCmd(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	resp, err := client.PublicKey(beaconID)
 	if err != nil {
-		return fmt.Errorf("drand: could not request drand.public: %s", err)
+		return fmt.Errorf("drand: could not request drand.public: %w", err)
 	}
 
 	return printJSON(resp)
@@ -615,7 +618,7 @@ func showShareCmd(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	resp, err := client.Share(beaconID)
 	if err != nil {
-		return fmt.Errorf("could not request drand.share: %s", err)
+		return fmt.Errorf("could not request drand.share: %w", err)
 	}
 	return printJSON(resp)
 }
@@ -630,7 +633,7 @@ func backupDBCmd(c *cli.Context) error {
 	beaconID := getBeaconID(c)
 	err = client.BackupDB(outDir, beaconID)
 	if err != nil {
-		return fmt.Errorf("could not back up: %s", err)
+		return fmt.Errorf("could not back up: %w", err)
 	}
 
 	return nil
@@ -648,7 +651,7 @@ func controlClient(c *cli.Context) (*net.ControlClient, error) {
 	port := controlPort(c)
 	client, err := net.NewControlClient(port)
 	if err != nil {
-		return nil, fmt.Errorf("can't instantiate control client: %s", err)
+		return nil, fmt.Errorf("can't instantiate control client: %w", err)
 	}
 	return client, nil
 }
@@ -656,7 +659,7 @@ func controlClient(c *cli.Context) (*net.ControlClient, error) {
 func printJSON(j interface{}) error {
 	buff, err := json.MarshalIndent(j, "", "    ")
 	if err != nil {
-		return fmt.Errorf("could not JSON marshal: %s", err)
+		return fmt.Errorf("could not JSON marshal: %w", err)
 	}
 	fmt.Fprintln(output, string(buff))
 	return nil
@@ -666,7 +669,7 @@ func entropyInfoFromReader(c *cli.Context) (*control.EntropyInfo, error) {
 	if c.IsSet(sourceFlag.Name) {
 		_, err := os.Lstat(c.String(sourceFlag.Name))
 		if err != nil {
-			return nil, fmt.Errorf("cannot use given entropy source: %s", err)
+			return nil, fmt.Errorf("cannot use given entropy source: %w", err)
 		}
 		source := c.String(sourceFlag.Name)
 		ei := &control.EntropyInfo{
@@ -675,6 +678,7 @@ func entropyInfoFromReader(c *cli.Context) (*control.EntropyInfo, error) {
 		}
 		return ei, nil
 	}
+	//nolint
 	return nil, nil
 }
 
@@ -687,7 +691,7 @@ func selfSign(c *cli.Context) error {
 	pair, err := fs.LoadKeyPair()
 
 	if err != nil {
-		return fmt.Errorf("beacon id [%s] - loading private/public: %s", beaconID, err)
+		return fmt.Errorf("beacon id [%s] - loading private/public: %w", beaconID, err)
 	}
 	if pair.Public.ValidSignature() == nil {
 		fmt.Fprintf(output, "beacon id [%s] - public identity already self signed.\n", beaconID)
@@ -696,7 +700,7 @@ func selfSign(c *cli.Context) error {
 
 	pair.SelfSign()
 	if err := fs.SaveKeyPair(pair); err != nil {
-		return fmt.Errorf("beacon id [%s] - saving identity: %s", beaconID, err)
+		return fmt.Errorf("beacon id [%s] - saving identity: %w", beaconID, err)
 	}
 
 	fmt.Fprintf(output, "beacon id [%s] - Public identity self signed", beaconID)
@@ -709,7 +713,7 @@ const refreshRate = 1000 * time.Millisecond
 func followCmd(c *cli.Context) error {
 	ctrlClient, err := controlClient(c)
 	if err != nil {
-		return fmt.Errorf("unable to create control client: %s", err)
+		return fmt.Errorf("unable to create control client: %w", err)
 	}
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
@@ -722,7 +726,7 @@ func followCmd(c *cli.Context) error {
 		c.String(beaconIDFlag.Name))
 
 	if err != nil {
-		return fmt.Errorf("error asking to follow chain: %s", err)
+		return fmt.Errorf("error asking to follow chain: %w", err)
 	}
 
 	var current uint64
@@ -745,10 +749,10 @@ func followCmd(c *cli.Context) error {
 			atomic.StoreUint64(&current, progress.Current)
 			atomic.StoreUint64(&target, progress.Target)
 		case err := <-errCh:
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
-			return fmt.Errorf("errror on following the chain: %s", err)
+			return fmt.Errorf("errror on following the chain: %w", err)
 		}
 	}
 }

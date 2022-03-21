@@ -5,17 +5,25 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
+        - bodyclose
+        - cyclop
+        - errcheck
+        - forbidigo
+        - gocyclo
         - gomnd
         - gosec
-        - errcheck
+        - nilnil
+        - noctx
     - path: protobuf/gen.go
       linters:
         - lll
       source: "^//go:generate "
-    # https://github.com/go-critic/go-critic/issues/926
-    - linters:
-        - gocritic
-      text: "unnecessaryDefer:"
+    - path: cmd
+      linters:
+        - forbidigo # we use Println in our UX
+    - path: core/broadcast.go
+      linters:
+        - interfacer
 run:
   skip-dirs:
     - demo
@@ -24,42 +32,33 @@ run:
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
   # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
-  enable:
-    - gocyclo
-    - bodyclose
-    - deadcode
-    - depguard
-    - dogsled
-    - dupl
-    - errcheck
-    - funlen
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - gocyclo
-    - gofmt
-    - goimports
-    - gomnd
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - lll
-    - misspell
-    - nakedret
-    - nolintlint
-    - rowserrcheck
-    - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - varcheck
-    - whitespace
+  enable-all: true
+  disable:
+    - containedctx
+    - contextcheck
+    - cyclop
+    - exhaustivestruct
+    - forcetypeassert
+    - gci
+    - gochecknoglobals
+    - gocognit
+    - godot
+    - godox
+    - goerr113
+    - gofumpt
+    - ifshort
+    - ireturn
+    - nestif
+    - nlreturn
+    - paralleltest
+    - promlinter
+    - tagliatelle
+    - testpackage
+    - thelper
+    - varnamelen
+    - wrapcheck
+    - wsl
+
 
 linters-settings:
   dupl:

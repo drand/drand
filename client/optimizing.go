@@ -221,7 +221,7 @@ func (oc *optimizingClient) fastestClients() []Client {
 	oc.RLock()
 	defer oc.RUnlock()
 	// copy the current ordered client list so we iterate over a stable slice
-	var clients []Client
+	clients := make([]Client, 0, len(oc.stats))
 	for _, s := range oc.stats {
 		clients = append(clients, s.client)
 	}
@@ -231,7 +231,7 @@ func (oc *optimizingClient) fastestClients() []Client {
 // Get returns the randomness at `round` or an error.
 func (oc *optimizingClient) Get(ctx context.Context, round uint64) (res Result, err error) {
 	clients := oc.fastestClients()
-	stats := []*requestStat{}
+	var stats []*requestStat
 	ch := raceGet(ctx, clients, round, oc.requestTimeout, oc.requestConcurrency)
 	err = errors.New("no valid clients")
 
@@ -610,7 +610,7 @@ func (oc *optimizingClient) Info(ctx context.Context) (chainInfo *chain.Info, er
 		chainInfo, err = c.Info(ctx)
 		cancel()
 		if err == nil {
-			return
+			break
 		}
 	}
 	return

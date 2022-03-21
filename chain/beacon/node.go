@@ -54,8 +54,8 @@ type Handler struct {
 	running bool
 	serving bool
 	stopped bool
-	l       log.Logger
 	version commonutils.Version
+	l       log.Logger
 }
 
 // NewHandler returns a fresh handler ready to serve and create randomness

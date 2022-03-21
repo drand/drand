@@ -156,7 +156,7 @@ func (bp *BeaconProcess) PrivateRand(c context.Context, priv *drand.PrivateRandR
 	}
 	randomness, err := entropy.GetRandom(nil, PrivateRandLength)
 	if err != nil {
-		return nil, fmt.Errorf("error gathering randomness: %s", err)
+		return nil, fmt.Errorf("error gathering randomness: %w", err)
 	} else if len(randomness) != PrivateRandLength {
 		return nil, fmt.Errorf("error gathering randomness: expected 32 bytes, got %bp", len(randomness))
 	}

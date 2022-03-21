@@ -77,7 +77,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 	group, err := bp.leaderRunSetup(newSetup)
 	if err != nil {
 		bp.log.Errorw("", "beacon_id", beaconID, "init_dkg", "leader setup", "err", err)
-		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
+		return nil, fmt.Errorf("drand: invalid setup configuration: %w", err)
 	}
 
 	// send it to everyone in the group nodes
@@ -125,7 +125,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	newGroup, err := bp.leaderRunSetup(newSetup)
 	if err != nil {
 		bp.log.Errorw("", "beacon_id", beaconID, "init_reshare", "leader setup", "err", err)
-		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
+		return nil, fmt.Errorf("drand: invalid setup configuration: %w", err)
 	}
 	if bp.setupCB != nil {
 		// XXX Currently a bit hacky - we should split the control plane and the
@@ -273,7 +273,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 
 	if bp.manager != nil {
 		bp.log.Infow("", "beacon_id", bp.manager.beaconID, "reshare", "already_in_progress", "reshare", "restart")
-		fmt.Println("\n\n PRE EMPTIVE STOP")
+		fmt.Println("\n\n PREEMPTIVE STOP") // nolint
 		bp.manager.StopPreemptively()
 	}
 
@@ -281,7 +281,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 	bp.log.Infow("", "reshare", "newmanager")
 	if err != nil {
 		bp.state.Unlock()
-		return nil, fmt.Errorf("drand: invalid setup configuration: %s", err)
+		return nil, fmt.Errorf("drand: invalid setup configuration: %w", err)
 	}
 
 	go manager.run()
@@ -291,8 +291,8 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 
 	defer func() {
 		// don't clear manager if pre-empted
-		if err == errPreempted {
-			fmt.Println("PRE EMPTION ERROR ", err)
+		if errors.Is(err, errPreempted) {
+			fmt.Println("PREEMPTION ERROR ", err) // nolint
 			return
 		}
 		bp.state.Lock()
@@ -383,7 +383,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 			bp.cleanupDKG()
 		}
 		bp.state.Unlock()
-		return nil, fmt.Errorf("drand: beacon_id [%s] - %v", beaconID, err)
+		return nil, fmt.Errorf("drand: beacon_id [%s] - %w", beaconID, err)
 	}
 	bp.state.Lock()
 	bp.cleanupDKG()
@@ -502,7 +502,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 			bp.cleanupDKG()
 		}
 		bp.state.Unlock()
-		return nil, fmt.Errorf("drand: err during DKG: %v", err)
+		return nil, fmt.Errorf("drand: err during DKG: %w", err)
 	}
 	bp.log.Infow("", "beacon_id", beaconID, "dkg_reshare", "finished", "leader", leader)
 
@@ -563,7 +563,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 	err = bp.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
-		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %w", err)
 	}
 
 	bp.log.Debugw("", "beacon_id", beaconID, "init_dkg", "wait_group")
@@ -661,7 +661,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	err = bp.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
 	if err != nil {
 		bp.log.Errorw("", "beacon_id", beaconID, "setup_reshare", "failed to signal key to leader", "err", err)
-		return nil, fmt.Errorf("drand: err when signaling key to leader: %s", err)
+		return nil, fmt.Errorf("drand: err when signaling key to leader: %w", err)
 	}
 
 	newGroup, dkgTimeout, err := bp.receiver.WaitDKGInfo(nc)
@@ -1070,7 +1070,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	hash, err := hex.DecodeString(hashStr)
 
 	if err != nil {
-		return fmt.Errorf("invalid hash info hex: %v", err)
+		return fmt.Errorf("invalid hash info hex: %w", err)
 	}
 	if !bytes.Equal(info.Hash(), hash) {
 		return errors.New("invalid chain info hash")
@@ -1082,14 +1082,14 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	store, err := bp.createBoltStore(beaconID)
 	if err != nil {
 		bp.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "unable to create store", "err", err)
-		return fmt.Errorf("unable to create store: %s", err)
+		return fmt.Errorf("unable to create store: %w", err)
 	}
 
 	// TODO find a better place to put that
 	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
 		bp.log.Errorw("", "beacon_id", beaconID, "start_follow_chain", "unable to insert genesis block", "err", err)
 		store.Close()
-		return fmt.Errorf("unable to insert genesis block: %s", err)
+		return fmt.Errorf("unable to insert genesis block: %w", err)
 	}
 
 	// add scheme store to handle scheme configuration on beacon storing process correctly

@@ -254,7 +254,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, erro
 func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
-		fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
+		dd.log.Error("beacon id", beaconID, "can't instantiate randomness beacon. err:", err)
 		return nil, err
 	}
 
@@ -264,9 +264,9 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 	}
 
 	if freshRun {
-		fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
+		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
 	} else {
-		fmt.Printf("beacon id [%s]: will start running randomness beacon.\n", beaconID)
+		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
 
 		// Add beacon chain hash as a new valid one
 		dd.AddNewChainHash(beaconID, bp)

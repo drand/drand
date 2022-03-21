@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 )
 
@@ -48,7 +49,7 @@ func (r *ScriptReader) Read(p []byte) (n int, err error) {
 		cmd.Stdout = bufio.NewWriter(&b)
 		err = cmd.Run()
 		if err != nil {
-			fmt.Printf("entropy: cannot read from the file: %s\v", err.Error())
+			fmt.Fprintf(os.Stderr, "entropy: cannot read from the file: %s\v", err.Error())
 			return read, err
 		}
 		read += copy(p[read:], b.Bytes())

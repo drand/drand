@@ -24,7 +24,7 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 
 	sch, err := scheme.GetSchemeByIDWithDefault(p.SchemeID)
 	if err != nil {
-		return nil, fmt.Errorf("scheme id received is not valid. Err: %s", err)
+		return nil, fmt.Errorf("scheme id received is not valid. Err: %w", err)
 	}
 
 	return &Info{
@@ -62,12 +62,12 @@ func (c *Info) ToProto(metadata *common.Metadata) *drand.ChainInfoPacket {
 func InfoFromJSON(buff io.Reader) (*Info, error) {
 	chainProto := new(drand.ChainInfoPacket)
 	if err := json.NewDecoder(buff).Decode(chainProto); err != nil {
-		return nil, fmt.Errorf("reading group file (%v)", err)
+		return nil, fmt.Errorf("reading group file (%w)", err)
 	}
 
 	chainInfo, err := InfoFromProto(chainProto)
 	if err != nil {
-		return nil, fmt.Errorf("invalid chain info: %s", err)
+		return nil, fmt.Errorf("invalid chain info: %w", err)
 	}
 
 	return chainInfo, nil

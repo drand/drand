@@ -233,7 +233,7 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 		defer close(resp)
 		for {
 			reply, err := stream.Recv()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				log.DefaultLogger().Infow("", "grpc client", "chain sync", "error", "eof", "to", p.Address())
 				log.DefaultLogger().Debugw(" --- STREAM EOF")
 				return

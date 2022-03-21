@@ -13,13 +13,13 @@ func startCmd(c *cli.Context) error {
 	// Create and start drand daemon
 	drandDaemon, err := core.NewDrandDaemon(conf)
 	if err != nil {
-		return fmt.Errorf("can't instantiate drand daemon %s", err)
+		return fmt.Errorf("can't instantiate drand daemon %w", err)
 	}
 
 	// Check stores and start BeaconProcess
 	err = drandDaemon.LoadBeaconsFromDisk(c.String(metricsFlag.Name))
 	if err != nil {
-		return fmt.Errorf("couldn't load existing beacons: %s", err)
+		return fmt.Errorf("couldn't load existing beacons: %w", err)
 	}
 
 	<-drandDaemon.WaitExit()

@@ -46,10 +46,10 @@ type NodeProc struct {
 	store       key.Store
 	cancel      context.CancelFunc
 	ctrl        string
+	isCandidate bool
 	tls         bool
 	groupPath   string
 	binary      string
-	isCandidate bool
 	scheme      scheme.Scheme
 	beaconID    string
 }

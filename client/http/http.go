@@ -240,7 +240,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 	defer cancel()
 
 	go func() {
-		url := ""
+		var url string
 		if len(chainHash) > 0 {
 			url = fmt.Sprintf("%s%x/info", h.root, chainHash)
 		} else {

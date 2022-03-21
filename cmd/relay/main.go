@@ -81,10 +81,10 @@ func Relay(c *cli.Context) error {
 	for hash := range hashesMap {
 		if hash != common.DefaultChainHash {
 			if _, err := hex.DecodeString(hash); err != nil {
-				return fmt.Errorf("failed to decode chain hash value: %s", err)
+				return fmt.Errorf("failed to decode chain hash value: %w", err)
 			}
 			if err := c.Set(lib.HashFlag.Name, hash); err != nil {
-				return fmt.Errorf("failed to initiate chain hash handler: %s", err)
+				return fmt.Errorf("failed to initiate chain hash handler: %w", err)
 			}
 		}
 
