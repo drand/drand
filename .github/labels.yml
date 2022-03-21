@@ -5,6 +5,9 @@
 - name: "good first issue"
   color: 7057ff
   description: "Good for newcomers"
+- name: "hacktoberfest"
+  color: ff8c00
+  description: "Help wanted" 
 
 ###
 ### Areas
@@ -27,7 +30,10 @@
   description: "Kind: Bug"
 - name: feature
   color: FFF3B8
-  description: "Kind: Feature"
+  description: "Kind: Feature / Enhancement"
+- name: refactoring
+  color: FFFABF
+  description: "Kind: Refactoring / Cleanup"
 
 ###
 ### Statuses
