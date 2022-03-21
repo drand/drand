@@ -21,6 +21,9 @@
 - name: testing
   color: 15BBF7
   description: "Area: Testing"
+- name: monitoring
+  color: 0E8A16
+  description: "Area: Monitoring"
 
 ###
 ### Kinds
