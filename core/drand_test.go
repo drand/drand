@@ -20,16 +20,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setFDLimit() {
+func setFDLimit(t *testing.T) {
 	fdOpen := uint64(3000)
 	curr, max, err := unixGetLimit()
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 	if fdOpen <= curr {
+		t.Logf("Current limit is larger (%d) than ours (%d); not changing it.\n", curr, fdOpen)
 		return
 	} else if err := unixSetLimit(fdOpen, max); err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 }
 
@@ -63,7 +64,7 @@ func TestRunDKGLarge(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	setFDLimit()
+	setFDLimit(t)
 
 	n := 22
 	expectedBeaconPeriod := 5 * time.Second
