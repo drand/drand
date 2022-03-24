@@ -176,12 +176,12 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 	newID, err := key.IdentityFromProto(p.GetNode())
 	if err != nil {
 		s.l.Infow("", "beacon_id", s.beaconID, "setup", "error_decoding", "id", addr, "err", err)
-		return fmt.Errorf("invalid id: %v", err)
+		return fmt.Errorf("invalid id: %w", err)
 	}
 
 	if err := newID.ValidSignature(); err != nil {
 		s.l.Infow("", "beacon_id", s.beaconID, "setup", "invalid_sig", "id", addr, "err", err)
-		return fmt.Errorf("invalid sig: %s", err)
+		return fmt.Errorf("invalid sig: %w", err)
 	}
 
 	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "received_new_key", "id", newID.String())
@@ -260,7 +260,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
 	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "created_group")
-	fmt.Printf("Generated group:\n%s\n", group.String())
+	fmt.Printf("Generated group:\n%s\n", group.String()) // nolint
 	// signal the leader it's ready to run the DKG
 	s.startDKG <- group
 }
@@ -363,11 +363,11 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 	// verify things are all in order
 	group, err := key.GroupFromProto(pg.NewGroup)
 	if err != nil {
-		return fmt.Errorf("group from leader invalid: %s", err)
+		return fmt.Errorf("group from leader invalid: %w", err)
 	}
 	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
 		r.l.Errorw("", "beacon_id", beaconID, "received", "group", "invalid_sig", err)
-		return fmt.Errorf("invalid group sig: %s", err)
+		return fmt.Errorf("invalid group sig: %w", err)
 	}
 	checkGroup(r.l, group)
 	r.ch <- &dkgGroup{

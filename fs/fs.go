@@ -34,12 +34,12 @@ func CreateSecureFolder(folder string) string {
 		// the folder exists already
 		info, err := os.Lstat(folder)
 		if err != nil {
-			fmt.Println("Error checking stat folder: ", err)
+			fmt.Fprintln(os.Stderr, "Error checking stat folder: ", err)
 			return ""
 		}
 		perm := int(info.Mode().Perm())
 		if perm != int(defaultDirectoryPermission) {
-			fmt.Printf("Folder different permission: %#o vs %#o \n", perm, defaultDirectoryPermission)
+			fmt.Fprintf(os.Stderr, "Folder different permission: %#o vs %#o \n", perm, defaultDirectoryPermission)
 			return folder
 		}
 	}
@@ -67,7 +67,8 @@ func CreateSecureFile(file string) (*os.File, error) {
 	}
 	fd.Close()
 	if err := os.Chmod(file, rwFilePermission); err != nil {
-		return nil, nil
+		// TODO: check why we don't return the error here
+		return nil, nil // nolint
 	}
 	return os.OpenFile(file, os.O_RDWR, rwFilePermission)
 }

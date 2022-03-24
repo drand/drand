@@ -54,7 +54,7 @@ func protoToDeal(d *pdkg.DealBundle) (*dkg.DealBundle, error) {
 	for _, c := range d.Commits {
 		coeff := key.KeyGroup.Point()
 		if err := coeff.UnmarshalBinary(c); err != nil {
-			return nil, fmt.Errorf("invalid public coeff:%s", err)
+			return nil, fmt.Errorf("invalid public coeff:%w", err)
 		}
 		publics = append(publics, coeff)
 	}
@@ -96,7 +96,7 @@ func protoToJustif(j *pdkg.JustificationBundle) (*dkg.JustificationBundle, error
 	for i, j := range j.Justifications {
 		share := key.KeyGroup.Scalar()
 		if err := share.UnmarshalBinary(j.Share); err != nil {
-			return nil, fmt.Errorf("invalid share: %s", err)
+			return nil, fmt.Errorf("invalid share: %w", err)
 		}
 		justif := dkg.Justification{
 			ShareIndex: j.ShareIndex,

@@ -33,6 +33,15 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	return c, s.(mock.MockService).EmitRand
 }
 
+func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	return resp
+}
+
 //nolint:funlen
 func TestHTTPRelay(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -66,13 +75,10 @@ func TestHTTPRelay(t *testing.T) {
 	}
 
 	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
-	resp, err := http.Get(getChains)
-	require.NoError(t, err)
-
+	resp := getWithCtx(ctx, getChains, t)
 	if resp.StatusCode != 200 {
 		t.Error("expected http status code 200")
 	}
-
 	var chains []string
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&chains))
 	require.NoError(t, resp.Body.Close())
@@ -85,8 +91,7 @@ func TestHTTPRelay(t *testing.T) {
 	}
 
 	getChain := fmt.Sprintf("http://%s/%s/info", listener.Addr().String(), info.HashString())
-	resp, err = http.Get(getChain)
-	require.NoError(t, err)
+	resp = getWithCtx(ctx, getChain, t)
 	cip := new(drand.ChainInfoPacket)
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(cip))
 	require.NotNil(t, cip.Hash)
@@ -95,8 +100,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	// Test exported interfaces.
 	u := fmt.Sprintf("http://%s/%s/public/2", listener.Addr().String(), info.HashString())
-	resp, err = http.Get(u)
-	require.NoError(t, err)
+	resp = getWithCtx(ctx, u, t)
 	body := make(map[string]interface{})
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 	require.NoError(t, resp.Body.Close())
@@ -175,7 +179,7 @@ func TestHTTPWaiting(t *testing.T) {
 
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString())
-	next, err := http.Get(u)
+	next := getWithCtx(ctx, u, t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,10 +250,7 @@ func TestHTTPWatchFuture(t *testing.T) {
 
 	// watching sets latest round, future rounds should become inaccessible.
 	u := fmt.Sprintf("http://%s/%s/public/2000", listener.Addr().String(), info.HashString())
-	resp, err := http.Get(u)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := getWithCtx(ctx, u, t)
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatal("response should fail on requests in the future")
@@ -286,23 +287,26 @@ func TestHTTPHealth(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, _ := http.Get(fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()))
-	defer func() { _ = resp.Body.Close() }()
+	resp := getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
 	if resp.StatusCode == http.StatusOK {
 		t.Fatalf("newly started server not expected to be synced.")
 	}
+	resp.Body.Close()
 
-	resp, _ = http.Get(fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString()))
+	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString()), t)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("startup of the server on 1st request should happen")
 	}
 	push(false)
 	// give some time for http server to get it
 	time.Sleep(30 * time.Millisecond)
-	resp, _ = http.Get(fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()))
+	resp.Body.Close()
+
+	resp = getWithCtx(ctx, fmt.Sprintf("http://%s/%s/health", listener.Addr().String(), info.HashString()), t)
 	if resp.StatusCode != http.StatusOK {
 		var buf [100]byte
 		_, _ = resp.Body.Read(buf[:])
 		t.Fatalf("after start server expected to be healthy relatively quickly. %v - %v", string(buf[:]), resp.StatusCode)
 	}
+	resp.Body.Close()
 }

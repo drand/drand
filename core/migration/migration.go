@@ -39,8 +39,8 @@ func MigrateSBFolderStructure(baseFolder string) error {
 
 		if isMigrationDone {
 			if localErr := os.RemoveAll(multiBeaconFolderPath); localErr != nil {
-				return fmt.Errorf("we could not rollback the migration, please remove %s before run daemon again. Err: %s",
-					multiBeaconFolderPath, err.Error())
+				return fmt.Errorf("we could not rollback the migration, please remove %s before run daemon again. Err: %w",
+					multiBeaconFolderPath, err)
 			}
 		}
 

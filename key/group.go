@@ -211,7 +211,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	for i, ptoml := range gt.Nodes {
 		g.Nodes[i] = new(Node)
 		if err := g.Nodes[i].FromTOML(ptoml); err != nil {
-			return fmt.Errorf("group: unwrapping node[%d]: %v", i, err)
+			return fmt.Errorf("group: unwrapping node[%d]: %w", i, err)
 		}
 	}
 
@@ -229,7 +229,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		// dist key only if dkg ran
 		g.PublicKey = &DistPublic{}
 		if err = g.PublicKey.FromTOML(gt.PublicKey); err != nil {
-			return fmt.Errorf("group: unwrapping distributed public key: %v", err)
+			return fmt.Errorf("group: unwrapping distributed public key: %w", err)
 		}
 	}
 	g.Period, err = time.ParseDuration(gt.Period)
@@ -250,7 +250,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	}
 	if gt.GenesisSeed != "" {
 		if g.GenesisSeed, err = hex.DecodeString(gt.GenesisSeed); err != nil {
-			return fmt.Errorf("group: decoding genesis seed %v", err)
+			return fmt.Errorf("group: decoding genesis seed %w", err)
 		}
 	}
 
@@ -396,7 +396,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	for _, coeff := range g.DistKey {
 		c := KeyGroup.Point()
 		if err := c.UnmarshalBinary(coeff); err != nil {
-			return nil, fmt.Errorf("invalid distributed key coefficients:%v", err)
+			return nil, fmt.Errorf("invalid distributed key coefficients:%w", err)
 		}
 		dist.Coefficients = append(dist.Coefficients, c)
 	}

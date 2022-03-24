@@ -45,7 +45,7 @@ var (
 // is used as key.
 type DrandHandler struct {
 	httpHandler http.Handler
-	beacons     map[string]*beaconHandler
+	beacons     map[string]*BeaconHandler
 
 	timeout time.Duration
 	context context.Context
@@ -54,7 +54,7 @@ type DrandHandler struct {
 	state   sync.RWMutex
 }
 
-type beaconHandler struct {
+type BeaconHandler struct {
 	// NOTE: should only be accessed via getChainInfo
 	chainInfo   *chain.Info
 	chainInfoLk sync.RWMutex
@@ -83,7 +83,7 @@ func New(ctx context.Context, version string, logger log.Logger) (*DrandHandler,
 		log:     logger,
 		context: ctx,
 		version: version,
-		beacons: make(map[string]*beaconHandler),
+		beacons: make(map[string]*BeaconHandler),
 	}
 
 	mux := chi.NewMux()
@@ -111,11 +111,11 @@ func New(ctx context.Context, version string, logger log.Logger) (*DrandHandler,
 }
 
 // RegisterNewBeaconHandler add a new handler for a beacon process using its chain hash
-func (h *DrandHandler) RegisterNewBeaconHandler(c client.Client, chainHash string) *beaconHandler {
+func (h *DrandHandler) RegisterNewBeaconHandler(c client.Client, chainHash string) *BeaconHandler {
 	h.state.Lock()
 	defer h.state.Unlock()
 
-	bh := &beaconHandler{
+	bh := &BeaconHandler{
 		context:     h.context,
 		client:      c,
 		latestRound: 0,
@@ -146,7 +146,7 @@ func (h *DrandHandler) RemoveBeaconHandler(chainHash string) {
 	delete(h.beacons, chainHash)
 }
 
-func (h *DrandHandler) RegisterDefaultBeaconHandler(bh *beaconHandler) {
+func (h *DrandHandler) RegisterDefaultBeaconHandler(bh *BeaconHandler) {
 	h.state.Lock()
 	defer h.state.Unlock()
 
@@ -163,7 +163,7 @@ func withCommonHeaders(version string, h func(http.ResponseWriter, *http.Request
 	}
 }
 
-func (h *DrandHandler) start(bh *beaconHandler) {
+func (h *DrandHandler) start(bh *BeaconHandler) {
 	bh.pendingLk.Lock()
 	defer bh.pendingLk.Unlock()
 
@@ -174,7 +174,7 @@ func (h *DrandHandler) start(bh *beaconHandler) {
 	<-ready
 }
 
-func (h *DrandHandler) Watch(bh *beaconHandler, ready chan bool) {
+func (h *DrandHandler) Watch(bh *BeaconHandler, ready chan bool) {
 	for {
 		select {
 		case <-bh.context.Done():
@@ -185,7 +185,7 @@ func (h *DrandHandler) Watch(bh *beaconHandler, ready chan bool) {
 	}
 }
 
-func (h *DrandHandler) watchWithTimeout(bh *beaconHandler, ready chan bool) {
+func (h *DrandHandler) watchWithTimeout(bh *BeaconHandler, ready chan bool) {
 	watchCtx, cncl := context.WithCancel(bh.context)
 	defer cncl()
 	stream := bh.client.Watch(watchCtx)
@@ -289,7 +289,7 @@ func (h *DrandHandler) getRand(ctx context.Context, chainHash []byte, info *chai
 	})
 
 	// First see if we should get on the synchronized 'wait for next release' bandwagon.
-	block := false
+	var block bool
 	bh.pendingLk.RLock()
 	block = (bh.latestRound+1 == round) && bh.latestRound != 0
 	bh.pendingLk.RUnlock()
@@ -359,14 +359,13 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := h.getChainInfo(r.Context(), chainHashHex)
-	roundExpectedTime := time.Now()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		h.log.Warnw("", "http_server", "failed to get randomness", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
-	roundExpectedTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
+	roundExpectedTime := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, roundN), 0)
 
 	if roundExpectedTime.After(time.Now().Add(info.Period)) {
 		timeToExpected := int(time.Until(roundExpectedTime).Seconds())
@@ -566,7 +565,7 @@ func readRound(r *http.Request) (uint64, error) {
 	return strconv.ParseUint(round, roundNumBase, roundNumSize)
 }
 
-func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*beaconHandler, error) {
+func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error) {
 	chainHashStr := fmt.Sprintf("%x", chainHash)
 	if chainHashStr == "" {
 		chainHashStr = common.DefaultChainHash

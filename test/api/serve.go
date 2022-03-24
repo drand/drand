@@ -26,6 +26,9 @@ func main() {
 		panic(err)
 	}
 	ci, err := server.ChainInfo(context.TODO(), &drand.ChainInfoRequest{})
+	if err != nil {
+		panic(err)
+	}
 
 	tjson := &TestJSON{
 		Public: hex.EncodeToString(ci.PublicKey),

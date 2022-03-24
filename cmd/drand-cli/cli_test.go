@@ -926,7 +926,7 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		})
 	}
 
-	os.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
+	t.Setenv("DRAND_SHARE_SECRET", "testtesttestesttesttesttestesttesttesttestesttesttesttestest")
 	for _, instance := range ins {
 		instance.run(t, beaconID)
 	}

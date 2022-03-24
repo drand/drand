@@ -106,7 +106,7 @@ func getChainInfo(c *cli.Context) error {
 	chainHash := make([]byte, 0)
 	if c.IsSet(hashInfoNoReq.Name) {
 		if chainHash, err = hex.DecodeString(c.String(hashInfoNoReq.Name)); err != nil {
-			return fmt.Errorf("invalid chain hash given: %s", err)
+			return fmt.Errorf("invalid chain hash given: %w", err)
 		}
 	}
 
@@ -123,7 +123,7 @@ func getChainInfo(c *cli.Context) error {
 	for _, addr := range c.Args().Slice() {
 		_, _, err := gonet.SplitHostPort(addr)
 		if err != nil {
-			return fmt.Errorf("invalid address given: %s", err)
+			return fmt.Errorf("invalid address given: %w", err)
 		}
 		ci, err = grpcClient.ChainInfo(net.CreatePeer(addr, !c.Bool("tls-disable")))
 		if err == nil {

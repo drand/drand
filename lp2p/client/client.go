@@ -158,7 +158,8 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	go func() {
 		for {
 			select {
-			case resp, ok := <-innerCh:
+			// TODO: do not copy by assignment any drand.PublicRandResponse
+			case resp, ok := <-innerCh: // nolint:govet
 				if !ok {
 					close(outerCh)
 					return

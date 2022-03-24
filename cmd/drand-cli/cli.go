@@ -564,7 +564,7 @@ func resetCmd(c *cli.Context) error {
 
 	answer, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading: %s", err)
+		return fmt.Errorf("error reading: %w", err)
 	}
 
 	answer = strings.ToLower(strings.TrimSpace(answer))
@@ -687,14 +687,14 @@ func keygenCmd(c *cli.Context) error {
 		return nil
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {
-		return fmt.Errorf("could not save key: %s", err)
+		return fmt.Errorf("could not save key: %w", err)
 	}
 
 	fullpath := path.Join(config.ConfigFolderMB(), beaconID, key.KeyFolderName)
 	absPath, err := filepath.Abs(fullpath)
 
 	if err != nil {
-		return fmt.Errorf("err getting full path: %s", err)
+		return fmt.Errorf("err getting full path: %w", err)
 	}
 	fmt.Println("Generated keys at ", absPath)
 
@@ -712,14 +712,14 @@ func groupOut(c *cli.Context, group *key.Group) error {
 	if c.IsSet("out") {
 		groupPath := c.String("out")
 		if err := key.Save(groupPath, group, false); err != nil {
-			return fmt.Errorf("drand: can't save group to specified file name: %v", err)
+			return fmt.Errorf("drand: can't save group to specified file name: %w", err)
 		}
 	} else if c.Bool(hashOnly.Name) {
 		fmt.Fprintf(output, "%x\n", group.Hash())
 	} else {
 		var buff bytes.Buffer
 		if err := toml.NewEncoder(&buff).Encode(group.TOML()); err != nil {
-			return fmt.Errorf("drand: can't encode group to TOML: %v", err)
+			return fmt.Errorf("drand: can't encode group to TOML: %w", err)
 		}
 		buff.WriteString("\n")
 		fmt.Fprintf(output, "Copy the following snippet into a new group.toml file\n")
@@ -743,7 +743,7 @@ func getThreshold(c *cli.Context) (int, error) {
 
 func checkConnection(c *cli.Context) error {
 	var names []string
-	beaconID := ""
+	var beaconID string
 
 	if c.IsSet(groupFlag.Name) {
 		if c.IsSet(beaconIDFlag.Name) {
@@ -754,7 +754,7 @@ func checkConnection(c *cli.Context) error {
 		}
 		group := new(key.Group)
 		if err := key.Load(c.String(groupFlag.Name), group); err != nil {
-			return fmt.Errorf("loading group failed: %s", err)
+			return fmt.Errorf("loading group failed: %w", err)
 		}
 
 		for _, id := range group.Nodes {
@@ -765,7 +765,7 @@ func checkConnection(c *cli.Context) error {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
 			if err != nil {
-				return fmt.Errorf("error for address %s: %s", serverAddr, err)
+				return fmt.Errorf("error for address %s: %w", serverAddr, err)
 			}
 			names = append(names, serverAddr)
 		}
@@ -857,13 +857,13 @@ func deleteBeaconCmd(c *cli.Context) error {
 		er = func() error {
 			store, err := boltdb.NewBoltStore(path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
 			if err != nil {
-				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %s", beaconID, err)
+				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %w", beaconID, err)
 			}
 			defer store.Close()
 
 			lastBeacon, err := store.Last()
 			if err != nil {
-				return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %s", beaconID, err)
+				return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %w", beaconID, err)
 			}
 			if startRound > lastBeacon.Round {
 				return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
@@ -875,7 +875,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 			for round := startRound; round <= lastBeacon.Round; round++ {
 				err := store.Del(round)
 				if err != nil {
-					return fmt.Errorf("beacon id [%s] - error deleting round %d: %s", beaconID, round, err)
+					return fmt.Errorf("beacon id [%s] - error deleting round %d: %w", beaconID, round, err)
 				}
 				if c.IsSet(verboseFlag.Name) {
 					fmt.Printf("beacon id [%s] - deleted beacon round %d \n", beaconID, round)
@@ -899,7 +899,7 @@ func getGroup(c *cli.Context) (*key.Group, error) {
 		return nil, err
 	}
 	if err := key.Load(groupPath, g); err != nil {
-		return nil, fmt.Errorf("drand: error loading group file: %s", err)
+		return nil, fmt.Errorf("drand: error loading group file: %w", err)
 	}
 	return g, nil
 }
@@ -999,12 +999,12 @@ func getNodes(c *cli.Context) ([]*key.Node, error) {
 func testEmptyGroup(filePath string) error {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("can't open group path: %v", err)
+		return fmt.Errorf("can't open group path: %w", err)
 	}
 	defer file.Close()
 	fi, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("can't open file info: %v", err)
+		return fmt.Errorf("can't open file info: %w", err)
 	}
 	if fi.Size() == 0 {
 		return errors.New("group file empty")
@@ -1028,7 +1028,7 @@ func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
 	if c.IsSet(allBeaconsFlag.Name) {
 		fi, err := os.ReadDir(conf.ConfigFolderMB())
 		if err != nil {
-			return nil, fmt.Errorf("error trying to read stores from config folder: %s", err)
+			return nil, fmt.Errorf("error trying to read stores from config folder: %w", err)
 		}
 		for _, f := range fi {
 			if f.IsDir() {
@@ -1040,7 +1040,7 @@ func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
 
 		isPresent, err := fs.Exists(path.Join(conf.ConfigFolderMB(), beaconID))
 		if err != nil || !isPresent {
-			return nil, fmt.Errorf("beacon id [%s] - error trying to read store: %s", beaconID, err)
+			return nil, fmt.Errorf("beacon id [%s] - error trying to read store: %w", beaconID, err)
 		}
 
 		stores[beaconID] = path.Join(conf.ConfigFolderMB(), beaconID)

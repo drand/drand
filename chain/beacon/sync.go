@@ -202,7 +202,7 @@ func (s *syncer) SyncChain(req *proto.SyncRequest, stream proto.Protocol_SyncCha
 }
 
 func peersToString(peers []net.Peer) string {
-	var adds []string
+	adds := make([]string, 0, len(peers))
 	for _, p := range peers {
 		adds = append(adds, p.Address())
 	}

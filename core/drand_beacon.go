@@ -41,6 +41,9 @@ type BeaconProcess struct {
 	share   *key.Share
 	dkgDone bool
 
+	// version indicates the base code variant
+	version common.Version
+
 	// manager is created and destroyed during a setup phase
 	manager  *setupManager
 	receiver *setupReceiver
@@ -65,9 +68,6 @@ type BeaconProcess struct {
 	// a list of paramteres at each DKG (inluding this callback)
 	setupCB func(*key.Group)
 
-	// version indicates the base code variant
-	version common.Version
-
 	// only used for testing at the moment - may be useful later
 	// to pinpoint the exact messages from all nodes during dkg
 	dkgBoardSetup func(Broadcast) Broadcast
@@ -80,7 +80,7 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, opts *Config, privGatewa
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		return nil, fmt.Errorf("INVALID SELF SIGNATURE %s. Action: run `drand util self-sign`", err)
+		return nil, fmt.Errorf("INVALID SELF SIGNATURE %w. Action: run `drand util self-sign`", err)
 	}
 
 	bp := &BeaconProcess{
@@ -139,7 +139,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 
 	res := <-waitCh
 	if res.Error != nil {
-		return nil, fmt.Errorf("drand: error from dkg: %v", res.Error)
+		return nil, fmt.Errorf("drand: error from dkg: %w", res.Error)
 	}
 
 	bp.state.Lock()
@@ -165,7 +165,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	// setup the dist. public key
 	targetGroup.PublicKey = bp.share.Public()
 	bp.group = targetGroup
-	var output []string
+	output := make([]string, 0, len(qualNodes))
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
 	}
@@ -309,7 +309,7 @@ func checkGroup(l dlog.Logger, group *key.Group) {
 	if unsigned == nil {
 		return
 	}
-	var info []string
+	info := make([]string, 0, len(unsigned))
 	for _, n := range unsigned {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}

@@ -58,8 +58,8 @@ type Orchestrator struct {
 	reshareNodes      []node.Node
 	tls               bool
 	withCurl          bool
-	binary            string
 	isBinaryCandidate bool
+	binary            string
 }
 
 func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool, sch scheme.Scheme, beaconID string, isCandidate bool) *Orchestrator {

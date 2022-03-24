@@ -231,7 +231,7 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 		nodes = d.resharedNodes
 	}
 
-	var addresses []string
+	addresses := make([]string, 0, n)
 	for _, node := range nodes[:n] {
 		addresses = append(addresses, node.addr)
 	}
@@ -421,8 +421,7 @@ func (d *DrandTestScenario) Now() time.Time {
 // SetMockClock sets the clock of all drands to the designated unix timestamp in
 // seconds
 func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
-	now := d.Now().Unix()
-	if now < targetUnixTime {
+	if now := d.Now().Unix(); now < targetUnixTime {
 		d.AdvanceMockClock(t, time.Duration(targetUnixTime-now)*time.Second)
 	} else {
 		d.t.Logf("ALREADY PASSED")
@@ -635,7 +634,7 @@ func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	return expDeals, expResps
 }
 
-// nolint:gocyclo, funlen
+// nolint:funlen
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.

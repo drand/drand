@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -838,7 +839,7 @@ func TestDrandFollowChain(t *testing.T) {
 					break
 				}
 			case e := <-errCh:
-				if e == io.EOF {
+				if errors.Is(e, io.EOF) {
 					break
 				}
 				require.NoError(t, e)
