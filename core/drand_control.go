@@ -74,7 +74,7 @@ func (d *Drand) leaderRunSetup(newSetup func(d *Drand) (*setupManager, error)) (
 	// setup the manager
 	d.state.Lock()
 	if d.manager != nil {
-		d.log.Info("reshare", "already_in_progress", "restart", "reshare", "old")
+		d.log.Info("reshare", "already_in_progress", "reshare", "restart")
 		d.manager.StopPreemptively()
 	}
 	manager, err := newSetup(d)
@@ -851,7 +851,7 @@ func (d *Drand) StartFollowChain(req *drand.StartFollowRequest, stream drand.Con
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
-		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "leaving_sync")
+		d.log.Error("start_follow_chain", "syncer_stopped", "err", err, "state", "leaving_sync")
 		return err
 	}
 	// wait for all the callbacks to be called and progress sent before returning
