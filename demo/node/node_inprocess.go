@@ -68,7 +68,7 @@ func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, 
 		period:   period,
 		tls:      tls,
 		logPath:  logPath,
-		log:      log.DefaultLogger(),
+		log:      log.NewLogger(nil, log.LogDebug),
 		pubAddr:  test.FreeBind(bindAddr),
 		privAddr: test.FreeBind(bindAddr),
 		ctrlAddr: test.FreeBind("localhost"),
@@ -141,7 +141,6 @@ func (l *LocalNode) Start(certFolder string) error {
 			fmt.Printf("beacon id [%s]: will run as fresh install -> expect to run DKG.\n", beaconID)
 		} else {
 			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
-
 			// Add beacon handler from chain hash for http server
 			drandDaemon.AddBeaconHandler(beaconID, bp)
 

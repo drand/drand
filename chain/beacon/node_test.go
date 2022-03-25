@@ -202,7 +202,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 		Clock:  node.clock,
 	}
 
-	logger := log.NewLogger(nil, log.LogDebug)
+	logger := log.NewLogger(nil, log.LogDebug).Named("BeaconTest").Named(knode.Addr).Named(fmt.Sprint(idx))
 	version := common.Version{Major: 0, Minor: 0, Patch: 0}
 	node.handler, err = NewHandler(net.NewGrpcClient(), store, conf, logger, version)
 	checkErr(err)

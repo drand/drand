@@ -19,7 +19,7 @@ import (
 
 // Broadcast is an interface that represents the minimum functionality required
 // by drand to both (1) be the interface between drand and the dkg logic and (2)
-// implement the broadcasting mechanisn.
+// implement the broadcasting mechanism.
 type Broadcast interface {
 	dkg.Board
 	BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error)
@@ -89,7 +89,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "deal", fmt.Sprintf("%x", h[:5]))
+	b.l.Debugw("", "echoBroadcast", "push", "deal", fmt.Sprintf("%x", h[:5]))
 	b.sendout(h, bundle, true)
 }
 
@@ -98,7 +98,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "response", bundle.String())
+	b.l.Debugw("", "echoBroadcast", "push", "response", bundle.String())
 	b.sendout(h, bundle, true)
 }
 
@@ -107,7 +107,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "beacon_id", b.beaconID, "echoBroadcast", "push", "justification", fmt.Sprintf("%x", h[:5]))
+	b.l.Debugw("", "echoBroadcast", "push", "justification", fmt.Sprintf("%x", h[:5]))
 	b.sendout(h, bundle, true)
 }
 
@@ -117,9 +117,8 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 
 	addr := net.RemoteAddress(c)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
-	beaconID := p.GetMetadata().GetBeaconID()
 	if err != nil {
-		b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "received invalid packet", "from", addr, "err", err)
+		b.l.Debugw("", "echoBroadcast", "received invalid packet", "from", addr, "err", err)
 		return nil, errors.New("invalid packet")
 	}
 
@@ -127,15 +126,15 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	if b.hashes.exists(hash) {
 		// if we already seen this one, no need to verify even because that
 		// means we already broadcasted it
-		b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+		b.l.Debugw("", "echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return new(drand.Empty), nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
-		b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "received invalid signature", "from", addr)
+		b.l.Debugw("", "echoBroadcast", "received invalid signature", "from", addr)
 		return nil, errors.New("invalid packet")
 	}
 
-	b.l.Debugw("", "beacon_id", beaconID, "echoBroadcast",
+	b.l.Debugw("", "echoBroadcast",
 		"received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
@@ -300,7 +299,7 @@ type sender struct {
 
 func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize int) *sender {
 	return &sender{
-		l:      l,
+		l:      l.Named("Sender"),
 		client: client,
 		to:     to,
 		newCh:  make(chan broadcastPacket, queueSize),
@@ -308,11 +307,10 @@ func newSender(l log.Logger, client net.ProtocolClient, to net.Peer, queueSize i
 }
 
 func (s *sender) sendPacket(p broadcastPacket) {
-	beaconID := p.GetMetadata().GetBeaconID()
 	select {
 	case s.newCh <- p:
 	default:
-		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sender queue full", "endpoint", s.to.Address())
+		s.l.Debugw("", "echoBroadcast", "sender queue full", "endpoint", s.to.Address())
 	}
 }
 
@@ -323,12 +321,11 @@ func (s *sender) run() {
 }
 
 func (s *sender) sendDirect(newPacket broadcastPacket) {
-	beaconID := newPacket.GetMetadata().GetBeaconID()
 	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
 	if err != nil {
-		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
+		s.l.Debugw("", "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
 	} else {
-		s.l.Debugw("", "beacon_id", beaconID, "echoBroadcast", "sending out", "to", s.to.Address())
+		s.l.Debugw("", "echoBroadcast", "sending out", "to", s.to.Address())
 	}
 }
 

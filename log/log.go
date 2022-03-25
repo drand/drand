@@ -23,6 +23,7 @@ type Logger interface {
 	Fatalw(msg string, keyvals ...interface{})
 	Panicw(msg string, keyvals ...interface{})
 	With(args ...interface{}) *zap.SugaredLogger
+	Named(s string) *zap.SugaredLogger
 }
 
 const (
@@ -59,13 +60,13 @@ func DefaultLogger() Logger {
 	return zap.S()
 }
 
-// NewLogger returns a kit logger that prints statements at the given level.
+// NewLogger returns a logger that prints statements at the given level.
 func NewLogger(output zapcore.WriteSyncer, level int) Logger {
 	logger := NewZapLogger(output, getConsoleEncoder(), level)
 	return logger.Sugar()
 }
 
-// NewJSONLogger returns a kit logger that prints statements at the given level as JSON output.
+// NewJSONLogger returns a logger that prints statements at the given level as JSON output.
 func NewJSONLogger(output zapcore.WriteSyncer, level int) Logger {
 	logger := NewZapLogger(output, getJSONEncoder(), level)
 	return logger.Sugar()

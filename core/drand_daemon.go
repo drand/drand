@@ -59,13 +59,12 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		chainHashes:     make(map[string]string),
 	}
 
-	// Add callback to registera new handler for http server after finishing DKG successfully
+	// Add callback to register a new handler for http server after finishing DKG successfully
 	c.dkgCallback = func(share *key.Share, group *key.Group) {
 		beaconID := group.ID
 		if beaconID == "" {
 			beaconID = common.DefaultBeaconID
 		}
-
 		drandDaemon.state.Lock()
 		bp, isPresent := drandDaemon.beaconProcesses[beaconID]
 		drandDaemon.state.Unlock()
@@ -109,6 +108,9 @@ func (dd *DrandDaemon) init() error {
 		return fmt.Errorf("private listen address cannot be empty")
 	}
 
+	// we set our logger name to its node address
+	dd.log = dd.log.Named(privAddr)
+
 	// ctx is used to create the gateway below.
 	// Gateway constructors (specifically, the generated gateway stubs that require it)
 	// do not actually use it, so we are passing a background context to be safe.
@@ -139,7 +141,11 @@ func (dd *DrandDaemon) init() error {
 	dd.control = net.NewTCPGrpcControlListener(dd, p)
 	go dd.control.Start()
 
-	dd.log.Infow("", "private_listen", privAddr, "control_port", c.ControlPort(), "public_listen", pubAddr, "folder", c.ConfigFolderMB())
+	dd.log.Infow("DrandDaemon initialized",
+		"private_listen", privAddr,
+		"control_port", c.ControlPort(),
+		"public_listen", pubAddr,
+		"folder", c.ConfigFolderMB())
 	dd.privGateway.StartAll()
 	if dd.pubGateway != nil {
 		dd.pubGateway.StartAll()
@@ -154,7 +160,9 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 		beaconID = common.DefaultBeaconID
 	}
 
-	bp, err := NewBeaconProcess(dd.log, store, dd.opts, dd.privGateway, dd.pubGateway)
+	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
+	logger := dd.log.Named(beaconID)
+	bp, err := NewBeaconProcess(logger, store, dd.opts, dd.privGateway, dd.pubGateway)
 	if err != nil {
 		return nil, err
 	}
