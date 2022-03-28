@@ -227,6 +227,21 @@ func (h *Handler) run(startTime int64) {
 	var current roundInfo
 	for {
 		select {
+		case t := <-h.conf.Clock.After(h.conf.Group.CatchupPeriod):
+			if startTime > t.Unix() {
+				// we only look at this if the group already started: no need to
+				// broadcast partials if the new group didn't started
+				continue
+			}
+			lastBeacon, err := h.chain.Last()
+			if err != nil {
+				h.l.Error("beacon_loop", "loading_last", "err", err)
+				break
+			}
+			if lastBeacon.Round+1 < current.round {
+				h.l.Debug("beacon_loop", "catchupmode", "shouldBe", current.round, "onlygot", lastBeacon.Round)
+				go h.broadcastNextPartial(current, lastBeacon)
+			}
 		case current = <-chanTick:
 			lastBeacon, err := h.chain.Last()
 			if err != nil {
@@ -248,25 +263,6 @@ func (h *Handler) run(startTime int64) {
 				// done. Not critical but leads to faster network recovery.
 				h.l.Debug("beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
 				go h.chain.RunSync(context.Background(), current.round, nil)
-			}
-		case b := <-h.chain.AppendedBeaconNoSync():
-			h.l.Debug("beacon_loop", "catchupmode", "last_is", b.Round, "current", current.round, "catchup_launch", b.Round < current.round)
-			if b.Round < current.round {
-				// When network is down, all alive nodes will broadcast their
-				// signatures periodically with the same period. As soon as one
-				// new beacon is created,i.e. network is up again, this channel
-				// will be triggered and we enter fast mode here.
-				// Since that last node is late, nodes must now hurry up to do
-				// the next beacons in time -> we run the next beacon now
-				// already. If that next beacon is created soon after, this
-				// channel will trigger again etc until we arrive at the correct
-				// round.
-				go func(c roundInfo, latest *chain.Beacon) {
-					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "seep_for", h.conf.Group.CatchupPeriod)
-					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
-					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "broadcast")
-					h.broadcastNextPartial(c, latest)
-				}(current, b)
 			}
 		case <-h.close:
 			h.l.Debug("beacon_loop", "finished")
