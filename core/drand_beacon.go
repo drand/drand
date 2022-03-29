@@ -22,7 +22,7 @@ import (
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it
-// can start the DKG, read/write shars to files and can initiate/respond to TBlS
+// can start the DKG, read/write shares to files and can initiate/respond to tBLS
 // signature requests.
 type BeaconProcess struct {
 	opts *Config
@@ -116,7 +116,10 @@ func (bp *BeaconProcess) Load() (bool, error) {
 		return false, err
 	}
 
-	bp.log.Debugw("", "beacon_id", bp.group.ID, "serving", bp.priv.Public.Address())
+	bp.index = int(bp.group.Find(bp.priv.Public).Index)
+	bp.log = bp.log.Named(fmt.Sprint(bp.index))
+
+	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 	bp.dkgDone = false
 
 	return false, nil
@@ -133,7 +136,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		return nil, errors.New("no dkg info set")
 	}
 	waitCh := bp.dkgInfo.proto.WaitEnd()
-	bp.log.Debugw("", "beacon_id", bp.dkgInfo.target.ID, "waiting_dkg_end", time.Now())
+	bp.log.Debugw("", "waiting_dkg_end", time.Now())
 
 	bp.state.Unlock()
 
@@ -169,7 +172,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
 	}
-	bp.log.Debugw("", "beacon_id", bp.group.ID, "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
+	bp.log.Debugw("", "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
 	if err := bp.store.SaveGroup(bp.group); err != nil {
 		return nil, err
 	}
@@ -182,18 +185,17 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
 func (bp *BeaconProcess) StartBeacon(catchup bool) {
-	beaconID := bp.group.ID
 	b, err := bp.newBeacon()
 	if err != nil {
-		bp.log.Errorw("", "beacon_id", beaconID, "init_beacon", err)
+		bp.log.Errorw("", "init_beacon", err)
 		return
 	}
 
-	bp.log.Infow("", "beacon_id", beaconID, "beacon_start", time.Now(), "catchup", catchup)
+	bp.log.Infow("", "beacon_start", time.Now(), "catchup", catchup)
 	if catchup {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
-		bp.log.Errorw("", "beacon_id", beaconID, "beacon_start", err)
+		bp.log.Errorw("", "beacon_start", err)
 	}
 }
 
@@ -211,15 +213,14 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	// NOTE: this limits the round time of drand - for now it is not a use
 	// case to go that fast
 
-	beaconID := oldGroup.ID
 	timeToStop := bp.group.TransitionTime - 1
 
 	if !newPresent {
 		// an old node is leaving the network
 		if err := bp.beacon.StopAt(timeToStop); err != nil {
-			bp.log.Errorw("", "beacon_id", beaconID, "leaving_group", err)
+			bp.log.Errorw("", "leaving_group", err)
 		} else {
-			bp.log.Infow("", "beacon_id", beaconID, "leaving_group", "done", "time", bp.opts.clock.Now())
+			bp.log.Infow("", "leaving_group", "done", "time", bp.opts.clock.Now())
 		}
 		return
 	}
@@ -235,12 +236,12 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 	} else {
 		b, err := bp.newBeacon()
 		if err != nil {
-			bp.log.Fatalw("", "beacon_id", beaconID, "transition", "new_node", "err", err)
+			bp.log.Fatalw("", "transition", "new_node", "err", err)
 		}
 		if err := b.Transition(oldGroup); err != nil {
-			bp.log.Errorw("", "beacon_id", beaconID, "sync_before", err)
+			bp.log.Errorw("", "sync_before", err)
 		}
-		bp.log.Infow("", "beacon_id", beaconID, "transition_new", "done")
+		bp.log.Infow("", "transition_new", "done")
 	}
 }
 
@@ -303,8 +304,6 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 }
 
 func checkGroup(l dlog.Logger, group *key.Group) {
-	beaconID := group.ID
-
 	unsigned := group.UnsignedIdentities()
 	if unsigned == nil {
 		return
@@ -313,7 +312,7 @@ func checkGroup(l dlog.Logger, group *key.Group) {
 	for _, n := range unsigned {
 		info = append(info, fmt.Sprintf("{%s - %s}", n.Address(), key.PointToString(n.Key)[0:10]))
 	}
-	l.Infow("", "beacon_id", beaconID, "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
+	l.Infow("", "UNSIGNED_GROUP", "["+strings.Join(info, ",")+"]", "FIX", "upgrade")
 }
 
 // StopBeacon stops the beacon generation process and resets it.

@@ -114,14 +114,13 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 		return err
 	}
 	actual := d.clock.Now().UnixNano()
-	beaconID := d.group.ID
 	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
 	discrepancy := float64(actual-expected) / float64(time.Millisecond)
 	metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
 	metrics.LastBeaconRound.Set(float64(b.GetRound()))
 	metrics.GroupSize.Set(float64(d.group.Len()))
 	metrics.GroupThreshold.Set(float64(d.group.Threshold))
-	d.l.Infow("", "beacon_id", beaconID, "NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
+	d.l.Infow("", "NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
 	return nil
 }
 

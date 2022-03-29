@@ -27,7 +27,7 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 	addr := net.RemoteAddress(c)
 
 	if !bp.dkgInfo.started {
-		bp.log.Infow("", "beacon_id", bp.dkgInfo.target.ID, "init_dkg", "START DKG",
+		bp.log.Infow("", "init_dkg", "START DKG",
 			"signal from leader", addr, "group", hex.EncodeToString(bp.dkgInfo.target.Hash()))
 		bp.dkgInfo.started = true
 		go bp.dkgInfo.phaser.Start()
@@ -108,10 +108,11 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
 		// we need to stream from store first
 		var err error
+		logger := bp.log.Named("StoreCursor")
 		b.Store().Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
 				if err = stream.Send(beaconToProto(bb)); err != nil {
-					bp.log.Debugw("", "stream", err)
+					logger.Debugw("", "stream", err)
 					return
 				}
 			}
@@ -214,12 +215,10 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
-	beaconID := in.GetMetadata().GetBeaconID()
-
 	if bp.receiver == nil {
 		return nil, errors.New("no receiver setup")
 	}
-	bp.log.Infow("", "beacon_id", beaconID, "push_group", "received_new")
+	bp.log.Infow("", "push_group", "received_new")
 
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.

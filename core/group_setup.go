@@ -137,7 +137,11 @@ func newReshareSetup(
 		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
 	}
 
-	sm, err := newDKGSetup(&setupConfig{l, c, leaderKey, beaconPeriod, catchupPeriod, beaconID, schemeID, in.GetInfo()})
+	sm, err := newDKGSetup(&setupConfig{
+		l.Named("ResharingDKGSetup"),
+		c, leaderKey, beaconPeriod,
+		catchupPeriod, beaconID,
+		schemeID, in.GetInfo()})
 	if err != nil {
 		return nil, err
 	}
@@ -175,16 +179,16 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 
 	newID, err := key.IdentityFromProto(p.GetNode())
 	if err != nil {
-		s.l.Infow("", "beacon_id", s.beaconID, "setup", "error_decoding", "id", addr, "err", err)
+		s.l.Infow("", "setup", "error_decoding", "id", addr, "err", err)
 		return fmt.Errorf("invalid id: %w", err)
 	}
 
 	if err := newID.ValidSignature(); err != nil {
-		s.l.Infow("", "beacon_id", s.beaconID, "setup", "invalid_sig", "id", addr, "err", err)
+		s.l.Infow("", "setup", "invalid_sig", "id", addr, "err", err)
 		return fmt.Errorf("invalid sig: %w", err)
 	}
 
-	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "received_new_key", "id", newID.String())
+	s.l.Debugw("", "setup", "received_new_key", "id", newID.String())
 
 	s.pushKeyCh <- pushKey{
 		addr: addr,
@@ -194,6 +198,7 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 }
 
 func (s *setupManager) run() {
+	logger := s.l.Named("setupManagerRun")
 	defer close(s.startDKG)
 	var inKeys = make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
@@ -205,11 +210,11 @@ func (s *setupManager) run() {
 			for _, id := range inKeys {
 				if id.Address() == pk.id.Address() {
 					found = true
-					s.l.Debugw("", "beacon_id", s.beaconID, "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					logger.Debugw("", "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				} else if id.Key.Equal(pk.id.Key) {
 					found = true
-					s.l.Debugw("", "beacon_id", s.beaconID, "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					logger.Debugw("", "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				}
 			}
@@ -218,7 +223,7 @@ func (s *setupManager) run() {
 				break
 			}
 			inKeys = append(inKeys, pk.id)
-			s.l.Debugw("", "beacon_id", s.beaconID, "setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
+			logger.Debugw("", "setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
 			if len(inKeys) == s.expected {
@@ -233,7 +238,7 @@ func (s *setupManager) run() {
 				}
 			}
 		case <-s.doneCh:
-			s.l.Debugw("", "beacon_id", s.beaconID, "setup", "preempted", "collected_keys", len(inKeys))
+			logger.Debugw("", "setup", "preempted", "collected_keys", len(inKeys))
 			return
 		}
 	}
@@ -259,7 +264,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		group.TransitionTime = transition
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
-	s.l.Debugw("", "beacon_id", s.beaconID, "setup", "created_group")
+	s.l.Debugw("", "setup", "created_group")
 	fmt.Printf("Generated group:\n%s\n", group.String()) // nolint
 	// signal the leader it's ready to run the DKG
 	s.startDKG <- group
@@ -354,10 +359,8 @@ type dkgGroup struct {
 // leader. It runs some routines verification of the group before passing it on
 // to the routine that waits for the group to start the DKG.
 func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
-	beaconID := pg.GetMetadata().GetBeaconID()
-
 	if !correctSecret(r.secret, pg.GetSecretProof()) {
-		r.l.Debugw("", "beacon_id", beaconID, "received", "invalid_secret_proof")
+		r.l.Debugw("", "received", "invalid_secret_proof")
 		return errors.New("invalid secret")
 	}
 	// verify things are all in order
@@ -366,7 +369,7 @@ func (r *setupReceiver) PushDKGInfo(pg *drand.DKGInfoPacket) error {
 		return fmt.Errorf("group from leader invalid: %w", err)
 	}
 	if err := key.DKGAuthScheme.Verify(r.leaderID.Key, group.Hash(), pg.Signature); err != nil {
-		r.l.Errorw("", "beacon_id", beaconID, "received", "group", "invalid_sig", err)
+		r.l.Errorw("", "received", "group", "invalid_sig", err)
 		return fmt.Errorf("invalid group sig: %w", err)
 	}
 	checkGroup(r.l, group)
@@ -383,7 +386,7 @@ func (r *setupReceiver) WaitDKGInfo(ctx context.Context) (*key.Group, uint32, er
 		if dkgGroup == nil {
 			return nil, 0, errors.New("unable to fetch group")
 		}
-		r.l.Debugw("", "beacon_id", dkgGroup.group.ID, "init_dkg", "received_group")
+		r.l.Debugw("", "init_dkg", "received_group")
 		return dkgGroup.group, dkgGroup.timeout, nil
 	case <-r.clock.After(MaxWaitPrepareDKG):
 		r.l.Errorw("", "init_dkg", "wait_group", "err", "timeout")
