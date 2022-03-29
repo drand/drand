@@ -108,10 +108,11 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	if req.GetRound() != 0 && req.GetRound() <= lastb.Round {
 		// we need to stream from store first
 		var err error
+		logger := bp.log.Named("StoreCursor")
 		b.Store().Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(req.GetRound()); bb != nil; bb = c.Next() {
 				if err = stream.Send(beaconToProto(bb)); err != nil {
-					bp.log.Debugw("", "stream", err)
+					logger.Debugw("", "stream", err)
 					return
 				}
 			}

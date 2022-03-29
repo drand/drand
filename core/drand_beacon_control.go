@@ -64,7 +64,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 	newSetup := func(d *BeaconProcess) (*setupManager, error) {
 		return newDKGSetup(
 			&setupConfig{
-				d.log,
+				d.log.Named("setupManager"),
 				d.opts.clock,
 				d.priv.Public,
 				in.GetBeaconPeriod(),
@@ -927,9 +927,11 @@ func (bp *BeaconProcess) getPhaser(timeout uint32) *dkg.TimePhaser {
 	if timeout == 0 {
 		tDuration = DefaultDKGTimeout
 	}
+	// We create a copy of the logger to avoid races when the logger changes
+	logger := bp.log
 	return dkg.NewTimePhaserFunc(func(phase dkg.Phase) {
 		bp.opts.clock.Sleep(tDuration)
-		bp.log.Debugw("", "phaser_finished", phase)
+		logger.Debugw("", "phaser_finished", phase)
 	})
 }
 
@@ -1145,7 +1147,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	defer cbStore.Close()
 
 	syncer := beacon.NewSyncer(bp.log, cbStore, info, bp.privGateway)
-	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
+	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.opts.logger)
 
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)

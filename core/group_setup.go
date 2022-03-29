@@ -137,7 +137,11 @@ func newReshareSetup(
 		catchupPeriod = uint32(oldGroup.CatchupPeriod.Seconds())
 	}
 
-	sm, err := newDKGSetup(&setupConfig{l, c, leaderKey, beaconPeriod, catchupPeriod, beaconID, schemeID, in.GetInfo()})
+	sm, err := newDKGSetup(&setupConfig{
+		l.Named("ResharingDKGSetup"),
+		c, leaderKey, beaconPeriod,
+		catchupPeriod, beaconID,
+		schemeID, in.GetInfo()})
 	if err != nil {
 		return nil, err
 	}
@@ -194,6 +198,7 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 }
 
 func (s *setupManager) run() {
+	logger := s.l.Named("setupManagerRun")
 	defer close(s.startDKG)
 	var inKeys = make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
@@ -205,11 +210,11 @@ func (s *setupManager) run() {
 			for _, id := range inKeys {
 				if id.Address() == pk.id.Address() {
 					found = true
-					s.l.Debugw("", "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					logger.Debugw("", "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				} else if id.Key.Equal(pk.id.Key) {
 					found = true
-					s.l.Debugw("", "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
+					logger.Debugw("", "setup", "duplicate", "ip", pk.addr, "addr", pk.id.String())
 					break
 				}
 			}
@@ -218,7 +223,7 @@ func (s *setupManager) run() {
 				break
 			}
 			inKeys = append(inKeys, pk.id)
-			s.l.Debugw("", "setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
+			logger.Debugw("", "setup", "added", "key", pk.id.String(), "have", fmt.Sprintf("%d/%d", len(inKeys), s.expected))
 
 			// create group if we have enough keys
 			if len(inKeys) == s.expected {
@@ -233,7 +238,7 @@ func (s *setupManager) run() {
 				}
 			}
 		case <-s.doneCh:
-			s.l.Debugw("", "setup", "preempted", "collected_keys", len(inKeys))
+			logger.Debugw("", "setup", "preempted", "collected_keys", len(inKeys))
 			return
 		}
 	}
