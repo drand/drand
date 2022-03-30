@@ -38,8 +38,8 @@ RUN \
         "-X github.com/drand/drand/common.MAJOR=${major} \
         -X github.com/drand/drand/common.MINOR=${minor} \
         -X github.com/drand/drand/common.PATCH=${patch} \
-        -X github.com/drand/drand/common.GIT_COMMIT=${patch} \
-        -X github.com/drand/drand/common.BUILD_DATE=${patch} \
+        -X github.com/drand/drand/common.COMMIT=${patch} \
+        -X github.com/drand/drand/common.BUILDDATE=${patch} \
         -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
         -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
 

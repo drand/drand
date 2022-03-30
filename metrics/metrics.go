@@ -154,14 +154,14 @@ var (
 	DrandVersion = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_version",
 		Help:        "Version of the drand binary, in MMMNNNPPP format",
-		ConstLabels: map[string]string{"build": common.GIT_COMMIT},
+		ConstLabels: map[string]string{"build": common.COMMIT},
 	}, common.GetVersionNum)
 
 	// DrandBuildTime emits the current version of the drand binary
 	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
-		ConstLabels: map[string]string{"build": common.GIT_COMMIT},
+		ConstLabels: map[string]string{"build": common.COMMIT},
 	}, common.GetBuildTimestamp)
 
 	metricsBound = false

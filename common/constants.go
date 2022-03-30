@@ -14,11 +14,11 @@ const (
 var LoadProcess sync.Once
 var version Version
 var (
-	MAJOR      = "0"
-	MINOR      = "0"
-	PATCH      = "0"
-	GIT_COMMIT = ""
-	BUILD_DATE = ""
+	MAJOR     = "0"
+	MINOR     = "0"
+	PATCH     = "0"
+	COMMIT    = ""
+	BUILDDATE = ""
 )
 
 func GetAppVersion() Version {
@@ -32,12 +32,12 @@ func GetVersionNum() float64 {
 }
 
 func GetBuildTimestamp() float64 {
-	if BUILD_DATE == "" {
+	if BUILDDATE == "" {
 		return 0.0
 	}
 
 	layout := "02/01/2006@15:04:05"
-	t, err := time.Parse(layout, BUILD_DATE)
+	t, err := time.Parse(layout, BUILDDATE)
 	if err != nil {
 		return 0.0
 	}
