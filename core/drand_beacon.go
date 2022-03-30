@@ -144,7 +144,6 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 
 	if bp.group == nil {
 		metrics.DKGStateChange(metrics.DKGWaiting, metrics.Unknown, false)
-
 	} else {
 		metrics.DKGStateChange(metrics.DKGWaiting, bp.group.ID, false)
 	}
