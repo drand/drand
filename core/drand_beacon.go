@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/metrics"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
@@ -120,6 +121,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log = bp.log.Named(fmt.Sprint(bp.index))
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
+	metrics.DKGStateChange(metrics.DKGNotStarted, bp.group.ID, false)
 	bp.dkgDone = false
 
 	return false, nil
@@ -135,6 +137,8 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		bp.state.Unlock()
 		return nil, errors.New("no dkg info set")
 	}
+
+	metrics.DKGStateChange(metrics.DKGWaiting, bp.group.ID, false)
 	waitCh := bp.dkgInfo.proto.WaitEnd()
 	bp.log.Debugw("", "waiting_dkg_end", time.Now())
 
@@ -173,6 +177,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
 	}
 	bp.log.Debugw("", "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
+	metrics.DKGStateChange(metrics.DKGNotStarted, bp.group.ID, false)
 	if err := bp.store.SaveGroup(bp.group); err != nil {
 		return nil, err
 	}

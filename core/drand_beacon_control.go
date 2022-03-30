@@ -20,6 +20,7 @@ import (
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/net"
@@ -387,6 +388,9 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	bp.dkgInfo = dkgInfo
 	if leader {
 		bp.dkgInfo.started = true
+		metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
+	} else {
+		metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
 	}
 	bp.state.Unlock()
 
@@ -409,6 +413,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	}
 	bp.state.Lock()
 	bp.cleanupDKG()
+	metrics.DKGStateChange(metrics.DKGReady, beaconID, leader)
 	bp.dkgDone = true
 	bp.state.Unlock()
 	bp.log.Infow("", "init_dkg", "dkg_done",
@@ -510,7 +515,10 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	if leader {
 		bp.log.Infow("", "dkg_reshare", "leader_start",
 			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
+		metrics.ReshareStateChange(metrics.ReshareInProgess, beaconID, leader)
 		bp.dkgInfo.started = true
+	} else {
+		metrics.ReshareStateChange(metrics.ReshareInProgess, beaconID, leader)
 	}
 	bp.state.Unlock()
 
@@ -532,6 +540,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		return nil, fmt.Errorf("drand: err during DKG: %w", err)
 	}
 	bp.log.Infow("", "dkg_reshare", "finished", "leader", leader)
+	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, leader)
 
 	// runs the transition of the beacon
 	go bp.transition(oldGroup, oldPresent, newPresent)
@@ -568,6 +577,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 	defer func(r *setupReceiver) {
 		bp.state.Lock()
+		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 		r.stop()
 		if r == bp.receiver {
 			// if there has been no new receiver since, we set the field to nil
@@ -597,6 +607,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 	}
 
 	bp.log.Debugw("", "init_dkg", "wait_group")
+	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 
 	group, dkgTimeout, err := bp.receiver.WaitDKGInfo(nc)
 	if err != nil {
@@ -666,6 +677,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	}
 	bp.receiver = receiver
 	defer func(r *setupReceiver) {
+		metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
 		bp.state.Lock()
 		r.stop()
 		// only set to nil if the given receiver here is the same as the current
@@ -688,6 +700,8 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 		PreviousGroupHash: oldHash,
 		Metadata:          &metadata,
 	}
+
+	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, false)
 
 	// we wait only a certain amount of time for the prepare phase
 	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)

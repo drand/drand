@@ -15,6 +15,50 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+type DKGStatus uint8
+type ReshareStatus uint8
+
+const (
+	DKGNotStarted DKGStatus = iota
+	DKGInProgress
+	DKGWaiting
+	DKGReady
+)
+
+const (
+	ReshareIdle ReshareStatus = iota
+	ReshareWaiting
+	ReshareInProgess
+)
+
+func (s DKGStatus) String() string {
+	switch s {
+	case DKGNotStarted:
+		return "not_started"
+	case DKGInProgress:
+		return "in_progess"
+	case DKGWaiting:
+		return "waiting"
+	case DKGReady:
+		return "ready"
+	default:
+		return "unknown"
+	}
+}
+
+func (s ReshareStatus) String() string {
+	switch s {
+	case ReshareIdle:
+		return "idle"
+	case ReshareWaiting:
+		return "waiting"
+	case ReshareInProgess:
+		return "in_progress"
+	default:
+		return "unknown"
+	}
+}
+
 var (
 	// PrivateMetrics about the internal world (go process, private stuff)
 	PrivateMetrics = prometheus.NewRegistry()
@@ -151,6 +195,20 @@ var (
 		[]string{"url"},
 	)
 
+	// DKGStateChangeTimestamp tracks DKG status changes
+	DKGStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "dkg_state_change_timestamp",
+		Help:        "DKG state change timestamp in seconds since the Epoch",
+		ConstLabels: map[string]string{},
+	}, []string{"state", "beacon_id", "is_leader"})
+
+	// DKGStateChangeTimestamp tracks DKG status changes
+	ReshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "reshare_state_change_timestamp",
+		Help:        "Reshare state change timestamp in seconds since the Epoch",
+		ConstLabels: map[string]string{},
+	}, []string{"state", "beacon_id", "is_leader"})
+
 	// DrandBuildTime emits the timestamp when the binary was built in Unix time.
 	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
@@ -178,6 +236,8 @@ func bindMetrics() error {
 	// Private metrics
 	private := []prometheus.Collector{
 		DrandBuildTime,
+		DKGStateChangeTimestamp,
+		ReshareStateChangeTimestamp,
 	}
 	for _, c := range private {
 		if err := PrivateMetrics.Register(c); err != nil {
@@ -343,4 +403,20 @@ func getBuildTimestamp(buildDate string) int64 {
 		return 0
 	}
 	return t.Unix()
+}
+
+func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
+	leaderStr := "false"
+	if leader {
+		leaderStr = "true"
+	}
+	DKGStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderStr).SetToCurrentTime()
+}
+
+func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
+	leaderStr := "false"
+	if leader {
+		leaderStr = "true"
+	}
+	ReshareStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderStr).SetToCurrentTime()
 }
