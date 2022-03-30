@@ -31,8 +31,8 @@ const (
 	ReshareInProgess
 )
 
-const unknownState = "unknown"
-const waitingState = "waiting"
+const Unknown = "unknown"
+const waiting = "waiting"
 
 func (s DKGStatus) String() string {
 	switch s {
@@ -41,11 +41,11 @@ func (s DKGStatus) String() string {
 	case DKGInProgress:
 		return "in_progess"
 	case DKGWaiting:
-		return waitingState
+		return waiting
 	case DKGReady:
 		return "ready"
 	default:
-		return unknownState
+		return Unknown
 	}
 }
 
@@ -54,11 +54,11 @@ func (s ReshareStatus) String() string {
 	case ReshareIdle:
 		return "idle"
 	case ReshareWaiting:
-		return waitingState
+		return waiting
 	case ReshareInProgess:
 		return "in_progress"
 	default:
-		return unknownState
+		return Unknown
 	}
 }
 
