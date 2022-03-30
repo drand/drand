@@ -157,7 +157,7 @@ var (
 		ConstLabels: map[string]string{"build": common.COMMIT},
 	}, common.GetVersionNum)
 
-	// DrandBuildTime emits the current version of the drand binary
+	// DrandBuildTime emits the timestamp when the binary was built in Unix time.
 	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
