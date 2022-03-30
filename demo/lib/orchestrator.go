@@ -292,14 +292,16 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 				fmt.Printf("\t - Example command is: \"%s\"\n", cmd)
 				break
 			} else {
-				if !bytes.Equal(randResp.GetSignature(), rand.GetSignature()) {
-					panic("[-] Inconsistent beacon signature between nodes")
-				}
+				// we first check both are at the same round
 				if randResp.GetRound() != rand.GetRound() {
 					fmt.Println("[-] Mismatch between last index", lastIndex, " vs current index ", node.Index(), " - trying again in some time...")
 					time.Sleep(100 * time.Millisecond)
 					// we try again
 					continue
+				}
+				// then we check if the signatures match
+				if !bytes.Equal(randResp.GetSignature(), rand.GetSignature()) {
+					panic("[-] Inconsistent beacon signature between nodes")
 				}
 				// everything is good
 				break
