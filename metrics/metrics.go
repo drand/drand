@@ -198,22 +198,22 @@ var (
 		[]string{"url"},
 	)
 
-	// DKGStateChangeTimestamp tracks DKG status changes
-	DKGStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	// dKGStateChangeTimestamp tracks DKG status changes
+	dKGStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "dkg_state_change_timestamp",
 		Help:        "DKG state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
 	}, []string{"state", "beacon_id", "is_leader"})
 
-	// ReshareStateChangeTimestamp tracks DKG status changes
-	ReshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	// reshareStateChangeTimestamp tracks DKG status changes
+	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "reshare_state_change_timestamp",
 		Help:        "Reshare state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
 	}, []string{"state", "beacon_id", "is_leader"})
 
-	// DrandBuildTime emits the timestamp when the binary was built in Unix time.
-	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+	// drandBuildTime emits the timestamp when the binary was built in Unix time.
+	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
 		ConstLabels: map[string]string{"build": common.COMMIT, "version": common.GetAppVersion().String()},
@@ -238,9 +238,9 @@ func bindMetrics() error {
 
 	// Private metrics
 	private := []prometheus.Collector{
-		DrandBuildTime,
-		DKGStateChangeTimestamp,
-		ReshareStateChangeTimestamp,
+		drandBuildTime,
+		dKGStateChangeTimestamp,
+		reshareStateChangeTimestamp,
 	}
 	for _, c := range private {
 		if err := PrivateMetrics.Register(c); err != nil {
@@ -410,12 +410,12 @@ func getBuildTimestamp(buildDate string) int64 {
 
 //nolint:interfacer
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	DKGStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
+	dKGStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
 }
 
 //nolint:interfacer
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	ReshareStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
+	reshareStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
 }
 
 func leaderString(leader bool) string {
