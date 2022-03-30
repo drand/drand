@@ -342,7 +342,7 @@ func (h *Handler) run(startTime int64) {
 				go func(c roundInfo, latest *chain.Beacon) {
 					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "seep_for", h.conf.Group.CatchupPeriod)
 					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
-					h.l.Debug("beacon_loop", "catchupmode", "last_is", latest.Round, "broadcast")
+					h.l.Debugw("broadcast next partial", "beacon_loop", "catchupmode", "last_is", latest.Round)
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
 			}
