@@ -13,6 +13,10 @@ const (
 
 var LoadProcess sync.Once
 var version Version
+
+// Set via -ldflags
+// Example: go install -ldflags "-X common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` -X common.GITCOMMIT=`git rev-parse HEAD` -X common.MAJOR=1 -X common.MINOR=2 -X common.PATCH=3"
+// See the Makefile and the Dockerfile in the root directory of the repo
 var (
 	MAJOR     = "0"
 	MINOR     = "0"
