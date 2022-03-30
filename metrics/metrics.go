@@ -156,14 +156,14 @@ var (
 		Name:        "drand_version",
 		Help:        "Version of the drand binary, in MMMNNNPPP format",
 		ConstLabels: map[string]string{"build": common.COMMIT},
-	}, getVersionNum)
+	}, func() float64 { return getVersionNum(common.GetAppVersion()) })
 
 	// DrandBuildTime emits the timestamp when the binary was built in Unix time.
 	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
 		ConstLabels: map[string]string{"build": common.COMMIT},
-	}, getBuildTimestamp)
+	}, func() float64 { return getBuildTimestamp(common.BUILDDATE) })
 
 	metricsBound = false
 )
@@ -340,18 +340,17 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler.ServeHTTP(w, r)
 }
 
-func getVersionNum() float64 {
-	version := common.GetAppVersion()
-	return float64(version.Major)*1000000.0 + float64(version.Minor)*1000.0 + float64(version.Patch)
+func getVersionNum(version common.Version) float64 {
+	return float64(version.Major)*1e6 + float64(version.Minor)*1e3 + float64(version.Patch)
 }
 
-func getBuildTimestamp() float64 {
-	if common.BUILDDATE == "" {
+func getBuildTimestamp(buildDate string) float64 {
+	if buildDate == "" {
 		return 0.0
 	}
 
 	layout := "02/01/2006@15:04:05"
-	t, err := time.Parse(layout, common.BUILDDATE)
+	t, err := time.Parse(layout, buildDate)
 	if err != nil {
 		return 0.0
 	}

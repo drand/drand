@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
+
+	"github.com/drand/drand/common"
 )
 
 func TestMetricReshare(t *testing.T) {
@@ -48,4 +51,32 @@ func TestMetricReshare(t *testing.T) {
 		t.Fatal("lazy reshare didn't do its thing.")
 	}
 	_ = resp.Body.Close()
+}
+
+func TestAppVersionFormat(t *testing.T) {
+	version := common.Version{
+		Major: 1,
+		Minor: 2,
+		Patch: 3,
+	}
+	expected := 1002003.0
+	actual := getVersionNum(version)
+	if actual != expected {
+		t.Fatalf("Error converting version to number. Expected %v, actual %v", expected, actual)
+	}
+}
+
+func TestBuildTimestamp(t *testing.T) {
+	buildTimestamp := "29/04/2021@20:23:35"
+
+	reference, err := time.Parse(time.RFC3339, "2021-04-29T20:23:35Z")
+	if err != nil {
+		t.Fatalf("Error parsing reference time: %s", err)
+	}
+	expected := float64(reference.Unix())
+
+	actual := getBuildTimestamp(buildTimestamp)
+	if actual != expected {
+		t.Fatalf("Error converting build timestamp to number. Expected %v, actual %v", expected, actual)
+	}
 }
