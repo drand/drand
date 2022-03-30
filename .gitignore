@@ -18,3 +18,4 @@ drand-relay-s3
 test/docker/tmp
 test/docker/data*
 **/nohup.out
+.tool-versions

@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"time"
 
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -149,6 +151,20 @@ var (
 		[]string{"url"},
 	)
 
+	// DrandVersion emits the current version of the drand binary
+	DrandVersion = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+		Name:        "drand_version",
+		Help:        "Version of the drand binary, in MMMNNNPPP format",
+		ConstLabels: map[string]string{"build": common.COMMIT},
+	}, func() float64 { return float64(getVersionNum(common.GetAppVersion())) })
+
+	// DrandBuildTime emits the timestamp when the binary was built in Unix time.
+	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+		Name:        "drand_build_time",
+		Help:        "Timestamp when the binary was built in seconds since the Epoch",
+		ConstLabels: map[string]string{"build": common.COMMIT},
+	}, func() float64 { return float64(getBuildTimestamp(common.BUILDDATE)) })
+
 	metricsBound = false
 )
 
@@ -164,6 +180,17 @@ func bindMetrics() error {
 	}
 	if err := PrivateMetrics.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})); err != nil {
 		return err
+	}
+
+	// Private metrics
+	private := []prometheus.Collector{
+		DrandVersion,
+		DrandBuildTime,
+	}
+	for _, c := range private {
+		if err := PrivateMetrics.Register(c); err != nil {
+			return err
+		}
 	}
 
 	// Group metrics
@@ -311,4 +338,21 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// so all paths / requests should see group metrics as a response.
 	r.URL.Path = "/metrics"
 	handler.ServeHTTP(w, r)
+}
+
+func getVersionNum(version common.Version) uint32 {
+	return version.Major*1_000_000 + version.Minor*1_000 + version.Patch
+}
+
+func getBuildTimestamp(buildDate string) int64 {
+	if buildDate == "" {
+		return 0.0
+	}
+
+	layout := "02/01/2006@15:04:05"
+	t, err := time.Parse(layout, buildDate)
+	if err != nil {
+		return 0.0
+	}
+	return t.Unix()
 }
