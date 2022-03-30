@@ -244,9 +244,10 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	var done = make(chan error, 1)
+	logger := l.Named("Send")
 	send := func(b *chain.Beacon) bool {
 		if err := stream.Send(beaconToProto(b)); err != nil {
-			l.Debug("syncer", "streaming_send", "err", err)
+			logger.Debug("syncer", "streaming_send", "err", err)
 			done <- err
 			return false
 		}
