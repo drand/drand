@@ -31,6 +31,9 @@ const (
 	ReshareInProgess
 )
 
+const unknownState = "unknown"
+const waitingState = "waiting"
+
 func (s DKGStatus) String() string {
 	switch s {
 	case DKGNotStarted:
@@ -38,11 +41,11 @@ func (s DKGStatus) String() string {
 	case DKGInProgress:
 		return "in_progess"
 	case DKGWaiting:
-		return "waiting"
+		return waitingState
 	case DKGReady:
 		return "ready"
 	default:
-		return "unknown"
+		return unknownState
 	}
 }
 
@@ -51,11 +54,11 @@ func (s ReshareStatus) String() string {
 	case ReshareIdle:
 		return "idle"
 	case ReshareWaiting:
-		return "waiting"
+		return waitingState
 	case ReshareInProgess:
 		return "in_progress"
 	default:
-		return "unknown"
+		return unknownState
 	}
 }
 
@@ -202,7 +205,7 @@ var (
 		ConstLabels: map[string]string{},
 	}, []string{"state", "beacon_id", "is_leader"})
 
-	// DKGStateChangeTimestamp tracks DKG status changes
+	// ReshareStateChangeTimestamp tracks DKG status changes
 	ReshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "reshare_state_change_timestamp",
 		Help:        "Reshare state change timestamp in seconds since the Epoch",
@@ -405,18 +408,19 @@ func getBuildTimestamp(buildDate string) int64 {
 	return t.Unix()
 }
 
+//nolint:interfacer
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	leaderStr := "false"
-	if leader {
-		leaderStr = "true"
-	}
-	DKGStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderStr).SetToCurrentTime()
+	DKGStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
 }
 
+//nolint:interfacer
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	leaderStr := "false"
+	ReshareStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
+}
+
+func leaderString(leader bool) string {
 	if leader {
-		leaderStr = "true"
+		return "true"
 	}
-	ReshareStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderStr).SetToCurrentTime()
+	return "false"
 }
