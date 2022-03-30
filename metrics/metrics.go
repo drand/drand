@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -149,6 +150,20 @@ var (
 		[]string{"url"},
 	)
 
+	// DrandVersion emits the current version of the drand binary
+	DrandVersion = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+		Name:        "drand_version",
+		Help:        "Version of the drand binary, in MMMNNNPPP format",
+		ConstLabels: map[string]string{"build": common.GIT_COMMIT},
+	}, common.GetVersionNum)
+
+	// DrandBuildTime emits the current version of the drand binary
+	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+		Name:        "drand_build_time",
+		Help:        "Timestamp when the binary was built in seconds since the Epoch",
+		ConstLabels: map[string]string{"build": common.GIT_COMMIT},
+	}, common.GetBuildTimestamp)
+
 	metricsBound = false
 )
 
@@ -164,6 +179,17 @@ func bindMetrics() error {
 	}
 	if err := PrivateMetrics.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})); err != nil {
 		return err
+	}
+
+	// Private metrics
+	private := []prometheus.Collector{
+		DrandVersion,
+		DrandBuildTime,
+	}
+	for _, c := range private {
+		if err := PrivateMetrics.Register(c); err != nil {
+			return err
+		}
 	}
 
 	// Group metrics

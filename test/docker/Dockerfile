@@ -4,6 +4,7 @@ ARG major=0
 ARG minor=0
 ARG patch=0
 ARG gitCommit
+ARG buildDate
 
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
