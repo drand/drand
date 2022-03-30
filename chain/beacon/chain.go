@@ -204,6 +204,7 @@ func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
 	// only send if it's not full already
 	case c.catchupBeacons <- newB:
 	default:
+		c.l.Debugw("", "chain_store", "catchup", "channel", "full")
 	}
 	return true
 }
