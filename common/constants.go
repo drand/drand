@@ -3,7 +3,6 @@ package common
 import (
 	"strconv"
 	"sync"
-	"time"
 )
 
 const (
@@ -28,24 +27,6 @@ var (
 func GetAppVersion() Version {
 	LoadProcess.Do(parseAppVersion)
 	return version
-}
-
-func GetVersionNum() float64 {
-	version := GetAppVersion()
-	return float64(version.Major)*1000000.0 + float64(version.Minor)*1000.0 + float64(version.Patch)
-}
-
-func GetBuildTimestamp() float64 {
-	if BUILDDATE == "" {
-		return 0.0
-	}
-
-	layout := "02/01/2006@15:04:05"
-	t, err := time.Parse(layout, BUILDDATE)
-	if err != nil {
-		return 0.0
-	}
-	return float64(t.Unix())
 }
 
 func parseAppVersion() {
