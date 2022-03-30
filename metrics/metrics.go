@@ -205,7 +205,7 @@ var (
 		ConstLabels: map[string]string{},
 	}, []string{"state", "beacon_id", "is_leader"})
 
-	// reshareStateChangeTimestamp tracks DKG status changes
+	// reshareStateChangeTimestamp tracks reshare status changes
 	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "reshare_state_change_timestamp",
 		Help:        "Reshare state change timestamp in seconds since the Epoch",
