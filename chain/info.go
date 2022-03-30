@@ -74,3 +74,9 @@ func (c *Info) Equal(c2 *Info) bool {
 		bytes.Equal(c.GroupHash, c2.GroupHash) &&
 		c.ID == c2.ID
 }
+
+// Verifier returns the verifier used to verify the beacon produced by this
+// chain
+func (c *Info) Verifier() *Verifier {
+	return NewVerifier(c.Scheme)
+}
