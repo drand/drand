@@ -59,7 +59,7 @@ func TestAppVersionFormat(t *testing.T) {
 		Minor: 2,
 		Patch: 3,
 	}
-	expected := 1002003.0
+	expected := uint32(1002003)
 	actual := getVersionNum(version)
 	if actual != expected {
 		t.Fatalf("Error converting version to number. Expected %v, actual %v", expected, actual)
@@ -73,7 +73,7 @@ func TestBuildTimestamp(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error parsing reference time: %s", err)
 	}
-	expected := float64(reference.Unix())
+	expected := reference.Unix()
 
 	actual := getBuildTimestamp(buildTimestamp)
 	if actual != expected {
