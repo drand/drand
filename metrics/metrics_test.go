@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"testing"
 	"time"
-
-	"github.com/drand/drand/common"
 )
 
 func TestMetricReshare(t *testing.T) {
@@ -51,19 +49,6 @@ func TestMetricReshare(t *testing.T) {
 		t.Fatal("lazy reshare didn't do its thing.")
 	}
 	_ = resp.Body.Close()
-}
-
-func TestAppVersionFormat(t *testing.T) {
-	version := common.Version{
-		Major: 1,
-		Minor: 2,
-		Patch: 3,
-	}
-	expected := uint32(1002003)
-	actual := getVersionNum(version)
-	if actual != expected {
-		t.Fatalf("Error converting version to number. Expected %v, actual %v", expected, actual)
-	}
 }
 
 func TestBuildTimestamp(t *testing.T) {
