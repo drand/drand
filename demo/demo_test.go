@@ -15,9 +15,9 @@ import (
 
 func TestLocalOrchestration(t *testing.T) {
 
-	// Let us have a 2 minutes deadline
+	// Let us have a 4 minutes deadline since the CI is slow
 	time.AfterFunc(
-		2*time.Minute,
+		4*time.Minute,
 		func() {
 			fmt.Println("Deadline reached")
 			os.Exit(1)
