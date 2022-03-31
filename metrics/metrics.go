@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,52 +16,25 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type DKGStatus uint8
-type ReshareStatus uint8
+type DKGStatus string
+type ReshareStatus string
+
+const UnknownBeaconID = "unknown"
 
 const (
-	DKGNotStarted DKGStatus = iota
-	DKGInProgress
-	DKGWaiting
-	DKGReady
+	DKGNotStarted    DKGStatus = "not_started"
+	DKGInProgress    DKGStatus = "in_progress"
+	DKGWaiting       DKGStatus = "waiting"
+	DKGReady         DKGStatus = "ready"
+	DKGUnknownStatus DKGStatus = "unknown"
 )
 
 const (
-	ReshareIdle ReshareStatus = iota
-	ReshareWaiting
-	ReshareInProgess
+	ReshareIdle          ReshareStatus = "idle"
+	ReshareWaiting       ReshareStatus = "waiting"
+	ReshareInProgess     ReshareStatus = "in_progress"
+	ReshareStatusUnknown ReshareStatus = "unknown"
 )
-
-const Unknown = "unknown"
-const waiting = "waiting"
-
-func (s DKGStatus) String() string {
-	switch s {
-	case DKGNotStarted:
-		return "not_started"
-	case DKGInProgress:
-		return "in_progess"
-	case DKGWaiting:
-		return waiting
-	case DKGReady:
-		return "ready"
-	default:
-		return Unknown
-	}
-}
-
-func (s ReshareStatus) String() string {
-	switch s {
-	case ReshareIdle:
-		return "idle"
-	case ReshareWaiting:
-		return waiting
-	case ReshareInProgess:
-		return "in_progress"
-	default:
-		return Unknown
-	}
-}
 
 var (
 	// PrivateMetrics about the internal world (go process, private stuff)
@@ -408,19 +382,10 @@ func getBuildTimestamp(buildDate string) int64 {
 	return t.Unix()
 }
 
-//nolint:interfacer
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	dKGStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
+	dKGStateChangeTimestamp.WithLabelValues(string(s), strconv.FormatBool(leader)).SetToCurrentTime()
 }
 
-//nolint:interfacer
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	reshareStateChangeTimestamp.WithLabelValues(s.String(), beaconID, leaderString(leader)).SetToCurrentTime()
-}
-
-func leaderString(leader bool) string {
-	if leader {
-		return "true"
-	}
-	return "false"
+	reshareStateChangeTimestamp.WithLabelValues(string(s), strconv.FormatBool(leader)).SetToCurrentTime()
 }

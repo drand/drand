@@ -122,7 +122,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 	if bp.group == nil {
-		metrics.DKGStateChange(metrics.DKGNotStarted, metrics.Unknown, false)
+		metrics.DKGStateChange(metrics.DKGNotStarted, metrics.UnknownBeaconID, false)
 	} else {
 		metrics.DKGStateChange(metrics.DKGNotStarted, bp.group.ID, false)
 	}
@@ -143,7 +143,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	}
 
 	if bp.group == nil {
-		metrics.DKGStateChange(metrics.DKGWaiting, metrics.Unknown, false)
+		metrics.DKGStateChange(metrics.DKGWaiting, metrics.UnknownBeaconID, false)
 	} else {
 		metrics.DKGStateChange(metrics.DKGWaiting, bp.group.ID, false)
 	}

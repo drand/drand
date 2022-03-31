@@ -388,10 +388,8 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	bp.dkgInfo = dkgInfo
 	if leader {
 		bp.dkgInfo.started = true
-		metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
-	} else {
-		metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
 	}
+	metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
 	bp.state.Unlock()
 
 	if leader {
@@ -515,11 +513,10 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	if leader {
 		bp.log.Infow("", "dkg_reshare", "leader_start",
 			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
-		metrics.ReshareStateChange(metrics.ReshareInProgess, beaconID, leader)
 		bp.dkgInfo.started = true
-	} else {
-		metrics.ReshareStateChange(metrics.ReshareInProgess, beaconID, leader)
 	}
+
+	metrics.ReshareStateChange(metrics.ReshareInProgess, beaconID, leader)
 	bp.state.Unlock()
 
 	if leader {
