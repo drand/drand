@@ -52,11 +52,12 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 
 	// we give the final append store to the sync manager
 	syncm := NewSyncManager(&SyncConfig{
-		Log:    l,
-		Store:  cbs,
-		Info:   c.chain,
-		Client: cl,
-		Clock:  cf.Clock,
+		Log:      l,
+		Store:    cbs,
+		Info:     c.chain,
+		Client:   cl,
+		Clock:    cf.Clock,
+		NodeAddr: cf.Public.Address(),
 	})
 	go syncm.Run()
 
@@ -177,8 +178,7 @@ func (c *chainStore) runAggregator() {
 				lastBeacon = newBeacon
 				break
 			}
-			// XXX store them for lfutur usage if it's a later round than what
-			// we have
+			// XXX store them for future usage if it's a later round than what we have
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
 				peers := toPeers(c.crypto.GetGroup().Nodes)

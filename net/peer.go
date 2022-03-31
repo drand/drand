@@ -40,7 +40,7 @@ func CreatePeer(addr string, tls bool) Peer {
 // RemoteAddress returns the address of the peer by first taking the address
 // that gRPC returns. If that address is a reserved address, then it tries to
 // read the "X-REAL-IP" header content.
-// For example, a valid nging config could include
+// For example, a valid nginx config could include
 //
 // ```
 // location / {

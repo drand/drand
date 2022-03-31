@@ -1095,9 +1095,12 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		bp.state.Unlock()
 	}()
 
-	addr := net.RemoteAddress(stream.Context())
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
+		// we skip our own address
+		if addr == bp.priv.Public.Address() {
+			continue
+		}
 		// XXX add TLS disable later
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
@@ -1148,15 +1151,17 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 
 	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
 
+	addr := net.RemoteAddress(stream.Context())
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 
 	syncer := beacon.NewSyncManager(&beacon.SyncConfig{
-		Log:    bp.log,
-		Store:  cbStore,
-		Info:   info,
-		Client: bp.privGateway,
-		Clock:  bp.opts.clock,
+		Log:      bp.log,
+		Store:    cbStore,
+		Info:     info,
+		Client:   bp.privGateway,
+		Clock:    bp.opts.clock,
+		NodeAddr: bp.priv.Public.Address(),
 	})
 	go syncer.Run()
 	defer syncer.Stop()

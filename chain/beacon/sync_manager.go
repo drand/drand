@@ -38,6 +38,8 @@ type SyncManager struct {
 	done    chan bool
 	isDone  bool
 	mu      sync.Mutex
+	// we need to know our current daemon address
+	nodeAddr string
 }
 
 // sync manager will renew sync if nothing happens for factor*period time
@@ -47,11 +49,12 @@ var syncExpiryFactor = 2
 var syncQueueRequest = 3
 
 type SyncConfig struct {
-	Log    log.Logger
-	Client net.ProtocolClient
-	Clock  cl.Clock
-	Store  chain.Store
-	Info   *chain.Info
+	Log      log.Logger
+	Client   net.ProtocolClient
+	Clock    cl.Clock
+	Store    chain.Store
+	Info     *chain.Info
+	NodeAddr string
 }
 
 // NewSyncManager returns a sync manager that will use the given store to store
@@ -65,6 +68,7 @@ func NewSyncManager(c *SyncConfig) *SyncManager {
 		client:   c.Client,
 		period:   c.Info.Period,
 		verifier: c.Info.Verifier(),
+		nodeAddr: c.NodeAddr,
 		factor:   syncExpiryFactor,
 		newReq:   make(chan requestInfo, syncQueueRequest),
 		newSync:  make(chan *chain.Beacon, 1),
@@ -110,12 +114,12 @@ func (s *SyncManager) Run() {
 			// check if the request is still valid
 			last, err := s.store.Last()
 			if err != nil {
-				s.log.Debug("sync_manager", "unable to fetch from store", "err", err)
+				s.log.Debugw("unable to fetch from store", "sync_manager", "store.Last", "err", err)
 				continue
 			}
 			// do we really need a sync request ?
 			if request.upTo > 0 && last.Round >= request.upTo {
-				s.log.Debug("sync_manager", "request already filled", "last", last.Round, "request", request.upTo)
+				s.log.Debugw("request already filled", "sync_manager", "skipping_request", "last", last.Round, "request", request.upTo)
 				continue
 			}
 			// check if it's been a while we haven't received a new round from
@@ -136,7 +140,7 @@ func (s *SyncManager) Run() {
 			// just received a new beacon from sync, we keep track of this time
 			lastRoundTime = int(s.clock.Now().Unix())
 		case <-s.done:
-			s.log.Info("sync_manager", "exits")
+			s.log.Infow("", "sync_manager", "exits")
 			cancel()
 			return
 		}
@@ -144,12 +148,25 @@ func (s *SyncManager) Run() {
 }
 
 func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
-	s.log.Debug("sync_manager", "starting new sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
+	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(request.nodes)) {
-		node := request.nodes[n]
-		if s.tryNode(ctx, request.upTo, node) {
+		if request.nodes[n].Address() == s.nodeAddr {
+			// we ignore our own node
+			s.log.Debugw("skipping sync with our own node", "sync_manager", "sync")
+			continue
+		}
+		select {
+		// let us cancel early in case the context is canceled
+		case <-ctx.Done():
+			s.log.Debugw("sync canceled early", "source", "ctx", "err?", ctx.Err())
 			return
+		default:
+			node := request.nodes[n]
+			if s.tryNode(ctx, request.upTo, node) {
+				// we stop as soon as we've done a successful sync with a node
+				return
+			}
 		}
 	}
 	s.log.Debugw("Tried all nodes without success", "sync_manager", "failed sync")
@@ -167,20 +184,26 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, n net.Peer) b
 	if err != nil {
 		return false
 	}
+
+	logger := s.log.With("sync_manager", "tryNode")
 	beaconCh, err := s.client.SyncChain(cnode, n, &proto.SyncRequest{
 		FromRound: last.Round + 1,
 	})
 	if err != nil {
-		s.log.Debug("sync_manager", "unable_to_sync", "with_peer", n.Address(), "err", err)
+		logger.Debugw("unable_to_sync", "with_peer", n.Address(), "err", err)
 		return false
 	}
 
-	s.log.Debug("sync_manager", "start_follow", "with_peer", n.Address(), "from_round", last.Round+1)
+	logger.Debugw("start_sync", "with_peer", n.Address(), "from_round", last.Round+1)
 
 	for {
 		select {
-		case beaconPacket := <-beaconCh:
-			s.log.Debug("sync_manager", "new_beacon_fetched",
+		case beaconPacket, ok := <-beaconCh:
+			if !ok {
+				logger.Debugw("SyncChain channel closed", "with_peer", n.Address())
+				return false
+			}
+			logger.Debugw("new_beacon_fetched",
 				"with_peer", n.Address(),
 				"from_round", last.Round+1,
 				"got_round", beaconPacket.GetRound())
@@ -188,27 +211,28 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, n net.Peer) b
 
 			// verify the signature validity
 			if err := s.verifier.VerifyBeacon(*beacon, s.info.PublicKey); err != nil {
-				s.log.Debug("sync_manager", "invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, fmt.Sprintf("%+v", beacon))
+				logger.Debugw("invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
 				return false
 			}
 
 			if err := s.store.Put(beacon); err != nil {
-				s.log.Debug("sync_manager", "unable to save", "with_peer", n.Address(), "err", err)
+				logger.Debugw("unable to save", "with_peer", n.Address(), "err", err)
 				return false
 			}
 			last = beacon
 			if last.Round == upTo {
-				s.log.Debug("sync_manager", "syncing finished to", "round", upTo)
+				logger.Debugw("sync_manager finished syncing up to", "round", upTo)
 				return true
 			}
+			// else, we keep waiting for the next beacons
 		case <-cnode.Done():
 			// it can be the remote note that stopped the syncing or a network error with it
-			s.log.Debug("sync_manager", "follow canceled", "source", "remote", "err?", cnode.Err())
+			logger.Debugw("sync canceled", "source", "remote", "err?", cnode.Err())
 			// we still go on with the other peers
 			return false
 		case <-global.Done():
 			// or a cancellation of the syncing process itself, maybe because it's stuck
-			s.log.Debug("sync_manager", "follow canceled", "source", "global", "err?", global.Err())
+			logger.Debugw("sync canceled", "source", "global", "err?", global.Err())
 			// we stop
 			return false
 		}
@@ -233,7 +257,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
 	id := addr + strconv.Itoa(rand.Int()) // nolint
-	l.Debug("syncer", "sync_request", "from", addr, "from_round", fromRound)
+	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound)
 
 	last, err := store.Last()
 	if err != nil {
@@ -247,7 +271,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	logger := l.Named("Send")
 	send := func(b *chain.Beacon) bool {
 		if err := stream.Send(beaconToProto(b)); err != nil {
-			logger.Debug("syncer", "streaming_send", "err", err)
+			logger.Debugw("", "syncer", "streaming_send", "err", err)
 			done <- err
 			return false
 		}
