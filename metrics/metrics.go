@@ -383,9 +383,9 @@ func getBuildTimestamp(buildDate string) int64 {
 }
 
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	dKGStateChangeTimestamp.WithLabelValues(string(s), strconv.FormatBool(leader)).SetToCurrentTime()
+	dKGStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
 }
 
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	reshareStateChangeTimestamp.WithLabelValues(string(s), strconv.FormatBool(leader)).SetToCurrentTime()
+	reshareStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
 }
