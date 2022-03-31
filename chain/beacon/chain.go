@@ -94,6 +94,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) Stop() {
+	c.syncm.Stop()
 	c.CallbackStore.Close()
 	close(c.done)
 }
