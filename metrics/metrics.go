@@ -27,6 +27,7 @@ const (
 	DKGWaiting       DKGStatus = "waiting"
 	DKGReady         DKGStatus = "ready"
 	DKGUnknownStatus DKGStatus = "unknown"
+	DKGShutdown      DKGStatus = "node_stopped"
 )
 
 const (
@@ -34,6 +35,7 @@ const (
 	ReshareWaiting       ReshareStatus = "waiting"
 	ReshareInProgess     ReshareStatus = "in_progress"
 	ReshareStatusUnknown ReshareStatus = "unknown"
+	ReshareShutdown      ReshareStatus = "node_stopped"
 )
 
 var (
