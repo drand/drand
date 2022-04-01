@@ -121,11 +121,13 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log = bp.log.Named(fmt.Sprint(bp.index))
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
-	if bp.group == nil {
-		metrics.DKGStateChange(metrics.DKGNotStarted, metrics.UnknownBeaconID, false)
-	} else {
-		metrics.DKGStateChange(metrics.DKGNotStarted, bp.group.ID, false)
+
+	beaconID := metrics.UnknownBeaconID
+	if bp.group != nil {
+		beaconID = bp.group.ID
 	}
+	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+
 	bp.dkgDone = false
 
 	return false, nil
@@ -142,11 +144,11 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		return nil, errors.New("no dkg info set")
 	}
 
-	if bp.group == nil {
-		metrics.DKGStateChange(metrics.DKGWaiting, metrics.UnknownBeaconID, false)
-	} else {
-		metrics.DKGStateChange(metrics.DKGWaiting, bp.group.ID, false)
+	beaconID := metrics.UnknownBeaconID
+	if bp.group != nil {
+		beaconID = bp.group.ID
 	}
+	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 
 	waitCh := bp.dkgInfo.proto.WaitEnd()
 	bp.log.Debugw("", "waiting_dkg_end", time.Now())
