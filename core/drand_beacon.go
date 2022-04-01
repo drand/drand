@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/metrics"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
@@ -120,6 +121,13 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log = bp.log.Named(fmt.Sprint(bp.index))
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
+
+	beaconID := metrics.UnknownBeaconID
+	if bp.group != nil {
+		beaconID = bp.group.ID
+	}
+	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+
 	bp.dkgDone = false
 
 	return false, nil
@@ -135,6 +143,16 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		bp.state.Unlock()
 		return nil, errors.New("no dkg info set")
 	}
+
+	beaconID := metrics.UnknownBeaconID
+	if bp.group != nil {
+		beaconID = bp.group.ID
+	}
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
+
 	waitCh := bp.dkgInfo.proto.WaitEnd()
 	bp.log.Debugw("", "waiting_dkg_end", time.Now())
 

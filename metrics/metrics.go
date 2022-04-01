@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,26 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+type DKGStatus string
+type ReshareStatus string
+
+const UnknownBeaconID = "unknown"
+
+const (
+	DKGNotStarted    DKGStatus = "not_started"
+	DKGInProgress    DKGStatus = "in_progress"
+	DKGWaiting       DKGStatus = "waiting"
+	DKGReady         DKGStatus = "ready"
+	DKGUnknownStatus DKGStatus = "unknown"
+)
+
+const (
+	ReshareIdle          ReshareStatus = "idle"
+	ReshareWaiting       ReshareStatus = "waiting"
+	ReshareInProgess     ReshareStatus = "in_progress"
+	ReshareStatusUnknown ReshareStatus = "unknown"
 )
 
 var (
@@ -151,8 +172,22 @@ var (
 		[]string{"url"},
 	)
 
-	// DrandBuildTime emits the timestamp when the binary was built in Unix time.
-	DrandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
+	// dkgStateChangeTimestamp tracks DKG status changes
+	dkgStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "dkg_state_change_timestamp",
+		Help:        "DKG state change timestamp in seconds since the Epoch",
+		ConstLabels: map[string]string{},
+	}, []string{"state", "beacon_id", "is_leader"})
+
+	// reshareStateChangeTimestamp tracks reshare status changes
+	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "reshare_state_change_timestamp",
+		Help:        "Reshare state change timestamp in seconds since the Epoch",
+		ConstLabels: map[string]string{},
+	}, []string{"state", "beacon_id", "is_leader"})
+
+	// drandBuildTime emits the timestamp when the binary was built in Unix time.
+	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
 		ConstLabels: map[string]string{"build": common.COMMIT, "version": common.GetAppVersion().String()},
@@ -177,7 +212,9 @@ func bindMetrics() error {
 
 	// Private metrics
 	private := []prometheus.Collector{
-		DrandBuildTime,
+		drandBuildTime,
+		dkgStateChangeTimestamp,
+		reshareStateChangeTimestamp,
 	}
 	for _, c := range private {
 		if err := PrivateMetrics.Register(c); err != nil {
@@ -343,4 +380,12 @@ func getBuildTimestamp(buildDate string) int64 {
 		return 0
 	}
 	return t.Unix()
+}
+
+func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
+	dkgStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
+}
+
+func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
+	reshareStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
 }
