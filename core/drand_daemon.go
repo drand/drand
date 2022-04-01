@@ -209,6 +209,7 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 
 	metrics.DKGStateChange(metrics.DKGShutdown, beaconID, false)
 	metrics.ReshareStateChange(metrics.ReshareShutdown, beaconID, false)
+	metrics.IsDrandNode.Set(1)
 
 	dd.state.Unlock()
 }
