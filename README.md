@@ -3,11 +3,11 @@
 <p align="center"><img src="logo.png" width="220" /></p>
 
 <p align="center">
-  <a href="https://circleci.com/gh/drand/drand/tree/master" title="CircleCI"><img src="https://circleci.com/gh/drand/drand/tree/master.svg?style=shield" /></a>
+![Test badge](https://github.com/drand/drand/actions/workflows/tests.yaml/badge.svg?branch=master)
   <a href="https://codecov.io/gh/drand/drand" title="Coverage"><img src="https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg" /></a>
   <a href="https://goreportcard.com/report/github.com/drand/drand" title="Go Report Card"><img src="https://goreportcard.com/badge/github.com/drand/drand" /></a>
   <a href="https://pkg.go.dev/github.com/drand/drand" title="go.dev reference"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" /></a>
-  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/golang-%3E%3D1.14-orange.svg" /></a>
+  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/golang-%3E%3D1.17-orange.svg" /></a>
 </p>
 
 <p align="center">
