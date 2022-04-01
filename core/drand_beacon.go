@@ -148,6 +148,9 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	if bp.group != nil {
 		beaconID = bp.group.ID
 	}
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
 	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 
 	waitCh := bp.dkgInfo.proto.WaitEnd()

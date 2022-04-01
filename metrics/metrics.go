@@ -172,8 +172,8 @@ var (
 		[]string{"url"},
 	)
 
-	// dKGStateChangeTimestamp tracks DKG status changes
-	dKGStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	// dkgStateChangeTimestamp tracks DKG status changes
+	dkgStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "dkg_state_change_timestamp",
 		Help:        "DKG state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
@@ -213,7 +213,7 @@ func bindMetrics() error {
 	// Private metrics
 	private := []prometheus.Collector{
 		drandBuildTime,
-		dKGStateChangeTimestamp,
+		dkgStateChangeTimestamp,
 		reshareStateChangeTimestamp,
 	}
 	for _, c := range private {
@@ -383,7 +383,7 @@ func getBuildTimestamp(buildDate string) int64 {
 }
 
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	dKGStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
+	dkgStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
 }
 
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
