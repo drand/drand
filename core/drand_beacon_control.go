@@ -1106,9 +1106,12 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		bp.state.Unlock()
 	}()
 
-	addr := net.RemoteAddress(stream.Context())
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
+		// we skip our own address
+		if addr == bp.priv.Public.Address() {
+			continue
+		}
 		// XXX add TLS disable later
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
@@ -1157,27 +1160,31 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	cbStore := beacon.NewCallbackStore(ss)
 	defer cbStore.Close()
 
-	syncer := beacon.NewSyncer(bp.log, cbStore, info, bp.privGateway)
-	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.opts.logger)
+	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
 
+	addr := net.RemoteAddress(stream.Context())
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 
-	if err := syncer.Follow(ctx, req.GetUpTo(), peers); err != nil {
-		bp.log.Errorw("", "start_follow_chain", "syncer_stopped", "err", err, "state", "leaving_sync")
-		return err
-	}
+	syncer := beacon.NewSyncManager(&beacon.SyncConfig{
+		Log:      bp.log,
+		Store:    cbStore,
+		Info:     info,
+		Client:   bp.privGateway,
+		Clock:    bp.opts.clock,
+		NodeAddr: bp.priv.Public.Address(),
+	})
+	go syncer.Run()
+	defer syncer.Stop()
+	syncer.RequestSync(peers, req.GetUpTo())
 
 	// wait for all the callbacks to be called and progress sent before returning
-	if req.GetUpTo() > 0 {
-		select {
-		case <-done:
-			return nil
-		case <-ctx.Done():
-			return ctx.Err()
-		}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
-	return ctx.Err()
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.

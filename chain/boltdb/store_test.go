@@ -3,7 +3,6 @@ package boltdb
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/stretchr/testify/require"
@@ -28,13 +27,7 @@ func TestStoreBoltOrder(t *testing.T) {
 		Signature:   []byte("govern them all"),
 	}
 
-	require.NoError(t, store.Put(b1))
-	time.Sleep(10 * time.Millisecond)
-	require.Equal(t, 1, store.Len())
-	eb1, err := store.Last()
-	require.NoError(t, err)
-	require.Equal(t, b1, eb1)
-
+	// we store b2 and check if it is last
 	require.NoError(t, store.Put(b2))
 	eb2, err := store.Last()
 	require.NoError(t, err)
@@ -42,9 +35,14 @@ func TestStoreBoltOrder(t *testing.T) {
 	eb2, err = store.Last()
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
+
+	// then we store b1
+	require.NoError(t, store.Put(b1))
+
+	// and request last again
 	eb2, err = store.Last()
 	require.NoError(t, err)
-	require.Equal(t, eb2, b2)
+	require.Equal(t, b2, eb2)
 }
 
 func TestStoreBolt(t *testing.T) {

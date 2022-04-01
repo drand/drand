@@ -49,7 +49,8 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	if t.disable {
 		return errors.New("disabled server")
 	}
-	return t.h.chain.sync.SyncChain(req, p)
+	SyncChain(t.h.l, t.h.chain, req, p)
+	return nil
 }
 
 func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {

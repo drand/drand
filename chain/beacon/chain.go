@@ -1,7 +1,6 @@
 package beacon
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/drand/drand/chain"
@@ -24,7 +23,7 @@ type chainStore struct {
 	l           log.Logger
 	conf        *Config
 	client      net.ProtocolClient
-	sync        Syncer
+	syncm       *SyncManager
 	verifier    *chain.Verifier
 	crypto      *cryptoStore
 	ticker      *ticker
@@ -51,10 +50,17 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	// we can register callbacks on it
 	cbs := NewCallbackStore(ds)
 
-	// we give the final append store to the syncer
-	syncer := NewSyncer(l, cbs, c.chain, cl)
+	// we give the final append store to the sync manager
+	syncm := NewSyncManager(&SyncConfig{
+		Log:      l,
+		Store:    cbs,
+		Info:     c.chain,
+		Client:   cl,
+		Clock:    cf.Clock,
+		NodeAddr: cf.Public.Address(),
+	})
+	go syncm.Run()
 
-	//
 	verifier := chain.NewVerifier(cf.Group.Scheme)
 
 	cs := &chainStore{
@@ -62,7 +68,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 		l:               l,
 		conf:            cf,
 		client:          cl,
-		sync:            syncer,
+		syncm:           syncm,
 		verifier:        verifier,
 		crypto:          c,
 		ticker:          t,
@@ -89,6 +95,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 }
 
 func (c *chainStore) Stop() {
+	c.syncm.Stop()
 	c.CallbackStore.Close()
 	close(c.done)
 }
@@ -171,18 +178,11 @@ func (c *chainStore) runAggregator() {
 				lastBeacon = newBeacon
 				break
 			}
-			// XXX store them for lfutur usage if it's a later round than what
-			// we have
+			// XXX store them for future usage if it's a later round than what we have
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
 				peers := toPeers(c.crypto.GetGroup().Nodes)
-				go func() {
-					// XXX Could do something smarter with context and cancellation
-					// if we got to the right round
-					if err := c.sync.Follow(context.Background(), newBeacon.Round, peers); err != nil {
-						c.l.Debugw("", "chain_store", "unable to follow", "err", err)
-					}
-				}()
+				c.syncm.RequestSync(peers, newBeacon.Round)
 			}
 			break
 		}
@@ -221,14 +221,12 @@ func (c *chainStore) shouldSync(last *chain.Beacon, newB likeBeacon) bool {
 // RunSync will sync up with other nodes and fill the store. If upTo is equal to
 // 0, then it will follow the chain indefinitely. If peers is nil, it uses the
 // peers of the current group.
-func (c *chainStore) RunSync(ctx context.Context, upTo uint64, peers []net.Peer) {
+func (c *chainStore) RunSync(upTo uint64, peers []net.Peer) {
 	if peers == nil {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
-	if err := c.sync.Follow(ctx, upTo, peers); err != nil {
-		c.l.Debugw("", "chain_store", "follow_finished", "err", err)
-	}
+	c.syncm.RequestSync(peers, upTo)
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {

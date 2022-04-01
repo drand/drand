@@ -834,7 +834,7 @@ func TestDrandFollowChain(t *testing.T) {
 			select {
 			case p, ok := <-progress:
 				if ok && p.Current == exp {
-					t.Logf("Successful beacion rcv. Round: %d. Keep following chain.", exp)
+					t.Logf("Successful beacon rcv. Round: %d. Keep following chain.", exp)
 					goon = false
 					break
 				}
