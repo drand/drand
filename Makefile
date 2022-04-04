@@ -1,22 +1,6 @@
 .PHONY: test test-unit test-integration demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
 
-# Version values
-ifeq ($(MAJOR),)
-MAJOR := 0
-endif
-
-ifeq ($(PATCH),)
-PATCH := 0
-endif
-
-ifeq ($(MINOR),)
-MINOR := 0
-endif
-
-VER_PACKAGE=github.com/drand/drand/common
-CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
-
-GIT_REVISION := $(shell git rev-parse HEAD)
+GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
 PROTOC_VERSION=3.17.3
@@ -85,40 +69,40 @@ build_proto:
 
 # create the "drand" binary and install it in $GOBIN
 install:
-	go install -ldflags "-X $(VER_PACKAGE).MAJOR=$(MAJOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
+	go install -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
 
 # create the "drand" binary in the current folder
 build:
-	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).MAJOR=$(MAJOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
+	go build -o drand -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X $(CLI_PACKAGE).buildDate=$(BUILD_DATE) -X $(CLI_PACKAGE).gitCommit=$(GIT_REVISION)"
 
 # create the "drand-client" binary in the current folder
 client:
-	go build -o drand-client -mod=readonly -ldflags "-X $(VER_PACKAGE).MAJOR=$(MAJOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/client
+	go build -o drand-client -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/client
 drand-client: client
 
 # create the "drand-relay-http" binary in the current folder
 relay-http:
-	go build -o drand-relay-http -mod=readonly -ldflags "-X $(VER_PACKAGE).MAJOR=$(MAJOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay
+	go build -o drand-relay-http -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay
 drand-relay-http: relay-http
 
 # create the "drand-relay-gossip" binary in the current folder
 relay-gossip:
-	go build -o drand-relay-gossip -mod=readonly -ldflags "-X $(VER_PACKAGE).MAJOR=$(MAJOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-gossip
+	go build -o drand-relay-gossip -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-gossip
 drand-relay-gossip: relay-gossip
 
 # create the "drand-relay-s3" binary in the current folder
 relay-s3:
-	go build -o drand-relay-s3 -mod=readonly -ldflags "-X $(VER_PACKAGE).MAJOR=$(MAJOR) -X $(VER_PACKAGE).MINOR=$(MINOR) -X $(VER_PACKAGE).PATCH=$(PATCH) -X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-s3
+	go build -o drand-relay-s3 -mod=readonly -ldflags "-X $(VER_PACKAGE).COMMIT=$(GIT_REVISION) -X $(VER_PACKAGE).BUILDDATE=$(BUILD_DATE) -X main.buildDate=$(BUILD_DATE) -X main.gitCommit=$(GIT_REVISION)" ./cmd/relay-s3
 drand-relay-s3: relay-s3
 
 build_all: drand drand-client drand-relay-http drand-relay-gossip drand-relay-s3
 
 build_docker_all: build_docker build_docker_dev
 build_docker:
-	docker build --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:latest .
+	docker build --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand:latest .
 
 build_docker_dev:
-	docker build -f test/docker/Dockerfile --build-arg major=$(MAJOR) --build-arg minor=$(MINOR) --build-arg patch=$(PATCH) --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand-dev:latest .
+	docker build -f test/docker/Dockerfile --build-arg gitCommit=$(GIT_REVISION) --build-arg buildDate=$(BUILD_DATE) -t drandorg/go-drand-dev:latest .
 ############################################ Deps ############################################
 
 install_deps_linux:

@@ -10,7 +10,7 @@ builds:
 - env:
   - CGO_ENABLED=0
   ldflags:
-     - -s -w -X github.com/drand/drand/cmd/drand-cli.version={{.Version}} -X github.com/drand/drand/cmd/drand-cli.buildDate={{.Date}} -X github.com/drand/drand/cmd/drand-cli.gitCommit={{.Commit}}
+     - -s -w -X github.com/drand/drand/cmd/drand-cli.buildDate={{.Date}} -X github.com/drand/drand/cmd/drand-cli.gitCommit={{.ShortCommit}}
   mod_timestamp: '{{ .CommitTimestamp }}'
 archives:
 - replacements:
