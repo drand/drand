@@ -173,6 +173,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 
 	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
+	metrics.IsDrandNode.Set(1)
 
 	return bp, nil
 }
