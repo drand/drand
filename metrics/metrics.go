@@ -198,7 +198,7 @@ var (
 	// IsDrandNode is 1 for drand nodes, 0 for relays
 	IsDrandNode = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "is_drand_node",
-		Help: "1 for drand nodes, 0 for relays",
+		Help: "1 for drand nodes, not emitted for relays",
 	})
 
 	metricsBound = false
