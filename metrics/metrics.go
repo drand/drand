@@ -179,14 +179,14 @@ var (
 		Name:        "dkg_state_change_timestamp",
 		Help:        "DKG state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
-	}, []string{"state", "beacon_id", "is_leader"})
+	}, []string{"dkg_state", "beacon_id", "is_leader"})
 
 	// reshareStateChangeTimestamp tracks reshare status changes
 	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "reshare_state_change_timestamp",
 		Help:        "Reshare state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
-	}, []string{"state", "beacon_id", "is_leader"})
+	}, []string{"reshare_state", "beacon_id", "is_leader"})
 
 	// drandBuildTime emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
