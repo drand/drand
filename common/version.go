@@ -11,8 +11,8 @@ import (
 // After releasing: Increase the Patch number and set Prerelease to "-pre"
 var version = Version{
 	Major:      1,
-	Minor:      1,
-	Patch:      2,
+	Minor:      4,
+	Patch:      0,
 	Prerelease: "+pre",
 }
 
@@ -38,7 +38,7 @@ type Version struct {
 
 func (v Version) IsCompatible(verRcv Version) bool {
 	// TODO Not sure what we should do here
-	if verRcv.Prerelease == "" || v.Major == verRcv.Major {
+	if v.Major == verRcv.Major && v.Minor == verRcv.Minor {
 		return true
 	}
 
