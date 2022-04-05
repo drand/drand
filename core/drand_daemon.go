@@ -171,6 +171,10 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
+	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
+	metrics.IsDrandNode.Set(1)
+
 	return bp, nil
 }
 
@@ -203,6 +207,10 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 	if common.IsDefaultBeaconID(beaconID) {
 		delete(dd.chainHashes, common.DefaultChainHash)
 	}
+
+	metrics.DKGStateChange(metrics.DKGShutdown, beaconID, false)
+	metrics.ReshareStateChange(metrics.ReshareShutdown, beaconID, false)
+	metrics.IsDrandNode.Set(1)
 
 	dd.state.Unlock()
 }

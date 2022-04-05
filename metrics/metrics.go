@@ -27,6 +27,7 @@ const (
 	DKGWaiting       DKGStatus = "waiting"
 	DKGReady         DKGStatus = "ready"
 	DKGUnknownStatus DKGStatus = "unknown"
+	DKGShutdown      DKGStatus = "node_stopped"
 )
 
 const (
@@ -34,6 +35,7 @@ const (
 	ReshareWaiting       ReshareStatus = "waiting"
 	ReshareInProgess     ReshareStatus = "in_progress"
 	ReshareStatusUnknown ReshareStatus = "unknown"
+	ReshareShutdown      ReshareStatus = "node_stopped"
 )
 
 var (
@@ -177,14 +179,14 @@ var (
 		Name:        "dkg_state_change_timestamp",
 		Help:        "DKG state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
-	}, []string{"state", "beacon_id", "is_leader"})
+	}, []string{"dkg_state", "beacon_id", "is_leader"})
 
 	// reshareStateChangeTimestamp tracks reshare status changes
 	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "reshare_state_change_timestamp",
 		Help:        "Reshare state change timestamp in seconds since the Epoch",
 		ConstLabels: map[string]string{},
-	}, []string{"state", "beacon_id", "is_leader"})
+	}, []string{"reshare_state", "beacon_id", "is_leader"})
 
 	// drandBuildTime emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
@@ -192,6 +194,12 @@ var (
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
 		ConstLabels: map[string]string{"build": common.COMMIT, "version": common.GetAppVersion().String()},
 	}, func() float64 { return float64(getBuildTimestamp(common.BUILDDATE)) })
+
+	// IsDrandNode is 1 for drand nodes, 0 for relays
+	IsDrandNode = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "is_drand_node",
+		Help: "1 for drand nodes, not emitted for relays",
+	})
 
 	metricsBound = false
 )
