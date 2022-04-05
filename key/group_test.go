@@ -75,7 +75,7 @@ func TestGroupProtobuf(t *testing.T) {
 		isErr:  false,
 	})
 
-	version := common.Version{Major: 0, Minor: 0, Patch: 0}
+	version := common.GetAppVersion()
 	for i, tv := range vectors {
 		protoGroup := tv.group.ToProto(version)
 		if tv.change != nil {
@@ -173,7 +173,7 @@ func TestConvertGroup(t *testing.T) {
 	group.Period = 5 * time.Second
 	group.TransitionTime = time.Now().Unix()
 	group.GenesisTime = time.Now().Unix()
-	version := common.Version{Major: 0, Minor: 0, Patch: 0}
+	version := common.GetAppVersion()
 
 	proto := group.ToProto(version)
 	received, err := GroupFromProto(proto)
