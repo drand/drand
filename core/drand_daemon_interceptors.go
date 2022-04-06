@@ -32,11 +32,15 @@ func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{}
 		return handler(ctx, req)
 	}
 
+	prerelease := ""
+	if v.Prerelease != nil {
+		prerelease = *v.Prerelease
+	}
 	rcvVer := commonutils.Version{
 		Major:      v.Major,
 		Minor:      v.Minor,
 		Patch:      v.Patch,
-		Prerelease: v.Prerelease,
+		Prerelease: prerelease,
 	}
 	if !dd.version.IsCompatible(rcvVer) {
 		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
