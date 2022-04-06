@@ -14,7 +14,6 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"google.golang.org/grpc/stats"
 )
 
 type DKGStatus string
@@ -38,30 +37,6 @@ const (
 	ReshareStatusUnknown ReshareStatus = "unknown"
 	ReshareShutdown      ReshareStatus = "node_stopped"
 )
-
-type statsHandler struct {
-	stats.Handler
-}
-
-func (h statsHandler) TagRPC(ctx context.Context, tagInfo *stats.RPCTagInfo) context.Context {
-	// no-op
-	return ctx
-}
-
-func (h statsHandler) HandleRPC(ctx context.Context, rpcStats stats.RPCStats) {
-	// no-op
-}
-
-func (h statsHandler) TagConn(ctx context.Context, tagInfo *stats.ConnTagInfo) context.Context {
-	IncomingConnectionTimestamp.WithLabelValues(tagInfo.RemoteAddr.String()).Set(1)
-	return ctx
-}
-
-func (h statsHandler) HandleConn(ctx context.Context, connStats stats.ConnStats) {
-	// no-op
-}
-
-var IncomingConnectionsStatsHandler = statsHandler{}
 
 var (
 	// PrivateMetrics about the internal world (go process, private stuff)
@@ -232,7 +207,7 @@ var (
 	}, []string{"remote_host"})
 
 	// OutgoingConnectionTimestamp (Group) timestam when each outgoing connection was established
-	// TODO Delete the entry when the remote host disconnects (not sure whether it's possible)
+	// TODO Delete the entry when the remote host disconnects
 	OutgoingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "outgoing_connection_timestamp",
 		Help: "timestamp when an outgoing connection was established",
