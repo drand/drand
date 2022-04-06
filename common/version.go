@@ -41,6 +41,9 @@ func (v Version) IsCompatible(verRcv Version) bool {
 	if verRcv.Major == 0 && verRcv.Minor == 0 && verRcv.Patch == 0 {
 		return true
 	}
+	if v.Major == 0 && v.Minor == 0 && v.Patch == 0 {
+		return true
+	}
 
 	if v.Major == verRcv.Major && v.Minor == verRcv.Minor {
 		return true

@@ -85,24 +85,12 @@ func TestVersionCompatible(t *testing.T) {
 	}
 
 	testCompatible := func(a Version, b Version) {
-		if !a.IsCompatible(b) {
-			t.Fatalf("Version %s should be compatible with %s", a, b)
-		}
-	}
-
-	testIncompatible := func(a Version, b Version) {
-		if a.IsCompatible(b) {
-			t.Fatalf("Version %s should not be compatible with %s", a, b)
-		}
-	}
-
-	testCompatibleBidi := func(a Version, b Version) {
 		if !a.IsCompatible(b) || !b.IsCompatible(a) {
 			t.Fatalf("Version %s should be compatible with %s", a, b)
 		}
 	}
 
-	testIncompatibleBidi := func(a Version, b Version) {
+	testIncompatible := func(a Version, b Version) {
 		if a.IsCompatible(b) || b.IsCompatible(a) {
 			t.Fatalf("Version %s should not be compatible with %s", a, b)
 		}
@@ -115,19 +103,12 @@ func TestVersionCompatible(t *testing.T) {
 	testCompatible(version130pre, version000)
 	testCompatible(version200, version000)
 
-	testIncompatible(version000, version123)
-	testIncompatible(version000, version123pre)
-	testIncompatible(version000, version124)
-	testIncompatible(version000, version130)
-	testIncompatible(version000, version130pre)
-	testIncompatible(version000, version200)
+	testCompatible(version123, version123)
+	testCompatible(version123, version123pre)
+	testCompatible(version123, version124)
 
-	testCompatibleBidi(version123, version123)
-	testCompatibleBidi(version123, version123pre)
-	testCompatibleBidi(version123, version124)
-
-	testIncompatibleBidi(version123, version130)
-	testIncompatibleBidi(version123, version130pre)
-	testIncompatibleBidi(version123, version200)
-	testIncompatibleBidi(version123pre, version130pre)
+	testIncompatible(version123, version130)
+	testIncompatible(version123, version130pre)
+	testIncompatible(version123, version200)
+	testIncompatible(version123pre, version130pre)
 }
