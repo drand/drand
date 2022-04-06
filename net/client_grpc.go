@@ -311,9 +311,13 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 			}
 		}
-		g.conns[p.Address()] = c
-		metrics.GroupConnections.Set(float64(len(g.conns)))
+		if err != nil {
+			metrics.OutgoingConnectionTimestamp.WithLabelValues(p.Address()).SetToCurrentTime()
+			g.conns[p.Address()] = c
+		}
 	}
+
+	metrics.GroupConnections.Set(float64(len(g.conns)))
 	return c, err
 }
 

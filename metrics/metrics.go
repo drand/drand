@@ -14,6 +14,7 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"google.golang.org/grpc/stats"
 )
 
 type DKGStatus string
@@ -37,6 +38,30 @@ const (
 	ReshareStatusUnknown ReshareStatus = "unknown"
 	ReshareShutdown      ReshareStatus = "node_stopped"
 )
+
+type statsHandler struct {
+	stats.Handler
+}
+
+func (h statsHandler) TagRPC(ctx context.Context, tagInfo *stats.RPCTagInfo) context.Context {
+	// no-op
+	return ctx
+}
+
+func (h statsHandler) HandleRPC(ctx context.Context, rpcStats stats.RPCStats) {
+	// no-op
+}
+
+func (h statsHandler) TagConn(ctx context.Context, tagInfo *stats.ConnTagInfo) context.Context {
+	IncomingConnectionTimestamp.WithLabelValues(tagInfo.RemoteAddr.String()).Set(1)
+	return ctx
+}
+
+func (h statsHandler) HandleConn(ctx context.Context, connStats stats.ConnStats) {
+	// no-op
+}
+
+var IncomingConnectionsStatsHandler = statsHandler{}
 
 var (
 	// PrivateMetrics about the internal world (go process, private stuff)
@@ -174,32 +199,44 @@ var (
 		[]string{"url"},
 	)
 
-	// dkgStateChangeTimestamp tracks DKG status changes
+	// dkgStateChangeTimestamp (Group) tracks DKG status changes
 	dkgStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name:        "dkg_state_change_timestamp",
-		Help:        "DKG state change timestamp in seconds since the Epoch",
-		ConstLabels: map[string]string{},
+		Name: "dkg_state_change_timestamp",
+		Help: "DKG state change timestamp in seconds since the Epoch",
 	}, []string{"dkg_state", "beacon_id", "is_leader"})
 
-	// reshareStateChangeTimestamp tracks reshare status changes
+	// reshareStateChangeTimestamp (Group) tracks reshare status changes
 	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name:        "reshare_state_change_timestamp",
-		Help:        "Reshare state change timestamp in seconds since the Epoch",
-		ConstLabels: map[string]string{},
+		Name: "reshare_state_change_timestamp",
+		Help: "Reshare state change timestamp in seconds since the Epoch",
 	}, []string{"reshare_state", "beacon_id", "is_leader"})
 
-	// drandBuildTime emits the timestamp when the binary was built in Unix time.
+	// drandBuildTime (Group) emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
 		ConstLabels: map[string]string{"build": common.COMMIT, "version": common.GetAppVersion().String()},
 	}, func() float64 { return float64(getBuildTimestamp(common.BUILDDATE)) })
 
-	// IsDrandNode is 1 for drand nodes, 0 for relays
+	// IsDrandNode (Group) is 1 for drand nodes, 0 for relays
 	IsDrandNode = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "is_drand_node",
 		Help: "1 for drand nodes, not emitted for relays",
 	})
+
+	// IncomingConnectionTimestamp (Group) timestamp when each incoming connection was established
+	// TODO Delete the entry when the remote host disconnects (not sure whether it's possible)
+	IncomingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "incoming_connection_timestamp",
+		Help: "timestamp when an incoming connection was established",
+	}, []string{"remote_host"})
+
+	// OutgoingConnectionTimestamp (Group) timestam when each outgoing connection was established
+	// TODO Delete the entry when the remote host disconnects (not sure whether it's possible)
+	OutgoingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "outgoing_connection_timestamp",
+		Help: "timestamp when an outgoing connection was established",
+	}, []string{"remote_host"})
 
 	metricsBound = false
 )
@@ -218,18 +255,6 @@ func bindMetrics() error {
 		return err
 	}
 
-	// Private metrics
-	private := []prometheus.Collector{
-		drandBuildTime,
-		dkgStateChangeTimestamp,
-		reshareStateChangeTimestamp,
-	}
-	for _, c := range private {
-		if err := PrivateMetrics.Register(c); err != nil {
-			return err
-		}
-	}
-
 	// Group metrics
 	group := []prometheus.Collector{
 		APICallCounter,
@@ -239,6 +264,11 @@ func bindMetrics() error {
 		GroupThreshold,
 		BeaconDiscrepancyLatency,
 		LastBeaconRound,
+		drandBuildTime,
+		dkgStateChangeTimestamp,
+		reshareStateChangeTimestamp,
+		IncomingConnectionTimestamp,
+		OutgoingConnectionTimestamp,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
