@@ -37,7 +37,11 @@ type Version struct {
 }
 
 func (v Version) IsCompatible(verRcv Version) bool {
-	// TODO Not sure what we should do here
+	// Backwards compatibility with the previous version numbering scheme. We should remove it at some point.
+	if verRcv.Major == 0 && verRcv.Minor == 0 && verRcv.Patch == 0 {
+		return true
+	}
+
 	if v.Major == verRcv.Major && v.Minor == verRcv.Minor {
 		return true
 	}
