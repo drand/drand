@@ -3,7 +3,7 @@
 GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
-PROTOC_VERSION=3.17.3
+PROTOC_VERSION=3.19.4
 PROTOC_ZIP=protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 
 drand: build
@@ -63,8 +63,8 @@ demo:
 ############################################ Build ############################################
 
 build_proto:
-	go get -u github.com/golang/protobuf/protoc-gen-go@v1.5.2
-	go get -u google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.1.0
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 	cd protobuf && sh ./compile_proto.sh
 
 # create the "drand" binary and install it in $GOBIN
@@ -107,12 +107,12 @@ build_docker_dev:
 
 install_deps_linux:
 	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
-	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
-	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
-	rm -f $PROTOC_ZIP
+	sudo unzip -o $(PROTOC_ZIP) -d /usr/local bin/protoc 'include/*'
+	sudo chmod a+x /usr/local/bin/protoc
+	rm -f $(PROTOC_ZIP)
 
 install_deps_darwin:
 	curl -OL https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-osx-x86_64.zip
-	sudo unzip -o $PROTOC_ZIP -d /usr/local bin/protoc
-	sudo unzip -o $PROTOC_ZIP -d /usr/local 'include/*'
-	rm -f $PROTOC_ZIP
+	sudo unzip -o $(PROTOC_ZIP) -d /usr/local bin/protoc 'include/*'
+	sudo chmod a+x /usr/local/bin/protoc
+	rm -f $(PROTOC_ZIP)
