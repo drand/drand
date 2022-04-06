@@ -97,21 +97,13 @@ func TestVersionCompatible(t *testing.T) {
 	}
 
 	testCompatibleBidi := func(a Version, b Version) {
-		if !a.IsCompatible(b) {
-			t.Fatalf("Version %s should be compatible with %s", a, b)
-		}
-
-		if !b.IsCompatible(a) {
+		if !a.IsCompatible(b) || !b.IsCompatible(a) {
 			t.Fatalf("Version %s should be compatible with %s", a, b)
 		}
 	}
 
 	testIncompatibleBidi := func(a Version, b Version) {
-		if a.IsCompatible(b) {
-			t.Fatalf("Version %s should be compatible with %s", a, b)
-		}
-
-		if b.IsCompatible(a) {
+		if a.IsCompatible(b) || b.IsCompatible(a) {
 			t.Fatalf("Version %s should be compatible with %s", a, b)
 		}
 	}
