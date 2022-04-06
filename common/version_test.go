@@ -104,7 +104,7 @@ func TestVersionCompatible(t *testing.T) {
 
 	testIncompatibleBidi := func(a Version, b Version) {
 		if a.IsCompatible(b) || b.IsCompatible(a) {
-			t.Fatalf("Version %s should be compatible with %s", a, b)
+			t.Fatalf("Version %s should not be compatible with %s", a, b)
 		}
 	}
 
