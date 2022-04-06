@@ -1,7 +1,6 @@
 package common
 
 import (
-	"os"
 	"testing"
 )
 
@@ -108,7 +107,7 @@ func TestVersionCompatible(t *testing.T) {
 	testIncompatible(version123, version200)
 	testIncompatible(version123pre, version130pre)
 
-	os.Setenv("DISABLE_VERSION_CHECK", "1")
+	t.Setenv("DISABLE_VERSION_CHECK", "1")
 	testCompatible(version123, version000)
 	testCompatible(version123pre, version000)
 	testCompatible(version124, version000)
@@ -119,5 +118,4 @@ func TestVersionCompatible(t *testing.T) {
 	testCompatible(version123, version130pre)
 	testCompatible(version123, version200)
 	testCompatible(version123pre, version130pre)
-
 }
