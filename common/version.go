@@ -2,6 +2,7 @@ package common
 
 import (
 	"fmt"
+	"os"
 
 	pbcommon "github.com/drand/drand/protobuf/common"
 )
@@ -13,7 +14,7 @@ var version = Version{
 	Major:      1,
 	Minor:      4,
 	Patch:      0,
-	Prerelease: "+pre",
+	Prerelease: "pre",
 }
 
 // Set via -ldflags. Example:
@@ -37,11 +38,8 @@ type Version struct {
 }
 
 func (v Version) IsCompatible(verRcv Version) bool {
-	// Backwards compatibility with the previous version numbering scheme. We should remove it at some point.
-	if verRcv.Major == 0 && verRcv.Minor == 0 && verRcv.Patch == 0 {
-		return true
-	}
-	if v.Major == 0 && v.Minor == 0 && v.Patch == 0 {
+	// This is to get around the problem with the regression test - Prerelease versions are compatible with anything
+	if os.Getenv("DISABLE_VERSION_CHECK") == "1" {
 		return true
 	}
 
@@ -57,5 +55,9 @@ func (v Version) ToProto() *pbcommon.NodeVersion {
 }
 
 func (v Version) String() string {
-	return fmt.Sprintf("%d.%d.%d%s", v.Major, v.Minor, v.Patch, v.Prerelease)
+	pre := ""
+	if v.Prerelease != "" {
+		pre = "+"
+	}
+	return fmt.Sprintf("%d.%d.%d%s%s", v.Major, v.Minor, v.Patch, pre, v.Prerelease)
 }

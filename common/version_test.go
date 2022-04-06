@@ -1,6 +1,9 @@
 package common
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func TestVersionStringNoPre(t *testing.T) {
 	var version = Version{
@@ -23,7 +26,7 @@ func TestVersionStringPre(t *testing.T) {
 		Major:      1,
 		Minor:      2,
 		Patch:      3,
-		Prerelease: "+pre",
+		Prerelease: "pre",
 	}
 
 	actual := version.String()
@@ -96,13 +99,6 @@ func TestVersionCompatible(t *testing.T) {
 		}
 	}
 
-	testCompatible(version123, version000)
-	testCompatible(version123pre, version000)
-	testCompatible(version124, version000)
-	testCompatible(version130, version000)
-	testCompatible(version130pre, version000)
-	testCompatible(version200, version000)
-
 	testCompatible(version123, version123)
 	testCompatible(version123, version123pre)
 	testCompatible(version123, version124)
@@ -111,4 +107,17 @@ func TestVersionCompatible(t *testing.T) {
 	testIncompatible(version123, version130pre)
 	testIncompatible(version123, version200)
 	testIncompatible(version123pre, version130pre)
+
+	os.Setenv("DISABLE_VERSION_CHECK", "1")
+	testCompatible(version123, version000)
+	testCompatible(version123pre, version000)
+	testCompatible(version124, version000)
+	testCompatible(version130, version000)
+	testCompatible(version130pre, version000)
+	testCompatible(version200, version000)
+	testCompatible(version123, version130)
+	testCompatible(version123, version130pre)
+	testCompatible(version123, version200)
+	testCompatible(version123pre, version130pre)
+
 }
