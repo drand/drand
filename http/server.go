@@ -352,6 +352,11 @@ func (h *DrandHandler) PublicRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if roundN == 0 {
+		h.LatestRand(w, r)
+		return
+	}
+
 	chainHashHex, err := readChainHash(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
