@@ -13,6 +13,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -211,10 +212,10 @@ func bindMetrics() error {
 	metricsBound = true
 
 	// The private go-level metrics live in private.
-	if err := PrivateMetrics.Register(prometheus.NewGoCollector()); err != nil {
+	if err := PrivateMetrics.Register(collectors.NewGoCollector()); err != nil {
 		return err
 	}
-	if err := PrivateMetrics.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{})); err != nil {
+	if err := PrivateMetrics.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
 		return err
 	}
 
