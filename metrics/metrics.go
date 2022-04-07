@@ -200,22 +200,24 @@ var (
 	})
 
 	// IncomingConnectionTimestamp (Group) timestamp when each incoming connection was established
-	// TODO Delete the entry when the remote host disconnects/shuts down (not sure whether it's possible)
+	// We cannot track the actual connection state as with outgoing connections, since grpc-go
+	// doesn't allow for adding a listener for state tracking.
 	IncomingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "incoming_connection_timestamp",
 		Help: "timestamp when an incoming connection was established",
 	}, []string{"remote_host"})
 
-	// OutgoingConnectionTimestamp (Group) timestamp when each outgoing connection was established
-	// The state is changed only when getting a connection to the remote host. This means that:
-	// * If a non-PL host is unable to connect to a PL host, the metric will not be sent
+	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, according to
+	// https://github.com/grpc/grpc-go/blob/master/connectivity/connectivity.go#L51
+	// Due to the fact that grpc-go doesn't support adding a listener for state tracking, this is
+	// emitted only when getting a connection to the remote host. This means that:
+	// * If a non-PL host is unable to connect to a PL host, the metric will not be sent to InfluxDB
 	// * The state might not be up to date (e.g. the remote host is disconnected but we haven't
 	//   tried to connect to it)
-	// This is due to the fact that go-grpc doesn't support adding a listener for state tracking
-	OutgoingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "outgoing_connection_timestamp",
-		Help: "timestamp when an outgoing connection was established",
-	}, []string{"remote_host", "state"})
+	OutgoingConnectionState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "outgoing_connection_state",
+		Help: "State of an outgoing connection. 0=Idle, 1=Connecting, 2=Ready, 3=Transient Failure, 4=Shutdown",
+	}, []string{"remote_host"})
 
 	metricsBound = false
 )
@@ -247,7 +249,7 @@ func bindMetrics() error {
 		dkgStateChangeTimestamp,
 		reshareStateChangeTimestamp,
 		IncomingConnectionTimestamp,
-		OutgoingConnectionTimestamp,
+		OutgoingConnectionState,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {

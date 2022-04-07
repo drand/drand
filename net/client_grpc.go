@@ -288,12 +288,13 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	g.Lock()
 	defer g.Unlock()
 	var err error
+	err = nil
 
 	c, ok := g.conns[p.Address()]
 	if ok && c.GetState() == connectivity.Shutdown {
 		ok = false
 		delete(g.conns, p.Address())
-		metrics.OutgoingConnectionTimestamp.WithLabelValues(p.Address(), c.GetState().String()).SetToCurrentTime()
+		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
 	}
 
 	if !ok {
@@ -320,14 +321,15 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 			}
 		}
 		if err != nil {
-			metrics.OutgoingConnectionTimestamp.WithLabelValues(p.Address()).SetToCurrentTime()
 			g.conns[p.Address()] = c
 		}
 	}
 
+	// Emit the connection state regardless of whether it's a new or an existing connection
 	if err != nil {
-		metrics.OutgoingConnectionTimestamp.WithLabelValues(p.Address(), c.GetState().String()).SetToCurrentTime()
+		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
 	}
+
 	metrics.OutgoingConnections.Set(float64(len(g.conns)))
 	return c, err
 }
