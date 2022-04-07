@@ -22,7 +22,7 @@ func (h incomingConnectionsStatsHandler) HandleRPC(ctx context.Context, rpcStats
 }
 
 func (h incomingConnectionsStatsHandler) TagConn(ctx context.Context, tagInfo *stats.ConnTagInfo) context.Context {
-	metrics.IncomingConnectionTimestamp.WithLabelValues(tagInfo.RemoteAddr.String()).Set(1)
+	metrics.IncomingConnectionTimestamp.WithLabelValues(tagInfo.RemoteAddr.String()).SetToCurrentTime()
 	return ctx
 }
 

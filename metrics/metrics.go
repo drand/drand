@@ -58,10 +58,10 @@ var (
 		Name: "dial_failures",
 		Help: "Number of times there have been network connection issues",
 	}, []string{"peer_address"})
-	// GroupConnections (Group) how many GrpcClient connections are present
-	GroupConnections = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "group_connections",
-		Help: "Number of peers with current GrpcClient connections",
+	// OutgoingConnections (Group) how many GrpcClient connections are present
+	OutgoingConnections = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "outgoing_group_connections",
+		Help: "Number of peers with current outgoing GrpcClient connections",
 	})
 	GroupSize = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "group_size",
@@ -234,7 +234,7 @@ func bindMetrics() error {
 	group := []prometheus.Collector{
 		APICallCounter,
 		GroupDialFailures,
-		GroupConnections,
+		OutgoingConnections,
 		GroupSize,
 		GroupThreshold,
 		BeaconDiscrepancyLatency,
