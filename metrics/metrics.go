@@ -200,18 +200,22 @@ var (
 	})
 
 	// IncomingConnectionTimestamp (Group) timestamp when each incoming connection was established
-	// TODO Delete the entry when the remote host disconnects (not sure whether it's possible)
+	// TODO Delete the entry when the remote host disconnects/shuts down (not sure whether it's possible)
 	IncomingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "incoming_connection_timestamp",
 		Help: "timestamp when an incoming connection was established",
 	}, []string{"remote_host"})
 
-	// OutgoingConnectionTimestamp (Group) timestam when each outgoing connection was established
-	// TODO Delete the entry when the remote host disconnects
+	// OutgoingConnectionTimestamp (Group) timestamp when each outgoing connection was established
+	// The state is changed only when getting a connection to the remote host. This means that:
+	// * If a non-PL host is unable to connect to a PL host, the metric will not be sent
+	// * The state might not be up to date (e.g. the remote host is disconnected but we haven't
+	//   tried to connect to it)
+	// This is due to the fact that go-grpc doesn't support adding a listener for state tracking
 	OutgoingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "outgoing_connection_timestamp",
 		Help: "timestamp when an outgoing connection was established",
-	}, []string{"remote_host"})
+	}, []string{"remote_host", "state"})
 
 	metricsBound = false
 )
