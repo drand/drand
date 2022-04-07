@@ -15,7 +15,7 @@ install_lint:
 
 lint:
 	golangci-lint --version
-	golangci-lint run -E gofmt -E gosec -E goconst -E gocritic --timeout 5m
+	golangci-lint run --timeout 5m
 
 lint-todo:
 	golangci-lint run -E stylecheck -E gosec -E goconst -E godox -E gocritic
