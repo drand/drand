@@ -288,7 +288,6 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	g.Lock()
 	defer g.Unlock()
 	var err error
-	err = nil
 
 	c, ok := g.conns[p.Address()]
 	if ok && c.GetState() == connectivity.Shutdown {
@@ -320,13 +319,13 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 			}
 		}
-		if err != nil {
+		if err == nil {
 			g.conns[p.Address()] = c
 		}
 	}
 
 	// Emit the connection state regardless of whether it's a new or an existing connection
-	if err != nil {
+	if err == nil {
 		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
 	}
 
