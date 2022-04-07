@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/protobuf/common"
@@ -32,10 +33,20 @@ func (dd *DrandDaemon) NodeVersionValidator(ctx context.Context, req interface{}
 		return handler(ctx, req)
 	}
 
-	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
+	prerelease := ""
+	if v.Prerelease != nil {
+		prerelease = *v.Prerelease
+	}
+	rcvVer := commonutils.Version{
+		Major:      v.Major,
+		Minor:      v.Minor,
+		Patch:      v.Patch,
+		Prerelease: prerelease,
+	}
 	if !dd.version.IsCompatible(rcvVer) {
 		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
-		return nil, status.Error(codes.PermissionDenied, "Node Version not valid")
+		msg := fmt.Sprintf("Incompatible node version. Current: %s, received: %s", dd.version, rcvVer)
+		return nil, status.Error(codes.PermissionDenied, msg)
 	}
 
 	return handler(ctx, req)
@@ -59,10 +70,15 @@ func (dd *DrandDaemon) NodeVersionStreamValidator(srv interface{}, ss grpc.Serve
 		return handler(srv, ss)
 	}
 
-	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch}
+	prerelease := ""
+	if v.Prerelease != nil {
+		prerelease = *v.Prerelease
+	}
+	rcvVer := commonutils.Version{Major: v.Major, Minor: v.Minor, Patch: v.Patch, Prerelease: prerelease}
 	if !dd.version.IsCompatible(rcvVer) {
 		dd.log.Warnw("", "node_version_interceptor", "node version rcv is no compatible --> rejecting message", "version", rcvVer)
-		return status.Error(codes.PermissionDenied, "Node Version not valid")
+		msg := fmt.Sprintf("Incompatible node version. Current: %s, received: %s", dd.version, rcvVer)
+		return status.Error(codes.PermissionDenied, msg)
 	}
 
 	return handler(srv, ss)

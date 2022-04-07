@@ -1,8 +1,5 @@
 FROM golang:1.17.1-buster AS builder
 
-ARG major=0
-ARG minor=0
-ARG patch=0
 ARG gitCommit
 ARG buildDate
 
