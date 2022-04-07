@@ -1,5 +1,8 @@
 .PHONY: test test-unit test-integration demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
 
+VER_PACKAGE=github.com/drand/drand/common
+CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
+
 GIT_REVISION := $(shell git rev-parse --short HEAD)
 BUILD_DATE := $(shell date -u +%d/%m/%Y@%H:%M:%S)
 
