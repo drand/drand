@@ -5,7 +5,7 @@ on:
     branches: [ master ]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-regression
   cancel-in-progress: true
 
 
