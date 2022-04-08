@@ -7,6 +7,10 @@ on:
       - 'release/**'
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}-tests
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
