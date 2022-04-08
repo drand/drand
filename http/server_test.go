@@ -178,7 +178,7 @@ func TestHTTPWaiting(t *testing.T) {
 	}
 
 	// The first request will trigger background watch. 1 get (1969)
-	u := fmt.Sprintf("http://%s/%s/public/0", listener.Addr().String(), info.HashString())
+	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
 	next := getWithCtx(ctx, u, t)
 	if err != nil {
 		t.Fatal(err)

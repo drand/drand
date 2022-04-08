@@ -128,6 +128,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 			"prev_sig", shortSigStr(p.GetPreviousSig()),
 			"curr_round", currentRound,
 			"msg_sign", shortSigStr(msg),
+			"from_idx", idx,
 			"from_node", nodeName)
 		return nil, err
 	}

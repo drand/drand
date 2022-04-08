@@ -24,11 +24,15 @@ const (
 )
 
 func mockResolver(txtRecords map[string][]string) *madns.Resolver {
-	mock := &madns.MockBackend{
+	mock := &madns.MockResolver{
 		IP:  map[string][]net.IPAddr{},
 		TXT: txtRecords,
 	}
-	return &madns.Resolver{Backend: mock}
+	resolver, err := madns.NewResolver(madns.WithDefaultResolver(mock))
+	if err != nil {
+		panic(err)
+	}
+	return resolver
 }
 
 func findPeer(t *testing.T, ais []peer.AddrInfo, peerIDStr string) peer.AddrInfo {
@@ -92,7 +96,8 @@ func (fb *failBackend) LookupTXT(context.Context, string) ([]string, error) {
 
 func TestResolveDNSFailure(t *testing.T) {
 	addrs := []multiaddr.Multiaddr{multiaddr.StringCast(dnsaddr0)}
-	_, err := resolveAddresses(context.Background(), addrs, &madns.Resolver{Backend: &failBackend{}})
+	resolver, _ := madns.NewResolver(madns.WithDefaultResolver(&failBackend{}))
+	_, err := resolveAddresses(context.Background(), addrs, resolver)
 	if !strings.Contains(err.Error(), "failBackend") {
 		t.Fatal("unexpected error", err)
 	}

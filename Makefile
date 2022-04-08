@@ -18,7 +18,7 @@ install_lint:
 
 lint:
 	golangci-lint --version
-	golangci-lint run -E gofmt -E gosec -E goconst -E gocritic --timeout 5m
+	golangci-lint run --timeout 5m
 
 lint-todo:
 	golangci-lint run -E stylecheck -E gosec -E goconst -E godox -E gocritic
@@ -66,7 +66,7 @@ demo:
 ############################################ Build ############################################
 
 build_proto:
-	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.27.1
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.0
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
 	cd protobuf && sh ./compile_proto.sh
 

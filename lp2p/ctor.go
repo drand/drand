@@ -71,7 +71,10 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
 	}
 
-	cmgr := connmgr.NewConnManager(lowWater, highWater, gracePeriod)
+	cmgr, err := connmgr.NewConnManager(lowWater, highWater, connmgr.WithGracePeriod(gracePeriod))
+	if err != nil {
+		return nil, nil, xerrors.Errorf("constructing connmanager: %w", err)
+	}
 
 	opts := []libp2p.Option{
 		libp2p.Identity(priv),
@@ -90,7 +93,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		opts = append(opts, libp2p.NoListenAddrs)
 	}
 
-	h, err := libp2p.New(ctx, opts...)
+	h, err := libp2p.New(opts...)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("constructing host: %w", err)
 	}
@@ -106,7 +109,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		pubsub.WithDirectConnectTicks(directConnectTicks),
 	)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("constructing pubsub: %d", err)
+		return nil, nil, xerrors.Errorf("constructing pubsub: %w", err)
 	}
 
 	go func() {
