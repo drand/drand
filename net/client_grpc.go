@@ -18,6 +18,7 @@ import (
 	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -287,7 +288,14 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	g.Lock()
 	defer g.Unlock()
 	var err error
+
 	c, ok := g.conns[p.Address()]
+	if ok && c.GetState() == connectivity.Shutdown {
+		ok = false
+		delete(g.conns, p.Address())
+		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
+	}
+
 	if !ok {
 		log.DefaultLogger().Debugw("", "grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
 		if !p.IsTLS() {
@@ -311,9 +319,17 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 			}
 		}
-		g.conns[p.Address()] = c
-		metrics.GroupConnections.Set(float64(len(g.conns)))
+		if err == nil {
+			g.conns[p.Address()] = c
+		}
 	}
+
+	// Emit the connection state regardless of whether it's a new or an existing connection
+	if err == nil {
+		metrics.OutgoingConnectionState.WithLabelValues(p.Address()).Set(float64(c.GetState()))
+	}
+
+	metrics.OutgoingConnections.Set(float64(len(g.conns)))
 	return c, err
 }
 

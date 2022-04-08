@@ -58,10 +58,10 @@ var (
 		Name: "dial_failures",
 		Help: "Number of times there have been network connection issues",
 	}, []string{"peer_address"})
-	// GroupConnections (Group) how many GrpcClient connections are present
-	GroupConnections = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "group_connections",
-		Help: "Number of peers with current GrpcClient connections",
+	// OutgoingConnections (Group) how many GrpcClient connections are present
+	OutgoingConnections = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "outgoing_group_connections",
+		Help: "Number of peers with current outgoing GrpcClient connections",
 	})
 	GroupSize = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "group_size",
@@ -174,32 +174,50 @@ var (
 		[]string{"url"},
 	)
 
-	// dkgStateChangeTimestamp tracks DKG status changes
+	// dkgStateChangeTimestamp (Group) tracks DKG status changes
 	dkgStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name:        "dkg_state_change_timestamp",
-		Help:        "DKG state change timestamp in seconds since the Epoch",
-		ConstLabels: map[string]string{},
+		Name: "dkg_state_change_timestamp",
+		Help: "DKG state change timestamp in seconds since the Epoch",
 	}, []string{"dkg_state", "beacon_id", "is_leader"})
 
-	// reshareStateChangeTimestamp tracks reshare status changes
+	// reshareStateChangeTimestamp (Group) tracks reshare status changes
 	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name:        "reshare_state_change_timestamp",
-		Help:        "Reshare state change timestamp in seconds since the Epoch",
-		ConstLabels: map[string]string{},
+		Name: "reshare_state_change_timestamp",
+		Help: "Reshare state change timestamp in seconds since the Epoch",
 	}, []string{"reshare_state", "beacon_id", "is_leader"})
 
-	// drandBuildTime emits the timestamp when the binary was built in Unix time.
+	// drandBuildTime (Group) emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
 		Name:        "drand_build_time",
 		Help:        "Timestamp when the binary was built in seconds since the Epoch",
 		ConstLabels: map[string]string{"build": common.COMMIT, "version": common.GetAppVersion().String()},
 	}, func() float64 { return float64(getBuildTimestamp(common.BUILDDATE)) })
 
-	// IsDrandNode is 1 for drand nodes, 0 for relays
+	// IsDrandNode (Group) is 1 for drand nodes, 0 for relays
 	IsDrandNode = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "is_drand_node",
 		Help: "1 for drand nodes, not emitted for relays",
 	})
+
+	// IncomingConnectionTimestamp (Group) timestamp when each incoming connection was established
+	// We cannot track the actual connection state as with outgoing connections, since grpc-go
+	// doesn't allow for adding a listener for state tracking.
+	IncomingConnectionTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "incoming_connection_timestamp",
+		Help: "timestamp when an incoming connection was established",
+	}, []string{"remote_host"})
+
+	// OutgoingConnectionState (Group) tracks the state of an outgoing connection, according to
+	// https://github.com/grpc/grpc-go/blob/master/connectivity/connectivity.go#L51
+	// Due to the fact that grpc-go doesn't support adding a listener for state tracking, this is
+	// emitted only when getting a connection to the remote host. This means that:
+	// * If a non-PL host is unable to connect to a PL host, the metric will not be sent to InfluxDB
+	// * The state might not be up to date (e.g. the remote host is disconnected but we haven't
+	//   tried to connect to it)
+	OutgoingConnectionState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "outgoing_connection_state",
+		Help: "State of an outgoing connection. 0=Idle, 1=Connecting, 2=Ready, 3=Transient Failure, 4=Shutdown",
+	}, []string{"remote_host"})
 
 	metricsBound = false
 )
@@ -218,27 +236,20 @@ func bindMetrics() error {
 		return err
 	}
 
-	// Private metrics
-	private := []prometheus.Collector{
-		drandBuildTime,
-		dkgStateChangeTimestamp,
-		reshareStateChangeTimestamp,
-	}
-	for _, c := range private {
-		if err := PrivateMetrics.Register(c); err != nil {
-			return err
-		}
-	}
-
 	// Group metrics
 	group := []prometheus.Collector{
 		APICallCounter,
 		GroupDialFailures,
-		GroupConnections,
+		OutgoingConnections,
 		GroupSize,
 		GroupThreshold,
 		BeaconDiscrepancyLatency,
 		LastBeaconRound,
+		drandBuildTime,
+		dkgStateChangeTimestamp,
+		reshareStateChangeTimestamp,
+		IncomingConnectionTimestamp,
+		OutgoingConnectionState,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {

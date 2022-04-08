@@ -54,7 +54,8 @@ func NewGRPCListenerForPrivate(
 
 	opts = append(opts,
 		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_prometheus.StreamServerInterceptor, s.NodeVersionStreamValidator)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_prometheus.UnaryServerInterceptor, s.NodeVersionValidator)))
+		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_prometheus.UnaryServerInterceptor, s.NodeVersionValidator)),
+		grpc.StatsHandler(IncomingConnectionsStatsHandler))
 
 	grpcServer := grpc.NewServer(opts...)
 
