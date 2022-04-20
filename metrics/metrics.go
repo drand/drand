@@ -17,8 +17,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-
-const UnknownBeaconID = "unknown"
 type DKGStatus int
 type ReshareStatus int
 
