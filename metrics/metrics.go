@@ -17,26 +17,26 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type DKGStatus string
-type ReshareStatus string
 
 const UnknownBeaconID = "unknown"
+type DKGStatus int
+type ReshareStatus int
 
 const (
-	DKGNotStarted    DKGStatus = "not_started"
-	DKGInProgress    DKGStatus = "in_progress"
-	DKGWaiting       DKGStatus = "waiting"
-	DKGReady         DKGStatus = "ready"
-	DKGUnknownStatus DKGStatus = "unknown"
-	DKGShutdown      DKGStatus = "node_stopped"
+	DKGNotStarted    DKGStatus = 0
+	DKGInProgress    DKGStatus = 1
+	DKGWaiting       DKGStatus = 2
+	DKGReady         DKGStatus = 3
+	DKGUnknownStatus DKGStatus = 4
+	DKGShutdown      DKGStatus = 5
 )
 
 const (
-	ReshareIdle          ReshareStatus = "idle"
-	ReshareWaiting       ReshareStatus = "waiting"
-	ReshareInProgess     ReshareStatus = "in_progress"
-	ReshareStatusUnknown ReshareStatus = "unknown"
-	ReshareShutdown      ReshareStatus = "node_stopped"
+	ReshareIdle          ReshareStatus = 0
+	ReshareWaiting       ReshareStatus = 1
+	ReshareInProgess     ReshareStatus = 2
+	ReshareStatusUnknown ReshareStatus = 3
+	ReshareShutdown      ReshareStatus = 4
 )
 
 var (
@@ -175,17 +175,17 @@ var (
 		[]string{"url"},
 	)
 
-	// dkgStateChangeTimestamp (Group) tracks DKG status changes
-	dkgStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "dkg_state_change_timestamp",
-		Help: "DKG state change timestamp in seconds since the Epoch",
-	}, []string{"dkg_state", "beacon_id", "is_leader"})
+	// dkgState (Group) tracks DKG status changes
+	dkgState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dkg_state",
+		Help: "DKG state: 0-Not Started, 1-In Progress, 2-Waiting, 3-Ready, 4-Unknown, 5-Shutdown",
+	}, []string{"beacon_id", "is_leader"})
 
-	// reshareStateChangeTimestamp (Group) tracks reshare status changes
-	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "reshare_state_change_timestamp",
-		Help: "Reshare state change timestamp in seconds since the Epoch",
-	}, []string{"reshare_state", "beacon_id", "is_leader"})
+	// reshareState (Group) tracks reshare status changes
+	reshareState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "reshare_state",
+		Help: "Reshare state: 0-Idle, 1-Waiting, 2-In Progress, 3-Unknown, 4-Shutdown",
+	}, []string{"beacon_id", "is_leader"})
 
 	// drandBuildTime (Group) emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
@@ -239,8 +239,8 @@ func bindMetrics() error {
 		BeaconDiscrepancyLatency,
 		LastBeaconRound,
 		drandBuildTime,
-		dkgStateChangeTimestamp,
-		reshareStateChangeTimestamp,
+		dkgState,
+		reshareState,
 		OutgoingConnectionState,
 	}
 	for _, c := range group {
@@ -394,9 +394,9 @@ func getBuildTimestamp(buildDate string) int64 {
 }
 
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	dkgStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
+	dkgState.WithLabelValues(beaconID, strconv.FormatBool(leader)).Set(float64(s))
 }
 
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	reshareStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
+	reshareState.WithLabelValues(beaconID, strconv.FormatBool(leader)).Set(float64(s))
 }
