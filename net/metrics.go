@@ -2,6 +2,7 @@ package net
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc/stats"
 
@@ -22,7 +23,9 @@ func (h incomingConnectionsStatsHandler) HandleRPC(ctx context.Context, rpcStats
 }
 
 func (h incomingConnectionsStatsHandler) TagConn(ctx context.Context, tagInfo *stats.ConnTagInfo) context.Context {
-	metrics.IncomingConnectionTimestamp.WithLabelValues(tagInfo.RemoteAddr.String()).SetToCurrentTime()
+	remoteAddr := tagInfo.RemoteAddr.String()
+	parts := strings.Split(remoteAddr, ":")
+	metrics.IncomingConnectionTimestamp.WithLabelValues(parts[0]).SetToCurrentTime()
 	return ctx
 }
 
