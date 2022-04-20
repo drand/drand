@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -177,13 +176,25 @@ var (
 	dkgState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "dkg_state",
 		Help: "DKG state: 0-Not Started, 1-In Progress, 2-Waiting, 3-Ready, 4-Unknown, 5-Shutdown",
-	}, []string{"beacon_id", "is_leader"})
+	}, []string{"beacon_id"})
+
+	// dkgLeader (Group) tracks whether this node is the leader during DKG
+	dkgLeader = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dkg_leader",
+		Help: "Is this node the leader during DKG? 0-false, 1-true",
+	}, []string{"beacon_id"})
 
 	// reshareState (Group) tracks reshare status changes
 	reshareState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "reshare_state",
 		Help: "Reshare state: 0-Idle, 1-Waiting, 2-In Progress, 3-Unknown, 4-Shutdown",
-	}, []string{"beacon_id", "is_leader"})
+	}, []string{"beacon_id"})
+
+	// reshareLeader (Group) tracks whether this node is the leader during Reshare
+	reshareLeader = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "reshare_leader",
+		Help: "Is this node the leader during Reshare? 0-false, 1-true",
+	}, []string{"beacon_id"})
 
 	// drandBuildTime (Group) emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
@@ -392,9 +403,19 @@ func getBuildTimestamp(buildDate string) int64 {
 }
 
 func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	dkgState.WithLabelValues(beaconID, strconv.FormatBool(leader)).Set(float64(s))
+	value := 0.0
+	if leader {
+		value = 1.0
+	}
+	dkgState.WithLabelValues(beaconID).Set(float64(s))
+	dkgLeader.WithLabelValues(beaconID).Set(value)
 }
 
 func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	reshareState.WithLabelValues(beaconID, strconv.FormatBool(leader)).Set(float64(s))
+	value := 0.0
+	if leader {
+		value = 1.0
+	}
+	reshareState.WithLabelValues(beaconID).Set(float64(s))
+	reshareLeader.WithLabelValues(beaconID).Set(value)
 }
