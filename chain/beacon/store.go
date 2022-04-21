@@ -9,6 +9,7 @@ import (
 
 	clock "github.com/jonboulle/clockwork"
 
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
@@ -116,7 +117,7 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 
 	beaconID := d.group.ID
 	if beaconID == "" {
-		beaconID = "default"
+		beaconID = common.DefaultBeaconID
 	}
 
 	actual := d.clock.Now().UnixNano()
