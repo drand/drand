@@ -123,7 +123,11 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 
 	if bp.group != nil {
-		metrics.DKGStateChange(metrics.DKGNotStarted, bp.group.ID, false)
+		if bp.dkgDone {
+			metrics.DKGStateChange(metrics.DKGDone, bp.group.ID, false)
+		} else {
+			metrics.DKGStateChange(metrics.DKGNotStarted, bp.group.ID, false)
+		}
 	}
 
 	bp.dkgDone = false

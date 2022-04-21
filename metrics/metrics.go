@@ -16,24 +16,24 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type DKGStatus int
-type ReshareStatus int
+type DKGState int
+type ReshareState int
 
 const (
-	DKGNotStarted    DKGStatus = 0
-	DKGInProgress    DKGStatus = 1
-	DKGWaiting       DKGStatus = 2
-	DKGReady         DKGStatus = 3
-	DKGUnknownStatus DKGStatus = 4
-	DKGShutdown      DKGStatus = 5
+	DKGNotStarted   DKGState = 0
+	DKGWaiting      DKGState = 1
+	DKGInProgress   DKGState = 2
+	DKGDone         DKGState = 3
+	DKGUnknownState DKGState = 4
+	DKGShutdown     DKGState = 5
 )
 
 const (
-	ReshareIdle          ReshareStatus = 0
-	ReshareWaiting       ReshareStatus = 1
-	ReshareInProgess     ReshareStatus = 2
-	ReshareStatusUnknown ReshareStatus = 3
-	ReshareShutdown      ReshareStatus = 4
+	ReshareIdle         ReshareState = 0
+	ReshareWaiting      ReshareState = 1
+	ReshareInProgess    ReshareState = 2
+	ReshareUnknownState ReshareState = 3
+	ReshareShutdown     ReshareState = 4
 )
 
 var (
@@ -175,7 +175,7 @@ var (
 	// dkgState (Group) tracks DKG status changes
 	dkgState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "dkg_state",
-		Help: "DKG state: 0-Not Started, 1-In Progress, 2-Waiting, 3-Ready, 4-Unknown, 5-Shutdown",
+		Help: "DKG state: 0-Not Started, 1-Waiting, 2-In Progress, 3-Done, 4-Unknown, 5-Shutdown",
 	}, []string{"beacon_id"})
 
 	// dkgLeader (Group) tracks whether this node is the leader during DKG
@@ -249,7 +249,9 @@ func bindMetrics() error {
 		LastBeaconRound,
 		drandBuildTime,
 		dkgState,
+		dkgLeader,
 		reshareState,
+		reshareLeader,
 		OutgoingConnectionState,
 	}
 	for _, c := range group {
@@ -402,7 +404,7 @@ func getBuildTimestamp(buildDate string) int64 {
 	return t.Unix()
 }
 
-func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
+func DKGStateChange(s DKGState, beaconID string, leader bool) {
 	value := 0.0
 	if leader {
 		value = 1.0
@@ -411,7 +413,7 @@ func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
 	dkgLeader.WithLabelValues(beaconID).Set(value)
 }
 
-func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
+func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	value := 0.0
 	if leader {
 		value = 1.0

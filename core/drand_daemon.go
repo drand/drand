@@ -171,7 +171,11 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
-	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+	if bp.dkgDone {
+		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
+	} else {
+		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+	}
 	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
 	metrics.IsDrandNode.Set(1)
 
