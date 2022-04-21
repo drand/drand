@@ -53,35 +53,41 @@ var (
 		Name: "api_call_counter",
 		Help: "Number of API calls that we have received",
 	}, []string{"api_method"})
+
 	// GroupDialFailures (Group) how manuy failures connecting outbound
 	GroupDialFailures = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dial_failures",
 		Help: "Number of times there have been network connection issues",
 	}, []string{"peer_address"})
+
 	// OutgoingConnections (Group) how many GrpcClient connections are present
 	OutgoingConnections = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "outgoing_group_connections",
 		Help: "Number of peers with current outgoing GrpcClient connections",
 	})
-	GroupSize = prometheus.NewGauge(prometheus.GaugeOpts{
+
+	GroupSize = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "group_size",
 		Help: "Number of peers in the current group",
-	})
-	GroupThreshold = prometheus.NewGauge(prometheus.GaugeOpts{
+	}, []string{"beacon_id"})
+
+	GroupThreshold = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "group_threshold",
 		Help: "Number of shares needed for beacon reconstruction",
-	})
+	}, []string{"beacon_id"})
+
 	// BeaconDiscrepancyLatency (Group) millisecond duration between time beacon created and
 	// calculated time of round.
-	BeaconDiscrepancyLatency = prometheus.NewGauge(prometheus.GaugeOpts{
+	BeaconDiscrepancyLatency = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "beacon_discrepancy_latency",
 		Help: "Discrepancy between beacon creation time and calculated round time",
-	})
+	}, []string{"beacon_id"})
+
 	// LastBeaconRound is the most recent round (as also seen at /health) stored.
-	LastBeaconRound = prometheus.NewGauge(prometheus.GaugeOpts{
+	LastBeaconRound = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "last_beacon_round",
 		Help: "Last locally stored beacon",
-	})
+	}, []string{"beacon_id"})
 
 	// HTTPCallCounter (HTTP) how many http requests
 	HTTPCallCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
