@@ -1,65 +1,87 @@
-#!/bin/bash
+#!/bin/bash -ex
 
-set -x
+err() {
+   echo $@ > /dev/stderr
+}
 
-curr=$(pwd)
-cd $GOPATH/src/github.com/drand/drand
+pushd "$(git rev-parse --show-toplevel)"
 
-echo "[+] building drand ..."
+if [ "$1" == "-w" ]; then
+    wait=1
+fi
+
+if [ -z "${DRAND_SHARE_SECRET}" ]; then
+    err "Please set DRAND_SHARE_SECRET"
+    exit 1
+fi
+
+err "[+] building drand ..."
 go build
 
-cp drand $curr/drand
-chmod +x $curr/drand
-cd $curr
-
 tmp=$(mktemp -d)
-echo "[+] base tmp folder: $tmp"
+err "[+] base tmp folder: $tmp"
 
-f1=$tmp/d1
-f2=$tmp/d2
-f3=$tmp/d3
-f4=$tmp/d4
-f5=$tmp/d5
-a1="127.0.0.1:5000"
-a2="127.0.0.1:6000"
-a3="127.0.0.1:7000"
-a4="127.0.0.1:8000"
-a5="127.0.0.1:9000"
-p1=5001
-p2=6001
-p3=7001
-p4=8001
-p5=9001
+f=($tmp/d1 $tmp/d2 $tmp/d3 $tmp/d4 $tmp/d5)
 
-mkdir -p f1 f2 f3
+p=(5000 6000 7000 8000 9000)
 
-echo "[+] generating keys"
-./drand -f $f1 generate-keypair $a1 --tls-disable
-./drand -f $f2 generate-keypair $a2 --tls-disable
-./drand -f $f3 generate-keypair $a3 --tls-disable
-./drand -f $f4 generate-keypair $a4 --tls-disable
-./drand -f $f5 generate-keypair $a5 --tls-disable
+for dir in ${f[@]}; do
+    mkdir -p $dir
+done
 
-echo "[+] running drand daemons..."
-./drand -f $f1 --verbose 2 start --tls-disable --control $p1 & # > $tmp/log1 2>&1 &
-./drand -f $f2 --verbose 2 start --tls-disable --control $p2 & # > $tmp/log2 2>&1 &
-./drand -f $f3 --verbose 2 start --tls-disable --control $p3 & # > $tmp/log3 2>&1 &
-./drand -f $f4 --verbose 2 start --tls-disable --control $p4 & # > $tmp/log4 2>&1 &
-./drand -f $f5 --verbose 2 start --tls-disable --control $p5 & # > $tmp/log5 2>&1 &
+err "[+] generating keys"
+for i in ${!f[@]}; do
+    ./drand generate-keypair --tls-disable --folder ${f[${i}]} 127.0.0.1:$((p[${i}]+1))
+done
+
+err "[+ ] running drand daemons..."
+for i in ${!f[@]}; do
+    ./drand --verbose start --tls-disable --control ${p[${i}]} --private-listen 127.0.0.1:$((p[${i}]+1)) --metrics $((p[${i}]+2)) --folder ${f[${i}]} & # > $tmp/log1 2>&1 &
+done
 
 sleep 0.1
 
-echo "[+] creating group.toml file"
-group=$tmp/group.toml
-./drand group $f1/key/drand_id.public $f2/key/drand_id.public \
-                $f3/key/drand_id.public $f4/key/drand_id.public \
-                $f5/key/drand_id.public --out $group
+err "[+] Starting initial dkg ..."
 
-echo "[+] launching dkg ..."
-./drand -f $f1 share $group --control $p1 &
-./drand -f $f2 share $group --control $p2 &
-./drand -f $f3 share $group --control $p3 &
-./drand -f $f4 share $group --control $p4 &
-./drand -f $f5 share $group --control $p5 --leader
+if [ -n "$wait" ]; then
+    err "About to start initial dkg, hit ENTER to start leader"
+    read line
+fi
 
-echo "[+] done"
+./drand share --control ${p[0]} --tls-disable --leader --id default --period 5s --nodes ${#f[@]} --threshold ${#f[@]} &
+
+for i in $(seq 1 $((${#f[@]}-1))); do
+    if [ -n "$wait" ]; then
+        err "About to share node $i. Hit ENTER to continue"
+        read line
+    fi
+
+    ./drand share $group --control ${p[${i}]} --tls-disable --connect 127.0.0.1:$((p[0]+1))&
+done
+
+err "[+] Waiting 60s for the network to stabilize"
+sleep 60
+
+err "[+] Starting reshare"
+
+if [ -n "$wait" ]; then
+    err "About to start reshare, hit ENTER to start leader"
+    read line
+fi
+
+err -------------------------------------------------------------------------
+./drand share --control ${p[0]} --tls-disable --id default --transition --leader --nodes ${#f[@]} --threshold ${#f[@]} &
+
+for i in $(seq 1 $((${#f[@]}-1))); do
+    if [ -n "$wait" ]; then
+        err "About to reshare node $i. Hit ENTER to continue"
+        read line
+    fi
+
+err -------------------------------------------------------------------------
+    ./drand share --control ${p[${i}]} --tls-disable --id default --transition --connect 127.0.0.1:$((p[0]+1))&
+done
+
+popd
+
+err "[+] done"

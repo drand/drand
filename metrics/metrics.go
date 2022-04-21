@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,26 +16,26 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-type DKGStatus string
-type ReshareStatus string
+type DKGState int
+type ReshareState int
 
-const UnknownBeaconID = "unknown"
-
+// If you change any of these constants, be sure to change them in the appropriate metric help
+// message below, and in the dashboards!
 const (
-	DKGNotStarted    DKGStatus = "not_started"
-	DKGInProgress    DKGStatus = "in_progress"
-	DKGWaiting       DKGStatus = "waiting"
-	DKGReady         DKGStatus = "ready"
-	DKGUnknownStatus DKGStatus = "unknown"
-	DKGShutdown      DKGStatus = "node_stopped"
+	DKGNotStarted   DKGState = 0
+	DKGWaiting      DKGState = 1
+	DKGInProgress   DKGState = 2
+	DKGDone         DKGState = 3
+	DKGUnknownState DKGState = 4
+	DKGShutdown     DKGState = 5
 )
 
 const (
-	ReshareIdle          ReshareStatus = "idle"
-	ReshareWaiting       ReshareStatus = "waiting"
-	ReshareInProgess     ReshareStatus = "in_progress"
-	ReshareStatusUnknown ReshareStatus = "unknown"
-	ReshareShutdown      ReshareStatus = "node_stopped"
+	ReshareIdle         ReshareState = 0
+	ReshareWaiting      ReshareState = 1
+	ReshareInProgess    ReshareState = 2
+	ReshareUnknownState ReshareState = 3
+	ReshareShutdown     ReshareState = 4
 )
 
 var (
@@ -175,17 +174,29 @@ var (
 		[]string{"url"},
 	)
 
-	// dkgStateChangeTimestamp (Group) tracks DKG status changes
-	dkgStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "dkg_state_change_timestamp",
-		Help: "DKG state change timestamp in seconds since the Epoch",
-	}, []string{"dkg_state", "beacon_id", "is_leader"})
+	// dkgState (Group) tracks DKG status changes
+	dkgState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dkg_state",
+		Help: "DKG state: 0-Not Started, 1-Waiting, 2-In Progress, 3-Done, 4-Unknown, 5-Shutdown",
+	}, []string{"beacon_id"})
 
-	// reshareStateChangeTimestamp (Group) tracks reshare status changes
-	reshareStateChangeTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "reshare_state_change_timestamp",
-		Help: "Reshare state change timestamp in seconds since the Epoch",
-	}, []string{"reshare_state", "beacon_id", "is_leader"})
+	// dkgLeader (Group) tracks whether this node is the leader during DKG
+	dkgLeader = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dkg_leader",
+		Help: "Is this node the leader during DKG? 0-false, 1-true",
+	}, []string{"beacon_id"})
+
+	// reshareState (Group) tracks reshare status changes
+	reshareState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "reshare_state",
+		Help: "Reshare state: 0-Idle, 1-Waiting, 2-In Progress, 3-Unknown, 4-Shutdown",
+	}, []string{"beacon_id"})
+
+	// reshareLeader (Group) tracks whether this node is the leader during Reshare
+	reshareLeader = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "reshare_leader",
+		Help: "Is this node the leader during Reshare? 0-false, 1-true",
+	}, []string{"beacon_id"})
 
 	// drandBuildTime (Group) emits the timestamp when the binary was built in Unix time.
 	drandBuildTime = prometheus.NewUntypedFunc(prometheus.UntypedOpts{
@@ -239,8 +250,10 @@ func bindMetrics() error {
 		BeaconDiscrepancyLatency,
 		LastBeaconRound,
 		drandBuildTime,
-		dkgStateChangeTimestamp,
-		reshareStateChangeTimestamp,
+		dkgState,
+		dkgLeader,
+		reshareState,
+		reshareLeader,
 		OutgoingConnectionState,
 	}
 	for _, c := range group {
@@ -393,10 +406,20 @@ func getBuildTimestamp(buildDate string) int64 {
 	return t.Unix()
 }
 
-func DKGStateChange(s DKGStatus, beaconID string, leader bool) {
-	dkgStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
+func DKGStateChange(s DKGState, beaconID string, leader bool) {
+	value := 0.0
+	if leader {
+		value = 1.0
+	}
+	dkgState.WithLabelValues(beaconID).Set(float64(s))
+	dkgLeader.WithLabelValues(beaconID).Set(value)
 }
 
-func ReshareStateChange(s ReshareStatus, beaconID string, leader bool) {
-	reshareStateChangeTimestamp.WithLabelValues(string(s), beaconID, strconv.FormatBool(leader)).SetToCurrentTime()
+func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
+	value := 0.0
+	if leader {
+		value = 1.0
+	}
+	reshareState.WithLabelValues(beaconID).Set(float64(s))
+	reshareLeader.WithLabelValues(beaconID).Set(value)
 }
