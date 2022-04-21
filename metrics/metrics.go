@@ -19,6 +19,8 @@ import (
 type DKGState int
 type ReshareState int
 
+// If you change any of these constants, be sure to change them in the appropriate metric help
+// message below, and in the dashboards!
 const (
 	DKGNotStarted   DKGState = 0
 	DKGWaiting      DKGState = 1
