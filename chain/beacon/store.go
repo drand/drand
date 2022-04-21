@@ -9,6 +9,7 @@ import (
 
 	clock "github.com/jonboulle/clockwork"
 
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/chain"
@@ -113,13 +114,20 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 	if err := d.Store.Put(b); err != nil {
 		return err
 	}
+
+	beaconID := d.group.ID
+	if beaconID == "" {
+		beaconID = common.DefaultBeaconID
+	}
+
 	actual := d.clock.Now().UnixNano()
 	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
 	discrepancy := float64(actual-expected) / float64(time.Millisecond)
-	metrics.BeaconDiscrepancyLatency.Set(float64(actual-expected) / float64(time.Millisecond))
-	metrics.LastBeaconRound.Set(float64(b.GetRound()))
-	metrics.GroupSize.Set(float64(d.group.Len()))
-	metrics.GroupThreshold.Set(float64(d.group.Threshold))
+
+	metrics.BeaconDiscrepancyLatency.WithLabelValues(beaconID).Set(float64(actual-expected) / float64(time.Millisecond))
+	metrics.LastBeaconRound.WithLabelValues(beaconID).Set(float64(b.GetRound()))
+	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(d.group.Len()))
+	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(d.group.Threshold))
 	d.l.Infow("", "NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
 	return nil
 }
