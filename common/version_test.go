@@ -29,7 +29,7 @@ func TestVersionStringPre(t *testing.T) {
 	}
 
 	actual := version.String()
-	expected := "1.2.3+pre"
+	expected := "1.2.3-pre"
 
 	if actual != expected {
 		t.Fatalf("Incorrect version string. Actual: %s, expected: %s", actual, expected)
@@ -62,7 +62,7 @@ func TestVersionCompatible(t *testing.T) {
 		Major:      1,
 		Minor:      2,
 		Patch:      3,
-		Prerelease: "+pre",
+		Prerelease: "pre",
 	}
 
 	version130 := Version{
