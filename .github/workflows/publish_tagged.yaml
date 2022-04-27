@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+(\\+**)?"
+      - 'v*'
   release:
     types:
       - created
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+(\\+**)?"
+      - 'v*'
 
 jobs:
   tagged-deploy:
