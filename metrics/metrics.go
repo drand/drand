@@ -186,6 +186,12 @@ var (
 		Help: "DKG state: 0-Not Started, 1-Waiting, 2-In Progress, 3-Done, 4-Unknown, 5-Shutdown",
 	}, []string{"beacon_id"})
 
+	// DKGStateTimestamp (Group) tracks the time when the reshare status changes
+	dkgStateTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dkg_state_timestamp",
+		Help: "Timestamp when the DKG state last changed",
+	}, []string{"beacon_id"})
+
 	// dkgLeader (Group) tracks whether this node is the leader during DKG
 	dkgLeader = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "dkg_leader",
@@ -196,6 +202,12 @@ var (
 	reshareState = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "reshare_state",
 		Help: "Reshare state: 0-Idle, 1-Waiting, 2-In Progress, 3-Unknown, 4-Shutdown",
+	}, []string{"beacon_id"})
+
+	// reshareStateTimestamp (Group) tracks the time when the reshare status changes
+	reshareStateTimestamp = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "reshare_state_timestamp",
+		Help: "Timestamp when the reshare state last changed",
 	}, []string{"beacon_id"})
 
 	// reshareLeader (Group) tracks whether this node is the leader during Reshare
@@ -257,10 +269,13 @@ func bindMetrics() error {
 		LastBeaconRound,
 		drandBuildTime,
 		dkgState,
+		dkgStateTimestamp,
 		dkgLeader,
 		reshareState,
+		reshareStateTimestamp,
 		reshareLeader,
 		OutgoingConnectionState,
+		IsDrandNode,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
@@ -418,6 +433,7 @@ func DKGStateChange(s DKGState, beaconID string, leader bool) {
 		value = 1.0
 	}
 	dkgState.WithLabelValues(beaconID).Set(float64(s))
+	dkgStateTimestamp.WithLabelValues(beaconID).SetToCurrentTime()
 	dkgLeader.WithLabelValues(beaconID).Set(value)
 }
 
@@ -427,5 +443,6 @@ func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 		value = 1.0
 	}
 	reshareState.WithLabelValues(beaconID).Set(float64(s))
+	reshareStateTimestamp.WithLabelValues(beaconID).SetToCurrentTime()
 	reshareLeader.WithLabelValues(beaconID).Set(value)
 }
