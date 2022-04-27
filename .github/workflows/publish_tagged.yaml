@@ -1,6 +1,10 @@
 name: "Publish tagged image"
 
 on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+(\\+**)?"
   release:
     types:
       - created
@@ -23,18 +27,9 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - name: Get latest release version number
-        id: get_version
-        uses: battila7/get-version-action@d97fbc34ceb64d1f5d95f4dfd6dce33521ccccf5 # pin@v2
-      - name: Parse semver string
-        id: semver_parser
-        uses: booxmedialtd/ws-action-parse-semver@3576f3a20a39f8752fe0d8195f5ed384090285dc # pin@v1
-        with:
-          input_string: ${{ steps.get_version.outputs.version }}
-          version_extractor_regex: 'v(.*)$'
       - name: Build and push tagged Docker image
         run: |
-          docker build --build-arg major=${{ steps.semver_parser.outputs.major }} --build-arg minor=${{ steps.semver_parser.outputs.minor }} --build-arg patch=${{ steps.semver_parser.outputs.patch }} --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
+          docker build --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
           echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
           docker push drandorg/go-drand:`git describe --tags`
         env:
