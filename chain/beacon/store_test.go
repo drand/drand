@@ -2,7 +2,6 @@ package beacon
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -15,9 +14,7 @@ import (
 func TestSchemeStore(t *testing.T) {
 	sch, _ := scheme.ReadSchemeByEnv()
 
-	dir, err := os.MkdirTemp("", "*")
-	require.NoError(t, err)
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	bstore, err := boltdb.NewBoltStore(dir, nil)
 	require.NoError(t, err)

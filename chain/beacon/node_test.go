@@ -135,8 +135,7 @@ type BeaconTest struct {
 }
 
 func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime int64, sch scheme.Scheme, beaconID string) *BeaconTest {
-	prefix, err := os.MkdirTemp(os.TempDir(), beaconID)
-	checkErr(err)
+	prefix := t.TempDir()
 	paths := createBoltStores(prefix, n)
 	shares, commits := dkgShares(t, n, thr)
 	privs, group := test.BatchIdentities(n, sch, beaconID)

@@ -218,9 +218,8 @@ func TestKeyGen(t *testing.T) {
 
 // tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
-	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0o740)
-	defer os.RemoveAll(tmpPath)
+	tmpPath := t.TempDir()
+	os.Chmod(tmpPath, 0o740)
 
 	n := 5
 	sch := scheme.GetSchemeFromEnv()
@@ -259,9 +258,7 @@ func TestStartAndStop(t *testing.T) {
 func TestUtilCheck(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp, err := os.MkdirTemp("", "drand-cli-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	// try to generate a keypair and make it listen on another address
 	keyPort := test.FreePort()
@@ -789,9 +786,7 @@ func TestDrandStatus(t *testing.T) {
 func TestEmptyPortSelectionUsesDefaultDuringKeygen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp, err := os.MkdirTemp("", "drand-cli-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	app := CLI()
 
 	// args are missing a port for the node address
@@ -805,9 +800,7 @@ func TestEmptyPortSelectionUsesDefaultDuringKeygen(t *testing.T) {
 func TestValidPortSelectionSucceedsDuringKeygen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp, err := os.MkdirTemp("", "drand-cli-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	app := CLI()
 
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
@@ -905,8 +898,8 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0o740)
+	tmpPath := t.TempDir()
+	os.Chmod(tmpPath, 0o740)
 	certsDir, err := ioutil.TempDir(tmpPath, "certs")
 	require.NoError(t, err)
 
@@ -960,9 +953,6 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 
 func TestSharingWithInvalidFlagCombos(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
-	tmp, err := os.MkdirTemp("", "drand-cli-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmp)
 
 	// leader and connect flags can't be used together
 	share1 := []string{
