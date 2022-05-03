@@ -61,10 +61,7 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 
 	// Add callback to register a new handler for http server after finishing DKG successfully
 	c.dkgCallback = func(share *key.Share, group *key.Group) {
-		beaconID := group.ID
-		if beaconID == "" {
-			beaconID = common.DefaultBeaconID
-		}
+		beaconID := common.GetCorrectBeaconID(group.ID)
 		drandDaemon.state.Lock()
 		bp, isPresent := drandDaemon.beaconProcesses[beaconID]
 		drandDaemon.state.Unlock()
@@ -156,10 +153,7 @@ func (dd *DrandDaemon) init() error {
 
 // InstantiateBeaconProcess creates a new BeaconProcess linked to beacon with id 'beaconID'
 func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
-
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
 	logger := dd.log.Named(beaconID)
 	bp, err := NewBeaconProcess(logger, store, dd.opts, dd.privGateway, dd.pubGateway)
@@ -194,10 +188,7 @@ func (dd *DrandDaemon) AddNewChainHash(beaconID string, bp *BeaconProcess) {
 
 // RemoveBeaconProcess remove a BeaconProcess linked to beacon with id 'beaconID'
 func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
-
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	chainHash := ""
 	if bp.group != nil {
 		info := chain.NewChainInfo(bp.group)

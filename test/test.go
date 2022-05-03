@@ -5,17 +5,21 @@ package test
 import (
 	"encoding/hex"
 	n "net"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/common/scheme"
 
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/pairing/bn256"
 	"github.com/drand/kyber/util/random"
+
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
 )
 
 type testPeer struct {
@@ -29,6 +33,12 @@ func (t *testPeer) Address() string {
 
 func (t *testPeer) IsTLS() bool {
 	return t.b
+}
+
+// GetBeaconIDFromEnv read beacon id from an environmental variable.
+// It is used for testing purpose.
+func GetBeaconIDFromEnv() string {
+	return common.GetCorrectBeaconID(os.Getenv("BEACON_ID"))
 }
 
 // NewPeer returns a new net.Peer

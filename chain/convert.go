@@ -43,14 +43,10 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 func (c *Info) ToProto(metadata *common.Metadata) *drand.ChainInfoPacket {
 	buff, _ := c.PublicKey.MarshalBinary()
 
-	if metadata != nil {
-		metadata.BeaconID = c.ID
+	if id := commonutils.GetCorrectBeaconID(c.ID); metadata != nil {
+		metadata.BeaconID = id
 	} else {
-		metadata = &common.Metadata{BeaconID: c.ID}
-	}
-
-	if metadata.BeaconID == "" {
-		metadata.BeaconID = commonutils.DefaultBeaconID
+		metadata = &common.Metadata{BeaconID: id}
 	}
 
 	return &drand.ChainInfoPacket{

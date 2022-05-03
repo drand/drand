@@ -10,9 +10,10 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 
+	"github.com/drand/kyber"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
-	"github.com/drand/kyber"
 )
 
 // Info represents the public information that is necessary for a client to
@@ -28,12 +29,8 @@ type Info struct {
 
 // NewChainInfo makes a chain Info from a group
 func NewChainInfo(g *key.Group) *Info {
-	beaconID := g.ID
-	if beaconID == "" {
-		g.ID = common.DefaultBeaconID
-	}
 	return &Info{
-		ID:          beaconID,
+		ID:          common.GetCorrectBeaconID(g.ID),
 		Period:      g.Period,
 		Scheme:      g.Scheme,
 		PublicKey:   g.PublicKey.Key(),
@@ -58,8 +55,8 @@ func (c *Info) Hash() []byte {
 	_, _ = h.Write(buff)
 	_, _ = h.Write(c.GroupHash)
 
-	// Use it only if ID is not empty. Keep backward compatibility
-	if c.ID != "" && c.ID != common.DefaultBeaconID {
+	// To keep backward compatibility
+	if !common.IsDefaultBeaconID(c.ID) {
 		_, _ = h.Write([]byte(c.ID))
 	}
 

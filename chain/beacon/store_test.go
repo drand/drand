@@ -7,9 +7,10 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/stretchr/testify/require"
 )
 
 func TestSchemeStore(t *testing.T) {

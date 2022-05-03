@@ -11,6 +11,8 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 
+	"github.com/kabukky/httpscerts"
+
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
@@ -19,7 +21,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
-	"github.com/kabukky/httpscerts"
 )
 
 type LocalNode struct {

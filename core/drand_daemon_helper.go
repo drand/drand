@@ -9,10 +9,7 @@ import (
 )
 
 func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, error) {
-	rcvBeaconID := metadata.GetBeaconID()
-	if rcvBeaconID == "" {
-		rcvBeaconID = common.DefaultBeaconID
-	}
+	rcvBeaconID := common.GetCorrectBeaconID(metadata.GetBeaconID())
 
 	if chainHashHex := metadata.GetChainHash(); len(chainHashHex) != 0 {
 		chainHash := fmt.Sprintf("%x", chainHashHex)

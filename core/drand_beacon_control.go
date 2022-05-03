@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	commonutils "github.com/drand/drand/common"
@@ -21,11 +23,11 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
-	clock "github.com/jonboulle/clockwork"
 
-	"github.com/drand/drand/net"
 	"github.com/drand/kyber/share/dkg"
 	vss "github.com/drand/kyber/share/vss/pedersen"
+
+	"github.com/drand/drand/net"
 
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
@@ -40,11 +42,7 @@ var errPreempted = errors.New("time out: pre-empted")
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	beaconID := in.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
-
+	beaconID := commonutils.GetCorrectBeaconID(in.GetMetadata().GetBeaconID())
 	bp.state.Lock()
 	if bp.dkgDone {
 		bp.state.Unlock()
@@ -118,10 +116,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	}
 
 	rcvBeaconID := in.GetMetadata().GetBeaconID()
-	beaconID := oldGroup.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
 
 	if !commonutils.CompareBeaconIDs(rcvBeaconID, beaconID) {
 		return nil, fmt.Errorf("drand: invalid setup configuration: beacon id on flag is different to beacon id on group file")
@@ -177,7 +172,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		newGroup,
 		in.GetInfo().GetSecret(),
 		in.GetInfo().GetTimeout(),
-		oldGroup.ID); err != nil {
+		beaconID); err != nil {
 		bp.log.Errorw("", "push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
@@ -358,10 +353,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 // runDKG setups the proper structures and protocol to run the DKG and waits
 // until it finishes. If leader is true, this node sends the first packet.
 func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
-	beaconID := group.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(group.ID)
 
 	reader, user := extractEntropy(randomness)
 	config := &dkg.Config{
@@ -445,10 +437,7 @@ func (bp *BeaconProcess) cleanupDKG() {
 // first packet so other nodes will start as soon as they receive it.
 // nolint:funlen
 func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
-	beaconID := oldGroup.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
 
 	oldNode := oldGroup.Find(bp.priv.Public)
 	oldPresent := oldNode != nil
@@ -654,10 +643,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 // nolint:funlen
 func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (
 	*drand.GroupPacket, error) {
-	beaconID := oldGroup.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
 	oldHash := oldGroup.Hash()
 
 	// determine the leader's address
@@ -770,7 +756,7 @@ func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) 
 		return errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
 
-	if oldGroup.ID != newGroup.ID {
+	if !commonutils.CompareBeaconIDs(oldGroup.ID, newGroup.ID) {
 		bp.log.Errorw("", "setup_reshare", "invalid ID in received group")
 		return errors.New("control: old and new group have different ID - unsupported feature at the moment")
 	}

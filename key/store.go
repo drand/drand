@@ -9,6 +9,7 @@ import (
 	"github.com/drand/drand/common"
 
 	"github.com/BurntSushi/toml"
+
 	"github.com/drand/drand/fs"
 )
 
@@ -94,10 +95,7 @@ func NewFileStores(baseFolder string) (map[string]Store, error) {
 // NewFileStore is used to create the config folder and all the subfolders.
 // If a folder alredy exists, we simply check the rights
 func NewFileStore(baseFolder, beaconID string) Store {
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
-
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	store := &fileStore{baseFolder: baseFolder, beaconID: beaconID}
 
 	keyFolder := fs.CreateSecureFolder(path.Join(baseFolder, beaconID, KeyFolderName))

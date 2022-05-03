@@ -27,6 +27,8 @@ import (
 	gonet "net"
 
 	"github.com/BurntSushi/toml"
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
@@ -35,7 +37,6 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/urfave/cli/v2"
 )
 
 // default output of the drand operational commands
@@ -1013,11 +1014,7 @@ func testEmptyGroup(filePath string) error {
 }
 
 func getBeaconID(c *cli.Context) string {
-	beaconID := c.String(beaconIDFlag.Name)
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
-
+	beaconID := common.GetCorrectBeaconID(c.String(beaconIDFlag.Name))
 	return beaconID
 }
 

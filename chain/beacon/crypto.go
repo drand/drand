@@ -3,9 +3,10 @@ package beacon
 import (
 	"sync"
 
+	"github.com/drand/kyber/share"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
-	"github.com/drand/kyber/share"
 )
 
 // CryptoSafe holds the cryptographic information to generate a partial beacon

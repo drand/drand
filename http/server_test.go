@@ -10,12 +10,13 @@ import (
 
 	nhttp "github.com/drand/drand/client/http"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
-	"github.com/stretchr/testify/require"
 
 	json "github.com/nikkolasg/hexjson"
 )

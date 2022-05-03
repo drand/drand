@@ -116,8 +116,8 @@ func (g *Group) Hash() []byte {
 		_, _ = h.Write(g.PublicKey.Hash())
 	}
 
-	// Use it only if ID is not empty nor "default" to keep backward compatibility
-	if g.ID != "" && g.ID != commonutils.DefaultBeaconID {
+	// To keep backward compatibility
+	if !commonutils.IsDefaultBeaconID(g.ID) {
 		_, _ = h.Write([]byte(g.ID))
 	}
 
@@ -201,7 +201,6 @@ type GroupTOML struct {
 }
 
 // FromTOML decodes the group from the toml struct
-// nolint:gocyclo
 func (g *Group) FromTOML(i interface{}) (err error) {
 	gt, ok := i.(*GroupTOML)
 	if !ok {
@@ -255,11 +254,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		}
 	}
 
-	if gt.ID == "" {
-		g.ID = commonutils.DefaultBeaconID
-	} else {
-		g.ID = gt.ID
-	}
+	g.ID = commonutils.GetCorrectBeaconID(gt.ID)
 
 	return nil
 }
@@ -395,10 +390,6 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 	}
 
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
-	beaconID := g.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
 		c := KeyGroup.Point()
@@ -416,7 +407,7 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 		GenesisTime:    genesisTime,
 		TransitionTime: int64(g.GetTransitionTime()),
 		Scheme:         sch,
-		ID:             beaconID,
+		ID:             commonutils.GetCorrectBeaconID(g.GetMetadata().GetBeaconID()),
 	}
 
 	if g.GetGenesisSeed() != nil {

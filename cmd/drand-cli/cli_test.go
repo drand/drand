@@ -20,6 +20,11 @@ import (
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/BurntSushi/toml"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/util/random"
+	"github.com/kabukky/httpscerts"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common/scheme"
@@ -27,10 +32,6 @@ import (
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/util/random"
-	"github.com/kabukky/httpscerts"
 
 	"github.com/stretchr/testify/require"
 )
@@ -64,7 +65,7 @@ func TestMigrate(t *testing.T) {
 }
 
 func TestResetError(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -75,7 +76,7 @@ func TestResetError(t *testing.T) {
 }
 
 func TestDeleteBeaconError(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -87,7 +88,7 @@ func TestDeleteBeaconError(t *testing.T) {
 }
 
 func TestDeleteBeacon(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -141,7 +142,7 @@ func TestDeleteBeacon(t *testing.T) {
 }
 
 func TestKeySelfSignError(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -152,7 +153,7 @@ func TestKeySelfSignError(t *testing.T) {
 }
 
 func TestKeySelfSign(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -179,7 +180,7 @@ func TestKeySelfSign(t *testing.T) {
 }
 
 func TestKeyGenError(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := getSBFolderStructure()
 	defer os.RemoveAll(tmp)
@@ -190,7 +191,7 @@ func TestKeyGenError(t *testing.T) {
 }
 
 func TestKeyGen(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
@@ -225,7 +226,7 @@ func TestStartAndStop(t *testing.T) {
 
 	n := 5
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	_, group := test.BatchIdentities(n, sch, beaconID)
 	groupPath := path.Join(tmpPath, "group.toml")
@@ -258,7 +259,7 @@ func TestStartAndStop(t *testing.T) {
 }
 
 func TestUtilCheck(t *testing.T) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp, err := os.MkdirTemp("", "drand-cli-*")
 	require.NoError(t, err)
@@ -307,7 +308,7 @@ func TestUtilCheck(t *testing.T) {
 //nolint:funlen
 func TestStartWithoutGroup(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
@@ -521,7 +522,7 @@ func testListSchemes(t *testing.T, ctrlPort string) {
 
 func TestClientTLS(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)
@@ -679,13 +680,7 @@ func TestDrandListSchemes(t *testing.T) {
 
 func TestDrandReloadBeacon(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
-	beaconID := common.GetBeaconIDFromEnv()
-
-	// beacon id need to have a value in order to stop one beacon process
-	// if beacon id is empty, the id will be "default" internally
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
+	beaconID := common.GetCorrectBeaconID(test.GetBeaconIDFromEnv())
 
 	n := 4
 	instances, tempPath := launchDrandInstances(t, n)
@@ -878,7 +873,7 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 
 //nolint: gocritic
 func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
-	beaconID := common.GetBeaconIDFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0740)

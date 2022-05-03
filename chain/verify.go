@@ -5,8 +5,9 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 
-	"github.com/drand/drand/key"
 	"github.com/drand/kyber"
+
+	"github.com/drand/drand/key"
 )
 
 // Verifier allows verifying the beacons signature based on a scheme.

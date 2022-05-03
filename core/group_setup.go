@@ -12,6 +12,8 @@ import (
 
 	common2 "github.com/drand/drand/common/scheme"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/key"
@@ -19,7 +21,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
 )
 
 // setupManager takes care of setting up a new DKG network from the perspective
@@ -130,7 +131,7 @@ func newReshareSetup(
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
 	schemeID := oldGroup.Scheme.ID
-	beaconID := oldGroup.ID
+	beaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
 
 	catchupPeriod := in.CatchupPeriod
 	if !in.CatchupPeriodChanged {
@@ -313,10 +314,6 @@ type setupReceiver struct {
 
 func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
 	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
-	beaconID := in.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
 	setup := &setupReceiver{
 		ch:       make(chan *dkgGroup, 1),
 		l:        l,
@@ -325,7 +322,7 @@ func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
 		clock:    c,
 		secret:   hashSecret(in.GetSecret()),
 		version:  version,
-		beaconID: beaconID,
+		beaconID: commonutils.GetCorrectBeaconID(in.GetMetadata().GetBeaconID()),
 	}
 
 	if err := setup.fetchLeaderKey(); err != nil {

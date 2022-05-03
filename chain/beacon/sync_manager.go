@@ -9,11 +9,12 @@ import (
 	"sync"
 	"time"
 
+	cl "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	proto "github.com/drand/drand/protobuf/drand"
-	cl "github.com/jonboulle/clockwork"
 )
 
 // SyncManager manages all the sync requests to other peers. It performs a

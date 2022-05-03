@@ -10,11 +10,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/core/migration"
 
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/briandowns/spinner"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
@@ -250,7 +253,7 @@ func reshareCmd(c *cli.Context) error {
 		return fmt.Errorf("could not create client: %w", err)
 	}
 
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := common.GetCorrectBeaconID(c.String(beaconIDFlag.Name))
 
 	// resharing case needs the previous group
 	var oldPath string
@@ -269,7 +272,7 @@ func reshareCmd(c *cli.Context) error {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
-		beaconID = oldGroup.ID
+		beaconID = common.GetCorrectBeaconID(oldGroup.ID)
 	}
 
 	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s] \n", beaconID)

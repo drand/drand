@@ -9,12 +9,13 @@ import (
 	"sync"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -358,10 +359,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	ctx := context.Background()
 	previousSig := upon.Signature
 	round := upon.Round + 1
-	beaconID := h.conf.Group.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(h.conf.Group.ID)
 	if current.round == upon.Round {
 		// we already have the beacon of the current round for some reasons - on
 		// CI it happens due to time shifts -

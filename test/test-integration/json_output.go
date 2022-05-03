@@ -7,9 +7,10 @@ import (
 
 	"github.com/drand/drand/chain"
 
-	"github.com/drand/drand/key"
 	"github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
+
+	"github.com/drand/drand/key"
 )
 
 // This binary returns a "fake" JSON output that is used as a reference for

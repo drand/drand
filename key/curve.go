@@ -3,7 +3,7 @@ package key
 import (
 	"crypto/cipher"
 
-	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber"
 	bls "github.com/drand/kyber-bls12381"
 
 	// FIXME package github.com/drand/kyber/sign/bls is deprecated: This version is vulnerable to

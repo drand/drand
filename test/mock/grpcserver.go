@@ -13,14 +13,15 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand"
-	testnet "github.com/drand/drand/test/net"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"
 	"github.com/drand/kyber/util/random"
+
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
+	testnet "github.com/drand/drand/test/net"
 )
 
 // MockService provides a way for clients getting the service to be able to call

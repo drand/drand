@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/log"
 )
 
 type DKGState int

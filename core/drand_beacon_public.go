@@ -8,13 +8,14 @@ import (
 
 	"github.com/drand/drand/chain/beacon"
 
+	"github.com/drand/kyber/encrypt/ecies"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/encrypt/ecies"
 )
 
 // BroadcastDKG is the public method to call during a DKG protocol.

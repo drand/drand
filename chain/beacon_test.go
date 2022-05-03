@@ -3,9 +3,10 @@ package chain
 import (
 	"testing"
 
+	"github.com/drand/kyber/util/random"
+
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
-	"github.com/drand/kyber/util/random"
 )
 
 func BenchmarkVerifyBeacon(b *testing.B) {

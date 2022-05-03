@@ -6,13 +6,14 @@ import (
 
 	"github.com/drand/drand/common"
 
+	clock "github.com/jonboulle/clockwork"
+	bolt "go.etcd.io/bbolt"
+	"google.golang.org/grpc"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	clock "github.com/jonboulle/clockwork"
-	bolt "go.etcd.io/bbolt"
-	"google.golang.org/grpc"
 )
 
 // ConfigOption is a function that applies a specific setting to a Config.
@@ -72,10 +73,7 @@ func (d *Config) ConfigFolderMB() string {
 // DBFolder returns the folder under which drand stores db file specifically.
 // If beacon id is empty, it will use the default value
 func (d *Config) DBFolder(beaconID string) string {
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
-
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	return path.Join(d.ConfigFolderMB(), beaconID, DefaultDBFolder)
 }
 

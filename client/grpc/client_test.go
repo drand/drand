@@ -9,9 +9,10 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 
-	"github.com/drand/drand/test/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/drand/drand/test/mock"
 )
 
 func TestClient(t *testing.T) {

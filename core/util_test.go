@@ -11,11 +11,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/kyber/share/dkg"
+
+	"github.com/drand/drand/common/scheme"
 
 	"github.com/kabukky/httpscerts"
 	"github.com/stretchr/testify/assert"
+
+	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
+	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
@@ -23,10 +29,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
-	"google.golang.org/grpc"
 )
 
 const (

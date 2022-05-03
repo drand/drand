@@ -8,13 +8,14 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/drand/kyber/share/dkg"
+
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/share/dkg"
 )
 
 // Broadcast is an interface that represents the minimum functionality required

@@ -15,11 +15,12 @@ import (
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/fs"
 
+	"github.com/drand/kyber/share/dkg"
+
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/net"
-	"github.com/drand/kyber/share/dkg"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it
@@ -123,11 +124,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 
 	if bp.group != nil {
-		beaconID := bp.group.ID
-
-		if beaconID == "" {
-			beaconID = common.DefaultBeaconID
-		}
+		beaconID := common.GetCorrectBeaconID(bp.group.ID)
 
 		if bp.dkgDone {
 			metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
@@ -153,11 +150,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	}
 
 	if bp.group != nil {
-		beaconID := bp.group.ID
-
-		if beaconID == "" {
-			beaconID = common.DefaultBeaconID
-		}
+		beaconID := common.GetCorrectBeaconID(bp.group.ID)
 		metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 	}
 

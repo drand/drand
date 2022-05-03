@@ -16,11 +16,12 @@ import (
 
 	"github.com/go-chi/chi"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	json "github.com/nikkolasg/hexjson"
 )

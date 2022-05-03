@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStoreCallback(t *testing.T) {

@@ -4,8 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/drand/drand/chain"
 	"github.com/stretchr/testify/require"
+
+	"github.com/drand/drand/chain"
 )
 
 func TestStoreBoltOrder(t *testing.T) {
