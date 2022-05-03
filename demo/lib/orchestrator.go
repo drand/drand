@@ -3,6 +3,7 @@ package lib
 import (
 	"bytes"
 	"fmt"
+	"github.com/drand/drand/common"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -91,7 +92,7 @@ func NewOrchestrator(n int, thr int, period string, tls bool, binary string, wit
 		withCurl:          withCurl,
 		binary:            binary,
 		isBinaryCandidate: isCandidate,
-		beaconID:          beaconID,
+		beaconID:          common.GetCorrectBeaconID(beaconID),
 	}
 	return e
 }
@@ -503,6 +504,7 @@ func (e *Orchestrator) RunResharing(timeout string) {
 
 func createNodes(n int, offset int, period, basePath, certFolder string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool) ([]node.Node, []string) {
 	var nodes []node.Node
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	for i := 0; i < n; i++ {
 		idx := i + offset
 		var n node.Node

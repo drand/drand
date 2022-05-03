@@ -74,7 +74,7 @@ func (c *Info) Equal(c2 *Info) bool {
 		c.Period == c2.Period &&
 		c.PublicKey.Equal(c2.PublicKey) &&
 		bytes.Equal(c.GroupHash, c2.GroupHash) &&
-		c.ID == c2.ID
+		common.CompareBeaconIDs(c.ID, c2.ID)
 }
 
 // Verifier returns the verifier used to verify the beacon produced by this

@@ -89,7 +89,7 @@ func (c *ControlClient) RemoteStatus(ct ctx.Context,
 	addresses []*drand.Address,
 	beaconID string) (map[string]*drand.StatusResponse, error) {
 	metadata := protoCommon.Metadata{
-		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
+		NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID),
 	}
 
 	packet := drand.RemoteStatusRequest{
@@ -112,7 +112,7 @@ func (c *ControlClient) Ping() error {
 // LoadBeacon
 func (c *ControlClient) LoadBeacon(beaconID string) (*control.LoadBeaconResponse, error) {
 	metadata := protoCommon.Metadata{
-		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
+		NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID),
 	}
 
 	resp, err := c.client.LoadBeacon(ctx.Background(), &control.LoadBeaconRequest{Metadata: &metadata})
@@ -132,7 +132,7 @@ func (c *ControlClient) ListBeaconIDs() (*control.ListBeaconIDsResponse, error) 
 // Status gets the current daemon status
 func (c *ControlClient) Status(beaconID string) (*control.StatusResponse, error) {
 	metadata := protoCommon.Metadata{
-		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
+		NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID),
 	}
 
 	resp, err := c.client.Status(ctx.Background(), &control.StatusRequest{Metadata: &metadata})
@@ -156,7 +156,7 @@ func (c *ControlClient) InitReshareLeader(
 	secret, oldPath string,
 	offset int,
 	beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -181,7 +181,7 @@ func (c *ControlClient) InitReshareLeader(
 
 // InitReshare sets up the node to be ready for a resharing protocol.
 func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	request := &control.InitResharePacket{
 		Old: &control.GroupInfo{
@@ -213,7 +213,7 @@ func (c *ControlClient) InitDKGLeader(
 	offset int,
 	schemeID string,
 	beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -237,7 +237,7 @@ func (c *ControlClient) InitDKGLeader(
 
 // InitDKG sets up the node to be ready for a first DKG protocol.
 func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret, beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	request := &control.InitDKGPacket{
 		Info: &control.SetupInfoPacket{
@@ -256,28 +256,28 @@ func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secre
 
 // Share returns the share of the remote node
 func (c *ControlClient) Share(beaconID string) (*control.ShareResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	return c.client.Share(ctx.Background(), &control.ShareRequest{Metadata: &metadata})
 }
 
 // PublicKey returns the public key of the remote node
 func (c *ControlClient) PublicKey(beaconID string) (*control.PublicKeyResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	return c.client.PublicKey(ctx.Background(), &control.PublicKeyRequest{Metadata: &metadata})
 }
 
 // PrivateKey returns the private key of the remote node
 func (c *ControlClient) PrivateKey(beaconID string) (*control.PrivateKeyResponse, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	return c.client.PrivateKey(ctx.Background(), &control.PrivateKeyRequest{Metadata: &metadata})
 }
 
 // ChainInfo returns the collective key of the remote node
 func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	return c.client.ChainInfo(ctx.Background(), &control.ChainInfoRequest{Metadata: &metadata})
 }
@@ -285,13 +285,14 @@ func (c *ControlClient) ChainInfo(beaconID string) (*control.ChainInfoPacket, er
 // GroupFile returns the group file that the drand instance uses at the current
 // time
 func (c *ControlClient) GroupFile(beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 
 	return c.client.GroupFile(ctx.Background(), &control.GroupRequest{Metadata: &metadata})
 }
 
 // Shutdown stops the daemon
 func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, error) {
+	// we do not call "GetCorrectBeaconID" because the empty means we shutdown the daemon
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: &metadata})
 }
@@ -307,7 +308,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	beaconID string) (outCh chan *control.FollowProgress,
 	errCh chan error, e error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	metadata.BeaconID = beaconID
+	metadata.BeaconID = common.GetCorrectBeaconID(beaconID)
 
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		InfoHash: hash,
@@ -344,7 +345,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 
 // BackupDB backs up the database to a file
 func (c *ControlClient) BackupDB(outFile, beaconID string) error {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
+	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: common.GetCorrectBeaconID(beaconID)}
 	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
 }

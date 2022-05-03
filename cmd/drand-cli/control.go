@@ -127,7 +127,7 @@ func shareCmd(c *cli.Context) error {
 		return fmt.Errorf("could not create client: %w", err)
 	}
 
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := common.GetCorrectBeaconID(c.String(beaconIDFlag.Name))
 
 	fmt.Fprintf(output, "Participating to the setup of the DKG. Beacon ID: [%s] \n", beaconID)
 	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret, beaconID)
@@ -188,7 +188,7 @@ func leadShareCmd(c *cli.Context) error {
 		offset = c.Int(beaconOffset.Name)
 	}
 
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := common.GetCorrectBeaconID(c.String(beaconIDFlag.Name))
 
 	str1 := fmt.Sprintf("Initiating the DKG as a leader. Beacon ID: [%s]", beaconID)
 
@@ -309,7 +309,7 @@ func leadReshareCmd(c *cli.Context) error {
 		return fmt.Errorf("could not create client: %w", err)
 	}
 
-	beaconID := c.String(beaconIDFlag.Name)
+	beaconID := common.GetCorrectBeaconID(c.String(beaconIDFlag.Name))
 
 	// resharing case needs the previous group
 	var oldPath string
@@ -327,7 +327,7 @@ func leadReshareCmd(c *cli.Context) error {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
-		beaconID = oldGroup.ID
+		beaconID = common.GetCorrectBeaconID(oldGroup.ID)
 	}
 
 	offset := int(core.DefaultResharingOffset.Seconds())

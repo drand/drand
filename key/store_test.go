@@ -15,8 +15,7 @@ import (
 // GetBeaconIDFromEnv read beacon id from an environmental variable.
 // It is used for testing purpose.
 func GetBeaconIDFromEnv() string {
-	beaconID := commonutils.GetCorrectBeaconID(os.Getenv("BEACON_ID"))
-	return beaconID
+	return commonutils.GetCorrectBeaconID(os.Getenv("BEACON_ID"))
 }
 
 func TestKeysSaveLoad(t *testing.T) {

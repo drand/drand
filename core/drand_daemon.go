@@ -177,6 +177,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 }
 
 func (dd *DrandDaemon) AddNewChainHash(beaconID string, bp *BeaconProcess) {
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	dd.state.Lock()
 	chainHash := chain.NewChainInfo(bp.group).HashString()
 	dd.chainHashes[chainHash] = beaconID

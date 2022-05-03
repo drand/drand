@@ -3,6 +3,8 @@ package beacon
 import (
 	"fmt"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -108,7 +110,7 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	beaconID := c.conf.Group.ID
+	beaconID := common.GetCorrectBeaconID(c.conf.Group.ID)
 	lastBeacon, err := c.Last()
 	if err != nil {
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)

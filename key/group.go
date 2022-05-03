@@ -146,7 +146,7 @@ func (g *Group) String() string {
 
 // Equal indicates if two groups are equal
 func (g *Group) Equal(g2 *Group) bool {
-	if g.ID != g2.ID {
+	if !commonutils.CompareBeaconIDs(g.ID, g2.ID) {
 		return false
 	}
 	if g.Threshold != g2.Threshold {
@@ -312,7 +312,7 @@ func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPer
 		Period:        period,
 		CatchupPeriod: catchupPeriod,
 		Scheme:        sch,
-		ID:            beaconID,
+		ID:            commonutils.GetCorrectBeaconID(beaconID),
 	}
 }
 
@@ -332,7 +332,7 @@ func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Dura
 		GenesisTime:    genesis,
 		TransitionTime: transition,
 		Scheme:         sch,
-		ID:             beaconID,
+		ID:             commonutils.GetCorrectBeaconID(beaconID),
 	}
 }
 
