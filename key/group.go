@@ -452,11 +452,7 @@ func (g *Group) ToProto(version commonutils.Version) *proto.GroupPacket {
 	out.SchemeID = g.Scheme.ID
 
 	out.Metadata = common.NewMetadata(version.ToProto())
-	if g.ID == "" {
-		out.Metadata.BeaconID = commonutils.DefaultBeaconID
-	} else {
-		out.Metadata.BeaconID = g.ID
-	}
+	out.Metadata.BeaconID = commonutils.GetCorrectBeaconID(g.ID)
 
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))

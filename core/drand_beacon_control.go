@@ -548,10 +548,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
 func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	beaconID := in.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(in.GetMetadata().GetBeaconID())
 	bp.log.Infow("", "init_dkg", "begin", "leader", false)
 
 	// determine the leader's address
@@ -1111,10 +1108,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 
-	beaconID := req.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(req.GetMetadata().GetBeaconID())
 
 	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
