@@ -5,6 +5,8 @@ import (
 	"io"
 	"time"
 
+	commonutils "github.com/drand/drand/common"
+
 	"github.com/drand/drand/protobuf/common"
 
 	"github.com/drand/drand/common/scheme"
@@ -45,6 +47,10 @@ func (c *Info) ToProto(metadata *common.Metadata) *drand.ChainInfoPacket {
 		metadata.BeaconID = c.ID
 	} else {
 		metadata = &common.Metadata{BeaconID: c.ID}
+	}
+
+	if metadata.BeaconID == "" {
+		metadata.BeaconID = commonutils.DefaultBeaconID
 	}
 
 	return &drand.ChainInfoPacket{

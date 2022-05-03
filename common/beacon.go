@@ -11,13 +11,17 @@ const DefaultBeaconID = "default"
 // backward-compatibility reasons
 const DefaultChainHash = "default"
 
-// MultiBeaconFolder
+// MultiBeaconFolder name of the folder where the multi-beacon data is stored
 const MultiBeaconFolder = "multibeacon"
 
 // GetBeaconIDFromEnv read beacon id from an environmental variable.
 // It is used for testing purpose.
 func GetBeaconIDFromEnv() string {
-	return os.Getenv("BEACON_ID")
+	beaconID := os.Getenv("BEACON_ID")
+	if beaconID == "" {
+		beaconID = DefaultBeaconID
+	}
+	return beaconID
 }
 
 // IsDefaultBeaconID indicates if the beacon id received is the default one or not.

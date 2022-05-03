@@ -1129,6 +1129,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	if beaconID == "" {
 		beaconID = commonutils.DefaultBeaconID
 	}
+
 	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
 		return err
@@ -1146,7 +1147,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		return errors.New("invalid chain info hash")
 	}
 	if beaconID != info.ID {
-		return errors.New("invalid beacon id on chain info")
+		return errors.New("invalid beacon id on chain info: '" + info.ID + "' != '" + beaconID + "'")
 	}
 
 	store, err := bp.createBoltStore(beaconID)

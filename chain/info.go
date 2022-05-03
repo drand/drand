@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/key"
@@ -27,8 +28,12 @@ type Info struct {
 
 // NewChainInfo makes a chain Info from a group
 func NewChainInfo(g *key.Group) *Info {
+	beaconID := g.ID
+	if beaconID == "" {
+		g.ID = common.DefaultBeaconID
+	}
 	return &Info{
-		ID:          g.ID,
+		ID:          beaconID,
 		Period:      g.Period,
 		Scheme:      g.Scheme,
 		PublicKey:   g.PublicKey.Key(),
@@ -54,7 +59,7 @@ func (c *Info) Hash() []byte {
 	_, _ = h.Write(c.GroupHash)
 
 	// Use it only if ID is not empty. Keep backward compatibility
-	if c.ID != "" {
+	if c.ID != "" && c.ID != common.DefaultBeaconID {
 		_, _ = h.Write([]byte(c.ID))
 	}
 

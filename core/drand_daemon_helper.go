@@ -10,6 +10,9 @@ import (
 
 func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, error) {
 	rcvBeaconID := metadata.GetBeaconID()
+	if rcvBeaconID == "" {
+		rcvBeaconID = common.DefaultBeaconID
+	}
 
 	if chainHashHex := metadata.GetChainHash(); len(chainHashHex) != 0 {
 		chainHash := fmt.Sprintf("%x", chainHashHex)
@@ -29,10 +32,6 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 			// set beacon id found from chain hash on message to make it available for everyone
 			metadata.BeaconID = beaconIDByHash
 		}
-	}
-
-	if rcvBeaconID == "" {
-		rcvBeaconID = common.DefaultBeaconID
 	}
 
 	return rcvBeaconID, nil

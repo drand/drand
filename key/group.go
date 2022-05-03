@@ -116,8 +116,8 @@ func (g *Group) Hash() []byte {
 		_, _ = h.Write(g.PublicKey.Hash())
 	}
 
-	// Use it only if ID is not empty. Keep backward compatibility
-	if g.ID != "" {
+	// Use it only if ID is not empty nor "default" to keep backward compatibility
+	if g.ID != "" && g.ID != commonutils.DefaultBeaconID {
 		_, _ = h.Write([]byte(g.ID))
 	}
 
@@ -201,6 +201,7 @@ type GroupTOML struct {
 }
 
 // FromTOML decodes the group from the toml struct
+// nolint:gocyclo
 func (g *Group) FromTOML(i interface{}) (err error) {
 	gt, ok := i.(*GroupTOML)
 	if !ok {
@@ -254,7 +255,11 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 		}
 	}
 
-	g.ID = gt.ID
+	if gt.ID == "" {
+		g.ID = commonutils.DefaultBeaconID
+	} else {
+		g.ID = gt.ID
+	}
 
 	return nil
 }
@@ -391,7 +396,9 @@ func GroupFromProto(g *proto.GroupPacket) (*Group, error) {
 
 	catchupPeriod := time.Duration(g.GetCatchupPeriod()) * time.Second
 	beaconID := g.GetMetadata().GetBeaconID()
-
+	if beaconID == "" {
+		beaconID = commonutils.DefaultBeaconID
+	}
 	var dist = new(DistPublic)
 	for _, coeff := range g.DistKey {
 		c := KeyGroup.Point()
@@ -454,7 +461,11 @@ func (g *Group) ToProto(version commonutils.Version) *proto.GroupPacket {
 	out.SchemeID = g.Scheme.ID
 
 	out.Metadata = common.NewMetadata(version.ToProto())
-	out.Metadata.BeaconID = g.ID
+	if g.ID == "" {
+		out.Metadata.BeaconID = commonutils.DefaultBeaconID
+	} else {
+		out.Metadata.BeaconID = g.ID
+	}
 
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))

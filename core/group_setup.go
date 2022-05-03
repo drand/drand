@@ -314,7 +314,9 @@ type setupReceiver struct {
 func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
 	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
 	beaconID := in.GetMetadata().GetBeaconID()
-
+	if beaconID == "" {
+		beaconID = commonutils.DefaultBeaconID
+	}
 	setup := &setupReceiver{
 		ch:       make(chan *dkgGroup, 1),
 		l:        l,
