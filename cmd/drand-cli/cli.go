@@ -237,12 +237,6 @@ var hashOnly = &cli.BoolFlag{
 	Usage: "Only print the hash of the group file",
 }
 
-var hashInfoReq = &cli.StringFlag{
-	Name:     "chain-hash",
-	Usage:    "The hash of the chain info",
-	Required: true,
-}
-
 var hashInfoNoReq = &cli.StringFlag{
 	Name:  "chain-hash",
 	Usage: "The hash of the chain info",
@@ -335,7 +329,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "follow",
 		Usage: "follow and store a randomness chain",
-		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
+		Flags: toArray(folderFlag, controlFlag, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag),
 		Action: followCmd,
 	},

@@ -58,6 +58,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 		Client:   cl,
 		Clock:    cf.Clock,
 		NodeAddr: cf.Public.Address(),
+		BeaconID: cf.Group.ID,
 	})
 	go syncm.Run()
 

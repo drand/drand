@@ -300,7 +300,6 @@ const progressFollowQueue = 100
 
 // StartFollowChain initates the client catching up on an existing chain it is not part of
 func (c *ControlClient) StartFollowChain(cc ctx.Context,
-	hash string,
 	nodes []string,
 	tls bool,
 	upTo uint64,
@@ -310,7 +309,6 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	metadata.BeaconID = beaconID
 
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
-		InfoHash: hash,
 		Nodes:    nodes,
 		IsTls:    tls,
 		UpTo:     upTo,

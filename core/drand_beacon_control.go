@@ -1084,7 +1084,6 @@ func getNonce(g *key.Group) []byte {
 }
 
 // StartFollowChain syncs up with a chain from other nodes
-//nolint:funlen
 func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
@@ -1134,17 +1133,8 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		return err
 	}
 
-	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.Hash()))
+	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GroupHash))
 
-	hashStr := req.GetInfoHash()
-	hash, err := hex.DecodeString(hashStr)
-
-	if err != nil {
-		return fmt.Errorf("invalid hash info hex: %w", err)
-	}
-	if !bytes.Equal(info.Hash(), hash) {
-		return errors.New("invalid chain info hash")
-	}
 	if !commonutils.CompareBeaconIDs(beaconID, info.ID) {
 		return errors.New("invalid beacon id on chain info")
 	}
@@ -1182,6 +1172,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		Client:   bp.privGateway,
 		Clock:    bp.opts.clock,
 		NodeAddr: bp.priv.Public.Address(),
+		BeaconID: beaconID,
 	})
 	go syncer.Run()
 	defer syncer.Stop()
@@ -1204,7 +1195,7 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 
 	var info *chain.Info
 	for _, peer := range peers {
-		ci, err := privGateway.ChainInfo(ctx, peer, new(drand.ChainInfoRequest))
+		ci, err := privGateway.ChainInfo(ctx, peer, request)
 		if err != nil {
 			l.Debugw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue

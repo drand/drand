@@ -756,7 +756,6 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
-// nolint:funlen
 // This test makes sure the "FollowChain" grpc method works fine
 func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
@@ -802,31 +801,24 @@ func TestDrandFollowChain(t *testing.T) {
 	t.Logf("Trying to follow with an invalid address\n")
 
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
+	_, errCh, _ := newClient.StartFollowChain(ctx, addrToFollow, tls, 10000, "deadbeef")
 
 	select {
-	case <-errCh:
+	case e := <-errCh:
+		if errors.Is(e, io.EOF) {
+			t.Fatal("The follow should have failed")
+		}
 		t.Logf("An error was received as the address is invalid")
 	case <-time.After(100 * time.Millisecond):
-		t.Logf("An error should have been received as the address is invalid")
-		panic("should have errored")
-	}
-
-	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
-	select {
-	case <-errCh:
-		t.Logf("An error was received as the address is invalid")
-	case <-time.After(100 * time.Millisecond):
-		t.Logf("An error should have been received as the address is invalid")
-		panic("should have errored")
+		t.Fatal("An error should have been received as the address is invalid")
 	}
 
 	fn := func(upTo, exp uint64) {
 		ctx, cancel = context.WithCancel(context.Background())
 
 		t.Logf("Starting to follow chain with a valid address\n")
-		t.Logf("%s", hash)
-		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+		t.Logf("beaconID: %s ; hash-chain: %s", beaconID, hash)
+		progress, errCh, err := newClient.StartFollowChain(ctx, addrToFollow, tls, upTo, beaconID)
 		require.NoError(t, err)
 
 		var goon = true

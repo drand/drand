@@ -122,7 +122,12 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	store := bp.beacon.Store()
 	bp.state.Unlock()
 
-	proxyReq := &proxyRequest{req}
+	proxyReq := &proxyRequest{
+		req,
+	}
+	proxyReq.Metadata = &common.Metadata{
+		BeaconID: bp.group.ID,
+	}
 	proxyStr := &proxyStream{stream}
 	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
 }
