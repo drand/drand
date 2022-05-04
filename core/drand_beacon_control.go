@@ -770,7 +770,7 @@ func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) 
 		return errors.New("control: old and new group have different period - unsupported feature at the moment")
 	}
 
-	if oldGroup.ID != newGroup.ID {
+	if !commonutils.CompareBeaconIDs(oldGroup.ID, newGroup.ID) {
 		bp.log.Errorw("", "setup_reshare", "invalid ID in received group")
 		return errors.New("control: old and new group have different ID - unsupported feature at the moment")
 	}
@@ -1145,7 +1145,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	if !bytes.Equal(info.Hash(), hash) {
 		return errors.New("invalid chain info hash")
 	}
-	if beaconID != info.ID {
+	if !commonutils.CompareBeaconIDs(beaconID, info.ID) {
 		return errors.New("invalid beacon id on chain info")
 	}
 

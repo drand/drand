@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/common/scheme"
 
 	"github.com/drand/drand/key"
@@ -53,8 +55,8 @@ func (c *Info) Hash() []byte {
 	_, _ = h.Write(buff)
 	_, _ = h.Write(c.GroupHash)
 
-	// Use it only if ID is not empty. Keep backward compatibility
-	if c.ID != "" {
+	// To keep backward compatibility
+	if !common.IsDefaultBeaconID(c.ID) {
 		_, _ = h.Write([]byte(c.ID))
 	}
 

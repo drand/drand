@@ -116,8 +116,8 @@ func (g *Group) Hash() []byte {
 		_, _ = h.Write(g.PublicKey.Hash())
 	}
 
-	// Use it only if ID is not empty. Keep backward compatibility
-	if g.ID != "" {
+	// To keep backward compatibility
+	if !commonutils.IsDefaultBeaconID(g.ID) {
 		_, _ = h.Write([]byte(g.ID))
 	}
 
@@ -146,7 +146,7 @@ func (g *Group) String() string {
 
 // Equal indicates if two groups are equal
 func (g *Group) Equal(g2 *Group) bool {
-	if g.ID != g2.ID {
+	if !commonutils.CompareBeaconIDs(g.ID, g2.ID) {
 		return false
 	}
 	if g.Threshold != g2.Threshold {
