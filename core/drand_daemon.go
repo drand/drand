@@ -178,6 +178,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	}
 	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
 	metrics.IsDrandNode.Set(1)
+	metrics.DrandStartTimestamp.SetToCurrentTime()
 
 	return bp, nil
 }
@@ -215,6 +216,7 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 	metrics.DKGStateChange(metrics.DKGShutdown, beaconID, false)
 	metrics.ReshareStateChange(metrics.ReshareShutdown, beaconID, false)
 	metrics.IsDrandNode.Set(1)
+	metrics.DrandStartTimestamp.SetToCurrentTime()
 
 	dd.state.Unlock()
 }

@@ -241,6 +241,12 @@ var (
 		Help: "State of an outgoing connection. 0=Idle, 1=Connecting, 2=Ready, 3=Transient Failure, 4=Shutdown",
 	}, []string{"remote_host"})
 
+	// DrandStartTimestamp (group) contains the timestamp in seconds since the epoch of the drand process startup
+	DrandStartTimestamp = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "drand_start_timestamp",
+		Help: "Timestamp when the drand process started up in seconds since the Epoch",
+	})
+
 	metricsBound = false
 )
 
@@ -276,6 +282,7 @@ func bindMetrics() error {
 		reshareLeader,
 		OutgoingConnectionState,
 		IsDrandNode,
+		DrandStartTimestamp,
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
