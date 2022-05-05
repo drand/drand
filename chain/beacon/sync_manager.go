@@ -42,7 +42,6 @@ type SyncManager struct {
 	mu      sync.Mutex
 	// we need to know our current daemon address
 	nodeAddr string
-	beaconID string
 }
 
 // sync manager will renew sync if nothing happens for factor*period time
@@ -65,7 +64,7 @@ type SyncConfig struct {
 // newly synced beacon.
 func NewSyncManager(c *SyncConfig) *SyncManager {
 	return &SyncManager{
-		log:      c.Log,
+		log:      c.Log.Named("SyncManager"),
 		clock:    c.Clock,
 		store:    c.Store,
 		info:     c.Info,
@@ -73,7 +72,6 @@ func NewSyncManager(c *SyncConfig) *SyncManager {
 		period:   c.Info.Period,
 		verifier: c.Info.Verifier(),
 		nodeAddr: c.NodeAddr,
-		beaconID: c.BeaconID,
 		factor:   syncExpiryFactor,
 		newReq:   make(chan requestInfo, syncQueueRequest),
 		newSync:  make(chan *chain.Beacon, 1),
@@ -190,10 +188,10 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 		return false
 	}
 
-	logger := s.log.With("sync_manager", "tryNode")
+	logger := s.log.Named("tryNode")
 	req := &proto.SyncRequest{
 		FromRound: last.Round + 1,
-		Metadata:  &common.Metadata{BeaconID: s.beaconID},
+		Metadata:  &common.Metadata{BeaconID: s.info.ID},
 	}
 	beaconCh, err := s.client.SyncChain(cnode, peer, req)
 	if err != nil {
@@ -212,8 +210,8 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 			}
 
 			// Check if we got the right packet
-			if beaconPacket.GetMetadata().BeaconID != s.beaconID {
-				logger.Debugw("wrong beaconID", "expected", s.beaconID, "got", beaconPacket.GetMetadata().BeaconID)
+			if beaconPacket.GetMetadata().BeaconID != s.info.ID {
+				logger.Debugw("wrong beaconID", "expected", s.info.ID, "got", beaconPacket.GetMetadata().BeaconID)
 				return false
 			}
 
