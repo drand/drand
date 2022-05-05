@@ -256,16 +256,19 @@ message LoadBeaconResponse {
 }
 
 message StartFollowRequest {
+    // hex format
+    // Note: use instead the chain-hash from the metadata field.
+    string info_hash = 1 [deprecated = true];
     // nodes to contact to
-    repeated string nodes = 1;
+    repeated string nodes = 2;
     // is TLS enabled on these nodes or not
     // NOTE currently drand either supports following from all TLS or all
     // non-tls nodes
-    bool is_tls = 2;
+    bool is_tls = 3;
     // up_to tells the drand daemon to not follow up after the given round.
     // if up_to is 0, the follow operation continues until it is cancelled.
-    uint64 up_to = 3;
-    common.Metadata metadata = 4;
+    uint64 up_to = 4;
+    common.Metadata metadata = 5;
 }
 
 message FollowProgress {
