@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	commonutils "github.com/drand/drand/common"
+
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
@@ -271,7 +273,11 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
 	id := addr + strconv.Itoa(rand.Int()) // nolint
-	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", req.GetMetadata().BeaconID)
+	beaconID := commonutils.DefaultBeaconID
+	if req.GetMetadata() != nil {
+		beaconID = req.GetMetadata().GetBeaconID()
+	}
+	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", beaconID)
 
 	last, err := store.Last()
 	if err != nil {
@@ -285,7 +291,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	logger := l.Named("Send")
 	send := func(b *chain.Beacon) bool {
 		packet := beaconToProto(b)
-		packet.Metadata = &common.Metadata{BeaconID: req.GetMetadata().BeaconID}
+		packet.Metadata = &common.Metadata{BeaconID: beaconID}
 		if err := stream.Send(packet); err != nil {
 			logger.Debugw("", "syncer", "streaming_send", "err", err)
 			done <- err
