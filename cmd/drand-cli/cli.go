@@ -239,7 +239,7 @@ var hashOnly = &cli.BoolFlag{
 
 var hashInfoReq = &cli.StringFlag{
 	Name:     "chain-hash",
-	Usage:    "The hash of the chain info",
+	Usage:    "The hash of the chain info, used to validate integrity of the received group info",
 	Required: true,
 }
 

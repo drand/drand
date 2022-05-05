@@ -558,7 +558,7 @@ func readChainHash(r *http.Request) ([]byte, error) {
 	if chainHash != "" {
 		chainHashHex, err = hex.DecodeString(chainHash)
 		if err != nil {
-			return nil, fmt.Errorf("invalid chain hash")
+			return nil, fmt.Errorf("unable to decode chain hash %s: %w", chainHash, err)
 		}
 	}
 

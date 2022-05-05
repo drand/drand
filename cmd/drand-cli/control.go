@@ -740,7 +740,7 @@ func followCmd(c *cli.Context) error {
 			"\t--> %.3f %% - "+
 			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
 	}
-	s.FinalMSG = "Follow stopped"
+	s.FinalMSG = "\nFollow stopped\n"
 	s.Start()
 	defer s.Stop()
 	for {

@@ -20,10 +20,10 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 
 		if isChainHashFound {
 			// check if rcv beacon id on request points to a different id obtained from chain hash
-			if !common.CompareBeaconIDs(rcvBeaconID, beaconIDByHash) {
-				return "", fmt.Errorf("invalid chain hash")
+			// we accept the empty beacon id, since we do a match on the chain hash in that case
+			if rcvBeaconID != "" && !common.CompareBeaconIDs(rcvBeaconID, beaconIDByHash) {
+				return "", fmt.Errorf("invalid chain hash: '%s' != '%s'", rcvBeaconID, beaconIDByHash)
 			}
-
 			rcvBeaconID = beaconIDByHash
 
 			// set beacon id found from chain hash on message to make it available for everyone
@@ -31,6 +31,7 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 		}
 	}
 
+	// if we didn't match on a chain hash, and have the empty string, then it's the default beacon
 	if rcvBeaconID == "" {
 		rcvBeaconID = common.DefaultBeaconID
 	}

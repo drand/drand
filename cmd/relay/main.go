@@ -63,7 +63,8 @@ func Relay(c *cli.Context) error {
 		return fmt.Errorf("--%s is deprecated on relay http, please use %s instead", lib.HashFlag.Name, lib.HashListFlag.Name)
 	}
 
-	handler, err := dhttp.New(c.Context, fmt.Sprintf("drand/%s (%s)", version, gitCommit), log.DefaultLogger().With("binary", "relay"))
+	handler, err := dhttp.New(c.Context, fmt.Sprintf("drand/%s (%s)",
+		version, gitCommit), log.DefaultLogger().Named("relay"))
 	if err != nil {
 		return fmt.Errorf("failed to create rest handler: %w", err)
 	}

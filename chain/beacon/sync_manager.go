@@ -9,11 +9,13 @@ import (
 	"sync"
 	"time"
 
+	cl "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-	cl "github.com/jonboulle/clockwork"
 )
 
 // SyncManager manages all the sync requests to other peers. It performs a
@@ -55,13 +57,14 @@ type SyncConfig struct {
 	Store    chain.Store
 	Info     *chain.Info
 	NodeAddr string
+	BeaconID string
 }
 
 // NewSyncManager returns a sync manager that will use the given store to store
 // newly synced beacon.
 func NewSyncManager(c *SyncConfig) *SyncManager {
 	return &SyncManager{
-		log:      c.Log,
+		log:      c.Log.Named("SyncManager"),
 		clock:    c.Clock,
 		store:    c.Store,
 		info:     c.Info,
@@ -175,7 +178,7 @@ func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
-func (s *SyncManager) tryNode(global context.Context, upTo uint64, n net.Peer) bool {
+func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer) bool {
 	// we put a cancel to still keep the global context open but stop with this
 	// peer if things go sideway
 	cnode, cancel := context.WithCancel(global)
@@ -185,38 +188,47 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, n net.Peer) b
 		return false
 	}
 
-	logger := s.log.With("sync_manager", "tryNode")
-	beaconCh, err := s.client.SyncChain(cnode, n, &proto.SyncRequest{
+	logger := s.log.Named("tryNode")
+	req := &proto.SyncRequest{
 		FromRound: last.Round + 1,
-	})
+		Metadata:  &common.Metadata{BeaconID: s.info.ID},
+	}
+	beaconCh, err := s.client.SyncChain(cnode, peer, req)
 	if err != nil {
-		logger.Debugw("unable_to_sync", "with_peer", n.Address(), "err", err)
+		logger.Debugw("unable_to_sync", "with_peer", peer.Address(), "err", err)
 		return false
 	}
 
-	logger.Debugw("start_sync", "with_peer", n.Address(), "from_round", last.Round+1)
+	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", last.Round+1)
 
 	for {
 		select {
 		case beaconPacket, ok := <-beaconCh:
 			if !ok {
-				logger.Debugw("SyncChain channel closed", "with_peer", n.Address())
+				logger.Debugw("SyncChain channel closed", "with_peer", peer.Address())
 				return false
 			}
+
+			// Check if we got the right packet
+			if beaconPacket.GetMetadata().BeaconID != s.info.ID {
+				logger.Debugw("wrong beaconID", "expected", s.info.ID, "got", beaconPacket.GetMetadata().BeaconID)
+				return false
+			}
+
 			logger.Debugw("new_beacon_fetched",
-				"with_peer", n.Address(),
+				"with_peer", peer.Address(),
 				"from_round", last.Round+1,
 				"got_round", beaconPacket.GetRound())
 			beacon := protoToBeacon(beaconPacket)
 
 			// verify the signature validity
 			if err := s.verifier.VerifyBeacon(*beacon, s.info.PublicKey); err != nil {
-				logger.Debugw("invalid_beacon", "with_peer", n.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
+				logger.Debugw("invalid_beacon", "with_peer", peer.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
 				return false
 			}
 
 			if err := s.store.Put(beacon); err != nil {
-				logger.Debugw("unable to save", "with_peer", n.Address(), "err", err)
+				logger.Debugw("unable to save", "with_peer", peer.Address(), "err", err)
 				return false
 			}
 			last = beacon
@@ -243,6 +255,7 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, n net.Peer) b
 // Those exist in both the protocol API and the public API.
 type SyncRequest interface {
 	GetFromRound() uint64
+	GetMetadata() *common.Metadata
 }
 
 // SyncStream is an interface representing any kind of stream to send beacons to.
@@ -257,7 +270,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
 	id := addr + strconv.Itoa(rand.Int()) // nolint
-	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound)
+	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", req.GetMetadata().BeaconID)
 
 	last, err := store.Last()
 	if err != nil {
@@ -270,7 +283,9 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	var done = make(chan error, 1)
 	logger := l.Named("Send")
 	send := func(b *chain.Beacon) bool {
-		if err := stream.Send(beaconToProto(b)); err != nil {
+		packet := beaconToProto(b)
+		packet.Metadata = &common.Metadata{BeaconID: req.GetMetadata().BeaconID}
+		if err := stream.Send(packet); err != nil {
 			logger.Debugw("", "syncer", "streaming_send", "err", err)
 			done <- err
 			return false
