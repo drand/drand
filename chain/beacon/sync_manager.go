@@ -210,8 +210,9 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 			}
 
 			// Check if we got the right packet
-			if beaconPacket.GetMetadata().BeaconID != s.info.ID {
-				logger.Debugw("wrong beaconID", "expected", s.info.ID, "got", beaconPacket.GetMetadata().BeaconID)
+			metadata := beaconPacket.GetMetadata()
+			if metadata != nil && metadata.BeaconID != s.info.ID {
+				logger.Debugw("wrong beaconID", "expected", s.info.ID, "got", metadata.BeaconID)
 				return false
 			}
 
