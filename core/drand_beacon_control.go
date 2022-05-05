@@ -1084,6 +1084,7 @@ func getNonce(g *key.Group) []byte {
 }
 
 // StartFollowChain syncs up with a chain from other nodes
+// nolint:funlen
 func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
@@ -1128,9 +1129,24 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	if beaconID == "" {
 		beaconID = commonutils.DefaultBeaconID
 	}
+
+	chainHash := string(req.GetMetadata().GetChainHash())
+	if chainHash == commonutils.DefaultChainHash {
+		return errors.New("chain hash is not set properly, you cannot use the 'default' chain hash" +
+			" to validate the integrity of the chain info")
+	}
+	hash, err := hex.DecodeString(chainHash)
+	if err != nil {
+		return fmt.Errorf("failed to decode %s as chain hash value: %w", chainHash, err)
+	}
+
 	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
 		return err
+	}
+
+	if !bytes.Equal(info.Hash(), hash) {
+		return fmt.Errorf("chain hash mismatch: rcv(%s) != flag(%x)", hex.EncodeToString(info.Hash()), chainHash)
 	}
 
 	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GroupHash))

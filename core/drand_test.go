@@ -756,7 +756,21 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 }
 
+func expectChanFail(t *testing.T, errCh chan error) {
+	t.Helper()
+	select {
+	case e := <-errCh:
+		if errors.Is(e, io.EOF) {
+			t.Fatal("The follow should have failed")
+		}
+		t.Logf("An error was received as the address is invalid")
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("An error should have been received as the address is invalid")
+	}
+}
+
 // This test makes sure the "FollowChain" grpc method works fine
+// nolint:funlen
 func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
@@ -798,27 +812,32 @@ func TestDrandFollowChain(t *testing.T) {
 	tls := true
 
 	// First try with an invalid hash info
-	t.Logf("Trying to follow with an invalid address\n")
-
+	t.Logf("Trying to follow with an invalid hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ := newClient.StartFollowChain(ctx, addrToFollow, tls, 10000, "deadbeef")
+	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
+	expectChanFail(t, errCh)
+	cancel()
 
-	select {
-	case e := <-errCh:
-		if errors.Is(e, io.EOF) {
-			t.Fatal("The follow should have failed")
-		}
-		t.Logf("An error was received as the address is invalid")
-	case <-time.After(100 * time.Millisecond):
-		t.Fatal("An error should have been received as the address is invalid")
-	}
+	// testing with a non hex hash
+	t.Logf("Trying to follow with a non-hex hash\n")
+	ctx, cancel = context.WithCancel(context.Background())
+	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
+	expectChanFail(t, errCh)
+	cancel()
+
+	// testing with a invalid beaconID
+	t.Logf("Trying to follow with an invalid beaconID\n")
+	ctx, cancel = context.WithCancel(context.Background())
+	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
+	expectChanFail(t, errCh)
+	cancel()
 
 	fn := func(upTo, exp uint64) {
 		ctx, cancel = context.WithCancel(context.Background())
 
 		t.Logf("Starting to follow chain with a valid address\n")
 		t.Logf("beaconID: %s ; hash-chain: %s", beaconID, hash)
-		progress, errCh, err := newClient.StartFollowChain(ctx, addrToFollow, tls, upTo, beaconID)
+		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 		require.NoError(t, err)
 
 		var goon = true

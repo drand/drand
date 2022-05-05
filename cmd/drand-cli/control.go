@@ -719,6 +719,7 @@ func followCmd(c *cli.Context) error {
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
 	channel, errCh, err := ctrlClient.StartFollowChain(
 		c.Context,
+		c.String(hashInfoReq.Name),
 		addrs,
 		!c.Bool(insecureFlag.Name),
 		uint64(c.Int(upToFlag.Name)),
@@ -739,7 +740,7 @@ func followCmd(c *cli.Context) error {
 			"\t--> %.3f %% - "+
 			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
 	}
-	s.FinalMSG = "Follow stopped"
+	s.FinalMSG = "\nFollow stopped\n"
 	s.Start()
 	defer s.Stop()
 	for {
