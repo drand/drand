@@ -225,6 +225,13 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	b := bp.beacon
 	bp.state.Unlock()
 
+	// for compatibility with older nodes not sending properly the beaconID.
+	if req.GetMetadata() == nil {
+		metadata := common.NewMetadata(bp.version.ToProto())
+		metadata.BeaconID = bp.group.ID
+		req.Metadata = metadata
+	}
+
 	if b != nil {
 		return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
 	}
