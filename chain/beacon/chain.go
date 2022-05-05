@@ -230,14 +230,56 @@ func (c *chainStore) RunSync(from, upTo uint64, peers []net.Peer) {
 	c.syncm.RequestSync(from, upTo, peers)
 }
 
+// ValidateChain will validate the chain in the chain store up to the given beacon.
 func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	faultyBeacons, err := c.syncm.CheckPastBeacons(ctx, upTo, cb)
+	logger := c.l.Named("pastBeaconChecker")
+	logger.Debugw("Starting to check past beacons", "upTo", upTo)
+
+	last, err := c.Last()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to fetch and check last beacon in store: %w", err)
 	}
 
+	if last.Round < upTo {
+		logger.Errorw("No beacon stored above", "last round", last.Round, "requested round", upTo)
+		logger.Infow("Checking beacons only up to the last stored", "round", last.Round)
+		upTo = last.Round
+	}
+
+	var faultyBeacons []uint64
+	// notice that we do not validate the genesis round 0
+	for i := 1; i < c.Len(); i++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		// we call our callback with the round to send the progress, N.B. we need to do it before returning
+		cb(uint64(i), upTo)
+
+		b, err := c.Get(uint64(i))
+		if err != nil {
+			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
+			faultyBeacons = append(faultyBeacons, uint64(i))
+			continue
+		}
+		// verify the signature validity
+		if err = c.verifier.VerifyBeacon(*b, c.conf.Group.PublicKey.Key()); err != nil {
+			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
+			faultyBeacons = append(faultyBeacons, b.Round)
+		} else {
+			logger.Debugw("valid_beacon", "round", b.Round)
+		}
+
+		if b.Round >= upTo {
+			break
+		}
+	}
+
+	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
+
 	if len(faultyBeacons) > 0 {
-		c.l.Errorw("Found invalid beacons in store", "beacon_id", c.crypto.GetGroup().ID, "amount", len(faultyBeacons))
+		c.l.Warnw("Found invalid beacons in store", "beacon_id", c.crypto.GetGroup().ID, "amount", len(faultyBeacons))
 		return faultyBeacons, nil
 	}
 

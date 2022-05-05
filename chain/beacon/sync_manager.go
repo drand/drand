@@ -371,56 +371,6 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 }
 
-func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	logger := s.log.Named("pastBeaconChecker")
-	logger.Debugw("Starting to check past beacons", "upTo", upTo)
-
-	last, err := s.store.Last()
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch and check last beacon in store: %w", err)
-	}
-
-	if last.Round < upTo {
-		logger.Errorw("No beacon stored above", "last round", last.Round, "requested round", upTo)
-		logger.Infow("Checking beacons only up to the last stored", "round", last.Round)
-		upTo = last.Round
-	}
-
-	var faultyBeacons []uint64
-	// notice that we do not validate the genesis round 0
-	for i := 1; i < s.store.Len(); i++ {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		// we call our callback with the round to send the progress, N.B. we need to do it before returning
-		cb(uint64(i), upTo)
-
-		b, err := s.store.Get(uint64(i))
-		if err != nil {
-			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
-			faultyBeacons = append(faultyBeacons, uint64(i))
-			continue
-		}
-		// verify the signature validity
-		if err = s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
-			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
-			faultyBeacons = append(faultyBeacons, b.Round)
-		} else {
-			logger.Debugw("valid_beacon", "round", b.Round)
-		}
-
-		if b.Round >= upTo {
-			break
-		}
-	}
-
-	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
-
-	return faultyBeacons, nil
-}
-
 func peersToString(peers []net.Peer) string {
 	adds := make([]string, 0, len(peers))
 	for _, p := range peers {

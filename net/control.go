@@ -312,7 +312,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string, nodes []str
 		return nil, nil, fmt.Errorf("upTo must be greater than 0")
 	}
 
-	log.DefaultLogger().Infow("Started checking database consistency", "chain-hash", hash, "up to", upTo, "beaconID", beaconID)
+	log.DefaultLogger().Infow("Starting to check chain consistency", "chain-hash", hash, "up to", upTo, "beaconID", beaconID)
 
 	stream, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
 		Nodes:    nodes,
@@ -322,7 +322,7 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string, nodes []str
 	})
 
 	if err != nil {
-		log.DefaultLogger().Errorw("Error while checking database consistency", "err", err)
+		log.DefaultLogger().Errorw("Error while checking chain consistency", "err", err)
 		return nil, nil, err
 	}
 
