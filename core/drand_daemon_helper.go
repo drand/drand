@@ -29,7 +29,7 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 			// set beacon id found from chain hash on message to make it available for everyone
 			metadata.BeaconID = beaconIDByHash
 		} else {
-			return "", fmt.Errorf("unknown chain hash: %s", chainHashHex)
+			return "", fmt.Errorf("unknown chain hash: %s", chainHash)
 		}
 	}
 
