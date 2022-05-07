@@ -1130,23 +1130,14 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		beaconID = commonutils.DefaultBeaconID
 	}
 
-	chainHash := string(req.GetMetadata().GetChainHash())
-	if chainHash == commonutils.DefaultChainHash {
-		return errors.New("chain hash is not set properly, you cannot use the 'default' chain hash" +
-			" to validate the integrity of the chain info")
-	}
-	hash, err := hex.DecodeString(chainHash)
-	if err != nil {
-		return fmt.Errorf("failed to decode %s as chain hash value: %w", chainHash, err)
-	}
-
+	hash := req.GetMetadata().GetChainHash()
 	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
 		return err
 	}
 
 	if !bytes.Equal(info.Hash(), hash) {
-		return fmt.Errorf("chain hash mismatch: rcv(%s) != flag(%x)", hex.EncodeToString(info.Hash()), chainHash)
+		return fmt.Errorf("chain hash mismatch: rcv(%x) != flag(%x)", info.Hash(), hash)
 	}
 
 	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GroupHash))

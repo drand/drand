@@ -124,11 +124,11 @@ func (bp *BeaconProcess) Load() (bool, error) {
 
 	if bp.group != nil {
 		beaconID := bp.group.ID
-
 		if beaconID == "" {
 			beaconID = common.DefaultBeaconID
 		}
 
+		// TODO: can this ever be true?
 		if bp.dkgDone {
 			metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 		} else {
