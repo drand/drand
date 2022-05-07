@@ -47,6 +47,7 @@ var metricsFlag = &cli.StringFlag{
 
 // Relay a GRPC connection to an HTTP server.
 // nolint:gocyclo
+// nolint:funlen
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
 
@@ -83,7 +84,9 @@ func Relay(c *cli.Context) error {
 	for hash := range hashesMap {
 		fs := flag.NewFlagSet(fmt.Sprintf("sub-client %s", hash), flag.ContinueOnError)
 		for _, f := range c.App.Flags {
-			f.Apply(fs)
+			if err := f.Apply(fs); err != nil {
+				return fmt.Errorf("failed to transfer flag: %w", err)
+			}
 		}
 		subC := cli.NewContext(c.App, fs, c)
 
@@ -100,12 +103,12 @@ func Relay(c *cli.Context) error {
 			}
 		}
 
-		cli, err := lib.Create(subC, c.IsSet(metricsFlag.Name))
+		subCli, err := lib.Create(subC, c.IsSet(metricsFlag.Name))
 		if err != nil {
 			return err
 		}
 
-		handler.RegisterNewBeaconHandler(cli, hash)
+		handler.RegisterNewBeaconHandler(subCli, hash)
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
