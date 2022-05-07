@@ -387,7 +387,7 @@ func checkWait(counter *sync.WaitGroup) {
 	case <-doneCh:
 		break
 
-	case <-time.After(20 * time.Second):
+	case <-time.After(30 * time.Second):
 		panic("outdated beacon time")
 	}
 }
@@ -460,7 +460,7 @@ func TestBeaconSync(t *testing.T) {
 	// enable reception again of all nodes
 	bt.EnableReception(n - online)
 
-	// we advance the clock, all "resucitated nodes" will transmit a wrong
+	// we advance the clock, all "resuscitated nodes" will transmit a wrong
 	// beacon, but they will see the beacon they send is late w.r.t. the round
 	// they should be, so they will sync with the "safe online" nodes. They
 	// will get the latest beacon and then directly run the right round

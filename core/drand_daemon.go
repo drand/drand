@@ -70,7 +70,6 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		drandDaemon.state.Unlock()
 
 		if isPresent {
-			drandDaemon.AddNewChainHash(beaconID, bp)
 			drandDaemon.AddBeaconHandler(beaconID, bp)
 		}
 	}
@@ -171,6 +170,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
+	// Todo: investigate if this is ever true at this point
 	if bp.dkgDone {
 		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 	} else {
@@ -181,16 +181,6 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	metrics.DrandStartTimestamp.SetToCurrentTime()
 
 	return bp, nil
-}
-
-func (dd *DrandDaemon) AddNewChainHash(beaconID string, bp *BeaconProcess) {
-	dd.state.Lock()
-	chainHash := chain.NewChainInfo(bp.group).HashString()
-	dd.chainHashes[chainHash] = beaconID
-	if common.IsDefaultBeaconID(beaconID) {
-		dd.chainHashes[common.DefaultChainHash] = beaconID
-	}
-	dd.state.Unlock()
 }
 
 // RemoveBeaconProcess remove a BeaconProcess linked to beacon with id 'beaconID'
@@ -213,6 +203,8 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 		delete(dd.chainHashes, common.DefaultChainHash)
 	}
 
+	dd.log.Debugw("BeaconProcess removed", "beacon_id", beaconID, "chain_hash", chainHash)
+
 	metrics.DKGStateChange(metrics.DKGShutdown, beaconID, false)
 	metrics.ReshareStateChange(metrics.ReshareShutdown, beaconID, false)
 	metrics.IsDrandNode.Set(1)
@@ -224,11 +216,20 @@ func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
 // AddBeaconHandler adds a handler linked to beacon with chain hash from http server used to
 // expose public services
 func (dd *DrandDaemon) AddBeaconHandler(beaconID string, bp *BeaconProcess) {
-	info := chain.NewChainInfo(bp.group)
+	chainHash := chain.NewChainInfo(bp.group).HashString()
 
-	bh := dd.handler.RegisterNewBeaconHandler(&drandProxy{bp}, info.HashString())
+	bh := dd.handler.RegisterNewBeaconHandler(&drandProxy{bp}, chainHash)
+
+	dd.state.Lock()
+	dd.chainHashes[chainHash] = beaconID
+	dd.state.Unlock()
+
 	if common.IsDefaultBeaconID(beaconID) {
 		dd.handler.RegisterDefaultBeaconHandler(bh)
+
+		dd.state.Lock()
+		dd.chainHashes[common.DefaultChainHash] = beaconID
+		dd.state.Unlock()
 	}
 }
 
@@ -290,10 +291,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 	} else {
 		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
 
-		// Add beacon chain hash as a new valid one
-		dd.AddNewChainHash(beaconID, bp)
-
-		// Add beacon handler from chain has for http server
+		// Add beacon handler for http server
 		dd.AddBeaconHandler(beaconID, bp)
 
 		// XXX make it configurable so that new share holder can still start if

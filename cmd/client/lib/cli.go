@@ -128,7 +128,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	clients = append(clients, gc...)
 
 	var hash []byte
-	if c.IsSet(HashFlag.Name) {
+	if c.IsSet(HashFlag.Name) && c.String(HashFlag.Name) != "" {
 		hash, err = hex.DecodeString(c.String(HashFlag.Name))
 		if err != nil {
 			return nil, err
