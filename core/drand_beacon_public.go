@@ -6,8 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	commonutils "github.com/drand/drand/common"
-
 	"github.com/drand/drand/chain/beacon"
 
 	"github.com/drand/drand/chain"
@@ -227,11 +225,9 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	b := bp.beacon
 	bp.state.Unlock()
 
-	// for compatibility with older nodes not sending properly the beaconID. We assume it's the default one.
+	// for compatibility with older nodes not sending properly the beaconID
 	if req.GetMetadata() == nil {
-		metadata := common.NewMetadata(bp.version.ToProto())
-		metadata.BeaconID = commonutils.DefaultBeaconID
-		req.Metadata = metadata
+		req.Metadata = common.NewMetadata(bp.version.ToProto())
 	}
 
 	if b != nil {
