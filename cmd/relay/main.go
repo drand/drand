@@ -45,7 +45,7 @@ var metricsFlag = &cli.StringFlag{
 }
 
 // Relay a GRPC connection to an HTTP server.
-// nolint:gocyclo
+// nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
 
@@ -79,6 +79,7 @@ func Relay(c *cli.Context) error {
 		hashesMap[common.DefaultChainHash] = true
 	}
 
+	errCount := 0
 	for hash := range hashesMap {
 		// todo: don't reuse 'c'
 		if hash != common.DefaultChainHash {
@@ -96,10 +97,16 @@ func Relay(c *cli.Context) error {
 
 		subCli, err := lib.Create(c, c.IsSet(metricsFlag.Name))
 		if err != nil {
-			return err
+			log.DefaultLogger().Warnw("failed to create client", "hash", hash, "error", err)
+			errCount++
+			continue
 		}
 
 		handler.RegisterNewBeaconHandler(subCli, hash)
+	}
+
+	if errCount == len(hashesMap) {
+		return fmt.Errorf("failed to create any beacon handlers")
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
