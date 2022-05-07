@@ -31,7 +31,7 @@ func InfoFromProto(p *drand.ChainInfoPacket) (*Info, error) {
 		PublicKey:   public,
 		GenesisTime: p.GenesisTime,
 		Period:      time.Duration(p.Period) * time.Second,
-		GenesisSeed: p.GroupHash,
+		GroupHash:   p.GroupHash,
 		Scheme:      sch,
 		ID:          p.GetMetadata().GetBeaconID(),
 	}, nil
@@ -52,7 +52,7 @@ func (c *Info) ToProto(metadata *common.Metadata) *drand.ChainInfoPacket {
 		GenesisTime: c.GenesisTime,
 		Period:      uint32(c.Period.Seconds()),
 		Hash:        c.Hash(),
-		GroupHash:   c.GenesisSeed,
+		GroupHash:   c.GroupHash,
 		SchemeID:    c.Scheme.ID,
 		Metadata:    metadata,
 	}

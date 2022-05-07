@@ -549,7 +549,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 	chainInfo := chain.NewChainInfo(group)
 	certManager := dt.nodes[0].drand.opts.certmanager
-	client := NewGrpcClientFromCert(chainInfo.Hash(), certManager)
+	client := NewGrpcClientFromCert(group.Hash(), certManager)
 
 	for i, node := range dt.nodes {
 		d := node.drand
@@ -821,8 +821,8 @@ func TestDrandFollowChain(t *testing.T) {
 	// testing with a non hex hash
 	t.Logf("Trying to follow with a non-hex hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, _, err = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
-	require.Error(t, err)
+	_, errCh, _ = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
+	expectChanFail(t, errCh)
 	cancel()
 
 	// testing with a invalid beaconID

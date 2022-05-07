@@ -48,7 +48,7 @@ func RoundToBytes(r uint64) []byte {
 // GenesisBeacon returns the first beacon inserted in the chain
 func GenesisBeacon(c *Info) *Beacon {
 	return &Beacon{
-		Signature: c.GenesisSeed,
+		Signature: c.GroupHash,
 		Round:     0,
 	}
 }

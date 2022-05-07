@@ -2,7 +2,6 @@ package net
 
 import (
 	ctx "context"
-	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -301,7 +300,7 @@ const progressFollowQueue = 100
 
 // StartFollowChain initiates the client catching up on an existing chain it is not part of
 func (c *ControlClient) StartFollowChain(cc ctx.Context,
-	hashStr string,
+	hash string,
 	nodes []string,
 	tls bool,
 	upTo uint64,
@@ -309,16 +308,8 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	errCh chan error, e error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	metadata.BeaconID = beaconID
-	if hashStr == common.DefaultChainHash || hashStr == "" {
-		return nil, nil, fmt.Errorf("chain hash is not set properly, you cannot use the 'default' chain hash" +
-			" to validate the integrity of the chain info when following a chain")
-	}
-	hash, err := hex.DecodeString(hashStr)
-	if err != nil {
-		return nil, nil, err
-	}
-	metadata.ChainHash = hash
-	log.DefaultLogger().Infow("Launching a follow request", "nodes", nodes, "tls", tls, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
+	metadata.ChainHash = []byte(hash)
+	log.DefaultLogger().Infow("Launching a follow request", "nodes", nodes, "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
 	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
 		Nodes:    nodes,
 		IsTls:    tls,

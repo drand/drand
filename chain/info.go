@@ -17,14 +17,14 @@ import (
 )
 
 // Info represents the public information that is necessary for a client to
-// verify any beacon present in a randomness chain.
+// very any beacon present in a randomness chain.
 type Info struct {
 	PublicKey   kyber.Point   `json:"public_key"`
 	ID          string        `json:"id"`
 	Period      time.Duration `json:"period"`
 	Scheme      scheme.Scheme `json:"scheme"`
 	GenesisTime int64         `json:"genesis_time"`
-	GenesisSeed []byte        `json:"group_hash"`
+	GroupHash   []byte        `json:"group_hash"`
 }
 
 // NewChainInfo makes a chain Info from a group
@@ -35,7 +35,7 @@ func NewChainInfo(g *key.Group) *Info {
 		Scheme:      g.Scheme,
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
-		GenesisSeed: g.GetGenesisSeed(),
+		GroupHash:   g.GetGenesisSeed(),
 	}
 }
 
@@ -53,7 +53,7 @@ func (c *Info) Hash() []byte {
 	}
 
 	_, _ = h.Write(buff)
-	_, _ = h.Write(c.GenesisSeed)
+	_, _ = h.Write(c.GroupHash)
 
 	// To keep backward compatibility
 	if !common.IsDefaultBeaconID(c.ID) {
@@ -73,7 +73,7 @@ func (c *Info) Equal(c2 *Info) bool {
 	return c.GenesisTime == c2.GenesisTime &&
 		c.Period == c2.Period &&
 		c.PublicKey.Equal(c2.PublicKey) &&
-		bytes.Equal(c.GenesisSeed, c2.GenesisSeed) &&
+		bytes.Equal(c.GroupHash, c2.GroupHash) &&
 		c.ID == c2.ID
 }
 

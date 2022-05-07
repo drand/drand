@@ -74,12 +74,10 @@ func getPublicRandomness(c *cli.Context) error {
 		return errors.New("drand: group file must contain the distributed public key")
 	}
 
-	info := chain.NewChainInfo(group)
-
 	var resp client.Result
 	var foundCorrect bool
 	for _, id := range ids {
-		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS, info.Hash())
+		grpcClient, err := grpc.New(id.Addr, certPath, !id.TLS, group.Hash())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "drand: could not connect to %s: %s", id.Addr, err)
 			break

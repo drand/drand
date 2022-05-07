@@ -31,7 +31,7 @@ func TestChainInfo(t *testing.T) {
 
 	c12 := NewChainInfo(fake)
 	// Note: the fake group here does not hash the same.
-	c12.GenesisSeed = c1.GenesisSeed
+	c12.GroupHash = c1.GroupHash
 	h12 := c12.Hash()
 	require.Equal(t, h1, h12)
 	require.Equal(t, c1, c12)
