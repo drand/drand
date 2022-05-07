@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -80,21 +81,31 @@ func Relay(c *cli.Context) error {
 	}
 
 	for hash := range hashesMap {
+		fs := flag.NewFlagSet(fmt.Sprintf("sub-client %s", hash), flag.ContinueOnError)
+		for _, f := range c.App.Flags {
+			f.Apply(fs)
+		}
+		subC := cli.NewContext(c.App, fs, c)
+
 		if hash != common.DefaultChainHash {
 			if _, err := hex.DecodeString(hash); err != nil {
 				return fmt.Errorf("failed to decode chain hash value: %w", err)
 			}
-			if err := c.Set(lib.HashFlag.Name, hash); err != nil {
+			if err := subC.Set(lib.HashFlag.Name, hash); err != nil {
 				return fmt.Errorf("failed to initiate chain hash handler: %w", err)
+			}
+		} else {
+			if err := subC.Set(lib.HashFlag.Name, ""); err != nil {
+				return fmt.Errorf("failed to initiate default chain hash handler: %w", err)
 			}
 		}
 
-		c, err := lib.Create(c, c.IsSet(metricsFlag.Name))
+		cli, err := lib.Create(subC, c.IsSet(metricsFlag.Name))
 		if err != nil {
 			return err
 		}
 
-		handler.RegisterNewBeaconHandler(c, hash)
+		handler.RegisterNewBeaconHandler(cli, hash)
 	}
 
 	if c.IsSet(accessLogFlag.Name) {
