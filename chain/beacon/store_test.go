@@ -22,7 +22,7 @@ func TestSchemeStore(t *testing.T) {
 	bstore, err := boltdb.NewBoltStore(dir, nil)
 	require.NoError(t, err)
 
-	genesisBeacon := chain.GenesisBeacon(&chain.Info{GroupHash: []byte("genesis_signature")})
+	genesisBeacon := chain.GenesisBeacon(&chain.Info{GenesisSeed: []byte("genesis_signature")})
 	err = bstore.Put(genesisBeacon)
 	require.NoError(t, err)
 

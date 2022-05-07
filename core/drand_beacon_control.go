@@ -1140,7 +1140,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		return fmt.Errorf("chain hash mismatch: rcv(%x) != flag(%x)", info.Hash(), hash)
 	}
 
-	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GroupHash))
+	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GenesisSeed))
 
 	if !commonutils.CompareBeaconIDs(beaconID, info.ID) {
 		return errors.New("invalid beacon id on chain info")
