@@ -24,9 +24,6 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 				return "", fmt.Errorf("invalid chain hash: '%s' != '%s'", rcvBeaconID, beaconIDByHash)
 			}
 			rcvBeaconID = beaconIDByHash
-
-			// set beacon id found from chain hash on message to make it available for everyone
-			metadata.BeaconID = beaconIDByHash
 		} else {
 			// for the case where our node is still waiting for the chain hash to be set
 			rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)

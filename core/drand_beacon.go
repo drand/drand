@@ -114,6 +114,13 @@ func (bp *BeaconProcess) Load() (bool, error) {
 		return false, err
 	}
 
+	if bp.group != nil {
+		bp.state.Lock()
+		info := chain.NewChainInfo(bp.group)
+		bp.chainHash = info.Hash()
+		bp.state.Unlock()
+	}
+
 	checkGroup(bp.log, bp.group)
 	bp.share, err = bp.store.LoadShare()
 	if err != nil {
