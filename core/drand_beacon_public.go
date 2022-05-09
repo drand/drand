@@ -6,9 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/chain/beacon"
-
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -115,7 +114,7 @@ func (p *proxyStream) Send(b *drand.BeaconPacket) error {
 // PublicRandStream exports a stream of new beacons as they are generated over gRPC
 func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	bp.state.Lock()
-	if bp.beacon == nil {
+	if bp.beacon == nil || bp.group == nil {
 		bp.state.Unlock()
 		return errors.New("beacon has not started on this node yet")
 	}
@@ -125,8 +124,18 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	proxyReq := &proxyRequest{
 		req,
 	}
-	proxyReq.Metadata = &common.Metadata{
-		BeaconID: bp.group.ID,
+	if req.GetMetadata() != nil {
+		if req.GetMetadata().GetBeaconID() != bp.group.ID {
+			return errors.New("request beaconID does not match group beaconID")
+		}
+		proxyReq.Metadata = req.GetMetadata()
+	} else {
+		bp.state.Lock()
+		// for backwards compatibility
+		proxyReq.Metadata = &common.Metadata{
+			BeaconID: bp.group.ID,
+		}
+		bp.state.Unlock()
 	}
 	proxyStr := &proxyStream{stream}
 	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
@@ -224,16 +233,12 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	bp.state.Lock()
 	b := bp.beacon
 	bp.state.Unlock()
-
-	// for compatibility with older nodes not sending properly the beaconID
-	if req.GetMetadata() == nil {
-		req.Metadata = common.NewMetadata(bp.version.ToProto())
+	if b == nil {
+		bp.log.Warnw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
+		return nil
 	}
 
-	if b != nil {
-		return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
-	}
-	return nil
+	return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
 }
 
 // GetIdentity returns the identity of this drand node

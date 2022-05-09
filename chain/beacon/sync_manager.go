@@ -9,8 +9,6 @@ import (
 	"sync"
 	"time"
 
-	commonutils "github.com/drand/drand/common"
-
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
@@ -273,10 +271,16 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
 	id := addr + strconv.Itoa(rand.Int()) // nolint
-	beaconID := commonutils.DefaultBeaconID
-	if req.GetMetadata() != nil {
-		beaconID = req.GetMetadata().GetBeaconID()
+
+	// we expect the metadata to be set at this stage, this should never happen currently
+	if req.GetMetadata() == nil {
+		l.Errorw("Received a sync request without metadata", "from_addr", addr)
+		return fmt.Errorf("no metadata in sync request")
 	}
+
+	// NB: this can never be undefined with our current implementation
+	beaconID := req.GetMetadata().GetBeaconID()
+
 	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", beaconID)
 
 	last, err := store.Last()
