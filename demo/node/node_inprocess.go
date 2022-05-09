@@ -318,7 +318,7 @@ func (l *LocalNode) PrintLog() {
 	fmt.Printf("[-] Printing logs of node %s:\n", l.PrivateAddr())
 	buff, err := os.ReadFile(l.logPath)
 	if err != nil {
-		fmt.Printf("[-] Can't read logs !\n\n")
+		fmt.Printf("[-] Can't read logs at %s !\n\n", l.logPath)
 		return
 	}
 	os.Stdout.Write([]byte(buff))

@@ -115,7 +115,7 @@ func (p *proxyStream) Send(b *drand.BeaconPacket) error {
 // PublicRandStream exports a stream of new beacons as they are generated over gRPC
 func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	bp.state.Lock()
-	if bp.beacon == nil || bp.group == nil {
+	if bp.beacon == nil {
 		bp.state.Unlock()
 		return errors.New("beacon has not started on this node yet")
 	}
@@ -222,10 +222,6 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	bp.state.Lock()
 	b := bp.beacon
 	bp.state.Unlock()
-
-	// for compatibility with older nodes not sending properly the beaconID
-	req.Metadata = bp.newMetadata()
-
 	if b == nil {
 		bp.log.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
 		return fmt.Errorf("no beacon handler available")

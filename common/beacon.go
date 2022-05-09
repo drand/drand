@@ -9,7 +9,7 @@ const DefaultBeaconID = "default"
 // backward-compatibility reasons
 const DefaultChainHash = "default"
 
-// MultiBeaconFolder
+// MultiBeaconFolder is the name of the folder where the multi-beacon data is stored
 const MultiBeaconFolder = "multibeacon"
 
 // IsDefaultBeaconID indicates if the beacon id received is the default one or not.

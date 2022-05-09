@@ -18,15 +18,13 @@ type partialCache struct {
 	rounds map[string]*roundCache
 	rcvd   map[int][]string
 	l      log.Logger
-	id     string
 }
 
-func newPartialCache(l log.Logger, id string) *partialCache {
+func newPartialCache(l log.Logger) *partialCache {
 	return &partialCache{
 		rounds: make(map[string]*roundCache),
 		rcvd:   make(map[int][]string),
 		l:      l,
-		id:     id,
 	}
 }
 

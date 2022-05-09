@@ -154,6 +154,7 @@ func (dd *DrandDaemon) init() error {
 
 // InstantiateBeaconProcess creates a new BeaconProcess linked to beacon with id 'beaconID'
 func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store) (*BeaconProcess, error) {
+	beaconID = common.GetCorrectBeaconID(beaconID)
 	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
 	logger := dd.log.Named(beaconID)
 	bp, err := NewBeaconProcess(logger, store, beaconID, dd.opts, dd.privGateway, dd.pubGateway)

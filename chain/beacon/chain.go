@@ -108,13 +108,12 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	beaconID := c.conf.Group.ID
 	lastBeacon, err := c.Last()
 	if err != nil {
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
 	}
 
-	var cache = newPartialCache(c.l, beaconID)
+	var cache = newPartialCache(c.l)
 	for {
 		select {
 		case <-c.done:

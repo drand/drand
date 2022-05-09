@@ -1154,6 +1154,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
 func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 	peers []net.Peer, l log.Logger, version commonutils.Version, beaconID string) (*chain.Info, error) {
+	// we first craft our request
 	request := new(drand.ChainInfoRequest)
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
 

@@ -130,6 +130,7 @@ func newReshareSetup(
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
 	schemeID := oldGroup.Scheme.ID
+	// we know it was properly set and verified earlier
 	beaconID := oldGroup.ID
 
 	catchupPeriod := in.CatchupPeriod
@@ -313,7 +314,7 @@ type setupReceiver struct {
 
 func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
 	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
-	beaconID := in.GetMetadata().GetBeaconID()
+	beaconID := commonutils.GetCorrectBeaconID(in.GetMetadata().GetBeaconID())
 
 	setup := &setupReceiver{
 		ch:       make(chan *dkgGroup, 1),

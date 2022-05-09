@@ -211,7 +211,7 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 			// Check if we got the right packet
 			metadata := beaconPacket.GetMetadata()
 			if metadata != nil && metadata.BeaconID != s.info.ID {
-				logger.Debugw("wrong beaconID", "expected", s.info.ID, "got", metadata.BeaconID)
+				logger.Errorw("wrong beaconID", "expected", s.info.ID, "got", metadata.BeaconID)
 				return false
 			}
 
@@ -277,7 +277,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		return fmt.Errorf("no metadata in sync request")
 	}
 
-	// NB: this can never be undefined with our current implementation
+	// this can never be "" at this point, since we set it at the daemon level
 	beaconID := req.GetMetadata().GetBeaconID()
 
 	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", beaconID)
