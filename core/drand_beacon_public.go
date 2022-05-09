@@ -125,6 +125,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	}
 	if req.GetMetadata() != nil {
 		if req.GetMetadata().GetBeaconID() != bp.group.ID {
+			bp.state.Unlock()
 			return errors.New("request beaconID does not match group beaconID")
 		}
 		proxyReq.Metadata = req.GetMetadata()
