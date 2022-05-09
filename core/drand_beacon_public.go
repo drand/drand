@@ -6,9 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/drand/drand/chain/beacon"
-
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
@@ -115,18 +114,19 @@ func (p *proxyStream) Send(b *drand.BeaconPacket) error {
 // PublicRandStream exports a stream of new beacons as they are generated over gRPC
 func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	bp.state.Lock()
-	if bp.beacon == nil {
+	if bp.beacon == nil || bp.group == nil {
 		bp.state.Unlock()
 		return errors.New("beacon has not started on this node yet")
 	}
 	store := bp.beacon.Store()
-	bp.state.Unlock()
 
 	proxyReq := &proxyRequest{
 		req,
 	}
+  // make sure we have the correct metadata
 	proxyReq.Metadata = bp.newMetadata()
 	proxyStr := &proxyStream{stream}
+	bp.state.Unlock()
 	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
 }
 
@@ -222,15 +222,15 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	b := bp.beacon
 	bp.state.Unlock()
 
-	// for compatibility with older nodes not sending properly the beaconID.
-	if req.GetMetadata() == nil {
-		req.Metadata = bp.newMetadata()
+	// for compatibility with older nodes not sending properly the beaconID
+	req.Metadata = bp.newMetadata()
+
+	if b == nil {
+		bp.log.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
+    return fmt.Errorf("no beacon handler available")
 	}
 
-	if b != nil {
-		return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
-	}
-	return nil
+	return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
 }
 
 // GetIdentity returns the identity of this drand node
