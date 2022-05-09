@@ -104,6 +104,8 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load() (bool, error) {
+	bp.state.Lock()
+	defer bp.state.Unlock()
 	if bp.isFreshRun() {
 		return true, nil
 	}
