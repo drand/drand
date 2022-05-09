@@ -40,11 +40,6 @@ var errPreempted = errors.New("time out: pre-empted")
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	beaconID := in.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
-
 	bp.state.Lock()
 	if bp.dkgDone {
 		bp.state.Unlock()
@@ -54,7 +49,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 	isLeader := in.GetInfo().GetLeader()
 
-	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, isLeader)
+	metrics.DKGStateChange(metrics.DKGWaiting, bp.getBeaconID(), isLeader)
 
 	if !isLeader {
 		// different logic for leader than the rest
@@ -73,7 +68,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 				d.priv.Public,
 				in.GetBeaconPeriod(),
 				in.GetCatchupPeriod(),
-				beaconID,
+				bp.getBeaconID(),
 				in.GetSchemeID(),
 				in.GetInfo(),
 			},
@@ -89,7 +84,8 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 	// send it to everyone in the group nodes
 	nodes := group.Nodes
-	if err := bp.pushDKGInfo([]*key.Node{}, nodes, 0, group, in.GetInfo().GetSecret(), in.GetInfo().GetTimeout(), beaconID); err != nil {
+	if err := bp.pushDKGInfo([]*key.Node{}, nodes, 0, group,
+		in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		return nil, err
 	}
 
@@ -118,19 +114,20 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	}
 
 	rcvBeaconID := in.GetMetadata().GetBeaconID()
-	beaconID := oldGroup.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
+	oldBeaconID := oldGroup.ID
+	if oldBeaconID == "" {
+		oldBeaconID = commonutils.DefaultBeaconID
 	}
 
-	if !commonutils.CompareBeaconIDs(rcvBeaconID, beaconID) {
-		return nil, fmt.Errorf("drand: invalid setup configuration: beacon id on flag is different to beacon id on group file")
+	if !commonutils.CompareBeaconIDs(rcvBeaconID, oldBeaconID) || !commonutils.CompareBeaconIDs(oldBeaconID, bp.getBeaconID()) {
+		return nil, fmt.Errorf("beacon ID mismatch: "+
+			"flag (%s) ; group file (%s) ; beaconProcess (%s)", rcvBeaconID, oldBeaconID, bp.getBeaconID())
 	}
 
 	isLeader := in.GetInfo().GetLeader()
-	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, isLeader)
+	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), isLeader)
 	defer func() {
-		metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
+		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
 	}()
 
 	if !isLeader {
@@ -176,8 +173,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		oldGroup.Threshold,
 		newGroup,
 		in.GetInfo().GetSecret(),
-		in.GetInfo().GetTimeout(),
-		oldGroup.ID); err != nil {
+		in.GetInfo().GetTimeout()); err != nil {
 		bp.log.Errorw("", "push_group", err)
 		return nil, errors.New("fail to push new group")
 	}
@@ -188,7 +184,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	bp.index = int(newGroup.Find(bp.priv.Public).Index)
 	// We need to update the leader too
 	bp.log.Debugw("Starting to use new node index for logging", "old", oldIdx, "new", bp.index)
-	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(beaconID).Named(fmt.Sprint(bp.index))
+	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))
 	bp.state.Unlock()
 
 	finalGroup, err := bp.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
@@ -214,9 +210,7 @@ func (bp *BeaconProcess) Share(ctx context.Context, in *drand.ShareRequest) (*dr
 		return nil, err
 	}
 
-	metadata := common.NewMetadata(bp.version.ToProto())
-
-	return &drand.ShareResponse{Index: id, Share: buff, Metadata: metadata}, nil
+	return &drand.ShareResponse{Index: id, Share: buff, Metadata: bp.newMetadata()}, nil
 }
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
@@ -235,9 +229,7 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, in *drand.PublicKeyReque
 		return nil, err
 	}
 
-	metadata := common.NewMetadata(bp.version.ToProto())
-
-	return &drand.PublicKeyResponse{PubKey: protoKey, Metadata: metadata}, nil
+	return &drand.PublicKeyResponse{PubKey: protoKey, Metadata: bp.newMetadata()}, nil
 }
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control
@@ -256,9 +248,7 @@ func (bp *BeaconProcess) PrivateKey(ctx context.Context, in *drand.PrivateKeyReq
 		return nil, err
 	}
 
-	metadata := common.NewMetadata(bp.version.ToProto())
-
-	return &drand.PrivateKeyResponse{PriKey: protoKey, Metadata: metadata}, nil
+	return &drand.PrivateKeyResponse{PriKey: protoKey, Metadata: bp.newMetadata()}, nil
 }
 
 // GroupFile replies with the distributed key in the response
@@ -291,9 +281,7 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 	}
 	defer w.Close()
 
-	metadata := common.NewMetadata(bp.version.ToProto())
-
-	return &drand.BackupDBResponse{Metadata: metadata}, inst.Store().SaveTo(w)
+	return &drand.BackupDBResponse{Metadata: bp.newMetadata()}, inst.Store().SaveTo(w)
 }
 
 // ////////
@@ -595,13 +583,11 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 	// send public key to leader
 	id := bp.priv.Public.ToProto()
-	metadata := common.NewMetadata(bp.version.ToProto())
-	metadata.BeaconID = beaconID
 
 	prep := &drand.SignalDKGPacket{
 		Node:        id,
 		SecretProof: in.GetInfo().GetSecret(),
-		Metadata:    metadata,
+		Metadata:    bp.newMetadata(),
 	}
 
 	bp.log.Debugw("", "init_dkg", "send_key", "leader", lpeer.Address())
@@ -698,13 +684,12 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 
 	// send public key to leader
 	id := bp.priv.Public.ToProto()
-	metadata := common.Metadata{NodeVersion: bp.version.ToProto(), BeaconID: beaconID}
 
 	prep := &drand.SignalDKGPacket{
 		Node:              id,
 		SecretProof:       in.GetInfo().GetSecret(),
 		PreviousGroupHash: oldHash,
-		Metadata:          &metadata,
+		Metadata:          bp.newMetadata(),
 	}
 
 	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, in.GetInfo().GetLeader())
@@ -806,9 +791,7 @@ func (bp *BeaconProcess) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
 func (bp *BeaconProcess) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
-	ctx := common.NewMetadata(bp.version.ToProto())
-
-	return &drand.Pong{Metadata: ctx}, nil
+	return &drand.Pong{Metadata: bp.newMetadata()}, nil
 }
 
 func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
@@ -916,9 +899,7 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 }
 
 func (bp *BeaconProcess) ListSchemes(c context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
-	metadata := common.NewMetadata(bp.version.ToProto())
-
-	return &drand.ListSchemesResponse{Ids: scheme.ListSchemes(), Metadata: metadata}, nil
+	return &drand.ListSchemesResponse{Ids: scheme.ListSchemes(), Metadata: bp.newMetadata()}, nil
 }
 
 func (bp *BeaconProcess) ListBeaconIDs(c context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
@@ -1001,7 +982,7 @@ func (bp *BeaconProcess) pushDKGInfoPacket(ctx context.Context, nodes []*key.Nod
 // pushDKGInfo sends the information to run the DKG to all specified nodes.
 // The call is blocking until all nodes have replied or after one minute timeouts.
 func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group,
-	secret []byte, timeout uint32, beaconID string) error {
+	secret []byte, timeout uint32) error {
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(bp.priv.Key, group.Hash())
 	if err != nil {
@@ -1010,15 +991,12 @@ func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThr
 	}
 
 	// Prepare packet
-	metadata := common.NewMetadata(bp.version.ToProto())
-	metadata.BeaconID = beaconID
-
 	packet := &drand.DKGInfoPacket{
 		NewGroup:    group.ToProto(bp.version),
 		SecretProof: secret,
 		DkgTimeout:  timeout,
 		Signature:   signature,
-		Metadata:    metadata,
+		Metadata:    bp.newMetadata(),
 	}
 
 	// Calculate threshold
@@ -1125,12 +1103,12 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 
-	beaconID := req.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
+	beaconID := bp.getBeaconID()
+	hash, err := hex.DecodeString(bp.getChainHash())
+	if err != nil {
+		return fmt.Errorf("error decoding chain hash: %w", err)
 	}
 
-	hash := req.GetMetadata().GetChainHash()
 	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
 		return err
@@ -1179,7 +1157,6 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		Client:   bp.privGateway,
 		Clock:    bp.opts.clock,
 		NodeAddr: bp.priv.Public.Address(),
-		BeaconID: beaconID,
 	})
 	go syncer.Run()
 	defer syncer.Stop()

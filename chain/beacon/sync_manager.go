@@ -59,7 +59,6 @@ type SyncConfig struct {
 	Store    chain.Store
 	Info     *chain.Info
 	NodeAddr string
-	BeaconID string
 }
 
 // NewSyncManager returns a sync manager that will use the given store to store

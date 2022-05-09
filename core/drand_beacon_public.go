@@ -37,7 +37,7 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 		return nil, err
 	}
 
-	response := &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}
+	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }
 
@@ -53,7 +53,7 @@ func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaco
 	bp.state.Unlock()
 
 	_, err := inst.ProcessPartialBeacon(c, in)
-	return &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}, err
+	return &drand.Empty{Metadata: bp.newMetadata()}, err
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
@@ -82,7 +82,7 @@ func (bp *BeaconProcess) PublicRand(c context.Context, in *drand.PublicRandReque
 	bp.log.Infow("", "public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
 
 	response := beaconToProto(beaconResp)
-	response.Metadata = common.NewMetadata(bp.version.ToProto())
+	response.Metadata = bp.newMetadata()
 
 	return response, nil
 }
@@ -125,9 +125,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	proxyReq := &proxyRequest{
 		req,
 	}
-	proxyReq.Metadata = &common.Metadata{
-		BeaconID: bp.group.ID,
-	}
+	proxyReq.Metadata = bp.newMetadata()
 	proxyStr := &proxyStream{stream}
 	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
 }
@@ -166,7 +164,7 @@ func (bp *BeaconProcess) Home(c context.Context, in *drand.HomeRequest) (*drand.
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			bp.priv.Public.Address()),
-		Metadata: common.NewMetadata(bp.version.ToProto()),
+		Metadata: bp.newMetadata(),
 	}, nil
 }
 
@@ -178,8 +176,7 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoReque
 		return nil, errors.New("drand: no dkg group setup yet")
 	}
 
-	metadata := common.NewMetadata(bp.version.ToProto())
-	response := chain.NewChainInfo(bp.group).ToProto(metadata)
+	response := chain.NewChainInfo(bp.group).ToProto(bp.newMetadata())
 
 	return response, nil
 }
@@ -198,7 +195,7 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 		return nil, err
 	}
 
-	response := &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}
+	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }
 
@@ -214,7 +211,7 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.
-	response := &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}
+	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, bp.receiver.PushDKGInfo(in)
 }
 
@@ -227,9 +224,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 
 	// for compatibility with older nodes not sending properly the beaconID.
 	if req.GetMetadata() == nil {
-		metadata := common.NewMetadata(bp.version.ToProto())
-		metadata.BeaconID = bp.group.ID
-		req.Metadata = metadata
+		req.Metadata = bp.newMetadata()
 	}
 
 	if b != nil {
@@ -241,14 +236,13 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 // GetIdentity returns the identity of this drand node
 func (bp *BeaconProcess) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	i := bp.priv.Public.ToProto()
-	metadata := common.NewMetadata(bp.version.ToProto())
 
 	response := &drand.IdentityResponse{
 		Address:   i.Address,
 		Key:       i.Key,
 		Tls:       i.Tls,
 		Signature: i.Signature,
-		Metadata:  metadata,
+		Metadata:  bp.newMetadata(),
 	}
 	return response, nil
 }
