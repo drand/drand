@@ -113,15 +113,11 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		return nil, err
 	}
 
-	rcvBeaconID := in.GetMetadata().GetBeaconID()
-	oldBeaconID := oldGroup.ID
-	if oldBeaconID == "" {
-		oldBeaconID = commonutils.DefaultBeaconID
-	}
+	oldBeaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
 
-	if !commonutils.CompareBeaconIDs(rcvBeaconID, oldBeaconID) || !commonutils.CompareBeaconIDs(oldBeaconID, bp.getBeaconID()) {
+	if !commonutils.CompareBeaconIDs(oldBeaconID, bp.getBeaconID()) {
 		return nil, fmt.Errorf("beacon ID mismatch: "+
-			"flag (%s) ; group file (%s) ; beaconProcess (%s)", rcvBeaconID, oldBeaconID, bp.getBeaconID())
+			"received group file (%s) ; beaconProcess (%s)", oldBeaconID, bp.getBeaconID())
 	}
 
 	isLeader := in.GetInfo().GetLeader()
@@ -346,10 +342,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 // runDKG setups the proper structures and protocol to run the DKG and waits
 // until it finishes. If leader is true, this node sends the first packet.
 func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
-	beaconID := group.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	beaconID := commonutils.GetCorrectBeaconID(group.ID)
 
 	reader, user := extractEntropy(randomness)
 	config := &dkg.Config{
@@ -433,10 +426,7 @@ func (bp *BeaconProcess) cleanupDKG() {
 // first packet so other nodes will start as soon as they receive it.
 // nolint:funlen
 func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
-	beaconID := oldGroup.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
+	oldBeaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
 
 	oldNode := oldGroup.Find(bp.priv.Public)
 	oldPresent := oldNode != nil
@@ -485,7 +475,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	}
 
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	var board Broadcast = newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient,
+	var board Broadcast = newEchoBroadcast(bp.log, bp.version, oldBeaconID, bp.privGateway.ProtocolClient,
 		bp.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
 		})
@@ -514,7 +504,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		bp.dkgInfo.started = true
 	}
 
-	metrics.ReshareStateChange(metrics.ReshareInProgess, beaconID, leader)
+	metrics.ReshareStateChange(metrics.ReshareInProgess, oldBeaconID, leader)
 	bp.state.Unlock()
 
 	if leader {
@@ -535,7 +525,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		return nil, fmt.Errorf("drand: err during DKG: %w", err)
 	}
 	bp.log.Infow("", "dkg_reshare", "finished", "leader", leader)
-	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, leader)
+	metrics.ReshareStateChange(metrics.ReshareIdle, oldBeaconID, leader)
 
 	// runs the transition of the beacon
 	go bp.transition(oldGroup, oldPresent, newPresent)
@@ -547,10 +537,6 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
 func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	beaconID := in.GetMetadata().GetBeaconID()
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
 	bp.log.Infow("", "init_dkg", "begin", "leader", false)
 
 	// determine the leader's address
@@ -572,7 +558,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 	defer func(r *setupReceiver) {
 		bp.state.Lock()
-		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
+		metrics.DKGStateChange(metrics.DKGDone, bp.getBeaconID(), false)
 		r.stop()
 		if r == bp.receiver {
 			// if there has been no new receiver since, we set the field to nil
@@ -640,10 +626,6 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 // nolint:funlen
 func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (
 	*drand.GroupPacket, error) {
-	beaconID := oldGroup.ID
-	if beaconID == "" {
-		beaconID = commonutils.DefaultBeaconID
-	}
 	oldHash := oldGroup.Hash()
 
 	// determine the leader's address
@@ -669,7 +651,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	}
 	bp.receiver = receiver
 	defer func(r *setupReceiver) {
-		metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
+		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
 		bp.state.Lock()
 		r.stop()
 		// only set to nil if the given receiver here is the same as the current
@@ -692,7 +674,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 		Metadata:          bp.newMetadata(),
 	}
 
-	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, in.GetInfo().GetLeader())
+	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), in.GetInfo().GetLeader())
 
 	// we wait only a certain amount of time for the prepare phase
 	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
@@ -732,7 +714,7 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	bp.index = int(node.Index)
 	// we need to change our logger to reflect the potentially changed index
 	bp.log.Debugw("Starting to use new node index for logging", "old", oldIdx, "new", bp.index)
-	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(beaconID).Named(fmt.Sprint(bp.index))
+	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))
 	bp.state.Unlock()
 
 	// run the dkg !
@@ -1104,18 +1086,16 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	}
 
 	beaconID := bp.getBeaconID()
-	hash, err := hex.DecodeString(bp.getChainHash())
-	if err != nil {
-		return fmt.Errorf("error decoding chain hash: %w", err)
-	}
 
 	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
 		return err
 	}
 
+	// we need to get the beaconID from the request since we follow a chain we might not know yet
+	hash := req.GetMetadata().GetChainHash()
 	if !bytes.Equal(info.Hash(), hash) {
-		return fmt.Errorf("chain hash mismatch: rcv(%x) != flag(%x)", info.Hash(), hash)
+		return fmt.Errorf("chain hash mismatch: rcv(%x) != bp(%x)", info.Hash(), hash)
 	}
 
 	bp.log.Debugw("", "start_follow_chain", "fetched chain info", "hash", fmt.Sprintf("%x", info.GenesisSeed))
@@ -1124,7 +1104,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 		return errors.New("invalid beacon id on chain info")
 	}
 
-	store, err := bp.createBoltStore(beaconID)
+	store, err := bp.createBoltStore()
 	if err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)

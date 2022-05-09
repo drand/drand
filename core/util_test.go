@@ -92,6 +92,7 @@ type DrandTestScenario struct {
 func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
+	t.Logf("Creating %d nodes for beaconID %s", n, beaconID)
 	var privs []*key.Pair
 	if insecure {
 		privs, group = test.BatchIdentities(n, sch, beaconID)

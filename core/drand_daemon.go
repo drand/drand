@@ -62,10 +62,8 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 
 	// Add callback to register a new handler for http server after finishing DKG successfully
 	c.dkgCallback = func(share *key.Share, group *key.Group) {
-		beaconID := group.ID
-		if beaconID == "" {
-			beaconID = common.DefaultBeaconID
-		}
+		beaconID := common.GetCorrectBeaconID(group.ID)
+
 		drandDaemon.state.Lock()
 		bp, isPresent := drandDaemon.beaconProcesses[beaconID]
 		drandDaemon.state.Unlock()
@@ -182,9 +180,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 
 // RemoveBeaconProcess remove a BeaconProcess linked to beacon with id 'beaconID'
 func (dd *DrandDaemon) RemoveBeaconProcess(beaconID string, bp *BeaconProcess) {
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
+	beaconID = common.GetCorrectBeaconID(beaconID)
 
 	chainHash := ""
 	if bp.group != nil {

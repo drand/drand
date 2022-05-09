@@ -3,14 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/drand/drand/test"
 	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-
-	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/demo/lib"
@@ -45,7 +44,7 @@ func main() {
 	nRound, n := 2, 6
 	thr, newThr := 4, 5
 	period := "10s"
-	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, sch, beaconID, true)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here

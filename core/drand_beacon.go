@@ -87,7 +87,7 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 	}
 
 	bp := &BeaconProcess{
-		beaconID:    beaconID,
+		beaconID:    commonutils.GetCorrectBeaconID(beaconID),
 		store:       store,
 		log:         log,
 		priv:        priv,
@@ -278,10 +278,8 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createBoltStore(dbName string) (chain.Store, error) {
-	if dbName == "" {
-		dbName = commonutils.DefaultBeaconID
-	}
+func (bp *BeaconProcess) createBoltStore() (chain.Store, error) {
+	dbName := commonutils.GetCorrectBeaconID(bp.beaconID)
 
 	dbPath := bp.opts.DBFolder(dbName)
 	fs.CreateSecureFolder(dbPath)
@@ -306,7 +304,7 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		Clock:  bp.opts.clock,
 	}
 
-	store, err := bp.createBoltStore(bp.group.ID)
+	store, err := bp.createBoltStore()
 	if err != nil {
 		return nil, err
 	}
@@ -368,19 +366,18 @@ func (bp *BeaconProcess) getChainHash() string {
 		return info.HashString()
 	}
 
-	bp.log.Warnw("ChainHash not set yet")
 	return ""
 }
 
 func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	metadata := common.NewMetadata(bp.version.ToProto())
 	metadata.BeaconID = bp.getBeaconID()
-	hash, err := hex.DecodeString(bp.getChainHash())
-	if err != nil {
+
+	if hash, err := hex.DecodeString(bp.getChainHash()); err == nil {
+		metadata.ChainHash = hash
+	} else {
 		bp.log.Errorw("Unable to decode chain hash", "err", err)
-		hash = []byte{}
 	}
-	metadata.ChainHash = hash
 
 	return metadata
 }

@@ -1,7 +1,5 @@
 package common
 
-import "os"
-
 // DefaultBeaconID is the value used when beacon id has an empty value. This
 // value should not be changed for backward-compatibility reasons
 const DefaultBeaconID = "default"
@@ -13,12 +11,6 @@ const DefaultChainHash = "default"
 
 // MultiBeaconFolder
 const MultiBeaconFolder = "multibeacon"
-
-// GetBeaconIDFromEnv read beacon id from an environmental variable.
-// It is used for testing purpose.
-func GetBeaconIDFromEnv() string {
-	return os.Getenv("BEACON_ID")
-}
 
 // IsDefaultBeaconID indicates if the beacon id received is the default one or not.
 // There is a direct relationship between an empty string and the reserved id "default".
@@ -40,4 +32,12 @@ func CompareBeaconIDs(id1, id2 string) bool {
 	}
 
 	return true
+}
+
+// GetCorrectBeaconID returns the correct beacon id.
+func GetCorrectBeaconID(id string) string {
+	if IsDefaultBeaconID(id) {
+		return DefaultBeaconID
+	}
+	return id
 }

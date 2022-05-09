@@ -1014,11 +1014,8 @@ func testEmptyGroup(filePath string) error {
 
 func getBeaconID(c *cli.Context) string {
 	beaconID := c.String(beaconIDFlag.Name)
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
 
-	return beaconID
+	return common.GetCorrectBeaconID(beaconID)
 }
 
 func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
