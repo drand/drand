@@ -23,7 +23,8 @@ import (
 type DrandDaemon struct {
 	initialStores   map[string]*key.Store
 	beaconProcesses map[string]*BeaconProcess
-	chainHashes     map[string]string
+	// hex encoded chainHash mapping to beaconID
+	chainHashes map[string]string
 
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
