@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drand/kyber/encrypt/ecies"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
@@ -13,7 +15,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/encrypt/ecies"
 )
 
 // BroadcastDKG is the public method to call during a DKG protocol.
@@ -123,7 +124,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	proxyReq := &proxyRequest{
 		req,
 	}
-  // make sure we have the correct metadata
+	// make sure we have the correct metadata
 	proxyReq.Metadata = bp.newMetadata()
 	proxyStr := &proxyStream{stream}
 	bp.state.Unlock()
@@ -227,7 +228,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 
 	if b == nil {
 		bp.log.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
-    return fmt.Errorf("no beacon handler available")
+		return fmt.Errorf("no beacon handler available")
 	}
 
 	return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
