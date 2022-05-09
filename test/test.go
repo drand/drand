@@ -128,7 +128,7 @@ func GenerateIDs(n int) []*key.Pair {
 
 // BatchIdentities generates n insecure identities
 func BatchIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair, *key.Group) {
-	beaconID = commonutils.GetCorrectBeaconID(beaconID)
+	beaconID = commonutils.GetCanonicalBeaconID(beaconID)
 	privs := GenerateIDs(n)
 	thr := key.MinimumT(n)
 	var dpub []kyber.Point
@@ -180,5 +180,5 @@ func StringToPoint(s string) (kyber.Point, error) {
 // GetBeaconIDFromEnv read beacon id from an environmental variable.
 func GetBeaconIDFromEnv() string {
 	beaconID := os.Getenv("BEACON_ID")
-	return commonutils.GetCorrectBeaconID(beaconID)
+	return commonutils.GetCanonicalBeaconID(beaconID)
 }

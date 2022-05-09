@@ -94,7 +94,7 @@ func NewFileStores(baseFolder string) (map[string]Store, error) {
 // NewFileStore is used to create the config folder and all the subfolders.
 // If a folder already exists, we simply check the rights
 func NewFileStore(baseFolder, beaconID string) Store {
-	beaconID = common.GetCorrectBeaconID(beaconID)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
 
 	store := &fileStore{baseFolder: baseFolder, beaconID: beaconID}
 

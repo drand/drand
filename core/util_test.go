@@ -200,7 +200,7 @@ func getSleepDuration() time.Duration {
 // specified period
 func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch scheme.Scheme, beaconID string) *DrandTestScenario {
 	dt := new(DrandTestScenario)
-	beaconID = common.GetCorrectBeaconID(beaconID)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
 
 	daemons, drands, _, dir, certPaths := BatchNewDrand(
 		t, n, false, sch, beaconID, WithCallOption(grpc.WaitForReady(true)),

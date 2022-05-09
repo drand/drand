@@ -16,7 +16,7 @@ func TestKeysSaveLoad(t *testing.T) {
 	n := 4
 	ps, group := BatchIdentities(n)
 	// we don't use the function from the test package here to avoid a circular dependency
-	beaconID := commonutils.GetCorrectBeaconID(os.Getenv("BEACON_ID"))
+	beaconID := commonutils.GetCanonicalBeaconID(os.Getenv("BEACON_ID"))
 
 	tmp := os.TempDir()
 	tmp = path.Join(tmp, "drand-key")

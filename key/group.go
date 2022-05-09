@@ -255,7 +255,7 @@ func (g *Group) FromTOML(i interface{}) (err error) {
 	}
 
 	// for backward compatibility we make sure to write "default" as beacon id if not set
-	g.ID = commonutils.GetCorrectBeaconID(gt.ID)
+	g.ID = commonutils.GetCanonicalBeaconID(gt.ID)
 
 	return nil
 }
@@ -455,7 +455,7 @@ func (g *Group) ToProto(version commonutils.Version) *proto.GroupPacket {
 	out.SchemeID = g.Scheme.ID
 
 	out.Metadata = common.NewMetadata(version.ToProto())
-	out.Metadata.BeaconID = commonutils.GetCorrectBeaconID(g.ID)
+	out.Metadata.BeaconID = commonutils.GetCanonicalBeaconID(g.ID)
 
 	if g.PublicKey != nil {
 		var coeffs = make([][]byte, len(g.PublicKey.Coefficients))

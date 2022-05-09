@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,9 +26,10 @@ import (
 // can start the DKG, read/write shares to files and can initiate/respond to tBLS
 // signature requests.
 type BeaconProcess struct {
-	opts     *Config
-	priv     *key.Pair
-	beaconID string
+	opts      *Config
+	priv      *key.Pair
+	beaconID  string
+	chainHash []byte
 	// current group this drand node is using
 	group *key.Group
 	index int
@@ -87,7 +87,7 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 	}
 
 	bp := &BeaconProcess{
-		beaconID:    commonutils.GetCorrectBeaconID(beaconID),
+		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
 		store:       store,
 		log:         log,
 		priv:        priv,
@@ -104,8 +104,6 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
 func (bp *BeaconProcess) Load() (bool, error) {
-	bp.state.Lock()
-	defer bp.state.Unlock()
 	if bp.isFreshRun() {
 		return true, nil
 	}
@@ -281,7 +279,7 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 }
 
 func (bp *BeaconProcess) createBoltStore() (chain.Store, error) {
-	dbName := commonutils.GetCorrectBeaconID(bp.beaconID)
+	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 
 	dbPath := bp.opts.DBFolder(dbName)
 	fs.CreateSecureFolder(dbPath)
@@ -362,25 +360,25 @@ func (bp *BeaconProcess) getBeaconID() string {
 }
 
 // getChainHash return the HashChain in hex format as a string
-func (bp *BeaconProcess) getChainHash() string {
+func (bp *BeaconProcess) getChainHash() []byte {
 	bp.state.Lock()
 	defer bp.state.Unlock()
-	if bp.group != nil {
+	if len(bp.chainHash) == 0 && bp.group != nil {
 		info := chain.NewChainInfo(bp.group)
-		return info.HashString()
+		bp.chainHash = info.Hash()
 	}
 
-	return ""
+	return bp.chainHash
 }
 
 func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	metadata := common.NewMetadata(bp.version.ToProto())
 	metadata.BeaconID = bp.getBeaconID()
 
-	if hash, err := hex.DecodeString(bp.getChainHash()); err == nil {
+	if hash := bp.getChainHash(); len(hash) > 0 {
 		metadata.ChainHash = hash
 	} else {
-		bp.log.Errorw("Unable to decode chain hash", "err", err)
+		bp.log.Errorw("No chain hash set yet, waiting for DKG")
 	}
 
 	return metadata

@@ -45,12 +45,12 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 // with the partial signature from this drand node.
 func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	bp.state.Lock()
-	if bp.beacon == nil {
-		bp.state.Unlock()
-		return nil, errors.New("drand: beacon not setup yet")
-	}
 	inst := bp.beacon
-	bp.state.Unlock()
+	// we need to defer unlock to avoid races during the partial processing
+	defer bp.state.Unlock()
+	if inst == nil {
+		return nil, errors.New("beacon not setup yet")
+	}
 
 	_, err := inst.ProcessPartialBeacon(c, in)
 	return &drand.Empty{Metadata: bp.newMetadata()}, err

@@ -113,7 +113,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		return nil, err
 	}
 
-	oldBeaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
+	oldBeaconID := commonutils.GetCanonicalBeaconID(oldGroup.ID)
 
 	if !commonutils.CompareBeaconIDs(oldBeaconID, bp.getBeaconID()) {
 		return nil, fmt.Errorf("beacon ID mismatch: "+
@@ -342,7 +342,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 // runDKG setups the proper structures and protocol to run the DKG and waits
 // until it finishes. If leader is true, this node sends the first packet.
 func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
-	beaconID := commonutils.GetCorrectBeaconID(group.ID)
+	beaconID := commonutils.GetCanonicalBeaconID(group.ID)
 
 	reader, user := extractEntropy(randomness)
 	config := &dkg.Config{
@@ -426,7 +426,7 @@ func (bp *BeaconProcess) cleanupDKG() {
 // first packet so other nodes will start as soon as they receive it.
 // nolint:funlen
 func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
-	oldBeaconID := commonutils.GetCorrectBeaconID(oldGroup.ID)
+	oldBeaconID := commonutils.GetCanonicalBeaconID(oldGroup.ID)
 
 	oldNode := oldGroup.Find(bp.priv.Public)
 	oldPresent := oldNode != nil

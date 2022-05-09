@@ -34,8 +34,8 @@ func CompareBeaconIDs(id1, id2 string) bool {
 	return true
 }
 
-// GetCorrectBeaconID returns the correct beacon id.
-func GetCorrectBeaconID(id string) string {
+// GetCanonicalBeaconID returns the correct beacon id.
+func GetCanonicalBeaconID(id string) string {
 	if IsDefaultBeaconID(id) {
 		return DefaultBeaconID
 	}

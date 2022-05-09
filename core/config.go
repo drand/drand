@@ -72,7 +72,7 @@ func (d *Config) ConfigFolderMB() string {
 // DBFolder returns the folder under which drand stores db file specifically.
 // If beacon id is empty, it will use the default value
 func (d *Config) DBFolder(beaconID string) string {
-	return path.Join(d.ConfigFolderMB(), common.GetCorrectBeaconID(beaconID), DefaultDBFolder)
+	return path.Join(d.ConfigFolderMB(), common.GetCanonicalBeaconID(beaconID), DefaultDBFolder)
 }
 
 // Certs returns all custom certs currently being trusted by drand.

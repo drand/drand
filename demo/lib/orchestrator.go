@@ -70,7 +70,7 @@ func NewOrchestrator(n int, thr int, period string, tls bool, binary string, wit
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
 	checkErr(os.MkdirAll(basePath, 0740))
 	certFolder := path.Join(basePath, "certs")
-	beaconID = common.GetCorrectBeaconID(beaconID)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
 
 	checkErr(os.MkdirAll(certFolder, 0740))
 	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary, sch, beaconID, isCandidate)
@@ -93,7 +93,7 @@ func NewOrchestrator(n int, thr int, period string, tls bool, binary string, wit
 		withCurl:          withCurl,
 		binary:            binary,
 		isBinaryCandidate: isCandidate,
-		beaconID:          common.GetCorrectBeaconID(beaconID),
+		beaconID:          common.GetCanonicalBeaconID(beaconID),
 	}
 	return e
 }

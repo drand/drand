@@ -271,7 +271,7 @@ func reshareCmd(c *cli.Context) error {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
-		beaconID = common.GetCorrectBeaconID(oldGroup.ID)
+		beaconID = common.GetCanonicalBeaconID(oldGroup.ID)
 	}
 
 	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s] \n", beaconID)
@@ -326,7 +326,7 @@ func leadReshareCmd(c *cli.Context) error {
 			return fmt.Errorf("beacon id flag is not required when using --%s", oldGroupFlag.Name)
 		}
 
-		beaconID = common.GetCorrectBeaconID(oldGroup.ID)
+		beaconID = common.GetCanonicalBeaconID(oldGroup.ID)
 	}
 
 	offset := int(core.DefaultResharingOffset.Seconds())
