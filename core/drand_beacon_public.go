@@ -119,7 +119,6 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 		return errors.New("beacon has not started on this node yet")
 	}
 	store := bp.beacon.Store()
-	bp.state.Unlock()
 
 	proxyReq := &proxyRequest{
 		req,
@@ -130,14 +129,13 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 		}
 		proxyReq.Metadata = req.GetMetadata()
 	} else {
-		bp.state.Lock()
 		// for backwards compatibility
 		proxyReq.Metadata = &common.Metadata{
 			BeaconID: bp.group.ID,
 		}
-		bp.state.Unlock()
 	}
 	proxyStr := &proxyStream{stream}
+	bp.state.Unlock()
 	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
 }
 
