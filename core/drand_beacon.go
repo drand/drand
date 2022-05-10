@@ -8,26 +8,28 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/metrics"
+	"github.com/drand/kyber/share/dkg"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/fs"
-
 	"github.com/drand/drand/chain/beacon"
+	"github.com/drand/drand/chain/boltdb"
+	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
-	"github.com/drand/kyber/share/dkg"
+	"github.com/drand/drand/protobuf/common"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it
 // can start the DKG, read/write shares to files and can initiate/respond to tBLS
 // signature requests.
 type BeaconProcess struct {
-	opts *Config
-	priv *key.Pair
+	opts      *Config
+	priv      *key.Pair
+	beaconID  string
+	chainHash []byte
 	// current group this drand node is using
 	group *key.Group
 	index int
@@ -43,7 +45,7 @@ type BeaconProcess struct {
 	dkgDone bool
 
 	// version indicates the base code variant
-	version common.Version
+	version commonutils.Version
 
 	// manager is created and destroyed during a setup phase
 	manager  *setupManager
@@ -74,7 +76,7 @@ type BeaconProcess struct {
 	dkgBoardSetup func(Broadcast) Broadcast
 }
 
-func NewBeaconProcess(log dlog.Logger, store key.Store, opts *Config, privGateway *net.PrivateGateway,
+func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *Config, privGateway *net.PrivateGateway,
 	pubGateway *net.PublicGateway) (*BeaconProcess, error) {
 	priv, err := store.LoadKeyPair()
 	if err != nil {
@@ -85,10 +87,11 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, opts *Config, privGatewa
 	}
 
 	bp := &BeaconProcess{
+		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
 		store:       store,
 		log:         log,
 		priv:        priv,
-		version:     common.GetAppVersion(),
+		version:     commonutils.GetAppVersion(),
 		opts:        opts,
 		privGateway: privGateway,
 		pubGateway:  pubGateway,
@@ -111,6 +114,13 @@ func (bp *BeaconProcess) Load() (bool, error) {
 		return false, err
 	}
 
+	if bp.group != nil {
+		bp.state.Lock()
+		info := chain.NewChainInfo(bp.group)
+		bp.chainHash = info.Hash()
+		bp.state.Unlock()
+	}
+
 	checkGroup(bp.log, bp.group)
 	bp.share, err = bp.store.LoadShare()
 	if err != nil {
@@ -123,10 +133,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 
 	if bp.group != nil {
-		beaconID := bp.group.ID
-		if beaconID == "" {
-			beaconID = common.DefaultBeaconID
-		}
+		beaconID := bp.getBeaconID()
 
 		// TODO: can this ever be true?
 		if bp.dkgDone {
@@ -153,11 +160,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	}
 
 	if bp.group != nil {
-		beaconID := bp.group.ID
-
-		if beaconID == "" {
-			beaconID = common.DefaultBeaconID
-		}
+		beaconID := bp.getBeaconID()
 		metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 	}
 
@@ -194,6 +197,8 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	// setup the dist. public key
 	targetGroup.PublicKey = bp.share.Public()
 	bp.group = targetGroup
+	info := chain.NewChainInfo(targetGroup)
+	bp.chainHash = info.Hash()
 	output := make([]string, 0, len(qualNodes))
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
@@ -217,7 +222,7 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) {
 		return
 	}
 
-	bp.log.Infow("", "beacon_start", time.Now(), "catchup", catchup)
+	bp.log.Infow("", "beacon_start", bp.opts.clock.Now(), "catchup", catchup)
 	if catchup {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
@@ -282,10 +287,8 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createBoltStore(dbName string) (chain.Store, error) {
-	if dbName == "" {
-		dbName = common.DefaultBeaconID
-	}
+func (bp *BeaconProcess) createBoltStore() (chain.Store, error) {
+	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 
 	dbPath := bp.opts.DBFolder(dbName)
 	fs.CreateSecureFolder(dbPath)
@@ -310,7 +313,7 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		Clock:  bp.opts.clock,
 	}
 
-	store, err := bp.createBoltStore(bp.group.ID)
+	store, err := bp.createBoltStore()
 	if err != nil {
 		return nil, err
 	}
@@ -358,6 +361,27 @@ func (bp *BeaconProcess) isFreshRun() bool {
 	_, errS := bp.store.LoadShare()
 
 	return errG != nil || errS != nil
+}
+
+// getChainHash return the beaconID of that beaconProcess, if set
+func (bp *BeaconProcess) getBeaconID() string {
+	return bp.beaconID
+}
+
+// getChainHash return the HashChain in hex format as a string
+func (bp *BeaconProcess) getChainHash() []byte {
+	return bp.chainHash
+}
+
+func (bp *BeaconProcess) newMetadata() *common.Metadata {
+	metadata := common.NewMetadata(bp.version.ToProto())
+	metadata.BeaconID = bp.getBeaconID()
+
+	if hash := bp.getChainHash(); len(hash) > 0 {
+		metadata.ChainHash = hash
+	}
+
+	return metadata
 }
 
 // dkgInfo is a simpler wrapper that keeps the relevant config and logic

@@ -115,10 +115,7 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 		return err
 	}
 
-	beaconID := d.group.ID
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
+	beaconID := common.GetCanonicalBeaconID(d.group.ID)
 
 	actual := d.clock.Now().UnixNano()
 	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9

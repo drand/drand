@@ -120,7 +120,7 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	if idx < 0 {
 		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
 	}
-	nodeName := h.crypto.GetGroup().Node(uint32(idx)).Identity.Address()
+	nodeName := h.crypto.GetGroup().Node(uint32(idx)).Address()
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Errorw("",
@@ -358,7 +358,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 	ctx := context.Background()
 	previousSig := upon.Signature
 	round := upon.Round + 1
-	beaconID := h.conf.Group.ID
+	beaconID := commonutils.GetCanonicalBeaconID(h.conf.Group.ID)
 	if current.round == upon.Round {
 		// we already have the beacon of the current round for some reasons - on
 		// CI it happens due to time shifts -
@@ -421,7 +421,7 @@ func (h *Handler) Stop() {
 
 	h.stopped = true
 	h.running = false
-	h.l.Infow("", "beacon", "stop")
+	h.l.Infow("beacon handler stopped", "time", h.conf.Clock.Now())
 }
 
 // StopAt will stop the handler at the given time. It is useful when

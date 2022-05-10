@@ -135,7 +135,7 @@ func getChainInfo(c *cli.Context) error {
 			addr, err)
 	}
 	if ci == nil {
-		return errors.New("drand: can't retrieve dist. key from all nodes")
+		return errors.New("drand: can't retrieve dist. key from any nodes")
 	}
 	return printChainInfo(c, ci)
 }

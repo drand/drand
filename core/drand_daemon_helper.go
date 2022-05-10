@@ -24,17 +24,14 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 				return "", fmt.Errorf("invalid chain hash: '%s' != '%s'", rcvBeaconID, beaconIDByHash)
 			}
 			rcvBeaconID = beaconIDByHash
-
-			// set beacon id found from chain hash on message to make it available for everyone
-			metadata.BeaconID = beaconIDByHash
 		} else {
 			// for the case where our node is still waiting for the chain hash to be set
-			if rcvBeaconID == "" {
-				rcvBeaconID = common.DefaultBeaconID
-			}
+			rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
 			for id, bp := range dd.beaconProcesses {
 				// we only accept to proceed with an unknown chain hash if one beacon process hasn't run DKG yet
 				if id == rcvBeaconID && bp.group == nil {
+					// we make sure that the beacon id is not empty
+					metadata.BeaconID = rcvBeaconID
 					return id, nil
 				}
 			}
@@ -44,9 +41,13 @@ func (dd *DrandDaemon) readBeaconID(metadata *protoCommon.Metadata) (string, err
 	}
 
 	// if we didn't match on a chain hash, and have the empty string, then it's the default beacon
-	if rcvBeaconID == "" {
-		rcvBeaconID = common.DefaultBeaconID
+	rcvBeaconID = common.GetCanonicalBeaconID(rcvBeaconID)
+	// make sure the metadata use a correct beacon id
+	if metadata == nil {
+		metadata = &protoCommon.Metadata{}
 	}
+	// we explicitly set the beacon id on the metadata in case it changed because of GetCanonicalBeaconID
+	metadata.BeaconID = rcvBeaconID
 
 	return rcvBeaconID, nil
 }

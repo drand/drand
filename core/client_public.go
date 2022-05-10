@@ -2,15 +2,16 @@ package core
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/kyber/encrypt/ecies"
+	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/encrypt/ecies"
-	"google.golang.org/grpc"
 )
 
 // Client is the endpoint logic, communicating with drand servers
@@ -57,15 +58,16 @@ func (c *Client) Private(id *key.Identity) ([]byte, error) {
 	ephPoint := key.KeyGroup.Point().Mul(ephScalar, nil)
 	ephBuff, err := ephPoint.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal ephemeral point: %w", err)
 	}
 	obj, err := ecies.Encrypt(key.KeyGroup, id.Key, ephBuff, EciesHash)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to encrypt ephemeral key: %w", err)
 	}
-	resp, err := c.client.PrivateRand(context.TODO(), id, &drand.PrivateRandRequest{Request: obj})
+	resp, err := c.client.PrivateRand(context.TODO(), id,
+		&drand.PrivateRandRequest{Request: obj, Metadata: &common.Metadata{ChainHash: c.chainHash}})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get private rand: %w", err)
 	}
 	return ecies.Decrypt(key.KeyGroup, ephScalar, resp.GetResponse(), EciesHash)
 }

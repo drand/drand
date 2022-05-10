@@ -3,12 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/drand/drand/test"
 	"os"
 	"os/signal"
 	"syscall"
 	"text/template"
-
-	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/demo/lib"
@@ -85,7 +84,7 @@ func main() {
 	n := 5
 	thr := 4
 	period := "10s"
-	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
 	orch.UpdateBinary(*candidate, 2, true)

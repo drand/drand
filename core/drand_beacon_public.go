@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/drand/kyber/encrypt/ecies"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/entropy"
@@ -13,7 +15,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/encrypt/ecies"
 )
 
 // BroadcastDKG is the public method to call during a DKG protocol.
@@ -36,7 +37,7 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 		return nil, err
 	}
 
-	response := &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}
+	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }
 
@@ -44,15 +45,15 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 // with the partial signature from this drand node.
 func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	bp.state.Lock()
-	if bp.beacon == nil {
-		bp.state.Unlock()
-		return nil, errors.New("drand: beacon not setup yet")
-	}
+	// we need to defer unlock here to avoid races during the partial processing
+	defer bp.state.Unlock()
 	inst := bp.beacon
-	bp.state.Unlock()
+	if inst == nil || len(bp.chainHash) == 0 {
+		return nil, errors.New("DKG not finished yet")
+	}
 
 	_, err := inst.ProcessPartialBeacon(c, in)
-	return &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}, err
+	return &drand.Empty{Metadata: bp.newMetadata()}, err
 }
 
 // PublicRand returns a public random beacon according to the request. If the Round
@@ -63,7 +64,7 @@ func (bp *BeaconProcess) PublicRand(c context.Context, in *drand.PublicRandReque
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
-	if bp.beacon == nil {
+	if bp.beacon == nil || len(bp.chainHash) == 0 {
 		return nil, errors.New("drand: beacon generation not started yet")
 	}
 	var beaconResp *chain.Beacon
@@ -81,7 +82,7 @@ func (bp *BeaconProcess) PublicRand(c context.Context, in *drand.PublicRandReque
 	bp.log.Infow("", "public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
 
 	response := beaconToProto(beaconResp)
-	response.Metadata = common.NewMetadata(bp.version.ToProto())
+	response.Metadata = bp.newMetadata()
 
 	return response, nil
 }
@@ -114,7 +115,7 @@ func (p *proxyStream) Send(b *drand.BeaconPacket) error {
 // PublicRandStream exports a stream of new beacons as they are generated over gRPC
 func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
 	bp.state.Lock()
-	if bp.beacon == nil || bp.group == nil {
+	if bp.beacon == nil || len(bp.chainHash) == 0 {
 		bp.state.Unlock()
 		return errors.New("beacon has not started on this node yet")
 	}
@@ -123,18 +124,8 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	proxyReq := &proxyRequest{
 		req,
 	}
-	if req.GetMetadata() != nil {
-		if req.GetMetadata().GetBeaconID() != bp.group.ID {
-			bp.state.Unlock()
-			return errors.New("request beaconID does not match group beaconID")
-		}
-		proxyReq.Metadata = req.GetMetadata()
-	} else {
-		// for backwards compatibility
-		proxyReq.Metadata = &common.Metadata{
-			BeaconID: bp.group.ID,
-		}
-	}
+	// make sure we have the correct metadata
+	proxyReq.Metadata = bp.newMetadata()
 	proxyStr := &proxyStream{stream}
 	bp.state.Unlock()
 	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
@@ -174,20 +165,21 @@ func (bp *BeaconProcess) Home(c context.Context, in *drand.HomeRequest) (*drand.
 	return &drand.HomeResponse{
 		Status: fmt.Sprintf("drand up and running on %s",
 			bp.priv.Public.Address()),
-		Metadata: common.NewMetadata(bp.version.ToProto()),
+		Metadata: bp.newMetadata(),
 	}, nil
 }
 
 // ChainInfo replies with the chain information this node participates to
 func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	bp.state.Lock()
-	defer bp.state.Unlock()
-	if bp.group == nil {
-		return nil, errors.New("drand: no dkg group setup yet")
+	group := bp.group
+	chainHash := bp.chainHash
+	bp.state.Unlock()
+	if group == nil || len(chainHash) == 0 {
+		return nil, errors.New("no dkg group setup yet")
 	}
 
-	metadata := common.NewMetadata(bp.version.ToProto())
-	response := chain.NewChainInfo(bp.group).ToProto(metadata)
+	response := chain.NewChainInfo(group).ToProto(bp.newMetadata())
 
 	return response, nil
 }
@@ -195,8 +187,8 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoReque
 // SignalDKGParticipant receives a dkg signal packet from another member
 func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
 	bp.state.Lock()
-	defer bp.state.Unlock()
 	if bp.manager == nil {
+		bp.state.Unlock()
 		return nil, errors.New("no manager")
 	}
 	addr := net.RemoteAddress(ctx)
@@ -205,8 +197,8 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 	if err != nil {
 		return nil, err
 	}
-
-	response := &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}
+	bp.state.Unlock()
+	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }
 
@@ -222,7 +214,7 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 
 	// the control routine will receive this info and start the dkg at the right
 	// time - if that is the right secret.
-	response := &drand.Empty{Metadata: common.NewMetadata(bp.version.ToProto())}
+	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, bp.receiver.PushDKGInfo(in)
 }
 
@@ -231,10 +223,11 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
 	bp.state.Lock()
 	b := bp.beacon
+	c := bp.chainHash
 	bp.state.Unlock()
-	if b == nil {
-		bp.log.Warnw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
-		return nil
+	if b == nil || len(c) == 0 {
+		bp.log.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
+		return fmt.Errorf("no beacon handler available")
 	}
 
 	return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
@@ -243,14 +236,13 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 // GetIdentity returns the identity of this drand node
 func (bp *BeaconProcess) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	i := bp.priv.Public.ToProto()
-	metadata := common.NewMetadata(bp.version.ToProto())
 
 	response := &drand.IdentityResponse{
 		Address:   i.Address,
 		Key:       i.Key,
 		Tls:       i.Tls,
 		Signature: i.Signature,
-		Metadata:  metadata,
+		Metadata:  bp.newMetadata(),
 	}
 	return response, nil
 }

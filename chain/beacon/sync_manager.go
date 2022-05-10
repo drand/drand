@@ -57,7 +57,6 @@ type SyncConfig struct {
 	Store    chain.Store
 	Info     *chain.Info
 	NodeAddr string
-	BeaconID string
 }
 
 // NewSyncManager returns a sync manager that will use the given store to store
@@ -107,6 +106,10 @@ func (s *SyncManager) RequestSync(nodes []net.Peer, upTo uint64) {
 }
 
 func (s *SyncManager) Run() {
+	// no need to sync until genesis time
+	for s.clock.Now().Unix() < s.info.GenesisTime {
+		time.Sleep(time.Second)
+	}
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
@@ -212,7 +215,7 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 			// Check if we got the right packet
 			metadata := beaconPacket.GetMetadata()
 			if metadata != nil && metadata.BeaconID != s.info.ID {
-				logger.Debugw("wrong beaconID", "expected", s.info.ID, "got", metadata.BeaconID)
+				logger.Errorw("wrong beaconID", "expected", s.info.ID, "got", metadata.BeaconID)
 				return false
 			}
 
@@ -278,7 +281,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		return fmt.Errorf("no metadata in sync request")
 	}
 
-	// NB: this can never be undefined with our current implementation
+	// this can never be "" at this point, since we set it at the daemon level
 	beaconID := req.GetMetadata().GetBeaconID()
 
 	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", beaconID)

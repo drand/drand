@@ -100,21 +100,9 @@ func (dd *DrandDaemon) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket)
 // SyncChain is a inter-node protocol that replies to a syncing request from a
 // given round
 func (dd *DrandDaemon) SyncChain(in *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
-	metadata := in.GetMetadata()
-	bp, err := dd.getBeaconProcessFromRequest(metadata)
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return err
-	}
-
-	// for compatibility with older nodes not sending properly the beaconID and metadata with SyncRequests
-	if metadata == nil {
-		in.Metadata = common.NewMetadata(bp.version.ToProto())
-	}
-	if in.GetMetadata().GetBeaconID() == "" {
-		in.Metadata.BeaconID, err = dd.readBeaconID(metadata)
-		if err != nil {
-			return err
-		}
 	}
 
 	return bp.SyncChain(in, stream)

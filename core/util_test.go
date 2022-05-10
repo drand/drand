@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/kyber/share/dkg"
 
@@ -92,6 +94,7 @@ type DrandTestScenario struct {
 func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
+	t.Logf("Creating %d nodes for beaconID %s", n, beaconID)
 	var privs []*key.Pair
 	if insecure {
 		privs, group = test.BatchIdentities(n, sch, beaconID)
@@ -197,6 +200,7 @@ func getSleepDuration() time.Duration {
 // specified period
 func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch scheme.Scheme, beaconID string) *DrandTestScenario {
 	dt := new(DrandTestScenario)
+	beaconID = common.GetCanonicalBeaconID(beaconID)
 
 	daemons, drands, _, dir, certPaths := BatchNewDrand(
 		t, n, false, sch, beaconID, WithCallOption(grpc.WaitForReady(true)),
@@ -283,7 +287,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 		group, err := key.GroupFromProto(groupPacket)
 		require.NoError(d.t, err)
 
-		d.t.Logf("[RunDKG] Leader    Finished. GenesisSeed %x", group.Hash())
+		d.t.Logf("[RunDKG] Leader    Finished. GroupHash %x", group.Hash())
 
 		// We need to make sure the daemon is running before continuing
 		d.waitRunning(controlClient, leaderNode)
@@ -300,7 +304,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 			group, err := key.GroupFromProto(groupPacket)
 			require.NoError(d.t, err)
 
-			d.t.Logf("[RunDKG] NonLeader %s Finished. GenesisSeed %x", n.GetAddr(), group.Hash())
+			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
 
 			// We need to make sure the daemon is running before continuing
 			d.waitRunning(client, n)
@@ -427,7 +431,7 @@ func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
 		d.t.Logf("ALREADY PASSED")
 	}
 
-	t.Logf("Set genesis time: %d", d.Now().Unix())
+	t.Logf("Set time to genesis time: %d", d.Now().Unix())
 }
 
 // AdvanceMockClock advances the clock of all drand by the given duration

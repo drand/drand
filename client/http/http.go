@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/common"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
@@ -272,10 +274,14 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 			return
 		}
 
-		if chainHash == nil {
+		if len(chainHash) == 0 {
 			h.l.Warnw("", "http_client", "instantiated without trustroot", "chainHash", hex.EncodeToString(chainInfo.Hash()))
-		}
-		if chainHash != nil && !bytes.Equal(chainInfo.Hash(), chainHash) {
+			if !common.IsDefaultBeaconID(chainInfo.ID) {
+				err := fmt.Errorf("%s does not advertise the default drand for the default chainHash (got %x)", h.root, chainInfo.Hash())
+				resC <- httpInfoResponse{nil, err}
+				return
+			}
+		} else if !bytes.Equal(chainInfo.Hash(), chainHash) {
 			err := fmt.Errorf("%s does not advertise the expected drand group (%x vs %x)", h.root, chainInfo.Hash(), chainHash)
 			resC <- httpInfoResponse{nil, err}
 			return

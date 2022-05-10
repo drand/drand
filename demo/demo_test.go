@@ -1,10 +1,9 @@
 package main
 
 import (
+	"github.com/drand/drand/test"
 	"testing"
 	"time"
-
-	"github.com/drand/drand/common"
 
 	"github.com/drand/drand/common/scheme"
 
@@ -20,7 +19,7 @@ func TestLocalOrchestration(t *testing.T) {
 			t.Fatal("[DEBUG]", "Deadline reached")
 		})
 
-	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch, beaconID, true)
 	defer o.Shutdown()

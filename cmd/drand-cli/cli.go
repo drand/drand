@@ -760,7 +760,7 @@ func checkConnection(c *cli.Context) error {
 		for _, id := range group.Nodes {
 			names = append(names, id.Address())
 		}
-		beaconID = group.ID
+		beaconID = common.GetCanonicalBeaconID(group.ID)
 	} else if c.Args().Present() {
 		for _, serverAddr := range c.Args().Slice() {
 			_, _, err := gonet.SplitHostPort(serverAddr)
@@ -769,7 +769,7 @@ func checkConnection(c *cli.Context) error {
 			}
 			names = append(names, serverAddr)
 		}
-		beaconID = c.String(beaconIDFlag.Name)
+		beaconID = common.GetCanonicalBeaconID(c.String(beaconIDFlag.Name))
 	} else {
 		return fmt.Errorf("drand: check-group expects a list of identities or %s flag", groupFlag.Name)
 	}
@@ -1013,12 +1013,7 @@ func testEmptyGroup(filePath string) error {
 }
 
 func getBeaconID(c *cli.Context) string {
-	beaconID := c.String(beaconIDFlag.Name)
-	if beaconID == "" {
-		beaconID = common.DefaultBeaconID
-	}
-
-	return beaconID
+	return common.GetCanonicalBeaconID(c.String(beaconIDFlag.Name))
 }
 
 func getDBStoresPaths(c *cli.Context) (map[string]string, error) {
