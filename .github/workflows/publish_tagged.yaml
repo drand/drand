@@ -31,5 +31,5 @@ jobs:
       - name: Build and push tagged Docker image
         run: |
           docker build --build-arg gitCommit=`git rev-parse HEAD` -t drandorg/go-drand:`git describe --tags` .
-          docker login -u ${{ secrets.DOCKER_LOGIN }} -p ${{ secrets.DOCKER_PWD }}
+          echo ${{ secrets.DOCKER_HUB_TOKEN }} | docker login -u drandci --password-stdin
           docker push drandorg/go-drand:`git describe --tags`
