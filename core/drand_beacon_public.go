@@ -46,13 +46,14 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	bp.state.Lock()
 	inst := bp.beacon
-	// we need to defer unlock to avoid races during the partial processing
-	defer bp.state.Unlock()
 	if inst == nil {
+		bp.state.Unlock()
 		return nil, errors.New("beacon not setup yet")
 	}
 
 	_, err := inst.ProcessPartialBeacon(c, in)
+	// we need to unlock here to avoid races during the partial processing
+	bp.state.Unlock()
 	return &drand.Empty{Metadata: bp.newMetadata()}, err
 }
 
@@ -172,12 +173,13 @@ func (bp *BeaconProcess) Home(c context.Context, in *drand.HomeRequest) (*drand.
 // ChainInfo replies with the chain information this node participates to
 func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	bp.state.Lock()
-	defer bp.state.Unlock()
-	if bp.group == nil {
-		return nil, errors.New("drand: no dkg group setup yet")
+	group := bp.group
+	bp.state.Unlock()
+	if group == nil {
+		return nil, errors.New("no dkg group setup yet")
 	}
 
-	response := chain.NewChainInfo(bp.group).ToProto(bp.newMetadata())
+	response := chain.NewChainInfo(group).ToProto(bp.newMetadata())
 
 	return response, nil
 }
@@ -185,8 +187,8 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoReque
 // SignalDKGParticipant receives a dkg signal packet from another member
 func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
 	bp.state.Lock()
-	defer bp.state.Unlock()
 	if bp.manager == nil {
+		bp.state.Unlock()
 		return nil, errors.New("no manager")
 	}
 	addr := net.RemoteAddress(ctx)
@@ -195,7 +197,7 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 	if err != nil {
 		return nil, err
 	}
-
+	bp.state.Unlock()
 	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }

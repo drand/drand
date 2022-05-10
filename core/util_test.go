@@ -431,7 +431,7 @@ func (d *DrandTestScenario) SetMockClock(t *testing.T, targetUnixTime int64) {
 		d.t.Logf("ALREADY PASSED")
 	}
 
-	t.Logf("Set genesis time: %d", d.Now().Unix())
+	t.Logf("Set time to genesis time: %d", d.Now().Unix())
 }
 
 // AdvanceMockClock advances the clock of all drand by the given duration

@@ -552,7 +552,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 
 	for i, node := range dt.nodes {
 		d := node.drand
-		t.Logf("Getting chaing info from node %d \n", i)
+		t.Logf("Getting chain info from node %d \n", i)
 		received, err := client.ChainInfo(d.priv.Public)
 
 		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))

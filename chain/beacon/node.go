@@ -421,7 +421,7 @@ func (h *Handler) Stop() {
 
 	h.stopped = true
 	h.running = false
-	h.l.Infow("", "beacon", "stop")
+	h.l.Infow("beacon handler stopped", "time", h.conf.Clock.Now())
 }
 
 // StopAt will stop the handler at the given time. It is useful when

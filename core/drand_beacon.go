@@ -197,6 +197,8 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	// setup the dist. public key
 	targetGroup.PublicKey = bp.share.Public()
 	bp.group = targetGroup
+	info := chain.NewChainInfo(targetGroup)
+	bp.chainHash = info.Hash()
 	output := make([]string, 0, len(qualNodes))
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
@@ -220,7 +222,7 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) {
 		return
 	}
 
-	bp.log.Infow("", "beacon_start", time.Now(), "catchup", catchup)
+	bp.log.Infow("", "beacon_start", bp.opts.clock.Now(), "catchup", catchup)
 	if catchup {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
@@ -368,14 +370,6 @@ func (bp *BeaconProcess) getBeaconID() string {
 
 // getChainHash return the HashChain in hex format as a string
 func (bp *BeaconProcess) getChainHash() []byte {
-	if len(bp.chainHash) == 0 && bp.group != nil {
-		// we only lock the state in the case it's not yet set and we set it since we only set it in Load() otherwise
-		bp.state.Lock()
-		defer bp.state.Unlock()
-		info := chain.NewChainInfo(bp.group)
-		bp.chainHash = info.Hash()
-	}
-
 	return bp.chainHash
 }
 
@@ -385,8 +379,6 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 
 	if hash := bp.getChainHash(); len(hash) > 0 {
 		metadata.ChainHash = hash
-	} else {
-		bp.log.Errorw("No chain hash set yet, waiting for DKG")
 	}
 
 	return metadata

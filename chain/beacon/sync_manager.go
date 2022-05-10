@@ -107,9 +107,8 @@ func (s *SyncManager) RequestSync(nodes []net.Peer, upTo uint64) {
 
 func (s *SyncManager) Run() {
 	// no need to sync until genesis time
-	for time.Now().Unix() < s.info.GenesisTime {
-		s.log.Info("waiting for genesis")
-		time.Sleep(s.period)
+	for s.clock.Now().Unix() < s.info.GenesisTime {
+		time.Sleep(time.Second)
 	}
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
