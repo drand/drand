@@ -67,7 +67,6 @@ func TestBroadcastSet(t *testing.T) {
 func TestBroadcast(t *testing.T) {
 	n := 5
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
-
 	_, drands, group, dir, _ := BatchNewDrand(t, n, true, sch, beaconID)
 	defer os.RemoveAll(dir)
 	defer CloseAllDrands(drands)
@@ -100,7 +99,7 @@ func TestBroadcast(t *testing.T) {
 		for i := 0; i < exp; i++ {
 			select {
 			case info := <-incPackets:
-				t.Logf("received packet from %s", info.id)
+				t.Logf("received packet from %s, %d out of %d", info.id, i, exp)
 				received[info.id] = true
 			case <-time.After(5 * time.Second):
 				require.True(t, false, "test failed to continue")

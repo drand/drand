@@ -368,9 +368,10 @@ func (bp *BeaconProcess) getBeaconID() string {
 
 // getChainHash return the HashChain in hex format as a string
 func (bp *BeaconProcess) getChainHash() []byte {
-	bp.state.Lock()
-	defer bp.state.Unlock()
 	if len(bp.chainHash) == 0 && bp.group != nil {
+		// we only lock the state in the case it's not yet set and we set it since we only set it in Load() otherwise
+		bp.state.Lock()
+		defer bp.state.Unlock()
 		info := chain.NewChainInfo(bp.group)
 		bp.chainHash = info.Hash()
 	}
