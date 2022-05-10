@@ -121,9 +121,10 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	}
 
 	isLeader := in.GetInfo().GetLeader()
-	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), isLeader)
-	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
-	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
+	beaconID := bp.getBeaconID()
+	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, isLeader)
+	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(in.Info.Nodes))
+	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(in.Info.Threshold))
 	defer func() {
 		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
 	}()
