@@ -5,7 +5,6 @@ ARG major=0
 ARG minor=0
 ARG patch=0
 ARG gitCommit
-ARG buildDate
 
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
@@ -33,15 +32,12 @@ RUN go mod download
 COPY . $SRC_PATH
 RUN \
   go install \
-    -mod=readonly \
-    -ldflags \
-        "-X github.com/drand/drand/common.MAJOR=${major} \
-        -X github.com/drand/drand/common.MINOR=${minor} \
-        -X github.com/drand/drand/common.PATCH=${patch} \
-        -X github.com/drand/drand/common.COMMIT=${patch} \
-        -X github.com/drand/drand/common.BUILDDATE=${patch} \
-        -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
-        -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
+  -mod=readonly \
+  -ldflags \
+  "-X github.com/drand/drand/common.COMMIT=${gitCommit} \
+  -X github.com/drand/drand/common.BUILDDATE=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/cmd/drand-cli.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` \
+  -X github.com/drand/drand/cmd/drand-cli.gitCommit=${gitCommit}"
 
 FROM busybox:1-glibc
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
@@ -61,9 +57,9 @@ COPY --from=builder /tmp/tini /sbin/tini
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 
 RUN mkdir -p $DRAND_HOME && \
-    addgroup -g 994 drand && \
-    adduser -D -h $DRAND_HOME -u 996 -G drand drand && \
-    chown drand:drand $DRAND_HOME
+  addgroup -g 994 drand && \
+  adduser -D -h $DRAND_HOME -u 996 -G drand drand && \
+  chown drand:drand $DRAND_HOME
 
 VOLUME $DRAND_HOME
 ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/entrypoint.sh"]

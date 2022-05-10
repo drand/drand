@@ -3,8 +3,6 @@ FROM golang:1.14.2-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG version=unknown
-ARG gitCommit
-ARG buildDate
 
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/

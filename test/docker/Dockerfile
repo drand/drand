@@ -1,8 +1,5 @@
 FROM golang:1.17.1-buster AS builder
 
-ARG gitCommit
-ARG buildDate
-
 ENV GOPATH /go
 ENV SRC_PATH $GOPATH/src/github.com/drand/drand/
 ENV GOPROXY https://proxy.golang.org
