@@ -162,6 +162,8 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	if bp.group != nil {
 		beaconID := bp.getBeaconID()
 		metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
+		metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(len(bp.dkgInfo.target.Nodes)))
+		metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(len(bp.dkgInfo.target.Nodes)))
 	}
 
 	waitCh := bp.dkgInfo.proto.WaitEnd()

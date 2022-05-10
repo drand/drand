@@ -122,6 +122,8 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 
 	isLeader := in.GetInfo().GetLeader()
 	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), isLeader)
+	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
+	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
 	defer func() {
 		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
 	}()
@@ -675,6 +677,8 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	}
 
 	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), in.GetInfo().GetLeader())
+	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
+	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
 
 	// we wait only a certain amount of time for the prepare phase
 	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
