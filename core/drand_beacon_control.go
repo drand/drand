@@ -57,6 +57,9 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 		return out, err
 	}
 
+	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
+	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
+
 	bp.log.Infow("", "init_dkg", "begin", "time", bp.opts.clock.Now().Unix(), "leader", true)
 
 	// setup the manager
@@ -121,7 +124,8 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 	}
 
 	isLeader := in.GetInfo().GetLeader()
-	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), isLeader)
+	beaconID := bp.getBeaconID()
+	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, isLeader)
 	defer func() {
 		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
 	}()
@@ -130,6 +134,9 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 		bp.log.Infow("", "init_reshare", "begin", "leader", false)
 		return bp.setupAutomaticResharing(c, oldGroup, in)
 	}
+
+	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(in.Info.Nodes))
+	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(in.Info.Threshold))
 
 	bp.log.Infow("", "init_reshare", "begin", "leader", true, "time", bp.opts.clock.Now())
 
