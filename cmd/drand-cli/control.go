@@ -712,14 +712,14 @@ func selfSign(c *cli.Context) error {
 
 const refreshRate = 1000 * time.Millisecond
 
-func followCmd(c *cli.Context) error {
+func syncCmd(c *cli.Context) error {
 	ctrlClient, err := controlClient(c)
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
 	}
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
-	channel, errCh, err := ctrlClient.StartFollowChain(
+	channel, errCh, err := ctrlClient.StartSyncChain(
 		c.Context,
 		c.String(hashInfoReq.Name),
 		addrs,
@@ -742,7 +742,7 @@ func followCmd(c *cli.Context) error {
 			"\t--> %.3f %% - "+
 			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
 	}
-	s.FinalMSG = "\nFollow stopped\n"
+	s.FinalMSG = "\nSync stopped\n"
 	s.Start()
 	defer s.Stop()
 	for {

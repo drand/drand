@@ -257,8 +257,9 @@ var syncNodeFlag = &cli.StringFlag{
 }
 
 var upToFlag = &cli.IntFlag{
-	Name:  "up-to",
-	Usage: "Specify a round to which the drand daemon will stop following the chain",
+	Name: "up-to",
+	Usage: "Specify a round at which the drand daemon will stop syncing the chain, " +
+		"typically used to bootstrap a new node in chained mode",
 	Value: 0,
 }
 
@@ -333,11 +334,11 @@ var appCommands = []*cli.Command{
 		Action: loadCmd,
 	},
 	{
-		Name:  "follow",
-		Usage: "follow and store a randomness chain",
+		Name:  "sync",
+		Usage: "sync your local randomness chain with other nodes",
 		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag),
-		Action: followCmd,
+		Action: syncCmd,
 	},
 	{
 		Name: "generate-keypair",

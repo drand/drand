@@ -297,7 +297,7 @@ func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, er
 	return c.client.Shutdown(ctx.Background(), &control.ShutdownRequest{Metadata: &metadata})
 }
 
-const progressFollowQueue = 100
+const progressSyncQueue = 100
 
 // StartFollowChain initiates the client catching up on an existing chain it is not part of
 func (c *ControlClient) StartFollowChain(cc ctx.Context,
@@ -305,7 +305,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	nodes []string,
 	tls bool,
 	upTo uint64,
-	beaconID string) (outCh chan *control.FollowProgress,
+	beaconID string) (outCh chan *control.SyncProgress,
 	errCh chan error, e error) {
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	metadata.BeaconID = beaconID
@@ -328,7 +328,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	if err != nil {
 		return nil, nil, err
 	}
-	outCh = make(chan *control.FollowProgress, progressFollowQueue)
+	outCh = make(chan *control.SyncProgress, progressSyncQueue)
 	errCh = make(chan error, 1)
 	go func() {
 		for {

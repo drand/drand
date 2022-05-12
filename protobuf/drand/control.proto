@@ -43,7 +43,7 @@ service Control {
 
     rpc LoadBeacon(LoadBeaconRequest) returns (LoadBeaconResponse) { }
 
-    rpc StartFollowChain(StartFollowRequest) returns (stream FollowProgress) { }
+    rpc StartSyncChain(StartSyncRequest) returns (stream SyncProgress) { }
 
     rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) { }
 
@@ -255,23 +255,23 @@ message LoadBeaconResponse {
     common.Metadata metadata = 1;
 }
 
-message StartFollowRequest {
+message StartSyncRequest {
     // hex format
     // Note: use instead the chain-hash from the metadata field.
     string info_hash = 1 [deprecated = true];
     // nodes to contact to
     repeated string nodes = 2;
     // is TLS enabled on these nodes or not
-    // NOTE currently drand either supports following from all TLS or all
+    // NOTE currently drand either supports syncing from all TLS or all
     // non-tls nodes
     bool is_tls = 3;
-    // up_to tells the drand daemon to not follow up after the given round.
-    // if up_to is 0, the follow operation continues until it is cancelled.
+    // up_to tells the drand daemon to not sync up after the given round.
+    // if up_to is 0, the sync operation continues until it is cancelled.
     uint64 up_to = 4;
     common.Metadata metadata = 5;
 }
 
-message FollowProgress {
+message SyncProgress {
     uint64 current = 1;
     uint64 target = 2;
     common.Metadata metadata = 3;
