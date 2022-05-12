@@ -368,11 +368,12 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	errCh chan error, e error) {
 	// we need to make sure the beaconID is set and also the chain hash to check integrity of the chain info
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
-if beaconID == "" {
-metadata.BeaconID = common.DefaultBeaconID
-} else {
-metadata.BeaconID = beaconID
-}	if hashStr == common.DefaultChainHash || hashStr == "" {
+	if beaconID == "" {
+		metadata.BeaconID = common.DefaultBeaconID
+	} else {
+		metadata.BeaconID = beaconID
+	}
+	if hashStr == common.DefaultChainHash || hashStr == "" {
 		return nil, nil, fmt.Errorf("chain hash is not set properly, you cannot use the 'default' chain hash" +
 			" to validate the integrity of the chain info when following a chain")
 	}
@@ -382,7 +383,7 @@ metadata.BeaconID = beaconID
 	}
 	metadata.ChainHash = hash
 	log.DefaultLogger().Infow("Launching a follow request", "nodes", nodes, "tls", tls, "upTo", upTo, "hash", hashStr, "beaconID", beaconID)
-	stream, err := c.client.StartFollowChain(cc, &control.StartFollowRequest{
+	stream, err := c.client.StartFollowChain(cc, &control.StartSyncRequest{
 		Nodes:    nodes,
 		IsTls:    tls,
 		UpTo:     upTo,
