@@ -1296,22 +1296,23 @@ func sendProgressCallback(
 // sendPlainProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a value whose round matches the passed upTo value.
-func sendPlainProgressCallback(stream drand.Control_StartFollowChainServer,
-	l log.Logger) (cb func(curr, targ uint64), done chan struct{}) {
+func sendPlainProgressCallback(
+	stream drand.Control_StartFollowChainServer,
+	l log.Logger,
+) (cb func(curr, targ uint64), done chan struct{}) {
 	done = make(chan struct{})
 
-	logger := l.Named("plainProgressCb")
-
 	cb = func(curr, targ uint64) {
+		l.Debugw("Sending progress", "current", curr, "target", targ)
 		err := stream.Send(&drand.SyncProgress{
 			Current: curr,
 			Target:  targ,
 		})
 		if err != nil {
-			logger.Errorw("sending_progress", "err", err)
+			l.Errorw("sending_progress", "err", err)
 		}
-		if targ > 0 && curr >= targ {
-			logger.Debugw("target reached", "target", curr)
+		if targ > 0 && curr == targ {
+			l.Debugw("target reached", "target", curr)
 			close(done)
 		}
 	}

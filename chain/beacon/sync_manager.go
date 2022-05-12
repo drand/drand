@@ -270,7 +270,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			}
 
 			last = beacon
-			if last.Round >= upTo {
+			if last.Round == upTo {
 				logger.Debugw("sync_manager finished syncing up to", "round", upTo)
 				return true
 			}
@@ -309,27 +309,27 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	addr := net.RemoteAddress(stream.Context())
 	id := addr + strconv.Itoa(rand.Int()) // nolint
 
+	logger := l.Named("SyncChain")
+
 	// we expect the metadata to be set at this stage, this should never happen currently
 	if req.GetMetadata() == nil {
-		l.Errorw("Received a sync request without metadata", "from_addr", addr)
+		logger.Errorw("Received a sync request without metadata", "from_addr", addr)
 		return fmt.Errorf("no metadata in sync request")
 	}
 
 	// this can never be "" at this point, since we set it at the daemon level
 	beaconID := req.GetMetadata().GetBeaconID()
 
-	l.Debugw("Starting SyncChain", "syncer", "sync_request", "from", addr, "from_round", fromRound, "beaconID", beaconID)
-
 	last, err := store.Last()
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get last beacon: %w", err)
 	}
+
 	if last.Round < fromRound {
 		return fmt.Errorf("no beacon stored above requested round %d < %d", last.Round, fromRound)
 	}
 
 	var done = make(chan error, 1)
-	logger := l.Named("Send")
 	send := func(b *chain.Beacon) bool {
 		packet := beaconToProto(b)
 		packet.Metadata = &common.Metadata{BeaconID: beaconID}
@@ -340,12 +340,15 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		}
 		return true
 	}
-	if fromRound != 0 && fromRound <= last.Round {
+
+	// we know that last.Round >= fromRound from the above if
+	if fromRound != 0 {
 		// first sync up from the store itself
 		var shouldContinue = true
 		store.Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(fromRound); bb != nil; bb = c.Next() {
 				if !send(bb) {
+					logger.Debugw("Error while sending beacon", "syncer", "cursor_seek")
 					shouldContinue = false
 					return
 				}
@@ -358,6 +361,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// then register a callback to process new incoming beacons
 	store.AddCallback(id, func(b *chain.Beacon) {
 		if !send(b) {
+			logger.Debugw("Error while sending beacon", "syncer", "callback")
 			store.RemoveCallback(id)
 		}
 	})

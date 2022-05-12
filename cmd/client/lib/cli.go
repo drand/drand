@@ -48,18 +48,18 @@ var (
 		Name:  "cert",
 		Usage: "Path to a file containing gRPC transport credentials of peer",
 	}
-	// HashFlag is the CLI flag for the hash (in hex) for the chain to sync.
+	// HashFlag is the CLI flag for the hash (in hex) of the targeted chain.
 	HashFlag = &cli.StringFlag{
 		Name:    "hash",
-		Usage:   "The hash (in hex) for the chain to sync",
-		Aliases: []string{"chain-hash"}, // DEPRECATED
+		Usage:   "The hash (in hex) of the chain to follow",
+		Aliases: []string{"chain-hash"},
 	}
 	// HashListFlag is the CLI flag for the hashes list (in hex) for the relay to follow.
 	HashListFlag = &cli.StringSliceFlag{
 		Name:  "hash-list",
-		Usage: "The hash list (in hex) for the relay to follow",
+		Usage: "Specify one hash in the list (in hex) of hashes the relay should follow",
 	}
-	// GroupConfFlag is the CLI flag for specifying the path to the drangroup configuration (TOML encoded) or chain info (JSON encoded).
+	// GroupConfFlag is the CLI flag for specifying the path to the drand group configuration (TOML encoded) or chain info (JSON encoded).
 	GroupConfFlag = &cli.PathFlag{
 		Name: "group-conf",
 		Usage: "Path to a drand group configuration (TOML encoded) or chain info (JSON encoded)," +

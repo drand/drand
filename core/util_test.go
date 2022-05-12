@@ -157,11 +157,11 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
-			WithLogLevel(log.LogDebug, false))
+			WithLogLevel(log.LogInfo, false))
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 
-		t.Logf("Create drand %d", i)
+		t.Logf("Creating node %d", i)
 
 		daemon, err := NewDrandDaemon(NewConfig(confOptions...))
 		assert.NoError(t, err)

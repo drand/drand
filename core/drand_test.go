@@ -811,21 +811,21 @@ func TestDrandFollowChain(t *testing.T) {
 	tls := true
 
 	// First try with an invalid hash info
-	t.Logf("Trying to follow with an invalid hash\n")
+	t.Logf(" \t [-] Trying to follow with an invalid hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
 	expectChanFail(t, errCh)
 	cancel()
 
 	// testing with a non hex hash
-	t.Logf("Trying to follow with a non-hex hash\n")
+	t.Logf(" \t [-] Trying to follow with a non-hex hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, _, err = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
 	require.Error(t, err)
 	cancel()
 
 	// testing with a invalid beaconID
-	t.Logf("Trying to follow with an invalid beaconID\n")
+	t.Logf("T \t [-] rying to follow with an invalid beaconID\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
 	expectChanFail(t, errCh)
@@ -834,31 +834,34 @@ func TestDrandFollowChain(t *testing.T) {
 	fn := func(upTo, exp uint64) {
 		ctx, cancel := context.WithCancel(context.Background())
 
-		t.Logf("Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
-		t.Logf("beaconID: %s ; hash-chain: %s", beaconID, hash)
+		t.Logf(" \t [-] Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
+		t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s", beaconID, hash)
 		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 		require.NoError(t, err)
 
 		for goon := true; goon; {
 			select {
 			case p, ok := <-progress:
+				t.Logf(" \t\t --> Received progress: %d / %d \n", p.Current, p.Target)
 				if ok && p.Current == exp {
-					t.Logf("Successful beacon rcv. Round: %d.", exp)
+					t.Logf("\t\t -->Successful beacon rcv. Round: %d.", exp)
 					goon = false
 					break
 				}
 			case e := <-errCh:
 				if errors.Is(e, io.EOF) { // means we've reached the end
-					t.Logf("Got EOF from daemon.")
+					t.Logf("\t\t -->Got EOF from daemon.")
 					goon = false
 					break
 				}
-				t.Logf("Unexpected error received: %v.", e)
+				t.Logf("\t\t -->Unexpected error received: %v.", e)
 				require.NoError(t, e)
 			case <-time.After(2 * time.Second):
-				t.Fatalf("Timeout during test")
+				t.Fatalf("\t\t --> Timeout during test")
 			}
 		}
+
+		t.Logf(" \t\t --> Done, proceeding to check store now.\n")
 
 		// cancel the operation
 		cancel()

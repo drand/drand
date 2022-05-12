@@ -389,8 +389,8 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 		UpTo:     upTo,
 		Metadata: metadata,
 	})
-
 	if err != nil {
+		log.DefaultLogger().Errorw("Error while following chain", "err", err)
 		return nil, nil, err
 	}
 	outCh = make(chan *control.SyncProgress, progressSyncQueue)
