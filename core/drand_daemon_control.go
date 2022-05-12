@@ -200,6 +200,15 @@ func (dd *DrandDaemon) StartSyncChain(in *drand.StartSyncRequest, stream drand.C
 	return bp.StartSyncChain(in, stream)
 }
 
+func (dd *DrandDaemon) StartCheckChain(in *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {
+	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
+	if err != nil {
+		return err
+	}
+
+	return bp.StartCheckChain(in, stream)
+}
+
 func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconIDsRequest) (*drand.ListBeaconIDsResponse, error) {
 	metadata := common.NewMetadata(dd.version.ToProto())
 

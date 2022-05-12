@@ -341,6 +341,13 @@ var appCommands = []*cli.Command{
 		Action: syncCmd,
 	},
 	{
+		Name:  "check",
+		Usage: "check your local randomness chain with other nodes",
+		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
+			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag),
+		Action: checkCmd,
+	},
+	{
 		Name: "generate-keypair",
 		Usage: "Generate the longterm keypair (drand.private, drand.public) " +
 			"for this node, and load it on the drand daemon if it is up and running.\n",

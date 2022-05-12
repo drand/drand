@@ -299,6 +299,29 @@ func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, er
 
 const progressSyncQueue = 100
 
+// StartCheckChain initiates the check chain process
+func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string,
+	tls bool, upTo uint64, beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
+	// we need to make sure the beaconID is set
+	metadata := protoCommon.NewMetadata(c.version.ToProto())
+	metadata.BeaconID = beaconID
+	metadata.ChainHash = []byte(hash)
+
+	log.DefaultLogger().Infow("Launching a follow request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
+
+	_, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
+		Nodes:    []string{},
+		IsTls:    tls,
+		UpTo:     upTo,
+		Metadata: metadata,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return nil, nil, nil
+}
+
 // StartFollowChain initiates the client catching up on an existing chain it is not part of
 func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	hashStr string,

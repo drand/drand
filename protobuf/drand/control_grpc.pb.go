@@ -50,6 +50,7 @@ type ControlClient interface {
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	LoadBeacon(ctx context.Context, in *LoadBeaconRequest, opts ...grpc.CallOption) (*LoadBeaconResponse, error)
 	StartSyncChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartSyncChainClient, error)
+	StartCheckChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartCheckChainClient, error)
 	BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
 	RemoteStatus(ctx context.Context, in *RemoteStatusRequest, opts ...grpc.CallOption) (*RemoteStatusResponse, error)
@@ -212,6 +213,38 @@ func (x *controlStartSyncChainClient) Recv() (*SyncProgress, error) {
 	return m, nil
 }
 
+func (c *controlClient) StartCheckChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartCheckChainClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Control_ServiceDesc.Streams[1], "/drand.Control/StartCheckChain", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &controlStartCheckChainClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Control_StartCheckChainClient interface {
+	Recv() (*SyncProgress, error)
+	grpc.ClientStream
+}
+
+type controlStartCheckChainClient struct {
+	grpc.ClientStream
+}
+
+func (x *controlStartCheckChainClient) Recv() (*SyncProgress, error) {
+	m := new(SyncProgress)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *controlClient) BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error) {
 	out := new(BackupDBResponse)
 	err := c.cc.Invoke(ctx, "/drand.Control/BackupDatabase", in, out, opts...)
@@ -262,6 +295,7 @@ type ControlServer interface {
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	LoadBeacon(context.Context, *LoadBeaconRequest) (*LoadBeaconResponse, error)
 	StartSyncChain(*StartSyncRequest, Control_StartSyncChainServer) error
+	StartCheckChain(*StartSyncRequest, Control_StartCheckChainServer) error
 	BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
 	RemoteStatus(context.Context, *RemoteStatusRequest) (*RemoteStatusResponse, error)
@@ -312,6 +346,9 @@ func (UnimplementedControlServer) LoadBeacon(context.Context, *LoadBeaconRequest
 }
 func (UnimplementedControlServer) StartSyncChain(*StartSyncRequest, Control_StartSyncChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method StartSyncChain not implemented")
+}
+func (UnimplementedControlServer) StartCheckChain(*StartSyncRequest, Control_StartCheckChainServer) error {
+	return status.Errorf(codes.Unimplemented, "method StartCheckChain not implemented")
 }
 func (UnimplementedControlServer) BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BackupDatabase not implemented")
@@ -586,6 +623,27 @@ func (x *controlStartSyncChainServer) Send(m *SyncProgress) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _Control_StartCheckChain_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StartSyncRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlServer).StartCheckChain(m, &controlStartCheckChainServer{stream})
+}
+
+type Control_StartCheckChainServer interface {
+	Send(*SyncProgress) error
+	grpc.ServerStream
+}
+
+type controlStartCheckChainServer struct {
+	grpc.ServerStream
+}
+
+func (x *controlStartCheckChainServer) Send(m *SyncProgress) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 func _Control_BackupDatabase_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BackupDBRequest)
 	if err := dec(in); err != nil {
@@ -694,6 +752,11 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StartSyncChain",
 			Handler:       _Control_StartSyncChain_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StartCheckChain",
+			Handler:       _Control_StartCheckChain_Handler,
 			ServerStreams: true,
 		},
 	},

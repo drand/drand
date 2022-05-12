@@ -45,6 +45,8 @@ service Control {
 
     rpc StartSyncChain(StartSyncRequest) returns (stream SyncProgress) { }
 
+    rpc StartCheckChain(StartSyncRequest) returns (stream SyncProgress) { }
+
     rpc BackupDatabase(BackupDBRequest) returns (BackupDBResponse) { }
 
     // RemoteStatus request the status of some remote drand nodes

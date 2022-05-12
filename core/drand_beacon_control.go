@@ -1158,6 +1158,12 @@ func (bp *BeaconProcess) StartSyncChain(req *drand.StartSyncRequest, stream dran
 	}
 }
 
+// StartCheckChain checks a chain for validity
+
+func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, _ drand.Control_StartCheckChainServer) error {
+	return bp.beacon.StartSyncChecks(req.UpTo)
+}
+
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
 func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 	peers []net.Peer, l log.Logger, version commonutils.Version, beaconID string) (*chain.Info, error) {
@@ -1196,9 +1202,13 @@ func sendProgressCallback(
 ) (cb func(b *chain.Beacon), done chan struct{}) {
 	done = make(chan struct{})
 	cb = func(b *chain.Beacon) {
+		targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
+		if upTo < targ {
+			targ = upTo
+		}
 		err := stream.Send(&drand.SyncProgress{
 			Current: b.Round,
-			Target:  chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime),
+			Target:  targ,
 		})
 		if err != nil {
 			l.Errorw("", "send_progress_callback", "sending_progress", "err", err)

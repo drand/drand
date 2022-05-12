@@ -19,7 +19,7 @@ func NewVerifier(sch scheme.Scheme) *Verifier {
 	return &Verifier{scheme: sch}
 }
 
-// MessageChained returns a slice of bytes as the message to sign or to verify
+// DigestMessage returns a slice of bytes as the message to sign or to verify
 // alongside a beacon signature.
 func (v Verifier) DigestMessage(currRound uint64, prevSig []byte) []byte {
 	h := sha256.New()
@@ -31,7 +31,7 @@ func (v Verifier) DigestMessage(currRound uint64, prevSig []byte) []byte {
 	return h.Sum(nil)
 }
 
-// VerifyChainedBeacon returns an error if the given beacon does not verify given the
+// VerifyBeacon returns an error if the given beacon does not verify given the
 // public key. The public key "point" can be obtained from the
 // `key.DistPublic.Key()` method. The distributed public is the one written in
 // the configuration file of the network.

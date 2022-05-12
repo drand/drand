@@ -712,6 +712,26 @@ func selfSign(c *cli.Context) error {
 
 const refreshRate = 1000 * time.Millisecond
 
+func checkCmd(c *cli.Context) error {
+	ctrlClient, err := controlClient(c)
+	if err != nil {
+		return fmt.Errorf("unable to create control client: %w", err)
+	}
+
+	_, _, err = ctrlClient.StartCheckChain(
+		c.Context,
+		c.String(hashInfoReq.Name),
+		!c.Bool(insecureFlag.Name),
+		uint64(c.Int(upToFlag.Name)),
+		c.String(beaconIDFlag.Name))
+
+	if err != nil {
+		return fmt.Errorf("error asking to check chain up to %d: %w", c.Int(upToFlag.Name), err)
+	}
+
+	return nil
+}
+
 func syncCmd(c *cli.Context) error {
 	ctrlClient, err := controlClient(c)
 	if err != nil {

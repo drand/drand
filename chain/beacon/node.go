@@ -456,6 +456,11 @@ func (h *Handler) GetConfg() *Config {
 	return h.conf
 }
 
+// StartSyncChecks tells the sync manager to check the existing chain for validity.
+func (h *Handler) StartSyncChecks(upTo uint64) error {
+	return h.chain.RunSyncChecks(upTo)
+}
+
 func shortSigStr(sig []byte) string {
 	max := 3
 	if len(sig) < max {

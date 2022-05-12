@@ -228,6 +228,10 @@ func (c *chainStore) RunSync(upTo uint64, peers []net.Peer) {
 	c.syncm.RequestSync(peers, upTo)
 }
 
+func (c *chainStore) RunSyncChecks(upTo uint64) error {
+	return c.syncm.CheckPastBeacons(upTo)
+}
+
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {
 	return c.catchupBeacons
 }

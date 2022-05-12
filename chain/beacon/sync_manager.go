@@ -338,6 +338,38 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 }
 
+func (s *SyncManager) CheckPastBeacons(upTo uint64) error {
+	logger := s.log.Named("pastBeaconChecker")
+	logger.Debugw("Starting to check past beacons", "upTo", upTo)
+
+	last, err := s.store.Last()
+	if err != nil {
+		return fmt.Errorf("unable to fetch last beacon in store: %w", err)
+	}
+
+	if last.Round < upTo {
+		return fmt.Errorf("no beacon stored above requested round %d < %d", last.Round, upTo)
+	}
+
+	for i := 0; i < s.store.Len(); i++ {
+		b, err := s.store.Get(uint64(i))
+		if err != nil {
+			return fmt.Errorf("unable to fetch beacon %d: %w", i, err)
+		}
+		if b.Round >= upTo {
+			return nil
+		}
+		// verify the signature validity
+		if err := s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
+			logger.Debugw("invalid_beacon", "round", b.Round, "err", err)
+		} else {
+			logger.Debugw("valid_beacon", "round", b.Round)
+		}
+	}
+
+	return nil
+}
+
 func peersToString(peers []net.Peer) string {
 	adds := make([]string, 0, len(peers))
 	for _, p := range peers {

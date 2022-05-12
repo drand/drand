@@ -66,6 +66,11 @@ func (s *EmptyServer) StartSyncChain(*drand.StartSyncRequest, drand.Control_Star
 	return nil
 }
 
+// StartSyncChain is the control method to instruct a drand daemon to sync its chain
+func (s *EmptyServer) StartCheckChain(*drand.StartSyncRequest, drand.Control_StartCheckChainServer) error {
+	return nil
+}
+
 // Status method
 func (s *EmptyServer) Status(context.Context, *drand.StatusRequest) (*drand.StatusResponse, error) {
 	return nil, nil
