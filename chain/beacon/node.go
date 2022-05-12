@@ -456,12 +456,10 @@ func (h *Handler) GetConfg() *Config {
 	return h.conf
 }
 
-const batchSize uint64 = 10
-
 // ValidateChain tells the sync manager to check the existing chain for validity.
-func (h *Handler) ValidateChain(upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
 	h.l.Debugw("validate_and_sync", "up_to", upTo)
-	faultyBeacons, err := h.chain.ValidateChain(upTo, cb)
+	faultyBeacons, err := h.chain.ValidateChain(ctx, upTo, cb)
 	if err != nil {
 		return nil, err
 	}
@@ -470,8 +468,13 @@ func (h *Handler) ValidateChain(upTo uint64, cb func(r, u uint64)) ([]uint64, er
 }
 
 // CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
-func (h *Handler) CorrectChain(faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
 	for i, b := range faultyBeacons {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
 		cb(uint64(i), uint64(len(faultyBeacons)))
 		h.l.Infow("Fetching from peers incorrect beacon", "round", b)
 		h.chain.RunSync(b, b, peers)

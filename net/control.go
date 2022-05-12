@@ -306,7 +306,6 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string, nodes []str
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	metadata.BeaconID = beaconID
 	metadata.ChainHash = []byte(hash)
-
 	log.DefaultLogger().Infow("Launching a follow request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
 
 	if upTo == 0 {
@@ -376,6 +375,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 		UpTo:     upTo,
 		Metadata: metadata,
 	})
+
 	if err != nil {
 		return nil, nil, err
 	}

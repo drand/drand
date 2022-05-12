@@ -39,7 +39,6 @@ type SyncManager struct {
 	newSync chan *chain.Beacon
 	done    chan bool
 	isDone  bool
-	force   bool
 	mu      sync.Mutex
 	// we need to know our current daemon address
 	nodeAddr string
@@ -85,6 +84,8 @@ func NewSyncManager(c *SyncConfig) *SyncManager {
 }
 
 func (s *SyncManager) Stop() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.isDone {
 		return
 	}
@@ -370,7 +371,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 }
 
-func (s *SyncManager) CheckPastBeacons(upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
 	logger := s.log.Named("pastBeaconChecker")
 	logger.Debugw("Starting to check past beacons", "upTo", upTo)
 
@@ -388,6 +389,11 @@ func (s *SyncManager) CheckPastBeacons(upTo uint64, cb func(r, u uint64)) ([]uin
 	var faultyBeacons []uint64
 	// notice that we do not validate the genesis round 0
 	for i := 1; i < s.store.Len(); i++ {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
 		// we call our callback with the round to send the progress, N.B. we need to do it before returning
 		cb(uint64(i), upTo)
 

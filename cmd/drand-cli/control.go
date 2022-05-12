@@ -767,11 +767,17 @@ func checkCmd(c *cli.Context) error {
 			return fmt.Errorf("errror on following the chain: %w", err)
 		}
 	}
-
-	return nil
 }
 
 func syncCmd(c *cli.Context) error {
+	if c.Bool(followFlag.Name) {
+		return followSync(c)
+	}
+
+	return checkCmd(c)
+}
+
+func followSync(c *cli.Context) error {
 	ctrlClient, err := controlClient(c)
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
@@ -801,7 +807,9 @@ func syncCmd(c *cli.Context) error {
 			"\t--> %.3f %% - "+
 			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
 	}
+
 	s.FinalMSG = "\nSync stopped\n"
+
 	s.Start()
 	defer s.Stop()
 	for {
@@ -811,6 +819,9 @@ func syncCmd(c *cli.Context) error {
 			atomic.StoreUint64(&target, progress.Target)
 		case err := <-errCh:
 			if errors.Is(err, io.EOF) {
+				// we need a new line because of the spinner
+				fmt.Println()
+				log.DefaultLogger().Infow("Finished following beacon chain", "reached", current)
 				return nil
 			}
 			return fmt.Errorf("errror on following the chain: %w", err)

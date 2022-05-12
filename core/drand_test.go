@@ -760,7 +760,7 @@ func expectChanFail(t *testing.T, errCh chan error) {
 	select {
 	case e := <-errCh:
 		if errors.Is(e, io.EOF) {
-			t.Fatal("The follow should have failed")
+			t.Fatal("should have errored but got EOF")
 		}
 		t.Logf("An error was received as the address is invalid")
 	case <-time.After(100 * time.Millisecond):
@@ -873,6 +873,53 @@ func TestDrandFollowChain(t *testing.T) {
 
 	fn(resp.GetRound()-2, resp.GetRound()-2)
 	fn(0, resp.GetRound())
+}
+
+// This test makes sure the "StartCheckChain" grpc method works fine
+func TestDrandCheckChain(t *testing.T) {
+	n, p := 4, 1*time.Second
+	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, sch, beaconID)
+	defer dt.Cleanup()
+
+	group := dt.RunDKG()
+	rootID := dt.nodes[0].drand.priv.Public
+
+	dt.SetMockClock(t, group.GenesisTime)
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+
+	// do a few periods
+	for i := 0; i < 6; i++ {
+		dt.AdvanceMockClock(t, group.Period)
+
+		// +2 because rounds start at 1, and at genesis time, drand generates
+		// first round already
+		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
+		require.NoError(t, err)
+	}
+
+	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.opts.certmanager)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// get last round first
+	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+	current := resp.GetRound()
+
+	fmt.Println(current)
+
+	ctrlClient, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
+	require.NoError(t, err)
+
+	// First try with an invalid hash info
+	t.Logf("Trying to check chain with an invalid address\n")
+
+	tls := true
+
+	_, errCh, _ := ctrlClient.StartCheckChain(context.Background(), "deadbeef", nil, tls, 10000, beaconID)
+	expectChanFail(t, errCh)
 }
 
 // Test if we can correctly fetch the rounds through the local proxy

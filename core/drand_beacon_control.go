@@ -1056,7 +1056,6 @@ func (bp *BeaconProcess) StartSyncChain(req *drand.StartSyncRequest, stream dran
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	bp.state.Lock()
-
 	if bp.syncerCancel != nil {
 		bp.state.Unlock()
 		return errors.New("syncing is already in progress")
@@ -1161,17 +1160,21 @@ func (bp *BeaconProcess) StartSyncChain(req *drand.StartSyncRequest, stream dran
 // StartCheckChain checks a chain for validity and pulls invalid beacons from other nodes
 func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {
 	logger := bp.log.Named("CheckChain")
+
+	if bp.beacon == nil {
+		return errors.New("beacon handler is nil, you might need to first --follow a chain and start aggregating beacons")
+	}
+
 	logger.Debugw("Starting check chain")
+
 	bp.state.Lock()
 	if bp.syncerCancel != nil {
 		bp.state.Unlock()
 		return errors.New("syncing is already in progress")
 	}
-
 	// context given to the syncer
 	// NOTE: this means that if the client quits the requests, the syncing
-	// context will signal and it will stop. If we want the following to
-	// continue nevertheless we can use the next line by using a new context.
+	// context will signal it, and it will stop.
 	ctx, cancel := context.WithCancel(stream.Context())
 	bp.syncerCancel = cancel
 	bp.state.Unlock()
@@ -1184,23 +1187,8 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		bp.state.Unlock()
 	}()
 
-	upTo := req.UpTo
-	done := make(chan struct{})
-	cb := func(round, upto uint64) {
-		logger.Debugw("processing", "beacon", round)
-
-		err := stream.Send(&drand.SyncProgress{
-			Current: round,
-			Target:  upto,
-		})
-		if err != nil {
-			logger.Errorw("", "send_progress_callback", "sending_progress", "err", err)
-		}
-		if upto > 0 && round >= upto {
-			logger.Debugw("", "send_progress_callback", "up_to_reached", "up_to", upTo)
-			close(done)
-		}
-	}
+	// we don't monitor the channel for this one, instead we'll error out if needed
+	cb, _ := sendPlainProgressCallback(stream, logger)
 
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
@@ -1212,13 +1200,14 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 
-	faultyBeacons, err := bp.beacon.ValidateChain(upTo, cb)
+	faultyBeacons, err := bp.beacon.ValidateChain(ctx, req.UpTo, cb)
 	if err != nil {
 		return err
 	}
 
 	// if we're asking to sync against only us, it's a dry-run
 	if len(faultyBeacons) == 0 || len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr {
+		logger.Infow("Finished without taking any corrective measure")
 		return nil
 	}
 
@@ -1231,7 +1220,12 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		logger.Errorw("", "send_progress", "sending_progress", "err", err)
 	}
 
-	err = bp.beacon.CorrectChain(faultyBeacons, peers, cb)
+	// we need the channel to make sure the client has received the progress
+	cb, done := sendPlainProgressCallback(stream, logger)
+
+	logger.Infow("Faulty beacons detected in chain, correcting now")
+
+	err = bp.beacon.CorrectChain(ctx, faultyBeacons, peers, cb)
 	if err != nil {
 		return err
 	}
@@ -1239,10 +1233,10 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	// wait for all the callbacks to be called and progress sent before returning
 	select {
 	case <-done:
-		logger.Debugw("finished checks successfully", "up_to", upTo)
+		logger.Debugw("Finished correcting chain successfully", "up_to", req.UpTo)
 		return nil
 	case <-ctx.Done():
-		logger.Errorw("received a cancellation / stream closed", "err", ctx.Err())
+		logger.Errorw("Received a cancellation / stream closed", "err", ctx.Err())
 		return ctx.Err()
 	}
 }
@@ -1283,20 +1277,41 @@ func sendProgressCallback(
 	clk clock.Clock,
 	l log.Logger,
 ) (cb func(b *chain.Beacon), done chan struct{}) {
-	done = make(chan struct{})
+	logger := l.Named("progressCb")
+
+	target := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
+	if upTo < target {
+		target = upTo
+	}
+
+	var plainProgressCb func(a, b uint64)
+	plainProgressCb, done = sendPlainProgressCallback(stream, logger)
 	cb = func(b *chain.Beacon) {
-		targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
-		if upTo < targ {
-			targ = upTo
-		}
+		plainProgressCb(b.Round, target)
+	}
+
+	return
+}
+
+// sendPlainProgressCallback returns a function that sends SyncProgress on the
+// passed stream. It also returns a channel that closes when the callback is
+// called with a value whose round matches the passed upTo value.
+func sendPlainProgressCallback(stream drand.Control_StartSyncChainServer,
+	l log.Logger) (cb func(curr, targ uint64), done chan struct{}) {
+	done = make(chan struct{})
+
+	logger := l.Named("plainProgressCb")
+
+	cb = func(curr, targ uint64) {
 		err := stream.Send(&drand.SyncProgress{
-			Current: b.Round,
+			Current: curr,
 			Target:  targ,
 		})
 		if err != nil {
-			l.Errorw("", "send_progress_callback", "sending_progress", "err", err)
+			logger.Errorw("sending_progress", "err", err)
 		}
-		if upTo > 0 && b.Round == upTo {
+		if targ > 0 && curr >= targ {
+			logger.Debugw("target reached", "target", curr)
 			close(done)
 		}
 	}

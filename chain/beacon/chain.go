@@ -223,15 +223,15 @@ func (c *chainStore) shouldSync(last *chain.Beacon, newB likeBeacon) bool {
 // will follow the chain indefinitely. If peers is nil, it uses the peers of
 // the current group.
 func (c *chainStore) RunSync(from, upTo uint64, peers []net.Peer) {
-	if peers == nil || len(peers) == 0 {
+	if len(peers) == 0 {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
 	c.syncm.RequestSync(from, upTo, peers)
 }
 
-func (c *chainStore) ValidateChain(upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	faultyBeacons, err := c.syncm.CheckPastBeacons(upTo, cb)
+func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	faultyBeacons, err := c.syncm.CheckPastBeacons(ctx, upTo, cb)
 	if err != nil {
 		return nil, err
 	}
