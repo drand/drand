@@ -880,7 +880,7 @@ func TestDrandFollowChain(t *testing.T) {
 // This test makes sure the "StartCheckChain" grpc method works fine
 func TestDrandCheckChain(t *testing.T) {
 	n, p := 4, 1*time.Second
-	sch, beaconID := scheme.GetSchemeFromEnv(), common.GetBeaconIDFromEnv()
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, sch, beaconID)
 	defer dt.Cleanup()

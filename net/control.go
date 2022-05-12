@@ -12,10 +12,6 @@ import (
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
 
-	//nolint:stylecheck
-	"github.com/drand/drand/protobuf/drand"
-
-	//nolint:stylecheck
 	control "github.com/drand/drand/protobuf/drand"
 
 	"google.golang.org/grpc"
@@ -87,13 +83,13 @@ func NewControlClient(addr string) (*ControlClient, error) {
 }
 
 func (c *ControlClient) RemoteStatus(ct ctx.Context,
-	addresses []*drand.Address,
-	beaconID string) (map[string]*drand.StatusResponse, error) {
+	addresses []*control.Address,
+	beaconID string) (map[string]*control.StatusResponse, error) {
 	metadata := protoCommon.Metadata{
 		NodeVersion: c.version.ToProto(), BeaconID: beaconID,
 	}
 
-	packet := drand.RemoteStatusRequest{
+	packet := control.RemoteStatusRequest{
 		Metadata:  &metadata,
 		Addresses: addresses,
 	}
@@ -300,13 +296,26 @@ func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, er
 const progressSyncQueue = 100
 
 // StartCheckChain initiates the check chain process
-func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string, nodes []string, tls bool,
+func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []string, tls bool,
 	upTo uint64, beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
-	// we need to make sure the beaconID is set
+	// we need to make sure the beaconID is set in the metadata
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	metadata.BeaconID = beaconID
-	metadata.ChainHash = []byte(hash)
-	log.DefaultLogger().Infow("Launching a follow request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
+	if beaconID == "" {
+		metadata.BeaconID = common.DefaultBeaconID
+	} else {
+		metadata.BeaconID = beaconID
+	}
+
+	if hashStr == common.DefaultChainHash || hashStr == "" {
+		return nil, nil, fmt.Errorf("chain hash is not set properly, you cannot use the 'default' chain hash" +
+			" to validate the integrity of the chain info when following a chain")
+	}
+	hash, err := hex.DecodeString(hashStr)
+	if err != nil {
+		return nil, nil, err
+	}
+	metadata.ChainHash = hash
+	log.DefaultLogger().Infow("Launching a check request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
 
 	if upTo == 0 {
 		return nil, nil, fmt.Errorf("upTo must be greater than 0")
@@ -359,8 +368,11 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	errCh chan error, e error) {
 	// we need to make sure the beaconID is set and also the chain hash to check integrity of the chain info
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
-	metadata.BeaconID = beaconID
-	if hashStr == common.DefaultChainHash || hashStr == "" {
+if beaconID == "" {
+metadata.BeaconID = common.DefaultBeaconID
+} else {
+metadata.BeaconID = beaconID
+}	if hashStr == common.DefaultChainHash || hashStr == "" {
 		return nil, nil, fmt.Errorf("chain hash is not set properly, you cannot use the 'default' chain hash" +
 			" to validate the integrity of the chain info when following a chain")
 	}

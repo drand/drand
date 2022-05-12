@@ -10,24 +10,19 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
-
-	"github.com/drand/drand/core/migration"
-
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/briandowns/spinner"
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/core"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand" //nolint:stylecheck
-
-	control "github.com/drand/drand/protobuf/drand" //nolint:stylecheck
-
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"
+
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/core"
+	"github.com/drand/drand/core/migration"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
+	control "github.com/drand/drand/protobuf/drand"
 )
 
 const minimumShareSecretLength = 32
@@ -374,9 +369,9 @@ func remoteStatusCmd(c *cli.Context) error {
 	isTLS := !c.IsSet(insecureFlag.Name)
 	beaconID := getBeaconID(c)
 
-	addresses := make([]*drand.Address, len(ips))
+	addresses := make([]*control.Address, len(ips))
 	for i := 0; i < len(ips); i++ {
-		addresses[i] = &drand.Address{
+		addresses[i] = &control.Address{
 			Address: ips[i],
 			Tls:     isTLS,
 		}
@@ -435,7 +430,7 @@ func remotePingToNode(addr string, tls bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err := client.Home(ctx, peer, &drand.HomeRequest{})
+	_, err := client.Home(ctx, peer, &control.HomeRequest{})
 	if err != nil {
 		return err
 	}
