@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -18,6 +17,7 @@ import (
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/entropy"
+	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -278,7 +278,7 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 	inst := bp.beacon
 	bp.state.Unlock()
 
-	w, err := os.OpenFile(req.OutputFile, os.O_WRONLY|os.O_CREATE, os.ModeExclusive)
+	w, err := fs.CreateSecureFile(req.OutputFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not open file for backup: %w", err)
 	}
