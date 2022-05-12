@@ -300,8 +300,8 @@ func (c *ControlClient) Shutdown(beaconID string) (*control.ShutdownResponse, er
 const progressSyncQueue = 100
 
 // StartCheckChain initiates the check chain process
-func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string,
-	tls bool, upTo uint64, beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
+func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string, nodes []string, tls bool,
+	upTo uint64, beaconID string) (outCh chan *control.SyncProgress, errCh chan error, e error) {
 	// we need to make sure the beaconID is set
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	metadata.BeaconID = beaconID
@@ -309,17 +309,45 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hash string,
 
 	log.DefaultLogger().Infow("Launching a follow request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
 
-	_, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
-		Nodes:    []string{},
+	if upTo == 0 {
+		return nil, nil, fmt.Errorf("upTo must be greater than 0")
+	}
+
+	log.DefaultLogger().Infow("Started checking database consistency", "chain-hash", hash, "up to", upTo, "beaconID", beaconID)
+
+	stream, err := c.client.StartCheckChain(cc, &control.StartSyncRequest{
+		Nodes:    nodes,
 		IsTls:    tls,
 		UpTo:     upTo,
 		Metadata: metadata,
 	})
+
 	if err != nil {
+		log.DefaultLogger().Errorw("Error while checking database consistency", "err", err)
 		return nil, nil, err
 	}
 
-	return nil, nil, nil
+	outCh = make(chan *control.SyncProgress, progressSyncQueue)
+	errCh = make(chan error, 1)
+	go func() {
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				errCh <- err
+				close(errCh)
+				close(outCh)
+				return
+			}
+			select {
+			case outCh <- resp:
+			case <-cc.Done():
+				close(errCh)
+				close(outCh)
+				return
+			}
+		}
+	}()
+	return outCh, errCh, nil
 }
 
 // StartFollowChain initiates the client catching up on an existing chain it is not part of

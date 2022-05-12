@@ -82,7 +82,9 @@ func (a *schemeStore) Put(b *chain.Beacon) error {
 	if a.sch.DecouplePrevSig {
 		b.PreviousSig = nil
 	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {
-		return fmt.Errorf("invalid previous signature")
+		if pb, err := a.Get(b.Round - 1); err != nil || !bytes.Equal(pb.Signature, b.PreviousSig) {
+			return fmt.Errorf("invalid previous signature")
+		}
 	}
 
 	if err := a.Store.Put(b); err != nil {
@@ -126,6 +128,14 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(d.group.Len()))
 	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(d.group.Threshold))
 	d.l.Infow("", "NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
+	return nil
+}
+
+func (d *discrepancyStore) ForcePut(b *chain.Beacon) error {
+	if err := d.Store.ForcePut(b); err != nil {
+		return err
+	}
+	d.l.Infow("ForcePut", "NEW_BEACON_STORED", b.String())
 	return nil
 }
 

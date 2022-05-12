@@ -1,6 +1,7 @@
 package beacon
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/drand/drand/chain"
@@ -59,7 +60,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 		Clock:    cf.Clock,
 		NodeAddr: cf.Public.Address(),
 	})
-	go syncm.Run()
+	go syncm.Run(context.Background())
 
 	verifier := chain.NewVerifier(cf.Group.Scheme)
 
@@ -181,7 +182,7 @@ func (c *chainStore) runAggregator() {
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
 				peers := toPeers(c.crypto.GetGroup().Nodes)
-				c.syncm.RequestSync(peers, newBeacon.Round)
+				c.syncm.RequestSync(0, newBeacon.Round, peers)
 			}
 			break
 		}
@@ -217,19 +218,30 @@ func (c *chainStore) shouldSync(last *chain.Beacon, newB likeBeacon) bool {
 	return newB.GetRound() > last.GetRound()+1
 }
 
-// RunSync will sync up with other nodes and fill the store. If upTo is equal to
-// 0, then it will follow the chain indefinitely. If peers is nil, it uses the
-// peers of the current group.
-func (c *chainStore) RunSync(upTo uint64, peers []net.Peer) {
-	if peers == nil {
+// RunSync will sync up with other nodes and fill the store. If from is negative, it
+// will start from the latest stored beacon. If upTo is equal to 0, then it
+// will follow the chain indefinitely. If peers is nil, it uses the peers of
+// the current group.
+func (c *chainStore) RunSync(from, upTo uint64, peers []net.Peer) {
+	if peers == nil || len(peers) == 0 {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
-	c.syncm.RequestSync(peers, upTo)
+	c.syncm.RequestSync(from, upTo, peers)
 }
 
-func (c *chainStore) RunSyncChecks(upTo uint64) error {
-	return c.syncm.CheckPastBeacons(upTo)
+func (c *chainStore) ValidateChain(upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	faultyBeacons, err := c.syncm.CheckPastBeacons(upTo, cb)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(faultyBeacons) > 0 {
+		c.l.Errorw("Found invalid beacons in store", "beacon_id", c.crypto.GetGroup().ID, "amount", len(faultyBeacons))
+		return faultyBeacons, nil
+	}
+
+	return nil, nil
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {

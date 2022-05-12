@@ -195,7 +195,7 @@ func (h *Handler) Catchup() {
 
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
-	h.chain.RunSync(nRound, nil)
+	h.chain.RunSync(0, nRound, nil)
 }
 
 // Transition makes this beacon continuously sync until the time written in the
@@ -219,7 +219,7 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
-	h.chain.RunSync(tRound-1, toPeers(prevGroup.Nodes))
+	h.chain.RunSync(0, tRound-1, toPeers(prevGroup.Nodes))
 
 	return nil
 }
@@ -326,7 +326,7 @@ func (h *Handler) run(startTime int64) {
 				// XXX find a way to start the catchup as soon as the runsync is
 				// done. Not critical but leads to faster network recovery.
 				h.l.Debugw("", "beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
-				h.chain.RunSync(current.round, nil)
+				h.chain.RunSync(0, current.round, nil)
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
 			h.l.Debugw("", "beacon_loop", "catchupmode", "last_is", b.Round, "current", current.round, "catchup_launch", b.Round < current.round)
@@ -456,9 +456,28 @@ func (h *Handler) GetConfg() *Config {
 	return h.conf
 }
 
-// StartSyncChecks tells the sync manager to check the existing chain for validity.
-func (h *Handler) StartSyncChecks(upTo uint64) error {
-	return h.chain.RunSyncChecks(upTo)
+const batchSize uint64 = 10
+
+// ValidateChain tells the sync manager to check the existing chain for validity.
+func (h *Handler) ValidateChain(upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	h.l.Debugw("validate_and_sync", "up_to", upTo)
+	faultyBeacons, err := h.chain.ValidateChain(upTo, cb)
+	if err != nil {
+		return nil, err
+	}
+
+	return faultyBeacons, nil
+}
+
+// CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
+func (h *Handler) CorrectChain(faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	for i, b := range faultyBeacons {
+		cb(uint64(i), uint64(len(faultyBeacons)))
+		h.l.Infow("Fetching from peers incorrect beacon", "round", b)
+		h.chain.RunSync(b, b, peers)
+	}
+
+	return nil
 }
 
 func shortSigStr(sig []byte) string {

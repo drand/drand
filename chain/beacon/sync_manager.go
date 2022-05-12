@@ -39,6 +39,7 @@ type SyncManager struct {
 	newSync chan *chain.Beacon
 	done    chan bool
 	isDone  bool
+	force   bool
 	mu      sync.Mutex
 	// we need to know our current daemon address
 	nodeAddr string
@@ -62,13 +63,17 @@ type SyncConfig struct {
 // NewSyncManager returns a sync manager that will use the given store to store
 // newly synced beacon.
 func NewSyncManager(c *SyncConfig) *SyncManager {
+	period := c.Info.Period
+	if period == 0 {
+		period = time.Second
+	}
 	return &SyncManager{
 		log:      c.Log.Named("SyncManager"),
 		clock:    c.Clock,
 		store:    c.Store,
 		info:     c.Info,
 		client:   c.Client,
-		period:   c.Info.Period,
+		period:   period,
 		verifier: c.Info.Verifier(),
 		nodeAddr: c.NodeAddr,
 		factor:   syncExpiryFactor,
@@ -80,8 +85,6 @@ func NewSyncManager(c *SyncConfig) *SyncManager {
 }
 
 func (s *SyncManager) Stop() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.isDone {
 		return
 	}
@@ -91,21 +94,24 @@ func (s *SyncManager) Stop() {
 
 type requestInfo struct {
 	nodes []net.Peer
+	from  uint64
 	upTo  uint64
 }
 
 // RequestSync asks the sync manager to sync up with those peers up to the given
 // round. Depending on the current state of the syncing process, there might not
 // be a new process starting (for example if we already have the round
-// requested). upTo == 0 means the syncing process goes on forever.
-func (s *SyncManager) RequestSync(nodes []net.Peer, upTo uint64) {
+// requested). upTo == 0 means the syncing process goes on forever. from == 0 means
+// we start from the latest stored beacon. from > 0 means we force-sync.
+func (s *SyncManager) RequestSync(from, upTo uint64, nodes []net.Peer) {
 	s.newReq <- requestInfo{
 		nodes: nodes,
+		from:  from,
 		upTo:  upTo,
 	}
 }
 
-func (s *SyncManager) Run() {
+func (s *SyncManager) Run(ctx context.Context) {
 	// no need to sync until genesis time
 	for s.clock.Now().Unix() < s.info.GenesisTime {
 		time.Sleep(time.Second)
@@ -113,10 +119,15 @@ func (s *SyncManager) Run() {
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
-	lastCtx, cancel := context.WithCancel(context.Background()) // nolint
+	lastCtx, cancel := context.WithCancel(ctx)
 	for {
 		select {
 		case request := <-s.newReq:
+			if request.from > 0 {
+				// we always do it and we block while doing it if it's a forced sync.
+				s.sync(lastCtx, request)
+				continue
+			}
 			// check if the request is still valid
 			last, err := s.store.Last()
 			if err != nil {
@@ -134,12 +145,12 @@ func (s *SyncManager) Run() {
 			// We always give a delay of a few periods since the one next to "now"
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
-			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
+			upperBound := lastRoundTime + int(s.period.Seconds()+1)*s.factor
 			if upperBound < int(s.clock.Now().Unix()) {
 				// we haven't received a new block in a while
 				// -> time to start a new sync
 				cancel()
-				lastCtx, cancel = context.WithCancel(context.Background())
+				lastCtx, cancel = context.WithCancel(ctx)
 				go s.sync(lastCtx, request)
 			}
 		case <-s.newSync:
@@ -169,7 +180,7 @@ func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
 			return
 		default:
 			node := request.nodes[n]
-			if s.tryNode(ctx, request.upTo, node) {
+			if s.tryNode(ctx, request.from, request.upTo, node) {
 				// we stop as soon as we've done a successful sync with a node
 				return
 			}
@@ -181,28 +192,40 @@ func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
-func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer) bool {
+func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
+	logger := s.log.Named("tryNode")
+
 	// we put a cancel to still keep the global context open but stop with this
 	// peer if things go sideway
 	cnode, cancel := context.WithCancel(global)
 	defer cancel()
+
+	// if from > 0 then we need to force sync.
+	force := from > 0
+
 	last, err := s.store.Last()
 	if err != nil {
+		logger.Errorw("unable to fetch from store", "sync_manager", "store.Last", "err", err)
 		return false
 	}
 
-	logger := s.log.Named("tryNode")
+	// note that when from == upTo, it means we want to overwrite that beacon in our store
+	if from <= 0 || from > upTo {
+		from = last.Round + 1
+	}
+
 	req := &proto.SyncRequest{
-		FromRound: last.Round + 1,
+		FromRound: from,
 		Metadata:  &common.Metadata{BeaconID: s.info.ID},
 	}
+
 	beaconCh, err := s.client.SyncChain(cnode, peer, req)
 	if err != nil {
 		logger.Debugw("unable_to_sync", "with_peer", peer.Address(), "err", err)
 		return false
 	}
 
-	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", last.Round+1)
+	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo)
 
 	for {
 		select {
@@ -221,7 +244,7 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 
 			logger.Debugw("new_beacon_fetched",
 				"with_peer", peer.Address(),
-				"from_round", last.Round+1,
+				"from_round", from,
 				"got_round", beaconPacket.GetRound())
 			beacon := protoToBeacon(beaconPacket)
 
@@ -231,12 +254,21 @@ func (s *SyncManager) tryNode(global context.Context, upTo uint64, peer net.Peer
 				return false
 			}
 
-			if err := s.store.Put(beacon); err != nil {
-				logger.Debugw("unable to save", "with_peer", peer.Address(), "err", err)
-				return false
+			if force {
+				logger.Debugw("Using ForcePut to save beacon", "beacon", beacon.Round)
+				if err := s.store.ForcePut(beacon); err != nil {
+					logger.Debugw("unable to save", "with_peer", peer.Address(), "err", err)
+					return false
+				}
+			} else {
+				if err := s.store.Put(beacon); err != nil {
+					logger.Debugw("unable to save", "with_peer", peer.Address(), "err", err)
+					return false
+				}
 			}
+
 			last = beacon
-			if last.Round == upTo {
+			if last.Round >= upTo {
 				logger.Debugw("sync_manager finished syncing up to", "round", upTo)
 				return true
 			}
@@ -338,36 +370,49 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 }
 
-func (s *SyncManager) CheckPastBeacons(upTo uint64) error {
+func (s *SyncManager) CheckPastBeacons(upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
 	logger := s.log.Named("pastBeaconChecker")
 	logger.Debugw("Starting to check past beacons", "upTo", upTo)
 
 	last, err := s.store.Last()
 	if err != nil {
-		return fmt.Errorf("unable to fetch last beacon in store: %w", err)
+		return nil, fmt.Errorf("unable to fetch and check last beacon in store: %w", err)
 	}
 
 	if last.Round < upTo {
-		return fmt.Errorf("no beacon stored above requested round %d < %d", last.Round, upTo)
+		logger.Errorw("No beacon stored above", "last round", last.Round, "requested round", upTo)
+		logger.Infow("Checking beacons only up to the last stored", "round", last.Round)
+		upTo = last.Round
 	}
 
-	for i := 0; i < s.store.Len(); i++ {
+	var faultyBeacons []uint64
+	// notice that we do not validate the genesis round 0
+	for i := 1; i < s.store.Len(); i++ {
+		// we call our callback with the round to send the progress, N.B. we need to do it before returning
+		cb(uint64(i), upTo)
+
 		b, err := s.store.Get(uint64(i))
 		if err != nil {
-			return fmt.Errorf("unable to fetch beacon %d: %w", i, err)
-		}
-		if b.Round >= upTo {
-			return nil
+			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
+			faultyBeacons = append(faultyBeacons, uint64(i))
+			continue
 		}
 		// verify the signature validity
-		if err := s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
-			logger.Debugw("invalid_beacon", "round", b.Round, "err", err)
+		if err = s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
+			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
+			faultyBeacons = append(faultyBeacons, b.Round)
 		} else {
 			logger.Debugw("valid_beacon", "round", b.Round)
 		}
+
+		if b.Round >= upTo {
+			break
+		}
 	}
 
-	return nil
+	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
+
+	return faultyBeacons, nil
 }
 
 func peersToString(peers []net.Peer) string {

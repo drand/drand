@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/log"
 
 	"github.com/drand/drand/core/migration"
 
@@ -713,20 +714,58 @@ func selfSign(c *cli.Context) error {
 const refreshRate = 1000 * time.Millisecond
 
 func checkCmd(c *cli.Context) error {
+	defer log.DefaultLogger().Infow("Finished checking beacon validity")
+
 	ctrlClient, err := controlClient(c)
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
 	}
 
-	_, _, err = ctrlClient.StartCheckChain(
+	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
+
+	channel, errCh, err := ctrlClient.StartCheckChain(
 		c.Context,
 		c.String(hashInfoReq.Name),
+		addrs,
 		!c.Bool(insecureFlag.Name),
 		uint64(c.Int(upToFlag.Name)),
 		c.String(beaconIDFlag.Name))
 
 	if err != nil {
+		log.DefaultLogger().Errorw("Error checking chain", "err", err)
 		return fmt.Errorf("error asking to check chain up to %d: %w", c.Int(upToFlag.Name), err)
+	}
+
+	var current uint64
+	target := uint64(c.Int(upToFlag.Name))
+	s := spinner.New(spinner.CharSets[9], refreshRate)
+	s.PreUpdate = func(spin *spinner.Spinner) {
+		curr := atomic.LoadUint64(&current)
+		spin.Suffix = fmt.Sprintf("  synced round up to %d "+
+			"\t- current target %d"+
+			"\t--> %.3f %% - "+
+			"Waiting on new rounds...", curr, target, 100*float64(curr)/float64(target))
+	}
+	s.FinalMSG = "Checks of beacons finished.\n"
+	s.Start()
+	defer s.Stop()
+	for {
+		select {
+		case progress, ok := <-channel:
+			if !ok {
+				return nil
+			}
+			atomic.StoreUint64(&current, progress.Current)
+		case err, ok := <-errCh:
+			if !ok {
+				return nil
+			}
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			log.DefaultLogger().Errorw("received an error", "err", err)
+			return fmt.Errorf("errror on following the chain: %w", err)
+		}
 	}
 
 	return nil

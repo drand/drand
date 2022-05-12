@@ -1145,9 +1145,9 @@ func (bp *BeaconProcess) StartSyncChain(req *drand.StartSyncRequest, stream dran
 		Clock:    bp.opts.clock,
 		NodeAddr: bp.priv.Public.Address(),
 	})
-	go syncer.Run()
+	go syncer.Run(ctx)
 	defer syncer.Stop()
-	syncer.RequestSync(peers, req.GetUpTo())
+	syncer.RequestSync(0, req.GetUpTo(), peers)
 
 	// wait for all the callbacks to be called and progress sent before returning
 	select {
@@ -1158,10 +1158,93 @@ func (bp *BeaconProcess) StartSyncChain(req *drand.StartSyncRequest, stream dran
 	}
 }
 
-// StartCheckChain checks a chain for validity
+// StartCheckChain checks a chain for validity and pulls invalid beacons from other nodes
+func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {
+	logger := bp.log.Named("CheckChain")
+	logger.Debugw("Starting check chain")
+	bp.state.Lock()
+	if bp.syncerCancel != nil {
+		bp.state.Unlock()
+		return errors.New("syncing is already in progress")
+	}
 
-func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, _ drand.Control_StartCheckChainServer) error {
-	return bp.beacon.StartSyncChecks(req.UpTo)
+	// context given to the syncer
+	// NOTE: this means that if the client quits the requests, the syncing
+	// context will signal and it will stop. If we want the following to
+	// continue nevertheless we can use the next line by using a new context.
+	ctx, cancel := context.WithCancel(stream.Context())
+	bp.syncerCancel = cancel
+	bp.state.Unlock()
+	defer func() {
+		bp.state.Lock()
+		if bp.syncerCancel != nil {
+			bp.syncerCancel()
+		}
+		bp.syncerCancel = nil
+		bp.state.Unlock()
+	}()
+
+	upTo := req.UpTo
+	done := make(chan struct{})
+	cb := func(round, upto uint64) {
+		logger.Debugw("processing", "beacon", round)
+
+		err := stream.Send(&drand.SyncProgress{
+			Current: round,
+			Target:  upto,
+		})
+		if err != nil {
+			logger.Errorw("", "send_progress_callback", "sending_progress", "err", err)
+		}
+		if upto > 0 && round >= upto {
+			logger.Debugw("", "send_progress_callback", "up_to_reached", "up_to", upTo)
+			close(done)
+		}
+	}
+
+	peers := make([]net.Peer, 0, len(req.GetNodes()))
+	for _, addr := range req.GetNodes() {
+		// we skip our own address
+		if addr == bp.priv.Public.Address() {
+			continue
+		}
+		// XXX add TLS disable later
+		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
+	}
+
+	faultyBeacons, err := bp.beacon.ValidateChain(upTo, cb)
+	if err != nil {
+		return err
+	}
+
+	// if we're asking to sync against only us, it's a dry-run
+	if len(faultyBeacons) == 0 || len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr {
+		return nil
+	}
+
+	// let us reset the progress bar on the client side to track instead the progress of the correction on the beacons
+	err = stream.Send(&drand.SyncProgress{
+		Current: 0,
+		Target:  uint64(len(faultyBeacons)),
+	})
+	if err != nil {
+		logger.Errorw("", "send_progress", "sending_progress", "err", err)
+	}
+
+	err = bp.beacon.CorrectChain(faultyBeacons, peers, cb)
+	if err != nil {
+		return err
+	}
+
+	// wait for all the callbacks to be called and progress sent before returning
+	select {
+	case <-done:
+		logger.Debugw("finished checks successfully", "up_to", upTo)
+		return nil
+	case <-ctx.Done():
+		logger.Errorw("received a cancellation / stream closed", "err", ctx.Err())
+		return ctx.Err()
+	}
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
