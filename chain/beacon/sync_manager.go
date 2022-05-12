@@ -193,6 +193,7 @@ func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
+// nolint:gocyclo
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
 	logger := s.log.Named("tryNode")
 
@@ -201,7 +202,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	cnode, cancel := context.WithCancel(global)
 	defer cancel()
 
-	// if from > 0 then we need to force sync.
+	// if from > 0 then we need to force sync because we're correcting beacons after a CheckChain.
 	force := from > 0
 
 	last, err := s.store.Last()

@@ -357,6 +357,7 @@ func (c *ControlClient) StartFollowChain(cc ctx.Context,
 	upTo uint64,
 	beaconID string) (outCh chan *control.SyncProgress,
 	errCh chan error, e error) {
+	// we need to make sure the beaconID is set and also the chain hash to check integrity of the chain info
 	metadata := protoCommon.NewMetadata(c.version.ToProto())
 	metadata.BeaconID = beaconID
 	if hashStr == common.DefaultChainHash || hashStr == "" {

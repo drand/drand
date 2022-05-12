@@ -762,9 +762,9 @@ func expectChanFail(t *testing.T, errCh chan error) {
 		if errors.Is(e, io.EOF) {
 			t.Fatal("should have errored but got EOF")
 		}
-		t.Logf("An error was received as the address is invalid")
+		t.Logf("An error was received as expected: %v", e)
 	case <-time.After(100 * time.Millisecond):
-		t.Fatal("An error should have been received as the address is invalid")
+		t.Fatal("An error should have been received.")
 	}
 }
 
@@ -813,7 +813,7 @@ func TestDrandFollowChain(t *testing.T) {
 	// First try with an invalid hash info
 	t.Logf("Trying to follow with an invalid hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ := newClient.StartSyncChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
+	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
 	expectChanFail(t, errCh)
 	cancel()
 
@@ -827,34 +827,36 @@ func TestDrandFollowChain(t *testing.T) {
 	// testing with a invalid beaconID
 	t.Logf("Trying to follow with an invalid beaconID\n")
 	ctx, cancel = context.WithCancel(context.Background())
-	_, errCh, _ = newClient.StartSyncChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
+	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
 	expectChanFail(t, errCh)
 	cancel()
 
 	fn := func(upTo, exp uint64) {
-		ctx, cancel = context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(context.Background())
 
-		t.Logf("Starting to follow chain with a valid address\n")
+		t.Logf("Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
 		t.Logf("beaconID: %s ; hash-chain: %s", beaconID, hash)
-		progress, errCh, err := newClient.StartSyncChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 		require.NoError(t, err)
 
-		var goon = true
-		for goon {
+		for goon := true; goon; {
 			select {
 			case p, ok := <-progress:
 				if ok && p.Current == exp {
-					t.Logf("Successful beacon rcv. Round: %d. Keep following chain.", exp)
+					t.Logf("Successful beacon rcv. Round: %d.", exp)
 					goon = false
 					break
 				}
 			case e := <-errCh:
-				if errors.Is(e, io.EOF) {
+				if errors.Is(e, io.EOF) { // means we've reached the end
+					t.Logf("Got EOF from daemon.")
+					goon = false
 					break
 				}
+				t.Logf("Unexpected error received: %v.", e)
 				require.NoError(t, e)
-			case <-time.After(1 * time.Second):
-				t.FailNow()
+			case <-time.After(2 * time.Second):
+				t.Fatalf("Timeout during test")
 			}
 		}
 

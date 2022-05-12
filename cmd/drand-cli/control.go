@@ -784,7 +784,7 @@ func followSync(c *cli.Context) error {
 	}
 
 	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
-	channel, errCh, err := ctrlClient.StartSyncChain(
+	channel, errCh, err := ctrlClient.StartFollowChain(
 		c.Context,
 		c.String(hashInfoReq.Name),
 		addrs,

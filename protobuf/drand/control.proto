@@ -43,7 +43,7 @@ service Control {
 
     rpc LoadBeacon(LoadBeaconRequest) returns (LoadBeaconResponse) { }
 
-    rpc StartSyncChain(StartSyncRequest) returns (stream SyncProgress) { }
+    rpc StartFollowChain(StartSyncRequest) returns (stream SyncProgress) { }
 
     rpc StartCheckChain(StartSyncRequest) returns (stream SyncProgress) { }
 

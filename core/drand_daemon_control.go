@@ -191,14 +191,14 @@ func (dd *DrandDaemon) BackupDatabase(ctx context.Context, in *drand.BackupDBReq
 	return bp.BackupDatabase(ctx, in)
 }
 
-func (dd *DrandDaemon) StartSyncChain(in *drand.StartSyncRequest, stream drand.Control_StartSyncChainServer) error {
-	dd.log.Debugw("StartSyncChain", "requested_chainhash", in.Metadata.ChainHash)
+func (dd *DrandDaemon) StartFollowChain(in *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
+	dd.log.Debugw("StartFollowChain", "requested_chainhash", in.Metadata.ChainHash)
 	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
 	if err != nil {
 		return err
 	}
 
-	return bp.StartSyncChain(in, stream)
+	return bp.StartFollowChain(in, stream)
 }
 
 func (dd *DrandDaemon) StartCheckChain(in *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {

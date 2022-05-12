@@ -1050,9 +1050,9 @@ func getNonce(g *key.Group) []byte {
 	return h.Sum(nil)
 }
 
-// StartSyncChain syncs up with a chain from other nodes
-//nolint:funlen
-func (bp *BeaconProcess) StartSyncChain(req *drand.StartSyncRequest, stream drand.Control_StartSyncChainServer) error {
+// StartFollowChain syncs up with a chain from other nodes
+// nolint:funlen
+func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	bp.state.Lock()
@@ -1271,7 +1271,7 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 // passed stream. It also returns a channel that closes when the callback is
 // called with a beacon whose round matches the passed upTo value.
 func sendProgressCallback(
-	stream drand.Control_StartSyncChainServer,
+	stream drand.Control_StartFollowChainServer, // not ideal since we also reuse it for the StartCheckChain
 	upTo uint64,
 	info *chain.Info,
 	clk clock.Clock,
@@ -1296,7 +1296,7 @@ func sendProgressCallback(
 // sendPlainProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a value whose round matches the passed upTo value.
-func sendPlainProgressCallback(stream drand.Control_StartSyncChainServer,
+func sendPlainProgressCallback(stream drand.Control_StartFollowChainServer,
 	l log.Logger) (cb func(curr, targ uint64), done chan struct{}) {
 	done = make(chan struct{})
 
