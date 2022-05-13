@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/drand/drand/common"
@@ -247,21 +248,18 @@ var (
 		Help: "Timestamp when the drand process started up in seconds since the Epoch",
 	})
 
-	metricsBound = false
+	metricsBound sync.Once
 )
 
-func bindMetrics() error {
-	if metricsBound {
-		return nil
-	}
-	metricsBound = true
-
+func bindMetrics() {
 	// The private go-level metrics live in private.
 	if err := PrivateMetrics.Register(collectors.NewGoCollector()); err != nil {
-		return err
+		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		return
 	}
 	if err := PrivateMetrics.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
-		return err
+		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		return
 	}
 
 	// Group metrics
@@ -286,10 +284,12 @@ func bindMetrics() error {
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
-			return err
+			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			return
 		}
 		if err := PrivateMetrics.Register(c); err != nil {
-			return err
+			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			return
 		}
 	}
 
@@ -301,21 +301,24 @@ func bindMetrics() error {
 	}
 	for _, c := range httpMetrics {
 		if err := HTTPMetrics.Register(c); err != nil {
-			return err
+			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			return
 		}
 		if err := PrivateMetrics.Register(c); err != nil {
-			return err
+			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			return
 		}
 	}
 
 	// Client metrics
 	if err := RegisterClientMetrics(ClientMetrics); err != nil {
-		return err
+		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		return
 	}
 	if err := RegisterClientMetrics(PrivateMetrics); err != nil {
-		return err
+		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		return
 	}
-	return nil
 }
 
 // RegisterClientMetrics registers drand client metrics with the given registry
@@ -346,10 +349,7 @@ type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
 // Start starts a prometheus metrics server with debug endpoints.
 func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
 	log.DefaultLogger().Debugw("", "metrics", "private listener started", "at", metricsBind)
-	if err := bindMetrics(); err != nil {
-		log.DefaultLogger().Warnw("", "metrics", "metric setup failed", "err", err)
-		return nil
-	}
+	metricsBound.Do(bindMetrics)
 
 	if !strings.Contains(metricsBind, ":") {
 		metricsBind = "localhost:" + metricsBind
@@ -385,6 +385,7 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 // GroupHandler provides metrics shared to other group members
 // This HTTP handler, which would typically be mounted at `/metrics` exposes `GroupMetrics`
 func GroupHandler() http.Handler {
+	metricsBound.Do(bindMetrics)
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
 }
 
