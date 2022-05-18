@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/metrics"
 
 	"github.com/drand/drand/common/scheme"
 
@@ -58,6 +59,9 @@ func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePac
 			newStore := key.NewFileStore(dd.opts.ConfigFolderMB(), beaconID)
 			store = &newStore
 		}
+
+		metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
+		metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
 
 		dd.log.Infow("", "init_reshare", "instantiating a new beacon process")
 		bp, err = dd.InstantiateBeaconProcess(beaconID, *store)
