@@ -159,6 +159,13 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		return nil, errors.New("no dkg info set")
 	}
 
+	beaconID := bp.getBeaconID()
+	defer func() {
+		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
+	}()
+
+	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
+
 	waitCh := bp.dkgInfo.proto.WaitEnd()
 	bp.log.Debugw("", "waiting_dkg_end", time.Now())
 
