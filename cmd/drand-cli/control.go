@@ -706,10 +706,10 @@ func selfSign(c *cli.Context) error {
 	return nil
 }
 
-const refreshRate = 1000 * time.Millisecond
+const refreshRate = 500 * time.Millisecond
 
 func checkCmd(c *cli.Context) error {
-	defer log.DefaultLogger().Infow("Finished checking beacon validity")
+	defer log.DefaultLogger().Infow("Finished sync")
 
 	ctrlClient, err := controlClient(c)
 	if err != nil {
@@ -741,14 +741,25 @@ func checkCmd(c *cli.Context) error {
 			"\t--> %.3f %% - "+
 			"Waiting on new rounds...", curr, target, 100*float64(curr)/float64(target))
 	}
-	s.FinalMSG = "Checks of beacons finished.\n"
 	s.Start()
 	defer s.Stop()
 	for {
 		select {
 		case progress, ok := <-channel:
 			if !ok {
+				// let the spinner time to refresh
+				time.Sleep(refreshRate)
 				return nil
+			}
+			if progress.Current == 0 {
+				// we need an empty line to not clash with the spinner
+				time.Sleep(refreshRate)
+				fmt.Println()
+				log.DefaultLogger().Infow("Finished checking chain validity")
+				if progress.Target > 0 {
+					log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
+					atomic.StoreUint64(&target, progress.Target)
+				}
 			}
 			atomic.StoreUint64(&current, progress.Current)
 		case err, ok := <-errCh:

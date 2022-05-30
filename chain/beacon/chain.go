@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	commonutils "github.com/drand/drand/common"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -251,27 +253,33 @@ func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, 
 	for i := 1; i < c.Len(); i++ {
 		select {
 		case <-ctx.Done():
+			logger.Debugw("Context done, returning")
 			return nil, ctx.Err()
 		default:
 		}
-		// we call our callback with the round to send the progress, N.B. we need to do it before returning
+
+		// we call our callback with the round to send the progress, N.B. we need to do it before returning.
+		// Batching/rate-limiting is handled on the callback side
 		cb(uint64(i), upTo)
 
 		b, err := c.Get(uint64(i))
 		if err != nil {
 			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
 			faultyBeacons = append(faultyBeacons, uint64(i))
+			if uint64(i) >= upTo {
+				break
+			}
 			continue
 		}
 		// verify the signature validity
 		if err = c.verifier.VerifyBeacon(*b, c.conf.Group.PublicKey.Key()); err != nil {
 			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
 			faultyBeacons = append(faultyBeacons, b.Round)
-		} else {
+		} else if i%commonutils.RateLimit == 0 { // we do some rate limiting on the logging
 			logger.Debugw("valid_beacon", "round", b.Round)
 		}
 
-		if b.Round >= upTo {
+		if uint64(i) >= upTo {
 			break
 		}
 	}

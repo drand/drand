@@ -1205,13 +1205,8 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		return err
 	}
 
-	// if we're asking to sync against only us, it's a dry-run
-	if len(faultyBeacons) == 0 || len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr {
-		logger.Infow("Finished without taking any corrective measure")
-		return nil
-	}
-
 	// let us reset the progress bar on the client side to track instead the progress of the correction on the beacons
+	// this will also pass the "invalid beacon count" to the client through the new target.
 	err = stream.Send(&drand.SyncProgress{
 		Current: 0,
 		Target:  uint64(len(faultyBeacons)),
@@ -1219,11 +1214,19 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	if err != nil {
 		logger.Errorw("", "send_progress", "sending_progress", "err", err)
 	}
+	logger.Infow("", "sent_progress", len(faultyBeacons))
+
+	// if we're asking to sync against only us, it's a dry-run
+	if len(faultyBeacons) == 0 || len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr {
+		logger.Infow("Finished without taking any corrective measure")
+		return nil
+	}
 
 	// we need the channel to make sure the client has received the progress
 	cb, done := sendPlainProgressCallback(stream, logger)
 
 	logger.Infow("Faulty beacons detected in chain, correcting now")
+	logger.Debugw("Faulty beacons", "List", faultyBeacons)
 
 	err = bp.beacon.CorrectChain(ctx, faultyBeacons, peers, cb)
 	if err != nil {
@@ -1303,7 +1306,10 @@ func sendPlainProgressCallback(
 	done = make(chan struct{})
 
 	cb = func(curr, targ uint64) {
-		l.Debugw("Sending progress", "current", curr, "target", targ)
+		// let us do some rate limiting on the amount of Send we do
+		if targ > commonutils.RateLimit && targ-curr > commonutils.RateLimit && curr%commonutils.RateLimit != 0 {
+			return
+		}
 		err := stream.Send(&drand.SyncProgress{
 			Current: curr,
 			Target:  targ,

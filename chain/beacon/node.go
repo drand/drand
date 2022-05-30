@@ -469,14 +469,15 @@ func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u u
 
 // CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
 func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	target := uint64(len(faultyBeacons))
 	for i, b := range faultyBeacons {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
-		cb(uint64(i), uint64(len(faultyBeacons)))
-		h.l.Infow("Fetching from peers incorrect beacon", "round", b)
+		cb(uint64(i), target)
+		h.l.Debugw("Fetching from peers incorrect beacon", "round", b)
 		h.chain.RunSync(b, b, peers)
 	}
 

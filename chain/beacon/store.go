@@ -135,7 +135,7 @@ func (d *discrepancyStore) ForcePut(b *chain.Beacon) error {
 	if err := d.Store.ForcePut(b); err != nil {
 		return err
 	}
-	d.l.Infow("ForcePut", "NEW_BEACON_STORED", b.String())
+	d.l.Infow("ForcePut", "HISTORIC_BEACON_STORED", b.String())
 	return nil
 }
 

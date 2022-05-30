@@ -342,7 +342,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "sync",
 		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain",
-		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
+		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
 		Action: syncCmd,
 	},

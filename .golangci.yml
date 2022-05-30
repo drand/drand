@@ -38,6 +38,7 @@ linters:
     - contextcheck
     - cyclop
     - exhaustivestruct
+    - exhaustruct
     - forcetypeassert
     - gci
     - gochecknoglobals
@@ -50,6 +51,7 @@ linters:
     - ireturn
     - nestif
     - nlreturn
+    - nonamedreturns
     - paralleltest
     - promlinter
     - tagliatelle

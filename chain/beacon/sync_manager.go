@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	commonutils "github.com/drand/drand/common"
+
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
@@ -244,10 +246,14 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return false
 			}
 
-			logger.Debugw("new_beacon_fetched",
-				"with_peer", peer.Address(),
-				"from_round", from,
-				"got_round", beaconPacket.GetRound())
+			// We rate limit our logging
+			if idx := beaconPacket.GetRound(); upTo-from > commonutils.RateLimit && upTo-idx > commonutils.RateLimit {
+				logger.Debugw("new_beacon_fetched",
+					"with_peer", peer.Address(),
+					"from_round", from,
+					"got_round", idx)
+			}
+
 			beacon := protoToBeacon(beaconPacket)
 
 			// verify the signature validity
@@ -259,12 +265,12 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			if force {
 				logger.Debugw("Using ForcePut to save beacon", "beacon", beacon.Round)
 				if err := s.store.ForcePut(beacon); err != nil {
-					logger.Debugw("unable to save", "with_peer", peer.Address(), "err", err)
+					logger.Errorw("ForcePut: unable to save", "with_peer", peer.Address(), "err", err)
 					return false
 				}
 			} else {
 				if err := s.store.Put(beacon); err != nil {
-					logger.Debugw("unable to save", "with_peer", peer.Address(), "err", err)
+					logger.Errorw("Put: unable to save", "with_peer", peer.Address(), "err", err)
 					return false
 				}
 			}

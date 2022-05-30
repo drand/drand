@@ -306,15 +306,15 @@ func (c *ControlClient) StartCheckChain(cc ctx.Context, hashStr string, nodes []
 		metadata.BeaconID = beaconID
 	}
 
-	if hashStr == common.DefaultChainHash || hashStr == "" {
-		return nil, nil, fmt.Errorf("chain hash is not set properly, you cannot use the 'default' chain hash" +
-			" to validate the integrity of the chain info when following a chain")
-	}
 	hash, err := hex.DecodeString(hashStr)
 	if err != nil {
 		return nil, nil, err
 	}
-	metadata.ChainHash = hash
+
+	if hashStr != common.DefaultChainHash && hashStr != "" {
+		metadata.ChainHash = hash
+	}
+
 	log.DefaultLogger().Infow("Launching a check request", "tls", tls, "upTo", upTo, "hash", hash, "beaconID", beaconID)
 
 	if upTo == 0 {
