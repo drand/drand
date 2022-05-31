@@ -1146,14 +1146,20 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	})
 	go syncer.Run(ctx)
 	defer syncer.Stop()
-	syncer.RequestSync(0, req.GetUpTo(), peers)
 
-	// wait for all the callbacks to be called and progress sent before returning
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	for {
+		syncer.RequestSync(0, req.GetUpTo(), peers)
+		// wait for all the callbacks to be called and progress sent before returning
+		select {
+		case <-done:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		// we re-send a sync request every 10 periods in case the process got staled and let the sync manager handle
+		case <-time.After(info.Period * 10): //nolint:gomnd
+			bp.log.Debugw("Sending follow sync request again")
+			continue
+		}
 	}
 }
 
@@ -1188,7 +1194,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	}()
 
 	// we don't monitor the channel for this one, instead we'll error out if needed
-	cb, _ := sendPlainProgressCallback(stream, logger)
+	cb, _ := sendPlainProgressCallback(stream, logger, false)
 
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
@@ -1223,7 +1229,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	}
 
 	// we need the channel to make sure the client has received the progress
-	cb, done := sendPlainProgressCallback(stream, logger)
+	cb, done := sendPlainProgressCallback(stream, logger, false)
 
 	logger.Infow("Faulty beacons detected in chain, correcting now")
 	logger.Debugw("Faulty beacons", "List", faultyBeacons)
@@ -1281,16 +1287,15 @@ func sendProgressCallback(
 	l log.Logger,
 ) (cb func(b *chain.Beacon), done chan struct{}) {
 	logger := l.Named("progressCb")
-
-	target := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
-	if upTo < target {
-		target = upTo
+	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
+	if upTo != 0 && upTo < targ {
+		targ = upTo
 	}
 
 	var plainProgressCb func(a, b uint64)
-	plainProgressCb, done = sendPlainProgressCallback(stream, logger)
+	plainProgressCb, done = sendPlainProgressCallback(stream, logger, upTo == 0)
 	cb = func(b *chain.Beacon) {
-		plainProgressCb(b.Round, target)
+		plainProgressCb(b.Round, targ)
 	}
 
 	return
@@ -1302,6 +1307,7 @@ func sendProgressCallback(
 func sendPlainProgressCallback(
 	stream drand.Control_StartFollowChainServer,
 	l log.Logger,
+	keepFollowing bool,
 ) (cb func(curr, targ uint64), done chan struct{}) {
 	done = make(chan struct{})
 
@@ -1310,6 +1316,7 @@ func sendPlainProgressCallback(
 		if targ > commonutils.RateLimit && targ-curr > commonutils.RateLimit && curr%commonutils.RateLimit != 0 {
 			return
 		}
+
 		err := stream.Send(&drand.SyncProgress{
 			Current: curr,
 			Target:  targ,
@@ -1317,7 +1324,7 @@ func sendPlainProgressCallback(
 		if err != nil {
 			l.Errorw("sending_progress", "err", err)
 		}
-		if targ > 0 && curr == targ {
+		if !keepFollowing && targ > 0 && curr == targ {
 			l.Debugw("target reached", "target", curr)
 			close(done)
 		}

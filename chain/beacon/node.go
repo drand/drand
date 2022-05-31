@@ -476,7 +476,7 @@ func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peer
 			return ctx.Err()
 		default:
 		}
-		cb(uint64(i), target)
+		cb(uint64(i+1), target)
 		h.l.Debugw("Fetching from peers incorrect beacon", "round", b)
 		h.chain.RunSync(b, b, peers)
 	}

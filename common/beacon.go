@@ -13,7 +13,7 @@ const DefaultChainHash = "default"
 const MultiBeaconFolder = "multibeacon"
 
 // RateLimit is used to reduce log verbosity when doing bulk processes, issuing logs only every RateLimit beacons
-const RateLimit = 400
+const RateLimit = 300
 
 // IsDefaultBeaconID indicates if the beacon id received is the default one or not.
 // There is a direct relationship between an empty string and the reserved id "default".

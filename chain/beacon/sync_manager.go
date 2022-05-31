@@ -128,7 +128,8 @@ func (s *SyncManager) Run(ctx context.Context) {
 		case request := <-s.newReq:
 			if request.from > 0 {
 				// we always do it and we block while doing it if it's a forced sync.
-				s.sync(lastCtx, request)
+				s.log.Debugw("Starting forced sync", "from", request.from, "upTo", request.upTo)
+				s.Sync(lastCtx, request)
 				continue
 			}
 			// check if the request is still valid
@@ -154,7 +155,7 @@ func (s *SyncManager) Run(ctx context.Context) {
 				// -> time to start a new sync
 				cancel()
 				lastCtx, cancel = context.WithCancel(ctx)
-				go s.sync(lastCtx, request)
+				go s.Sync(lastCtx, request)
 			}
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
@@ -167,7 +168,8 @@ func (s *SyncManager) Run(ctx context.Context) {
 	}
 }
 
-func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
+// Sync will launch the requested sync with the requested peers and returns once done, even if it failed
+func (s *SyncManager) Sync(ctx context.Context, request requestInfo) {
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(request.nodes)) {
@@ -195,7 +197,7 @@ func (s *SyncManager) sync(ctx context.Context, request requestInfo) {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
-// nolint:gocyclo
+// nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
 	logger := s.log.Named("tryNode")
 
@@ -229,6 +231,12 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 		return false
 	}
 
+	// for effective rate limiting but not when we are caught up and following a chain live
+	target := chain.CurrentRound(s.clock.Now().Unix(), s.info.Period, s.info.GenesisTime)
+	if upTo > 0 {
+		target = upTo
+	}
+
 	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo)
 
 	for {
@@ -246,8 +254,9 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return false
 			}
 
-			// We rate limit our logging
-			if idx := beaconPacket.GetRound(); upTo-from > commonutils.RateLimit && upTo-idx > commonutils.RateLimit {
+			// We rate limit our logging, but when we are "close enough", we display all logs in case we want to follow
+			// for a long time.
+			if idx := beaconPacket.GetRound(); target-idx < commonutils.RateLimit || idx%commonutils.RateLimit == 0 {
 				logger.Debugw("new_beacon_fetched",
 					"with_peer", peer.Address(),
 					"from_round", from,
@@ -274,6 +283,11 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 					return false
 				}
 			}
+
+			// TODO: fix the fact that we currently never send beacons on newSync and always restart the sync
+			// 		 when receiving new sync requests.
+			// we let know the sync manager that we received a beacon
+			// s.newSync <- beacon
 
 			last = beacon
 			if last.Round == upTo {
