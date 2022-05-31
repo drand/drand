@@ -3,8 +3,8 @@
 # README - Previous tasks
 # 1) Run dkg first with startBeacon.sh script
 # 2) Copy group file .drand/default/groups/drand_group.toml from node 0 to node 4 volume
-# 2) Copy group file .drand/test_beacon/groups/drand_group.toml from node 0 to node 4 volume
-# 3) You are ready to run this script
+# 3) Copy group file .drand/test_beacon/groups/drand_group.toml from node 0 to node 4 volume
+# 4) You are ready to run this script
 
 ## Default beacon
 # Start leader
