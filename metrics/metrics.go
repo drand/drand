@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -343,12 +342,13 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 	return nil
 }
 
-// PeerHandler abstracts a helper for relaying http requests to a group peer
-type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
+// GroupHandlers abstracts a helper for relaying http requests to a group peer
+type GroupHandlers func() (map[string]http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
-	log.DefaultLogger().Debugw("", "metrics", "private listener started", "at", metricsBind)
+func Start(metricsBind string, pprof http.Handler, groupHandlers []GroupHandlers) net.Listener {
+	log.DefaultLogger().Debugw("", "metrics", "starting listener", "at", metricsBind)
+
 	metricsBound.Do(bindMetrics)
 
 	if !strings.Contains(metricsBind, ":") {
@@ -363,8 +363,8 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 
-	if peerHandler != nil {
-		mux.Handle("/peer/", &lazyPeerHandler{peerHandler})
+	if groupHandlers != nil {
+		mux.Handle("/peer/", newLazyPeerHandler(groupHandlers))
 	}
 
 	if pprof != nil {
@@ -389,27 +389,71 @@ func GroupHandler() http.Handler {
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
 }
 
-// lazyPeerHandler is a structure that defers learning who current
-// group members are until an http request is received.
+// lazyPeerHandler is a structure that defers learning who current group members are until
+// an http request is received for a specific peer
 type lazyPeerHandler struct {
-	peerHandler PeerHandler
+	groupHandlers []GroupHandlers
+	// peerHandlers is a cache of peer address -> handler
+	// TODO Do we need to evict from cache at some point? The only case when it should be
+	//      invalidated is if a peer leaves e.g. during a Reshare
+	peerHandlers sync.Map
 }
 
+// newLazyPeerHandler creates a new lazyPeerHandler from a slice of GroupHandlers
+func newLazyPeerHandler(groupHandlers []GroupHandlers) *lazyPeerHandler {
+	return &lazyPeerHandler{
+		groupHandlers,
+		sync.Map{},
+	}
+}
+
+// handlerForPeer returns the http.Handler associated with a given peer address.
+// If a peer belongs to multiple groups, it will return the handler associated with the
+// one that appears first in groupHandlers.
+func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
+	h, found := l.peerHandlers.Load(addr)
+	if found {
+		return h.(http.Handler), nil
+	}
+
+	var handlers map[string]http.Handler
+	var err error
+
+	for _, gh := range l.groupHandlers {
+		handlers, err = gh()
+		if err != nil {
+			// The target addr probably hasn't joined this beacon. Try the next one.
+			continue
+		}
+
+		hdl, found := handlers[addr]
+		if found {
+			l.peerHandlers.Store(addr, hdl)
+			return hdl, nil
+		}
+	}
+
+	return nil, err
+}
+
+// ServeHTTP serves the metrics for the peer whose address is given in the URI. It assumes that the
+// URI is in the form /peer/<peer_address>
 func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	addr := strings.Replace(r.URL.Path, "/peer/", "", 1)
 	if index := strings.Index(addr, "/"); index != -1 {
 		addr = addr[:index]
 	}
+	log.DefaultLogger().Debugw("", "metrics", "getting metrics for peer", "addr", addr)
 
-	handlers, err := l.peerHandler(r.Context())
+	handler, err := l.handlerForPeer(addr)
+
 	if err != nil {
-		log.DefaultLogger().Warnw("", "metrics", "failed to get peer handlers", "err", err)
+		log.DefaultLogger().Warnw("", "metrics", "failed to get handler for peer", "addr", addr, "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	handler, ok := handlers[addr]
-	if !ok {
+	if handler == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -435,6 +479,7 @@ func getBuildTimestamp(buildDate string) int64 {
 	return t.Unix()
 }
 
+// DKGStateChange emits appropriate dkgState, dkgStateTimestamp and dkgLeader metrics
 func DKGStateChange(s DKGState, beaconID string, leader bool) {
 	value := 0.0
 	if leader {
@@ -445,6 +490,7 @@ func DKGStateChange(s DKGState, beaconID string, leader bool) {
 	dkgLeader.WithLabelValues(beaconID).Set(value)
 }
 
+// ReshareStateChange emits appropriate reshareState, reshareStateTimestamp and reshareLeader metrics
 func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	value := 0.0
 	if leader {
