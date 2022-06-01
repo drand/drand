@@ -13,8 +13,8 @@ import (
 var version = Version{
 	Major:      1,
 	Minor:      4,
-	Patch:      3,
-	Prerelease: "testnet",
+	Patch:      4,
+	Prerelease: "pre",
 }
 
 // Set via -ldflags. Example:
