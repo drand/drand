@@ -14,13 +14,13 @@ import (
 // reshares)
 func (bp *BeaconProcess) GroupMetrics() (map[string]http.Handler, error) {
 	if bp.group == nil {
-		return nil, errors.New(fmt.Sprintf("no group yet for beacon %s", bp.beaconID))
+		return nil, fmt.Errorf("no group yet for beacon %s", bp.beaconID)
 	}
 
 	pc := bp.privGateway.ProtocolClient
 	hc, ok := pc.(net.HTTPClient)
 	if !ok {
-		return nil, errors.New("ProtocolClient implementation does not support metrics")
+		return nil, errors.New("the ProtocolClient implementation does not support metrics")
 	}
 
 	handlers := make(map[string]http.Handler)

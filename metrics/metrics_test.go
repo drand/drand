@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"testing"
@@ -9,13 +8,13 @@ import (
 )
 
 func TestMetricReshare(t *testing.T) {
-	mph := func(ctx context.Context) (map[string]http.Handler, error) {
+	mph := func() (map[string]http.Handler, error) {
 		m := make(map[string]http.Handler)
 		m["test.com"] = http.RedirectHandler("test", http.StatusSeeOther)
 		return m, nil
 	}
 
-	l := Start(":0", nil, mph)
+	l := Start(":0", nil, []GroupHandlers{mph})
 	defer l.Close()
 	addr := l.Addr()
 	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", addr.String()))
