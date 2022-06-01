@@ -22,7 +22,7 @@ func TestMetricReshare(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != 200 {
-		t.Fatal("req to metrics should succeed.")
+		t.Fatalf("req to metrics should succeed. Expected StatusCode: 200, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
 
@@ -36,7 +36,7 @@ func TestMetricReshare(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != 303 {
-		t.Fatal("lazy reshare didn't do its thing.")
+		t.Fatalf("lazy reshare didn't do its thing. Expected StatusCode: 303, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
 
@@ -45,7 +45,7 @@ func TestMetricReshare(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != 404 {
-		t.Fatal("lazy reshare didn't do its thing.")
+		t.Fatalf("lazy reshare didn't do its thing. Expected StatusCode: 404, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
 }
