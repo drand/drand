@@ -13,7 +13,7 @@ import (
 // account runtime changes in the group (e.g. during reshares)
 func (bp *BeaconProcess) GroupMetrics() (map[string]http.Handler, error) {
 	if bp.group == nil {
-		return nil, fmt.Errorf("no group yet for beacon %s", bp.beaconID)
+		return nil, fmt.Errorf("no group yet for beacon %s", bp.getBeaconID())
 	}
 
 	pc := bp.privGateway.ProtocolClient
