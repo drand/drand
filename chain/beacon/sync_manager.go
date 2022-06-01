@@ -2,6 +2,7 @@ package beacon
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -51,6 +52,9 @@ var syncExpiryFactor = 2
 
 // how many sync requests do we allow buffering
 var syncQueueRequest = 3
+
+// ErrNoBeaconStored is the error we get when a sync is called too early and there are no beacon above the requested round
+var ErrNoBeaconStored = errors.New("no beacon stored above requested round")
 
 type SyncConfig struct {
 	Log      log.Logger
@@ -171,6 +175,7 @@ func (s *SyncManager) Run(ctx context.Context) {
 // Sync will launch the requested sync with the requested peers and returns once done, even if it failed
 func (s *SyncManager) Sync(ctx context.Context, request requestInfo) {
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
+	s.log.Debugw("sync rate limiting", "rate limit", commonutils.RateLimit)
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(request.nodes)) {
 		if request.nodes[n].Address() == s.nodeAddr {
@@ -256,7 +261,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 			// We rate limit our logging, but when we are "close enough", we display all logs in case we want to follow
 			// for a long time.
-			if idx := beaconPacket.GetRound(); target-idx < commonutils.RateLimit || idx%commonutils.RateLimit == 0 {
+			if idx := beaconPacket.GetRound(); target < idx || target-idx < commonutils.RateLimit || idx%commonutils.RateLimit == 0 {
 				logger.Debugw("new_beacon_fetched",
 					"with_peer", peer.Address(),
 					"from_round", from,
@@ -267,7 +272,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 			// verify the signature validity
 			if err := s.verifier.VerifyBeacon(*beacon, s.info.PublicKey); err != nil {
-				logger.Debugw("invalid_beacon", "with_peer", peer.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
+				logger.Debugw("Invalid_beacon", "from_peer", peer.Address(), "round", beacon.Round, "err", err, "beacon", fmt.Sprintf("%+v", beacon))
 				return false
 			}
 
@@ -346,7 +351,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	if last.Round < fromRound {
-		return fmt.Errorf("no beacon stored above requested round %d < %d", last.Round, fromRound)
+		return fmt.Errorf("%w %d < %d", ErrNoBeaconStored, last.Round, fromRound)
 	}
 
 	var done = make(chan error, 1)

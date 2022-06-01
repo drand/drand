@@ -1258,8 +1258,10 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
 
 	var info *chain.Info
+	var err error
 	for _, peer := range peers {
-		ci, err := privGateway.ChainInfo(ctx, peer, request)
+		var ci *drand.ChainInfoPacket
+		ci, err = privGateway.ChainInfo(ctx, peer, request)
 		if err != nil {
 			l.Debugw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
@@ -1271,7 +1273,7 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 		}
 	}
 	if info == nil {
-		return nil, errors.New("unable to get a chain info successfully")
+		return nil, fmt.Errorf("unable to get chain info successfully. Last err: %w", err)
 	}
 	return info, nil
 }
@@ -1312,6 +1314,10 @@ func sendPlainProgressCallback(
 	done = make(chan struct{})
 
 	cb = func(curr, targ uint64) {
+		// avoids wrapping below and sends latest round number to the client
+		if curr > targ {
+			targ = curr
+		}
 		// let us do some rate limiting on the amount of Send we do
 		if targ > commonutils.RateLimit && targ-curr > commonutils.RateLimit && curr%commonutils.RateLimit != 0 {
 			return

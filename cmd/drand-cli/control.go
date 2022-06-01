@@ -804,14 +804,19 @@ func followSync(c *cli.Context) error {
 
 	var current uint64
 	var target uint64
+
+	last := time.Now().Unix()
+
 	s := spinner.New(spinner.CharSets[9], refreshRate)
 	s.PreUpdate = func(spin *spinner.Spinner) {
 		curr := atomic.LoadUint64(&current)
 		tar := atomic.LoadUint64(&target)
+		dur := time.Now().Unix() - atomic.LoadInt64(&last)
+
 		spin.Suffix = fmt.Sprintf("  synced round up to %d "+
 			"- current target %d"+
 			"\t--> %.3f %% - "+
-			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
+			"Last update received %3ds ago. Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar), dur)
 	}
 
 	s.FinalMSG = "\nSync stopped\n"
@@ -823,11 +828,13 @@ func followSync(c *cli.Context) error {
 		case progress := <-channel:
 			atomic.StoreUint64(&current, progress.Current)
 			atomic.StoreUint64(&target, progress.Target)
+			atomic.StoreInt64(&last, time.Now().Unix())
 		case err := <-errCh:
 			if errors.Is(err, io.EOF) {
 				// we need a new line because of the spinner
 				fmt.Println()
-				log.DefaultLogger().Infow("Finished following beacon chain", "reached", current)
+				log.DefaultLogger().Infow("Finished following beacon chain", "reached", current,
+					"server closed stream with", err)
 				return nil
 			}
 			return fmt.Errorf("errror on following the chain: %w", err)
