@@ -408,8 +408,10 @@ func newLazyPeerHandler(groupHandlers []GroupHandlers) *lazyPeerHandler {
 }
 
 // handlerForPeer returns the http.Handler associated with a given peer address.
-// If a peer belongs to multiple groups, it will return the handler associated with the
-// one that appears first in groupHandlers.
+// Metrics are group-agnostic. Therefore, we just need the Handler for a group that the
+// peer in question has joined, regardless of the group. If a peer belongs to multiple
+// groups, it will return the handler associated with the group that appears first in
+// groupHandlers whose beacon the peer has joined.
 func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 	h, found := l.peerHandlers.Load(addr)
 	if found {
