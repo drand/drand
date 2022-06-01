@@ -389,8 +389,9 @@ func GroupHandler() http.Handler {
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
 }
 
-// lazyPeerHandler is a structure that defers learning who current group members are until
-// an http request is received for a specific peer
+// lazyPeerHandler is a structure that defers learning which peers this node is connected
+// to until an http request is received for a specific peer. It handles all peers that
+// this node is connected to regardless of which group they are a part of.
 type lazyPeerHandler struct {
 	groupHandlers []GroupHandlers
 	// peerHandlers is a cache of peer address -> handler
