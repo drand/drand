@@ -436,7 +436,7 @@ func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 		}
 	}
 
-	return nil, err
+	return nil, fmt.Errorf("no handler found for address %s: %w", addr, err)
 }
 
 // ServeHTTP serves the metrics for the peer whose address is given in the URI. It assumes that the
@@ -446,7 +446,6 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if index := strings.Index(addr, "/"); index != -1 {
 		addr = addr[:index]
 	}
-	log.DefaultLogger().Debugw("", "metrics", "getting metrics for peer", "addr", addr)
 
 	handler, err := l.handlerForPeer(addr)
 

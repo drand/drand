@@ -257,7 +257,7 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 		}
 
 		if metricsFlag != "" {
-			log.DefaultLogger().Infow("", "metrics", "adding handler", "beacon", bp.beaconID)
+			bp.log.Infow("", "metrics", "adding handler", "beacon", bp.beaconID)
 			groupHandlers = append(groupHandlers, bp.GroupMetrics)
 		}
 	}
