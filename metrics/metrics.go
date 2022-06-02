@@ -343,10 +343,11 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 }
 
 // GroupHandlers abstracts a helper for relaying http requests to a group peer
-type GroupHandlers func() (map[string]http.Handler, error)
+//type GroupHandlers func() (map[string]http.Handler, error)
+type MetricsHandler func(addr string) (http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler, groupHandlers []GroupHandlers) net.Listener {
+func Start(metricsBind string, pprof http.Handler, groupHandlers []MetricsHandler) net.Listener {
 	log.DefaultLogger().Debugw("", "metrics", "starting listener", "at", metricsBind)
 
 	metricsBound.Do(bindMetrics)
@@ -393,17 +394,17 @@ func GroupHandler() http.Handler {
 // to until an http request is received for a specific peer. It handles all peers that
 // this node is connected to regardless of which group they are a part of.
 type lazyPeerHandler struct {
-	groupHandlers []GroupHandlers
-	// peerHandlers is a cache of peer address -> handler
+	metricsHandlers []MetricsHandler
+	// handlerCache is a cache of peer address -> handler
 	// TODO Do we need to evict from cache at some point? The only case when it should be
 	//      invalidated is if a peer leaves e.g. during a Reshare
-	peerHandlers sync.Map
+	handlerCache sync.Map
 }
 
 // newLazyPeerHandler creates a new lazyPeerHandler from a slice of GroupHandlers
-func newLazyPeerHandler(groupHandlers []GroupHandlers) *lazyPeerHandler {
+func newLazyPeerHandler(metricsHandlers []MetricsHandler) *lazyPeerHandler {
 	return &lazyPeerHandler{
-		groupHandlers,
+		metricsHandlers,
 		sync.Map{},
 	}
 }
@@ -412,31 +413,35 @@ func newLazyPeerHandler(groupHandlers []GroupHandlers) *lazyPeerHandler {
 // Metrics are group-agnostic. Therefore, we just need the Handler for a group that the
 // peer in question has joined, regardless of the group. If a peer belongs to multiple
 // groups, it will return the handler associated with the group that appears first in
-// groupHandlers whose beacon the peer has joined.
+// the metricsHandlers whose beacon the peer has joined.
+//
+// If the peer is not found, it will return a nil handler and a nil error.
+// If there is any other error it will return false and the given error.
 func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
-	h, found := l.peerHandlers.Load(addr)
+	h, found := l.handlerCache.Load(addr)
 	if found {
 		return h.(http.Handler), nil
 	}
 
-	var handlers map[string]http.Handler
 	var err error
 
-	for _, gh := range l.groupHandlers {
-		handlers, err = gh()
+	for _, hdl := range l.metricsHandlers {
+		h, err = hdl(addr)
 		if err != nil {
-			// The target addr probably hasn't joined this beacon. Try the next one.
-			continue
+			switch err.(type) {
+			case *common.NotPartOfGroup:
+				// The target addr hasn't joined this beacon. Try the next one.
+				continue
+			default:
+				return nil, err
+			}
 		}
 
-		hdl, found := handlers[addr]
-		if found {
-			l.peerHandlers.Store(addr, hdl)
-			return hdl, nil
-		}
+		l.handlerCache.Store(addr, h)
+		return h.(http.Handler), nil
 	}
 
-	return nil, fmt.Errorf("no handler found for address %s: %w", addr, err)
+	return nil, nil
 }
 
 // ServeHTTP serves the metrics for the peer whose address is given in the URI. It assumes that the
@@ -456,6 +461,7 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if handler == nil {
+		log.DefaultLogger().Warnw("", "metrics", "peer not found", "addr", addr)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}

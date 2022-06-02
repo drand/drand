@@ -5,16 +5,19 @@ import (
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/common"
 )
 
 func TestMetricReshare(t *testing.T) {
-	mph := func() (map[string]http.Handler, error) {
-		m := make(map[string]http.Handler)
-		m["test.com"] = http.RedirectHandler("test", http.StatusSeeOther)
-		return m, nil
+	hdl := func(addr string) (http.Handler, error) {
+		if addr == "test.com" {
+			return http.RedirectHandler("test", http.StatusSeeOther), nil
+		}
+		return nil, &common.NotPartOfGroup{BeaconID: "test_beacon"}
 	}
 
-	l := Start(":0", nil, []GroupHandlers{mph})
+	l := Start(":0", nil, []MetricsHandler{hdl})
 	defer l.Close()
 	addr := l.Addr()
 	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", addr.String()))

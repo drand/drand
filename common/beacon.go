@@ -1,5 +1,7 @@
 package common
 
+import "fmt"
+
 // DefaultBeaconID is the value used when beacon id has an empty value. This
 // value should not be changed for backward-compatibility reasons
 const DefaultBeaconID = "default"
@@ -40,4 +42,13 @@ func GetCanonicalBeaconID(id string) string {
 		return DefaultBeaconID
 	}
 	return id
+}
+
+// NotPartOfGroup indicates that this node is not part of the group for a specific beacon ID
+type NotPartOfGroup struct {
+	BeaconID string
+}
+
+func (e *NotPartOfGroup) Error() string {
+	return fmt.Sprintf("this node has not joined the group for beacon %s", e.BeaconID)
 }
