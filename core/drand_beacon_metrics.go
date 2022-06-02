@@ -11,7 +11,7 @@ import (
 // MetricsHandlerForPeer returns a handler for retrieving metric information from a peer in this group
 func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error) {
 	if bp.group == nil {
-		return nil, &common.NotPartOfGroup{BeaconID: bp.getBeaconID()}
+		return nil, &common.NotPartOfGroupError{BeaconID: bp.getBeaconID()}
 	}
 
 	pc := bp.privGateway.ProtocolClient
@@ -22,15 +22,17 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error
 
 	var err error
 
+	//nolint:gocritic
 	for _, n := range bp.group.Nodes {
 		if n.Address() == addr {
 			p := net.CreatePeer(n.Address(), n.IsTLS())
-			if h, e := hc.HandleHTTP(p); e == nil {
+			h, e := hc.HandleHTTP(p)
+			if e == nil {
 				return h, nil
-			} else {
-				bp.log.Infow("", "metrics", "Error while adding node", "address", n.Address(), "error", err)
-				err = e
 			}
+
+			bp.log.Infow("", "metrics", "Error while adding node", "address", n.Address(), "error", err)
+			err = e
 		}
 	}
 

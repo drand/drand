@@ -248,7 +248,7 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 		return err
 	}
 
-	metricsHandlers := make([]metrics.MetricsHandler, 0, len(stores))
+	metricsHandlers := make([]metrics.Handler, 0, len(stores))
 
 	for beaconID, fs := range stores {
 		bp, err := dd.LoadBeaconFromStore(beaconID, fs)

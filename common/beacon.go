@@ -44,11 +44,11 @@ func GetCanonicalBeaconID(id string) string {
 	return id
 }
 
-// NotPartOfGroup indicates that this node is not part of the group for a specific beacon ID
-type NotPartOfGroup struct {
+// NotPartOfGroupError indicates that this node is not part of the group for a specific beacon ID
+type NotPartOfGroupError struct {
 	BeaconID string
 }
 
-func (e *NotPartOfGroup) Error() string {
+func (e *NotPartOfGroupError) Error() string {
 	return fmt.Sprintf("this node has not joined the group for beacon %s", e.BeaconID)
 }

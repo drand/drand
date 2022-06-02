@@ -14,10 +14,10 @@ func TestMetricReshare(t *testing.T) {
 		if addr == "test.com" {
 			return http.RedirectHandler("test", http.StatusSeeOther), nil
 		}
-		return nil, &common.NotPartOfGroup{BeaconID: "test_beacon"}
+		return nil, &common.NotPartOfGroupError{BeaconID: "test_beacon"}
 	}
 
-	l := Start(":0", nil, []MetricsHandler{hdl})
+	l := Start(":0", nil, []Handler{hdl})
 	defer l.Close()
 	addr := l.Addr()
 	resp, err := http.Get(fmt.Sprintf("http://%s/metrics", addr.String()))

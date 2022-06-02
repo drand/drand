@@ -343,11 +343,10 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 }
 
 // GroupHandlers abstracts a helper for relaying http requests to a group peer
-//type GroupHandlers func() (map[string]http.Handler, error)
-type MetricsHandler func(addr string) (http.Handler, error)
+type Handler func(addr string) (http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler, groupHandlers []MetricsHandler) net.Listener {
+func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.Listener {
 	log.DefaultLogger().Debugw("", "metrics", "starting listener", "at", metricsBind)
 
 	metricsBound.Do(bindMetrics)
@@ -394,7 +393,7 @@ func GroupHandler() http.Handler {
 // to until an http request is received for a specific peer. It handles all peers that
 // this node is connected to regardless of which group they are a part of.
 type lazyPeerHandler struct {
-	metricsHandlers []MetricsHandler
+	metricsHandlers []Handler
 	// handlerCache is a cache of peer address -> handler
 	// TODO Do we need to evict from cache at some point? The only case when it should be
 	//      invalidated is if a peer leaves e.g. during a Reshare
@@ -402,7 +401,7 @@ type lazyPeerHandler struct {
 }
 
 // newLazyPeerHandler creates a new lazyPeerHandler from a slice of GroupHandlers
-func newLazyPeerHandler(metricsHandlers []MetricsHandler) *lazyPeerHandler {
+func newLazyPeerHandler(metricsHandlers []Handler) *lazyPeerHandler {
 	return &lazyPeerHandler{
 		metricsHandlers,
 		sync.Map{},
@@ -428,8 +427,9 @@ func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 	for _, hdl := range l.metricsHandlers {
 		h, err = hdl(addr)
 		if err != nil {
+			//nolint:errorlint
 			switch err.(type) {
-			case *common.NotPartOfGroup:
+			case *common.NotPartOfGroupError:
 				// The target addr hasn't joined this beacon. Try the next one.
 				continue
 			default:
