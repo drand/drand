@@ -14,7 +14,7 @@ func TestMetricReshare(t *testing.T) {
 		if addr == "test.com" {
 			return http.RedirectHandler("test", http.StatusSeeOther), nil
 		}
-		return nil, &common.NotPartOfGroupError{BeaconID: "test_beacon"}
+		return nil, fmt.Errorf("%w for Beacon ID: test_beacon", common.ErrNotPartOfGroup)
 	}
 
 	l := Start(":0", nil, []Handler{hdl})

@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/drand/drand/common"
@@ -11,7 +12,7 @@ import (
 // MetricsHandlerForPeer returns a handler for retrieving metric information from a peer in this group
 func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error) {
 	if bp.group == nil {
-		return nil, &common.NotPartOfGroupError{BeaconID: bp.getBeaconID()}
+		return nil, fmt.Errorf("%w for Beacon ID: %s", common.ErrNotPartOfGroup, bp.getBeaconID())
 	}
 
 	pc := bp.privGateway.ProtocolClient
@@ -31,7 +32,7 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error
 				return h, nil
 			}
 
-			bp.log.Infow("", "metrics", "Error while adding node", "address", n.Address(), "error", err)
+			bp.log.Warnw("", "metrics", "Error while adding node", "address", n.Address(), "error", err)
 			err = e
 		}
 	}

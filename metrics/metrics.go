@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -424,24 +425,21 @@ func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 
 	var err error
 
-	for _, hdl := range l.metricsHandlers {
-		h, err = hdl(addr)
+	for _, handlerFunc := range l.metricsHandlers {
+		h, err = handlerFunc(addr)
 		if err != nil {
-			//nolint:errorlint
-			switch err.(type) {
-			case *common.NotPartOfGroupError:
-				// The target addr hasn't joined this beacon. Try the next one.
+			if errors.Is(err, common.ErrNotPartOfGroup) {
 				continue
-			default:
-				return nil, err
 			}
+
+			return nil, err
 		}
 
 		l.handlerCache.Store(addr, h)
 		return h.(http.Handler), nil
 	}
 
-	return nil, nil
+	return nil, common.ErrPeerNotFound
 }
 
 // ServeHTTP serves the metrics for the peer whose address is given in the URI. It assumes that the
@@ -455,14 +453,14 @@ func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	handler, err := l.handlerForPeer(addr)
 
 	if err != nil {
+		if errors.Is(err, common.ErrPeerNotFound) {
+			log.DefaultLogger().Warnw("", "metrics", "peer not found", "addr", addr)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
 		log.DefaultLogger().Warnw("", "metrics", "failed to get handler for peer", "addr", addr, "err", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if handler == nil {
-		log.DefaultLogger().Warnw("", "metrics", "peer not found", "addr", addr)
-		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 

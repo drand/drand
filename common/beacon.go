@@ -1,6 +1,8 @@
 package common
 
-import "fmt"
+import (
+	"errors"
+)
 
 // DefaultBeaconID is the value used when beacon id has an empty value. This
 // value should not be changed for backward-compatibility reasons
@@ -44,11 +46,8 @@ func GetCanonicalBeaconID(id string) string {
 	return id
 }
 
-// NotPartOfGroupError indicates that this node is not part of the group for a specific beacon ID
-type NotPartOfGroupError struct {
-	BeaconID string
-}
+// ErrNotPartOfGroup indicates that this node is not part of the group for a specific beacon ID
+var ErrNotPartOfGroup = errors.New("this node is not part of the group")
 
-func (e *NotPartOfGroupError) Error() string {
-	return fmt.Sprintf("this node has not joined the group for beacon %s", e.BeaconID)
-}
+// ErrPeerNotFound indicates that a peer is not part of any group that this node knows of
+var ErrPeerNotFound = errors.New("peer not found")
