@@ -234,7 +234,7 @@ func (c *chainStore) RunSync(from, upTo uint64, peers []net.Peer) {
 
 // ValidateChain will validate the chain in the chain store up to the given beacon.
 func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	logger := c.l.Named("pastBeaconChecker")
+	logger := c.l.Named("pastBeaconCheck")
 	logger.Debugw("Starting to check past beacons", "upTo", upTo)
 
 	last, err := c.Last()
@@ -287,7 +287,7 @@ func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, 
 	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
 
 	if len(faultyBeacons) > 0 {
-		c.l.Warnw("Found invalid beacons in store", "beacon_id", c.crypto.GetGroup().ID, "amount", len(faultyBeacons))
+		logger.Warnw("Found invalid beacons in store", "amount", len(faultyBeacons))
 		return faultyBeacons, nil
 	}
 

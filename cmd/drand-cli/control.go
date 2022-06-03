@@ -708,6 +708,7 @@ func selfSign(c *cli.Context) error {
 
 const refreshRate = 500 * time.Millisecond
 
+//nolint:funlen
 func checkCmd(c *cli.Context) error {
 	defer log.DefaultLogger().Infow("Finished sync")
 
@@ -743,34 +744,78 @@ func checkCmd(c *cli.Context) error {
 	}
 	s.Start()
 	defer s.Stop()
+
+	// The following could be much simpler if we don't want to be nice on the user and display comprehensive logs
+	// on the client side.
+	isCorrecting, success := false, false
 	for {
 		select {
 		case progress, ok := <-channel:
 			if !ok {
 				// let the spinner time to refresh
 				time.Sleep(refreshRate)
+				if success {
+					// we need an empty line to not clash with the spinner
+					fmt.Println()
+					log.DefaultLogger().Infow("Finished correcting faulty beacons")
+				}
 				return nil
 			}
+			// if we received at least one progress update after switching to correcting
+			success = isCorrecting
 			if progress.Current == 0 {
-				// we need an empty line to not clash with the spinner
+				// let the spinner time to refresh
 				time.Sleep(refreshRate)
+				// we need an empty line to not clash with the spinner
 				fmt.Println()
 				log.DefaultLogger().Infow("Finished checking chain validity")
 				if progress.Target > 0 {
 					log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
-					atomic.StoreUint64(&target, progress.Target)
+					isCorrecting = true
+				} else {
+					log.DefaultLogger().Warnw("No faulty beacon found!")
 				}
 			}
 			atomic.StoreUint64(&current, progress.Current)
+			atomic.StoreUint64(&target, progress.Target)
 		case err, ok := <-errCh:
 			if !ok {
+				log.DefaultLogger().Infow("Error channel was closed")
 				return nil
 			}
+			// note that grpc's "error reading from server: EOF" won't trigger this so we really only catch the case
+			// where the server gracefully closed the connection.
 			if errors.Is(err, io.EOF) {
+				// let the spinner time to refresh
+				time.Sleep(refreshRate)
+				// make sure to exhaust our progress channel
+				progress, ok := <-channel
+				if ok {
+					if atomic.LoadUint64(&target) > progress.Target {
+						// we need an empty line to not clash with the spinner
+						fmt.Println()
+						log.DefaultLogger().Infow("Finished checking chain validity")
+						log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
+					} else {
+						atomic.StoreUint64(&current, progress.Current)
+						// let the spinner time to refresh again
+						time.Sleep(refreshRate)
+						// we need an empty line to not clash with the spinner
+						fmt.Println()
+					}
+				}
+
+				if success {
+					// we need an empty line to not clash with the spinner
+					fmt.Println()
+					log.DefaultLogger().Infow("Finished correcting faulty beacons")
+				}
+
 				return nil
 			}
+
 			log.DefaultLogger().Errorw("received an error", "err", err)
-			return fmt.Errorf("errror on following the chain: %w", err)
+			return fmt.Errorf("errror when checking the chain: %w", err)
 		}
 	}
 }

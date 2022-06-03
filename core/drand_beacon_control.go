@@ -1171,7 +1171,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		return errors.New("beacon handler is nil, you might need to first --follow a chain and start aggregating beacons")
 	}
 
-	logger.Debugw("Starting check chain")
+	logger.Infow("Starting to check chain for invalid beacons")
 
 	bp.state.Lock()
 	if bp.syncerCancel != nil {
@@ -1220,18 +1220,21 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	if err != nil {
 		logger.Errorw("", "send_progress", "sending_progress", "err", err)
 	}
-	logger.Infow("", "sent_progress", len(faultyBeacons))
 
 	// if we're asking to sync against only us, it's a dry-run
-	if len(faultyBeacons) == 0 || len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr {
-		logger.Infow("Finished without taking any corrective measure")
+	dryRun := len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr
+	if len(faultyBeacons) == 0 || dryRun {
+		logger.Infow("Finished without taking any corrective measure", "amount_invalid", len(faultyBeacons), "dry_run", dryRun)
 		return nil
 	}
+
+	// We need to wait a bit before continuing sending to the client if we don't want mingled output on the client side.
+	time.Sleep(time.Second)
 
 	// we need the channel to make sure the client has received the progress
 	cb, done := sendPlainProgressCallback(stream, logger, false)
 
-	logger.Infow("Faulty beacons detected in chain, correcting now")
+	logger.Infow("Faulty beacons detected in chain, correcting now", "dry-run", false)
 	logger.Debugw("Faulty beacons", "List", faultyBeacons)
 
 	err = bp.beacon.CorrectChain(ctx, faultyBeacons, peers, cb)
