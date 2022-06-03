@@ -757,7 +757,8 @@ func checkCmd(c *cli.Context) error {
 				if success {
 					// we need an empty line to not clash with the spinner
 					fmt.Println()
-					log.DefaultLogger().Infow("Finished correcting faulty beacons")
+					log.DefaultLogger().Infow("Finished correcting faulty beacons, " +
+						"we recommend running the same command a second time to confirm all beacons are now valid")
 				}
 				return nil
 			}
@@ -808,7 +809,8 @@ func checkCmd(c *cli.Context) error {
 				if success {
 					// we need an empty line to not clash with the spinner
 					fmt.Println()
-					log.DefaultLogger().Infow("Finished correcting faulty beacons")
+					log.DefaultLogger().Infow("Finished correcting faulty beacons, " +
+						"we recommend running the same command a second time to confirm all beacons are now valid")
 				}
 
 				return nil
