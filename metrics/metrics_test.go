@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -10,11 +11,25 @@ import (
 )
 
 func TestMetricReshare(t *testing.T) {
+	calls := make(map[string]int)
+
+	calls["test.com"] = 0
+	calls["error.com"] = 0
+	calls["nogroup.com"] = 0
+	calls["undefined"] = 0
+
 	hdl := func(addr string) (http.Handler, error) {
-		if addr == "test.com" {
+		switch addr {
+		case "test.com":
+			calls["test.com"]++
 			return http.RedirectHandler("test", http.StatusSeeOther), nil
+		case "error.com":
+			calls["error.com"]++
+			return nil, errors.New("some random error")
+		default:
+			calls["undefined"]++
+			return nil, fmt.Errorf("%w for Beacon ID: test_beacon", common.ErrNotPartOfGroup)
 		}
-		return nil, fmt.Errorf("%w for Beacon ID: test_beacon", common.ErrNotPartOfGroup)
 	}
 
 	l := Start(":0", nil, []Handler{hdl})
@@ -34,6 +49,7 @@ func TestMetricReshare(t *testing.T) {
 			return http.ErrUseLastResponse
 		},
 	}
+
 	resp, err = client.Get(fmt.Sprintf("http://%s/peer/test.com/metrics", addr.String()))
 	if err != nil {
 		t.Fatal(err)
@@ -43,12 +59,30 @@ func TestMetricReshare(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
+	resp, err = client.Get(fmt.Sprintf("http://%s/peer/test.com/metrics", addr.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls["test.com"] != 1 {
+		t.Fatalf("Handler function called %d times for test.com - caching is not working", calls["test.com"])
+	}
+	_ = resp.Body.Close()
+
 	resp, err = client.Get(fmt.Sprintf("http://%s/peer/other.com/metrics", addr.String()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != 404 {
 		t.Fatalf("lazy reshare didn't do its thing. Expected StatusCode: 404, actual: %d", resp.StatusCode)
+	}
+	_ = resp.Body.Close()
+
+	resp, err = client.Get(fmt.Sprintf("http://%s/peer/error.com/metrics", addr.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != 500 {
+		t.Fatalf("error not propagated correctly from error.com. Expected StatusCode: 303, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
 }
