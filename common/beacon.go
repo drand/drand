@@ -1,5 +1,9 @@
 package common
 
+import (
+	"errors"
+)
+
 // DefaultBeaconID is the value used when beacon id has an empty value. This
 // value should not be changed for backward-compatibility reasons
 const DefaultBeaconID = "default"
@@ -41,3 +45,9 @@ func GetCanonicalBeaconID(id string) string {
 	}
 	return id
 }
+
+// ErrNotPartOfGroup indicates that this node is not part of the group for a specific beacon ID
+var ErrNotPartOfGroup = errors.New("this node is not part of the group")
+
+// ErrPeerNotFound indicates that a peer is not part of any group that this node knows of
+var ErrPeerNotFound = errors.New("peer not found")

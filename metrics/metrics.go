@@ -1,7 +1,7 @@
 package metrics
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -343,12 +343,13 @@ func RegisterClientMetrics(r prometheus.Registerer) error {
 	return nil
 }
 
-// PeerHandler abstracts a helper for relaying http requests to a group peer
-type PeerHandler func(ctx context.Context) (map[string]http.Handler, error)
+// GroupHandlers abstracts a helper for relaying http requests to a group peer
+type Handler func(addr string) (http.Handler, error)
 
 // Start starts a prometheus metrics server with debug endpoints.
-func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.Listener {
-	log.DefaultLogger().Debugw("", "metrics", "private listener started", "at", metricsBind)
+func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.Listener {
+	log.DefaultLogger().Debugw("", "metrics", "starting listener", "at", metricsBind)
+
 	metricsBound.Do(bindMetrics)
 
 	if !strings.Contains(metricsBind, ":") {
@@ -363,8 +364,8 @@ func Start(metricsBind string, pprof http.Handler, peerHandler PeerHandler) net.
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 
-	if peerHandler != nil {
-		mux.Handle("/peer/", &lazyPeerHandler{peerHandler})
+	if groupHandlers != nil {
+		mux.Handle("/peer/", newLazyPeerHandler(groupHandlers))
 	}
 
 	if pprof != nil {
@@ -389,28 +390,77 @@ func GroupHandler() http.Handler {
 	return promhttp.HandlerFor(GroupMetrics, promhttp.HandlerOpts{Registry: GroupMetrics})
 }
 
-// lazyPeerHandler is a structure that defers learning who current
-// group members are until an http request is received.
+// lazyPeerHandler is a structure that defers learning which peers this node is connected
+// to until an http request is received for a specific peer. It handles all peers that
+// this node is connected to regardless of which group they are a part of.
 type lazyPeerHandler struct {
-	peerHandler PeerHandler
+	metricsHandlers []Handler
+	// handlerCache is a cache of peer address -> handler
+	// TODO Do we need to evict from cache at some point? The only case when it should be
+	//      invalidated is if a peer leaves e.g. during a Reshare
+	handlerCache sync.Map
 }
 
+// newLazyPeerHandler creates a new lazyPeerHandler from a slice of GroupHandlers
+func newLazyPeerHandler(metricsHandlers []Handler) *lazyPeerHandler {
+	return &lazyPeerHandler{
+		metricsHandlers,
+		sync.Map{},
+	}
+}
+
+// handlerForPeer returns the http.Handler associated with a given peer address.
+// Metrics are group-agnostic. Therefore, we just need the Handler for a group that the
+// peer in question has joined, regardless of the group. If a peer belongs to multiple
+// groups, it will return the handler associated with the group that appears first in
+// the metricsHandlers whose beacon the peer has joined.
+//
+// If the peer is not found, it will return a nil handler and a nil error.
+// If there is any other error it will return false and the given error.
+func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
+	h, found := l.handlerCache.Load(addr)
+	if found {
+		return h.(http.Handler), nil
+	}
+
+	var err error
+
+	for _, handlerFunc := range l.metricsHandlers {
+		h, err = handlerFunc(addr)
+		if err != nil {
+			if errors.Is(err, common.ErrNotPartOfGroup) {
+				continue
+			}
+
+			return nil, err
+		}
+
+		l.handlerCache.Store(addr, h)
+		return h.(http.Handler), nil
+	}
+
+	return nil, common.ErrPeerNotFound
+}
+
+// ServeHTTP serves the metrics for the peer whose address is given in the URI. It assumes that the
+// URI is in the form /peer/<peer_address>
 func (l *lazyPeerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	addr := strings.Replace(r.URL.Path, "/peer/", "", 1)
 	if index := strings.Index(addr, "/"); index != -1 {
 		addr = addr[:index]
 	}
 
-	handlers, err := l.peerHandler(r.Context())
-	if err != nil {
-		log.DefaultLogger().Warnw("", "metrics", "failed to get peer handlers", "err", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	handler, err := l.handlerForPeer(addr)
 
-	handler, ok := handlers[addr]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
+	if err != nil {
+		if errors.Is(err, common.ErrPeerNotFound) {
+			log.DefaultLogger().Warnw("", "metrics", "peer not found", "addr", addr)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		log.DefaultLogger().Warnw("", "metrics", "failed to get handler for peer", "addr", addr, "err", err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -435,6 +485,7 @@ func getBuildTimestamp(buildDate string) int64 {
 	return t.Unix()
 }
 
+// DKGStateChange emits appropriate dkgState, dkgStateTimestamp and dkgLeader metrics
 func DKGStateChange(s DKGState, beaconID string, leader bool) {
 	value := 0.0
 	if leader {
@@ -445,6 +496,7 @@ func DKGStateChange(s DKGState, beaconID string, leader bool) {
 	dkgLeader.WithLabelValues(beaconID).Set(value)
 }
 
+// ReshareStateChange emits appropriate reshareState, reshareStateTimestamp and reshareLeader metrics
 func ReshareStateChange(s ReshareState, beaconID string, leader bool) {
 	value := 0.0
 	if leader {

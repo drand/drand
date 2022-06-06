@@ -248,16 +248,23 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 		return err
 	}
 
+	metricsHandlers := make([]metrics.Handler, 0, len(stores))
+
 	for beaconID, fs := range stores {
 		bp, err := dd.LoadBeaconFromStore(beaconID, fs)
 		if err != nil {
 			return err
 		}
 
-		// Start metrics server
 		if metricsFlag != "" {
-			_ = metrics.Start(metricsFlag, pprof.WithProfile(), bp.PeerMetrics)
+			bp.log.Infow("", "metrics", "adding handler")
+			metricsHandlers = append(metricsHandlers, bp.MetricsHandlerForPeer)
 		}
+	}
+
+	// Start metrics server
+	if len(metricsHandlers) > 0 {
+		_ = metrics.Start(metricsFlag, pprof.WithProfile(), metricsHandlers)
 	}
 
 	return nil
