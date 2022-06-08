@@ -1137,12 +1137,13 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	defer cbStore.RemoveCallback(addr)
 
 	syncer := beacon.NewSyncManager(&beacon.SyncConfig{
-		Log:      bp.log,
-		Store:    cbStore,
-		Info:     info,
-		Client:   bp.privGateway,
-		Clock:    bp.opts.clock,
-		NodeAddr: bp.priv.Public.Address(),
+		Log:         bp.log,
+		Store:       cbStore,
+		BoltdbStore: store,
+		Info:        info,
+		Client:      bp.privGateway,
+		Clock:       bp.opts.clock,
+		NodeAddr:    bp.priv.Public.Address(),
 	})
 	go syncer.Run(ctx)
 	defer syncer.Stop()

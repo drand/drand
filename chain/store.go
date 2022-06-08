@@ -21,7 +21,6 @@ type Store interface {
 	Close()
 	Del(round uint64) error
 	SaveTo(w io.Writer) error
-	ForcePut(*Beacon) error
 }
 
 // Cursor iterates over items in sorted key order. This starts from the

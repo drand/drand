@@ -55,12 +55,13 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 
 	// we give the final append store to the sync manager
 	syncm := NewSyncManager(&SyncConfig{
-		Log:      l,
-		Store:    cbs,
-		Info:     c.chain,
-		Client:   cl,
-		Clock:    cf.Clock,
-		NodeAddr: cf.Public.Address(),
+		Log:         l,
+		Store:       cbs,
+		BoltdbStore: store,
+		Info:        c.chain,
+		Client:      cl,
+		Clock:       cf.Clock,
+		NodeAddr:    cf.Public.Address(),
 	})
 	go syncm.Run(context.Background())
 

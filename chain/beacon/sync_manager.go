@@ -25,11 +25,13 @@ import (
 // cancellation of sync requests if not progressing, performs rate limiting of
 // sync requests.
 type SyncManager struct {
-	log    log.Logger
-	clock  cl.Clock
-	store  chain.Store
-	info   *chain.Info
-	client net.ProtocolClient
+	log   log.Logger
+	clock cl.Clock
+	store chain.Store
+	// insecureStore will store beacons without doing any checks
+	insecureStore chain.Store
+	info          *chain.Info
+	client        net.ProtocolClient
 	// verifies the incoming beacon according to chain scheme
 	verifier *chain.Verifier
 	// period of the randomness generation
@@ -60,31 +62,33 @@ var ErrNoBeaconStored = errors.New("no beacon stored above requested round")
 var ErrFailedAll = errors.New("sync failed: tried all nodes")
 
 type SyncConfig struct {
-	Log      log.Logger
-	Client   net.ProtocolClient
-	Clock    cl.Clock
-	Store    chain.Store
-	Info     *chain.Info
-	NodeAddr string
+	Log         log.Logger
+	Client      net.ProtocolClient
+	Clock       cl.Clock
+	Store       chain.Store
+	BoltdbStore chain.Store
+	Info        *chain.Info
+	NodeAddr    string
 }
 
 // NewSyncManager returns a sync manager that will use the given store to store
 // newly synced beacon.
 func NewSyncManager(c *SyncConfig) *SyncManager {
 	return &SyncManager{
-		log:      c.Log.Named("SyncManager"),
-		clock:    c.Clock,
-		store:    c.Store,
-		info:     c.Info,
-		client:   c.Client,
-		period:   c.Info.Period,
-		verifier: c.Info.Verifier(),
-		nodeAddr: c.NodeAddr,
-		factor:   syncExpiryFactor,
-		newReq:   make(chan requestInfo, syncQueueRequest),
-		newSync:  make(chan *chain.Beacon, 1),
-		isDone:   false,
-		done:     make(chan bool, 1),
+		log:           c.Log.Named("SyncManager"),
+		clock:         c.Clock,
+		store:         c.Store,
+		insecureStore: c.BoltdbStore,
+		info:          c.Info,
+		client:        c.Client,
+		period:        c.Info.Period,
+		verifier:      c.Info.Verifier(),
+		nodeAddr:      c.NodeAddr,
+		factor:        syncExpiryFactor,
+		newReq:        make(chan requestInfo, syncQueueRequest),
+		newSync:       make(chan *chain.Beacon, 1),
+		isDone:        false,
+		done:          make(chan bool, 1),
 	}
 }
 
@@ -232,8 +236,8 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	cnode, cancel := context.WithCancel(global)
 	defer cancel()
 
-	// if from > 0 then we need to force sync because we're doing a ReSync, not a plain Sync.
-	force := from > 0
+	// if from > 0 then we're doing a ReSync, not a plain Sync.
+	isResync := from > 0
 
 	last, err := s.store.Last()
 	if err != nil {
@@ -299,10 +303,10 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 				return false
 			}
 
-			if force {
-				logger.Debugw("Using ForcePut to save beacon", "beacon", beacon.Round)
-				if err := s.store.ForcePut(beacon); err != nil {
-					logger.Errorw("ForcePut: unable to save", "with_peer", peer.Address(), "err", err)
+			if isResync {
+				logger.Debugw("Resync Put: trying to save beacon", "beacon", beacon.Round)
+				if err := s.insecureStore.Put(beacon); err != nil {
+					logger.Errorw("Resync Put: unable to save", "with_peer", peer.Address(), "err", err)
 					return false
 				}
 			} else {
@@ -313,7 +317,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 			}
 
 			// TODO: fix the fact that we currently never send beacons on newSync and always restart the sync
-			// 		 when receiving new sync requests.
+			// 		 when receiving new sync requests. See #1020.
 			// we let know the sync manager that we received a beacon
 			// s.newSync <- beacon
 

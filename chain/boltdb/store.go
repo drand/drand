@@ -85,12 +85,6 @@ func (b *boltStore) Put(beacon *chain.Beacon) error {
 	return nil
 }
 
-// ForcePut implements the Store interface. WARNING: It does NOT verify that this
-// beacon is not already saved in the database or not and will overwrite it.
-func (b *boltStore) ForcePut(beacon *chain.Beacon) error {
-	return b.Put(beacon)
-}
-
 // ErrNoBeaconSaved is the error returned when no beacon have been saved in the
 // database yet.
 var ErrNoBeaconSaved = errors.New("beacon not found in database")

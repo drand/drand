@@ -132,14 +132,6 @@ func (d *discrepancyStore) Put(b *chain.Beacon) error {
 	return nil
 }
 
-func (d *discrepancyStore) ForcePut(b *chain.Beacon) error {
-	if err := d.Store.ForcePut(b); err != nil {
-		return err
-	}
-	d.l.Infow("ForcePut", "HISTORIC_BEACON_STORED", b.String())
-	return nil
-}
-
 // callbackStores keeps a list of functions to notify on new beacons
 type callbackStore struct {
 	chain.Store
