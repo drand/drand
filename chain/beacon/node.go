@@ -195,7 +195,7 @@ func (h *Handler) Catchup() {
 
 	nRound, tTime := chain.NextRound(h.conf.Clock.Now().Unix(), h.conf.Group.Period, h.conf.Group.GenesisTime)
 	go h.run(tTime)
-	h.chain.RunSync(0, nRound, nil)
+	h.chain.RunSync(nRound, nil)
 }
 
 // Transition makes this beacon continuously sync until the time written in the
@@ -219,7 +219,7 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 
 	// we run the sync up until (inclusive) one round before the transition
 	h.l.Debugw("", "new_node", "following chain", "to_round", tRound-1)
-	h.chain.RunSync(0, tRound-1, toPeers(prevGroup.Nodes))
+	h.chain.RunSync(tRound-1, toPeers(prevGroup.Nodes))
 
 	return nil
 }
@@ -326,7 +326,7 @@ func (h *Handler) run(startTime int64) {
 				// XXX find a way to start the catchup as soon as the runsync is
 				// done. Not critical but leads to faster network recovery.
 				h.l.Debugw("", "beacon_loop", "run_sync_catchup", "last_is", lastBeacon, "should_be", current.round)
-				h.chain.RunSync(0, current.round, nil)
+				h.chain.RunSync(current.round, nil)
 			}
 		case b := <-h.chain.AppendedBeaconNoSync():
 			h.l.Debugw("", "beacon_loop", "catchupmode", "last_is", b.Round, "current", current.round, "catchup_launch", b.Round < current.round)
@@ -473,6 +473,11 @@ func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u u
 // CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
 func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
 	target := uint64(len(faultyBeacons))
+	if target == 0 {
+		return nil
+	}
+
+	var errAcc []error
 	for i, b := range faultyBeacons {
 		select {
 		case <-ctx.Done():
@@ -481,7 +486,15 @@ func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peer
 		}
 		cb(uint64(i+1), target)
 		h.l.Debugw("Fetching from peers incorrect beacon", "round", b)
-		h.chain.RunSync(b, b, peers)
+
+		err := h.chain.RunReSync(ctx, b, b, peers)
+		if err != nil {
+			errAcc = append(errAcc, err)
+		}
+	}
+
+	if len(errAcc) > 0 {
+		h.l.Errorw("One or more errors occurred while correcting the chain", "errors", errAcc)
 	}
 
 	return nil

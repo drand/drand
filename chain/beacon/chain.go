@@ -184,7 +184,7 @@ func (c *chainStore) runAggregator() {
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
 				peers := toPeers(c.crypto.GetGroup().Nodes)
-				c.syncm.RequestSync(0, newBeacon.Round, peers)
+				c.syncm.RequestSync(newBeacon.Round, peers)
 			}
 			break
 		}
@@ -220,16 +220,25 @@ func (c *chainStore) shouldSync(last *chain.Beacon, newB likeBeacon) bool {
 	return newB.GetRound() > last.GetRound()+1
 }
 
-// RunSync will sync up with other nodes and fill the store. If from is negative, it
-// will start from the latest stored beacon. If upTo is equal to 0, then it
+// RunSync will sync up with other nodes and fill the store.
+// It will start from the latest stored beacon. If upTo is equal to 0, then it
 // will follow the chain indefinitely. If peers is nil, it uses the peers of
 // the current group.
-func (c *chainStore) RunSync(from, upTo uint64, peers []net.Peer) {
+func (c *chainStore) RunSync(upTo uint64, peers []net.Peer) {
 	if len(peers) == 0 {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
-	c.syncm.RequestSync(from, upTo, peers)
+	c.syncm.RequestSync(upTo, peers)
+}
+
+// RunSync will sync up with other nodes to repair the invalid beacons in the store.
+func (c *chainStore) RunReSync(ctx context.Context, from, upTo uint64, peers []net.Peer) error {
+	if len(peers) == 0 {
+		peers = toPeers(c.crypto.GetGroup().Nodes)
+	}
+
+	return c.syncm.ReSync(ctx, from, upTo, peers)
 }
 
 // ValidateChain will validate the chain in the chain store up to the given beacon.
@@ -250,7 +259,7 @@ func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, 
 
 	var faultyBeacons []uint64
 	// notice that we do not validate the genesis round 0
-	for i := 1; i < c.Len(); i++ {
+	for i := uint64(1); i < uint64(c.Len()); i++ {
 		select {
 		case <-ctx.Done():
 			logger.Debugw("Context done, returning")
@@ -260,13 +269,13 @@ func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, 
 
 		// we call our callback with the round to send the progress, N.B. we need to do it before returning.
 		// Batching/rate-limiting is handled on the callback side
-		cb(uint64(i), upTo)
+		cb(i, upTo)
 
-		b, err := c.Get(uint64(i))
+		b, err := c.Get(i)
 		if err != nil {
 			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
-			faultyBeacons = append(faultyBeacons, uint64(i))
-			if uint64(i) >= upTo {
+			faultyBeacons = append(faultyBeacons, i)
+			if i >= upTo {
 				break
 			}
 			continue
@@ -279,7 +288,7 @@ func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, 
 			logger.Debugw("valid_beacon", "round", b.Round)
 		}
 
-		if uint64(i) >= upTo {
+		if i >= upTo {
 			break
 		}
 	}

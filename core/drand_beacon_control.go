@@ -1148,7 +1148,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	defer syncer.Stop()
 
 	for {
-		syncer.RequestSync(0, req.GetUpTo(), peers)
+		syncer.RequestSync(req.GetUpTo(), peers)
 		// wait for all the callbacks to be called and progress sent before returning
 		select {
 		case <-done:

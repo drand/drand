@@ -56,6 +56,9 @@ var syncQueueRequest = 3
 // ErrNoBeaconStored is the error we get when a sync is called too early and there are no beacon above the requested round
 var ErrNoBeaconStored = errors.New("no beacon stored above requested round")
 
+// ErrFailedAll means all nodes failed to provide the requested beacons
+var ErrFailedAll = errors.New("sync failed: tried all nodes")
+
 type SyncConfig struct {
 	Log      log.Logger
 	Client   net.ProtocolClient
@@ -108,16 +111,15 @@ type requestInfo struct {
 // RequestSync asks the sync manager to sync up with those peers up to the given
 // round. Depending on the current state of the syncing process, there might not
 // be a new process starting (for example if we already have the round
-// requested). upTo == 0 means the syncing process goes on forever. from == 0 means
-// we start from the latest stored beacon. from > 0 means we force-sync.
-func (s *SyncManager) RequestSync(from, upTo uint64, nodes []net.Peer) {
+// requested). upTo == 0 means the syncing process goes on forever.
+func (s *SyncManager) RequestSync(upTo uint64, nodes []net.Peer) {
 	s.newReq <- requestInfo{
 		nodes: nodes,
-		from:  from,
 		upTo:  upTo,
 	}
 }
 
+// Run handles non-blocking sync requests coming from the regular operation of the daemon
 func (s *SyncManager) Run(ctx context.Context) {
 	// no need to sync until genesis time
 	for s.clock.Now().Unix() < s.info.GenesisTime {
@@ -126,16 +128,10 @@ func (s *SyncManager) Run(ctx context.Context) {
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
-	lastCtx, cancel := context.WithCancel(ctx)
+	lastCtx, cancel := context.WithCancel(ctx) // nolint
 	for {
 		select {
 		case request := <-s.newReq:
-			if request.from > 0 {
-				// we always do it and we block while doing it if it's a forced sync.
-				s.log.Debugw("Starting forced sync", "from", request.from, "upTo", request.upTo)
-				s.Sync(lastCtx, request)
-				continue
-			}
 			// check if the request is still valid
 			last, err := s.store.Last()
 			if err != nil {
@@ -153,13 +149,13 @@ func (s *SyncManager) Run(ctx context.Context) {
 			// We always give a delay of a few periods since the one next to "now"
 			// might not be exactly ready yet so only after a few periods we know we
 			// must have gotten some data.
-			upperBound := lastRoundTime + int(s.period.Seconds()+1)*s.factor
+			upperBound := lastRoundTime + int(s.period.Seconds())*s.factor
 			if upperBound < int(s.clock.Now().Unix()) {
 				// we haven't received a new block in a while
 				// -> time to start a new sync
 				cancel()
 				lastCtx, cancel = context.WithCancel(ctx)
-				go s.Sync(lastCtx, request)
+				go s.Sync(lastCtx, request) // nolint
 			}
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
@@ -172,8 +168,36 @@ func (s *SyncManager) Run(ctx context.Context) {
 	}
 }
 
+// ReSync handles resyncs that where necessarily launched by a CLI.
+func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.Peer) error {
+	s.log.Debugw("Launching re-sync request", "from", from, "upTo", to)
+
+	if from == 0 {
+		return fmt.Errorf("invalid re-sync: from %d to %d", from, to)
+	}
+
+	// we always do it and we block while doing it if it's a resync. Notice that the regular sync will
+	// keep running in the background in their own go routine.
+	err := s.Sync(ctx, requestInfo{
+		nodes: nodes,
+		from:  from,
+		upTo:  to,
+	})
+
+	if errors.Is(err, ErrFailedAll) {
+		s.log.Warnw("All node have failed resync once, retrying one time")
+		err = s.Sync(ctx, requestInfo{
+			nodes: nodes,
+			from:  from,
+			upTo:  to,
+		})
+	}
+
+	return err
+}
+
 // Sync will launch the requested sync with the requested peers and returns once done, even if it failed
-func (s *SyncManager) Sync(ctx context.Context, request requestInfo) {
+func (s *SyncManager) Sync(ctx context.Context, request requestInfo) error {
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
 	s.log.Debugw("sync rate limiting", "rate limit", commonutils.RateLimit)
 	// shuffle through the nodes
@@ -187,16 +211,17 @@ func (s *SyncManager) Sync(ctx context.Context, request requestInfo) {
 		// let us cancel early in case the context is canceled
 		case <-ctx.Done():
 			s.log.Debugw("sync canceled early", "source", "ctx", "err?", ctx.Err())
-			return
+			return fmt.Errorf("ctx done: sync canceled")
 		default:
 			node := request.nodes[n]
 			if s.tryNode(ctx, request.from, request.upTo, node) {
 				// we stop as soon as we've done a successful sync with a node
-				return
+				return nil
 			}
 		}
 	}
 	s.log.Debugw("Tried all nodes without success", "sync_manager", "failed sync")
+	return ErrFailedAll
 }
 
 // tryNode tries to sync up with the given peer up to the given round, starting
@@ -211,7 +236,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	cnode, cancel := context.WithCancel(global)
 	defer cancel()
 
-	// if from > 0 then we need to force sync because we're correcting beacons after a CheckChain.
+	// if from > 0 then we need to force sync because we're doing a ReSync, not a plain Sync.
 	force := from > 0
 
 	last, err := s.store.Last()
@@ -220,9 +245,11 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 		return false
 	}
 
-	// note that when from == upTo, it means we want to overwrite that beacon in our store
-	if from <= 0 || from > upTo {
+	if from == 0 {
 		from = last.Round + 1
+	} else if from > upTo {
+		logger.Errorw("Invalid request: from > upTo", "from", from, "upTo", upTo)
+		return false
 	}
 
 	req := &proto.SyncRequest{
