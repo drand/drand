@@ -55,7 +55,7 @@ const defaultPort = "8080"
 
 func banner() {
 	version := common.GetAppVersion()
-	fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version.String(), buildDate, gitCommit)
+	fmt.Fprintf(output, "drand %s (date %v, commit %v) by Protocol Labs and contributors\n", version.String(), buildDate, gitCommit)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -538,7 +538,7 @@ func CLI() *cli.App {
 
 	SetVersionPrinter.Do(func() {
 		cli.VersionPrinter = func(c *cli.Context) {
-			fmt.Fprintf(output, "drand %s (date %v, commit %v) by nikkolasg\n", version, buildDate, gitCommit)
+			fmt.Fprintf(output, "drand %s (date %v, commit %v) by Protocol Labs and contributors\n", version, buildDate, gitCommit)
 		}
 	})
 
