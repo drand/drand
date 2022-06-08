@@ -231,13 +231,14 @@ func (c *chainStore) RunSync(upTo uint64, peers []net.Peer) {
 	c.syncm.RequestSync(upTo, peers)
 }
 
-// RunSync will sync up with other nodes to repair the invalid beacons in the store.
-func (c *chainStore) RunReSync(ctx context.Context, from, upTo uint64, peers []net.Peer) error {
+// RunReSync will sync up with other nodes to repair the invalid beacons in the store.
+func (c *chainStore) RunReSync(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	// we do this check here because the SyncManager doesn't have the notion of group
 	if len(peers) == 0 {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
-	return c.syncm.ReSync(ctx, from, upTo, peers)
+	return c.syncm.CorrectPastBeacons(ctx, faultyBeacons, peers, cb)
 }
 
 // ValidateChain will validate the chain in the chain store up to the given beacon.

@@ -231,6 +231,39 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 	return nil, nil
 }
 
+func (s *SyncManager) CorrectPastBeacons(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	target := uint64(len(faultyBeacons))
+	if target == 0 {
+		return nil
+	}
+	if cb == nil {
+		return fmt.Errorf("undefined callback for CorrectPastBeacons")
+	}
+
+	var errAcc []error
+	for i, b := range faultyBeacons {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		cb(uint64(i+1), target)
+		s.log.Debugw("Fetching from peers incorrect beacon", "round", b)
+
+		err := s.ReSync(ctx, b, b, peers)
+		if err != nil {
+			errAcc = append(errAcc, err)
+		}
+	}
+
+	if len(errAcc) > 0 {
+		s.log.Errorw("One or more errors occurred while correcting the chain", "errors", errAcc)
+		return fmt.Errorf("error while correcting past beacons. First error: %w; All errors: %+v", errAcc[0], errAcc)
+	}
+
+	return nil
+}
+
 // ReSync handles resyncs that where necessarily launched by a CLI.
 func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.Peer) error {
 	s.log.Debugw("Launching re-sync request", "from", from, "upTo", to)
