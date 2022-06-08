@@ -224,9 +224,9 @@ signature. At the moment, we are only using BLS signatures on the bls12-381 curv
 and the signature is made over G1.
 
 
-(Note that this requires exposed drand nodes available to query public randomness,
-for instance this won't work with the current League of Entropy nodes, since they
-are not exposing their GRPC endpoints.)
+(Note that this command expects access to a drand group member,
+this won't work with the current League of Entropy nodes, since they
+are not exposing their GRPC endpoints directly.)
 
 ### Fetching Private Randomness
 
