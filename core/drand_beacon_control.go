@@ -1324,7 +1324,7 @@ func sendPlainProgressCallback(
 			targ = curr
 		}
 		// let us do some rate limiting on the amount of Send we do
-		if targ > commonutils.RateLimit && targ-curr > commonutils.RateLimit && curr%commonutils.RateLimit != 0 {
+		if targ > commonutils.LogsToSkip && targ-curr > commonutils.LogsToSkip && curr%commonutils.LogsToSkip != 0 {
 			return
 		}
 

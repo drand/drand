@@ -212,7 +212,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 		if err = s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
 			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
 			faultyBeacons = append(faultyBeacons, b.Round)
-		} else if i%commonutils.RateLimit == 0 { // we do some rate limiting on the logging
+		} else if i%commonutils.LogsToSkip == 0 { // we do some rate limiting on the logging
 			logger.Debugw("valid_beacon", "round", b.Round)
 		}
 
@@ -262,7 +262,6 @@ func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.P
 // Sync will launch the requested sync with the requested peers and returns once done, even if it failed
 func (s *SyncManager) Sync(ctx context.Context, request requestInfo) error {
 	s.log.Debugw("starting new sync", "sync_manager", "start sync", "up_to", request.upTo, "nodes", peersToString(request.nodes))
-	s.log.Debugw("sync rate limiting", "rate limit", commonutils.RateLimit)
 	// shuffle through the nodes
 	for _, n := range rand.Perm(len(request.nodes)) {
 		if request.nodes[n].Address() == s.nodeAddr {
@@ -333,6 +332,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	}
 
 	logger.Debugw("start_sync", "with_peer", peer.Address(), "from_round", from, "up_to", upTo)
+	s.log.Debugw("sync log rate limiting", "skipping logs", commonutils.LogsToSkip)
 
 	for {
 		select {
@@ -351,7 +351,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 			// We rate limit our logging, but when we are "close enough", we display all logs in case we want to follow
 			// for a long time.
-			if idx := beaconPacket.GetRound(); target < idx || target-idx < commonutils.RateLimit || idx%commonutils.RateLimit == 0 {
+			if idx := beaconPacket.GetRound(); target < idx || target-idx < commonutils.LogsToSkip || idx%commonutils.LogsToSkip == 0 {
 				logger.Debugw("new_beacon_fetched",
 					"with_peer", peer.Address(),
 					"from_round", from,

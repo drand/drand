@@ -12,8 +12,9 @@ const DefaultChainHash = "default"
 // MultiBeaconFolder is the name of the folder where the multi-beacon data is stored
 const MultiBeaconFolder = "multibeacon"
 
-// RateLimit is used to reduce log verbosity when doing bulk processes, issuing logs only every RateLimit beacons
-const RateLimit = 300
+// LogsToSkip is used to reduce log verbosity when doing bulk processes, issuing logs only every LogsToSkip steps
+// this is currently set so that when processing past beacons it will give a log every ~2 seconds
+const LogsToSkip = 300
 
 // IsDefaultBeaconID indicates if the beacon id received is the default one or not.
 // There is a direct relationship between an empty string and the reserved id "default".
