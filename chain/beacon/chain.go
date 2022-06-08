@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	commonutils "github.com/drand/drand/common"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -244,64 +242,7 @@ func (c *chainStore) RunReSync(ctx context.Context, from, upTo uint64, peers []n
 
 // ValidateChain will validate the chain in the chain store up to the given beacon.
 func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	logger := c.l.Named("pastBeaconCheck")
-	logger.Debugw("Starting to check past beacons", "upTo", upTo)
-
-	last, err := c.Last()
-	if err != nil {
-		return nil, fmt.Errorf("unable to fetch and check last beacon in store: %w", err)
-	}
-
-	if last.Round < upTo {
-		logger.Errorw("No beacon stored above", "last round", last.Round, "requested round", upTo)
-		logger.Infow("Checking beacons only up to the last stored", "round", last.Round)
-		upTo = last.Round
-	}
-
-	var faultyBeacons []uint64
-	// notice that we do not validate the genesis round 0
-	for i := uint64(1); i < uint64(c.Len()); i++ {
-		select {
-		case <-ctx.Done():
-			logger.Debugw("Context done, returning")
-			return nil, ctx.Err()
-		default:
-		}
-
-		// we call our callback with the round to send the progress, N.B. we need to do it before returning.
-		// Batching/rate-limiting is handled on the callback side
-		cb(i, upTo)
-
-		b, err := c.Get(i)
-		if err != nil {
-			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
-			faultyBeacons = append(faultyBeacons, i)
-			if i >= upTo {
-				break
-			}
-			continue
-		}
-		// verify the signature validity
-		if err = c.verifier.VerifyBeacon(*b, c.conf.Group.PublicKey.Key()); err != nil {
-			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
-			faultyBeacons = append(faultyBeacons, b.Round)
-		} else if i%commonutils.RateLimit == 0 { // we do some rate limiting on the logging
-			logger.Debugw("valid_beacon", "round", b.Round)
-		}
-
-		if i >= upTo {
-			break
-		}
-	}
-
-	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
-
-	if len(faultyBeacons) > 0 {
-		logger.Warnw("Found invalid beacons in store", "amount", len(faultyBeacons))
-		return faultyBeacons, nil
-	}
-
-	return nil, nil
+	return c.syncm.CheckPastBeacons(ctx, upTo, cb)
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {

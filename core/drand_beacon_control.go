@@ -1207,6 +1207,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
 	}
 
+	logger.Debugw("validate_and_sync", "up_to", req.UpTo)
 	faultyBeacons, err := bp.beacon.ValidateChain(ctx, req.UpTo, cb)
 	if err != nil {
 		return err

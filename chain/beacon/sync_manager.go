@@ -168,6 +168,69 @@ func (s *SyncManager) Run(ctx context.Context) {
 	}
 }
 
+func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	logger := s.log.Named("pastBeaconCheck")
+	logger.Debugw("Starting to check past beacons", "upTo", upTo)
+
+	last, err := s.store.Last()
+	if err != nil {
+		return nil, fmt.Errorf("unable to fetch and check last beacon in store: %w", err)
+	}
+
+	if last.Round < upTo {
+		logger.Errorw("No beacon stored above", "last round", last.Round, "requested round", upTo)
+		logger.Infow("Checking beacons only up to the last stored", "round", last.Round)
+		upTo = last.Round
+	}
+
+	var faultyBeacons []uint64
+	// notice that we do not validate the genesis round 0
+	for i := uint64(1); i < uint64(s.store.Len()); i++ {
+		select {
+		case <-ctx.Done():
+			logger.Debugw("Context done, returning")
+			return nil, ctx.Err()
+		default:
+		}
+
+		// we call our callback with the round to send the progress, N.B. we need to do it before returning.
+		// Batching/rate-limiting is handled on the callback side
+		if cb != nil {
+			cb(i, upTo)
+		}
+
+		b, err := s.store.Get(i)
+		if err != nil {
+			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
+			faultyBeacons = append(faultyBeacons, i)
+			if i >= upTo {
+				break
+			}
+			continue
+		}
+		// verify the signature validity
+		if err = s.verifier.VerifyBeacon(*b, s.info.PublicKey); err != nil {
+			logger.Errorw("invalid_beacon", "round", b.Round, "err", err)
+			faultyBeacons = append(faultyBeacons, b.Round)
+		} else if i%commonutils.RateLimit == 0 { // we do some rate limiting on the logging
+			logger.Debugw("valid_beacon", "round", b.Round)
+		}
+
+		if i >= upTo {
+			break
+		}
+	}
+
+	logger.Debugw("Finished checking past beacons", "faulty_beacons", len(faultyBeacons))
+
+	if len(faultyBeacons) > 0 {
+		logger.Warnw("Found invalid beacons in store", "amount", len(faultyBeacons))
+		return faultyBeacons, nil
+	}
+
+	return nil, nil
+}
+
 // ReSync handles resyncs that where necessarily launched by a CLI.
 func (s *SyncManager) ReSync(ctx context.Context, from, to uint64, nodes []net.Peer) error {
 	s.log.Debugw("Launching re-sync request", "from", from, "upTo", to)

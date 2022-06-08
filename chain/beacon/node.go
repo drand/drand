@@ -461,13 +461,7 @@ func (h *Handler) GetConfg() *Config {
 
 // ValidateChain tells the sync manager to check the existing chain for validity.
 func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
-	h.l.Debugw("validate_and_sync", "up_to", upTo)
-	faultyBeacons, err := h.chain.ValidateChain(ctx, upTo, cb)
-	if err != nil {
-		return nil, err
-	}
-
-	return faultyBeacons, nil
+	return h.chain.ValidateChain(ctx, upTo, cb)
 }
 
 // CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
