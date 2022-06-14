@@ -120,7 +120,7 @@ func (s *SyncManager) RequestSync(upTo uint64, nodes []net.Peer) {
 }
 
 // Run handles non-blocking sync requests coming from the regular operation of the daemon
-func (s *SyncManager) Run(ctx context.Context) {
+func (s *SyncManager) Run() {
 	// no need to sync until genesis time
 	for s.clock.Now().Unix() < s.info.GenesisTime {
 		time.Sleep(time.Second)
@@ -128,7 +128,7 @@ func (s *SyncManager) Run(ctx context.Context) {
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
-	lastCtx, cancel := context.WithCancel(ctx) // nolint
+	lastCtx, cancel := context.WithCancel(context.Background()) // nolint
 	for {
 		select {
 		case request := <-s.newReq:
@@ -154,7 +154,7 @@ func (s *SyncManager) Run(ctx context.Context) {
 				// we haven't received a new block in a while
 				// -> time to start a new sync
 				cancel()
-				lastCtx, cancel = context.WithCancel(ctx)
+				lastCtx, cancel = context.WithCancel(context.Background())
 				go s.Sync(lastCtx, request) // nolint
 			}
 		case <-s.newSync:

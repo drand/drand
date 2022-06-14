@@ -61,7 +61,7 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 		Clock:       cf.Clock,
 		NodeAddr:    cf.Public.Address(),
 	})
-	go syncm.Run(context.Background())
+	go syncm.Run()
 
 	verifier := chain.NewVerifier(cf.Group.Scheme)
 
@@ -241,7 +241,9 @@ func (c *chainStore) RunReSync(ctx context.Context, faultyBeacons []uint64, peer
 	return c.syncm.CorrectPastBeacons(ctx, faultyBeacons, peers, cb)
 }
 
-// ValidateChain will validate the chain in the chain store up to the given beacon.
+// ValidateChain asks the sync manager to check the chain store up to the given beacon, in order to find invalid beacons
+// and it returns the list of round numbers for which the beacons were corrupted / invalid / not found in the store.
+// Note: it does not attempt to correct or fetch these faulty beacons.
 func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
 	return c.syncm.CheckPastBeacons(ctx, upTo, cb)
 }

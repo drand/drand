@@ -459,7 +459,10 @@ func (h *Handler) GetConfg() *Config {
 	return h.conf
 }
 
-// ValidateChain tells the sync manager to check the existing chain for validity.
+// ValidateChain asks the chain store to ask the sync manager to check the chain store up to the given beacon,
+// in order to find invalid beacons and it returns the list of round numbers for which the beacons
+// were corrupted / invalid / not found in the store.
+// Note: it does not attempt to correct or fetch these faulty beacons.
 func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
 	return h.chain.ValidateChain(ctx, upTo, cb)
 }
