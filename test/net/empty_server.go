@@ -61,9 +61,13 @@ func (s *EmptyServer) SyncChain(*drand.SyncRequest, drand.Protocol_SyncChainServ
 	return nil
 }
 
-// StartFollowChain is the control method to instruct a drand daemon to follow
-// its chain
-func (s *EmptyServer) StartFollowChain(*drand.StartFollowRequest, drand.Control_StartFollowChainServer) error {
+// StartFollowChain is the control method to instruct a drand daemon to sync its chain
+func (s *EmptyServer) StartFollowChain(*drand.StartSyncRequest, drand.Control_StartFollowChainServer) error {
+	return nil
+}
+
+// StartCheckChain is the control method to instruct a drand daemon to check its chain
+func (s *EmptyServer) StartCheckChain(*drand.StartSyncRequest, drand.Control_StartCheckChainServer) error {
 	return nil
 }
 

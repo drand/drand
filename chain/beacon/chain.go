@@ -1,6 +1,7 @@
 package beacon
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/drand/drand/chain"
@@ -52,12 +53,13 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 
 	// we give the final append store to the sync manager
 	syncm := NewSyncManager(&SyncConfig{
-		Log:      l,
-		Store:    cbs,
-		Info:     c.chain,
-		Client:   cl,
-		Clock:    cf.Clock,
-		NodeAddr: cf.Public.Address(),
+		Log:         l,
+		Store:       cbs,
+		BoltdbStore: store,
+		Info:        c.chain,
+		Client:      cl,
+		Clock:       cf.Clock,
+		NodeAddr:    cf.Public.Address(),
 	})
 	go syncm.Run()
 
@@ -181,7 +183,7 @@ func (c *chainStore) runAggregator() {
 			c.l.Debugw("", "new_aggregated", "not_appendable", "last", lastBeacon.String(), "new", newBeacon.String())
 			if c.shouldSync(lastBeacon, newBeacon) {
 				peers := toPeers(c.crypto.GetGroup().Nodes)
-				c.syncm.RequestSync(peers, newBeacon.Round)
+				c.syncm.RequestSync(newBeacon.Round, peers)
 			}
 			break
 		}
@@ -217,15 +219,33 @@ func (c *chainStore) shouldSync(last *chain.Beacon, newB likeBeacon) bool {
 	return newB.GetRound() > last.GetRound()+1
 }
 
-// RunSync will sync up with other nodes and fill the store. If upTo is equal to
-// 0, then it will follow the chain indefinitely. If peers is nil, it uses the
-// peers of the current group.
+// RunSync will sync up with other nodes and fill the store.
+// It will start from the latest stored beacon. If upTo is equal to 0, then it
+// will follow the chain indefinitely. If peers is nil, it uses the peers of
+// the current group.
 func (c *chainStore) RunSync(upTo uint64, peers []net.Peer) {
-	if peers == nil {
+	if len(peers) == 0 {
 		peers = toPeers(c.crypto.GetGroup().Nodes)
 	}
 
-	c.syncm.RequestSync(peers, upTo)
+	c.syncm.RequestSync(upTo, peers)
+}
+
+// RunReSync will sync up with other nodes to repair the invalid beacons in the store.
+func (c *chainStore) RunReSync(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	// we do this check here because the SyncManager doesn't have the notion of group
+	if len(peers) == 0 {
+		peers = toPeers(c.crypto.GetGroup().Nodes)
+	}
+
+	return c.syncm.CorrectPastBeacons(ctx, faultyBeacons, peers, cb)
+}
+
+// ValidateChain asks the sync manager to check the chain store up to the given beacon, in order to find invalid beacons
+// and it returns the list of round numbers for which the beacons were corrupted / invalid / not found in the store.
+// Note: it does not attempt to correct or fetch these faulty beacons.
+func (c *chainStore) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	return c.syncm.CheckPastBeacons(ctx, upTo, cb)
 }
 
 func (c *chainStore) AppendedBeaconNoSync() chan *chain.Beacon {

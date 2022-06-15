@@ -68,7 +68,7 @@ func (b *boltStore) Close() {
 }
 
 // Put implements the Store interface. WARNING: It does NOT verify that this
-// beacon is not already saved in the database or not.
+// beacon is not already saved in the database or not and will overwrite it.
 func (b *boltStore) Put(beacon *chain.Beacon) error {
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)

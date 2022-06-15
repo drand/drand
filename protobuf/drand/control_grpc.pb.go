@@ -49,7 +49,8 @@ type ControlClient interface {
 	GroupFile(ctx context.Context, in *GroupRequest, opts ...grpc.CallOption) (*GroupPacket, error)
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
 	LoadBeacon(ctx context.Context, in *LoadBeaconRequest, opts ...grpc.CallOption) (*LoadBeaconResponse, error)
-	StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error)
+	StartFollowChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error)
+	StartCheckChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartCheckChainClient, error)
 	BackupDatabase(ctx context.Context, in *BackupDBRequest, opts ...grpc.CallOption) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
 	RemoteStatus(ctx context.Context, in *RemoteStatusRequest, opts ...grpc.CallOption) (*RemoteStatusResponse, error)
@@ -180,7 +181,7 @@ func (c *controlClient) LoadBeacon(ctx context.Context, in *LoadBeaconRequest, o
 	return out, nil
 }
 
-func (c *controlClient) StartFollowChain(ctx context.Context, in *StartFollowRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error) {
+func (c *controlClient) StartFollowChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartFollowChainClient, error) {
 	stream, err := c.cc.NewStream(ctx, &Control_ServiceDesc.Streams[0], "/drand.Control/StartFollowChain", opts...)
 	if err != nil {
 		return nil, err
@@ -196,7 +197,7 @@ func (c *controlClient) StartFollowChain(ctx context.Context, in *StartFollowReq
 }
 
 type Control_StartFollowChainClient interface {
-	Recv() (*FollowProgress, error)
+	Recv() (*SyncProgress, error)
 	grpc.ClientStream
 }
 
@@ -204,8 +205,40 @@ type controlStartFollowChainClient struct {
 	grpc.ClientStream
 }
 
-func (x *controlStartFollowChainClient) Recv() (*FollowProgress, error) {
-	m := new(FollowProgress)
+func (x *controlStartFollowChainClient) Recv() (*SyncProgress, error) {
+	m := new(SyncProgress)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *controlClient) StartCheckChain(ctx context.Context, in *StartSyncRequest, opts ...grpc.CallOption) (Control_StartCheckChainClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Control_ServiceDesc.Streams[1], "/drand.Control/StartCheckChain", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &controlStartCheckChainClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type Control_StartCheckChainClient interface {
+	Recv() (*SyncProgress, error)
+	grpc.ClientStream
+}
+
+type controlStartCheckChainClient struct {
+	grpc.ClientStream
+}
+
+func (x *controlStartCheckChainClient) Recv() (*SyncProgress, error) {
+	m := new(SyncProgress)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -261,7 +294,8 @@ type ControlServer interface {
 	GroupFile(context.Context, *GroupRequest) (*GroupPacket, error)
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
 	LoadBeacon(context.Context, *LoadBeaconRequest) (*LoadBeaconResponse, error)
-	StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error
+	StartFollowChain(*StartSyncRequest, Control_StartFollowChainServer) error
+	StartCheckChain(*StartSyncRequest, Control_StartCheckChainServer) error
 	BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error)
 	// RemoteStatus request the status of some remote drand nodes
 	RemoteStatus(context.Context, *RemoteStatusRequest) (*RemoteStatusResponse, error)
@@ -310,8 +344,11 @@ func (UnimplementedControlServer) Shutdown(context.Context, *ShutdownRequest) (*
 func (UnimplementedControlServer) LoadBeacon(context.Context, *LoadBeaconRequest) (*LoadBeaconResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LoadBeacon not implemented")
 }
-func (UnimplementedControlServer) StartFollowChain(*StartFollowRequest, Control_StartFollowChainServer) error {
+func (UnimplementedControlServer) StartFollowChain(*StartSyncRequest, Control_StartFollowChainServer) error {
 	return status.Errorf(codes.Unimplemented, "method StartFollowChain not implemented")
+}
+func (UnimplementedControlServer) StartCheckChain(*StartSyncRequest, Control_StartCheckChainServer) error {
+	return status.Errorf(codes.Unimplemented, "method StartCheckChain not implemented")
 }
 func (UnimplementedControlServer) BackupDatabase(context.Context, *BackupDBRequest) (*BackupDBResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BackupDatabase not implemented")
@@ -566,7 +603,7 @@ func _Control_LoadBeacon_Handler(srv interface{}, ctx context.Context, dec func(
 }
 
 func _Control_StartFollowChain_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(StartFollowRequest)
+	m := new(StartSyncRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
@@ -574,7 +611,7 @@ func _Control_StartFollowChain_Handler(srv interface{}, stream grpc.ServerStream
 }
 
 type Control_StartFollowChainServer interface {
-	Send(*FollowProgress) error
+	Send(*SyncProgress) error
 	grpc.ServerStream
 }
 
@@ -582,7 +619,28 @@ type controlStartFollowChainServer struct {
 	grpc.ServerStream
 }
 
-func (x *controlStartFollowChainServer) Send(m *FollowProgress) error {
+func (x *controlStartFollowChainServer) Send(m *SyncProgress) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func _Control_StartCheckChain_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StartSyncRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ControlServer).StartCheckChain(m, &controlStartCheckChainServer{stream})
+}
+
+type Control_StartCheckChainServer interface {
+	Send(*SyncProgress) error
+	grpc.ServerStream
+}
+
+type controlStartCheckChainServer struct {
+	grpc.ServerStream
+}
+
+func (x *controlStartCheckChainServer) Send(m *SyncProgress) error {
 	return x.ServerStream.SendMsg(m)
 }
 
@@ -694,6 +752,11 @@ var Control_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "StartFollowChain",
 			Handler:       _Control_StartFollowChain_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StartCheckChain",
+			Handler:       _Control_StartCheckChain_Handler,
 			ServerStreams: true,
 		},
 	},

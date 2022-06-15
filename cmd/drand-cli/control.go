@@ -10,23 +10,19 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/drand/drand/common"
-
-	"github.com/drand/drand/core/migration"
-
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/briandowns/spinner"
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/core"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/drand" //nolint:stylecheck
-
-	control "github.com/drand/drand/protobuf/drand" //nolint:stylecheck
-
 	json "github.com/nikkolasg/hexjson"
 	"github.com/urfave/cli/v2"
+
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/core"
+	"github.com/drand/drand/core/migration"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
+	control "github.com/drand/drand/protobuf/drand"
 )
 
 const minimumShareSecretLength = 32
@@ -373,9 +369,9 @@ func remoteStatusCmd(c *cli.Context) error {
 	isTLS := !c.IsSet(insecureFlag.Name)
 	beaconID := getBeaconID(c)
 
-	addresses := make([]*drand.Address, len(ips))
+	addresses := make([]*control.Address, len(ips))
 	for i := 0; i < len(ips); i++ {
-		addresses[i] = &drand.Address{
+		addresses[i] = &control.Address{
 			Address: ips[i],
 			Tls:     isTLS,
 		}
@@ -434,7 +430,7 @@ func remotePingToNode(addr string, tls bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_, err := client.Home(ctx, peer, &drand.HomeRequest{})
+	_, err := client.Home(ctx, peer, &control.HomeRequest{})
 	if err != nil {
 		return err
 	}
@@ -710,9 +706,131 @@ func selfSign(c *cli.Context) error {
 	return nil
 }
 
-const refreshRate = 1000 * time.Millisecond
+const refreshRate = 500 * time.Millisecond
 
-func followCmd(c *cli.Context) error {
+//nolint:funlen
+func checkCmd(c *cli.Context) error {
+	defer log.DefaultLogger().Infow("Finished sync")
+
+	ctrlClient, err := controlClient(c)
+	if err != nil {
+		return fmt.Errorf("unable to create control client: %w", err)
+	}
+
+	addrs := strings.Split(c.String(syncNodeFlag.Name), ",")
+
+	channel, errCh, err := ctrlClient.StartCheckChain(
+		c.Context,
+		c.String(hashInfoReq.Name),
+		addrs,
+		!c.Bool(insecureFlag.Name),
+		uint64(c.Int(upToFlag.Name)),
+		c.String(beaconIDFlag.Name))
+
+	if err != nil {
+		log.DefaultLogger().Errorw("Error checking chain", "err", err)
+		return fmt.Errorf("error asking to check chain up to %d: %w", c.Int(upToFlag.Name), err)
+	}
+
+	var current uint64
+	target := uint64(c.Int(upToFlag.Name))
+	s := spinner.New(spinner.CharSets[9], refreshRate)
+	s.PreUpdate = func(spin *spinner.Spinner) {
+		curr := atomic.LoadUint64(&current)
+		spin.Suffix = fmt.Sprintf("  synced round up to %d "+
+			"\t- current target %d"+
+			"\t--> %.3f %% - "+
+			"Waiting on new rounds...", curr, target, 100*float64(curr)/float64(target))
+	}
+	s.Start()
+	defer s.Stop()
+
+	// The following could be much simpler if we don't want to be nice on the user and display comprehensive logs
+	// on the client side.
+	isCorrecting, success := false, false
+	for {
+		select {
+		case progress, ok := <-channel:
+			if !ok {
+				// let the spinner time to refresh
+				time.Sleep(refreshRate)
+				if success {
+					// we need an empty line to not clash with the spinner
+					fmt.Println()
+					log.DefaultLogger().Infow("Finished correcting faulty beacons, " +
+						"we recommend running the same command a second time to confirm all beacons are now valid")
+				}
+				return nil
+			}
+			// if we received at least one progress update after switching to correcting
+			success = isCorrecting
+			if progress.Current == 0 {
+				// let the spinner time to refresh
+				time.Sleep(refreshRate)
+				// we need an empty line to not clash with the spinner
+				fmt.Println()
+				log.DefaultLogger().Infow("Finished checking chain validity")
+				if progress.Target > 0 {
+					log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
+					isCorrecting = true
+				} else {
+					log.DefaultLogger().Warnw("No faulty beacon found!")
+				}
+			}
+			atomic.StoreUint64(&current, progress.Current)
+			atomic.StoreUint64(&target, progress.Target)
+		case err, ok := <-errCh:
+			if !ok {
+				log.DefaultLogger().Infow("Error channel was closed")
+				return nil
+			}
+			// note that grpc's "error reading from server: EOF" won't trigger this so we really only catch the case
+			// where the server gracefully closed the connection.
+			if errors.Is(err, io.EOF) {
+				// let the spinner time to refresh
+				time.Sleep(refreshRate)
+				// make sure to exhaust our progress channel
+				progress, ok := <-channel
+				if ok {
+					if atomic.LoadUint64(&target) > progress.Target {
+						// we need an empty line to not clash with the spinner
+						fmt.Println()
+						log.DefaultLogger().Infow("Finished checking chain validity")
+						log.DefaultLogger().Warnw("Faulty beacon found!", "amount", progress.Target)
+					} else {
+						atomic.StoreUint64(&current, progress.Current)
+						// let the spinner time to refresh again
+						time.Sleep(refreshRate)
+						// we need an empty line to not clash with the spinner
+						fmt.Println()
+					}
+				}
+
+				if success {
+					// we need an empty line to not clash with the spinner
+					fmt.Println()
+					log.DefaultLogger().Infow("Finished correcting faulty beacons, " +
+						"we recommend running the same command a second time to confirm all beacons are now valid")
+				}
+
+				return nil
+			}
+
+			log.DefaultLogger().Errorw("received an error", "err", err)
+			return fmt.Errorf("errror when checking the chain: %w", err)
+		}
+	}
+}
+
+func syncCmd(c *cli.Context) error {
+	if c.Bool(followFlag.Name) {
+		return followSync(c)
+	}
+
+	return checkCmd(c)
+}
+
+func followSync(c *cli.Context) error {
 	ctrlClient, err := controlClient(c)
 	if err != nil {
 		return fmt.Errorf("unable to create control client: %w", err)
@@ -733,16 +851,23 @@ func followCmd(c *cli.Context) error {
 
 	var current uint64
 	var target uint64
+
+	last := time.Now().Unix()
+
 	s := spinner.New(spinner.CharSets[9], refreshRate)
 	s.PreUpdate = func(spin *spinner.Spinner) {
 		curr := atomic.LoadUint64(&current)
 		tar := atomic.LoadUint64(&target)
+		dur := time.Now().Unix() - atomic.LoadInt64(&last)
+
 		spin.Suffix = fmt.Sprintf("  synced round up to %d "+
 			"- current target %d"+
 			"\t--> %.3f %% - "+
-			"Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar))
+			"Last update received %3ds ago. Waiting on new rounds...", curr, tar, 100*float64(curr)/float64(tar), dur)
 	}
-	s.FinalMSG = "\nFollow stopped\n"
+
+	s.FinalMSG = "\nSync stopped\n"
+
 	s.Start()
 	defer s.Stop()
 	for {
@@ -750,8 +875,13 @@ func followCmd(c *cli.Context) error {
 		case progress := <-channel:
 			atomic.StoreUint64(&current, progress.Current)
 			atomic.StoreUint64(&target, progress.Target)
+			atomic.StoreInt64(&last, time.Now().Unix())
 		case err := <-errCh:
 			if errors.Is(err, io.EOF) {
+				// we need a new line because of the spinner
+				fmt.Println()
+				log.DefaultLogger().Infow("Finished following beacon chain", "reached", current,
+					"server closed stream with", err)
 				return nil
 			}
 			return fmt.Errorf("errror on following the chain: %w", err)

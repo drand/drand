@@ -128,7 +128,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	proxyReq.Metadata = bp.newMetadata()
 	proxyStr := &proxyStream{stream}
 	bp.state.Unlock()
-	return beacon.SyncChain(bp.log.Named("SyncChain"), store, proxyReq, proxyStr)
+	return beacon.SyncChain(bp.log.Named("PublicRand"), store, proxyReq, proxyStr)
 }
 
 // PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
@@ -230,7 +230,8 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 		return fmt.Errorf("no beacon handler available")
 	}
 
-	return beacon.SyncChain(bp.log, bp.beacon.Store(), req, stream)
+	// TODO: consider re-running the SyncChain command if we get a ErrNoBeaconStored back as it could be a follow cmd
+	return beacon.SyncChain(bp.log.Named("SyncChain"), bp.beacon.Store(), req, stream)
 }
 
 // GetIdentity returns the identity of this drand node

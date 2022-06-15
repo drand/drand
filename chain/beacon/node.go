@@ -341,9 +341,12 @@ func (h *Handler) run(startTime int64) {
 				// channel will trigger again etc until we arrive at the correct
 				// round.
 				go func(c roundInfo, latest *chain.Beacon) {
-					h.l.Debugw("sleeping now", "beacon_loop", "catchupmode", "last_is", latest.Round, "seep_for", h.conf.Group.CatchupPeriod)
+					h.l.Debugw("sleeping now", "beacon_loop", "catchupmode",
+						"last_is", latest.Round,
+						"sleep_for", h.conf.Group.CatchupPeriod)
 					h.conf.Clock.Sleep(h.conf.Group.CatchupPeriod)
-					h.l.Debugw("broadcast next partial", "beacon_loop", "catchupmode", "last_is", latest.Round)
+					h.l.Debugw("broadcast next partial", "beacon_loop", "catchupmode",
+						"last_is", latest.Round)
 					h.broadcastNextPartial(c, latest)
 				}(current, b)
 			}
@@ -454,6 +457,19 @@ func (h *Handler) RemoveCallback(id string) {
 // GetConfg returns the conf used by the handler
 func (h *Handler) GetConfg() *Config {
 	return h.conf
+}
+
+// ValidateChain asks the chain store to ask the sync manager to check the chain store up to the given beacon,
+// in order to find invalid beacons and it returns the list of round numbers for which the beacons
+// were corrupted / invalid / not found in the store.
+// Note: it does not attempt to correct or fetch these faulty beacons.
+func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	return h.chain.ValidateChain(ctx, upTo, cb)
+}
+
+// CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
+func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	return h.chain.RunReSync(ctx, faultyBeacons, peers, cb)
 }
 
 func shortSigStr(sig []byte) string {

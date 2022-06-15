@@ -82,7 +82,10 @@ func (a *schemeStore) Put(b *chain.Beacon) error {
 	if a.sch.DecouplePrevSig {
 		b.PreviousSig = nil
 	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {
-		return fmt.Errorf("invalid previous signature")
+		if pb, err := a.Get(b.Round - 1); err != nil || !bytes.Equal(pb.Signature, b.PreviousSig) {
+			return fmt.Errorf("invalid previous signature for %d or "+
+				"previous beacon not found in database. Err: %w", b.Round, err)
+		}
 	}
 
 	if err := a.Store.Put(b); err != nil {

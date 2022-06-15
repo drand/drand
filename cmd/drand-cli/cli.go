@@ -251,14 +251,21 @@ var hashInfoNoReq = &cli.StringFlag{
 // using a simple string flag because the StringSliceFlag is not intuitive
 // see https://github.com/urfave/cli/issues/62
 var syncNodeFlag = &cli.StringFlag{
-	Name:     "sync-nodes",
-	Usage:    "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s)",
+	Name: "sync-nodes",
+	Usage: "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s). " +
+		"When checking our local database, using our local daemon address will result in a dry run.",
 	Required: true,
 }
 
+var followFlag = &cli.BoolFlag{
+	Name:  "follow",
+	Usage: "Indicates whether we want to follow another daemon, if not we perform a check of our local DB.",
+}
+
 var upToFlag = &cli.IntFlag{
-	Name:  "up-to",
-	Usage: "Specify a round to which the drand daemon will stop following the chain",
+	Name: "up-to",
+	Usage: "Specify a round at which the drand daemon will stop syncing the chain, " +
+		"typically used to bootstrap a new node in chained mode",
 	Value: 0,
 }
 
@@ -333,11 +340,11 @@ var appCommands = []*cli.Command{
 		Action: loadCmd,
 	},
 	{
-		Name:  "follow",
-		Usage: "follow and store a randomness chain",
-		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
-			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag),
-		Action: followCmd,
+		Name:  "sync",
+		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain",
+		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
+			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
+		Action: syncCmd,
 	},
 	{
 		Name: "generate-keypair",

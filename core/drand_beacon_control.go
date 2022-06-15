@@ -1052,11 +1052,10 @@ func getNonce(g *key.Group) []byte {
 
 // StartFollowChain syncs up with a chain from other nodes
 // nolint:funlen
-func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream drand.Control_StartFollowChainServer) error {
+func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	bp.state.Lock()
-
 	if bp.syncerCancel != nil {
 		bp.state.Unlock()
 		return errors.New("syncing is already in progress")
@@ -1138,22 +1137,120 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartFollowRequest, stream 
 	defer cbStore.RemoveCallback(addr)
 
 	syncer := beacon.NewSyncManager(&beacon.SyncConfig{
-		Log:      bp.log,
-		Store:    cbStore,
-		Info:     info,
-		Client:   bp.privGateway,
-		Clock:    bp.opts.clock,
-		NodeAddr: bp.priv.Public.Address(),
+		Log:         bp.log,
+		Store:       cbStore,
+		BoltdbStore: store,
+		Info:        info,
+		Client:      bp.privGateway,
+		Clock:       bp.opts.clock,
+		NodeAddr:    bp.priv.Public.Address(),
 	})
 	go syncer.Run()
 	defer syncer.Stop()
-	syncer.RequestSync(peers, req.GetUpTo())
+
+	for {
+		syncer.RequestSync(req.GetUpTo(), peers)
+		// wait for all the callbacks to be called and progress sent before returning
+		select {
+		case <-done:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		// we re-send a sync request every 10 periods in case the process got staled and let the sync manager handle
+		case <-time.After(info.Period * 10): //nolint:gomnd
+			bp.log.Debugw("Sending follow sync request again")
+			continue
+		}
+	}
+}
+
+// StartCheckChain checks a chain for validity and pulls invalid beacons from other nodes
+func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {
+	logger := bp.log.Named("CheckChain")
+
+	if bp.beacon == nil {
+		return errors.New("beacon handler is nil, you might need to first --follow a chain and start aggregating beacons")
+	}
+
+	logger.Infow("Starting to check chain for invalid beacons")
+
+	bp.state.Lock()
+	if bp.syncerCancel != nil {
+		bp.state.Unlock()
+		return errors.New("syncing is already in progress")
+	}
+	// context given to the syncer
+	// NOTE: this means that if the client quits the requests, the syncing
+	// context will signal it, and it will stop.
+	ctx, cancel := context.WithCancel(stream.Context())
+	bp.syncerCancel = cancel
+	bp.state.Unlock()
+	defer func() {
+		bp.state.Lock()
+		if bp.syncerCancel != nil {
+			bp.syncerCancel()
+		}
+		bp.syncerCancel = nil
+		bp.state.Unlock()
+	}()
+
+	// we don't monitor the channel for this one, instead we'll error out if needed
+	cb, _ := sendPlainProgressCallback(stream, logger, false)
+
+	peers := make([]net.Peer, 0, len(req.GetNodes()))
+	for _, addr := range req.GetNodes() {
+		// we skip our own address
+		if addr == bp.priv.Public.Address() {
+			continue
+		}
+		// XXX add TLS disable later
+		peers = append(peers, net.CreatePeer(addr, req.GetIsTls()))
+	}
+
+	logger.Debugw("validate_and_sync", "up_to", req.UpTo)
+	faultyBeacons, err := bp.beacon.ValidateChain(ctx, req.UpTo, cb)
+	if err != nil {
+		return err
+	}
+
+	// let us reset the progress bar on the client side to track instead the progress of the correction on the beacons
+	// this will also pass the "invalid beacon count" to the client through the new target.
+	err = stream.Send(&drand.SyncProgress{
+		Current: 0,
+		Target:  uint64(len(faultyBeacons)),
+	})
+	if err != nil {
+		logger.Errorw("", "send_progress", "sending_progress", "err", err)
+	}
+
+	// if we're asking to sync against only us, it's a dry-run
+	dryRun := len(req.Nodes) == 1 && req.Nodes[0] == bp.priv.Public.Addr
+	if len(faultyBeacons) == 0 || dryRun {
+		logger.Infow("Finished without taking any corrective measure", "amount_invalid", len(faultyBeacons), "dry_run", dryRun)
+		return nil
+	}
+
+	// We need to wait a bit before continuing sending to the client if we don't want mingled output on the client side.
+	time.Sleep(time.Second)
+
+	// we need the channel to make sure the client has received the progress
+	cb, done := sendPlainProgressCallback(stream, logger, false)
+
+	logger.Infow("Faulty beacons detected in chain, correcting now", "dry-run", false)
+	logger.Debugw("Faulty beacons", "List", faultyBeacons)
+
+	err = bp.beacon.CorrectChain(ctx, faultyBeacons, peers, cb)
+	if err != nil {
+		return err
+	}
 
 	// wait for all the callbacks to be called and progress sent before returning
 	select {
 	case <-done:
+		logger.Debugw("Finished correcting chain successfully", "up_to", req.UpTo)
 		return nil
 	case <-ctx.Done():
+		logger.Errorw("Received a cancellation / stream closed", "err", ctx.Err())
 		return ctx.Err()
 	}
 }
@@ -1166,8 +1263,10 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
 
 	var info *chain.Info
+	var err error
 	for _, peer := range peers {
-		ci, err := privGateway.ChainInfo(ctx, peer, request)
+		var ci *drand.ChainInfoPacket
+		ci, err = privGateway.ChainInfo(ctx, peer, request)
 		if err != nil {
 			l.Debugw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
@@ -1179,31 +1278,65 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 		}
 	}
 	if info == nil {
-		return nil, errors.New("unable to get a chain info successfully")
+		return nil, fmt.Errorf("unable to get chain info successfully. Last err: %w", err)
 	}
 	return info, nil
 }
 
-// sendProgressCallback returns a function that sends FollowProgress on the
+// sendProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a beacon whose round matches the passed upTo value.
 func sendProgressCallback(
-	stream drand.Control_StartFollowChainServer,
+	stream drand.Control_StartFollowChainServer, // not ideal since we also reuse it for the StartCheckChain
 	upTo uint64,
 	info *chain.Info,
 	clk clock.Clock,
 	l log.Logger,
 ) (cb func(b *chain.Beacon), done chan struct{}) {
-	done = make(chan struct{})
+	logger := l.Named("progressCb")
+	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
+	if upTo != 0 && upTo < targ {
+		targ = upTo
+	}
+
+	var plainProgressCb func(a, b uint64)
+	plainProgressCb, done = sendPlainProgressCallback(stream, logger, upTo == 0)
 	cb = func(b *chain.Beacon) {
-		err := stream.Send(&drand.FollowProgress{
-			Current: b.Round,
-			Target:  chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime),
+		plainProgressCb(b.Round, targ)
+	}
+
+	return
+}
+
+// sendPlainProgressCallback returns a function that sends SyncProgress on the
+// passed stream. It also returns a channel that closes when the callback is
+// called with a value whose round matches the passed upTo value.
+func sendPlainProgressCallback(
+	stream drand.Control_StartFollowChainServer,
+	l log.Logger,
+	keepFollowing bool,
+) (cb func(curr, targ uint64), done chan struct{}) {
+	done = make(chan struct{})
+
+	cb = func(curr, targ uint64) {
+		// avoids wrapping below and sends latest round number to the client
+		if curr > targ {
+			targ = curr
+		}
+		// let us do some rate limiting on the amount of Send we do
+		if targ > commonutils.LogsToSkip && targ-curr > commonutils.LogsToSkip && curr%commonutils.LogsToSkip != 0 {
+			return
+		}
+
+		err := stream.Send(&drand.SyncProgress{
+			Current: curr,
+			Target:  targ,
 		})
 		if err != nil {
-			l.Errorw("", "send_progress_callback", "sending_progress", "err", err)
+			l.Errorw("sending_progress", "err", err)
 		}
-		if upTo > 0 && b.Round == upTo {
+		if !keepFollowing && targ > 0 && curr == targ {
+			l.Debugw("target reached", "target", curr)
 			close(done)
 		}
 	}

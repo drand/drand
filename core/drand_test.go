@@ -34,6 +34,47 @@ func setFDLimit(t *testing.T) {
 	}
 }
 
+func consumeProgress(t *testing.T, progress chan *drand.SyncProgress, errCh chan error, amount uint64, progressing bool) {
+	if progressing {
+		for {
+			select {
+			case p, ok := <-progress:
+				if ok && p.Current == amount {
+					t.Logf("\t\t --> Successful chain sync progress. Achieved round: %d.", amount)
+					return
+				}
+			case e := <-errCh:
+				if errors.Is(e, io.EOF) { // means we've reached the end
+					t.Logf("\t\t --> Got EOF from daemon.")
+					return
+				}
+				t.Logf("\t\t --> Unexpected error received: %v.", e)
+				require.NoError(t, e)
+			case <-time.After(2 * time.Second):
+				t.Fatalf("\t\t --> Timeout during test")
+				return
+			}
+		}
+	} else { // we test the special case when we get Current == 0 and Target reports the amount of invalid beacon
+		select {
+		case p, ok := <-progress:
+			require.True(t, ok)
+			require.Equal(t, uint64(0), p.Current)
+			require.Equal(t, amount, p.Target)
+		case e := <-errCh:
+			if errors.Is(e, io.EOF) {
+				t.Logf("\t\t --> Got EOF from daemon.")
+				return
+			}
+			t.Logf("\t\t -->Unexpected error received: %v.", e)
+			require.NoError(t, e)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("\t\t --> Timeout during test")
+			return
+		}
+	}
+}
+
 // 1 second after end of dkg
 var testBeaconOffset = 1
 var testDkgTimeout = 2 * time.Second
@@ -760,11 +801,11 @@ func expectChanFail(t *testing.T, errCh chan error) {
 	select {
 	case e := <-errCh:
 		if errors.Is(e, io.EOF) {
-			t.Fatal("The follow should have failed")
+			t.Fatal("should have errored but got EOF")
 		}
-		t.Logf("An error was received as the address is invalid")
+		t.Logf("An error was received as expected: %v", e)
 	case <-time.After(100 * time.Millisecond):
-		t.Fatal("An error should have been received as the address is invalid")
+		t.Fatal("An error should have been received.")
 	}
 }
 
@@ -811,52 +852,57 @@ func TestDrandFollowChain(t *testing.T) {
 	tls := true
 
 	// First try with an invalid hash info
-	t.Logf("Trying to follow with an invalid hash\n")
+	t.Logf(" \t [-] Trying to follow with an invalid hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, errCh, _ := newClient.StartFollowChain(ctx, "deadbeef", addrToFollow, tls, 10000, beaconID)
 	expectChanFail(t, errCh)
 	cancel()
 
 	// testing with a non hex hash
-	t.Logf("Trying to follow with a non-hex hash\n")
+	t.Logf(" \t [-] Trying to follow with a non-hex hash\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, _, err = newClient.StartFollowChain(ctx, "tutu", addrToFollow, tls, 10000, beaconID)
 	require.Error(t, err)
 	cancel()
 
 	// testing with a invalid beaconID
-	t.Logf("Trying to follow with an invalid beaconID\n")
+	t.Logf("T \t [-] rying to follow with an invalid beaconID\n")
 	ctx, cancel = context.WithCancel(context.Background())
 	_, errCh, _ = newClient.StartFollowChain(ctx, hash, addrToFollow, tls, 10000, "tutu")
 	expectChanFail(t, errCh)
 	cancel()
 
 	fn := func(upTo, exp uint64) {
-		ctx, cancel = context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(context.Background())
 
-		t.Logf("Starting to follow chain with a valid address\n")
-		t.Logf("beaconID: %s ; hash-chain: %s", beaconID, hash)
+		t.Logf(" \t [-] Starting to follow chain with a valid hash. %d <= %d \n", upTo, exp)
+		t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s", beaconID, hash)
 		progress, errCh, err := newClient.StartFollowChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
 		require.NoError(t, err)
 
-		var goon = true
-		for goon {
+		for goon := true; goon; {
 			select {
 			case p, ok := <-progress:
+				t.Logf(" \t\t --> Received progress: %d / %d \n", p.Current, p.Target)
 				if ok && p.Current == exp {
-					t.Logf("Successful beacon rcv. Round: %d. Keep following chain.", exp)
+					t.Logf("\t\t -->Successful beacon rcv. Round: %d.", exp)
 					goon = false
 					break
 				}
 			case e := <-errCh:
-				if errors.Is(e, io.EOF) {
+				if errors.Is(e, io.EOF) { // means we've reached the end
+					t.Logf("\t\t -->Got EOF from daemon.")
+					goon = false
 					break
 				}
+				t.Logf("\t\t -->Unexpected error received: %v.", e)
 				require.NoError(t, e)
-			case <-time.After(1 * time.Second):
-				t.FailNow()
+			case <-time.After(2 * time.Second):
+				t.Fatalf("\t\t --> Timeout during test")
 			}
 		}
+
+		t.Logf(" \t\t --> Done, proceeding to check store now.\n")
 
 		// cancel the operation
 		cancel()
@@ -873,6 +919,130 @@ func TestDrandFollowChain(t *testing.T) {
 
 	fn(resp.GetRound()-2, resp.GetRound()-2)
 	fn(0, resp.GetRound())
+}
+
+// This test makes sure the "StartCheckChain" grpc method works fine
+// nolint:funlen
+func TestDrandCheckChain(t *testing.T) {
+	n, p := 4, 1*time.Second
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+
+	dt := NewDrandTestScenario(t, n, key.DefaultThreshold(n), p, sch, beaconID)
+	defer dt.Cleanup()
+
+	group := dt.RunDKG()
+	rootID := dt.nodes[0].drand.priv.Public
+
+	dt.SetMockClock(t, group.GenesisTime)
+	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+
+	// do a few periods
+	for i := 0; i < 6; i++ {
+		dt.AdvanceMockClock(t, group.Period)
+
+		// +2 because rounds start at 1, and at genesis time, drand generates
+		// first round already
+		err := dt.WaitUntilRound(t, dt.nodes[0], uint64(i+2))
+		require.NoError(t, err)
+	}
+
+	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.opts.certmanager)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// get last round first
+	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
+	require.NoError(t, err)
+	current := resp.GetRound()
+
+	fmt.Println(current)
+
+	ctrlClient, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
+	require.NoError(t, err)
+	tls := true
+
+	// First try with an invalid hash info
+	t.Logf("Trying to resync with an invalid address\n")
+
+	_, errCh, _ := ctrlClient.StartCheckChain(context.Background(), "deadbeef", nil, tls, 10000, beaconID)
+	expectChanFail(t, errCh)
+
+	// Next trying with a fully valid chain
+	cancel()
+	ctx, cancel = context.WithCancel(context.Background())
+	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	addrToFollow := []string{rootID.Address()}
+	upTo := uint64(5)
+
+	t.Logf(" \t [-] Starting resync chain with a valid hash.")
+	t.Logf(" \t\t --> beaconID: %s ; hash-chain: %s", beaconID, hash)
+	progress, errCh, err := ctrlClient.StartCheckChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+	require.NoError(t, err)
+	consumeProgress(t, progress, errCh, upTo, true)
+	// check that progress is (0, 0)
+	consumeProgress(t, progress, errCh, 0, false)
+
+	t.Logf(" \t\t --> Done, canceling.\n")
+	cancel()
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+
+	t.Logf(" \t\t --> Stopping node.s\n")
+	dt.StopMockNode(dt.nodes[0].addr, false)
+
+	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
+	store, err := dt.nodes[0].drand.createBoltStore()
+	require.NoError(t, err)
+
+	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
+	beac, err := store.Get(upTo - 1)
+	require.NoError(t, err)
+	require.Equal(t, upTo-1, beac.Round, "found %d vs expected %d", beac.Round, upTo-1)
+
+	t.Logf(" \t\t --> Deleting 4th beacon.\n")
+	err = store.Del(upTo - 1)
+	require.NoError(t, err)
+	store.Close()
+
+	t.Logf(" \t\t --> Re-Starting node.\n")
+	dt.StartDrand(dt.nodes[0].addr, false, false)
+
+	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")
+	_, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})
+	require.Error(t, err)
+
+	t.Logf(" \t\t --> Re-Running resync in dry run.\n")
+	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, addrToFollow, tls, upTo, beaconID)
+	require.NoError(t, err)
+	consumeProgress(t, progress, errCh, upTo, true)
+	// check that progress is (0, 1)
+	consumeProgress(t, progress, errCh, 1, false)
+
+	// we wait to make sure everything is done on the sync manager side before testing.
+	time.Sleep(time.Second)
+
+	// check dry-run worked and we still get an error
+	_, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})
+	require.Error(t, err)
+
+	t.Logf(" \t\t --> Re-Running resync and correct the error.\n")
+	progress, errCh, err = ctrlClient.StartCheckChain(ctx, hash, nil, tls, upTo, beaconID)
+	require.NoError(t, err)
+	consumeProgress(t, progress, errCh, upTo, true)
+	// check that progress is (0, 1)
+	consumeProgress(t, progress, errCh, 1, false)
+	// goes on with correcting the chain
+	consumeProgress(t, progress, errCh, 1, true)
+	// now the progress chan should be closed
+	_, ok := <-progress
+	require.False(t, ok)
+
+	// we wait to make sure everything is done on the sync manager side before testing.
+	time.Sleep(time.Second)
+
+	// check we don't get an error anymore
+	resp, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})
+	require.NoError(t, err)
+	require.Equal(t, upTo-1, resp.Round)
 }
 
 // Test if we can correctly fetch the rounds through the local proxy
