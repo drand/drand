@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	commonutils "github.com/drand/drand/common"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -39,6 +41,8 @@ func run(args []string) error {
 	app.Flags = ClientFlags
 	app.Action = mockAction
 
+	fmt.Println("Running mock-client:", args)
+
 	return app.Run(args)
 }
 
@@ -59,36 +63,30 @@ func TestClientLib(t *testing.T) {
 	defer grpcLis.Stop(context.Background())
 
 	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"}
-
-	fmt.Printf("%+v", args)
 	err = run(args)
 	if err != nil {
 		t.Fatal("GRPC should work", err)
 	}
 
 	args = []string{"mock-client", "--url", "https://" + addr}
-
 	err = run(args)
 	if err == nil {
 		t.Fatal("http needs insecure or hash", err)
 	}
 
 	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())}
-
 	err = run(args)
 	if err != nil {
 		t.Fatal("http should construct", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
-
 	err = run(args)
 	if err == nil {
 		t.Fatal("relays need URL or hash", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
-
 	err = run(args)
 	if err != nil {
 		t.Fatal(err)
@@ -139,10 +137,9 @@ func TestClientLibChainHashOverrideError(t *testing.T) {
 		"--hash",
 		fakeChainHash,
 	})
-	if err == nil {
-		t.Fatal("expected error from mismatched chain hashes")
+	if !errors.Is(err, commonutils.ErrInvalidChainHash) {
+		t.Fatal("expected error from mismatched chain hashes. Got: ", err)
 	}
-	fmt.Println(err)
 }
 
 func TestClientLibListenPort(t *testing.T) {

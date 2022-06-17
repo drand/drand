@@ -582,8 +582,8 @@ func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error
 	bh, exists := h.beacons[chainHashStr]
 
 	if !exists {
-		return nil, fmt.Errorf("there is no BeaconHandler for beaconHash [%s]. "+
-			"Is the chain hash correct?. Please check it", chainHashStr)
+		return nil, fmt.Errorf("there is no BeaconHandler for beaconHash [%s] in our beacons [%v]. "+
+			"Is the chain hash correct?. Please check it", chainHashStr, h.beacons)
 	}
 
 	return bh, nil

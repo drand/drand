@@ -70,6 +70,7 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	if cfg.watcher != nil {
 		wc, err = makeWatcherClient(cfg, cache)
 		if err != nil {
+			fmt.Printf("\n\nups: %+v and %+v\n\n", cfg, cache)
 			return nil, err
 		}
 		cfg.clients = append(cfg.clients, wc)
@@ -190,13 +191,18 @@ type clientConfig struct {
 
 func (c *clientConfig) tryPopulateInfo(clients ...Client) (err error) {
 	if c.chainInfo == nil {
+		fmt.Println("\nPopulating info\n", clients)
 		ctx, cancel := context.WithTimeout(context.Background(), clientStartupTimeoutDefault)
 		defer cancel()
 		for _, cli := range clients {
 			c.chainInfo, err = cli.Info(ctx)
 			if err == nil {
+				fmt.Println("\nPopulating info: WON\n")
+
 				return
 			}
+			fmt.Println("\nPopulating info: yups", err)
+
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	commonutils "github.com/drand/drand/common"
 	"net"
 	nhttp "net/http"
 	"os"
@@ -135,7 +136,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		}
 		if info != nil && !bytes.Equal(hash, info.Hash()) {
 			return nil, fmt.Errorf(
-				"incorrect chain hash %v != %v",
+				"%w %v != %v", commonutils.ErrInvalidChainHash,
 				c.String(HashFlag.Name),
 				hex.EncodeToString(info.Hash()),
 			)
