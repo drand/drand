@@ -625,7 +625,7 @@ func askPort(c *cli.Context) string {
 			continue
 		}
 
-		port := strings.TrimSuffix(input, "\n")
+		port := strings.Replace(input, "\n", "", 1)
 		if port == "" {
 			fmt.Fprintln(output, "Default port selected")
 			return defaultPort
