@@ -620,8 +620,8 @@ func askPort(c *cli.Context) string {
 		fmt.Fprintf(output, "No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
 
 		reader := bufio.NewReader(c.App.Reader)
-		input, portErr := reader.ReadString('\n')
-		if portErr != nil {
+		input, err := reader.ReadString('\n')
+		if err != nil {
 			continue
 		}
 
@@ -631,8 +631,8 @@ func askPort(c *cli.Context) string {
 			return defaultPort
 		}
 
-		_, intConversionErr := strconv.Atoi(port)
-		if len(port) < 3 || len(port) > 4 || intConversionErr != nil {
+		_, err = strconv.Atoi(port)
+		if err != nil || len(port) < 3 || len(port) > 4 {
 			continue
 		}
 
