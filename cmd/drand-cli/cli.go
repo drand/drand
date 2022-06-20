@@ -63,7 +63,7 @@ var folderFlag = &cli.StringFlag{
 
 var verboseFlag = &cli.BoolFlag{
 	Name:  "verbose",
-	Usage: "If set, verbosity is at the debug level.",
+	Usage: "If set, verbosity is at the debug level",
 }
 
 var tlsCertFlag = &cli.StringFlag{
@@ -119,46 +119,46 @@ var roundFlag = &cli.IntFlag{
 
 var certsDirFlag = &cli.StringFlag{
 	Name:  "certs-dir",
-	Usage: "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates.",
+	Usage: "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates",
 }
 
 var outFlag = &cli.StringFlag{
 	Name:  "out",
-	Usage: "save the group file into a separate file instead of stdout.",
+	Usage: "save the group file into a separate file instead of stdout",
 }
 
 var periodFlag = &cli.StringFlag{
 	Name:  "period",
-	Usage: "period to set when doing a setup.",
+	Usage: "period to set when doing a setup",
 }
 
 var catchupPeriodFlag = &cli.StringFlag{
 	Name:  "catchup-period",
-	Usage: "Minimum period while in catchup. Set only by the leader of share / reshares.",
+	Usage: "Minimum period while in catchup. Set only by the leader of share / reshares",
 	Value: "0s",
 }
 
 var thresholdFlag = &cli.IntFlag{
 	Name:  "threshold",
-	Usage: "threshold to use for the DKG.",
+	Usage: "threshold to use for the DKG",
 }
 
 var shareNodeFlag = &cli.IntFlag{
 	Name:  "nodes",
-	Usage: "number of nodes expected.",
+	Usage: "number of nodes expected",
 }
 
 var transitionFlag = &cli.BoolFlag{
 	Name:    "reshare",
 	Aliases: []string{"transition"},
 	Usage: "When set, this flag indicates the share operation is a resharing. " +
-		"The node will use the currently stored group as the basis for the resharing.",
+		"The node will use the currently stored group as the basis for the resharing",
 }
 
 var forceFlag = &cli.BoolFlag{
 	Name:    "force",
 	Aliases: []string{"f"},
-	Usage:   "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one.",
+	Usage:   "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
 }
 
 // secret flag is the "manual" security when the "leader"/coordinator creates the
@@ -174,18 +174,18 @@ var secretFlag = &cli.StringFlag{
 
 var connectFlag = &cli.StringFlag{
 	Name:  "connect",
-	Usage: "Address of the coordinator that will assemble the public keys and start the DKG.",
+	Usage: "Address of the coordinator that will assemble the public keys and start the DKG",
 }
 
 var leaderFlag = &cli.BoolFlag{
 	Name:  "leader",
-	Usage: "Specify if this node should act as the leader for setting up the group.",
+	Usage: "Specify if this node should act as the leader for setting up the group",
 }
 
 var beaconOffset = &cli.IntFlag{
 	Name: "beacon-delay",
 	Usage: "Leader uses this flag to specify the genesis time or transition time as a delay from when " +
-		" group is ready to run the share protocol.",
+		" group is ready to run the share protocol",
 }
 
 var oldGroupFlag = &cli.StringFlag{
@@ -208,7 +208,7 @@ var timeoutFlag = &cli.StringFlag{
 var pushFlag = &cli.BoolFlag{
 	Name: "push",
 	Usage: "Push mode forces the daemon to start making beacon requests to the other node, " +
-		"instead of waiting the other nodes contact it to catch-up on the round.",
+		"instead of waiting the other nodes contact it to catch-up on the round",
 }
 
 var sourceFlag = &cli.StringFlag{
@@ -239,20 +239,20 @@ var hashOnly = &cli.BoolFlag{
 
 var hashInfoReq = &cli.StringFlag{
 	Name:     "chain-hash",
-	Usage:    "The hash of the chain info, used to validate integrity of the received group info.",
+	Usage:    "The hash of the chain info, used to validate integrity of the received group info",
 	Required: true,
 }
 
 var hashInfoNoReq = &cli.StringFlag{
 	Name:  "chain-hash",
-	Usage: "The hash of the chain info.",
+	Usage: "The hash of the chain info",
 }
 
 // using a simple string flag because the StringSliceFlag is not intuitive
 // see https://github.com/urfave/cli/issues/62
 var syncNodeFlag = &cli.StringFlag{
 	Name: "sync-nodes",
-	Usage: "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s.). " +
+	Usage: "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s). " +
 		"When checking our local database, using our local daemon address will result in a dry run.",
 	Required: true,
 }
@@ -265,13 +265,13 @@ var followFlag = &cli.BoolFlag{
 var upToFlag = &cli.IntFlag{
 	Name: "up-to",
 	Usage: "Specify a round at which the drand daemon will stop syncing the chain, " +
-		"typically used to bootstrap a new node in chained mode.",
+		"typically used to bootstrap a new node in chained mode",
 	Value: 0,
 }
 
 var schemeFlag = &cli.StringFlag{
 	Name:  "scheme",
-	Usage: "Indicates a set of values drand will use to configure the randomness generation process.",
+	Usage: "Indicates a set of values drand will use to configure the randomness generation process",
 	Value: scheme.DefaultSchemeID,
 }
 
@@ -282,7 +282,7 @@ var jsonFlag = &cli.BoolFlag{
 
 var beaconIDFlag = &cli.StringFlag{
 	Name:  "id",
-	Usage: "Indicates the id for the randomness generation process which will be started.",
+	Usage: "Indicates the id for the randomness generation process which will be started",
 	Value: "",
 }
 var listIdsFlag = &cli.BoolFlag{
@@ -293,7 +293,7 @@ var listIdsFlag = &cli.BoolFlag{
 
 var allBeaconsFlag = &cli.BoolFlag{
 	Name:  "all",
-	Usage: "Indicates if we have to interact with all beacons chains.",
+	Usage: "Indicates if we have to interact with all beacons chains",
 	Value: false,
 }
 
@@ -335,13 +335,13 @@ var appCommands = []*cli.Command{
 	},
 	{
 		Name:   "load",
-		Usage:  "Launch a sharing protocol from filesystem.",
+		Usage:  "Launch a sharing protocol from filesystem",
 		Flags:  toArray(controlFlag, beaconIDFlag),
 		Action: loadCmd,
 	},
 	{
 		Name:  "sync",
-		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain.",
+		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain",
 		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
 		Action: syncCmd,
