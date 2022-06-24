@@ -357,7 +357,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
 
-	fmt.Println("--- DRAND STOP --- (failing instanace)")
+	fmt.Println("--- DRAND STOP --- (failing instance)")
 	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")

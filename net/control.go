@@ -26,15 +26,15 @@ type ControlListener struct {
 }
 
 // NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpc server
-func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) ControlListener {
+func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) (ControlListener, error) {
 	lis, err := net.Listen(controlListenAddr(controlAddr))
 	if err != nil {
 		log.DefaultLogger().Errorw("", "grpc listener", "failure", "err", err)
-		return ControlListener{}
+		return ControlListener{}, err
 	}
 	grpcServer := grpc.NewServer()
 	control.RegisterControlServer(grpcServer, s)
-	return ControlListener{conns: grpcServer, lis: lis}
+	return ControlListener{conns: grpcServer, lis: lis}, nil
 }
 
 // Start the listener for the control commands
