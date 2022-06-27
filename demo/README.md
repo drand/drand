@@ -6,14 +6,14 @@ commands.
 
 ## What the demo is doing
 
-It prints out many information on its standard output so you can see what are
+It prints out much information on its standard output so you can see what are
 the steps the demo is performing:
-* Setting a up a new network from scratch (running the DKG)
+* Setting up a new network from scratch (running the DKG)
 * Getting some beacons
-* Stopping a node and checking network is still alive
-* Getting node back and checking it has catched up the chain
+* Stopping a node and checking the network is still alive
+* Getting node back and checking it has caught up the chain
 * Doing a resharing to an extended group
-* Checking the new network produces valid random beacons
+* Checking if the new network produces valid random beacons
 
 ## Run the demo
 
@@ -21,14 +21,14 @@ the steps the demo is performing:
 go build && ./demo -build
 ```
 
-You can stop the demo by CTRL-C when ever you want.
+You can stop the demo by CTRL-C whenever you want.
 
 ## Fetching randomness
 
-You can fetch randomness  by running the command written out by the demo.
+You can fetch randomness by running the command written out by the demo.
 
 ## Inspecting nodes
 
-All temporary files are written to `/tmp/drand-demo`.
+All temporary files are written to `/tmp/drand-full`.
 You can inspect the private key, share, group and log of all nodes in
-`/tmp/drand-demo/node-X/`.
+`/tmp/drand-full/node-X/`.
