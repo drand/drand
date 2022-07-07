@@ -419,7 +419,7 @@ func newLazyPeerHandler(metricsHandlers []Handler) *lazyPeerHandler {
 // If there is any other error it will return false and the given error.
 func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 	h, found := l.handlerCache.Load(addr)
-	if found {
+	if found && h != nil {
 		return h.(http.Handler), nil
 	}
 
