@@ -237,12 +237,12 @@ type broadcastPacket = *drand.DKGPacket
 const maxQueueSize = 1000
 
 // senderQueueSize returns a dynamic queue size depending on the number of nodes
-// to contact multiplied by the number of steps in the DKG.
+// to contact.
 func senderQueueSize(nodes int) int {
-	if 3*nodes > maxQueueSize {
+	if nodes > maxQueueSize {
 		return maxQueueSize
 	}
-	return 3 * nodes //nolint:gomnd
+	return nodes
 }
 
 // dispatcher maintains a list of worker assigned one destination and pushes the
