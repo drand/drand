@@ -5,12 +5,12 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	commonutils "github.com/drand/drand/common"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	commonutils "github.com/drand/drand/common"
 
 	"github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
@@ -40,8 +40,6 @@ func run(args []string) error {
 	app.Name = "mock-client"
 	app.Flags = ClientFlags
 	app.Action = mockAction
-
-	fmt.Println("Running mock-client:", args)
 
 	return app.Run(args)
 }
@@ -83,13 +81,19 @@ func TestClientLib(t *testing.T) {
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
 	err = run(args)
 	if err == nil {
-		t.Fatal("relays need URL or hash", err)
+		t.Fatal("relays need URL to get chain info and hash", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
 	err = run(args)
+	if err == nil {
+		t.Fatal("relays need URL to get chain info and hash", err)
+	}
+
+	args = []string{"mock-client", "--url", "http://" + addr, "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
+	err = run(args)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("unable to get relay to work", err)
 	}
 }
 

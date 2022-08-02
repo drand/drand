@@ -5,12 +5,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	commonutils "github.com/drand/drand/common"
 	"net"
 	nhttp "net/http"
 	"os"
 	"path"
 	"strings"
+
+	commonutils "github.com/drand/drand/common"
 
 	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
@@ -127,6 +128,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 		return nil, err
 	}
 	clients = append(clients, gc...)
+	fmt.Println("CLients GRPC", clients, "from: ", c, " and", info)
 
 	var hash []byte
 	if c.IsSet(HashFlag.Name) && c.String(HashFlag.Name) != "" {
@@ -149,6 +151,7 @@ func Create(c *cli.Context, withInstrumentation bool, opts ...client.Option) (cl
 	}
 
 	clients = append(clients, buildHTTPClients(c, &info, hash, withInstrumentation)...)
+	fmt.Println("CLients HTTP", clients, "from: ", c, " and", info)
 
 	gopt, err := buildGossipClient(c)
 	if err != nil {
@@ -196,6 +199,7 @@ func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstru
 	var err error
 	skipped := []string{}
 	var hc client.Client
+	fmt.Println("buildHTTPClients:", c.StringSlice(URLFlag.Name))
 	for _, url := range c.StringSlice(URLFlag.Name) {
 		if *info != nil {
 			hc, err = http.NewWithInfo(url, *info, nhttp.DefaultTransport)
