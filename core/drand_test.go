@@ -307,7 +307,8 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	group1 := dt.RunDKG()
 
 	dt.SetMockClock(t, group1.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
 	// move to genesis time - so nodes start to make a round
 	// dt.AdvanceMockClock(t,offsetGenesis)
@@ -324,13 +325,14 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	dt.SetupNewNodes(t, nodesToAdd)
 
 	// we want to stop one node right after the group is created
-	nodeToStop := 1
+	nodeIndexToStop := 1
+	nodeToStop := dt.nodes[nodeIndexToStop]
 	leader := 0
 
 	dt.nodes[leader].drand.setupCB = func(g *key.Group) {
-		t.Logf("Stopping node %d \n", nodeToStop)
-		dt.nodes[nodeToStop].daemon.Stop(context.Background())
-		t.Logf("Node %d stopped \n", nodeToStop)
+		t.Logf("Stopping node %d \n", nodeIndexToStop)
+		nodeToStop.daemon.Stop(context.Background())
+		t.Logf("Node %d stopped \n", nodeIndexToStop)
 	}
 
 	t.Log("Setup reshare done. Starting reshare... Ignoring reshare errors")
@@ -345,8 +347,8 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	require.NotNil(t, newGroup)
 
 	// the node that had stopped must not be in the group
-	t.Logf("Check node %d is not included in the group \n", nodeToStop)
-	missingPublic := dt.nodes[nodeToStop].drand.priv.Public
+	t.Logf("Check node %d is not included in the group \n", nodeIndexToStop)
+	missingPublic := nodeToStop.drand.priv.Public
 	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
 }
 
