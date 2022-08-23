@@ -690,7 +690,8 @@ func keygenCmd(c *cli.Context) error {
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	if _, err := fileStore.LoadKeyPair(); err == nil {
-		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolderMB())
+		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
+		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
 		return nil
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {
