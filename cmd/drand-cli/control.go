@@ -99,6 +99,11 @@ func getShareArgs(c *cli.Context) (*shareArgs, error) {
 }
 
 func shareCmd(c *cli.Context) error {
+	err := validateShareArgs(c)
+	if err != nil {
+		return err
+	}
+
 	if c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name) {
 		return reshareCmd(c)
 	}
@@ -112,7 +117,7 @@ func shareCmd(c *cli.Context) error {
 		return err
 	}
 	if !c.IsSet(connectFlag.Name) {
-		return fmt.Errorf("need to the address of the coordinator to create the group file")
+		return fmt.Errorf("need to the address of the coordinator to create the group file - try the --%s flag", connectFlag.Name)
 	}
 	coordAddress := c.String(connectFlag.Name)
 	connectPeer := net.CreatePeer(coordAddress, args.isTLS)
@@ -124,7 +129,7 @@ func shareCmd(c *cli.Context) error {
 
 	beaconID := getBeaconID(c)
 
-	fmt.Fprintf(output, "Participating to the setup of the DKG. Beacon ID: [%s] \n", beaconID)
+	fmt.Fprintf(output, "Participating in the setup of the DKG. Beacon ID: [%s] \n", beaconID)
 	groupP, shareErr := ctrlClient.InitDKG(connectPeer, args.entropy, args.secret, beaconID)
 
 	if shareErr != nil {
@@ -137,9 +142,25 @@ func shareCmd(c *cli.Context) error {
 	return groupOut(c, group)
 }
 
+func validateShareArgs(c *cli.Context) error {
+	if c.IsSet(leaderFlag.Name) && c.IsSet(connectFlag.Name) {
+		return fmt.Errorf("you can't use the leader and connect flags together")
+	}
+
+	if c.IsSet(transitionFlag.Name) && c.IsSet(oldGroupFlag.Name) {
+		return fmt.Errorf(
+			"--%s flag invalid with --%s - nodes resharing should already have a secret share and group ready to use",
+			oldGroupFlag.Name,
+			transitionFlag.Name,
+		)
+	}
+
+	return nil
+}
+
 func leadShareCmd(c *cli.Context) error {
 	if !c.IsSet(thresholdFlag.Name) || !c.IsSet(shareNodeFlag.Name) {
-		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+		return fmt.Errorf("leader needs to specify --%s and --%s for sharing", nodeFlag.Name, thresholdFlag.Name)
 	}
 
 	args, err := getShareArgs(c)
@@ -238,7 +259,7 @@ func reshareCmd(c *cli.Context) error {
 	}
 
 	if !c.IsSet(connectFlag.Name) {
-		return fmt.Errorf("need to the address of the coordinator to create the group file")
+		return fmt.Errorf("need to the address of the coordinator to create the group file - try the --%s flag", connectFlag.Name)
 	}
 	coordAddress := c.String(connectFlag.Name)
 	connectPeer := net.CreatePeer(coordAddress, args.isTLS)
@@ -294,7 +315,7 @@ func leadReshareCmd(c *cli.Context) error {
 	}
 
 	if !c.IsSet(thresholdFlag.Name) || !c.IsSet(shareNodeFlag.Name) {
-		return fmt.Errorf("leader needs to specify --nodes and --threshold for sharing")
+		return fmt.Errorf("leader needs to specify --%s and --%s for sharing", nodeFlag.Name, thresholdFlag.Name)
 	}
 
 	nodes := c.Int(shareNodeFlag.Name)
@@ -533,7 +554,7 @@ func schemesCmd(c *cli.Context) error {
 		fmt.Fprintf(output, "%d) %s \n", i, id)
 	}
 
-	fmt.Fprintf(output, "\nChoose one of them and set it on --scheme flag \n")
+	fmt.Fprintf(output, "\nChoose one of them and set it on --%s flag \n", schemeFlag.Name)
 	return nil
 }
 

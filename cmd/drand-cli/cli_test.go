@@ -926,3 +926,27 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	}
 	return ins, tmpPath
 }
+
+func TestSharingWithInvalidFlagCombos(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+	tmp, err := os.MkdirTemp("", "drand-cli-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+
+	// leader and connect flags can't be used together
+	share1 := []string{
+		"drand", "share", "--tls-disable", "--folder", tmp, "--id", beaconID, "--leader", "--connect", "127.0.0.1:9090",
+	}
+	require.Error(t, CLI().Run(share1), "you can't use the leader and connect flags together")
+
+	// transition and from flags can't be used together
+	share3 := []string{
+		"drand", "share", "--tls-disable", "--folder", tmp, "--id", beaconID,
+		"--connect", "127.0.0.1:9090", "--transition", "--from somepath.txt",
+	}
+	require.Error(
+		t,
+		CLI().Run(share3),
+		"--from flag invalid with --transition - nodes resharing should already have a secret share and group ready to use",
+	)
+}

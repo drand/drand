@@ -152,7 +152,8 @@ var shareNodeFlag = &cli.IntFlag{
 }
 
 var transitionFlag = &cli.BoolFlag{
-	Name: "transition",
+	Name:    "reshare",
+	Aliases: []string{"transition"},
 	Usage: "When set, this flag indicates the share operation is a resharing. " +
 		"The node will use the currently stored group as the basis for the resharing",
 }
