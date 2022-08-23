@@ -13,7 +13,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	peer "github.com/libp2p/go-libp2p-core/peer"
+	peer "github.com/libp2p/go-libp2p/core/peer"
 	cli "github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 )

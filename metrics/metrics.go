@@ -360,7 +360,7 @@ func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.
 		log.DefaultLogger().Warnw("", "metrics", "listen failed", "err", err)
 		return nil
 	}
-	s := http.Server{Addr: l.Addr().String()}
+	s := http.Server{Addr: l.Addr().String(), ReadHeaderTimeout: 3 * time.Second}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 

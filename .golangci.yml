@@ -52,6 +52,7 @@ linters:
     - nestif
     - nlreturn
     - nonamedreturns
+    - nosnakecase
     - paralleltest
     - promlinter
     - tagliatelle

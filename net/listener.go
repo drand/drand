@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
@@ -112,8 +113,9 @@ func NewRESTListenerForPublic(
 	}
 	if insecure {
 		g.restServer = &http.Server{
-			Addr:    bindingAddr,
-			Handler: handler,
+			Addr:              bindingAddr,
+			ReadHeaderTimeout: 3 * time.Second,
+			Handler:           handler,
 		}
 	} else {
 		x509KeyPair, err := tls.LoadX509KeyPair(certPath, keyPath)
@@ -129,7 +131,8 @@ func NewRESTListenerForPublic(
 
 func buildTLSServer(httpHandler http.Handler, x509KeyPair *tls.Certificate) *http.Server {
 	return &http.Server{
-		Handler: httpHandler,
+		Handler:           httpHandler,
+		ReadHeaderTimeout: 3 * time.Second,
 		TLSConfig: &tls.Config{
 			// From https://blog.cloudflare.com/exposing-go-on-the-internet/
 

@@ -10,11 +10,10 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 
 	bds "github.com/ipfs/go-ds-badger2"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
 	ma "github.com/multiformats/go-multiaddr"
-	"golang.org/x/xerrors"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -48,27 +47,27 @@ type GossipRelayNode struct {
 func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode, error) {
 	bootstrap, err := ParseMultiaddrSlice(cfg.PeerWith)
 	if err != nil {
-		return nil, xerrors.Errorf("parsing peer-with: %w", err)
+		return nil, fmt.Errorf("parsing peer-with: %w", err)
 	}
 
 	ds, err := bds.NewDatastore(cfg.DataDir, nil)
 	if err != nil {
-		return nil, xerrors.Errorf("opening datastore: %w", err)
+		return nil, fmt.Errorf("opening datastore: %w", err)
 	}
 
 	priv, err := LoadOrCreatePrivKey(cfg.IdentityPath, l)
 	if err != nil {
-		return nil, xerrors.Errorf("loading p2p key: %w", err)
+		return nil, fmt.Errorf("loading p2p key: %w", err)
 	}
 
 	h, ps, err := ConstructHost(ds, priv, cfg.Addr, bootstrap, l)
 	if err != nil {
-		return nil, xerrors.Errorf("constructing host: %w", err)
+		return nil, fmt.Errorf("constructing host: %w", err)
 	}
 
 	addrs, err := h.Network().InterfaceListenAddresses()
 	if err != nil {
-		return nil, xerrors.Errorf("getting InterfaceListenAddresses: %w", err)
+		return nil, fmt.Errorf("getting InterfaceListenAddresses: %w", err)
 	}
 
 	for _, a := range addrs {
@@ -77,7 +76,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 
 	t, err := ps.Join(PubSubTopic(cfg.ChainHash))
 	if err != nil {
-		return nil, xerrors.Errorf("joining topic: %w", err)
+		return nil, fmt.Errorf("joining topic: %w", err)
 	}
 
 	g := &GossipRelayNode{
@@ -93,7 +92,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 	}
 
 	if cfg.Client == nil {
-		return nil, xerrors.Errorf("No client supplying randomness supplied.")
+		return nil, fmt.Errorf("no client supplying randomness supplied")
 	}
 	go g.background(cfg.Client)
 
@@ -125,7 +124,7 @@ func ParseMultiaddrSlice(peers []string) ([]ma.Multiaddr, error) {
 	for i, peer := range peers {
 		m, err := ma.NewMultiaddr(peer)
 		if err != nil {
-			return nil, xerrors.Errorf("parsing multiaddr\"%s\": %w", peer, err)
+			return nil, fmt.Errorf("parsing multiaddr\"%s\": %w", peer, err)
 		}
 		out[i] = m
 	}

@@ -135,9 +135,9 @@ func Relay(c *cli.Context) error {
 			continue
 		}
 
-		req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
+		req, _ := http.NewRequest(http.MethodGet, "/public/0", http.NoBody)
 		if hash != common.DefaultChainHash {
-			req, _ = http.NewRequest("GET", fmt.Sprintf("/%s/public/0", hash), http.NoBody)
+			req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/%s/public/0", hash), http.NoBody)
 		}
 
 		rr := httptest.NewRecorder()

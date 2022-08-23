@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/protobuf/drand"
@@ -299,7 +301,7 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	if !ok {
 		log.DefaultLogger().Debugw("", "grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
 		if !p.IsTLS() {
-			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithInsecure())...)
+			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))...)
 			if err != nil {
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 			}

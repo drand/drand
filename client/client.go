@@ -70,7 +70,6 @@ func makeClient(cfg *clientConfig) (Client, error) {
 	if cfg.watcher != nil {
 		wc, err = makeWatcherClient(cfg, cache)
 		if err != nil {
-			fmt.Printf("\n\nups: %+v and %+v\n\n", cfg, cache)
 			return nil, err
 		}
 		cfg.clients = append(cfg.clients, wc)

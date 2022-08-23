@@ -35,7 +35,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 
 func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	require.NoError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
