@@ -110,6 +110,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol.
+// nolint:funlen
 func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	if in.Old == nil {
 		return nil, errors.New("cannot reshare without an old group")

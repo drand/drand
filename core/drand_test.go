@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/protobuf/common"
 	"io"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/protobuf/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1128,7 +1129,7 @@ func TestReshareWithInvalidBeaconIdInMetadataFailsButNoSegfault(t *testing.T) {
 	dt := NewDrandTestScenario(t, n, thr, p, sch, beaconID)
 	_ = dt.RunDKG()
 
-	nonsenseBeaconId := "completely made up"
+	nonsenseBeaconID := "completely made up"
 	resharePacket := drand.InitResharePacket{
 		Old: &drand.GroupInfo{
 			Location: &drand.GroupInfo_Path{
@@ -1148,11 +1149,11 @@ func TestReshareWithInvalidBeaconIdInMetadataFailsButNoSegfault(t *testing.T) {
 			Force:         false,
 		},
 		Metadata: &common.Metadata{
-			BeaconID: nonsenseBeaconId,
+			BeaconID: nonsenseBeaconID,
 		},
 	}
 	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
-	require.Error(t, err, "Beacon with ID "+nonsenseBeaconId+" could not be found - did you pass the id flag?")
+	require.Error(t, err, "Beacon with ID "+nonsenseBeaconID+" could not be found - did you pass the id flag?")
 }
 
 func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {

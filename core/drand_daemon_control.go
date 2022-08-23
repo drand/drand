@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/drand/drand/key"
@@ -52,9 +51,8 @@ func (dd *DrandDaemon) InitReshare(ctx context.Context, in *drand.InitResharePac
 	}
 
 	bp, err := dd.getBeaconProcessByID(beaconID)
-
 	if bp == nil {
-		return nil, errors.New(fmt.Sprintf("Beacon with ID %s could not be found - did you pass the id flag?", beaconID))
+		return nil, fmt.Errorf("beacon with ID %s could not be found - make sure you have passed the id flag or have a default beacon", beaconID)
 	}
 
 	if err != nil {
