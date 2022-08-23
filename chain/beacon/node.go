@@ -120,7 +120,14 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 	if idx < 0 {
 		return nil, fmt.Errorf("invalid index %d in partial with msg %v", idx, msg)
 	}
-	nodeName := h.crypto.GetGroup().Node(uint32(idx)).Address()
+
+	node := h.crypto.GetGroup().Node(uint32(idx))
+
+	if node == nil {
+		return nil, fmt.Errorf("attempted to process beacon from node of index %d, but it was not in the group file", uint32(idx))
+	}
+
+	nodeName := node.Address()
 	// verify if request is valid
 	if err := key.Scheme.VerifyPartial(h.crypto.GetPub(), msg, p.GetPartialSig()); err != nil {
 		h.l.Errorw("",

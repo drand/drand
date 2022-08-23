@@ -157,6 +157,7 @@ func (s *SyncManager) Run() {
 				lastCtx, cancel = context.WithCancel(context.Background())
 				go s.Sync(lastCtx, request) // nolint
 			}
+
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
 			lastRoundTime = int(s.clock.Now().Unix())
