@@ -638,7 +638,7 @@ func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	return expDeals, expResps
 }
 
-// nolint:funlen
+//nolint:funlen
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.

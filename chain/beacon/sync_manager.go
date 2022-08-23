@@ -128,7 +128,7 @@ func (s *SyncManager) Run() {
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
-	lastCtx, cancel := context.WithCancel(context.Background()) // nolint
+	lastCtx, cancel := context.WithCancel(context.Background()) //nolint
 	for {
 		select {
 		case request := <-s.newReq:
@@ -155,7 +155,7 @@ func (s *SyncManager) Run() {
 				// -> time to start a new sync
 				cancel()
 				lastCtx, cancel = context.WithCancel(context.Background())
-				go s.Sync(lastCtx, request) // nolint
+				go s.Sync(lastCtx, request) //nolint
 			}
 		case <-s.newSync:
 			// just received a new beacon from sync, we keep track of this time
@@ -322,7 +322,7 @@ func (s *SyncManager) Sync(ctx context.Context, request requestInfo) error {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
-// nolint:gocyclo,funlen
+//nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
 	logger := s.log.Named("tryNode")
 
@@ -455,7 +455,7 @@ type SyncStream interface {
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
 	fromRound := req.GetFromRound()
 	addr := net.RemoteAddress(stream.Context())
-	id := addr + strconv.Itoa(rand.Int()) // nolint
+	id := addr + strconv.Itoa(rand.Int()) //nolint
 
 	logger := l.Named("SyncChain")
 

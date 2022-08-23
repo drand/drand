@@ -191,17 +191,13 @@ type clientConfig struct {
 
 func (c *clientConfig) tryPopulateInfo(clients ...Client) (err error) {
 	if c.chainInfo == nil {
-		fmt.Println("\nPopulating info\n", clients)
 		ctx, cancel := context.WithTimeout(context.Background(), clientStartupTimeoutDefault)
 		defer cancel()
 		for _, cli := range clients {
 			c.chainInfo, err = cli.Info(ctx)
 			if err == nil {
-				fmt.Println("\nPopulating info: WON\n")
-
 				return
 			}
-			fmt.Println("\nPopulating info: yups", err)
 
 			if ctx.Err() != nil {
 				return ctx.Err()

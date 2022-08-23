@@ -16,7 +16,7 @@ jobs:
       # since golangci-lint-action@v3 we need to run setup-go@v2 first
     - uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        go-version: '1.18'
     - name: Checkout
       uses: actions/checkout@v2
     - name: golangci-lint
