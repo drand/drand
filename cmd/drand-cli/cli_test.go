@@ -15,13 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common"
-
-	json "github.com/nikkolasg/hexjson"
-
-	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
@@ -30,8 +26,10 @@ import (
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
-	"github.com/kabukky/httpscerts"
 
+	"github.com/BurntSushi/toml"
+	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -357,7 +355,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	initDKGArgs := []string{"drand", "share", "--control", ctrlPort1, "--id", beaconID}
 	require.Error(t, CLI().Run(initDKGArgs))
 
-	fmt.Println("--- DRAND STOP --- (failing instanace)")
+	fmt.Println("--- DRAND STOP --- (failing instance)")
 	CLI().Run([]string{"drand", "stop", "--control", ctrlPort1})
 
 	fmt.Println(" --- DRAND GROUP ---")
