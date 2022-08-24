@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	gnet "net"
 	"os"
@@ -824,15 +823,15 @@ func TestInvalidPortSelectionRepromptsDuringKeygen(t *testing.T) {
 
 	// sleeping isn't very nice, but the CLI spin/waits, so it's all we've got!
 	app.Reader = strings.NewReader("888\n")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, finished, false)
 
 	app.Reader = strings.NewReader("8888888\n")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, finished, false)
 
 	app.Reader = strings.NewReader("8080\n")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	assert.Equal(t, finished, true)
 }
 
