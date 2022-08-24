@@ -245,6 +245,11 @@ var hashInfoReq = &cli.StringFlag{
 	Required: true,
 }
 
+var hashInfoNoReq = &cli.StringFlag{
+	Name:  "chain-hash",
+	Usage: "The hash of the chain info",
+}
+
 // using a simple string flag because the StringSliceFlag is not intuitive
 // see https://github.com/urfave/cli/issues/62
 var syncNodeFlag = &cli.StringFlag{
@@ -339,7 +344,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "sync",
 		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain",
-		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
+		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
 		Action: syncCmd,
 	},
@@ -405,7 +410,7 @@ var appCommands = []*cli.Command{
 				Name:      "chain-info",
 				Usage:     "Get the binding chain information that this node participates to",
 				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
-				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoReq),
+				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
 				Action:    getChainInfo,
 			},
 		},
