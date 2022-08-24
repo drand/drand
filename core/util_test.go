@@ -689,9 +689,18 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	go d.runLeaderReshare(c.timeout, errCh, leaderGroupReadyCh)
 	d.resharedNodes = append(d.resharedNodes, leader)
 
-	// leave some time to make sure leader is listening
-	// TODO: Remove this. Ping until leader is ready. Use a ping + lambda + retry
-	time.Sleep(1 * time.Second)
+	// wait until leader is listening
+	controlClient, err := net.NewControlClient(leader.drand.opts.ControlPort())
+
+	for {
+		if err != nil {
+			return nil, err
+		}
+
+		if controlClient.Ping() == nil {
+			break
+		}
+	}
 
 	// run the current nodes
 	for _, node := range d.nodes[1:c.oldRun] {
@@ -721,7 +730,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	if c.stateCh != nil {
 		c.stateCh <- ReshareUnlock
 		if c.onlyLeader {
-			// no needto continue since only the leader wont do
+			// no need to continue since only the leader wont do
 			// we only use this for DKgReshareForce
 			fmt.Printf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
 			return nil, errPreempted

@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO make beacon tests not dependant on key.Scheme
+// TODO make beacon tests not dependent on key.Scheme
 
 // testBeaconServer implements a barebone service to be plugged in a net.DefaultService
 type testBeaconServer struct {
@@ -607,22 +607,23 @@ func TestBeaconThreshold(t *testing.T) {
 	// and then run a few rounds
 	makeRounds(nRounds, n)
 
-	// stop last one again - so it will force a sync not from genesis
-	// bt.StopBeacon(n - 1)
-	// make a few round
-	// makeRounds(nRounds, n-1)
-
-	// start the node again
-	// bt.CreateNode(n - 1)
-	// bt.ServeBeacon(n - 1)
-	// bt.StartBeacon(n-1, true)
-	// bt.CallbackFor(n-1, myCallBack(n-1))
-	// let time for syncing
-	// time.Sleep(100 * time.Millisecond)
 	t.Log("move time with all nodes")
 
 	// expect lastnode to have catch up
 	makeRounds(nRounds, n)
+}
+
+func TestProcessingPartialBeaconWithNonExistentIndexDoesntSegfault(t *testing.T) {
+	bls, _ := scheme.GetSchemeByID(scheme.DefaultSchemeID)
+	bt := NewBeaconTest(t, 3, 2, 30*time.Second, 0, bls, "default")
+
+	packet := drand.PartialBeaconPacket{
+		Round:       1,
+		PreviousSig: []byte("deadbeef"),
+		PartialSig:  []byte("efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
+	}
+	_, err := bt.nodes[0].handler.ProcessPartialBeacon(context.Background(), &packet)
+	require.Error(t, err, "attempted to process beacon from node of index 25958, but it was not in the group file")
 }
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {

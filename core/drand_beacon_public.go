@@ -187,10 +187,12 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoReque
 // SignalDKGParticipant receives a dkg signal packet from another member
 func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
 	bp.state.Lock()
+
 	if bp.manager == nil {
 		bp.state.Unlock()
-		return nil, errors.New("no manager")
+		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.Metadata.BeaconID)
 	}
+
 	addr := net.RemoteAddress(ctx)
 	// manager will verify if information are correct
 	err := bp.manager.ReceivedKey(addr, p)
@@ -198,6 +200,7 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 		return nil, err
 	}
 	bp.state.Unlock()
+
 	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }
@@ -218,7 +221,7 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 	return response, bp.receiver.PushDKGInfo(in)
 }
 
-// SyncChain is a inter-node protocol that replies to a syncing request from a
+// SyncChain is an inter-node protocol that replies to a syncing request from a
 // given round
 func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
 	bp.state.Lock()

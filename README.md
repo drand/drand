@@ -331,10 +331,8 @@ following:
   protocol](https://eprint.iacr.org/2012/377.pdf) or an approach based on
   verifiable succinct computations (zk-SNARKs, etc).
 + Use / implement a faster pairing based library in JavaScript
-+ implemented ECIES private randomness in JavaScript (?)
 + Add more unit tests
 + Add a systemd unit file
-+ Support multiple drand instances within one node
 
 Feel free to submit feature requests or, even better, pull requests ;)
 
