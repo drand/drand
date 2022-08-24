@@ -84,8 +84,9 @@ var tlsKeyFlag = &cli.StringFlag{
 }
 
 var insecureFlag = &cli.BoolFlag{
-	Name:  "tls-disable",
-	Usage: "Disable TLS for all communications (not recommended).",
+	Name:    "tls-disable",
+	Aliases: []string{"insecure"},
+	Usage:   "Disable TLS for all communications (not recommended).",
 }
 
 var controlFlag = &cli.StringFlag{
@@ -157,8 +158,9 @@ var transitionFlag = &cli.BoolFlag{
 }
 
 var forceFlag = &cli.BoolFlag{
-	Name:  "force, f",
-	Usage: "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
+	Name:    "force",
+	Aliases: []string{"f"},
+	Usage:   "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
 }
 
 // secret flag is the "manual" security when the "leader"/coordinator creates the
@@ -241,11 +243,6 @@ var hashInfoReq = &cli.StringFlag{
 	Name:     "chain-hash",
 	Usage:    "The hash of the chain info, used to validate integrity of the received group info",
 	Required: true,
-}
-
-var hashInfoNoReq = &cli.StringFlag{
-	Name:  "chain-hash",
-	Usage: "The hash of the chain info",
 }
 
 // using a simple string flag because the StringSliceFlag is not intuitive
@@ -342,7 +339,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:  "sync",
 		Usage: "sync your local randomness chain with other nodes and validate your local beacon chain",
-		Flags: toArray(folderFlag, controlFlag, hashInfoNoReq, syncNodeFlag,
+		Flags: toArray(folderFlag, controlFlag, hashInfoReq, syncNodeFlag,
 			tlsCertFlag, insecureFlag, upToFlag, beaconIDFlag, followFlag),
 		Action: syncCmd,
 	},
@@ -408,7 +405,7 @@ var appCommands = []*cli.Command{
 				Name:      "chain-info",
 				Usage:     "Get the binding chain information that this node participates to",
 				ArgsUsage: "`ADDRESS1` `ADDRESS2` ... provides the addresses of the node to try to contact to.",
-				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoNoReq),
+				Flags:     toArray(tlsCertFlag, insecureFlag, hashOnly, hashInfoReq),
 				Action:    getChainInfo,
 			},
 		},

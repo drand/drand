@@ -106,8 +106,8 @@ func getPublicRandomness(c *cli.Context) error {
 func getChainInfo(c *cli.Context) error {
 	var err error
 	chainHash := make([]byte, 0)
-	if c.IsSet(hashInfoNoReq.Name) {
-		if chainHash, err = hex.DecodeString(c.String(hashInfoNoReq.Name)); err != nil {
+	if c.IsSet(hashInfoReq.Name) {
+		if chainHash, err = hex.DecodeString(c.String(hashInfoReq.Name)); err != nil {
 			return fmt.Errorf("invalid chain hash given: %w", err)
 		}
 	}
