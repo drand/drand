@@ -766,11 +766,11 @@ func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) 
 	return nil
 }
 
-func (bp *BeaconProcess) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group, err error) {
+func (bp *BeaconProcess) extractGroup(old *drand.GroupInfo) (*key.Group, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
-	if oldGroup, err = extractGroup(old); err == nil {
+	if oldGroup, err := extractGroup(old); err == nil {
 		return oldGroup, nil
 	}
 
