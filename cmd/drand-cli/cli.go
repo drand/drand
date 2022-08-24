@@ -556,8 +556,20 @@ func CLI() *cli.App {
 	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
-	app.Commands = appCommands
-	app.Flags = toArray(verboseFlag, folderFlag)
+	// we need to copy the underlying commands to avoid races, cli sadly isn't supporting well concurrent executions
+	appComm := make([]*cli.Command, len(appCommands))
+	for i, p := range appCommands {
+		if p == nil {
+			continue
+		}
+		v := *p
+		appComm[i] = &v
+	}
+	app.Commands = appComm
+	// we need to copy the underlying flags to avoid races
+	verbFlag := *verboseFlag
+	foldFlag := *folderFlag
+	app.Flags = toArray(&verbFlag, &foldFlag)
 	app.Before = testWindows
 	return app
 }
