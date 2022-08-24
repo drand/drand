@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/drand/drand/protobuf/common"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -1116,4 +1118,73 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 		t.Logf("Round received %d", beacon.Round())
 		require.Equal(t, round, beacon.Round())
 	}
+}
+
+func TestReshareWithInvalidBeaconIdInMetadataFailsButNoSegfault(t *testing.T) {
+	n := 3
+	thr := key.DefaultThreshold(n)
+	p := 1 * time.Second
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+
+	dt := NewDrandTestScenario(t, n, thr, p, sch, beaconID)
+	_ = dt.RunDKG()
+
+	nonsenseBeaconID := "completely made up"
+	resharePacket := drand.InitResharePacket{
+		Old: &drand.GroupInfo{
+			Location: &drand.GroupInfo_Path{
+				Path: "http://localhost:8080",
+			},
+		},
+		Info: &drand.SetupInfoPacket{
+			Leader:        false,
+			LeaderAddress: "whatever",
+			LeaderTls:     false,
+			Nodes:         uint32(n),
+			Threshold:     uint32(thr),
+			Timeout:       100,
+			BeaconOffset:  100,
+			DkgOffset:     1,
+			Secret:        []byte("doesntmatter"),
+			Force:         false,
+		},
+		Metadata: &common.Metadata{
+			BeaconID: nonsenseBeaconID,
+		},
+	}
+	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
+	assert.EqualError(
+		t,
+		err,
+		"beacon with ID "+nonsenseBeaconID+" could not be found - make sure you have passed the id flag or have a default beacon",
+	)
+}
+
+func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {
+	n := 3
+	thr := key.DefaultThreshold(n)
+	p := 1 * time.Second
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+
+	dt := NewDrandTestScenario(t, n, thr, p, sch, beaconID)
+	_ = dt.RunDKG()
+
+	resharePacket := drand.InitResharePacket{
+		Old: nil,
+		Info: &drand.SetupInfoPacket{
+			Leader:        false,
+			LeaderAddress: "whatever",
+			LeaderTls:     false,
+			Nodes:         uint32(n),
+			Threshold:     uint32(thr),
+			Timeout:       100,
+			BeaconOffset:  100,
+			DkgOffset:     1,
+			Secret:        []byte("doesntmatter"),
+			Force:         false,
+		},
+	}
+
+	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
+	assert.EqualError(t, err, "cannot reshare without an old group")
 }

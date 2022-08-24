@@ -16,7 +16,7 @@ type Client interface {
 	HTTPClient
 }
 
-// Stopppable is an interface that some clients can implement to close their
+// Stoppable is an interface that some clients can implement to close their
 // operations
 type Stoppable interface {
 	Stop()
