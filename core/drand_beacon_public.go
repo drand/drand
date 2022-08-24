@@ -186,11 +186,11 @@ func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoReque
 
 // SignalDKGParticipant receives a dkg signal packet from another member
 func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.SignalDKGPacket) (*drand.Empty, error) {
-	bp.state.Lock()
 	if bp.manager == nil {
-		bp.state.Unlock()
 		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.Metadata.BeaconID)
 	}
+
+	bp.state.Lock()
 	addr := net.RemoteAddress(ctx)
 	// manager will verify if information are correct
 	err := bp.manager.ReceivedKey(addr, p)
@@ -198,6 +198,7 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 		return nil, err
 	}
 	bp.state.Unlock()
+
 	response := &drand.Empty{Metadata: bp.newMetadata()}
 	return response, nil
 }
