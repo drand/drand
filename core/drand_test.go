@@ -1153,7 +1153,7 @@ func TestReshareWithInvalidBeaconIdInMetadataFailsButNoSegfault(t *testing.T) {
 		},
 	}
 	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
-	require.Error(t, err, "Beacon with ID "+nonsenseBeaconID+" could not be found - did you pass the id flag?")
+	assert.EqualError(t, err, "beacon with ID "+nonsenseBeaconID+" could not be found - make sure you have passed the id flag or have a default beacon")
 }
 
 func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {
@@ -1182,5 +1182,5 @@ func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {
 	}
 
 	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
-	require.Error(t, err, "cannot reshare without an old group")
+	assert.EqualError(t, err, "cannot reshare without an old group")
 }
