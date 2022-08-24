@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/protobuf/drand"
-
 	bds "github.com/ipfs/go-ds-badger2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/host"
 	ma "github.com/multiformats/go-multiaddr"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 // GossipRelayConfig configures a gossip relay node.

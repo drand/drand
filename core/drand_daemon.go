@@ -136,7 +136,11 @@ func (dd *DrandDaemon) init() error {
 	}
 
 	p := c.ControlPort()
-	dd.control = net.NewTCPGrpcControlListener(dd, p)
+	dd.control, err = net.NewTCPGrpcControlListener(dd, p)
+
+	if err != nil {
+		return err
+	}
 	go dd.control.Start()
 
 	dd.log.Infow("DrandDaemon initialized",

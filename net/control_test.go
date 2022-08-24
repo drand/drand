@@ -34,7 +34,12 @@ func TestControlUnix(t *testing.T) {
 	}
 	defer os.RemoveAll(name)
 	s := testnet.EmptyServer{}
-	service := NewTCPGrpcControlListener(&s, "unix://"+name+"/sock")
+	service, err := NewTCPGrpcControlListener(&s, "unix://"+name+"/sock")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	client, err := NewControlClient("unix://" + name + "/sock")
 
 	if err != nil {
