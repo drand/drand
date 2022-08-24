@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	gnet "net"
 	"os"
@@ -935,18 +936,20 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 
 	// leader and connect flags can't be used together
 	share1 := []string{
-		"drand", "share", "--tls-disable", "--folder", tmp, "--id", beaconID, "--leader", "--connect", "127.0.0.1:9090",
+		"drand", "share", "--tls-disable", "--id", beaconID, "--leader", "--connect", "127.0.0.1:9090",
+		"--threshold", "2", "--nodes", "3", "--period", "5s",
 	}
-	require.Error(t, CLI().Run(share1), "you can't use the leader and connect flags together")
+
+	assert.EqualError(t, CLI().Run(share1), "you can't use the leader and connect flags together")
 
 	// transition and from flags can't be used together
 	share3 := []string{
-		"drand", "share", "--tls-disable", "--folder", tmp, "--id", beaconID,
-		"--connect", "127.0.0.1:9090", "--transition", "--from somepath.txt",
+		"drand", "share", "--tls-disable", "--id", beaconID, "--connect", "127.0.0.1:9090", "--transition", "--from", "somepath.txt",
 	}
-	require.Error(
+
+	assert.EqualError(
 		t,
 		CLI().Run(share3),
-		"--from flag invalid with --transition - nodes resharing should already have a secret share and group ready to use",
+		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
 	)
 }
