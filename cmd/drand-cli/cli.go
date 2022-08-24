@@ -632,7 +632,7 @@ func askPort(c *cli.Context) string {
 		}
 
 		_, err = strconv.Atoi(port)
-		if err != nil || len(port) < 3 || len(port) > 4 {
+		if err != nil || len(port) < 4 || len(port) > 6 {
 			continue
 		}
 
