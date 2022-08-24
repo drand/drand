@@ -87,7 +87,14 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 	// send it to everyone in the group nodes
 	nodes := group.Nodes
-	if err := bp.pushDKGInfo([]*key.Node{}, nodes, 0, group,
+	// if there hasn't been a DKG yet, it's 0
+	currentThreshold := 0
+	// otherwise we set it to the current threshold
+	if bp.beacon != nil {
+		currentThreshold = bp.beacon.GetConfg().Group.Threshold
+	}
+
+	if err := bp.pushDKGInfo([]*key.Node{}, nodes, currentThreshold, group,
 		in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
 		return nil, err
 	}
