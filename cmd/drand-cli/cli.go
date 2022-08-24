@@ -84,8 +84,9 @@ var tlsKeyFlag = &cli.StringFlag{
 }
 
 var insecureFlag = &cli.BoolFlag{
-	Name:  "tls-disable",
-	Usage: "Disable TLS for all communications (not recommended).",
+	Name:    "tls-disable",
+	Aliases: []string{"insecure"},
+	Usage:   "Disable TLS for all communications (not recommended).",
 }
 
 var controlFlag = &cli.StringFlag{
@@ -157,8 +158,9 @@ var transitionFlag = &cli.BoolFlag{
 }
 
 var forceFlag = &cli.BoolFlag{
-	Name:  "force, f",
-	Usage: "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
+	Name:    "force",
+	Aliases: []string{"f"},
+	Usage:   "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
 }
 
 // secret flag is the "manual" security when the "leader"/coordinator creates the

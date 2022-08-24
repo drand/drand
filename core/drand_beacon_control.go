@@ -763,18 +763,20 @@ func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) 
 
 func (bp *BeaconProcess) extractGroup(old *drand.GroupInfo) (oldGroup *key.Group, err error) {
 	bp.state.Lock()
-	if oldGroup, err = extractGroup(old); err != nil {
-		// try to get the current group
-		if bp.group == nil {
-			bp.state.Unlock()
-			return nil, errors.New("drand: can't init-reshare if no old group provided")
-		}
-		bp.log.With("module", "control").Debugw("", "init_reshare", "using_stored_group")
-		oldGroup = bp.group
-		err = nil
+	defer bp.state.Unlock()
+
+	oldGroup, err = extractGroup(old)
+	if err == nil {
+		return oldGroup, nil
 	}
-	bp.state.Unlock()
-	return
+
+	currentGroup := bp.group
+	if currentGroup == nil {
+		return nil, errors.New("drand: can't init-reshare if no old group provided")
+	}
+
+	bp.log.With("module", "control").Debugw("", "init_reshare", "using_stored_group")
+	return currentGroup, nil
 }
 
 // PingPong simply responds with an empty packet, proving that this drand node

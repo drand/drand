@@ -26,22 +26,21 @@ func HomeFolder() string {
 // CreateSecureFolder checks if the folder exists and has the appropriate permission rights. In case of bad permission rights
 // the empty string is returned. If the folder doesn't exist it, create it.
 func CreateSecureFolder(folder string) string {
-	if exists, _ := Exists(folder); !exists {
-		if err := os.MkdirAll(folder, defaultDirectoryPermission); err != nil {
-			panic(err)
-		}
-	} else {
-		// the folder exists already
+	if exists, _ := Exists(folder); exists {
 		info, err := os.Lstat(folder)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error checking stat folder: ", err)
 			return ""
 		}
-		perm := int(info.Mode().Perm())
-		if perm != int(defaultDirectoryPermission) {
+
+		if perm := int(info.Mode().Perm()); perm != defaultDirectoryPermission {
 			fmt.Fprintf(os.Stderr, "Folder different permission: %#o vs %#o \n", perm, defaultDirectoryPermission)
-			return folder
 		}
+		return folder
+	}
+
+	if err := os.MkdirAll(folder, defaultDirectoryPermission); err != nil {
+		panic(err)
 	}
 	return folder
 }
