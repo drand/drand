@@ -189,7 +189,7 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 	bp.state.Lock()
 	if bp.manager == nil {
 		bp.state.Unlock()
-		return nil, errors.New("no DKG in progress; make sure you are using the correct --id flag for the chain")
+		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.Metadata.BeaconID)
 	}
 	addr := net.RemoteAddress(ctx)
 	// manager will verify if information are correct
