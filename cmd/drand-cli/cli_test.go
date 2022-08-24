@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/drand/drand/common"
 
 	json "github.com/nikkolasg/hexjson"
@@ -925,4 +927,30 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		instance.run(t, beaconID)
 	}
 	return ins, tmpPath
+}
+
+func TestSharingWithInvalidFlagCombos(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+	tmp, err := os.MkdirTemp("", "drand-cli-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+
+	// leader and connect flags can't be used together
+	share1 := []string{
+		"drand", "share", "--tls-disable", "--id", beaconID, "--leader", "--connect", "127.0.0.1:9090",
+		"--threshold", "2", "--nodes", "3", "--period", "5s",
+	}
+
+	assert.EqualError(t, CLI().Run(share1), "you can't use the leader and connect flags together")
+
+	// transition and from flags can't be used together
+	share3 := []string{
+		"drand", "share", "--tls-disable", "--id", beaconID, "--connect", "127.0.0.1:9090", "--transition", "--from", "somepath.txt",
+	}
+
+	assert.EqualError(
+		t,
+		CLI().Run(share3),
+		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
+	)
 }
