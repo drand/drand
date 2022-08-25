@@ -802,37 +802,18 @@ func TestEmptyPortSelectionUsesDefaultDuringKeygen(t *testing.T) {
 	require.NoError(t, app.Run(args))
 }
 
-func TestInvalidPortSelectionRepromptsDuringKeygen(t *testing.T) {
+func TestValidPortSelectionSucceedsDuringKeygen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmp, err := os.MkdirTemp("", "drand-cli-*")
 	require.NoError(t, err)
 	defer os.RemoveAll(tmp)
 	app := CLI()
-	finished := false
 
-	go func() {
-		args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
-		err := app.Run(args)
-		if err != nil {
-			finished = false
-		} else {
-			finished = true
-		}
-	}()
-
-	// sleeping isn't very nice, but the CLI spin/waits, so it's all we've got!
-	app.Reader = strings.NewReader("888\n")
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, finished, false)
-
-	app.Reader = strings.NewReader("8888888\n")
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, finished, false)
-
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
 	app.Reader = strings.NewReader("8080\n")
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, finished, true)
+
+	require.NoError(t, app.Run(args))
 }
 
 type drandInstance struct {
