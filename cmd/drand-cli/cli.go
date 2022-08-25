@@ -559,7 +559,7 @@ func CLI() *cli.App {
 	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
-	// we need to copy the underlying commands to avoid races, cli sadly isn't supporting well concurrent executions
+	// we need to copy the underlying commands to avoid races, cli sadly doesn't support concurrent executions well
 	appComm := make([]*cli.Command, len(appCommands))
 	for i, p := range appCommands {
 		if p == nil {

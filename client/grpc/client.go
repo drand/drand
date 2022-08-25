@@ -16,7 +16,7 @@ import (
 	grpcProm "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
+	grpcInsec "google.golang.org/grpc/credentials/insecure"
 )
 
 const grpcDefaultTimeout = 5 * time.Second
@@ -30,7 +30,7 @@ type grpcClient struct {
 }
 
 // New creates a drand client backed by a GRPC connection.
-func New(address, certPath string, notsecure bool, chainHash []byte) (client.Client, error) {
+func New(address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
 	opts := []grpc.DialOption{}
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
@@ -38,8 +38,8 @@ func New(address, certPath string, notsecure bool, chainHash []byte) (client.Cli
 			return nil, err
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
-	} else if notsecure {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else if insecure {
+		opts = append(opts, grpc.WithTransportCredentials(grpcInsec.NewCredentials()))
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})))
 	}
