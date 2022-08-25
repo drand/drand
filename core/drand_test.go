@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/weaveworks/common/fs"
 
 	"github.com/drand/drand/protobuf/common"
 
@@ -1167,6 +1171,7 @@ func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	dt := NewDrandTestScenario(t, n, thr, p, sch, beaconID)
+	defer dt.Cleanup()
 	_ = dt.RunDKG()
 
 	resharePacket := drand.InitResharePacket{
@@ -1187,4 +1192,52 @@ func TestReshareWithoutOldGroupFailsButNoSegfault(t *testing.T) {
 
 	_, err := dt.nodes[1].daemon.InitReshare(context.Background(), &resharePacket)
 	assert.EqualError(t, err, "cannot reshare without an old group")
+}
+
+func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
+	// set up 3 nodes for a test
+	n := 3
+	thr := key.DefaultThreshold(n)
+	p := 1 * time.Second
+	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
+
+	dt := NewDrandTestScenario(t, n, thr, p, sch, beaconID)
+	defer dt.Cleanup()
+
+	node := dt.nodes[0]
+	dir := dt.dir
+	priv := node.drand.priv
+
+	// set a persistent keystore, as the normal test ones are ephemeral
+	store := key.NewFileStore(dir, beaconID)
+	node.drand.store = store
+
+	// save the key pair, as this was done ephemerally inside of `NewDrandTestScenario` >.>
+	err := store.SaveKeyPair(priv)
+	require.NoError(t, err)
+
+	// run a DKG so that every node gets a group file and key share
+	_ = dt.RunDKG()
+
+	// stop the node and wait for it
+	node.daemon.Stop(context.Background())
+	<-node.daemon.exitCh
+
+	// modify your entry (well, all of them!) in the group file to change the TLS status
+	groupPath := path.Join(dir, beaconID, key.GroupFolderName, "drand_group.toml")
+
+	// read
+	groupFileReader, err := fs.Open(groupPath)
+	require.NoError(t, err)
+	groupFile, err := io.ReadAll(groupFileReader)
+	require.NoError(t, err)
+	// write
+	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0740)
+	require.NoError(t, err)
+
+	// try and reload the beacon from the store
+	// the updated TLS status will fail verification
+	_, err = node.daemon.LoadBeaconFromStore(beaconID, store)
+
+	assert.EqualError(t, err, "could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 }
