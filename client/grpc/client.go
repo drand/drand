@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"time"
 
+	grpcProm "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	grpcInsec "google.golang.org/grpc/credentials/insecure"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-
-	grpcProm "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	grpcInsec "google.golang.org/grpc/credentials/insecure"
 )
 
 const grpcDefaultTimeout = 5 * time.Second

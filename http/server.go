@@ -12,17 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common"
-
 	"github.com/go-chi/chi"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	json "github.com/nikkolasg/hexjson"
 )
 
 const (

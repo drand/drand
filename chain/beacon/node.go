@@ -9,15 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/chain"
-	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/protobuf/common"
-	proto "github.com/drand/drand/protobuf/drand"
 	clock "github.com/jonboulle/clockwork"
 
+	"github.com/drand/drand/chain"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
+	proto "github.com/drand/drand/protobuf/drand"
 )
 
 // Config holds the different cryptographc informations necessary to run the

@@ -14,15 +14,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/core"
+	"github.com/kabukky/httpscerts"
+	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/common/scheme"
-
+	"github.com/drand/drand/core"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
-	"github.com/kabukky/httpscerts"
-	json "github.com/nikkolasg/hexjson"
 )
 
 var secretDKG = "dkgsecret_____________________32"

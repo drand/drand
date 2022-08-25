@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
 	control "github.com/drand/drand/protobuf/drand"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const grpcDefaultIPNetwork = "tcp"

@@ -5,7 +5,6 @@ package pprof
 
 import (
 	"net/http"
-
 	pprof "net/http/pprof" // adds default pprof endpoint at /debug/pprof
 )
 

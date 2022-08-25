@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"

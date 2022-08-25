@@ -11,23 +11,22 @@ import (
 	"path"
 	"strings"
 
-	commonutils "github.com/drand/drand/common"
-
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/client/grpc"
-	"github.com/drand/drand/client/http"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/lp2p"
-	gclient "github.com/drand/drand/lp2p/client"
-
 	"github.com/google/uuid"
 	bds "github.com/ipfs/go-ds-badger2"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	ma "github.com/multiformats/go-multiaddr"
 	"github.com/urfave/cli/v2"
+
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/client/grpc"
+	"github.com/drand/drand/client/http"
+	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/lp2p"
+	gclient "github.com/drand/drand/lp2p/client"
 )
 
 var (

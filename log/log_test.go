@@ -6,9 +6,8 @@ import (
 	"io"
 	"testing"
 
-	"go.uber.org/zap/zapcore"
-
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 )
 
 func TestLoggerKit(t *testing.T) {

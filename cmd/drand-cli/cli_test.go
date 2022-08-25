@@ -16,9 +16,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share"
-	"github.com/drand/kyber/util/random"
 	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +29,9 @@ import (
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/test"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share"
+	"github.com/drand/kyber/util/random"
 )
 
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"

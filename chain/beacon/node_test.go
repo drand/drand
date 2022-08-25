@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common"
-
-	"github.com/drand/drand/common/scheme"
+	clock "github.com/jonboulle/clockwork"
+	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -25,8 +26,6 @@ import (
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
-	clock "github.com/jonboulle/clockwork"
-	"github.com/stretchr/testify/require"
 )
 
 // TODO make beacon tests not dependent on key.Scheme

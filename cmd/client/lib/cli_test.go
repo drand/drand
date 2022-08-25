@@ -10,13 +10,13 @@ import (
 	"runtime"
 	"testing"
 
-	commonutils "github.com/drand/drand/common"
+	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test/mock"
-	"github.com/urfave/cli/v2"
 )
 
 var (

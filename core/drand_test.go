@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/protobuf/common"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 )

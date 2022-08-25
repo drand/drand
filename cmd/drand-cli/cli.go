@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	gonet "net"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,24 +19,20 @@ import (
 	"strings"
 	"sync"
 
-	common2 "github.com/drand/drand/protobuf/common"
-
-	"github.com/drand/drand/core/migration"
-
-	"github.com/drand/drand/common/scheme"
-
-	gonet "net"
-
 	"github.com/BurntSushi/toml"
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/core/migration"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/urfave/cli/v2"
 )
 
 // default output of the drand operational commands

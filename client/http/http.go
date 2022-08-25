@@ -11,16 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/common"
-
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
+	json "github.com/nikkolasg/hexjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	json "github.com/nikkolasg/hexjson"
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 )
 
 var errClientClosed = fmt.Errorf("client closed")

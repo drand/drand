@@ -6,11 +6,9 @@ import (
 	"path"
 
 	"github.com/drand/drand/common"
-
 	"github.com/drand/drand/core"
-	"github.com/drand/drand/key"
-
 	"github.com/drand/drand/fs"
+	"github.com/drand/drand/key"
 )
 
 // CheckSBFolderStructure checks if the file structure has been migrated from single-beacon to multi-beacon or not

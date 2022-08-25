@@ -3,11 +3,12 @@ package core
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/key"
 	pdkg "github.com/drand/drand/protobuf/crypto/dkg"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
-	"github.com/stretchr/testify/require"
 )
 
 func TestConvertJustification(t *testing.T) {

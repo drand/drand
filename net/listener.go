@@ -8,16 +8,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/protobuf/drand"
-
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	http_grpc "github.com/weaveworks/common/httpgrpc"
 	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 var isGrpcPrometheusMetricsRegisted = false

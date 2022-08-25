@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	common2 "github.com/drand/drand/common/scheme"
+	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
+	common2 "github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
 )
 
 // setupManager takes care of setting up a new DKG network from the perspective

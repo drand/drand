@@ -8,9 +8,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common"
-
 	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/kyber"

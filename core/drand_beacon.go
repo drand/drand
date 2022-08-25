@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/kyber/share/dkg"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
@@ -20,6 +18,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/kyber/share/dkg"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it

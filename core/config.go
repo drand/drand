@@ -4,15 +4,15 @@ import (
 	"path"
 	"time"
 
-	"github.com/drand/drand/common"
-
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/net"
 	clock "github.com/jonboulle/clockwork"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
+
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/net"
 )
 
 // ConfigOption is a function that applies a specific setting to a Config.

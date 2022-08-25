@@ -8,16 +8,16 @@ import (
 	"net/http/httptest"
 	"os"
 
+	"github.com/gorilla/handlers"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
-
-	"github.com/gorilla/handlers"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags

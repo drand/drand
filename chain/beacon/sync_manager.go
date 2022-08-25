@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	commonutils "github.com/drand/drand/common"
-
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"

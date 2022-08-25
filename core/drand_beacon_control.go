@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	commonutils "github.com/drand/drand/common"
@@ -21,14 +23,11 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
-	clock "github.com/jonboulle/clockwork"
-
 	"github.com/drand/drand/net"
-	"github.com/drand/kyber/share/dkg"
-	vss "github.com/drand/kyber/share/vss/pedersen"
-
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/share/dkg"
+	vss "github.com/drand/kyber/share/vss/pedersen"
 )
 
 // errPreempted is returned on reshares when a subsequent reshare is started concurrently

@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/drand/drand/test"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/demo/lib"
+	"github.com/drand/drand/test"
 )
 
 func installDrand() {

@@ -6,9 +6,10 @@ import (
 	"path"
 	"sync"
 
+	bolt "go.etcd.io/bbolt"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
-	bolt "go.etcd.io/bbolt"
 )
 
 // boldStore implements the Store interface using the kv storage boltdb (native

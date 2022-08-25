@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/drand/drand/protobuf/common"
-
 	"github.com/drand/drand/protobuf/drand"
 )
 

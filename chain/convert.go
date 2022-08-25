@@ -5,13 +5,11 @@ import (
 	"io"
 	"time"
 
-	"github.com/drand/drand/protobuf/common"
-
-	"github.com/drand/drand/common/scheme"
-
 	json "github.com/nikkolasg/hexjson"
 
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
 
