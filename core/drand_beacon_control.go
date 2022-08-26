@@ -377,7 +377,6 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		phaser: phaser,
 		conf:   config,
 		// these can't be set yet, but at least _some_ info needs to be set for the echo broadcast
-
 		board: nil,
 		proto: nil,
 	}
