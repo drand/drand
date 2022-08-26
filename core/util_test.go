@@ -340,6 +340,21 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 }
 
 func (d *DrandTestScenario) Cleanup() {
+	// we make sure to close the stores in order to delete the callback workers
+	for _, node := range d.nodes {
+		node.drand.state.Lock()
+		if node.drand.beacon != nil {
+			node.drand.beacon.Store().Close()
+		}
+		node.drand.state.Unlock()
+	}
+	for _, node := range d.newNodes {
+		node.drand.state.Lock()
+		if node.drand.beacon != nil {
+			node.drand.beacon.Store().Close()
+		}
+		node.drand.state.Unlock()
+	}
 	_ = os.RemoveAll(d.dir)
 	_ = os.RemoveAll(d.newDir)
 }

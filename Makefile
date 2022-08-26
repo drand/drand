@@ -45,7 +45,7 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -race -short -v ./...
+	GO111MODULE=on GORACE="halt_on_error=1 history_size=5" go test -race -short -v ./...
 
 test-unit-cover:
 	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)

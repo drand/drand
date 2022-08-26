@@ -224,17 +224,20 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 // SyncChain is an inter-node protocol that replies to a syncing request from a
 // given round
 func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
+	// we need to do copies of these in case a resharing is ongoing at the same time as the sync
 	bp.state.Lock()
 	b := bp.beacon
 	c := bp.chainHash
+	l := bp.log.Named("SyncChain")
+	s := bp.beacon.Store()
 	bp.state.Unlock()
 	if b == nil || len(c) == 0 {
-		bp.log.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
+		l.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
 		return fmt.Errorf("no beacon handler available")
 	}
 
 	// TODO: consider re-running the SyncChain command if we get a ErrNoBeaconStored back as it could be a follow cmd
-	return beacon.SyncChain(bp.log.Named("SyncChain"), bp.beacon.Store(), req, stream)
+	return beacon.SyncChain(l, s, req, stream)
 }
 
 // GetIdentity returns the identity of this drand node

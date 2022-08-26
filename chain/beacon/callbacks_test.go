@@ -34,6 +34,7 @@ func TestStoreCallback(t *testing.T) {
 	require.False(t, checkOne(doneCh))
 
 	cb.RemoveCallback(id1)
+	cb.Close()
 	require.False(t, checkOne(doneCh))
 }
 
