@@ -460,14 +460,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 	logger := l.Named("SyncChain")
 
-	// we expect the metadata to be set at this stage, this should never happen currently
-	if req.GetMetadata() == nil {
-		logger.Errorw("Received a sync request without metadata", "from_addr", addr)
-		return fmt.Errorf("no metadata in sync request")
-	}
-
-	// this can never be "" at this point, since we set it at the daemon level
-	beaconID := req.GetMetadata().GetBeaconID()
+	beaconID := beaconIDToSync(l, req, addr)
 
 	last, err := store.Last()
 	if err != nil {
@@ -523,6 +516,15 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	case err := <-done:
 		return err
 	}
+}
+
+func beaconIDToSync(logger log.Logger, req SyncRequest, addr string) string {
+	// this should only happen if the requester is on a version < 1.4
+	if req.GetMetadata() == nil {
+		logger.Errorw("Received a sync request without metadata - probably an old version", "from_addr", addr)
+		return commonutils.DefaultBeaconID
+	}
+	return req.GetMetadata().GetBeaconID()
 }
 
 func peersToString(peers []net.Peer) string {
