@@ -370,36 +370,44 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		Log:            bp.log,
 	}
 	phaser := bp.getPhaser(timeout)
+
+	bp.state.Lock()
+	dkgInfo := &dkgInfo{
+		target: group,
+		phaser: phaser,
+		conf:   config,
+		// these can't be set yet, but at least _some_ info needs to be set for the echo broadcast
+
+		board: nil,
+		proto: nil,
+	}
+	bp.dkgInfo = dkgInfo
+	if leader {
+		// phaser will kick off the first phase for every other nodes so
+		// nodes will send their deals
+		bp.log.Infow("", "init_dkg", "START_DKG")
+		go phaser.Start()
+
+		bp.dkgInfo.started = true
+	}
+	metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
+	bp.state.Unlock()
+
 	board := newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient,
 		bp.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
 		})
+
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
 	}
 
 	bp.state.Lock()
-	dkgInfo := &dkgInfo{
-		target: group,
-		board:  board,
-		phaser: phaser,
-		conf:   config,
-		proto:  dkgProto,
-	}
-	bp.dkgInfo = dkgInfo
-	if leader {
-		bp.dkgInfo.started = true
-	}
-	metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
+	bp.dkgInfo.board = board
+	bp.dkgInfo.proto = dkgProto
 	bp.state.Unlock()
 
-	if leader {
-		// phaser will kick off the first phase for every other nodes so
-		// nodes will send their deals
-		bp.log.Infow("", "init_dkg", "START_DKG")
-		go phaser.Start()
-	}
 	bp.log.Infow("", "init_dkg", "wait_dkg_end")
 	finalGroup, err := bp.WaitDKG()
 	if err != nil {
@@ -486,6 +494,26 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 		return nil, err
 	}
 
+	bp.state.Lock()
+	phaser := bp.getPhaser(timeout)
+
+	info := &dkgInfo{
+		target: newGroup,
+		phaser: phaser,
+		conf:   config,
+		// these can't be set yet, but at least _some_ info needs to be set for the echo broadcast
+		board: nil,
+		proto: nil,
+	}
+	bp.dkgInfo = info
+	if leader {
+		bp.log.Infow("", "dkg_reshare", "leader_start",
+			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
+		bp.dkgInfo.started = true
+	}
+	metrics.ReshareStateChange(metrics.ReshareInProgess, oldBeaconID, leader)
+	bp.state.Unlock()
+
 	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
 	var board Broadcast = newEchoBroadcast(bp.log, bp.version, oldBeaconID, bp.privGateway.ProtocolClient,
 		bp.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
@@ -495,28 +523,15 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	if bp.dkgBoardSetup != nil {
 		board = bp.dkgBoardSetup(board)
 	}
-	phaser := bp.getPhaser(timeout)
 
 	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
 	if err != nil {
 		return nil, err
 	}
-	info := &dkgInfo{
-		target: newGroup,
-		board:  board,
-		phaser: phaser,
-		conf:   config,
-		proto:  dkgProto,
-	}
-	bp.state.Lock()
-	bp.dkgInfo = info
-	if leader {
-		bp.log.Infow("", "dkg_reshare", "leader_start",
-			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
-		bp.dkgInfo.started = true
-	}
 
-	metrics.ReshareStateChange(metrics.ReshareInProgess, oldBeaconID, leader)
+	bp.state.Lock()
+	bp.dkgInfo.board = board
+	bp.dkgInfo.proto = dkgProto
 	bp.state.Unlock()
 
 	if leader {
