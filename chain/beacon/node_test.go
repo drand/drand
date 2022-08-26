@@ -632,8 +632,16 @@ func TestSyncChainWithoutMetadata(t *testing.T) {
 	logger := log.NewLogger(nil, log.LogDebug).Named("BeaconTest")
 	expectedBeaconID := "someGreatBeacon"
 
-	require.Equal(t, beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: nil}, "127.0.0.1"), "default")
-	require.Equal(t, beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: &pbCommon.Metadata{BeaconID: expectedBeaconID}}, "127.0.0.1"), expectedBeaconID)
+	require.Equal(
+		t,
+		beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: nil}, "127.0.0.1"),
+		"default",
+	)
+	require.Equal(
+		t,
+		beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: &pbCommon.Metadata{BeaconID: expectedBeaconID}}, "127.0.0.1"),
+		expectedBeaconID,
+	)
 }
 
 type TestSyncRequest struct {
