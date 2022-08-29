@@ -314,23 +314,22 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		Share:  bp.share,
 		Clock:  bp.opts.clock,
 	}
-
+	// cancel any sync operations prior to store (re-)creation
+	if bp.syncerCancel != nil {
+		bp.syncerCancel()
+		bp.syncerCancel = nil
+	}
 	store, err := bp.createBoltStore()
 	if err != nil {
 		return nil, err
 	}
-
 	b, err := beacon.NewHandler(bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
 	if err != nil {
 		return nil, err
 	}
 	bp.beacon = b
 	bp.beacon.AddCallback("opts", bp.opts.callbacks)
-	// cancel any sync operations
-	if bp.syncerCancel != nil {
-		bp.syncerCancel()
-		bp.syncerCancel = nil
-	}
+
 	return bp.beacon, nil
 }
 
@@ -353,7 +352,10 @@ func (bp *BeaconProcess) StopBeacon() {
 	if bp.beacon == nil {
 		return
 	}
-
+	if bp.syncerCancel != nil {
+		bp.syncerCancel()
+		bp.syncerCancel = nil
+	}
 	bp.beacon.Stop()
 	bp.beacon = nil
 }

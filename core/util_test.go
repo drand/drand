@@ -653,7 +653,7 @@ func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	return expDeals, expResps
 }
 
-// nolint:funlen
+//nolint:funlen
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
@@ -718,6 +718,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	}
 
 	// run the current nodes
+	d.t.Logf("[reshare] run the current nodes")
 	for _, node := range d.nodes[1:c.oldRun] {
 		d.resharedNodes = append(d.resharedNodes, node)
 		if !c.onlyLeader {

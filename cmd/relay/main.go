@@ -45,7 +45,7 @@ var metricsFlag = &cli.StringFlag{
 }
 
 // Relay a GRPC connection to an HTTP server.
-// nolint:gocyclo,funlen
+//nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
 

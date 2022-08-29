@@ -354,7 +354,7 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
 }
 
-// nolint:funlen
+//nolint:funlen
 // The test creates the scenario where one node made a complaint during the DKG, at the second phase, so normally,
 // there should be a "Justification" at the third phase. In this case, there is not. This scenario
 // can happen if there is an offline node right at the beginning of DKG that don't even send any message.
@@ -472,7 +472,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	}
 }
 
-// nolint:funlen
+//nolint:funlen
 // This test is where a client can stop the resharing in process and start again
 func TestRunDKGResharePreempt(t *testing.T) {
 	if os.Getenv("CI") != "" {
@@ -814,7 +814,7 @@ func expectChanFail(t *testing.T, errCh chan error) {
 }
 
 // This test makes sure the "FollowChain" grpc method works fine
-// nolint:funlen
+//nolint:funlen
 func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
@@ -926,7 +926,7 @@ func TestDrandFollowChain(t *testing.T) {
 }
 
 // This test makes sure the "StartCheckChain" grpc method works fine
-// nolint:funlen
+//nolint:funlen
 func TestDrandCheckChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()

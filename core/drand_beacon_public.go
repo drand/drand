@@ -224,7 +224,6 @@ func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacke
 // SyncChain is an inter-node protocol that replies to a syncing request from a
 // given round
 func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol_SyncChainServer) error {
-	// we need to do copies of these in case a resharing is ongoing at the same time as the sync
 	bp.state.Lock()
 	b := bp.beacon
 	c := bp.chainHash

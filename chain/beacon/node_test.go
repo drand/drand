@@ -40,15 +40,13 @@ type testBeaconServer struct {
 
 func (t *testBeaconServer) PartialBeacon(c context.Context, in *drand.PartialBeaconPacket) (*drand.Empty, error) {
 	if t.disable {
-		return nil, errors.New("disabled server")
+		return nil, errors.New("PartialBeacon: disabled server")
 	}
 	return t.h.ProcessPartialBeacon(c, in)
 }
 
 func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_SyncChainServer) error {
-	if t.disable {
-		return errors.New("disabled server")
-	}
+	// Notice that the syncmanager owns a copy of the server, so check t.disable isn't useful here
 	SyncChain(t.h.l, t.h.chain, req, p)
 	return nil
 }
@@ -347,12 +345,16 @@ func (b *BeaconTest) CleanUp() {
 func (b *BeaconTest) DisableReception(count int) {
 	for i := 0; i < count; i++ {
 		b.nodes[i].server.disable = true
+		// we stop the sync manager process as well
+		b.nodes[i].handler.chain.syncm.Stop()
 	}
 }
 
 func (b *BeaconTest) EnableReception(count int) {
 	for i := 0; i < count; i++ {
 		b.nodes[i].server.disable = false
+		// we need to spin up a new sync manager process
+		go b.nodes[i].handler.chain.syncm.Run()
 	}
 }
 
@@ -386,15 +388,14 @@ func checkWait(counter *sync.WaitGroup) {
 	select {
 	case <-doneCh:
 		break
-
 	case <-time.After(30 * time.Second):
 		panic("outdated beacon time")
 	}
 }
 
 func TestBeaconSync(t *testing.T) {
-	n := 4
-	thr := n/2 + 1
+	n := 5
+	thr := 3
 	period := 2 * time.Second
 
 	genesisOffset := 2 * time.Second
@@ -412,64 +413,67 @@ func TestBeaconSync(t *testing.T) {
 			err := verifier.VerifyBeacon(*b, bt.dpublic)
 			require.NoError(t, err)
 
-			t.Logf("round %d done for %s\n", b.Round, bt.nodes[bt.searchNode(i)].private.Public.Address())
+			t.Logf("[TestBeaconSync] => round %d done for %d (%s)\n", b.Round, i, bt.nodes[bt.searchNode(i)].private.Public.Address())
 			counter.Done()
 		}
 	}
 
 	doRound := func(count int, move time.Duration) {
+		fmt.Printf("[TestBeaconSync] => starting counter for: %d\n", count)
 		counter.Add(count)
 		bt.MoveTime(t, move)
 		checkWait(counter)
 	}
 
-	t.Log("serving beacons")
+	t.Log("[TestBeaconSync] => serving beacons")
 	for i := 0; i < n; i++ {
 		bt.CallbackFor(i, myCallBack(i))
 		bt.ServeBeacon(t, i)
 	}
 
-	t.Log("about to start beacons")
+	t.Log("[TestBeaconSync] => about to start beacons")
 	bt.StartBeacons(t, n)
-	t.Log("all beacons started")
+	t.Log("[TestBeaconSync] => all beacons started")
 
 	// move clock to genesis time
-	t.Log("before genesis")
+	t.Log("[TestBeaconSync] => before genesis")
 	now := bt.time.Now().Unix()
 	toMove := genesisTime - now
 	doRound(n, time.Duration(toMove)*time.Second)
-	t.Log("after genesis")
+	t.Log("[TestBeaconSync] => after genesis")
 
 	// do some rounds
-	for i := 0; i < 2; i++ {
-		t.Logf("round %d starting", i)
+	for i := 2; i < 5; i++ {
+		t.Logf("[TestBeaconSync] => round %d starting", i)
 		doRound(n, period)
-		t.Logf("round %d done", i)
+		t.Logf("[TestBeaconSync] => round %d done", i)
 	}
 
-	t.Log("disable reception")
-	// disable reception of all nodes but one
-	online := 3
-	bt.DisableReception(n - online)
+	t.Log("[TestBeaconSync] => disable reception of 2 nodes")
+	// disable reception of 2 nodes
+	offline := 2
+	bt.DisableReception(offline)
 
-	t.Log("doRounds AFTER disabling")
-	// check that at least one node got the beacon
-	doRound(online, period)
-	t.Log("before enabling reception again")
+	t.Log("[TestBeaconSync] => do 2 rounds AFTER disabling")
+	// check that the 3 other nodes got the beacon
+	doRound(n-offline, period)
+	doRound(n-offline, period)
 
+	t.Log("[TestBeaconSync] => before enabling reception again")
+	// we expect the sync manager to recover the 2 missed beacons for the offline nodes
+	counter.Add(2 * offline)
 	// enable reception again of all nodes
-	bt.EnableReception(n - online)
+	bt.EnableReception(offline)
+	// we leave some time for the sync manager to do its job
+	time.Sleep(time.Second)
 
 	// we advance the clock, all "resuscitated nodes" will transmit a wrong
 	// beacon, but they will see the beacon they send is late w.r.t. the round
-	// they should be, so they will sync with the "safe online" nodes. They
-	// will get the latest beacon and then directly run the right round
-	// bt.MoveTime(period
-	// n for the new round
-	// n - online for the previous round that the others catch up
-	t.Log("before doing round after enabling reception again")
-
-	doRound(n+n-online, period)
+	// they should be, so they will sync with the online nodes. They
+	// will get to the latest beacon and then directly run the right round
+	t.Log("[TestBeaconSync] => before doing round after enabling reception again")
+	doRound(n, period)
+	t.Log("[TestBeaconSync] => Test finished, cleaning up")
 }
 
 func TestBeaconSimple(t *testing.T) {

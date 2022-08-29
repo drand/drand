@@ -110,7 +110,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol.
-// nolint:funlen
+//nolint:funlen
 func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	if in.Old == nil {
 		return nil, errors.New("cannot reshare without an old group")
@@ -300,7 +300,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 
 	if bp.manager != nil {
 		bp.log.Infow("", "reshare", "already_in_progress", "reshare", "restart")
-		fmt.Println("\n\n PREEMPTIVE STOP") // nolint
+		fmt.Println("\n\n PREEMPTIVE STOP") //nolint
 		bp.manager.StopPreemptively()
 	}
 
@@ -319,7 +319,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 	defer func() {
 		// don't clear manager if pre-empted
 		if errors.Is(err, errPreempted) {
-			fmt.Println("PREEMPTION ERROR ", err) // nolint
+			fmt.Println("PREEMPTION ERROR ", err) //nolint
 			return
 		}
 		bp.state.Lock()
@@ -443,7 +443,7 @@ func (bp *BeaconProcess) cleanupDKG() {
 // runResharing setups all necessary structures to run the resharing protocol
 // and waits until it finishes (or timeouts). If leader is true, it sends the
 // first packet so other nodes will start as soon as they receive it.
-// nolint:funlen
+//nolint:funlen
 func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
 	oldBeaconID := commonutils.GetCanonicalBeaconID(oldGroup.ID)
 
@@ -529,8 +529,9 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	}
 
 	bp.state.Lock()
-	bp.dkgInfo.board = board
-	bp.dkgInfo.proto = dkgProto
+	info.board = board
+	info.proto = dkgProto
+	bp.dkgInfo = info
 	bp.state.Unlock()
 
 	if leader {
@@ -649,7 +650,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
-// nolint:funlen
+//nolint:funlen
 func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (
 	*drand.GroupPacket, error) {
 	oldHash := oldGroup.Hash()
@@ -1072,7 +1073,7 @@ func getNonce(g *key.Group) []byte {
 }
 
 // StartFollowChain syncs up with a chain from other nodes
-// nolint:funlen
+//nolint:funlen
 func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating

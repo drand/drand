@@ -10,7 +10,7 @@ import (
 func main() {
 	app := drand.CLI()
 	if err := app.Run(os.Args); err != nil {
-		fmt.Printf("%+v\n", err) // nolint:forbidigo
+		fmt.Printf("%+v\n", err) //nolint:forbidigo
 		os.Exit(1)
 	}
 }
