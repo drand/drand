@@ -116,6 +116,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 // InitReshare receives information about the old and new group from which to
 // operate the resharing protocol.
+//
 //nolint:funlen
 func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
 	if in.Old == nil {
@@ -442,6 +443,7 @@ func (bp *BeaconProcess) cleanupDKG() {
 // runResharing setups all necessary structures to run the resharing protocol
 // and waits until it finishes (or timeouts). If leader is true, it sends the
 // first packet so other nodes will start as soon as they receive it.
+//
 //nolint:funlen
 func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
 	oldBeaconID := commonutils.GetCanonicalBeaconID(oldGroup.ID)
@@ -550,10 +552,11 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	return finalGroup, nil
 }
 
-//nolint:funlen
 // This method sends the public key to the denoted leader address and then waits
 // to receive the group file. After receiving it, it starts the DKG process in
 // "waiting" mode, waiting for the leader to send the first packet.
+//
+//nolint:funlen
 func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
 	bp.log.Infow("", "init_dkg", "begin", "leader", false)
 
@@ -641,9 +644,11 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 
 // similar to setupAutomaticDKG but with additional verification and information
 // w.r.t. to the previous group
+//
 //nolint:funlen
 func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (
-	*drand.GroupPacket, error) {
+	*drand.GroupPacket, error,
+) {
 	oldHash := oldGroup.Hash()
 
 	// determine the leader's address
@@ -795,7 +800,7 @@ func (bp *BeaconProcess) PingPong(c context.Context, in *drand.Ping) (*drand.Pon
 }
 
 func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
-	var replies = make(map[string]*drand.StatusResponse)
+	replies := make(map[string]*drand.StatusResponse)
 	for _, addr := range in.GetAddresses() {
 		if addr.Address == bp.priv.Public.Addr {
 			// no need to reach us
@@ -865,7 +870,7 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	}
 
 	// remote network connectivity
-	var resp = make(map[string]bool)
+	resp := make(map[string]bool)
 	for _, addr := range in.GetCheckConn() {
 		if addr.GetAddress() == bp.priv.Public.Addr {
 			continue
@@ -907,7 +912,7 @@ func (bp *BeaconProcess) ListBeaconIDs(c context.Context, in *drand.ListSchemesR
 }
 
 func extractGroup(i *drand.GroupInfo) (*key.Group, error) {
-	var g = new(key.Group)
+	g := new(key.Group)
 	switch x := i.Location.(type) {
 	case *drand.GroupInfo_Path:
 		// search group file via local filesystem path
@@ -982,7 +987,8 @@ func (bp *BeaconProcess) pushDKGInfoPacket(ctx context.Context, nodes []*key.Nod
 // pushDKGInfo sends the information to run the DKG to all specified nodes.
 // The call is blocking until all nodes have replied or after one minute timeouts.
 func (bp *BeaconProcess) pushDKGInfo(outgoing, incoming []*key.Node, previousThreshold int, group *key.Group,
-	secret []byte, timeout uint32) error {
+	secret []byte, timeout uint32,
+) error {
 	// sign the group to prove you are the leader
 	signature, err := key.DKGAuthScheme.Sign(bp.priv.Key, group.Hash())
 	if err != nil {
@@ -1062,6 +1068,7 @@ func getNonce(g *key.Group) []byte {
 }
 
 // StartFollowChain syncs up with a chain from other nodes
+//
 //nolint:funlen
 func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
 	// TODO replace via a more independent chain manager that manages the
@@ -1268,7 +1275,8 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
 func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
-	peers []net.Peer, l log.Logger, version commonutils.Version, beaconID string) (*chain.Info, error) {
+	peers []net.Peer, l log.Logger, version commonutils.Version, beaconID string,
+) (*chain.Info, error) {
 	// we first craft our request
 	request := new(drand.ChainInfoRequest)
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}

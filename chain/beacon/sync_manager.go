@@ -322,6 +322,7 @@ func (s *SyncManager) Sync(ctx context.Context, request requestInfo) error {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
+//
 //nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
 	logger := s.log.Named("tryNode")
@@ -470,7 +471,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		return fmt.Errorf("%w %d < %d", ErrNoBeaconStored, last.Round, fromRound)
 	}
 
-	var done = make(chan error, 1)
+	done := make(chan error, 1)
 	send := func(b *chain.Beacon) bool {
 		packet := beaconToProto(b)
 		packet.Metadata = &common.Metadata{BeaconID: beaconID}
@@ -485,7 +486,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// we know that last.Round >= fromRound from the above if
 	if fromRound != 0 {
 		// first sync up from the store itself
-		var shouldContinue = true
+		shouldContinue := true
 		store.Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(fromRound); bb != nil; bb = c.Next() {
 				if !send(bb) {

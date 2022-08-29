@@ -33,9 +33,10 @@ type Config struct {
 	Clock clock.Clock
 }
 
-//nolint:gocritic
 // Handler holds the logic to initiate, and react to the tBLS protocol. Each time
 // a full signature can be reconstructed, it saves it to the given Store.
+//
+//nolint:gocritic
 type Handler struct {
 	sync.Mutex
 	conf *Config

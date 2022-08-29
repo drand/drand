@@ -115,7 +115,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 	for i := 0; i < n; i++ {
 		dirs[i] = path.Join(dir, fmt.Sprintf("drand-%d", i))
-		if err := os.MkdirAll(dirs[i], 0777); err != nil {
+		if err := os.MkdirAll(dirs[i], 0o777); err != nil {
 			panic(err)
 		}
 	}
@@ -386,12 +386,11 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 	controlClient, err := net.NewControlClient(dr.opts.controlPort)
 	require.NoError(d.t, err)
 
-	var retryCount = 1
-	var maxRetries = 5
+	retryCount := 1
+	maxRetries := 5
 	for range time.Tick(100 * time.Millisecond) {
 		d.t.Logf("[drand] ping %s: %d/%d", dr.priv.Public.Address(), retryCount, maxRetries)
 		response, err := controlClient.Status(d.beaconID)
-
 		if err != nil {
 			break
 		}
@@ -550,7 +549,7 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 }
 
 func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force bool) {
-	var secret = "thisistheresharing"
+	secret := "thisistheresharing"
 
 	leader := d.nodes[0]
 
@@ -570,7 +569,7 @@ func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force 
 }
 
 func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan error, groupReceivedCh chan *key.Group) {
-	var secret = "thisistheresharing"
+	secret := "thisistheresharing"
 	leader := d.nodes[0]
 
 	oldNode := d.group.Find(leader.drand.priv.Public)
@@ -637,11 +636,12 @@ func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
 	return expDeals, expResps
 }
 
-//nolint:funlen
 // RunReshare runs the resharing procedure with only "oldRun" current nodes
 // running, and "newRun" new nodes running (the ones created via SetupNewNodes).
 // It sets the given threshold to the group.
 // It stops the nodes excluded first.
+//
+//nolint:funlen
 func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Group, error) {
 	if c.ignoreErr {
 		d.t.Log("[reshare] WARNING IGNORING ERRORS!!!")
@@ -739,8 +739,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	// wait for the return of the clients
 	var howManyDeals int
 	var howManyResps int
-	var expDeals, expResps = c.ExpectedDealsAndResps()
-	var relyOnTimeout = c.RelyOnTimeout()
+	expDeals, expResps := c.ExpectedDealsAndResps()
+	relyOnTimeout := c.RelyOnTimeout()
 	for {
 		select {
 		case finalGroup := <-leaderGroupReadyCh:

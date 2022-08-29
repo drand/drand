@@ -91,7 +91,7 @@ func TestDeleteBeacon(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "drand")
 	defer os.RemoveAll(tmp)
 
-	var opt = core.WithConfigFolder(tmp)
+	opt := core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
 	fs.CreateSecureFolder(conf.DBFolder(beaconID))
 	store, err := boltdb.NewBoltStore(conf.DBFolder(beaconID), conf.BoltOptions())
@@ -219,7 +219,7 @@ func TestKeyGen(t *testing.T) {
 // tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0740)
+	os.Mkdir(tmpPath, 0o740)
 	defer os.RemoveAll(tmpPath)
 
 	n := 5
@@ -309,7 +309,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0740)
+	os.Mkdir(tmpPath, 0o740)
 	defer func() {
 		if err := os.RemoveAll(tmpPath); err != nil {
 			fmt.Println(err)
@@ -367,7 +367,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	// fake dkg outuput
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	distKey := &key.DistPublic{
-		Coefficients: []kyber.Point{fakeKey,
+		Coefficients: []kyber.Point{
+			fakeKey,
 			key.KeyGroup.Point().Pick(random.New()),
 			key.KeyGroup.Point().Pick(random.New()),
 		},
@@ -523,7 +524,7 @@ func TestClientTLS(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0740)
+	os.Mkdir(tmpPath, 0o740)
 	defer os.RemoveAll(tmpPath)
 
 	groupPath := path.Join(tmpPath, "group.toml")
@@ -557,7 +558,8 @@ func TestClientTLS(t *testing.T) {
 	fakeKey := key.KeyGroup.Point().Pick(random.New())
 	// need a threshold of coefficients
 	distKey := &key.DistPublic{
-		Coefficients: []kyber.Point{fakeKey,
+		Coefficients: []kyber.Point{
+			fakeKey,
 			key.KeyGroup.Point().Pick(random.New()),
 			key.KeyGroup.Point().Pick(random.New()),
 		},
@@ -869,16 +871,16 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 	testStatus(t, d.ctrlPort, beaconID)
 }
 
-//nolint: gocritic
+//nolint:gocritic
 func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0740)
+	os.Mkdir(tmpPath, 0o740)
 	certsDir, err := ioutil.TempDir(tmpPath, "certs")
 	require.NoError(t, err)
 
-	var ins = make([]*drandInstance, 0, n)
+	ins := make([]*drandInstance, 0, n)
 	for i := 1; i <= n; i++ {
 		nodePath, err := ioutil.TempDir(tmpPath, "node")
 		require.NoError(t, err)

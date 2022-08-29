@@ -43,12 +43,13 @@ func CreatePeer(addr string, tls bool) Peer {
 // For example, a valid nginx config could include
 //
 // ```
-// location / {
-//       grpc_pass grpc://127.0.0.1:9091;
-//       grpc_set_header X-Real-IP $remote_addr;
-// }
-// ```
 //
+//	location / {
+//	      grpc_pass grpc://127.0.0.1:9091;
+//	      grpc_set_header X-Real-IP $remote_addr;
+//	}
+//
+// ```
 func RemoteAddress(c context.Context) string {
 	p, ok := peer.FromContext(c)
 	str := ""

@@ -75,7 +75,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
 	resp := getWithCtx(ctx, getChains, t)
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Error("expected http status code 200")
 	}
 	var chains []string

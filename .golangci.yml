@@ -9,6 +9,7 @@ issues:
         - cyclop
         - errcheck
         - forbidigo
+        - goconst
         - gocyclo
         - gomnd
         - gosec

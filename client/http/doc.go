@@ -7,7 +7,6 @@ implemented by polling the endpoint at the expected round time.
 
 Example:
 
-
 	package main
 
 	import (

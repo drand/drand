@@ -27,7 +27,7 @@ var (
 	buildDate = "unknown"
 )
 
-const accessLogPermFolder = 0666
+const accessLogPermFolder = 0o666
 
 var accessLogFlag = &cli.StringFlag{
 	Name:  "access-log",
@@ -45,6 +45,7 @@ var metricsFlag = &cli.StringFlag{
 }
 
 // Relay a GRPC connection to an HTTP server.
+//
 //nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
