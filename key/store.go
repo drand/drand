@@ -6,9 +6,9 @@ import (
 	"path"
 	"reflect"
 
-	"github.com/drand/drand/common"
-
 	"github.com/BurntSushi/toml"
+
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 )
 
@@ -116,7 +116,7 @@ func (f *fileStore) SaveKeyPair(p *Pair) error {
 	if err := Save(f.privateKeyFile, p, true); err != nil {
 		return err
 	}
-	fmt.Printf("Saved the key : %s at %s\n", p.Public.Addr, f.publicKeyFile) // nolint
+	fmt.Printf("Saved the key : %s at %s\n", p.Public.Addr, f.publicKeyFile) //nolint
 	return Save(f.publicKeyFile, p.Public, false)
 }
 
@@ -139,7 +139,7 @@ func (f *fileStore) SaveGroup(g *Group) error {
 }
 
 func (f *fileStore) SaveShare(share *Share) error {
-	fmt.Printf("crypto store: saving private share in %s\n", f.shareFile) // nolint
+	fmt.Printf("crypto store: saving private share in %s\n", f.shareFile) //nolint
 	return Save(f.shareFile, share, true)
 }
 

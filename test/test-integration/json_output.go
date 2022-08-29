@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/drand/drand/chain"
-
+	dscheme "github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/kyber/sign/bls"
 	"github.com/drand/kyber/util/random"
@@ -26,10 +26,10 @@ func main() {
 		panic(err)
 	}
 
-	sch := scheme.GetSchemeFromEnv()
+	sch := dscheme.GetSchemeFromEnv()
 	verifier := chain.NewVerifier(sch)
 
-	msg := verifier.DigestMessage(previousSig, uint64(round))
+	msg := verifier.DigestMessage(uint64(round), previousSig)
 	signature, err := scheme.Sign(private, msg)
 	if err != nil {
 		panic(err)

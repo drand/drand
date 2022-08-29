@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	common2 "github.com/drand/drand/common/scheme"
+	clock "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
 	commonutils "github.com/drand/drand/common"
+	common2 "github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	clock "github.com/jonboulle/clockwork"
 )
 
 // setupManager takes care of setting up a new DKG network from the perspective
@@ -32,7 +32,7 @@ import (
 // Leader:
 // * Runs drand start <...>
 // * Runs drand share --leader --nodes 10 --threshold 6 --timeout 1m --start-in 10m
-// 		- This commands need to be ran before the clients do it
+//   - This commands need to be ran before the clients do it
 //
 // Then
 // * Leader receives keys one by one, when it has 10 different ones, it creates
@@ -126,7 +126,8 @@ func newReshareSetup(
 	c clock.Clock,
 	leaderKey *key.Identity,
 	oldGroup *key.Group,
-	in *drand.InitResharePacket) (*setupManager, error) {
+	in *drand.InitResharePacket,
+) (*setupManager, error) {
 	// period isn't included for resharing since we keep the same period
 	beaconPeriod := uint32(oldGroup.Period.Seconds())
 	schemeID := oldGroup.Scheme.ID
@@ -142,7 +143,8 @@ func newReshareSetup(
 		l.Named("ResharingDKGSetup"),
 		c, leaderKey, beaconPeriod,
 		catchupPeriod, beaconID,
-		schemeID, in.GetInfo()})
+		schemeID, in.GetInfo(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +203,7 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 func (s *setupManager) run() {
 	logger := s.l.Named("setupManagerRun")
 	defer close(s.startDKG)
-	var inKeys = make([]*key.Identity, 0, s.expected)
+	inKeys := make([]*key.Identity, 0, s.expected)
 	inKeys = append(inKeys, s.leaderKey)
 	for {
 		select {
@@ -266,7 +268,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
 	s.l.Debugw("", "setup", "created_group")
-	fmt.Printf("Generated group:\n%s\n", group.String()) // nolint
+	fmt.Printf("Generated group:\n%s\n", group.String()) //nolint
 	// signal the leader it's ready to run the DKG
 	s.startDKG <- group
 }
@@ -313,7 +315,8 @@ type setupReceiver struct {
 }
 
 func newSetupReceiver(version commonutils.Version, l log.Logger, c clock.Clock,
-	client net.ProtocolClient, in *drand.SetupInfoPacket) (*setupReceiver, error) {
+	client net.ProtocolClient, in *drand.SetupInfoPacket,
+) (*setupReceiver, error) {
 	beaconID := commonutils.GetCanonicalBeaconID(in.GetMetadata().GetBeaconID())
 
 	setup := &setupReceiver{

@@ -12,15 +12,15 @@ import (
 	"sort"
 	"time"
 
+	"github.com/BurntSushi/toml"
+	"golang.org/x/crypto/blake2b"
+
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-
-	"github.com/BurntSushi/toml"
 	kyber "github.com/drand/kyber"
 	dkg "github.com/drand/kyber/share/dkg"
-	"golang.org/x/crypto/blake2b"
 )
 
 // XXX new256 returns an error so we make a wrapper around

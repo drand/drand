@@ -7,12 +7,13 @@ import (
 	gonet "net"
 	"os"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
-	"github.com/urfave/cli/v2"
 )
 
 func getPrivateCmd(c *cli.Context) error {

@@ -3,8 +3,9 @@ package drand
 import (
 	"fmt"
 
-	"github.com/drand/drand/core"
 	"github.com/urfave/cli/v2"
+
+	"github.com/drand/drand/core"
 )
 
 func startCmd(c *cli.Context) error {

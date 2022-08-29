@@ -8,10 +8,11 @@ import (
 	"testing"
 
 	"github.com/BurntSushi/toml"
+	"github.com/stretchr/testify/require"
+
 	kyber "github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/util/random"
-	"github.com/stretchr/testify/require"
 )
 
 const testAddr = "127.0.0.1:80"
@@ -28,7 +29,7 @@ func TestKeyPublic(t *testing.T) {
 
 	p2 := new(Identity)
 	p2toml := new(PublicTOML)
-	_, err := toml.DecodeReader(&writer, p2toml)
+	_, err := toml.NewDecoder(&writer).Decode(p2toml)
 	require.NoError(t, err)
 	require.NoError(t, p2.FromTOML(p2toml))
 
@@ -82,7 +83,7 @@ func TestKeyDistributedPublic(t *testing.T) {
 
 	d2 := new(DistPublic)
 	d2Toml := new(DistPublicTOML)
-	_, err := toml.DecodeReader(&writer, d2Toml)
+	_, err := toml.NewDecoder(&writer).Decode(d2Toml)
 	require.NoError(t, err)
 	require.NoError(t, d2.FromTOML(d2Toml))
 

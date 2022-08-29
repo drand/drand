@@ -7,9 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/protobuf/drand"
@@ -54,7 +53,7 @@ func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Schem
 		t.Fatal(err)
 	}
 
-	httpServer := http.Server{Handler: handler.GetHTTPHandler()}
+	httpServer := http.Server{Handler: handler.GetHTTPHandler(), ReadHeaderTimeout: 3 * time.Second}
 	go httpServer.Serve(listener)
 
 	return listener.Addr().String(), chainInfo, func() {

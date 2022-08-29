@@ -12,17 +12,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common"
-
 	"github.com/go-chi/chi"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
+	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	json "github.com/nikkolasg/hexjson"
 )
 
 const (
@@ -582,8 +580,8 @@ func (h *DrandHandler) getBeaconHandler(chainHash []byte) (*BeaconHandler, error
 	bh, exists := h.beacons[chainHashStr]
 
 	if !exists {
-		return nil, fmt.Errorf("there is no BeaconHandler for beaconHash [%s]. "+
-			"Is the chain hash correct?. Please check it", chainHashStr)
+		return nil, fmt.Errorf("there is no BeaconHandler for beaconHash [%s] in our beacons [%v]. "+
+			"Is the chain hash correct?. Please check it", chainHashStr, h.beacons)
 	}
 
 	return bh, nil

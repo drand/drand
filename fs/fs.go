@@ -67,7 +67,7 @@ func CreateSecureFile(file string) (*os.File, error) {
 	fd.Close()
 	if err := os.Chmod(file, rwFilePermission); err != nil {
 		// TODO: check why we don't return the error here
-		return nil, nil // nolint
+		return nil, nil //nolint
 	}
 	return os.OpenFile(file, os.O_RDWR, rwFilePermission)
 }

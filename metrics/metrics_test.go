@@ -39,7 +39,7 @@ func TestMetricReshare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("req to metrics should succeed. Expected StatusCode: 200, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
@@ -54,7 +54,7 @@ func TestMetricReshare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.StatusCode != 303 {
+	if resp.StatusCode != http.StatusSeeOther {
 		t.Fatalf("lazy reshare didn't do its thing. Expected StatusCode: 303, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
@@ -72,7 +72,7 @@ func TestMetricReshare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.StatusCode != 404 {
+	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("lazy reshare didn't do its thing. Expected StatusCode: 404, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()
@@ -81,7 +81,7 @@ func TestMetricReshare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.StatusCode != 500 {
+	if resp.StatusCode != http.StatusInternalServerError {
 		t.Fatalf("error not propagated correctly from error.com. Expected StatusCode: 303, actual: %d", resp.StatusCode)
 	}
 	_ = resp.Body.Close()

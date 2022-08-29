@@ -10,23 +10,23 @@ import (
 	"path"
 	"time"
 
-	dlog "github.com/drand/drand/log"
-
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	"github.com/libp2p/go-libp2p"
-	"github.com/libp2p/go-libp2p-core/crypto"
-	"github.com/libp2p/go-libp2p-core/host"
-	"github.com/libp2p/go-libp2p-core/peer"
-	"github.com/libp2p/go-libp2p-peerstore/pstoreds"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	pubsubpb "github.com/libp2p/go-libp2p-pubsub/pb"
+	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds"
 	"github.com/libp2p/go-libp2p/p2p/net/connmgr"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 	libp2ptls "github.com/libp2p/go-libp2p/p2p/security/tls"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/blake2b"
-	"golang.org/x/xerrors"
+
+	dlog "github.com/drand/drand/log"
 )
 
 const (
@@ -55,25 +55,25 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 	pstoreDs := namespace.Wrap(ds, datastore.NewKey("/peerstore"))
 	pstore, err := pstoreds.NewPeerstore(ctx, pstoreDs, pstoreds.DefaultOpts())
 	if err != nil {
-		return nil, nil, xerrors.Errorf("creating peerstore: %w", err)
+		return nil, nil, fmt.Errorf("creating peerstore: %w", err)
 	}
 	peerID, err := peer.IDFromPrivateKey(priv)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("computing peerid: %w", err)
+		return nil, nil, fmt.Errorf("computing peerid: %w", err)
 	}
 	err = pstore.AddPrivKey(peerID, priv)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("adding priv to keystore: %w", err)
+		return nil, nil, fmt.Errorf("adding priv to keystore: %w", err)
 	}
 
 	addrInfos, err := resolveAddresses(ctx, bootstrap, nil)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("parsing addrInfos: %+v", err)
+		return nil, nil, fmt.Errorf("parsing addrInfos: %w", err)
 	}
 
 	cmgr, err := connmgr.NewConnManager(lowWater, highWater, connmgr.WithGracePeriod(gracePeriod))
 	if err != nil {
-		return nil, nil, xerrors.Errorf("constructing connmanager: %w", err)
+		return nil, nil, fmt.Errorf("constructing connmanager: %w", err)
 	}
 
 	opts := []libp2p.Option{
@@ -95,7 +95,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 
 	h, err := libp2p.New(opts...)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("constructing host: %w", err)
+		return nil, nil, fmt.Errorf("constructing host: %w", err)
 	}
 
 	p, err := pubsub.NewGossipSub(ctx, h,
@@ -109,7 +109,7 @@ func ConstructHost(ds datastore.Datastore, priv crypto.PrivKey, listenAddr strin
 		pubsub.WithDirectConnectTicks(directConnectTicks),
 	)
 	if err != nil {
-		return nil, nil, xerrors.Errorf("constructing pubsub: %w", err)
+		return nil, nil, fmt.Errorf("constructing pubsub: %w", err)
 	}
 
 	go func() {
@@ -137,34 +137,34 @@ func LoadOrCreatePrivKey(identityPath string, log dlog.Logger) (crypto.PrivKey, 
 	case err == nil:
 		privBytes, err := base64.RawStdEncoding.DecodeString(string(privB64))
 		if err != nil {
-			return nil, xerrors.Errorf("decoding base64 key: %w", err)
+			return nil, fmt.Errorf("decoding base64 key: %w", err)
 		}
 		priv, err = crypto.UnmarshalEd25519PrivateKey(privBytes)
 		if err != nil {
-			return nil, xerrors.Errorf("unmarshaling ed25519 key: %w", err)
+			return nil, fmt.Errorf("unmarshaling ed25519 key: %w", err)
 		}
 		log.Infow("", "load_or_create_priv_key", "loaded private key")
 
-	case xerrors.Is(err, os.ErrNotExist):
+	case errors.Is(err, os.ErrNotExist):
 		priv, _, err = crypto.GenerateEd25519Key(rand.Reader)
 		if err != nil {
-			return nil, xerrors.Errorf("generating private key: %w", err)
+			return nil, fmt.Errorf("generating private key: %w", err)
 		}
 		b, err := priv.Raw()
 		if err != nil {
-			return nil, xerrors.Errorf("marshaling private key: %w", err)
+			return nil, fmt.Errorf("marshaling private key: %w", err)
 		}
 		err = os.MkdirAll(path.Dir(identityPath), allDirPerm)
 		if err != nil {
-			return nil, xerrors.Errorf("creating identity directory and parents: %w", err)
+			return nil, fmt.Errorf("creating identity directory and parents: %w", err)
 		}
 		err = os.WriteFile(identityPath, []byte(base64.RawStdEncoding.EncodeToString(b)), identityFilePerm)
 		if err != nil {
-			return nil, xerrors.Errorf("writing identity file: %w", err)
+			return nil, fmt.Errorf("writing identity file: %w", err)
 		}
 
 	default:
-		return nil, xerrors.Errorf("getting private key: %w", err)
+		return nil, fmt.Errorf("getting private key: %w", err)
 	}
 
 	return priv, nil

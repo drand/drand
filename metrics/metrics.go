@@ -10,11 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common"
-	"github.com/drand/drand/log"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/log"
 )
 
 type DKGState int
@@ -360,7 +361,7 @@ func Start(metricsBind string, pprof http.Handler, groupHandlers []Handler) net.
 		log.DefaultLogger().Warnw("", "metrics", "listen failed", "err", err)
 		return nil
 	}
-	s := http.Server{Addr: l.Addr().String()}
+	s := http.Server{Addr: l.Addr().String(), ReadHeaderTimeout: 3 * time.Second}
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(PrivateMetrics, promhttp.HandlerOpts{Registry: PrivateMetrics}))
 

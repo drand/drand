@@ -8,16 +8,15 @@ import (
 	"testing"
 	"time"
 
-	nhttp "github.com/drand/drand/client/http"
+	json "github.com/nikkolasg/hexjson"
+	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
+	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test/mock"
-	"github.com/stretchr/testify/require"
-
-	json "github.com/nikkolasg/hexjson"
 )
 
 func withClient(t *testing.T) (c client.Client, emit func(bool)) {
@@ -35,7 +34,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 
 func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
 	t.Helper()
-	req, err := http.NewRequestWithContext(ctx, "GET", url, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	require.NoError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
@@ -76,7 +75,7 @@ func TestHTTPRelay(t *testing.T) {
 
 	getChains := fmt.Sprintf("http://%s/chains", listener.Addr().String())
 	resp := getWithCtx(ctx, getChains, t)
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		t.Error("expected http status code 200")
 	}
 	var chains []string

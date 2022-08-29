@@ -6,9 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/kyber"
-	"github.com/drand/kyber/share/dkg"
-	"github.com/drand/kyber/util/random"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
@@ -16,6 +13,9 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber/util/random"
 )
 
 type packInfo struct {

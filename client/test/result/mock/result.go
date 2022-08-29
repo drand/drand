@@ -8,9 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/kyber/share"
 	"github.com/drand/kyber/sign/tbls"

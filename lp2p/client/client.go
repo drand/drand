@@ -5,15 +5,15 @@ import (
 	"encoding/hex"
 	"sync"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"golang.org/x/xerrors"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/lp2p"
 	"github.com/drand/drand/protobuf/drand"
-
-	pubsub "github.com/libp2p/go-libp2p-pubsub"
-	"golang.org/x/xerrors"
-	"google.golang.org/protobuf/proto"
 )
 
 // Client is a concrete pubsub client implementation
@@ -159,7 +159,7 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 		for {
 			select {
 			// TODO: do not copy by assignment any drand.PublicRandResponse
-			case resp, ok := <-innerCh: // nolint:govet
+			case resp, ok := <-innerCh: //nolint:govet
 				if !ok {
 					close(outerCh)
 					return

@@ -8,16 +8,16 @@ import (
 	"net/http/httptest"
 	"os"
 
+	"github.com/gorilla/handlers"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/cmd/client/lib"
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/metrics/pprof"
-
-	"github.com/gorilla/handlers"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/urfave/cli/v2"
 )
 
 // Automatically set through -ldflags
@@ -27,7 +27,7 @@ var (
 	buildDate = "unknown"
 )
 
-const accessLogPermFolder = 0666
+const accessLogPermFolder = 0o666
 
 var accessLogFlag = &cli.StringFlag{
 	Name:  "access-log",
@@ -45,7 +45,8 @@ var metricsFlag = &cli.StringFlag{
 }
 
 // Relay a GRPC connection to an HTTP server.
-// nolint:gocyclo,funlen
+//
+//nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
 	version := common.GetAppVersion()
 
@@ -135,9 +136,9 @@ func Relay(c *cli.Context) error {
 			continue
 		}
 
-		req, _ := http.NewRequest("GET", "/public/0", http.NoBody)
+		req, _ := http.NewRequest(http.MethodGet, "/public/0", http.NoBody)
 		if hash != common.DefaultChainHash {
-			req, _ = http.NewRequest("GET", fmt.Sprintf("/%s/public/0", hash), http.NoBody)
+			req, _ = http.NewRequest(http.MethodGet, fmt.Sprintf("/%s/public/0", hash), http.NoBody)
 		}
 
 		rr := httptest.NewRecorder()

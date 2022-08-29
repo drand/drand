@@ -11,17 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/weaveworks/common/fs"
-
-	"github.com/drand/drand/protobuf/common"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/weaveworks/common/fs"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 )
@@ -358,10 +356,11 @@ func TestRunDKGReshareAbsentNode(t *testing.T) {
 	require.Nil(t, newGroup.Find(missingPublic), "missing public is found", missingPublic)
 }
 
-// nolint:funlen
 // The test creates the scenario where one node made a complaint during the DKG, at the second phase, so normally,
 // there should be a "Justification" at the third phase. In this case, there is not. This scenario
 // can happen if there is an offline node right at the beginning of DKG that don't even send any message.
+//
+//nolint:funlen
 func TestRunDKGReshareTimeout(t *testing.T) {
 	oldNodes, newNodes, oldThreshold, newThreshold := 3, 4, 2, 3
 	timeout, beaconPeriod := 1*time.Second, 2*time.Second
@@ -394,7 +393,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	t.Log("Setup reshare done. Starting reshare.")
 
 	// run the resharing
-	var doneReshare = make(chan *key.Group)
+	doneReshare := make(chan *key.Group)
 	go func() {
 		t.Log("[reshare] Start reshare")
 		// XXX: notice that the RunReshare is already running AdvanceMockClock on its own after a while!!
@@ -476,8 +475,9 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	}
 }
 
-// nolint:funlen
 // This test is where a client can stop the resharing in process and start again
+//
+//nolint:funlen
 func TestRunDKGResharePreempt(t *testing.T) {
 	if os.Getenv("CI") != "" {
 		t.Skip("Skipping testing in CI environment")
@@ -529,7 +529,7 @@ func TestRunDKGResharePreempt(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// run the resharing
-	var doneReshare = make(chan *key.Group, 1)
+	doneReshare := make(chan *key.Group, 1)
 	go func() {
 		g, err := dt.RunReshare(t,
 			&reshareConfig{
@@ -818,7 +818,8 @@ func expectChanFail(t *testing.T, errCh chan error) {
 }
 
 // This test makes sure the "FollowChain" grpc method works fine
-// nolint:funlen
+//
+//nolint:funlen
 func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
@@ -930,7 +931,8 @@ func TestDrandFollowChain(t *testing.T) {
 }
 
 // This test makes sure the "StartCheckChain" grpc method works fine
-// nolint:funlen
+//
+//nolint:funlen
 func TestDrandCheckChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
@@ -1232,7 +1234,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	groupFile, err := io.ReadAll(groupFileReader)
 	require.NoError(t, err)
 	// write
-	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0740)
+	err = os.WriteFile(groupPath, []byte(strings.ReplaceAll(string(groupFile), "true", "false")), 0o740)
 	require.NoError(t, err)
 
 	// try and reload the beacon from the store

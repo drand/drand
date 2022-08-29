@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/metrics"
-
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 )
