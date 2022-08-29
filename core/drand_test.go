@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-  "github.com/weaveworks/common/fs"
+	"github.com/weaveworks/common/fs"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
