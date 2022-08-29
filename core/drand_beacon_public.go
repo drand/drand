@@ -227,7 +227,6 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	b := bp.beacon
 	c := bp.chainHash
 	l := bp.log.Named("SyncChain")
-	s := bp.beacon.Store()
 	bp.state.Unlock()
 	if b == nil || len(c) == 0 {
 		l.Errorw("Received a SyncRequest, but no beacon handler is set yet", "request", req)
@@ -235,7 +234,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 	}
 
 	// TODO: consider re-running the SyncChain command if we get a ErrNoBeaconStored back as it could be a follow cmd
-	return beacon.SyncChain(l, s, req, stream)
+	return beacon.SyncChain(l, bp.beacon.Store(), req, stream)
 }
 
 // GetIdentity returns the identity of this drand node
