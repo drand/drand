@@ -20,6 +20,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	pbCommon "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	testnet "github.com/drand/drand/test/net"
@@ -623,6 +624,35 @@ func TestProcessingPartialBeaconWithNonExistentIndexDoesntSegfault(t *testing.T)
 	}
 	_, err := bt.nodes[0].handler.ProcessPartialBeacon(context.Background(), &packet)
 	require.Error(t, err, "attempted to process beacon from node of index 25958, but it was not in the group file")
+}
+
+func TestSyncChainWithoutMetadata(t *testing.T) {
+	logger := log.NewLogger(nil, log.LogDebug).Named("BeaconTest")
+	expectedBeaconID := "someGreatBeacon"
+
+	require.Equal(
+		t,
+		beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: nil}, "127.0.0.1"),
+		"default",
+	)
+	require.Equal(
+		t,
+		beaconIDToSync(logger, TestSyncRequest{round: 1, metadata: &pbCommon.Metadata{BeaconID: expectedBeaconID}}, "127.0.0.1"),
+		expectedBeaconID,
+	)
+}
+
+type TestSyncRequest struct {
+	round    uint64
+	metadata *pbCommon.Metadata
+}
+
+func (t TestSyncRequest) GetFromRound() uint64 {
+	return t.round
+}
+
+func (t TestSyncRequest) GetMetadata() *pbCommon.Metadata {
+	return t.metadata
 }
 
 func (b *BeaconTest) CallbackFor(i int, fn func(*chain.Beacon)) {

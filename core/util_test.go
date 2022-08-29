@@ -106,6 +106,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	tmp := os.TempDir()
 
 	dir, err := os.MkdirTemp(tmp, "drand")
+	dir = path.Join(dir, common.MultiBeaconFolder)
 	assert.NoError(t, err)
 
 	certPaths = make([]string, n)

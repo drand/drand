@@ -50,7 +50,7 @@ type Tomler interface {
 	TOMLValue() interface{}
 }
 
-// fileStore is a Store using filesystem to store informations
+// fileStore is a Store using filesystem to store information
 type fileStore struct {
 	baseFolder     string
 	beaconID       string
@@ -153,7 +153,7 @@ func (f *fileStore) Reset(...ResetOption) error {
 		return fmt.Errorf("drand: err deleting dist. key file: %w", err)
 	}
 	if err := Delete(f.shareFile); err != nil {
-		return fmt.Errorf("drand: errd eleting share file: %w", err)
+		return fmt.Errorf("drand: err deleting share file: %w", err)
 	}
 
 	if err := Delete(f.groupFile); err != nil {
