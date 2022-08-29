@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	commonutils "github.com/drand/drand/common"
-
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
@@ -328,6 +327,7 @@ func (s *SyncManager) Sync(ctx context.Context, request requestInfo) error {
 // tryNode tries to sync up with the given peer up to the given round, starting
 // from the last beacon in the store. It returns true if the objective was
 // reached (store.Last() returns upTo) and false otherwise.
+//
 //nolint:gocyclo,funlen
 func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer net.Peer) bool {
 	logger := s.log.Named("tryNode")
@@ -465,14 +465,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 	logger := l.Named("SyncChain")
 
-	// we expect the metadata to be set at this stage, this should never happen currently
-	if req.GetMetadata() == nil {
-		logger.Errorw("Received a sync request without metadata", "from_addr", addr)
-		return fmt.Errorf("no metadata in sync request")
-	}
-
-	// this can never be "" at this point, since we set it at the daemon level
-	beaconID := req.GetMetadata().GetBeaconID()
+	beaconID := beaconIDToSync(l, req, addr)
 
 	last, err := store.Last()
 	if err != nil {
@@ -483,7 +476,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		return fmt.Errorf("%w %d < %d", ErrNoBeaconStored, last.Round, fromRound)
 	}
 
-	var done = make(chan error, 1)
+	done := make(chan error, 1)
 	send := func(b *chain.Beacon) bool {
 		packet := beaconToProto(b)
 		packet.Metadata = &common.Metadata{BeaconID: beaconID}
@@ -498,7 +491,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	// we know that last.Round >= fromRound from the above if
 	if fromRound != 0 {
 		// first sync up from the store itself
-		var shouldContinue = true
+		shouldContinue := true
 		store.Cursor(func(c chain.Cursor) {
 			for bb := c.Seek(fromRound); bb != nil; bb = c.Next() {
 				if !send(bb) {
@@ -528,6 +521,17 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	case err := <-done:
 		return err
 	}
+}
+
+// Versions prior to 1.4 did not support multibeacon and thus did not have attached metadata.
+// This function resolves the `beaconId` given a `SyncRequest`
+func beaconIDToSync(logger log.Logger, req SyncRequest, addr string) string {
+	// this should only happen if the requester is on a version < 1.4
+	if req.GetMetadata() == nil {
+		logger.Errorw("Received a sync request without metadata - probably an old version", "from_addr", addr)
+		return commonutils.DefaultBeaconID
+	}
+	return req.GetMetadata().GetBeaconID()
 }
 
 func peersToString(peers []net.Peer) string {

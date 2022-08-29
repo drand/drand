@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/drand/kyber/encrypt/ecies"
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
@@ -12,6 +11,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/encrypt/ecies"
 )
 
 // Client is the endpoint logic, communicating with drand servers

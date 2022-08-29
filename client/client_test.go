@@ -7,13 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/http"
 	httpmock "github.com/drand/drand/client/test/http/mock"
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test"
 )
 

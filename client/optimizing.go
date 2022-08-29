@@ -10,9 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
-	"github.com/hashicorp/go-multierror"
 )
 
 const (

@@ -7,12 +7,13 @@ import (
 	gonet "net"
 	"os"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
-	"github.com/urfave/cli/v2"
 )
 
 func getPrivateCmd(c *cli.Context) error {
@@ -107,7 +108,7 @@ func getChainInfo(c *cli.Context) error {
 	var err error
 	chainHash := make([]byte, 0)
 	if c.IsSet(hashInfoNoReq.Name) {
-		if chainHash, err = hex.DecodeString(c.String(hashInfoReq.Name)); err != nil {
+		if chainHash, err = hex.DecodeString(c.String(hashInfoNoReq.Name)); err != nil {
 			return fmt.Errorf("invalid chain hash given: %w", err)
 		}
 	}

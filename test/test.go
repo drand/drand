@@ -4,15 +4,14 @@ package test
 
 import (
 	"encoding/hex"
-	commonutils "github.com/drand/drand/common"
 	n "net"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/kyber"

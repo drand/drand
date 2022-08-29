@@ -3,7 +3,6 @@ package lib
 import (
 	"bytes"
 	"fmt"
-	"github.com/drand/drand/common"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -13,11 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/drand/common/scheme"
-
 	json "github.com/nikkolasg/hexjson"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/demo/node"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"

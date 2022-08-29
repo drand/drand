@@ -11,16 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/common"
-
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/client"
-	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
+	json "github.com/nikkolasg/hexjson"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	json "github.com/nikkolasg/hexjson"
+	"github.com/drand/drand/chain"
+	"github.com/drand/drand/client"
+	"github.com/drand/drand/common"
+	"github.com/drand/drand/log"
+	"github.com/drand/drand/metrics"
 )
 
 var errClientClosed = fmt.Errorf("client closed")
@@ -127,7 +126,7 @@ func Ping(ctx context.Context, root string) error {
 	ctx, cancel := context.WithTimeout(ctx, maxTimeoutHTTPRequest)
 	defer cancel()
 
-	req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
+	req, err := nhttp.NewRequestWithContext(ctx, nhttp.MethodGet, url, nhttp.NoBody)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -249,7 +248,7 @@ func (h *httpClient) FetchChainInfo(ctx context.Context, chainHash []byte) (*cha
 			url = fmt.Sprintf("%sinfo", h.root)
 		}
 
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
+		req, err := nhttp.NewRequestWithContext(ctx, nhttp.MethodGet, url, nhttp.NoBody)
 		if err != nil {
 			resC <- httpInfoResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return
@@ -319,7 +318,7 @@ func (h *httpClient) Get(ctx context.Context, round uint64) (client.Result, erro
 	defer cancel()
 
 	go func() {
-		req, err := nhttp.NewRequestWithContext(ctx, "GET", url, nhttp.NoBody)
+		req, err := nhttp.NewRequestWithContext(ctx, nhttp.MethodGet, url, nhttp.NoBody)
 		if err != nil {
 			resC <- httpGetResponse{nil, fmt.Errorf("creating request: %w", err)}
 			return

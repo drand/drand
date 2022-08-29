@@ -19,7 +19,7 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
     - uses: actions/setup-go@v2
       with:
-        go-version: '1.17'
+        go-version: '1.18'
     - name: Fetch Dependencies
       run: go get ./...
     - name: Install Protoc
@@ -28,7 +28,7 @@ jobs:
         version: '3.19.4'
     - name: Install Protoc-gen-go
       run: |
-        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.0
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.1
         go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
     - name: Generate
       run: go generate ./...&& go mod tidy
@@ -46,7 +46,7 @@ jobs:
           for file in $OUTPUT
           do
             f=$(echo $file | sed -e 's/^.* //')
-            echo "::error file=$f,line=1,col=1::File $f not in sync with `go generate`"
+            echo "::error file=$f,line=1,col=1::File $f not in sync with ``go generate``"
           done
           OUTPUT="${OUTPUT//'%'/'%25'}"
           OUTPUT="${OUTPUT//$'\n'/'%0A'}"

@@ -10,8 +10,9 @@ import (
 	"github.com/drand/drand/client/test/result/mock"
 )
 
-//nolint:gocritic
 // MockClient provide a mocked client interface
+//
+//nolint:gocritic
 type MockClient struct {
 	sync.Mutex
 	OptionalInfo *chain.Info

@@ -7,17 +7,14 @@ import (
 	"sync"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/metrics"
-	"github.com/drand/drand/metrics/pprof"
-	"github.com/drand/drand/protobuf/drand"
-
 	"github.com/drand/drand/common"
 	dhttp "github.com/drand/drand/http"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
-
+	"github.com/drand/drand/metrics"
+	"github.com/drand/drand/metrics/pprof"
 	"github.com/drand/drand/net"
+	"github.com/drand/drand/protobuf/drand"
 )
 
 type DrandDaemon struct {

@@ -1,5 +1,4 @@
 /*
-
 Package client provides a drand client implementation that retrieves
 randomness by subscribing to a libp2p pubsub topic.
 

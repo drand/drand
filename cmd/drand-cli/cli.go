@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	gonet "net"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,24 +19,20 @@ import (
 	"strings"
 	"sync"
 
-	common2 "github.com/drand/drand/protobuf/common"
-
-	"github.com/drand/drand/core/migration"
-
-	"github.com/drand/drand/common/scheme"
-
-	gonet "net"
-
 	"github.com/BurntSushi/toml"
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/core/migration"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
+	common2 "github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/urfave/cli/v2"
 )
 
 // default output of the drand operational commands
@@ -43,7 +40,7 @@ import (
 var output io.Writer = os.Stdout
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=$(date -u +%d/%m/%Y@%H:%M:%S) -X main.gitCommit=$(git rev-parse HEAD)"
 var (
 	gitCommit = "none"
 	buildDate = "unknown"
@@ -559,8 +556,20 @@ func CLI() *cli.App {
 	app.Version = version.String()
 	app.Usage = "distributed randomness service"
 	// =====Commands=====
-	app.Commands = appCommands
-	app.Flags = toArray(verboseFlag, folderFlag)
+	// we need to copy the underlying commands to avoid races, cli sadly doesn't support concurrent executions well
+	appComm := make([]*cli.Command, len(appCommands))
+	for i, p := range appCommands {
+		if p == nil {
+			continue
+		}
+		v := *p
+		appComm[i] = &v
+	}
+	app.Commands = appComm
+	// we need to copy the underlying flags to avoid races
+	verbFlag := *verboseFlag
+	foldFlag := *folderFlag
+	app.Flags = toArray(&verbFlag, &foldFlag)
 	app.Before = testWindows
 	return app
 }
@@ -693,7 +702,8 @@ func keygenCmd(c *cli.Context) error {
 	fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
 
 	if _, err := fileStore.LoadKeyPair(); err == nil {
-		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", config.ConfigFolderMB())
+		keyDirectory := path.Join(config.ConfigFolderMB(), beaconID)
+		fmt.Fprintf(output, "Keypair already present in `%s`.\nRemove them before generating new one\n", keyDirectory)
 		return nil
 	}
 	if err := fileStore.SaveKeyPair(priv); err != nil {

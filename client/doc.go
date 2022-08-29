@@ -60,6 +60,5 @@ to be needed/customized:
 	WithPrometheus()
 		enables metrics reporting on speed and performance to a
 		provided prometheus registry.
-
 */
 package client

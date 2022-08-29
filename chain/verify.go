@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 
 	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/kyber"
 )

@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
+	clock "github.com/jonboulle/clockwork"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/util/random"
-	clock "github.com/jonboulle/clockwork"
 )
 
 func TestValidateGroupTransitionGenesisTime(t *testing.T) {

@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/drand/kyber/share/dkg"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
@@ -20,6 +18,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/kyber/share/dkg"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it
@@ -114,36 +113,33 @@ func (bp *BeaconProcess) Load() (bool, error) {
 		return false, err
 	}
 
-	if bp.group != nil {
-		bp.state.Lock()
-		info := chain.NewChainInfo(bp.group)
-		bp.chainHash = info.Hash()
-		bp.state.Unlock()
+	beaconID := bp.getBeaconID()
+	if bp.group == nil {
+		bp.dkgDone = false
+		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
+		return false, nil
 	}
 
+	bp.state.Lock()
+	info := chain.NewChainInfo(bp.group)
+	bp.chainHash = info.Hash()
 	checkGroup(bp.log, bp.group)
+	bp.state.Unlock()
+
 	bp.share, err = bp.store.LoadShare()
 	if err != nil {
 		return false, err
 	}
 
-	bp.index = int(bp.group.Find(bp.priv.Public).Index)
+	thisBeacon := bp.group.Find(bp.priv.Public)
+	if thisBeacon == nil {
+		return false, fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
+	}
+	bp.index = int(thisBeacon.Index)
 	bp.log = bp.log.Named(fmt.Sprint(bp.index))
 
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
-
-	if bp.group != nil {
-		beaconID := bp.getBeaconID()
-
-		// TODO: can this ever be true?
-		if bp.dkgDone {
-			metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-		} else {
-			metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
-		}
-	}
-
-	bp.dkgDone = false
+	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 
 	return false, nil
 }

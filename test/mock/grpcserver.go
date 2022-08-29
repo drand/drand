@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"

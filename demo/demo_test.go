@@ -1,13 +1,12 @@
 package main
 
 import (
-	"github.com/drand/drand/test"
 	"testing"
 	"time"
 
 	"github.com/drand/drand/common/scheme"
-
 	"github.com/drand/drand/demo/lib"
+	"github.com/drand/drand/test"
 )
 
 func TestLocalOrchestration(t *testing.T) {

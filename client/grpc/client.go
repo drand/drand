@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"time"
 
+	grpcProm "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	grpcInsec "google.golang.org/grpc/credentials/insecure"
+
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 const grpcDefaultTimeout = 5 * time.Second
@@ -38,13 +39,13 @@ func New(address, certPath string, insecure bool, chainHash []byte) (client.Clie
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else if insecure {
-		opts = append(opts, grpc.WithInsecure())
+		opts = append(opts, grpc.WithTransportCredentials(grpcInsec.NewCredentials()))
 	} else {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})))
 	}
 	opts = append(opts,
-		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithUnaryInterceptor(grpcProm.UnaryClientInterceptor),
+		grpc.WithStreamInterceptor(grpcProm.StreamClientInterceptor),
 	)
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {

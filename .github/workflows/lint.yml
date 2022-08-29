@@ -13,14 +13,13 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      # since golangci-lint-action@v3 we need to run setup-go@v2 first
-    - uses: actions/setup-go@v2
+    - uses: actions/setup-go@v3
       with:
-        go-version: '1.17'
+        go-version: 1.18
     - name: Checkout
       uses: actions/checkout@v2
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v3
       with:
-        version: v1.46
+        version: v1.48
         args: --timeout 5m

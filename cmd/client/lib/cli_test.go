@@ -4,17 +4,19 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/drand/drand/client"
 	httpmock "github.com/drand/drand/client/test/http/mock"
+	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test/mock"
-	"github.com/urfave/cli/v2"
 )
 
 var (
@@ -59,39 +61,39 @@ func TestClientLib(t *testing.T) {
 	defer grpcLis.Stop(context.Background())
 
 	args := []string{"mock-client", "--url", "http://" + addr, "--grpc-connect", grpcLis.Addr(), "--insecure"}
-
-	fmt.Printf("%+v", args)
 	err = run(args)
 	if err != nil {
 		t.Fatal("GRPC should work", err)
 	}
 
 	args = []string{"mock-client", "--url", "https://" + addr}
-
 	err = run(args)
 	if err == nil {
 		t.Fatal("http needs insecure or hash", err)
 	}
 
 	args = []string{"mock-client", "--url", "http://" + addr, "--hash", hex.EncodeToString(info.Hash())}
-
 	err = run(args)
 	if err != nil {
 		t.Fatal("http should construct", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr}
-
 	err = run(args)
 	if err == nil {
-		t.Fatal("relays need URL or hash", err)
+		t.Fatal("relays need URL to get chain info and hash", err)
 	}
 
 	args = []string{"mock-client", "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
+	err = run(args)
+	if err == nil {
+		t.Fatal("relays need URL to get chain info and hash", err)
+	}
 
+	args = []string{"mock-client", "--url", "http://" + addr, "--relay", fakeGossipRelayAddr, "--hash", hex.EncodeToString(info.Hash())}
 	err = run(args)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("unable to get relay to work", err)
 	}
 }
 
@@ -139,10 +141,9 @@ func TestClientLibChainHashOverrideError(t *testing.T) {
 		"--hash",
 		fakeChainHash,
 	})
-	if err == nil {
-		t.Fatal("expected error from mismatched chain hashes")
+	if !errors.Is(err, commonutils.ErrInvalidChainHash) {
+		t.Fatal("expected error from mismatched chain hashes. Got: ", err)
 	}
-	fmt.Println(err)
 }
 
 func TestClientLibListenPort(t *testing.T) {

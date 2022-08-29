@@ -28,9 +28,10 @@ type Store interface {
 // next key/value on each iteration.
 //
 // The loop finishes at the end of the cursor when a nil key is returned.
-//    for k, v := c.First(); k != nil; k, v = c.Next() {
-//        fmt.Printf("A %s is %s.\n", k, v)
-//    }
+//
+//	for k, v := c.First(); k != nil; k, v = c.Next() {
+//	    fmt.Printf("A %s is %s.\n", k, v)
+//	}
 type Cursor interface {
 	First() *Beacon
 	Next() *Beacon

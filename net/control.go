@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	protoCommon "github.com/drand/drand/protobuf/common"
-
 	control "github.com/drand/drand/protobuf/drand"
-
-	"google.golang.org/grpc"
 )
 
 const grpcDefaultIPNetwork = "tcp"
@@ -67,7 +67,7 @@ func NewControlClient(addr string) (*ControlClient, error) {
 		host = fmt.Sprintf("%s://%s", network, host)
 	}
 
-	conn, err := grpc.Dial(host, grpc.WithInsecure())
+	conn, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.DefaultLogger().Errorw("", "control client", "connect failure", "err", err)
 		return nil, err
