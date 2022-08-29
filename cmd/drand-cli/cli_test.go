@@ -786,6 +786,36 @@ func TestDrandStatus(t *testing.T) {
 	}
 }
 
+func TestEmptyPortSelectionUsesDefaultDuringKeygen(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+
+	tmp, err := os.MkdirTemp("", "drand-cli-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+	app := CLI()
+
+	// args are missing a port for the node address
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
+	// after being prompted for a port, the 'user' hits enter to select the default
+	app.Reader = strings.NewReader("\n")
+
+	require.NoError(t, app.Run(args))
+}
+
+func TestValidPortSelectionSucceedsDuringKeygen(t *testing.T) {
+	beaconID := test.GetBeaconIDFromEnv()
+
+	tmp, err := os.MkdirTemp("", "drand-cli-*")
+	require.NoError(t, err)
+	defer os.RemoveAll(tmp)
+	app := CLI()
+
+	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1"}
+	app.Reader = strings.NewReader("8080\n")
+
+	require.NoError(t, app.Run(args))
+}
+
 type drandInstance struct {
 	path     string
 	ctrlPort string

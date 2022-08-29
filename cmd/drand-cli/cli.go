@@ -287,7 +287,7 @@ var beaconIDFlag = &cli.StringFlag{
 }
 var listIdsFlag = &cli.BoolFlag{
 	Name:  "list-ids",
-	Usage: "Indicates if it only have to list the running beacon ids instead of the statuses",
+	Usage: "Indicates if it only have to list the running beacon ids instead of the statuses.",
 	Value: false,
 }
 
@@ -579,7 +579,7 @@ func resetCmd(c *cli.Context) error {
 
 	fmt.Fprintf(output, "You are about to delete your local share, group file and generated random beacons. "+
 		"Are you sure you wish to perform this operation? [y/N]")
-	reader := bufio.NewReader(os.Stdin)
+	reader := bufio.NewReader(c.App.Reader)
 
 	answer, err := reader.ReadString('\n')
 	if err != nil {
@@ -615,21 +615,28 @@ func resetCmd(c *cli.Context) error {
 	return nil
 }
 
-func askPort() string {
+func askPort(c *cli.Context) string {
 	for {
-		var port string
 		fmt.Fprintf(output, "No valid port given. Please, choose a port number (or ENTER for default port 8080): ")
-		if _, err := fmt.Scanf("%s\n", &port); err != nil {
+
+		reader := bufio.NewReader(c.App.Reader)
+		input, err := reader.ReadString('\n')
+		if err != nil {
 			continue
 		}
-		if port == "" {
+
+		portStr := strings.TrimSpace(input)
+		if portStr == "" {
+			fmt.Fprintln(output, "Default port selected")
 			return defaultPort
 		}
-		_, err := strconv.Atoi(port)
-		if len(port) > 2 && len(port) < 5 && err == nil {
-			return port
+
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port < 1000 || port > 65536 {
+			continue
 		}
-		return askPort()
+
+		return portStr
 	}
 }
 
@@ -685,7 +692,7 @@ func keygenCmd(c *cli.Context) error {
 	var validID = regexp.MustCompile(`:\d+$`)
 	if !validID.MatchString(addr) {
 		fmt.Println("Invalid port.")
-		addr = addr + ":" + askPort()
+		addr = addr + ":" + askPort(c)
 	}
 
 	var priv *key.Pair
