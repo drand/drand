@@ -43,7 +43,7 @@ import (
 var output io.Writer = os.Stdout
 
 // Automatically set through -ldflags
-// Example: go install -ldflags "-X main.buildDate=`date -u +%d/%m/%Y@%H:%M:%S` -X main.gitCommit=`git rev-parse HEAD`"
+// Example: go install -ldflags "-X main.buildDate=$(date -u +%d/%m/%Y@%H:%M:%S) -X main.gitCommit=$(git rev-parse HEAD)"
 var (
 	gitCommit = "none"
 	buildDate = "unknown"
