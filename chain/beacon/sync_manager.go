@@ -518,6 +518,8 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 }
 
+// Versions prior to 1.4 did not support multibeacon and thus did not have attached metadata.
+// This function resolves the `beaconId` given a `SyncRequest`
 func beaconIDToSync(logger log.Logger, req SyncRequest, addr string) string {
 	// this should only happen if the requester is on a version < 1.4
 	if req.GetMetadata() == nil {
