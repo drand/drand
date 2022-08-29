@@ -14,7 +14,7 @@ drand: build
 ####################  Lint and fmt process ##################
 
 install_lint:
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.43.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.48
 
 lint:
 	golangci-lint --version

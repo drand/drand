@@ -482,7 +482,6 @@ type GroupInfo struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Location:
-	//
 	//	*GroupInfo_Path
 	//	*GroupInfo_Url
 	Location isGroupInfo_Location `protobuf_oneof:"location"`
