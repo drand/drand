@@ -625,18 +625,18 @@ func askPort(c *cli.Context) string {
 			continue
 		}
 
-		port := strings.TrimSpace(input)
-		if port == "" {
+		portStr := strings.TrimSpace(input)
+		if portStr == "" {
 			fmt.Fprintln(output, "Default port selected")
 			return defaultPort
 		}
 
-		_, err = strconv.Atoi(port)
-		if err != nil || len(port) < 4 || len(port) > 6 {
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port < 1000 || port > 65536 {
 			continue
 		}
 
-		return port
+		return portStr
 	}
 }
 
