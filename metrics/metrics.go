@@ -436,7 +436,7 @@ func (l *lazyPeerHandler) handlerForPeer(addr string) (http.Handler, error) {
 			return nil, err
 		}
 
-		if l == nil {
+		if h == nil {
 			return nil, fmt.Errorf("metrics `Handler` could not be created for peer with addr %s", addr)
 		}
 
