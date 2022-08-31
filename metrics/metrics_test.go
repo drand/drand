@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/drand/drand/common"
 )
 
@@ -100,4 +102,15 @@ func TestBuildTimestamp(t *testing.T) {
 	if actual != expected {
 		t.Fatalf("Error converting build timestamp to number. Expected %v, actual %v", expected, actual)
 	}
+}
+
+func TestCreatingMetricHandlerWithoutHandlerDoesntPanic(t *testing.T) {
+	funcReturningNil := func(_ string) (http.Handler, error) {
+		return nil, nil
+	}
+	h := newLazyPeerHandler([]Handler{funcReturningNil})
+
+	_, err := h.handlerForPeer("127.0.0.1")
+
+	require.Error(t, err)
 }
