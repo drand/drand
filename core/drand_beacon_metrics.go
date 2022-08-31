@@ -21,7 +21,7 @@ func (bp *BeaconProcess) MetricsHandlerForPeer(addr string) (http.Handler, error
 		return nil, errors.New("the ProtocolClient implementation does not support metrics")
 	}
 
-	var err error
+	err := errors.New("empty node list, skipping metrics for now")
 
 	//nolint:gocritic
 	for _, n := range bp.group.Nodes {

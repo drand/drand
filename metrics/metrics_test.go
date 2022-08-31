@@ -3,10 +3,11 @@ package metrics
 import (
 	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/common"
 )
