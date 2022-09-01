@@ -21,10 +21,11 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
-	if bp.dkgInfo == nil {
-		return nil, errors.New("drand: no dkg running")
-	}
 	addr := net.RemoteAddress(c)
+
+	if bp.dkgInfo == nil {
+		return nil, fmt.Errorf("drand: no dkg running and yet received a DKGPacket for beacon %s from node %s", bp.beaconID, addr)
+	}
 
 	if !bp.dkgInfo.started {
 		bp.log.Infow("", "init_dkg", "START DKG",

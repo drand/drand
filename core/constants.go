@@ -33,7 +33,7 @@ const DefaultControlPort = "8888"
 // that by default, DKG uses the "fast sync" mode that shorten the first phase
 // and the second phase, "as fast as possible" when the protocol runs smoothly
 // (there is no malicious party).
-const DefaultDKGTimeout = 10 * time.Second
+const DefaultDKGTimeout = 15 * time.Second
 
 // EciesHash is the hash function used for the ECIES encryption used in the
 // private randomness feature.
