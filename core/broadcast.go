@@ -135,7 +135,7 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	}
 
 	b.l.Debugw("", "echoBroadcast",
-		"received new packet to echoBroadcast", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+		"received new packet to echoBroadcast", "from", addr, "index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
 	return new(drand.Empty), nil
