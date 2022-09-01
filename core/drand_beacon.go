@@ -358,9 +358,11 @@ func (bp *BeaconProcess) isFreshRun() bool {
 	_, errG := bp.store.LoadGroup()
 	_, errS := bp.store.LoadShare()
 
-	bp.log.Debugw("errors while loading group or share", "error group", errG, "error share", errS, "will run as fresh run", true)
+	isFresh := errG != nil || errS != nil
 
-	return errG != nil || errS != nil
+	bp.log.Debugw("errors while loading group or share", "error group", errG, "error share", errS, "will run as fresh run", isFresh)
+
+	return isFresh
 }
 
 // getChainHash return the beaconID of that beaconProcess, if set
