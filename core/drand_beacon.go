@@ -358,6 +358,8 @@ func (bp *BeaconProcess) isFreshRun() bool {
 	_, errG := bp.store.LoadGroup()
 	_, errS := bp.store.LoadShare()
 
+	bp.log.Debugw("errors while loading group or share", "error group", errG, "error share", errS, "will run as fresh run", true)
+
 	return errG != nil || errS != nil
 }
 
