@@ -801,21 +801,31 @@ func (bp *BeaconProcess) PingPong(c context.Context, in *drand.Ping) (*drand.Pon
 
 func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	replies := make(map[string]*drand.StatusResponse)
+	bp.log.Debugw("Starting remote status request", "for_nodes", in.GetAddresses())
 	for _, addr := range in.GetAddresses() {
-		if addr.Address == bp.priv.Public.Addr {
-			// no need to reach us
+		remoteAddress := addr.GetAddress()
+		if remoteAddress == "" {
+			bp.log.Warnw("Skipping empty address", "addr", addr)
 			continue
 		}
-		p := net.CreatePeer(addr.GetAddress(), addr.Tls)
+		if remoteAddress == bp.priv.Public.Addr {
+			// skipping ourself
+			continue
+		}
+		p := net.CreatePeer(remoteAddress, addr.Tls)
+		bp.log.Debugw("Sending remote status request", "for_node", remoteAddress, "has_TLS", addr.Tls)
 		resp, err := bp.privGateway.Status(c, p, &drand.StatusRequest{
 			CheckConn: in.GetAddresses(),
+			Metadata:  bp.newMetadata(),
 		})
 		if err != nil {
-			bp.log.Debug("Remote Status", addr, " FAIL", err)
+			bp.log.Errorw("Remote status request failed", "remote", addr, "error", err)
 		} else {
-			replies[addr.GetAddress()] = resp
+			replies[remoteAddress] = resp
 		}
 	}
+
+	bp.log.Debugw("Done with remote status request", "replies_length", len(replies))
 	return &drand.RemoteStatusResponse{
 		Statuses: replies,
 	}, nil
@@ -825,6 +835,8 @@ func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusR
 func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
+
+	bp.log.Debugw("Processing incoming Status request", "")
 
 	dkgStatus := drand.DkgStatus{}
 	reshareStatus := drand.ReshareStatus{}
@@ -870,27 +882,38 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	}
 
 	// remote network connectivity
+	bp.log.Debugw("Starting remote network connectivity check", "for_nodes", in.GetCheckConn())
 	resp := make(map[string]bool)
 	for _, addr := range in.GetCheckConn() {
-		if addr.GetAddress() == bp.priv.Public.Addr {
+		remoteAddress := addr.GetAddress()
+		if remoteAddress == "" {
+			bp.log.Warnw("Skipping empty address", "addr", addr)
 			continue
 		}
+		if remoteAddress == bp.priv.Public.Addr {
+			// skipping ourself
+			continue
+		}
+
 		// TODO check if TLS or not
-		p := net.CreatePeer(addr.GetAddress(), addr.GetTls())
+		p := net.CreatePeer(remoteAddress, addr.GetTls())
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
 			// Simply try to ping him see if he replies
 			tc, cancel := context.WithTimeout(c, callMaxTimeout)
 			defer cancel()
-			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{})
+			bp.log.Debugw("Sending Home request", "for_node", remoteAddress, "has_TLS", addr.Tls)
+			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{Metadata: bp.newMetadata()})
 			if err != nil {
-				bp.log.Debugw("Status asked remote", addr, " FAIL", err)
-				resp[addr.GetAddress()] = false
+				bp.log.Debugw("Status request failed", "remote", addr, "error", err)
+				resp[remoteAddress] = false
 			} else {
-				resp[addr.GetAddress()] = true
+				resp[remoteAddress] = true
 			}
 		}()
 	}
+	bp.log.Debugw("Done with connectivity check", "response_length", len(resp))
+
 	packet := &drand.StatusResponse{
 		Dkg:        &dkgStatus,
 		Reshare:    &reshareStatus,
