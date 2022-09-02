@@ -381,7 +381,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		bp.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(config, p)
 		})
-	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
+	dkgProto, err := dkg.NewProtocol(config, board, phaser, false)
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +505,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 	}
 	phaser := bp.getPhaser(timeout)
 
-	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
+	dkgProto, err := dkg.NewProtocol(config, board, phaser, false)
 	if err != nil {
 		return nil, err
 	}
