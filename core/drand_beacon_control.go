@@ -837,6 +837,7 @@ func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusR
 }
 
 // Status responds with the actual status of drand process
+//
 //nolint:funlen,gocyclo
 func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	bp.state.Lock()
