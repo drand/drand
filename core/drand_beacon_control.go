@@ -836,7 +836,7 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
-	bp.log.Debugw("Processing incoming Status request", "")
+	bp.log.Debugw("Processing incoming Status request")
 
 	dkgStatus := drand.DkgStatus{}
 	reshareStatus := drand.ReshareStatus{}
