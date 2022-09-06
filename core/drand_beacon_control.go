@@ -937,7 +937,7 @@ func (bp *BeaconProcess) getPhaser(timeout uint32) *dkg.TimePhaser {
 	logger := bp.log
 	return dkg.NewTimePhaserFunc(func(phase dkg.Phase) {
 		bp.opts.clock.Sleep(tDuration)
-		logger.Debugw("", "phaser_finished", phase)
+		logger.Debugw("phaser timeout", "phaser_finished", phase)
 	})
 }
 

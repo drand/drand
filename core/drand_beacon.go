@@ -177,10 +177,17 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	// filter the nodes that are not present in the target group
 	var qualNodes []*key.Node
 	for _, node := range bp.dkgInfo.target.Nodes {
+		found := false
 		for _, qualNode := range res.Result.QUAL {
 			if qualNode.Index == node.Index {
 				qualNodes = append(qualNodes, node)
+				found = true
+				break
 			}
+		}
+
+		if !found {
+			bp.log.Debugw("disqualified node during DKG", "node", node)
 		}
 	}
 
