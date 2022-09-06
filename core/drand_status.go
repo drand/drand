@@ -81,7 +81,7 @@ func StatusResponseToString(status *drand.StatusResponse) string {
 	fmt.Fprintf(output, "* ChainStore \n")
 	fmt.Fprintf(output, " - IsEmpty: %t \n", status.ChainStore.IsEmpty)
 	fmt.Fprintf(output, " - LastRound: %d \n", status.ChainStore.LastRound)
-	fmt.Fprintf(output, "* Beacons \n")
+	fmt.Fprintf(output, "* BeaconProcess \n")
 	fmt.Fprintf(output, " - Status: %s \n", beaconStatus)
 	fmt.Fprintf(output, " - Stopped: %t \n", status.Beacon.IsStopped)
 	fmt.Fprintf(output, " - Started: %t \n", status.Beacon.IsStarted)

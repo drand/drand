@@ -805,21 +805,26 @@ func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusR
 	for _, addr := range in.GetAddresses() {
 		remoteAddress := addr.GetAddress()
 		if remoteAddress == "" {
-			bp.log.Warnw("Skipping empty address", "addr", addr)
+			bp.log.Errorw("Received empty address during remote status", "addr", addr)
 			continue
 		}
-		if remoteAddress == bp.priv.Public.Addr {
-			// skipping ourself
-			continue
-		}
-		p := net.CreatePeer(remoteAddress, addr.Tls)
-		bp.log.Debugw("Sending remote status request", "for_node", remoteAddress, "has_TLS", addr.Tls)
-		resp, err := bp.privGateway.Status(c, p, &drand.StatusRequest{
+
+		var err error
+		var resp *drand.StatusResponse
+		statusReq := &drand.StatusRequest{
 			CheckConn: in.GetAddresses(),
 			Metadata:  bp.newMetadata(),
-		})
+		}
+		if remoteAddress == bp.priv.Public.Addr {
+			// it's ourself
+			resp, err = bp.Status(c, statusReq)
+		} else {
+			bp.log.Debugw("Sending status request", "for_node", remoteAddress, "has_TLS", addr.Tls)
+			p := net.CreatePeer(remoteAddress, addr.Tls)
+			resp, err = bp.privGateway.Status(c, p, statusReq)
+		}
 		if err != nil {
-			bp.log.Errorw("Remote status request failed", "remote", addr, "error", err)
+			bp.log.Errorw("Status request failed", "remote", addr, "error", err)
 		} else {
 			replies[remoteAddress] = resp
 		}
@@ -832,6 +837,7 @@ func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusR
 }
 
 // Status responds with the actual status of drand process
+//nolint:funlen,gocyclo
 func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
@@ -882,16 +888,25 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	}
 
 	// remote network connectivity
-	bp.log.Debugw("Starting remote network connectivity check", "for_nodes", in.GetCheckConn())
+	nodeList := in.GetCheckConn()
+	// in case of an empty list, we test all nodes in the group file
+	if len(nodeList) == 0 && bp.beacon != nil && bp.group != nil {
+		bp.log.Debugw("Empty node connectivity list, populating with group file")
+		for _, node := range bp.group.Nodes {
+			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
+		}
+	}
+
+	bp.log.Debugw("Starting remote network connectivity check", "for_nodes", nodeList)
 	resp := make(map[string]bool)
-	for _, addr := range in.GetCheckConn() {
+	for _, addr := range nodeList {
 		remoteAddress := addr.GetAddress()
 		if remoteAddress == "" {
 			bp.log.Warnw("Skipping empty address", "addr", addr)
 			continue
 		}
 		if remoteAddress == bp.priv.Public.Addr {
-			// skipping ourself
+			// skipping ourself for the connectivity test
 			continue
 		}
 

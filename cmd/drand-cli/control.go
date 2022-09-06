@@ -402,7 +402,7 @@ func remoteStatusCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	// set default value for all keys so json output something for all keys
+	// set default value for all keys so json outputs something for all keys
 	defaultMap := make(map[string]*control.StatusResponse)
 	for _, addr := range addresses {
 		if resp, ok := resp[addr.GetAddress()]; !ok {
