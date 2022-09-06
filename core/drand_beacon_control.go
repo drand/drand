@@ -895,7 +895,6 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 			continue
 		}
 
-		// TODO check if TLS or not
 		p := net.CreatePeer(remoteAddress, addr.GetTls())
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
