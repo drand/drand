@@ -801,30 +801,49 @@ func (bp *BeaconProcess) PingPong(c context.Context, in *drand.Ping) (*drand.Pon
 
 func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	replies := make(map[string]*drand.StatusResponse)
+	bp.log.Debugw("Starting remote status request", "for_nodes", in.GetAddresses())
 	for _, addr := range in.GetAddresses() {
-		if addr.Address == bp.priv.Public.Addr {
-			// no need to reach us
+		remoteAddress := addr.GetAddress()
+		if remoteAddress == "" {
+			bp.log.Errorw("Received empty address during remote status", "addr", addr)
 			continue
 		}
-		p := net.CreatePeer(addr.GetAddress(), addr.Tls)
-		resp, err := bp.privGateway.Status(c, p, &drand.StatusRequest{
+
+		var err error
+		var resp *drand.StatusResponse
+		statusReq := &drand.StatusRequest{
 			CheckConn: in.GetAddresses(),
-		})
-		if err != nil {
-			bp.log.Debug("Remote Status", addr, " FAIL", err)
+			Metadata:  bp.newMetadata(),
+		}
+		if remoteAddress == bp.priv.Public.Addr {
+			// it's ourself
+			resp, err = bp.Status(c, statusReq)
 		} else {
-			replies[addr.GetAddress()] = resp
+			bp.log.Debugw("Sending status request", "for_node", remoteAddress, "has_TLS", addr.Tls)
+			p := net.CreatePeer(remoteAddress, addr.Tls)
+			resp, err = bp.privGateway.Status(c, p, statusReq)
+		}
+		if err != nil {
+			bp.log.Errorw("Status request failed", "remote", addr, "error", err)
+		} else {
+			replies[remoteAddress] = resp
 		}
 	}
+
+	bp.log.Debugw("Done with remote status request", "replies_length", len(replies))
 	return &drand.RemoteStatusResponse{
 		Statuses: replies,
 	}, nil
 }
 
 // Status responds with the actual status of drand process
+//
+//nolint:funlen,gocyclo
 func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
+
+	bp.log.Debugw("Processing incoming Status request")
 
 	dkgStatus := drand.DkgStatus{}
 	reshareStatus := drand.ReshareStatus{}
@@ -870,27 +889,46 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	}
 
 	// remote network connectivity
+	nodeList := in.GetCheckConn()
+	// in case of an empty list, we test all nodes in the group file
+	if len(nodeList) == 0 && bp.beacon != nil && bp.group != nil {
+		bp.log.Debugw("Empty node connectivity list, populating with group file")
+		for _, node := range bp.group.Nodes {
+			nodeList = append(nodeList, &drand.Address{Address: node.Address(), Tls: node.TLS})
+		}
+	}
+
+	bp.log.Debugw("Starting remote network connectivity check", "for_nodes", nodeList)
 	resp := make(map[string]bool)
-	for _, addr := range in.GetCheckConn() {
-		if addr.GetAddress() == bp.priv.Public.Addr {
+	for _, addr := range nodeList {
+		remoteAddress := addr.GetAddress()
+		if remoteAddress == "" {
+			bp.log.Warnw("Skipping empty address", "addr", addr)
 			continue
 		}
-		// TODO check if TLS or not
-		p := net.CreatePeer(addr.GetAddress(), addr.GetTls())
+		if remoteAddress == bp.priv.Public.Addr {
+			// skipping ourself for the connectivity test
+			continue
+		}
+
+		p := net.CreatePeer(remoteAddress, addr.GetTls())
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
 			// Simply try to ping him see if he replies
 			tc, cancel := context.WithTimeout(c, callMaxTimeout)
 			defer cancel()
-			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{})
+			bp.log.Debugw("Sending Home request", "for_node", remoteAddress, "has_TLS", addr.Tls)
+			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{Metadata: bp.newMetadata()})
 			if err != nil {
-				bp.log.Debugw("Status asked remote", addr, " FAIL", err)
-				resp[addr.GetAddress()] = false
+				bp.log.Debugw("Status request failed", "remote", addr, "error", err)
+				resp[remoteAddress] = false
 			} else {
-				resp[addr.GetAddress()] = true
+				resp[remoteAddress] = true
 			}
 		}()
 	}
+	bp.log.Debugw("Done with connectivity check", "response_length", len(resp))
+
 	packet := &drand.StatusResponse{
 		Dkg:        &dkgStatus,
 		Reshare:    &reshareStatus,

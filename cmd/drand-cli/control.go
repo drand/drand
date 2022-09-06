@@ -402,8 +402,7 @@ func remoteStatusCmd(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	// set default value for all keys so json output outputs something for all
-	// keys
+	// set default value for all keys so json outputs something for all keys
 	defaultMap := make(map[string]*control.StatusResponse)
 	for _, addr := range addresses {
 		if resp, ok := resp[addr.GetAddress()]; !ok {
@@ -421,7 +420,7 @@ func remoteStatusCmd(c *cli.Context) error {
 		fmt.Fprintf(output, "%s \n", string(str))
 	} else {
 		for addr, resp := range defaultMap {
-			fmt.Fprintf(output, "Status of node %s\n", addr)
+			fmt.Fprintf(output, "Status of beacon %s on node %s\n", beaconID, addr)
 			if resp == nil {
 				fmt.Fprintf(output, "\t- NO STATUS; can't connect\n")
 			} else {
