@@ -9,7 +9,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/briandowns/spinner v1.19.0
-	github.com/drand/kyber v1.1.13
+	github.com/drand/kyber v1.1.15
 	github.com/drand/kyber-bls12381 v0.2.3
 	github.com/go-chi/chi v1.5.4
 	github.com/google/uuid v1.3.0
@@ -36,9 +36,9 @@ require (
 	github.com/weaveworks/common v0.0.0-20220810113439-c65105d60b18
 	go.etcd.io/bbolt v1.3.6
 	go.uber.org/zap v1.23.0
-	golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8
+	golang.org/x/crypto v0.0.0-20220829220503-c86fa9a7ed90
 	golang.org/x/net v0.0.0-20220822230855-b0a4917ee28c
-	golang.org/x/sys v0.0.0-20220823224334-20c2bfdbfe24
+	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f
 	google.golang.org/grpc v1.45.0
 	google.golang.org/protobuf v1.28.1
