@@ -1325,12 +1325,12 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 		var ci *drand.ChainInfoPacket
 		ci, err = privGateway.ChainInfo(ctx, peer, request)
 		if err != nil {
-			l.Debugw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
+			l.Errorw("", "start_follow_chain", "error getting chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 		info, err = chain.InfoFromProto(ci)
 		if err != nil {
-			l.Debugw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
+			l.Errorw("", "start_follow_chain", "invalid chain info", "from", peer.Address(), "err", err)
 			continue
 		}
 	}

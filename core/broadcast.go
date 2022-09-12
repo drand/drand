@@ -118,13 +118,13 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	addr := net.RemoteAddress(c)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
 	if err != nil {
-		b.l.Debugw("", "echoBroadcast", "received invalid packet", "from", addr, "err", err)
+		b.l.Errorw("", "echoBroadcast", "received invalid packet", "from", addr, "err", err)
 		return nil, errors.New("invalid packet")
 	}
 
 	hash := hash(dkgPacket.Hash())
 	if b.hashes.exists(hash) {
-		// if we already seen this one, no need to verify even because that
+		// if we've already seen this one, no need to verify even because that
 		// means we already broadcasted it
 		b.l.Debugw("", "echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
 		return new(drand.Empty), nil
@@ -310,7 +310,7 @@ func (s *sender) sendPacket(p broadcastPacket) {
 	select {
 	case s.newCh <- p:
 	default:
-		s.l.Debugw("", "echoBroadcast", "sender queue full", "endpoint", s.to.Address())
+		s.l.Errorw("sender queue full", "endpoint", s.to.Address())
 	}
 }
 
@@ -323,9 +323,9 @@ func (s *sender) run() {
 func (s *sender) sendDirect(newPacket broadcastPacket) {
 	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
 	if err != nil {
-		s.l.Debugw("", "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
+		s.l.Errorw("error while sending out", "to", s.to.Address(), "err:", err)
 	} else {
-		s.l.Debugw("", "echoBroadcast", "sending out", "to", s.to.Address())
+		s.l.Debugw("sending out", "to", s.to.Address())
 	}
 }
 
