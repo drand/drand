@@ -24,6 +24,9 @@
 - name: monitoring
   color: 0E8A16
   description: "Area: Monitoring"
+- name: crypto
+  color: 001337
+  description: "Area: Cryptography"
 
 ###
 ### Kinds
