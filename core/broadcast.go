@@ -22,7 +22,7 @@ import (
 // implement the broadcasting mechanism.
 type Broadcast interface {
 	dkg.Board
-	BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error)
+	BroadcastDKG(c context.Context, p *drand.DKGPacket) error
 	Stop()
 }
 
@@ -111,7 +111,7 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.sendout(h, bundle, true)
 }
 
-func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
+func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
 	b.Lock()
 	defer b.Unlock()
 
@@ -119,25 +119,25 @@ func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
 	if err != nil {
 		b.l.Errorw("received invalid packet DKGPacket", "from", addr, "err", err)
-		return nil, errors.New("invalid packet")
+		return errors.New("invalid DKGPacket")
 	}
 
 	hash := hash(dkgPacket.Hash())
 	if b.hashes.exists(hash) {
 		// if we've already seen this one, no need to verify even because that
 		// means we already broadcasted it
-		b.l.Debugw("ignoring duplicate packet", "from", addr, "packet index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
-		return new(drand.Empty), nil
+		b.l.Debugw("ignoring duplicate packet", "index", dkgPacket.Index(), "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+		return nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
-		b.l.Debugw("received invalid signature", "from", addr)
-		return nil, errors.New("invalid packet")
+		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "err", err)
+		return errors.New("invalid DKGPacket")
 	}
 
 	b.l.Debugw("received new packet to echoBroadcast", "from", addr, "packet index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
-	return new(drand.Empty), nil
+	return nil
 }
 
 func (b *echoBroadcast) passToApplication(p packet) {

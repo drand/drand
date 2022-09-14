@@ -33,7 +33,7 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 		bp.dkgInfo.started = true
 		go bp.dkgInfo.phaser.Start()
 	}
-	if _, err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {
+	if err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {
 		return nil, err
 	}
 
