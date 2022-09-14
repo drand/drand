@@ -749,7 +749,7 @@ func groupOut(c *cli.Context, group *key.Group) error {
 			return fmt.Errorf("drand: can't encode group to TOML: %w", err)
 		}
 		buff.WriteString("\n")
-		fmt.Fprintf(output, "Copy the following snippet into a new group.toml file\n")
+		fmt.Fprintf(output, "The following group.toml file has been created\n")
 		fmt.Fprint(output, buff.String())
 		fmt.Fprintf(output, "\nHash of the group configuration: %x\n", group.Hash())
 	}
