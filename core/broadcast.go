@@ -22,7 +22,7 @@ import (
 // implement the broadcasting mechanism.
 type Broadcast interface {
 	dkg.Board
-	BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error)
+	BroadcastDKG(c context.Context, p *drand.DKGPacket) error
 	Stop()
 }
 
@@ -72,7 +72,7 @@ type verifier func(packet) error
 func newEchoBroadcast(l log.Logger, version commonutils.Version, beaconID string,
 	c net.ProtocolClient, own string, to []*key.Node, v verifier) *echoBroadcast {
 	return &echoBroadcast{
-		l:          l,
+		l:          l.Named("echoBroadcast"),
 		version:    version,
 		beaconID:   beaconID,
 		dispatcher: newDispatcher(l, c, to, own),
@@ -89,7 +89,7 @@ func (b *echoBroadcast) PushDeals(bundle *dkg.DealBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "echoBroadcast", "push", "deal", fmt.Sprintf("%x", h[:5]))
+	b.l.Infow("push broadcast", "deal", fmt.Sprintf("%x", h[:5]))
 	b.sendout(h, bundle, true)
 }
 
@@ -98,7 +98,7 @@ func (b *echoBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "echoBroadcast", "push", "response", bundle.String())
+	b.l.Debugw("push", "response", bundle.String())
 	b.sendout(h, bundle, true)
 }
 
@@ -107,38 +107,37 @@ func (b *echoBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.Lock()
 	defer b.Unlock()
 	h := hash(bundle.Hash())
-	b.l.Debugw("", "echoBroadcast", "push", "justification", fmt.Sprintf("%x", h[:5]))
+	b.l.Debugw("push", "justification", fmt.Sprintf("%x", h[:5]))
 	b.sendout(h, bundle, true)
 }
 
-func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
+func (b *echoBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
 	b.Lock()
 	defer b.Unlock()
 
 	addr := net.RemoteAddress(c)
 	dkgPacket, err := protoToDKGPacket(p.GetDkg())
 	if err != nil {
-		b.l.Debugw("", "echoBroadcast", "received invalid packet", "from", addr, "err", err)
-		return nil, errors.New("invalid packet")
+		b.l.Errorw("received invalid packet DKGPacket", "from", addr, "err", err)
+		return errors.New("invalid DKGPacket")
 	}
 
 	hash := hash(dkgPacket.Hash())
 	if b.hashes.exists(hash) {
-		// if we already seen this one, no need to verify even because that
+		// if we've already seen this one, no need to verify even because that
 		// means we already broadcasted it
-		b.l.Debugw("", "echoBroadcast", "ignoring duplicate packet", "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
-		return new(drand.Empty), nil
+		b.l.Debugw("ignoring duplicate packet", "index", dkgPacket.Index(), "from", addr, "type", fmt.Sprintf("%T", dkgPacket))
+		return nil
 	}
 	if err := b.verif(dkgPacket); err != nil {
-		b.l.Debugw("", "echoBroadcast", "received invalid signature", "from", addr)
-		return nil, errors.New("invalid packet")
+		b.l.Errorw("received invalid signature", "from", addr, "signature", dkgPacket.Sig(), "err", err)
+		return errors.New("invalid DKGPacket")
 	}
 
-	b.l.Debugw("", "echoBroadcast",
-		"received new packet to echoBroadcast", "from", addr, "index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
+	b.l.Debugw("received new packet to echoBroadcast", "from", addr, "packet index", dkgPacket.Index(), "type", fmt.Sprintf("%T", dkgPacket))
 	b.sendout(hash, dkgPacket, false) // we're using the rate limiting
 	b.passToApplication(dkgPacket)
-	return new(drand.Empty), nil
+	return nil
 }
 
 func (b *echoBroadcast) passToApplication(p packet) {
@@ -150,18 +149,18 @@ func (b *echoBroadcast) passToApplication(p packet) {
 	case *dkg.JustificationBundle:
 		b.justCh <- *pp
 	default:
-		b.l.Errorw("", "echoBroadcast", "application channel full")
+		b.l.Errorw("application channel full")
 	}
 }
 
 // sendout converts the packet to protobuf and pass the packet to the dispatcher
-// so it is broadcasted out out to all nodes. sendout requires the echoBroadcast
+// so it is broadcasted out to all nodes. sendout requires the echoBroadcast
 // lock. If bypass is true, the message is directly sent to the peers, bypassing
 // the rate limiting in place.
 func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	dkgproto, err := dkgPacketToProto(p)
 	if err != nil {
-		b.l.Errorw("", "echoBroadcast", "can't send packet", "err", err)
+		b.l.Errorw("can't send packet", "err", err)
 		return
 	}
 	// we register we saw that packet and we broadcast it
@@ -175,7 +174,7 @@ func (b *echoBroadcast) sendout(h []byte, p packet, bypass bool) {
 	if bypass {
 		// in a routine cause we don't want to block the processing of the DKG
 		// as well - that's ok since we are only expecting to send 3 packets out
-		// at the very least.
+		// at most.
 		go b.dispatcher.broadcastDirect(proto)
 	} else {
 		b.dispatcher.broadcast(proto)
@@ -310,7 +309,7 @@ func (s *sender) sendPacket(p broadcastPacket) {
 	select {
 	case s.newCh <- p:
 	default:
-		s.l.Debugw("", "echoBroadcast", "sender queue full", "endpoint", s.to.Address())
+		s.l.Errorw("sender queue full", "endpoint", s.to.Address())
 	}
 }
 
@@ -323,9 +322,9 @@ func (s *sender) run() {
 func (s *sender) sendDirect(newPacket broadcastPacket) {
 	err := s.client.BroadcastDKG(context.Background(), s.to, newPacket)
 	if err != nil {
-		s.l.Debugw("", "echoBroadcast", "sending out", "error to", s.to.Address(), "err:", err)
+		s.l.Errorw("error while sending out", "to", s.to.Address(), "err:", err)
 	} else {
-		s.l.Debugw("", "echoBroadcast", "sending out", "to", s.to.Address())
+		s.l.Debugw("sending out", "to", s.to.Address())
 	}
 }
 

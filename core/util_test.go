@@ -894,10 +894,10 @@ func (b *testBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
 	b.outgoing <- bundle
 }
 
-func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
-	ret, err := b.echoBroadcast.BroadcastDKG(c, p)
+func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
+	err := b.echoBroadcast.BroadcastDKG(c, p)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	dkgPacket, _ := protoToDKGPacket(p.GetDkg())
@@ -907,7 +907,7 @@ func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*dr
 		b.incoming <- dkgPacket
 	}
 	defer b.Unlock()
-	return ret, nil
+	return nil
 }
 
 func (n *MockNode) GetAddr() string {

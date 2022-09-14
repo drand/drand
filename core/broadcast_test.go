@@ -40,13 +40,13 @@ func withCallback(id string, b *echoBroadcast, cb callback) Broadcast {
 	}
 }
 
-func (cb *callbackBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) (*drand.Empty, error) {
-	r, err := cb.echoBroadcast.BroadcastDKG(c, p)
+func (cb *callbackBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
+	err := cb.echoBroadcast.BroadcastDKG(c, p)
 	if err != nil {
-		return r, err
+		return err
 	}
 	cb.cb(&packInfo{id: cb.id, self: cb.echoBroadcast, p: p})
-	return r, err
+	return err
 }
 
 func TestBroadcastSet(t *testing.T) {
@@ -119,7 +119,7 @@ func TestBroadcast(t *testing.T) {
 
 	// try again to broadcast but it shouldn't actually do it because the first
 	// node (the one we ask to send first) already has the hash registered.
-	_, err := broads[0].BroadcastDKG(context.Background(), dealPacket)
+	err := broads[0].BroadcastDKG(context.Background(), dealPacket)
 	require.NoError(t, err)
 	checkEmpty(t, incPackets)
 	require.Len(t, broads[0].dealCh, 0)
@@ -154,7 +154,7 @@ func sendNewDeal(t *testing.T, b *echoBroadcast) (packet *drand.DKGPacket, hash 
 	packet = &drand.DKGPacket{
 		Dkg: dealProto,
 	}
-	_, err = b.BroadcastDKG(context.Background(), packet)
+	err = b.BroadcastDKG(context.Background(), packet)
 	require.NoError(t, err)
 	hash = deal.Hash()
 	return

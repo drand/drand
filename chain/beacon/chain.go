@@ -159,11 +159,11 @@ func (c *chainStore) runAggregator() {
 
 			finalSig, err := key.Scheme.Recover(c.crypto.GetPub(), msg, roundCache.Partials(), thr, n)
 			if err != nil {
-				c.l.Debugw("", "invalid_recovery", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
+				c.l.Errorw("invalid_recovery", "error", err, "round", pRound, "got", fmt.Sprintf("%d/%d", roundCache.Len(), n))
 				break
 			}
 			if err := key.Scheme.VerifyRecovered(c.crypto.GetPub().Commit(), msg, finalSig); err != nil {
-				c.l.Errorw("", "invalid_sig", err, "round", pRound)
+				c.l.Errorw("invalid_sig", "error", err, "round", pRound)
 				break
 			}
 			cache.FlushRounds(partial.p.GetRound())

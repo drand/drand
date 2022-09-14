@@ -172,22 +172,24 @@ func (s *setupManager) ReceivedKey(addr string, p *drand.SignalDKGPacket) error 
 	s.Lock()
 	defer s.Unlock()
 	if !correctSecret(s.hashedSecret, p.GetSecretProof()) {
+		s.l.Errorw("SignalDKGPacket received with invalid shared secret", "from_addr", addr, "packet_addr", p.GetNode().GetAddress())
 		return errors.New("shared secret is incorrect")
 	}
 	if s.isResharing {
-		if !bytes.Equal(s.oldHash, p.GetPreviousGroupHash()) {
+		if pOldHash := p.GetPreviousGroupHash(); !bytes.Equal(s.oldHash, pOldHash) {
+			s.l.Errorw("inconsistent previous group hash", "oldHash", s.oldHash, "packet_oldHash", pOldHash)
 			return errors.New("inconsistent previous group hash")
 		}
 	}
 
 	newID, err := key.IdentityFromProto(p.GetNode())
 	if err != nil {
-		s.l.Infow("", "setup", "error_decoding", "id", addr, "err", err)
+		s.l.Errorw("error decoding in ReceivedKey", "id", addr, "err", err)
 		return fmt.Errorf("invalid id: %w", err)
 	}
 
 	if err := newID.ValidSignature(); err != nil {
-		s.l.Infow("", "setup", "invalid_sig", "id", addr, "err", err)
+		s.l.Errorw("invalid identity signature in ReceivedKey", "id", addr, "err", err)
 		return fmt.Errorf("invalid sig: %w", err)
 	}
 

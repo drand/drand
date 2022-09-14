@@ -33,7 +33,7 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 		bp.dkgInfo.started = true
 		go bp.dkgInfo.phaser.Start()
 	}
-	if _, err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {
+	if err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {
 		return nil, err
 	}
 
@@ -189,13 +189,15 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 	bp.state.Lock()
 	defer bp.state.Unlock()
 	if bp.manager == nil {
-		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.Metadata.BeaconID)
+		bp.log.Errorw("Unable to process incoming SignalDKGPacket, no DKG in progress", "target beacon", p.GetMetadata().GetBeaconID())
+		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.GetMetadata().GetBeaconID())
 	}
 
 	addr := net.RemoteAddress(ctx)
 	// manager will verify if information are correct
 	err := bp.manager.ReceivedKey(addr, p)
 	if err != nil {
+		bp.log.Errorw("Unable to process incoming SignalDKGPacket", "error", err)
 		return nil, err
 	}
 

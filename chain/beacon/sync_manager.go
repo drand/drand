@@ -355,7 +355,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 	beaconCh, err := s.client.SyncChain(cnode, peer, req)
 	if err != nil {
-		logger.Debugw("unable_to_sync", "with_peer", peer.Address(), "err", err)
+		logger.Errorw("unable_to_sync", "with_peer", peer.Address(), "err", err)
 		return false
 	}
 
