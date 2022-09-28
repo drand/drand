@@ -518,7 +518,7 @@ func TestRunDKGResharePreempt(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Log("Init reshare on leader")
-		_, err = client.InitReshareLeader(newN, Thr, timeout, 0, "unused secret", "", testBeaconOffset, beaconID)
+		_, err = client.InitReshareLeader(newN, Thr, timeout, 0, "unused secret", "", testBeaconOffset, beaconID, 1)
 
 		// Done resharing
 		if err == nil {

@@ -167,6 +167,9 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
+	status, err := bp.dkg.Status(beaconID)
+	dd.log.Infow(fmt.Sprintf("Beacon %s started with DKG status %s", beaconID, status))
+
 	// Todo: investigate if this is ever true at this point
 	if bp.dkgDone {
 		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
@@ -256,6 +259,8 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 		if err != nil {
 			return err
 		}
+		status, err := bp.dkg.Status(beaconID)
+		dd.log.Infow(fmt.Sprintf("Beacon %s started with DKG status %s", beaconID, status))
 
 		if metricsFlag != "" {
 			bp.log.Infow("", "metrics", "adding handler")
@@ -279,7 +284,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, erro
 func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
-		dd.log.Error("beacon id", beaconID, "can't instantiate randomness beacon. err:", err)
+		dd.log.Error("beacon id ", beaconID, " can't instantiate randomness beacon. err:", err)
 		return nil, err
 	}
 

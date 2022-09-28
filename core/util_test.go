@@ -558,7 +558,7 @@ func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force 
 	require.NoError(d.t, err)
 
 	d.t.Logf("[reshare:node] init reshare")
-	_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force, d.beaconID)
+	_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force, d.beaconID, 1)
 	if err != nil {
 		d.t.Log("[reshare:node] error in NON LEADER: ", err)
 		errCh <- err
@@ -586,7 +586,7 @@ func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan e
 	d.Lock()
 	nn, nt := d.newN, d.newThr
 	d.Unlock()
-	finalGroup, err := client.InitReshareLeader(nn, nt, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
+	finalGroup, err := client.InitReshareLeader(nn, nt, timeout, 0, secret, "", testBeaconOffset, d.beaconID, 1)
 	if err != nil {
 		d.t.Log("[reshare:leader] error: ", err)
 		errCh <- err

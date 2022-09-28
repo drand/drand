@@ -161,6 +161,11 @@ var forceFlag = &cli.BoolFlag{
 	Usage:   "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
 }
 
+var epochFlag = &cli.IntFlag{
+	Name:  "epoch",
+	Usage: "Set this when starting a DKG as a leader to ensure that you're at the correct DKG epoch!",
+}
+
 // secret flag is the "manual" security when the "leader"/coordinator creates the
 // group: every participant must know this secret. It is not a consensus, not
 // perfect, but since all members are known after the protocol, and members can
@@ -327,7 +332,7 @@ var appCommands = []*cli.Command{
 			timeoutFlag, sourceFlag, userEntropyOnlyFlag, secretFlag,
 			periodFlag, shareNodeFlag, thresholdFlag, connectFlag, outFlag,
 			leaderFlag, beaconOffset, transitionFlag, forceFlag, catchupPeriodFlag,
-			schemeFlag, beaconIDFlag),
+			schemeFlag, beaconIDFlag, epochFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return shareCmd(c)

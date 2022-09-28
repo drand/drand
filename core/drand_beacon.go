@@ -42,6 +42,7 @@ type BeaconProcess struct {
 	// dkg private share. can be nil if dkg not finished yet.
 	share   *key.Share
 	dkgDone bool
+	dkg     *DKGLifecycle
 
 	// version indicates the base code variant
 	version commonutils.Version
@@ -62,12 +63,12 @@ type BeaconProcess struct {
 
 	// that cancel function is set when the drand process is following a chain
 	// but not participating. Drand calls the cancel func when the node
-	// participates to a resharing.
+	// participates in a resharing.
 	syncerCancel context.CancelFunc
 
 	// only used for testing currently
 	// XXX need boundaries between gRPC and control plane such that we can give
-	// a list of paramteres at each DKG (inluding this callback)
+	// a list of parameters at each DKG (including this callback)
 	setupCB func(*key.Group)
 
 	// only used for testing at the moment - may be useful later
@@ -85,6 +86,11 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 		return nil, fmt.Errorf("INVALID SELF SIGNATURE %w. Action: run `drand util self-sign`", err)
 	}
 
+	dkgStore, err := NewDKGStore(opts.configFolder, beaconID, opts.boltOpts)
+	if err != nil {
+		return nil, err
+	}
+
 	bp := &BeaconProcess{
 		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
 		store:       store,
@@ -94,6 +100,7 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 		opts:        opts,
 		privGateway: privGateway,
 		pubGateway:  pubGateway,
+		dkg:         NewDKGLifecycle(log, &dkgStore),
 		exitCh:      make(chan bool, 1),
 	}
 	return bp, nil
@@ -156,9 +163,6 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	}
 
 	beaconID := bp.getBeaconID()
-	defer func() {
-		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-	}()
 
 	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 
@@ -215,6 +219,8 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	bp.opts.applyDkgCallback(bp.share, bp.group)
 	bp.dkgInfo.board.Stop()
 	bp.dkgInfo = nil
+
+	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 	return bp.group, nil
 }
 

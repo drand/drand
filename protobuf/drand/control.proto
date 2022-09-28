@@ -86,12 +86,13 @@ message SetupInfoPacket {
     // is set to be sufficiently large such that with high confidence all nodes
     // received the group file by then.
     uint32 dkg_offset = 8;
-    // the secret used to authentify group members
+    // the secret used to authenticate group members
     bytes secret = 9;
     // indicating to the node that this (re)share operation should be started
     // even if there is already one in progress.
     bool force = 10;
-    common.Metadata metadata = 11;
+    uint32 epoch = 11;
+    common.Metadata metadata = 12;
 }
 
 message InitDKGPacket {
@@ -133,7 +134,8 @@ message InitResharePacket {
     // the minimum beacon period when in catchup.
     bool catchup_period_changed = 3;
     uint32 catchup_period = 4;
-    common.Metadata metadata = 5;
+    uint32 epoch = 5;
+    common.Metadata metadata = 6;
 }
 
 // GroupInfo holds the information to load a group information such as the nodes

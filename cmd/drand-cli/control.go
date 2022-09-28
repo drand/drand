@@ -105,6 +105,9 @@ func shareCmd(c *cli.Context) error {
 	}
 
 	if c.IsSet(transitionFlag.Name) || c.IsSet(oldGroupFlag.Name) {
+		if !c.IsSet(epochFlag.Name) {
+			return errors.New("you must set the epoch flag for transitions")
+		}
 		return reshareCmd(c)
 	}
 
@@ -291,9 +294,11 @@ func reshareCmd(c *cli.Context) error {
 		beaconID = common.GetCanonicalBeaconID(oldGroup.ID)
 	}
 
-	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s] \n", beaconID)
+	epoch := uint32(c.Int(epochFlag.Name))
 
-	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath, args.force, beaconID)
+	fmt.Fprintf(output, "Participating to the resharing. Beacon ID: [%s]. Epoch [%d] \n", beaconID, epoch)
+
+	groupP, shareErr := ctrlClient.InitReshare(connectPeer, args.secret, oldPath, args.force, beaconID, epoch)
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)
 	}
@@ -357,10 +362,11 @@ func leadReshareCmd(c *cli.Context) error {
 			return fmt.Errorf("catchup period given is invalid: %w", err)
 		}
 	}
+	epoch := uint32(c.Int(epochFlag.Name))
 
-	fmt.Fprintf(output, "Initiating the resharing as a leader. Beacon ID: [%s] \n", beaconID)
+	fmt.Fprintf(output, "Initiating the resharing as a leader. Beacon ID: [%s]. Epoch: [%d] \n", beaconID, epoch)
 	groupP, shareErr := ctrlClient.InitReshareLeader(nodes, args.threshold, args.timeout,
-		catchupPeriod, args.secret, oldPath, offset, beaconID)
+		catchupPeriod, args.secret, oldPath, offset, beaconID, epoch)
 
 	if shareErr != nil {
 		return fmt.Errorf("error setting up the network: %w", shareErr)

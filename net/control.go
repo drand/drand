@@ -152,7 +152,8 @@ func (c *ControlClient) InitReshareLeader(
 	timeout, catchupPeriod time.Duration,
 	secret, oldPath string,
 	offset int,
-	beaconID string) (*control.GroupPacket, error) {
+	beaconID string,
+	epoch uint32) (*control.GroupPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitResharePacket{
@@ -170,6 +171,7 @@ func (c *ControlClient) InitReshareLeader(
 		},
 		CatchupPeriodChanged: catchupPeriod >= 0,
 		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
+		Epoch:                epoch,
 		Metadata:             &metadata,
 	}
 
@@ -177,7 +179,7 @@ func (c *ControlClient) InitReshareLeader(
 }
 
 // InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string) (*control.GroupPacket, error) {
+func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string, epoch uint32) (*control.GroupPacket, error) {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 
 	request := &control.InitResharePacket{
@@ -192,6 +194,7 @@ func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force b
 			Force:         force,
 			Metadata:      &metadata,
 		},
+		Epoch:    epoch,
 		Metadata: &metadata,
 	}
 

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
@@ -31,6 +32,19 @@ func (bp *BeaconProcess) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*
 		bp.log.Infow("", "init_dkg", "START DKG",
 			"signal from leader", addr, "group", hex.EncodeToString(bp.dkgInfo.target.Hash()))
 		bp.dkgInfo.started = true
+
+		latest, err := bp.dkg.store.Latest(bp.beaconID)
+		if err != nil {
+			return nil, err
+		}
+		if latest == nil {
+			return nil, fmt.Errorf("received DKG broadcast request for a DKG that hasn't started. beaconID [%s]", bp.beaconID)
+		}
+
+		err = bp.dkg.Ready(bp.beaconID, latest.Epoch, bp.group, bp.dkgInfo.target)
+		if err != nil {
+			return nil, err
+		}
 		go bp.dkgInfo.phaser.Start()
 	}
 	if err := bp.dkgInfo.board.BroadcastDKG(c, in); err != nil {
@@ -189,8 +203,29 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 	bp.state.Lock()
 	defer bp.state.Unlock()
 	if bp.manager == nil {
-		bp.log.Errorw("Unable to process incoming SignalDKGPacket, no DKG in progress", "target beacon", p.GetMetadata().GetBeaconID())
-		return nil, fmt.Errorf("no DKG in progress for beaconID %s", p.GetMetadata().GetBeaconID())
+		status, err := bp.dkg.Status(bp.beaconID)
+		if err != nil {
+			return nil, fmt.Errorf("could not get current DKG status for beacon %s: %s", p.Metadata.BeaconID, err)
+		}
+		if status != InProgress {
+			return nil, fmt.Errorf("\"Unable to process incoming SignalDKGPacket, no DKG in progress for beacon %s", p.Metadata.BeaconID)
+		}
+		newManager, err := newDKGSetup(&setupConfig{
+			l:             bp.log,
+			c:             bp.opts.clock,
+			leaderKey:     bp.priv.Public,
+			beaconPeriod:  uint32(1 * time.Second),
+			catchupPeriod: uint32(bp.group.CatchupPeriod),
+			beaconID:      bp.beaconID,
+			schemeID:      bp.group.Scheme.ID,
+			info:          nil,
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		bp.manager = newManager
 	}
 
 	addr := net.RemoteAddress(ctx)

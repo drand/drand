@@ -229,10 +229,10 @@ func (l *LocalNode) RunReshare(nodes, thr int, oldGroup string, timeout string, 
 	var grp *drand.GroupPacket
 	var err error
 	if leader {
-		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset, l.beaconID)
+		grp, err = cl.InitReshareLeader(nodes, thr, t, 0, secretReshare, oldGroup, beaconOffset, l.beaconID, 1)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
-		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false, l.beaconID)
+		grp, err = cl.InitReshare(leader, secretReshare, oldGroup, false, l.beaconID, 1)
 	}
 	if err != nil {
 		l.log.Errorw("", "drand", "reshare failed", "err", err)
