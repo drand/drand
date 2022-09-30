@@ -89,6 +89,7 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
+//nolint:funlen
 func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
@@ -138,6 +139,13 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		}
 	}
 
+	logLevel := log.LogInfo
+	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
+	if isDebug && debugEnv == "DEBUG" {
+		t.Log("Enabling LogDebug logs")
+		logLevel = log.LogDebug
+	}
+
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
 
@@ -156,7 +164,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
-			WithLogLevel(log.LogInfo, false))
+			WithLogLevel(logLevel, false))
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 
@@ -471,7 +479,7 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 // SetupNewNodes creates new additional nodes that can participate during the resharing
 func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNode {
 	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID,
-		WithCallOption(grpc.WaitForReady(false)), WithLogLevel(log.LogInfo, false))
+		WithCallOption(grpc.WaitForReady(false)))
 	d.newCertPaths = newCertPaths
 	d.newDir = newDir
 	d.newNodes = make([]*MockNode, newNodes)
