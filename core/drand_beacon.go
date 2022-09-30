@@ -163,7 +163,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
 
 	waitCh := bp.dkgInfo.proto.WaitEnd()
-	bp.log.Debugw("", "waiting_dkg_end", time.Now())
+	bp.log.Infow("", "waiting_dkg_end", time.Now())
 
 	bp.state.Unlock()
 
@@ -187,7 +187,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 		}
 
 		if !found {
-			bp.log.Debugw("disqualified node during DKG", "node", node)
+			bp.log.Infow("disqualified node during DKG", "node", node)
 		}
 	}
 
@@ -208,7 +208,7 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 	for _, node := range qualNodes {
 		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
 	}
-	bp.log.Debugw("", "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
+	bp.log.Infow("", "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
 	if err := bp.store.SaveGroup(bp.group); err != nil {
 		return nil, err
 	}
@@ -367,7 +367,7 @@ func (bp *BeaconProcess) isFreshRun() bool {
 
 	isFresh := errG != nil || errS != nil
 
-	bp.log.Debugw("errors while loading group or share", "error group", errG, "error share", errS, "will run as fresh run", isFresh)
+	bp.log.Warnw("errors while loading group or share", "error group", errG, "error share", errS, "will run as fresh run", isFresh)
 
 	return isFresh
 }
