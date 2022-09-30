@@ -255,11 +255,11 @@ var (
 func bindMetrics() {
 	// The private go-level metrics live in private.
 	if err := PrivateMetrics.Register(collectors.NewGoCollector()); err != nil {
-		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 		return
 	}
 	if err := PrivateMetrics.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
-		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 		return
 	}
 
@@ -285,11 +285,11 @@ func bindMetrics() {
 	}
 	for _, c := range group {
 		if err := GroupMetrics.Register(c); err != nil {
-			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 		if err := PrivateMetrics.Register(c); err != nil {
-			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 	}
@@ -302,22 +302,22 @@ func bindMetrics() {
 	}
 	for _, c := range httpMetrics {
 		if err := HTTPMetrics.Register(c); err != nil {
-			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 		if err := PrivateMetrics.Register(c); err != nil {
-			log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+			log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 			return
 		}
 	}
 
 	// Client metrics
 	if err := RegisterClientMetrics(ClientMetrics); err != nil {
-		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 		return
 	}
 	if err := RegisterClientMetrics(PrivateMetrics); err != nil {
-		log.DefaultLogger().Debugw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
+		log.DefaultLogger().Errorw("error in bindMetrics", "metrics", "bindMetrics", "err", err)
 		return
 	}
 }

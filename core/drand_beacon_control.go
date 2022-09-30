@@ -344,13 +344,13 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 			for _, k := range group.Nodes {
 				addr = append(addr, k.Address())
 			}
-			bp.log.Debugw("", "init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
+			bp.log.Infow("", "init_dkg", "setup_phase", "keys_received", "["+strings.Join(addr, "-")+"]")
 		} else {
 			bp.log.Debugw("", "init_dkg", "pre-empted")
 			return nil, errPreempted
 		}
 	case <-time.After(MaxWaitPrepareDKG):
-		bp.log.Debugw("", "init_dkg", "time_out")
+		bp.log.Infow("", "init_dkg", "time_out")
 		manager.StopPreemptively()
 		return nil, errors.New("time outs: no key received")
 	}

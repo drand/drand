@@ -241,7 +241,7 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
 		return
 	}
-	h.l.Debugw("", "transition", "new_group", "at_round", tRound)
+	h.l.Infow("", "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one
 	targetRound := tRound - 1
