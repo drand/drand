@@ -854,7 +854,8 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	switch {
 	case bp.dkgDone:
 		dkgStatus.Status = uint32(DkgReady)
-	case !bp.dkgDone && bp.receiver != nil:
+		// either the leader or a non leader node
+	case !bp.dkgDone && (bp.receiver != nil || bp.manager != nil):
 		dkgStatus.Status = uint32(DkgInProgress)
 	default:
 		dkgStatus.Status = uint32(DkgNotStarted)
@@ -862,7 +863,8 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 
 	// Reshare status
 	reshareStatus.Status = uint32(ReshareNotInProgress)
-	if bp.dkgDone && bp.receiver != nil {
+	// either the leader or a non leader node
+	if bp.dkgDone && (bp.receiver != nil || bp.manager != nil) {
 		reshareStatus.Status = uint32(ReshareInProgress)
 	}
 
