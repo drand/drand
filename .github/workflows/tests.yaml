@@ -29,6 +29,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - name: Build
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: |
           export PATH=$PATH:$(go env GOPATH)/bin
           make drand
@@ -54,8 +56,12 @@ jobs:
             ${{ runner.os }}-go-
       - run: go get -v -t -d ./...
       - name: Unit tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: make test-unit
       - name: Integration tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: make test-integration
 
   test_unchained:
@@ -77,8 +83,12 @@ jobs:
             ${{ runner.os }}-go-
       - run: go get -v -t -d ./...
       - name: Unit tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: SCHEME_ID=pedersen-bls-unchained make test-unit
       - name: Integration tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: SCHEME_ID=pedersen-bls-unchained make test-integration
 
   coverage:
@@ -99,4 +109,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
       - run: make coverage
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
       - run: bash <(curl -s https://codecov.io/bash)
