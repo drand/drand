@@ -29,8 +29,7 @@ After editing all files required by your change:
 - Run all tests using `make test`. This will run both unit and integration tests.
 - Check your code coverage using `make coverage`.
 - Check that all code still compiles using `make build_all`.
-- Test operations still work using ....
-  - Note: Canceling the `test/local.sh` does not correctly shutdown the instances at the moment.
+- Test operations still work using the `test/local.sh` script. You can terminate it using the CTRL+C/SIGINT and will clean all spawned processes.
 
 ## Open issues
 
