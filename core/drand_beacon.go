@@ -305,13 +305,20 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createBoltStore() (*boltdb.BoltStore, error) {
-	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
+func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
+	switch bp.opts.dbStorageEngine {
+	case chain.BoltDB:
+		dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 
-	dbPath := bp.opts.DBFolder(dbName)
-	fs.CreateSecureFolder(dbPath)
+		dbPath := bp.opts.DBFolder(dbName)
+		fs.CreateSecureFolder(dbPath)
 
-	return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+	case chain.PostgresSQL:
+		return nil, fmt.Errorf("atabase storage engine type %s not implemented yet", bp.opts.dbStorageEngine)
+	default:
+		return nil, fmt.Errorf("unknown database storage engine type %s", bp.opts.dbStorageEngine)
+	}
 }
 
 func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
@@ -331,7 +338,7 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		Clock:  bp.opts.clock,
 	}
 
-	store, err := bp.createBoltStore()
+	store, err := bp.createDBStore()
 	if err != nil {
 		return nil, err
 	}

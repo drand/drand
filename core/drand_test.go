@@ -916,7 +916,7 @@ func TestDrandFollowChain(t *testing.T) {
 		cancel()
 
 		// check if the beacon is in the database
-		store, err := newNode.drand.createBoltStore()
+		store, err := newNode.drand.createDBStore()
 		require.NoError(t, err)
 		defer store.Close(ctx)
 
@@ -999,7 +999,7 @@ func TestDrandCheckChain(t *testing.T) {
 	dt.StopMockNode(dt.nodes[0].addr, false)
 
 	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
-	store, err := dt.nodes[0].drand.createBoltStore()
+	store, err := dt.nodes[0].drand.createDBStore()
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
