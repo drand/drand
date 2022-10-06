@@ -31,6 +31,10 @@ After editing all files required by your change:
 - Check that all code still compiles using `make build_all`.
 - Test operations still work using the `test/local.sh` script. You can terminate it using the CTRL+C/SIGINT and will clean all spawned processes.
 
+### Testing with Docker Compose
+
+To test changes using Docker Compose, navigate to [Docker Readme](test/docker/README.md) and follow the steps described there.
+
 ## Open issues
 
 This is a list of a few known issues with the current codebase:
