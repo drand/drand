@@ -20,6 +20,7 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/chain"
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/chain/boltdb"
@@ -1043,6 +1044,16 @@ func contextToConfig(c *cli.Context) *core.Config {
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
+
+	switch c.String("db-storage") {
+	case "bolt":
+		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+	case "postgres":
+		opts = append(opts, core.WithDBStorageEngine(chain.PostgresSQL))
+	default:
+		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+	}
+
 	conf := core.NewConfig(opts...)
 	return conf
 }

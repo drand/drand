@@ -25,6 +25,7 @@ type Config struct {
 	privateListenAddr string
 	publicListenAddr  string
 	controlPort       string
+	dbStorageEngine   chain.StorageType
 	insecure          bool
 	dkgTimeout        time.Duration
 	grpcOpts          []grpc.DialOption
@@ -45,7 +46,7 @@ func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
 		dkgTimeout:   DefaultDKGTimeout,
-		//certmanager: net.NewCertManager(),
+		// certmanager: net.NewCertManager(),
 		controlPort: DefaultControlPort,
 		logger:      log.DefaultLogger(),
 		clock:       clock.NewRealClock(),
@@ -157,6 +158,13 @@ func WithBoltOptions(opts *bolt.Options) ConfigOption {
 // BoltOptions returns the options given to the bolt db
 func (d *Config) BoltOptions() *bolt.Options {
 	return d.boltOpts
+}
+
+// WithDBStorageEngine allows setting the specific storage type
+func WithDBStorageEngine(engine chain.StorageType) ConfigOption {
+	return func(d *Config) {
+		d.dbStorageEngine = engine
+	}
 }
 
 // WithConfigFolder sets the base configuration folder to the given string.
