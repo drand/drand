@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/pg"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -31,6 +32,7 @@ type Config struct {
 	grpcOpts          []grpc.DialOption
 	callOpts          []grpc.CallOption
 	boltOpts          *bolt.Options
+	pgOpts            *pg.Options
 	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
@@ -164,6 +166,13 @@ func (d *Config) BoltOptions() *bolt.Options {
 func WithDBStorageEngine(engine chain.StorageType) ConfigOption {
 	return func(d *Config) {
 		d.dbStorageEngine = engine
+	}
+}
+
+// WithPGOptions allows setting the specific storage type
+func WithPGOptions() ConfigOption {
+	return func(d *Config) {
+		d.pgOpts = &pg.Options{}
 	}
 }
 

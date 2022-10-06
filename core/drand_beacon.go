@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/chain/pg"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -306,16 +307,16 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 }
 
 func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
+	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
+
 	switch bp.opts.dbStorageEngine {
 	case chain.BoltDB:
-		dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
-
 		dbPath := bp.opts.DBFolder(dbName)
 		fs.CreateSecureFolder(dbPath)
 
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 	case chain.PostgresSQL:
-		return nil, fmt.Errorf("atabase storage engine type %s not implemented yet", bp.opts.dbStorageEngine)
+		return pg.NewPGStore(dbName, bp.opts.pgOpts)
 	default:
 		return nil, fmt.Errorf("unknown database storage engine type %s", bp.opts.dbStorageEngine)
 	}
