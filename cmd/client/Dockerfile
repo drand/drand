@@ -1,5 +1,5 @@
 # build this dockerfile with context pointed at the root of the drand repo
-FROM golang:1.14.2-buster AS builder
+FROM golang:1.19.2-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG version=unknown

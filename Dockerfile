@@ -1,4 +1,4 @@
-FROM golang:1.18.5-buster AS builder
+FROM golang:1.19.2-buster AS builder
 MAINTAINER Hector Sanjuan <hector@protocol.ai>
 
 ARG major=0
