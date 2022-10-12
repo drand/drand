@@ -85,11 +85,12 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 	s.stream = stream
 	s.l.Unlock()
 
-	err := <-streamDone
-	s.l.Lock()
-	s.stream = nil
-	s.l.Unlock()
-	return err
+	defer func() {
+		s.l.Lock()
+		s.stream = nil
+		s.l.Unlock()
+	}()
+	return <-streamDone
 }
 
 // EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`
