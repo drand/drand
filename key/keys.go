@@ -8,9 +8,9 @@ import (
 	"net"
 
 	proto "github.com/drand/drand/protobuf/drand"
-	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
-	dkg "github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
 )
 

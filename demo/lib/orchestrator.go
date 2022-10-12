@@ -292,26 +292,21 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 				lastIndex = node.Index()
 				fmt.Printf("\t - Example command is: \"%s\"\n", cmd)
 				break
-			} else {
-				// we first check both are at the same round
-				if randResp.GetRound() != rand.GetRound() {
-					fmt.Println("[-] Mismatch between last index", lastIndex, " vs current index ", node.Index(), " - trying again in some time...")
-					time.Sleep(100 * time.Millisecond)
-					// we try again
-					continue
-				}
-				// then we check if the signatures match
-				if !bytes.Equal(randResp.GetSignature(), rand.GetSignature()) {
-					panic("[-] Inconsistent beacon signature between nodes")
-				}
-				// everything is good
-				break
 			}
-			// after three times it still doesn't work that means the node is
-			// really behind for some weird reasons
-			fmt.Println(rand.String())
-			fmt.Println(randResp.String())
-			panic("[-] Inconsistent beacon rounds between nodes")
+
+			// we first check both are at the same round
+			if randResp.GetRound() != rand.GetRound() {
+				fmt.Println("[-] Mismatch between last index", lastIndex, " vs current index ", node.Index(), " - trying again in some time...")
+				time.Sleep(100 * time.Millisecond)
+				// we try again
+				continue
+			}
+			// then we check if the signatures match
+			if !bytes.Equal(randResp.GetSignature(), rand.GetSignature()) {
+				panic("[-] Inconsistent beacon signature between nodes")
+			}
+			// everything is good
+			break
 		}
 	}
 	fmt.Println("[+] Checking randomness via HTTP API using curl")
@@ -321,10 +316,12 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		http := "http"
 		if e.tls {
 			tmp, _ := os.CreateTemp("", "cert")
-			defer os.Remove(tmp.Name())
+			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
+			//goland:noinspection GoDeferInLoop
+			defer os.Remove(tmpName)
 			tmp.Close()
-			n.WriteCertificate(tmp.Name())
-			args = append(args, pair("--cacert", tmp.Name())...)
+			n.WriteCertificate(tmpName)
+			args = append(args, pair("--cacert", tmpName)...)
 			http = http + "s"
 		}
 		args = append(args, pair("-H", "Context-type: application/json")...)

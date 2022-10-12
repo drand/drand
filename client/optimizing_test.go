@@ -211,7 +211,6 @@ func TestOptimizingWatchFailover(t *testing.T) {
 		i++
 		if i > 5 {
 			t.Fatal("there are a total of 4 rounds possible")
-			break
 		}
 	}
 	if i < 3 {
@@ -221,6 +220,9 @@ func TestOptimizingWatchFailover(t *testing.T) {
 
 func TestOptimizingRequiresClients(t *testing.T) {
 	_, err := newOptimizingClient([]Client{}, 0, 0, 0, 0)
+	if err == nil {
+		t.Fatal("expected err is nil but it shouldn't be")
+	}
 	if err.Error() != "missing clients" {
 		t.Fatal("unexpected error", err)
 	}

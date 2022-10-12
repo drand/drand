@@ -45,7 +45,7 @@ func newMockServer(d *Data) *Server {
 		d:           d,
 		chainInfo: &drand.ChainInfoPacket{
 			Period:      uint32(d.Period.Seconds()),
-			GenesisTime: int64(d.Genesis),
+			GenesisTime: d.Genesis,
 			PublicKey:   d.Public,
 			SchemeID:    d.Scheme.ID,
 		},

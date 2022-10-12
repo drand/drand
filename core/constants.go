@@ -24,7 +24,7 @@ const DefaultDBFolder = "db"
 
 // DefaultBeaconPeriod is the period in which the beacon logic creates new
 // random beacon.
-const DefaultBeaconPeriod time.Duration = 1 * time.Minute
+const DefaultBeaconPeriod = 1 * time.Minute
 
 // DefaultControlPort is the default port the functionnality control port communicate on.
 const DefaultControlPort = "8888"

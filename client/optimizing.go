@@ -178,7 +178,7 @@ func (oc *optimizingClient) testSpeed() {
 	}
 
 	for {
-		stats := []*requestStat{}
+		var stats []*requestStat
 		ctx, cancel := context.WithCancel(context.Background())
 		ch := parallelGet(ctx, clients, 1, oc.requestTimeout, oc.requestConcurrency)
 

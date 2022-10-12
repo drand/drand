@@ -3,7 +3,7 @@ package key
 import (
 	"encoding/hex"
 
-	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber"
 )
 
 // PointToString returns a hex-encoded string representation of the given point.

@@ -98,7 +98,7 @@ func Client(c *cli.Context) error {
 
 	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
 
-	opts := []client.Option{}
+	var opts []client.Option
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
 		clientID := c.String(clientMetricsIDFlag.Name)

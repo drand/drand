@@ -5,7 +5,7 @@ package pprof
 
 import (
 	"net/http"
-	pprof "net/http/pprof" // adds default pprof endpoint at /debug/pprof
+	"net/http/pprof" // adds default pprof endpoint at /debug/pprof
 )
 
 // WithProfile provides an http mux setup to serve pprof endpoints. it should be mounted at /debug/pprof

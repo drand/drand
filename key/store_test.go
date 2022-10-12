@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	commonutils "github.com/drand/drand/common"
-	kyber "github.com/drand/kyber"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
 )
 

@@ -357,7 +357,7 @@ func (n *NodeProc) PrintLog() {
 		fmt.Printf("[-] Can't read logs at %s !\n\n", n.logPath)
 		return
 	}
-	os.Stdout.Write([]byte(buff))
+	os.Stdout.Write(buff)
 	fmt.Println()
 }
 

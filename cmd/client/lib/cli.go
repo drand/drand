@@ -194,7 +194,7 @@ func buildGrpcClient(c *cli.Context, info **chain.Info) ([]client.Client, error)
 func buildHTTPClients(c *cli.Context, info **chain.Info, hash []byte, withInstrumentation bool) []client.Client {
 	clients := make([]client.Client, 0)
 	var err error
-	skipped := []string{}
+	var skipped []string
 	var hc client.Client
 	for _, url := range c.StringSlice(URLFlag.Name) {
 		if *info != nil {

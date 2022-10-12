@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	json "github.com/nikkolasg/hexjson"
-	cli "github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/client"
 	"github.com/drand/drand/cmd/client/lib"
