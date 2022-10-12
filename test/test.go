@@ -76,7 +76,6 @@ func FreeBind(a string) string {
 		if err != nil {
 			panic(err)
 		}
-		defer l.Close()
 		p := strconv.Itoa(l.Addr().(*n.TCPAddr).Port)
 		var found bool
 		for _, u := range allPorts {
@@ -87,8 +86,10 @@ func FreeBind(a string) string {
 		}
 		if !found {
 			allPorts = append(allPorts, p)
+			_ = l.Close()
 			return l.Addr().String()
 		}
+		_ = l.Close()
 	}
 }
 
