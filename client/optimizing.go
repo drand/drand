@@ -631,6 +631,6 @@ func (oc *optimizingClient) Close() error {
 		errs = multierror.Append(errs, c.Close())
 	}
 	close(oc.done)
-	//goland:noinspection GoNilness
+
 	return errs.ErrorOrNil()
 }

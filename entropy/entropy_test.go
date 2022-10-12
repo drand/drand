@@ -44,7 +44,6 @@ func TestEntropyRead(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	//goland:noinspection GoNilness
 	file.Close()
 	defer os.Remove("./veryrandom.sh")
 
@@ -70,7 +69,6 @@ func TestEntropyReadSmallExec(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	//goland:noinspection GoNilness
 	file.Close()
 	defer os.Remove("./veryrandom2.sh")
 

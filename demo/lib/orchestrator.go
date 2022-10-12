@@ -317,7 +317,6 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		if e.tls {
 			tmp, _ := os.CreateTemp("", "cert")
 			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
-			//goland:noinspection GoDeferInLoop
 			defer os.Remove(tmpName)
 			tmp.Close()
 			n.WriteCertificate(tmpName)

@@ -445,8 +445,6 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	require.NotNil(t, resharedGroup)
 
-	// Since GoLand cannot detect yet the above require.NotNil comparison, let's help it
-	//goland:noinspection GoNilness
 	transitionTime := resharedGroup.TransitionTime
 	now := dt.Now().Unix()
 
@@ -460,7 +458,6 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	}
 
 	// move to the transition time
-	//goland:noinspection GoNilness
 	dt.SetMockClock(t, resharedGroup.TransitionTime)
 	time.Sleep(getSleepDuration())
 
