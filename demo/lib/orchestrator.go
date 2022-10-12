@@ -564,7 +564,7 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 			time.Sleep(time.Duration(trial*trial) * time.Second)
 		}
 		if !started {
-			panic(fmt.Errorf("[-] Could not start node %s ... \n", foundNode.PrivateAddr()))
+			panic(fmt.Errorf("[-] Could not start node %s", foundNode.PrivateAddr()))
 		}
 	}
 }
