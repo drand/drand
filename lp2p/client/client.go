@@ -182,7 +182,8 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 			case <-ctx.Done():
 				end()
 				// drain leftover on innerCh
-				for range innerCh {}
+				for range innerCh {
+				}
 				return
 			}
 		}

@@ -149,6 +149,7 @@ func Relay(c *cli.Context) error {
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
+	//nolint
 	return http.Serve(listener, handler.GetHTTPHandler())
 }
 

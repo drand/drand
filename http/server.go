@@ -436,10 +436,9 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roundTime := time.Now()
+	roundTime := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
 	nextTime := time.Now()
 
-	roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
 	next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
 	if next.After(nextTime) {
 		nextTime = next

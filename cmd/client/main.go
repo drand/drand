@@ -160,7 +160,9 @@ func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometh
 			Timeout: 10 * time.Second,
 		}))
 		go func() {
-			log.DefaultLogger().Fatalw("", "client", http.ListenAndServe(address, nil))
+			//nolint
+			err := http.ListenAndServe(address, nil)
+			log.DefaultLogger().Fatalw("", "client", err)
 		}()
 	}
 	return b

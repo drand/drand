@@ -13,6 +13,8 @@ type logger struct {
 }
 
 // Logger is a interface that can log to different levels.
+//
+//nolint
 type Logger interface {
 	Info(keyvals ...interface{})
 	Debug(keyvals ...interface{})

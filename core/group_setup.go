@@ -270,7 +270,7 @@ func (s *setupManager) createAndSend(keys []*key.Identity) {
 		group.GenesisSeed = s.oldGroup.GetGenesisSeed()
 	}
 	s.l.Debugw("", "setup", "created_group")
-	s.l.Debugw("Generated group", "group", group.String()) //nolint
+	s.l.Debugw("Generated group", "group", group.String())
 	// signal the leader it's ready to run the DKG
 	s.startDKG <- group
 }
