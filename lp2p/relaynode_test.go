@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
-	"os"
 	"path"
 	"sync"
 	"testing"
@@ -59,15 +58,6 @@ func toRandomDataChain(results ...mock.Result) []client.RandomData {
 	return randomness
 }
 
-func tmpDir(t *testing.T) string {
-	t.Helper()
-	dir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-datastore")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return dir
-}
-
 func TestWatchRetryOnClose(t *testing.T) {
 	chainInfo := &chain.Info{
 		Period:      time.Second,
@@ -99,10 +89,7 @@ func TestWatchRetryOnClose(t *testing.T) {
 
 	c := &mockClient{chainInfo, watchF}
 
-	td := tmpDir(t)
-	defer func() {
-		_ = os.RemoveAll(td)
-	}()
+	td := t.TempDir()
 	gr, err := NewGossipRelayNode(log.DefaultLogger(), &GossipRelayConfig{
 		ChainHash:    hex.EncodeToString(chainInfo.Hash()),
 		Addr:         "/ip4/0.0.0.0/tcp/0",

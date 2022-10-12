@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -36,14 +35,8 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())
 
-	dataDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-datastore")
-	if err != nil {
-		t.Fatal(err)
-	}
-	identityDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dataDir := t.TempDir()
+	identityDir := t.TempDir()
 
 	infoProto, err := svc.ChainInfo(context.Background(), nil)
 	if err != nil {
@@ -72,7 +65,7 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	defer g.Shutdown()
 
 	// start client
-	c, err := newTestClient("test-gossip-relay-client", g.Multiaddrs(), info)
+	c, err := newTestClient(t, g.Multiaddrs(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,14 +115,8 @@ func HTTPClientTestFunc(t *testing.T) {
 	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch)
 	defer stop()
 
-	dataDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-datastore")
-	if err != nil {
-		t.Fatal(err)
-	}
-	identityDir, err := os.MkdirTemp(os.TempDir(), "test-gossip-relay-node-id")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dataDir := t.TempDir()
+	identityDir := t.TempDir()
 
 	httpClient, err := dhttp.New("http://"+addr, chainInfo.Hash(), http.DefaultTransport)
 	if err != nil {
@@ -150,7 +137,7 @@ func HTTPClientTestFunc(t *testing.T) {
 	}
 	defer g.Shutdown()
 
-	c, err := newTestClient("test-http-gossip-relay-client", g.Multiaddrs(), chainInfo)
+	c, err := newTestClient(t, g.Multiaddrs(), chainInfo)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,15 +165,9 @@ func HTTPClientTestFunc(t *testing.T) {
 	drain(t, ch, 10*time.Second)
 }
 
-func newTestClient(name string, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
-	dataDir, err := os.MkdirTemp(os.TempDir(), "client-"+name+"-datastore")
-	if err != nil {
-		return nil, err
-	}
-	identityDir, err := os.MkdirTemp(os.TempDir(), "client-"+name+"-id")
-	if err != nil {
-		return nil, err
-	}
+func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info) (*Client, error) {
+	dataDir := t.TempDir()
+	identityDir := t.TempDir()
 	ds, err := bds.NewDatastore(dataDir, nil)
 	if err != nil {
 		return nil, err

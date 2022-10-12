@@ -1,7 +1,6 @@
 package boltdb
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,9 +9,7 @@ import (
 )
 
 func TestStoreBoltOrder(t *testing.T) {
-	tmp, err := os.MkdirTemp("", "drandtest*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	store, err := NewBoltStore(tmp, nil)
 	require.NoError(t, err)
 
@@ -47,9 +44,7 @@ func TestStoreBoltOrder(t *testing.T) {
 }
 
 func TestStoreBolt(t *testing.T) {
-	tmp, err := os.MkdirTemp("", "bolttest*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}

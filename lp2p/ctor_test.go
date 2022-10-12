@@ -2,7 +2,6 @@ package lp2p
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"testing"
 
@@ -10,10 +9,7 @@ import (
 )
 
 func TestCreateThenLoadPrivKey(t *testing.T) {
-	dir, err := os.MkdirTemp(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir := t.TempDir()
 
 	// should not exist yet...
 	identityPath := path.Join(dir, "identify.key")
@@ -35,10 +31,7 @@ func TestCreateThenLoadPrivKey(t *testing.T) {
 }
 
 func TestCreatePrivKeyMkdirp(t *testing.T) {
-	dir, err := os.MkdirTemp(os.TempDir(), "test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	dir := t.TempDir()
 
 	// should not exist yet and has an intermediate dir that does not exist
 	identityPath := path.Join(dir, "not-exists-dir", "identify.key")

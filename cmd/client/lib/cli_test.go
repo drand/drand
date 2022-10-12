@@ -113,14 +113,9 @@ func TestClientLibGroupConfJSON(t *testing.T) {
 	var b bytes.Buffer
 	info.ToJSON(&b, nil)
 
-	tmpDir, err := os.MkdirTemp(os.TempDir(), "drand")
-	if err != nil {
-		t.Fatal(err)
-	}
+	infoPath := filepath.Join(t.TempDir(), "info.json")
 
-	infoPath := filepath.Join(tmpDir, "info.json")
-
-	err = os.WriteFile(infoPath, b.Bytes(), 0644)
+	err := os.WriteFile(infoPath, b.Bytes(), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}
