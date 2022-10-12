@@ -549,7 +549,7 @@ func TestBeaconThreshold(t *testing.T) {
 	var counter = &sync.WaitGroup{}
 	myCallBack := func(i int) func(*chain.Beacon) {
 		return func(b *chain.Beacon) {
-			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
+			t.Logf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
 
 			err := verifier.VerifyBeacon(*b, bt.dpublic)

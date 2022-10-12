@@ -326,7 +326,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 	defer func() {
 		// don't clear manager if pre-empted
 		if errors.Is(err, errPreempted) {
-			fmt.Println("PREEMPTION ERROR ", err) //nolint
+			bp.log.Errorw("PREEMPTION ERROR", "err", err)
 			return
 		}
 		bp.state.Lock()

@@ -964,7 +964,7 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 	current := resp.GetRound()
 
-	fmt.Println(current)
+	t.Log(current)
 
 	ctrlClient, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
 	require.NoError(t, err)

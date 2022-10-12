@@ -2,7 +2,6 @@ package net
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -84,7 +83,7 @@ func testListener(t *testing.T) {
 func testListenerTLS(t *testing.T) {
 	ctx := context.Background()
 	if run.GOOS == runtimeGOOSWindows {
-		fmt.Println("Skipping TestClientTLS as operating on Windows")
+		t.Log("Skipping TestClientTLS as operating on Windows")
 		t.Skip("crypto/x509: system root pool is not available on Windows")
 	}
 	hostAddr := "127.0.0.1"

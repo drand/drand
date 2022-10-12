@@ -735,7 +735,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 		if c.onlyLeader {
 			// no need to continue since only the leader wont do
 			// we only use this for DKgReshareForce
-			fmt.Printf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
+			d.t.Logf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
 			return nil, errPreempted
 		}
 	}
@@ -779,10 +779,10 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			switch p.(type) {
 			case *dkg.DealBundle:
 				howManyDeals++
-				fmt.Printf("\n!!! -- %d DEALS (vs exp %d)-- received so far !!! \n", howManyDeals, expDeals)
+				d.t.Logf("\n!!! -- %d DEALS (vs exp %d)-- received so far !!! \n", howManyDeals, expDeals)
 			case *dkg.ResponseBundle:
 				howManyResps++
-				fmt.Printf("\n!!! -- %d RESPS (vs exp %d)-- received so far !!! \n", howManyResps, expResps)
+				d.t.Logf("\n!!! -- %d RESPS (vs exp %d)-- received so far !!! \n", howManyResps, expResps)
 			case *dkg.JustificationBundle:
 				continue
 			default:
