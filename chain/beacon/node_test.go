@@ -49,8 +49,7 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	if t.disable {
 		return errors.New("disabled server")
 	}
-	SyncChain(t.h.l, t.h.chain, req, p)
-	return nil
+	return SyncChain(t.h.l, t.h.chain, req, p)
 }
 
 func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
@@ -549,7 +548,7 @@ func TestBeaconThreshold(t *testing.T) {
 	verifier := chain.NewVerifier(sch)
 
 	currentRound := uint64(0)
-	var counter = &sync.WaitGroup{}
+	var counter sync.WaitGroup
 	myCallBack := func(i int) func(*chain.Beacon) {
 		return func(b *chain.Beacon) {
 			t.Logf(" - test: callback called for node %d - round %d\n", i, b.Round)
@@ -572,7 +571,7 @@ func TestBeaconThreshold(t *testing.T) {
 				currentRound++
 				counter.Add(howMany)
 				bt.MoveTime(t, period)
-				checkWait(counter)
+				checkWait(&counter)
 				time.Sleep(100 * time.Millisecond)
 			}
 		}()
@@ -591,7 +590,7 @@ func TestBeaconThreshold(t *testing.T) {
 	currentRound = 1
 	counter.Add(n - 1)
 	bt.MoveTime(t, offsetGenesis)
-	checkWait(counter)
+	checkWait(&counter)
 
 	// make a few rounds
 	makeRounds(nRounds, n-1)
