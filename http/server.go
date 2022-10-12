@@ -430,16 +430,21 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	}
 
 	info, err := h.getChainInfo(r.Context(), chainHashHex)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		h.log.Warnw("", "http_server", "unexpected error", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		return
+	}
+
 	roundTime := time.Now()
 	nextTime := time.Now()
-	if err == nil {
-		roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
-		next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
-		if next.After(nextTime) {
-			nextTime = next
-		} else {
-			nextTime = nextTime.Add(info.Period / catchupExpiryFactor)
-		}
+
+	roundTime = time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()), 0)
+	next := time.Unix(chain.TimeOfRound(info.Period, info.GenesisTime, resp.Round()+1), 0)
+	if next.After(nextTime) {
+		nextTime = next
+	} else {
+		nextTime = nextTime.Add(info.Period / catchupExpiryFactor)
 	}
 
 	remaining := time.Until(nextTime)

@@ -69,21 +69,25 @@ func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 		if err != nil {
 			panic(err)
 		}
+		//goland:noinspection GoNilness
 		pubPoly, err = pubPoly.Add(pub)
 		if err != nil {
 			panic(err)
 		}
 	}
+	//goland:noinspection GoNilness
 	shares := priPoly.Shares(n)
 	secret, err := share.RecoverSecret(key.KeyGroup, shares, t, n)
 	if err != nil {
 		panic(err)
 	}
-	if !secret.Equal(priPoly.Secret()) {
+	if //goland:noinspection GoNilness
+	!secret.Equal(priPoly.Secret()) {
 		panic("secret not equal")
 	}
 	msg := []byte("Hello world")
 	sigs := make([][]byte, n)
+	//goland:noinspection GoNilness
 	_, commits := pubPoly.Info()
 	dkgShares := make([]*key.Share, n)
 	for i := 0; i < n; i++ {
@@ -100,6 +104,7 @@ func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 	if err != nil {
 		panic(err)
 	}
+	//goland:noinspection GoNilness
 	if err := key.Scheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
 		panic(err)
 	}

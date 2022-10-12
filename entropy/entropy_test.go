@@ -33,15 +33,18 @@ func TestNoDuplicatesDefault(t *testing.T) {
 
 func TestEntropyRead(t *testing.T) {
 	file, err := os.Create("./veryrandom.sh")
-	file.Chmod(0740)
 
 	if err != nil {
 		panic(err)
 	}
+
+	file.Chmod(0740)
+
 	_, err = file.WriteString("#!/bin/sh\necho Hey, good morning, Monstropolis")
 	if err != nil {
 		panic(err)
 	}
+	//goland:noinspection GoNilness
 	file.Close()
 	defer os.Remove("./veryrandom.sh")
 
@@ -56,15 +59,18 @@ func TestEntropyRead(t *testing.T) {
 
 func TestEntropyReadSmallExec(t *testing.T) {
 	file, err := os.Create("./veryrandom2.sh")
-	file.Chmod(0740)
 
 	if err != nil {
 		panic(err)
 	}
+
+	file.Chmod(0740)
+
 	_, err = file.WriteString("#!/bin/sh\necho Hey")
 	if err != nil {
 		panic(err)
 	}
+	//goland:noinspection GoNilness
 	file.Close()
 	defer os.Remove("./veryrandom2.sh")
 

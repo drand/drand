@@ -87,6 +87,8 @@ func TestGroupProtobuf(t *testing.T) {
 		if tv.isErr {
 			require.Error(t, err)
 			continue
+		} else {
+			require.NoError(t, err)
 		}
 		// load the seed after
 		seed := tv.group.GetGenesisSeed()

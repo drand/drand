@@ -223,6 +223,9 @@ func TestClientChainHashOverrideError(t *testing.T) {
 		client.WithChainInfo(chainInfo),
 		client.WithChainHash(fakeChainInfo().Hash()),
 	)
+	if err == nil {
+		t.Fatal("expected error, received no error")
+	}
 	if err.Error() != "refusing to override group with non-matching hash" {
 		t.Fatal(err)
 	}
@@ -235,6 +238,9 @@ func TestClientChainInfoOverrideError(t *testing.T) {
 		client.WithChainHash(chainInfo.Hash()),
 		client.WithChainInfo(fakeChainInfo()),
 	)
+	if err == nil {
+		t.Fatal("expected error, received no error")
+	}
 	if err.Error() != "refusing to override hash with non-matching group" {
 		t.Fatal(err)
 	}

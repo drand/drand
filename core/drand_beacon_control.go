@@ -734,7 +734,9 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	bp.state.Lock()
 	// notice that we are updating the index prior to the actual transition
 	oldIdx := bp.index
-	bp.index = int(node.Index)
+	if node != nil {
+		bp.index = int(node.Index)
+	}
 	// we need to change our logger to reflect the potentially changed index
 	bp.log.Debugw("Starting to use new node index for logging", "old", oldIdx, "new", bp.index)
 	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))

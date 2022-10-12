@@ -95,7 +95,10 @@ func (c *ControlClient) RemoteStatus(ct ctx.Context,
 	}
 
 	resp, err := c.client.RemoteStatus(ct, &packet)
-	return resp.GetStatuses(), err
+	if err != nil {
+		return nil, err
+	}
+	return resp.GetStatuses(), nil
 }
 
 // Ping the drand daemon to check if it's up and running
