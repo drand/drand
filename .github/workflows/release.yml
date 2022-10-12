@@ -22,7 +22,7 @@ jobs:
       - name: Install Protoc
         uses: arduino/setup-protoc@64c0c85d18e984422218383b81c52f8b077404d3 # pin@v1.1.2
         with:
-          version: '3.19.4'
+          version: '3.19.6'
 
       - name: Install Protoc-gen-go
         run: |
