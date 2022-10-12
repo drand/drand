@@ -153,8 +153,7 @@ func BatchTLSIdentities(n int, sch scheme.Scheme, beaconID string) ([]*key.Pair,
 
 // ListFromPrivates returns a list of Identity from a list of Pair keys.
 func ListFromPrivates(keys []*key.Pair) []*key.Node {
-	n := len(keys)
-	list := make([]*key.Node, n, n)
+	list := make([]*key.Node, len(keys))
 	for i := range keys {
 		list[i] = &key.Node{
 			Index:    uint32(i),

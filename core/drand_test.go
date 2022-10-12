@@ -898,7 +898,6 @@ func TestDrandFollowChain(t *testing.T) {
 				if ok && p.Current == exp {
 					t.Logf("\t\t -->Successful beacon rcv. Round: %d.", exp)
 					goon = false
-					break
 				}
 			case e := <-errCh:
 				if errors.Is(e, io.EOF) { // means we've reached the end

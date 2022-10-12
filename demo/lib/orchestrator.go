@@ -54,7 +54,6 @@ type Orchestrator struct {
 	newGroup          *key.Group
 	resharePaths      []string
 	reshareIndex      []int
-	reshareThr        int
 	reshareNodes      []node.Node
 	tls               bool
 	withCurl          bool
@@ -211,7 +210,7 @@ func (e *Orchestrator) checkDKGNodes(nodes []node.Node, groupPath string) *key.G
 			continue
 		}
 		if !g.PublicKey.Equal(group.PublicKey) {
-			panic(fmt.Errorf("- Node %s has different cokey than %s\n", node.PrivateAddr(), lastNode))
+			panic(fmt.Errorf("[-] Node %s has different cokey than %s", node.PrivateAddr(), lastNode))
 		}
 	}
 	return g
@@ -582,6 +581,7 @@ func (e *Orchestrator) PrintLogs() {
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
 	for _, no := range e.nodes {
+		no := no
 		fmt.Printf("\t- Stop old node %s\n", no.PrivateAddr())
 		go func(n node.Node) {
 			n.Stop()
@@ -589,6 +589,7 @@ func (e *Orchestrator) Shutdown() {
 		}(no)
 	}
 	for _, no := range e.newNodes {
+		no := no
 		fmt.Printf("\t- Stop new node %s\n", no.PrivateAddr())
 		go func(n node.Node) {
 			n.Stop()
