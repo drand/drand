@@ -151,6 +151,7 @@ func (e *Orchestrator) RunDKG(timeout string) {
 	}()
 	time.Sleep(200 * time.Millisecond)
 	for _, n := range e.nodes[1:] {
+		n := n
 		fmt.Printf("\t- Running DKG for node %s\n", n.PrivateAddr())
 		go func(n node.Node) {
 			defer func() {
@@ -456,6 +457,7 @@ func (e *Orchestrator) RunResharing(timeout string) {
 	time.Sleep(100 * time.Millisecond)
 
 	for _, n := range e.reshareNodes[1:] {
+		n := n
 		path := ""
 		if e.isNew(n) {
 			path = e.groupPath

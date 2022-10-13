@@ -1014,13 +1014,14 @@ func (bp *BeaconProcess) pushDKGInfoPacket(ctx context.Context, nodes []*key.Nod
 	results := make(chan pushResult, len(nodes))
 
 	for _, node := range nodes {
+		id := node.Identity
 		if node.Address() == bp.priv.Public.Address() {
 			continue
 		}
 		go func(i *key.Identity) {
 			err := bp.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
 			results <- pushResult{i.Address(), err}
-		}(node.Identity)
+		}(id)
 	}
 
 	return results

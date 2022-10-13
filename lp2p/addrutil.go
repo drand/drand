@@ -31,6 +31,7 @@ func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver *madns
 	maddrC := make(chan ma.Multiaddr)
 
 	for _, addr := range addrs {
+		addr := addr
 		// check whether address ends in `ipfs/Qm...`
 		if _, last := ma.SplitLast(addr); last.Protocol().Code == ma.P_IPFS {
 			maddrs = append(maddrs, addr)
