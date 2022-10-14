@@ -314,6 +314,6 @@ func (l *LocalNode) PrintLog() {
 		fmt.Printf("[-] Can't read logs at %s !\n\n", l.logPath)
 		return
 	}
-	os.Stdout.Write(buff)
-	fmt.Println()
+
+	fmt.Printf("%s\n", string(buff))
 }

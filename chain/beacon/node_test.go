@@ -212,8 +212,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	}
 
 	if node.handler.addr != node.private.Public.Address() {
-		//nolint
-		panic("oh oh")
+		panic("createNode address mismatch")
 	}
 
 	currSig, err := key.Scheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
