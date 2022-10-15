@@ -278,6 +278,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 	// the leaderNode will return the group over this channel
 	errDetector := make(chan error)
+	defer close(errDetector)
 	var wg sync.WaitGroup
 	wg.Add(d.n)
 
