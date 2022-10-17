@@ -37,6 +37,9 @@ jobs:
       # the echoed output provides github action output format, per
       # https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#jobsjobs_idoutputs
       run: |
+        protoc --version
+        protoc-gen-go --version
+        protoc-gen-go-grpc --version
         if [[ -z "$(git status --porcelain)" ]];
         then
           exit 0
