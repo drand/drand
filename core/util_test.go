@@ -276,13 +276,10 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
 
-	// the leaderNode will return the group over this channel
-	errDetector := make(chan error)
-	defer close(errDetector)
+	errDetector := make(chan error, d.n+1)
 	var wg sync.WaitGroup
 	wg.Add(d.n)
 
-	// first run the leader and then run the other nodes
 	runLeaderNode := func() {
 		defer wg.Done()
 		d.t.Log("[RunDKG] Leader (", leaderNode.GetAddr(), ") init")
@@ -308,44 +305,46 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 		d.waitRunning(controlClient, leaderNode)
 	}
 
-	go runLeaderNode()
+	go func() {
+		defer close(errDetector)
+		// first run the leader and then run the other nodes
+		go runLeaderNode()
 
-	// all other nodes will send their PK to the leader that will create the group
-	for _, node := range d.nodes[1:] {
-		go func(n *MockNode) {
-			defer wg.Done()
-			client, err := net.NewControlClient(n.drand.opts.controlPort)
-			if err != nil {
-				errDetector <- err
-				return
-			}
-			groupPacket, err := client.InitDKG(leaderNode.drand.priv.Public, nil, secret, d.beaconID)
-			if err != nil {
-				errDetector <- err
-				return
-			}
-			group, err := key.GroupFromProto(groupPacket)
-			if err != nil {
-				errDetector <- err
-				return
-			}
+		// all other nodes will send their PK to the leader that will create the group
+		for _, node := range d.nodes[1:] {
+			go func(n *MockNode) {
+				defer wg.Done()
 
-			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
+				client, err := net.NewControlClient(n.drand.opts.controlPort)
+				if err != nil {
+					errDetector <- err
+					return
+				}
+				groupPacket, err := client.InitDKG(leaderNode.drand.priv.Public, nil, secret, d.beaconID)
+				if err != nil {
+					errDetector <- err
+					return
+				}
+				group, err := key.GroupFromProto(groupPacket)
+				if err != nil {
+					errDetector <- err
+					return
+				}
 
-			// We need to make sure the daemon is running before continuing
-			d.waitRunning(client, n)
-		}(node)
-	}
+				d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
 
-	select {
-	case err := <-errDetector:
-		required.NoError(err)
-	default:
-		fmt.Println("no activity")
-	}
+				// We need to make sure the daemon is running before continuing
+				d.waitRunning(client, n)
+			}(node)
+		}
+	}()
 
 	// wait for all to return
 	wg.Wait()
+
+	for e := range errDetector {
+		required.NoError(e)
+	}
 
 	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
 
