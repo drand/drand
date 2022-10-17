@@ -432,7 +432,7 @@ func (h *DrandHandler) LatestRand(w http.ResponseWriter, r *http.Request) {
 	info, err := h.getChainInfo(r.Context(), chainHashHex)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		h.log.Warnw("", "http_server", "unexpected error", "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
+		h.log.Warnw("", "http_server", "unable to get info from chainhash", "chainHashHex", chainHashHex, "client", r.RemoteAddr, "req", url.PathEscape(r.URL.Path), "err", err)
 		return
 	}
 
