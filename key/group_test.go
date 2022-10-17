@@ -86,6 +86,7 @@ func TestGroupProtobuf(t *testing.T) {
 		loaded, err := GroupFromProto(protoGroup)
 		if tv.isErr {
 			require.Error(t, err)
+			continue
 		}
 
 		require.NoError(t, err)

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 	gnet "net"
 	"os"
 	"os/exec"
@@ -899,13 +898,15 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := t.TempDir()
-	os.Chmod(tmpPath, 0o740)
-	certsDir, err := ioutil.TempDir(tmpPath, "certs")
+	err := os.Chmod(tmpPath, 0o740)
+	require.NoError(t, err)
+
+	certsDir, err := os.MkdirTemp(tmpPath, "certs")
 	require.NoError(t, err)
 
 	ins := make([]*drandInstance, 0, n)
 	for i := 1; i <= n; i++ {
-		nodePath, err := ioutil.TempDir(tmpPath, "node")
+		nodePath, err := os.MkdirTemp(tmpPath, "node")
 		require.NoError(t, err)
 
 		certPath := path.Join(nodePath, "cert")
@@ -923,12 +924,15 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 		require.NoError(t, key.Save(pubPath, priv.Public, false))
 		config := core.NewConfig(core.WithConfigFolder(nodePath))
 		fileStore := key.NewFileStore(config.ConfigFolderMB(), beaconID)
-		fileStore.SaveKeyPair(priv)
+		err = fileStore.SaveKeyPair(priv)
+		require.NoError(t, err)
 
-		h, _, _ := gnet.SplitHostPort(addr)
-		if err := httpscerts.Generate(certPath, keyPath, h); err != nil {
-			panic(err)
-		}
+		h, _, err := gnet.SplitHostPort(addr)
+		require.NoError(t, err)
+
+		err = httpscerts.Generate(certPath, keyPath, h)
+		require.NoError(t, err)
+
 		// copy into one folder for giving a common CERT folder
 		_, err = exec.Command("cp", certPath, path.Join(certsDir, fmt.Sprintf("cert-%d", i))).Output()
 		require.NoError(t, err)

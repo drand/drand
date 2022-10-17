@@ -85,11 +85,16 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 	s.stream = stream
 	s.l.Unlock()
 
+	// We want to remove the stream here but not while it's in use.
+	// To fix this, we'll defer setting stream to nil and wait for
+	// the launched operations to finish, see below.
 	defer func() {
 		s.l.Lock()
 		s.stream = nil
 		s.l.Unlock()
 	}()
+
+	// Wait for values to be sent before returning from this function.
 	return <-streamDone
 }
 

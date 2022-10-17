@@ -160,7 +160,8 @@ func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometh
 			Timeout: 10 * time.Second,
 		}))
 		go func() {
-			//nolint
+			//nolint // http.ListenAndServe is marked as problematic because it does not
+			// have tweaked timeouts out of the box.
 			err := http.ListenAndServe(address, nil)
 			log.DefaultLogger().Fatalw("", "client", err)
 		}()
