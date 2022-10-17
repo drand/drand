@@ -25,7 +25,8 @@ type Client struct {
 
 	subs struct {
 		sync.Mutex
-		M map[*int]chan drand.PublicRandResponse
+		id uint64
+		M  map[uint64]chan client.RandomData
 	}
 }
 
@@ -76,17 +77,18 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 		return nil, xerrors.Errorf("subscribe: %w", err)
 	}
 
-	c.subs.M = make(map[*int]chan drand.PublicRandResponse)
+	c.subs.M = make(map[uint64]chan client.RandomData)
 
 	go func() {
 		for {
 			msg, err := s.Next(ctx)
 			if ctx.Err() != nil {
+				// TODO (dlsniper): better cleanup here?
 				c.subs.Lock()
 				for _, ch := range c.subs.M {
 					close(ch)
 				}
-				c.subs.M = make(map[*int]chan drand.PublicRandResponse)
+				c.subs.M = make(map[uint64]chan client.RandomData)
 				c.subs.Unlock()
 				t.Close()
 				s.Cancel()
@@ -103,17 +105,28 @@ func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Cl
 				continue
 			}
 
+			rnd := client.RandomData{
+				Rnd:               rand.Round,
+				Random:            make([]byte, len(rand.Randomness)),
+				Sig:               make([]byte, len(rand.Signature)),
+				PreviousSignature: make([]byte, len(rand.PreviousSignature)),
+			}
+
+			copy(rnd.Random, rand.Randomness)
+			copy(rnd.Sig, rand.Signature)
+			copy(rnd.PreviousSignature, rand.PreviousSignature)
+
 			// TODO: verification, need to pass drand network public key in
 
-			if c.latest >= rand.Round {
+			if c.latest >= rnd.Rnd {
 				continue
 			}
-			c.latest = rand.Round
+			c.latest = rnd.Rnd
 
 			c.subs.Lock()
 			for _, ch := range c.subs.M {
 				select {
-				case ch <- rand:
+				case ch <- rnd:
 				default:
 					c.log.Warnw("", "gossip client", "randomness notification dropped due to a full channel")
 				}
@@ -136,9 +149,10 @@ type UnsubFunc func()
 // notification about randomness will be dropped.
 //
 // Notification channels will be closed when the client is Closed
-func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
-	id := new(int)
+func (c *Client) Sub(ch chan client.RandomData) UnsubFunc {
 	c.subs.Lock()
+	c.subs.id++
+	id := c.subs.id
 	c.subs.M[id] = ch
 	c.subs.Unlock()
 	return func() {
@@ -151,7 +165,7 @@ func (c *Client) Sub(ch chan drand.PublicRandResponse) UnsubFunc {
 
 // Watch implements the client.Watcher interface
 func (c *Client) Watch(ctx context.Context) <-chan client.Result {
-	innerCh := make(chan drand.PublicRandResponse)
+	innerCh := make(chan client.RandomData)
 	outerCh := make(chan client.Result)
 	end := c.Sub(innerCh)
 
@@ -165,19 +179,24 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 
 		for {
 			select {
-			// TODO: do not copy by assignment any drand.PublicRandResponse
-			case resp, ok := <-innerCh: //nolint:govet
+			case resp, ok := <-innerCh:
 				if !ok {
+					c.log.Debugw("closed innerCh operation")
 					return
 				}
 				dat := &client.RandomData{
-					Rnd:               resp.Round,
-					Random:            resp.Randomness,
-					Sig:               resp.Signature,
-					PreviousSignature: resp.PreviousSignature,
+					Rnd:               resp.Rnd,
+					Random:            make([]byte, len(resp.Random)),
+					Sig:               make([]byte, len(resp.Sig)),
+					PreviousSignature: make([]byte, len(resp.PreviousSignature)),
 				}
+
+				copy(dat.Random, resp.Random)
+				copy(dat.Sig, resp.Sig)
+				copy(dat.PreviousSignature, resp.PreviousSignature)
+
 				if c.cache != nil {
-					c.cache.Add(resp.Round, dat)
+					c.cache.Add(resp.Rnd, dat)
 				}
 				select {
 				case outerCh <- dat:

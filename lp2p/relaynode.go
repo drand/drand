@@ -162,6 +162,7 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 					continue
 				}
 
+				g.l.Infow("", "relay_node", "Publishing randomness on pubsub", "round", res.Round())
 				err = g.t.Publish(ctx, randB)
 				if err != nil {
 					g.l.Errorw("", "relay_node", "err publishing on pubsub", "err", err)
@@ -170,6 +171,7 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 
 				g.l.Infow("", "relay_node", "Published randomness on pubsub", "round", res.Round())
 			case <-g.done:
+				g.l.Infow("", "relay_node", "gossipRelayNode.background done")
 				return
 			}
 		}

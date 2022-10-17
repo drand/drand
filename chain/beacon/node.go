@@ -101,6 +101,10 @@ var errOutOfRound = "out-of-round beacon request"
 // ProcessPartialBeacon receives a request for a beacon partial signature. It
 // forwards it to the round manager if it is a valid beacon.
 func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeaconPacket) (*proto.Empty, error) {
+	if h == nil {
+		return nil, errors.New("called processPartialBeacon on nil handler")
+	}
+
 	addr := net.RemoteAddress(c)
 	h.l.Debugw("", "received", "request", "from", addr, "round", p.GetRound())
 
@@ -163,6 +167,10 @@ func (h *Handler) ProcessPartialBeacon(c context.Context, p *proto.PartialBeacon
 
 // Store returns the store associated with this beacon handler
 func (h *Handler) Store() CallbackStore {
+	if h == nil {
+		return nil
+	}
+
 	return h.chain
 }
 
@@ -174,6 +182,10 @@ func (h *Handler) Store() CallbackStore {
 // Round 0 = genesis seed - fixed
 // Round 1 starts at genesis time, and is signing over the genesis seed
 func (h *Handler) Start() error {
+	if h == nil {
+		return errors.New("called start on nil handler")
+	}
+
 	if h.conf.Clock.Now().Unix() > h.conf.Group.GenesisTime {
 		h.l.Errorw("", "genesis_time", "past", "call", "catchup")
 		return errors.New("beacon: genesis time already passed. Call Catchup()")
@@ -197,6 +209,10 @@ func (h *Handler) Start() error {
 // it sync its local chain with other nodes to be able to participate in the
 // next upcoming round.
 func (h *Handler) Catchup() {
+	if h == nil {
+		return
+	}
+
 	h.Lock()
 	h.started = true
 	h.Unlock()
@@ -211,6 +227,10 @@ func (h *Handler) Catchup() {
 // randomness. To sync, he contacts the nodes listed in the previous group file
 // given.
 func (h *Handler) Transition(prevGroup *key.Group) error {
+	if h == nil {
+		return errors.New("called transition on nil handler")
+	}
+
 	targetTime := h.conf.Group.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
@@ -234,6 +254,10 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 
 // TransitionNewGroup prepares the node to transition to the new group
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
+	if h == nil {
+		return
+	}
+
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
@@ -255,6 +279,10 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 }
 
 func (h *Handler) IsStarted() bool {
+	if h == nil {
+		return false
+	}
+
 	h.Lock()
 	defer h.Unlock()
 
@@ -262,6 +290,10 @@ func (h *Handler) IsStarted() bool {
 }
 
 func (h *Handler) IsServing() bool {
+	if h == nil {
+		return false
+	}
+
 	h.Lock()
 	defer h.Unlock()
 
@@ -269,6 +301,10 @@ func (h *Handler) IsServing() bool {
 }
 
 func (h *Handler) IsRunning() bool {
+	if h == nil {
+		return false
+	}
+
 	h.Lock()
 	defer h.Unlock()
 
@@ -276,6 +312,10 @@ func (h *Handler) IsRunning() bool {
 }
 
 func (h *Handler) IsStopped() bool {
+	if h == nil {
+		return false
+	}
+
 	h.Lock()
 	defer h.Unlock()
 
@@ -283,6 +323,10 @@ func (h *Handler) IsStopped() bool {
 }
 
 func (h *Handler) Reset() {
+	if h == nil {
+		return
+	}
+
 	h.Lock()
 	defer h.Unlock()
 
@@ -294,6 +338,10 @@ func (h *Handler) Reset() {
 
 // run will wait until it is supposed to start
 func (h *Handler) run(startTime int64) {
+	if h == nil {
+		return
+	}
+
 	chanTick := h.ticker.ChannelAt(startTime)
 	h.l.Debugw("", "run_round", "wait", "until", startTime)
 
@@ -366,6 +414,10 @@ func (h *Handler) run(startTime int64) {
 }
 
 func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
+	if h == nil {
+		return
+	}
+
 	ctx := context.Background()
 	previousSig := upon.Signature
 	round := upon.Round + 1
@@ -421,6 +473,10 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 // Stop the beacon loop from aggregating  further randomness, but it
 // finishes the one it is aggregating currently.
 func (h *Handler) Stop() {
+	if h == nil {
+		return
+	}
+
 	h.Lock()
 	defer h.Unlock()
 	if h.stopped {
@@ -439,6 +495,10 @@ func (h *Handler) Stop() {
 // StopAt will stop the handler at the given time. It is useful when
 // transitioning for a resharing.
 func (h *Handler) StopAt(stopTime int64) error {
+	if h == nil {
+		return errors.New("called stopAt on nil handler")
+	}
+
 	now := h.conf.Clock.Now().Unix()
 
 	if stopTime <= now {
@@ -455,11 +515,19 @@ func (h *Handler) StopAt(stopTime int64) error {
 
 // AddCallback is a proxy method to register a callback on the backend store
 func (h *Handler) AddCallback(id string, fn func(*chain.Beacon)) {
+	if h == nil {
+		return
+	}
+
 	h.chain.AddCallback(id, fn)
 }
 
 // RemoveCallback is a proxy method to remove a callback on the backend store
 func (h *Handler) RemoveCallback(id string) {
+	if h == nil {
+		return
+	}
+
 	h.chain.RemoveCallback(id)
 }
 
@@ -473,11 +541,19 @@ func (h *Handler) GetConfg() *Config {
 // were corrupted / invalid / not found in the store.
 // Note: it does not attempt to correct or fetch these faulty beacons.
 func (h *Handler) ValidateChain(ctx context.Context, upTo uint64, cb func(r, u uint64)) ([]uint64, error) {
+	if h == nil {
+		return nil, errors.New("called validateChain on nil handler")
+	}
+
 	return h.chain.ValidateChain(ctx, upTo, cb)
 }
 
 // CorrectChain tells the sync manager to fetch the invalid beacon from its peers.
 func (h *Handler) CorrectChain(ctx context.Context, faultyBeacons []uint64, peers []net.Peer, cb func(r, u uint64)) error {
+	if h == nil {
+		return errors.New("called correctChain on nil handler")
+	}
+
 	return h.chain.RunReSync(ctx, faultyBeacons, peers, cb)
 }
 

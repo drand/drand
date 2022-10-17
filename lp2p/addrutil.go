@@ -16,6 +16,8 @@ const (
 )
 
 // resolveAddresses resolves addresses in parallel
+//
+//nolint interfacer // skip for now
 func resolveAddresses(ctx context.Context, addrs []ma.Multiaddr, resolver *madns.Resolver) ([]peer.AddrInfo, error) {
 	ctx, cancel := context.WithTimeout(ctx, dnsResolveTimeout)
 	defer cancel()

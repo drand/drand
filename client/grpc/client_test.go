@@ -50,7 +50,7 @@ func TestClient(t *testing.T) {
 	res := c.Watch(ctx)
 	go func() {
 		time.Sleep(50 * time.Millisecond)
-		server.(mock.MockService).EmitRand(false)
+		server.(mock.MockService).EmitRand(t, false)
 	}()
 	r3, ok := <-res
 	if !ok {

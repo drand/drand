@@ -3,6 +3,7 @@ package log
 import (
 	"os"
 	"sync"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -113,4 +114,22 @@ func getConsoleEncoder() zapcore.Encoder {
 	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
 
 	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
+type fixedTime time.Time
+
+func (f fixedTime) Now() time.Time {
+	return time.Time(f)
+}
+
+func (f fixedTime) NewTicker(time.Duration) *time.Ticker {
+	return &time.Ticker{}
+}
+
+// FixedTimeLogger sets the logging time to a specific time, making it easier to compare
+// the output between runs.
+func FixedTimeLogger(l Logger) Logger {
+	lg := l.(*logger)
+	timeValue := time.Date(2022, 10, 17, 0, 0, 0, 0, time.UTC)
+	return &logger{lg.WithOptions(zap.WithClock(fixedTime(timeValue)))}
 }

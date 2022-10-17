@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client"
@@ -73,25 +75,26 @@ func TestGRPCClientTestFunc(t *testing.T) {
 
 	// test client
 	ctx, cancel := context.WithCancel(context.Background())
+	service := svc.(mock.MockService)
 	// for the initial 'get' to sync the chain
-	svc.(mock.MockService).EmitRand(false)
 	ch := c.Watch(ctx)
-	time.Sleep(100 * time.Millisecond)
+	service.EmitRand(t, false)
+	<-ch
 	for i := 0; i < 3; i++ {
-		svc.(mock.MockService).EmitRand(false)
-		fmt.Printf("round %d. emitting.\n", i)
+		service.EmitRand(t, false)
+		t.Logf("round %d. emitting.\n", i)
 		select {
 		case r, ok := <-ch:
 			if !ok {
 				t.Fatal("expected randomness")
 			} else {
-				fmt.Print(r)
+				t.Logf("%#v\n", r)
 			}
-		case <-time.After(10 * time.Second):
+		case <-time.After(30 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
-	svc.(mock.MockService).EmitRand(true)
+	service.EmitRand(t, true)
 	cancel()
 	drain(t, ch, 10*time.Second)
 }
@@ -109,7 +112,7 @@ func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
 	}
 }
 
-func HTTPClientTestFunc(t *testing.T) {
+func TestHTTPClientTestFunc(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 
 	addr, chainInfo, stop, emit := httpmock.NewMockHTTPPublicServer(t, false, sch)
@@ -144,23 +147,23 @@ func HTTPClientTestFunc(t *testing.T) {
 	defer c.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	emit(false)
+	emit(t, false)
 	ch := c.Watch(ctx)
 	time.Sleep(5 * time.Millisecond)
 	for i := 0; i < 3; i++ {
-		emit(false)
+		emit(t, false)
 		select {
 		case r, ok := <-ch:
 			if !ok {
 				t.Fatal("expected randomness")
 			} else {
-				fmt.Print(r)
+				t.Logf("%#v\n", r)
 			}
 		case <-time.After(10 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
-	emit(true)
+	emit(t, true)
 	cancel()
 	drain(t, ch, 10*time.Second)
 }
@@ -172,7 +175,16 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	if err != nil {
 		return nil, err
 	}
-	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), log.DefaultLogger())
+
+	logLevel := log.LogInfo
+	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
+	if isDebug && debugEnv == "DEBUG" {
+		t.Log("Enabling LogDebug logs")
+		logLevel = log.LogDebug
+	}
+	logger := log.NewJSONLogger(zapcore.AddSync(os.Stdout), logLevel)
+
+	priv, err := lp2p.LoadOrCreatePrivKey(path.Join(identityDir, "identity.key"), logger)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +193,7 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 		priv,
 		"/ip4/0.0.0.0/tcp/"+test.FreePort(),
 		relayMultiaddr,
-		log.DefaultLogger(),
+		logger,
 	)
 	if err != nil {
 		return nil, err
@@ -198,7 +210,7 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	if err != nil {
 		return nil, err
 	}
-	c.SetLog(log.DefaultLogger())
+	c.SetLog(logger)
 	return c, nil
 }
 

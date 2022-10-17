@@ -4,6 +4,7 @@ package test
 
 import (
 	"encoding/hex"
+	"fmt"
 	n "net"
 	"os"
 	"strconv"
@@ -106,10 +107,18 @@ func Ports(n int) []string {
 
 var allPorts []string
 var globalLock sync.Mutex
+var startPort = 60000
 
 // FreePort returns an free TCP port.
 // Taken from https://github.com/phayes/freeport/blob/master/freeport.go
 func FreePort() string {
+	if os.Getenv("DRAND_TEST_STATIC_PORT") == "true" {
+		globalLock.Lock()
+		defer globalLock.Unlock()
+		startPort++
+		return fmt.Sprintf("%d", startPort)
+	}
+
 	addr := FreeBind("localhost")
 	_, p, _ := n.SplitHostPort(addr)
 	return p

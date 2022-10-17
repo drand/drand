@@ -64,11 +64,24 @@ func TestBroadcastSet(t *testing.T) {
 	require.True(t, aset.exists(h2))
 }
 
+//nolint funlen // ignore this test
 func TestBroadcast(t *testing.T) {
 	n := 5
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
-	_, drands, group, dir, _ := BatchNewDrand(t, n, true, sch, beaconID)
-	defer os.RemoveAll(dir)
+	_, drands, group, dir, _, logFiles := BatchNewDrand(t, n, true, sch, beaconID)
+	defer func() {
+		if len(logFiles) > 0 {
+			closeLogFiles(t, logFiles)
+
+			return
+		}
+
+		// Do not perform a cleanup of temp dirs if we write logs to files
+		// when using DRAND_TEST_FILE_LOGS=true env var setting
+
+		err := os.RemoveAll(dir)
+		require.NoError(t, err)
+	}()
 	defer CloseAllDrands(drands)
 
 	// channel that will receive all broadcasted packets

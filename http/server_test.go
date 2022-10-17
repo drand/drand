@@ -19,7 +19,7 @@ import (
 	"github.com/drand/drand/test/mock"
 )
 
-func withClient(t *testing.T) (c client.Client, emit func(bool)) {
+func withClient(t *testing.T) (c client.Client, emit func(*testing.T, bool)) {
 	t.Helper()
 	sch := scheme.GetSchemeFromEnv()
 
@@ -182,7 +182,7 @@ func TestHTTPWaiting(t *testing.T) {
 	defer func() { _ = next.Body.Close() }()
 
 	// 1 watch get will occur (1970 - the bad one)
-	push(false)
+	push(t, false)
 	done := make(chan time.Time)
 	before := time.Now()
 	go func() {
@@ -199,7 +199,7 @@ func TestHTTPWaiting(t *testing.T) {
 		t.Fatal("shouldn't be done.", err)
 	default:
 	}
-	push(false)
+	push(t, false)
 	time.Sleep(10 * time.Millisecond)
 	var after time.Time
 	select {
@@ -293,7 +293,7 @@ func TestHTTPHealth(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("startup of the server on 1st request should happen")
 	}
-	push(false)
+	push(t, false)
 	// give some time for http server to get it
 	time.Sleep(30 * time.Millisecond)
 	resp.Body.Close()

@@ -247,6 +247,8 @@ func (dd *DrandDaemon) Stop(ctx context.Context) {
 	dd.control.Stop()
 	dd.state.Unlock()
 
+	// TODO (dlsniper): This doesn't seem to be used anywhere outside of the CLI and in-process nodes
+	//  Should it be used elsewhere in the code too?
 	dd.exitCh <- true
 }
 

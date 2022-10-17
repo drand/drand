@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/drand/drand/common/scheme"
@@ -25,7 +26,7 @@ import (
 // MockService provides a way for clients getting the service to be able to call
 // the EmitRand method on the mock server
 type MockService interface {
-	EmitRand(bool)
+	EmitRand(*testing.T, bool)
 }
 
 // Server fake
@@ -61,6 +62,14 @@ func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.Cha
 func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
 	s.l.Lock()
 	defer s.l.Unlock()
+
+	select {
+	case <-c.Done():
+		panic("context done")
+	default:
+		fmt.Println("running server.PublicRand")
+	}
+
 	prev := decodeHex(s.d.PreviousSignature)
 	signature := decodeHex(s.d.Signature)
 	if s.d.BadSecondRound && in.GetRound() == uint64(s.d.Round) {
@@ -74,6 +83,7 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 		Randomness:        randomness,
 	}
 	s.d = nextMockData(s.d)
+	fmt.Println("finished server.PublicRand")
 	return &resp, nil
 }
 
@@ -99,39 +109,40 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 }
 
 // EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`
-func (s *Server) EmitRand(closeStream bool) {
+func (s *Server) EmitRand(t *testing.T, closeStream bool) {
 	s.l.Lock()
 	if s.stream == nil {
-		fmt.Println("MOCK SERVER: stream nil")
+		t.Log("MOCK SERVER: stream nil")
 		s.l.Unlock()
 		return
 	}
 	stream := s.stream
 	done := s.streamDone
 	s.l.Unlock()
+
 	if closeStream {
+		t.Log("MOCK SERVER: closing stream upon request")
 		close(done)
-		fmt.Println("MOCK SERVER: closing stream upon request")
 		return
 	}
 
 	if err := stream.Context().Err(); err != nil {
+		t.Logf("MOCK SERVER: context error: %s\n", err)
 		done <- err
-		fmt.Println("MOCK SERVER: context error ", err)
 		return
 	}
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
+		t.Logf("MOCK SERVER: public rand err: %s\n", err)
 		done <- err
-		fmt.Println("MOCK SERVER: public rand err:", err)
 		return
 	}
 	if err = stream.Send(resp); err != nil {
+		t.Logf("MOCK SERVER: stream send error: %s\n", err)
 		done <- err
-		fmt.Println("MOCK SERVER: stream send error:", err)
 		return
 	}
-	fmt.Println("MOCK SERVER: emit round done")
+	t.Log("MOCK SERVER: emit round done")
 }
 
 func testValid(d *Data) {

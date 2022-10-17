@@ -268,6 +268,7 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 
 	// tell the current beacon to stop just before the new network starts
 	if oldPresent {
+		bp.log.Infow("TransitionNewGroup", "beacon_id", bp.beaconID)
 		bp.beacon.TransitionNewGroup(newShare, newGroup)
 	} else {
 		b, err := bp.newBeacon()
@@ -358,6 +359,19 @@ func (bp *BeaconProcess) StopBeacon() {
 	}
 
 	bp.beacon.Stop()
+	// TODO (dlsniper): This is generating potential panics around the code due to various
+	//  goroutines being spawned and not checking if beacon is nil or not.
+	//  E.g.
+	//   panic: runtime error: invalid memory address or nil pointer dereference
+	//		[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x15142d7]
+	//		goroutine 2975 [running]:
+	//		github.com/drand/drand/chain/beacon.(*Handler).TransitionNewGroup(0x0, 0xc0011a3c00, 0xc0008c0b40)
+	//		/home/florin/projects/drand/drand/chain/beacon/node.go:238 +0x97
+	//		github.com/drand/drand/core.(*BeaconProcess).transition(0xc0000b81e0, 0xc000610090, 0x1, 0x1)
+	//		/home/florin/projects/drand/drand/core/drand_beacon.go:271 +0x1c8
+	//		created by github.com/drand/drand/core.(*BeaconProcess).runResharing
+	//		/home/florin/projects/drand/drand/core/drand_beacon_control.go:551 +0x278c
+	bp.log.Infow("stopping beacon", "beacon_id", bp.beaconID)
 	bp.beacon = nil
 }
 

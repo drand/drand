@@ -1,11 +1,14 @@
 package core
 
 import (
+	"io"
+	"os"
 	"path"
 	"time"
 
 	clock "github.com/jonboulle/clockwork"
 	bolt "go.etcd.io/bbolt"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
@@ -252,6 +255,27 @@ func WithLogLevel(level int, jsonFormat bool) ConfigOption {
 		} else {
 			d.logger = log.NewLogger(nil, level)
 		}
+	}
+}
+
+// WithOutputAndLogLevel writes the logs to the specified file and
+// sets the logging verbosity to the given level.
+func WithOutputAndLogLevel(output io.Writer, level int, jsonFormat bool) ConfigOption {
+	return func(d *Config) {
+		mwr := zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout), zapcore.AddSync(output))
+		if jsonFormat {
+			d.logger = log.NewJSONLogger(mwr, level)
+		} else {
+			d.logger = log.NewLogger(mwr, level)
+		}
+	}
+}
+
+// WithFixedClockLogs allows using a fixed date in logs. This makes it easier to compare logs between runs.
+func WithFixedClockLogs() ConfigOption {
+	return func(d *Config) {
+		d.logger = log.FixedTimeLogger(d.logger)
+		d.logger.Info("logging with fixed time is in effect")
 	}
 }
 
