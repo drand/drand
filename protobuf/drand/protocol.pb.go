@@ -167,9 +167,8 @@ type SignalDKGPacket struct {
 	SecretProof []byte    `protobuf:"bytes,2,opt,name=secret_proof,json=secretProof,proto3" json:"secret_proof,omitempty"`
 	// In resharing cases, previous_group_hash is the hash of the previous group.
 	// It is to make sure the nodes build on top of the correct previous group.
-	PreviousGroupHash []byte `protobuf:"bytes,3,opt,name=previous_group_hash,json=previousGroupHash,proto3" json:"previous_group_hash,omitempty"`
-	//
-	Metadata *common.Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	PreviousGroupHash []byte           `protobuf:"bytes,3,opt,name=previous_group_hash,json=previousGroupHash,proto3" json:"previous_group_hash,omitempty"`
+	Metadata          *common.Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *SignalDKGPacket) Reset() {
@@ -247,9 +246,8 @@ type DKGInfoPacket struct {
 	DkgTimeout uint32 `protobuf:"varint,3,opt,name=dkg_timeout,json=dkgTimeout,proto3" json:"dkg_timeout,omitempty"`
 	// signature from the coordinator to prove he is the one sending that group
 	// file.
-	Signature []byte `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
-	//
-	Metadata *common.Metadata `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	Signature []byte           `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	Metadata  *common.Metadata `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *DKGInfoPacket) Reset() {
@@ -332,9 +330,8 @@ type PartialBeaconPacket struct {
 	PreviousSig []byte `protobuf:"bytes,2,opt,name=previous_sig,json=previousSig,proto3" json:"previous_sig,omitempty"`
 	// partial signature - a threshold of them needs to be aggregated to produce
 	// the final beacon at the given round.
-	PartialSig []byte `protobuf:"bytes,3,opt,name=partial_sig,json=partialSig,proto3" json:"partial_sig,omitempty"`
-	//
-	Metadata *common.Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	PartialSig []byte           `protobuf:"bytes,3,opt,name=partial_sig,json=partialSig,proto3" json:"partial_sig,omitempty"`
+	Metadata   *common.Metadata `protobuf:"bytes,4,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *PartialBeaconPacket) Reset() {
@@ -404,8 +401,7 @@ type DKGPacket struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Dkg *dkg.Packet `protobuf:"bytes,1,opt,name=dkg,proto3" json:"dkg,omitempty"`
-	//
+	Dkg      *dkg.Packet      `protobuf:"bytes,1,opt,name=dkg,proto3" json:"dkg,omitempty"`
 	Metadata *common.Metadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
@@ -462,9 +458,8 @@ type SyncRequest struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	FromRound uint64 `protobuf:"varint,1,opt,name=from_round,json=fromRound,proto3" json:"from_round,omitempty"`
-	//
-	Metadata *common.Metadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	FromRound uint64           `protobuf:"varint,1,opt,name=from_round,json=fromRound,proto3" json:"from_round,omitempty"`
+	Metadata  *common.Metadata `protobuf:"bytes,2,opt,name=metadata,proto3" json:"metadata,omitempty"`
 }
 
 func (x *SyncRequest) Reset() {
