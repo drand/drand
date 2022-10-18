@@ -7,8 +7,8 @@ import (
 	"os"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	peer "github.com/libp2p/go-libp2p/core/peer"
-	cli "github.com/urfave/cli/v2"
+	"github.com/libp2p/go-libp2p/core/peer"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 
 	"github.com/drand/drand/cmd/client/lib"

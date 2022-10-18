@@ -299,6 +299,7 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 	// all other nodes will send their PK to the leader that will create the group
 	for _, node := range d.nodes[1:] {
+		node := node
 		go func(n *MockNode) {
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
 			require.NoError(d.t, err)
@@ -707,6 +708,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 
 	// run the current nodes
 	for _, node := range d.nodes[1:c.oldRun] {
+		node := node
 		d.resharedNodes = append(d.resharedNodes, node)
 		if !c.onlyLeader {
 			node.drand.dkgBoardSetup = broadcastSetup
@@ -718,6 +720,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	// run the new ones
 	if len(d.newNodes) > 0 {
 		for _, node := range d.newNodes[:c.newRun] {
+			node := node
 			d.resharedNodes = append(d.resharedNodes, node)
 			if !c.onlyLeader {
 				node.drand.dkgBoardSetup = broadcastSetup
@@ -735,7 +738,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 		if c.onlyLeader {
 			// no need to continue since only the leader wont do
 			// we only use this for DKgReshareForce
-			fmt.Printf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
+			d.t.Logf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
 			return nil, errPreempted
 		}
 	}
@@ -779,10 +782,10 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			switch p.(type) {
 			case *dkg.DealBundle:
 				howManyDeals++
-				fmt.Printf("\n!!! -- %d DEALS (vs exp %d)-- received so far !!! \n", howManyDeals, expDeals)
+				d.t.Logf("\n!!! -- %d DEALS (vs exp %d)-- received so far !!! \n", howManyDeals, expDeals)
 			case *dkg.ResponseBundle:
 				howManyResps++
-				fmt.Printf("\n!!! -- %d RESPS (vs exp %d)-- received so far !!! \n", howManyResps, expResps)
+				d.t.Logf("\n!!! -- %d RESPS (vs exp %d)-- received so far !!! \n", howManyResps, expResps)
 			case *dkg.JustificationBundle:
 				continue
 			default:

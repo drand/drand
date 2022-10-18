@@ -326,7 +326,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 	defer func() {
 		// don't clear manager if pre-empted
 		if errors.Is(err, errPreempted) {
-			fmt.Println("PREEMPTION ERROR ", err) //nolint
+			bp.log.Errorw("PREEMPTION ERROR", "err", err)
 			return
 		}
 		bp.state.Lock()
@@ -734,7 +734,9 @@ func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *ke
 	bp.state.Lock()
 	// notice that we are updating the index prior to the actual transition
 	oldIdx := bp.index
-	bp.index = int(node.Index)
+	if node != nil {
+		bp.index = int(node.Index)
+	}
 	// we need to change our logger to reflect the potentially changed index
 	bp.log.Debugw("Starting to use new node index for logging", "old", oldIdx, "new", bp.index)
 	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))
@@ -1012,13 +1014,14 @@ func (bp *BeaconProcess) pushDKGInfoPacket(ctx context.Context, nodes []*key.Nod
 	results := make(chan pushResult, len(nodes))
 
 	for _, node := range nodes {
+		id := node.Identity
 		if node.Address() == bp.priv.Public.Address() {
 			continue
 		}
 		go func(i *key.Identity) {
 			err := bp.privGateway.ProtocolClient.PushDKGInfo(ctx, i, packet)
 			results <- pushResult{i.Address(), err}
-		}(node.Identity)
+		}(id)
 	}
 
 	return results

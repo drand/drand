@@ -122,7 +122,6 @@ func (c *chainStore) runAggregator() {
 			return
 		case lastBeacon = <-c.beaconStoredAgg:
 			cache.FlushRounds(lastBeacon.Round)
-			break
 		case partial := <-c.newPartials:
 			// look if we have info for this round first
 			pRound := partial.p.GetRound()
@@ -185,7 +184,6 @@ func (c *chainStore) runAggregator() {
 				peers := toPeers(c.crypto.GetGroup().Nodes)
 				c.syncm.RequestSync(newBeacon.Round, peers)
 			}
-			break
 		}
 	}
 }

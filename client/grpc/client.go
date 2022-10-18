@@ -31,7 +31,7 @@ type grpcClient struct {
 
 // New creates a drand client backed by a GRPC connection.
 func New(address, certPath string, insecure bool, chainHash []byte) (client.Client, error) {
-	opts := []grpc.DialOption{}
+	var opts []grpc.DialOption
 	if certPath != "" {
 		creds, err := credentials.NewClientTLSFromFile(certPath, "")
 		if err != nil {

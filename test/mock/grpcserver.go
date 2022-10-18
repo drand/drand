@@ -45,7 +45,7 @@ func newMockServer(d *Data) *Server {
 		d:           d,
 		chainInfo: &drand.ChainInfoPacket{
 			Period:      uint32(d.Period.Seconds()),
-			GenesisTime: int64(d.Genesis),
+			GenesisTime: d.Genesis,
 			PublicKey:   d.Public,
 			SchemeID:    d.Scheme.ID,
 		},
@@ -85,11 +85,17 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 	s.stream = stream
 	s.l.Unlock()
 
-	err := <-streamDone
-	s.l.Lock()
-	s.stream = nil
-	s.l.Unlock()
-	return err
+	// We want to remove the stream here but not while it's in use.
+	// To fix this, we'll defer setting stream to nil and wait for
+	// the launched operations to finish, see below.
+	defer func() {
+		s.l.Lock()
+		s.stream = nil
+		s.l.Unlock()
+	}()
+
+	// Wait for values to be sent before returning from this function.
+	return <-streamDone
 }
 
 // EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`

@@ -178,7 +178,7 @@ func (oc *optimizingClient) testSpeed() {
 	}
 
 	for {
-		stats := []*requestStat{}
+		var stats []*requestStat
 		ctx, cancel := context.WithCancel(context.Background())
 		ch := parallelGet(ctx, clients, 1, oc.requestTimeout, oc.requestConcurrency)
 
@@ -324,6 +324,7 @@ func parallelGet(ctx context.Context, clients []Client, round uint64, timeout ti
 		wg := sync.WaitGroup{}
 	LOOP:
 		for _, c := range clients {
+			c := c
 			select {
 			case <-token:
 				wg.Add(1)
@@ -419,6 +420,7 @@ func (oc *optimizingClient) Watch(ctx context.Context) <-chan Result {
 
 	closingClients := make(chan Client, 1)
 	for _, c := range oc.passiveClients {
+		c := c
 		go state.watchNext(ctx, c, inChan, closingClients)
 		state.protected = append(state.protected, watchingClient{c, nil})
 	}
@@ -631,5 +633,6 @@ func (oc *optimizingClient) Close() error {
 		errs = multierror.Append(errs, c.Close())
 	}
 	close(oc.done)
+
 	return errs.ErrorOrNil()
 }

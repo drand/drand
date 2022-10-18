@@ -400,6 +400,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 
 	h.chain.NewValidPartial(h.addr, packet)
 	for _, id := range h.crypto.GetGroup().Nodes {
+		idt := id.Identity
 		if h.addr == id.Address() {
 			continue
 		}
@@ -413,7 +414,7 @@ func (h *Handler) broadcastNextPartial(current roundInfo, upon *chain.Beacon) {
 				}
 				return
 			}
-		}(id.Identity)
+		}(idt)
 	}
 }
 

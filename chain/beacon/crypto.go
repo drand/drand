@@ -60,6 +60,8 @@ func (c *cryptoStore) SignPartial(msg []byte) ([]byte, error) {
 
 // Index returns the index of the share
 func (c *cryptoStore) Index() int {
+	c.Lock()
+	defer c.Unlock()
 	return c.share.Share.I
 }
 

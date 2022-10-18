@@ -443,6 +443,8 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 	t.Logf("[reshare] Group: %s", resharedGroup)
 
+	require.NotNil(t, resharedGroup)
+
 	transitionTime := resharedGroup.TransitionTime
 	now := dt.Now().Unix()
 
@@ -896,7 +898,6 @@ func TestDrandFollowChain(t *testing.T) {
 				if ok && p.Current == exp {
 					t.Logf("\t\t -->Successful beacon rcv. Round: %d.", exp)
 					goon = false
-					break
 				}
 			case e := <-errCh:
 				if errors.Is(e, io.EOF) { // means we've reached the end
@@ -964,7 +965,7 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 	current := resp.GetRound()
 
-	fmt.Println(current)
+	t.Log(current)
 
 	ctrlClient, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
 	require.NoError(t, err)

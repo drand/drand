@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 
 	proto "github.com/drand/drand/protobuf/drand"
-	dkg "github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber/share/dkg"
 )
 
 // Index is the index of the node

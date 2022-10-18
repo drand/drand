@@ -19,8 +19,8 @@ import (
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/protobuf/common"
 	proto "github.com/drand/drand/protobuf/drand"
-	kyber "github.com/drand/kyber"
-	dkg "github.com/drand/kyber/share/dkg"
+	"github.com/drand/kyber"
+	"github.com/drand/kyber/share/dkg"
 )
 
 // XXX new256 returns an error so we make a wrapper around

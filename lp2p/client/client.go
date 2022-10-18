@@ -156,12 +156,13 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 	end := c.Sub(innerCh)
 
 	go func() {
+		defer close(outerCh)
+
 		for {
 			select {
 			// TODO: do not copy by assignment any drand.PublicRandResponse
 			case resp, ok := <-innerCh: //nolint:govet
 				if !ok {
-					close(outerCh)
 					return
 				}
 				dat := &client.RandomData{
@@ -179,7 +180,6 @@ func (c *Client) Watch(ctx context.Context) <-chan client.Result {
 					c.log.Warnw("", "gossip client", "randomness notification dropped due to a full channel")
 				}
 			case <-ctx.Done():
-				close(outerCh)
 				end()
 				// drain leftover on innerCh
 				for range innerCh {

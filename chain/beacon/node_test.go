@@ -49,8 +49,7 @@ func (t *testBeaconServer) SyncChain(req *drand.SyncRequest, p drand.Protocol_Sy
 	if t.disable {
 		return errors.New("disabled server")
 	}
-	SyncChain(t.h.l, t.h.chain, req, p)
-	return nil
+	return SyncChain(t.h.l, t.h.chain, req, p)
 }
 
 func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
@@ -84,6 +83,7 @@ func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 	}
 	msg := []byte("Hello world")
 	sigs := make([][]byte, n)
+
 	_, commits := pubPoly.Info()
 	dkgShares := make([]*key.Share, n)
 	for i := 0; i < n; i++ {
@@ -100,6 +100,7 @@ func dkgShares(_ *testing.T, n, t int) ([]*key.Share, []kyber.Point) {
 	if err != nil {
 		panic(err)
 	}
+
 	if err := key.Scheme.VerifyRecovered(pubPoly.Commit(), msg, sig); err != nil {
 		panic(err)
 	}
@@ -211,7 +212,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	}
 
 	if node.handler.addr != node.private.Public.Address() {
-		panic("Oh Oh")
+		panic("createNode address mismatch")
 	}
 
 	currSig, err := key.Scheme.Sign(node.handler.conf.Share.PrivateShare(), []byte("hello"))
@@ -546,10 +547,10 @@ func TestBeaconThreshold(t *testing.T) {
 	verifier := chain.NewVerifier(sch)
 
 	currentRound := uint64(0)
-	var counter = &sync.WaitGroup{}
+	var counter sync.WaitGroup
 	myCallBack := func(i int) func(*chain.Beacon) {
 		return func(b *chain.Beacon) {
-			fmt.Printf(" - test: callback called for node %d - round %d\n", i, b.Round)
+			t.Logf(" - test: callback called for node %d - round %d\n", i, b.Round)
 			// verify partial sig
 
 			err := verifier.VerifyBeacon(*b, bt.dpublic)
@@ -569,7 +570,7 @@ func TestBeaconThreshold(t *testing.T) {
 				currentRound++
 				counter.Add(howMany)
 				bt.MoveTime(t, period)
-				checkWait(counter)
+				checkWait(&counter)
 				time.Sleep(100 * time.Millisecond)
 			}
 		}()
@@ -588,7 +589,7 @@ func TestBeaconThreshold(t *testing.T) {
 	currentRound = 1
 	counter.Add(n - 1)
 	bt.MoveTime(t, offsetGenesis)
-	checkWait(counter)
+	checkWait(&counter)
 
 	// make a few rounds
 	makeRounds(nRounds, n-1)

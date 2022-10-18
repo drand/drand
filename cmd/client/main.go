@@ -98,7 +98,7 @@ func Client(c *cli.Context) error {
 
 	log.ConfigureDefaultLogger(os.Stderr, level, c.Bool(lib.JSONFlag.Name))
 
-	opts := []client.Option{}
+	var opts []client.Option
 
 	if c.IsSet(clientMetricsIDFlag.Name) {
 		clientID := c.String(clientMetricsIDFlag.Name)
@@ -160,7 +160,12 @@ func newPrometheusBridge(address, gateway string, pushIntervalSec int64) prometh
 			Timeout: 10 * time.Second,
 		}))
 		go func() {
-			log.DefaultLogger().Fatalw("", "client", http.ListenAndServe(address, nil))
+			// http.ListenAndServe is marked as problematic
+			// because it does not have tweaked timeouts out of the box.
+
+			//nolint
+			err := http.ListenAndServe(address, nil)
+			log.DefaultLogger().Fatalw("", "client", err)
 		}()
 	}
 	return b

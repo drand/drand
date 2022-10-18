@@ -80,6 +80,9 @@ func TestResolveDNSNoAddrs(t *testing.T) {
 	addrs := []multiaddr.Multiaddr{multiaddr.StringCast(dnsaddr0)}
 	txtRecords := map[string][]string{"_dnsaddr.example0.com": {}}
 	_, err := resolveAddresses(context.Background(), addrs, mockResolver(txtRecords))
+	if err == nil {
+		t.Fatal("expected error, received no error")
+	}
 	if !strings.HasPrefix(err.Error(), "found no ipfs peers at") {
 		t.Fatal("unexpected error", err)
 	}
@@ -98,6 +101,9 @@ func TestResolveDNSFailure(t *testing.T) {
 	addrs := []multiaddr.Multiaddr{multiaddr.StringCast(dnsaddr0)}
 	resolver, _ := madns.NewResolver(madns.WithDefaultResolver(&failBackend{}))
 	_, err := resolveAddresses(context.Background(), addrs, resolver)
+	if err == nil {
+		t.Fatal("expected error, received no error")
+	}
 	if !strings.Contains(err.Error(), "failBackend") {
 		t.Fatal("unexpected error", err)
 	}

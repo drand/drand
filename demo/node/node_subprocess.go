@@ -138,8 +138,8 @@ func (n *NodeProc) Start(certFolder string) error {
 	// logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
-	logFile.Write([]byte("\n\nNEW LOG\n\n"))
 	checkErr(err)
+	logFile.Write([]byte("\n\nNEW LOG\n\n"))
 
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
@@ -294,11 +294,7 @@ func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	out, err := cmd.CombinedOutput()
 	fmt.Printf(" -- ping output : %s - err %s\n", out, err)
-	if err != nil {
-		// fmt.Printf("\t- node %s: ping: %v - \n\tout: %s\n", n.privAddr, err, string(out))
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func (n *NodeProc) GetBeacon(groupPath string, round uint64) (*drand.PublicRandResponse, string) {
@@ -357,8 +353,8 @@ func (n *NodeProc) PrintLog() {
 		fmt.Printf("[-] Can't read logs at %s !\n\n", n.logPath)
 		return
 	}
-	os.Stdout.Write([]byte(buff))
-	fmt.Println()
+
+	fmt.Printf("%s\n", string(buff))
 }
 
 func pair(k, v string) []string {

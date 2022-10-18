@@ -52,7 +52,8 @@ func TestEmptyClient(t *testing.T) {
 	defer cancel()
 
 	ch := c.Watch(ctx)
-	rs := []Result{}
+	//nolint
+	var rs []Result
 	for r := range ch {
 		rs = append(rs, r)
 	}

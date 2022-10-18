@@ -88,6 +88,9 @@ func TestGroupProtobuf(t *testing.T) {
 			require.Error(t, err)
 			continue
 		}
+
+		require.NoError(t, err)
+
 		// load the seed after
 		seed := tv.group.GetGenesisSeed()
 		require.Equal(t, len(loaded.Nodes), len(tv.group.Nodes), "test %d", i)

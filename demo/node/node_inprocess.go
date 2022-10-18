@@ -22,20 +22,13 @@ import (
 	"github.com/drand/drand/test"
 )
 
+// LocalNode ...
 type LocalNode struct {
 	base       string
 	i          int
 	period     string
 	beaconID   string
 	scheme     scheme.Scheme
-	publicPath string
-	certPath   string
-
-	// certificate key
-	keyPath string
-
-	// where all public certs are stored
-	certFolder string
 	logPath    string
 	privAddr   string
 	pubAddr    string
@@ -321,6 +314,6 @@ func (l *LocalNode) PrintLog() {
 		fmt.Printf("[-] Can't read logs at %s !\n\n", l.logPath)
 		return
 	}
-	os.Stdout.Write([]byte(buff))
-	fmt.Println()
+
+	fmt.Printf("%s\n", string(buff))
 }

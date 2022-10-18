@@ -149,6 +149,10 @@ func Relay(c *cli.Context) error {
 	}
 
 	fmt.Printf("Listening at %s\n", listener.Addr())
+	// http.Serve is marked as problematic because it does not
+	// have tweaked timeouts out of the box.
+
+	//nolint
 	return http.Serve(listener, handler.GetHTTPHandler())
 }
 
