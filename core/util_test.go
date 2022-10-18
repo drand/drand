@@ -269,55 +269,79 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 
 	leaderNode := d.nodes[0]
 	controlClient, err := net.NewControlClient(leaderNode.drand.opts.controlPort)
-	require.NoError(d.t, err)
+	required := require.New(d.t)
+	required.NoError(err)
 
 	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
 
-	// the leaderNode will return the group over this channel
+	errDetector := make(chan error, d.n+1)
 	var wg sync.WaitGroup
 	wg.Add(d.n)
 
-	// first run the leader and then run the other nodes
-	go func() {
+	runLeaderNode := func() {
+		defer wg.Done()
 		d.t.Log("[RunDKG] Leader (", leaderNode.GetAddr(), ") init")
 
 		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
 		groupPacket, err := controlClient.InitDKGLeader(
 			d.n, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.scheme.ID, d.beaconID)
-		require.NoError(d.t, err)
+		if err != nil {
+			errDetector <- err
+			return
+		}
 
 		d.t.Log("[RunDKG] Leader obtain group")
 		group, err := key.GroupFromProto(groupPacket)
-		require.NoError(d.t, err)
+		if err != nil {
+			errDetector <- err
+			return
+		}
 
 		d.t.Logf("[RunDKG] Leader    Finished. GroupHash %x", group.Hash())
 
 		// We need to make sure the daemon is running before continuing
 		d.waitRunning(controlClient, leaderNode)
-		wg.Done()
-	}()
+	}
+
+	// first run the leader and then run the other nodes
+	go runLeaderNode()
 
 	// all other nodes will send their PK to the leader that will create the group
 	for _, node := range d.nodes[1:] {
 		node := node
 		go func(n *MockNode) {
+			defer wg.Done()
+
 			client, err := net.NewControlClient(n.drand.opts.controlPort)
-			require.NoError(d.t, err)
+			if err != nil {
+				errDetector <- err
+				return
+			}
 			groupPacket, err := client.InitDKG(leaderNode.drand.priv.Public, nil, secret, d.beaconID)
-			require.NoError(d.t, err)
+			if err != nil {
+				errDetector <- err
+				return
+			}
 			group, err := key.GroupFromProto(groupPacket)
-			require.NoError(d.t, err)
+			if err != nil {
+				errDetector <- err
+				return
+			}
 
 			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
 
 			// We need to make sure the daemon is running before continuing
 			d.waitRunning(client, n)
-			wg.Done()
 		}(node)
 	}
 
 	// wait for all to return
 	wg.Wait()
+
+	close(errDetector)
+	for e := range errDetector {
+		required.NoError(e)
+	}
 
 	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
 
