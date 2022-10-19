@@ -263,6 +263,8 @@ func (d *DrandTestScenario) waitRunning(client *net.ControlClient, node *MockNod
 }
 
 // RunDKG runs the DKG with the initial nodes created during NewDrandTest
+//
+//nolint:funlen
 func (d *DrandTestScenario) RunDKG() *key.Group {
 	// common secret between participants
 	secret := "thisisdkg"
