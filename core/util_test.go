@@ -247,7 +247,12 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 }
 
 // waitForStatus waits and retries calling Status until the condition is satisfied or the max retries is reached
-func (d *DrandTestScenario) waitFor(t *testing.T, client *net.ControlClient, maxRetries int, waitFor func(r *drand.StatusResponse) bool) bool {
+func (d *DrandTestScenario) waitFor(
+	t *testing.T,
+	client *net.ControlClient,
+	maxRetries int, //nolint
+	waitFor func(r *drand.StatusResponse) bool,
+) bool {
 	retry := 0
 	for {
 		r, err := client.Status(d.beaconID)
