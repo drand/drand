@@ -185,7 +185,7 @@ func CloseAllDrands(drands []*BeaconProcess) {
 		drands[i].Stop(context.Background())
 	}
 	for i := 0; i < len(drands); i++ {
-		drands[i].WaitExit()
+		<-drands[i].WaitExit()
 	}
 }
 
