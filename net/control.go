@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -25,16 +24,22 @@ type ControlListener struct {
 	lis   net.Listener
 }
 
-// NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpc server
-func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) (ControlListener, error) {
-	lis, err := net.Listen(controlListenAddr(controlAddr))
+func NewGRPCListener(s Service, controlAddr string) (ControlListener, error) {
+	grpcServer := grpc.NewServer()
+	lis, err := newListener(controlAddr)
 	if err != nil {
-		log.DefaultLogger().Errorw("", "grpc listener", "failure", "err", err)
 		return ControlListener{}, err
 	}
-	grpcServer := grpc.NewServer()
+
 	control.RegisterControlServer(grpcServer, s)
+	control.RegisterDKGControlServer(grpcServer, s)
+
 	return ControlListener{conns: grpcServer, lis: lis}, nil
+}
+
+// NewListener creates a net.Listener which should be shared between different gRPC servers
+func newListener(controlAddr string) (net.Listener, error) {
+	return net.Listen(listenAddrFor(controlAddr))
 }
 
 // Start the listener for the control commands
@@ -75,7 +80,7 @@ type ControlClient struct {
 // localhost running drand node.
 func NewControlClient(addr string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
-	network, host := controlListenAddr(addr)
+	network, host := listenAddrFor(addr)
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)
 	}
@@ -158,111 +163,6 @@ func (c *ControlClient) ListSchemes() (*control.ListSchemesResponse, error) {
 
 	resp, err := c.client.ListSchemes(ctx.Background(), &control.ListSchemesRequest{Metadata: metadata})
 	return resp, err
-}
-
-// InitReshareLeader sets up the node to be ready for a resharing protocol.
-// NOTE: only group referral via filesystem path is supported at the moment.
-// XXX Might be best to move to core/
-func (c *ControlClient) InitReshareLeader(
-	nodes, threshold int,
-	timeout, catchupPeriod time.Duration,
-	secret, oldPath string,
-	offset int,
-	beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	request := &control.InitResharePacket{
-		Old: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{Path: oldPath},
-		},
-		Info: &control.SetupInfoPacket{
-			Nodes:        uint32(nodes),
-			Threshold:    uint32(threshold),
-			Leader:       true,
-			Timeout:      uint32(timeout.Seconds()),
-			Secret:       []byte(secret),
-			BeaconOffset: uint32(offset),
-			Metadata:     &metadata,
-		},
-		CatchupPeriodChanged: catchupPeriod >= 0,
-		CatchupPeriod:        uint32(catchupPeriod.Seconds()),
-		Metadata:             &metadata,
-	}
-
-	return c.client.InitReshare(ctx.Background(), request)
-}
-
-// InitReshare sets up the node to be ready for a resharing protocol.
-func (c *ControlClient) InitReshare(leader Peer, secret, oldPath string, force bool, beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	request := &control.InitResharePacket{
-		Old: &control.GroupInfo{
-			Location: &control.GroupInfo_Path{Path: oldPath},
-		},
-		Info: &control.SetupInfoPacket{
-			Leader:        false,
-			LeaderAddress: leader.Address(),
-			LeaderTls:     leader.IsTLS(),
-			Secret:        []byte(secret),
-			Force:         force,
-			Metadata:      &metadata,
-		},
-		Metadata: &metadata,
-	}
-
-	return c.client.InitReshare(ctx.Background(), request)
-}
-
-// InitDKGLeader sets up the node to be ready for a first DKG protocol.
-// groupPart
-// NOTE: only group referral via filesystem path is supported at the moment.
-// XXX Might be best to move to core/
-func (c *ControlClient) InitDKGLeader(
-	nodes, threshold int,
-	beaconPeriod, catchupPeriod, timeout time.Duration,
-	entropy *control.EntropyInfo,
-	secret string,
-	offset int,
-	beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	request := &control.InitDKGPacket{
-		Info: &control.SetupInfoPacket{
-			Nodes:        uint32(nodes),
-			Threshold:    uint32(threshold),
-			Leader:       true,
-			Timeout:      uint32(timeout.Seconds()),
-			Secret:       []byte(secret),
-			BeaconOffset: uint32(offset),
-			Metadata:     &metadata,
-		},
-		Entropy:       entropy,
-		BeaconPeriod:  uint32(beaconPeriod.Seconds()),
-		CatchupPeriod: uint32(catchupPeriod.Seconds()),
-		Metadata:      &metadata,
-	}
-
-	return c.client.InitDKG(ctx.Background(), request)
-}
-
-// InitDKG sets up the node to be ready for a first DKG protocol.
-func (c *ControlClient) InitDKG(leader Peer, entropy *control.EntropyInfo, secret, beaconID string) (*control.GroupPacket, error) {
-	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
-
-	request := &control.InitDKGPacket{
-		Info: &control.SetupInfoPacket{
-			Leader:        false,
-			LeaderAddress: leader.Address(),
-			LeaderTls:     leader.IsTLS(),
-			Secret:        []byte(secret),
-			Metadata:      &metadata,
-		},
-		Entropy:  entropy,
-		Metadata: &metadata,
-	}
-
-	return c.client.InitDKG(ctx.Background(), request)
 }
 
 // PublicKey returns the public key of the remote node
@@ -431,17 +331,6 @@ func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
-}
-
-// controlListenAddr parses the control address as specified, into a dialable / listenable address
-func controlListenAddr(listenAddr string) (network, addr string) {
-	if strings.HasPrefix(listenAddr, "unix://") {
-		return "unix", strings.TrimPrefix(listenAddr, "unix://")
-	}
-	if strings.Contains(listenAddr, ":") {
-		return grpcDefaultIPNetwork, listenAddr
-	}
-	return grpcDefaultIPNetwork, fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }
 
 // DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.

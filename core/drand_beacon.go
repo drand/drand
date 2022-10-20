@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/protobuf/drand"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/drand/drand/chain/memdb"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -21,8 +23,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/share/dkg"
+	"github.com/drand/drand/util"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it
@@ -42,22 +43,15 @@ type BeaconProcess struct {
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
 
-	beacon *beacon.Handler
+	beacon        *beacon.Handler
+	completedDKGs <-chan dkg.SharingOutput
 
 	// dkg private share. can be nil if dkg not finished yet.
-	share   *key.Share
-	dkgDone bool
+	share *key.Share
 
 	// version indicates the base code variant
 	version commonutils.Version
 
-	// manager is created and destroyed during a setup phase
-	manager  *setupManager
-	receiver *setupReceiver
-
-	// dkgInfo contains all the information related to an upcoming or in
-	// progress dkg protocol. It is nil for the rest of the time.
-	dkgInfo *dkgInfo
 	// general logger
 	log dlog.Logger
 
@@ -65,23 +59,21 @@ type BeaconProcess struct {
 	state  sync.RWMutex
 	exitCh chan bool
 
-	// that cancel function is set when the drand process is following a chain
+	// that cancel function is set when the drand process is ynollowing a chain
 	// but not participating. Drand calls the cancel func when the node
 	// participates to a resharing.
 	syncerCancel context.CancelFunc
-
-	// only used for testing currently
-	// XXX need boundaries between gRPC and control plane such that we can give
-	// a list of paramteres at each DKG (inluding this callback)
-	setupCB func(*key.Group)
-
-	// only used for testing at the moment - may be useful later
-	// to pinpoint the exact messages from all nodes during dkg
-	dkgBoardSetup func(Broadcast) Broadcast
 }
 
-func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *Config, privGateway *net.PrivateGateway,
-	pubGateway *net.PublicGateway) (*BeaconProcess, error) {
+func NewBeaconProcess(
+	log dlog.Logger,
+	store key.Store,
+	completedDKGs chan dkg.SharingOutput,
+	beaconID string,
+	opts *Config,
+	privGateway *net.PrivateGateway,
+	pubGateway *net.PublicGateway,
+) (*BeaconProcess, error) {
 	priv, err := store.LoadKeyPair(nil)
 	if err != nil {
 		return nil, err
@@ -91,38 +83,37 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 	}
 
 	bp := &BeaconProcess{
-		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
-		store:       store,
-		log:         log,
-		priv:        priv,
-		version:     commonutils.GetAppVersion(),
-		opts:        opts,
-		privGateway: privGateway,
-		pubGateway:  pubGateway,
-		exitCh:      make(chan bool, 1),
+		beaconID:      commonutils.GetCanonicalBeaconID(beaconID),
+		store:         store,
+		log:           log,
+		priv:          priv,
+		version:       commonutils.GetAppVersion(),
+		opts:          opts,
+		privGateway:   privGateway,
+		pubGateway:    pubGateway,
+		completedDKGs: completedDKGs,
+		exitCh:        make(chan bool, 1),
 	}
 	return bp, nil
 }
 
+var ErrDKGNotStarted = errors.New("DKG not started")
+
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
-func (bp *BeaconProcess) Load() (bool, error) {
-	if bp.isFreshRun() {
-		return true, nil
-	}
-
+func (bp *BeaconProcess) Load() error {
 	var err error
 	bp.group, err = bp.store.LoadGroup()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	beaconID := bp.getBeaconID()
+
 	if bp.group == nil {
-		bp.dkgDone = false
 		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
-		return false, nil
+		return ErrDKGNotStarted
 	}
 
 	// this is a migration path to mitigate for the shares being loaded before the group file
@@ -131,7 +122,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 			"priv", bp.priv.Public.Scheme.Name, "group", bp.group.Scheme.Name)
 		// we need to reload the keypair with the correct scheme
 		if bp.priv, err = bp.store.LoadKeyPair(bp.group.Scheme); err != nil {
-			return false, err
+			return err
 		}
 	}
 
@@ -143,12 +134,12 @@ func (bp *BeaconProcess) Load() (bool, error) {
 
 	bp.share, err = bp.store.LoadShare(bp.group.Scheme)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	thisBeacon := bp.group.Find(bp.priv.Public)
 	if thisBeacon == nil {
-		return false, fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
+		return fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 	}
 	bp.state.Lock()
 	bp.index = int(thisBeacon.Index)
@@ -158,81 +149,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 
-	return false, nil
-}
-
-// WaitDKG waits on the running dkg protocol. In case of an error, it returns
-// it. In case of a finished DKG protocol, it saves the dist. public  key and
-// private share. These should be loadable by the store.
-func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
-	bp.state.RLock()
-
-	if bp.dkgInfo == nil {
-		bp.state.RUnlock()
-		return nil, errors.New("no dkg info set")
-	}
-
-	beaconID := bp.getBeaconID()
-	defer func() {
-		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-	}()
-
-	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
-
-	waitCh := bp.dkgInfo.proto.WaitEnd()
-	bp.log.Infow("", "waiting_dkg_end", time.Now())
-
-	bp.state.RUnlock()
-
-	res := <-waitCh
-	if res.Error != nil {
-		return nil, fmt.Errorf("drand: error from dkg: %w", res.Error)
-	}
-
-	bp.state.Lock()
-	defer bp.state.Unlock()
-	// filter the nodes that are not present in the target group
-	var qualNodes []*key.Node
-	for _, node := range bp.dkgInfo.target.Nodes {
-		found := false
-		for _, qualNode := range res.Result.QUAL {
-			if qualNode.Index == node.Index {
-				qualNodes = append(qualNodes, node)
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			bp.log.Infow("disqualified node during DKG", "node", node)
-		}
-	}
-
-	s := key.Share{DistKeyShare: *res.Result.Key, Scheme: bp.priv.Scheme()}
-	bp.share = &s
-	if err := bp.store.SaveShare(bp.share); err != nil {
-		return nil, err
-	}
-	targetGroup := bp.dkgInfo.target
-	// only keep the qualified ones
-	targetGroup.Nodes = qualNodes
-	// setup the dist. public key
-	targetGroup.PublicKey = bp.share.Public()
-	bp.group = targetGroup
-	info := chain.NewChainInfo(targetGroup)
-	bp.chainHash = info.Hash()
-	output := make([]string, 0, len(qualNodes))
-	for _, node := range qualNodes {
-		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
-	}
-	bp.log.Infow("", "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
-	if err := bp.store.SaveGroup(bp.group); err != nil {
-		return nil, err
-	}
-	bp.opts.applyDkgCallback(bp.share, bp.group)
-	bp.dkgInfo.board.Stop()
-	bp.dkgInfo = nil
-	return bp.group, nil
+	return nil
 }
 
 // StartBeacon initializes the beacon if needed and launch a go
@@ -259,53 +176,151 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) error {
 	return nil
 }
 
-// transition between an "old" group and a new group. This method is called
-// *after* a resharing dkg has proceed.
-// the new beacon syncs before the new network starts
-// and will start once the new network time kicks in. The old beacon will stop
-// just before the time of the new network.
-// TODO: due to current WaitDKG behavior, the old group is overwritten, so an
-// old node that fails during the time the resharing is done and the new network
-// comes up have to wait for the new network to comes in - that is to be fixed
-func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
-	// the node should stop a bit before the new round to avoid starting it at
-	// the same time as the new node
-	// NOTE: this limits the round time of drand - for now it is not a use
-	// case to go that fast
-	ctx := context.Background()
-
-	// We stop the node at or after transition to make sure they are broadcasting
-	// their last partial before transition.
-	timeToStop := bp.group.TransitionTime + int64(bp.group.Period.Seconds()) - 1
-
-	if !newPresent {
-		// an old node is leaving the network
-		if err := bp.beacon.StopAt(timeToStop); err != nil {
-			bp.log.Errorw("", "leaving_group", err)
-		} else {
-			bp.log.Infow("", "leaving_group", "done", "time", bp.opts.clock.Now())
+func (bp *BeaconProcess) StartListeningForDKGUpdates() {
+	for dkgOutput := range bp.completedDKGs {
+		if err := bp.onDKGCompleted(&dkgOutput); err != nil {
+			bp.log.Errorw("Error performing DKG key transition", "err", err)
 		}
-		return
+	}
+}
+
+// onDKGCompleted transitions between an "old" group and a new group. This method is called
+// *after* a DKG has completed.
+func (bp *BeaconProcess) onDKGCompleted(dkgOutput *dkg.SharingOutput) error {
+	if dkgOutput.BeaconID != bp.beaconID {
+		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
+		return nil
 	}
 
-	bp.state.RLock()
-	newGroup := bp.group
-	newShare := bp.share
-	bp.state.RUnlock()
+	p, err := util.PublicKeyAsParticipant(bp.priv.Public)
+	if err != nil {
+		return err
+	}
 
-	// tell the current beacon to stop just before the new network starts
-	if oldPresent {
-		bp.beacon.TransitionNewGroup(newShare, newGroup)
-	} else {
-		b, err := bp.newBeacon(ctx)
+	weWereInLastEpoch := false
+	if dkgOutput.Old != nil {
+		for _, v := range dkgOutput.Old.FinalGroup.Nodes {
+			if v.Addr == p.Address {
+				weWereInLastEpoch = true
+			}
+		}
+	}
+	weAreInNextEpoch := false
+	for _, v := range dkgOutput.New.FinalGroup.Nodes {
+		if v.Addr == p.Address {
+			weAreInNextEpoch = true
+		}
+	}
+
+	if weWereInLastEpoch {
+		if weAreInNextEpoch {
+			return bp.transitionToNext(dkgOutput)
+		}
+		return bp.leaveNetwork()
+	}
+	if weAreInNextEpoch {
+		return bp.joinNetwork(dkgOutput)
+	}
+
+	return errors.New("failed to join the network during the DKG but somehow got to transition")
+}
+
+func (bp *BeaconProcess) transitionToNext(dkgOutput *dkg.SharingOutput) error {
+	newGroup := dkgOutput.New.FinalGroup
+	newShare := dkgOutput.New.KeyShare
+
+	err := bp.validateGroupTransition(bp.group, newGroup)
+	if err != nil {
+		return err
+	}
+	err = bp.storeDKGOutput(newGroup, newShare)
+	if err != nil {
+		return err
+	}
+
+	// somehow the beacon process isn't set here sometimes o.O
+	if bp.beacon == nil {
+		b, err := bp.newBeacon(context.Background())
 		if err != nil {
-			bp.log.Fatalw("", "transition", "new_node", "err", err)
+			return err
 		}
-		if err := b.Transition(oldGroup); err != nil {
-			bp.log.Errorw("", "sync_before", err)
-		}
+		bp.beacon = b
+	}
+	bp.beacon.TransitionNewGroup(newShare, newGroup)
+
+	// keep the old beacon running until the `TransitionTime`
+	if err := bp.beacon.Transition(dkgOutput.Old.FinalGroup); err != nil {
+		bp.log.Errorw("", "sync_before", err)
+	} else {
 		bp.log.Infow("", "transition_new", "done")
 	}
+
+	return err
+}
+
+func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) error {
+	bp.group = group
+	bp.share = share
+	bp.chainHash = chain.NewChainInfo(bp.group).Hash()
+
+	err := bp.store.SaveGroup(group)
+	if err != nil {
+		return err
+	}
+
+	err = bp.store.SaveShare(share)
+	if err != nil {
+		return err
+	}
+
+	bp.opts.dkgCallback(share, group)
+
+	return nil
+}
+
+func (bp *BeaconProcess) leaveNetwork() error {
+	timeToStop := bp.group.TransitionTime - 1
+	err := bp.beacon.StopAt(timeToStop)
+	if err != nil {
+		bp.log.Errorw("", "leaving_group", err)
+	} else {
+		bp.log.Infow("", "leaving_group", "done", "time", bp.opts.clock.Now())
+	}
+	err = bp.store.Reset()
+	return err
+}
+
+func (bp *BeaconProcess) joinNetwork(dkgOutput *dkg.SharingOutput) error {
+	newGroup := dkgOutput.New.FinalGroup
+	newShare := dkgOutput.New.KeyShare
+
+	// a node could have left at a prior epoch and rejoined, so make sure the network configuration is still valid
+	if bp.group != nil {
+		err := bp.validateGroupTransition(bp.group, newGroup)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := bp.storeDKGOutput(newGroup, newShare)
+	if err != nil {
+		return err
+	}
+
+	b, err := bp.newBeacon(context.Background())
+	if err != nil {
+		bp.log.Fatalw("", "transition", "new_node", "err", err)
+		return err
+	}
+
+	bp.beacon.TransitionNewGroup(newShare, newGroup)
+
+	syncError := b.Start()
+	if syncError != nil {
+		b.Catchup()
+	}
+
+	return nil
 }
 
 // Stop simply stops all drand operations.
@@ -414,6 +429,7 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 	if err != nil {
 		return nil, err
 	}
+	bp.log.Infow("setting handler")
 	bp.beacon = b
 	// cancel any sync operations
 	if bp.syncerCancel != nil {
@@ -445,17 +461,6 @@ func (bp *BeaconProcess) StopBeacon() {
 
 	bp.beacon.Stop()
 	bp.beacon = nil
-}
-
-func (bp *BeaconProcess) isFreshRun() bool {
-	grp, errG := bp.store.LoadGroup()
-	_, errS := bp.store.LoadShare(grp.Scheme)
-
-	isFresh := errG != nil || errS != nil
-
-	bp.log.Debugw("Status when loading group or share", "group error", errG, "share error", errS, "will run as fresh run", isFresh)
-
-	return isFresh
 }
 
 // getChainHash return the beaconID of that beaconProcess, if set
@@ -600,15 +605,4 @@ func (bp *BeaconProcess) computePeers(nodes []*key.Node) []net.Peer {
 		peers = append(peers, nodes[i].Identity)
 	}
 	return peers
-}
-
-// dkgInfo is a simpler wrapper that keeps the relevant config and logic
-// necessary during the DKG protocol.
-type dkgInfo struct {
-	target  *key.Group
-	board   Broadcast
-	phaser  *dkg.TimePhaser
-	conf    *dkg.Config
-	proto   *dkg.Protocol
-	started bool
 }

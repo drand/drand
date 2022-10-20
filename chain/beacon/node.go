@@ -21,7 +21,7 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-// Config holds the different cryptographc informations necessary to run the
+// Config holds the different cryptographc information necessary to run the
 // randomness beacon.
 type Config struct {
 	// Public key of this node
@@ -247,11 +247,14 @@ func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	}
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
-	if tTime != targetTime {
-		h.l.Errorw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
-		return
-	}
+	go h.run(targetTime)
+
+	// HMM MAYBE THIS NEEDS THOUGHT ABOUT?
+	// tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	// if tTime != targetTime {
+	//   	h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+	//	return
+	// }
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one

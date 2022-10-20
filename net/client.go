@@ -32,9 +32,6 @@ type ProtocolClient interface {
 	GetIdentity(ctx context.Context, p Peer, in *drand.IdentityRequest, opts ...CallOption) (*drand.IdentityResponse, error)
 	SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error)
 	PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error
-	BroadcastDKG(c context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) error
-	SignalDKGParticipant(ctx context.Context, p Peer, in *drand.SignalDKGPacket, opts ...CallOption) error
-	PushDKGInfo(ctx context.Context, p Peer, in *drand.DKGInfoPacket, opts ...grpc.CallOption) error
 	Status(context.Context, Peer, *drand.StatusRequest, ...grpc.CallOption) (*drand.StatusResponse, error)
 }
 

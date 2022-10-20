@@ -38,6 +38,7 @@ type Config struct {
 	pgDSN             string
 	pgConn            *sqlx.DB
 	memDBSize         int
+	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
 	keyPath           string
@@ -51,7 +52,7 @@ type Config struct {
 func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
-		dkgTimeout:   DefaultDKGTimeout,
+		dkgTimeout:   DefaultDKGPhaseTimeout,
 		controlPort:  DefaultControlPort,
 		logger:       log.DefaultLogger(),
 		clock:        clock.NewRealClock(),
@@ -119,17 +120,9 @@ func (d *Config) Logger() log.Logger {
 	return d.logger
 }
 
-func (d *Config) applyDkgCallback(share *key.Share, group *key.Group) {
-	if d.dkgCallback != nil {
-		d.dkgCallback(share, group)
-	}
-}
-
-// WithGrpcOptions applies grpc dialing option used when a drand node actively
-// contacts another.
-func WithGrpcOptions(opts ...grpc.DialOption) ConfigOption {
-	return func(d *Config) {
-		d.grpcOpts = opts
+func (d *Config) callbacks(b *chain.Beacon) {
+	for _, fn := range d.beaconCbs {
+		fn(b)
 	}
 }
 
@@ -286,6 +279,12 @@ func WithLogLevel(level int, jsonFormat bool) ConfigOption {
 		} else {
 			d.logger = log.NewLogger(nil, level)
 		}
+	}
+}
+
+func WithNamedLogger(name string) ConfigOption {
+	return func(d *Config) {
+		d.logger = d.logger.Named(name)
 	}
 }
 

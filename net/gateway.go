@@ -46,6 +46,8 @@ type Service interface {
 	drand.ControlServer
 	drand.ProtocolServer
 	drand.Interceptors
+	drand.DKGControlServer
+	drand.DKGServer
 }
 
 // NewGRPCPrivateGateway returns a grpc gateway listening on "listen" for the

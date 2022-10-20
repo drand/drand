@@ -8,6 +8,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/core/dkg"
 	dhttp "github.com/drand/drand/http"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -27,14 +28,17 @@ type DrandDaemon struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
+	dkg *dkg.DKGProcess
+
 	handler *dhttp.DrandHandler
 
 	opts *Config
 	log  log.Logger
 
 	// global state lock
-	state  sync.Mutex
-	exitCh chan bool
+	state         sync.Mutex
+	completedDKGs chan dkg.SharingOutput
+	exitCh        chan bool
 
 	// version indicates the base code variant
 	version common.Version
@@ -51,6 +55,7 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		opts:            c,
 		log:             logger,
 		exitCh:          make(chan bool, 1),
+		completedDKGs:   make(chan dkg.SharingOutput),
 		version:         common.GetAppVersion(),
 		initialStores:   make(map[string]*key.Store),
 		beaconProcesses: make(map[string]*BeaconProcess),
@@ -130,18 +135,33 @@ func (dd *DrandDaemon) init() error {
 		}
 	}
 
+	// set up the gRPC clients
+	p := c.ControlPort()
+
+	dkgStore, err := dkg.NewDKGStore(c.configFolder, c.boltOpts)
+	if err != nil {
+		return err
+	}
+
+	dkgConfig := dkg.Config{
+		TimeBetweenDKGPhases: DefaultDKGPhaseTimeout,
+		KickoffGracePeriod:   DefaultDKGKickoffGracePeriod,
+		SkipKeyVerification:  false,
+	}
+	dd.dkg = dkg.NewDKGProcess(dkgStore, dd, dd.completedDKGs, dkgConfig, dd.log)
+
+	controlListener, err := net.NewGRPCListener(dd, p)
+	if err != nil {
+		return err
+	}
+	dd.control = controlListener
+
 	dd.handler = handler
 	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
 	if err != nil {
 		return err
 	}
 
-	p := c.ControlPort()
-	dd.control, err = net.NewTCPGrpcControlListener(dd, p)
-
-	if err != nil {
-		return err
-	}
 	go dd.control.Start()
 
 	dd.log.Infow("DrandDaemon initialized",
@@ -162,21 +182,17 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
 	logger := dd.log.Named(beaconID)
-	bp, err := NewBeaconProcess(logger, store, beaconID, dd.opts, dd.privGateway, dd.pubGateway)
+	bp, err := NewBeaconProcess(logger, store, dd.completedDKGs, beaconID, dd.opts, dd.privGateway, dd.pubGateway)
 	if err != nil {
 		return nil, err
 	}
+	go bp.StartListeningForDKGUpdates()
 
 	dd.state.Lock()
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
-	// Todo: investigate if this is ever true at this point
-	if bp.dkgDone {
-		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-	} else {
-		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
-	}
+	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
 	metrics.IsDrandNode.Set(1)
 	metrics.DrandStartTimestamp.SetToCurrentTime()
@@ -305,29 +321,35 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, erro
 func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
-		dd.log.Errorw("beacon id", beaconID, "can't instantiate randomness beacon. err:", err)
+		dd.log.Errorw("beacon id ", beaconID, " can't instantiate randomness beacon. err:", err)
 		return nil, err
 	}
 
-	freshRun, err := bp.Load()
+	status, err := dd.dkg.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
 	if err != nil {
 		return nil, err
 	}
 
+	freshRun := status.Complete == nil
 	if freshRun {
 		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
-	} else {
-		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
-
-		// Add beacon handler for http server
-		dd.AddBeaconHandler(beaconID, bp)
-
-		// XXX make it configurable so that new share holder can still start if
-		// nobody started.
-		// drand.StartBeacon(!c.Bool(pushFlag.Name))
-		catchup := true
-		err = bp.StartBeacon(catchup)
+		return bp, nil
 	}
 
-	return bp, err
+	if err := bp.Load(); err != nil {
+		return nil, err
+	}
+	dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
+
+	// Add beacon handler for http server
+	dd.AddBeaconHandler(beaconID, bp)
+
+	// XXX make it configurable so that new share holder can still start if
+	// nobody started.
+	// drand.StartBeacon(!c.Bool(pushFlag.Name))
+	//catchup := true
+	// TODO (dlsniper): This error should be propagated
+	//nolint:errcheck // This should be handled, see the above commentbp.StartBeacon(catchup)
+
+	return bp, nil
 }

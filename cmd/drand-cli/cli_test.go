@@ -9,10 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/drand/drand/util"
 
 	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"
@@ -317,10 +320,11 @@ func TestUtilCheck(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(200 * time.Millisecond)
-
-	check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
-	require.NoError(t, CLI().Run(check))
+	_, err := util.RetryOnError(10, func() (*interface{}, error) {
+		check = []string{"drand", "util", "check", "--verbose", "--tls-disable", keyAddr}
+		return nil, CLI().Run(check)
+	})
+	require.NoError(t, err)
 }
 
 //nolint:funlen
@@ -728,14 +732,12 @@ func TestDrandReloadBeacon(t *testing.T) {
 	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
-			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
-			// Wait a bit after launching the leader to launch the other nodes too.
-			time.Sleep(500 * time.Millisecond)
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
 		} else {
-			go inst.share(t, instances[0].addr, beaconID, done)
+			inst.join(t, beaconID)
 		}
 	}
-
+	instances[0].executeDKG(t, beaconID)
 	t.Log("waiting for initial set up to settle on all nodes")
 	for i := 0; i < n; i++ {
 		err := <-done
@@ -794,13 +796,12 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
-			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
-			// Wait a bit after launching the leader to launch the other nodes too.
-			time.Sleep(500 * time.Millisecond)
+			inst.startInitialDKG(t, instances, n, 1, beaconID, sch)
 		} else {
-			go inst.share(t, instances[0].addr, beaconID, done)
+			inst.join(t, beaconID)
 		}
 	}
+	instances[0].executeDKG(t, beaconID)
 
 	t.Log("waiting for initial set up to settle on all nodes")
 	for i := 0; i < n; i++ {
@@ -933,43 +934,63 @@ func (d *drandInstance) stop(beaconID string) error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort, "--id", beaconID})
 }
 
-func (d *drandInstance) shareLeader(t *testing.T,
-	nodes, threshold, periodSeconds int,
+func (d *drandInstance) startInitialDKG(
+	t *testing.T,
+	instances []*drandInstance,
+	threshold,
+	periodSeconds int,
 	beaconID string,
+<<<<<<< HEAD
 	sch *crypto.Scheme,
 	done chan error) {
+=======
+	sch scheme.Scheme,
+) {
+>>>>>>> bdcb83c6 (DKG refactor first pass)
 	t.Helper()
 
-	shareArgs := []string{
+	addrs := make([]string, len(instances))
+	for i, v := range instances {
+		addrs[i] = v.ctrlPort
+	}
+
+	proposal, err := generateJoiningProposal("default", addrs)
+	require.NoError(t, err)
+
+	proposalPath := filepath.Join(t.TempDir(), "proposal.toml")
+	err = os.WriteFile(proposalPath, []byte(proposal), 0755)
+	require.NoError(t, err)
+
+	dkgArgs := []string{
 		"drand",
-		"share",
-		"--leader",
-		"--nodes", strconv.Itoa(nodes),
-		"--threshold", strconv.Itoa(threshold),
+		"dkg",
+		"propose",
+		"--proposal", proposalPath,
+		"--catchup-period", fmt.Sprintf("%ds", periodSeconds/2),
+		"--threshold", fmt.Sprintf("%d", threshold),
 		"--period", fmt.Sprintf("%ds", periodSeconds),
 		"--control", d.ctrlPort,
 		"--scheme", sch.Name,
 		"--id", beaconID,
 	}
 
-	done <- CLI().Run(shareArgs)
+	err = CLI().Run(dkgArgs)
+	require.NoError(t, err)
 }
 
-func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string, done chan error) {
+func (d *drandInstance) executeDKG(t *testing.T, beaconID string) {
 	t.Helper()
-
-	shareArgs := []string{
-
+	dkgArgs := []string{
 		"drand",
-		"share",
-		"--connect", leaderURL,
+		"dkg",
+		"execute",
 		"--control", d.ctrlPort,
 		"--id", beaconID,
 	}
 
-	done <- CLI().Run(shareArgs)
+	err := CLI().Run(dkgArgs)
+	require.NoError(t, err)
 }
-
 func (d *drandInstance) load(beaconID string) error {
 	reloadArgs := []string{
 		"drand",
@@ -1014,6 +1035,22 @@ func (d *drandInstance) runWithStartArgs(t *testing.T, beaconID string, startArg
 
 	// make sure we run each one sequentially
 	testStatus(t, d.ctrlPort, beaconID)
+}
+
+func (d *drandInstance) join(t *testing.T, id string) {
+	t.Helper()
+	joinArgs := []string{
+		"drand",
+		"dkg",
+		"join",
+		"--id",
+		id,
+		"--control",
+		d.ctrlPort,
+	}
+
+	err := CLI().Run(joinArgs)
+	require.NoError(t, err)
 }
 
 func genAndLaunchDrandInstances(t *testing.T, n int) []*drandInstance {
@@ -1090,6 +1127,7 @@ func launchDrandInstances(t *testing.T, beaconID string, ins []*drandInstance) [
 	}
 	return ins
 }
+<<<<<<< HEAD
 
 func TestSharingWithInvalidFlagCombos(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
@@ -1113,6 +1151,8 @@ func TestSharingWithInvalidFlagCombos(t *testing.T) {
 		"--from flag invalid with --reshare - nodes resharing should already have a secret share and group ready to use",
 	)
 }
+=======
+>>>>>>> bdcb83c6 (DKG refactor first pass)
 
 //nolint:funlen // This is a test
 func TestMemDBBeaconReJoinsNetworkAfterLongStop(t *testing.T) {

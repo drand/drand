@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
 	"golang.org/x/crypto/blake2b"
 
 	commonutils "github.com/drand/drand/common"
@@ -312,22 +313,6 @@ func (g *Group) TOMLValue() interface{} {
 	return &GroupTOML{}
 }
 
-// NewGroup returns a group from the given information to be used as a new group
-// in a setup or resharing phase. Every identity is map to a Node struct whose
-// index is the position in the list of identity.
-func NewGroup(list []*Identity, threshold int, genesis int64, period, catchupPeriod time.Duration,
-	sch *crypto.Scheme, beaconID string) *Group {
-	return &Group{
-		Nodes:         copyAndSort(list),
-		Threshold:     threshold,
-		GenesisTime:   genesis,
-		Period:        period,
-		CatchupPeriod: catchupPeriod,
-		Scheme:        sch,
-		ID:            beaconID,
-	}
-}
-
 // LoadGroup returns a group that contains all information with respect
 // to a QUALified set of nodes that ran successfully a setup or reshare phase.
 // The threshold is automatically guessed from the length of the distributed
@@ -346,20 +331,6 @@ func LoadGroup(list []*Node, genesis int64, public *DistPublic, period time.Dura
 		Scheme:         sch,
 		ID:             beaconID,
 	}
-}
-
-func copyAndSort(list []*Identity) []*Node {
-	nl := make([]*Identity, len(list))
-	copy(nl, list)
-	sort.Sort(ByKey(nl))
-	nodes := make([]*Node, len(list))
-	for i := 0; i < len(list); i++ {
-		nodes[i] = &Node{
-			Identity: nl[i],
-			Index:    Index(i),
-		}
-	}
-	return nodes
 }
 
 // MinimumT calculates the threshold needed for the group to produce sufficient shares to decode

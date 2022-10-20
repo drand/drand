@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,11 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/core/dkg"
+	"github.com/drand/drand/util"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	clock "github.com/jonboulle/clockwork"
 	"github.com/kabukky/httpscerts"
@@ -24,12 +30,6 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
-	"github.com/drand/kyber/share/dkg"
-)
-
-const (
-	ReshareUnlock = iota
-	ReshareLock
 )
 
 type MockNode struct {
@@ -38,6 +38,48 @@ type MockNode struct {
 	daemon   *DrandDaemon
 	drand    *BeaconProcess
 	clock    clock.FakeClock
+}
+
+func (n *MockNode) JoinDKG() error {
+	d, err := net.NewDKGControlClient(n.drand.opts.controlPort)
+	if err != nil {
+		return err
+	}
+	_, err = d.StartJoin(context.Background(), &drand.JoinOptions{
+		BeaconID:  n.drand.beaconID,
+		GroupFile: nil,
+	})
+
+	return err
+}
+func (n *MockNode) JoinReshare(oldGroup *key.Group) error {
+	d, err := net.NewDKGControlClient(n.drand.opts.controlPort)
+	if err != nil {
+		return err
+	}
+	var groupFileBytes []byte
+	err = toml.NewEncoder(bytes.NewBuffer(groupFileBytes)).Encode(oldGroup.TOML())
+	if err != nil {
+		return err
+	}
+	_, err = d.StartJoin(context.Background(), &drand.JoinOptions{
+		BeaconID:  n.drand.beaconID,
+		GroupFile: groupFileBytes,
+	})
+
+	return err
+}
+
+func (n *MockNode) Accept() error {
+	d, err := net.NewDKGControlClient(n.drand.opts.controlPort)
+	if err != nil {
+		return err
+	}
+	_, err = d.StartAccept(context.Background(), &drand.AcceptOptions{
+		BeaconID: n.drand.beaconID,
+	})
+
+	return err
 }
 
 //nolint:gocritic
@@ -56,8 +98,6 @@ type DrandTestScenario struct {
 
 	n             int
 	thr           int
-	newN          int
-	newThr        int
 	period        time.Duration
 	catchupPeriod time.Duration
 	scheme        *crypto.Scheme
@@ -68,8 +108,6 @@ type DrandTestScenario struct {
 	// needed to give the group to new nodes during a resharing - only set after
 	// a successful DKG
 	groupPath string
-	// only set after the resharing
-	newGroup *key.Group
 	// nodes that are created for running a first DKG
 	nodes []*MockNode
 	// new additional nodes that are created for running a resharing
@@ -85,7 +123,16 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
-func BatchNewDrand(t *testing.T, n int, insecure bool, sch *crypto.Scheme, beaconID string, opts ...ConfigOption) (
+
+func BatchNewDrand(
+	t *testing.T,
+	currentNodeCount,
+	n int,
+	insecure bool,
+	sch *crypto.Scheme,
+	beaconID string,
+	opts ...ConfigOption,
+) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {
 	t.Logf("Creating %d nodes for beaconID %s", n, beaconID)
@@ -108,7 +155,8 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch *crypto.Scheme, beaco
 	dirs := make([]string, n)
 
 	for i := 0; i < n; i++ {
-		dirs[i] = path.Join(dir, fmt.Sprintf("drand-%d", i))
+		testNodeIndex := currentNodeCount + i
+		dirs[i] = path.Join(dir, fmt.Sprintf("drand-%d", testNodeIndex))
 		if err := os.MkdirAll(dirs[i], 0o777); err != nil {
 			panic(err)
 		}
@@ -116,14 +164,15 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch *crypto.Scheme, beaco
 
 	if !insecure {
 		for i := 0; i < n; i++ {
-			certPath := path.Join(dirs[i], fmt.Sprintf("server-%d.crt", i))
-			keyPath := path.Join(dirs[i], fmt.Sprintf("server-%d.key", i))
+			testNodeIndex := currentNodeCount + i
+			certPath := path.Join(dirs[i], fmt.Sprintf("server-%d.crt", testNodeIndex))
+			keyPath := path.Join(dirs[i], fmt.Sprintf("server-%d.key", testNodeIndex))
 
 			if httpscerts.Check(certPath, keyPath) != nil {
 				h, _, err := gnet.SplitHostPort(privs[i].Public.Address())
 				require.NoError(t, err)
 
-				t.Logf("generate keys for drand %d", i)
+				t.Logf("generate keys for drand %d", testNodeIndex)
 				err = httpscerts.Generate(certPath, keyPath, h)
 				require.NoError(t, err)
 			}
@@ -155,6 +204,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch *crypto.Scheme, beaco
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
 			WithLogLevel(test.LogLevel(t), false),
+			WithNamedLogger(fmt.Sprintf("[node %d]", currentNodeCount+i)),
 			WithMemDBSize(100),
 		)
 		// add options in last so it overwrites the default
@@ -212,8 +262,10 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, beacon
 	dt := new(DrandTestScenario)
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 
+	// hmm it seems like this _has_ to be insecure as the `ControlClient` uses insecure credentials?
+	// dunno how any tests were passing if this was the case though
 	daemons, drands, _, dir, certPaths := BatchNewDrand(
-		t, n, false, sch, beaconID, WithCallOption(grpc.WaitForReady(true)),
+		t, 0, n, false, sch, beaconID, WithCallOption(grpc.WaitForReady(true)),
 	)
 
 	dt.t = t
@@ -277,152 +329,6 @@ func (d *DrandTestScenario) waitFor(
 		time.Sleep(100 * time.Millisecond)
 		retry++
 	}
-}
-
-// RunDKG runs the DKG with the initial nodes created during NewDrandTest
-//
-//nolint:funlen
-func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
-	// common secret between participants
-	secret := "thisisdkg"
-
-	leaderNode := d.nodes[0]
-	controlClient, err := net.NewControlClient(leaderNode.drand.opts.controlPort)
-	if err != nil {
-		return nil, err
-	}
-
-	d.t.Log("[RunDKG] Start: Leader = ", leaderNode.GetAddr())
-
-	totalNodes := d.n
-
-	errDetector := make(chan error, totalNodes+1)
-	var wg sync.WaitGroup
-	wg.Add(totalNodes)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	done := make(chan bool) // signal we are done with the reshare before the timeout
-
-	runLeaderNode := func() {
-		defer wg.Done()
-		d.t.Log("[RunDKG] Leader (", leaderNode.GetAddr(), ") init")
-
-		// TODO: Control Client needs every single parameter, not a protobuf type. This means that it will be difficult to extend
-		groupPacket, err := controlClient.InitDKGLeader(
-			totalNodes, d.thr, d.period, d.catchupPeriod, testDkgTimeout, nil, secret, testBeaconOffset, d.beaconID)
-		if err != nil {
-			errDetector <- err
-			return
-		}
-
-		d.t.Log("[RunDKG] Leader obtain group")
-		group, err := key.GroupFromProto(groupPacket, nil)
-		if err != nil {
-			errDetector <- err
-			return
-		}
-
-		d.t.Logf("[RunDKG] Leader    Finished. GroupHash %x", group.Hash())
-
-		// We need to make sure the daemon is running before continuing
-		d.waitFor(d.t, controlClient, func(r *drand.StatusResponse) bool {
-			// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
-			return r.Beacon.IsRunning
-		})
-		d.t.Logf("[DEBUG] leader node %s Status: isRunning", leaderNode.GetAddr())
-	}
-
-	// first run the leader and then run the other nodes
-	go runLeaderNode()
-
-	require.True(d.t, d.waitFor(d.t, controlClient, func(r *drand.StatusResponse) bool {
-		return r.Dkg.Status == uint32(DkgInProgress)
-	}))
-	d.t.Logf("[DEBUG] node: %s DKG Status: is in progress", leaderNode.GetAddr())
-
-	// all other nodes will send their PK to the leader that will create the group
-	for idx, node := range d.nodes[1:] {
-		idx := idx
-		node := node
-		go func(n *MockNode) {
-			defer wg.Done()
-
-			d.t.Logf("[RunDKG] Node %d (%s) DKG init", idx+1, n.GetAddr())
-
-			client, err := net.NewControlClient(n.drand.opts.controlPort)
-			if err != nil {
-				errDetector <- err
-				return
-			}
-			groupPacket, err := client.InitDKG(leaderNode.drand.priv.Public, nil, secret, d.beaconID)
-			if err != nil {
-				errDetector <- err
-				return
-			}
-			group, err := key.GroupFromProto(groupPacket, nil)
-			if err != nil {
-				errDetector <- err
-				return
-			}
-
-			d.t.Logf("[RunDKG] NonLeader %s Finished. GroupHash %x", n.GetAddr(), group.Hash())
-
-			// We need to make sure the daemon is running before continuing
-			d.waitFor(d.t, client, func(r *drand.StatusResponse) bool {
-				// TODO: maybe needs to be changed if running and started aren't both necessary, using "isStarted" could maybe work too
-				return r.Beacon.IsRunning
-			})
-			d.t.Logf("[DEBUG] follower node %s Status: isRunning", n.GetAddr())
-		}(node)
-	}
-
-	// wait for all to return
-	go func() {
-		wg.Wait()
-		done <- true
-	}()
-
-	select {
-	case e := <-errDetector:
-		if e != nil {
-			return nil, e
-		}
-	case <-done:
-	case <-ctx.Done():
-		cancel()
-		require.NoError(d.t, ctx.Err())
-	}
-
-	d.t.Logf("[RunDKG] Leader %s FINISHED", leaderNode.addr)
-
-	// we check that we can fetch the group using control functionalities on the leaderNode node
-	groupProto, err := controlClient.GroupFile(d.beaconID)
-	if err != nil {
-		return nil, err
-	}
-	d.t.Logf("[-------] Leader %s FINISHED", leaderNode.addr)
-	group, err := key.GroupFromProto(groupProto, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	// we check all nodes are included in the group
-	for _, node := range d.nodes {
-		require.NotNil(d.t, group.Find(node.drand.priv.Public))
-	}
-
-	// we check the group has the right threshold
-	require.Len(d.t, group.PublicKey.Coefficients, d.thr)
-	require.Equal(d.t, d.thr, group.Threshold)
-	err = key.Save(d.groupPath, group, false)
-	if err != nil {
-		return nil, err
-	}
-
-	d.group = group
-	d.t.Log("[RunDKG] READY!")
-	return group, nil
 }
 
 // GetBeacon returns the beacon of the given round for the specified drand id
@@ -557,10 +463,11 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 }
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
-func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int, opts ...ConfigOption) []*MockNode {
-	t.Log("Setup of", newNodes, "new nodes for tests")
-	opts = append(opts, WithCallOption(grpc.WaitForReady(false)))
-	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID, opts...)
+func (d *DrandTestScenario) SetupNewNodes(t *testing.T, countOfAdditionalNodes int) []*MockNode {
+	t.Log("Setup of", countOfAdditionalNodes, "new nodes for tests")
+	currentNodeCount := len(d.nodes)
+	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, currentNodeCount, countOfAdditionalNodes, false, d.scheme, d.beaconID,
+		WithCallOption(grpc.WaitForReady(false)))
 	d.newDir = newDir
 
 	oldCertPaths := make([]string, len(d.nodes))
@@ -576,10 +483,11 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int, opts ...Co
 	}
 
 	// store new part. and add certificate path of old nodes to the new ones
-	d.newNodes = make([]*MockNode, newNodes)
+	d.newNodes = make([]*MockNode, countOfAdditionalNodes)
 	for i, inst := range newDrands {
 		node := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
 		d.newNodes[i] = node
+		node.daemon.opts.logger.Named(fmt.Sprintf("node %d", len(d.nodes)+1))
 		for _, cp := range oldCertPaths {
 			err := inst.opts.certmanager.Add(cp)
 			require.NoError(t, err)
@@ -589,48 +497,253 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int, opts ...Co
 	return d.newNodes
 }
 
-// AddNodesWithOptions creates new additional nodes that can participate during the initial DKG.
-// The options set will overwrite the existing ones.
-func (d *DrandTestScenario) AddNodesWithOptions(t *testing.T, n int, beaconID string, opts ...ConfigOption) []*MockNode {
-	t.Logf("Setup of %d new nodes for tests", n)
-	beaconID = common.GetCanonicalBeaconID(beaconID)
-
-	d.n += n
-
-	opts = append(opts, WithCallOption(grpc.WaitForReady(true)))
-	daemons, drands, _, _, newCertPaths := BatchNewDrand(t, n, false, d.scheme, beaconID, opts...)
-	//nolint:prealloc // We don't preallocate this as it's not going to be big enought to warrant such an operation
-	var result []*MockNode
-	for i, drandInstance := range drands {
-		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], drandInstance)
-		d.nodes = append(d.nodes, node)
-		result = append(result, node)
+func (d *DrandTestScenario) RunDKG() (*key.Group, error) {
+	if len(d.nodes) == 0 {
+		return nil, errors.New("cannot run a DKG with 0 nodes in the drand test scenario")
 	}
 
-	oldCertPaths := make([]string, len(d.nodes))
-
-	// add certificates of new nodes to the old nodes and populate old cert list
+	joiners := make([]*drand.Participant, len(d.nodes))
 	for i, node := range d.nodes {
-		oldCertPaths[i] = node.certPath
-		inst := node.drand
-		for _, cp := range newCertPaths {
-			err := inst.opts.certmanager.Add(cp)
-			require.NoError(t, err)
+		identity := node.drand.priv.Public
+		pk, err := identity.Key.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		joiners[i] = &drand.Participant{
+			Address:   identity.Addr,
+			Tls:       identity.TLS,
+			PubKey:    pk,
+			Signature: identity.Signature,
 		}
 	}
 
-	// store new part. and add certificate path of old nodes to the new ones
-	d.newNodes = make([]*MockNode, n)
-	for i, inst := range drands {
-		node := newNode(d.clock.Now(), newCertPaths[i], daemons[i], inst)
-		d.newNodes[i] = node
-		for _, cp := range oldCertPaths {
-			err := inst.opts.certmanager.Add(cp)
-			require.NoError(t, err)
+	leader := d.nodes[0]
+	followers := d.nodes[1:]
+
+	leaderClient, err := net.NewDKGControlClient(leader.drand.opts.controlPort)
+	if err != nil {
+		return nil, err
+	}
+	_, err = leaderClient.StartNetwork(context.Background(), &drand.FirstProposalOptions{
+		BeaconID:             d.beaconID,
+		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+		Threshold:            uint32(d.thr),
+		PeriodSeconds:        uint32(d.period.Seconds()),
+		Scheme:               d.scheme.Name,
+		CatchupPeriodSeconds: uint32(d.catchupPeriod.Seconds()),
+		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Second)),
+		Joining:              joiners,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, follower := range followers {
+		err = follower.JoinDKG()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return result
+	_, err = leaderClient.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: d.beaconID})
+	if err != nil {
+		return nil, err
+	}
+
+	groupFile, err := d.WaitForDKG(leaderClient, 1, 100)
+	if err != nil {
+		return nil, err
+	}
+	d.group = groupFile
+	return groupFile, nil
+}
+
+// WaitForDKG waits for the DKG complete and returns the group file
+// it takes the gorup file from the leader node and thus assumes the leader has not been evicted!
+func (d *DrandTestScenario) WaitForDKG(client drand.DKGControlClient, epoch uint32, numberOfSeconds int) (*key.Group, error) {
+	return util.RetryOnError(numberOfSeconds, func() (*key.Group, error) {
+		res, err := client.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: d.beaconID})
+		if err != nil {
+			return nil, err
+		}
+
+		switch res.Current.State {
+		case uint32(dkg.Evicted):
+			panic("leader got evicted")
+		case uint32(dkg.TimedOut):
+			panic("DKG timed out")
+		case uint32(dkg.Aborted):
+			panic("DKG was aborted")
+		}
+
+		if res.Complete == nil || res.Complete.Epoch != epoch {
+			return nil, errors.New("DKG not finished yet")
+		}
+
+		if res.Complete.State == uint32(dkg.TimedOut) {
+			return nil, ErrTimeout
+		}
+
+		if res.Complete.State != uint32(dkg.Complete) {
+			panic(fmt.Sprintf("leader completed DKG in unexpected state: %s", dkg.DKGStatus(res.Complete.State).String()))
+		}
+		group := d.nodes[0].daemon.beaconProcesses[d.beaconID].group
+		if group == nil {
+			panic("group file was nil despite completion!")
+		}
+
+		return group, nil
+	})
+}
+
+var ErrTimeout = errors.New("DKG timed out")
+
+type lifecycleHooks struct {
+	postAcceptance     func()
+	postExecutionStart func()
+}
+
+func (d *DrandTestScenario) RunReshare(
+	remainingNodes []*MockNode,
+	joiningNodes []*MockNode,
+) (*key.Group, error) {
+	return d.RunReshareWithHooks(remainingNodes, joiningNodes, lifecycleHooks{})
+}
+
+//nolint:funlen
+func (d *DrandTestScenario) RunReshareWithHooks(
+	remainingNodes []*MockNode,
+	joiningNodes []*MockNode,
+	hooks lifecycleHooks,
+) (*key.Group, error) {
+	if len(remainingNodes) == 0 {
+		return nil, errors.New("cannot run a DKG with 0 nodes in the drand test scenario")
+	}
+
+	// our first node will be the leader
+	leader := remainingNodes[0]
+	leaderClient, err := net.NewDKGControlClient(leader.drand.opts.controlPort)
+	if err != nil {
+		return nil, err
+	}
+
+	// map all the remainers to participants
+	remainers := make([]*drand.Participant, len(remainingNodes))
+	for i, node := range remainingNodes {
+		identity := node.drand.priv.Public
+		pk, err := identity.Key.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+		remainers[i] = &drand.Participant{
+			Address:   identity.Addr,
+			Tls:       identity.TLS,
+			PubKey:    pk,
+			Signature: identity.Signature,
+		}
+	}
+
+	// map all the joiners to participants
+	joiners := make([]*drand.Participant, len(joiningNodes))
+	for i, node := range joiningNodes {
+		identity := node.drand.priv.Public
+		pk, err := identity.Key.MarshalBinary()
+		if err != nil {
+			return nil, err
+		}
+
+		joiners[i] = &drand.Participant{
+			Address:   identity.Addr,
+			Tls:       identity.TLS,
+			PubKey:    pk,
+			Signature: identity.Signature,
+		}
+	}
+
+	// propose a DKG with remainers and joiners
+	_, err = leaderClient.StartProposal(context.Background(), &drand.ProposalOptions{
+		BeaconID:             d.beaconID,
+		Timeout:              timestamppb.New(time.Now().Add(1 * time.Minute)),
+		Threshold:            uint32(len(remainers) + len(joiners)/2),
+		CatchupPeriodSeconds: uint32(d.catchupPeriod.Seconds()),
+		TransitionTime:       timestamppb.New(time.Now().Add(1 * time.Second)),
+		Remaining:            remainers,
+		Joining:              joiners,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// all the remainers except the leader accept
+	for _, remainer := range remainingNodes[1:] {
+		client, err := net.NewDKGControlClient(remainer.drand.opts.controlPort)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = client.StartAccept(context.Background(), &drand.AcceptOptions{
+			BeaconID: d.beaconID,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// if there are any hooks now (such as errors to trigger) we trigger them
+	if hooks.postAcceptance != nil {
+		hooks.postAcceptance()
+	}
+
+	// all the joiners join
+	for _, joiner := range joiningNodes {
+		client, err := net.NewDKGControlClient(joiner.drand.opts.controlPort)
+		if err != nil {
+			return nil, err
+		}
+
+		groupFile, err := util.TOMLBytes(d.group)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = client.StartJoin(context.Background(), &drand.JoinOptions{
+			BeaconID:  d.beaconID,
+			GroupFile: groupFile,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// the leader kicks off the execution phase
+	_, err = leaderClient.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: d.beaconID})
+	if err != nil {
+		return nil, err
+	}
+
+	// if there are any more hooks now (such as errors to trigger) we trigger them
+	if hooks.postExecutionStart != nil {
+		hooks.postExecutionStart()
+	}
+
+	// we wait up to 100 seconds for it to finish (or for the leader to get evicted)
+	groupFile, err := d.WaitForDKG(leaderClient, 2, 120)
+	if err != nil {
+		return nil, err
+	}
+	d.group = groupFile
+
+	// these counts are small, let's just nested loop
+	var reshared []*MockNode
+	for _, groupNode := range groupFile.Nodes {
+		for _, node := range d.nodes {
+			if groupNode.Addr == node.addr {
+				reshared = append(reshared, node)
+			}
+		}
+	}
+	d.resharedNodes = reshared
+	return groupFile, nil
 }
 
 func (d *DrandTestScenario) WaitUntilRound(t *testing.T, node *MockNode, round uint64) error {
@@ -683,260 +796,6 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 	}
 }
 
-func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force bool, wg *sync.WaitGroup) {
-	defer wg.Done()
-	secret := "thisistheresharing"
-
-	leader := d.nodes[0]
-
-	// instruct to be ready for resharing
-	client, err := net.NewControlClient(n.drand.opts.controlPort)
-	require.NoError(d.t, err)
-
-	d.t.Logf("[reshare:node] init reshare")
-	_, err = client.InitReshare(leader.drand.priv.Public, secret, d.groupPath, force, d.beaconID)
-	if err != nil {
-		d.t.Log("[reshare:node] error in NON LEADER: ", err)
-		errCh <- err
-		return
-	}
-
-	d.t.Logf("[reshare]  non-leader drand %s DONE - %s", n.drand.priv.Public.Address(), n.drand.priv.Public.Key)
-}
-
-func (d *DrandTestScenario) runLeaderReshare(
-	leader *MockNode,
-	client *net.ControlClient,
-	newN, newThr int,
-	timeout time.Duration,
-	errCh chan error,
-	groupReceivedCh chan *key.Group) {
-	secret := "thisistheresharing"
-
-	oldNode := d.group.Find(leader.drand.priv.Public)
-	require.NotNil(d.t, oldNode, "[reshare:leader] leader not found in old group")
-
-	// Start reshare
-	d.t.Logf("[reshare:leader] init reshare")
-	finalGroup, err := client.InitReshareLeader(newN, newThr, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
-	if err != nil {
-		d.t.Log("[reshare:leader] error: ", err)
-		errCh <- err
-		return
-	}
-
-	d.t.Logf("[reshare:leader] reshare finished - got group")
-	fg, err := key.GroupFromProto(finalGroup, nil)
-	if err != nil {
-		errCh <- err
-		return
-	}
-
-	groupReceivedCh <- fg
-}
-
-type reshareConfig struct {
-	oldRun     int           // how many current nodes do we take for resharing
-	newRun     int           // how many new nodes do we spawn
-	newThr     int           // what is the new threshold
-	timeout    time.Duration // timeout of the DKG parameter
-	force      bool          // is this a force reshare - leader parameter
-	onlyLeader bool          // only the leader will start the process
-	ignoreErr  bool          // we ignore the error returned by process
-	stateCh    chan int      // pass info on the state of the resharing
-	expDeals   int           // how many deals a receiving node should receive
-	expResps   int           // how many resps a receiving node should receive
-}
-
-func (r *reshareConfig) RelyOnTimeout() bool {
-	if r.expDeals == 0 && r.expResps == 0 {
-		return true
-	}
-	return false
-}
-
-//nolint:gocritic
-func (r *reshareConfig) ExpectedDealsAndResps() (int, int) {
-	expDeals := r.expDeals
-	if r.expDeals == 0 {
-		// only the old nodes send a deal but everyone receives it
-		expDeals = (r.oldRun + r.newRun) * (r.oldRun - 1)
-	}
-	expResps := r.expResps
-	if r.expResps == 0 {
-		// everyone participating send a response to everyone except themselves
-		expResps = (r.oldRun + r.newRun) * (r.oldRun + r.newRun - 1)
-	}
-	return expDeals, expResps
-}
-
-// RunReshare runs the resharing procedure with only "oldRun" current nodes
-// running, and "newRun" new nodes running (the ones created via SetupNewNodes).
-// It sets the given threshold to the group.
-// It stops the nodes excluded first.
-//
-//nolint:funlen
-func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Group, error) {
-	if c.ignoreErr {
-		d.t.Log("[reshare] WARNING IGNORING ERRORS!!!")
-	}
-
-	d.Lock()
-	if c.stateCh != nil {
-		c.stateCh <- ReshareLock
-	}
-
-	d.t.Log("[reshare] LOCK")
-	d.t.Logf("[reshare] old: %d/%d | new: %d/%d", c.oldRun, len(d.nodes), c.newRun, len(d.newNodes))
-
-	if len(d.newNodes) > 0 {
-		for _, node := range d.newNodes[c.newRun:] {
-			d.t.Logf("[reshare] stop new %s", node.addr)
-			d.StopMockNode(node.addr, true)
-		}
-	}
-
-	d.newN = c.oldRun + c.newRun
-	d.newThr = c.newThr
-	leader := d.nodes[0]
-
-	// Create channels
-	errCh := make(chan error, 1)
-	leaderGroupReadyCh := make(chan *key.Group, 1)
-	// setup the channel where we can see all node-initiated outgoing packets
-	// for the DKG
-	outgoingChan := make(chan packet, 100)
-	incomingChan := make(chan packet, 100)
-	broadcastSetup := func(b Broadcast) Broadcast {
-		return newTestBroadcast(t, b, outgoingChan, incomingChan)
-	}
-	leader.drand.dkgBoardSetup = broadcastSetup
-
-	// wait until leader is listening
-	controlClient, err := net.NewControlClient(leader.drand.opts.ControlPort())
-	require.NoError(t, err)
-
-	// first run the leader, then the other nodes will send their PK to the
-	// leader and then the leader will answer back with the new group
-	go d.runLeaderReshare(leader, controlClient, d.newN, d.newThr, c.timeout, errCh, leaderGroupReadyCh)
-	d.resharedNodes = append(d.resharedNodes, leader)
-
-	require.True(t, d.waitFor(t, controlClient, func(r *drand.StatusResponse) bool {
-		return r.Reshare.Status == uint32(ReshareInProgress)
-	}))
-	t.Logf("[DEBUG] node: %s Reshare Status: is in progress", leader.GetAddr())
-
-	wg := new(sync.WaitGroup)
-
-	// run the current nodes
-	for _, node := range d.nodes[1:c.oldRun] {
-		node := node
-		d.resharedNodes = append(d.resharedNodes, node)
-		if !c.onlyLeader {
-			node.drand.dkgBoardSetup = broadcastSetup
-			d.t.Logf("[reshare] run node reshare %s", node.addr)
-			wg.Add(1)
-			go d.runNodeReshare(node, errCh, c.force, wg)
-		}
-	}
-
-	// run the new ones
-	if len(d.newNodes) > 0 {
-		for _, node := range d.newNodes[:c.newRun] {
-			node := node
-			d.resharedNodes = append(d.resharedNodes, node)
-			if !c.onlyLeader {
-				node.drand.dkgBoardSetup = broadcastSetup
-				d.t.Logf("[reshare] run node reshare %s (new)", node.addr)
-				wg.Add(1)
-				go d.runNodeReshare(node, errCh, c.force, wg)
-			}
-		}
-	}
-
-	d.t.Logf("[reshare] unlock")
-	d.Unlock()
-
-	if c.stateCh != nil {
-		c.stateCh <- ReshareUnlock
-		if c.onlyLeader {
-			// no need to continue since only the leader wont do
-			// we only use this for DKgReshareForce
-			d.t.Logf(" \n LEAVING THE LEADER_ONLY RESHARING\n\n")
-			return nil, errPreempted
-		}
-	}
-
-	// stop the excluded nodes
-	for i, node := range d.nodes[c.oldRun:] {
-		d.t.Logf("[reshare] stop old %d | %s", i, node.addr)
-		d.StopMockNode(node.addr, false)
-	}
-
-	// wait for the return of the clients
-	var howManyDeals int
-	var howManyResps int
-	expDeals, expResps := c.ExpectedDealsAndResps()
-	relyOnTimeout := c.RelyOnTimeout()
-	for {
-		select {
-		case finalGroup := <-leaderGroupReadyCh:
-			t.Logf("[reshare] Received group!")
-			d.newGroup = finalGroup
-			require.NoError(d.t, key.Save(d.groupPath, d.newGroup, false))
-			// if we got the group from the leader, DKG was a success, and we wait for all to terminate their DKG
-			wg.Wait()
-			d.t.Logf("[reshare] Finish")
-			return finalGroup, nil
-
-		case err := <-errCh:
-			d.t.Logf("[reshare] ERROR: %s", err)
-			if !c.ignoreErr {
-				d.t.Logf("[reshare] Finish - ignore error")
-				return nil, err
-			}
-		case <-time.After(500 * time.Millisecond):
-			// we only advance at the justification phase freely
-			// we wait for all messages during deal and
-			// response phase
-			if !relyOnTimeout {
-				continue
-			}
-			// XXX: check if this is really intended
-			d.AdvanceMockClock(t, c.timeout)
-			t.Logf("[reshare] Advance clock: %d", d.Now().Unix())
-		case <-outgoingChan:
-			continue
-		case p := <-incomingChan:
-			if relyOnTimeout {
-				continue
-			}
-			switch p.(type) {
-			case *dkg.DealBundle:
-				howManyDeals++
-				d.t.Logf("\n!!! -- %d DEALS (vs exp %d)-- received so far !!! \n", howManyDeals, expDeals)
-			case *dkg.ResponseBundle:
-				howManyResps++
-				d.t.Logf("\n!!! -- %d RESPS (vs exp %d)-- received so far !!! \n", howManyResps, expResps)
-			case *dkg.JustificationBundle:
-				continue
-			default:
-				t.Fatal("impossible to receive an unknown packet type")
-			}
-			if howManyDeals == expDeals {
-				howManyDeals++ // make sure we dont do that again
-				d.AdvanceMockClock(t, d.period)
-				t.Logf("[reshare] All deals RECEIVED -> Advance clock: %d", d.Now().Unix())
-			} else if howManyResps == expResps {
-				howManyResps++
-				d.AdvanceMockClock(t, d.period)
-				t.Logf("[reshare] All responses RECEIVED -> Advance clock: %d", d.Now().Unix())
-				relyOnTimeout = true
-			}
-		}
-	}
-}
-
 // DenyClient can abort request to other needs based on a peer list
 type DenyClient struct {
 	t *testing.T
@@ -951,24 +810,6 @@ func (bp *BeaconProcess) DenyBroadcastTo(t *testing.T, addresses ...string) {
 		ProtocolClient: client,
 		deny:           addresses,
 	}
-}
-
-func (d *DenyClient) BroadcastDKG(c context.Context, p net.Peer, in *drand.DKGPacket, opts ...net.CallOption) error {
-	if !d.isAllowed(p) {
-		d.t.Logf("[DKG] Deny communication %s\n", p.Address())
-		return errors.New("dkg broadcast denied")
-	}
-
-	return d.ProtocolClient.BroadcastDKG(c, p, in)
-}
-
-func (d *DenyClient) isAllowed(p net.Peer) bool {
-	for _, s := range d.deny {
-		if p.Address() == s {
-			return false
-		}
-	}
-	return true
 }
 
 func unixGetLimit() (curr, max uint64, err error) {
@@ -1000,56 +841,6 @@ func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProc
 		drand:    dr,
 		clock:    c,
 	}
-}
-
-type testBroadcast struct {
-	*echoBroadcast
-	outgoing chan packet
-	incoming chan packet
-	hashes   set
-	t        *testing.T
-}
-
-func newTestBroadcast(t *testing.T, b Broadcast, ingoing, outgoing chan packet) Broadcast {
-	return &testBroadcast{
-		hashes:        new(arraySet),
-		echoBroadcast: b.(*echoBroadcast),
-		outgoing:      outgoing,
-		incoming:      ingoing,
-		t:             t,
-	}
-}
-
-func (b *testBroadcast) PushDeals(bundle *dkg.DealBundle) {
-	b.echoBroadcast.PushDeals(bundle)
-	b.outgoing <- bundle
-}
-
-func (b *testBroadcast) PushResponses(bundle *dkg.ResponseBundle) {
-	b.echoBroadcast.PushResponses(bundle)
-	b.outgoing <- bundle
-}
-
-func (b *testBroadcast) PushJustifications(bundle *dkg.JustificationBundle) {
-	b.echoBroadcast.PushJustifications(bundle)
-	b.outgoing <- bundle
-}
-
-func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) error {
-	err := b.echoBroadcast.BroadcastDKG(c, p)
-	require.NoError(b.t, err)
-
-	sch, err := crypto.GetSchemeFromEnv()
-	require.NoError(b.t, err)
-	dkgPacket, err := protoToDKGPacket(p.GetDkg(), sch)
-	require.NoError(b.t, err)
-	hash := hash(dkgPacket.Hash())
-	b.Lock()
-	if !b.hashes.exists(hash) {
-		b.incoming <- dkgPacket
-	}
-	defer b.Unlock()
-	return nil
 }
 
 func (n *MockNode) GetAddr() string {
