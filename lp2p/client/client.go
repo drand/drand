@@ -48,6 +48,8 @@ func WithPubsub(ps *pubsub.PubSub) client.Option {
 }
 
 // NewWithPubsub creates a gossip randomness client.
+//
+//nolint:funlen // working as intended
 func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
 	if info == nil {
 		return nil, xerrors.Errorf("No chain supplied for joining")

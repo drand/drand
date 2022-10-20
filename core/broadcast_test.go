@@ -64,7 +64,7 @@ func TestBroadcastSet(t *testing.T) {
 	require.True(t, aset.exists(h2))
 }
 
-//nolint funlen // ignore this test
+//nolint:funlen // ignore this test
 func TestBroadcast(t *testing.T) {
 	n := 5
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()

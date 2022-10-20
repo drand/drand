@@ -110,7 +110,7 @@ func (lb *logFile) Close(t *testing.T, i int) {
 // client that can reach any drand node.
 // Deprecated: do not use
 //
-//nolint funlen // ignore this test
+//nolint:funlen,gocritic,golint,revive // function signature is correct
 func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string, lBuffers []*logFile,
 ) {
