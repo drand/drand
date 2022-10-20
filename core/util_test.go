@@ -622,34 +622,26 @@ func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force 
 	d.t.Logf("[reshare]  non-leader drand %s DONE - %s", n.drand.priv.Public.Address(), n.drand.priv.Public.Key)
 }
 
-func (d *DrandTestScenario) runLeaderReshare(timeout time.Duration, errCh chan error, groupReceivedCh chan *key.Group) {
+func (d *DrandTestScenario) runLeaderReshare(leader *MockNode, client *net.ControlClient, newN, newThr int, timeout time.Duration, errCh chan error, groupReceivedCh chan *key.Group) {
 	secret := "thisistheresharing"
-	leader := d.nodes[0]
 
 	oldNode := d.group.Find(leader.drand.priv.Public)
-	if oldNode == nil {
-		panic("[reshare:leader] leader not found in old group")
-	}
-
-	// old root: oldNode.Index leader: leader.addr
-	client, err := net.NewControlClient(leader.drand.opts.controlPort)
-	require.NoError(d.t, err)
+	require.NotNil(d.t, oldNode, "[reshare:leader] leader not found in old group")
 
 	// Start reshare
 	d.t.Logf("[reshare:leader] init reshare")
-	d.Lock()
-	nn, nt := d.newN, d.newThr
-	d.Unlock()
-	finalGroup, err := client.InitReshareLeader(nn, nt, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
+	finalGroup, err := client.InitReshareLeader(newN, newThr, timeout, 0, secret, "", testBeaconOffset, d.beaconID)
 	if err != nil {
 		d.t.Log("[reshare:leader] error: ", err)
 		errCh <- err
+		return
 	}
 
 	d.t.Logf("[reshare:leader] reshare finished - got group")
 	fg, err := key.GroupFromProto(finalGroup)
 	if err != nil {
 		errCh <- err
+		return
 	}
 
 	groupReceivedCh <- fg
@@ -744,7 +736,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 
 	// first run the leader, then the other nodes will send their PK to the
 	// leader and then the leader will answer back with the new group
-	go d.runLeaderReshare(c.timeout, errCh, leaderGroupReadyCh)
+	go d.runLeaderReshare(leader, controlClient, d.newN, d.newThr, c.timeout, errCh, leaderGroupReadyCh)
 	d.resharedNodes = append(d.resharedNodes, leader)
 
 	require.True(t, d.waitFor(t, controlClient, 10, func(r *drand.StatusResponse) bool {
