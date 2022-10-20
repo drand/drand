@@ -622,7 +622,13 @@ func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force 
 	d.t.Logf("[reshare]  non-leader drand %s DONE - %s", n.drand.priv.Public.Address(), n.drand.priv.Public.Key)
 }
 
-func (d *DrandTestScenario) runLeaderReshare(leader *MockNode, client *net.ControlClient, newN, newThr int, timeout time.Duration, errCh chan error, groupReceivedCh chan *key.Group) {
+func (d *DrandTestScenario) runLeaderReshare(
+	leader *MockNode,
+	client *net.ControlClient,
+	newN, newThr int,
+	timeout time.Duration,
+	errCh chan error,
+	groupReceivedCh chan *key.Group) {
 	secret := "thisistheresharing"
 
 	oldNode := d.group.Find(leader.drand.priv.Public)
