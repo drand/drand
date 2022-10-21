@@ -1,0 +1,1082 @@
+2022-10-21T22:16:02.531+0300    INFO    lp2p/relaynode.go:74            {"relay_node": "has addr", "addr": "/ip4/127.0.0.1/tcp/41431/p2p/12D3KooWR7oapVvMTarAVi7nzXuR4wGfbP1A2cJJHvjXLYKxy8ez"}
+running server.PublicRandStream
+added subscription with ID: 1
+releasing lock for Watch command
+starting client.Watch loop
+{"level":"INFO","ts":"2022-10-21T22:16:02.676+0300","caller":"client/client.go:108","msg":"calling subscription.Next()"}
+{"level":"INFO","ts":"2022-10-21T22:16:02.677+0300","caller":"client/client.go:227","msg":"releasing control from client.Watch back to caller"}
+before lock in server.PublicRand
+running server.PublicRand
+finished server.PublicRand in 1.346197ms
+{"level":"INFO","ts":"2022-10-21T22:16:02.686+0300","caller":"client/client.go:110","msg":"finished subscription.Next()"}
+{"level":"WARN","ts":"2022-10-21T22:16:02.686+0300","caller":"client/client.go:135","msg":"","gossip client":"randomness notification sent to channel"}
+{"level":"INFO","ts":"2022-10-21T22:16:02.686+0300","caller":"client/client.go:108","msg":"calling subscription.Next()"}
+message received on client.Watch loop
+adding new message for round 1969 to cache
+before lock in server.PublicRand
+running server.PublicRand
+finished server.PublicRand in 1.301379ms
+{"level":"INFO","ts":"2022-10-21T22:16:02.693+0300","caller":"client/client.go:110","msg":"finished subscription.Next()"}
+{"level":"WARN","ts":"2022-10-21T22:16:02.694+0300","caller":"client/client.go:137","msg":"","gossip client":"randomness notification dropped due to a full channel"}
+{"level":"INFO","ts":"2022-10-21T22:16:02.694+0300","caller":"client/client.go:108","msg":"calling subscription.Next()"}
+{"level":"DEBUG","ts":"2022-10-21T22:16:02.694+0300","caller":"client/client.go:210","msg":"processed random message"}
+panic: test timed out after 5s
+
+goroutine 217 [running]:
+testing.(*M).startAlarm.func1()
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:2036 +0x8e
+created by time.goFunc
+        /home/florin/go-sdks/go1.19.2/src/time/sleep.go:176 +0x32
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0xc0008831e0, {0x14c9b16?, 0x521185?}, 0x15d99c8)
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1494 +0x37a
+testing.runTests.func1(0xc0008831e0?)
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1846 +0x6e
+testing.tRunner(0xc0008831e0, 0xc00090dcd8)
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1446 +0x10b
+testing.runTests(0xc0008bf720?, {0x2038e00, 0xa, 0xa}, {0x7f033c33cf18?, 0x40?, 0x22b59c0?})
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1844 +0x456
+testing.(*M).Run(0xc0008bf720)
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1726 +0x5d9
+main.main()
+        _testmain.go:65 +0x1aa
+
+goroutine 19 [select]:
+github.com/ipfs/go-log/writer.(*MirrorWriter).logRoutine(0xc00011fe30)
+        /home/florin/go/pkg/mod/github.com/ipfs/go-log@v1.0.5/writer/writer.go:71 +0x11f
+created by github.com/ipfs/go-log/writer.NewMirrorWriter
+        /home/florin/go/pkg/mod/github.com/ipfs/go-log@v1.0.5/writer/writer.go:36 +0xca
+
+goroutine 15 [chan receive]:
+github.com/golang/glog.(*loggingT).flushDaemon(0x0?)
+        /home/florin/go/pkg/mod/github.com/golang/glog@v1.0.0/glog.go:882 +0x6a
+created by github.com/golang/glog.init.0
+        /home/florin/go/pkg/mod/github.com/golang/glog@v1.0.0/glog.go:410 +0x1bf
+
+goroutine 80 [select]:
+github.com/drand/drand/lp2p/client.TestGRPCClientTestFunc(0xc000883380)
+        /home/florin/projects/drand/drand/lp2p/client/client_test.go:92 +0x8ee
+testing.tRunner(0xc000883380, 0x15d99c8)
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1446 +0x10b
+created by testing.(*T).Run
+        /home/florin/go-sdks/go1.19.2/src/testing/testing.go:1493 +0x35f
+
+goroutine 39 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e8e8, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc0000d6080?, 0xc000326000?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc0000d6080, {0xc000326000, 0x8000, 0x8000})
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:167 +0x25a
+net.(*netFD).Read(0xc0000d6080, {0xc000326000?, 0xc00269dc50?, 0x507735?})
+        /home/florin/go-sdks/go1.19.2/src/net/fd_posix.go:55 +0x29
+net.(*conn).Read(0xc0008b8020, {0xc000326000?, 0x0?, 0x800010601?})
+        /home/florin/go-sdks/go1.19.2/src/net/net.go:183 +0x45
+bufio.(*Reader).Read(0xc0003242a0, {0xc0002e6040, 0x9, 0x18?})
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:237 +0x1bb
+io.ReadAtLeast({0x1775760, 0xc0003242a0}, {0xc0002e6040, 0x9, 0x9}, 0x9)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:332 +0x9a
+io.ReadFull(...)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:351
+golang.org/x/net/http2.readFrameHeader({0xc0002e6040?, 0x9?, 0xec22131?}, {0x1775760?, 0xc0003242a0?})
+        /home/florin/go/pkg/mod/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/http2/frame.go:237 +0x6e
+golang.org/x/net/http2.(*Framer).ReadFrame(0xc0002e6000)
+        /home/florin/go/pkg/mod/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/http2/frame.go:498 +0x95
+google.golang.org/grpc/internal/transport.(*http2Client).reader(0xc00033e000)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_client.go:1516 +0x4be
+created by google.golang.org/grpc/internal/transport.newHTTP2Client
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_client.go:369 +0x19af
+
+goroutine 36 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e9d8, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc000216100?, 0x6?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc000216100)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:614 +0x234
+net.(*netFD).accept(0xc000216100)
+        /home/florin/go-sdks/go1.19.2/src/net/fd_unix.go:172 +0x35
+net.(*TCPListener).accept(0xc000300000)
+        /home/florin/go-sdks/go1.19.2/src/net/tcpsock_posix.go:142 +0x28
+net.(*TCPListener).Accept(0xc000300000)
+        /home/florin/go-sdks/go1.19.2/src/net/tcpsock.go:288 +0x3d
+google.golang.org/grpc.(*Server).Serve(0xc00093a000, {0x17825a0?, 0xc000300000})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:813 +0x475
+github.com/drand/drand/net.(*grpcListener).Start.func1()
+        /home/florin/projects/drand/drand/net/listener.go:202 +0x29
+created by github.com/drand/drand/net.(*grpcListener).Start
+        /home/florin/projects/drand/drand/net/listener.go:201 +0x56
+
+goroutine 137 [select]:
+google.golang.org/grpc.(*ccBalancerWrapper).watcher(0xc00095ef00)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/balancer_conn_wrappers.go:112 +0x73
+created by google.golang.org/grpc.newCCBalancerWrapper
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/balancer_conn_wrappers.go:73 +0x22a
+
+goroutine 339 [select]:
+github.com/drand/drand/lp2p/client.(*Client).Watch.func1()
+        /home/florin/projects/drand/drand/lp2p/client/client.go:197 +0x1de
+created by github.com/drand/drand/lp2p/client.(*Client).Watch
+        /home/florin/projects/drand/drand/lp2p/client/client.go:190 +0x150
+
+goroutine 141 [select]:
+github.com/dgraph-io/badger/v2/y.(*WaterMark).process(0xc0009630b0, 0xc000963080)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:212 +0x26c
+created by github.com/dgraph-io/badger/v2/y.(*WaterMark).Init
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:70 +0xad
+
+goroutine 142 [select]:
+github.com/dgraph-io/badger/v2/y.(*WaterMark).process(0xc0009630e0, 0xc000963080)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:212 +0x26c
+created by github.com/dgraph-io/badger/v2/y.(*WaterMark).Init
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:70 +0xad
+
+goroutine 40 [select]:
+google.golang.org/grpc/internal/transport.(*controlBuffer).get(0xc00089a190, 0x1)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/controlbuf.go:408 +0x115
+google.golang.org/grpc/internal/transport.(*loopyWriter).run(0xc000324300)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/controlbuf.go:535 +0x85
+google.golang.org/grpc/internal/transport.newHTTP2Client.func3()
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_client.go:419 +0x6a
+created by google.golang.org/grpc/internal/transport.newHTTP2Client
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_client.go:417 +0x1ffc
+
+goroutine 166 [select]:
+github.com/dgraph-io/badger/v2/y.(*WaterMark).process(0xc0009f3620, 0xc0009f35f0)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:212 +0x26c
+created by github.com/dgraph-io/badger/v2/y.(*WaterMark).Init
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:70 +0xad
+
+goroutine 81 [select]:
+google.golang.org/grpc/internal/transport.(*controlBuffer).get(0xc0000b00a0, 0x1)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/controlbuf.go:408 +0x115
+google.golang.org/grpc/internal/transport.(*loopyWriter).run(0xc000a8e060)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/controlbuf.go:535 +0x85
+google.golang.org/grpc/internal/transport.NewServerTransport.func2()
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_server.go:334 +0xce
+created by google.golang.org/grpc/internal/transport.NewServerTransport
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_server.go:331 +0x19b3
+
+goroutine 162 [select]:
+google.golang.org/grpc/internal/transport.(*http2Server).keepalive(0xc0000f44e0)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_server.go:1129 +0x233
+created by google.golang.org/grpc/internal/transport.NewServerTransport
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_server.go:343 +0x19f8
+
+goroutine 163 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e7f8, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc000216180?, 0xc0009d8000?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc000216180, {0xc0009d8000, 0x8000, 0x8000})
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:167 +0x25a
+net.(*netFD).Read(0xc000216180, {0xc0009d8000?, 0x46e24e?, 0x43ec27?})
+        /home/florin/go-sdks/go1.19.2/src/net/fd_posix.go:55 +0x29
+net.(*conn).Read(0xc000122120, {0xc0009d8000?, 0x0?, 0x7f031432e240?})
+        /home/florin/go-sdks/go1.19.2/src/net/net.go:183 +0x45
+bufio.(*Reader).Read(0xc0009d6000, {0xc0000f8200, 0x9, 0x18?})
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:237 +0x1bb
+io.ReadAtLeast({0x1775760, 0xc0009d6000}, {0xc0000f8200, 0x9, 0x9}, 0x9)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:332 +0x9a
+io.ReadFull(...)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:351
+golang.org/x/net/http2.readFrameHeader({0xc0000f8200?, 0x9?, 0xc0029fa900?}, {0x1775760?, 0xc0009d6000?})
+        /home/florin/go/pkg/mod/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/http2/frame.go:237 +0x6e
+golang.org/x/net/http2.(*Framer).ReadFrame(0xc0000f81c0)
+        /home/florin/go/pkg/mod/golang.org/x/net@v0.0.0-20221004154528-8021a29435af/http2/frame.go:498 +0x95
+google.golang.org/grpc/internal/transport.(*http2Server).HandleStreams(0xc0000f44e0, 0x0?, 0x0?)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/http2_server.go:610 +0x174
+google.golang.org/grpc.(*Server).serveStreams(0xc00093a000, {0x178db78?, 0xc0000f44e0})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:939 +0x142
+google.golang.org/grpc.(*Server).handleRawConn.func1()
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:881 +0x46
+created by google.golang.org/grpc.(*Server).handleRawConn
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:880 +0x185
+
+goroutine 51 [select]:
+github.com/dgraph-io/badger/v2.(*DB).updateSize(0xc0002f1c00, 0xc00102de60)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:1197 +0x13a
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:357 +0x112a
+
+goroutine 52 [select]:
+github.com/dgraph-io/badger/v2.(*levelsController).runCompactor(0xc0002e9490, 0x0, 0xc00031a150)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:390 +0x1ff
+created by github.com/dgraph-io/badger/v2.(*levelsController).startCompact
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:371 +0x50
+
+goroutine 53 [select]:
+github.com/dgraph-io/badger/v2.(*levelsController).runCompactor(0xc0002e9490, 0x1, 0xc00031a150)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:390 +0x1ff
+created by github.com/dgraph-io/badger/v2.(*levelsController).startCompact
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:371 +0x50
+
+goroutine 54 [chan receive]:
+github.com/dgraph-io/badger/v2.(*DB).flushMemtable(0xc0002f1c00, 0x0?)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:1104 +0xaf
+github.com/dgraph-io/badger/v2.Open.func5()
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:374 +0x25
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:373 +0x13aa
+
+goroutine 57 [select]:
+github.com/dgraph-io/badger/v2.(*DB).doWrites(0xc0002f1c00, 0xc00031a510)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:859 +0x209
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:408 +0x1892
+
+goroutine 56 [select]:
+github.com/dgraph-io/badger/v2.(*valueLog).flushDiscardStats(0xc0002f1dd0)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/value.go:1955 +0x155
+created by github.com/dgraph-io/badger/v2.(*valueLog).open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/value.go:1114 +0x9d
+
+goroutine 58 [chan receive]:
+github.com/dgraph-io/badger/v2.(*valueLog).waitOnGC(0xc0002f1dd0, 0x0?)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/value.go:1858 +0x6f
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:412 +0x19bb
+
+goroutine 59 [select]:
+github.com/dgraph-io/badger/v2.(*publisher).listenForUpdates(0xc000963170, 0xc00031a570)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/publisher.go:67 +0x132
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:416 +0x1ad1
+
+goroutine 60 [select]:
+github.com/ipfs/go-ds-badger2.(*Datastore).periodicGC(0xc001042f60)
+        /home/florin/go/pkg/mod/github.com/ipfs/go-ds-badger2@v0.1.3/datastore.go:241 +0xe5
+created by github.com/ipfs/go-ds-badger2.NewDatastore
+        /home/florin/go/pkg/mod/github.com/ipfs/go-ds-badger2@v0.1.3/datastore.go:229 +0x610
+
+goroutine 61 [select]:
+github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds.(*dsAddrBookGc).background(0xc001039980)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoreds/addr_book_gc.go:96 +0x10f
+created by github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds.newAddressBookGc
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoreds/addr_book_gc.go:86 +0x28a
+
+goroutine 64 [select]:
+github.com/libp2p/go-libp2p/p2p/net/connmgr.(*decayer).process(0xc00104c100)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/decay.go:164 +0x245
+created by github.com/libp2p/go-libp2p/p2p/net/connmgr.NewDecayer
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/decay.go:95 +0x265
+
+goroutine 65 [select]:
+github.com/libp2p/go-libp2p/p2p/net/connmgr.(*BasicConnMgr).background(0xc0001e2900)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/connmgr.go:323 +0x145
+created by github.com/libp2p/go-libp2p/p2p/net/connmgr.NewConnManager
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/connmgr.go:145 +0x3c5
+
+goroutine 178 [select]:
+github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem.(*memoryAddrBook).background(0xc0001e3200, {0x1783610, 0xc001039a40})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoremem/addr_book.go:113 +0x12c
+created by github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem.NewAddrBook
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoremem/addr_book.go:93 +0x265
+
+goroutine 179 [select]:
+github.com/libp2p/go-libp2p/p2p/host/resource-manager.(*resourceManager).background(0xc0002c6a50)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/resource-manager/rcmgr.go:348 +0x11c
+created by github.com/libp2p/go-libp2p/p2p/host/resource-manager.NewResourceManager
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/resource-manager/rcmgr.go:161 +0x60a
+
+goroutine 180 [select]:
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*DialBackoff).background(0x0?, {0x1783610, 0xc001039b00})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_dial.go:129 +0xea
+created by github.com/libp2p/go-libp2p/p2p/net/swarm.(*DialBackoff).init
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_dial.go:122 +0xc5
+
+goroutine 182 [select]:
+github.com/libp2p/go-libp2p/p2p/protocol/identify.(*ObservedAddrManager).worker(0xc000121930)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/obsaddr.go:258 +0x1d3
+created by github.com/libp2p/go-libp2p/p2p/protocol/identify.NewObservedAddrManager
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/obsaddr.go:158 +0x3ea
+
+goroutine 183 [select]:
+github.com/libp2p/go-libp2p/p2p/protocol/identify.(*idService).loop(0xc0002e60e0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/id.go:221 +0x4e5
+created by github.com/libp2p/go-libp2p/p2p/protocol/identify.NewIDService
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/id.go:166 +0x3ea
+
+goroutine 167 [select]:
+github.com/dgraph-io/badger/v2/y.(*WaterMark).process(0xc0009f3650, 0xc0009f35f0)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:212 +0x26c
+created by github.com/dgraph-io/badger/v2/y.(*WaterMark).Init
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/y/watermark.go:70 +0xad
+
+goroutine 184 [select]:
+github.com/libp2p/go-libp2p/p2p/transport/quic.(*reuse).gc(0xc000c15580)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:93 +0x13e
+created by github.com/libp2p/go-libp2p/p2p/transport/quic.newReuse
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:71 +0x110
+
+goroutine 185 [select]:
+github.com/libp2p/go-libp2p/p2p/transport/quic.(*reuse).gc(0xc000c155c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:93 +0x13e
+created by github.com/libp2p/go-libp2p/p2p/transport/quic.newReuse
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:71 +0x110
+
+goroutine 186 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e708, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc0000d6c80?, 0x100000000064d10?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc0000d6c80)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:614 +0x234
+net.(*netFD).accept(0xc0000d6c80)
+        /home/florin/go-sdks/go1.19.2/src/net/fd_unix.go:172 +0x35
+net.(*TCPListener).accept(0xc0010515c0)
+        /home/florin/go-sdks/go1.19.2/src/net/tcpsock_posix.go:142 +0x28
+net.(*TCPListener).Accept(0xc0010515c0)
+        /home/florin/go-sdks/go1.19.2/src/net/tcpsock.go:288 +0x3d
+github.com/multiformats/go-multiaddr/net.(*maListener).Accept(0xeb1718?)
+        /home/florin/go/pkg/mod/github.com/multiformats/go-multiaddr@v0.7.0/net/net.go:243 +0x33
+github.com/libp2p/go-libp2p/p2p/net/upgrader.(*listener).handleIncoming(0xc0002e9d50)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/upgrader/listener.go:74 +0x104
+created by github.com/libp2p/go-libp2p/p2p/net/upgrader.(*upgrader).UpgradeListener
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/upgrader/upgrader.go:110 +0x225
+
+goroutine 187 [chan receive]:
+github.com/libp2p/go-libp2p/p2p/net/upgrader.(*listener).Accept(0xc0002e9d50)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/upgrader/listener.go:162 +0x45
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Swarm).AddListenAddr.func2()
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_listen.go:124 +0xf5
+created by github.com/libp2p/go-libp2p/p2p/net/swarm.(*Swarm).AddListenAddr
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_listen.go:102 +0x271
+
+goroutine 174 [select]:
+github.com/libp2p/go-libp2p/p2p/protocol/identify.(*peerHandler).loop(0xc00013ab90, {0x1783610, 0xc00114a2c0}, 0xc0010475e0?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/peer_loop.go:89 +0x105
+created by github.com/libp2p/go-libp2p/p2p/protocol/identify.(*peerHandler).start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/peer_loop.go:71 +0xf8
+
+goroutine 190 [select]:
+github.com/libp2p/go-libp2p/p2p/host/autonat.(*AmbientAutoNAT).background(0xc0002e6460)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/autonat/autonat.go:180 +0x319
+created by github.com/libp2p/go-libp2p/p2p/host/autonat.New
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/autonat/autonat.go:129 +0x78a
+
+goroutine 226 [chan receive]:
+github.com/drand/drand/test/mock.(*Server).PublicRandStream(0xc00013a640, 0x12608e0?, {0x178a440, 0xc000960220})
+        /home/florin/projects/drand/drand/test/mock/grpcserver.go:132 +0x26e
+github.com/drand/drand/protobuf/drand._Public_PublicRandStream_Handler({0x1317600?, 0xc00013a640}, {0x1788b30, 0xc0002d40d8})
+        /home/florin/projects/drand/drand/protobuf/drand/api_grpc.pb.go:187 +0xd0
+github.com/drand/drand/test/net.(*EmptyServer).NodeVersionStreamValidator(0xb2e8ee?, {0x1317600?, 0xc00013a640?}, {0x1788b30?, 0xc0002d40d8?}, 0x18?, 0xc000081000?)
+        /home/florin/projects/drand/drand/test/net/empty_server.go:161 +0x3d
+github.com/grpc-ecosystem/go-grpc-middleware.ChainStreamServer.func1.1.1({0x1317600?, 0xc00013a640?}, {0x1788b30?, 0xc0002d40d8?})
+        /home/florin/go/pkg/mod/github.com/grpc-ecosystem/go-grpc-middleware@v1.3.0/chain.go:49 +0x3a
+github.com/grpc-ecosystem/go-grpc-prometheus.(*ServerMetrics).StreamServerInterceptor.func1({0x1317600, 0xc00013a640}, {0x1788ff8?, 0xc0002340d0}, 0x7f031432b6b0?, 0xc00009d4a0)
+        /home/florin/go/pkg/mod/github.com/grpc-ecosystem/go-grpc-prometheus@v1.2.0/server_metrics.go:121 +0x109
+github.com/grpc-ecosystem/go-grpc-middleware.ChainStreamServer.func1.1.1({0x1317600?, 0xc00013a640?}, {0x1788ff8?, 0xc0002340d0?})
+        /home/florin/go/pkg/mod/github.com/grpc-ecosystem/go-grpc-middleware@v1.3.0/chain.go:49 +0x3a
+github.com/grpc-ecosystem/go-grpc-middleware.ChainStreamServer.func1({0x1317600, 0xc00013a640}, {0x1788ff8, 0xc0002340d0}, 0x10fda00?, 0xc00025e4f0?)
+        /home/florin/go/pkg/mod/github.com/grpc-ecosystem/go-grpc-middleware@v1.3.0/chain.go:58 +0xbe
+google.golang.org/grpc.(*Server).processStreamingRPC(0xc00093a000, {0x178db78, 0xc0000f44e0}, 0xc0008ae5a0, 0xc0009361b0, 0x202b3e0, 0x0)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:1588 +0xfa6
+google.golang.org/grpc.(*Server).handleStream(0xc00093a000, {0x178db78, 0xc0000f44e0}, 0xc0008ae5a0, 0x0)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:1663 +0x9ea
+google.golang.org/grpc.(*Server).serveStreams.func1.2()
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:955 +0x98
+created by google.golang.org/grpc.(*Server).serveStreams.func1
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/server.go:953 +0x28a
+
+goroutine 192 [select]:
+github.com/libp2p/go-libp2p/p2p/host/pstoremanager.(*PeerstoreManager).background(0xc00089a410, {0x1783610, 0xc000c15700}, {0x177b940?, 0xc000cf9260})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/pstoremanager/pstoremanager.go:95 +0x2de
+created by github.com/libp2p/go-libp2p/p2p/host/pstoremanager.(*PeerstoreManager).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/pstoremanager/pstoremanager.go:77 +0x1e5
+
+goroutine 193 [select]:
+github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).background(0xc0001fad80)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:529 +0x20b
+created by github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:370 +0x78
+
+goroutine 194 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*backoff).cleanupLoop(0xc000cf9680, {0x1783648, 0xc000132000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/backoff.go:100 +0xe7
+created by github.com/libp2p/go-libp2p-pubsub.newBackoff
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/backoff.go:47 +0x165
+
+goroutine 195 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).heartbeatTimer(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:1324 +0x1ea
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:497 +0x1af
+
+goroutine 196 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 197 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 198 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 199 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 200 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 201 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 202 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 203 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033e3c0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 204 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 205 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 206 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 207 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 208 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 209 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 210 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 211 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000c15780)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 212 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).processLoop(0xc000cea400, {0x1783648, 0xc000132000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/pubsub.go:542 +0x4df
+created by github.com/libp2p/go-libp2p-pubsub.NewPubSub
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/pubsub.go:323 +0xe0e
+
+goroutine 48 [select]:
+github.com/libp2p/go-yamux/v4.(*Session).AcceptStream(0xc00289ec00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:272 +0xb3
+github.com/libp2p/go-libp2p/p2p/muxer/yamux.(*conn).AcceptStream(0xea59a5?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/muxer/yamux/conn.go:43 +0x19
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Conn).start.func1()
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_conn.go:110 +0xae
+created by github.com/libp2p/go-libp2p/p2p/net/swarm.(*Conn).start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_conn.go:105 +0x56
+
+goroutine 214 [select]:
+github.com/drand/drand/lp2p.(*GossipRelayNode).background(0xc0000d7800, {0x7f03140cadf8, 0xc00030f4f0})
+        /home/florin/projects/drand/drand/lp2p/relaynode.go:141 +0x19b
+created by github.com/drand/drand/lp2p.NewGossipRelayNode
+        /home/florin/projects/drand/drand/lp2p/relaynode.go:97 +0x672
+
+goroutine 215 [select]:
+google.golang.org/grpc.newClientStreamWithParams.func4()
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/stream.go:349 +0x92
+created by google.golang.org/grpc.newClientStreamWithParams
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/stream.go:348 +0xb90
+
+goroutine 216 [select]:
+google.golang.org/grpc/internal/transport.(*recvBufferReader).readClient(0xc000d40280, {0xc001051858, 0x5, 0x5})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/transport.go:191 +0xa5
+google.golang.org/grpc/internal/transport.(*recvBufferReader).Read(0xc000d40280, {0xc001051858?, 0xc0000468e8?, 0xc00008a8e0?})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/transport.go:171 +0x147
+google.golang.org/grpc/internal/transport.(*transportReader).Read(0xc00100a000, {0xc001051858?, 0xc00008a958?, 0xa6b667?})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/transport.go:485 +0x32
+io.ReadAtLeast({0x1777c60, 0xc00100a000}, {0xc001051858, 0x5, 0x5}, 0x5)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:332 +0x9a
+io.ReadFull(...)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:351
+google.golang.org/grpc/internal/transport.(*Stream).Read(0xc0002150e0, {0xc001051858, 0x5, 0x5})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/internal/transport/transport.go:469 +0xa5
+google.golang.org/grpc.(*parser).recvMsg(0xc001051848, 0x400000)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/rpc_util.go:559 +0x47
+google.golang.org/grpc.recvAndDecompress(0x203000?, 0xc0002150e0, {0x0, 0x0}, 0x400000, 0x0, {0x0, 0x0})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/rpc_util.go:690 +0x66
+google.golang.org/grpc.recv(0xc002898f80?, {0x7f03140cae18, 0x22e7be0}, 0x3?, {0x0?, 0x0?}, {0x12a0960, 0xc0008b7980}, 0xb42c2f?, 0x0, ...)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/rpc_util.go:756 +0x6e
+google.golang.org/grpc.(*csAttempt).recvMsg(0xc0001f8180, {0x12a0960?, 0xc0008b7980}, 0xc0041102d0?)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/stream.go:1000 +0x2ba
+google.golang.org/grpc.(*clientStream).RecvMsg.func1(0x4?)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/stream.go:851 +0x25
+google.golang.org/grpc.(*clientStream).withRetry(0xc000214ea0, 0xc00008ad88, 0xc00008ad58)
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/stream.go:699 +0x3be
+google.golang.org/grpc.(*clientStream).RecvMsg(0xc000214ea0, {0x12a0960?, 0xc0008b7980?})
+        /home/florin/go/pkg/mod/google.golang.org/grpc@v1.50.0/stream.go:850 +0x11f
+github.com/grpc-ecosystem/go-grpc-prometheus.(*monitoredClientStream).RecvMsg(0xc001051860, {0x12a0960?, 0xc0008b7980?})
+        /home/florin/go/pkg/mod/github.com/grpc-ecosystem/go-grpc-prometheus@v1.2.0/client_metrics.go:160 +0x37
+github.com/drand/drand/protobuf/drand.(*publicPublicRandStreamClient).Recv(0xc001047dc0)
+        /home/florin/projects/drand/drand/protobuf/drand/api_grpc.pb.go:82 +0x4c
+github.com/drand/drand/client/grpc.(*grpcClient).translate(0xc00030f4f0, {0x1783610, 0xc000d72200}, {0x178a3f0, 0xc001047dc0}, 0xc00103e180)
+        /home/florin/projects/drand/drand/client/grpc/client.go:112 +0x1bf
+created by github.com/drand/drand/client/grpc.(*grpcClient).Watch
+        /home/florin/projects/drand/drand/client/grpc/client.go:84 +0x1bd
+
+goroutine 168 [select]:
+github.com/dgraph-io/badger/v2.(*DB).updateSize(0xc00113c000, 0xc0009f3830)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:1197 +0x13a
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:357 +0x112a
+
+goroutine 143 [select]:
+github.com/dgraph-io/badger/v2.(*levelsController).runCompactor(0xc0009b0000, 0x0, 0xc0029d50e0)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:390 +0x1ff
+created by github.com/dgraph-io/badger/v2.(*levelsController).startCompact
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:371 +0x50
+
+goroutine 144 [select]:
+github.com/dgraph-io/badger/v2.(*levelsController).runCompactor(0xc0009b0000, 0x1, 0xc0029d50e0)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:390 +0x1ff
+created by github.com/dgraph-io/badger/v2.(*levelsController).startCompact
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/levels.go:371 +0x50
+
+goroutine 145 [chan receive]:
+github.com/dgraph-io/badger/v2.(*DB).flushMemtable(0xc00113c000, 0x0?)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:1104 +0xaf
+github.com/dgraph-io/badger/v2.Open.func5()
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:374 +0x25
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:373 +0x13aa
+
+goroutine 258 [select]:
+github.com/dgraph-io/badger/v2.(*DB).doWrites(0xc00113c000, 0xc001098000)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:859 +0x209
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:408 +0x1892
+
+goroutine 243 [select]:
+github.com/dgraph-io/badger/v2.(*valueLog).flushDiscardStats(0xc00113c1d0)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/value.go:1955 +0x155
+created by github.com/dgraph-io/badger/v2.(*valueLog).open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/value.go:1114 +0x9d
+
+goroutine 259 [chan receive]:
+github.com/dgraph-io/badger/v2.(*valueLog).waitOnGC(0xc00113c1d0, 0xc000cf9260?)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/value.go:1858 +0x6f
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:412 +0x19bb
+
+goroutine 260 [select]:
+github.com/dgraph-io/badger/v2.(*publisher).listenForUpdates(0xc0009f36e0, 0xc001098060)
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/publisher.go:67 +0x132
+created by github.com/dgraph-io/badger/v2.Open
+        /home/florin/go/pkg/mod/github.com/dgraph-io/badger/v2@v2.2007.4/db.go:416 +0x1ad1
+
+goroutine 261 [select]:
+github.com/ipfs/go-ds-badger2.(*Datastore).periodicGC(0xc000e780c0)
+        /home/florin/go/pkg/mod/github.com/ipfs/go-ds-badger2@v0.1.3/datastore.go:241 +0xe5
+created by github.com/ipfs/go-ds-badger2.NewDatastore
+        /home/florin/go/pkg/mod/github.com/ipfs/go-ds-badger2@v0.1.3/datastore.go:229 +0x610
+
+goroutine 264 [select]:
+github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds.(*dsAddrBookGc).background(0xc000e7a140)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoreds/addr_book_gc.go:96 +0x10f
+created by github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoreds.newAddressBookGc
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoreds/addr_book_gc.go:86 +0x28a
+
+goroutine 267 [select]:
+github.com/libp2p/go-libp2p/p2p/net/connmgr.(*decayer).process(0xc001062080)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/decay.go:164 +0x245
+created by github.com/libp2p/go-libp2p/p2p/net/connmgr.NewDecayer
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/decay.go:95 +0x265
+
+goroutine 268 [select]:
+github.com/libp2p/go-libp2p/p2p/net/connmgr.(*BasicConnMgr).background(0xc0008d0900)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/connmgr.go:323 +0x145
+created by github.com/libp2p/go-libp2p/p2p/net/connmgr.NewConnManager
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/connmgr/connmgr.go:145 +0x3c5
+
+goroutine 269 [select]:
+github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem.(*memoryAddrBook).background(0xc0008d1200, {0x1783610, 0xc000e7a200})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoremem/addr_book.go:113 +0x12c
+created by github.com/libp2p/go-libp2p/p2p/host/peerstore/pstoremem.NewAddrBook
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/peerstore/pstoremem/addr_book.go:93 +0x265
+
+goroutine 270 [select]:
+github.com/libp2p/go-libp2p/p2p/host/resource-manager.(*resourceManager).background(0xc0000c6bb0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/resource-manager/rcmgr.go:348 +0x11c
+created by github.com/libp2p/go-libp2p/p2p/host/resource-manager.NewResourceManager
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/resource-manager/rcmgr.go:161 +0x60a
+
+goroutine 271 [select]:
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*DialBackoff).background(0xe1c8a0?, {0x1783610, 0xc000e7a2c0})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_dial.go:129 +0xea
+created by github.com/libp2p/go-libp2p/p2p/net/swarm.(*DialBackoff).init
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_dial.go:122 +0xc5
+
+goroutine 45 [select]:
+github.com/libp2p/go-yamux/v4.(*Session).startMeasureRTT(0xc00289ec00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:356 +0xdf
+created by github.com/libp2p/go-yamux/v4.newSession
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:164 +0x68a
+
+goroutine 273 [select]:
+github.com/libp2p/go-libp2p/p2p/protocol/identify.(*ObservedAddrManager).worker(0xc0029ecd00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/obsaddr.go:258 +0x1d3
+created by github.com/libp2p/go-libp2p/p2p/protocol/identify.NewObservedAddrManager
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/obsaddr.go:158 +0x3ea
+
+goroutine 274 [select]:
+github.com/libp2p/go-libp2p/p2p/protocol/identify.(*idService).loop(0xc0002e6540)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/id.go:221 +0x4e5
+created by github.com/libp2p/go-libp2p/p2p/protocol/identify.NewIDService
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/id.go:166 +0x3ea
+
+goroutine 275 [select]:
+github.com/libp2p/go-libp2p/p2p/transport/quic.(*reuse).gc(0xc000e7bd40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:93 +0x13e
+created by github.com/libp2p/go-libp2p/p2p/transport/quic.newReuse
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:71 +0x110
+
+goroutine 276 [select]:
+github.com/libp2p/go-libp2p/p2p/transport/quic.(*reuse).gc(0xc000e7bd80)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:93 +0x13e
+created by github.com/libp2p/go-libp2p/p2p/transport/quic.newReuse
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/transport/quic/reuse.go:71 +0x110
+
+goroutine 277 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e618, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc0008b6a00?, 0x1?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0xc0008b6a00)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:614 +0x234
+net.(*netFD).accept(0xc0008b6a00)
+        /home/florin/go-sdks/go1.19.2/src/net/fd_unix.go:172 +0x35
+net.(*TCPListener).accept(0xc0010519b0)
+        /home/florin/go-sdks/go1.19.2/src/net/tcpsock_posix.go:142 +0x28
+net.(*TCPListener).Accept(0xc0010519b0)
+        /home/florin/go-sdks/go1.19.2/src/net/tcpsock.go:288 +0x3d
+github.com/multiformats/go-multiaddr/net.(*maListener).Accept(0xc000aa5e01?)
+        /home/florin/go/pkg/mod/github.com/multiformats/go-multiaddr@v0.7.0/net/net.go:243 +0x33
+github.com/libp2p/go-libp2p/p2p/net/upgrader.(*listener).handleIncoming(0xc000995180)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/upgrader/listener.go:74 +0x104
+created by github.com/libp2p/go-libp2p/p2p/net/upgrader.(*upgrader).UpgradeListener
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/upgrader/upgrader.go:110 +0x225
+
+goroutine 278 [chan receive]:
+github.com/libp2p/go-libp2p/p2p/net/upgrader.(*listener).Accept(0xc000995180)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/upgrader/listener.go:162 +0x45
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Swarm).AddListenAddr.func2()
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_listen.go:124 +0xf5
+created by github.com/libp2p/go-libp2p/p2p/net/swarm.(*Swarm).AddListenAddr
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_listen.go:102 +0x271
+
+goroutine 44 [select]:
+github.com/libp2p/go-yamux/v4.(*Session).sendLoop(0xc00289ec00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:583 +0x5b5
+github.com/libp2p/go-yamux/v4.(*Session).send(0x0?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:512 +0x1e
+created by github.com/libp2p/go-yamux/v4.newSession
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:163 +0x64a
+
+goroutine 281 [select]:
+github.com/libp2p/go-libp2p/p2p/host/autonat.(*AmbientAutoNAT).background(0xc0002e67e0)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/autonat/autonat.go:180 +0x319
+created by github.com/libp2p/go-libp2p/p2p/host/autonat.New
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/autonat/autonat.go:129 +0x78a
+
+goroutine 43 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e528, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc0008b7780?, 0xc001166000?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc0008b7780, {0xc001166000, 0x500, 0x500})
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:167 +0x25a
+net.(*netFD).Read(0xc0008b7780, {0xc001166000?, 0xc0009f86e0?, 0xc001166005?})
+        /home/florin/go-sdks/go1.19.2/src/net/fd_posix.go:55 +0x29
+net.(*conn).Read(0xc00104a1a8, {0xc001166000?, 0xbfee25?, 0x137b3ba?})
+        /home/florin/go-sdks/go1.19.2/src/net/net.go:183 +0x45
+crypto/tls.(*atLeastReader).Read(0xc00412e0c0, {0xc001166000?, 0x0?, 0x0?})
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:787 +0x3d
+bytes.(*Buffer).ReadFrom(0xc00039d778, {0x1775900, 0xc00412e0c0})
+        /home/florin/go-sdks/go1.19.2/src/bytes/buffer.go:202 +0x98
+crypto/tls.(*Conn).readFromUntil(0xc00039d500, {0x7f031407c788?, 0xc0010afec0}, 0x500?)
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:809 +0xe5
+crypto/tls.(*Conn).readRecordOrCCS(0xc00039d500, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:616 +0x116
+crypto/tls.(*Conn).readRecord(...)
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:582
+crypto/tls.(*Conn).Read(0xc00039d500, {0xc0027812e0, 0xc, 0xc00289ec80?})
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:1287 +0x16f
+io.ReadAtLeast({0x7f031424fda0, 0xc00013a9b0}, {0xc0027812e0, 0xc, 0xc}, 0xc)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:332 +0x9a
+io.ReadFull(...)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:351
+github.com/libp2p/go-yamux/v4.(*Session).recvLoop(0xc00289ec00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:668 +0xf7
+github.com/libp2p/go-yamux/v4.(*Session).recv(0x0?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:640 +0x1e
+created by github.com/libp2p/go-yamux/v4.newSession
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:162 +0x60d
+
+goroutine 283 [select]:
+github.com/libp2p/go-libp2p/p2p/host/pstoremanager.(*PeerstoreManager).background(0xc0029f4280, {0x1783610, 0xc000e7bec0}, {0x177b940?, 0xc0010aef90})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/pstoremanager/pstoremanager.go:95 +0x2de
+created by github.com/libp2p/go-libp2p/p2p/host/pstoremanager.(*PeerstoreManager).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/pstoremanager/pstoremanager.go:77 +0x1e5
+
+goroutine 284 [select]:
+github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).background(0xc000f74000)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:529 +0x20b
+created by github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:370 +0x78
+
+goroutine 285 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*backoff).cleanupLoop(0xc0010af3b0, {0x1783648, 0xc000132000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/backoff.go:100 +0xe7
+created by github.com/libp2p/go-libp2p-pubsub.newBackoff
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/backoff.go:47 +0x165
+
+goroutine 286 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).heartbeatTimer(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:1324 +0x1ea
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:497 +0x1af
+
+goroutine 287 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 288 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 289 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 290 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 291 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 292 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 293 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 294 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).connector(0xc00033ef00)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:939 +0xd1
+created by github.com/libp2p/go-libp2p-pubsub.(*GossipSubRouter).Attach
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/gossipsub.go:501 +0x1b8
+
+goroutine 296 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 297 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 298 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 299 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 300 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 301 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 302 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 303 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*validation).validateWorker(0xc000e7bf40)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:264 +0xc5
+created by github.com/libp2p/go-libp2p-pubsub.(*validation).Start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/validation.go:133 +0x5a
+
+goroutine 304 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).processLoop(0xc001076600, {0x1783648, 0xc000132000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/pubsub.go:542 +0x4df
+created by github.com/libp2p/go-libp2p-pubsub.NewPubSub
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/pubsub.go:323 +0xe0e
+
+goroutine 313 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleSendingMessages(0x0?, {0x1783648, 0xc000132000}, {0x1790a40?, 0xc0002d83c0}, 0xc003f3a000)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:164 +0x305
+created by github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleNewPeer
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:117 +0x32a
+
+goroutine 338 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*Subscription).Next(0xc001097220, {0x1783610, 0xc00281d040})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/subscription.go:26 +0x8b
+github.com/drand/drand/lp2p/client.NewWithPubsub.func1()
+        /home/florin/projects/drand/drand/lp2p/client/client.go:109 +0x129
+created by github.com/drand/drand/lp2p/client.NewWithPubsub
+        /home/florin/projects/drand/drand/lp2p/client/client.go:85 +0x58a
+
+goroutine 314 [select]:
+github.com/libp2p/go-yamux/v4.(*Stream).Read(0xc003f46000, {0xc003f93000, 0x1000, 0x1000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/stream.go:111 +0x1a9
+github.com/libp2p/go-libp2p/p2p/muxer/yamux.(*stream).Read(0x0?, {0xc003f93000?, 0x47aabc?, 0xc0003b6004?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/muxer/yamux/stream.go:17 +0x1e
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Stream).Read(0xc003f48000, {0xc003f93000?, 0x0?, 0xc000317c10?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_stream.go:55 +0x36
+github.com/multiformats/go-multistream.(*lazyClientConn).Read(0xc0003b6000?, {0xc003f93000?, 0x1000?, 0x1000?})
+        /home/florin/go/pkg/mod/github.com/multiformats/go-multistream@v0.3.3/lazyClient.go:68 +0xa3
+github.com/libp2p/go-libp2p/p2p/host/basic.(*streamWrapper).Read(0x40c68d?, {0xc003f93000?, 0xc0009a5570?, 0x7f033c33ca68?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:1019 +0x27
+bufio.(*Reader).fill(0xc000358c60)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:106 +0xff
+bufio.(*Reader).ReadByte(0xc000358c60)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:265 +0x2c
+github.com/multiformats/go-varint.ReadUvarint({0x1775740, 0xc000358c60})
+        /home/florin/go/pkg/mod/github.com/multiformats/go-varint@v0.0.6/varint.go:80 +0x74
+github.com/libp2p/go-msgio/protoio.(*uvarintReader).ReadMsg(0xc00281d000, {0x177ffc0, 0xc0009a5570})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-msgio@v0.2.0/protoio/uvarint_reader.go:70 +0x85
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).handlePeerEOF(0xc001076600, {0x0?, 0x0?}, {0x1790a40, 0xc0002d83c0})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:139 +0x144
+created by github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleNewPeer
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:118 +0x3cc
+
+goroutine 332 [select]:
+github.com/libp2p/go-yamux/v4.(*Stream).Read(0xc000eb60e0, {0xc000ef3000, 0x1000, 0x1000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/stream.go:111 +0x1a9
+github.com/libp2p/go-libp2p/p2p/muxer/yamux.(*stream).Read(0x43ec27?, {0xc000ef3000?, 0x43ec60?, 0xc000d1a680?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/muxer/yamux/stream.go:17 +0x1e
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Stream).Read(0xc0010ec000, {0xc000ef3000?, 0xc0009b0bd0?, 0xc0009b0b60?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_stream.go:55 +0x36
+bufio.(*Reader).fill(0xc000e985a0)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:106 +0xff
+bufio.(*Reader).ReadByte(0xc000e985a0)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:265 +0x2c
+github.com/multiformats/go-varint.ReadUvarint({0x1775740, 0xc000e985a0})
+        /home/florin/go/pkg/mod/github.com/multiformats/go-varint@v0.0.6/varint.go:80 +0x74
+github.com/libp2p/go-msgio/protoio.(*uvarintReader).ReadMsg(0xc000e9c6c0, {0x177ffc0, 0xc0009b0bd0})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-msgio@v0.2.0/protoio/uvarint_reader.go:70 +0x85
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleNewStream(0xc000cea400, {0x1790ad0, 0xc0010ec000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:66 +0x30d
+github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).SetStreamHandler.func1({0xc0027749a0, 0xe}, {0x7f031424fe38?, 0xc0010ec000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:577 +0x76
+created by github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).newStreamHandler
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:418 +0x715
+
+goroutine 245 [IO wait]:
+internal/poll.runtime_pollWait(0x7f031430e438, 0x72)
+        /home/florin/go-sdks/go1.19.2/src/runtime/netpoll.go:305 +0x89
+internal/poll.(*pollDesc).wait(0xc00104c180?, 0xc00039a480?, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:84 +0x32
+internal/poll.(*pollDesc).waitRead(...)
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0xc00104c180, {0xc00039a480, 0x480, 0x480})
+        /home/florin/go-sdks/go1.19.2/src/internal/poll/fd_unix.go:167 +0x25a
+net.(*netFD).Read(0xc00104c180, {0xc00039a480?, 0xc002922260?, 0xc00039a485?})
+        /home/florin/go-sdks/go1.19.2/src/net/fd_posix.go:55 +0x29
+net.(*conn).Read(0xc0008b8030, {0xc00039a480?, 0xbfee25?, 0x137b3ba?})
+        /home/florin/go-sdks/go1.19.2/src/net/net.go:183 +0x45
+crypto/tls.(*atLeastReader).Read(0xc00088e4e0, {0xc00039a480?, 0x0?, 0x0?})
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:787 +0x3d
+bytes.(*Buffer).ReadFrom(0xc0002cf078, {0x1775900, 0xc00088e4e0})
+        /home/florin/go-sdks/go1.19.2/src/bytes/buffer.go:202 +0x98
+crypto/tls.(*Conn).readFromUntil(0xc0002cee00, {0x7f031407c788?, 0xc000e9a0c0}, 0x480?)
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:809 +0xe5
+crypto/tls.(*Conn).readRecordOrCCS(0xc0002cee00, 0x0)
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:616 +0x116
+crypto/tls.(*Conn).readRecord(...)
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:582
+crypto/tls.(*Conn).Read(0xc0002cee00, {0xc0027812d0, 0xc, 0xc003ee2080?})
+        /home/florin/go-sdks/go1.19.2/src/crypto/tls/conn.go:1287 +0x16f
+io.ReadAtLeast({0x7f031424fda0, 0xc000d400a0}, {0xc0027812d0, 0xc, 0xc}, 0xc)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:332 +0x9a
+io.ReadFull(...)
+        /home/florin/go-sdks/go1.19.2/src/io/io.go:351
+github.com/libp2p/go-yamux/v4.(*Session).recvLoop(0xc003ee2000)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:668 +0xf7
+github.com/libp2p/go-yamux/v4.(*Session).recv(0xc00033ef00?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:640 +0x1e
+created by github.com/libp2p/go-yamux/v4.newSession
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:162 +0x60d
+
+goroutine 246 [select]:
+github.com/libp2p/go-yamux/v4.(*Session).sendLoop(0xc003ee2000)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:583 +0x5b5
+github.com/libp2p/go-yamux/v4.(*Session).send(0x0?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:512 +0x1e
+created by github.com/libp2p/go-yamux/v4.newSession
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:163 +0x64a
+
+goroutine 247 [select]:
+github.com/libp2p/go-yamux/v4.(*Session).startMeasureRTT(0xc003ee2000)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:356 +0xdf
+created by github.com/libp2p/go-yamux/v4.newSession
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:164 +0x68a
+
+goroutine 328 [select]:
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleSendingMessages(0x0?, {0x1783648, 0xc000132000}, {0x1790a40?, 0xc00009d960}, 0xc000e79140)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:164 +0x305
+created by github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleNewPeer
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:117 +0x32a
+
+goroutine 251 [select]:
+github.com/libp2p/go-yamux/v4.(*Session).AcceptStream(0xc003ee2000)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/session.go:272 +0xb3
+github.com/libp2p/go-libp2p/p2p/muxer/yamux.(*conn).AcceptStream(0xea59a5?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/muxer/yamux/conn.go:43 +0x19
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Conn).start.func1()
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_conn.go:110 +0xae
+created by github.com/libp2p/go-libp2p/p2p/net/swarm.(*Conn).start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_conn.go:105 +0x56
+
+goroutine 327 [select]:
+github.com/libp2p/go-libp2p/p2p/protocol/identify.(*peerHandler).loop(0xc00030e460, {0x1783610, 0xc000e9c200}, 0x0?)
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/peer_loop.go:89 +0x105
+created by github.com/libp2p/go-libp2p/p2p/protocol/identify.(*peerHandler).start
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/protocol/identify/peer_loop.go:71 +0xf8
+
+goroutine 329 [select]:
+github.com/libp2p/go-yamux/v4.(*Stream).Read(0xc00117e0e0, {0xc003f92000, 0x1000, 0x1000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/stream.go:111 +0x1a9
+github.com/libp2p/go-libp2p/p2p/muxer/yamux.(*stream).Read(0x0?, {0xc003f92000?, 0x47aabc?, 0xc0009b09a4?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/muxer/yamux/stream.go:17 +0x1e
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Stream).Read(0xc000216480, {0xc003f92000?, 0x59?, 0x1123e60?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_stream.go:55 +0x36
+github.com/multiformats/go-multistream.(*lazyClientConn).Read(0xc0009b09a0?, {0xc003f92000?, 0x1000?, 0x1000?})
+        /home/florin/go/pkg/mod/github.com/multiformats/go-multistream@v0.3.3/lazyClient.go:68 +0xa3
+github.com/libp2p/go-libp2p/p2p/host/basic.(*streamWrapper).Read(0x40c773?, {0xc003f92000?, 0xc0009a5500?, 0x7f033c33ca68?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:1019 +0x27
+bufio.(*Reader).fill(0xc000358ba0)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:106 +0xff
+bufio.(*Reader).ReadByte(0xc000358ba0)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:265 +0x2c
+github.com/multiformats/go-varint.ReadUvarint({0x1775740, 0xc000358ba0})
+        /home/florin/go/pkg/mod/github.com/multiformats/go-varint@v0.0.6/varint.go:80 +0x74
+github.com/libp2p/go-msgio/protoio.(*uvarintReader).ReadMsg(0xc00281cfc0, {0x177ffc0, 0xc0009a5500})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-msgio@v0.2.0/protoio/uvarint_reader.go:70 +0x85
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).handlePeerEOF(0xc000cea400, {0x0?, 0x0?}, {0x1790a40, 0xc00009d960})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:139 +0x144
+created by github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleNewPeer
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:118 +0x3cc
+
+goroutine 331 [select]:
+github.com/libp2p/go-yamux/v4.(*Stream).Read(0xc0002e69a0, {0xc000ef2000, 0x1000, 0x1000})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-yamux/v4@v4.0.0/stream.go:111 +0x1a9
+github.com/libp2p/go-libp2p/p2p/muxer/yamux.(*stream).Read(0x43ec27?, {0xc000ef2000?, 0x43ec60?, 0xc0010b4820?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/muxer/yamux/stream.go:17 +0x1e
+github.com/libp2p/go-libp2p/p2p/net/swarm.(*Stream).Read(0xc0008b7800, {0xc000ef2000?, 0xc0003b6150?, 0xc0009a59d0?})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/net/swarm/swarm_stream.go:55 +0x36
+bufio.(*Reader).fill(0xc000e98540)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:106 +0xff
+bufio.(*Reader).ReadByte(0xc000e98540)
+        /home/florin/go-sdks/go1.19.2/src/bufio/bufio.go:265 +0x2c
+github.com/multiformats/go-varint.ReadUvarint({0x1775740, 0xc000e98540})
+        /home/florin/go/pkg/mod/github.com/multiformats/go-varint@v0.0.6/varint.go:80 +0x74
+github.com/libp2p/go-msgio/protoio.(*uvarintReader).ReadMsg(0xc000e9c680, {0x177ffc0, 0xc0003b6150})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-msgio@v0.2.0/protoio/uvarint_reader.go:70 +0x85
+github.com/libp2p/go-libp2p-pubsub.(*PubSub).handleNewStream(0xc001076600, {0x1790ad0, 0xc0008b7800})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p-pubsub@v0.8.1/comm.go:66 +0x30d
+github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).SetStreamHandler.func1({0xc0027748e0, 0xe}, {0x7f031424fe38?, 0xc0008b7800})
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:577 +0x76
+created by github.com/libp2p/go-libp2p/p2p/host/basic.(*BasicHost).newStreamHandler
+        /home/florin/go/pkg/mod/github.com/libp2p/go-libp2p@v0.23.2/p2p/host/basic/basic_host.go:418 +0x715
+
+Finished after 8745 retries.
+Total run time before failure was 00:33:32 (hh:mm:ss).
