@@ -55,15 +55,6 @@ func New(address, certPath string, insecure bool, chainHash []byte) (client.Clie
 	return &grpcClient{address, chainHash, drand.NewPublicClient(conn), conn, log.DefaultLogger()}, nil
 }
 
-func asRD(r *drand.PublicRandResponse) *client.RandomData {
-	return &client.RandomData{
-		Rnd:               r.Round,
-		Random:            r.Randomness,
-		Sig:               r.Signature,
-		PreviousSignature: r.PreviousSignature,
-	}
-}
-
 // String returns the name of this client.
 func (g *grpcClient) String() string {
 	return fmt.Sprintf("GRPC(%q)", g.address)
@@ -79,7 +70,7 @@ func (g *grpcClient) Get(ctx context.Context, round uint64) (client.Result, erro
 		return nil, errors.New("no received randomness - unexpected gPRC response")
 	}
 
-	return asRD(curr), nil
+	return client.FromPublicRandResponse(curr), nil
 }
 
 // Watch returns new randomness as it becomes available.
@@ -90,7 +81,7 @@ func (g *grpcClient) Watch(ctx context.Context) <-chan client.Result {
 		close(ch)
 		return ch
 	}
-	go g.translate(stream, ch)
+	go g.translate(ctx, stream, ch)
 	return ch
 }
 
@@ -106,17 +97,30 @@ func (g *grpcClient) Info(ctx context.Context) (*chain.Info, error) {
 	return chain.InfoFromProto(proto)
 }
 
-func (g *grpcClient) translate(stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
+func (g *grpcClient) translate(ctx context.Context, stream drand.Public_PublicRandStreamClient, out chan<- client.Result) {
 	defer close(out)
+
 	for {
-		next, err := stream.Recv()
-		if err != nil || stream.Context().Err() != nil {
-			if stream.Context().Err() == nil {
-				g.l.Errorw("stream context error", "grpc_client", "public rand stream", "err", err)
-			}
+		select {
+		case <-stream.Context().Done():
+			g.l.Infow("public random stream closed")
 			return
+		case <-ctx.Done():
+			g.l.Infow("public random stream upstream closed")
+			return
+		default:
+			next, err := stream.Recv()
+			if err != nil {
+				if stream.Context().Err() != nil {
+					g.l.Infow("public random stream upstream closed")
+				} else {
+					g.l.Errorw("stream error", "grpc_client", "public rand stream", "err", err)
+				}
+				return
+			}
+
+			out <- client.FromPublicRandResponse(next)
 		}
-		out <- asRD(next)
 	}
 }
 

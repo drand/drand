@@ -145,7 +145,7 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 					break LOOP
 				}
 
-				rd, ok := res.(*client.RandomData)
+				rd, ok := res.(client.RandomData)
 				if !ok {
 					g.l.Errorw("", "relay_node", "unexpected client result type")
 					continue
@@ -162,14 +162,14 @@ func (g *GossipRelayNode) background(w client.Watcher) {
 					continue
 				}
 
-				g.l.Infow("", "relay_node", "Publishing randomness on pubsub", "round", res.Round())
+				g.l.Debugw("", "relay_node", "Publishing randomness on pubsub", "round", res.Round())
 				err = g.t.Publish(ctx, randB)
 				if err != nil {
 					g.l.Errorw("", "relay_node", "err publishing on pubsub", "err", err)
 					continue
 				}
 
-				g.l.Infow("", "relay_node", "Published randomness on pubsub", "round", res.Round())
+				g.l.Debugw("", "relay_node", "Published randomness on pubsub", "round", res.Round())
 			case <-g.done:
 				g.l.Infow("", "relay_node", "gossipRelayNode.background done")
 				return

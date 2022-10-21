@@ -14,6 +14,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 	ma "github.com/multiformats/go-multiaddr"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/drand/drand/chain"
@@ -55,7 +56,7 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	cfg := &lp2p.GossipRelayConfig{
 		ChainHash:    hex.EncodeToString(info.Hash()),
 		PeerWith:     nil,
-		Addr:         "/ip4/0.0.0.0/tcp/" + test.FreePort(),
+		Addr:         "/ip4/127.0.0.1/tcp/" + test.FreePort(),
 		DataDir:      dataDir,
 		IdentityPath: path.Join(identityDir, "identity.key"),
 		Client:       grpcClient,
@@ -79,27 +80,35 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	// for the initial 'get' to sync the chain
 	ch := c.Watch(ctx)
 	service.EmitRand(t, false)
-	<-ch
+	r, ok := <-ch
+	require.True(t, ok, "expected randomness")
+	require.NotNil(t, r)
+	t.Logf("received message %#v on ch\n", r)
+
 	for i := 0; i < 3; i++ {
 		service.EmitRand(t, false)
 		t.Logf("round %d. emitting.\n", i)
+
 		select {
 		case r, ok := <-ch:
 			if !ok {
 				t.Fatal("expected randomness")
-			} else {
-				t.Logf("%#v\n", r)
 			}
-		case <-time.After(30 * time.Second):
+
+			t.Logf("%#v\n", r)
+		case <-time.After(10 * time.Second):
 			t.Fatal("timeout.")
 		}
 	}
+	t.Log("leaving the main test loop")
 	service.EmitRand(t, true)
 	cancel()
 	drain(t, ch, 10*time.Second)
 }
 
 func drain(t *testing.T, ch <-chan client.Result, timeout time.Duration) {
+	t.Log("draining ch")
+
 	for {
 		select {
 		case _, ok := <-ch:
@@ -206,7 +215,7 @@ func newTestClient(t *testing.T, relayMultiaddr []ma.Multiaddr, info *chain.Info
 	if err != nil {
 		return nil, err
 	}
-	c, err := NewWithPubsub(ps, info, nil)
+	c, err := NewWithPubsub(ps, info, &client.NilCache{})
 	if err != nil {
 		return nil, err
 	}

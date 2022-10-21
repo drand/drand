@@ -20,7 +20,7 @@ type Cache interface {
 // makeCache creates a cache of a given size
 func makeCache(size int) (Cache, error) {
 	if size == 0 {
-		return &nilCache{}, nil
+		return &NilCache{}, nil
 	}
 	c, err := lru.NewARC(size)
 	if err != nil {
@@ -47,15 +47,15 @@ func (t *typedCache) TryGet(round uint64) Result {
 	return nil
 }
 
-// nilCache implements a cache with size 0
-type nilCache struct{}
+// NilCache implements a cache with size 0
+type NilCache struct{}
 
 // Add a result to the cache
-func (*nilCache) Add(_ uint64, _ Result) {
+func (*NilCache) Add(_ uint64, _ Result) {
 }
 
 // TryGet attempts to get ar esult from the cache
-func (*nilCache) TryGet(_ uint64) Result {
+func (*NilCache) TryGet(_ uint64) Result {
 	return nil
 }
 

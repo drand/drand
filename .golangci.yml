@@ -22,46 +22,116 @@ issues:
     - path: cmd
       linters:
         - forbidigo # we use Println in our UX
-    - path: core/broadcast.go
-      linters:
-        - interfacer
+#    - path: core/broadcast.go
+#      linters:
+#        - interfacer # Deprecated
 run:
   skip-dirs:
     - demo
     - test
 
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  enable-all: true
-  disable:
-    - containedctx
-    - contextcheck
-    - cyclop
-    - exhaustivestruct
-    - exhaustruct
-    - forcetypeassert
-    - gci
-    - gochecknoglobals
-    - gocognit
-    - godot
-    - godox
-    - goerr113
-    - gofumpt
-    - ifshort
-    - ireturn
-    - nestif
-    - nlreturn
-    - nonamedreturns
-    - nosnakecase
-    - paralleltest
-    - promlinter
-    - tagliatelle
-    - testpackage
-    - thelper
-    - varnamelen
-    - wrapcheck
-    - wsl
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    #- containedctx #TODO could be enabled
+    #- contextcheck #TODO could be enabled
+    #- cyclop
+    #- deadcode # Deprecated
+    - decorder
+    - depguard
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - execinquery
+    - exhaustive
+    # -exhaustivestruct
+    # -exhaustruct
+    - exportloopref
+    - forbidigo
+    # -forcetypeassert #TODO could be enabled
+    - funlen
+    #- gci
+    # -gochecknoglobals
+    - gochecknoinits
+    #- gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    #- godot
+    # -godox #TODO could be enabled
+    # -goerr113
+    - gofmt
+    # -gofumpt
+    - goheader
+    - goimports
+    # -golint # Deprecated
+    - gomnd
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - grouper
+    # -ifshort
+    - importas
+    - ineffassign
+    - interfacebloat
+    # -interfacer # Deprecated
+    # -ireturn
+    - lll
+    - loggercheck
+    - maintidx
+    - makezero
+    # -maligned #Deprecated
+    - misspell
+    - nakedret
+    # -nestif
+    - nilerr
+    - nilnil
+    # -nlreturn
+    - noctx
+    - nolintlint
+    # -nonamedreturns
+    # -nosnakecase
+    - nosprintfhostport
+    # -paralleltest #TODO could be enabled
+    - prealloc
+    - predeclared
+    # -promlinter #TODO could be enabled
+    - reassign
+    - revive
+    - rowserrcheck
+    # - scopelint # Deprecated
+    - sqlclosecheck
+    - staticcheck
+    # -structcheck # Deprecated
+    - stylecheck
+    # -tagliatelle
+    - tenv
+    - testableexamples
+    # -testpackage
+    # -thelper #TODO could be enabled
+    - tparallel
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    # -varcheck # Deprecated
+    # -varnamelen
+    - wastedassign
+    - whitespace
+    # -wrapcheck
+    # -wsl
 
 
 linters-settings:
@@ -101,8 +171,15 @@ linters-settings:
         checks: argument,case,condition,return
   lll:
     line-length: 140
-  maligned:
-    suggest-new: true
+  #  maligned: # Deprecated
+  #    suggest-new: true
+  #  govet:
+  #    check-shadowing: true  #TODO could be enabled
+  #    enable:
+  #      - fieldalignment #TODO could be enabled
+  revive:
+    enable:
+      - var-naming
   misspell:
     locale: US
   nolintlint:

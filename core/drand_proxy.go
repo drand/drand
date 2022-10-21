@@ -99,12 +99,7 @@ func newStreamProxy(ctx context.Context) *streamProxy {
 }
 
 func (s *streamProxy) Send(next *drand.PublicRandResponse) error {
-	d := client.RandomData{
-		Rnd:               next.Round,
-		Random:            next.Randomness,
-		Sig:               next.Signature,
-		PreviousSignature: next.PreviousSignature,
-	}
+	d := client.FromPublicRandResponse(next)
 	select {
 	case s.outgoing <- &d:
 		return nil

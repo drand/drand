@@ -60,12 +60,19 @@ func (s *Server) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.Cha
 
 // PublicRand implements net.Service
 func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	start := time.Now()
+	defer func() {
+		fmt.Printf("finished server.PublicRand in %s\n", time.Now().Sub(start))
+	}()
+
+	fmt.Println("before lock in server.PublicRand")
+
 	s.l.Lock()
 	defer s.l.Unlock()
 
 	select {
 	case <-c.Done():
-		panic("context done")
+		return nil, fmt.Errorf("context closed in public rand")
 	default:
 		fmt.Println("running server.PublicRand")
 	}
@@ -83,13 +90,24 @@ func (s *Server) PublicRand(c context.Context, in *drand.PublicRandRequest) (*dr
 		Randomness:        randomness,
 	}
 	s.d = nextMockData(s.d)
-	fmt.Println("finished server.PublicRand")
 	return &resp, nil
 }
 
 // PublicRandStream is part of the public drand service.
 func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Public_PublicRandStreamServer) error {
-	streamDone := make(chan error, 1)
+	start := time.Now()
+	defer func() {
+		fmt.Printf("finished server.PublicRandStream in %s\n", time.Now().Sub(start))
+	}()
+
+	select {
+	case <-stream.Context().Done():
+		return fmt.Errorf("context closed in public rand stream")
+	default:
+		fmt.Println("running server.PublicRandStream")
+	}
+
+	streamDone := make(chan error)
 	s.l.Lock()
 	s.streamDone = streamDone
 	s.stream = stream
@@ -99,6 +117,12 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 	// To fix this, we'll defer setting stream to nil and wait for
 	// the launched operations to finish, see below.
 	defer func() {
+		select {
+		case <-stream.Context().Done():
+			fmt.Println("context closed in public rand stream in defer")
+		default:
+			fmt.Println("closing server.PublicRandStream")
+		}
 		s.l.Lock()
 		s.stream = nil
 		s.l.Unlock()
@@ -110,6 +134,7 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 
 // EmitRand will cause the next round to be emitted by a previous call to `PublicRandomStream`
 func (s *Server) EmitRand(t *testing.T, closeStream bool) {
+	t.Logf("trying to obtain lock on server.EmitRand(%t)\n", closeStream)
 	s.l.Lock()
 	if s.stream == nil {
 		t.Log("MOCK SERVER: stream nil")
@@ -119,6 +144,8 @@ func (s *Server) EmitRand(t *testing.T, closeStream bool) {
 	stream := s.stream
 	done := s.streamDone
 	s.l.Unlock()
+
+	t.Logf("lock obtained on server.EmitRand(%t)\n", closeStream)
 
 	if closeStream {
 		t.Log("MOCK SERVER: closing stream upon request")
