@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,14 +57,6 @@ func NewGrpcClientFromCertManager(c *CertManager, opts ...grpc.DialOption) Clien
 	client := NewGrpcClient(opts...).(*grpcClient)
 	client.manager = c
 	return client
-}
-
-// NewGrpcClientWithTimeout returns a Client using gRPC using fixed timeout for
-// method calls.
-func NewGrpcClientWithTimeout(timeout time.Duration, opts ...grpc.DialOption) Client {
-	c := NewGrpcClient(opts...).(*grpcClient)
-	c.timeout = timeout
-	return c
 }
 
 func (g *grpcClient) loadEnvironment() {
@@ -365,4 +358,15 @@ func (g *grpcClient) Stop() {
 		c.Close()
 	}
 	g.conns = make(map[string]*grpc.ClientConn)
+}
+
+// listenAddrFor parses the address specified into a dialable / listenable address
+func listenAddrFor(listenAddr string) (network, addr string) {
+	if strings.HasPrefix(listenAddr, "unix://") {
+		return "unix", strings.TrimPrefix(listenAddr, "unix://")
+	}
+	if strings.Contains(listenAddr, ":") {
+		return grpcDefaultIPNetwork, listenAddr
+	}
+	return grpcDefaultIPNetwork, fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }

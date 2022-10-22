@@ -1,7 +1,9 @@
 package core
 
 import (
+	bytes "bytes"
 	"github.com/drand/drand/protobuf/drand"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
 
@@ -21,6 +23,23 @@ const (
 	Left
 )
 
+func (s DKGStatus) String() string {
+	switch s {
+	case Fresh:
+		return "fresh"
+	case Proposed:
+		return "proposed"
+	case Executing:
+		return "executing"
+	case Complete:
+		return "complete"
+	case Aborted:
+		return "aborted"
+	default:
+		panic("impossible DKG state received")
+	}
+}
+
 type DKGDetails struct {
 	BeaconID  string
 	Epoch     uint32
@@ -36,6 +55,50 @@ type DKGDetails struct {
 	Rejectors []*drand.Participant
 
 	FinalGroup []*drand.Participant
+}
+
+// IntoEntry turns a DKGDetails object into the protobuf entry for
+// easy marshalling and unmarshalling, and to maintain a
+// consistent wire format
+func (d *DKGDetails) IntoEntry() *drand.DKGEntry {
+	if d == nil {
+		return nil
+	}
+	return &drand.DKGEntry{
+		State:      uint32(d.State),
+		Epoch:      d.Epoch,
+		Threshold:  d.Threshold,
+		Timeout:    timestamppb.New(d.Timeout),
+		Leader:     d.Leader,
+		Remaining:  d.Remaining,
+		Joining:    d.Joining,
+		Leaving:    d.Leaving,
+		Acceptors:  d.Acceptors,
+		Rejectors:  d.Rejectors,
+		FinalGroup: d.FinalGroup,
+	}
+}
+
+// IntoDetails turns a protobuf entry into a DKGDetails object for
+// easy marshalling and unmarshalling, and to maintain a
+// consistent wire format
+func IntoDetails(entry *drand.DKGEntry) *DKGDetails {
+	if entry == nil {
+		return nil
+	}
+	return &DKGDetails{
+		State:      DKGStatus(uint(entry.State)),
+		Epoch:      entry.Epoch,
+		Threshold:  entry.Threshold,
+		Timeout:    entry.Timeout.AsTime(),
+		Leader:     entry.Leader,
+		Remaining:  entry.Remaining,
+		Joining:    entry.Joining,
+		Leaving:    entry.Leaving,
+		Acceptors:  entry.Acceptors,
+		Rejectors:  entry.Rejectors,
+		FinalGroup: entry.FinalGroup,
+	}
 }
 
 func NewFreshState(beaconID string) *DKGDetails {
@@ -58,7 +121,7 @@ type ProposalTerms struct {
 	Leaving   []*drand.Participant
 }
 
-func (d DKGDetails) Joined(me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Joined(me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Joined) {
 		return nil, InvalidStateChange
 	}
@@ -84,7 +147,7 @@ func (d DKGDetails) Joined(me *drand.Participant, terms *ProposalTerms) (*DKGDet
 	}, NoError
 }
 
-func (d DKGDetails) Proposing(me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Proposing(me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Proposing) {
 		return nil, InvalidStateChange
 	}
@@ -114,7 +177,7 @@ func (d DKGDetails) Proposing(me *drand.Participant, terms *ProposalTerms) (*DKG
 	}, NoError
 }
 
-func (d DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Proposed) {
 		return nil, InvalidStateChange
 	}
@@ -144,27 +207,27 @@ func (d DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, t
 	}, NoError
 }
 
-func (d DKGDetails) TimedOut() (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) TimedOut() (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, TimedOut) {
 		return nil, InvalidStateChange
 	}
 
 	d.State = TimedOut
 
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) Aborted() (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Aborted() (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Aborted) {
 		return nil, InvalidStateChange
 	}
 
 	d.State = Aborted
 
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Accepted) {
 		return nil, InvalidStateChange
 	}
@@ -182,10 +245,10 @@ func (d DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, DKGErrorCode) 
 	}
 
 	d.State = Accepted
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Rejected) {
 		return nil, InvalidStateChange
 	}
@@ -203,10 +266,10 @@ func (d DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, DKGErrorCode) 
 	}
 
 	d.State = Rejected
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) Left(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Left(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Left) {
 		return nil, InvalidStateChange
 	}
@@ -221,10 +284,10 @@ func (d DKGDetails) Left(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
 
 	d.State = Left
 
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) Executing(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Executing(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Executing) {
 		return nil, InvalidStateChange
 	}
@@ -239,10 +302,10 @@ func (d DKGDetails) Executing(me *drand.Participant) (*DKGDetails, DKGErrorCode)
 
 	d.State = Executing
 
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if !isValidStateChange(d.State, Complete) {
 		return nil, InvalidStateChange
 	}
@@ -254,10 +317,10 @@ func (d DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, DKGE
 	d.FinalGroup = finalGroup
 	d.State = Complete
 
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange
 
@@ -278,10 +341,10 @@ func (d DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Partic
 	d.Acceptors = append(d.Acceptors, them)
 	d.Rejectors = without(d.Rejectors, them)
 
-	return &d, NoError
+	return d, NoError
 }
 
-func (d DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Participant) (*DKGDetails, DKGErrorCode) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange
 	}
@@ -301,7 +364,7 @@ func (d DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Partici
 	d.Rejectors = append(d.Rejectors, them)
 	d.Acceptors = without(d.Acceptors, them)
 
-	return &d, NoError
+	return d, NoError
 }
 
 type DKGErrorCode uint32
@@ -333,6 +396,8 @@ const (
 	DuplicateRejection
 	NonLeaderCannotReceiveAcceptance
 	NonLeaderCannotReceiveRejection
+	InvalidPacket
+	UnexpectedError
 )
 
 func (d DKGErrorCode) String() string {
@@ -389,6 +454,10 @@ func (d DKGErrorCode) String() string {
 		return "NonLeaderCannotReceiveAcceptance"
 	case NonLeaderCannotReceiveRejection:
 		return "NonLeaderCannotReceiveRejection"
+	case InvalidPacket:
+		return "InvalidPacket"
+	case UnexpectedError:
+		return "UnexpectedError"
 	default:
 		return "invalid DKG error code!"
 	}
@@ -422,12 +491,12 @@ func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	return false
 }
 
-func hasTimedOut(details DKGDetails) bool {
+func hasTimedOut(details *DKGDetails) bool {
 	now := time.Now()
 	return details.Timeout.Before(now) || details.Timeout == now
 }
 
-func ValidateProposal(currentState DKGDetails, terms *ProposalTerms) DKGErrorCode {
+func ValidateProposal(currentState *DKGDetails, terms *ProposalTerms) DKGErrorCode {
 	if currentState.BeaconID != terms.BeaconID {
 		return InvalidBeaconID
 	}
@@ -482,12 +551,12 @@ func ValidateProposal(currentState DKGDetails, terms *ProposalTerms) DKGErrorCod
 	return NoError
 }
 
-func contains[T comparable](haystack []T, needle T) bool {
+func contains(haystack []*drand.Participant, needle *drand.Participant) bool {
 	if haystack == nil {
 		return false
 	}
 	for _, v := range haystack {
-		if v == needle {
+		if participantsEqual(v, needle) {
 			return true
 		}
 	}
@@ -517,4 +586,12 @@ func without[T comparable](haystack []T, needle T) []T {
 	ret := make([]T, 0)
 	ret = append(ret, haystack[:indexToRemove]...)
 	return append(ret, haystack[indexToRemove+1:]...)
+}
+
+// participantsEqual performs a deep comparison of two drand.Participant objects
+func participantsEqual(p1 *drand.Participant, p2 *drand.Participant) bool {
+	return p1.Address == p2.Address &&
+		p1.Tls == p2.Tls &&
+		bytes.Compare(p1.PubKey, p2.PubKey) == 0 &&
+		bytes.Compare(p1.Signature, p2.Signature) == 0
 }

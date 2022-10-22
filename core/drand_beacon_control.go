@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -22,7 +21,6 @@ import (
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
-	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
@@ -39,79 +37,7 @@ var errPreempted = errors.New("time out: pre-empted")
 // the DKG protocol to finish. If the request specifies this node is a leader,
 // it starts the DKG protocol.
 func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	bp.state.Lock()
-	if bp.dkgDone {
-		bp.state.Unlock()
-		return nil, errors.New("dkg phase already done - call reshare")
-	}
-	bp.state.Unlock()
-
-	isLeader := in.GetInfo().GetLeader()
-
-	metrics.DKGStateChange(metrics.DKGWaiting, bp.getBeaconID(), isLeader)
-
-	if !isLeader {
-		// different logic for leader than the rest
-		out, err := bp.setupAutomaticDKG(c, in)
-		return out, err
-	}
-
-	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
-	metrics.GroupThreshold.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Threshold))
-
-	bp.log.Infow("", "init_dkg", "begin", "time", bp.opts.clock.Now().Unix(), "leader", true)
-
-	// setup the manager
-	newSetup := func(d *BeaconProcess) (*setupManager, error) {
-		return newDKGSetup(
-			&setupConfig{
-				d.log.Named("setupManager"),
-				d.opts.clock,
-				d.priv.Public,
-				in.GetBeaconPeriod(),
-				in.GetCatchupPeriod(),
-				bp.getBeaconID(),
-				in.GetSchemeID(),
-				in.GetInfo(),
-			},
-		)
-	}
-
-	// expect the group
-	group, err := bp.leaderRunSetup(newSetup)
-	if err != nil {
-		bp.log.Errorw("", "init_dkg", "leader setup", "err", err)
-		return nil, fmt.Errorf("drand: invalid setup configuration: %w", err)
-	}
-
-	// send it to everyone in the group nodes
-	nodes := group.Nodes
-	// if there hasn't been a DKG yet, it's 0
-	currentThreshold := 0
-	// otherwise we set it to the current threshold
-	if bp.beacon != nil {
-		currentThreshold = bp.beacon.GetConfg().Group.Threshold
-	}
-
-	if err := bp.pushDKGInfo([]*key.Node{}, nodes, currentThreshold, group,
-		in.GetInfo().GetSecret(), in.GetInfo().GetTimeout()); err != nil {
-		return nil, err
-	}
-
-	bp.state.Lock()
-	// We need to update the leader too
-	bp.index = int(group.Find(bp.priv.Public).Index)
-	bp.log.Debugw("Starting to use proper node index for logging")
-	bp.log = bp.log.Named(fmt.Sprint(bp.index))
-	bp.state.Unlock()
-	finalGroup, err := bp.runDKG(true, group, in.GetInfo().GetTimeout(), in.GetEntropy())
-	if err != nil {
-		return nil, err
-	}
-
-	response := finalGroup.ToProto(bp.version)
-
-	return response, nil
+	return nil, nil
 }
 
 // InitReshare receives information about the old and new group from which to
@@ -119,97 +45,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 //
 //nolint:funlen
 func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePacket) (*drand.GroupPacket, error) {
-	if in.Old == nil {
-		return nil, errors.New("cannot reshare without an old group")
-	}
-
-	oldGroup, err := bp.extractGroup(in.Old)
-	if err != nil {
-		return nil, err
-	}
-
-	oldBeaconID := commonutils.GetCanonicalBeaconID(oldGroup.ID)
-
-	if !commonutils.CompareBeaconIDs(oldBeaconID, bp.getBeaconID()) {
-		return nil, fmt.Errorf("beacon ID mismatch: "+
-			"received group file (%s) ; beaconProcess (%s)", oldBeaconID, bp.getBeaconID())
-	}
-
-	isLeader := in.GetInfo().GetLeader()
-	beaconID := bp.getBeaconID()
-	metrics.ReshareStateChange(metrics.ReshareWaiting, beaconID, isLeader)
-	defer func() {
-		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
-	}()
-
-	if !isLeader {
-		bp.log.Infow("", "init_reshare", "begin", "leader", false)
-		return bp.setupAutomaticResharing(c, oldGroup, in)
-	}
-
-	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(in.Info.Nodes))
-	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(in.Info.Threshold))
-
-	bp.log.Infow("", "init_reshare", "begin", "leader", true, "time", bp.opts.clock.Now())
-
-	newSetup := func(d *BeaconProcess) (*setupManager, error) {
-		return newReshareSetup(d.log, d.opts.clock, d.priv.Public, oldGroup, in)
-	}
-
-	newGroup, err := bp.leaderRunSetup(newSetup)
-	if err != nil {
-		bp.log.Errorw("", "init_reshare", "leader setup", "err", err)
-		return nil, fmt.Errorf("drand: invalid setup configuration: %w", err)
-	}
-	if bp.setupCB != nil {
-		// XXX Currently a bit hacky - we should split the control plane and the
-		// gRPC interface and give that callback as argument
-		bp.setupCB(newGroup)
-	}
-	// some assertions that should always be true but never too safe
-	if oldGroup.GenesisTime != newGroup.GenesisTime {
-		return nil, errors.New("control: old and new group have different genesis time")
-	}
-	if oldGroup.GenesisTime > bp.opts.clock.Now().Unix() {
-		return nil, errors.New("control: genesis time is in the future")
-	}
-	if oldGroup.Period != newGroup.Period {
-		return nil, errors.New("control: old and new group have different period - unsupported feature at the moment")
-	}
-	if newGroup.TransitionTime < bp.opts.clock.Now().Unix() {
-		return nil, errors.New("control: group with transition time in the past")
-	}
-	if !bytes.Equal(newGroup.GetGenesisSeed(), oldGroup.GetGenesisSeed()) {
-		return nil, errors.New("control: old and new group have different genesis seed")
-	}
-
-	// send it to everyone in the group nodes
-	if err := bp.pushDKGInfo(oldGroup.Nodes, newGroup.Nodes,
-		oldGroup.Threshold,
-		newGroup,
-		in.GetInfo().GetSecret(),
-		in.GetInfo().GetTimeout()); err != nil {
-		bp.log.Errorw("", "push_group", err)
-		return nil, errors.New("fail to push new group")
-	}
-
-	bp.state.Lock()
-	oldIdx := bp.index
-	// notice that we change the index prior to actually doing the transition
-	bp.index = int(newGroup.Find(bp.priv.Public).Index)
-	// We need to update the leader too
-	bp.log.Debugw("Starting to use new node index for logging", "old", oldIdx, "new", bp.index)
-	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))
-	bp.state.Unlock()
-
-	finalGroup, err := bp.runResharing(true, oldGroup, newGroup, in.GetInfo().GetTimeout())
-	if err != nil {
-		return nil, err
-	}
-
-	response := finalGroup.ToProto(bp.version)
-
-	return response, nil
+	return nil, nil
 }
 
 // Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
@@ -305,12 +141,6 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 	// setup the manager
 	bp.state.Lock()
 
-	if bp.manager != nil {
-		bp.log.Infow("", "reshare", "already_in_progress", "reshare", "restart")
-		fmt.Println("\n\n PREEMPTIVE STOP") //nolint
-		bp.manager.StopPreemptively()
-	}
-
 	manager, err := newSetup(bp)
 	bp.log.Infow("", "reshare", "newmanager")
 	if err != nil {
@@ -320,20 +150,7 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 
 	go manager.run()
 
-	bp.manager = manager
 	bp.state.Unlock()
-
-	defer func() {
-		// don't clear manager if pre-empted
-		if errors.Is(err, errPreempted) {
-			bp.log.Errorw("PREEMPTION ERROR", "err", err)
-			return
-		}
-		bp.state.Lock()
-		// set back manager to nil afterwards to be able to run a new setup
-		bp.manager = nil
-		bp.state.Unlock()
-	}()
 
 	// wait to receive the keys & send them to the other nodes
 	var ok bool
@@ -361,83 +178,11 @@ func (bp *BeaconProcess) leaderRunSetup(newSetup func(d *BeaconProcess) (*setupM
 // runDKG setups the proper structures and protocol to run the DKG and waits
 // until it finishes. If leader is true, this node sends the first packet.
 func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, randomness *drand.EntropyInfo) (*key.Group, error) {
-	beaconID := commonutils.GetCanonicalBeaconID(group.ID)
-
-	reader, user := extractEntropy(randomness)
-	config := &dkg.Config{
-		Suite:          key.KeyGroup.(dkg.Suite),
-		NewNodes:       group.DKGNodes(),
-		Longterm:       bp.priv.Key,
-		Reader:         reader,
-		UserReaderOnly: user,
-		FastSync:       true,
-		Threshold:      group.Threshold,
-		Nonce:          getNonce(group),
-		Auth:           key.DKGAuthScheme,
-		Log:            bp.log,
-	}
-	phaser := bp.getPhaser(timeout)
-	board := newEchoBroadcast(bp.log, bp.version, beaconID, bp.privGateway.ProtocolClient,
-		bp.priv.Public.Address(), group.Nodes, func(p dkg.Packet) error {
-			return dkg.VerifyPacketSignature(config, p)
-		})
-	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
-	if err != nil {
-		return nil, err
-	}
-
-	bp.state.Lock()
-	dkgInfo := &dkgInfo{
-		target: group,
-		board:  board,
-		phaser: phaser,
-		conf:   config,
-		proto:  dkgProto,
-	}
-	bp.dkgInfo = dkgInfo
-	if leader {
-		bp.dkgInfo.started = true
-	}
-	metrics.DKGStateChange(metrics.DKGInProgress, beaconID, leader)
-	bp.state.Unlock()
-
-	if leader {
-		// phaser will kick off the first phase for every other nodes so
-		// nodes will send their deals
-		bp.log.Infow("", "init_dkg", "START_DKG")
-		go phaser.Start()
-	}
-	bp.log.Infow("", "init_dkg", "wait_dkg_end")
-	finalGroup, err := bp.WaitDKG()
-	if err != nil {
-		bp.log.Errorw("", "init_dkg", err)
-		bp.state.Lock()
-		if bp.dkgInfo == dkgInfo {
-			bp.cleanupDKG()
-		}
-		bp.state.Unlock()
-		return nil, fmt.Errorf("drand: beacon_id [%s] - %w", beaconID, err)
-	}
-	bp.state.Lock()
-	bp.cleanupDKG()
-	bp.dkgDone = true
-	bp.state.Unlock()
-
-	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-	bp.log.Infow("", "init_dkg", "dkg_done",
-		"starting_beacon_time", finalGroup.GenesisTime, "now", bp.opts.clock.Now().Unix())
-
-	// beacon will start at the genesis time specified
-	go bp.StartBeacon(false)
-
-	return finalGroup, nil
+	return nil, nil
 }
 
 func (bp *BeaconProcess) cleanupDKG() {
-	if bp.dkgInfo != nil {
-		bp.dkgInfo.board.Stop()
-	}
-	bp.dkgInfo = nil
+
 }
 
 // runResharing setups all necessary structures to run the resharing protocol
@@ -446,110 +191,7 @@ func (bp *BeaconProcess) cleanupDKG() {
 //
 //nolint:funlen
 func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group, timeout uint32) (*key.Group, error) {
-	oldBeaconID := commonutils.GetCanonicalBeaconID(oldGroup.ID)
-
-	oldNode := oldGroup.Find(bp.priv.Public)
-	oldPresent := oldNode != nil
-
-	if leader && !oldPresent {
-		bp.log.Errorw("", "run_reshare", "invalid", "leader", leader, "old_present", oldPresent)
-		return nil, errors.New("can not be a leader if not present in the old group")
-	}
-
-	newNode := newGroup.Find(bp.priv.Public)
-	newPresent := newNode != nil
-	config := &dkg.Config{
-		Suite:        key.KeyGroup.(dkg.Suite),
-		NewNodes:     newGroup.DKGNodes(),
-		OldNodes:     oldGroup.DKGNodes(),
-		Longterm:     bp.priv.Key,
-		Threshold:    newGroup.Threshold,
-		OldThreshold: oldGroup.Threshold,
-		FastSync:     true,
-		Nonce:        getNonce(newGroup),
-		Auth:         key.DKGAuthScheme,
-		Log:          bp.log,
-	}
-	err := func() error {
-		bp.state.Lock()
-		defer bp.state.Unlock()
-		// gives the share to the dkg if we are a current node
-		if oldPresent {
-			if bp.dkgInfo != nil {
-				return errors.New("control: can't reshare from old node when DKG not finished first")
-			}
-			if bp.share == nil {
-				return errors.New("control: can't reshare without a share")
-			}
-			dkgShare := dkg.DistKeyShare(*bp.share)
-			config.Share = &dkgShare
-		} else {
-			// we are a new node, we want to make sure we reshare from the old
-			// group public key
-			config.PublicCoeffs = oldGroup.PublicKey.Coefficients
-		}
-		return nil
-	}()
-	if err != nil {
-		return nil, err
-	}
-
-	allNodes := nodeUnion(oldGroup.Nodes, newGroup.Nodes)
-	var board Broadcast = newEchoBroadcast(bp.log, bp.version, oldBeaconID, bp.privGateway.ProtocolClient,
-		bp.priv.Public.Address(), allNodes, func(p dkg.Packet) error {
-			return dkg.VerifyPacketSignature(config, p)
-		})
-
-	if bp.dkgBoardSetup != nil {
-		board = bp.dkgBoardSetup(board)
-	}
-	phaser := bp.getPhaser(timeout)
-
-	dkgProto, err := dkg.NewProtocol(config, board, phaser, true)
-	if err != nil {
-		return nil, err
-	}
-	info := &dkgInfo{
-		target: newGroup,
-		board:  board,
-		phaser: phaser,
-		conf:   config,
-		proto:  dkgProto,
-	}
-	bp.state.Lock()
-	bp.dkgInfo = info
-	if leader {
-		bp.log.Infow("", "dkg_reshare", "leader_start",
-			"target_group", hex.EncodeToString(newGroup.Hash()), "index", newNode.Index)
-		bp.dkgInfo.started = true
-	}
-
-	metrics.ReshareStateChange(metrics.ReshareInProgess, oldBeaconID, leader)
-	bp.state.Unlock()
-
-	if leader {
-		// start the protocol so everyone else follows
-		// it sends to all previous and new nodes. old nodes will start their
-		// phaser so they will send the deals as soon as they receive this.
-		go phaser.Start()
-	}
-
-	bp.log.Infow("", "dkg_reshare", "wait_dkg_end")
-	finalGroup, err := bp.WaitDKG()
-	if err != nil {
-		bp.state.Lock()
-		if bp.dkgInfo == info {
-			bp.cleanupDKG()
-		}
-		bp.state.Unlock()
-		return nil, fmt.Errorf("drand: err during DKG: %w", err)
-	}
-	bp.log.Infow("", "dkg_reshare", "finished", "leader", leader)
-	metrics.ReshareStateChange(metrics.ReshareIdle, oldBeaconID, leader)
-
-	// runs the transition of the beacon
-	go bp.transition(oldGroup, oldPresent, newPresent)
-	return finalGroup, nil
+	return nil, nil
 }
 
 // This method sends the public key to the denoted leader address and then waits
@@ -558,88 +200,7 @@ func (bp *BeaconProcess) runResharing(leader bool, oldGroup, newGroup *key.Group
 //
 //nolint:funlen
 func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGPacket) (*drand.GroupPacket, error) {
-	bp.log.Infow("", "init_dkg", "begin", "leader", false)
-
-	// determine the leader's address
-	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
-	bp.state.Lock()
-	if bp.receiver != nil {
-		bp.log.Infow("", "dkg_setup", "already_in_progress", "restart", "dkg")
-		bp.receiver.stop()
-	}
-	receiver, err := newSetupReceiver(bp.version, bp.log, bp.opts.clock, bp.privGateway.ProtocolClient, in.GetInfo())
-	if err != nil {
-		bp.log.Errorw("", "setup", "fail", "err", err)
-		bp.state.Unlock()
-		return nil, err
-	}
-	bp.receiver = receiver
-	bp.state.Unlock()
-
-	defer func(r *setupReceiver) {
-		bp.state.Lock()
-		metrics.DKGStateChange(metrics.DKGDone, bp.getBeaconID(), false)
-		r.stop()
-		if r == bp.receiver {
-			// if there has been no new receiver since, we set the field to nil
-			bp.receiver = nil
-		}
-		bp.state.Unlock()
-	}(receiver)
-
-	// send public key to leader
-	id := bp.priv.Public.ToProto()
-
-	prep := &drand.SignalDKGPacket{
-		Node:        id,
-		SecretProof: in.GetInfo().GetSecret(),
-		Metadata:    bp.newMetadata(),
-	}
-
-	bp.log.Debugw("", "init_dkg", "send_key", "leader", lpeer.Address())
-	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
-	defer cancel()
-
-	err = bp.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
-	if err != nil {
-		return nil, fmt.Errorf("drand: err when signaling key to leader: %w", err)
-	}
-
-	bp.log.Debugw("", "init_dkg", "wait_group")
-
-	group, dkgTimeout, err := bp.receiver.WaitDKGInfo(nc)
-	if err != nil {
-		return nil, err
-	}
-	if group == nil {
-		bp.log.Debugw("", "init_dkg", "wait_group", "canceled", "nil_group")
-		return nil, errors.New("canceled operation")
-	}
-
-	now := bp.opts.clock.Now().Unix()
-	if group.GenesisTime < now {
-		bp.log.Errorw("", "genesis", "invalid", "given", group.GenesisTime)
-		return nil, errors.New("control: group with genesis time in the past")
-	}
-
-	node := group.Find(bp.priv.Public)
-	if node == nil {
-		bp.log.Errorw("", "init_dkg", "absent_public_key_in_received_group")
-		return nil, errors.New("drand: public key not found in group")
-	}
-	bp.state.Lock()
-	bp.index = int(node.Index)
-	bp.log.Debugw("Starting to use proper node index for logging")
-	bp.log = bp.log.Named(fmt.Sprint(bp.index))
-	bp.state.Unlock()
-
-	// run the dkg
-	finalGroup, err := bp.runDKG(false, group, dkgTimeout, in.GetEntropy())
-	if err != nil {
-		return nil, err
-	}
-	return finalGroup.ToProto(bp.version), nil
+	return nil, nil
 }
 
 // similar to setupAutomaticDKG but with additional verification and information
@@ -649,106 +210,7 @@ func (bp *BeaconProcess) setupAutomaticDKG(_ context.Context, in *drand.InitDKGP
 func (bp *BeaconProcess) setupAutomaticResharing(_ context.Context, oldGroup *key.Group, in *drand.InitResharePacket) (
 	*drand.GroupPacket, error,
 ) {
-	oldHash := oldGroup.Hash()
-
-	// determine the leader's address
-	laddr := in.GetInfo().GetLeaderAddress()
-	lpeer := net.CreatePeer(laddr, in.GetInfo().GetLeaderTls())
-	bp.state.Lock()
-	if bp.receiver != nil {
-		if !in.GetInfo().GetForce() {
-			bp.log.Infow("", "reshare_setup", "already in progress", "restart", "NOT AUTHORIZED")
-			bp.state.Unlock()
-			return nil, errors.New("reshare already in progress; use --force")
-		}
-		bp.log.Infow("", "reshare_setup", "already_in_progress", "restart", "reshare")
-		bp.receiver.stop()
-		bp.receiver = nil
-	}
-
-	receiver, err := newSetupReceiver(bp.version, bp.log, bp.opts.clock, bp.privGateway.ProtocolClient, in.GetInfo())
-	if err != nil {
-		bp.log.Errorw("", "setup", "fail", "err", err)
-		bp.state.Unlock()
-		return nil, err
-	}
-	bp.receiver = receiver
-	defer func(r *setupReceiver) {
-		metrics.ReshareStateChange(metrics.ReshareIdle, bp.getBeaconID(), false)
-		bp.state.Lock()
-		r.stop()
-		// only set to nil if the given receiver here is the same as the current
-		// one, i.e. there has not been a more recent resharing comand issued in
-		// between
-		if bp.receiver == r {
-			bp.receiver = nil
-		}
-		bp.state.Unlock()
-	}(bp.receiver)
-	bp.state.Unlock()
-
-	// send public key to leader
-	id := bp.priv.Public.ToProto()
-
-	prep := &drand.SignalDKGPacket{
-		Node:              id,
-		SecretProof:       in.GetInfo().GetSecret(),
-		PreviousGroupHash: oldHash,
-		Metadata:          bp.newMetadata(),
-	}
-
-	metrics.ReshareStateChange(metrics.ReshareWaiting, bp.getBeaconID(), in.GetInfo().GetLeader())
-
-	// we wait only a certain amount of time for the prepare phase
-	nc, cancel := context.WithTimeout(context.Background(), MaxWaitPrepareDKG)
-	defer cancel()
-
-	bp.log.Infow("", "setup_reshare", "signaling_key_to_leader")
-	err = bp.privGateway.ProtocolClient.SignalDKGParticipant(nc, lpeer, prep)
-	if err != nil {
-		bp.log.Errorw("", "setup_reshare", "failed to signal key to leader", "err", err)
-		return nil, fmt.Errorf("drand: err when signaling key to leader: %w", err)
-	}
-
-	newGroup, dkgTimeout, err := bp.receiver.WaitDKGInfo(nc)
-	if err != nil {
-		bp.log.Errorw("", "setup_reshare", "failed to receive dkg info", "err", err)
-		return nil, err
-	}
-
-	// some assertions that should be true but never too safe
-	if err := bp.validateGroupTransition(oldGroup, newGroup); err != nil {
-		return nil, err
-	}
-
-	node := newGroup.Find(bp.priv.Public)
-	if node == nil {
-		// It is ok to not have our key found in the new group since we may just
-		// be a node that is leaving the network, but leaving gracefully, by
-		// still participating in the resharing.
-		bp.log.Infow("", "setup_reshare", "not_found_in_new_group")
-	} else {
-		bp.log.Infow("", "setup_reshare", "participate_newgroup", "new_index", node.Index)
-	}
-
-	bp.state.Lock()
-	// notice that we are updating the index prior to the actual transition
-	oldIdx := bp.index
-	if node != nil {
-		bp.index = int(node.Index)
-	}
-	// we need to change our logger to reflect the potentially changed index
-	bp.log.Debugw("Starting to use new node index for logging", "old", oldIdx, "new", bp.index)
-	bp.log = bp.opts.logger.Named(bp.priv.Public.Addr).Named(bp.getBeaconID()).Named(fmt.Sprint(bp.index))
-	bp.state.Unlock()
-
-	// run the dkg !
-	finalGroup, err := bp.runResharing(false, oldGroup, newGroup, dkgTimeout)
-	if err != nil {
-		bp.log.Errorw("", "setup_reshare", "failed to run resharing", "err", err)
-		return nil, err
-	}
-	return finalGroup.ToProto(bp.version), nil
+	return nil, nil
 }
 
 func (bp *BeaconProcess) validateGroupTransition(oldGroup, newGroup *key.Group) error {
@@ -848,27 +310,14 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 	bp.log.Debugw("Processing incoming Status request")
 
 	dkgStatus := drand.DkgStatus{}
-	reshareStatus := drand.ReshareStatus{}
+	//reshareStatus := drand.ReshareStatus{}
 	beaconStatus := drand.BeaconStatus{}
 	chainStore := drand.ChainStoreStatus{}
 
 	// DKG status
-	switch {
-	case bp.dkgDone:
-		dkgStatus.Status = uint32(DkgReady)
-		// either the leader or a non leader node
-	case !bp.dkgDone && (bp.receiver != nil || bp.manager != nil):
-		dkgStatus.Status = uint32(DkgInProgress)
-	default:
-		dkgStatus.Status = uint32(DkgNotStarted)
-	}
-
-	// Reshare status
-	reshareStatus.Status = uint32(ReshareNotInProgress)
-	// either the leader or a non leader node
-	if bp.dkgDone && (bp.receiver != nil || bp.manager != nil) {
-		reshareStatus.Status = uint32(ReshareInProgress)
-	}
+	//dkgStatus.Status = uint32(bp.dkgProcess.Status())
+	// prob not accurate, but fix later
+	//reshareStatus.Status = uint32(bp.dkgProcess.Status())
 
 	// Beacon status
 	beaconStatus.Status = uint32(BeaconNotInited)
@@ -935,7 +384,6 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 
 	packet := &drand.StatusResponse{
 		Dkg:        &dkgStatus,
-		Reshare:    &reshareStatus,
 		ChainStore: &chainStore,
 		Beacon:     &beaconStatus,
 	}

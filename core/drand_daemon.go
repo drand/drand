@@ -27,6 +27,8 @@ type DrandDaemon struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
+	dkg *DKGProcess
+
 	handler *dhttp.DrandHandler
 
 	opts *Config
@@ -132,12 +134,30 @@ func (dd *DrandDaemon) init() error {
 		return err
 	}
 
+	// set up the gRPC clients
 	p := c.ControlPort()
-	dd.control, err = net.NewTCPGrpcControlListener(dd, p)
 
+	dkgStore, err := NewDKGStore(c.configFolder, c.boltOpts)
 	if err != nil {
 		return err
 	}
+
+	dd.privGateway.Addr()
+	dd.dkg = NewDKGProcess(&dkgStore, func(beaconID string) (*key.Identity, error) {
+		bp, exists := dd.beaconProcesses[beaconID]
+		if !exists {
+			return nil, fmt.Errorf("no beacon found for ID %s", beaconID)
+		}
+
+		return bp.priv.Public, nil
+	})
+
+	controlListener, err := net.NewGRPCListener(dd, dd.dkg, p)
+	if err != nil {
+		return err
+	}
+	dd.control = controlListener
+
 	go dd.control.Start()
 
 	dd.log.Infow("DrandDaemon initialized",
@@ -167,12 +187,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	dd.beaconProcesses[beaconID] = bp
 	dd.state.Unlock()
 
-	// Todo: investigate if this is ever true at this point
-	if bp.dkgDone {
-		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-	} else {
-		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
-	}
+	metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 	metrics.ReshareStateChange(metrics.ReshareIdle, beaconID, false)
 	metrics.IsDrandNode.Set(1)
 	metrics.DrandStartTimestamp.SetToCurrentTime()

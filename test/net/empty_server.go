@@ -155,3 +155,55 @@ func (s *EmptyServer) NodeVersionValidator(ctx context.Context, req interface{},
 func (s *EmptyServer) NodeVersionStreamValidator(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 	return handler(srv, ss)
 }
+
+func (s *EmptyServer) Accept(_ context.Context, acceptance *drand.AcceptProposal) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Reject(_ context.Context, rejection *drand.RejectProposal) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) SendError(_ context.Context, error *drand.DKGError) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Propose(_ context.Context, proposal *drand.Proposal) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) Execute(_ context.Context, kickoff *drand.StartExecution) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartNetwork(_ context.Context, options *drand.FirstProposalOptions) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartProposal(_ context.Context, options *drand.ProposalOptions) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartAbort(_ context.Context, options *drand.AbortOptions) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartExecute(_ context.Context, options *drand.ExecutionOptions) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartAccept(_ context.Context, options *drand.AcceptOptions) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) StartReject(_ context.Context, options *drand.RejectOptions) (*drand.GenericResponseMessage, error) {
+	return nil, nil
+}
+
+func (s *EmptyServer) DKGStatus(_ context.Context, request *drand.DKGStatusRequest) (*drand.DKGStatusResponse, error) {
+	return nil, nil
+}

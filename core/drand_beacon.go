@@ -2,12 +2,7 @@ package core
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
-	"sync"
-	"time"
-
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
@@ -18,17 +13,19 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
-	"github.com/drand/kyber/share/dkg"
+	"strings"
+	"sync"
 )
 
 // BeaconProcess is the main logic of the program. It reads the keys / group file, it
 // can start the DKG, read/write shares to files and can initiate/respond to tBLS
 // signature requests.
 type BeaconProcess struct {
-	opts      *Config
-	priv      *key.Pair
-	beaconID  string
-	chainHash []byte
+	dkgProcess *DKGProcess
+	opts       *Config
+	priv       *key.Pair
+	beaconID   string
+	chainHash  []byte
 	// current group this drand node is using
 	group *key.Group
 	index int
@@ -40,19 +37,11 @@ type BeaconProcess struct {
 	beacon *beacon.Handler
 
 	// dkg private share. can be nil if dkg not finished yet.
-	share   *key.Share
-	dkgDone bool
+	share *key.Share
 
 	// version indicates the base code variant
 	version commonutils.Version
 
-	// manager is created and destroyed during a setup phase
-	manager  *setupManager
-	receiver *setupReceiver
-
-	// dkgInfo contains all the information related to an upcoming or in
-	// progress dkg protocol. It is nil for the rest of the time.
-	dkgInfo *dkgInfo
 	// general logger
 	log dlog.Logger
 
@@ -69,10 +58,6 @@ type BeaconProcess struct {
 	// XXX need boundaries between gRPC and control plane such that we can give
 	// a list of paramteres at each DKG (inluding this callback)
 	setupCB func(*key.Group)
-
-	// only used for testing at the moment - may be useful later
-	// to pinpoint the exact messages from all nodes during dkg
-	dkgBoardSetup func(Broadcast) Broadcast
 }
 
 func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *Config, privGateway *net.PrivateGateway,
@@ -86,6 +71,7 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 	}
 
 	bp := &BeaconProcess{
+		dkgProcess:  &DKGProcess{},
 		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
 		store:       store,
 		log:         log,
@@ -115,7 +101,6 @@ func (bp *BeaconProcess) Load() (bool, error) {
 
 	beaconID := bp.getBeaconID()
 	if bp.group == nil {
-		bp.dkgDone = false
 		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
 		return false, nil
 	}
@@ -142,80 +127,6 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 
 	return false, nil
-}
-
-// WaitDKG waits on the running dkg protocol. In case of an error, it returns
-// it. In case of a finished DKG protocol, it saves the dist. public  key and
-// private share. These should be loadable by the store.
-func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
-	bp.state.Lock()
-
-	if bp.dkgInfo == nil {
-		bp.state.Unlock()
-		return nil, errors.New("no dkg info set")
-	}
-
-	beaconID := bp.getBeaconID()
-	defer func() {
-		metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
-	}()
-
-	metrics.DKGStateChange(metrics.DKGWaiting, beaconID, false)
-
-	waitCh := bp.dkgInfo.proto.WaitEnd()
-	bp.log.Infow("", "waiting_dkg_end", time.Now())
-
-	bp.state.Unlock()
-
-	res := <-waitCh
-	if res.Error != nil {
-		return nil, fmt.Errorf("drand: error from dkg: %w", res.Error)
-	}
-
-	bp.state.Lock()
-	defer bp.state.Unlock()
-	// filter the nodes that are not present in the target group
-	var qualNodes []*key.Node
-	for _, node := range bp.dkgInfo.target.Nodes {
-		found := false
-		for _, qualNode := range res.Result.QUAL {
-			if qualNode.Index == node.Index {
-				qualNodes = append(qualNodes, node)
-				found = true
-				break
-			}
-		}
-
-		if !found {
-			bp.log.Infow("disqualified node during DKG", "node", node)
-		}
-	}
-
-	s := key.Share(*res.Result.Key)
-	bp.share = &s
-	if err := bp.store.SaveShare(bp.share); err != nil {
-		return nil, err
-	}
-	targetGroup := bp.dkgInfo.target
-	// only keep the qualified ones
-	targetGroup.Nodes = qualNodes
-	// setup the dist. public key
-	targetGroup.PublicKey = bp.share.Public()
-	bp.group = targetGroup
-	info := chain.NewChainInfo(targetGroup)
-	bp.chainHash = info.Hash()
-	output := make([]string, 0, len(qualNodes))
-	for _, node := range qualNodes {
-		output = append(output, fmt.Sprintf("{addr: %s, idx: %bp, pub: %s}", node.Address(), node.Index, node.Key))
-	}
-	bp.log.Infow("", "dkg_end", time.Now(), "certified", bp.group.Len(), "list", "["+strings.Join(output, ",")+"]")
-	if err := bp.store.SaveGroup(bp.group); err != nil {
-		return nil, err
-	}
-	bp.opts.applyDkgCallback(bp.share, bp.group)
-	bp.dkgInfo.board.Stop()
-	bp.dkgInfo = nil
-	return bp.group, nil
 }
 
 // StartBeacon initializes the beacon if needed and launch a go
@@ -404,15 +315,4 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	}
 
 	return metadata
-}
-
-// dkgInfo is a simpler wrapper that keeps the relevant config and logic
-// necessary during the DKG protocol.
-type dkgInfo struct {
-	target  *key.Group
-	board   Broadcast
-	phaser  *dkg.TimePhaser
-	conf    *dkg.Config
-	proto   *dkg.Protocol
-	started bool
 }

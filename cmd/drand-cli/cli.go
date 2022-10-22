@@ -222,6 +222,11 @@ var oldGroupFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_FROM"},
 }
 
+var proposalFlag = &cli.StringFlag{
+	Name:  "proposal",
+	Usage: "Path to a toml file specifying the leavers, joiners and remainers for a network proposal",
+}
+
 var skipValidationFlag = &cli.BoolFlag{
 	Name:    "skipValidation",
 	Usage:   "skips bls verification of beacon rounds for faster catchup.",
@@ -338,6 +343,7 @@ var allBeaconsFlag = &cli.BoolFlag{
 }
 
 var appCommands = []*cli.Command{
+	dkgCommand,
 	{
 		Name:  "start",
 		Usage: "Start the drand daemon.",

@@ -727,10 +727,6 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	// for the DKG
 	outgoingChan := make(chan packet, 100)
 	incomingChan := make(chan packet, 100)
-	broadcastSetup := func(b Broadcast) Broadcast {
-		return newTestBroadcast(b, outgoingChan, incomingChan)
-	}
-	leader.drand.dkgBoardSetup = broadcastSetup
 
 	// wait until leader is listening
 	controlClient, err := net.NewControlClient(leader.drand.opts.ControlPort())
@@ -741,9 +737,6 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	go d.runLeaderReshare(leader, controlClient, d.newN, d.newThr, c.timeout, errCh, leaderGroupReadyCh)
 	d.resharedNodes = append(d.resharedNodes, leader)
 
-	require.True(t, d.waitFor(t, controlClient, 10, func(r *drand.StatusResponse) bool {
-		return r.Reshare.Status == uint32(ReshareInProgress)
-	}))
 	t.Logf("[DEBUG] node: %s Reshare Status: is in progress", leader.GetAddr())
 
 	wg := new(sync.WaitGroup)
@@ -753,7 +746,6 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 		node := node
 		d.resharedNodes = append(d.resharedNodes, node)
 		if !c.onlyLeader {
-			node.drand.dkgBoardSetup = broadcastSetup
 			d.t.Logf("[reshare] run node reshare %s", node.addr)
 			wg.Add(1)
 			go d.runNodeReshare(node, errCh, c.force, wg)
@@ -766,7 +758,6 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			node := node
 			d.resharedNodes = append(d.resharedNodes, node)
 			if !c.onlyLeader {
-				node.drand.dkgBoardSetup = broadcastSetup
 				d.t.Logf("[reshare] run node reshare %s (new)", node.addr)
 				wg.Add(1)
 				go d.runNodeReshare(node, errCh, c.force, wg)

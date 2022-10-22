@@ -64,7 +64,7 @@ message SignalDKGPacket {
     common.Metadata metadata = 4;
 }
 
-// PushDKGInfor is the packet the coordinator sends that contains the group over
+// PushDKGInfo is the packet the coordinator sends that contains the group over
 // which to run the DKG on, the secret proof (to prove it's he's part of the
 // expected group, and it's not a random packet) and as well the time at which
 // every node should start the DKG.

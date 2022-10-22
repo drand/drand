@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -25,16 +24,28 @@ type ControlListener struct {
 	lis   net.Listener
 }
 
-// NewTCPGrpcControlListener registers the pairing between a ControlServer and a grpc server
-func NewTCPGrpcControlListener(s control.ControlServer, controlAddr string) (ControlListener, error) {
-	lis, err := net.Listen(controlListenAddr(controlAddr))
+type DKGService interface {
+	control.DKGControlServer
+	control.DKGServer
+}
+
+func NewGRPCListener(s control.ControlServer, d DKGService, controlAddr string) (ControlListener, error) {
+	grpcServer := grpc.NewServer()
+	lis, err := newListener(controlAddr)
 	if err != nil {
-		log.DefaultLogger().Errorw("", "grpc listener", "failure", "err", err)
 		return ControlListener{}, err
 	}
-	grpcServer := grpc.NewServer()
+
 	control.RegisterControlServer(grpcServer, s)
+	control.RegisterDKGServer(grpcServer, d)
+	control.RegisterDKGControlServer(grpcServer, d)
+
 	return ControlListener{conns: grpcServer, lis: lis}, nil
+}
+
+// NewListener creates a net.Listener which should be shared between different gRPC servers
+func newListener(controlAddr string) (net.Listener, error) {
+	return net.Listen(listenAddrFor(controlAddr))
 }
 
 // Start the listener for the control commands
@@ -62,7 +73,7 @@ type ControlClient struct {
 // localhost running drand node.
 func NewControlClient(addr string) (*ControlClient, error) {
 	var conn *grpc.ClientConn
-	network, host := controlListenAddr(addr)
+	network, host := listenAddrFor(addr)
 	if network != grpcDefaultIPNetwork {
 		host = fmt.Sprintf("%s://%s", network, host)
 	}
@@ -425,17 +436,6 @@ func (c *ControlClient) BackupDB(outFile, beaconID string) error {
 	metadata := protoCommon.Metadata{NodeVersion: c.version.ToProto(), BeaconID: beaconID}
 	_, err := c.client.BackupDatabase(ctx.Background(), &control.BackupDBRequest{OutputFile: outFile, Metadata: &metadata})
 	return err
-}
-
-// controlListenAddr parses the control address as specified, into a dialable / listenable address
-func controlListenAddr(listenAddr string) (network, addr string) {
-	if strings.HasPrefix(listenAddr, "unix://") {
-		return "unix", strings.TrimPrefix(listenAddr, "unix://")
-	}
-	if strings.Contains(listenAddr, ":") {
-		return grpcDefaultIPNetwork, listenAddr
-	}
-	return grpcDefaultIPNetwork, fmt.Sprintf("%s:%s", "localhost", listenAddr)
 }
 
 // DefaultControlServer implements the functionalities of Control Service, and just as Default Service, it is used for testing.

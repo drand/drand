@@ -10,7 +10,7 @@ import (
 func TestProposalValidation(t *testing.T) {
 	beaconID := "default"
 	me := NewParticipant()
-	current := NewFullDKGDetails(beaconID, Complete, me)
+	current := NewFullDKGEntry(beaconID, Complete, me)
 	tests := []struct {
 		name     string
 		state    *DKGDetails
@@ -184,7 +184,7 @@ func TestProposalValidation(t *testing.T) {
 		{
 			name: "if current status is Left, any higher epoch value is valid",
 			state: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Left, me)
+				details := NewFullDKGEntry(beaconID, Left, me)
 				details.Epoch = 2
 				return details
 			}(),
@@ -202,7 +202,7 @@ func TestProposalValidation(t *testing.T) {
 		{
 			name: "if current status is not Left, a proposed epoch of 1 higher succeeds",
 			state: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Complete, me)
+				details := NewFullDKGEntry(beaconID, Complete, me)
 				details.Epoch = 2
 				return details
 			}(),
@@ -216,7 +216,7 @@ func TestProposalValidation(t *testing.T) {
 		{
 			name: "if current status is not Left, a proposed epoch of > 1 higher returns an error",
 			state: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Complete, me)
+				details := NewFullDKGEntry(beaconID, Complete, me)
 				details.Epoch = 2
 				return details
 			}(),
@@ -230,7 +230,7 @@ func TestProposalValidation(t *testing.T) {
 		{
 			name: "proposed epoch less than the current epoch returns an error",
 			state: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Complete, me)
+				details := NewFullDKGEntry(beaconID, Complete, me)
 				details.Epoch = 3
 				return details
 			}(),
@@ -244,7 +244,7 @@ func TestProposalValidation(t *testing.T) {
 		{
 			name: "proposed epoch equal to the current epoch returns an error",
 			state: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Left, me)
+				details := NewFullDKGEntry(beaconID, Left, me)
 				details.Epoch = 3
 				return details
 			}(),
@@ -258,7 +258,7 @@ func TestProposalValidation(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := ValidateProposal(*test.state, test.terms)
+			result := ValidateProposal(test.state, test.terms)
 			require.Equal(t, test.expected, result, "expected %s, got %s", test.expected, result)
 		})
 	}
@@ -279,7 +279,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "complete state cannot time out",
-			startingState: NewFullDKGDetails(beaconID, Complete, me),
+			startingState: NewFullDKGEntry(beaconID, Complete, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
@@ -288,7 +288,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "timed out state cannot time out",
-			startingState: NewFullDKGDetails(beaconID, TimedOut, me),
+			startingState: NewFullDKGEntry(beaconID, TimedOut, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
@@ -297,7 +297,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "aborted state cannot time out",
-			startingState: NewFullDKGDetails(beaconID, Aborted, me),
+			startingState: NewFullDKGEntry(beaconID, Aborted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
@@ -306,7 +306,7 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "left state cannot time out",
-			startingState: NewFullDKGDetails(beaconID, Aborted, me),
+			startingState: NewFullDKGEntry(beaconID, Aborted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
@@ -315,56 +315,56 @@ func TestTimeoutCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "joined state can time out and changes state",
-			startingState: NewFullDKGDetails(beaconID, Joined, me),
+			startingState: NewFullDKGEntry(beaconID, Joined, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, TimedOut, me),
+			expectedResult: NewFullDKGEntry(beaconID, TimedOut, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "proposed state can time out and changes state",
-			startingState: NewFullDKGDetails(beaconID, Proposed, me),
+			startingState: NewFullDKGEntry(beaconID, Proposed, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, TimedOut, me),
+			expectedResult: NewFullDKGEntry(beaconID, TimedOut, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "proposing state can time out and changes state",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, TimedOut, me),
+			expectedResult: NewFullDKGEntry(beaconID, TimedOut, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "executing state cannot time out and changes state",
-			startingState: NewFullDKGDetails(beaconID, Executing, me),
+			startingState: NewFullDKGEntry(beaconID, Executing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, TimedOut, me),
+			expectedResult: NewFullDKGEntry(beaconID, TimedOut, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "accepted state can time out and changes state",
-			startingState: NewFullDKGDetails(beaconID, Accepted, me),
+			startingState: NewFullDKGEntry(beaconID, Accepted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, TimedOut, me),
+			expectedResult: NewFullDKGEntry(beaconID, TimedOut, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "rejected state can time out and changes state",
-			startingState: NewFullDKGDetails(beaconID, Rejected, me),
+			startingState: NewFullDKGEntry(beaconID, Rejected, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.TimedOut()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, TimedOut, me),
+			expectedResult: NewFullDKGEntry(beaconID, TimedOut, me),
 			expectedError:  NoError,
 		},
 	}
@@ -387,7 +387,7 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "complete state cannot be aborted",
-			startingState: NewFullDKGDetails(beaconID, Complete, me),
+			startingState: NewFullDKGEntry(beaconID, Complete, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
@@ -396,7 +396,7 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "timed out state cannot be aborted",
-			startingState: NewFullDKGDetails(beaconID, TimedOut, me),
+			startingState: NewFullDKGEntry(beaconID, TimedOut, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
@@ -405,7 +405,7 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "aborted state cannot be aborted",
-			startingState: NewFullDKGDetails(beaconID, Aborted, me),
+			startingState: NewFullDKGEntry(beaconID, Aborted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
@@ -414,43 +414,43 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "left state can be aborted and changes state",
-			startingState: NewFullDKGDetails(beaconID, Left, me),
+			startingState: NewFullDKGEntry(beaconID, Left, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Aborted, me),
+			expectedResult: NewFullDKGEntry(beaconID, Aborted, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "joined state can be aborted and changes state",
-			startingState: NewFullDKGDetails(beaconID, Joined, me),
+			startingState: NewFullDKGEntry(beaconID, Joined, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Aborted, me),
+			expectedResult: NewFullDKGEntry(beaconID, Aborted, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "proposed state can be aborted and changes state",
-			startingState: NewFullDKGDetails(beaconID, Proposed, me),
+			startingState: NewFullDKGEntry(beaconID, Proposed, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Aborted, me),
+			expectedResult: NewFullDKGEntry(beaconID, Aborted, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "proposing state can be aborted and changes state",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Aborted, me),
+			expectedResult: NewFullDKGEntry(beaconID, Aborted, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "executing state cannot be aborted",
-			startingState: NewFullDKGDetails(beaconID, Executing, me),
+			startingState: NewFullDKGEntry(beaconID, Executing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
@@ -459,20 +459,20 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 		},
 		{
 			name:          "accepted state can be aborted and changes state",
-			startingState: NewFullDKGDetails(beaconID, Accepted, me),
+			startingState: NewFullDKGEntry(beaconID, Accepted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Aborted, me),
+			expectedResult: NewFullDKGEntry(beaconID, Aborted, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "rejected state can be aborted and changes state",
-			startingState: NewFullDKGDetails(beaconID, Rejected, me),
+			startingState: NewFullDKGEntry(beaconID, Rejected, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Aborted()
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Aborted, me),
+			expectedResult: NewFullDKGEntry(beaconID, Aborted, me),
 			expectedError:  NoError,
 		},
 	}
@@ -602,7 +602,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "Proposing a valid DKG from Complete changes state to Proposing",
-			startingState: NewFullDKGDetails(beaconID, Complete, me),
+			startingState: NewFullDKGEntry(beaconID, Complete, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				validProposal := NewValidProposal(beaconID, me)
 				validProposal.Epoch = 2
@@ -628,7 +628,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "Proposing a valid DKG from Aborted changes state to Proposing",
-			startingState: NewFullDKGDetails(beaconID, Aborted, me),
+			startingState: NewFullDKGEntry(beaconID, Aborted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				validProposal := NewValidProposal(beaconID, me)
 				validProposal.Epoch = 2
@@ -654,7 +654,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "Proposing a valid DKG after Timeout changes state to Proposing",
-			startingState: NewFullDKGDetails(beaconID, TimedOut, me),
+			startingState: NewFullDKGEntry(beaconID, TimedOut, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				validProposal := NewValidProposal(beaconID, me)
 				validProposal.Epoch = 2
@@ -680,7 +680,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "cannot propose a DKG when already joined",
-			startingState: NewFullDKGDetails(beaconID, Joined, me),
+			startingState: NewFullDKGEntry(beaconID, Joined, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -688,7 +688,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "proposing a DKG when leaving returns error",
-			startingState: NewFullDKGDetails(beaconID, Left, me),
+			startingState: NewFullDKGEntry(beaconID, Left, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -696,7 +696,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "proposing a DKG when already proposing returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -704,7 +704,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "proposing a DKG when one has already been proposed returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposed, me),
+			startingState: NewFullDKGEntry(beaconID, Proposed, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -713,7 +713,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "proposing a DKG during execution returns an error",
-			startingState: NewFullDKGDetails(beaconID, Executing, me),
+			startingState: NewFullDKGEntry(beaconID, Executing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -721,7 +721,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "proposing a DKG after acceptance returns an error",
-			startingState: NewFullDKGDetails(beaconID, Accepted, me),
+			startingState: NewFullDKGEntry(beaconID, Accepted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -729,7 +729,7 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 		},
 		{
 			name:          "proposing a DKG after rejection returns an error",
-			startingState: NewFullDKGDetails(beaconID, Rejected, me),
+			startingState: NewFullDKGEntry(beaconID, Rejected, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposing(me, NewValidProposal(beaconID, me))
 			},
@@ -750,7 +750,7 @@ func TestProposedDKG(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "Being proposed a valid DKG from Complete changes state to Proposed",
-			startingState: NewFullDKGDetails(beaconID, Complete, anotherNode, me),
+			startingState: NewFullDKGEntry(beaconID, Complete, anotherNode, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				validProposal := NewValidProposal(beaconID, anotherNode, me)
 				validProposal.Epoch = 2
@@ -830,7 +830,7 @@ func TestProposedDKG(t *testing.T) {
 		},
 		{
 			name:          "Being proposed a valid DKG from state Executing returns an error",
-			startingState: NewFullDKGDetails(beaconID, Executing, anotherNode),
+			startingState: NewFullDKGEntry(beaconID, Executing, anotherNode),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Proposed(anotherNode, me, NewValidProposal(beaconID, anotherNode))
 			},
@@ -838,7 +838,7 @@ func TestProposedDKG(t *testing.T) {
 		},
 		{
 			name:          "Being proposed a DKG by somebody who isn't the leader returns an error",
-			startingState: NewFullDKGDetails(beaconID, Aborted, anotherNode),
+			startingState: NewFullDKGEntry(beaconID, Aborted, anotherNode),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				aThirdParty := &drand.Participant{Address: "another-party-entirely"}
 				return in.Proposed(aThirdParty, me, NewValidProposal(beaconID, anotherNode))
@@ -847,7 +847,7 @@ func TestProposedDKG(t *testing.T) {
 		},
 		{
 			name:          "Being proposed an otherwise invalid DKG returns an error",
-			startingState: NewFullDKGDetails(beaconID, Aborted, anotherNode),
+			startingState: NewFullDKGEntry(beaconID, Aborted, anotherNode),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				validProposal := NewValidProposal(beaconID, anotherNode)
 				validProposal.Epoch = 0
@@ -871,11 +871,11 @@ func TestAcceptingDKG(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "valid proposal can be accepted",
-			startingState: NewFullDKGDetails(beaconID, Proposed, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Proposed, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Accepted(me)
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Accepted, &leader, me),
+			expectedResult: NewFullDKGEntry(beaconID, Accepted, &leader, me),
 			expectedError:  NoError,
 		},
 		{
@@ -888,7 +888,7 @@ func TestAcceptingDKG(t *testing.T) {
 		},
 		{
 			name:          "cannot accept own proposal",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Accepted(me)
 			},
@@ -896,7 +896,7 @@ func TestAcceptingDKG(t *testing.T) {
 		},
 		{
 			name:          "cannot accept a proposal i've already rejected",
-			startingState: NewFullDKGDetails(beaconID, Rejected, me),
+			startingState: NewFullDKGEntry(beaconID, Rejected, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Accepted(me)
 			},
@@ -904,7 +904,7 @@ func TestAcceptingDKG(t *testing.T) {
 		},
 		{
 			name:          "cannot accept a proposal that has already timed out",
-			startingState: PastTimeout(NewFullDKGDetails(beaconID, Proposed, me)),
+			startingState: PastTimeout(NewFullDKGEntry(beaconID, Proposed, me)),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Accepted(me)
 			},
@@ -913,7 +913,7 @@ func TestAcceptingDKG(t *testing.T) {
 		{
 			name: "cannot accept a proposal where I am leaving",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Proposed, &leader)
+				details := NewFullDKGEntry(beaconID, Proposed, &leader)
 				details.Leaving = []*drand.Participant{me}
 				return details
 			}(),
@@ -925,7 +925,7 @@ func TestAcceptingDKG(t *testing.T) {
 		{
 			name: "cannot accept a proposal where I am joining",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Proposed, &leader)
+				details := NewFullDKGEntry(beaconID, Proposed, &leader)
 				details.Joining = []*drand.Participant{me}
 				return details
 			}(),
@@ -949,11 +949,11 @@ func TestRejectingDKG(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "valid proposal can be rejected",
-			startingState: NewFullDKGDetails(beaconID, Proposed, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Proposed, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Rejected(me)
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Rejected, &leader, me),
+			expectedResult: NewFullDKGEntry(beaconID, Rejected, &leader, me),
 			expectedError:  NoError,
 		},
 		{
@@ -966,7 +966,7 @@ func TestRejectingDKG(t *testing.T) {
 		},
 		{
 			name:          "cannot reject own proposal",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Rejected(me)
 			},
@@ -974,7 +974,7 @@ func TestRejectingDKG(t *testing.T) {
 		},
 		{
 			name:          "cannot rejected a proposal i've already accepted",
-			startingState: NewFullDKGDetails(beaconID, Accepted, me),
+			startingState: NewFullDKGEntry(beaconID, Accepted, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Rejected(me)
 			},
@@ -982,7 +982,7 @@ func TestRejectingDKG(t *testing.T) {
 		},
 		{
 			name:          "cannot reject a proposal that has already timed out",
-			startingState: PastTimeout(NewFullDKGDetails(beaconID, Proposed, me)),
+			startingState: PastTimeout(NewFullDKGEntry(beaconID, Proposed, me)),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Rejected(me)
 			},
@@ -991,7 +991,7 @@ func TestRejectingDKG(t *testing.T) {
 		{
 			name: "cannot reject a proposal where I am leaving",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Proposed, &leader)
+				details := NewFullDKGEntry(beaconID, Proposed, &leader)
 				details.Leaving = []*drand.Participant{me}
 				return details
 			}(),
@@ -1003,7 +1003,7 @@ func TestRejectingDKG(t *testing.T) {
 		{
 			name: "cannot reject a proposal where I am joining",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Proposed, &leader)
+				details := NewFullDKGEntry(beaconID, Proposed, &leader)
 				details.Joining = []*drand.Participant{me}
 				return details
 			}(),
@@ -1028,7 +1028,7 @@ func TestLeftDKG(t *testing.T) {
 		{
 			name: "can leave valid proposal that contains me as a leaver",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Proposed, &leader)
+				details := NewFullDKGEntry(beaconID, Proposed, &leader)
 				details.Leaving = []*drand.Participant{
 					me,
 				}
@@ -1038,7 +1038,7 @@ func TestLeftDKG(t *testing.T) {
 				return in.Left(me)
 			},
 			expectedResult: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Left, &leader)
+				details := NewFullDKGEntry(beaconID, Left, &leader)
 				details.Leaving = []*drand.Participant{
 					me,
 				}
@@ -1049,7 +1049,7 @@ func TestLeftDKG(t *testing.T) {
 		{
 			name: "can leave valid proposal immediately if I have just joined it",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Joined, &leader)
+				details := NewFullDKGEntry(beaconID, Joined, &leader)
 				details.Joining = []*drand.Participant{
 					me,
 				}
@@ -1059,7 +1059,7 @@ func TestLeftDKG(t *testing.T) {
 				return in.Left(me)
 			},
 			expectedResult: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Left, &leader)
+				details := NewFullDKGEntry(beaconID, Left, &leader)
 				details.Joining = []*drand.Participant{
 					me,
 				}
@@ -1069,7 +1069,7 @@ func TestLeftDKG(t *testing.T) {
 		},
 		{
 			name:          "trying to leave if not a leaver returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposed, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Proposed, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Left(me)
 			},
@@ -1078,7 +1078,7 @@ func TestLeftDKG(t *testing.T) {
 		{
 			name: "attempting to leave if timeout has been reached returns an error",
 			startingState: func() *DKGDetails {
-				details := PastTimeout(NewFullDKGDetails(beaconID, Proposed, &leader))
+				details := PastTimeout(NewFullDKGEntry(beaconID, Proposed, &leader))
 				details.Leaving = []*drand.Participant{
 					me,
 				}
@@ -1092,7 +1092,7 @@ func TestLeftDKG(t *testing.T) {
 		{
 			name: "cannot leave if proposal already complete",
 			startingState: func() *DKGDetails {
-				details := NewFullDKGDetails(beaconID, Complete, &leader)
+				details := NewFullDKGEntry(beaconID, Complete, &leader)
 				details.Leaving = []*drand.Participant{
 					me,
 				}
@@ -1118,16 +1118,16 @@ func TestExecutingDKG(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "executing valid proposal that I have accepted succeeds",
-			startingState: NewFullDKGDetails(beaconID, Accepted, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Accepted, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Executing(me)
 			},
-			expectedResult: NewFullDKGDetails(beaconID, Executing, &leader, me),
+			expectedResult: NewFullDKGEntry(beaconID, Executing, &leader, me),
 			expectedError:  NoError,
 		},
 		{
 			name:          "executing a valid proposal that I have rejected returns an error",
-			startingState: NewFullDKGDetails(beaconID, Rejected, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Rejected, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Executing(me)
 			},
@@ -1135,7 +1135,7 @@ func TestExecutingDKG(t *testing.T) {
 		},
 		{
 			name:          "executing a proposal after time out returns an error",
-			startingState: PastTimeout(NewFullDKGDetails(beaconID, Accepted, &leader, me)),
+			startingState: PastTimeout(NewFullDKGEntry(beaconID, Accepted, &leader, me)),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Executing(me)
 			},
@@ -1143,7 +1143,7 @@ func TestExecutingDKG(t *testing.T) {
 		},
 		{
 			name:          "executing a valid proposal that I am not joining or remaining in returns an error (but shouldn't have been possible anyway)",
-			startingState: NewFullDKGDetails(beaconID, Accepted, &leader),
+			startingState: NewFullDKGEntry(beaconID, Accepted, &leader),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Executing(me)
 			},
@@ -1168,12 +1168,12 @@ func TestCompleteDKG(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "completing a valid executing proposal succeeds",
-			startingState: NewFullDKGDetails(beaconID, Executing, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Executing, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Complete(finalGroup)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Complete, &leader, me)
+				d := NewFullDKGEntry(beaconID, Complete, &leader, me)
 				d.FinalGroup = finalGroup
 				return d
 			}(),
@@ -1181,7 +1181,7 @@ func TestCompleteDKG(t *testing.T) {
 		},
 		{
 			name:          "completing a non-executing proposal returns an error",
-			startingState: NewFullDKGDetails(beaconID, Accepted, &leader, me),
+			startingState: NewFullDKGEntry(beaconID, Accepted, &leader, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Complete(finalGroup)
 			},
@@ -1189,7 +1189,7 @@ func TestCompleteDKG(t *testing.T) {
 		},
 		{
 			name:          "completing a proposal after time out returns an error",
-			startingState: PastTimeout(NewFullDKGDetails(beaconID, Executing, &leader, me)),
+			startingState: PastTimeout(NewFullDKGEntry(beaconID, Executing, &leader, me)),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.Complete(finalGroup)
 			},
@@ -1213,12 +1213,12 @@ func TestReceivedAcceptance(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "receiving a valid acceptance for a proposal I made adds it to the list of acceptors",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedAcceptance(me, &somebodyElse)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Acceptors = []*drand.Participant{&somebodyElse}
 				return d
 			}(),
@@ -1226,7 +1226,7 @@ func TestReceivedAcceptance(t *testing.T) {
 		},
 		{
 			name:          "receiving an acceptance for a proposal I didn't make returns an error (shouldn't be possible)",
-			startingState: NewFullDKGDetails(beaconID, Proposing, &somebodyElse, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, &somebodyElse, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedAcceptance(me, &somebodyElse)
 			},
@@ -1234,7 +1234,7 @@ func TestReceivedAcceptance(t *testing.T) {
 		},
 		{
 			name:          "receiving an acceptance from somebody who isn't a remainer returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedAcceptance(me, &drand.Participant{Address: "who is this?!?"})
 			},
@@ -1242,7 +1242,7 @@ func TestReceivedAcceptance(t *testing.T) {
 		},
 		{
 			name:          "receiving acceptance from non-proposing state returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposed, me, &somebodyElse),
+			startingState: NewFullDKGEntry(beaconID, Proposed, me, &somebodyElse),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedAcceptance(me, &somebodyElse)
 			},
@@ -1251,7 +1251,7 @@ func TestReceivedAcceptance(t *testing.T) {
 		{
 			name: "acceptances are appended to acceptors",
 			startingState: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Acceptors = []*drand.Participant{
 					&aThirdParty,
 				}
@@ -1261,7 +1261,7 @@ func TestReceivedAcceptance(t *testing.T) {
 				return in.ReceivedAcceptance(me, &somebodyElse)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Acceptors = []*drand.Participant{
 					&aThirdParty,
 					&somebodyElse,
@@ -1273,7 +1273,7 @@ func TestReceivedAcceptance(t *testing.T) {
 		{
 			name: "duplicate acceptance returns an error",
 			startingState: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Acceptors = []*drand.Participant{
 					&somebodyElse,
 				}
@@ -1287,7 +1287,7 @@ func TestReceivedAcceptance(t *testing.T) {
 		{
 			name: "if a party has rejected and they send an acceptance, they are moved into acceptance",
 			startingState: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Rejectors = []*drand.Participant{
 					&somebodyElse,
 				}
@@ -1297,7 +1297,7 @@ func TestReceivedAcceptance(t *testing.T) {
 				return in.ReceivedAcceptance(me, &somebodyElse)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Acceptors = []*drand.Participant{
 					&somebodyElse,
 				}
@@ -1323,12 +1323,12 @@ func TestReceivedRejection(t *testing.T) {
 	tests := []stateChangeTableTest{
 		{
 			name:          "receiving a valid rejection for a proposal I made adds it to the list of rejectors",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedRejection(me, &somebodyElse)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Rejectors = []*drand.Participant{&somebodyElse}
 				return d
 			}(),
@@ -1336,7 +1336,7 @@ func TestReceivedRejection(t *testing.T) {
 		},
 		{
 			name:          "receiving a rejection for a proposal I didn't make returns an error (shouldn't be possible)",
-			startingState: NewFullDKGDetails(beaconID, Proposing, &somebodyElse, me),
+			startingState: NewFullDKGEntry(beaconID, Proposing, &somebodyElse, me),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedRejection(me, &somebodyElse)
 			},
@@ -1344,7 +1344,7 @@ func TestReceivedRejection(t *testing.T) {
 		},
 		{
 			name:          "receiving a rejection from somebody who isn't a remainer returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse),
+			startingState: NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedRejection(me, &drand.Participant{Address: "who is this?!?"})
 			},
@@ -1352,7 +1352,7 @@ func TestReceivedRejection(t *testing.T) {
 		},
 		{
 			name:          "receiving rejection from non-proposing state returns an error",
-			startingState: NewFullDKGDetails(beaconID, Proposed, me, &somebodyElse),
+			startingState: NewFullDKGEntry(beaconID, Proposed, me, &somebodyElse),
 			transitionFn: func(in *DKGDetails) (*DKGDetails, DKGErrorCode) {
 				return in.ReceivedRejection(me, &somebodyElse)
 			},
@@ -1361,7 +1361,7 @@ func TestReceivedRejection(t *testing.T) {
 		{
 			name: "rejections are appended to rejectors",
 			startingState: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Rejectors = []*drand.Participant{
 					&aThirdParty,
 				}
@@ -1371,7 +1371,7 @@ func TestReceivedRejection(t *testing.T) {
 				return in.ReceivedRejection(me, &somebodyElse)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Rejectors = []*drand.Participant{
 					&aThirdParty,
 					&somebodyElse,
@@ -1383,7 +1383,7 @@ func TestReceivedRejection(t *testing.T) {
 		{
 			name: "duplicate rejection returns an error",
 			startingState: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Rejectors = []*drand.Participant{
 					&somebodyElse,
 				}
@@ -1397,7 +1397,7 @@ func TestReceivedRejection(t *testing.T) {
 		{
 			name: "if a party has accepted and they send a rejection, they are moved into rejectors",
 			startingState: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Acceptors = []*drand.Participant{
 					&somebodyElse,
 				}
@@ -1407,7 +1407,7 @@ func TestReceivedRejection(t *testing.T) {
 				return in.ReceivedRejection(me, &somebodyElse)
 			},
 			expectedResult: func() *DKGDetails {
-				d := NewFullDKGDetails(beaconID, Proposing, me, &somebodyElse)
+				d := NewFullDKGEntry(beaconID, Proposing, me, &somebodyElse)
 				d.Rejectors = []*drand.Participant{
 					&somebodyElse,
 				}
@@ -1449,7 +1449,7 @@ func NewParticipant() *drand.Participant {
 	}
 }
 
-func NewFullDKGDetails(beaconID string, status DKGStatus, previousLeader *drand.Participant, others ...*drand.Participant) *DKGDetails {
+func NewFullDKGEntry(beaconID string, status DKGStatus, previousLeader *drand.Participant, others ...*drand.Participant) *DKGDetails {
 	return &DKGDetails{
 		BeaconID:   beaconID,
 		Epoch:      1,

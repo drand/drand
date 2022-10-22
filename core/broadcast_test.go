@@ -72,9 +72,6 @@ func TestBroadcast(t *testing.T) {
 	// channel that will receive all broadcasted packets
 	incPackets := make(chan *packInfo)
 	// callback that all nodes execute when they receive a "successful" packet
-	callback := func(p *packInfo) {
-		incPackets <- p
-	}
 	broads := make([]*echoBroadcast, 0, n)
 	ids := make([]string, 0, n)
 	for _, d := range drands {
@@ -83,10 +80,6 @@ func TestBroadcast(t *testing.T) {
 		b := newEchoBroadcast(d.log, version, beaconID, d.privGateway.ProtocolClient,
 			id, group.Nodes, func(dkg.Packet) error { return nil })
 
-		d.dkgInfo = &dkgInfo{
-			board:   withCallback(id, b, callback),
-			started: true,
-		}
 		broads = append(broads, b)
 		ids = append(ids, id)
 	}

@@ -29,7 +29,7 @@ func TestControlUnix(t *testing.T) {
 
 	name := t.TempDir()
 	s := testnet.EmptyServer{}
-	service, err := NewTCPGrpcControlListener(&s, "unix://"+name+"/sock")
+	service, err := NewGRPCListener(&s, &s, "unix://"+name+"/sock")
 
 	if err != nil {
 		t.Fatal(err)
