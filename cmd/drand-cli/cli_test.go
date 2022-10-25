@@ -267,7 +267,7 @@ func TestUtilCheck(t *testing.T) {
 
 	listenPort := test.FreePort()
 	listenAddr := "127.0.0.1:" + listenPort
-	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
+	listen := []string{"drand", "start", "--tls-disable", "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -285,7 +285,7 @@ func TestUtilCheck(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
 	go func() {
 		err := CLI().RunContext(ctx, listen)
 		if err != nil {
@@ -398,7 +398,6 @@ func TestStartWithoutGroup(t *testing.T) {
 		"--tls-disable",
 		"--folder", tmpPath,
 		"--verbose",
-		"--private-rand",
 	}
 
 	go func() {
@@ -421,15 +420,6 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	testListSchemes(t, ctrlPort)
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
-
-	groupPath := path.Join(rootPath, "drand_group.toml")
-	fmt.Printf("\n Running GET PRIVATE command with group file at %s\n", groupPath)
-	loadedGroup := new(key.Group)
-	require.NoError(t, key.Load(groupPath, loadedGroup))
-	fmt.Printf("%s", loadedGroup.String())
-
-	getCmd := []string{"drand", "get", "private", "--tls-disable", groupPath}
-	require.NoError(t, CLI().Run(getCmd))
 
 	fmt.Printf("\n Running CHAIN-INFO command\n")
 	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
