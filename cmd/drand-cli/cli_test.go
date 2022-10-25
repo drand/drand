@@ -267,7 +267,7 @@ func TestUtilCheck(t *testing.T) {
 
 	listenPort := test.FreePort()
 	listenAddr := "127.0.0.1:" + listenPort
-	listen := []string{"drand", "start", "--tls-disable", "--folder", tmp}
+	listen := []string{"drand", "start", "--tls-disable", "--private-listen", listenAddr, "--folder", tmp}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -285,7 +285,7 @@ func TestUtilCheck(t *testing.T) {
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
-	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort()}
+	listen = []string{"drand", "start", "--tls-disable", "--folder", tmp, "--control", test.FreePort(), "--private-listen", keyAddr}
 	go func() {
 		err := CLI().RunContext(ctx, listen)
 		if err != nil {
@@ -596,11 +596,6 @@ func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath s
 	b, _ := priv.Public.Key.MarshalBinary()
 	exp := hex.EncodeToString(b)
 	testCommand(t, showPublic, exp)
-
-	showPrivate := []string{"drand", "show", "private", "--control", ctrlPort}
-	b, _ = priv.Key.MarshalBinary()
-	exp = hex.EncodeToString(b)
-	testCommand(t, showPrivate, exp)
 
 	showCokey := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	expectedOutput = string(chainInfoBuff)
