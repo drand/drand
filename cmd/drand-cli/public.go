@@ -16,42 +16,6 @@ import (
 	"github.com/drand/drand/net"
 )
 
-func getPrivateCmd(c *cli.Context) error {
-	if !c.Args().Present() {
-		return errors.New("get private takes a group file as argument")
-	}
-	defaultManager := net.NewCertManager()
-	if c.IsSet("tls-cert") {
-		if err := defaultManager.Add(c.String("tls-cert")); err != nil {
-			return err
-		}
-	}
-	ids, err := getNodes(c)
-	if err != nil {
-		return err
-	}
-	grpcClient := core.NewGrpcClientFromCert(nil, defaultManager)
-	var resp []byte
-	for _, public := range ids {
-		resp, err = grpcClient.Private(public.Identity)
-		if err == nil {
-			fmt.Fprintf(output, "drand: successfully retrieved private randomness "+
-				"from %s", public.Addr)
-			break
-		}
-		fmt.Fprintf(output, "drand: error contacting node %s: %s", public.Addr, err)
-	}
-	if resp == nil {
-		return errors.New("zero successful contacts with nodes")
-	}
-
-	type private struct {
-		Randomness []byte
-	}
-
-	return printJSON(&private{resp})
-}
-
 func getPublicRandomness(c *cli.Context) error {
 	if !c.Args().Present() {
 		return errors.New("get public command takes a group file as argument")

@@ -8,12 +8,8 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
-	"github.com/drand/drand/entropy"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
-	"github.com/drand/drand/protobuf/common"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/encrypt/ecies"
 )
 
 // BroadcastDKG is the public method to call during a DKG protocol.
@@ -129,33 +125,6 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 	proxyStr := &proxyStream{stream}
 	bp.state.Unlock()
 	return beacon.SyncChain(bp.log.Named("PublicRand"), store, proxyReq, proxyStr)
-}
-
-// PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
-func (bp *BeaconProcess) PrivateRand(c context.Context, priv *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	if !bp.opts.enablePrivate {
-		return nil, errors.New("private randomness is disabled")
-	}
-	msg, err := ecies.Decrypt(key.KeyGroup, bp.priv.Key, priv.GetRequest(), EciesHash)
-	if err != nil {
-		bp.log.With("module", "public").Errorw("", "private", "invalid ECIES", "err", err.Error())
-		return nil, errors.New("invalid ECIES request")
-	}
-
-	clientKey := key.KeyGroup.Point()
-	if err := clientKey.UnmarshalBinary(msg); err != nil {
-		return nil, errors.New("invalid client key")
-	}
-	randomness, err := entropy.GetRandom(nil, PrivateRandLength)
-	if err != nil {
-		return nil, fmt.Errorf("error gathering randomness: %w", err)
-	} else if len(randomness) != PrivateRandLength {
-		return nil, fmt.Errorf("error gathering randomness: expected 32 bytes, got %bp", len(randomness))
-	}
-
-	obj, err := ecies.Encrypt(key.KeyGroup, clientKey, randomness, EciesHash)
-
-	return &drand.PrivateRandResponse{Response: obj, Metadata: common.NewMetadata(bp.version.ToProto())}, err
 }
 
 // Home provides the address the local node is listening

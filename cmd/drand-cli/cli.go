@@ -227,11 +227,6 @@ var groupFlag = &cli.StringFlag{
 	Usage: "Test connections to nodes listed in the group",
 }
 
-var enablePrivateRand = &cli.BoolFlag{
-	Name:  "private-rand",
-	Usage: "Enables the private randomness feature on the daemon. By default, this feature is disabled.",
-}
-
 var hashOnly = &cli.BoolFlag{
 	Name:  "hash",
 	Usage: "Only print the hash of the group file",
@@ -303,7 +298,7 @@ var appCommands = []*cli.Command{
 		Usage: "Start the drand daemon.",
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
-			certsDirFlag, pushFlag, verboseFlag, enablePrivateRand, oldGroupFlag,
+			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
 			skipValidationFlag, jsonFlag),
 		Action: func(c *cli.Context) error {
 			banner()
@@ -378,20 +373,6 @@ var appCommands = []*cli.Command{
 		Usage: "get allows for public information retrieval from a remote " +
 			"drand node.\n",
 		Subcommands: []*cli.Command{
-			{
-				Name: "private",
-				Usage: "Get private randomness from the drand beacon as " +
-					"specified in group.toml. Only one node is contacted by " +
-					"default. Requests are ECIES-encrypted towards the public " +
-					"key of the contacted node. This command attempts to connect " +
-					"to the drand beacon via TLS and falls back to " +
-					"plaintext communication if the contacted node has not " +
-					"activated TLS in which case it prints a warning.\n",
-				ArgsUsage: "<group.toml> provides the group informations of " +
-					"the nodes that we are trying to contact.",
-				Flags:  toArray(insecureFlag, tlsCertFlag, nodeFlag),
-				Action: getPrivateCmd,
-			},
 			{
 				Name: "public",
 				Usage: "Get the latest public randomness from the drand " +
@@ -986,9 +967,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 			panic(err)
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
-	}
-	if c.Bool(enablePrivateRand.Name) {
-		opts = append(opts, core.WithPrivateRandomness())
 	}
 	conf := core.NewConfig(opts...)
 	return conf

@@ -148,20 +148,6 @@ func (g *grpcClient) PublicRandStream(
 	return outCh, nil
 }
 
-func (g *grpcClient) PrivateRand(ctx context.Context, p Peer, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	var resp *drand.PrivateRandResponse
-	c, err := g.conn(p)
-	if err != nil {
-		return nil, err
-	}
-	client := drand.NewPublicClient(c)
-	ctx, cancel := g.getTimeoutContext(ctx)
-	defer cancel()
-
-	resp, err = client.PrivateRand(ctx, in)
-	return resp, err
-}
-
 func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	var resp *drand.ChainInfoPacket
 	c, err := g.conn(p)
