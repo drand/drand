@@ -582,7 +582,6 @@ func TestClientTLS(t *testing.T) {
 		"--control", ctrlPort,
 		"--folder", tmpPath,
 		"--metrics", metricsPort,
-		"--private-rand",
 	}
 	go CLI().Run(startArgs)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
@@ -593,15 +592,6 @@ func TestClientTLS(t *testing.T) {
 
 func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath string, group *key.Group, priv *key.Pair) {
 	var err error
-	for i := 0; i < 3; i++ {
-		getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
-		err = CLI().Run(getPrivate)
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	require.Nil(t, err)
 
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
 	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
