@@ -12,6 +12,7 @@ import (
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/chain/pg"
+	"github.com/drand/drand/chain/pg/database"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -316,7 +317,21 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 	case chain.PostgresSQL:
-		return pg.NewPGStore(bp.log, dbName, bp.opts.pgOpts)
+
+		// TODO: WE NEED TO FIGURE OUT THESE SETTINGS AND WHERE TO
+		//       GET THEM. - Bill Kennedy
+		db, err := database.Open(database.Config{
+			User:       "postgres",
+			Password:   "postgres",
+			Host:       "host",
+			Name:       "postgres",
+			DisableTLS: true,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("can't create DB connection pool %s", bp.opts.dbStorageEngine)
+		}
+
+		return pg.NewPGStore(bp.log, db, dbName, bp.opts.pgOpts)
 	default:
 		return nil, fmt.Errorf("unknown database storage engine type %s", bp.opts.dbStorageEngine)
 	}

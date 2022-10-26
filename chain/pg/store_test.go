@@ -1,30 +1,44 @@
 package pg
 
 import (
-	"context"
 	"fmt"
+	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/chain/pg/dbtest"
+	"github.com/drand/drand/chain/pg/docker"
 )
 
-// TODO: write more tests
+var c *docker.Container
 
-const cleanupQuery = `DROP TABLE %s`
+func TestMain(m *testing.M) {
+	var err error
+	c, err = dbtest.StartDB()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer dbtest.StopDB(c)
 
-func (p PGStore) cleanup() error {
-	_, err := p.db.QueryxContext(context.Background(), fmt.Sprintf(cleanupQuery, p.tableName))
-	return err
+	m.Run()
 }
 
-func TestStorePGOrder(t *testing.T) {
+func Test_OrderStorePG(t *testing.T) {
 	beaconName := t.Name()
-	l := log.NewLogger(nil, log.LogDebug)
 
-	store, err := NewPGStore(l, beaconName, nil)
+	log, db, teardown := dbtest.NewUnit(t, c, "testdb1")
+	defer func() {
+		if r := recover(); r != nil {
+			t.Log(r)
+			t.Error(string(debug.Stack()))
+		}
+		t.Cleanup(teardown)
+	}()
+
+	store, err := NewPGStore(log, db, beaconName, nil)
 	require.NoError(t, err)
 
 	b1 := &chain.Beacon{
@@ -57,21 +71,23 @@ func TestStorePGOrder(t *testing.T) {
 	require.Equal(t, b2, eb2)
 }
 
-func TestStorePG(t *testing.T) {
+func Test_StorePG(t *testing.T) {
 	beaconName := t.Name()
+
+	log, db, teardown := dbtest.NewUnit(t, c, "testdb2")
+	defer func() {
+		if r := recover(); r != nil {
+			t.Log(r)
+			t.Error(string(debug.Stack()))
+		}
+		t.Cleanup(teardown)
+	}()
+
+	store, err := NewPGStore(log, db, beaconName, nil)
+	require.NoError(t, err)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
-
-	l := log.NewLogger(nil, log.LogDebug)
-
-	store, err := NewPGStore(l, beaconName, nil)
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		err := store.cleanup()
-		require.NoError(t, err)
-	})
 
 	ln, err := store.Len()
 	require.NoError(t, err)
@@ -105,8 +121,12 @@ func TestStorePG(t *testing.T) {
 	require.Equal(t, b2, received)
 
 	store.Close()
-	store, err = NewPGStore(l, beaconName, nil)
+
+	// =========================================================================
+
+	store, err = NewPGStore(log, db, beaconName, nil)
 	require.NoError(t, err)
+
 	require.NoError(t, store.Put(b1))
 
 	require.NoError(t, store.Put(b1))
@@ -115,8 +135,11 @@ func TestStorePG(t *testing.T) {
 	require.Equal(t, b1, bb1)
 	store.Close()
 
-	store, err = NewPGStore(l, beaconName, nil)
+	// =========================================================================
+
+	store, err = NewPGStore(log, db, beaconName, nil)
 	require.NoError(t, err)
+
 	err = store.Put(b1)
 	require.NoError(t, err)
 	err = store.Put(b2)

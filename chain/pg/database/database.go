@@ -1,4 +1,5 @@
-package pg
+// Package database provides support for access the database.
+package database
 
 import (
 	"context"
@@ -139,24 +140,12 @@ func WithinTran(ctx context.Context, log log.Logger, db *sqlx.DB, fn func(*sqlx.
 // ExecContext is a helper function to execute a CUD operation with
 // logging and tracing.
 func ExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string) error {
-	q := queryString(query, nil)
-	log.Infow("database.NamedExecContext", "query", q)
-
-	if _, err := db.ExecContext(context.Background(), query); err != nil {
-
-		// Checks if the error is of code 23505 (unique_violation).
-		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == uniqueViolation {
-			return ErrDBDuplicatedEntry
-		}
-		return err
-	}
-
-	return nil
+	return NameExecContext(ctx, log, db, query, struct{}{})
 }
 
-// NamedExecContext is a helper function to execute a CUD operation with
-// logging and tracing.
-func NamedExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any) error {
+// NameExecContext is a helper function to execute a CUD operation with
+// logging and tracing where field replacement is necessary.
+func NameExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any) error {
 	q := queryString(query, data)
 	log.Infow("database.NamedExecContext", "query", q)
 
@@ -172,11 +161,17 @@ func NamedExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, q
 	return nil
 }
 
-// NamedQuerySlice is a helper function for executing queries that return a
+// QuerySlice is a helper function for executing queries that return a
 // collection of data to be unmarshalled into a slice.
-func NamedQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
+func QuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, dest *[]T) error {
+	return NameQuerySlice(ctx, log, db, query, struct{}{}, dest)
+}
+
+// NameQuerySlice is a helper function for executing queries that return a
+// collection of data to be unmarshalled into a slice where field replacement is necessary.
+func NameQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
 	q := queryString(query, data)
-	log.Infow("database.NamedQuerySlice", "query", q)
+	log.Infow("database.QuerySlice", "query", q)
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
@@ -197,11 +192,21 @@ func NamedQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtCont
 	return nil
 }
 
-// NamedQueryStruct is a helper function for executing queries that return a
-// single value to be unmarshalled into a struct type.
-func NamedQueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest any) error {
+// QueryStruct is a helper function for executing queries that return a
+// single value to be unmarshalled into a struct type where field replacement is necessary.
+func QueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, dest any) error {
+	return NameQueryStruct(ctx, log, db, query, struct{}{}, dest)
+}
+
+// NameQueryStruct is a helper function for executing queries that return a
+// single value to be unmarshalled into a struct type where field replacement is necessary.
+func NameQueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest any) error {
+	if data == nil {
+		data = struct{}{}
+	}
+
 	q := queryString(query, data)
-	log.Infow("database.NamedQueryStruct", "query", q)
+	log.Infow("database.QueryStruct", "query", q)
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
@@ -222,28 +227,22 @@ func NamedQueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, q
 
 // queryString provides a pretty print version of the query and parameters.
 func queryString(query string, args ...any) string {
-	if len(args) == 1 && args[0] == nil {
-		args = nil
+	query, params, err := sqlx.Named(query, args)
+	if err != nil {
+		return err.Error()
 	}
 
-	if args != nil {
-		query, params, err := sqlx.Named(query, args)
-		if err != nil {
-			return err.Error()
+	for _, param := range params {
+		var value string
+		switch v := param.(type) {
+		case string:
+			value = fmt.Sprintf("%q", v)
+		case []byte:
+			value = fmt.Sprintf("%q", string(v))
+		default:
+			value = fmt.Sprintf("%v", v)
 		}
-
-		for _, param := range params {
-			var value string
-			switch v := param.(type) {
-			case string:
-				value = fmt.Sprintf("%q", v)
-			case []byte:
-				value = fmt.Sprintf("%q", string(v))
-			default:
-				value = fmt.Sprintf("%v", v)
-			}
-			query = strings.Replace(query, "?", value, 1)
-		}
+		query = strings.Replace(query, "?", value, 1)
 	}
 
 	query = strings.ReplaceAll(query, "\t", "")
