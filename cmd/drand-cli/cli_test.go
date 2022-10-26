@@ -577,10 +577,10 @@ func TestClientTLS(t *testing.T) {
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
 	time.Sleep(500 * time.Millisecond)
 
-	testStartedTLSDrandFunctional(t, ctrlPort, certPath, groupPath, group, priv)
+	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
 }
 
-func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath string, group *key.Group, priv *key.Pair) {
+func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	var err error
 
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
