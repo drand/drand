@@ -78,16 +78,19 @@ func (b *BoltStore) Close(context.Context) error {
 // Put implements the Store interface. WARNING: It does NOT verify that this
 // beacon is not already saved in the database or not and will overwrite it.
 func (b *BoltStore) Put(_ context.Context, beacon *chain.Beacon) error {
-	err := b.db.Update(func(tx *bolt.Tx) error {
+	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
 		key := chain.RoundToBytes(beacon.Round)
 		buff, err := beacon.Marshal()
 		if err != nil {
 			return err
 		}
+		err = bucket.Put(key, buff)
+		if err != nil {
+			b.log.Debugw("stored beacon", "round", beacon.Round, "err", err)
+		}
 		return bucket.Put(key, buff)
 	})
-	return err
 }
 
 // Last returns the last beacon signature saved into the db
@@ -133,7 +136,7 @@ func (b *BoltStore) Cursor(ctx context.Context, fn func(context.Context, chain.C
 		return fn(ctx, &boltCursor{Cursor: c})
 	})
 	if err != nil {
-		b.log.Warnw("", "boltdb", "error getting cursor", "err", err)
+		b.log.Errorw("", "boltdb", "error getting cursor", "err", err)
 	}
 
 	return err

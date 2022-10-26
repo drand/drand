@@ -764,9 +764,10 @@ func TestDrandPublicStream(t *testing.T) {
 	// we expect the next one now
 	initRound := resp.Round + 1
 	maxRound := initRound + uint64(nTry)
-	t.Logf("Streaming for future rounds starting from %d", initRound)
+	t.Logf("Streaming for future rounds starting from %d until round %d", initRound, maxRound)
 
 	for round := initRound; round < maxRound; round++ {
+		t.Logf("advancing clock for round %d\n", round)
 		// move time to next period
 		dt.AdvanceMockClock(t, group.Period)
 

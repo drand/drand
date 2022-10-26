@@ -500,6 +500,7 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 					return err
 				}
 			}
+
 			return err
 		})
 		if err != nil {

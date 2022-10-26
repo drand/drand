@@ -222,11 +222,11 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
-func (bp *BeaconProcess) StartBeacon(catchup bool) {
+func (bp *BeaconProcess) StartBeacon(catchup bool) error {
 	b, err := bp.newBeacon()
 	if err != nil {
 		bp.log.Errorw("", "init_beacon", err)
-		return
+		return err
 	}
 
 	bp.log.Infow("", "beacon_start", bp.opts.clock.Now(), "catchup", catchup)
@@ -234,7 +234,10 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
 		bp.log.Errorw("", "beacon_start", err)
+		return err
 	}
+
+	return nil
 }
 
 // transition between an "old" group and a new group. This method is called
@@ -335,7 +338,13 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		return pg.NewPGStore(bp.log, db, dbName)
 
 	default:
-		return nil, fmt.Errorf("unknown database storage engine type %s", bp.opts.dbStorageEngine)
+		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
+
+		dbPath := bp.opts.DBFolder(dbName)
+		fs.CreateSecureFolder(dbPath)
+
+		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+		// return nil,
 	}
 }
 
