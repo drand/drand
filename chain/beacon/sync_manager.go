@@ -13,6 +13,7 @@ import (
 	cl "github.com/jonboulle/clockwork"
 
 	"github.com/drand/drand/chain"
+	chainerrors "github.com/drand/drand/chain/errors"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
@@ -52,9 +53,6 @@ var syncExpiryFactor = 2
 
 // how many sync requests do we allow buffering
 var syncQueueRequest = 3
-
-// ErrNoBeaconStored is the error we get when a sync is called too early and there are no beacon above the requested round
-var ErrNoBeaconStored = errors.New("no beacon stored above requested round")
 
 // ErrFailedAll means all nodes failed to provide the requested beacons
 var ErrFailedAll = errors.New("sync failed: tried all nodes")
@@ -181,7 +179,11 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 
 	var faultyBeacons []uint64
 	// notice that we do not validate the genesis round 0
-	for i := uint64(1); i < uint64(s.store.Len()); i++ {
+	storeLen, err := s.store.Len()
+	if err != nil {
+		return nil, fmt.Errorf("error while retrieving store size: %w", err)
+	}
+	for i := uint64(1); i < uint64(storeLen); i++ {
 		select {
 		case <-ctx.Done():
 			logger.Debugw("Context done, returning")
@@ -464,52 +466,69 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 	}
 
 	if last.Round < fromRound {
-		return fmt.Errorf("%w %d < %d", ErrNoBeaconStored, last.Round, fromRound)
+		return fmt.Errorf("%w %d < %d", chainerrors.ErrNoBeaconStored, last.Round, fromRound)
 	}
 
-	done := make(chan error, 1)
-	send := func(b *chain.Beacon) bool {
+	send := func(b *chain.Beacon) error {
 		packet := beaconToProto(b)
 		packet.Metadata = &common.Metadata{BeaconID: beaconID}
-		if err := stream.Send(packet); err != nil {
+		err := stream.Send(packet)
+		if err != nil {
 			logger.Debugw("", "syncer", "streaming_send", "err", err)
-			done <- err
-			return false
 		}
-		return true
+		return err
 	}
 
 	// we know that last.Round >= fromRound from the above if
 	if fromRound != 0 {
+		// TODO (dlsniper): During the loop below, we can receive new data
+		//  which may not be observed as the callback is added after the loop ends.
+		//  Investigate if how the storage view updates while the cursor runs.
+
 		// first sync up from the store itself
-		shouldContinue := true
-		store.Cursor(func(c chain.Cursor) {
-			for bb := c.Seek(fromRound); bb != nil; bb = c.Next() {
-				if !send(bb) {
+		err = store.Cursor(func(c chain.Cursor) error {
+			bb, err := c.Seek(fromRound)
+			for ; bb != nil; bb, err = c.Next() {
+				// This is needed since send will use a pointer and could result in pointer reassignment
+				bb := bb
+				if err != nil {
+					return err
+				}
+				// Force send the correct
+				if err := send(bb); err != nil {
 					logger.Debugw("Error while sending beacon", "syncer", "cursor_seek")
-					shouldContinue = false
-					return
+					return err
 				}
 			}
+			return err
 		})
-		if !shouldContinue {
-			return <-done
+		if err != nil {
+			// We always have ErrNoBeaconStored returned as last value
+			// so let's ignore it and not send it back to the client
+			if !errors.Is(err, chainerrors.ErrNoBeaconStored) {
+				return err
+			}
 		}
 	}
-	// then register a callback to process new incoming beacons
+
+	// Register a callback to process all new incoming beacons until an error happens.
+	// The callback happens in a separate goroutine.
+	errChan := make(chan error)
 	store.AddCallback(id, func(b *chain.Beacon) {
-		if !send(b) {
+		if err := send(b); err != nil {
 			logger.Debugw("Error while sending beacon", "syncer", "callback")
 			store.RemoveCallback(id)
+			errChan <- err
 		}
 	})
+
 	defer store.RemoveCallback(id)
-	// either wait that the request cancels out or wait there's an error sending
-	// to the stream
+
+	// Wait until the request cancels or until an error happens in the callback.
 	select {
 	case <-stream.Context().Done():
 		return stream.Context().Err()
-	case err := <-done:
+	case err := <-errChan:
 		return err
 	}
 }

@@ -305,13 +305,13 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createBoltStore() (chain.Store, error) {
+func (bp *BeaconProcess) createBoltStore() (*boltdb.BoltStore, error) {
 	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 
 	dbPath := bp.opts.DBFolder(dbName)
 	fs.CreateSecureFolder(dbPath)
 
-	return boltdb.NewBoltStore(dbPath, bp.opts.boltOpts)
+	return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 }
 
 func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {

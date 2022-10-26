@@ -190,9 +190,9 @@ func (c *callbackStore) RemoveCallback(id string) {
 	delete(c.callbacks, id)
 }
 
-func (c *callbackStore) Close() {
-	c.Store.Close()
-	close(c.done)
+func (c *callbackStore) Close() error {
+	defer close(c.done)
+	return c.Store.Close()
 }
 
 func (c *callbackStore) runWorkers(n int) {

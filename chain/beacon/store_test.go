@@ -9,6 +9,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/log"
 )
 
 func TestSchemeStore(t *testing.T) {
@@ -16,7 +17,8 @@ func TestSchemeStore(t *testing.T) {
 
 	dir := t.TempDir()
 
-	bstore, err := boltdb.NewBoltStore(dir, nil)
+	l := log.NewLogger(nil, log.LogDebug)
+	bstore, err := boltdb.NewBoltStore(l, dir, nil)
 	require.NoError(t, err)
 
 	genesisBeacon := chain.GenesisBeacon(&chain.Info{GenesisSeed: []byte("genesis_signature")})

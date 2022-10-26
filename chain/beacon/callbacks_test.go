@@ -8,11 +8,13 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/log"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
-	bbstore, err := boltdb.NewBoltStore(dir, nil)
+	l := log.NewLogger(nil, log.LogDebug)
+	bbstore, err := boltdb.NewBoltStore(l, dir, nil)
 	require.NoError(t, err)
 	cb := NewCallbackStore(bbstore)
 	id1 := "superid"

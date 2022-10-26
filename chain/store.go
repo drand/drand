@@ -13,12 +13,12 @@ import (
 // Store is an interface to store Beacons packets where they can also be
 // retrieved to be delivered to end clients.
 type Store interface {
-	Len() int
+	Len() (int, error)
 	Put(*Beacon) error
 	Last() (*Beacon, error)
 	Get(round uint64) (*Beacon, error)
-	Cursor(func(Cursor))
-	Close()
+	Cursor(func(Cursor) error) error
+	Close() error
 	Del(round uint64) error
 	SaveTo(w io.Writer) error
 }
@@ -33,10 +33,10 @@ type Store interface {
 //	    fmt.Printf("A %s is %s.\n", k, v)
 //	}
 type Cursor interface {
-	First() *Beacon
-	Next() *Beacon
-	Seek(round uint64) *Beacon
-	Last() *Beacon
+	First() (*Beacon, error)
+	Next() (*Beacon, error)
+	Seek(round uint64) (*Beacon, error)
+	Last() (*Beacon, error)
 }
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).

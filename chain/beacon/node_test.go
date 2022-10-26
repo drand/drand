@@ -191,7 +191,8 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	node.private = priv
 	keyShare := findShare(idx)
 	node.shares = keyShare
-	store, err := boltdb.NewBoltStore(b.paths[idx], nil)
+	l := log.NewLogger(nil, log.LogDebug)
+	store, err := boltdb.NewBoltStore(l, b.paths[idx], nil)
 	if err != nil {
 		panic(err)
 	}
@@ -367,7 +368,7 @@ func createBoltStores(prefix string, n int) []string {
 	return paths
 }
 
-func checkWait(counter *sync.WaitGroup) {
+func checkWait(t *testing.T, counter *sync.WaitGroup) {
 	var doneCh = make(chan bool, 1)
 	go func() {
 		counter.Wait()
@@ -376,9 +377,8 @@ func checkWait(counter *sync.WaitGroup) {
 	select {
 	case <-doneCh:
 		break
-
 	case <-time.After(30 * time.Second):
-		panic("outdated beacon time")
+		t.Fatal("outdated beacon time")
 	}
 }
 
@@ -409,7 +409,7 @@ func TestBeaconSync(t *testing.T) {
 	doRound := func(count int, move time.Duration) {
 		counter.Add(count)
 		bt.MoveTime(t, move)
-		checkWait(counter)
+		checkWait(t, counter)
 	}
 
 	t.Log("serving beacons")
@@ -513,11 +513,11 @@ func TestBeaconSimple(t *testing.T) {
 	bt.MoveTime(t, 1*time.Second)
 
 	// check 1 period
-	checkWait(counter)
+	checkWait(t, counter)
 	// check 2 period
 	counter.Add(n)
 	bt.MoveTime(t, period)
-	checkWait(counter)
+	checkWait(t, counter)
 }
 
 func TestBeaconThreshold(t *testing.T) {
@@ -557,7 +557,7 @@ func TestBeaconThreshold(t *testing.T) {
 				currentRound++
 				counter.Add(howMany)
 				bt.MoveTime(t, period)
-				checkWait(&counter)
+				checkWait(t, &counter)
 				time.Sleep(100 * time.Millisecond)
 			}
 		}()
@@ -576,7 +576,7 @@ func TestBeaconThreshold(t *testing.T) {
 	currentRound = 1
 	counter.Add(n - 1)
 	bt.MoveTime(t, offsetGenesis)
-	checkWait(&counter)
+	checkWait(t, &counter)
 
 	// make a few rounds
 	makeRounds(nRounds, n-1)
