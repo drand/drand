@@ -316,6 +316,7 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		fs.CreateSecureFolder(dbPath)
 
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+
 	case chain.PostgresSQL:
 
 		// TODO: WE NEED TO FIGURE OUT THESE SETTINGS AND WHERE TO
@@ -331,7 +332,8 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 			return nil, fmt.Errorf("can't create DB connection pool %s", bp.opts.dbStorageEngine)
 		}
 
-		return pg.NewPGStore(bp.log, db, dbName, bp.opts.pgOpts)
+		return pg.NewPGStore(bp.log, db, dbName)
+
 	default:
 		return nil, fmt.Errorf("unknown database storage engine type %s", bp.opts.dbStorageEngine)
 	}

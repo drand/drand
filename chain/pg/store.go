@@ -18,9 +18,6 @@ import (
 // database yet.
 var ErrNoBeaconSaved = errors.New("beacon not found in database")
 
-// Options holds all the options available for this storage engine
-type Options struct{}
-
 // beacon represents a beacon that is stored in the database.
 type dbBeacon struct {
 	PreviousSig []byte `db:"previous_sig"`
@@ -30,16 +27,16 @@ type dbBeacon struct {
 
 // =============================================================================
 
+// PGStore represents access to the postgres database for beacon management.
 type PGStore struct {
 	log        log.Logger
 	db         *sqlx.DB
 	beaconName string
 }
 
-// NewPGStore returns a Store implementation using the PostgreSQL storage engine.
-// TODO implement options.
-// TODO figure out if/how the DB connection can be initialized only once and shared between beacons.
-func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string, opts *Options) (PGStore, error) {
+// NewPGStore returns a new PG Store that provides the CRUD based API need for
+// supporting drand serialization.
+func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*PGStore, error) {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			round        BIGINT NOT NULL CONSTRAINT s_pk PRIMARY KEY,
@@ -48,18 +45,19 @@ func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string, opts *Options) (
 		)`, beaconName)
 
 	if err := database.ExecContext(context.Background(), log, db, query); err != nil {
-		return PGStore{}, err
+		return nil, err
 	}
 
-	pg := PGStore{
+	p := PGStore{
 		log:        log,
 		db:         db,
 		beaconName: beaconName,
 	}
-	return pg, nil
+	return &p, nil
 }
 
-func (p PGStore) Len() (int, error) {
+// Len returns the number of beacons in the configured beacon table.
+func (p *PGStore) Len() (int, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*)
@@ -77,7 +75,8 @@ func (p PGStore) Len() (int, error) {
 	return ret.Count, nil
 }
 
-func (p PGStore) Put(beacon *chain.Beacon) error {
+// Put adds the specified beacon to the configured beacon table.
+func (p *PGStore) Put(beacon *chain.Beacon) error {
 	data := dbBeacon{
 		Round:       beacon.Round,
 		Signature:   beacon.Signature,
@@ -99,7 +98,8 @@ func (p PGStore) Put(beacon *chain.Beacon) error {
 	return nil
 }
 
-func (p PGStore) Last() (*chain.Beacon, error) {
+// Last returns the last beacon stored in the configured beacon table.
+func (p *PGStore) Last() (*chain.Beacon, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			round, signature, previous_sig
@@ -121,7 +121,8 @@ func (p PGStore) Last() (*chain.Beacon, error) {
 	return &beacon, nil
 }
 
-func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
+// Get returns the specified beacon from the configured beacon table.
+func (p *PGStore) Get(round uint64) (*chain.Beacon, error) {
 	data := struct {
 		Round uint64 `db:"round"`
 	}{
@@ -145,37 +146,60 @@ func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
 	return &beacon, nil
 }
 
-func (p PGStore) Cursor(fn func(chain.Cursor) error) error {
-	return fn(&pgCursor{p.log, p.db, p.beaconName, 0})
-}
-
-func (p PGStore) Close() error {
-	// TODO nothing?
+// Close does something and I am not sure just yet.
+func (p *PGStore) Close() error {
+	// We don't want to close the db with this!!
 	return nil
 }
 
-func (p PGStore) Del(round uint64) error {
-	// TODO implement me
-	panic("implement me")
+// Del removes the specified round from the beacon table.
+func (p *PGStore) Del(round uint64) error {
+	data := struct {
+		Round uint64 `db:"round"`
+	}{
+		Round: round,
+	}
+
+	query := fmt.Sprintf(`
+		DELETE FROM %s
+		WHERE
+			round = :round`,
+		p.beaconName)
+
+	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (p PGStore) SaveTo(w io.Writer) error {
-	// TODO implement me
+// Cursor returns a cursor for iterating over the beacon table.
+func (p *PGStore) Cursor(fn func(chain.Cursor) error) error {
+	c := cursor{
+		pgStore: p,
+		pos:     0,
+	}
+
+	return fn(&c)
+}
+
+// SaveTo does something and I am not sure just yet.
+func (p *PGStore) SaveTo(w io.Writer) error {
 	panic("implement me")
 }
 
 // =============================================================================
 
-type pgCursor struct {
-	log        log.Logger
-	db         *sqlx.DB
-	beaconName string
-	pos        int
+// cursor implements support for iterating through the beacon table.
+type cursor struct {
+	pgStore *PGStore
+	pos     int
 }
 
-func (p *pgCursor) First() (*chain.Beacon, error) {
+// First returns the first beacon from the configured beacon table.
+func (c *cursor) First() (*chain.Beacon, error) {
 	defer func() {
-		p.pos++
+		c.pos++
 	}()
 
 	query := fmt.Sprintf(`
@@ -184,10 +208,10 @@ func (p *pgCursor) First() (*chain.Beacon, error) {
 		FROM %s
 		ORDER BY
 			round ASC LIMIT 1`,
-		p.beaconName)
+		c.pgStore.beaconName)
 
 	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), p.log, p.db, query, &dbBeacon); err != nil {
+	if err := database.QuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, &dbBeacon); err != nil {
 		return nil, err
 	}
 
@@ -199,9 +223,10 @@ func (p *pgCursor) First() (*chain.Beacon, error) {
 	return &beacon, nil
 }
 
-func (p *pgCursor) Next() (*chain.Beacon, error) {
+// Next returns the next beacon from the configured beacon table.
+func (c *cursor) Next() (*chain.Beacon, error) {
 	defer func() {
-		p.pos++
+		c.pos++
 	}()
 
 	query := fmt.Sprintf(`
@@ -210,10 +235,10 @@ func (p *pgCursor) Next() (*chain.Beacon, error) {
 		FROM %s
 		ORDER BY
 			round ASC OFFSET $1 LIMIT 1`,
-		p.beaconName)
+		c.pgStore.beaconName)
 
 	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), p.log, p.db, query, &dbBeacon); err != nil {
+	if err := database.QuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, &dbBeacon); err != nil {
 		return nil, err
 	}
 
@@ -225,7 +250,8 @@ func (p *pgCursor) Next() (*chain.Beacon, error) {
 	return &beacon, nil
 }
 
-func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
+// Seek searches the beacon table for the specified round
+func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
 	data := struct {
 		Round uint64 `db:"round"`
 	}{
@@ -238,10 +264,10 @@ func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
 		FROM %s
 		WHERE
 			round = :round`,
-		p.beaconName)
+		c.pgStore.beaconName)
 
 	var dbBeacon dbBeacon
-	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
+	if err := database.NamedQueryStruct(context.Background(), c.pgStore.log, c.pgStore.db, query, data, &dbBeacon); err != nil {
 		return nil, err
 	}
 
@@ -249,17 +275,18 @@ func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
 	return &beacon, nil
 }
 
-func (p *pgCursor) Last() (*chain.Beacon, error) {
+// Last returns the last beacon from the configured beacon table.
+func (c *cursor) Last() (*chain.Beacon, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			round, signature, previous_sig
 		FROM %s
 		ORDER BY
 			round DESC LIMIT 1`,
-		p.beaconName)
+		c.pgStore.beaconName)
 
 	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), p.log, p.db, query, &dbBeacon); err != nil {
+	if err := database.QuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, &dbBeacon); err != nil {
 		return nil, err
 	}
 

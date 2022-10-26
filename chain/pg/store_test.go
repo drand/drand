@@ -38,8 +38,9 @@ func Test_OrderStorePG(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(log, db, beaconName, nil)
+	store, err := NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
+	defer store.Close()
 
 	b1 := &chain.Beacon{
 		PreviousSig: []byte("a magnificent signature"),
@@ -83,8 +84,9 @@ func Test_StorePG(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(log, db, beaconName, nil)
+	store, err := NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
+	defer store.Close()
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
@@ -120,12 +122,11 @@ func Test_StorePG(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, b2, received)
 
-	store.Close()
-
 	// =========================================================================
 
-	store, err = NewPGStore(log, db, beaconName, nil)
+	store, err = NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
+	defer store.Close()
 
 	require.NoError(t, store.Put(b1))
 
@@ -133,12 +134,12 @@ func Test_StorePG(t *testing.T) {
 	bb1, err := store.Get(b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	store.Close()
 
 	// =========================================================================
 
-	store, err = NewPGStore(log, db, beaconName, nil)
+	store, err = NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
+	defer store.Close()
 
 	err = store.Put(b1)
 	require.NoError(t, err)
