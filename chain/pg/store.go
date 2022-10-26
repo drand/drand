@@ -137,7 +137,7 @@ func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
 		p.beaconName)
 
 	var dbBeacon dbBeacon
-	if err := database.NameQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
+	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
 		return nil, ErrNoBeaconSaved
 	}
 
@@ -241,7 +241,7 @@ func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
 		p.beaconName)
 
 	var dbBeacon dbBeacon
-	if err := database.NameQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
+	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
 		return nil, err
 	}
 
