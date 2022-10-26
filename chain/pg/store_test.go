@@ -73,7 +73,9 @@ func TestStorePG(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	require.Equal(t, 0, store.Len())
+	ln, err := store.Len()
+	require.NoError(t, err)
+	require.Equal(t, 0, ln)
 
 	b1 := &chain.Beacon{
 		PreviousSig: sig1,
@@ -88,11 +90,15 @@ func TestStorePG(t *testing.T) {
 	}
 
 	require.NoError(t, store.Put(b1))
-	require.Equal(t, 1, store.Len())
+	ln, err = store.Len()
+	require.NoError(t, err)
+	require.Equal(t, 1, ln)
 	require.NoError(t, store.Put(b1))
-	require.Equal(t, 1, store.Len())
+	ln, err = store.Len()
+	require.Equal(t, 1, ln)
 	require.NoError(t, store.Put(b2))
-	require.Equal(t, 2, store.Len())
+	ln, err = store.Len()
+	require.Equal(t, 2, ln)
 
 	received, err := store.Last()
 	require.NoError(t, err)
@@ -116,23 +122,30 @@ func TestStorePG(t *testing.T) {
 	err = store.Put(b2)
 	require.NoError(t, err)
 
-	store.Cursor(func(c chain.Cursor) {
+	store.Cursor(func(c chain.Cursor) error {
 		expecteds := []*chain.Beacon{b1, b2}
 		i := 0
-		for b := c.First(); b != nil; b = c.Next() {
+		b, err := c.First()
+		for ; b != nil; b, err = c.Next() {
+			require.NoError(t, err)
 			require.True(t, expecteds[i].Equal(b))
 			i++
 		}
 
-		unknown := c.Seek(10000)
+		unknown, err := c.Seek(10000)
+		require.NotNil(t, err)
 		require.Nil(t, unknown)
+		return nil
 	})
 
-	store.Cursor(func(c chain.Cursor) {
-		lb2 := c.Last()
+	err = store.Cursor(func(c chain.Cursor) error {
+		lb2, err := c.Last()
+		require.NoError(t, err)
 		require.NotNil(t, lb2)
 		require.Equal(t, b2, lb2)
+		return nil
 	})
+	require.NoError(t, err)
 
 	unknown, err := store.Get(10000)
 	require.Nil(t, unknown)

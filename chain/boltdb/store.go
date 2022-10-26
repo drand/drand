@@ -133,8 +133,9 @@ func (b *BoltStore) Cursor(ctx context.Context, fn func(context.Context, chain.C
 		return fn(ctx, &boltCursor{Cursor: c})
 	})
 	if err != nil {
-		log.DefaultLogger().Warnw("", "boltdb", "error getting cursor", "err", err)
+		b.log.Warnw("", "boltdb", "error getting cursor", "err", err)
 	}
+
 	return err
 }
 

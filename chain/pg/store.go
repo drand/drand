@@ -79,18 +79,14 @@ func NewPGStore(l log.Logger, tableName string, opts *Options) (PGStore, error) 
 
 const lenQuery = `SELECT count(*) FROM %s`
 
-func (p PGStore) Len() int {
+func (p PGStore) Len() (int, error) {
 	count := 0
 	err := p.db.GetContext(
 		context.Background(),
 		&count,
 		fmt.Sprintf(lenQuery, p.tableName),
 	)
-	if err != nil {
-		p.log.Errorw("error getting length", "err", err)
-	}
-
-	return count
+	return count, err
 }
 
 const putQuery = `INSERT INTO %s (round, sig, prevsig) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
@@ -118,12 +114,13 @@ func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
 	return beaconFromQuery(p.log, p.db, fmt.Sprintf(getQuery, p.tableName), round)
 }
 
-func (p PGStore) Cursor(fn func(chain.Cursor)) {
-	fn(&pgCursor{p.log, p.db, p.tableName, 0})
+func (p PGStore) Cursor(fn func(chain.Cursor) error) error {
+	return fn(&pgCursor{p.log, p.db, p.tableName, 0})
 }
 
-func (p PGStore) Close() {
+func (p PGStore) Close() error {
 	// TODO nothing?
+	return nil
 }
 
 func (p PGStore) Del(round uint64) error {
@@ -145,35 +142,34 @@ type pgCursor struct {
 
 const firstQuery = `SELECT round, sig, prevsig FROM %s ORDER BY round ASC LIMIT 1`
 
-func (p *pgCursor) First() *chain.Beacon {
+func (p *pgCursor) First() (*chain.Beacon, error) {
 	defer func() {
 		p.pos++
 	}()
-	ret, _ := beaconFromQuery(p.log, p.db, fmt.Sprintf(firstQuery, p.tableName))
-	return ret
+
+	return beaconFromQuery(p.log, p.db, fmt.Sprintf(firstQuery, p.tableName))
 }
 
 const nextQuery = `SELECT round, sig, prevsig FROM %s ORDER BY round ASC OFFSET $1 LIMIT 1`
 
-func (p *pgCursor) Next() *chain.Beacon {
+func (p *pgCursor) Next() (*chain.Beacon, error) {
 	defer func() {
 		p.pos++
 	}()
+
 	ret, err := beaconFromQuery(p.log, p.db, fmt.Sprintf(nextQuery, p.tableName), p.pos)
 	if errors.Is(err, ErrNoBeaconSaved) {
-		return nil
+		return nil, nil
 	}
-	return ret
+	return ret, err
 }
 
-func (p *pgCursor) Seek(round uint64) *chain.Beacon {
-	ret, _ := beaconFromQuery(p.log, p.db, fmt.Sprintf(getQuery, p.tableName), round)
-	return ret
+func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
+	return beaconFromQuery(p.log, p.db, fmt.Sprintf(getQuery, p.tableName), round)
 }
 
-func (p *pgCursor) Last() *chain.Beacon {
-	ret, _ := beaconFromQuery(p.log, p.db, fmt.Sprintf(lastQuery, p.tableName))
-	return ret
+func (p *pgCursor) Last() (*chain.Beacon, error) {
+	return beaconFromQuery(p.log, p.db, fmt.Sprintf(lastQuery, p.tableName))
 }
 
 func beaconFromQuery(l log.Logger, db *sqlx.DB, query string, args ...interface{}) (*chain.Beacon, error) {
@@ -182,12 +178,13 @@ func beaconFromQuery(l log.Logger, db *sqlx.DB, query string, args ...interface{
 		Signature   []byte `db:"sig"`
 		PreviousSig []byte `db:"prevsig"`
 	}{}
+
 	err := db.GetContext(context.Background(), &b, query, args...)
 	if err != nil {
-		l.Errorw("failed to run query", "query", query, "args", args, "err", err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNoBeaconSaved
 		}
+		l.Errorw("failed to run query", "query", query, "args", args, "err", err)
 		return nil, err
 	}
 

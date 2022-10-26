@@ -20,8 +20,9 @@ import (
 	"sync"
 
 	"github.com/BurntSushi/toml"
-	"github.com/drand/drand/chain"
 	"github.com/urfave/cli/v2"
+
+	"github.com/drand/drand/chain"
 
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
