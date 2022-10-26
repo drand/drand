@@ -92,7 +92,7 @@ func (p PGStore) Put(beacon *chain.Beacon) error {
 		ON CONFLICT DO NOTHING`,
 		p.beaconName)
 
-	if err := database.NameExecContext(context.Background(), p.log, p.db, query, data); err != nil {
+	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err
 	}
 

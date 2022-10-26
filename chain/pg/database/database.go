@@ -140,12 +140,12 @@ func WithinTran(ctx context.Context, log log.Logger, db *sqlx.DB, fn func(*sqlx.
 // ExecContext is a helper function to execute a CUD operation with
 // logging and tracing.
 func ExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string) error {
-	return NameExecContext(ctx, log, db, query, struct{}{})
+	return NamedExecContext(ctx, log, db, query, struct{}{})
 }
 
 // NameExecContext is a helper function to execute a CUD operation with
 // logging and tracing where field replacement is necessary.
-func NameExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any) error {
+func NamedExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any) error {
 	q := queryString(query, data)
 	log.Infow("database.NamedExecContext", "query", q)
 
@@ -164,12 +164,12 @@ func NameExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, qu
 // QuerySlice is a helper function for executing queries that return a
 // collection of data to be unmarshalled into a slice.
 func QuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, dest *[]T) error {
-	return NameQuerySlice(ctx, log, db, query, struct{}{}, dest)
+	return NamedQuerySlice(ctx, log, db, query, struct{}{}, dest)
 }
 
 // NameQuerySlice is a helper function for executing queries that return a
 // collection of data to be unmarshalled into a slice where field replacement is necessary.
-func NameQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
+func NamedQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
 	q := queryString(query, data)
 	log.Infow("database.QuerySlice", "query", q)
 
