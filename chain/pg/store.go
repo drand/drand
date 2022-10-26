@@ -87,7 +87,7 @@ func (p PGStore) Len() int {
 		fmt.Sprintf(lenQuery, p.tableName),
 	)
 	if err != nil {
-		log.DefaultLogger().Error("boltdb", "error getting length", "err", err)
+		p.log.Errorw("error getting length", "err", err)
 	}
 
 	return count
