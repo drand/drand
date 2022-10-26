@@ -7,17 +7,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/url"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/log"
 )
 
+// ErrNoBeaconSaved is the error returned when no beacon have been saved in the
+// database yet.
+var ErrNoBeaconSaved = errors.New("beacon not found in database")
+
 // Options holds all the options available for this storage engine
 type Options struct{}
+
+// beacon represents a beacon that is stored in the database.
+type dbBeacon struct {
+	Round       uint64 `db:"round"`
+	Signature   []byte `db:"signature"`
+	PreviousSig []byte `db:"previous_sig"`
+}
+
+// =============================================================================
 
 type PGStore struct {
 	log       log.Logger
@@ -25,93 +36,125 @@ type PGStore struct {
 	db        *sqlx.DB
 }
 
-// ErrNoBeaconSaved is the error returned when no beacon have been saved in the
-// database yet.
-var ErrNoBeaconSaved = errors.New("beacon not found in database")
-
-// language=postgresql
-const createTableQuery = `CREATE TABLE IF NOT EXISTS %s (
-    round   BIGINT NOT NULL CONSTRAINT %[1]s_pk PRIMARY KEY,
-    sig     BYTEA  NOT NULL,
-    prevsig BYTEA  NOT NULL
-)`
-
 // NewPGStore returns a Store implementation using the PostgreSQL storage engine.
 // TODO implement options.
 // TODO figure out if/how the DB connection can be initialized only once and shared between beacons.
-func NewPGStore(l log.Logger, tableName string, opts *Options) (PGStore, error) {
-	sslMode := "require"
-	if true {
-		sslMode = "disable"
-	}
-
-	q := make(url.Values)
-	q.Set("sslmode", sslMode)
-	q.Set("timezone", "utc")
-
-	u := url.URL{
-		Scheme:   "postgres",
-		User:     url.UserPassword("drand", "drand"),
-		Host:     "127.0.0.1:35432",
-		Path:     "drand",
-		RawQuery: q.Encode(),
-	}
-
-	db, err := sqlx.Open("postgres", u.String())
+func NewPGStore(log log.Logger, tableName string, opts *Options) (PGStore, error) {
+	db, err := Open(Config{
+		User:         "drand",
+		Password:     "drand",
+		Host:         "127.0.0.1:35432",
+		Name:         "drand",
+		MaxIdleConns: 5,
+		MaxOpenConns: 10,
+		DisableTLS:   true,
+	})
 	if err != nil {
 		return PGStore{}, err
 	}
-	db.SetMaxIdleConns(5)
-	db.SetMaxOpenConns(100)
 
-	_, err = db.QueryxContext(context.Background(), fmt.Sprintf(createTableQuery, tableName))
-	if err != nil {
+	query := fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
+			round        BIGINT NOT NULL CONSTRAINT %[1]s_pk PRIMARY KEY,
+			signature    BYTEA  NOT NULL,
+			previous_sig BYTEA  NOT NULL
+		)`,
+		tableName)
+
+	if err := ExecContext(context.Background(), log, db, query); err != nil {
 		return PGStore{}, err
 	}
 
 	pg := PGStore{
-		log:       l,
+		log:       log,
 		tableName: tableName,
 		db:        db,
 	}
 	return pg, nil
 }
 
-const lenQuery = `SELECT count(*) FROM %s`
-
 func (p PGStore) Len() (int, error) {
-	count := 0
-	err := p.db.GetContext(
-		context.Background(),
-		&count,
-		fmt.Sprintf(lenQuery, p.tableName),
-	)
-	return count, err
-}
+	query := fmt.Sprintf(`
+		SELECT
+			value AS count(*)
+		FROM
+			%s`,
+		p.tableName)
 
-const putQuery = `INSERT INTO %s (round, sig, prevsig) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
+	var ret struct {
+		Count int `db:"count"`
+	}
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &ret); err != nil {
+		return 0, err
+	}
+
+	return ret.Count, nil
+}
 
 func (p PGStore) Put(beacon *chain.Beacon) error {
-	_, err := p.db.QueryxContext(
-		context.Background(),
-		fmt.Sprintf(putQuery, p.tableName),
-		beacon.Round,
-		beacon.Signature,
-		beacon.PreviousSig,
-	)
-	return err
-}
+	data := dbBeacon{
+		Round:       beacon.Round,
+		Signature:   beacon.Signature,
+		PreviousSig: beacon.PreviousSig,
+	}
 
-const lastQuery = `SELECT round, sig, prevsig FROM %s ORDER BY round DESC LIMIT 1`
+	query := fmt.Sprintf(`
+		INSERT INTO %s
+			(round, sig, prevsig)
+		VALUES
+			(:round, :sig, :prevsig) ON CONFLICT DO NOTHING`,
+		p.tableName)
+
+	if err := NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func (p PGStore) Last() (*chain.Beacon, error) {
-	return beaconFromQuery(p.log, p.db, fmt.Sprintf(lastQuery, p.tableName))
+	query := fmt.Sprintf(`
+		SELECT
+			round, sig, prevsig
+		FROM %s
+		ORDER BY
+			round DESC LIMIT 1`,
+		p.tableName)
+
+	var data dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+		return nil, err
+	}
+
+	beacon := chain.Beacon{
+		Round:       data.Round,
+		Signature:   data.Signature,
+		PreviousSig: data.PreviousSig,
+	}
+
+	return &beacon, nil
 }
 
-const getQuery = `SELECT round, sig, prevsig FROM %s WHERE round=$1`
-
 func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
-	return beaconFromQuery(p.log, p.db, fmt.Sprintf(getQuery, p.tableName), round)
+	query := fmt.Sprintf(`
+		SELECT
+			round, sig, prevsig
+		FROM %s
+			WHERE round=$1`,
+		p.tableName)
+
+	var data dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+		return nil, err
+	}
+
+	beacon := chain.Beacon{
+		Round:       data.Round,
+		Signature:   data.Signature,
+		PreviousSig: data.PreviousSig,
+	}
+
+	return &beacon, nil
 }
 
 func (p PGStore) Cursor(fn func(chain.Cursor) error) error {
@@ -133,6 +176,8 @@ func (p PGStore) SaveTo(w io.Writer) error {
 	panic("implement me")
 }
 
+// =============================================================================
+
 type pgCursor struct {
 	log       log.Logger
 	db        *sqlx.DB
@@ -140,37 +185,106 @@ type pgCursor struct {
 	pos       int
 }
 
-const firstQuery = `SELECT round, sig, prevsig FROM %s ORDER BY round ASC LIMIT 1`
-
 func (p *pgCursor) First() (*chain.Beacon, error) {
 	defer func() {
 		p.pos++
 	}()
 
-	return beaconFromQuery(p.log, p.db, fmt.Sprintf(firstQuery, p.tableName))
-}
+	query := fmt.Sprintf(`
+		SELECT
+			round, sig, prevsig
+		FROM %s
+		ORDER BY
+			round ASC LIMIT 1`,
+		p.tableName)
 
-const nextQuery = `SELECT round, sig, prevsig FROM %s ORDER BY round ASC OFFSET $1 LIMIT 1`
+	var data dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+		return nil, err
+	}
+
+	beacon := chain.Beacon{
+		Round:       data.Round,
+		Signature:   data.Signature,
+		PreviousSig: data.PreviousSig,
+	}
+
+	return &beacon, nil
+}
 
 func (p *pgCursor) Next() (*chain.Beacon, error) {
 	defer func() {
 		p.pos++
 	}()
 
-	ret, err := beaconFromQuery(p.log, p.db, fmt.Sprintf(nextQuery, p.tableName), p.pos)
-	if errors.Is(err, ErrNoBeaconSaved) {
-		return nil, nil
+	query := fmt.Sprintf(`
+		SELECT
+			round, sig, prevsig
+		FROM %s
+		ORDER BY
+			round ASC OFFSET $1 LIMIT 1`,
+		p.tableName)
+
+	var data dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+		return nil, err
 	}
-	return ret, err
+
+	beacon := chain.Beacon{
+		Round:       data.Round,
+		Signature:   data.Signature,
+		PreviousSig: data.PreviousSig,
+	}
+
+	return &beacon, nil
 }
 
 func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
-	return beaconFromQuery(p.log, p.db, fmt.Sprintf(getQuery, p.tableName), round)
+	query := fmt.Sprintf(`
+		SELECT
+			round, sig, prevsig
+		FROM %s
+			WHERE round=$1`,
+		p.tableName)
+
+	var data dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+		return nil, err
+	}
+
+	beacon := chain.Beacon{
+		Round:       data.Round,
+		Signature:   data.Signature,
+		PreviousSig: data.PreviousSig,
+	}
+
+	return &beacon, nil
 }
 
 func (p *pgCursor) Last() (*chain.Beacon, error) {
-	return beaconFromQuery(p.log, p.db, fmt.Sprintf(lastQuery, p.tableName))
+	query := fmt.Sprintf(`
+		SELECT
+			round, sig, prevsig
+		FROM %s
+		ORDER BY
+			round DESC LIMIT 1`,
+		p.tableName)
+
+	var data dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+		return nil, err
+	}
+
+	beacon := chain.Beacon{
+		Round:       data.Round,
+		Signature:   data.Signature,
+		PreviousSig: data.PreviousSig,
+	}
+
+	return &beacon, nil
 }
+
+// =============================================================================
 
 func beaconFromQuery(l log.Logger, db *sqlx.DB, query string, args ...interface{}) (*chain.Beacon, error) {
 	b := struct {
@@ -184,6 +298,7 @@ func beaconFromQuery(l log.Logger, db *sqlx.DB, query string, args ...interface{
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNoBeaconSaved
 		}
+
 		l.Errorw("failed to run query", "query", query, "args", args, "err", err)
 		return nil, err
 	}

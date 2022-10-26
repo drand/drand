@@ -94,10 +94,10 @@ func TestStorePG(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, ln)
 	require.NoError(t, store.Put(b1))
-	ln, err = store.Len()
+	ln, _ = store.Len()
 	require.Equal(t, 1, ln)
 	require.NoError(t, store.Put(b2))
-	ln, err = store.Len()
+	ln, _ = store.Len()
 	require.Equal(t, 2, ln)
 
 	received, err := store.Last()
