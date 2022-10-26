@@ -30,10 +30,10 @@ type PGStore struct {
 var ErrNoBeaconSaved = errors.New("beacon not found in database")
 
 // language=postgresql
-const createTableQuery = `create table IF NOT EXISTS %s (
-    round   bigint not null constraint %[1]s_pk primary key,
-    sig     bytea  not null,
-    prevsig bytea  not null
+const createTableQuery = `CREATE TABLE IF NOT EXISTS %s (
+    round   BIGINT NOT NULL CONSTRAINT %[1]s_pk PRIMARY KEY,
+    sig     BYTEA  NOT NULL,
+    prevsig BYTEA  NOT NULL
 )`
 
 // NewPGStore returns a Store implementation using the PostgreSQL storage engine.
@@ -119,7 +119,7 @@ func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
 }
 
 func (p PGStore) Cursor(fn func(chain.Cursor)) {
-	fn(&pgCursor{p.log, p.db, p.tableName, 1})
+	fn(&pgCursor{p.log, p.db, p.tableName, 0})
 }
 
 func (p PGStore) Close() {
@@ -146,6 +146,9 @@ type pgCursor struct {
 const firstQuery = `SELECT round, sig, prevsig FROM %s ORDER BY round ASC LIMIT 1`
 
 func (p *pgCursor) First() *chain.Beacon {
+	defer func() {
+		p.pos++
+	}()
 	ret, _ := beaconFromQuery(p.log, p.db, fmt.Sprintf(firstQuery, p.tableName))
 	return ret
 }
@@ -156,7 +159,10 @@ func (p *pgCursor) Next() *chain.Beacon {
 	defer func() {
 		p.pos++
 	}()
-	ret, _ := beaconFromQuery(p.log, p.db, fmt.Sprintf(nextQuery, p.tableName), p.pos)
+	ret, err := beaconFromQuery(p.log, p.db, fmt.Sprintf(nextQuery, p.tableName), p.pos)
+	if errors.Is(err, ErrNoBeaconSaved) {
+		return nil
+	}
 	return ret
 }
 
