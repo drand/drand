@@ -49,16 +49,6 @@ func (dd *DrandDaemon) PublicRandStream(in *drand.PublicRandRequest, stream dran
 	return bp.PublicRandStream(in, stream)
 }
 
-// PrivateRand returns an ECIES encrypted random blob of 32 bytes from /dev/urandom
-func (dd *DrandDaemon) PrivateRand(c context.Context, in *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
-	if err != nil {
-		return nil, err
-	}
-
-	return bp.PrivateRand(c, in)
-}
-
 // Home provides the address the local node is listening
 func (dd *DrandDaemon) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	ctx := common.NewMetadata(dd.version.ToProto())

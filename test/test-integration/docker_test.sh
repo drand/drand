@@ -23,20 +23,13 @@ ls $distPublic
 checkSuccess $? "distributed public key file?"
 
 # try to verify with it
-echo "[+] Verifying fetching public and private randomness"
+echo "[+] Verifying fetching public randomness"
 fetchTest 2 true
 #drandPublic="/dist_public.toml"
 #drandVol="$distPublic:$drandPublic:z"
 #drandArgs=("--debug" "fetch" "public" "--insecure" "--public" $drandPublic "${addresses[1]}")
 #docker run --rm --net $NET --ip ${SUBNET}10 -v "$drandVol" $IMG "${drandArgs[@]}"
 #checkSuccess $? "verify signature?"
-
-#echo "[+] Verifying fetching private randomness"
-#serverId="/key/drand_id.public"
-#drandVol="$rootFolder$serverId:$serverId:z"
-#drandArgs=("--debug" "fetch" "private" "--insecure" $serverId)
-#docker run --rm --net $NET --ip ${SUBNET}11 -v "$drandVol" $IMG "${drandArgs[@]}"
-#checkSuccess $? "verify randomness encryption"
 
 echo "TESTS OK"
 cleanup

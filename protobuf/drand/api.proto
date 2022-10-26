@@ -20,10 +20,6 @@ service Public {
 
     rpc PublicRandStream(PublicRandRequest) returns (stream PublicRandResponse);
 
-    // PrivateRand is the method that returns the private randomness generated
-    // by the drand node only.
-    rpc PrivateRand(PrivateRandRequest) returns (PrivateRandResponse);
-
     // ChainInfo returns the information related to the chain this node
     // participates to
     rpc ChainInfo(drand.ChainInfoRequest) returns (drand.ChainInfoPacket);
@@ -54,25 +50,6 @@ message PublicRandResponse {
     bytes randomness = 4;
     common.Metadata metadata = 5;
 }
-
-// PrivateRandRequest is the message to send when requesting a private random
-// value.
-message PrivateRandRequest {
-    // Request is the ECIES encryption of an ephemereal public key towards which
-    // to encrypt the private randomness. The format of the bytes is denoted by
-    // the ECIES encryption used by drand.
-    bytes request = 1;
-    common.Metadata metadata = 2;
-}
-
-message PrivateRandResponse {
-    // Responses is the ECIES encryption of the private randomness using the
-    // ephemereal public key sent in the request.  The format of the bytes is
-    // denoted by the ECIES  encryption used by drand.
-    bytes response = 1;
-    common.Metadata metadata = 2;
-}
-
 
 message HomeRequest {
     common.Metadata metadata = 1;

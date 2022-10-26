@@ -32,7 +32,6 @@ organization</a>, and as of December 2019, is now under the drand organization.
 
 - [Goal and Overview](#goal-and-overview)
   - [Public Randomness](#public-randomness)
-  - [Private Randomness](#private-randomness)
 - [Installation](#installation)
   - [Official release](#official-release)
   - [Manual installation](#manual-installation)
@@ -42,7 +41,6 @@ organization</a>, and as of December 2019, is now under the drand organization.
   - [Run Drand locally](#run-drand-locally)
   - [Create a Drand deployment](#create-a-drand-deployment)
   - [Fetching Public Randomness](#fetching-public-randomness)
-  - [Fetching Private Randomness](#fetching-private-randomness)
   - [Using HTTP endpoints](#using-http-endpoints)
   - [JavaScript client](#javascript-client)
 - [Documentation](#documentation)
@@ -74,8 +72,6 @@ source of randomness which is:
   verifiable and unbiased randomness. Any third party can fetch and verify the
   authenticity of the randomness and by that making sure it hasn't been
   tampered with.
-* And "private" as well: drand nodes can also deliver encrypted randomness
-  to be used in a local applications, for example to seed the OS's PRNG.
 
 A drand network is operated by a group of organizations around the world that
 includes Cloudflare, EPFL, Kudelski Security, Protocol Labs, Celo, UCL, and
@@ -114,28 +110,6 @@ phases:
   SHA-256 to ensure that there is no bias in the byte representation of the
   final output. This hash corresponds to the collective random value and can be
   verified against the collective public key.
-
-### Private Randomness
-
-Private randomness generation is the secondary functionality of drand. Clients
-can request private randomness from some or all of the drand nodes which
-extract it locally from their entropy pools and send it back in encrypted form.
-This can be useful to gather randomness from different entropy sources, for
-example in embedded devices.
-
-In this mode we assume that a client has a private/public key pair and
-encapsulates its public key towards the server's public key using the ECIES
-encryption scheme. After receiving a request, the drand node produces 32 random
-bytes locally (using Go's `crypto/rand` interface), encrypts them using the
-received public key and sends it back to the client.
-
-**Note:** Assuming that clients without good local entropy sources (such as
-embedded devices) use this process to gather high entropy randomness to
-bootstrap their local PRNGs, we emphasize that the initial client key pair has
-to be provided by a trusted source (such as the device manufacturer). Otherwise
-we run into the chicken-and-egg problem of how to produce on the client's side
-a secure ephemeral key pair for ECIES encryption without a good (local) source
-of randomness.
 
 ## Installation
 
@@ -228,29 +202,6 @@ and the signature is made over G1.
 this won't work with the current League of Entropy nodes, since they
 are not exposing their GRPC endpoints directly.)
 
-### Fetching Private Randomness
-
-To get a private random value, run the following:
-
-```bash
-drand get private group.toml
-```
-The JSON-formatted output produced by drand should look like the following:
-
-```bash
-{
-    "Randomness": "764f6e3eecdc4aba8b2f0119e7b2fd8c35948bf2be3f87ebb5823150c6065764"
-}
-```
-
-The command outputs a 32-byte hex-encoded random value generated from the local
-randomness engine of the contacted server. If the encryption is not correct,
-the command outputs an error instead.
-
-(Note that this is also not available with the League of Entropy nodes,
-we recommend using this only with your own nodes, since private randomness
-is usually used for private keys or secrets and can be very sensitive.)
-
 ### Using HTTP endpoints
 
 This is the recommended way of using drand randomness, but don't forget to validate
@@ -311,8 +262,6 @@ drand:
 - The resharing scheme used comes from the
   [paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.2968&rep=rep1&type=pdf)
   from  Y. Desmedt and S. Jajodia.
-- [ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme) for the
-  encryption of private randomness.
 
 Note that drand was originally a [DEDIS](https://dedis.ch)-owned project that
 is now spinning off on its own Github organization. For related previous work

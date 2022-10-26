@@ -25,7 +25,6 @@ type Config struct {
 	privateListenAddr string
 	publicListenAddr  string
 	controlPort       string
-	enablePrivate     bool
 	insecure          bool
 	dkgTimeout        time.Duration
 	grpcOpts          []grpc.DialOption
@@ -252,14 +251,6 @@ func WithLogLevel(level int, jsonFormat bool) ConfigOption {
 		} else {
 			d.logger = log.NewLogger(nil, level)
 		}
-	}
-}
-
-// WithPrivateRandomness enables the private randomness feature on the drand
-// logic. When the feature is not enabled, the call returns an error.
-func WithPrivateRandomness() ConfigOption {
-	return func(d *Config) {
-		d.enablePrivate = true
 	}
 }
 

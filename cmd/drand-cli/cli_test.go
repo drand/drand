@@ -398,7 +398,6 @@ func TestStartWithoutGroup(t *testing.T) {
 		"--tls-disable",
 		"--folder", tmpPath,
 		"--verbose",
-		"--private-rand",
 	}
 
 	go func() {
@@ -421,15 +420,6 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	testListSchemes(t, ctrlPort)
 
 	require.NoError(t, toml.NewEncoder(os.Stdout).Encode(group))
-
-	groupPath := path.Join(rootPath, "drand_group.toml")
-	fmt.Printf("\n Running GET PRIVATE command with group file at %s\n", groupPath)
-	loadedGroup := new(key.Group)
-	require.NoError(t, key.Load(groupPath, loadedGroup))
-	fmt.Printf("%s", loadedGroup.String())
-
-	getCmd := []string{"drand", "get", "private", "--tls-disable", groupPath}
-	require.NoError(t, CLI().Run(getCmd))
 
 	fmt.Printf("\n Running CHAIN-INFO command\n")
 	chainInfo, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
@@ -582,26 +572,16 @@ func TestClientTLS(t *testing.T) {
 		"--control", ctrlPort,
 		"--folder", tmpPath,
 		"--metrics", metricsPort,
-		"--private-rand",
 	}
 	go CLI().Run(startArgs)
 	defer CLI().Run([]string{"drand", "stop", "--control", ctrlPort})
 	time.Sleep(500 * time.Millisecond)
 
-	testStartedTLSDrandFunctional(t, ctrlPort, certPath, groupPath, group, priv)
+	testStartedTLSDrandFunctional(t, ctrlPort, certPath, group, priv)
 }
 
-func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath string, group *key.Group, priv *key.Pair) {
+func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, group *key.Group, priv *key.Pair) {
 	var err error
-	for i := 0; i < 3; i++ {
-		getPrivate := []string{"drand", "get", "private", "--tls-cert", certPath, groupPath}
-		err = CLI().Run(getPrivate)
-		if err == nil {
-			break
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	require.Nil(t, err)
 
 	chainInfoCmd := []string{"drand", "get", "chain-info", "--tls-cert", certPath, priv.Public.Address()}
 	chainInfoBuff, err := json.MarshalIndent(chain.NewChainInfo(group).ToProto(nil), "", "    ")
@@ -616,11 +596,6 @@ func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath, groupPath s
 	b, _ := priv.Public.Key.MarshalBinary()
 	exp := hex.EncodeToString(b)
 	testCommand(t, showPublic, exp)
-
-	showPrivate := []string{"drand", "show", "private", "--control", ctrlPort}
-	b, _ = priv.Key.MarshalBinary()
-	exp = hex.EncodeToString(b)
-	testCommand(t, showPrivate, exp)
 
 	showCokey := []string{"drand", "show", "chain-info", "--control", ctrlPort}
 	expectedOutput = string(chainInfoBuff)

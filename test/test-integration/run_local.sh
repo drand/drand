@@ -364,14 +364,6 @@ function fetchTest() {
     drandArgs+=("--tls-cert" "$serverCertDocker" "$dockerGroupToml")
     echo "[+] Series of tests using drand cli tool"
     echo "---------------------------------------------"
-    echo "              Private Randomness             "
-    docker run --rm --net $NET --ip "${SUBNET}10" -v "$serverCertVol" \
-                                                  -v "$groupVolume" \
-                                                  $IMG "${drandArgs[@]}"
-    checkSuccess $? "verify randomness encryption"
-    echo "---------------------------------------------"
-
-    echo "---------------------------------------------"
     echo "               Public Randomness             "
     drandArgs=("get" "public")
     drandArgs+=("--tls-cert" "$serverCertDocker")

@@ -26,11 +26,6 @@ func (s *EmptyServer) PublicRand(context.Context, *drand.PublicRandRequest) (*dr
 	return nil, nil
 }
 
-// PrivateRand is an empty implementation
-func (s *EmptyServer) PrivateRand(context.Context, *drand.PrivateRandRequest) (*drand.PrivateRandResponse, error) {
-	return nil, nil
-}
-
 // ChainInfo is an empty implementation
 func (s *EmptyServer) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	return nil, nil
