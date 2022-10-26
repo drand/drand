@@ -22,9 +22,9 @@ type Options struct{}
 
 // beacon represents a beacon that is stored in the database.
 type dbBeacon struct {
+	PreviousSig []byte `db:"previous_sig"`
 	Round       uint64 `db:"round"`
 	Signature   []byte `db:"signature"`
-	PreviousSig []byte `db:"previous_sig"`
 }
 
 // =============================================================================
@@ -120,17 +120,12 @@ func (p PGStore) Last() (*chain.Beacon, error) {
 			round DESC LIMIT 1`,
 		p.tableName)
 
-	var data dbBeacon
-	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+	var dbBeacon dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &dbBeacon); err != nil {
 		return nil, err
 	}
 
-	beacon := chain.Beacon{
-		Round:       data.Round,
-		Signature:   data.Signature,
-		PreviousSig: data.PreviousSig,
-	}
-
+	beacon := chain.Beacon(dbBeacon)
 	return &beacon, nil
 }
 
@@ -142,17 +137,12 @@ func (p PGStore) Get(round uint64) (*chain.Beacon, error) {
 			WHERE round=$1`,
 		p.tableName)
 
-	var data dbBeacon
-	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+	var dbBeacon dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &dbBeacon); err != nil {
 		return nil, err
 	}
 
-	beacon := chain.Beacon{
-		Round:       data.Round,
-		Signature:   data.Signature,
-		PreviousSig: data.PreviousSig,
-	}
-
+	beacon := chain.Beacon(dbBeacon)
 	return &beacon, nil
 }
 
@@ -197,17 +187,12 @@ func (p *pgCursor) First() (*chain.Beacon, error) {
 			round ASC LIMIT 1`,
 		p.tableName)
 
-	var data dbBeacon
-	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+	var dbBeacon dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &dbBeacon); err != nil {
 		return nil, err
 	}
 
-	beacon := chain.Beacon{
-		Round:       data.Round,
-		Signature:   data.Signature,
-		PreviousSig: data.PreviousSig,
-	}
-
+	beacon := chain.Beacon(dbBeacon)
 	return &beacon, nil
 }
 
@@ -224,17 +209,12 @@ func (p *pgCursor) Next() (*chain.Beacon, error) {
 			round ASC OFFSET $1 LIMIT 1`,
 		p.tableName)
 
-	var data dbBeacon
-	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+	var dbBeacon dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &dbBeacon); err != nil {
 		return nil, err
 	}
 
-	beacon := chain.Beacon{
-		Round:       data.Round,
-		Signature:   data.Signature,
-		PreviousSig: data.PreviousSig,
-	}
-
+	beacon := chain.Beacon(dbBeacon)
 	return &beacon, nil
 }
 
@@ -246,17 +226,12 @@ func (p *pgCursor) Seek(round uint64) (*chain.Beacon, error) {
 			WHERE round=$1`,
 		p.tableName)
 
-	var data dbBeacon
-	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+	var dbBeacon dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &dbBeacon); err != nil {
 		return nil, err
 	}
 
-	beacon := chain.Beacon{
-		Round:       data.Round,
-		Signature:   data.Signature,
-		PreviousSig: data.PreviousSig,
-	}
-
+	beacon := chain.Beacon(dbBeacon)
 	return &beacon, nil
 }
 
@@ -269,16 +244,11 @@ func (p *pgCursor) Last() (*chain.Beacon, error) {
 			round DESC LIMIT 1`,
 		p.tableName)
 
-	var data dbBeacon
-	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &data); err != nil {
+	var dbBeacon dbBeacon
+	if err := NamedQueryStruct(context.Background(), p.log, p.db, query, nil, &dbBeacon); err != nil {
 		return nil, err
 	}
 
-	beacon := chain.Beacon{
-		Round:       data.Round,
-		Signature:   data.Signature,
-		PreviousSig: data.PreviousSig,
-	}
-
+	beacon := chain.Beacon(dbBeacon)
 	return &beacon, nil
 }
