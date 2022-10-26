@@ -201,10 +201,6 @@ func QueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query 
 // NameQueryStruct is a helper function for executing queries that return a
 // single value to be unmarshalled into a struct type where field replacement is necessary.
 func NameQueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest any) error {
-	if data == nil {
-		data = struct{}{}
-	}
-
 	q := queryString(query, data)
 	log.Infow("database.QueryStruct", "query", q)
 
