@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	clientMock "github.com/drand/drand/client/mock"
 	"github.com/drand/drand/client/test/result/mock"
+	"github.com/drand/drand/common/client"
 )
 
 func TestWatcherWatch(t *testing.T) {
@@ -15,13 +17,13 @@ func TestWatcherWatch(t *testing.T) {
 		{Rnd: 2, Rand: []byte{2}},
 	}
 
-	ch := make(chan Result, len(results))
+	ch := make(chan client.Result, len(results))
 	for i := range results {
 		ch <- &results[i]
 	}
 	close(ch)
 
-	w := watcherClient{nil, &MockClient{WatchCh: ch}}
+	w := watcherClient{nil, &clientMock.Client{WatchCh: ch}}
 
 	i := 0
 	for r := range w.Watch(context.Background()) {
@@ -39,7 +41,7 @@ func TestWatcherGet(t *testing.T) {
 	cr := make([]mock.Result, len(results))
 	copy(cr, results)
 
-	c := &MockClient{Results: cr}
+	c := &clientMock.Client{Results: cr}
 
 	w := watcherClient{c, c}
 
@@ -53,7 +55,7 @@ func TestWatcherGet(t *testing.T) {
 }
 
 func TestWatcherRoundAt(t *testing.T) {
-	c := &MockClient{}
+	c := &clientMock.Client{}
 
 	w := watcherClient{c, c}
 
@@ -71,8 +73,8 @@ func TestWatcherClose(t *testing.T) {
 		return nil
 	}
 
-	w := &MockClient{CloseF: closeF}
-	c := &MockClient{CloseF: closeF}
+	w := &clientMock.Client{CloseF: closeF}
+	c := &clientMock.Client{CloseF: closeF}
 
 	wc := &watcherClient{c, w}
 	err := wc.Close() // should close the underlying client AND watcher

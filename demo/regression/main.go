@@ -9,11 +9,11 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
-	"github.com/drand/drand/test"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/test"
 )
 
 // Test plans:

@@ -4,11 +4,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/metrics"
+	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/metrics"
 )
 
-func newWatchLatencyMetricClient(base Client, info *chain.Info) Client {
+func newWatchLatencyMetricClient(base client.Client, info *chain2.Info) client.Client {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &watchLatencyMetricClient{
 		Client:    base,
@@ -20,8 +22,8 @@ func newWatchLatencyMetricClient(base Client, info *chain.Info) Client {
 }
 
 type watchLatencyMetricClient struct {
-	Client
-	chainInfo *chain.Info
+	client.Client
+	chainInfo *chain2.Info
 	cancel    context.CancelFunc
 }
 

@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
-	"github.com/drand/drand/test"
+	"github.com/drand/drand/internal/chain"
+	"github.com/drand/drand/internal/test"
 )
 
 func installDrand() {
@@ -22,7 +22,7 @@ func installDrand() {
 	curr, err := os.Getwd()
 	checkErr(err)
 	checkErr(os.Chdir("../"))
-	install := exec.Command("go", "install")
+	install := exec.Command("go", "install", "./cmd/drand")
 	runCommand(install)
 	checkErr(os.Chdir(curr))
 }

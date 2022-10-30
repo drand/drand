@@ -5,20 +5,22 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/drand/drand/chain"
-	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/common"
+	chain2 "github.com/drand/drand/common/chain"
+	"github.com/drand/drand/common/client"
+	"github.com/drand/drand/common/crypto"
+	"github.com/drand/drand/common/log"
 )
 
 type verifyingClient struct {
 	// Client is the wrapped client. calls to `get` and `watch` return results proxied from this client's fetch
-	Client
+	client.Client
 
 	// indirectClient is used to fetch other rounds of randomness needed for verification.
 	// it is separated so that it can provide a cache or shared pool that the direct client may not.
-	indirectClient Client
+	indirectClient client.Client
 
-	pointOfTrust Result
+	pointOfTrust client.Result
 	potLk        sync.Mutex
 	strict       bool
 
@@ -27,7 +29,7 @@ type verifyingClient struct {
 }
 
 // newVerifyingClient wraps a client to perform `chain.Verify` on emitted results.
-func newVerifyingClient(c Client, previousResult Result, strict bool, sch *crypto.Scheme) Client {
+func newVerifyingClient(c client.Client, previousResult client.Result, strict bool, sch *crypto.Scheme) client.Client {
 	return &verifyingClient{
 		Client:         c,
 		indirectClient: c,
@@ -44,7 +46,7 @@ func (v *verifyingClient) SetLog(l log.Logger) {
 }
 
 // Get returns a requested round of randomness
-func (v *verifyingClient) Get(ctx context.Context, round uint64) (Result, error) {
+func (v *verifyingClient) Get(ctx context.Context, round uint64) (client.Result, error) {
 	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
 		return nil, err
@@ -61,8 +63,8 @@ func (v *verifyingClient) Get(ctx context.Context, round uint64) (Result, error)
 }
 
 // Watch returns new randomness as it becomes available.
-func (v *verifyingClient) Watch(ctx context.Context) <-chan Result {
-	outCh := make(chan Result, 1)
+func (v *verifyingClient) Watch(ctx context.Context) <-chan client.Result {
+	outCh := make(chan client.Result, 1)
 
 	info, err := v.indirectClient.Info(ctx)
 	if err != nil {
@@ -89,7 +91,7 @@ type resultWithPreviousSignature interface {
 	PreviousSignature() []byte
 }
 
-func asRandomData(r Result) *RandomData {
+func asRandomData(r client.Result) *RandomData {
 	rd, ok := r.(*RandomData)
 	if ok {
 		return rd
@@ -135,7 +137,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	}
 	initialTrustRound := trustRound
 
-	var next Result
+	var next client.Result
 	for trustRound < round-1 {
 		trustRound++
 		v.log.Warnw("", "verifying_client", "loading round to verify", "round", trustRound)
@@ -143,7 +145,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 		if err != nil {
 			return []byte{}, fmt.Errorf("could not get round %d: %w", trustRound, err)
 		}
-		b := &chain.Beacon{
+		b := &common.Beacon{
 			PreviousSig: trustPrevSig,
 			Round:       trustRound,
 			Signature:   next.Signature(),
@@ -170,7 +172,7 @@ func (v *verifyingClient) getTrustedPreviousSignature(ctx context.Context, round
 	return trustPrevSig, nil
 }
 
-func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *RandomData) (err error) {
+func (v *verifyingClient) verify(ctx context.Context, info *chain2.Info, r *RandomData) (err error) {
 	fetchPrevSignature := v.strict // only useful for chained schemes
 	ps := r.PreviousSignature
 
@@ -181,7 +183,7 @@ func (v *verifyingClient) verify(ctx context.Context, info *chain.Info, r *Rando
 		}
 	}
 
-	b := &chain.Beacon{
+	b := &common.Beacon{
 		PreviousSig: ps, // for unchained schemes, this is not used in the VerifyBeacon function and can be nil
 		Round:       r.Round(),
 		Signature:   r.Signature(),

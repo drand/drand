@@ -9,10 +9,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/common/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
-	"github.com/drand/drand/test"
+	"github.com/drand/drand/internal/test"
 )
 
 func TestLocalOrchestration(t *testing.T) {

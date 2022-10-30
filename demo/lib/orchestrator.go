@@ -14,12 +14,12 @@ import (
 
 	json "github.com/nikkolasg/hexjson"
 
-	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common"
-	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/common/crypto"
+	key2 "github.com/drand/drand/common/key"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/node"
-	"github.com/drand/drand/key"
+	"github.com/drand/drand/internal/chain"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -51,8 +51,8 @@ type Orchestrator struct {
 	newPaths          []string
 	genesis           int64
 	transition        int64
-	group             *key.Group
-	newGroup          *key.Group
+	group             *key2.Group
+	newGroup          *key2.Group
 	reshareNodes      []node.Node
 	tls               bool
 	withCurl          bool
@@ -195,12 +195,12 @@ func (e *Orchestrator) RunDKG(timeout time.Duration) error {
 	// overwrite group to group path
 	e.group = g
 	e.genesis = g.GenesisTime
-	checkErr(key.Save(e.groupPath, e.group, false))
+	checkErr(key2.Save(e.groupPath, e.group, false))
 	fmt.Println("\t- Overwrite group with distributed key to ", e.groupPath)
 	return nil
 }
 
-func (e *Orchestrator) checkDKGNodes(nodes []node.Node, groupPath string) *key.Group {
+func (e *Orchestrator) checkDKGNodes(nodes []node.Node, groupPath string) *key2.Group {
 	for {
 		fmt.Println("[+] Checking if chain info is present on all nodes...")
 		var allFound = true
@@ -219,7 +219,7 @@ func (e *Orchestrator) checkDKGNodes(nodes []node.Node, groupPath string) *key.G
 		}
 	}
 
-	var g *key.Group
+	var g *key2.Group
 	var lastNode string
 	fmt.Println("[+] Checking all created group file with collective key")
 	for _, n := range nodes {
@@ -338,9 +338,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		if e.tls {
 			tmp, _ := os.CreateTemp("", "cert")
 			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
-			defer func() {
-				_ = os.Remove(tmpName)
-			}()
+			defer os.Remove(tmpName)
 			_ = tmp.Close()
 			n.WriteCertificate(tmpName)
 			args = append(args, pair("--cacert", tmpName)...)
@@ -541,13 +539,13 @@ func (e *Orchestrator) RunResharing(resharingGroup *ResharingGroup, timeout time
 	g := e.checkDKGNodes(e.reshareNodes, e.newGroupPath)
 	e.newGroup = g
 	e.transition = g.TransitionTime
-	checkErr(key.Save(e.newGroupPath, e.newGroup, false))
+	checkErr(key2.Save(e.newGroupPath, e.newGroup, false))
 	fmt.Println("\t- Overwrite reshared group with distributed key to ", e.newGroupPath)
 	fmt.Println("[+] Check previous distributed key is the same as the new one")
-	oldgroup := new(key.Group)
-	newgroup := new(key.Group)
-	checkErr(key.Load(e.groupPath, oldgroup))
-	checkErr(key.Load(e.newGroupPath, newgroup))
+	oldgroup := new(key2.Group)
+	newgroup := new(key2.Group)
+	checkErr(key2.Load(e.groupPath, oldgroup))
+	checkErr(key2.Load(e.newGroupPath, newgroup))
 	if !oldgroup.PublicKey.Key().Equal(newgroup.PublicKey.Key()) {
 		fmt.Printf("[-] Invalid distributed key !\n")
 	}
