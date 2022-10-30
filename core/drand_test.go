@@ -153,6 +153,7 @@ func TestRunDKGLarge(t *testing.T) {
 // Restart last node and wait catch up
 // Check beacon still works and length is correct
 func TestDrandDKGFresh(t *testing.T) {
+	ctx := context.Background()
 	n := 4
 	beaconPeriod := 1 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
@@ -179,7 +180,7 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.CheckBeaconLength(t, restOfNodes, 2)
 
 	t.Logf("Start last node %s\n", lastNode.addr)
-	dt.StartDrand(t, lastNode.addr, true, false)
+	dt.StartDrand(ctx, t, lastNode.addr, true, false)
 
 	// The catchup process will finish when node gets the previous beacons (1st round)
 	err = dt.WaitUntilRound(t, lastNode, 1)
@@ -489,6 +490,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 
 // Check they all have same chain info
 func TestDrandPublicChainInfo(t *testing.T) {
+	ctx := context.Background()
 	n := 10
 	thr := key.DefaultThreshold(n)
 	p := 1 * time.Second
@@ -507,7 +509,7 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	for i, node := range dt.nodes {
 		d := node.drand
 		t.Logf("Getting chain info from node %d \n", i)
-		received, err := client.ChainInfo(d.priv.Public)
+		received, err := client.ChainInfo(ctx, d.priv.Public)
 
 		require.NoError(t, err, fmt.Sprintf("addr %s", node.addr))
 
@@ -892,7 +894,7 @@ func TestDrandFollowChain(t *testing.T) {
 			require.NoError(t, err)
 		}
 		require.NoError(t, err)
-		defer store.Close(ctx)
+		defer store.Close()
 
 		lastB, err := store.Last(ctx)
 		require.NoError(t, err)
@@ -999,7 +1001,7 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Deleting 4th beacon.\n")
 	err = store.Del(ctx, upTo-1)
 	require.NoError(t, err)
-	err = store.Close(ctx)
+	err = store.Close()
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
@@ -1007,7 +1009,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Skip why: This call will create a new database connection.
 	//  However, for the MemDB engine type, this means we create a new backing array from scratch
 	//  thus removing all previous items from memory. At that point, this invalidates the test.
-	dt.StartDrand(t, dt.nodes[0].addr, true, false)
+	dt.StartDrand(ctx, t, dt.nodes[0].addr, true, false)
 
 	t.Logf(" \t\t --> Making sure the beacon is now missing.\n")
 	_, err = client.PublicRand(ctx, rootID, &drand.PublicRandRequest{Round: upTo - 1})
@@ -1129,6 +1131,8 @@ func TestDrandPublicStreamProxy(t *testing.T) {
 }
 
 func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
+	ctx := context.Background()
+
 	// set up 3 nodes for a test
 	n := 3
 	thr := key.DefaultThreshold(n)
@@ -1154,7 +1158,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	require.NoError(t, err)
 
 	// stop the node and wait for it
-	node.daemon.Stop(context.Background())
+	node.daemon.Stop(ctx)
 	<-node.daemon.exitCh
 	// although the exit channel has signaled exit, the control client is stopped out of band
 	// without waiting the pessimistic closing time, we may try and restart the daemon below
@@ -1177,7 +1181,7 @@ func TestModifyingGroupFileManuallyDoesNotSegfault(t *testing.T) {
 	require.NoError(t, err)
 	// try and reload the beacon from the store
 	// the updated TLS status will fail verification
-	_, err = node.daemon.LoadBeaconFromStore(beaconID, store)
+	_, err = node.daemon.LoadBeaconFromStore(ctx, beaconID, store)
 
 	require.EqualError(t, err, "could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 }

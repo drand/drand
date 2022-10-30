@@ -8,10 +8,12 @@ import (
 	"sync"
 	"time"
 
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
-	http_grpc "github.com/weaveworks/common/httpgrpc"
-	http_grpc_server "github.com/weaveworks/common/httpgrpc/server"
+	grpcmiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
+	grpcrecovery "github.com/grpc-ecosystem/go-grpc-middleware/recovery"
+	grpcprometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/weaveworks/common/httpgrpc"
+	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -24,7 +26,7 @@ var isGrpcPrometheusMetricsRegisted = false
 var state sync.Mutex
 
 func registerGRPCMetrics(l log.Logger) error {
-	if err := metrics.PrivateMetrics.Register(grpc_prometheus.DefaultServerMetrics); err != nil {
+	if err := metrics.PrivateMetrics.Register(grpcprometheus.DefaultServerMetrics); err != nil {
 		l.Warnw("", "grpc Listener", "failed metrics registration", "err", err)
 		return err
 	}
@@ -56,8 +58,22 @@ func NewGRPCListenerForPrivate(
 	}
 
 	opts = append(opts,
-		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(grpc_prometheus.StreamServerInterceptor, s.NodeVersionStreamValidator)),
-		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(grpc_prometheus.UnaryServerInterceptor, s.NodeVersionValidator)),
+		grpc.StreamInterceptor(
+			grpcmiddleware.ChainStreamServer(
+				otelgrpc.StreamServerInterceptor(),
+				grpcprometheus.StreamServerInterceptor,
+				s.NodeVersionStreamValidator,
+				grpcrecovery.StreamServerInterceptor(), // TODO (dlsniper): This turns panics into grpc errors. Do we want that?
+			),
+		),
+		grpc.UnaryInterceptor(
+			grpcmiddleware.ChainUnaryServer(
+				otelgrpc.UnaryServerInterceptor(),
+				grpcprometheus.UnaryServerInterceptor,
+				s.NodeVersionValidator,
+				grpcrecovery.UnaryServerInterceptor(), // TODO (dlsniper): This turns panics into grpc errors. Do we want that?
+			),
+		),
 	)
 
 	grpcServer := grpc.NewServer(opts...)
@@ -87,8 +103,8 @@ func NewGRPCListenerForPrivate(
 		g = gr
 	}
 
-	http_grpc.RegisterHTTPServer(grpcServer, http_grpc_server.NewServer(metrics.GroupHandlerWithLogger(l)))
-	grpc_prometheus.Register(grpcServer)
+	httpgrpc.RegisterHTTPServer(grpcServer, httpgrpcserver.NewServer(metrics.GroupHandlerWithLogger(l)))
+	grpcprometheus.Register(grpcServer)
 
 	state.Lock()
 	defer state.Unlock()

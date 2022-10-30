@@ -130,7 +130,7 @@ func TestDeleteBeacon(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, b)
 
-	err = store.Close(ctx)
+	err = store.Close()
 	require.NoError(t, err)
 
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}

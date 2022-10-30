@@ -68,6 +68,7 @@ type BeaconProcess struct {
 }
 
 func NewBeaconProcess(
+	ctx context.Context,
 	log dlog.Logger,
 	store key.Store,
 	completedDKGs chan dkg.SharingOutput,
@@ -76,12 +77,18 @@ func NewBeaconProcess(
 	privGateway *net.PrivateGateway,
 	pubGateway *net.PublicGateway,
 ) (*BeaconProcess, error) {
+	_, span := metrics.NewSpan(ctx, "dd.NewBeaconProcess")
+	defer span.End()
+
 	priv, err := store.LoadKeyPair(nil)
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 	if err := priv.Public.ValidSignature(); err != nil {
-		return nil, fmt.Errorf("INVALID SELF SIGNATURE %w. Action: run `drand util self-sign`", err)
+		err := fmt.Errorf("INVALID SELF SIGNATURE %w. Action: run `drand util self-sign`", err)
+		span.RecordError(err)
+		return nil, err
 	}
 
 	bp := &BeaconProcess{
@@ -104,7 +111,10 @@ var ErrDKGNotStarted = errors.New("DKG not started")
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
-func (bp *BeaconProcess) Load() error {
+func (bp *BeaconProcess) Load(ctx context.Context) error {
+	ctx, span := metrics.NewSpan(ctx, "bp.Load")
+	defer span.End()
+
 	var err error
 
 	beaconID := bp.getBeaconID()
@@ -152,10 +162,14 @@ func (bp *BeaconProcess) Load() error {
 
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
-func (bp *BeaconProcess) StartBeacon(catchup bool) error {
-	ctx := context.Background()
+func (bp *BeaconProcess) StartBeacon(ctx context.Context, catchup bool) error {
+	ctx, span := metrics.NewSpan(ctx, "bp.StartBeacon")
+	defer span.End()
+
 	b, err := bp.newBeacon(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.End()
 		bp.log.Errorw("", "init_beacon", err)
 		return err
 	}
@@ -165,8 +179,9 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) error {
 		// This doesn't need to be called async.
 		// In the future, we might want to wait and return any errors from it too.
 		// TODO: Add error handling for this method and handle it here.
-		b.Catchup()
-	} else if err := b.Start(); err != nil {
+		b.Catchup(ctx)
+	} else if err := b.Start(ctx); err != nil {
+		span.RecordError(err)
 		bp.log.Errorw("", "beacon_start", err)
 		return err
 	}
@@ -325,6 +340,9 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput *dkg.SharingOutput) error {
 
 // Stop simply stops all drand operations.
 func (bp *BeaconProcess) Stop(ctx context.Context) {
+	ctx, span := metrics.NewSpan(ctx, "bp.Stop")
+	defer span.End()
+
 	bp.state.RLock()
 	select {
 	case <-bp.exitCh:
@@ -344,7 +362,7 @@ func (bp *BeaconProcess) Stop(ctx context.Context) {
 	}
 	bp.state.RUnlock()
 
-	bp.StopBeacon()
+	bp.StopBeacon(ctx)
 }
 
 // WaitExit returns a channel that signals when drand stops its operations
@@ -353,6 +371,9 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 }
 
 func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.createDBStore")
+	defer span.End()
+
 	beaconName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 	var dbStore chain.Store
 	var err error
@@ -388,6 +409,9 @@ func (bp *BeaconProcess) createDBStore(ctx context.Context) (chain.Store, error)
 }
 
 func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.newBeacon")
+	defer span.End()
+
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -411,7 +435,6 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 	}
 
 	if bp.opts.dbStorageEngine == chain.MemDB {
-		ctx := context.Background()
 		err := bp.storeCurrentFromPeerNetwork(ctx, store)
 		if err != nil {
 			if errors.Is(err, errNoRoundInPeers) {
@@ -425,7 +448,7 @@ func (bp *BeaconProcess) newBeacon(ctx context.Context) (*beacon.Handler, error)
 		}
 	}
 
-	b, err := beacon.NewHandler(bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
+	b, err := beacon.NewHandler(ctx, bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
 	if err != nil {
 		return nil, err
 	}
@@ -452,14 +475,17 @@ func checkGroup(l dlog.Logger, group *key.Group) {
 }
 
 // StopBeacon stops the beacon generation process and resets it.
-func (bp *BeaconProcess) StopBeacon() {
+func (bp *BeaconProcess) StopBeacon(ctx context.Context) {
+	ctx, span := metrics.NewSpan(ctx, "bp.StopBeacon")
+	defer span.End()
+
 	bp.state.Lock()
 	defer bp.state.Unlock()
 	if bp.beacon == nil {
 		return
 	}
 
-	bp.beacon.Stop()
+	bp.beacon.Stop(ctx)
 	bp.beacon = nil
 }
 
@@ -487,6 +513,9 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 var errNoRoundInPeers = errors.New("could not find round")
 
 func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store chain.Store) error {
+	ctx, span := metrics.NewSpan(ctx, "bp.storeCurrentFromPeerNetwork")
+	defer span.End()
+
 	clkNow := bp.opts.clock.Now().Unix()
 	if bp.group == nil {
 		return nil
@@ -534,6 +563,9 @@ func (bp *BeaconProcess) storeCurrentFromPeerNetwork(ctx context.Context, store 
 }
 
 func (bp *BeaconProcess) loadBeaconFromPeers(ctx context.Context, targetRound uint64, peers []net.Peer) (chain.Beacon, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.loadBeaconFromPeers")
+	defer span.End()
+
 	select {
 	case <-ctx.Done():
 		return chain.Beacon{}, ctx.Err()

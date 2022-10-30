@@ -101,6 +101,21 @@ var metricsFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_METRICS"},
 }
 
+var tracesFlag = &cli.StringFlag{
+	Name:    "traces",
+	Usage:   "Publish metrics to the specific OpenTelemetry compatible host:port server. E.g. 127.0.0.1:4317",
+	EnvVars: []string{"DRAND_TRACES"},
+}
+
+var tracesProbabilityFlag = &cli.Float64Flag{
+	Name: "traces-probability",
+	Usage: "The probability for a certain trace to end up being collected." +
+		"Between 0.0 and 1.0 values, that corresponds to 0% and 100%." +
+		"Be careful as a high probability ratio can produce a lot of data.",
+	EnvVars: []string{"DRAND_TRACES_PROBABILITY"},
+	Value:   0.05,
+}
+
 var privListenFlag = &cli.StringFlag{
 	Name:    "private-listen",
 	Usage:   "Set the listening (binding) address of the private API. Useful if you have some kind of proxy.",
@@ -376,7 +391,8 @@ var appCommands = []*cli.Command{
 		Name:  "start",
 		Usage: "Start the drand daemon.",
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
-			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
+			insecureFlag, controlFlag, privListenFlag, pubListenFlag,
+			metricsFlag, tracesFlag, tracesProbabilityFlag,
 			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
 			skipValidationFlag, jsonFlag, beaconIDFlag,
 			storageTypeFlag, pgDSNFlag, memDBSizeFlag),
@@ -824,7 +840,7 @@ func checkMigration(c *cli.Context, l log.Logger) error {
 
 func testWindows(c *cli.Context) error {
 	// x509 not available on windows: must run without TLS
-	if runtime.GOOS == "windows" && !c.Bool("tls-disable") {
+	if runtime.GOOS == "windows" && !c.Bool(insecureFlag.Name) {
 		return errors.New("TLS is not available on Windows, please disable TLS")
 	}
 	return nil
@@ -1020,6 +1036,7 @@ func checkIdentityAddress(lg log.Logger, conf *core.Config, addr string, tls boo
 // the head of the chain
 func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
 	conf := contextToConfig(c, l)
+	ctx := c.Context
 
 	startRoundStr := c.Args().First()
 	sr, err := strconv.Atoi(startRoundStr)
@@ -1036,7 +1053,6 @@ func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
 
 	verbose := isVerbose(c)
 
-	ctx := c.Context
 	sch, err := crypto.GetSchemeFromEnv()
 	if err != nil {
 		return err
@@ -1056,7 +1072,7 @@ func deleteBeaconCmd(c *cli.Context, l log.Logger) error {
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %w", beaconID, err)
 			}
-			defer store.Close(ctx)
+			defer store.Close()
 
 			lastBeacon, err := store.Last(ctx)
 			if err != nil {
@@ -1118,7 +1134,7 @@ func getGroup(c *cli.Context) (*key.Group, error) {
 }
 
 func checkArgs(c *cli.Context) error {
-	if c.Bool("tls-disable") {
+	if c.Bool(insecureFlag.Name) {
 		if c.IsSet("tls-cert") || c.IsSet("tls-key") {
 			return fmt.Errorf("option 'tls-disable' used with 'tls-cert' or 'tls-key': combination is not valid")
 		}
@@ -1153,7 +1169,7 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 	}
 	opts = append(opts, core.WithVersion(fmt.Sprintf("drand/%s (%s)", version, gitCommit)))
 
-	if c.Bool("tls-disable") {
+	if c.Bool(insecureFlag.Name) {
 		opts = append(opts, core.WithInsecure())
 	} else {
 		certPath, keyPath := c.String("tls-cert"), c.String("tls-key")
@@ -1166,6 +1182,17 @@ func contextToConfig(c *cli.Context, l log.Logger) *core.Config {
 			panic(err)
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
+	}
+
+	if c.IsSet(tracesFlag.Name) {
+		opts = append(opts, core.WithTracesEndpoint(c.String(tracesFlag.Name)))
+	}
+
+	if c.IsSet(tracesProbabilityFlag.Name) {
+		opts = append(opts, core.WithTracesProbability(c.Float64(tracesProbabilityFlag.Name)))
+	} else {
+		//nolint:gomnd // Reset the trace probability to 5%
+		opts = append(opts, core.WithTracesProbability(0.05))
 	}
 
 	switch chain.StorageType(c.String(storageTypeFlag.Name)) {

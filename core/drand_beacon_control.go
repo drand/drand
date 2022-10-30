@@ -10,6 +10,7 @@ import (
 	"github.com/drand/drand/key"
 
 	clock "github.com/jonboulle/clockwork"
+	"go.opentelemetry.io/otel/attribute"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
@@ -24,7 +25,10 @@ import (
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
-func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
+func (bp *BeaconProcess) PublicKey(ctx context.Context, _ *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
+	_, span := metrics.NewSpan(ctx, "bp.PublicKey")
+	defer span.End()
+
 	bp.state.RLock()
 	defer bp.state.RUnlock()
 
@@ -48,7 +52,10 @@ func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*d
 }
 
 // GroupFile replies with the distributed key in the response
-func (bp *BeaconProcess) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
+func (bp *BeaconProcess) GroupFile(ctx context.Context, _ *drand.GroupRequest) (*drand.GroupPacket, error) {
+	_, span := metrics.NewSpan(ctx, "bp.GroupFile")
+	defer span.End()
+
 	bp.state.RLock()
 	defer bp.state.RUnlock()
 
@@ -63,6 +70,9 @@ func (bp *BeaconProcess) GroupFile(context.Context, *drand.GroupRequest) (*drand
 
 // BackupDatabase triggers a backup of the primary database.
 func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDBRequest) (*drand.BackupDBResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.BackupDatabase")
+	defer span.End()
+
 	bp.state.RLock()
 	if bp.beacon == nil {
 		bp.state.RUnlock()
@@ -82,11 +92,17 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
-func (bp *BeaconProcess) PingPong(context.Context, *drand.Ping) (*drand.Pong, error) {
+func (bp *BeaconProcess) PingPong(ctx context.Context, _ *drand.Ping) (*drand.Pong, error) {
+	_, span := metrics.NewSpan(ctx, "bp.Ping")
+	defer span.End()
+
 	return &drand.Pong{Metadata: bp.newMetadata()}, nil
 }
 
 func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.RemoteStatus")
+	defer span.End()
+
 	replies := make(map[string]*drand.StatusResponse)
 	nodes := in.GetAddresses()
 	if len(nodes) == 0 {
@@ -139,6 +155,9 @@ func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatu
 //
 
 func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.Status")
+	defer span.End()
+
 	bp.state.RLock()
 	defer bp.state.RUnlock()
 
@@ -207,6 +226,10 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 		p := net.CreatePeer(remoteAddress, addr.GetTls())
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
+			ctx, span := metrics.NewSpan(ctx, "bp.Status.sendingHome")
+			span.SetAttributes(attribute.String("nodeAddr", remoteAddress))
+			defer span.End()
+
 			// Simply try to ping him see if he replies
 			tc, cancel := context.WithTimeout(ctx, callMaxTimeout)
 			defer cancel()
@@ -233,18 +256,27 @@ func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*
 	return packet, nil
 }
 
-func (bp *BeaconProcess) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+func (bp *BeaconProcess) ListSchemes(ctx context.Context, _ *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+	_, span := metrics.NewSpan(ctx, "bp.ListSchemes")
+	defer span.End()
+
 	return &drand.ListSchemesResponse{Ids: crypto.ListSchemes(), Metadata: bp.newMetadata()}, nil
 }
 
-func (bp *BeaconProcess) ListBeaconIDs(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+func (bp *BeaconProcess) ListBeaconIDs(ctx context.Context, _ *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+	_, span := metrics.NewSpan(ctx, "bp.ListBeaconIDs")
+	defer span.End()
+
 	return nil, fmt.Errorf("method not implemented")
 }
 
 // StartFollowChain syncs up with a chain from other nodes
 //
-//nolint:funlen,gocyclo
-func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
+//nolint:funlen,gocyclo,lll
+func (bp *BeaconProcess) StartFollowChain(ctx context.Context, req *drand.StartSyncRequest, stream drand.Control_StartFollowChainServer) error {
+	ctx, span := metrics.NewSpan(ctx, "bp.StartFollowChain")
+	defer span.End()
+
 	// TODO replace via a more independent chain manager that manages the
 	// transition from following -> participating
 	bp.state.Lock()
@@ -260,7 +292,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	// context will signal and it will stop. If we want the following to
 	// continue nevertheless we can use the next line by using a new context.
 	// ctx, cancel := context.WithCancel(context.Background())
-	ctx, cancel := context.WithCancel(stream.Context())
+	ctx, cancel := context.WithCancel(ctx)
 	bp.syncerCancel = cancel
 
 	bp.state.Unlock()
@@ -287,7 +319,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 
 	beaconID := bp.getBeaconID()
 
-	info, err := chainInfoFromPeers(stream.Context(), bp.privGateway, peers, bp.log, bp.version, beaconID)
+	info, err := bp.chainInfoFromPeers(ctx, bp.privGateway, peers, bp.log, bp.version, beaconID)
 	if err != nil {
 		return err
 	}
@@ -313,7 +345,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	// TODO find a better place to put that
 	if err := store.Put(ctx, chain.GenesisBeacon(info.GenesisSeed)); err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
-		store.Close(ctx)
+		store.Close()
 		return fmt.Errorf("unable to insert genesis block: %w", err)
 	}
 
@@ -322,22 +354,22 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	if err != nil {
 		return err
 	}
-	ss, err := beacon.NewSchemeStore(store, sch)
+	ss, err := beacon.NewSchemeStore(ctx, store, sch)
 	if err != nil {
 		return err
 	}
 
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(bp.log, ss)
-	defer cbStore.Close(ctx)
+	defer cbStore.Close()
 
-	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
+	cb, done := bp.sendProgressCallback(ctx, stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
 
 	addr := net.RemoteAddress(stream.Context())
 	cbStore.AddCallback(addr, cb)
 	defer cbStore.RemoveCallback(addr)
 
-	syncer, err := beacon.NewSyncManager(&beacon.SyncConfig{
+	syncer, err := beacon.NewSyncManager(ctx, &beacon.SyncConfig{
 		Log:         bp.log,
 		Store:       cbStore,
 		BoltdbStore: store,
@@ -359,7 +391,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	for {
 		syncCtx, syncCancel := context.WithCancel(ctx)
 		go func() {
-			errChan <- syncer.Sync(syncCtx, beacon.NewRequestInfo(req.GetUpTo(), peers))
+			errChan <- syncer.Sync(syncCtx, beacon.NewRequestInfo(span.SpanContext(), req.GetUpTo(), peers))
 		}() // wait for all the callbacks to be called and progress sent before returning
 		select {
 		case <-done:
@@ -380,6 +412,10 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 
 // StartCheckChain checks a chain for validity and pulls invalid beacons from other nodes
 func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream drand.Control_StartCheckChainServer) error {
+	ctx := stream.Context()
+	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
+	defer span.End()
+
 	logger := bp.log.Named("CheckChain")
 
 	if bp.beacon == nil {
@@ -396,7 +432,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	// context given to the syncer
 	// NOTE: this means that if the client quits the requests, the syncing
 	// context will signal it, and it will stop.
-	ctx, cancel := context.WithCancel(stream.Context())
+	ctx, cancel := context.WithCancel(ctx)
 	bp.syncerCancel = cancel
 	bp.state.Unlock()
 	defer func() {
@@ -409,7 +445,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	}()
 
 	// we don't monitor the channel for this one, instead we'll error out if needed
-	cb, _ := sendPlainProgressCallback(stream, logger, false)
+	cb, _ := bp.sendPlainProgressCallback(ctx, stream, logger, false)
 
 	peers := make([]net.Peer, 0, len(req.GetNodes()))
 	for _, addr := range req.GetNodes() {
@@ -448,7 +484,7 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 	time.Sleep(time.Second)
 
 	// we need the channel to make sure the client has received the progress
-	cb, done := sendPlainProgressCallback(stream, logger, false)
+	cb, done := bp.sendPlainProgressCallback(ctx, stream, logger, false)
 
 	logger.Infow("Faulty beacons detected in chain, correcting now", "dry-run", false)
 	logger.Debugw("Faulty beacons", "List", faultyBeacons)
@@ -470,9 +506,12 @@ func (bp *BeaconProcess) StartCheckChain(req *drand.StartSyncRequest, stream dra
 }
 
 // chainInfoFromPeers attempts to fetch chain info from one of the passed peers.
-func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
+func (bp *BeaconProcess) chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 	peers []net.Peer, l log.Logger, version commonutils.Version, beaconID string,
 ) (*chain.Info, error) {
+	ctx, span := metrics.NewSpan(ctx, "bp.chainInfoFromPeers")
+	defer span.End()
+
 	// we first craft our request
 	request := new(drand.ChainInfoRequest)
 	request.Metadata = &common.Metadata{BeaconID: beaconID, NodeVersion: version.ToProto()}
@@ -501,13 +540,17 @@ func chainInfoFromPeers(ctx context.Context, privGateway *net.PrivateGateway,
 // sendProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a beacon whose round matches the passed upTo value.
-func sendProgressCallback(
+func (bp *BeaconProcess) sendProgressCallback(
+	ctx context.Context,
 	stream drand.Control_StartFollowChainServer, // not ideal since we also reuse it for the StartCheckChain
 	upTo uint64,
 	info *chain.Info,
 	clk clock.Clock,
 	l log.Logger,
 ) (cb beacon.CallbackFunc, done chan struct{}) {
+	ctx, span := metrics.NewSpan(ctx, "bp.StartCheckChain")
+	defer span.End()
+
 	logger := l.Named("progressCb")
 	targ := chain.CurrentRound(clk.Now().Unix(), info.Period, info.GenesisTime)
 	if upTo != 0 && upTo < targ {
@@ -515,7 +558,7 @@ func sendProgressCallback(
 	}
 
 	var plainProgressCb func(a, b uint64)
-	plainProgressCb, done = sendPlainProgressCallback(stream, logger, upTo == 0)
+	plainProgressCb, done = bp.sendPlainProgressCallback(ctx, stream, logger, upTo == 0)
 	cb = func(b *chain.Beacon, closed bool) {
 		if closed {
 			return
@@ -530,11 +573,15 @@ func sendProgressCallback(
 // sendPlainProgressCallback returns a function that sends SyncProgress on the
 // passed stream. It also returns a channel that closes when the callback is
 // called with a value whose round matches the passed upTo value.
-func sendPlainProgressCallback(
+func (bp *BeaconProcess) sendPlainProgressCallback(
+	ctx context.Context,
 	stream drand.Control_StartFollowChainServer,
 	l log.Logger,
 	keepFollowing bool,
 ) (cb func(curr, targ uint64), done chan struct{}) {
+	_, span := metrics.NewSpan(ctx, "bp.sendPlainProgressCallback")
+	defer span.End()
+
 	done = make(chan struct{})
 
 	cb = func(curr, targ uint64) {
@@ -559,6 +606,7 @@ func sendPlainProgressCallback(
 			close(done)
 		}
 	}
+	//nolint:nakedret
 	return
 }
 

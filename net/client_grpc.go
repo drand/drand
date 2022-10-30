@@ -13,6 +13,7 @@ import (
 
 	"github.com/weaveworks/common/httpgrpc"
 	httpgrpcserver "github.com/weaveworks/common/httpgrpc/server"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
@@ -95,7 +96,7 @@ func (g *grpcClient) getTimeoutContext(ctx context.Context) (context.Context, co
 func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
 	in *drand.IdentityRequest, opts ...CallOption) (*drand.IdentityResponse, error) {
 	var resp *drand.IdentityResponse
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func (g *grpcClient) GetIdentity(ctx context.Context, p Peer,
 }
 
 func (g *grpcClient) PublicRand(ctx context.Context, p Peer, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +127,7 @@ func (g *grpcClient) PublicRandStream(
 	in *drand.PublicRandRequest,
 	opts ...CallOption) (chan *drand.PublicRandResponse, error) {
 	var outCh = make(chan *drand.PublicRandResponse, grpcClientRandStreamBacklog)
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +164,7 @@ func (g *grpcClient) PublicRandStream(
 
 func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	var resp *drand.ChainInfoPacket
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +176,10 @@ func (g *grpcClient) ChainInfo(ctx context.Context, p Peer, in *drand.ChainInfoR
 }
 
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
-	c, err := g.conn(p)
+	ctx, span := metrics.NewSpan(ctx, "client.PartialBeacon")
+	defer span.End()
+
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return err
 	}
@@ -191,7 +195,7 @@ const MaxSyncBuffer = 500
 
 func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncRequest, opts ...CallOption) (chan *drand.BeaconPacket, error) {
 	resp := make(chan *drand.BeaconPacket, MaxSyncBuffer)
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +233,7 @@ func (g *grpcClient) SyncChain(ctx context.Context, p Peer, in *drand.SyncReques
 
 func (g *grpcClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*drand.HomeResponse, error) {
 	var resp *drand.HomeResponse
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +246,7 @@ func (g *grpcClient) Home(ctx context.Context, p Peer, in *drand.HomeRequest) (*
 
 func (g *grpcClient) Status(ctx context.Context, p Peer, in *drand.StatusRequest, opts ...grpc.CallOption) (*drand.StatusResponse, error) {
 	var resp *drand.StatusResponse
-	c, err := g.conn(p)
+	c, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +258,7 @@ func (g *grpcClient) Status(ctx context.Context, p Peer, in *drand.StatusRequest
 }
 
 // conn retrieve an already existing conn to the given peer or create a new one
-func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
+func (g *grpcClient) conn(ctx context.Context, p Peer) (*grpc.ClientConn, error) {
 	g.Lock()
 	defer g.Unlock()
 	var err error
@@ -269,7 +273,15 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 	if !ok {
 		g.log.Debugw("", "grpc client", "initiating", "to", p.Address(), "tls", p.IsTLS())
 		if !p.IsTLS() {
-			c, err = grpc.Dial(p.Address(), append(g.opts, grpc.WithTransportCredentials(insecure.NewCredentials()))...)
+			var opts []grpc.DialOption
+			opts = append(opts, g.opts...)
+			opts = append(opts,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+			)
+
+			c, err = grpc.DialContext(ctx, p.Address(), opts...)
 			if err != nil {
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 			}
@@ -284,7 +296,11 @@ func (g *grpcClient) conn(p Peer) (*grpc.ClientConn, error) {
 				config := &tls.Config{MinVersion: tls.VersionTLS12}
 				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(config)))
 			}
-			c, err = grpc.Dial(p.Address(), opts...)
+			opts = append(opts,
+				grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+				grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+			)
+			c, err = grpc.DialContext(ctx, p.Address(), opts...)
 			if err != nil {
 				metrics.GroupDialFailures.WithLabelValues(p.Address()).Inc()
 			}
@@ -330,8 +346,8 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (g *grpcClient) HandleHTTP(p Peer) (http.Handler, error) {
-	conn, err := g.conn(p)
+func (g *grpcClient) HandleHTTP(ctx context.Context, p Peer) (http.Handler, error) {
+	conn, err := g.conn(ctx, p)
 	if err != nil {
 		return nil, err
 	}

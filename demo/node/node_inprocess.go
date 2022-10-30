@@ -107,6 +107,8 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 }
 
 func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string, memDBSize int) error {
+	ctx := context.Background()
+
 	if dbEngineType != "" {
 		l.dbEngineType = dbEngineType
 	}
@@ -154,7 +156,7 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 	}
 
 	// Create and start drand daemon
-	drandDaemon, err := core.NewDrandDaemon(conf)
+	drandDaemon, err := core.NewDrandDaemon(ctx, conf)
 	if err != nil {
 		return fmt.Errorf("can't instantiate drand daemon %s", err)
 	}
@@ -166,13 +168,14 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 	}
 
 	for beaconID, ks := range stores {
-		bp, err := drandDaemon.InstantiateBeaconProcess(beaconID, ks)
+		ctx := context.Background()
+		bp, err := drandDaemon.InstantiateBeaconProcess(ctx, beaconID, ks)
 		if err != nil {
 			fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
 			return err
 		}
 
-		err = bp.Load()
+		err = bp.Load(ctx)
 		isFreshRun := err == core.ErrDKGNotStarted
 		if err != nil && !isFreshRun {
 			return err
@@ -182,13 +185,13 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		} else {
 			fmt.Printf("beacon id [%s]: will already start running randomness beacon.\n", beaconID)
 			// Add beacon handler from chain hash for http server
-			drandDaemon.AddBeaconHandler(beaconID, bp)
+			drandDaemon.AddBeaconHandler(ctx, beaconID, bp)
 
 			// XXX make it configurable so that new share holder can still start if
 			// nobody started.
 			// drand.StartBeacon(!c.Bool(pushFlag.Name))
 			catchup := true
-			err = bp.StartBeacon(catchup)
+			err = bp.StartBeacon(ctx, catchup)
 			if err != nil {
 				return err
 			}

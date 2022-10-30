@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -47,10 +48,31 @@ var metricsFlag = &cli.StringFlag{
 	EnvVars: []string{"DRAND_RELAY_METRICS"},
 }
 
+var tracesFlag = &cli.StringFlag{
+	Name:    "traces",
+	Usage:   "Publish metrics to the specific OpenTelemetry compatible host:port server. E.g. 127.0.0.1:4317",
+	EnvVars: []string{"DRAND_TRACES"},
+}
+
+var tracesProbabilityFlag = &cli.Float64Flag{
+	Name:    "traces-probability",
+	Usage:   "Publish metrics to the specific OpenTelemetry compatible host:port server.",
+	EnvVars: []string{"DRAND_TRACES_PROBABILITY"},
+	Value:   0.05,
+}
+
 // Relay a GRPC connection to an HTTP server.
 //
 //nolint:gocyclo,funlen
 func Relay(c *cli.Context) error {
+	tracesProbability := 0.1
+	if c.IsSet(tracesProbabilityFlag.Name) {
+		tracesProbability = c.Float64(tracesProbabilityFlag.Name)
+	}
+
+	_, tracerShutdown := metrics.InitTracer("drand_relay", c.String(tracesFlag.Name), tracesProbability)
+	defer tracerShutdown(c.Context)
+
 	cliLog := log.FromContextOrDefault(c.Context)
 	version := common.GetAppVersion()
 
@@ -169,7 +191,7 @@ func main() {
 		Name:    "relay",
 		Version: version.String(),
 		Usage:   "Relay a Drand group to a public HTTP Rest API",
-		Flags:   append(lib.ClientFlags, lib.HashListFlag, listenFlag, accessLogFlag, metricsFlag),
+		Flags:   append(lib.ClientFlags, lib.HashListFlag, listenFlag, accessLogFlag, metricsFlag, tracesFlag, tracesProbabilityFlag),
 		Action: func(ctx *cli.Context) error {
 			ctx.Context = log.ToContext(ctx.Context, lg)
 			return Relay(ctx)

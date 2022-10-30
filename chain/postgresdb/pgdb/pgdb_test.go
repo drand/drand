@@ -55,7 +55,7 @@ func Test_OrderStorePG(t *testing.T) {
 	store, err := pgdb.NewStore(ctx, l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 
 	b0 := &chain.Beacon{
@@ -107,7 +107,7 @@ func TestStore_Cursor(t *testing.T) {
 	dbStore, err := pgdb.NewStore(ctx, l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, dbStore.Close(ctx))
+		require.NoError(t, dbStore.Close())
 	}()
 
 	sigs := map[int][]byte{
@@ -181,7 +181,7 @@ func Test_StorePG(t *testing.T) {
 	store, err := pgdb.NewStore(ctx, l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 
 	doStorePgTest(ctx, t, store, l, db, beaconName, prevMatters)
@@ -198,7 +198,7 @@ func Test_WithReservedIdentifier(t *testing.T) {
 	store, err := pgdb.NewStore(ctx, l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, store.Close(ctx))
+		require.NoError(t, store.Close())
 	}()
 
 	doStorePgTest(ctx, t, store, l, db, beaconName, prevMatters)
@@ -263,7 +263,7 @@ func doStorePgTest(ctx context.Context, t *testing.T, dbStore *pgdb.Store, l log
 	dbStore, err = pgdb.NewStore(ctx, l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, dbStore.Close(ctx))
+		require.NoError(t, dbStore.Close())
 	}()
 
 	require.NoError(t, dbStore.Put(ctx, b1))
@@ -278,7 +278,7 @@ func doStorePgTest(ctx context.Context, t *testing.T, dbStore *pgdb.Store, l log
 	dbStore, err = pgdb.NewStore(ctx, l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
-		require.NoError(t, dbStore.Close(ctx))
+		require.NoError(t, dbStore.Close())
 	}()
 
 	err = dbStore.Put(ctx, b1)

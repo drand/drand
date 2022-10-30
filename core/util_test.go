@@ -21,6 +21,7 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -69,7 +70,7 @@ type DrandTestScenario struct {
 // client that can reach any drand node.
 // Deprecated: do not use
 //
-//nolint:funlen
+//nolint:funlen // This is a test function
 func BatchNewDrand(
 	t *testing.T,
 	currentNodeCount,
@@ -130,6 +131,11 @@ func BatchNewDrand(
 	l := testlogger.New(t)
 
 	for i := 0; i < n; i++ {
+		ctx := context.Background()
+
+		tracer := test.TracerWithName(t, ctx, ports[i])
+		ctx, span := tracer.Start(ctx, "TestBatchNewDrand")
+
 		s := test.NewKeyStore()
 
 		require.NoError(t, s.SaveKeyPair(privs[i]))
@@ -163,11 +169,13 @@ func BatchNewDrand(
 
 		t.Logf("Creating node %d\n", i)
 
-		daemon, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
+		daemon, err := NewDrandDaemon(ctx, NewConfigWithLogger(l, confOptions...))
 		require.NoError(t, err)
 
-		bp, err := daemon.InstantiateBeaconProcess(beaconID, s)
+		bp, err := daemon.InstantiateBeaconProcess(ctx, beaconID, s)
 		require.NoError(t, err)
+
+		span.End()
 
 		daemons[i] = daemon
 		drands[i] = bp
@@ -240,7 +248,7 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 }
 
 // GetBeacon returns the beacon of the given round for the specified drand id
-func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*chain.Beacon, error) {
+func (d *DrandTestScenario) GetBeacon(ctx context.Context, id string, round int, newGroup bool) (*chain.Beacon, error) {
 	nodes := d.nodes
 	if newGroup {
 		nodes = d.resharedNodes
@@ -249,7 +257,7 @@ func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*cha
 		if node.addr != id {
 			continue
 		}
-		return node.drand.beacon.Store().Get(context.Background(), uint64(round))
+		return node.drand.beacon.Store().Get(ctx, uint64(round))
 	}
 	return nil, errors.New("that should not happen")
 }
@@ -306,12 +314,12 @@ func (d *DrandTestScenario) StopMockNode(nodeAddr string, newGroup bool) {
 
 // StartDrand fetches the drand given the id, in the respective group given the
 // newGroup parameter and runs the beacon
-func (d *DrandTestScenario) StartDrand(t *testing.T, nodeAddress string, catchup, newGroup bool) {
+func (d *DrandTestScenario) StartDrand(ctx context.Context, t *testing.T, nodeAddress string, catchup, newGroup bool) {
 	node := d.GetMockNode(nodeAddress, newGroup)
 	dr := node.drand
 
 	d.t.Log("[drand] Start")
-	err := dr.StartBeacon(catchup)
+	err := dr.StartBeacon(ctx, catchup)
 	require.NoError(t, err)
 	d.t.Log("[drand] Started")
 }
