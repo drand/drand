@@ -1,5 +1,4 @@
-// Package dbtest contains supporting code for running tests that hit the DB.
-package dbtest
+package test
 
 import (
 	"bufio"
@@ -9,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/drand/drand/chain/pg/database"
-	"github.com/drand/drand/chain/pg/docker"
-	"github.com/drand/drand/log"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/drand/drand/chain/pg/database"
+	"github.com/drand/drand/log"
 )
 
 // Success and failure markers.
@@ -23,12 +22,12 @@ const (
 )
 
 // StartDB starts a database instance.
-func StartDB() (*docker.Container, error) {
+func StartDB() (*Container, error) {
 	image := "postgres:14-alpine"
 	port := "5432"
 	args := []string{"-e", "POSTGRES_PASSWORD=postgres"}
 
-	c, err := docker.StartContainer(image, port, args...)
+	c, err := StartContainer(image, port, args...)
 	if err != nil {
 		return nil, fmt.Errorf("starting container: %w", err)
 	}
@@ -41,15 +40,15 @@ func StartDB() (*docker.Container, error) {
 }
 
 // StopDB stops a running database instance.
-func StopDB(c *docker.Container) {
-	docker.StopContainer(c.ID)
+func StopDB(c *Container) {
+	StopContainer(c.ID)
 	fmt.Println("Stopped:", c.ID)
 }
 
 // NewUnit creates a test database inside a Docker container. It creates the
 // required table structure but the database is otherwise empty. It returns
 // the database to use as well as a function to call at the end of the test.
-func NewUnit(t *testing.T, c *docker.Container, dbName string) (log.Logger, *sqlx.DB, func()) {
+func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, func()) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

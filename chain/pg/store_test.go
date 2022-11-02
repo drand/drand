@@ -8,20 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/pg/dbtest"
-	"github.com/drand/drand/chain/pg/docker"
+	"github.com/drand/drand/test"
 )
 
-var c *docker.Container
+var c *test.Container
 
 func TestMain(m *testing.M) {
 	var err error
-	c, err = dbtest.StartDB()
+	c, err = test.StartDB()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer dbtest.StopDB(c)
+	defer test.StopDB(c)
 
 	m.Run()
 }
@@ -29,7 +28,7 @@ func TestMain(m *testing.M) {
 func Test_OrderStorePG(t *testing.T) {
 	beaconName := t.Name()
 
-	log, db, teardown := dbtest.NewUnit(t, c, "testdb1")
+	log, db, teardown := test.NewUnit(t, c, "testdb1")
 	defer func() {
 		if r := recover(); r != nil {
 			t.Log(r)
@@ -75,7 +74,7 @@ func Test_OrderStorePG(t *testing.T) {
 func Test_StorePG(t *testing.T) {
 	beaconName := t.Name()
 
-	log, db, teardown := dbtest.NewUnit(t, c, "testdb2")
+	log, db, teardown := test.NewUnit(t, c, "testdb2")
 	defer func() {
 		if r := recover(); r != nil {
 			t.Log(r)
