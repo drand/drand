@@ -367,6 +367,8 @@ func TestClientAutoWatchRetry(t *testing.T) {
 func compareResults(t *testing.T, expected, actual client.Result) {
 	t.Helper()
 
+	require.NotNil(t, expected)
+	require.NotNil(t, actual)
 	require.Equal(t, expected.Round(), actual.Round())
 	require.Equal(t, expected.Randomness(), actual.Randomness())
 }
