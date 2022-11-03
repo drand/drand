@@ -320,8 +320,8 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 		// nobody started.
 		// drand.StartBeacon(!c.Bool(pushFlag.Name))
 		catchup := true
-		bp.StartBeacon(catchup)
+		err = bp.StartBeacon(catchup)
 	}
 
-	return bp, nil
+	return bp, err
 }
