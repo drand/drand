@@ -188,8 +188,11 @@ func TestClientWithWatcher(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	w := c.Watch(ctx)
+
 	for i := 0; i < len(results); i++ {
-		r := <-c.Watch(ctx)
+		r := <-w
 		compareResults(t, &results[i], r)
 	}
 	require.NoError(t, c.Close())

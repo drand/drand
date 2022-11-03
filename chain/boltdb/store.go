@@ -89,7 +89,7 @@ func (b *BoltStore) Put(_ context.Context, beacon *chain.Beacon) error {
 		if err != nil {
 			b.log.Debugw("stored beacon", "round", beacon.Round, "err", err)
 		}
-		return bucket.Put(key, buff)
+		return err
 	})
 }
 
@@ -138,7 +138,6 @@ func (b *BoltStore) Cursor(ctx context.Context, fn func(context.Context, chain.C
 	if err != nil {
 		b.log.Errorw("", "boltdb", "error getting cursor", "err", err)
 	}
-
 	return err
 }
 

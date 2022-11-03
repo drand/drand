@@ -106,7 +106,8 @@ func TestStoreBolt(t *testing.T) {
 	bb1, err := store.Get(ctx, b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	store.Close(ctx)
+	err = store.Close(ctx)
+	require.NoError(t, err)
 
 	store, err = NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
