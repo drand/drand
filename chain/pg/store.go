@@ -10,13 +10,11 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/beacon"
+	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/chain/pg/database"
 	"github.com/drand/drand/log"
 )
-
-// ErrNoBeaconSaved is the error returned when no beacon have been saved in the
-// database yet.
-var ErrNoBeaconSaved = errors.New("beacon not found in database")
 
 // beacon represents a beacon that is stored in the database.
 type dbBeacon struct {
@@ -117,8 +115,8 @@ func (p *Store) Last() (*chain.Beacon, error) {
 		return nil, errors.New("beacon not found")
 	}
 
-	beacon := chain.Beacon(dbBeacon[0])
-	return &beacon, nil
+	b := chain.Beacon(dbBeacon[0])
+	return &b, nil
 }
 
 // Get returns the specified beacon from the configured beacon table.
@@ -139,11 +137,11 @@ func (p *Store) Get(round uint64) (*chain.Beacon, error) {
 
 	var dbBeacon dbBeacon
 	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
-		return nil, ErrNoBeaconSaved
+		return nil, beacon.ErrNoBeaconStored
 	}
 
-	beacon := chain.Beacon(dbBeacon)
-	return &beacon, nil
+	b := chain.Beacon(dbBeacon)
+	return &b, nil
 }
 
 // Close does something and I am not sure just yet.
@@ -216,11 +214,11 @@ func (c *cursor) First() (*chain.Beacon, error) {
 	}
 
 	if len(dbBeacon) == 0 {
-		return nil, errors.New("beacon not found")
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	beacon := chain.Beacon(dbBeacon[0])
-	return &beacon, nil
+	b := chain.Beacon(dbBeacon[0])
+	return &b, nil
 }
 
 // Next returns the next beacon from the configured beacon table.
@@ -229,25 +227,31 @@ func (c *cursor) Next() (*chain.Beacon, error) {
 		c.pos++
 	}()
 
+	data := struct {
+		Offset int `db:"offset"`
+	}{
+		Offset: c.pos,
+	}
+
 	query := fmt.Sprintf(`
 		SELECT
 			round, signature, previous_sig
 		FROM %s
 		ORDER BY
-			round ASC OFFSET $1 LIMIT 1`,
+			round ASC OFFSET :offset LIMIT 1`,
 		c.pgStore.beaconName)
 
 	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, &dbBeacon); err != nil {
+	if err := database.NamedQuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, data, &dbBeacon); err != nil {
 		return nil, err
 	}
 
 	if len(dbBeacon) == 0 {
-		return nil, errors.New("beacon not found")
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	beacon := chain.Beacon(dbBeacon[0])
-	return &beacon, nil
+	b := chain.Beacon(dbBeacon[0])
+	return &b, nil
 }
 
 // Seek searches the beacon table for the specified round
@@ -267,12 +271,16 @@ func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
 		c.pgStore.beaconName)
 
 	var dbBeacon dbBeacon
-	if err := database.NamedQueryStruct(context.Background(), c.pgStore.log, c.pgStore.db, query, data, &dbBeacon); err != nil {
+	err := database.NamedQueryStruct(context.Background(), c.pgStore.log, c.pgStore.db, query, data, &dbBeacon)
+	if err != nil {
+		if errors.Is(err, database.ErrDBNotFound) {
+			return nil, chainerrors.ErrNoBeaconStored
+		}
 		return nil, err
 	}
 
-	beacon := chain.Beacon(dbBeacon)
-	return &beacon, nil
+	b := chain.Beacon(dbBeacon)
+	return &b, nil
 }
 
 // Last returns the last beacon from the configured beacon table.
@@ -291,9 +299,9 @@ func (c *cursor) Last() (*chain.Beacon, error) {
 	}
 
 	if len(dbBeacon) == 0 {
-		return nil, errors.New("beacon not found")
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	beacon := chain.Beacon(dbBeacon[0])
-	return &beacon, nil
+	b := chain.Beacon(dbBeacon[0])
+	return &b, nil
 }

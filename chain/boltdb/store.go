@@ -9,7 +9,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/errors"
+	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/log"
 )
 
@@ -101,7 +101,7 @@ func (b *BoltStore) Last(context.Context) (*chain.Beacon, error) {
 		cursor := bucket.Cursor()
 		_, v := cursor.Last()
 		if v == nil {
-			return errors.ErrNoBeaconStored
+			return chainerrors.ErrNoBeaconStored
 		}
 		return beacon.Unmarshal(v)
 	})
@@ -115,7 +115,7 @@ func (b *BoltStore) Get(_ context.Context, round uint64) (*chain.Beacon, error) 
 		bucket := tx.Bucket(beaconBucket)
 		v := bucket.Get(chain.RoundToBytes(round))
 		if v == nil {
-			return errors.ErrNoBeaconStored
+			return chainerrors.ErrNoBeaconStored
 		}
 		return beacon.Unmarshal(v)
 	})
@@ -156,7 +156,7 @@ type boltCursor struct {
 func (c *boltCursor) First(context.Context) (*chain.Beacon, error) {
 	k, v := c.Cursor.First()
 	if k == nil {
-		return nil, errors.ErrNoBeaconStored
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 	b := &chain.Beacon{}
 	err := b.Unmarshal(v)
@@ -166,7 +166,7 @@ func (c *boltCursor) First(context.Context) (*chain.Beacon, error) {
 func (c *boltCursor) Next(context.Context) (*chain.Beacon, error) {
 	k, v := c.Cursor.Next()
 	if k == nil {
-		return nil, errors.ErrNoBeaconStored
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 	b := &chain.Beacon{}
 	err := b.Unmarshal(v)
@@ -176,7 +176,7 @@ func (c *boltCursor) Next(context.Context) (*chain.Beacon, error) {
 func (c *boltCursor) Seek(_ context.Context, round uint64) (*chain.Beacon, error) {
 	k, v := c.Cursor.Seek(chain.RoundToBytes(round))
 	if k == nil {
-		return nil, errors.ErrNoBeaconStored
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 	b := &chain.Beacon{}
 	err := b.Unmarshal(v)
@@ -186,7 +186,7 @@ func (c *boltCursor) Seek(_ context.Context, round uint64) (*chain.Beacon, error
 func (c *boltCursor) Last(context.Context) (*chain.Beacon, error) {
 	k, v := c.Cursor.Last()
 	if k == nil {
-		return nil, errors.ErrNoBeaconStored
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 	b := &chain.Beacon{}
 	err := b.Unmarshal(v)
