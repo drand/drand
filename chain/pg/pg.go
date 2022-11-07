@@ -26,34 +26,15 @@ type Store struct {
 
 // NewPGStore returns a new PG Store that provides the CRUD based API need for
 // supporting drand serialization.
-func NewPGStore(l log.Logger, db *sqlx.DB, beaconName string, isTest bool) (*Store, error) {
-	beaconName = strings.ToLower(beaconName)
-
-	ctx := context.Background()
-
-	err := doBootstrapFuncs(ctx, db, isTest)
-	if err != nil {
-		return nil, err
-	}
-
-	//language=postgresql
-	query := `SELECT drand_maketable(:tableName)`
-
-	data := struct {
-		TableName string `db:"tableName"`
-	}{
-		TableName: beaconName,
-	}
-
-	err = database.NamedExecContext(ctx, l, db, query, data)
-	if err != nil {
+func NewPGStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
+	if err := migrate(ctx, db); err != nil {
 		return nil, err
 	}
 
 	p := Store{
 		log:        l,
 		db:         db,
-		beaconName: beaconName,
+		beaconName: strings.ToLower(beaconName),
 	}
 	return &p, nil
 }
@@ -73,6 +54,9 @@ func (p *Store) Len() (int, error) {
 		Count int `db:"table_size"`
 	}
 	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &ret); err != nil {
+		if errors.Is(err, database.ErrUndefinedTable) {
+			return 0, nil
+		}
 		return 0, err
 	}
 
@@ -93,8 +77,13 @@ func (p *Store) Put(b *chain.Beacon) error {
 		PreviousSig: b.PreviousSig,
 	}
 
+	query := `SELECT drand_maketable(:tableName)`
+	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
+		return err
+	}
+
 	//language=postgresql
-	query := `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
+	query = `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
 
 	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err

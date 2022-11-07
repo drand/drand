@@ -320,7 +320,7 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 	case chain.PostgresSQL:
 		// For PostgresSQL dbName is the table name
-		return pg.NewPGStore(bp.log, bp.opts.pgConn, dbName, false)
+		return pg.NewPGStore(context.TODO(), bp.log, bp.opts.pgConn, dbName)
 	default:
 		/*bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
 

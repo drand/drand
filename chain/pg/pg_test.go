@@ -1,6 +1,7 @@
 package pg
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -39,7 +40,7 @@ func Test_OrderStorePG(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(log, db, beaconName, true)
+	store, err := NewPGStore(context.Background(), log, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -83,7 +84,7 @@ func Test_StorePG(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(log, db, beaconName, true)
+	store, err := NewPGStore(context.Background(), log, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -125,7 +126,7 @@ func Test_StorePG(t *testing.T) {
 
 	// =========================================================================
 
-	store, err = NewPGStore(log, db, beaconName, true)
+	store, err = NewPGStore(context.Background(), log, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -140,7 +141,7 @@ func Test_StorePG(t *testing.T) {
 
 	// =========================================================================
 
-	store, err = NewPGStore(log, db, beaconName, true)
+	store, err = NewPGStore(context.Background(), log, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
