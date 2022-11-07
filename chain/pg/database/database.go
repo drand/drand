@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -60,6 +61,28 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		default:
 			return Config{}, fmt.Errorf("unsupported ssl mode %q. Expected disable or required", sslMode)
 		}
+	}
+
+	// Use the default from sqlx.DB
+	result.MaxIdleConns = 2
+	if conf.Query().Has("max-idle") {
+		max := conf.Query().Get("max-idle")
+		m, err := strconv.Atoi(max)
+		if err != nil {
+			return Config{}, fmt.Errorf("expected number for max-idle, got err: %w", err)
+		}
+		result.MaxIdleConns = m
+	}
+
+	// Use the default from sqlx.DB
+	result.MaxOpenConns = 0
+	if conf.Query().Has("max-open") {
+		open := conf.Query().Get("max-open")
+		o, err := strconv.Atoi(open)
+		if err != nil {
+			return Config{}, fmt.Errorf("expected number for max-open, got err: %w", err)
+		}
+		result.MaxOpenConns = o
 	}
 
 	return result, nil
