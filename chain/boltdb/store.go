@@ -49,10 +49,12 @@ func NewBoltStore(folder string, opts *bolt.Options) (chain.Store, error) {
 	}, err
 }
 
+// Len performs a big scan over the bucket and is _very_ slow - use sparingly!
 func (b *boltStore) Len() int {
 	var length = 0
 	err := b.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(beaconBucket)
+		// this `.Stats()` call is the particularly expensive one!
 		length = bucket.Stats().KeyN
 		return nil
 	})
