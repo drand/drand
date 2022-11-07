@@ -136,11 +136,10 @@ func TestGroupSaveLoad(t *testing.T) {
 	require.NotNil(t, gtoml.PublicKey)
 
 	// faking distributed public key coefficients
-	groupFile, err := os.CreateTemp("", "group.toml")
+	groupFile, err := os.CreateTemp(t.TempDir(), "group.toml")
 	require.NoError(t, err)
 	groupPath := groupFile.Name()
 	groupFile.Close()
-	defer os.RemoveAll(groupPath)
 
 	require.NoError(t, Save(groupPath, group, false))
 	// load the seed after

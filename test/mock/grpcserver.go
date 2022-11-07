@@ -109,6 +109,7 @@ func (s *Server) EmitRand(closeStream bool) {
 	stream := s.stream
 	done := s.streamDone
 	s.l.Unlock()
+
 	if closeStream {
 		close(done)
 		fmt.Println("MOCK SERVER: closing stream upon request")
@@ -131,7 +132,7 @@ func (s *Server) EmitRand(closeStream bool) {
 		fmt.Println("MOCK SERVER: stream send error:", err)
 		return
 	}
-	fmt.Println("MOCK SERVER: emit round done")
+	fmt.Println("MOCK SERVER: emit round done", resp.Round)
 }
 
 func testValid(d *Data) {

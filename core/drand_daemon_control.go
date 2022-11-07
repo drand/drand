@@ -155,7 +155,6 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 		if err != nil {
 			return nil, err
 		}
-
 		bp.Stop(ctx)
 
 		dd.RemoveBeaconHandler(beaconID, bp)
@@ -163,6 +162,7 @@ func (dd *DrandDaemon) Shutdown(ctx context.Context, in *drand.ShutdownRequest) 
 	}
 
 	metadata := common.NewMetadata(dd.version.ToProto())
+	metadata.BeaconID = in.GetMetadata().GetBeaconID()
 	return &drand.ShutdownResponse{Metadata: metadata}, nil
 }
 
@@ -235,19 +235,31 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconID
 
 // Stop simply stops all drand operations.
 func (dd *DrandDaemon) Stop(ctx context.Context) {
+	select {
+	case <-dd.exitCh:
+		dd.log.Errorw("Trying to stop an already stopping daemon")
+		return
+	default:
+		dd.log.Infow("Stopping DrandDaemon")
+	}
 	for _, bp := range dd.beaconProcesses {
-		bp.StopBeacon()
+		dd.log.Debugw("Sending Stop to beaconProcesses", "bp", bp.beaconID)
+		bp.Stop(ctx)
 	}
 
-	dd.state.Lock()
 	if dd.pubGateway != nil {
 		dd.pubGateway.StopAll(ctx)
 	}
 	dd.privGateway.StopAll(ctx)
-	dd.control.Stop()
-	dd.state.Unlock()
+	// we defer the stop of the ControlListener to avoid canceling our context already
+	defer dd.control.Stop()
 
-	dd.exitCh <- true
+	select {
+	case dd.exitCh <- true:
+		close(dd.exitCh)
+	case <-ctx.Done():
+		dd.log.Warnw("Context canceled, DrandDaemon exitCh probably blocked")
+	}
 }
 
 // WaitExit returns a channel that signals when drand stops its operations

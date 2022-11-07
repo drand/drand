@@ -133,7 +133,6 @@ linters:
     # -wrapcheck
     # -wsl
 
-
 linters-settings:
   dupl:
     threshold: 100

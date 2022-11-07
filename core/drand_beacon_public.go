@@ -75,7 +75,7 @@ func (bp *BeaconProcess) PublicRand(c context.Context, in *drand.PublicRandReque
 		bp.log.Debugw("", "public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
 		return nil, fmt.Errorf("can't retrieve beacon: %w %s", err, beaconResp)
 	}
-	bp.log.Infow("", "public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
+	bp.log.Debugw("", "public_rand", addr, "round", beaconResp.Round, "reply", beaconResp.String())
 
 	response := beaconToProto(beaconResp)
 	response.Metadata = bp.newMetadata()

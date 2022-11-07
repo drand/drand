@@ -283,8 +283,21 @@ func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent 
 
 // Stop simply stops all drand operations.
 func (bp *BeaconProcess) Stop(ctx context.Context) {
+	select {
+	case <-bp.exitCh:
+		bp.log.Errorw("Trying to stop an already stopping beacon process", "id", bp.getBeaconID())
+		return
+	default:
+		bp.log.Debugw("Stopping BeaconProcess", "id", bp.getBeaconID())
+	}
 	bp.StopBeacon()
-	bp.exitCh <- true
+	// we wait until we can send on the channel or the context got canceled
+	select {
+	case bp.exitCh <- true:
+		close(bp.exitCh)
+	case <-ctx.Done():
+		bp.log.Warnw("Context canceled, BeaconProcess exitCh probably blocked")
+	}
 }
 
 // WaitExit returns a channel that signals when drand stops its operations
@@ -367,7 +380,7 @@ func (bp *BeaconProcess) isFreshRun() bool {
 
 	isFresh := errG != nil || errS != nil
 
-	bp.log.Warnw("errors while loading group or share", "error group", errG, "error share", errS, "will run as fresh run", isFresh)
+	bp.log.Debugw("Status when loading group or share", "group error", errG, "share error", errS, "will run as fresh run", isFresh)
 
 	return isFresh
 }

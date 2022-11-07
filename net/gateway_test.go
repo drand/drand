@@ -86,9 +86,9 @@ func testListenerTLS(t *testing.T) {
 	}
 	hostAddr := "127.0.0.1"
 
-	tmpDir := path.Join(os.TempDir(), "drand-net")
+	tmpDir := path.Join(t.TempDir(), "drand-net")
 	require.NoError(t, os.MkdirAll(tmpDir, 0766))
-	defer os.RemoveAll(tmpDir)
+
 	certPath := path.Join(tmpDir, "server.crt")
 	keyPath := path.Join(tmpDir, "server.key")
 	if httpscerts.Check(certPath, keyPath) != nil {

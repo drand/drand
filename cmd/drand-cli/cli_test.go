@@ -36,8 +36,7 @@ import (
 const expectedShareOutput = "0000000000000000000000000000000000000000000000000000000000000001"
 
 func TestMigrate(t *testing.T) {
-	tmp := getSBFolderStructure()
-	defer os.RemoveAll(tmp)
+	tmp := getSBFolderStructure(t)
 
 	args := []string{"drand", "util", "migrate", "--folder", tmp}
 	app := CLI()
@@ -64,8 +63,7 @@ func TestMigrate(t *testing.T) {
 func TestResetError(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := getSBFolderStructure()
-	defer os.RemoveAll(tmp)
+	tmp := getSBFolderStructure(t)
 
 	args := []string{"drand", "util", "reset", "--folder", tmp, "--id", beaconID}
 	app := CLI()
@@ -75,8 +73,7 @@ func TestResetError(t *testing.T) {
 func TestDeleteBeaconError(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := getSBFolderStructure()
-	defer os.RemoveAll(tmp)
+	tmp := getSBFolderStructure(t)
 
 	// that command should delete round 3 and 4
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
@@ -87,8 +84,7 @@ func TestDeleteBeaconError(t *testing.T) {
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
-	defer os.RemoveAll(tmp)
+	tmp := path.Join(t.TempDir(), "drand")
 
 	opt := core.WithConfigFolder(tmp)
 	conf := core.NewConfig(opt)
@@ -141,8 +137,7 @@ func TestDeleteBeacon(t *testing.T) {
 func TestKeySelfSignError(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := getSBFolderStructure()
-	defer os.RemoveAll(tmp)
+	tmp := getSBFolderStructure(t)
 
 	args := []string{"drand", "util", "self-sign", "--folder", tmp, "--id", beaconID}
 	app := CLI()
@@ -152,8 +147,7 @@ func TestKeySelfSignError(t *testing.T) {
 func TestKeySelfSign(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
-	defer os.RemoveAll(tmp)
+	tmp := path.Join(t.TempDir(), "drand")
 
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
 	require.NoError(t, CLI().Run(args))
@@ -179,8 +173,7 @@ func TestKeySelfSign(t *testing.T) {
 func TestKeyGenError(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := getSBFolderStructure()
-	defer os.RemoveAll(tmp)
+	tmp := getSBFolderStructure(t)
 
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
 	app := CLI()
@@ -190,8 +183,7 @@ func TestKeyGenError(t *testing.T) {
 func TestKeyGen(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmp := path.Join(os.TempDir(), "drand")
-	defer os.RemoveAll(tmp)
+	tmp := path.Join(t.TempDir(), "drand")
 
 	args := []string{"drand", "generate-keypair", "--folder", tmp, "--id", beaconID, "127.0.0.1:8081"}
 	require.NoError(t, CLI().Run(args))
@@ -202,8 +194,7 @@ func TestKeyGen(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, priv.Public)
 
-	tmp2 := path.Join(os.TempDir(), "drand2")
-	defer os.RemoveAll(tmp2)
+	tmp2 := path.Join(t.TempDir(), "drand2")
 
 	args = []string{"drand", "generate-keypair", "--folder", tmp2, "--id", beaconID}
 	require.Error(t, CLI().Run(args))
@@ -218,7 +209,6 @@ func TestKeyGen(t *testing.T) {
 // tests valid commands and then invalid commands
 func TestStartAndStop(t *testing.T) {
 	tmpPath := t.TempDir()
-	os.Chmod(tmpPath, 0o740)
 
 	n := 5
 	sch := scheme.GetSchemeFromEnv()
@@ -304,13 +294,8 @@ func TestStartWithoutGroup(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmpPath := path.Join(os.TempDir(), "drand")
-	os.Mkdir(tmpPath, 0o740)
-	defer func() {
-		if err := os.RemoveAll(tmpPath); err != nil {
-			fmt.Println(err)
-		}
-	}()
+	tmpPath := path.Join(t.TempDir(), "drand")
+	require.NoError(t, os.Mkdir(tmpPath, 0o740))
 
 	pubPath := path.Join(tmpPath, "pub.key")
 	port1, _ := strconv.Atoi(test.FreePort())
@@ -509,9 +494,8 @@ func TestClientTLS(t *testing.T) {
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := test.GetBeaconIDFromEnv()
 
-	tmpPath := path.Join(os.TempDir(), "drand")
+	tmpPath := path.Join(t.TempDir(), "drand")
 	os.Mkdir(tmpPath, 0o740)
-	defer os.RemoveAll(tmpPath)
 
 	groupPath := path.Join(tmpPath, "group.toml")
 	certPath := path.Join(tmpPath, "server.pem")
@@ -625,9 +609,9 @@ func testCommand(t *testing.T, args []string, exp string) {
 	require.True(t, strings.Contains(strings.Trim(buff.String(), "\n"), exp))
 }
 
-// getSBFolderStructure create a new single-beacon folder structure on a temporal folder
-func getSBFolderStructure() string {
-	tmp := path.Join(os.TempDir(), "drand")
+// getSBFolderStructure create a new single-beacon folder structure in a temporary folder
+func getSBFolderStructure(t *testing.T) string {
+	tmp := path.Join(t.TempDir(), "drand")
 
 	fs.CreateSecureFolder(path.Join(tmp, key.GroupFolderName))
 	fs.CreateSecureFolder(path.Join(tmp, key.KeyFolderName))
@@ -638,8 +622,7 @@ func getSBFolderStructure() string {
 
 func TestDrandListSchemes(t *testing.T) {
 	n := 5
-	instances, tempPath := launchDrandInstances(t, n)
-	defer os.RemoveAll(tempPath)
+	instances := launchDrandInstances(t, n)
 
 	for _, instance := range instances {
 		remote := []string{"drand", "util", "list-schemes", "--control", instance.ctrlPort}
@@ -654,8 +637,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	n := 4
-	instances, tempPath := launchDrandInstances(t, n)
-	defer os.RemoveAll(tempPath)
+	instances := launchDrandInstances(t, n)
 
 	for i, inst := range instances {
 		if i == 0 {
@@ -703,8 +685,7 @@ func TestDrandReloadBeacon(t *testing.T) {
 
 func TestDrandStatus(t *testing.T) {
 	n := 4
-	instances, tempPath := launchDrandInstances(t, n)
-	defer os.RemoveAll(tempPath)
+	instances := launchDrandInstances(t, n)
 	allAddresses := make([]string, 0, n)
 	for _, instance := range instances {
 		allAddresses = append(allAddresses, instance.addr)
@@ -868,16 +849,13 @@ func (d *drandInstance) run(t *testing.T, beaconID string) {
 	testStatus(t, d.ctrlPort, beaconID)
 }
 
-//nolint:gocritic
-func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
+func launchDrandInstances(t *testing.T, n int) []*drandInstance {
 	beaconID := test.GetBeaconIDFromEnv()
 
 	tmpPath := t.TempDir()
-	err := os.Chmod(tmpPath, 0o740)
-	require.NoError(t, err)
 
-	certsDir, err := os.MkdirTemp(tmpPath, "certs")
-	require.NoError(t, err)
+	certsDir := path.Join(tmpPath, "certs")
+	require.NoError(t, os.Mkdir(certsDir, 0o740))
 
 	ins := make([]*drandInstance, 0, n)
 	for i := 1; i <= n; i++ {
@@ -927,7 +905,7 @@ func launchDrandInstances(t *testing.T, n int) ([]*drandInstance, string) {
 	for _, instance := range ins {
 		instance.run(t, beaconID)
 	}
-	return ins, tmpPath
+	return ins
 }
 
 func TestSharingWithInvalidFlagCombos(t *testing.T) {

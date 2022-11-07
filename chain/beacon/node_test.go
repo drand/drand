@@ -222,7 +222,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 		panic("invalid index")
 	}
 	b.nodes[idx] = node
-	t.Logf("NODE index %d --> Listens on %s || Clock pointer %p\n", idx, priv.Public.Address(), b.nodes[idx].handler.conf.Clock)
+	t.Logf("Created NODE index %d --> Listens on %s || Clock pointer %p\n", idx, priv.Public.Address(), b.nodes[idx].handler.conf.Clock)
 	for i, n := range b.nodes {
 		for j, n2 := range b.nodes {
 			if i == j {
@@ -233,6 +233,11 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 			}
 		}
 	}
+	t.Cleanup(func() {
+		t.Log("Stopping node:", idx)
+		b.StopBeacon(idx)
+		t.Log("Node stopped:", idx)
+	})
 }
 
 func (b *BeaconTest) ServeBeacon(t *testing.T, i int) {
@@ -333,17 +338,6 @@ func (b *BeaconTest) StopBeacon(i int) {
 	delete(b.nodes, j)
 }
 
-func (b *BeaconTest) StopAll() {
-	for _, n := range b.nodes {
-		b.StopBeacon(n.index)
-	}
-}
-
-func (b *BeaconTest) CleanUp() {
-	deleteBoltStores(b.prefix)
-	b.StopAll()
-}
-
 func (b *BeaconTest) DisableReception(count int) {
 	for i := 0; i < count; i++ {
 		b.nodes[i].server.disable = true
@@ -373,10 +367,6 @@ func createBoltStores(prefix string, n int) []string {
 	return paths
 }
 
-func deleteBoltStores(prefix string) {
-	os.RemoveAll(prefix)
-}
-
 func checkWait(counter *sync.WaitGroup) {
 	var doneCh = make(chan bool, 1)
 	go func() {
@@ -402,7 +392,6 @@ func TestBeaconSync(t *testing.T) {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
-	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
 
@@ -481,7 +470,6 @@ func TestBeaconSimple(t *testing.T) {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
-	defer bt.CleanUp()
 
 	verifier := chain.NewVerifier(sch)
 
@@ -542,7 +530,6 @@ func TestBeaconThreshold(t *testing.T) {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	bt := NewBeaconTest(t, n, thr, period, genesisTime, sch, beaconID)
-	defer func() { go bt.CleanUp() }()
 
 	verifier := chain.NewVerifier(sch)
 

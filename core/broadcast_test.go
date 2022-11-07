@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -67,9 +66,8 @@ func TestBroadcastSet(t *testing.T) {
 func TestBroadcast(t *testing.T) {
 	n := 5
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
-	_, drands, group, dir, _ := BatchNewDrand(t, n, true, sch, beaconID)
-	defer os.RemoveAll(dir)
-	defer CloseAllDrands(drands)
+	//nolint:dogsled
+	_, drands, group, _, _ := BatchNewDrand(t, n, true, sch, beaconID)
 
 	// channel that will receive all broadcasted packets
 	incPackets := make(chan *packInfo)
@@ -99,7 +97,7 @@ func TestBroadcast(t *testing.T) {
 		for i := 0; i < exp; i++ {
 			select {
 			case info := <-incPackets:
-				t.Logf("received packet from %s, %d out of %d", info.id, i, exp)
+				t.Logf("received packet from %s, %d out of %d", info.id, i+1, exp)
 				received[info.id] = true
 			case <-time.After(5 * time.Second):
 				require.True(t, false, "test failed to continue")

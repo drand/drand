@@ -53,8 +53,6 @@ type DrandTestScenario struct {
 	dir    string
 	newDir string
 
-	certPaths    []string
-	newCertPaths []string
 	// global clock on which all drand clocks are synchronized
 	clock clock.FakeClock
 
@@ -104,7 +102,8 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	daemons = make([]*DrandDaemon, n)
 	drands = make([]*BeaconProcess, n)
 
-	dir = path.Join(t.TempDir(), common.MultiBeaconFolder)
+	// notice t.TempDir means the temp directory is deleted thanks to t.Cleanup at the end
+	dir = t.TempDir()
 
 	certPaths = make([]string, n)
 	keyPaths := make([]string, n)
@@ -174,6 +173,13 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		daemons[i] = daemon
 		drands[i] = bp
+
+		// to make sure to stop all daemon after each test
+		t.Cleanup(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			daemon.Stop(ctx)
+			cancel()
+		})
 	}
 
 	return daemons, drands, group, dir, certPaths
@@ -211,7 +217,6 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch sc
 
 	dt.t = t
 	dt.dir = dir
-	dt.certPaths = certPaths
 	dt.groupPath = path.Join(dt.dir, "group.toml")
 	dt.n = n
 	dt.scheme = sch
@@ -222,7 +227,7 @@ func NewDrandTestScenario(t *testing.T, n, thr int, period time.Duration, sch sc
 	dt.nodes = make([]*MockNode, 0, n)
 
 	for i, drandInstance := range drands {
-		node := newNode(dt.clock.Now(), dt.certPaths[i], daemons[i], drandInstance)
+		node := newNode(dt.clock.Now(), certPaths[i], daemons[i], drandInstance)
 		dt.nodes = append(dt.nodes, node)
 	}
 
@@ -392,11 +397,6 @@ func (d *DrandTestScenario) RunDKG() *key.Group {
 	return group
 }
 
-func (d *DrandTestScenario) Cleanup() {
-	_ = os.RemoveAll(d.dir)
-	_ = os.RemoveAll(d.newDir)
-}
-
 // GetBeacon returns the beacon of the given round for the specified drand id
 func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*chain.Beacon, error) {
 	nodes := d.nodes
@@ -524,14 +524,16 @@ func (d *DrandTestScenario) CheckPublicBeacon(nodeAddress string, newGroup bool)
 
 // SetupNewNodes creates new additional nodes that can participate during the resharing
 func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNode {
+	t.Log("Setup of", newNodes, "new nodes for tests")
 	newDaemons, newDrands, _, newDir, newCertPaths := BatchNewDrand(d.t, newNodes, false, d.scheme, d.beaconID,
 		WithCallOption(grpc.WaitForReady(false)))
-	d.newCertPaths = newCertPaths
 	d.newDir = newDir
-	d.newNodes = make([]*MockNode, newNodes)
 
-	// add certificates of new nodes to the old nodes
-	for _, node := range d.nodes {
+	oldCertPaths := make([]string, len(d.nodes))
+
+	// add certificates of new nodes to the old nodes and populate old cert list
+	for i, node := range d.nodes {
+		oldCertPaths[i] = node.certPath
 		inst := node.drand
 		for _, cp := range newCertPaths {
 			err := inst.opts.certmanager.Add(cp)
@@ -539,16 +541,17 @@ func (d *DrandTestScenario) SetupNewNodes(t *testing.T, newNodes int) []*MockNod
 		}
 	}
 
-	// store new part. and add certificate path of current nodes to the new
-	d.newNodes = make([]*MockNode, 0, newNodes)
+	// store new part. and add certificate path of old nodes to the new ones
+	d.newNodes = make([]*MockNode, newNodes)
 	for i, inst := range newDrands {
 		node := newNode(d.clock.Now(), newCertPaths[i], newDaemons[i], inst)
-		d.newNodes = append(d.newNodes, node)
-		for _, cp := range d.certPaths {
+		d.newNodes[i] = node
+		for _, cp := range oldCertPaths {
 			err := inst.opts.certmanager.Add(cp)
 			require.NoError(t, err)
 		}
 	}
+
 	return d.newNodes
 }
 
@@ -602,7 +605,8 @@ func (d *DrandTestScenario) WaitUntilChainIsServing(t *testing.T, node *MockNode
 	}
 }
 
-func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force bool) {
+func (d *DrandTestScenario) runNodeReshare(n *MockNode, errCh chan error, force bool, wg *sync.WaitGroup) {
+	defer wg.Done()
 	secret := "thisistheresharing"
 
 	leader := d.nodes[0]
@@ -704,7 +708,7 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 		c.stateCh <- ReshareLock
 	}
 
-	d.t.Logf("[reshare] LOCK")
+	d.t.Log("[reshare] LOCK")
 	d.t.Logf("[reshare] old: %d/%d | new: %d/%d", c.oldRun, len(d.nodes), c.newRun, len(d.newNodes))
 
 	// stop the excluded nodes
@@ -714,8 +718,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	}
 
 	if len(d.newNodes) > 0 {
-		for i, node := range d.newNodes[c.newRun:] {
-			d.t.Logf("[reshare] stop new %d | %s", i, node.addr)
+		for _, node := range d.newNodes[c.newRun:] {
+			d.t.Logf("[reshare] stop new %s", node.addr)
 			d.StopMockNode(node.addr, true)
 		}
 	}
@@ -750,6 +754,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	}))
 	t.Logf("[DEBUG] node: %s Reshare Status: is in progress", leader.GetAddr())
 
+	wg := new(sync.WaitGroup)
+
 	// run the current nodes
 	for _, node := range d.nodes[1:c.oldRun] {
 		node := node
@@ -757,7 +763,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 		if !c.onlyLeader {
 			node.drand.dkgBoardSetup = broadcastSetup
 			d.t.Logf("[reshare] run node reshare %s", node.addr)
-			go d.runNodeReshare(node, errCh, c.force)
+			wg.Add(1)
+			go d.runNodeReshare(node, errCh, c.force, wg)
 		}
 	}
 
@@ -769,7 +776,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			if !c.onlyLeader {
 				node.drand.dkgBoardSetup = broadcastSetup
 				d.t.Logf("[reshare] run node reshare %s (new)", node.addr)
-				go d.runNodeReshare(node, errCh, c.force)
+				wg.Add(1)
+				go d.runNodeReshare(node, errCh, c.force, wg)
 			}
 		}
 	}
@@ -798,6 +806,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 			t.Logf("[reshare] Received group!")
 			d.newGroup = finalGroup
 			require.NoError(d.t, key.Save(d.groupPath, d.newGroup, false))
+			// if we got the group from the leader, DKG was a success, and we wait for all to terminate their DKG
+			wg.Wait()
 			d.t.Logf("[reshare] Finish")
 			return finalGroup, nil
 

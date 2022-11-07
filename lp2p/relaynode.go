@@ -73,7 +73,7 @@ func NewGossipRelayNode(l log.Logger, cfg *GossipRelayConfig) (*GossipRelayNode,
 	for _, a := range addrs {
 		l.Infow("", "relay_node", "has addr", "addr", fmt.Sprintf("%s/p2p/%s", a, h.ID()))
 	}
-
+	l.Infow("Joining PubSubTopic", "chainhash", cfg.ChainHash)
 	t, err := ps.Join(PubSubTopic(cfg.ChainHash))
 	if err != nil {
 		return nil, fmt.Errorf("joining topic: %w", err)

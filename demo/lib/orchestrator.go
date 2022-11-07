@@ -63,14 +63,15 @@ type Orchestrator struct {
 
 func NewOrchestrator(n int, thr int, period string, tls bool, binary string, withCurl bool, sch scheme.Scheme, beaconID string, isCandidate bool) *Orchestrator {
 	basePath := path.Join(os.TempDir(), "drand-full")
+	// cleanup the basePath before doing anything
 	os.RemoveAll(basePath)
 
 	fmt.Printf("[+] Simulation global folder: %s\n", basePath)
-	checkErr(os.MkdirAll(basePath, 0740))
+	checkErr(os.MkdirAll(basePath, 0o740))
 	certFolder := path.Join(basePath, "certs")
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 
-	checkErr(os.MkdirAll(certFolder, 0740))
+	checkErr(os.MkdirAll(certFolder, 0o740))
 	nodes, paths := createNodes(n, 1, period, basePath, certFolder, tls, binary, sch, beaconID, isCandidate)
 
 	periodD, err := time.ParseDuration(period)
