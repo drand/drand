@@ -3,6 +3,7 @@ package pg
 import (
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,18 +24,22 @@ func TestMain(m *testing.M) {
 	}
 	defer test.StopDB(c)
 
-	m.Run()
+	result := m.Run()
+	if result != 0 {
+		//nolint:gocritic // we do want to call defer only on successful runs
+		os.Exit(result)
+	}
 }
 
 func Test_OrderStorePG(t *testing.T) {
 	beaconName := t.Name()
 
-	log, db, teardown := test.NewUnit(t, c, "testdb1")
+	log, db, teardown := test.NewUnit(t, c, "drand_test")
 	defer func() {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(log, db, beaconName)
+	store, err := NewPGStore(log, db, beaconName, true)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -73,12 +78,12 @@ func Test_OrderStorePG(t *testing.T) {
 func Test_StorePG(t *testing.T) {
 	beaconName := t.Name()
 
-	log, db, teardown := test.NewUnit(t, c, "testdb2")
+	log, db, teardown := test.NewUnit(t, c, "drand_test")
 	defer func() {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(log, db, beaconName)
+	store, err := NewPGStore(log, db, beaconName, true)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -120,7 +125,7 @@ func Test_StorePG(t *testing.T) {
 
 	// =========================================================================
 
-	store, err = NewPGStore(log, db, beaconName)
+	store, err = NewPGStore(log, db, beaconName, true)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -135,7 +140,7 @@ func Test_StorePG(t *testing.T) {
 
 	// =========================================================================
 
-	store, err = NewPGStore(log, db, beaconName)
+	store, err = NewPGStore(log, db, beaconName, true)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
