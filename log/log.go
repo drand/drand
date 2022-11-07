@@ -14,7 +14,7 @@ type logger struct {
 
 // Logger is a interface that can log to different levels.
 //
-//nolint
+// nolint
 type Logger interface {
 	Info(keyvals ...interface{})
 	Debug(keyvals ...interface{})
@@ -30,6 +30,11 @@ type Logger interface {
 	Panicw(msg string, keyvals ...interface{})
 	With(args ...interface{}) Logger
 	Named(s string) Logger
+	AddCallerSkip(skip int) Logger
+}
+
+func (l *logger) AddCallerSkip(skip int) Logger {
+	return &logger{l.WithOptions(zap.AddCallerSkip(skip))}
 }
 
 func (l *logger) With(args ...interface{}) Logger {

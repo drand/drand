@@ -198,7 +198,7 @@ func ExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query 
 // logging and tracing where field replacement is necessary.
 func NamedExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any) error {
 	q := queryString(query, data)
-	log.Infow("database.NamedExecContext", "query", q)
+	log.AddCallerSkip(2).Infow("database.NamedExecContext", "query", q)
 
 	if _, err := sqlx.NamedExecContext(ctx, db, query, data); err != nil {
 
@@ -222,7 +222,7 @@ func QuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, 
 // collection of data to be unmarshalled into a slice where field replacement is necessary.
 func NamedQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
 	q := queryString(query, data)
-	log.Infow("database.QuerySlice", "query", q)
+	log.AddCallerSkip(2).Infow("database.QuerySlice", "query", q)
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
@@ -253,7 +253,7 @@ func QueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query 
 // single value to be unmarshalled into a struct type where field replacement is necessary.
 func NamedQueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest any) error {
 	q := queryString(query, data)
-	log.Infow("database.QueryStruct", "query", q)
+	log.AddCallerSkip(2).Infow("database.QueryStruct", "query", q)
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
