@@ -9,18 +9,6 @@ CREATE TYPE drand_round_offset AS
     (round_offset bigint);
 
 -- Version: 1.03
--- Description: Create function drand_maketable
-CREATE FUNCTION drand_maketable(tableName char) RETURNS VOID AS $$
-BEGIN
-    EXECUTE format('CREATE TABLE IF NOT EXISTS %I (
-        round        BIGINT NOT NULL CONSTRAINT %1$I_pk PRIMARY KEY,
-        signature    BYTEA  NOT NULL,
-        previous_sig BYTEA  NOT NULL
-    )', tableName);
-END;
-$$ LANGUAGE plpgsql;
-
--- Version: 1.04
 -- Description: Create function drand_tablesize
 CREATE FUNCTION drand_tablesize(tableName char) RETURNS bigint AS $$
 DECLARE ret bigint;
@@ -30,10 +18,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.05
+-- Version: 1.04
 -- Description: Create function drand_insertround
 CREATE FUNCTION drand_insertround(tableName char, round bigint, signature bytea, previous_sig bytea) RETURNS VOID AS $$
 BEGIN
+    EXECUTE format('CREATE TABLE IF NOT EXISTS %I (
+        round        BIGINT NOT NULL CONSTRAINT %1$I_pk PRIMARY KEY,
+        signature    BYTEA  NOT NULL,
+        previous_sig BYTEA  NOT NULL
+    )', tableName);
+
     EXECUTE format('INSERT INTO %I
         (round, signature, previous_sig)
     VALUES
@@ -42,7 +36,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.06
+-- Version: 1.05
 -- Description: Create function drand_getlastround
 CREATE OR REPLACE FUNCTION drand_getlastround(tableName char) RETURNS drand_round AS $$
 DECLARE ret drand_round;
@@ -55,7 +49,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.07
+-- Version: 1.06
 -- Description: Create function drand_getround
 CREATE FUNCTION drand_getround(tableName char, round bigint) RETURNS drand_round AS $$
 DECLARE ret drand_round;
@@ -68,7 +62,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.08
+-- Version: 1.07
 -- Description: Create function drand_deleteround
 CREATE FUNCTION drand_deleteround(tableName char, round bigint) RETURNS VOID AS $$
 BEGIN
@@ -79,7 +73,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.09
+-- Version: 1.08
 -- Description: Create function drand_getroundposition
 CREATE FUNCTION drand_getroundposition(tableName char, round_num int) RETURNS drand_round_offset AS $$
 DECLARE ret drand_round_offset;
@@ -94,7 +88,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.10
+-- Version: 1.09
 -- Description: Create function drand_getfirstround
 CREATE FUNCTION drand_getfirstround(tableName char) RETURNS drand_round AS $$
 DECLARE ret drand_round;
@@ -107,7 +101,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Version: 1.11
+-- Version: 1.10
 -- Description: Create function drand_getoffsetround
 CREATE FUNCTION drand_getoffsetround(tableName char, r_offset bigint) RETURNS drand_round AS $$
 DECLARE ret drand_round;

@@ -77,13 +77,8 @@ func (p *Store) Put(b *chain.Beacon) error {
 		PreviousSig: b.PreviousSig,
 	}
 
-	query := `SELECT drand_maketable(:tableName)`
-	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
-		return err
-	}
-
 	//language=postgresql
-	query = `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
+	query := `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
 
 	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err
