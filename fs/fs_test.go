@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"os"
 	"path"
 	"testing"
 
@@ -9,9 +8,8 @@ import (
 )
 
 func TestSecureDirAlreadyHere(t *testing.T) {
-	tmpPath := path.Join(os.TempDir(), "config")
-	os.Mkdir(tmpPath, 0740)
-	defer os.RemoveAll(tmpPath)
+	tmpPath := path.Join(t.TempDir(), "config")
+
 	fpath := CreateSecureFolder(tmpPath)
 	require.NotNil(t, fpath)
 
@@ -52,7 +50,7 @@ func TestSecureDirAlreadyHere(t *testing.T) {
 }
 
 func TestCopyFolder(t *testing.T) {
-	tmpPath := path.Join(os.TempDir(), "tmp")
+	tmpPath := path.Join(t.TempDir(), "tmp")
 	folder1Path := path.Join(tmpPath, "folder1")
 	subFolder1Path := path.Join(folder1Path, "folder1")
 
