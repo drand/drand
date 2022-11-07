@@ -31,6 +31,7 @@ type Config struct {
 	grpcOpts          []grpc.DialOption
 	callOpts          []grpc.CallOption
 	boltOpts          *bolt.Options
+	pgDSN             string
 	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
@@ -165,6 +166,18 @@ func WithDBStorageEngine(engine chain.StorageType) ConfigOption {
 	return func(d *Config) {
 		d.dbStorageEngine = engine
 	}
+}
+
+// WithPgDSN applies PosgresSQL specific options to the PG store.
+func WithPgDSN(dsn string) ConfigOption {
+	return func(d *Config) {
+		d.pgDSN = dsn
+	}
+}
+
+// PgDSN returns the PostgresSQL specific DSN configuration.
+func (d *Config) PgDSN() string {
+	return d.pgDSN
 }
 
 // WithConfigFolder sets the base configuration folder to the given string.

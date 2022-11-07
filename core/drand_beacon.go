@@ -319,24 +319,19 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		fs.CreateSecureFolder(dbPath)
 
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
-
 	case chain.PostgresSQL:
-
-		// TODO: WE NEED TO FIGURE OUT THESE SETTINGS AND WHERE TO
-		//       GET THEM. - Bill Kennedy
-		db, err := database.Open(database.Config{
-			User:       "postgres",
-			Password:   "postgres",
-			Host:       "host",
-			Name:       "postgres",
-			DisableTLS: true,
-		})
+		pgConf, err := database.ConfigFromDSN(bp.opts.pgDSN)
 		if err != nil {
-			return nil, fmt.Errorf("can't create DB connection pool %s", bp.opts.dbStorageEngine)
+			return nil, fmt.Errorf("can't create DB connection pool %w", err)
 		}
 
-		return pg.NewPGStore(bp.log, db, dbName)
+		db, err := database.Open(pgConf)
+		if err != nil {
+			return nil, fmt.Errorf("can't create DB connection pool %w", err)
+		}
 
+		// For PostgresSQL dbName is the table name
+		return pg.NewPGStore(bp.log, db, dbName)
 	default:
 		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
 
@@ -344,7 +339,7 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		fs.CreateSecureFolder(dbPath)
 
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
-		// return nil,
+		// return nil, // This is useful for tests. To be replaced when done
 	}
 }
 
@@ -358,16 +353,17 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	if node == nil {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
+
+	store, err := bp.createDBStore()
+	if err != nil {
+		return nil, err
+	}
+
 	conf := &beacon.Config{
 		Public: node,
 		Group:  bp.group,
 		Share:  bp.share,
 		Clock:  bp.opts.clock,
-	}
-
-	store, err := bp.createDBStore()
-	if err != nil {
-		return nil, err
 	}
 
 	b, err := beacon.NewHandler(bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)

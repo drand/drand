@@ -37,6 +37,34 @@ type Config struct {
 	DisableTLS   bool
 }
 
+func ConfigFromDSN(dsn string) (Config, error) {
+	conf, err := url.Parse(dsn)
+	if err != nil {
+		return Config{}, err
+	}
+
+	result := Config{}
+	result.User = conf.User.Username()
+	result.Password, _ = conf.User.Password()
+	result.Host = conf.Hostname()
+	result.Name = conf.Path
+	result.DisableTLS = true
+
+	if conf.Query().Has("sslmode") {
+		sslMode := conf.Query().Get("sslmode")
+		switch sslMode {
+		case "disable":
+			result.DisableTLS = true
+		case "required":
+			result.DisableTLS = false
+		default:
+			return Config{}, fmt.Errorf("unsupported ssl mode %q. Expected disable or required", sslMode)
+		}
+	}
+
+	return result, nil
+}
+
 // Open knows how to open a database connection based on the configuration.
 func Open(cfg Config) (*sqlx.DB, error) {
 	sslMode := "require"

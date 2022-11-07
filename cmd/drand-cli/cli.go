@@ -341,10 +341,9 @@ var allBeaconsFlag = &cli.BoolFlag{
 
 var storageTypeFlag = &cli.StringFlag{
 	Name:    "db",
-	Usage:   "Which database engine to use. Supported values: bolt",
+	Usage:   "Which database engine to use. Supported values: bolt or postgres.",
 	Value:   "bolt",
 	EnvVars: []string{"DRAND_DB"},
-	Hidden:  true,
 }
 
 var pgDSNFlag = &cli.StringFlag{
@@ -352,7 +351,6 @@ var pgDSNFlag = &cli.StringFlag{
 	Usage:   "PostgresSQL DSN configuration.",
 	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema",
 	EnvVars: []string{"DRAND_PG_DSN"},
-	Hidden:  true,
 }
 
 var appCommands = []*cli.Command{
@@ -1046,7 +1044,12 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
 
-	switch c.String("db-storage") {
+	if c.IsSet(pgDSNFlag.Name) {
+		pgdsn := c.String(pgDSNFlag.Name)
+		opts = append(opts, core.WithPgDSN(pgdsn))
+	}
+
+	switch c.String(storageTypeFlag.Name) {
 	case "bolt":
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
 	case "postgres":
