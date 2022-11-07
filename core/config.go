@@ -4,11 +4,13 @@ import (
 	"path"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	clock "github.com/jonboulle/clockwork"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/pg/database"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -32,6 +34,7 @@ type Config struct {
 	callOpts          []grpc.CallOption
 	boltOpts          *bolt.Options
 	pgDSN             string
+	pgConn            *sqlx.DB
 	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
@@ -169,9 +172,20 @@ func WithDBStorageEngine(engine chain.StorageType) ConfigOption {
 }
 
 // WithPgDSN applies PosgresSQL specific options to the PG store.
+// It will also create a new database connection.
 func WithPgDSN(dsn string) ConfigOption {
 	return func(d *Config) {
 		d.pgDSN = dsn
+
+		pgConf, err := database.ConfigFromDSN(dsn)
+		if err != nil {
+			panic(err)
+		}
+
+		d.pgConn, err = database.Open(pgConf)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
