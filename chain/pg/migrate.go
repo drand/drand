@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	//go:embed sql/schema.sql
+	//go:embed schema.sql
 	schemaDoc string
 )
 
