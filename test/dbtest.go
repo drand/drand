@@ -23,7 +23,7 @@ const (
 
 // StartDB starts a database instance.
 func StartDB() (*Container, error) {
-	image := "postgres:14-alpine"
+	image := "postgres:15.0-alpine3.16"
 	port := "5432"
 	args := []string{"-e", "POSTGRES_PASSWORD=postgres"}
 
