@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
+	"sync"
 
 	"github.com/jmoiron/sqlx"
 
@@ -32,22 +34,225 @@ type Store struct {
 	beaconName string
 }
 
-// NewPGStore returns a new PG Store that provides the CRUD based API need for
-// supporting drand serialization.
-func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
-	query := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			round        BIGINT NOT NULL CONSTRAINT s_pk PRIMARY KEY,
+var bootstrapFuncs sync.Once
+
+// Load all the required functions in the database, or ignore their creation.
+//
+//nolint:funclen // working as intended
+func doBootstrapFuncs(ctx context.Context, db *sqlx.DB, isTest bool) (err error) {
+	queries := []string{
+		//language=postgresql
+		`DO
+$$
+    BEGIN
+        IF NOT EXISTS (SELECT *
+                       FROM pg_type typ
+                                INNER JOIN pg_namespace nsp
+                                           ON nsp.oid = typ.typnamespace
+                       WHERE nsp.nspname = current_schema()
+                         AND typ.typname = 'drand_round') THEN
+            CREATE  TYPE drand_round AS (round bigint, signature bytea, previous_sig bytea);
+        END IF;
+    END;
+$$
+LANGUAGE plpgsql;`,
+		//language=postgresql
+		`DO
+$$
+    BEGIN
+        IF NOT EXISTS (SELECT *
+                       FROM pg_type typ
+                                INNER JOIN pg_namespace nsp
+                                           ON nsp.oid = typ.typnamespace
+                       WHERE nsp.nspname = current_schema()
+                         AND typ.typname = 'drand_round_offset') THEN
+            CREATE  TYPE drand_round_offset AS (round_offset bigint);
+        END IF;
+    END;
+$$
+LANGUAGE plpgsql;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_maketable(tableName char)
+    RETURNS VOID
+	LANGUAGE plpgsql
+AS
+$$
+    BEGIN
+		EXECUTE format('CREATE TABLE IF NOT EXISTS %I (
+			round        BIGINT NOT NULL CONSTRAINT %1$I_pk PRIMARY KEY,
 			signature    BYTEA  NOT NULL,
 			previous_sig BYTEA  NOT NULL
-		)`, beaconName)
+		)', tableName);
+	END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_tablesize(tableName char)
+	RETURNS bigint
+	LANGUAGE plpgsql
+AS
+$$
+    DECLARE ret bigint;
+    BEGIN
+        EXECUTE (format('SELECT COUNT(*) FROM %I', tableName)) INTO ret;
+        RETURN ret;
+	END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_insertround(tableName char, round bigint, signature bytea, previous_sig bytea)
+	RETURNS VOID
+	LANGUAGE plpgsql
+AS
+$$
+    BEGIN
+        EXECUTE format('INSERT INTO %I
+			(round, signature, previous_sig)
+		VALUES
+			(%L, %L, %L)
+		ON CONFLICT DO NOTHING', tableName, round, signature, previous_sig);
+	END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_getlastround(tableName char)
+    RETURNS drand_round
+    LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    ret drand_round;
+BEGIN
+    EXECUTE (format('SELECT round, signature, previous_sig FROM %I
+                     ORDER BY round DESC
+                     LIMIT 1',
+                     tableName)) INTO ret;
+    RETURN ret;
+END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_getround(tableName char, round bigint)
+    RETURNS drand_round
+    LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    ret drand_round;
+BEGIN
+    EXECUTE (format('SELECT round, signature, previous_sig FROM %I
+                     WHERE round=%L
+                     LIMIT 1',
+                     tableName, round)) INTO ret;
+    RETURN ret;
+END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_deleteround(tableName char, round bigint)
+    RETURNS VOID
+    LANGUAGE plpgsql
+AS
+$$
+BEGIN
+    EXECUTE (format('SELECT round, signature, previous_sig FROM %I
+                     WHERE round=%L
+                     LIMIT 1',
+                     tableName, round));
+END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_getroundposition(tableName char, round_num int)
+    RETURNS drand_round_offset
+    LANGUAGE plpgsql
+AS
+$$
+DECLARE ret drand_round_offset;
+BEGIN
+    EXECUTE (format('SELECT round_offset FROM (
+   	        SELECT round, row_number() OVER(ORDER BY round ASC) AS round_offset
+		    FROM %I
+            ORDER BY round ASC
+        ) result WHERE round=%L',
+        tableName, round_num)) INTO ret;
+    RETURN ret;
+END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_getfirstround(tableName char)
+    RETURNS drand_round
+    LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    ret drand_round;
+BEGIN
+    EXECUTE (format('SELECT round, signature, previous_sig FROM %I
+                     ORDER BY round ASC
+                     LIMIT 1',
+                     tableName)) INTO ret;
+    RETURN ret;
+END;
+$$;`,
+		//language=postgresql
+		`CREATE OR REPLACE FUNCTION drand_getoffsetround(tableName char, r_offset bigint)
+    RETURNS drand_round
+    LANGUAGE plpgsql
+AS
+$$
+DECLARE
+    ret drand_round;
+BEGIN
+    EXECUTE (format('SELECT round, signature, previous_sig FROM %I
+					ORDER BY round ASC OFFSET %L LIMIT 1',
+                     tableName, r_offset)) INTO ret;
+    RETURN ret;
 
-	if err := database.ExecContext(context.Background(), log, db, query); err != nil {
+END;
+$$;`,
+	}
+
+	runQueries := func() {
+		for _, query := range queries {
+			_, err = db.DB.ExecContext(ctx, query)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	if isTest {
+		runQueries()
+	} else {
+		bootstrapFuncs.Do(runQueries)
+	}
+
+	return err
+}
+
+// NewPGStore returns a new PG Store that provides the CRUD based API need for
+// supporting drand serialization.
+func NewPGStore(l log.Logger, db *sqlx.DB, beaconName string, isTest bool) (*Store, error) {
+	beaconName = strings.ToLower(beaconName)
+
+	ctx := context.Background()
+
+	err := doBootstrapFuncs(ctx, db, isTest)
+	if err != nil {
+		return nil, err
+	}
+
+	//language=postgresql
+	query := `SELECT drand_maketable(:tableName)`
+
+	data := struct {
+		TableName string `db:"tableName"`
+	}{
+		TableName: beaconName,
+	}
+
+	err = database.NamedExecContext(ctx, l, db, query, data)
+	if err != nil {
 		return nil, err
 	}
 
 	p := Store{
-		log:        log,
+		log:        l,
 		db:         db,
 		beaconName: beaconName,
 	}
@@ -56,17 +261,19 @@ func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*Store, error) 
 
 // Len returns the number of beacons in the configured beacon table.
 func (p *Store) Len() (int, error) {
-	query := fmt.Sprintf(`
-		SELECT
-			COUNT(*)
-		FROM
-			%s`,
-		p.beaconName)
+	//language=postgresql
+	query := `SELECT drand_tablesize(:tableName) AS table_size`
+
+	data := struct {
+		TableName string `db:"tableName"`
+	}{
+		TableName: p.beaconName,
+	}
 
 	var ret struct {
-		Count int `db:"count"`
+		Count int `db:"table_size"`
 	}
-	if err := database.QueryStruct(context.Background(), p.log, p.db, query, &ret); err != nil {
+	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &ret); err != nil {
 		return 0, err
 	}
 
@@ -74,20 +281,21 @@ func (p *Store) Len() (int, error) {
 }
 
 // Put adds the specified beacon to the configured beacon table.
-func (p *Store) Put(beacon *chain.Beacon) error {
-	data := dbBeacon{
-		Round:       beacon.Round,
-		Signature:   beacon.Signature,
-		PreviousSig: beacon.PreviousSig,
+func (p *Store) Put(b *chain.Beacon) error {
+	data := struct {
+		TableName   string `db:"tableName"`
+		PreviousSig []byte `db:"previous_sig"`
+		Round       uint64 `db:"round"`
+		Signature   []byte `db:"signature"`
+	}{
+		TableName:   p.beaconName,
+		Round:       b.Round,
+		Signature:   b.Signature,
+		PreviousSig: b.PreviousSig,
 	}
 
-	query := fmt.Sprintf(`
-		INSERT INTO %s
-			(round, signature, previous_sig)
-		VALUES
-			(:round, :signature, :previous_sig)
-		ON CONFLICT DO NOTHING`,
-		p.beaconName)
+	//language=postgresql
+	query := `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
 
 	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err
@@ -98,42 +306,40 @@ func (p *Store) Put(beacon *chain.Beacon) error {
 
 // Last returns the last beacon stored in the configured beacon table.
 func (p *Store) Last() (*chain.Beacon, error) {
-	query := fmt.Sprintf(`
-		SELECT
-			round, signature, previous_sig
-		FROM %s
-		ORDER BY
-			round DESC LIMIT 1`,
-		p.beaconName)
+	//language=postgresql
+	query := `SELECT round, signature, previous_sig FROM drand_getlastround(:tableName) WHERE round IS NOT NULL`
 
-	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), p.log, p.db, query, &dbBeacon); err != nil {
+	data := struct {
+		TableName string `db:"tableName"`
+	}{
+		TableName: p.beaconName,
+	}
+
+	var dbBeacons []dbBeacon
+	err := database.NamedQuerySlice(context.Background(), p.log, p.db, query, data, &dbBeacons)
+	if err != nil {
 		return nil, err
 	}
 
-	if len(dbBeacon) == 0 {
-		return nil, errors.New("beacon not found")
+	if len(dbBeacons) == 0 {
+		return nil, chainerrors.ErrNoBeaconSaved
 	}
 
-	b := chain.Beacon(dbBeacon[0])
+	b := chain.Beacon(dbBeacons[0])
 	return &b, nil
 }
 
 // Get returns the specified beacon from the configured beacon table.
 func (p *Store) Get(round uint64) (*chain.Beacon, error) {
-	data := struct {
-		Round uint64 `db:"round"`
-	}{
-		Round: round,
-	}
+	query := `SELECT round, signature, previous_sig FROM drand_getround(:tableName, :round) WHERE round IS NOT NULL`
 
-	query := fmt.Sprintf(`
-		SELECT
-			round, signature, previous_sig
-		FROM %s
-		WHERE
-			round = :round`,
-		p.beaconName)
+	data := struct {
+		TableName string `db:"tableName"`
+		Round     uint64 `db:"round"`
+	}{
+		TableName: p.beaconName,
+		Round:     round,
+	}
 
 	var dbBeacon dbBeacon
 	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
@@ -152,17 +358,17 @@ func (p *Store) Close() error {
 
 // Del removes the specified round from the beacon table.
 func (p *Store) Del(round uint64) error {
+	// TODO (dlsniper): we should use soft delete here, probably.
 	data := struct {
-		Round uint64 `db:"round"`
+		TableName string `db:"tableName"`
+		Round     uint64 `db:"round"`
 	}{
-		Round: round,
+		TableName: p.beaconName,
+		Round:     round,
 	}
 
-	query := fmt.Sprintf(`
-		DELETE FROM %s
-		WHERE
-			round = :round`,
-		p.beaconName)
+	//language=postgresql
+	query := `SELECT DRAND_DeleteRound(:tableName, :round)`
 
 	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err
@@ -182,8 +388,8 @@ func (p *Store) Cursor(fn func(chain.Cursor) error) error {
 }
 
 // SaveTo does something and I am not sure just yet.
-func (p *Store) SaveTo(w io.Writer) error {
-	panic("implement me")
+func (p *Store) SaveTo(io.Writer) error {
+	return fmt.Errorf("saveTo not implemented for Postgres Store")
 }
 
 // =============================================================================
@@ -191,25 +397,28 @@ func (p *Store) SaveTo(w io.Writer) error {
 // cursor implements support for iterating through the beacon table.
 type cursor struct {
 	pgStore *Store
-	pos     int
+	pos     uint64
 }
 
 // First returns the first beacon from the configured beacon table.
 func (c *cursor) First() (*chain.Beacon, error) {
 	defer func() {
-		c.pos++
+		c.pos = 0
 	}()
 
-	query := fmt.Sprintf(`
-		SELECT
-			round, signature, previous_sig
-		FROM %s
-		ORDER BY
-			round ASC LIMIT 1`,
-		c.pgStore.beaconName)
+	//language=postgresql
+	query := `SELECT round, signature, previous_sig FROM drand_getfirstround(:tableName) WHERE round IS NOT NULL`
+
+	pgStore := c.pgStore
+
+	data := struct {
+		TableName string `db:"tableName"`
+	}{
+		TableName: pgStore.beaconName,
+	}
 
 	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, &dbBeacon); err != nil {
+	if err := database.NamedQuerySlice(context.Background(), pgStore.log, pgStore.db, query, data, &dbBeacon); err != nil {
 		return nil, err
 	}
 
@@ -227,22 +436,21 @@ func (c *cursor) Next() (*chain.Beacon, error) {
 		c.pos++
 	}()
 
+	pgStore := c.pgStore
+
 	data := struct {
-		Offset int `db:"offset"`
+		TableName string `db:"tableName"`
+		Offset    uint64 `db:"offset"`
 	}{
-		Offset: c.pos,
+		TableName: pgStore.beaconName,
+		Offset:    c.pos + 1,
 	}
 
-	query := fmt.Sprintf(`
-		SELECT
-			round, signature, previous_sig
-		FROM %s
-		ORDER BY
-			round ASC OFFSET :offset LIMIT 1`,
-		c.pgStore.beaconName)
+	//language=postgresql
+	query := `SELECT round, signature, previous_sig FROM drand_getoffsetround(:tableName, :offset) WHERE round IS NOT NULL`
 
 	var dbBeacon []dbBeacon
-	if err := database.NamedQuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, data, &dbBeacon); err != nil {
+	if err := database.NamedQuerySlice(context.Background(), pgStore.log, pgStore.db, query, data, &dbBeacon); err != nil {
 		return nil, err
 	}
 
@@ -256,26 +464,30 @@ func (c *cursor) Next() (*chain.Beacon, error) {
 
 // Seek searches the beacon table for the specified round
 func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
+	//language=postgresql
+	query := `SELECT round, signature, previous_sig FROM drand_getround(:tableName, :round) WHERE round IS NOT NULL`
+
+	pgStore := c.pgStore
+
 	data := struct {
-		Round uint64 `db:"round"`
+		TableName string `db:"tableName"`
+		Round     uint64 `db:"round"`
 	}{
-		Round: round,
+		TableName: pgStore.beaconName,
+		Round:     round,
 	}
 
-	query := fmt.Sprintf(`
-		SELECT
-			round, signature, previous_sig
-		FROM %s
-		WHERE
-			round = :round`,
-		c.pgStore.beaconName)
-
 	var dbBeacon dbBeacon
-	err := database.NamedQueryStruct(context.Background(), c.pgStore.log, c.pgStore.db, query, data, &dbBeacon)
+	err := database.NamedQueryStruct(context.Background(), pgStore.log, pgStore.db, query, data, &dbBeacon)
 	if err != nil {
 		if errors.Is(err, database.ErrDBNotFound) {
 			return nil, chainerrors.ErrNoBeaconStored
 		}
+		return nil, err
+	}
+
+	err = c.seekPosition(round)
+	if err != nil {
 		return nil, err
 	}
 
@@ -285,16 +497,20 @@ func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
 
 // Last returns the last beacon from the configured beacon table.
 func (c *cursor) Last() (*chain.Beacon, error) {
-	query := fmt.Sprintf(`
-		SELECT
-			round, signature, previous_sig
-		FROM %s
-		ORDER BY
-			round DESC LIMIT 1`,
-		c.pgStore.beaconName)
+	//language=postgresql
+	query := `SELECT round, signature, previous_sig FROM drand_getlastround(:tableName) WHERE round IS NOT NULL`
+
+	pgStore := c.pgStore
+
+	data := struct {
+		TableName string `db:"tableName"`
+	}{
+		TableName: pgStore.beaconName,
+	}
 
 	var dbBeacon []dbBeacon
-	if err := database.QuerySlice(context.Background(), c.pgStore.log, c.pgStore.db, query, &dbBeacon); err != nil {
+	err := database.NamedQuerySlice(context.Background(), pgStore.log, pgStore.db, query, data, &dbBeacon)
+	if err != nil {
 		return nil, err
 	}
 
@@ -303,5 +519,37 @@ func (c *cursor) Last() (*chain.Beacon, error) {
 	}
 
 	b := chain.Beacon(dbBeacon[0])
+	err = c.seekPosition(b.Round)
+	if err != nil {
+		return nil, err
+	}
+
 	return &b, nil
+}
+
+// seekPosition updates the cursor position in the database for the next operation to work
+func (c *cursor) seekPosition(round uint64) error {
+	//language=postgresql
+	query := `SELECT round_offset FROM drand_getroundposition(:tableName, :round) WHERE round_offset IS NOT NULL`
+	p := struct {
+		Position uint64 `db:"round_offset"`
+	}{}
+
+	pgStore := c.pgStore
+
+	data := struct {
+		TableName string `db:"tableName"`
+		Round     uint64 `db:"round"`
+	}{
+		TableName: pgStore.beaconName,
+		Round:     round,
+	}
+
+	err := database.NamedQueryStruct(context.Background(), pgStore.log, pgStore.db, query, data, &p)
+	if err != nil {
+		return err
+	}
+
+	c.pos = p.Position
+	return nil
 }
