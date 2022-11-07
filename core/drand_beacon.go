@@ -322,13 +322,13 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		// For PostgresSQL dbName is the table name
 		return pg.NewPGStore(bp.log, bp.opts.pgConn, dbName)
 	default:
-		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
+		/*bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
 
 		dbPath := bp.opts.DBFolder(dbName)
 		fs.CreateSecureFolder(dbPath)
 
-		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
-		// return nil, // This is useful for tests. To be replaced when done
+		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)*/
+		return nil, fmt.Errorf("unknown database storage engine type") // This is useful for tests. To be replaced when done
 	}
 }
 

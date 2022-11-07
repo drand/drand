@@ -428,9 +428,15 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		"starting_beacon_time", finalGroup.GenesisTime, "now", bp.opts.clock.Now().Unix())
 
 	// beacon will start at the genesis time specified
-	go bp.StartBeacon(false)
+	// TODO (dlsniper): Old code launched StartBeacon in a goroutine.
+	//  However, this hides all errors, which in turns means we won't know if we started the beacon
+	//  correctly or not.
+	//  Is there a better way to handle this?
 
-	return finalGroup, nil
+	// go bp.StartBeacon(false)
+	// return finalGroup, nil
+
+	return finalGroup, bp.StartBeacon(false)
 }
 
 func (bp *BeaconProcess) cleanupDKG() {

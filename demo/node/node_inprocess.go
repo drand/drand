@@ -85,6 +85,7 @@ func (l *LocalNode) Start(certFolder string) error {
 	if err != nil {
 		return err
 	}
+
 	opts := []core.ConfigOption{
 		core.WithLogLevel(log.LogDebug, false),
 		core.WithConfigFolder(l.base),
@@ -93,6 +94,7 @@ func (l *LocalNode) Start(certFolder string) error {
 		core.WithPrivateListenAddress(l.privAddr),
 		core.WithControlPort(l.ctrlAddr),
 	}
+
 	if l.tls {
 		opts = append(opts, core.WithTLS(
 			path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i)),
@@ -100,11 +102,18 @@ func (l *LocalNode) Start(certFolder string) error {
 	} else {
 		opts = append(opts, core.WithInsecure())
 	}
-	conf := core.NewConfig(opts...)
-	fs := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
-	fs.SaveKeyPair(l.priv)
 
-	key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
+	conf := core.NewConfig(opts...)
+	ks := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
+	err = ks.SaveKeyPair(l.priv)
+	if err != nil {
+		return err
+	}
+
+	err = key.Save(path.Join(l.base, "public.toml"), l.priv.Public, false)
+	if err != nil {
+		return err
+	}
 
 	// Create and start drand daemon
 	drandDaemon, err := core.NewDrandDaemon(conf)
@@ -118,8 +127,8 @@ func (l *LocalNode) Start(certFolder string) error {
 		return err
 	}
 
-	for beaconID, fs := range stores {
-		bp, err := drandDaemon.InstantiateBeaconProcess(beaconID, fs)
+	for beaconID, ks := range stores {
+		bp, err := drandDaemon.InstantiateBeaconProcess(beaconID, ks)
 		if err != nil {
 			fmt.Printf("beacon id [%s]: can't instantiate randomness beacon. err: %s \n", beaconID, err)
 			return err
@@ -141,7 +150,10 @@ func (l *LocalNode) Start(certFolder string) error {
 			// nobody started.
 			// drand.StartBeacon(!c.Bool(pushFlag.Name))
 			catchup := true
-			bp.StartBeacon(catchup)
+			err = bp.StartBeacon(catchup)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

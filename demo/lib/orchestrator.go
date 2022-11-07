@@ -110,7 +110,10 @@ func (e *Orchestrator) startNodes(nodes []node.Node) {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, node := range nodes {
 		fmt.Printf("\t- Starting node %s\n", node.PrivateAddr())
-		node.Start(e.certFolder)
+		err := node.Start(e.certFolder)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	time.Sleep(2 * time.Second)
@@ -556,7 +559,12 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 		}
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
-		foundNode.Start(e.certFolder)
+
+		err := foundNode.Start(e.certFolder)
+		if err != nil {
+			panic(err)
+		}
+
 		var started bool
 		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {

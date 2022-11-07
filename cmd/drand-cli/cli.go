@@ -54,7 +54,7 @@ const defaultPort = "8080"
 
 func banner() {
 	version := common.GetAppVersion()
-	fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
+	_, _ = fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -1055,7 +1055,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	case "postgres":
 		opts = append(opts, core.WithDBStorageEngine(chain.PostgresSQL))
 	default:
-		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+		// opts = append(opts, core.WithDBStorageEngine(chain.BoltDB)) // TODO (dlsniper): uncomment this when everything is done
 	}
 
 	conf := core.NewConfig(opts...)
