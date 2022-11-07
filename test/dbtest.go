@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/drand/drand/chain/pg/database"
@@ -49,7 +51,11 @@ func StopDB(c *Container) {
 // required table structure but the database is otherwise empty. It returns
 // the database to use as well as a function to call at the end of the test.
 func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, func()) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Helper()
+
+	dbName = strings.ToLower(dbName)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	dbM, err := database.Open(database.Config{
@@ -59,22 +65,29 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 		Name:       "postgres",
 		DisableTLS: true,
 	})
-	if err != nil {
-		t.Fatalf("Opening database connection: %v", err)
-	}
+	require.NoError(t, err, "opening database connection")
 
 	t.Log("Waiting for database to be ready ...")
 
-	if err := database.StatusCheck(ctx, dbM); err != nil {
-		t.Fatalf("status check database: %v", err)
-	}
+	err = database.StatusCheck(ctx, dbM)
+	require.NoError(t, err, "status check database")
 
 	t.Log("Database ready")
 
-	if _, err := dbM.ExecContext(context.Background(), "CREATE DATABASE "+dbName); err != nil {
-		t.Fatalf("creating database %s: %v", dbName, err)
-	}
-	dbM.Close()
+	//language=postgresql
+	createQuery := `CREATE EXTENSION IF NOT EXISTS dblink;
+DO $$
+BEGIN
+PERFORM dblink_exec('', 'CREATE DATABASE %s');
+EXCEPTION WHEN duplicate_database THEN
+    RAISE NOTICE '% exists, skipping', SQLERRM USING ERRCODE = SQLSTATE;
+END
+$$;`
+	_, err = dbM.ExecContext(ctx, fmt.Sprintf(createQuery, dbName))
+	require.NoError(t, err, "creating database %s", dbName)
+
+	err = dbM.Close()
+	require.NoError(t, err)
 
 	// =========================================================================
 
@@ -85,27 +98,26 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 		Name:       dbName,
 		DisableTLS: true,
 	})
-	if err != nil {
-		t.Fatalf("Opening database connection: %v", err)
-	}
+	require.NoError(t, err, "opening database connection")
 
 	t.Log("Ready for testing ...")
 
 	var buf bytes.Buffer
 	writer := bufio.NewWriter(&buf)
-	log := log.NewLogger(zapcore.AddSync(writer), log.LogDebug)
+	l := log.NewLogger(zapcore.AddSync(writer), log.LogDebug)
 
 	// teardown is the function that should be invoked when the caller is done
 	// with the database.
 	teardown := func() {
 		t.Helper()
-		db.Close()
+		err := db.Close()
+		require.NoError(t, err)
 
-		writer.Flush()
+		_ = writer.Flush()
 		fmt.Println("******************** LOGS ********************")
 		fmt.Print(buf.String())
 		fmt.Println("******************** LOGS ********************")
 	}
 
-	return log, db, teardown
+	return l, db, teardown
 }

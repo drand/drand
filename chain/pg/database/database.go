@@ -23,7 +23,7 @@ const uniqueViolation = "23505"
 
 // Set of error variables for CRUD operations.
 var (
-	ErrDBNotFound        = errors.New("not found")
+	ErrDBNotFound        = sql.ErrNoRows
 	ErrDBDuplicatedEntry = errors.New("duplicated entry")
 )
 
@@ -134,7 +134,7 @@ func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 		}
 	}
 
-	// Make sure we didn't timeout or be cancelled.
+	// Make sure we didn't timeout or be canceled.
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
