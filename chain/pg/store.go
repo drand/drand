@@ -27,8 +27,8 @@ type dbBeacon struct {
 
 // =============================================================================
 
-// PGStore represents access to the postgres database for beacon management.
-type PGStore struct {
+// Store represents access to the postgres database for beacon management.
+type Store struct {
 	log        log.Logger
 	db         *sqlx.DB
 	beaconName string
@@ -36,7 +36,7 @@ type PGStore struct {
 
 // NewPGStore returns a new PG Store that provides the CRUD based API need for
 // supporting drand serialization.
-func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*PGStore, error) {
+func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
 	query := fmt.Sprintf(`
 		CREATE TABLE IF NOT EXISTS %s (
 			round        BIGINT NOT NULL CONSTRAINT s_pk PRIMARY KEY,
@@ -48,7 +48,7 @@ func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*PGStore, error
 		return nil, err
 	}
 
-	p := PGStore{
+	p := Store{
 		log:        log,
 		db:         db,
 		beaconName: beaconName,
@@ -57,7 +57,7 @@ func NewPGStore(log log.Logger, db *sqlx.DB, beaconName string) (*PGStore, error
 }
 
 // Len returns the number of beacons in the configured beacon table.
-func (p *PGStore) Len() (int, error) {
+func (p *Store) Len() (int, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			COUNT(*)
@@ -76,7 +76,7 @@ func (p *PGStore) Len() (int, error) {
 }
 
 // Put adds the specified beacon to the configured beacon table.
-func (p *PGStore) Put(beacon *chain.Beacon) error {
+func (p *Store) Put(beacon *chain.Beacon) error {
 	data := dbBeacon{
 		Round:       beacon.Round,
 		Signature:   beacon.Signature,
@@ -99,7 +99,7 @@ func (p *PGStore) Put(beacon *chain.Beacon) error {
 }
 
 // Last returns the last beacon stored in the configured beacon table.
-func (p *PGStore) Last() (*chain.Beacon, error) {
+func (p *Store) Last() (*chain.Beacon, error) {
 	query := fmt.Sprintf(`
 		SELECT
 			round, signature, previous_sig
@@ -122,7 +122,7 @@ func (p *PGStore) Last() (*chain.Beacon, error) {
 }
 
 // Get returns the specified beacon from the configured beacon table.
-func (p *PGStore) Get(round uint64) (*chain.Beacon, error) {
+func (p *Store) Get(round uint64) (*chain.Beacon, error) {
 	data := struct {
 		Round uint64 `db:"round"`
 	}{
@@ -147,13 +147,13 @@ func (p *PGStore) Get(round uint64) (*chain.Beacon, error) {
 }
 
 // Close does something and I am not sure just yet.
-func (p *PGStore) Close() error {
+func (p *Store) Close() error {
 	// We don't want to close the db with this!!
 	return nil
 }
 
 // Del removes the specified round from the beacon table.
-func (p *PGStore) Del(round uint64) error {
+func (p *Store) Del(round uint64) error {
 	data := struct {
 		Round uint64 `db:"round"`
 	}{
@@ -174,7 +174,7 @@ func (p *PGStore) Del(round uint64) error {
 }
 
 // Cursor returns a cursor for iterating over the beacon table.
-func (p *PGStore) Cursor(fn func(chain.Cursor) error) error {
+func (p *Store) Cursor(fn func(chain.Cursor) error) error {
 	c := cursor{
 		pgStore: p,
 		pos:     0,
@@ -184,7 +184,7 @@ func (p *PGStore) Cursor(fn func(chain.Cursor) error) error {
 }
 
 // SaveTo does something and I am not sure just yet.
-func (p *PGStore) SaveTo(w io.Writer) error {
+func (p *Store) SaveTo(w io.Writer) error {
 	panic("implement me")
 }
 
@@ -192,7 +192,7 @@ func (p *PGStore) SaveTo(w io.Writer) error {
 
 // cursor implements support for iterating through the beacon table.
 type cursor struct {
-	pgStore *PGStore
+	pgStore *Store
 	pos     int
 }
 
