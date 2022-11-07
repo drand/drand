@@ -1,13 +1,14 @@
 package pg
 
 import (
+	"errors"
 	"fmt"
-	"runtime/debug"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
+	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/test"
 )
 
@@ -30,16 +31,14 @@ func Test_OrderStorePG(t *testing.T) {
 
 	log, db, teardown := test.NewUnit(t, c, "testdb1")
 	defer func() {
-		if r := recover(); r != nil {
-			t.Log(r)
-			t.Error(string(debug.Stack()))
-		}
 		t.Cleanup(teardown)
 	}()
 
 	store, err := NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
 
 	b1 := &chain.Beacon{
 		PreviousSig: []byte("a magnificent signature"),
@@ -76,16 +75,14 @@ func Test_StorePG(t *testing.T) {
 
 	log, db, teardown := test.NewUnit(t, c, "testdb2")
 	defer func() {
-		if r := recover(); r != nil {
-			t.Log(r)
-			t.Error(string(debug.Stack()))
-		}
 		t.Cleanup(teardown)
 	}()
 
 	store, err := NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
@@ -125,7 +122,9 @@ func Test_StorePG(t *testing.T) {
 
 	store, err = NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
 
 	require.NoError(t, store.Put(b1))
 
@@ -138,14 +137,16 @@ func Test_StorePG(t *testing.T) {
 
 	store, err = NewPGStore(log, db, beaconName)
 	require.NoError(t, err)
-	defer store.Close()
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
 
 	err = store.Put(b1)
 	require.NoError(t, err)
 	err = store.Put(b2)
 	require.NoError(t, err)
 
-	store.Cursor(func(c chain.Cursor) error {
+	err = store.Cursor(func(c chain.Cursor) error {
 		expecteds := []*chain.Beacon{b1, b2}
 		i := 0
 		b, err := c.First()
@@ -154,12 +155,17 @@ func Test_StorePG(t *testing.T) {
 			require.True(t, expecteds[i].Equal(b))
 			i++
 		}
+		// Last iteration will always produce an ErrNoBeaconSaved value
+		if !errors.Is(err, chainerrors.ErrNoBeaconStored) {
+			require.NoError(t, err)
+		}
 
 		unknown, err := c.Seek(10000)
-		require.NotNil(t, err)
+		require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
 		require.Nil(t, unknown)
 		return nil
 	})
+	require.NoError(t, err)
 
 	err = store.Cursor(func(c chain.Cursor) error {
 		lb2, err := c.Last()
@@ -170,7 +176,6 @@ func Test_StorePG(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	unknown, err := store.Get(10000)
-	require.Nil(t, unknown)
-	require.ErrorIs(t, err, ErrNoBeaconSaved)
+	_, err = store.Get(10000)
+	require.Equal(t, chainerrors.ErrNoBeaconStored, err)
 }

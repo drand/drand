@@ -18,6 +18,9 @@ func TestStoreBoltOrder(t *testing.T) {
 	l := test.Logger(t)
 	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, store.Close(ctx))
+	}()
 
 	b1 := &chain.Beacon{
 		PreviousSig: []byte("a magnificent signature"),
