@@ -349,7 +349,7 @@ var storageTypeFlag = &cli.StringFlag{
 var pgDSNFlag = &cli.StringFlag{
 	Name:    "pg-dsn",
 	Usage:   "PostgresSQL DSN configuration.",
-	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema",
+	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5",
 	EnvVars: []string{"DRAND_PG_DSN"},
 }
 
