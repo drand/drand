@@ -183,6 +183,7 @@ func WithPgDSN(dsn string) ConfigOption {
 			panic(err)
 		}
 
+		//nolint:gomnd // We want a reasonable timeout to connect to the database. If it's not done in 5 seconds, then there are bigger problems.
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		// Always use this schema.

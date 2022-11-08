@@ -98,6 +98,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 //
 //nolint:gocritic // There is nothing wrong with using value semantics here.
 func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
+	//nolint:goconst // We don't want to make this a constant.
 	sslMode := "require"
 	if cfg.DisableTLS {
 		sslMode = "disable"
