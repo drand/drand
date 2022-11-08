@@ -35,7 +35,7 @@ func NewPGStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName strin
 		return nil, err
 	}
 
-	query := `SELECT drand_maketable(:tableName)`
+	const query = `SELECT drand_maketable(:tableName)`
 
 	data := struct {
 		TableName string `db:"tableName"`
@@ -58,7 +58,7 @@ func NewPGStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName strin
 
 // Len returns the number of beacons in the configured beacon table.
 func (p *Store) Len() (int, error) {
-	query := `SELECT drand_tablesize(:tableName) AS table_size`
+	const query = `SELECT drand_tablesize(:tableName) AS table_size`
 
 	data := struct {
 		TableName string `db:"tableName"`
@@ -81,6 +81,8 @@ func (p *Store) Len() (int, error) {
 
 // Put adds the specified beacon to the configured beacon table.
 func (p *Store) Put(b *chain.Beacon) error {
+	const query = `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
+
 	data := struct {
 		TableName   string `db:"tableName"`
 		PreviousSig []byte `db:"previous_sig"`
@@ -93,8 +95,6 @@ func (p *Store) Put(b *chain.Beacon) error {
 		PreviousSig: b.PreviousSig,
 	}
 
-	query := `SELECT drand_insertround(:tableName, :round, :signature, :previous_sig)`
-
 	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (p *Store) Put(b *chain.Beacon) error {
 
 // Last returns the last beacon stored in the configured beacon table.
 func (p *Store) Last() (*chain.Beacon, error) {
-	const query = "SELECT round, signature, previous_sig FROM drand_getlastround(:tableName) WHERE round IS NOT NULL"
+	const query = `SELECT round, signature, previous_sig FROM drand_getlastround(:tableName) WHERE round IS NOT NULL`
 
 	data := struct {
 		TableName string `db:"tableName"`
@@ -128,7 +128,7 @@ func (p *Store) Last() (*chain.Beacon, error) {
 
 // Get returns the specified beacon from the configured beacon table.
 func (p *Store) Get(round uint64) (*chain.Beacon, error) {
-	const query = "SELECT round, signature, previous_sig FROM drand_getround(:tableName, :round) WHERE round IS NOT NULL"
+	const query = `SELECT round, signature, previous_sig FROM drand_getround(:tableName, :round) WHERE round IS NOT NULL`
 
 	data := struct {
 		TableName string `db:"tableName"`
@@ -149,15 +149,13 @@ func (p *Store) Get(round uint64) (*chain.Beacon, error) {
 
 // Close does something and I am not sure just yet.
 func (p *Store) Close() error {
-
 	// We don't want to close the db with this!!
 	return nil
 }
 
 // Del removes the specified round from the beacon table.
 func (p *Store) Del(round uint64) error {
-
-	// TODO (dlsniper): we should use soft delete here, probably.
+	const query = `SELECT DRAND_DeleteRound(:tableName, :round)`
 
 	data := struct {
 		TableName string `db:"tableName"`
@@ -166,8 +164,6 @@ func (p *Store) Del(round uint64) error {
 		TableName: p.beaconName,
 		Round:     round,
 	}
-
-	query := `SELECT DRAND_DeleteRound(:tableName, :round)`
 
 	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
 		return err
@@ -201,11 +197,11 @@ type cursor struct {
 
 // First returns the first beacon from the configured beacon table.
 func (c *cursor) First() (*chain.Beacon, error) {
+	const query = "SELECT round, signature, previous_sig FROM drand_getfirstround(:tableName) WHERE round IS NOT NULL"
+
 	defer func() {
 		c.pos = 0
 	}()
-
-	const query = "SELECT round, signature, previous_sig FROM drand_getfirstround(:tableName) WHERE round IS NOT NULL"
 
 	pgStore := c.pgStore
 
@@ -230,6 +226,8 @@ func (c *cursor) First() (*chain.Beacon, error) {
 
 // Next returns the next beacon from the configured beacon table.
 func (c *cursor) Next() (*chain.Beacon, error) {
+	const query = "SELECT round, signature, previous_sig FROM drand_getoffsetround(:tableName, :offset) WHERE round IS NOT NULL"
+
 	defer func() {
 		c.pos++
 	}()
@@ -243,8 +241,6 @@ func (c *cursor) Next() (*chain.Beacon, error) {
 		TableName: pgStore.beaconName,
 		Offset:    c.pos + 1,
 	}
-
-	const query = "SELECT round, signature, previous_sig FROM drand_getoffsetround(:tableName, :offset) WHERE round IS NOT NULL"
 
 	var dbBeacon []dbBeacon
 	if err := database.NamedQuerySlice(context.Background(), pgStore.log, pgStore.db, query, data, &dbBeacon); err != nil {
