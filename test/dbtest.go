@@ -58,7 +58,7 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	dbM, err := database.Open(database.Config{
+	dbM, err := database.Open(ctx, database.Config{
 		User:       "postgres",
 		Password:   "postgres",
 		Host:       c.Host,
@@ -66,11 +66,6 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 		DisableTLS: true,
 	})
 	require.NoError(t, err, "opening database connection")
-
-	t.Log("Waiting for database to be ready ...")
-
-	err = database.StatusCheck(ctx, dbM)
-	require.NoError(t, err, "status check database")
 
 	t.Log("Database ready")
 
@@ -91,11 +86,12 @@ $$;`
 
 	// =========================================================================
 
-	db, err := database.Open(database.Config{
+	db, err := database.OpenToSchema(ctx, database.Config{
 		User:       "postgres",
 		Password:   "postgres",
 		Host:       c.Host,
 		Name:       dbName,
+		Schema:     "drand_testing",
 		DisableTLS: true,
 	})
 	require.NoError(t, err, "opening database connection")
