@@ -7,10 +7,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
 
@@ -76,21 +78,42 @@ func Test_OrderStorePG(t *testing.T) {
 	require.Equal(t, b2, eb2)
 }
 
-//nolint:funlen // This is a test
 func Test_StorePG(t *testing.T) {
 	beaconName := t.Name()
 
-	log, db, teardown := test.NewUnit(t, c, "drand_test")
+	l, db, teardown := test.NewUnit(t, c, "drand_test")
 	defer func() {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(context.Background(), log, db, beaconName)
+	store, err := NewPGStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
 	}()
 
+	doStorePgTest(t, store, l, db, beaconName)
+}
+
+func Test_StorePGWithReservedIdentifier(t *testing.T) {
+	beaconName := "default"
+
+	l, db, teardown := test.NewUnit(t, c, "drand_test")
+	defer func() {
+		t.Cleanup(teardown)
+	}()
+
+	store, err := NewPGStore(context.Background(), l, db, beaconName)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
+
+	doStorePgTest(t, store, l, db, beaconName)
+}
+
+//nolint:funlen // This is a test
+func doStorePgTest(t *testing.T, store *Store, l log.Logger, db *sqlx.DB, beaconName string) {
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
@@ -127,7 +150,7 @@ func Test_StorePG(t *testing.T) {
 
 	// =========================================================================
 
-	store, err = NewPGStore(context.Background(), log, db, beaconName)
+	store, err = NewPGStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -142,7 +165,7 @@ func Test_StorePG(t *testing.T) {
 
 	// =========================================================================
 
-	store, err = NewPGStore(context.Background(), log, db, beaconName)
+	store, err = NewPGStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
