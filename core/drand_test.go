@@ -704,6 +704,8 @@ func TestDrandPublicRand(t *testing.T) {
 // PublicRandStream RPC call
 // It also test the follow method call (it avoid redoing an expensive and long
 // setup on CI to test both behaviors).
+//
+//nolint:funlen // This is a test
 func TestDrandPublicStream(t *testing.T) {
 	n := 4
 	thr := key.DefaultThreshold(n)

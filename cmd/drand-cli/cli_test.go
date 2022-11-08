@@ -434,7 +434,7 @@ func TestStartWithoutGroup(t *testing.T) {
 	testStartedDrandFunctional(t, ctrlPort2, tmpPath, priv.Public.Address(), group, fileStore, beaconID)
 }
 
-//nolint:unused// We want to provide convenience functions
+//nolint:unused // This is literally used one line above
 func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string, group *key.Group, fileStore key.Store, beaconID string) {
 	t.Helper()
 
@@ -673,6 +673,8 @@ func testStartedTLSDrandFunctional(t *testing.T, ctrlPort, certPath string, grou
 }
 
 func testCommand(t *testing.T, args []string, exp string) {
+	t.Helper()
+
 	var buff bytes.Buffer
 	output = &buff
 	defer func() { output = os.Stdout }()

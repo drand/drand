@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq" // Calls init function.
+
+	"github.com/drand/drand/log"
 )
 
 // lib/pq errorCodeNames
@@ -57,6 +58,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	if conf.Query().Has("sslmode") {
 		sslMode := conf.Query().Get("sslmode")
 		switch sslMode {
+		//nolint:goconst // We don't want this to be a constant.
 		case "disable":
 			result.DisableTLS = true
 		case "required":
@@ -92,6 +94,8 @@ func ConfigFromDSN(dsn string) (Config, error) {
 }
 
 // Open knows how to open a database connection based on the configuration.
+//
+//nolint:gocritic // Config doesn't need to be a pointer. We don't use this often enough to warrant it.
 func Open(cfg Config) (*sqlx.DB, error) {
 	sslMode := "require"
 	if cfg.DisableTLS {
@@ -123,7 +127,6 @@ func Open(cfg Config) (*sqlx.DB, error) {
 // StatusCheck returns nil if it can successfully talk to the database. It
 // returns a non-nil error otherwise.
 func StatusCheck(ctx context.Context, db *sqlx.DB) error {
-
 	// First check we can ping the database.
 	var pingError error
 	for attempts := 1; ; attempts++ {
@@ -150,10 +153,9 @@ func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 }
 
 // WithinTran runs passed function and do commit/rollback at the end.
-func WithinTran(ctx context.Context, log log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
-
+func WithinTran(_ context.Context, l log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
 	// Begin the transaction.
-	log.Infow("begin tran")
+	l.Infow("begin tran")
 	tx, err := db.Beginx()
 	if err != nil {
 		return fmt.Errorf("begin tran: %w", err)
@@ -166,16 +168,17 @@ func WithinTran(ctx context.Context, log log.Logger, db *sqlx.DB, fn func(*sqlx.
 			if errors.Is(err, sql.ErrTxDone) {
 				return
 			}
-			log.Errorw("unable to rollback tran", "ERROR", err)
+			l.Errorw("unable to rollback tran", "ERROR", err)
 		}
-		log.Infow("rollback tran")
+		l.Infow("rollback tran")
 	}()
 
 	// Execute the code inside the transaction. If the function
 	// fails, return the error and the defer function will roll back.
 	if err := fn(tx); err != nil {
-
 		// Checks if the error is of code 23505 (unique_violation).
+		//
+		//nolint:errorlint // We want this
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == uniqueViolation {
 			return ErrDBDuplicatedEntry
 		}
@@ -186,29 +189,31 @@ func WithinTran(ctx context.Context, log log.Logger, db *sqlx.DB, fn func(*sqlx.
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tran: %w", err)
 	}
-	log.Infow("commit tran")
+	l.Infow("commit tran")
 
 	return nil
 }
 
 // ExecContext is a helper function to execute a CUD operation with
 // logging and tracing.
-func ExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string) error {
-	return NamedExecContext(ctx, log, db, query, struct{}{})
+func ExecContext(ctx context.Context, l log.Logger, db sqlx.ExtContext, query string) error {
+	return NamedExecContext(ctx, l, db, query, struct{}{})
 }
 
 // NamedExecContext is a helper function to execute a CUD operation with
 // logging and tracing where field replacement is necessary.
-func NamedExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any) error {
+func NamedExecContext(ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, data any) error {
 	q := queryString(query, data)
 
 	if _, ok := data.(struct{}); ok {
-		log.AddCallerSkip(2).Infow("database.NamedExecContext", "query", q)
+		//nolint:gomnd // This doesn't need to be a constant
+		l.AddCallerSkip(2).Infow("database.NamedExecContext", "query", q)
 	} else {
-		log.AddCallerSkip(1).Infow("database.NamedExecContext", "query", q)
+		l.AddCallerSkip(1).Infow("database.NamedExecContext", "query", q)
 	}
 
 	if _, err := sqlx.NamedExecContext(ctx, db, query, data); err != nil {
+		//nolint:errorlint // We want this
 		if pqerr, ok := err.(*pq.Error); ok {
 			switch pqerr.Code {
 			case undefinedTable:
@@ -225,23 +230,25 @@ func NamedExecContext(ctx context.Context, log log.Logger, db sqlx.ExtContext, q
 
 // QuerySlice is a helper function for executing queries that return a
 // collection of data to be unmarshalled into a slice.
-func QuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, dest *[]T) error {
-	return NamedQuerySlice(ctx, log, db, query, struct{}{}, dest)
+func QuerySlice[T any](ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, dest *[]T) error {
+	return NamedQuerySlice(ctx, l, db, query, struct{}{}, dest)
 }
 
-// NameQuerySlice is a helper function for executing queries that return a
+// NamedQuerySlice is a helper function for executing queries that return a
 // collection of data to be unmarshalled into a slice where field replacement is necessary.
-func NamedQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
+func NamedQuerySlice[T any](ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
 	q := queryString(query, data)
 
 	if _, ok := data.(struct{}); ok {
-		log.AddCallerSkip(2).Infow("database.QuerySlice", "query", q)
+		//nolint:gomnd // This doesn't need to be a constant
+		l.AddCallerSkip(2).Infow("database.QuerySlice", "query", q)
 	} else {
-		log.AddCallerSkip(1).Infow("database.QuerySlice", "query", q)
+		l.AddCallerSkip(1).Infow("database.QuerySlice", "query", q)
 	}
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
+		//nolint:errorlint // We want this
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == undefinedTable {
 			return ErrUndefinedTable
 		}
@@ -264,23 +271,25 @@ func NamedQuerySlice[T any](ctx context.Context, log log.Logger, db sqlx.ExtCont
 
 // QueryStruct is a helper function for executing queries that return a
 // single value to be unmarshalled into a struct type where field replacement is necessary.
-func QueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, dest any) error {
-	return NamedQueryStruct(ctx, log, db, query, struct{}{}, dest)
+func QueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, dest any) error {
+	return NamedQueryStruct(ctx, l, db, query, struct{}{}, dest)
 }
 
-// NameQueryStruct is a helper function for executing queries that return a
+// NamedQueryStruct is a helper function for executing queries that return a
 // single value to be unmarshalled into a struct type where field replacement is necessary.
-func NamedQueryStruct(ctx context.Context, log log.Logger, db sqlx.ExtContext, query string, data any, dest any) error {
+func NamedQueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, data, dest any) error {
 	q := queryString(query, data)
 
 	if _, ok := data.(struct{}); ok {
-		log.AddCallerSkip(2).Infow("database.QueryStruct", "query", q)
+		//nolint:gomnd // This doesn't need to be a constant
+		l.AddCallerSkip(2).Infow("database.QueryStruct", "query", q)
 	} else {
-		log.AddCallerSkip(1).Infow("database.QueryStruct", "query", q)
+		l.AddCallerSkip(1).Infow("database.QueryStruct", "query", q)
 	}
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
+		//nolint:errorlint // We want this
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == undefinedTable {
 			return ErrUndefinedTable
 		}

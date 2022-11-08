@@ -433,6 +433,7 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	//  correctly or not.
 	//  Is there a better way to handle this?
 
+	//nolint:gocritic // We do want to keep this commented, for now. See the above TODO/question.
 	// go bp.StartBeacon(false)
 	// return finalGroup, nil
 

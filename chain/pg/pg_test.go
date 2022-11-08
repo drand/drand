@@ -76,6 +76,7 @@ func Test_OrderStorePG(t *testing.T) {
 	require.Equal(t, b2, eb2)
 }
 
+//nolint:funlen // This is a test
 func Test_StorePG(t *testing.T) {
 	beaconName := t.Name()
 
