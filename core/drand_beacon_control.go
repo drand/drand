@@ -213,7 +213,7 @@ func (bp *BeaconProcess) InitReshare(c context.Context, in *drand.InitResharePac
 }
 
 // Share is a functionality of Control Service defined in protobuf/control that requests the private share of the drand node running locally
-func (bp *BeaconProcess) Share(ctx context.Context, in *drand.ShareRequest) (*drand.ShareResponse, error) {
+func (bp *BeaconProcess) Share(context.Context, *drand.ShareRequest) (*drand.ShareResponse, error) {
 	share, err := bp.store.LoadShare()
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func (bp *BeaconProcess) Share(ctx context.Context, in *drand.ShareRequest) (*dr
 
 // PublicKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term public key of the drand node running locally
-func (bp *BeaconProcess) PublicKey(ctx context.Context, in *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
+func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*drand.PublicKeyResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -249,7 +249,7 @@ func (bp *BeaconProcess) PublicKey(ctx context.Context, in *drand.PublicKeyReque
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control
 // that requests the long term private key of the drand node running locally
-func (bp *BeaconProcess) PrivateKey(ctx context.Context, in *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
+func (bp *BeaconProcess) PrivateKey(context.Context, *drand.PrivateKeyRequest) (*drand.PrivateKeyResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -267,7 +267,7 @@ func (bp *BeaconProcess) PrivateKey(ctx context.Context, in *drand.PrivateKeyReq
 }
 
 // GroupFile replies with the distributed key in the response
-func (bp *BeaconProcess) GroupFile(ctx context.Context, in *drand.GroupRequest) (*drand.GroupPacket, error) {
+func (bp *BeaconProcess) GroupFile(context.Context, *drand.GroupRequest) (*drand.GroupPacket, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -296,7 +296,7 @@ func (bp *BeaconProcess) BackupDatabase(ctx context.Context, req *drand.BackupDB
 	}
 	defer w.Close()
 
-	return &drand.BackupDBResponse{Metadata: bp.newMetadata()}, inst.Store().SaveTo(w)
+	return &drand.BackupDBResponse{Metadata: bp.newMetadata()}, inst.Store().SaveTo(ctx, w)
 }
 
 // ////////
@@ -797,11 +797,11 @@ func (bp *BeaconProcess) extractGroup(old *drand.GroupInfo) (*key.Group, error) 
 
 // PingPong simply responds with an empty packet, proving that this drand node
 // is up and alive.
-func (bp *BeaconProcess) PingPong(c context.Context, in *drand.Ping) (*drand.Pong, error) {
+func (bp *BeaconProcess) PingPong(context.Context, *drand.Ping) (*drand.Pong, error) {
 	return &drand.Pong{Metadata: bp.newMetadata()}, nil
 }
 
-func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
+func (bp *BeaconProcess) RemoteStatus(ctx context.Context, in *drand.RemoteStatusRequest) (*drand.RemoteStatusResponse, error) {
 	replies := make(map[string]*drand.StatusResponse)
 	bp.log.Debugw("Starting remote status request", "for_nodes", in.GetAddresses())
 	for _, addr := range in.GetAddresses() {
@@ -819,11 +819,11 @@ func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusR
 		}
 		if remoteAddress == bp.priv.Public.Addr {
 			// it's ourself
-			resp, err = bp.Status(c, statusReq)
+			resp, err = bp.Status(ctx, statusReq)
 		} else {
 			bp.log.Debugw("Sending status request", "for_node", remoteAddress, "has_TLS", addr.Tls)
 			p := net.CreatePeer(remoteAddress, addr.Tls)
-			resp, err = bp.privGateway.Status(c, p, statusReq)
+			resp, err = bp.privGateway.Status(ctx, p, statusReq)
 		}
 		if err != nil {
 			bp.log.Errorw("Status request failed", "remote", addr, "error", err)
@@ -841,7 +841,7 @@ func (bp *BeaconProcess) RemoteStatus(c context.Context, in *drand.RemoteStatusR
 // Status responds with the actual status of drand process
 //
 //nolint:funlen,gocyclo
-func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
+func (bp *BeaconProcess) Status(ctx context.Context, in *drand.StatusRequest) (*drand.StatusResponse, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -883,7 +883,7 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 		beaconStatus.IsServing = bp.beacon.IsServing()
 
 		// Chain store
-		lastBeacon, err := bp.beacon.Store().Last()
+		lastBeacon, err := bp.beacon.Store().Last(ctx)
 
 		if err == nil && lastBeacon != nil {
 			chainStore.IsEmpty = false
@@ -919,7 +919,7 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 		// we use an anonymous function to not leak the defer in the for loop
 		func() {
 			// Simply try to ping him see if he replies
-			tc, cancel := context.WithTimeout(c, callMaxTimeout)
+			tc, cancel := context.WithTimeout(ctx, callMaxTimeout)
 			defer cancel()
 			bp.log.Debugw("Sending Home request", "for_node", remoteAddress, "has_TLS", addr.Tls)
 			_, err := bp.privGateway.Home(tc, p, &drand.HomeRequest{Metadata: bp.newMetadata()})
@@ -945,11 +945,11 @@ func (bp *BeaconProcess) Status(c context.Context, in *drand.StatusRequest) (*dr
 	return packet, nil
 }
 
-func (bp *BeaconProcess) ListSchemes(c context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+func (bp *BeaconProcess) ListSchemes(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
 	return &drand.ListSchemesResponse{Ids: scheme.ListSchemes(), Metadata: bp.newMetadata()}, nil
 }
 
-func (bp *BeaconProcess) ListBeaconIDs(c context.Context, in *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
+func (bp *BeaconProcess) ListBeaconIDs(context.Context, *drand.ListSchemesRequest) (*drand.ListSchemesResponse, error) {
 	return nil, fmt.Errorf("method not implemented")
 }
 
@@ -1178,9 +1178,9 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 	}
 
 	// TODO find a better place to put that
-	if err := store.Put(chain.GenesisBeacon(info)); err != nil {
+	if err := store.Put(ctx, chain.GenesisBeacon(info)); err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to insert genesis block", "err", err)
-		store.Close()
+		store.Close(ctx)
 		return fmt.Errorf("unable to insert genesis block: %w", err)
 	}
 
@@ -1189,7 +1189,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 
 	// register callback to notify client of progress
 	cbStore := beacon.NewCallbackStore(ss)
-	defer cbStore.Close()
+	defer cbStore.Close(ctx)
 
 	cb, done := sendProgressCallback(stream, req.GetUpTo(), info, bp.opts.clock, bp.log)
 

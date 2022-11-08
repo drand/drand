@@ -120,12 +120,12 @@ func (s *SyncManager) Run() {
 	lastRoundTime := 0
 	// the context being used by the current sync process
 	var lastCtx context.Context
-	_, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	for {
 		select {
 		case request := <-s.newReq:
 			// check if the request is still valid
-			last, err := s.store.Last()
+			last, err := s.store.Last(ctx)
 			if err != nil {
 				s.log.Debugw("unable to fetch from store", "sync_manager", "store.Last", "err", err)
 				continue
@@ -166,7 +166,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 	logger := s.log.Named("pastBeaconCheck")
 	logger.Debugw("Starting to check past beacons", "upTo", upTo)
 
-	last, err := s.store.Last()
+	last, err := s.store.Last(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch and check last beacon in store: %w", err)
 	}
@@ -179,7 +179,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 
 	var faultyBeacons []uint64
 	// notice that we do not validate the genesis round 0
-	storeLen, err := s.store.Len()
+	storeLen, err := s.store.Len(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error while retrieving store size: %w", err)
 	}
@@ -197,7 +197,7 @@ func (s *SyncManager) CheckPastBeacons(ctx context.Context, upTo uint64, cb func
 			cb(i, upTo)
 		}
 
-		b, err := s.store.Get(i)
+		b, err := s.store.Get(ctx, i)
 		if err != nil {
 			logger.Errorw("unable to fetch beacon in store", "round", i, "err", err)
 			faultyBeacons = append(faultyBeacons, i)
@@ -333,7 +333,7 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 	// if from > 0 then we're doing a ReSync, not a plain Sync.
 	isResync := from > 0
 
-	last, err := s.store.Last()
+	last, err := s.store.Last(cnode)
 	if err != nil {
 		logger.Errorw("unable to fetch from store", "sync_manager", "store.Last", "err", err)
 		return false
@@ -400,12 +400,12 @@ func (s *SyncManager) tryNode(global context.Context, from, upTo uint64, peer ne
 
 			if isResync {
 				logger.Debugw("Resync Put: trying to save beacon", "beacon", beacon.Round)
-				if err := s.insecureStore.Put(beacon); err != nil {
+				if err := s.insecureStore.Put(cnode, beacon); err != nil {
 					logger.Errorw("Resync Put: unable to save", "with_peer", peer.Address(), "err", err)
 					return false
 				}
 			} else {
-				if err := s.store.Put(beacon); err != nil {
+				if err := s.store.Put(cnode, beacon); err != nil {
 					logger.Errorw("Put: unable to save", "with_peer", peer.Address(), "err", err)
 					return false
 				}
@@ -453,14 +453,15 @@ type SyncStream interface {
 // SyncChain holds the receiver logic to reply to a sync request
 func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncStream) error {
 	fromRound := req.GetFromRound()
-	addr := net.RemoteAddress(stream.Context())
+	ctx := stream.Context()
+	addr := net.RemoteAddress(ctx)
 	id := addr + strconv.Itoa(rand.Int()) //nolint
 
 	logger := l.Named("SyncChain")
 
 	beaconID := beaconIDToSync(l, req, addr)
 
-	last, err := store.Last()
+	last, err := store.Last(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to get last beacon: %w", err)
 	}
@@ -486,9 +487,9 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 		//  Investigate if how the storage view updates while the cursor runs.
 
 		// first sync up from the store itself
-		err = store.Cursor(func(c chain.Cursor) error {
-			bb, err := c.Seek(fromRound)
-			for ; bb != nil; bb, err = c.Next() {
+		err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+			bb, err := c.Seek(ctx, fromRound)
+			for ; bb != nil; bb, err = c.Next(ctx) {
 				// This is needed since send will use a pointer and could result in pointer reassignment
 				bb := bb
 				if err != nil {
@@ -526,8 +527,8 @@ func SyncChain(l log.Logger, store CallbackStore, req SyncRequest, stream SyncSt
 
 	// Wait until the request cancels or until an error happens in the callback.
 	select {
-	case <-stream.Context().Done():
-		return stream.Context().Err()
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-errChan:
 		return err
 	}

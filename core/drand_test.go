@@ -918,9 +918,9 @@ func TestDrandFollowChain(t *testing.T) {
 		// check if the beacon is in the database
 		store, err := newNode.drand.createBoltStore()
 		require.NoError(t, err)
-		defer store.Close()
+		defer store.Close(ctx)
 
-		lastB, err := store.Last()
+		lastB, err := store.Last(ctx)
 		require.NoError(t, err)
 		require.Equal(t, exp, lastB.Round, "found %d vs expected %d", lastB.Round, exp)
 	}
@@ -1003,14 +1003,14 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
-	beac, err := store.Get(upTo - 1)
+	beac, err := store.Get(ctx, upTo-1)
 	require.NoError(t, err)
 	require.Equal(t, upTo-1, beac.Round, "found %d vs expected %d", beac.Round, upTo-1)
 
 	t.Logf(" \t\t --> Deleting 4th beacon.\n")
-	err = store.Del(upTo - 1)
+	err = store.Del(ctx, upTo-1)
 	require.NoError(t, err)
-	store.Close()
+	store.Close(ctx)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
 	dt.StartDrand(dt.nodes[0].addr, false, false)

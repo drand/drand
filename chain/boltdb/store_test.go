@@ -1,6 +1,7 @@
 package boltdb
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 
 func TestStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
+	ctx := context.Background()
 	l := log.NewLogger(nil, log.LogDebug)
 	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
@@ -30,25 +32,26 @@ func TestStoreBoltOrder(t *testing.T) {
 	}
 
 	// we store b2 and check if it is last
-	require.NoError(t, store.Put(b2))
-	eb2, err := store.Last()
+	require.NoError(t, store.Put(ctx, b2))
+	eb2, err := store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
-	eb2, err = store.Last()
+	eb2, err = store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
 
 	// then we store b1
-	require.NoError(t, store.Put(b1))
+	require.NoError(t, store.Put(ctx, b1))
 
 	// and request last again
-	eb2, err = store.Last()
+	eb2, err = store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
 }
 
 func TestStoreBolt(t *testing.T) {
 	tmp := t.TempDir()
+	ctx := context.Background()
 	l := log.NewLogger(nil, log.LogDebug)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
@@ -57,7 +60,7 @@ func TestStoreBolt(t *testing.T) {
 	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
 
-	sLen, err := store.Len()
+	sLen, err := store.Len(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 0, sLen)
 
@@ -73,51 +76,51 @@ func TestStoreBolt(t *testing.T) {
 		Signature:   sig1,
 	}
 
-	require.NoError(t, store.Put(b1))
-	sLen, err = store.Len()
+	require.NoError(t, store.Put(ctx, b1))
+	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, sLen)
 
-	require.NoError(t, store.Put(b1))
-	sLen, err = store.Len()
+	require.NoError(t, store.Put(ctx, b1))
+	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 1, sLen)
 
-	require.NoError(t, store.Put(b2))
-	sLen, err = store.Len()
+	require.NoError(t, store.Put(ctx, b2))
+	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 2, sLen)
 
-	received, err := store.Last()
+	received, err := store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, received)
 
-	err = store.Close()
+	err = store.Close(ctx)
 	require.NoError(t, err)
 
 	store, err = NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
-	require.NoError(t, store.Put(b1))
+	require.NoError(t, store.Put(ctx, b1))
 
-	require.NoError(t, store.Put(b1))
-	bb1, err := store.Get(b1.Round)
+	require.NoError(t, store.Put(ctx, b1))
+	bb1, err := store.Get(ctx, b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	store.Close()
+	store.Close(ctx)
 
 	store, err = NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
-	err = store.Put(b1)
+	err = store.Put(ctx, b1)
 	require.NoError(t, err)
-	err = store.Put(b2)
+	err = store.Put(ctx, b2)
 	require.NoError(t, err)
 
-	err = store.Cursor(func(c chain.Cursor) error {
+	err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
 		expecteds := []*chain.Beacon{b1, b2}
 		i := 0
-		b, err := c.First()
+		b, err := c.First(ctx)
 
-		for ; b != nil; b, err = c.Next() {
+		for ; b != nil; b, err = c.Next(ctx) {
 			require.NoError(t, err)
 			require.True(t, expecteds[i].Equal(b))
 			i++
@@ -127,15 +130,15 @@ func TestStoreBolt(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		unknown, err := c.Seek(10000)
+		unknown, err := c.Seek(ctx, 10000)
 		require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
 		require.Nil(t, unknown)
 		return nil
 	})
 	require.NoError(t, err)
 
-	err = store.Cursor(func(c chain.Cursor) error {
-		lb2, err := c.Last()
+	err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+		lb2, err := c.Last(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, lb2)
 		require.Equal(t, b2, lb2)
@@ -143,6 +146,6 @@ func TestStoreBolt(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = store.Get(10000)
+	_, err = store.Get(ctx, 10000)
 	require.Equal(t, chainerrors.ErrNoBeaconStored, err)
 }

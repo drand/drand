@@ -858,6 +858,8 @@ func deleteBeaconCmd(c *cli.Context) error {
 
 	l := log.NewLogger(nil, log.LogDebug)
 
+	ctx := c.Context
+
 	var er error
 	for beaconID, storePath := range stores {
 		if er != nil {
@@ -869,9 +871,9 @@ func deleteBeaconCmd(c *cli.Context) error {
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %w", beaconID, err)
 			}
-			defer store.Close()
+			defer store.Close(ctx)
 
-			lastBeacon, err := store.Last()
+			lastBeacon, err := store.Last(ctx)
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %w", beaconID, err)
 			}
@@ -883,7 +885,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 			}
 
 			for round := startRound; round <= lastBeacon.Round; round++ {
-				err := store.Del(round)
+				err := store.Del(ctx, round)
 				if err != nil {
 					return fmt.Errorf("beacon id [%s] - error deleting round %d: %w", beaconID, round, err)
 				}

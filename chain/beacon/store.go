@@ -2,6 +2,7 @@ package beacon
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -34,20 +35,20 @@ type appendStore struct {
 }
 
 func newAppendStore(s chain.Store) chain.Store {
-	last, _ := s.Last()
+	last, _ := s.Last(context.Background())
 	return &appendStore{
 		Store: s,
 		last:  last,
 	}
 }
 
-func (a *appendStore) Put(b *chain.Beacon) error {
+func (a *appendStore) Put(ctx context.Context, b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
 	if b.Round != a.last.Round+1 {
 		return fmt.Errorf("invalid round inserted: last %d, new %d", a.last.Round, b.Round)
 	}
-	if err := a.Store.Put(b); err != nil {
+	if err := a.Store.Put(ctx, b); err != nil {
 		return err
 	}
 	a.last = b
@@ -63,7 +64,7 @@ type schemeStore struct {
 }
 
 func NewSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
-	last, _ := s.Last()
+	last, _ := s.Last(context.Background())
 	return &schemeStore{
 		Store: s,
 		last:  last,
@@ -71,7 +72,7 @@ func NewSchemeStore(s chain.Store, sch scheme.Scheme) chain.Store {
 	}
 }
 
-func (a *schemeStore) Put(b *chain.Beacon) error {
+func (a *schemeStore) Put(ctx context.Context, b *chain.Beacon) error {
 	a.Lock()
 	defer a.Unlock()
 
@@ -81,13 +82,13 @@ func (a *schemeStore) Put(b *chain.Beacon) error {
 	if a.sch.DecouplePrevSig {
 		b.PreviousSig = nil
 	} else if !bytes.Equal(a.last.Signature, b.PreviousSig) {
-		if pb, err := a.Get(b.Round - 1); err != nil || !bytes.Equal(pb.Signature, b.PreviousSig) {
+		if pb, err := a.Get(ctx, b.Round-1); err != nil || !bytes.Equal(pb.Signature, b.PreviousSig) {
 			return fmt.Errorf("invalid previous signature for %d or "+
 				"previous beacon not found in database. Err: %w", b.Round, err)
 		}
 	}
 
-	if err := a.Store.Put(b); err != nil {
+	if err := a.Store.Put(ctx, b); err != nil {
 		return err
 	}
 
@@ -112,8 +113,8 @@ func newDiscrepancyStore(s chain.Store, l log.Logger, group *key.Group, cl clock
 	}
 }
 
-func (d *discrepancyStore) Put(b *chain.Beacon) error {
-	if err := d.Store.Put(b); err != nil {
+func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
+	if err := d.Store.Put(ctx, b); err != nil {
 		return err
 	}
 
@@ -160,8 +161,8 @@ func NewCallbackStore(s chain.Store) CallbackStore {
 }
 
 // Put stores a new beacon
-func (c *callbackStore) Put(b *chain.Beacon) error {
-	if err := c.Store.Put(b); err != nil {
+func (c *callbackStore) Put(ctx context.Context, b *chain.Beacon) error {
+	if err := c.Store.Put(ctx, b); err != nil {
 		return err
 	}
 	if b.Round != 0 {
@@ -190,9 +191,9 @@ func (c *callbackStore) RemoveCallback(id string) {
 	delete(c.callbacks, id)
 }
 
-func (c *callbackStore) Close() error {
+func (c *callbackStore) Close(ctx context.Context) error {
 	defer close(c.done)
-	return c.Store.Close()
+	return c.Store.Close(ctx)
 }
 
 func (c *callbackStore) runWorkers(n int) {

@@ -407,7 +407,7 @@ func (d *DrandTestScenario) GetBeacon(id string, round int, newGroup bool) (*cha
 		if node.addr != id {
 			continue
 		}
-		return node.drand.beacon.Store().Get(uint64(round))
+		return node.drand.beacon.Store().Get(context.Background(), uint64(round))
 	}
 	return nil, errors.New("that should not happen")
 }

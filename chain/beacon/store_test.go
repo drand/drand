@@ -2,6 +2,7 @@ package beacon
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,13 +17,14 @@ func TestSchemeStore(t *testing.T) {
 	sch, _ := scheme.ReadSchemeByEnv()
 
 	dir := t.TempDir()
+	ctx := context.Background()
 
 	l := log.NewLogger(nil, log.LogDebug)
 	bstore, err := boltdb.NewBoltStore(l, dir, nil)
 	require.NoError(t, err)
 
 	genesisBeacon := chain.GenesisBeacon(&chain.Info{GenesisSeed: []byte("genesis_signature")})
-	err = bstore.Put(genesisBeacon)
+	err = bstore.Put(ctx, genesisBeacon)
 	require.NoError(t, err)
 
 	ss := NewSchemeStore(bstore, sch)
@@ -32,10 +34,10 @@ func TestSchemeStore(t *testing.T) {
 		Signature:   []byte("signature_1"),
 		PreviousSig: []byte("genesis_signature"),
 	}
-	err = ss.Put(newBeacon)
+	err = ss.Put(ctx, newBeacon)
 	require.NoError(t, err)
 
-	beaconSaved, err := ss.Last()
+	beaconSaved, err := ss.Last(ctx)
 	require.NoError(t, err)
 
 	// test if store sets to nil prev signature depending on scheme
@@ -53,7 +55,7 @@ func TestSchemeStore(t *testing.T) {
 		PreviousSig: nil,
 	}
 
-	err = ss.Put(newBeacon)
+	err = ss.Put(ctx, newBeacon)
 
 	// test if store checks consistency between signature and prev signature depending on the scheme
 	if sch.DecouplePrevSig && err != nil {

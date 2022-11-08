@@ -85,7 +85,7 @@ func TestDeleteBeaconError(t *testing.T) {
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
 	l := log.NewLogger(nil, log.LogDebug)
-
+	ctx := context.Background()
 	tmp := path.Join(t.TempDir(), "drand")
 
 	opt := core.WithConfigFolder(tmp)
@@ -93,35 +93,35 @@ func TestDeleteBeacon(t *testing.T) {
 	fs.CreateSecureFolder(conf.DBFolder(beaconID))
 	store, err := boltdb.NewBoltStore(l, conf.DBFolder(beaconID), conf.BoltOptions())
 	require.NoError(t, err)
-	err = store.Put(&chain.Beacon{
+	err = store.Put(ctx, &chain.Beacon{
 		Round:     1,
 		Signature: []byte("Hello"),
 	})
 	require.NoError(t, err)
-	err = store.Put(&chain.Beacon{
+	err = store.Put(ctx, &chain.Beacon{
 		Round:     2,
 		Signature: []byte("Hello"),
 	})
 	require.NoError(t, err)
-	err = store.Put(&chain.Beacon{
+	err = store.Put(ctx, &chain.Beacon{
 		Round:     3,
 		Signature: []byte("Hello"),
 	})
 	require.NoError(t, err)
-	err = store.Put(&chain.Beacon{
+	err = store.Put(ctx, &chain.Beacon{
 		Round:     4,
 		Signature: []byte("hello"),
 	})
 	require.NoError(t, err)
 	// try to fetch round 3 and 4
-	b, err := store.Get(3)
+	b, err := store.Get(ctx, 3)
 	require.NoError(t, err)
 	require.NotNil(t, b)
-	b, err = store.Get(4)
+	b, err = store.Get(ctx, 4)
 	require.NoError(t, err)
 	require.NotNil(t, b)
 
-	err = store.Close()
+	err = store.Close(ctx)
 	require.NoError(t, err)
 
 	args := []string{"drand", "util", "del-beacon", "--folder", tmp, "--id", beaconID, "3"}
@@ -132,10 +132,10 @@ func TestDeleteBeacon(t *testing.T) {
 	require.NoError(t, err)
 
 	// try to fetch round 3 and 4 - it should now fail
-	_, err = store.Get(3)
+	_, err = store.Get(ctx, 3)
 	require.Error(t, err)
 
-	_, err = store.Get(4)
+	_, err = store.Get(ctx, 4)
 	require.Error(t, err)
 }
 
