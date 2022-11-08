@@ -52,7 +52,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	result := Config{}
 	result.User = conf.User.Username()
 	result.Password, _ = conf.User.Password()
-	result.Host = conf.Hostname()
+	result.Host = conf.Host
 	result.Name = conf.Path
 	result.DisableTLS = true
 
