@@ -37,6 +37,7 @@ type Config struct {
 	Password     string
 	Host         string
 	Name         string
+	Schema       string
 	MaxIdleConns int
 	MaxOpenConns int
 	DisableTLS   bool
@@ -105,6 +106,9 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 	q := make(url.Values)
 	q.Set("sslmode", sslMode)
 	q.Set("timezone", "utc")
+	if cfg.Schema != "" {
+		q.Set("search_path", cfg.Schema)
+	}
 
 	u := url.URL{
 		Scheme:   "postgres",
@@ -113,6 +117,60 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 		Path:     cfg.Name,
 		RawQuery: q.Encode(),
 	}
+
+	db, err := sqlx.Open("postgres", u.String())
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+
+	return db, StatusCheck(ctx, db)
+}
+
+// OpenToSchema knows how to open a database connection based on the configuration.
+//
+//nolint:gocritic // There is nothing wrong with using value semantics here.
+func OpenToSchema(ctx context.Context, cfg Config) (*sqlx.DB, error) {
+	// TODO (dlsniper): Make this function better, combine with Open?
+	sslMode := "require"
+	if cfg.DisableTLS {
+		sslMode = "disable"
+	}
+
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(cfg.User, cfg.Password),
+		Host:   cfg.Host,
+		Path:   cfg.Name,
+	}
+
+	q := make(url.Values)
+	q.Set("sslmode", sslMode)
+	q.Set("timezone", "utc")
+
+	// If we have a schema set,then let's open a connection to the default schema,
+	// attempt to create the target schema, then open the connection to the target schema.
+	if cfg.Schema != "" {
+		u.RawQuery = q.Encode()
+		db, err := sqlx.Open("postgres", u.String())
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO (dlsniper): This should be handled better
+		query := fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, cfg.Schema)
+
+		_, err = db.ExecContext(ctx, query)
+		if err != nil {
+			return nil, err
+		}
+		_ = db.Close()
+
+		q.Set("search_path", cfg.Schema)
+	}
+
+	u.RawQuery = q.Encode()
 
 	db, err := sqlx.Open("postgres", u.String())
 	if err != nil {
