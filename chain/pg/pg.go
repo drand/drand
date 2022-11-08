@@ -27,7 +27,24 @@ type Store struct {
 // NewPGStore returns a new PG Store that provides the CRUD based API need for
 // supporting drand serialization.
 func NewPGStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
+	// this needs to be used in identifiers, so let's make it consistent everywhere
+	beaconName = strings.ToLower(beaconName)
+
 	if err := migrate(ctx, db); err != nil {
+		return nil, err
+	}
+
+	//language=postgresql
+	query := `SELECT drand_maketable(:tableName)`
+
+	data := struct {
+		TableName string `db:"tableName"`
+	}{
+		TableName: beaconName,
+	}
+
+	err := database.NamedExecContext(ctx, l, db, query, data)
+	if err != nil {
 		return nil, err
 	}
 

@@ -6,8 +6,9 @@ import (
 	"fmt"
 
 	"github.com/ardanlabs/darwin"
-	"github.com/drand/drand/chain/pg/database"
 	"github.com/jmoiron/sqlx"
+
+	"github.com/drand/drand/chain/pg/database"
 )
 
 var (
