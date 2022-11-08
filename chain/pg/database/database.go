@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/drand/drand/log"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq" // Calls init function.
-
-	"github.com/drand/drand/log"
 )
 
 // lib/pq errorCodeNames
@@ -42,6 +42,7 @@ type Config struct {
 	DisableTLS   bool
 }
 
+// ConfigFromDSN provides support for creating a config from a DSN.
 func ConfigFromDSN(dsn string) (Config, error) {
 	conf, err := url.Parse(dsn)
 	if err != nil {
@@ -58,7 +59,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	if conf.Query().Has("sslmode") {
 		sslMode := conf.Query().Get("sslmode")
 		switch sslMode {
-		//nolint:goconst // We don't want this to be a constant.
+		//nolint:goconst // Having to add constants is overkill.
 		case "disable":
 			result.DisableTLS = true
 		case "required":
@@ -68,7 +69,6 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		}
 	}
 
-	// Use the default from sqlx.DB
 	result.MaxIdleConns = 2
 	if conf.Query().Has("max-idle") {
 		max := conf.Query().Get("max-idle")
@@ -79,7 +79,6 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		result.MaxIdleConns = m
 	}
 
-	// Use the default from sqlx.DB
 	result.MaxOpenConns = 0
 	if conf.Query().Has("max-open") {
 		open := conf.Query().Get("max-open")
@@ -95,7 +94,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 
 // Open knows how to open a database connection based on the configuration.
 //
-//nolint:gocritic // Config doesn't need to be a pointer. We don't use this often enough to warrant it.
+//nolint:gocritic // There is nothing wrong with using value semantics here.
 func Open(cfg Config) (*sqlx.DB, error) {
 	sslMode := "require"
 	if cfg.DisableTLS {
@@ -127,7 +126,6 @@ func Open(cfg Config) (*sqlx.DB, error) {
 // StatusCheck returns nil if it can successfully talk to the database. It
 // returns a non-nil error otherwise.
 func StatusCheck(ctx context.Context, db *sqlx.DB) error {
-	// First check we can ping the database.
 	var pingError error
 	for attempts := 1; ; attempts++ {
 		pingError = db.Ping()
@@ -140,13 +138,10 @@ func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 		}
 	}
 
-	// Make sure we didn't timeout or be canceled.
 	if ctx.Err() != nil {
 		return ctx.Err()
 	}
 
-	// Run a simple query to determine connectivity. Running this query forces a
-	// round trip through the database.
 	const q = `SELECT true`
 	var tmp bool
 	return db.QueryRowContext(ctx, q).Scan(&tmp)
@@ -154,15 +149,12 @@ func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 
 // WithinTran runs passed function and do commit/rollback at the end.
 func WithinTran(_ context.Context, l log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
-	// Begin the transaction.
 	l.Infow("begin tran")
 	tx, err := db.Beginx()
 	if err != nil {
 		return fmt.Errorf("begin tran: %w", err)
 	}
 
-	// We can defer the rollback since the code checks if the transaction
-	// has already been committed.
 	defer func() {
 		if err := tx.Rollback(); err != nil {
 			if errors.Is(err, sql.ErrTxDone) {
@@ -173,19 +165,14 @@ func WithinTran(_ context.Context, l log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) 
 		l.Infow("rollback tran")
 	}()
 
-	// Execute the code inside the transaction. If the function
-	// fails, return the error and the defer function will roll back.
 	if err := fn(tx); err != nil {
-		// Checks if the error is of code 23505 (unique_violation).
-		//
-		//nolint:errorlint // We want this
+		//nolint:errorlint // Have no clue why this is a problem :(.
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == uniqueViolation {
 			return ErrDBDuplicatedEntry
 		}
 		return fmt.Errorf("exec tran: %w", err)
 	}
 
-	// Commit the transaction.
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit tran: %w", err)
 	}
@@ -206,14 +193,14 @@ func NamedExecContext(ctx context.Context, l log.Logger, db sqlx.ExtContext, que
 	q := queryString(query, data)
 
 	if _, ok := data.(struct{}); ok {
-		//nolint:gomnd // This doesn't need to be a constant
+		//nolint:gomnd // Having to add constants is overkill.
 		l.AddCallerSkip(2).Infow("database.NamedExecContext", "query", q)
 	} else {
 		l.AddCallerSkip(1).Infow("database.NamedExecContext", "query", q)
 	}
 
 	if _, err := sqlx.NamedExecContext(ctx, db, query, data); err != nil {
-		//nolint:errorlint // We want this
+		//nolint:errorlint // Have no clue why this is a problem :(.
 		if pqerr, ok := err.(*pq.Error); ok {
 			switch pqerr.Code {
 			case undefinedTable:
@@ -240,7 +227,7 @@ func NamedQuerySlice[T any](ctx context.Context, l log.Logger, db sqlx.ExtContex
 	q := queryString(query, data)
 
 	if _, ok := data.(struct{}); ok {
-		//nolint:gomnd // This doesn't need to be a constant
+		//nolint:gomnd // Having to add constants is overkill.
 		l.AddCallerSkip(2).Infow("database.QuerySlice", "query", q)
 	} else {
 		l.AddCallerSkip(1).Infow("database.QuerySlice", "query", q)
@@ -289,7 +276,7 @@ func NamedQueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, que
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
-		//nolint:errorlint // We want this
+		//nolint:errorlint // Have no clue why this is a problem :(.
 		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == undefinedTable {
 			return ErrUndefinedTable
 		}
