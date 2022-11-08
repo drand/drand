@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"path"
 	"time"
 
@@ -182,7 +183,10 @@ func WithPgDSN(dsn string) ConfigOption {
 			panic(err)
 		}
 
-		d.pgConn, err = database.Open(pgConf)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		d.pgConn, err = database.Open(ctx, pgConf)
 		if err != nil {
 			panic(err)
 		}

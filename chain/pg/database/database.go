@@ -93,9 +93,10 @@ func ConfigFromDSN(dsn string) (Config, error) {
 }
 
 // Open knows how to open a database connection based on the configuration.
+// It also performs a health check to make sure the connection is healthy.
 //
 //nolint:gocritic // There is nothing wrong with using value semantics here.
-func Open(cfg Config) (*sqlx.DB, error) {
+func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 	sslMode := "require"
 	if cfg.DisableTLS {
 		sslMode = "disable"
@@ -120,7 +121,7 @@ func Open(cfg Config) (*sqlx.DB, error) {
 	db.SetMaxIdleConns(cfg.MaxIdleConns)
 	db.SetMaxOpenConns(cfg.MaxOpenConns)
 
-	return db, nil
+	return db, StatusCheck(ctx, db)
 }
 
 // StatusCheck returns nil if it can successfully talk to the database. It
