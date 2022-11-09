@@ -49,6 +49,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	query := conf.Query()
 
 	result := Config{}
 	result.User = conf.User.Username()
@@ -57,8 +58,8 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	result.Name = conf.Path
 	result.DisableTLS = true
 
-	if conf.Query().Has("sslmode") {
-		sslMode := conf.Query().Get("sslmode")
+	if query.Has("sslmode") {
+		sslMode := query.Get("sslmode")
 		switch sslMode {
 		//nolint:goconst // Having to add constants is overkill.
 		case "disable":
@@ -71,8 +72,8 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	}
 
 	result.MaxIdleConns = 2
-	if conf.Query().Has("max-idle") {
-		max := conf.Query().Get("max-idle")
+	if query.Has("max-idle") {
+		max := query.Get("max-idle")
 		m, err := strconv.Atoi(max)
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-idle, got err: %w", err)
@@ -81,13 +82,17 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	}
 
 	result.MaxOpenConns = 0
-	if conf.Query().Has("max-open") {
-		open := conf.Query().Get("max-open")
+	if query.Has("max-open") {
+		open := query.Get("max-open")
 		o, err := strconv.Atoi(open)
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-open, got err: %w", err)
 		}
 		result.MaxOpenConns = o
+	}
+
+	if query.Has("search_path") {
+		result.Schema = query.Get("search_path")
 	}
 
 	return result, nil
@@ -118,60 +123,6 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 		Path:     cfg.Name,
 		RawQuery: q.Encode(),
 	}
-
-	db, err := sqlx.Open("postgres", u.String())
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-
-	return db, StatusCheck(ctx, db)
-}
-
-// OpenToSchema knows how to open a database connection based on the configuration.
-//
-//nolint:gocritic // There is nothing wrong with using value semantics here.
-func OpenToSchema(ctx context.Context, cfg Config) (*sqlx.DB, error) {
-	// TODO (dlsniper): Make this function better, combine with Open?
-	sslMode := "require"
-	if cfg.DisableTLS {
-		sslMode = "disable"
-	}
-
-	u := url.URL{
-		Scheme: "postgres",
-		User:   url.UserPassword(cfg.User, cfg.Password),
-		Host:   cfg.Host,
-		Path:   cfg.Name,
-	}
-
-	q := make(url.Values)
-	q.Set("sslmode", sslMode)
-	q.Set("timezone", "utc")
-
-	// If we have a schema set,then let's open a connection to the default schema,
-	// attempt to create the target schema, then open the connection to the target schema.
-	if cfg.Schema != "" {
-		u.RawQuery = q.Encode()
-		db, err := sqlx.Open("postgres", u.String())
-		if err != nil {
-			return nil, err
-		}
-
-		// TODO (dlsniper): This should be handled better
-		query := fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, cfg.Schema)
-
-		_, err = db.ExecContext(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		_ = db.Close()
-
-		q.Set("search_path", cfg.Schema)
-	}
-
-	u.RawQuery = q.Encode()
 
 	db, err := sqlx.Open("postgres", u.String())
 	if err != nil {

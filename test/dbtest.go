@@ -86,12 +86,11 @@ $$;`
 
 	// =========================================================================
 
-	db, err := database.OpenToSchema(ctx, database.Config{
+	db, err := database.Open(ctx, database.Config{
 		User:       "postgres",
 		Password:   "postgres",
 		Host:       c.Host,
 		Name:       dbName,
-		Schema:     "drand_testing",
 		DisableTLS: true,
 	})
 	require.NoError(t, err, "opening database connection")
