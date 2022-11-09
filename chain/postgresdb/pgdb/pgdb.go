@@ -17,13 +17,13 @@ import (
 // Store represents access to the postgres database for beacon management.
 type Store struct {
 	log      log.Logger
-	db       *sqlx.DB
+	db       sqlx.ExtContext
 	beaconID int
 }
 
 // NewStore returns a new store that provides the CRUD based API needed for
 // supporting drand serialization.
-func NewStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
+func NewStore(ctx context.Context, l log.Logger, db sqlx.ExtContext, beaconName string) (*Store, error) {
 	p := Store{
 		log: l,
 		db:  db,
