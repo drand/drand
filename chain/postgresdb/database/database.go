@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/drand/drand/log"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq" // Calls init function.
+
+	"github.com/drand/drand/log"
 )
 
 // lib/pq errorCodeNames
@@ -37,6 +37,7 @@ type Config struct {
 	Password     string
 	Host         string
 	Name         string
+	Schema       string
 	MaxIdleConns int
 	MaxOpenConns int
 	DisableTLS   bool
@@ -48,6 +49,7 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	query := conf.Query()
 
 	password, _ := conf.User.Password()
 	cfg := Config{
@@ -58,8 +60,8 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		DisableTLS: true,
 	}
 
-	if conf.Query().Has("sslmode") {
-		sslMode := conf.Query().Get("sslmode")
+	if query.Has("sslmode") {
+		sslMode := query.Get("sslmode")
 		switch sslMode {
 		//nolint:goconst // Having to add constants is overkill.
 		case "disable":
@@ -72,8 +74,8 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	}
 
 	cfg.MaxIdleConns = 2
-	if conf.Query().Has("max-idle") {
-		max := conf.Query().Get("max-idle")
+	if query.Has("max-idle") {
+		max := query.Get("max-idle")
 		m, err := strconv.Atoi(max)
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-idle, got err: %w", err)
@@ -82,13 +84,17 @@ func ConfigFromDSN(dsn string) (Config, error) {
 	}
 
 	cfg.MaxOpenConns = 0
-	if conf.Query().Has("max-open") {
-		open := conf.Query().Get("max-open")
+	if query.Has("max-open") {
+		open := query.Get("max-open")
 		o, err := strconv.Atoi(open)
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-open, got err: %w", err)
 		}
 		cfg.MaxOpenConns = o
+	}
+
+	if query.Has("search_path") {
+		cfg.Schema = query.Get("search_path")
 	}
 
 	return cfg, nil
@@ -99,7 +105,6 @@ func ConfigFromDSN(dsn string) (Config, error) {
 //
 //nolint:gocritic // There is nothing wrong with using value semantics here.
 func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
-	//nolint:goconst // We don't want to make this a constant.
 	sslMode := "require"
 	if cfg.DisableTLS {
 		sslMode = "disable"
@@ -108,6 +113,9 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 	q := make(url.Values)
 	q.Set("sslmode", sslMode)
 	q.Set("timezone", "utc")
+	if cfg.Schema != "" {
+		q.Set("search_path", cfg.Schema)
+	}
 
 	u := url.URL{
 		Scheme:   "postgres",

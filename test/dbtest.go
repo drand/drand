@@ -88,7 +88,7 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 	})
 	require.NoError(t, err, "opening database connection")
 
-	t.Log("Perform miagrations ...")
+	t.Log("Perform migrations ...")
 
 	if err := schema.Migrate(ctx, db); err != nil {
 		t.Logf("Logs for %s\n%s:", c.ID, DumpContainerLogs(c.ID))
