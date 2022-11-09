@@ -30,22 +30,8 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func Test_Store(t *testing.T) {
-	l, db, teardown := test.NewUnit(t, c, "Store")
-	defer t.Cleanup(teardown)
-
-	beaconName := "beacon"
-	store, err := pgdb.NewStore(context.Background(), l, db, beaconName)
-	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, store.Close())
-	}()
-
-	doStorePgTest(t, store, l, db, beaconName)
-}
-
-func Test_OrderStore(t *testing.T) {
-	l, db, teardown := test.NewUnit(t, c, "OrderStore")
+func Test_OrderStorePG(t *testing.T) {
+	l, db, teardown := test.NewUnit(t, c, t.Name())
 	defer t.Cleanup(teardown)
 
 	beaconName := "beacon"
@@ -85,11 +71,29 @@ func Test_OrderStore(t *testing.T) {
 	require.Equal(t, b2, eb2)
 }
 
+func Test_StorePG(t *testing.T) {
+	beaconName := t.Name()
+
+	l, db, teardown := test.NewUnit(t, c, "drand_test")
+	defer func() {
+		t.Cleanup(teardown)
+	}()
+
+	store, err := pgdb.NewStore(context.Background(), l, db, beaconName)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, store.Close())
+	}()
+
+	doStorePgTest(t, store, l, db, beaconName)
+}
+
 func Test_WithReservedIdentifier(t *testing.T) {
-	l, db, teardown := test.NewUnit(t, c, "WithReserved")
+	beaconName := "default"
+
+	l, db, teardown := test.NewUnit(t, c, t.Name())
 	defer t.Cleanup(teardown)
 
-	beaconName := "beacon"
 	store, err := pgdb.NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
