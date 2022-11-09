@@ -72,13 +72,12 @@ func Test_OrderStorePG(t *testing.T) {
 }
 
 func Test_StorePG(t *testing.T) {
-	beaconName := t.Name()
-
-	l, db, teardown := test.NewUnit(t, c, "drand_test")
+	l, db, teardown := test.NewUnit(t, c, t.Name())
 	defer func() {
 		t.Cleanup(teardown)
 	}()
 
+	beaconName := t.Name()
 	store, err := pgdb.NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
@@ -89,11 +88,10 @@ func Test_StorePG(t *testing.T) {
 }
 
 func Test_WithReservedIdentifier(t *testing.T) {
-	beaconName := "default"
-
 	l, db, teardown := test.NewUnit(t, c, t.Name())
 	defer t.Cleanup(teardown)
 
+	beaconName := t.Name()
 	store, err := pgdb.NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
