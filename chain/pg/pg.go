@@ -24,9 +24,9 @@ type Store struct {
 	beaconName string
 }
 
-// NewPGStore returns a new PG Store that provides the CRUD based API need for
+// NewStore returns a new PG Store that provides the CRUD based API need for
 // supporting drand serialization.
-func NewPGStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
+func NewStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
 	// This needs to be used in identifiers, so let's make it consistent everywhere.
 	// Prefix "drand_" is added to avoid names such as "default" colliding with reserved identifiers.
 	beaconName = "drand_" + strings.ToLower(beaconName)

@@ -42,7 +42,7 @@ func Test_OrderStorePG(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(context.Background(), l, db, beaconName)
+	store, err := NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -86,7 +86,7 @@ func Test_StorePG(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(context.Background(), l, db, beaconName)
+	store, err := NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -103,7 +103,7 @@ func Test_StorePGWithReservedIdentifier(t *testing.T) {
 		t.Cleanup(teardown)
 	}()
 
-	store, err := NewPGStore(context.Background(), l, db, beaconName)
+	store, err := NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -149,7 +149,7 @@ func doStorePgTest(t *testing.T, store *Store, l log.Logger, db *sqlx.DB, beacon
 
 	// =========================================================================
 
-	store, err = NewPGStore(context.Background(), l, db, beaconName)
+	store, err = NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
@@ -164,7 +164,7 @@ func doStorePgTest(t *testing.T, store *Store, l log.Logger, db *sqlx.DB, beacon
 
 	// =========================================================================
 
-	store, err = NewPGStore(context.Background(), l, db, beaconName)
+	store, err = NewStore(context.Background(), l, db, beaconName)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close())
