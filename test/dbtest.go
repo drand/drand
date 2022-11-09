@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/drand/drand/chain/pg/database"
+	"github.com/drand/drand/chain/postgresdb/database"
 	"github.com/drand/drand/log"
 )
 
@@ -67,19 +67,12 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 	})
 	require.NoError(t, err, "opening database connection")
 
-	t.Log("Database ready")
+	t.Log("Create database ...")
 
 	//language=postgresql
-	createQuery := `CREATE EXTENSION IF NOT EXISTS dblink;
-DO $$
-BEGIN
-PERFORM dblink_exec('', 'CREATE DATABASE %s');
-EXCEPTION WHEN duplicate_database THEN
-    RAISE NOTICE '% exists, skipping', SQLERRM USING ERRCODE = SQLSTATE;
-END
-$$;`
-	_, err = dbM.ExecContext(ctx, fmt.Sprintf(createQuery, dbName))
-	require.NoError(t, err, "creating database %s", dbName)
+	if _, err := dbM.ExecContext(context.Background(), "CREATE DATABASE "+dbName); err != nil {
+		t.Fatalf("creating database %s: %v", dbName, err)
+	}
 
 	err = dbM.Close()
 	require.NoError(t, err)
@@ -94,6 +87,21 @@ $$;`
 		DisableTLS: true,
 	})
 	require.NoError(t, err, "opening database connection")
+
+	t.Log("Create beacon table ...")
+
+	const create = `
+	CREATE TABLE beacon (
+		round         BIGINT  NOT NULL,
+		signature     BYTEA   NOT NULL,
+		previous_sig  BYTEA   NOT NULL,
+		
+		PRIMARY KEY (round)
+	)`
+
+	if _, err := db.ExecContext(context.Background(), create); err != nil {
+		t.Fatalf("creating table %s: %v", dbName, err)
+	}
 
 	t.Log("Ready for testing ...")
 

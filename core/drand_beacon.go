@@ -11,7 +11,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/chain/pg"
+	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -316,11 +316,12 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 	case chain.BoltDB:
 		dbPath := bp.opts.DBFolder(dbName)
 		fs.CreateSecureFolder(dbPath)
-
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+
 	case chain.PostgresSQL:
-		// For PostgresSQL dbName is the table name
-		return pg.NewStore(context.TODO(), bp.log, bp.opts.pgConn, dbName)
+		// For PostgresSQL the beacon name is the table name.
+		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, dbName)
+
 	default:
 		//nolint:gocritic // We do want to keep this commented, for now.
 		/*bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)

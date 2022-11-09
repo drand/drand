@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/pg/database"
+	"github.com/drand/drand/chain/postgresdb/database"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
