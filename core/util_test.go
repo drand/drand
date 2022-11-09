@@ -7,6 +7,7 @@ import (
 	gnet "net"
 	"os"
 	"path"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -144,8 +145,8 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		confOptions := []ConfigOption{
 			WithConfigFolder(dirs[i]),
 		}
-		dbName := fmt.Sprintf("%s_%d", t.Name(), i)
-		confOptions = append(confOptions, WithTestDB(t, dbName)...)
+
+		confOptions = append(confOptions, WithTestDB(t, computeDBName(t))...)
 		confOptions = append(confOptions, WithPrivateListenAddress(privs[i].Public.Address()))
 		if !insecure {
 			confOptions = append(confOptions,
@@ -181,6 +182,11 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	}
 
 	return daemons, drands, group, dir, certPaths
+}
+
+func computeDBName(t *testing.T) string {
+	suffix := strings.Replace(time.Now().Format("02150405.000"), ".", "", -1)
+	return fmt.Sprintf("%s_%s", t.Name(), suffix)
 }
 
 // CloseAllDrands closes all drands
