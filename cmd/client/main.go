@@ -76,6 +76,10 @@ func main() {
 		clientMetricsAddressFlag, clientMetricsGatewayFlag, clientMetricsIDFlag,
 		clientMetricsPushIntervalFlag, verboseFlag)
 	app.Action = Client
+
+	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
+	app.EnableBashCompletion = true
+
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand client %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}

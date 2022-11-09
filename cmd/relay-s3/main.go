@@ -47,6 +47,10 @@ func main() {
 		Usage:    "AWS S3 relay for randomness beacon",
 		Commands: []*cli.Command{runCmd, syncCmd},
 	}
+
+	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
+	app.EnableBashCompletion = true
+
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand AWS S3 relay %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}

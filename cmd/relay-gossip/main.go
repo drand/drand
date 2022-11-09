@@ -34,6 +34,10 @@ func main() {
 		Usage:    "pubsub relay for drand randomness beacon",
 		Commands: []*cli.Command{runCmd, clientCmd, idCmd},
 	}
+
+	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
+	app.EnableBashCompletion = true
+
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand gossip relay %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}

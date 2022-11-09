@@ -524,6 +524,9 @@ func CLI() *cli.App {
 	app := cli.NewApp()
 	app.Name = "drand"
 
+	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
+	app.EnableBashCompletion = true
+
 	SetVersionPrinter.Do(func() {
 		cli.VersionPrinter = func(c *cli.Context) {
 			fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version, buildDate, gitCommit)
