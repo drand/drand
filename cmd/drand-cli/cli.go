@@ -1055,7 +1055,7 @@ func contextToConfig(c *cli.Context) *core.Config {
 	case "postgres":
 		opts = append(opts, core.WithDBStorageEngine(chain.PostgresSQL))
 	default:
-		// opts = append(opts, core.WithDBStorageEngine(chain.BoltDB)) // TODO (dlsniper): uncomment this when everything is done
+		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
 	}
 
 	conf := core.NewConfig(opts...)
