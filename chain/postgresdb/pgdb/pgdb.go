@@ -374,7 +374,8 @@ func (c *cursor) Last() (*chain.Beacon, error) {
 		ORDER BY
 			round DESC
 		LIMIT 1) AS T
-	WHERE round IS NOT NULL`
+	WHERE
+		round IS NOT NULL`
 
 	data := struct {
 		ID int `db:"id"`
