@@ -319,7 +319,6 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 
 	case chain.PostgresSQL:
-		// For PostgresSQL the beacon name is the table name.
 		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
 
 	default:
