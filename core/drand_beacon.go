@@ -310,17 +310,17 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 }
 
 func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
-	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
+	beaconName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 
 	switch bp.opts.dbStorageEngine {
 	case chain.BoltDB:
-		dbPath := bp.opts.DBFolder(dbName)
+		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 
 	case chain.PostgresSQL:
 		// For PostgresSQL the beacon name is the table name.
-		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, dbName)
+		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
 
 	default:
 		//nolint:gocritic // We do want to keep this commented, for now.

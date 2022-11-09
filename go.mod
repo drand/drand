@@ -45,6 +45,8 @@ require (
 	google.golang.org/protobuf v1.28.1
 )
 
+require github.com/ardanlabs/darwin v1.4.0
+
 require (
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect

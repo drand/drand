@@ -14,6 +14,7 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/drand/drand/chain/postgresdb/database"
+	"github.com/drand/drand/chain/postgresdb/schema"
 	"github.com/drand/drand/log"
 )
 
@@ -69,7 +70,6 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 
 	t.Log("Create database ...")
 
-	//language=postgresql
 	if _, err := dbM.ExecContext(context.Background(), "CREATE DATABASE "+dbName); err != nil {
 		t.Fatalf("creating database %s: %v", dbName, err)
 	}
@@ -88,19 +88,11 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 	})
 	require.NoError(t, err, "opening database connection")
 
-	t.Log("Create beacon table ...")
+	t.Log("Perform miagrations ...")
 
-	const create = `
-	CREATE TABLE beacon (
-		round         BIGINT  NOT NULL,
-		signature     BYTEA   NOT NULL,
-		previous_sig  BYTEA   NOT NULL,
-		
-		PRIMARY KEY (round)
-	)`
-
-	if _, err := db.ExecContext(context.Background(), create); err != nil {
-		t.Fatalf("creating table %s: %v", dbName, err)
+	if err := schema.Migrate(ctx, db); err != nil {
+		t.Logf("Logs for %s\n%s:", c.ID, DumpContainerLogs(c.ID))
+		t.Fatalf("Migrating error: %s", err)
 	}
 
 	t.Log("Ready for testing ...")

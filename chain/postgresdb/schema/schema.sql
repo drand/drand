@@ -1,0 +1,24 @@
+-- Version: 1.01
+-- Description: Create beacons table
+CREATE TABLE beacons (
+    id    SERIAL, 
+    name  TEXT    NOT NULL,
+    
+    PRIMARY KEY (ID)
+)
+
+-- Version: 1.02
+-- Description: Create beacons table index
+CREATE UNIQUE INDEX index_beacons_name ON beacons (name)
+
+-- Version: 1.03
+-- Description: Create beacon details table
+CREATE TABLE beacon_details (
+    beacon_id     INT     NOT NULL,
+    round         BIGINT  NOT NULL,
+    signature     BYTEA   NOT NULL,
+    previous_sig  BYTEA   NOT NULL,
+    
+    PRIMARY KEY (round),
+    FOREIGN KEY (beacon_id) REFERENCES beacons(id) ON DELETE CASCADE
+)
