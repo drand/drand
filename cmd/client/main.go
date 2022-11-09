@@ -36,31 +36,36 @@ var roundFlag = &cli.IntFlag{
 }
 
 var verboseFlag = &cli.BoolFlag{
-	Name:  "verbose",
-	Usage: "print debug-level log messages",
+	Name:    "verbose",
+	Usage:   "print debug-level log messages",
+	EnvVars: []string{"DRAND_CLIENT_VERBOSE"},
 }
 
 // client metric flags
 
 var clientMetricsAddressFlag = &cli.StringFlag{
-	Name:  "client-metrics-address",
-	Usage: "Server address for Prometheus metrics.",
-	Value: ":8080",
+	Name:    "client-metrics-address",
+	Usage:   "Server address for Prometheus metrics.",
+	Value:   ":8080",
+	EnvVars: []string{"DRAND_CLIENT_METRICS"},
 }
 
 var clientMetricsGatewayFlag = &cli.StringFlag{
-	Name:  "client-metrics-gateway",
-	Usage: "Push gateway for Prometheus metrics.",
+	Name:    "client-metrics-gateway",
+	Usage:   "Push gateway for Prometheus metrics.",
+	EnvVars: []string{"DRAND_CLIENT_METRICS_GATEWAY"},
 }
 
 var clientMetricsPushIntervalFlag = &cli.Int64Flag{
-	Name:  "client-metrics-push-interval",
-	Usage: "Push interval in seconds for Prometheus gateway.",
+	Name:    "client-metrics-push-interval",
+	Usage:   "Push interval in seconds for Prometheus gateway.",
+	EnvVars: []string{"DRAND_CLIENT_METRICS_PUSH_INTERVAL"},
 }
 
 var clientMetricsIDFlag = &cli.StringFlag{
-	Name:  "client-metrics-id",
-	Usage: "Unique identifier for the client instance, used by the metrics system.",
+	Name:    "client-metrics-id",
+	Usage:   "Unique identifier for the client instance, used by the metrics system.",
+	EnvVars: []string{"DRAND_CLIENT_METRICS_ID"},
 }
 
 func main() {

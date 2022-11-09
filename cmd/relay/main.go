@@ -30,18 +30,21 @@ var (
 const accessLogPermFolder = 0o666
 
 var accessLogFlag = &cli.StringFlag{
-	Name:  "access-log",
-	Usage: "file to log http accesses to",
+	Name:    "access-log",
+	Usage:   "file to log http accesses to",
+	EnvVars: []string{"DRAND_RELAY_ACCESS_LOG"},
 }
 
 var listenFlag = &cli.StringFlag{
-	Name:  "bind",
-	Usage: "local host:port to bind the listener",
+	Name:    "bind",
+	Usage:   "local host:port to bind the listener",
+	EnvVars: []string{"DRAND_RELAY_BIND"},
 }
 
 var metricsFlag = &cli.StringFlag{
-	Name:  "metrics",
-	Usage: "local host:port to bind a metrics servlet (optional)",
+	Name:    "metrics",
+	Usage:   "local host:port to bind a metrics servlet (optional)",
+	EnvVars: []string{"DRAND_RELAY_METRICS"},
 }
 
 // Relay a GRPC connection to an HTTP server.

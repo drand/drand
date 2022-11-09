@@ -51,27 +51,32 @@ func main() {
 
 var (
 	idFlag = &cli.StringFlag{
-		Name:  "identity",
-		Usage: "path to a file containing a libp2p identity (base64 encoded)",
-		Value: "identity.key",
+		Name:    "identity",
+		Usage:   "path to a file containing a libp2p identity (base64 encoded)",
+		Value:   "identity.key",
+		EnvVars: []string{"DRAND_GOSSIP_IDENTITY"},
 	}
 	peerWithFlag = &cli.StringSliceFlag{
-		Name:  "peer-with",
-		Usage: "peer multiaddr(s) for the relay to direct connect with",
+		Name:    "peer-with",
+		Usage:   "peer multiaddr(s) for the relay to direct connect with",
+		EnvVars: []string{"DRAND_GOSSIP_PEER_WITH"},
 	}
 	storeFlag = &cli.StringFlag{
-		Name:  "store",
-		Usage: "datastore directory",
-		Value: "./datastore",
+		Name:    "store",
+		Usage:   "datastore directory",
+		Value:   "./datastore",
+		EnvVars: []string{"DRAND_RELAY_STORE"},
 	}
 	listenFlag = &cli.StringFlag{
-		Name:  "listen",
-		Usage: "listening address for libp2p",
-		Value: "/ip4/0.0.0.0/tcp/44544",
+		Name:    "listen",
+		Usage:   "listening address for libp2p",
+		Value:   "/ip4/0.0.0.0/tcp/44544",
+		EnvVars: []string{"DRAND_RELAY_LISTEN"},
 	}
 	metricsFlag = &cli.StringFlag{
-		Name:  "metrics",
-		Usage: "local host:port to bind a metrics servlet (optional)",
+		Name:    "metrics",
+		Usage:   "local host:port to bind a metrics servlet (optional)",
+		EnvVars: []string{"DRAND_RELAY_METRICS"},
 	}
 )
 

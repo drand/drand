@@ -31,10 +31,12 @@ var (
 		Name:     "bucket",
 		Usage:    "Name of the AWS bucket to upload to",
 		Required: true,
+		EnvVars:  []string{"DRAND_S3RELAY_BUCKET"},
 	}
 	regionFlag = &cli.StringFlag{
-		Name:  "region",
-		Usage: "Name of the AWS region to use (optional)",
+		Name:    "region",
+		Usage:   "Name of the AWS region to use (optional)",
+		EnvVars: []string{"DRAND_S3RELAY_REGION"},
 	}
 )
 

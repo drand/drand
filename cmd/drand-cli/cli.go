@@ -56,14 +56,16 @@ func banner() {
 }
 
 var folderFlag = &cli.StringFlag{
-	Name:  "folder",
-	Value: core.DefaultConfigFolder(),
-	Usage: "Folder to keep all drand cryptographic information, with absolute path.",
+	Name:    "folder",
+	Value:   core.DefaultConfigFolder(),
+	Usage:   "Folder to keep all drand cryptographic information, with absolute path.",
+	EnvVars: []string{"DRAND_FOLDER"},
 }
 
 var verboseFlag = &cli.BoolFlag{
-	Name:  "verbose",
-	Usage: "If set, verbosity is at the debug level",
+	Name:    "verbose",
+	Usage:   "If set, verbosity is at the debug level",
+	EnvVars: []string{"DRAND_VERBOSE"},
 }
 
 var tlsCertFlag = &cli.StringFlag{
@@ -71,6 +73,7 @@ var tlsCertFlag = &cli.StringFlag{
 	Usage: "Set the TLS certificate chain (in PEM format) for this drand node. " +
 		"The certificates have to be specified as a list of whitespace-separated file paths. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
+	EnvVars: []string{"DRAND_TLS_CERT"},
 }
 
 var tlsKeyFlag = &cli.StringFlag{
@@ -78,74 +81,90 @@ var tlsKeyFlag = &cli.StringFlag{
 	Usage: "Set the TLS private key (in PEM format) for this drand node. " +
 		"The key has to be specified as a file path. " +
 		"This parameter is required by default and can only be omitted if the --tls-disable flag is used.",
+	EnvVars: []string{"DRAND_TLS_KEY"},
 }
 
 var insecureFlag = &cli.BoolFlag{
 	Name:    "tls-disable",
 	Aliases: []string{"insecure"},
 	Usage:   "Disable TLS for all communications (not recommended).",
+	EnvVars: []string{"DRAND_TLS_DISABLE", "DRAND_INSECURE"},
 }
 
 var controlFlag = &cli.StringFlag{
-	Name:  "control",
-	Usage: "Set the port you want to listen to for control port commands. If not specified, we will use the default port 8888.",
+	Name:    "control",
+	Usage:   "Set the port you want to listen to for control port commands. If not specified, we will use the default value.",
+	Value:   "8888",
+	EnvVars: []string{"DRAND_CONTROL"},
 }
 
 var metricsFlag = &cli.StringFlag{
-	Name:  "metrics",
-	Usage: "Launch a metrics server at the specified (host:)port.",
+	Name:    "metrics",
+	Usage:   "Launch a metrics server at the specified (host:)port.",
+	EnvVars: []string{"DRAND_METRICS"},
 }
 
 var privListenFlag = &cli.StringFlag{
-	Name:  "private-listen",
-	Usage: "Set the listening (binding) address of the private API. Useful if you have some kind of proxy.",
+	Name:    "private-listen",
+	Usage:   "Set the listening (binding) address of the private API. Useful if you have some kind of proxy.",
+	EnvVars: []string{"DRAND_PRIVATE_LISTEN"},
 }
 
 var pubListenFlag = &cli.StringFlag{
-	Name:  "public-listen",
-	Usage: "Set the listening (binding) address of the public API. Useful if you have some kind of proxy.",
+	Name:    "public-listen",
+	Usage:   "Set the listening (binding) address of the public API. Useful if you have some kind of proxy.",
+	EnvVars: []string{"DRAND_PUBLIC_LISTEN"},
 }
 
 var nodeFlag = &cli.StringFlag{
-	Name:  "nodes",
-	Usage: "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
+	Name:    "nodes",
+	Usage:   "Contact the nodes at the given list of whitespace-separated addresses which have to be present in group.toml.",
+	EnvVars: []string{"DRAND_NODES"},
 }
 
 var roundFlag = &cli.IntFlag{
 	Name: "round",
 	Usage: "Request the public randomness generated at round num. If the drand beacon does not have the requested value," +
 		" it returns an error. If not specified, the current randomness is returned.",
+	EnvVars: []string{"DRAND_ROUND"},
 }
 
 var certsDirFlag = &cli.StringFlag{
-	Name:  "certs-dir",
-	Usage: "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates",
+	Name:    "certs-dir",
+	Usage:   "directory containing trusted certificates (PEM format). Useful for testing and self signed certificates",
+	EnvVars: []string{"DRAND_CERTS_DIR"},
 }
 
 var outFlag = &cli.StringFlag{
-	Name:  "out",
-	Usage: "save the group file into a separate file instead of stdout",
+	Name:    "out",
+	Usage:   "save the group file into a separate file instead of stdout",
+	EnvVars: []string{"DRAND_OUT"},
 }
 
 var periodFlag = &cli.StringFlag{
-	Name:  "period",
-	Usage: "period to set when doing a setup",
+	Name:    "period",
+	Usage:   "period to set when doing a setup",
+	EnvVars: []string{"DRAND_PERIOD"},
 }
 
 var catchupPeriodFlag = &cli.StringFlag{
-	Name:  "catchup-period",
-	Usage: "Minimum period while in catchup. Set only by the leader of share / reshares",
-	Value: "0s",
+	Name:    "catchup-period",
+	Usage:   "Minimum period while in catchup. Set only by the leader of share / reshares",
+	Value:   "0s",
+	EnvVars: []string{"DRAND_CATCHUP_PERIOD"},
 }
 
 var thresholdFlag = &cli.IntFlag{
-	Name:  "threshold",
-	Usage: "threshold to use for the DKG",
+	Name:    "threshold",
+	Usage:   "threshold to use for the DKG",
+	EnvVars: []string{"DRAND_THRESHOLD"},
 }
 
+// TODO (dlsniper): This flag is a duplicate name of the nodeFlag. Should change the name.
 var shareNodeFlag = &cli.IntFlag{
-	Name:  "nodes",
-	Usage: "number of nodes expected",
+	Name:    "nodes",
+	Usage:   "number of nodes expected",
+	EnvVars: []string{"DRAND_NODES"},
 }
 
 var transitionFlag = &cli.BoolFlag{
@@ -153,12 +172,15 @@ var transitionFlag = &cli.BoolFlag{
 	Aliases: []string{"transition"},
 	Usage: "When set, this flag indicates the share operation is a resharing. " +
 		"The node will use the currently stored group as the basis for the resharing",
+	EnvVars: []string{"DRAND_TRANSITION_FLAG"},
 }
 
 var forceFlag = &cli.BoolFlag{
 	Name:    "force",
 	Aliases: []string{"f"},
-	Usage:   "When set, this flag forces the daemon to start a new reshare operation." + "By default, it does not allow to restart one",
+	Usage: "When set, this flag forces the daemon to start a new reshare operation. " +
+		"By default, it does not allow to restart one",
+	EnvVars: []string{"DRAND_FORCE"},
 }
 
 // secret flag is the "manual" security when the "leader"/coordinator creates the
@@ -170,22 +192,26 @@ var secretFlag = &cli.StringFlag{
 	Name: "secret-file",
 	Usage: "Specify the secret to use when doing the share so the leader knows you are an eligible potential participant." +
 		" must be at least 32 characters.",
+	EnvVars: []string{"DRAND_SECRET_FILE"},
 }
 
 var connectFlag = &cli.StringFlag{
-	Name:  "connect",
-	Usage: "Address of the coordinator that will assemble the public keys and start the DKG",
+	Name:    "connect",
+	Usage:   "Address of the coordinator that will assemble the public keys and start the DKG",
+	EnvVars: []string{"DRAND_CONNECT"},
 }
 
 var leaderFlag = &cli.BoolFlag{
-	Name:  "leader",
-	Usage: "Specify if this node should act as the leader for setting up the group",
+	Name:    "leader",
+	Usage:   "Specify if this node should act as the leader for setting up the group",
+	EnvVars: []string{"DRAND_LEADER"},
 }
 
 var beaconOffset = &cli.IntFlag{
 	Name: "beacon-delay",
 	Usage: "Leader uses this flag to specify the genesis time or transition time as a delay from when " +
 		" group is ready to run the share protocol",
+	EnvVars: []string{"DRAND_BEACON_DELAY"},
 }
 
 var oldGroupFlag = &cli.StringFlag{
@@ -193,54 +219,65 @@ var oldGroupFlag = &cli.StringFlag{
 	Usage: "Old group.toml path to specify when a new node wishes to participate " +
 		"in a resharing protocol. This flag is optional in case a node is already" +
 		"included in the current DKG.",
+	EnvVars: []string{"DRAND_FROM"},
 }
 
 var skipValidationFlag = &cli.BoolFlag{
-	Name:  "skipValidation",
-	Usage: "skips bls verification of beacon rounds for faster catchup.",
+	Name:    "skipValidation",
+	Usage:   "skips bls verification of beacon rounds for faster catchup.",
+	EnvVars: []string{"DRAND_SKIP_VALIDATION"},
 }
 
 var timeoutFlag = &cli.StringFlag{
-	Name:  "timeout",
-	Usage: fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
+	Name:    "timeout",
+	Usage:   fmt.Sprintf("Timeout to use during the DKG, in string format. Default is %s", core.DefaultDKGTimeout),
+	EnvVars: []string{"DRAND_TIMEOUT"},
 }
 
 var pushFlag = &cli.BoolFlag{
 	Name: "push",
 	Usage: "Push mode forces the daemon to start making beacon requests to the other node, " +
 		"instead of waiting the other nodes contact it to catch-up on the round",
+	EnvVars: []string{"DRAND_PUSH"},
 }
 
 var sourceFlag = &cli.StringFlag{
-	Name:  "source",
-	Usage: "Source flag allows to provide an executable which output will be used as additional entropy during resharing step.",
+	Name:    "source",
+	Usage:   "Source flag allows to provide an executable which output will be used as additional entropy during resharing step.",
+	EnvVars: []string{"DRAND_SOURCE"},
 }
 
 var userEntropyOnlyFlag = &cli.BoolFlag{
 	Name: "user-source-only",
 	Usage: "user-source-only flag used with the source flag allows to only use the user's entropy to pick the dkg secret " +
 		"(won't be mixed with crypto/rand). Should be used for reproducibility and debbuging purposes.",
+	EnvVars: []string{"DRAND_USER_SOURCE_ONLY"},
 }
 
 var groupFlag = &cli.StringFlag{
-	Name:  "group",
-	Usage: "Test connections to nodes listed in the group",
+	Name:    "group",
+	Usage:   "Test connections to nodes listed in the group",
+	EnvVars: []string{"DRAND_GROUP"},
 }
 
 var hashOnly = &cli.BoolFlag{
-	Name:  "hash",
-	Usage: "Only print the hash of the group file",
+	Name:    "hash",
+	Usage:   "Only print the hash of the group file",
+	EnvVars: []string{"DRAND_HASH"},
 }
 
 var hashInfoReq = &cli.StringFlag{
 	Name:     "chain-hash",
 	Usage:    "The hash of the chain info, used to validate integrity of the received group info",
 	Required: true,
+	EnvVars:  []string{"DRAND_CHAIN_HASH"},
 }
 
+// TODO (DLSNIPER): This is a duplicate of the hashInfoReq. Should these be merged into a single flag?
 var hashInfoNoReq = &cli.StringFlag{
-	Name:  "chain-hash",
-	Usage: "The hash of the chain info",
+	Name:    "chain-hash",
+	Usage:   "The hash of the chain info",
+	EnvVars: []string{"DRAND_CHAIN_HASH"},
 }
 
 // using a simple string flag because the StringSliceFlag is not intuitive
@@ -250,46 +287,54 @@ var syncNodeFlag = &cli.StringFlag{
 	Usage: "<ADDRESS:PORT>,<...> of (multiple) reachable drand daemon(s). " +
 		"When checking our local database, using our local daemon address will result in a dry run.",
 	Required: true,
+	EnvVars:  []string{"DRAND_SYNC_NODES"},
 }
 
 var followFlag = &cli.BoolFlag{
-	Name:  "follow",
-	Usage: "Indicates whether we want to follow another daemon, if not we perform a check of our local DB.",
+	Name:    "follow",
+	Usage:   "Indicates whether we want to follow another daemon, if not we perform a check of our local DB.",
+	EnvVars: []string{"DRAND_FOLLOW"},
 }
 
 var upToFlag = &cli.IntFlag{
 	Name: "up-to",
 	Usage: "Specify a round at which the drand daemon will stop syncing the chain, " +
 		"typically used to bootstrap a new node in chained mode",
-	Value: 0,
+	Value:   0,
+	EnvVars: []string{"DRAND_UP_TO"},
 }
 
 var schemeFlag = &cli.StringFlag{
-	Name:  "scheme",
-	Usage: "Indicates a set of values drand will use to configure the randomness generation process",
-	Value: scheme.DefaultSchemeID,
+	Name:    "scheme",
+	Usage:   "Indicates a set of values drand will use to configure the randomness generation process",
+	Value:   scheme.DefaultSchemeID,
+	EnvVars: []string{"DRAND_SCHEME"},
 }
 
 var jsonFlag = &cli.BoolFlag{
-	Name:  "json",
-	Usage: "Set the output as json format",
+	Name:    "json",
+	Usage:   "Set the output as json format",
+	EnvVars: []string{"DRAND_JSON"},
 }
 
 var beaconIDFlag = &cli.StringFlag{
-	Name:  "id",
-	Usage: "Indicates the id for the randomness generation process which will be started",
-	Value: "",
+	Name:    "id",
+	Usage:   "Indicates the id for the randomness generation process which will be started",
+	Value:   "",
+	EnvVars: []string{"DRAND_ID"},
 }
 var listIdsFlag = &cli.BoolFlag{
-	Name:  "list-ids",
-	Usage: "Indicates if it only have to list the running beacon ids instead of the statuses.",
-	Value: false,
+	Name:    "list-ids",
+	Usage:   "Indicates if it only have to list the running beacon ids instead of the statuses.",
+	Value:   false,
+	EnvVars: []string{"DRAND_LIST_IDS"},
 }
 
 var allBeaconsFlag = &cli.BoolFlag{
-	Name:  "all",
-	Usage: "Indicates if we have to interact with all beacons chains",
-	Value: false,
+	Name:    "all",
+	Usage:   "Indicates if we have to interact with all beacons chains",
+	Value:   false,
+	EnvVars: []string{"DRAND_ALL"},
 }
 
 var appCommands = []*cli.Command{
