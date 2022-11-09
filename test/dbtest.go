@@ -68,7 +68,7 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 	})
 	require.NoError(t, err, "opening database connection")
 
-	t.Log("Create database ...")
+	t.Logf("creating database %s...\n", dbName)
 
 	if _, err := dbM.ExecContext(context.Background(), "CREATE DATABASE "+dbName); err != nil {
 		t.Fatalf("creating database %s: %v", dbName, err)
