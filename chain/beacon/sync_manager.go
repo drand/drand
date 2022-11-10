@@ -119,7 +119,6 @@ func (s *SyncManager) Run() {
 	// tracks the time of the last round we successfully synced
 	lastRoundTime := 0
 	// the context being used by the current sync process
-	var lastCtx context.Context
 	ctx, cancel := context.WithCancel(context.Background())
 	for {
 		select {
@@ -146,9 +145,9 @@ func (s *SyncManager) Run() {
 				// we haven't received a new block in a while
 				// -> time to start a new sync
 				cancel()
-				lastCtx, cancel = context.WithCancel(context.Background())
+				ctx, cancel = context.WithCancel(context.Background())
 				//nolint
-				go s.Sync(lastCtx, request)
+				go s.Sync(ctx, request)
 			}
 
 		case <-s.newSync:
