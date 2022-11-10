@@ -1049,10 +1049,10 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithPgDSN(pgdsn))
 	}
 
-	switch c.String(storageTypeFlag.Name) {
-	case "bolt":
+	switch chain.StorageType(c.String(storageTypeFlag.Name)) {
+	case chain.BoltDB:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
-	case "postgres":
+	case chain.PostgresSQL:
 		opts = append(opts, core.WithDBStorageEngine(chain.PostgresSQL))
 	default:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))

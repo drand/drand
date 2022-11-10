@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"time"
 
@@ -178,6 +179,11 @@ func WithPgDSN(dsn string) ConfigOption {
 	return func(d *Config) {
 		d.pgDSN = dsn
 
+		if d.dbStorageEngine != chain.PostgresSQL {
+			// TODO (dlsniper): Would be nice to have a log here. It needs to be injected somehow.
+			return
+		}
+
 		pgConf, err := database.ConfigFromDSN(dsn)
 		if err != nil {
 			panic(err)
@@ -189,6 +195,7 @@ func WithPgDSN(dsn string) ConfigOption {
 
 		d.pgConn, err = database.Open(ctx, pgConf)
 		if err != nil {
+			err := fmt.Errorf("error while attempting to connect to the database: dsn: %s %w", dsn, err)
 			panic(err)
 		}
 	}

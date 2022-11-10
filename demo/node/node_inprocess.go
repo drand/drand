@@ -11,9 +11,11 @@ import (
 
 	"github.com/kabukky/httpscerts"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/client/grpc"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -37,13 +39,16 @@ type LocalNode struct {
 	tls        bool
 	priv       *key.Pair
 
+	dbEngineType chain.StorageType
+	pgDSN        func() string
+
 	log log.Logger
 
 	daemon *core.DrandDaemon
 }
 
-func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, sch scheme.Scheme, beaconID string) Node {
-	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
+func NewLocalNode(i int, bindAddr string, cfg cfg.Config) Node {
+	nbase := path.Join(cfg.BasePath, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
 
@@ -56,17 +61,19 @@ func NewLocalNode(i int, period string, base string, tls bool, bindAddr string, 
 		return nil
 	}
 	l := &LocalNode{
-		base:     nbase,
-		i:        i,
-		period:   period,
-		tls:      tls,
-		logPath:  logPath,
-		log:      log.NewLogger(nil, log.LogDebug),
-		pubAddr:  test.FreeBind(bindAddr),
-		privAddr: test.FreeBind(bindAddr),
-		ctrlAddr: test.FreeBind("localhost"),
-		scheme:   sch,
-		beaconID: beaconID,
+		base:         nbase,
+		i:            i,
+		period:       cfg.Period,
+		tls:          cfg.WithTLS,
+		logPath:      logPath,
+		log:          log.NewLogger(nil, log.LogDebug),
+		pubAddr:      test.FreeBind(bindAddr),
+		privAddr:     test.FreeBind(bindAddr),
+		ctrlAddr:     test.FreeBind("localhost"),
+		scheme:       cfg.Schema,
+		beaconID:     cfg.BeaconID,
+		dbEngineType: cfg.DBEngineType,
+		pgDSN:        cfg.PgDSN,
 	}
 
 	var priv *key.Pair
@@ -93,6 +100,8 @@ func (l *LocalNode) Start(certFolder string) error {
 		core.WithPublicListenAddress(l.pubAddr),
 		core.WithPrivateListenAddress(l.privAddr),
 		core.WithControlPort(l.ctrlAddr),
+		core.WithDBStorageEngine(l.dbEngineType),
+		core.WithPgDSN(l.pgDSN()),
 	}
 
 	if l.tls {
@@ -191,24 +200,25 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	return cl
 }
 
-func (l *LocalNode) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
+func (l *LocalNode) RunDKG(nodes, thr int, timeout time.Duration, leader bool, leaderAddr string, beaconOffset int) (*key.Group, error) {
 	cl := l.ctrl()
-	p, _ := time.ParseDuration(l.period)
-	t, _ := time.ParseDuration(timeout)
+	p, err := time.ParseDuration(l.period)
+	if err != nil {
+		l.log.Errorw("", "drand", "dkg run failed", "err", err)
+		return nil, err
+	}
 	var grp *drand.GroupPacket
-	var err error
 	if leader {
-		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, t, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
+		grp, err = cl.InitDKGLeader(nodes, thr, p, 0, timeout, nil, secretDKG, beaconOffset, l.scheme.ID, l.beaconID)
 	} else {
 		leader := net.CreatePeer(leaderAddr, l.tls)
 		grp, err = cl.InitDKG(leader, nil, secretDKG, l.beaconID)
 	}
 	if err != nil {
 		l.log.Errorw("", "drand", "dkg run failed", "err", err)
-		return nil
+		return nil, err
 	}
-	kg, _ := key.GroupFromProto(grp)
-	return kg
+	return key.GroupFromProto(grp)
 }
 
 func (l *LocalNode) GetGroup() *key.Group {
@@ -315,6 +325,7 @@ func (l *LocalNode) Stop() {
 	_, err := cl.Shutdown("")
 	if err != nil {
 		l.log.Errorw("", "drand", "failed to shutdown", "err", err)
+		return
 	}
 	<-l.daemon.WaitExit()
 }

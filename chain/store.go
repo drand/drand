@@ -46,7 +46,7 @@ type StorageType string
 // Storage engine types
 const (
 	// BoltDB uses the BoltDB engine for storing data
-	BoltDB StorageType = "boltdb"
+	BoltDB StorageType = "bolt"
 
 	// PostgresSQL uses the PostgreSQL database for storing data
 	PostgresSQL StorageType = "postgres"

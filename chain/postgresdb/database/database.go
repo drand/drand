@@ -121,7 +121,7 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 		Scheme:   "postgres",
 		User:     url.UserPassword(cfg.User, cfg.Password),
 		Host:     cfg.Host,
-		Path:     cfg.Name,
+		Path:     strings.ToLower(cfg.Name),
 		RawQuery: q.Encode(),
 	}
 

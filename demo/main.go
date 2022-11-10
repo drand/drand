@@ -10,7 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
 )
@@ -26,12 +28,14 @@ func installDrand() {
 
 }
 
-var build = flag.Bool("build", false, "build the drand binary first")
-var binaryF = flag.String("binary", "drand", "path to drand binary")
-var testF = flag.Bool("test", false, "run it as a test that finishes")
-var tls = flag.Bool("tls", false, "run the nodes with self signed certs")
-var noCurl = flag.Bool("nocurl", false, "skip commands using curl")
-var debug = flag.Bool("debug", false, "prints the log when panic occurs")
+var build = flag.Bool("build", false, "Build the drand binary first.")
+var binaryF = flag.String("binary", "drand", "Path to drand binary.")
+var testF = flag.Bool("test", false, "Run it as a test that finishes.")
+var tls = flag.Bool("tls", true, "Run the nodes with self signed certs.")
+var noCurl = flag.Bool("nocurl", false, "Skip commands using curl.")
+var debug = flag.Bool("debug", false, "Prints the log when panic occurs.")
+var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
+var pgDSN = flag.String("pg-dsn", "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema", "PostgresSQL DSN configuration.")
 
 func main() {
 	flag.Parse()
@@ -46,7 +50,22 @@ func main() {
 	period := "10s"
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
-	orch := lib.NewOrchestrator(n, thr, period, true, *binaryF, !*noCurl, sch, beaconID, true)
+	c := cfg.Config{
+		N:            n,
+		Thr:          thr,
+		Period:       period,
+		WithTLS:      *tls,
+		Binary:       *binaryF,
+		WithCurl:     !*noCurl,
+		Schema:       sch,
+		BeaconID:     beaconID,
+		IsCandidate:  true,
+		DBEngineType: chain.StorageType(*dbEngineType),
+		PgDSN: func() string {
+			return *pgDSN
+		},
+	}
+	orch := lib.NewOrchestrator(c)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here
 	// is that we are using self signed certificates, so when the first drand nodes
 	// start, they need to know about all self signed certificates. So we create
@@ -67,7 +86,7 @@ func main() {
 	}()
 	setSignal(orch)
 	orch.StartCurrentNodes()
-	orch.RunDKG("4s")
+	orch.RunDKG(4 * time.Second)
 	orch.WaitGenesis()
 	for i := 0; i < nRound; i++ {
 		orch.WaitPeriod()
@@ -84,27 +103,27 @@ func main() {
 	// stop the whole network, wait a bit and see if it can restart at the right
 	// round
 	/*orch.StopAllNodes(nodeToStop)*/
-	//orch.WaitPeriod()
-	//orch.WaitPeriod()
-	//// start all but the one still down
-	//orch.StartCurrentNodes(nodeToStop)
-	//// leave time to network to sync
-	//periodD, _ := time.ParseDuration(period)
-	//orch.Wait(time.Duration(2) * periodD)
-	//for i := 0; i < nRound; i++ {
-	//orch.WaitPeriod()
-	//orch.CheckCurrentBeacon(nodeToStop)
-	//}
+	// orch.WaitPeriod()
+	// orch.WaitPeriod()
+	// // start all but the one still down
+	// orch.StartCurrentNodes(nodeToStop)
+	// // leave time to network to sync
+	// periodD, _ := time.ParseDuration(period)
+	// orch.Wait(time.Duration(2) * periodD)
+	// for i := 0; i < nRound; i++ {
+	// orch.WaitPeriod()
+	// orch.CheckCurrentBeacon(nodeToStop)
+	// }
 
 	// stop only more than a threshold of the network, wait a bit and see if it
 	// can restart at the right round correctly
 	/*nodesToStop := []int{1, 2}*/
-	//fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
-	//orch.StopNodes(nodesToStop...)
-	//orch.WaitPeriod()
-	//orch.WaitPeriod()
-	//fmt.Printf("[+] Trying to start them again and check beacons\n")
-	//orch.StartNode(nodesToStop...)
+	// fmt.Printf("[+] Stopping more than threshold of nodes (1,2,3)\n")
+	// orch.StopNodes(nodesToStop...)
+	// orch.WaitPeriod()
+	// orch.WaitPeriod()
+	// fmt.Printf("[+] Trying to start them again and check beacons\n")
+	// orch.StartNode(nodesToStop...)
 	orch.StartNode(nodeToStop)
 	orch.WaitPeriod()
 	orch.WaitPeriod()
@@ -114,7 +133,7 @@ func main() {
 		orch.CheckCurrentBeacon()
 	}
 
-	/// --- RESHARING PART ---
+	// --- RESHARING PART ---
 	orch.StartNewNodes()
 	// exclude first node
 	orch.CreateResharingGroup(1, newThr)

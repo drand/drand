@@ -1,6 +1,8 @@
 package node
 
 import (
+	"time"
+
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 )
@@ -11,7 +13,7 @@ type Node interface {
 	CtrlAddr() string
 	PublicAddr() string
 	Index() int
-	RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group
+	RunDKG(nodes, thr int, timeout time.Duration, leader bool, leaderAddr string, beaconOffset int) (*key.Group, error)
 	GetGroup() *key.Group
 	RunReshare(nodes, thr int, oldGroup string, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group
 	ChainInfo(group string) bool

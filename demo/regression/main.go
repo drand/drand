@@ -8,7 +8,9 @@ import (
 	"syscall"
 	"text/template"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
 )
@@ -25,6 +27,8 @@ import (
 
 var build = flag.String("release", "drand", "path to base build")
 var candidate = flag.String("candidate", "drand", "path to candidate build")
+var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
+var pgDSN = flag.String("pg-dsn", "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema", "PostgresSQL DSN configuration.")
 
 func testStartup(orch *lib.Orchestrator) (err error) {
 	defer func() {
@@ -86,7 +90,22 @@ func main() {
 	period := "10s"
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
-	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+	c := cfg.Config{
+		N:            n,
+		Thr:          thr,
+		Period:       period,
+		WithTLS:      true,
+		Binary:       *build,
+		WithCurl:     false,
+		Schema:       sch,
+		BeaconID:     beaconID,
+		IsCandidate:  false,
+		DBEngineType: chain.StorageType(*dbEngineType),
+		PgDSN: func() string {
+			return *pgDSN
+		},
+	}
+	orch := lib.NewOrchestrator(c)
 	orch.UpdateBinary(*candidate, 2, true)
 
 	orch.UpdateGlobalBinary(*candidate, true)
@@ -108,7 +127,22 @@ func main() {
 		// recover with a fully old-node dkg
 		orch.Shutdown()
 
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+		c := cfg.Config{
+			N:            n,
+			Thr:          thr,
+			Period:       period,
+			WithTLS:      true,
+			Binary:       *build,
+			WithCurl:     false,
+			Schema:       sch,
+			BeaconID:     beaconID,
+			IsCandidate:  false,
+			DBEngineType: chain.StorageType(*dbEngineType),
+			PgDSN: func() string {
+				return *pgDSN
+			},
+		}
+		orch = lib.NewOrchestrator(c)
 
 		orch.UpdateGlobalBinary(*candidate, true)
 		orch.SetupNewNodes(1)
@@ -125,7 +159,22 @@ func main() {
 		// recover back to a fully old-node dkg
 		orch.Shutdown()
 
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+		c := cfg.Config{
+			N:            n,
+			Thr:          thr,
+			Period:       period,
+			WithTLS:      true,
+			Binary:       *build,
+			WithCurl:     false,
+			Schema:       sch,
+			BeaconID:     beaconID,
+			IsCandidate:  false,
+			DBEngineType: chain.StorageType(*dbEngineType),
+			PgDSN: func() string {
+				return *pgDSN
+			},
+		}
+		orch = lib.NewOrchestrator(c)
 
 		orch.UpdateGlobalBinary(*candidate, true)
 		orch.SetupNewNodes(1)

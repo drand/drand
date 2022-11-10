@@ -329,7 +329,9 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		fs.CreateSecureFolder(dbPath)
 
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)*/
-		return nil, fmt.Errorf("unknown database storage engine type") // This is useful for tests. To be replaced when done
+		err := fmt.Errorf("unknown database storage engine type")
+		panic(err)
+		return nil, err // This is useful for tests. To be replaced when done
 	}
 }
 

@@ -52,8 +52,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 	if !isLeader {
 		// different logic for leader than the rest
-		out, err := bp.setupAutomaticDKG(c, in)
-		return out, err
+		return bp.setupAutomaticDKG(c, in)
 	}
 
 	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
