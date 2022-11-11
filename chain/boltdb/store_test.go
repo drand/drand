@@ -1,16 +1,22 @@
 package boltdb
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
+	chainerrors "github.com/drand/drand/chain/errors"
+	"github.com/drand/drand/test"
 )
 
 func TestStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
-	store, err := NewBoltStore(tmp, nil)
+	ctx := context.Background()
+	l := test.Logger(t)
+	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
 
 	b1 := &chain.Beacon{
@@ -26,33 +32,37 @@ func TestStoreBoltOrder(t *testing.T) {
 	}
 
 	// we store b2 and check if it is last
-	require.NoError(t, store.Put(b2))
-	eb2, err := store.Last()
+	require.NoError(t, store.Put(ctx, b2))
+	eb2, err := store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
-	eb2, err = store.Last()
+	eb2, err = store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
 
 	// then we store b1
-	require.NoError(t, store.Put(b1))
+	require.NoError(t, store.Put(ctx, b1))
 
 	// and request last again
-	eb2, err = store.Last()
+	eb2, err = store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, eb2)
 }
 
 func TestStoreBolt(t *testing.T) {
 	tmp := t.TempDir()
+	ctx := context.Background()
+	l := test.Logger(t)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
-	store, err := NewBoltStore(tmp, nil)
+	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
 
-	require.Equal(t, 0, store.Len())
+	sLen, err := store.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 0, sLen)
 
 	b1 := &chain.Beacon{
 		PreviousSig: sig1,
@@ -66,52 +76,76 @@ func TestStoreBolt(t *testing.T) {
 		Signature:   sig1,
 	}
 
-	require.NoError(t, store.Put(b1))
-	require.Equal(t, 1, store.Len())
-	require.NoError(t, store.Put(b1))
-	require.Equal(t, 1, store.Len())
-	require.NoError(t, store.Put(b2))
-	require.Equal(t, 2, store.Len())
+	require.NoError(t, store.Put(ctx, b1))
+	sLen, err = store.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, sLen)
 
-	received, err := store.Last()
+	require.NoError(t, store.Put(ctx, b1))
+	sLen, err = store.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, sLen)
+
+	require.NoError(t, store.Put(ctx, b2))
+	sLen, err = store.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 2, sLen)
+
+	received, err := store.Last(ctx)
 	require.NoError(t, err)
 	require.Equal(t, b2, received)
 
-	store.Close()
-	store, err = NewBoltStore(tmp, nil)
+	err = store.Close(ctx)
 	require.NoError(t, err)
-	require.NoError(t, store.Put(b1))
 
-	require.NoError(t, store.Put(b1))
-	bb1, err := store.Get(b1.Round)
+	store, err = NewBoltStore(l, tmp, nil)
+	require.NoError(t, err)
+	require.NoError(t, store.Put(ctx, b1))
+
+	require.NoError(t, store.Put(ctx, b1))
+	bb1, err := store.Get(ctx, b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	store.Close()
+	store.Close(ctx)
 
-	store, err = NewBoltStore(tmp, nil)
+	store, err = NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
-	store.Put(b1)
-	store.Put(b2)
+	err = store.Put(ctx, b1)
+	require.NoError(t, err)
+	err = store.Put(ctx, b2)
+	require.NoError(t, err)
 
-	store.Cursor(func(c chain.Cursor) {
+	err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
 		expecteds := []*chain.Beacon{b1, b2}
 		i := 0
-		for b := c.First(); b != nil; b = c.Next() {
+		b, err := c.First(ctx)
+
+		for ; b != nil; b, err = c.Next(ctx) {
+			require.NoError(t, err)
 			require.True(t, expecteds[i].Equal(b))
 			i++
 		}
+		// Last iteration will always produce an ErrNoBeaconSaved value
+		if !errors.Is(err, chainerrors.ErrNoBeaconStored) {
+			require.NoError(t, err)
+		}
 
-		unknown := c.Seek(10000)
+		unknown, err := c.Seek(ctx, 10000)
+		require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
 		require.Nil(t, unknown)
+		return nil
 	})
+	require.NoError(t, err)
 
-	store.Cursor(func(c chain.Cursor) {
-		lb2 := c.Last()
+	err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+		lb2, err := c.Last(ctx)
+		require.NoError(t, err)
 		require.NotNil(t, lb2)
 		require.Equal(t, b2, lb2)
+		return nil
 	})
+	require.NoError(t, err)
 
-	unknown, err := store.Get(10000)
-	require.Nil(t, unknown)
-	require.Equal(t, ErrNoBeaconSaved, err)
+	_, err = store.Get(ctx, 10000)
+	require.Equal(t, chainerrors.ErrNoBeaconStored, err)
 }

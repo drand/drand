@@ -73,7 +73,7 @@ func NewHandler(c net.ProtocolClient, s chain.Store, conf *Config, l log.Logger,
 	addr := conf.Public.Address()
 	crypto := newCryptoStore(conf.Group, conf.Share)
 	// insert genesis beacon
-	if err := s.Put(chain.GenesisBeacon(crypto.chain)); err != nil {
+	if err := s.Put(context.Background(), chain.GenesisBeacon(crypto.chain)); err != nil {
 		return nil, err
 	}
 
@@ -315,7 +315,7 @@ func (h *Handler) run(startTime int64) {
 				h.Unlock()
 			})
 
-			lastBeacon, err := h.chain.Last()
+			lastBeacon, err := h.chain.Last(context.Background())
 			if err != nil {
 				h.l.Errorw("", "beacon_loop", "loading_last", "err", err)
 				break

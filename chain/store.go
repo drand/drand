@@ -2,6 +2,7 @@ package chain
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"io"
 )
@@ -13,14 +14,14 @@ import (
 // Store is an interface to store Beacons packets where they can also be
 // retrieved to be delivered to end clients.
 type Store interface {
-	Len() int
-	Put(*Beacon) error
-	Last() (*Beacon, error)
-	Get(round uint64) (*Beacon, error)
-	Cursor(func(Cursor))
-	Close()
-	Del(round uint64) error
-	SaveTo(w io.Writer) error
+	Len(context.Context) (int, error)
+	Put(context.Context, *Beacon) error
+	Last(context.Context) (*Beacon, error)
+	Get(ctx context.Context, round uint64) (*Beacon, error)
+	Cursor(context.Context, func(context.Context, Cursor) error) error
+	Close(context.Context) error
+	Del(ctx context.Context, round uint64) error
+	SaveTo(ctx context.Context, w io.Writer) error
 }
 
 // Cursor iterates over items in sorted key order. This starts from the
@@ -33,10 +34,10 @@ type Store interface {
 //	    fmt.Printf("A %s is %s.\n", k, v)
 //	}
 type Cursor interface {
-	First() *Beacon
-	Next() *Beacon
-	Seek(round uint64) *Beacon
-	Last() *Beacon
+	First(context.Context) (*Beacon, error)
+	Next(context.Context) (*Beacon, error)
+	Seek(ctx context.Context, round uint64) (*Beacon, error)
+	Last(context.Context) (*Beacon, error)
 }
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).

@@ -904,6 +904,16 @@ func deleteBeaconCmd(c *cli.Context) error {
 		return err
 	}
 
+	isVerbose := c.IsSet(verboseFlag.Name)
+
+	level := log.LogError
+	if isVerbose {
+		level = log.LogDebug
+	}
+	l := log.NewLogger(nil, level)
+
+	ctx := c.Context
+
 	var er error
 	for beaconID, storePath := range stores {
 		if er != nil {
@@ -911,29 +921,29 @@ func deleteBeaconCmd(c *cli.Context) error {
 		}
 		// Using an anonymous function to not leak the defer
 		er = func() error {
-			store, err := boltdb.NewBoltStore(path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
+			store, err := boltdb.NewBoltStore(l, path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %w", beaconID, err)
 			}
-			defer store.Close()
+			defer store.Close(ctx)
 
-			lastBeacon, err := store.Last()
+			lastBeacon, err := store.Last(ctx)
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - can't fetch last beacon: %w", beaconID, err)
 			}
 			if startRound > lastBeacon.Round {
 				return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
 			}
-			if c.IsSet(verboseFlag.Name) {
+			if isVerbose {
 				fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, (lastBeacon.Round - startRound))
 			}
 
 			for round := startRound; round <= lastBeacon.Round; round++ {
-				err := store.Del(round)
+				err := store.Del(ctx, round)
 				if err != nil {
 					return fmt.Errorf("beacon id [%s] - error deleting round %d: %w", beaconID, round, err)
 				}
-				if c.IsSet(verboseFlag.Name) {
+				if isVerbose {
 					fmt.Printf("beacon id [%s] - deleted beacon round %d \n", beaconID, round)
 				}
 			}

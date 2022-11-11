@@ -159,7 +159,8 @@ func TestDrandDKGFresh(t *testing.T) {
 	dt.StartDrand(lastNode.addr, true, false)
 
 	// The catchup process will finish when node gets the previous beacons (1st round)
-	dt.WaitUntilRound(t, lastNode, 1)
+	err := dt.WaitUntilRound(t, lastNode, 1)
+	require.NoError(t, err)
 
 	dt.AdvanceMockClock(t, beaconPeriod)
 
@@ -367,7 +368,8 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	group1 := dt.RunDKG()
 
 	dt.SetMockClock(t, group1.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
 	// move to genesis time - so nodes start to make a round
 	// dt.AdvanceMockClock(t,offsetGenesis)
@@ -465,7 +467,9 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
 	for _, n := range dt.resharedNodes[1:] {
-		resp2, err := client.PublicRand(ctx, n.drand.priv.Public, new(drand.PublicRandRequest))
+		// Make sure we pull the same round from the rest of the nodes as we received from the leader
+		req := &drand.PublicRandRequest{Round: resp.Round}
+		resp2, err := client.PublicRand(ctx, n.drand.priv.Public, req)
 		require.NoError(t, err)
 		require.Equal(t, resp, resp2)
 	}
@@ -491,7 +495,8 @@ func TestRunDKGResharePreempt(t *testing.T) {
 	group1 := dt.RunDKG()
 
 	dt.SetMockClock(t, group1.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
 	// move to genesis time - so nodes start to make a round
 	t.Log("Check Beacon Length")
@@ -648,9 +653,10 @@ func TestDrandPublicRand(t *testing.T) {
 	rootID := root.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
-	err := dt.WaitUntilRound(t, dt.nodes[0], 1)
+	err = dt.WaitUntilRound(t, dt.nodes[0], 1)
 	require.NoError(t, err)
 
 	// do a few periods
@@ -712,7 +718,8 @@ func TestDrandPublicStream(t *testing.T) {
 	rootID := root.drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
 	// do a few periods
 	for i := 0; i < 3; i++ {
@@ -734,6 +741,7 @@ func TestDrandPublicStream(t *testing.T) {
 	t.Log("Getting the last round first with PublicRand method")
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
 	require.NoError(t, err)
+	require.Equal(t, uint64(4), resp.Round)
 
 	//  run streaming and expect responses
 	req := &drand.PublicRandRequest{Round: resp.GetRound()}
@@ -744,8 +752,8 @@ func TestDrandPublicStream(t *testing.T) {
 	t.Log("Waiting to receive the first round as the node should have it now...")
 	select {
 	case beacon := <-respCh:
-		t.Logf("First round rcv %d \n", resp.GetRound())
-		require.Equal(t, beacon.GetRound(), resp.GetRound())
+		t.Logf("First round rcv %d \n", beacon.GetRound())
+		require.Equal(t, resp.GetRound(), beacon.GetRound())
 
 	case <-time.After(100 * time.Millisecond):
 		t.Logf("First round NOT rcv. Timeout has passed \n")
@@ -764,7 +772,7 @@ func TestDrandPublicStream(t *testing.T) {
 
 		select {
 		case beacon := <-respCh:
-			require.Equal(t, beacon.GetRound(), round)
+			require.Equal(t, round, beacon.GetRound())
 		case <-time.After(1 * time.Second):
 			t.Logf("Round %d NOT rcv. Timeout has passed \n", round)
 			require.True(t, false, fmt.Sprintf("too late for streaming, round %d didn't reply in time", round))
@@ -822,7 +830,8 @@ func TestDrandFollowChain(t *testing.T) {
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
 	// do a few periods
 	for i := 0; i < 6; i++ {
@@ -909,9 +918,9 @@ func TestDrandFollowChain(t *testing.T) {
 		// check if the beacon is in the database
 		store, err := newNode.drand.createBoltStore()
 		require.NoError(t, err)
-		defer store.Close()
+		defer store.Close(ctx)
 
-		lastB, err := store.Last()
+		lastB, err := store.Last(ctx)
 		require.NoError(t, err)
 		require.Equal(t, exp, lastB.Round, "found %d vs expected %d", lastB.Round, exp)
 	}
@@ -933,7 +942,8 @@ func TestDrandCheckChain(t *testing.T) {
 	rootID := dt.nodes[0].drand.priv.Public
 
 	dt.SetMockClock(t, group.GenesisTime)
-	dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	err := dt.WaitUntilChainIsServing(t, dt.nodes[0])
+	require.NoError(t, err)
 
 	// do a few periods
 	for i := 0; i < 6; i++ {
@@ -993,14 +1003,14 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
-	beac, err := store.Get(upTo - 1)
+	beac, err := store.Get(ctx, upTo-1)
 	require.NoError(t, err)
 	require.Equal(t, upTo-1, beac.Round, "found %d vs expected %d", beac.Round, upTo-1)
 
 	t.Logf(" \t\t --> Deleting 4th beacon.\n")
-	err = store.Del(upTo - 1)
+	err = store.Del(ctx, upTo-1)
 	require.NoError(t, err)
-	store.Close()
+	store.Close(ctx)
 
 	t.Logf(" \t\t --> Re-Starting node.\n")
 	dt.StartDrand(dt.nodes[0].addr, false, false)

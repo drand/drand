@@ -54,8 +54,8 @@ func (bp *BeaconProcess) PartialBeacon(c context.Context, in *drand.PartialBeaco
 
 // PublicRand returns a public random beacon according to the request. If the Round
 // field is 0, then it returns the last one generated.
-func (bp *BeaconProcess) PublicRand(c context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
-	var addr = net.RemoteAddress(c)
+func (bp *BeaconProcess) PublicRand(ctx context.Context, in *drand.PublicRandRequest) (*drand.PublicRandResponse, error) {
+	var addr = net.RemoteAddress(ctx)
 
 	bp.state.Lock()
 	defer bp.state.Unlock()
@@ -66,10 +66,10 @@ func (bp *BeaconProcess) PublicRand(c context.Context, in *drand.PublicRandReque
 	var beaconResp *chain.Beacon
 	var err error
 	if in.GetRound() == 0 {
-		beaconResp, err = bp.beacon.Store().Last()
+		beaconResp, err = bp.beacon.Store().Last(ctx)
 	} else {
 		// fetch the correct entry or the next one if not found
-		beaconResp, err = bp.beacon.Store().Get(in.GetRound())
+		beaconResp, err = bp.beacon.Store().Get(ctx, in.GetRound())
 	}
 	if err != nil || beaconResp == nil {
 		bp.log.Debugw("", "public_rand", "unstored_beacon", "round", in.GetRound(), "from", addr)
@@ -128,7 +128,7 @@ func (bp *BeaconProcess) PublicRandStream(req *drand.PublicRandRequest, stream d
 }
 
 // Home provides the address the local node is listening
-func (bp *BeaconProcess) Home(c context.Context, in *drand.HomeRequest) (*drand.HomeResponse, error) {
+func (bp *BeaconProcess) Home(c context.Context, _ *drand.HomeRequest) (*drand.HomeResponse, error) {
 	bp.log.With("module", "public").Infow("", "home", net.RemoteAddress(c))
 
 	return &drand.HomeResponse{
@@ -139,7 +139,7 @@ func (bp *BeaconProcess) Home(c context.Context, in *drand.HomeRequest) (*drand.
 }
 
 // ChainInfo replies with the chain information this node participates to
-func (bp *BeaconProcess) ChainInfo(ctx context.Context, in *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
+func (bp *BeaconProcess) ChainInfo(context.Context, *drand.ChainInfoRequest) (*drand.ChainInfoPacket, error) {
 	bp.state.Lock()
 	group := bp.group
 	chainHash := bp.chainHash
@@ -175,7 +175,7 @@ func (bp *BeaconProcess) SignalDKGParticipant(ctx context.Context, p *drand.Sign
 }
 
 // PushDKGInfo triggers sending DKG info to other members
-func (bp *BeaconProcess) PushDKGInfo(ctx context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
+func (bp *BeaconProcess) PushDKGInfo(_ context.Context, in *drand.DKGInfoPacket) (*drand.Empty, error) {
 	bp.state.Lock()
 	defer bp.state.Unlock()
 
@@ -207,7 +207,7 @@ func (bp *BeaconProcess) SyncChain(req *drand.SyncRequest, stream drand.Protocol
 }
 
 // GetIdentity returns the identity of this drand node
-func (bp *BeaconProcess) GetIdentity(ctx context.Context, req *drand.IdentityRequest) (*drand.IdentityResponse, error) {
+func (bp *BeaconProcess) GetIdentity(context.Context, *drand.IdentityRequest) (*drand.IdentityResponse, error) {
 	i := bp.priv.Public.ToProto()
 
 	response := &drand.IdentityResponse{

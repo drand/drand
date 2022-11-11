@@ -98,7 +98,7 @@ func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) 
 
 func (c *chainStore) Stop() {
 	c.syncm.Stop()
-	c.CallbackStore.Close()
+	c.CallbackStore.Close(context.Background())
 	close(c.done)
 }
 
@@ -110,7 +110,7 @@ var partialCacheStoreLimit = 3
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
 func (c *chainStore) runAggregator() {
-	lastBeacon, err := c.Last()
+	lastBeacon, err := c.Last(context.Background())
 	if err != nil {
 		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
 	}
@@ -194,7 +194,7 @@ func (c *chainStore) tryAppend(last, newB *chain.Beacon) bool {
 		return false
 	}
 
-	if err := c.CallbackStore.Put(newB); err != nil {
+	if err := c.CallbackStore.Put(context.Background(), newB); err != nil {
 		// if round is ok but bytes are different, error will be raised
 		c.l.Errorw("", "chain_store", "error storing beacon", "err", err)
 		return false
