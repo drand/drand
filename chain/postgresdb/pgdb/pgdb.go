@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/beacon"
 	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/chain/postgresdb/database"
 	"github.com/drand/drand/log"
@@ -40,7 +39,7 @@ func NewStore(ctx context.Context, l log.Logger, db sqlx.ExtContext, beaconName 
 }
 
 // Close is an noop.
-func (p *Store) Close() error {
+func (p *Store) Close(context.Context) error {
 	return nil
 }
 
@@ -58,7 +57,7 @@ func (p *Store) AddBeacon(ctx context.Context, beaconName string) (int, error) {
 	}{
 		Name: beaconName,
 	}
-	if err := database.NamedExecContext(context.Background(), p.log, p.db, create, data); err != nil {
+	if err := database.NamedExecContext(ctx, p.log, p.db, create, data); err != nil {
 		return 0, err
 	}
 
@@ -81,7 +80,7 @@ func (p *Store) AddBeacon(ctx context.Context, beaconName string) (int, error) {
 }
 
 // Len returns the number of beacons in the configured beacon table.
-func (p *Store) Len() (int, error) {
+func (p *Store) Len(ctx context.Context) (int, error) {
 	const query = `
 	SELECT
 		COUNT(*)
@@ -99,7 +98,7 @@ func (p *Store) Len() (int, error) {
 	var ret struct {
 		Count int `db:"count"`
 	}
-	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &ret); err != nil {
+	if err := database.NamedQueryStruct(ctx, p.log, p.db, query, data, &ret); err != nil {
 		return 0, err
 	}
 
@@ -107,7 +106,7 @@ func (p *Store) Len() (int, error) {
 }
 
 // Put adds the specified beacon to the database.
-func (p *Store) Put(b *chain.Beacon) error {
+func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
 	const query = `
 	INSERT INTO beacon_details
 		(beacon_id, round, signature, previous_sig)
@@ -127,7 +126,7 @@ func (p *Store) Put(b *chain.Beacon) error {
 		},
 	}
 
-	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
+	if err := database.NamedExecContext(ctx, p.log, p.db, query, data); err != nil {
 		return err
 	}
 
@@ -135,7 +134,7 @@ func (p *Store) Put(b *chain.Beacon) error {
 }
 
 // Last returns the last beacon stored in the configured beacon table.
-func (p *Store) Last() (*chain.Beacon, error) {
+func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
 	const query = `
 	SELECT
 		round, signature, previous_sig
@@ -154,7 +153,7 @@ func (p *Store) Last() (*chain.Beacon, error) {
 	}
 
 	var dbBeacons []dbBeacon
-	err := database.NamedQuerySlice(context.Background(), p.log, p.db, query, data, &dbBeacons)
+	err := database.NamedQuerySlice(ctx, p.log, p.db, query, data, &dbBeacons)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +166,7 @@ func (p *Store) Last() (*chain.Beacon, error) {
 }
 
 // Get returns the specified beacon from the configured beacon table.
-func (p *Store) Get(round uint64) (*chain.Beacon, error) {
+func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 	const query = `
 	SELECT
 		round, signature, previous_sig 
@@ -187,15 +186,15 @@ func (p *Store) Get(round uint64) (*chain.Beacon, error) {
 	}
 
 	var dbBeacon dbBeacon
-	if err := database.NamedQueryStruct(context.Background(), p.log, p.db, query, data, &dbBeacon); err != nil {
-		return nil, beacon.ErrNoBeaconStored
+	if err := database.NamedQueryStruct(ctx, p.log, p.db, query, data, &dbBeacon); err != nil {
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 
 	return toChainBeacon(dbBeacon), nil
 }
 
 // Del removes the specified round from the beacon table.
-func (p *Store) Del(round uint64) error {
+func (p *Store) Del(ctx context.Context, round uint64) error {
 	const query = `
 	DELETE
 		beacon_details
@@ -211,7 +210,7 @@ func (p *Store) Del(round uint64) error {
 		Round: round,
 	}
 
-	if err := database.NamedExecContext(context.Background(), p.log, p.db, query, data); err != nil {
+	if err := database.NamedExecContext(ctx, p.log, p.db, query, data); err != nil {
 		return err
 	}
 
@@ -219,17 +218,17 @@ func (p *Store) Del(round uint64) error {
 }
 
 // Cursor returns a cursor for iterating over the beacon table.
-func (p *Store) Cursor(fn func(chain.Cursor) error) error {
+func (p *Store) Cursor(ctx context.Context, fn func(context.Context, chain.Cursor) error) error {
 	c := cursor{
 		store: p,
 		pos:   0,
 	}
 
-	return fn(&c)
+	return fn(ctx, &c)
 }
 
 // SaveTo does something and I am not sure just yet.
-func (p *Store) SaveTo(io.Writer) error {
+func (p *Store) SaveTo(context.Context, io.Writer) error {
 	return fmt.Errorf("saveTo not implemented for Postgres Store")
 }
 
@@ -242,7 +241,7 @@ type cursor struct {
 }
 
 // First returns the first beacon from the configured beacon table.
-func (c *cursor) First() (*chain.Beacon, error) {
+func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 	defer func() {
 		c.pos = 0
 	}()
@@ -269,7 +268,7 @@ func (c *cursor) First() (*chain.Beacon, error) {
 	}
 
 	var dbBeacons []dbBeacon
-	if err := database.NamedQuerySlice(context.Background(), c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
+	if err := database.NamedQuerySlice(ctx, c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +280,7 @@ func (c *cursor) First() (*chain.Beacon, error) {
 }
 
 // Next returns the next beacon from the configured beacon table.
-func (c *cursor) Next() (*chain.Beacon, error) {
+func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 	defer func() {
 		c.pos++
 	}()
@@ -311,7 +310,7 @@ func (c *cursor) Next() (*chain.Beacon, error) {
 	}
 
 	var dbBeacons []dbBeacon
-	if err := database.NamedQuerySlice(context.Background(), c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
+	if err := database.NamedQuerySlice(ctx, c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
 		return nil, err
 	}
 
@@ -323,7 +322,7 @@ func (c *cursor) Next() (*chain.Beacon, error) {
 }
 
 // Seek searches the beacon table for the specified round
-func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
+func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) {
 	const query = `
 	SELECT
 		round, signature, previous_sig
@@ -348,11 +347,11 @@ func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
 	}
 
 	var dbBeacon dbBeacon
-	if err := database.NamedQueryStruct(context.Background(), c.store.log, c.store.db, query, data, &dbBeacon); err != nil {
+	if err := database.NamedQueryStruct(ctx, c.store.log, c.store.db, query, data, &dbBeacon); err != nil {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	if err := c.seekPosition(round); err != nil {
+	if err := c.seekPosition(ctx, round); err != nil {
 		return nil, err
 	}
 
@@ -360,7 +359,7 @@ func (c *cursor) Seek(round uint64) (*chain.Beacon, error) {
 }
 
 // Last returns the last beacon from the configured beacon table.
-func (c *cursor) Last() (*chain.Beacon, error) {
+func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 	const query = `
 	SELECT
 		round, signature, previous_sig
@@ -384,7 +383,7 @@ func (c *cursor) Last() (*chain.Beacon, error) {
 	}
 
 	var dbBeacons []dbBeacon
-	if err := database.NamedQuerySlice(context.Background(), c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
+	if err := database.NamedQuerySlice(ctx, c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
 		return nil, err
 	}
 
@@ -392,7 +391,7 @@ func (c *cursor) Last() (*chain.Beacon, error) {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	if err := c.seekPosition(dbBeacons[0].Round); err != nil {
+	if err := c.seekPosition(ctx, dbBeacons[0].Round); err != nil {
 		return nil, err
 	}
 
@@ -400,7 +399,7 @@ func (c *cursor) Last() (*chain.Beacon, error) {
 }
 
 // seekPosition updates the cursor position in the database for the next operation to work
-func (c *cursor) seekPosition(round uint64) error {
+func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 	const query = `
 	SELECT
 		round_offset
@@ -432,7 +431,7 @@ func (c *cursor) seekPosition(round uint64) error {
 	var p struct {
 		Position uint64 `db:"round_offset"`
 	}
-	if err := database.NamedQueryStruct(context.Background(), c.store.log, c.store.db, query, data, &p); err != nil {
+	if err := database.NamedQueryStruct(ctx, c.store.log, c.store.db, query, data, &p); err != nil {
 		return err
 	}
 
