@@ -31,10 +31,12 @@ var (
 		Name:     "bucket",
 		Usage:    "Name of the AWS bucket to upload to",
 		Required: true,
+		EnvVars:  []string{"DRAND_S3RELAY_BUCKET"},
 	}
 	regionFlag = &cli.StringFlag{
-		Name:  "region",
-		Usage: "Name of the AWS region to use (optional)",
+		Name:    "region",
+		Usage:   "Name of the AWS region to use (optional)",
+		EnvVars: []string{"DRAND_S3RELAY_REGION"},
 	}
 )
 
@@ -47,6 +49,10 @@ func main() {
 		Usage:    "AWS S3 relay for randomness beacon",
 		Commands: []*cli.Command{runCmd, syncCmd},
 	}
+
+	// See https://cli.urfave.org/v2/examples/bash-completions/#enabling for how to turn on.
+	app.EnableBashCompletion = true
+
 	cli.VersionPrinter = func(c *cli.Context) {
 		fmt.Printf("drand AWS S3 relay %s (date %v, commit %v)\n", version, buildDate, gitCommit)
 	}
