@@ -9,13 +9,13 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/test"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
-	l := log.NewLogger(nil, log.LogDebug)
+	l := test.Logger(t)
 	bbstore, err := boltdb.NewBoltStore(l, dir, nil)
 	require.NoError(t, err)
 	cb := NewCallbackStore(bbstore)

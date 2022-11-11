@@ -192,14 +192,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	keyShare := findShare(idx)
 	node.shares = keyShare
 
-	logLevel := log.LogInfo
-	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
-	if isDebug && debugEnv == "DEBUG" {
-		t.Log("Enabling LogDebug logs")
-		logLevel = log.LogDebug
-	}
-
-	l := log.NewLogger(nil, logLevel)
+	l := test.Logger(t)
 	store, err := boltdb.NewBoltStore(l, b.paths[idx], nil)
 	if err != nil {
 		panic(err)

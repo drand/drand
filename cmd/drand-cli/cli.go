@@ -856,7 +856,13 @@ func deleteBeaconCmd(c *cli.Context) error {
 		return err
 	}
 
-	l := log.NewLogger(nil, log.LogDebug)
+	isVerbose := c.IsSet(verboseFlag.Name)
+
+	level := log.LogError
+	if isVerbose {
+		level = log.LogDebug
+	}
+	l := log.NewLogger(nil, level)
 
 	ctx := c.Context
 
@@ -880,7 +886,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 			if startRound > lastBeacon.Round {
 				return fmt.Errorf("beacon id [%s] - given round is ahead of the chain: %d", beaconID, lastBeacon.Round)
 			}
-			if c.IsSet(verboseFlag.Name) {
+			if isVerbose {
 				fmt.Printf("beacon id [%s] -  planning to delete %d beacons \n", beaconID, (lastBeacon.Round - startRound))
 			}
 
@@ -889,7 +895,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 				if err != nil {
 					return fmt.Errorf("beacon id [%s] - error deleting round %d: %w", beaconID, round, err)
 				}
-				if c.IsSet(verboseFlag.Name) {
+				if isVerbose {
 					fmt.Printf("beacon id [%s] - deleted beacon round %d \n", beaconID, round)
 				}
 			}

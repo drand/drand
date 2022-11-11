@@ -9,13 +9,13 @@ import (
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/test"
 )
 
 func TestStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
 	ctx := context.Background()
-	l := log.NewLogger(nil, log.LogDebug)
+	l := test.Logger(t)
 	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
 
@@ -52,7 +52,7 @@ func TestStoreBoltOrder(t *testing.T) {
 func TestStoreBolt(t *testing.T) {
 	tmp := t.TempDir()
 	ctx := context.Background()
-	l := log.NewLogger(nil, log.LogDebug)
+	l := test.Logger(t)
 
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}

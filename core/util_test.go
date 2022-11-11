@@ -22,7 +22,6 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -134,13 +133,6 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		}
 	}
 
-	logLevel := log.LogInfo
-	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
-	if isDebug && debugEnv == "DEBUG" {
-		t.Log("Enabling LogDebug logs")
-		logLevel = log.LogDebug
-	}
-
 	for i := 0; i < n; i++ {
 		s := test.NewKeyStore()
 
@@ -159,7 +151,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 
 		confOptions = append(confOptions,
 			WithControlPort(ports[i]),
-			WithLogLevel(logLevel, false))
+			WithLogLevel(test.LogLevel(t), false))
 		// add options in last so it overwrites the default
 		confOptions = append(confOptions, opts...)
 

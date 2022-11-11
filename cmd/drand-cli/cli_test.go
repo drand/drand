@@ -27,7 +27,6 @@ import (
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share"
@@ -84,7 +83,7 @@ func TestDeleteBeaconError(t *testing.T) {
 
 func TestDeleteBeacon(t *testing.T) {
 	beaconID := test.GetBeaconIDFromEnv()
-	l := log.NewLogger(nil, log.LogDebug)
+	l := test.Logger(t)
 	ctx := context.Background()
 	tmp := path.Join(t.TempDir(), "drand")
 

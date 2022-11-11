@@ -3,7 +3,6 @@ package beacon
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,7 +10,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common/scheme"
-	"github.com/drand/drand/log"
+	"github.com/drand/drand/test"
 )
 
 func TestSchemeStore(t *testing.T) {
@@ -20,14 +19,7 @@ func TestSchemeStore(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
 
-	logLevel := log.LogInfo
-	debugEnv, isDebug := os.LookupEnv("DRAND_TEST_LOGS")
-	if isDebug && debugEnv == "DEBUG" {
-		t.Log("Enabling LogDebug logs")
-		logLevel = log.LogDebug
-	}
-
-	l := log.NewLogger(nil, logLevel)
+	l := test.Logger(t)
 	bstore, err := boltdb.NewBoltStore(l, dir, nil)
 	require.NoError(t, err)
 
