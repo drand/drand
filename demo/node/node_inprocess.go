@@ -47,7 +47,7 @@ type LocalNode struct {
 	daemon *core.DrandDaemon
 }
 
-func NewLocalNode(i int, bindAddr string, cfg cfg.Config) Node {
+func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	nbase := path.Join(cfg.BasePath, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -87,7 +87,14 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) Node {
 	return l
 }
 
-func (l *LocalNode) Start(certFolder string) error {
+func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error {
+	if dbEngineType != "" {
+		l.dbEngineType = dbEngineType
+	}
+	if pgDSN != nil {
+		l.pgDSN = pgDSN
+	}
+
 	certs, err := fs.Files(certFolder)
 	if err != nil {
 		return err

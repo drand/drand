@@ -55,10 +55,10 @@ type NodeProc struct {
 	beaconID    string
 
 	dbEngineType chain.StorageType
-	pgDSN        func() string
+	pgDSN        string
 }
 
-func NewNode(i int, cfg cfg.Config) Node {
+func NewNode(i int, cfg cfg.Config) *NodeProc {
 	nbase := path.Join(cfg.BasePath, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
@@ -78,7 +78,7 @@ func NewNode(i int, cfg cfg.Config) Node {
 		beaconID:     cfg.BeaconID,
 		isCandidate:  cfg.IsCandidate,
 		dbEngineType: cfg.DBEngineType,
-		pgDSN:        cfg.PgDSN,
+		pgDSN:        cfg.PgDSN(),
 	}
 	n.setup()
 	return n
@@ -140,13 +140,20 @@ func (n *NodeProc) setup() {
 	checkErr(err)
 }
 
-func (n *NodeProc) Start(certFolder string) error {
+func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error {
+	if dbEngineType != "" {
+		n.dbEngineType = dbEngineType
+	}
+	if pgDSN != nil {
+		n.pgDSN = pgDSN()
+	}
+
 	// create log file
 	// logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	checkErr(err)
-	logFile.Write([]byte("\n\nNEW LOG\n\n"))
+	_, _ = logFile.Write([]byte("\n\nNEW LOG\n\n"))
 
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
@@ -163,7 +170,7 @@ func (n *NodeProc) Start(certFolder string) error {
 		args = append(args, "--tls-disable")
 	}
 	args = append(args, pair("--db", string(n.dbEngineType))...)
-	args = append(args, pair("--pg-dsn", n.pgDSN())...)
+	args = append(args, pair("--pg-dsn", n.pgDSN)...)
 	args = append(args, "--verbose")
 
 	fmt.Printf("starting node %s with cmd: %s \n", n.privAddr, args)
@@ -178,9 +185,10 @@ func (n *NodeProc) Start(certFolder string) error {
 	cmd.Stderr = logFile
 
 	go func() {
-		defer logFile.Close()
-		// TODO make the "stop" command returns a graceful error code when
-		// stopped
+		defer func() {
+			_ = logFile.Close()
+		}()
+		// TODO make the "stop" command returns a graceful error code when stopped
 		cmd.Run()
 	}()
 	return nil
@@ -305,7 +313,11 @@ func (n *NodeProc) ChainInfo(group string) bool {
 func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	out, err := cmd.CombinedOutput()
-	fmt.Printf(" -- ping output : %s - err %s\n", out, err)
+	if err != nil {
+		fmt.Printf(" -- ping output : %s - err %s\n", out, err)
+	} else {
+		fmt.Printf(" -- ping output : %s\n", out)
+	}
 	return err == nil
 }
 
@@ -343,16 +355,10 @@ func (n *NodeProc) Stop() {
 		n.cancel()
 	}
 	stopCmd := exec.Command(n.binary, "stop", "--control", n.ctrl)
-	err := stopCmd.Run()
-	if err != nil {
-		panic(err)
-	}
+	stopCmd.Run()
 	if n.startCmd != nil {
 		killPid := exec.Command("kill", "-9", strconv.Itoa(n.startCmd.Process.Pid))
-		err := killPid.Run()
-		if err != nil {
-			panic(err)
-		}
+		killPid.Run()
 	}
 	for i := 0; i < 3; i++ {
 		if n.Ping() {

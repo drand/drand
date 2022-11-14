@@ -60,6 +60,5 @@ func computeDBName(t *testing.T) string {
 
 	suffix := strings.Replace(time.Now().Format("02150405.000"), ".", "", -1)
 	dbName := fmt.Sprintf("%s_%s", t.Name(), suffix)
-	return dbName
-	// return strings.ToLower(dbName)
+	return strings.ToLower(dbName)
 }

@@ -1044,11 +1044,6 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
 
-	if c.IsSet(pgDSNFlag.Name) {
-		pgdsn := c.String(pgDSNFlag.Name)
-		opts = append(opts, core.WithPgDSN(pgdsn))
-	}
-
 	switch chain.StorageType(c.String(storageTypeFlag.Name)) {
 	case chain.BoltDB:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
@@ -1056,6 +1051,11 @@ func contextToConfig(c *cli.Context) *core.Config {
 		opts = append(opts, core.WithDBStorageEngine(chain.PostgresSQL))
 	default:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+	}
+
+	if c.IsSet(pgDSNFlag.Name) {
+		pgdsn := c.String(pgDSNFlag.Name)
+		opts = append(opts, core.WithPgDSN(pgdsn))
 	}
 
 	conf := core.NewConfig(opts...)

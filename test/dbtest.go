@@ -18,12 +18,6 @@ import (
 	"github.com/drand/drand/log"
 )
 
-// Success and failure markers.
-const (
-	Success = "\u2713"
-	Failed  = "\u2717"
-)
-
 // StartDB starts a database instance.
 func StartDB() (*Container, error) {
 	image := "postgres:15.0-alpine3.16"

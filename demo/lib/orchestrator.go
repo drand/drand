@@ -2,6 +2,7 @@ package lib
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -67,7 +68,7 @@ type Orchestrator struct {
 func NewOrchestrator(c cfg.Config) *Orchestrator {
 	c.BasePath = path.Join(os.TempDir(), "drand-full")
 	// cleanup the basePath before doing anything
-	os.RemoveAll(c.BasePath)
+	_ = os.RemoveAll(c.BasePath)
 
 	fmt.Printf("[+] Simulation global folder: %s\n", c.BasePath)
 	checkErr(os.MkdirAll(c.BasePath, 0o740))
@@ -115,28 +116,35 @@ func (e *Orchestrator) startNodes(nodes []node.Node) {
 	fmt.Printf("[+] Starting all nodes\n")
 	for _, n := range nodes {
 		fmt.Printf("\t- Starting node %s\n", n.PrivateAddr())
-		err := n.Start(e.certFolder)
-		if err != nil {
-			panic(err)
-		}
+		n.Start(e.certFolder, e.dbEngineType, e.pgDSN)
 	}
 
-	time.Sleep(2 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
 
 	// ping them all
 	for {
-		var foundAll = true
-		for _, n := range nodes {
-			if !n.Ping() {
-				foundAll = false
+		select {
+		case <-ticker.C:
+			var foundAll = true
+			for _, n := range nodes {
+				if !n.Ping() {
+					foundAll = false
+					break
+				}
+			}
+
+			if !foundAll {
+				fmt.Println("[-] can not ping them all. Sleeping 2s...")
 				break
 			}
-		}
-		if !foundAll {
-			fmt.Println("[-] can not ping them all. Sleeping 2s...")
-			time.Sleep(2 * time.Second)
-		} else {
-			break
+			return
+		case <-ctx.Done():
+			fmt.Println("[-] can not ping all nodes in 30 seconds. Shutting down.")
+			panic("failed to ping nodes in 30 seconds")
 		}
 	}
 }
@@ -326,8 +334,10 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 		if e.tls {
 			tmp, _ := os.CreateTemp("", "cert")
 			tmpName := tmp.Name() // Extract the name into a separate variable and then use it in the defer call
-			defer os.Remove(tmpName)
-			tmp.Close()
+			defer func() {
+				_ = os.Remove(tmpName)
+			}()
+			_ = tmp.Close()
 			n.WriteCertificate(tmpName)
 			args = append(args, pair("--cacert", tmpName)...)
 			http = http + "s"
@@ -380,7 +390,7 @@ func (e *Orchestrator) checkBeaconNodes(nodes []node.Node, group string, tryCurl
 
 func (e *Orchestrator) SetupNewNodes(n int) {
 	fmt.Printf("[+] Setting up %d new nodes for resharing\n", n)
-	cfg := cfg.Config{
+	c := cfg.Config{
 		N:            n,
 		Offset:       len(e.nodes) + 1,
 		Period:       e.period,
@@ -395,7 +405,7 @@ func (e *Orchestrator) SetupNewNodes(n int) {
 		PgDSN:        e.pgDSN,
 	}
 	//  offset int, period, basePath, certFolder string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool
-	e.newNodes, e.newPaths = createNodes(cfg)
+	e.newNodes, e.newPaths = createNodes(c)
 }
 
 // UpdateBinary will set the 'binary' to use for the node at 'idx'
@@ -406,7 +416,7 @@ func (e *Orchestrator) UpdateBinary(binary string, idx uint, isCandidate bool) {
 	}
 }
 
-// UpdateBinary will set the 'bianry' to use on the orchestrator as a whole
+// UpdateGlobalBinary will set the 'bianry' to use on the orchestrator as a whole
 func (e *Orchestrator) UpdateGlobalBinary(binary string, isCandidate bool) {
 	e.binary = binary
 	e.isBinaryCandidate = isCandidate
@@ -579,12 +589,8 @@ func (e *Orchestrator) StartNode(idxs ...int) {
 		}
 
 		fmt.Printf("[+] Attempting to start node %s again ...\n", foundNode.PrivateAddr())
-
-		err := foundNode.Start(e.certFolder)
-		if err != nil {
-			panic(err)
-		}
-
+		// Here we send the nil values to the start method to allow the node to reconnect to the same database
+		foundNode.Start(e.certFolder, "", nil)
 		var started bool
 		for trial := 1; trial < 10; trial += 1 {
 			if foundNode.Ping() {
@@ -609,6 +615,7 @@ func (e *Orchestrator) PrintLogs() {
 		n.PrintLog()
 	}
 }
+
 func (e *Orchestrator) Shutdown() {
 	fmt.Println("[+] Shutdown all nodes")
 	for _, no := range e.nodes {
@@ -644,12 +651,13 @@ func runCommand(c *exec.Cmd, add ...string) []byte {
 }
 
 func checkErr(err error, out ...string) {
-	if err != nil {
-		if len(out) > 0 {
-			panic(fmt.Errorf("%s: %v", out[0], err))
-		} else {
-			panic(err)
-		}
+	if err == nil {
+		return
+	}
+	if len(out) > 0 {
+		panic(fmt.Errorf("%s: %v", out[0], err))
+	} else {
+		panic(err)
 	}
 }
 

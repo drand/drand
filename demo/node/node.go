@@ -3,12 +3,13 @@ package node
 import (
 	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 )
 
 type Node interface {
-	Start(certFolder string) error
+	Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error
 	PrivateAddr() string
 	CtrlAddr() string
 	PublicAddr() string
