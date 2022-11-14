@@ -189,11 +189,12 @@ func runCommand(c *exec.Cmd, add ...string) []byte {
 }
 
 func checkErr(err error, out ...string) {
-	if err != nil {
-		if len(out) > 0 {
-			panic(fmt.Errorf("%s: %v", out[0], err))
-		} else {
-			panic(err)
-		}
+	if err == nil {
+		return
 	}
+	if len(out) > 0 {
+		panic(fmt.Errorf("%s: %v", out[0], err))
+	}
+
+	panic(err)
 }

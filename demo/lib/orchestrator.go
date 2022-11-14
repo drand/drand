@@ -656,9 +656,9 @@ func checkErr(err error, out ...string) {
 	}
 	if len(out) > 0 {
 		panic(fmt.Errorf("%s: %v", out[0], err))
-	} else {
-		panic(err)
 	}
+
+	panic(err)
 }
 
 func pair(k, v string) []string {
