@@ -16,9 +16,11 @@ install_lint:
 lint:
 	golangci-lint --version
 	golangci-lint run --timeout 5m
+	golangci-lint run --build-tags integration --timeout 5m
 
 lint-todo:
 	golangci-lint run -E stylecheck -E gosec -E goconst -E godox -E gocritic
+	golangci-lint run --build-tags integration -E stylecheck -E gosec -E goconst -E godox -E gocritic
 
 fmt:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
@@ -46,18 +48,28 @@ test-unit:
 
 test-unit-cover:
 	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	GO111MODULE=on go test -short -tags integration -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
 	go test -v ./demo
+	go test -race -short -tags integration -v ./...
 	cd demo && go build && ./demo -build -test -debug
+
+test-integration-postgres:
+	go test -v ./demo
+	go test -race -short -tags integration -v ./...
+	cd demo && go build && ./demo -db=postgres -build -test -debug
 
 coverage:
 	go get -v -t -d ./...
-	go test -race -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -race -v -tags=integration -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 demo:
 	cd demo && go build && ./demo -build
 	#cd demo && sudo ./run.sh
+
+demo-postgres:
+	cd demo && go build && ./demo -db=postgres -build
 
 ############################################ Build ############################################
 

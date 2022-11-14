@@ -35,7 +35,6 @@ var tls = flag.Bool("tls", true, "Run the nodes with self signed certs.")
 var noCurl = flag.Bool("nocurl", false, "Skip commands using curl.")
 var debug = flag.Bool("debug", false, "Prints the log when panic occurs.")
 var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
-var pgDSN = flag.String("pg-dsn", "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema", "PostgresSQL DSN configuration.")
 
 func main() {
 	flag.Parse()
@@ -45,6 +44,12 @@ func main() {
 	if *testF {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
+
+	if chain.StorageType(*dbEngineType) == chain.PostgresSQL {
+		stopContainer := cfg.BootContainer()
+		defer stopContainer()
+	}
+
 	nRound, n := 2, 6
 	thr, newThr := 4, 5
 	period := "10s"
@@ -61,9 +66,7 @@ func main() {
 		BeaconID:     beaconID,
 		IsCandidate:  true,
 		DBEngineType: chain.StorageType(*dbEngineType),
-		PgDSN: func() string {
-			return *pgDSN
-		},
+		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
 	}
 	orch := lib.NewOrchestrator(c)
 	// NOTE: this line should be before "StartNewNodes". The reason it is here

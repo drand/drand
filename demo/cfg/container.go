@@ -1,4 +1,4 @@
-package main
+package cfg
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 // To be used when dbEngineType is postgres.
 var c *test.Container
 
-func bootContainer() func() {
+func BootContainer() func() {
 	var err error
 	c, err = test.StartDB()
 	if err != nil {
@@ -28,12 +28,12 @@ func bootContainer() func() {
 
 const defaultPgDSN = "postgres://postgres:postgres@%s/%s?sslmode=disable&timeout=5&connect_timeout=5"
 
-func computePgDSN() func() string {
+func ComputePgDSN(dbEngineType chain.StorageType) func() string {
 	return func() string {
 		dsn := defaultPgDSN
 		dbName := computeDBName()
 
-		if chain.StorageType(*dbEngineType) != chain.PostgresSQL {
+		if dbEngineType != chain.PostgresSQL {
 			return ""
 		}
 

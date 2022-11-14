@@ -91,7 +91,7 @@ func main() {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	if chain.StorageType(*dbEngineType) == chain.PostgresSQL {
-		stopContainer := bootContainer()
+		stopContainer := cfg.BootContainer()
 		defer stopContainer()
 	}
 
@@ -106,7 +106,7 @@ func main() {
 		BeaconID:     beaconID,
 		IsCandidate:  false,
 		DBEngineType: chain.StorageType(*dbEngineType),
-		PgDSN:        computePgDSN(),
+		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
 	}
 	orch := lib.NewOrchestrator(c)
 	orch.UpdateBinary(*candidate, 2, true)
@@ -141,7 +141,7 @@ func main() {
 			BeaconID:     beaconID,
 			IsCandidate:  false,
 			DBEngineType: chain.StorageType(*dbEngineType),
-			PgDSN:        computePgDSN(),
+			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
 		}
 		orch = lib.NewOrchestrator(c)
 
@@ -171,7 +171,7 @@ func main() {
 			BeaconID:     beaconID,
 			IsCandidate:  false,
 			DBEngineType: chain.StorageType(*dbEngineType),
-			PgDSN:        computePgDSN(),
+			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
 		}
 		orch = lib.NewOrchestrator(c)
 
