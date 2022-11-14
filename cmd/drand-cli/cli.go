@@ -23,7 +23,6 @@ import (
 	"github.com/urfave/cli/v2"
 
 	"github.com/drand/drand/chain"
-
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"

@@ -169,7 +169,6 @@ func NewBeaconTest(t *testing.T, n, thr int, period time.Duration, genesisTime i
 }
 
 func (b *BeaconTest) CreateNode(t *testing.T, i int) {
-	l := test.Logger(t)
 	findShare := func(target int) *key.Share {
 		for _, s := range b.shares {
 			if s.Share.I == target {
@@ -193,6 +192,7 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	keyShare := findShare(idx)
 	node.shares = keyShare
 
+	l := test.Logger(t)
 	store, err := boltdb.NewBoltStore(l, b.paths[idx], nil)
 	if err != nil {
 		panic(err)
