@@ -7,7 +7,7 @@
   <a href="https://codecov.io/gh/drand/drand" title="Coverage"><img src="https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg" /></a>
   <a href="https://goreportcard.com/report/github.com/drand/drand" title="Go Report Card"><img src="https://goreportcard.com/badge/github.com/drand/drand" /></a>
   <a href="https://pkg.go.dev/github.com/drand/drand" title="go.dev reference"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" /></a>
-  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/golang-%3E%3D1.17-orange.svg" /></a>
+  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/golang-%3E%3D1.19-orange.svg" /></a>
 </p>
 
 <p align="center">
@@ -263,7 +263,7 @@ drand:
   [paper](http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.2968&rep=rep1&type=pdf)
   from  Y. Desmedt and S. Jajodia.
 
-Note that drand was originally a [DEDIS](https://dedis.ch)-owned project that
+Note that drand was originally a [DEDIS](https://dedis.epfl.ch/)-owned project that
 is now spinning off on its own Github organization. For related previous work
 on public randomness, see DEDIS's academic paper [Scalable Bias-Resistant
 Distributed Randomness](https://eprint.iacr.org/2016/1067.pdf).
@@ -285,6 +285,10 @@ following:
 
 Feel free to submit feature requests or, even better, pull requests ;)
 
+## Development
+
+If you want to contribute to Drand, head over to our [Development documentation](DEVELOPMENT.md). 
+
 ## Acknowledgments
 
 Thanks to [@herumi](https://github.com/herumi) for providing support on his
@@ -298,7 +302,7 @@ Thanks to [@Bren2010](https://github.com/Bren2010) and
 Golang bn256 implementation and for their help in the design of drand and
 future ideas.
 
-Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.ch)
+Finally, a special note for Bryan Ford from the [DEDIS lab](https://dedis.epfl.ch/)
 for letting me work on this project and helping me grow it.
 
 ## Coverage

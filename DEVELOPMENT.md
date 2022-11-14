@@ -30,6 +30,38 @@ After editing all files required by your change:
 - Check that all code still compiles using `make build_all`.
 - Test operations still work using the `test/local.sh` script. You can terminate it using the CTRL+C/SIGINT and will clean all spawned processes.
 
+You can also run regression testing, see [the section below](#regression-testing).
+
 ### Testing with Docker Compose
 
 To test changes using Docker Compose, navigate to [Docker Readme](test/docker/README.md) and follow the steps described there.
+
+#### Testing with PostgresSQL as database backend
+
+Drand supports PostgresSQL as a database backend for storing beacons.
+
+To check your code against it, run `make test-unit-postgres`.
+
+You can also run the `make demo-postgres` command to launch the scripted demo using
+PostgresSQL as a backend.
+
+## Regression testing
+
+To make sure new changes can integrate without issues with the existing deployments,
+you can run regression testing.
+
+To do so, run the following commands:
+```shell
+git checkout master
+go build -o drand-existing
+git checkout <your-branch>
+go build -o drand-candidate
+go run ./demo/regression -release ./drand-existing -candidate ./drand-candidate
+```
+
+If you want to test your code against the PostgresSQL backend, replace the
+`go run` command above with:
+
+```shell
+go run ./demo/regression -db=postgres -release ./drand-existing -candidate ./drand-candidate
+```

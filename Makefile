@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-integration demo deploy-local linter install build client drand relay-http relay-gossip relay-s3
+.PHONY: test test-unit test-unit-postgres test-integration test-integration-postgres demo demo-postgres deploy-local linter install build client drand relay-http relay-gossip relay-s3 install_deps_linux install_deps_darwin install_deps_darwin-m
 
 VER_PACKAGE=github.com/drand/drand/common
 CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
@@ -46,13 +46,15 @@ test: test-unit test-integration
 test-unit:
 	GO111MODULE=on go test -race -short -v ./...
 
+test-unit-postgres:
+	GO111MODULE=on go test -race -tags=postgres -short -v ./...
+
 test-unit-cover:
 	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 	GO111MODULE=on go test -short -tags integration -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
 	go test -v ./demo
-	go test -race -short -tags integration -v ./...
 	cd demo && go build && ./demo -build -test -debug
 
 test-integration-postgres:
