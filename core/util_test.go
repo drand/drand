@@ -87,8 +87,6 @@ type DrandTestScenario struct {
 // to delete at the end of the test. As well, it returns a public grpc
 // client that can reach any drand node.
 // Deprecated: do not use
-//
-//nolint:funlen // This is a test function.
 func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beaconID string, opts ...ConfigOption) (
 	daemons []*DrandDaemon, drands []*BeaconProcess, group *key.Group, dir string, certPaths []string,
 ) {

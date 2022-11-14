@@ -322,16 +322,12 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
 
 	default:
-		//nolint:gocritic // We do want to keep this commented, for now.
-		/*bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
+		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
 
-		dbPath := bp.opts.DBFolder(dbName)
+		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
 
-		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)*/
-		err := fmt.Errorf("unknown database storage engine type")
-		panic(err)
-		return nil, err // This is useful for tests. To be replaced when done
+		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 	}
 }
 
