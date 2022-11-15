@@ -76,20 +76,21 @@ func TestStoreBolt(t *testing.T) {
 		Signature:   sig1,
 	}
 
+	// the len calls no longer return the real DB length, but one assumed from the given round
 	require.NoError(t, store.Put(ctx, b1))
 	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, sLen)
+	require.Equal(t, 146, sLen)
 
 	require.NoError(t, store.Put(ctx, b1))
 	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, sLen)
+	require.Equal(t, 146, sLen)
 
 	require.NoError(t, store.Put(ctx, b2))
 	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 2, sLen)
+	require.Equal(t, 147, sLen)
 
 	received, err := store.Last(ctx)
 	require.NoError(t, err)
@@ -148,4 +149,31 @@ func TestStoreBolt(t *testing.T) {
 
 	_, err = store.Get(ctx, 10000)
 	require.Equal(t, chainerrors.ErrNoBeaconStored, err)
+}
+
+func TestEmptyStoreReturnsLenZero(t *testing.T) {
+	store, err := NewBoltStore(test.Logger(t), t.TempDir(), nil)
+	require.NoError(t, err)
+
+	result, err := store.Len(context.Background())
+
+	require.NoError(t, err)
+	require.Equal(t, 0, result)
+}
+
+func TestNonEmptyStoreLenReturnsRoundPlusOne(t *testing.T) {
+	ctx := context.Background()
+	store, err := NewBoltStore(test.Logger(t), t.TempDir(), nil)
+	require.NoError(t, err)
+
+	var round uint64 = 1
+	beacon := &chain.Beacon{
+		Round: round,
+	}
+	err = store.Put(ctx, beacon)
+	require.NoError(t, err)
+
+	result, err := store.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int(round+1), result)
 }

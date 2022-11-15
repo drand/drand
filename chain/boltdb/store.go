@@ -2,7 +2,10 @@ package boltdb
 
 import (
 	"context"
+	goErrors "errors"
 	"io"
+	"math"
+	"math/bits"
 	"path"
 	"sync"
 
@@ -52,19 +55,27 @@ func NewBoltStore(l log.Logger, folder string, opts *bolt.Options) (*BoltStore, 
 	}, err
 }
 
-// Len performs a big scan over the bucket and is _very_ slow - use sparingly!
-func (b *BoltStore) Len(context.Context) (int, error) {
-	var length = 0
-	err := b.db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket(beaconBucket)
-		// this `.Stats()` call is the particularly expensive one!
-		length = bucket.Stats().KeyN
-		return nil
-	})
+// Len uses the heuristic of finding the current round and adding one to guess the length of the store.
+// This was due to limitations in bolt store which make the len call in stats being veeeeery slow
+func (b *BoltStore) Len(c context.Context) (int, error) {
+	lastBeacon, err := b.Last(c)
+
 	if err != nil {
-		b.log.Warnw("", "boltdb", "error getting length", "err", err)
+		if goErrors.Is(err, errors.ErrNoBeaconStored) {
+			return 0, nil
+		}
+		return 0, err
 	}
-	return length, err
+
+	if lastBeacon == nil {
+		return 0, nil
+	}
+
+	if bits.UintSize == 32 && lastBeacon.Round > math.MaxInt32 {
+		return 0, goErrors.New("integer overflow while calculating DB len")
+	}
+
+	return int(lastBeacon.Round + 1), nil
 }
 
 func (b *BoltStore) Close(context.Context) error {
