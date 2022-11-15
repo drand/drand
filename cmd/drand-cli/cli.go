@@ -337,6 +337,22 @@ var allBeaconsFlag = &cli.BoolFlag{
 	EnvVars: []string{"DRAND_ALL"},
 }
 
+var storageTypeFlag = &cli.StringFlag{
+	Name:    "db",
+	Usage:   "Which database engine to use. Supported values: bolt",
+	Value:   "bolt",
+	EnvVars: []string{"DRAND_DB"},
+	Hidden:  true,
+}
+
+var pgDSNFlag = &cli.StringFlag{
+	Name:    "pg-dsn",
+	Usage:   "PostgresSQL DSN configuration.",
+	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema",
+	EnvVars: []string{"DRAND_PG_DSN"},
+	Hidden:  true,
+}
+
 var appCommands = []*cli.Command{
 	{
 		Name:  "start",
@@ -344,7 +360,8 @@ var appCommands = []*cli.Command{
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
 			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
-			skipValidationFlag, jsonFlag),
+			skipValidationFlag, jsonFlag,
+			storageTypeFlag, pgDSNFlag),
 		Action: func(c *cli.Context) error {
 			banner()
 			return startCmd(c)
