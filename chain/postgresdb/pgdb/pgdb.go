@@ -196,7 +196,7 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 // Del removes the specified round from the beacon table.
 func (p *Store) Del(ctx context.Context, round uint64) error {
 	const query = `
-	DELETE
+	DELETE FROM
 		beacon_details
 	WHERE
 		beacon_id = :id AND
