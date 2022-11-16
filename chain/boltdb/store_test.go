@@ -193,7 +193,6 @@ func TestStore_Cursor(t *testing.T) {
 	}
 
 	err = dbStore.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
-
 		b, err := c.Last(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, b)
