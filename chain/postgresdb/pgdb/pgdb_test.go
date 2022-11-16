@@ -72,6 +72,75 @@ func Test_OrderStorePG(t *testing.T) {
 	require.Equal(t, b2, eb2)
 }
 
+func TestStore_Cursor(t *testing.T) {
+	ctx := context.Background()
+	l, db, teardown := test.NewUnit(t, c, t.Name())
+	defer t.Cleanup(teardown)
+
+	beaconName := t.Name()
+	dbStore, err := pgdb.NewStore(context.Background(), l, db, beaconName)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, dbStore.Close(ctx))
+	}()
+
+	sigs := map[int][]byte{
+		0: {0x01, 0x02, 0x03},
+		1: {0x02, 0x03, 0x04},
+		2: {0x03, 0x04, 0x05},
+		3: {0x04, 0x05, 0x06},
+		4: {0x05, 0x06, 0x07},
+		5: {0x06, 0x07, 0x08},
+	}
+
+	beacons := make(map[int]*chain.Beacon, len(sigs)-1)
+
+	for i := 1; i < len(sigs); i++ {
+		b := &chain.Beacon{
+			PreviousSig: sigs[i-1],
+			Round:       uint64(i),
+			Signature:   sigs[i],
+		}
+
+		beacons[i] = b
+
+		require.NoError(t, dbStore.Put(ctx, b))
+	}
+
+	t.Log("generated beacons:")
+	for i, beacon := range beacons {
+		t.Logf("beacons[%d]: %#v\n", i, *beacon)
+	}
+
+	err = dbStore.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+
+		b, err := c.Last(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, b)
+		require.Equal(t, beacons[len(beacons)], b)
+
+		for key, orig := range beacons {
+			t.Logf("seeking beacon %d\n", key)
+
+			b, err := c.Seek(ctx, uint64(key))
+			require.NoError(t, err)
+			require.NotNil(t, b)
+			require.Equal(t, orig, b)
+
+			n, err := c.Next(ctx)
+			if key == len(beacons) {
+				require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, beacons[key+1], n)
+			}
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func Test_StorePG(t *testing.T) {
 	ctx := context.Background()
 	l, db, teardown := test.NewUnit(t, c, t.Name())
