@@ -38,6 +38,7 @@ func NewGRPCListenerForPrivate(
 	ctx context.Context,
 	bindingAddr, certPath, keyPath string,
 	s Service,
+	d DKGService,
 	insecure bool,
 	opts ...grpc.ServerOption) (Listener, error) {
 	lis, err := net.Listen("tcp", bindingAddr)
@@ -62,6 +63,7 @@ func NewGRPCListenerForPrivate(
 
 	drand.RegisterPublicServer(grpcServer, s)
 	drand.RegisterProtocolServer(grpcServer, s)
+	drand.RegisterDKGServer(grpcServer, d)
 
 	var g Listener
 	if insecure {

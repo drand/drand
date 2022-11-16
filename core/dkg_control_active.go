@@ -6,7 +6,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-type NetworkResponse[Payload any] struct {
+type NetworkRequest[Payload any] struct {
 	to      *drand.Participant
 	payload Payload
 }
@@ -32,9 +32,11 @@ func (p FirstProposalSteps) Apply(terms *drand.ProposalTerms, currentState *DKGD
 	return currentState.Proposing(p.me, terms)
 }
 
-func (p FirstProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDetails) ([]*NetworkResponse[*drand.Proposal], error) {
+func (p FirstProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGDetails) ([]*NetworkRequest[*drand.Proposal], error) {
 	proposal := &drand.Proposal{
+		BeaconID:  terms.BeaconID,
 		Leader:    terms.Leader,
+		Epoch:     terms.Epoch,
 		Threshold: terms.Threshold,
 		Timeout:   terms.Timeout,
 		Joining:   terms.Joining,
@@ -43,13 +45,13 @@ func (p FirstProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDe
 		Signature: nil,
 	}
 
-	var requests []*NetworkResponse[*drand.Proposal]
+	var requests []*NetworkRequest[*drand.Proposal]
 
 	for _, joiner := range details.Joining {
 		if joiner.Address == p.me.Address {
 			continue
 		}
-		requests = append(requests, &NetworkResponse[*drand.Proposal]{
+		requests = append(requests, &NetworkRequest[*drand.Proposal]{
 			to:      joiner,
 			payload: proposal,
 		})
@@ -57,7 +59,7 @@ func (p FirstProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDe
 	return requests, nil
 }
 
-func (p FirstProposalSteps) ForwardResponse(client drand.DKGClient, networkCall *NetworkResponse[*drand.Proposal]) error {
+func (p FirstProposalSteps) ForwardRequest(client drand.DKGClient, networkCall *NetworkRequest[*drand.Proposal]) error {
 	response, err := client.Propose(context.Background(), networkCall.payload)
 	if err != nil {
 		return err
@@ -93,9 +95,11 @@ func (p ProposalSteps) Apply(terms *drand.ProposalTerms, currentState *DKGDetail
 	return currentState.Proposing(p.me, terms)
 }
 
-func (p ProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDetails) ([]*NetworkResponse[*drand.Proposal], error) {
+func (p ProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGDetails) ([]*NetworkRequest[*drand.Proposal], error) {
 	proposal := &drand.Proposal{
+		BeaconID:  terms.BeaconID,
 		Leader:    terms.Leader,
+		Epoch:     terms.Epoch,
 		Threshold: terms.Threshold,
 		Timeout:   terms.Timeout,
 		Joining:   terms.Joining,
@@ -104,11 +108,11 @@ func (p ProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDetails
 		Signature: nil,
 	}
 
-	var requests []*NetworkResponse[*drand.Proposal]
+	var requests []*NetworkRequest[*drand.Proposal]
 
 	for _, joiner := range details.Joining {
 
-		requests = append(requests, &NetworkResponse[*drand.Proposal]{
+		requests = append(requests, &NetworkRequest[*drand.Proposal]{
 			to:      joiner,
 			payload: proposal,
 		})
@@ -118,7 +122,7 @@ func (p ProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDetails
 		if remainer.Address == p.me.Address {
 			continue
 		}
-		requests = append(requests, &NetworkResponse[*drand.Proposal]{
+		requests = append(requests, &NetworkRequest[*drand.Proposal]{
 			to:      remainer,
 			payload: proposal,
 		})
@@ -127,7 +131,7 @@ func (p ProposalSteps) Responses(terms *drand.ProposalTerms, details *DKGDetails
 	return requests, nil
 }
 
-func (p ProposalSteps) ForwardResponse(client drand.DKGClient, networkCall *NetworkResponse[*drand.Proposal]) error {
+func (p ProposalSteps) ForwardRequest(client drand.DKGClient, networkCall *NetworkRequest[*drand.Proposal]) error {
 	response, err := client.Propose(context.Background(), networkCall.payload)
 	if err != nil {
 		return err

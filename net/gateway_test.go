@@ -54,7 +54,7 @@ func testListener(t *testing.T) {
 	ctx := context.Background()
 	randServer := &testRandomnessServer{round: 42}
 
-	lisGRPC, err := NewGRPCListenerForPrivate(ctx, "localhost:", "", "", randServer, true)
+	lisGRPC, err := NewGRPCListenerForPrivate(ctx, "localhost:", "", "", randServer, randServer, true)
 	require.NoError(t, err)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })
@@ -97,7 +97,7 @@ func testListenerTLS(t *testing.T) {
 
 	randServer := &testRandomnessServer{round: 42}
 
-	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", certPath, keyPath, randServer, false)
+	lisGRPC, err := NewGRPCListenerForPrivate(ctx, hostAddr+":", certPath, keyPath, randServer, randServer, false)
 	require.NoError(t, err)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(resp http.ResponseWriter, r *http.Request) { resp.Write([]byte("ok")) })

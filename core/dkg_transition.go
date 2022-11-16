@@ -6,7 +6,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 )
 
-type DKGProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any] interface {
+type DKGCommandSteps[CmdIn any, ProtocolIn any, ProtocolOut any] interface {
 	// Enrich takes a CLI message and enriches it with the necessary information to be applied to the DKG state
 	Enrich(CmdIn) (ProtocolIn, error)
 
@@ -14,13 +14,13 @@ type DKGProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any] interface {
 	// and applies it to create the next state (which should be saved to the database), or an error if something goes wrong
 	Apply(ProtocolIn, *DKGDetails) (*DKGDetails, error)
 
-	// Responses takes the protocol input message and updated DKG state and creates the required network responses
+	// Requests takes the protocol input message and updated DKG state and creates the required network responses
 	// that need to be made (generally either to a single party or all of the parties in the DKG
-	Responses(ProtocolIn, *DKGDetails) ([]*NetworkResponse[ProtocolOut], error)
+	Requests(ProtocolIn, *DKGDetails) ([]*NetworkRequest[ProtocolOut], error)
 
-	// ForwardResponse takes a DKG client and one of the network responses from Responses and executes the required
+	// ForwardRequest takes a DKG client and one of the network responses from Responses and executes the required
 	// protocol networking step for it
-	ForwardResponse(client drand.DKGClient, response *NetworkResponse[ProtocolOut]) error
+	ForwardRequest(client drand.DKGClient, response *NetworkRequest[ProtocolOut]) error
 }
 
 // executeProtocolSteps performs the mapping and state transitions for given DKG packet
@@ -28,7 +28,7 @@ type DKGProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any] interface {
 func executeProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any](
 	d *DKGProcess,
 	beaconID string,
-	protocol DKGProtocolSteps[CmdIn, ProtocolIn, ProtocolOut],
+	protocol DKGCommandSteps[CmdIn, ProtocolIn, ProtocolOut],
 	inputPacket CmdIn,
 ) error {
 
@@ -52,7 +52,7 @@ func executeProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any](
 
 	// create any responses that we need to send out to other nodes.
 	// Likely this will be to either a single node or all the nodes involved
-	responses, err := protocol.Responses(payload, nextDKGState)
+	responses, err := protocol.Requests(payload, nextDKGState)
 	if err != nil {
 		return err
 	}
@@ -63,10 +63,10 @@ func executeProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any](
 		if err != nil {
 			return err
 		}
-		fmt.Printf("sending response to %s", r.to)
-		err = protocol.ForwardResponse(client, r)
+		d.log.Debugw("sending DKG message", "to", r.to.Address)
+		err = protocol.ForwardRequest(client, r)
 		if err != nil {
-			return err
+			return fmt.Errorf("error from %s: %s", r.to.Address, err)
 		}
 	}
 

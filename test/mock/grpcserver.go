@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -267,7 +268,7 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool, sch scheme.Scheme
 	d.Scheme = sch
 
 	server := newMockServer(d)
-	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
+	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, server, true)
 	if err != nil {
 		panic(err)
 	}
@@ -310,4 +311,28 @@ func NewMockBeacon(sch scheme.Scheme) (*drand.ChainInfoPacket, *drand.PublicRand
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
 
 	return c, r
+}
+
+func (s *Server) Propose(_ context.Context, _ *drand.Proposal) (*drand.GenericResponseMessage, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Accept(_ context.Context, _ *drand.AcceptProposal) (*drand.GenericResponseMessage, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Reject(_ context.Context, _ *drand.RejectProposal) (*drand.GenericResponseMessage, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) SendError(_ context.Context, _ *drand.DKGError) (*drand.GenericResponseMessage, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Abort(_ context.Context, _ *drand.AbortDKG) (*drand.GenericResponseMessage, error) {
+	return nil, errors.New("unimplemented for mock server")
+}
+
+func (s *Server) Execute(_ context.Context, _ *drand.StartExecution) (*drand.GenericResponseMessage, error) {
+	return nil, errors.New("unimplemented for mock server")
 }

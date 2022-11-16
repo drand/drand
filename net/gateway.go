@@ -55,8 +55,9 @@ func NewGRPCPrivateGateway(ctx context.Context,
 	listen, certPath, keyPath string,
 	certs *CertManager,
 	s Service,
+	d DKGService,
 	insecure bool, opts ...grpc.DialOption) (*PrivateGateway, error) {
-	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, insecure, grpc.ConnectionTimeout(time.Second))
+	l, err := NewGRPCListenerForPrivate(ctx, listen, certPath, keyPath, s, d, insecure, grpc.ConnectionTimeout(time.Second))
 	if err != nil {
 		return nil, err
 	}

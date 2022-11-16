@@ -37,7 +37,6 @@ func NewGRPCListener(s control.ControlServer, d DKGService, controlAddr string) 
 	}
 
 	control.RegisterControlServer(grpcServer, s)
-	control.RegisterDKGServer(grpcServer, d)
 	control.RegisterDKGControlServer(grpcServer, d)
 
 	return ControlListener{conns: grpcServer, lis: lis}, nil

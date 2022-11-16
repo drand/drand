@@ -55,7 +55,7 @@ func (d *DKGProcess) StartNetwork(_ context.Context, options *drand.FirstProposa
 		FirstProposalSteps{me: me},
 		options,
 	)
-	if err == nil {
+	if err != nil {
 		d.log.Debugw("Error starting the network", "error", err)
 	} else {
 		d.log.Debugw("Finished starting the network")

@@ -174,7 +174,7 @@ type stubMapping struct {
 	enrichError   error
 	applyResult   *DKGDetails
 	applyError    error
-	responses     []*NetworkResponse[string]
+	responses     []*NetworkRequest[string]
 	responseError error
 	forwardError  error
 }
@@ -187,11 +187,11 @@ func (s stubMapping) Apply(_ string, _ *DKGDetails) (*DKGDetails, error) {
 	return s.applyResult, s.applyError
 }
 
-func (s stubMapping) Responses(_ string, _ *DKGDetails) ([]*NetworkResponse[string], error) {
+func (s stubMapping) Requests(_ string, _ *DKGDetails) ([]*NetworkRequest[string], error) {
 	return s.responses, s.responseError
 }
 
-func (s stubMapping) ForwardResponse(_ drand.DKGClient, _ *NetworkResponse[string]) error {
+func (s stubMapping) ForwardRequest(_ drand.DKGClient, _ *NetworkRequest[string]) error {
 	return s.forwardError
 }
 

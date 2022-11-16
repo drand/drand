@@ -128,12 +128,6 @@ func (dd *DrandDaemon) init() error {
 		}
 	}
 
-	dd.handler = handler
-	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, c.insecure, c.grpcOpts...)
-	if err != nil {
-		return err
-	}
-
 	// set up the gRPC clients
 	p := c.ControlPort()
 
@@ -142,21 +136,27 @@ func (dd *DrandDaemon) init() error {
 		return err
 	}
 
-	dd.privGateway.Addr()
-	dd.dkg = NewDKGProcess(&dkgStore, func(beaconID string) (*key.Identity, error) {
+	identityForBeacon := func(beaconID string) (*key.Identity, error) {
 		bp, exists := dd.beaconProcesses[beaconID]
 		if !exists {
 			return nil, fmt.Errorf("no beacon found for ID %s", beaconID)
 		}
 
 		return bp.priv.Public, nil
-	})
+	}
+	dd.dkg = NewDKGProcess(&dkgStore, identityForBeacon)
 
 	controlListener, err := net.NewGRPCListener(dd, dd.dkg, p)
 	if err != nil {
 		return err
 	}
 	dd.control = controlListener
+
+	dd.handler = handler
+	dd.privGateway, err = net.NewGRPCPrivateGateway(ctx, privAddr, c.certPath, c.keyPath, c.certmanager, dd, dd.dkg, c.insecure, c.grpcOpts...)
+	if err != nil {
+		return err
+	}
 
 	go dd.control.Start()
 
