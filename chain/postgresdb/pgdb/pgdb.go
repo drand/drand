@@ -382,23 +382,12 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 	const query = `
 	SELECT
-		round_offset
+		count(beacon_id) as round_offset
 	FROM
-		(SELECT
-			round_offset
-		FROM
-			(SELECT
-				round, row_number() OVER(ORDER BY round ASC) AS round_offset
-			FROM
-				beacon_details
-			WHERE
-				beacon_id = :id
-			ORDER BY
-				round ASC) AS result
-		WHERE
-			round = :round) AS T2
+	    beacon_details
 	WHERE
-		round_offset IS NOT NULL`
+	    beacon_id = :id
+		AND round < :round`
 
 	data := struct {
 		ID    int    `db:"id"`
