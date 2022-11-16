@@ -936,6 +936,7 @@ func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 	t.Helper()
 
 	shareArgs := []string{
+
 		"drand",
 		"share",
 		"--connect", leaderURL,

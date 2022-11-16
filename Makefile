@@ -44,14 +44,14 @@ clean:
 test: test-unit test-integration
 
 test-unit:
-	GO111MODULE=on go test -race -short -v ./...
+	go test -race -short -v ./...
 
 test-unit-postgres:
-	GO111MODULE=on go test -race -tags=postgres -short -v ./...
+	go test -race -tags postgres -short -v ./...
 
 test-unit-cover:
-	GO111MODULE=on go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
-	GO111MODULE=on go test -short -tags integration -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -short -tags integration -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
 	go test -v ./demo
@@ -64,7 +64,7 @@ test-integration-postgres:
 
 coverage:
 	go get -v -t -d ./...
-	go test -race -v -tags=integration -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -race -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 demo:
 	cd demo && go build && ./demo -build
