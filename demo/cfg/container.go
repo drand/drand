@@ -31,7 +31,7 @@ const defaultPgDSN = "postgres://postgres:postgres@%s/%s?sslmode=disable&timeout
 func ComputePgDSN(dbEngineType chain.StorageType) func() string {
 	return func() string {
 		dsn := defaultPgDSN
-		dbName := computeDBName()
+		dbName := test.ComputeDBName()
 
 		if dbEngineType != chain.PostgresSQL {
 			return ""
@@ -40,14 +40,6 @@ func ComputePgDSN(dbEngineType chain.StorageType) func() string {
 		withTestDB(dbName)
 		return fmt.Sprintf(dsn, c.Host, dbName)
 	}
-}
-
-// computeDBName helps generate new, unique database names during the runtime of a test.
-// By adding the time, with milliseconds, we can avoid this, e.g. testbroadcast_09223736225
-func computeDBName() string {
-	suffix := strings.Replace(time.Now().Format("02150405.000"), ".", "", -1)
-	dbName := fmt.Sprintf("drand_regression_%s", suffix)
-	return strings.ToLower(dbName)
 }
 
 func withTestDB(dbName string) {

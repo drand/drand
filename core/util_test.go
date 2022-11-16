@@ -7,7 +7,6 @@ import (
 	gnet "net"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -144,7 +143,7 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 			WithConfigFolder(dirs[i]),
 		}
 
-		confOptions = append(confOptions, WithTestDB(t, computeDBName(t))...)
+		confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 		confOptions = append(confOptions, WithPrivateListenAddress(privs[i].Public.Address()))
 		if !insecure {
 			confOptions = append(confOptions,
@@ -180,15 +179,6 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 	}
 
 	return daemons, drands, group, dir, certPaths
-}
-
-// computeDBName helps generate new, unique database names during the runtime of a test.
-// By adding the time, with milliseconds, we can avoid this, e.g. testbroadcast_09223736225
-func computeDBName(t *testing.T) string {
-	t.Helper()
-
-	suffix := strings.Replace(time.Now().Format("02150405.000"), ".", "", -1)
-	return fmt.Sprintf("%s_%s", t.Name(), suffix)
 }
 
 // CloseAllDrands closes all drands

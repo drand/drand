@@ -109,3 +109,11 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 
 	return l, db, teardown
 }
+
+// ComputeDBName helps generate new, unique database names during the runtime of a test.
+// By adding the time, with milliseconds, we can avoid this, e.g. drand_test_09223736225
+func ComputeDBName() string {
+	suffix := strings.Replace(time.Now().Format("02150405.000"), ".", "", -1)
+	dbName := fmt.Sprintf("drand_test_%s", suffix)
+	return strings.ToLower(dbName)
+}
