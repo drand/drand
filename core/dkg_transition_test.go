@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -25,7 +26,7 @@ func TestExecutingDKGTransition(t *testing.T) {
 		enrichResult: "stub",
 		enrichError:  nil,
 		applyResult:  NewFreshState(beaconID),
-		applyError:   NoError,
+		applyError:   nil,
 	}
 
 	// database gets and saves successfully
@@ -33,8 +34,7 @@ func TestExecutingDKGTransition(t *testing.T) {
 	store.On("SaveCurrent", beaconID, NewFreshState(beaconID)).Return(nil)
 
 	// state transition works
-	errorCode, err := executeDKGStateTransition[string, string](&process, beaconID, mapping, "some-input")
-	require.Equal(t, NoError, errorCode)
+	err := executeProtocolSteps[string, string, string](&process, beaconID, mapping, "some-input")
 	require.NoError(t, err)
 }
 
@@ -54,7 +54,7 @@ func TestCompleteDKGSavedAsFinished(t *testing.T) {
 		enrichResult: "stub",
 		enrichError:  nil,
 		applyResult:  finishedDKG,
-		applyError:   NoError,
+		applyError:   nil,
 	}
 
 	// database gets and saves as Finished successfully
@@ -62,8 +62,7 @@ func TestCompleteDKGSavedAsFinished(t *testing.T) {
 	store.On("SaveFinished", beaconID, finishedDKG).Return(nil)
 
 	// state transition works
-	errorCode, err := executeDKGStateTransition[string, string](&process, beaconID, mapping, "some-input")
-	require.Equal(t, NoError, errorCode)
+	err := executeProtocolSteps[string, string, string](&process, beaconID, mapping, "some-input")
 	require.NoError(t, err)
 }
 
@@ -77,7 +76,7 @@ func TestStateTransitionPropagatesErrorsInInitialMapping(t *testing.T) {
 	}
 
 	// error during enrichment of the packet
-	expectedError := errors.New("this is a terrible error")
+	expectedError := InvalidPacket
 	mapping := stubMapping{
 		enrichResult: "",
 		enrichError:  expectedError,
@@ -86,8 +85,7 @@ func TestStateTransitionPropagatesErrorsInInitialMapping(t *testing.T) {
 	}
 
 	// expect the error created above
-	errorCode, err := executeDKGStateTransition[string, string](&process, "some-beacon", mapping, "some-input")
-	require.Equal(t, InvalidPacket, errorCode)
+	err := executeProtocolSteps[string, string, string](&process, "some-beacon", mapping, "some-input")
 	require.Equal(t, expectedError, err)
 }
 
@@ -102,7 +100,7 @@ func TestStateTransitionPropagatesErrorInDKGMapping(t *testing.T) {
 
 	// error during DKG state application of the packet
 	beaconID := "some-beacon"
-	expectedError := InvalidStateChange
+	expectedError := InvalidEpoch
 	mapping := stubMapping{
 		enrichResult: "great",
 		enrichError:  nil,
@@ -113,8 +111,7 @@ func TestStateTransitionPropagatesErrorInDKGMapping(t *testing.T) {
 	store.On("GetCurrent", beaconID).Return(NewFreshState(beaconID), nil)
 
 	// expect the error created above
-	errorCode, err := executeDKGStateTransition[string, string](&process, "some-beacon", mapping, "some-input")
-	require.Equal(t, expectedError, errorCode)
+	err := executeProtocolSteps[string, string, string](&process, "some-beacon", mapping, "some-input")
 	require.Error(t, err)
 }
 
@@ -133,15 +130,14 @@ func TestDatabaseGetErrorPropagated(t *testing.T) {
 		enrichResult: "great",
 		enrichError:  nil,
 		applyResult:  NewFullDKGEntry(beaconID, Executing, nil),
-		applyError:   NoError,
+		applyError:   nil,
 	}
 
 	expectedError := errors.New("database blew up")
 	store.On("GetCurrent", beaconID).Return(nil, expectedError)
 
 	// expect the error created above
-	errorCode, err := executeDKGStateTransition[string, string](&process, "some-beacon", mapping, "some-input")
-	require.Equal(t, UnexpectedError, errorCode)
+	err := executeProtocolSteps[string, string, string](&process, "some-beacon", mapping, "some-input")
 	require.Equal(t, expectedError, err)
 }
 
@@ -161,7 +157,7 @@ func TestDatabaseSaveErrorPropagated(t *testing.T) {
 		enrichResult: "great",
 		enrichError:  nil,
 		applyResult:  dkgState,
-		applyError:   NoError,
+		applyError:   nil,
 	}
 
 	expectedError := errors.New("database blew up")
@@ -169,24 +165,34 @@ func TestDatabaseSaveErrorPropagated(t *testing.T) {
 	store.On("SaveCurrent", beaconID, dkgState).Return(expectedError)
 
 	// expect the error created above
-	errorCode, err := executeDKGStateTransition[string, string](&process, "some-beacon", mapping, "some-input")
-	require.Equal(t, UnexpectedError, errorCode)
+	err := executeProtocolSteps[string, string, string](&process, "some-beacon", mapping, "some-input")
 	require.Equal(t, expectedError, err)
 }
 
 type stubMapping struct {
-	enrichResult string
-	enrichError  error
-	applyResult  *DKGDetails
-	applyError   DKGErrorCode
+	enrichResult  string
+	enrichError   error
+	applyResult   *DKGDetails
+	applyError    error
+	responses     []*NetworkResponse[string]
+	responseError error
+	forwardError  error
 }
 
 func (s stubMapping) Enrich(_ string) (string, error) {
 	return s.enrichResult, s.enrichError
 }
 
-func (s stubMapping) Apply(_ string, _ *DKGDetails) (*DKGDetails, DKGErrorCode) {
+func (s stubMapping) Apply(_ string, _ *DKGDetails) (*DKGDetails, error) {
 	return s.applyResult, s.applyError
+}
+
+func (s stubMapping) Responses(_ string, _ *DKGDetails) ([]*NetworkResponse[string], error) {
+	return s.responses, s.responseError
+}
+
+func (s stubMapping) ForwardResponse(_ drand.DKGClient, _ *NetworkResponse[string]) error {
+	return s.forwardError
 }
 
 type StoreMock struct {

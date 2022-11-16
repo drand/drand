@@ -1,7 +1,9 @@
 package core
 
 import (
-	bytes "bytes"
+	"bytes"
+	"errors"
+	"fmt"
 	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
@@ -26,15 +28,27 @@ const (
 func (s DKGStatus) String() string {
 	switch s {
 	case Fresh:
-		return "fresh"
+		return "Fresh"
 	case Proposed:
-		return "proposed"
-	case Executing:
-		return "executing"
-	case Complete:
-		return "complete"
+		return "Proposed"
+	case Proposing:
+		return "Proposing"
+	case Accepted:
+		return "Accepted"
+	case Rejected:
+		return "Rejected"
 	case Aborted:
-		return "aborted"
+		return "Aborted"
+	case Executing:
+		return "Executing"
+	case Complete:
+		return "Complete"
+	case TimedOut:
+		return "TimedOut"
+	case Joined:
+		return "Joined"
+	case Left:
+		return "Left"
 	default:
 		panic("impossible DKG state received")
 	}
@@ -79,28 +93,6 @@ func (d *DKGDetails) IntoEntry() *drand.DKGEntry {
 	}
 }
 
-// IntoDetails turns a protobuf entry into a DKGDetails object for
-// easy marshalling and unmarshalling, and to maintain a
-// consistent wire format
-func IntoDetails(entry *drand.DKGEntry) *DKGDetails {
-	if entry == nil {
-		return nil
-	}
-	return &DKGDetails{
-		State:      DKGStatus(uint(entry.State)),
-		Epoch:      entry.Epoch,
-		Threshold:  entry.Threshold,
-		Timeout:    entry.Timeout.AsTime(),
-		Leader:     entry.Leader,
-		Remaining:  entry.Remaining,
-		Joining:    entry.Joining,
-		Leaving:    entry.Leaving,
-		Acceptors:  entry.Acceptors,
-		Rejectors:  entry.Rejectors,
-		FinalGroup: entry.FinalGroup,
-	}
-}
-
 func NewFreshState(beaconID string) *DKGDetails {
 	return &DKGDetails{
 		BeaconID: beaconID,
@@ -109,24 +101,12 @@ func NewFreshState(beaconID string) *DKGDetails {
 	}
 }
 
-type ProposalTerms struct {
-	BeaconID  string
-	Threshold uint32
-	Epoch     uint32
-	Timeout   time.Time
-	Leader    *drand.Participant
-
-	Remaining []*drand.Participant
-	Joining   []*drand.Participant
-	Leaving   []*drand.Participant
-}
-
-func (d *DKGDetails) Joined(me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Joined(me *drand.Participant, terms *drand.ProposalTerms) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Joined) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Joined)
 	}
 
-	if err := ValidateProposal(d, terms); err != NoError {
+	if err := ValidateProposal(d, terms); err != nil {
 		return nil, err
 	}
 
@@ -139,24 +119,24 @@ func (d *DKGDetails) Joined(me *drand.Participant, terms *ProposalTerms) (*DKGDe
 		Epoch:     terms.Epoch,
 		State:     Joined,
 		Threshold: terms.Threshold,
-		Timeout:   terms.Timeout,
+		Timeout:   terms.Timeout.AsTime(),
 		Leader:    terms.Leader,
 		Remaining: terms.Remaining,
 		Joining:   terms.Joining,
 		Leaving:   terms.Leaving,
-	}, NoError
+	}, nil
 }
 
-func (d *DKGDetails) Proposing(me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Proposing) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Proposing)
 	}
 
 	if terms.Leader != me {
 		return nil, CannotProposeAsNonLeader
 	}
 
-	if err := ValidateProposal(d, terms); err != NoError {
+	if err := ValidateProposal(d, terms); err != nil {
 		return nil, err
 	}
 
@@ -169,24 +149,24 @@ func (d *DKGDetails) Proposing(me *drand.Participant, terms *ProposalTerms) (*DK
 		Epoch:     terms.Epoch,
 		State:     Proposing,
 		Threshold: terms.Threshold,
-		Timeout:   terms.Timeout,
+		Timeout:   terms.Timeout.AsTime(),
 		Leader:    terms.Leader,
 		Remaining: terms.Remaining,
 		Joining:   terms.Joining,
 		Leaving:   terms.Leaving,
-	}, NoError
+	}, nil
 }
 
-func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, terms *ProposalTerms) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, terms *drand.ProposalTerms) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Proposed) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Proposed)
 	}
 
 	if terms.Leader != sender {
 		return nil, CannotProposeAsNonLeader
 	}
 
-	if err := ValidateProposal(d, terms); err != NoError {
+	if err := ValidateProposal(d, terms); err != nil {
 		return nil, err
 	}
 
@@ -199,37 +179,37 @@ func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, 
 		Epoch:     terms.Epoch,
 		State:     Proposed,
 		Threshold: terms.Threshold,
-		Timeout:   terms.Timeout,
+		Timeout:   terms.Timeout.AsTime(),
 		Leader:    terms.Leader,
 		Remaining: terms.Remaining,
 		Joining:   terms.Joining,
 		Leaving:   terms.Leaving,
-	}, NoError
+	}, nil
 }
 
-func (d *DKGDetails) TimedOut() (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) TimedOut() (*DKGDetails, error) {
 	if !isValidStateChange(d.State, TimedOut) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, TimedOut)
 	}
 
 	d.State = TimedOut
 
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) Aborted() (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Aborted() (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Aborted) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Aborted)
 	}
 
 	d.State = Aborted
 
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Accepted) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Accepted)
 	}
 
 	if hasTimedOut(d) {
@@ -245,12 +225,12 @@ func (d *DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, DKGErrorCode)
 	}
 
 	d.State = Accepted
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Rejected) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Rejected)
 	}
 
 	if hasTimedOut(d) {
@@ -266,12 +246,12 @@ func (d *DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, DKGErrorCode)
 	}
 
 	d.State = Rejected
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) Left(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Left(me *drand.Participant) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Left) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Left)
 	}
 
 	if hasTimedOut(d) {
@@ -284,12 +264,12 @@ func (d *DKGDetails) Left(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
 
 	d.State = Left
 
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) Executing(me *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Executing(me *drand.Participant) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Executing) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Executing)
 	}
 
 	if hasTimedOut(d) {
@@ -302,12 +282,12 @@ func (d *DKGDetails) Executing(me *drand.Participant) (*DKGDetails, DKGErrorCode
 
 	d.State = Executing
 
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, error) {
 	if !isValidStateChange(d.State, Complete) {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Complete)
 	}
 
 	if hasTimedOut(d) {
@@ -317,12 +297,12 @@ func (d *DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, DKG
 	d.FinalGroup = finalGroup
 	d.State = Complete
 
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGDetails, error) {
 	if d.State != Proposing {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Proposing)
 
 	}
 
@@ -341,12 +321,12 @@ func (d *DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Parti
 	d.Acceptors = append(d.Acceptors, them)
 	d.Rejectors = without(d.Rejectors, them)
 
-	return d, NoError
+	return d, nil
 }
 
-func (d *DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Participant) (*DKGDetails, DKGErrorCode) {
+func (d *DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Participant) (*DKGDetails, error) {
 	if d.State != Proposing {
-		return nil, InvalidStateChange
+		return nil, InvalidStateChange(d.State, Proposing)
 	}
 
 	if d.Leader != me {
@@ -364,104 +344,39 @@ func (d *DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Partic
 	d.Rejectors = append(d.Rejectors, them)
 	d.Acceptors = without(d.Acceptors, them)
 
-	return d, NoError
+	return d, nil
 }
 
-type DKGErrorCode uint32
-
-const (
-	NoError DKGErrorCode = iota
-	InvalidStateChange
-	TimeoutReached
-	InvalidBeaconID
-	SelfMissingFromProposal
-	InvalidEpoch
-	LeaderCantJoinAfterFirstEpoch
-	LeaderNotRemaining
-	LeaderNotJoining
-	OnlyJoinersAllowedForFirstEpoch
-	NoNodesRemaining
-	CannotProposeAsNonLeader
-	ThresholdHigherThanNodeCount
-	RemainingNodesMustExistInCurrentEpoch
-	CannotAcceptProposalWhereLeaving
-	CannotAcceptProposalWhereJoining
-	CannotRejectProposalWhereLeaving
-	CannotRejectProposalWhereJoining
-	CannotLeaveIfNotALeaver
-	CannotExecuteIfNotJoinerOrRemainer
-	UnknownAcceptor
-	DuplicateAcceptance
-	UnknownRejector
-	DuplicateRejection
-	NonLeaderCannotReceiveAcceptance
-	NonLeaderCannotReceiveRejection
-	InvalidPacket
-	UnexpectedError
-)
-
-func (d DKGErrorCode) String() string {
-	switch d {
-	case NoError:
-		return "NoError"
-	case InvalidStateChange:
-		return "InvalidStateChange"
-	case TimeoutReached:
-		return "TimeoutReached"
-	case InvalidBeaconID:
-		return "InvalidBeaconID"
-	case SelfMissingFromProposal:
-		return "SelfMissingFromProposal"
-	case InvalidEpoch:
-		return "InvalidEpoch"
-	case LeaderCantJoinAfterFirstEpoch:
-		return "LeaderCantJoinAfterFirstEpoch"
-	case LeaderNotRemaining:
-		return "LeaderNotRemaining"
-	case LeaderNotJoining:
-		return "LeaderNotJoining"
-	case OnlyJoinersAllowedForFirstEpoch:
-		return "OnlyJoinersAllowedForFirstEpoch"
-	case NoNodesRemaining:
-		return "NoNodesRemaining"
-	case CannotProposeAsNonLeader:
-		return "CannotProposeAsNonLeader"
-	case ThresholdHigherThanNodeCount:
-		return "ThresholdHigherThanNodeCount"
-	case RemainingNodesMustExistInCurrentEpoch:
-		return "RemainingNodesMustExistInCurrentEpoch"
-	case CannotAcceptProposalWhereLeaving:
-		return "CannotAcceptProposalWhereLeaving"
-	case CannotAcceptProposalWhereJoining:
-		return "CannotAcceptProposalWhereJoining"
-	case CannotRejectProposalWhereLeaving:
-		return "CannotRejectProposalWhereLeaving"
-	case CannotRejectProposalWhereJoining:
-		return "CannotRejectProposalWhereJoining"
-	case CannotLeaveIfNotALeaver:
-		return "CannotLeaveIfNotALeaver"
-	case CannotExecuteIfNotJoinerOrRemainer:
-		return "CannotExecuteIfNotJoinerOrRemainer"
-	case UnknownAcceptor:
-		return "UnknownAcceptor"
-	case DuplicateAcceptance:
-		return "DuplicateAcceptance"
-	case DuplicateRejection:
-		return "DuplicateRejection"
-	case UnknownRejector:
-		return "UnknownRejector"
-	case NonLeaderCannotReceiveAcceptance:
-		return "NonLeaderCannotReceiveAcceptance"
-	case NonLeaderCannotReceiveRejection:
-		return "NonLeaderCannotReceiveRejection"
-	case InvalidPacket:
-		return "InvalidPacket"
-	case UnexpectedError:
-		return "UnexpectedError"
-	default:
-		return "invalid DKG error code!"
-	}
+func InvalidStateChange(from DKGStatus, to DKGStatus) error {
+	return fmt.Errorf("invalid transition attempt from %s to %s", from.String(), to.String())
 }
+
+var TimeoutReached = errors.New("timeout has been reached")
+var InvalidBeaconID = errors.New("BeaconID was invalid")
+var SelfMissingFromProposal = errors.New("you must include yourself in a proposal")
+var InvalidEpoch = errors.New("the epoch provided was invalid")
+var LeaderCantJoinAfterFirstEpoch = errors.New("you cannot lead a DKG and join at the same time (unless it is epoch 1)")
+var LeaderNotRemaining = errors.New("you cannot lead a DKG and leave at the same time")
+var LeaderNotJoining = errors.New("the leader must join in the first epoch")
+var OnlyJoinersAllowedForFirstEpoch = errors.New("participants can only be joiners for the first epoch")
+var NoNodesRemaining = errors.New("cannot propose a network without nodes remaining")
+var CannotProposeAsNonLeader = errors.New("cannot make a proposal where you are not the leader")
+var ThresholdHigherThanNodeCount = errors.New("the threshold cannot be higher than the count of remaining + joining nodes")
+var RemainingNodesMustExistInCurrentEpoch = errors.New("remaining nodes contained a not that does not exist in the current epoch - they must be added as joiners")
+var CannotAcceptProposalWhereLeaving = errors.New("you cannot accept a proposal where your node is leaving")
+var CannotAcceptProposalWhereJoining = errors.New("you cannot accept a proposal where your node is joining - run the join command instead")
+var CannotRejectProposalWhereLeaving = errors.New("you cannot reject a proposal where your node is leaving")
+var CannotRejectProposalWhereJoining = errors.New("you cannot reject a proposal where your node is joining (just turn your node off)")
+var CannotLeaveIfNotALeaver = errors.New("you cannot execute leave if you were not included as a leaver in the proposal")
+var CannotExecuteIfNotJoinerOrRemainer = errors.New("you cannot start execution if you are not a remainer or joiner to the DKG")
+var UnknownAcceptor = errors.New("somebody unknown tried to accept the proposal")
+var DuplicateAcceptance = errors.New("this participant already accepted the proposal")
+var UnknownRejector = errors.New("somebody unknown tried to reject the proposal")
+var DuplicateRejection = errors.New("this participant already rejected the proposal")
+var NonLeaderCannotReceiveAcceptance = errors.New("you received an acceptance but are not the leader of this DKG - cannot do anything")
+var NonLeaderCannotReceiveRejection = errors.New("you received a rejection but are not the leader of this DKG - cannot do anything")
+var InvalidPacket = errors.New("the packet received was invalid (i.e. not well formed)")
+var UnexpectedError = errors.New("there was an unexpected error")
 
 func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	switch current {
@@ -496,12 +411,12 @@ func hasTimedOut(details *DKGDetails) bool {
 	return details.Timeout.Before(now) || details.Timeout == now
 }
 
-func ValidateProposal(currentState *DKGDetails, terms *ProposalTerms) DKGErrorCode {
+func ValidateProposal(currentState *DKGDetails, terms *drand.ProposalTerms) error {
 	if currentState.BeaconID != terms.BeaconID {
 		return InvalidBeaconID
 	}
 
-	if terms.Timeout.Before(time.Now()) {
+	if terms.Timeout.AsTime().Before(time.Now()) {
 		return TimeoutReached
 	}
 
@@ -525,7 +440,7 @@ func ValidateProposal(currentState *DKGDetails, terms *ProposalTerms) DKGErrorCo
 			return LeaderNotJoining
 		}
 
-		return NoError
+		return nil
 	}
 
 	if contains(terms.Joining, terms.Leader) {
@@ -548,7 +463,7 @@ func ValidateProposal(currentState *DKGDetails, terms *ProposalTerms) DKGErrorCo
 		}
 	}
 
-	return NoError
+	return nil
 }
 
 func contains(haystack []*drand.Participant, needle *drand.Participant) bool {

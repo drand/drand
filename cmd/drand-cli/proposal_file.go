@@ -12,20 +12,32 @@ type ProposalFile struct {
 }
 
 func (p *ProposalFile) Joiners() []*drand.Participant {
-	return mapEach(p.Joining, func(p *TomlParticipant) *drand.Participant {
-		return p.Into()
-	})
+	out := make([]*drand.Participant, len(p.Joining))
+
+	for i, participant := range p.Joining {
+		out[i] = participant.Into()
+	}
+
+	return out
 }
 func (p *ProposalFile) Leavers() []*drand.Participant {
-	return mapEach(p.Leaving, func(p *TomlParticipant) *drand.Participant {
-		return p.Into()
-	})
+	out := make([]*drand.Participant, len(p.Leaving))
+
+	for i, participant := range p.Leaving {
+		out[i] = participant.Into()
+	}
+
+	return out
 }
 
 func (p *ProposalFile) Remainers() []*drand.Participant {
-	return mapEach(p.Remaining, func(p *TomlParticipant) *drand.Participant {
-		return p.Into()
-	})
+	out := make([]*drand.Participant, len(p.Remaining))
+
+	for i, participant := range p.Remaining {
+		out[i] = participant.Into()
+	}
+
+	return out
 }
 
 type TomlParticipant struct {
@@ -51,19 +63,6 @@ func decodeHexOrPanic(input string) []byte {
 	_, err := hex.Decode(out, []byte(input))
 	if err != nil {
 		panic("Invalid hex in proposal file!")
-	}
-
-	return out
-}
-
-func mapEach[T any, U any](arr []T, fn func(T) U) []U {
-	if arr == nil {
-		return nil
-	}
-	out := make([]U, len(arr))
-
-	for _, v := range arr {
-		out = append(out, fn(v))
 	}
 
 	return out

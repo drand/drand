@@ -33,6 +33,5 @@ func err() *drand.GenericResponseMessage {
 	return &drand.GenericResponseMessage{
 		IsError:      true,
 		ErrorMessage: "this call has not yet been implemented for this service",
-		ErrorCode:    1,
 	}
 }

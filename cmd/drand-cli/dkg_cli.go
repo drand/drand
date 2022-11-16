@@ -75,7 +75,7 @@ func makeProposal(c *cli.Context) error {
 	}
 
 	if proposalResponse.IsError {
-		return fmt.Errorf("error: %s, code: %s", proposalResponse.ErrorMessage, core.DKGErrorCode(proposalResponse.ErrorCode).String())
+		return fmt.Errorf("error making proposal: %s", proposalResponse.ErrorMessage)
 	}
 
 	fmt.Println("proposal made successfully!")
@@ -115,11 +115,11 @@ func parseInitialDKGProposal(c *cli.Context) (*drand.FirstProposalOptions, error
 		return nil, err
 	}
 
-	if proposalFile.Leavers() != nil || proposalFile.Remainers() != nil {
+	if len(proposalFile.Leavers()) != 0 || len(proposalFile.Remainers()) != 0 {
 		return nil, fmt.Errorf("your proposal file must not have `Leaving` or `Remaining` for an initial DKG proposal")
 	}
 
-	if proposalFile.Joiners() == nil {
+	if len(proposalFile.Joiners()) == 0 {
 		return nil, fmt.Errorf("your proposal file must have `Joining`")
 	}
 
@@ -130,7 +130,7 @@ func parseInitialDKGProposal(c *cli.Context) (*drand.FirstProposalOptions, error
 		PeriodSeconds:        uint32(c.Duration(periodFlag.Name).Seconds()),
 		Scheme:               c.String(schemeFlag.Name),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
-		GenesisTime:          nil,
+		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Minute)),
 		GenesisSeed:          []byte(""),
 		Joining:              proposalFile.Joiners(),
 	}, nil
@@ -160,7 +160,7 @@ func parseDKGProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, err
 	}
 
-	if proposalFile.Remainers() == nil {
+	if len(proposalFile.Remainers()) == 0 {
 		return nil, fmt.Errorf("you must provider remainers for a proposal")
 	}
 

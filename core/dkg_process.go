@@ -42,35 +42,40 @@ func NewDKGProcess(store *DKGStore, fetchIdentityForBeacon func(string) (*key.Id
 
 func (d *DKGProcess) StartNetwork(_ context.Context, options *drand.FirstProposalOptions) (*drand.GenericResponseMessage, error) {
 	d.log.Debugw("Starting initial DKG")
+
 	// fetch our keypair from the BeaconProcess and remap it into a `Participant`
 	me, err := d.identityForBeacon(options.BeaconID)
 	if err != nil {
-		return errorResponse(UnexpectedError, err), err
+		return errorResponse(err), err
 	}
 
-	errorCode, err := executeDKGStateTransition[*drand.FirstProposalOptions, *ProposalTerms](
+	err = executeProtocolSteps[*drand.FirstProposalOptions, *drand.ProposalTerms, *drand.Proposal](
 		d,
 		options.BeaconID,
-		FirstProposalMapping{me: me},
+		FirstProposalSteps{me: me},
 		options,
 	)
-	d.log.Debugw("Finished starting the network", "errorCode", errorCode.String(), "errorMessage", err)
-	return responseOrError(errorCode, err)
+	if err == nil {
+		d.log.Debugw("Error starting the network", "error", err)
+	} else {
+		d.log.Debugw("Finished starting the network")
+	}
+	return responseOrError(err)
 }
 
 func (d *DKGProcess) StartProposal(_ context.Context, options *drand.ProposalOptions) (*drand.GenericResponseMessage, error) {
 	me, err := d.identityForBeacon(options.BeaconID)
 	if err != nil {
-		return errorResponse(UnexpectedError, err), err
+		return errorResponse(err), err
 	}
-	errorCode, err := executeDKGStateTransition[*drand.ProposalOptions, *ProposalTerms](
+	err = executeProtocolSteps[*drand.ProposalOptions, *drand.ProposalTerms, *drand.Proposal](
 		d,
 		options.BeaconID,
-		ProposalMapping{me: me},
+		ProposalSteps{me: me},
 		options,
 	)
-	d.log.Debugw("Finished starting the network", "errorCode", errorCode.String())
-	return responseOrError(errorCode, err)
+	d.log.Debugw("Finished starting the network", "errors?", err.Error())
+	return responseOrError(err)
 }
 
 func (d *DKGProcess) StartAbort(_ context.Context, options *drand.AbortOptions) (*drand.GenericResponseMessage, error) {
@@ -125,60 +130,19 @@ func (d *DKGProcess) identityForBeacon(beaconID string) (*drand.Participant, err
 	}, nil
 }
 
-// executeDKGStateTransition performs the mapping and state transitions for given DKG packet
-// and updates the data store accordingly
-func executeDKGStateTransition[T any, U any](
-	d *DKGProcess,
-	beaconID string,
-	mapping DKGMapping[T, U],
-	inputPacket T,
-) (DKGErrorCode, error) {
-
-	// remap the CLI payload into one useful for DKG state
-	payload, err := mapping.Enrich(inputPacket)
-	if err != nil {
-		return InvalidPacket, err
-	}
-
-	// pull the latest DKG state from the database
-	currentDKGState, err := d.store.GetCurrent(beaconID)
-	if err != nil {
-		return UnexpectedError, err
-	}
-
-	// apply our mapped DKG payload onto the current DKG state
-	nextDKGState, errorCode := mapping.Apply(payload, currentDKGState)
-	if errorCode != NoError {
-		return errorCode, errors.New("error making DKG transition")
-	}
-
-	// save the output of the reducer
-	if nextDKGState.State == Complete {
-		err = d.store.SaveFinished(beaconID, nextDKGState)
-	} else {
-		err = d.store.SaveCurrent(beaconID, nextDKGState)
-	}
-	if err != nil {
-		return UnexpectedError, err
-	}
-
-	return NoError, nil
-}
-
 // responseOrError takes a DKGErrorCode and maps it to an error object if an error
 // or a generic success if it's not an error
-func responseOrError(errorCode DKGErrorCode, err error) (*drand.GenericResponseMessage, error) {
-	if errorCode != NoError {
-		return errorResponse(errorCode, err), err
+func responseOrError(err error) (*drand.GenericResponseMessage, error) {
+	if err != nil {
+		return errorResponse(err), err
 	}
 
 	return &drand.GenericResponseMessage{}, nil
 }
 
-func errorResponse(errorCode DKGErrorCode, err error) *drand.GenericResponseMessage {
+func errorResponse(err error) *drand.GenericResponseMessage {
 	return &drand.GenericResponseMessage{
 		IsError:      true,
 		ErrorMessage: err.Error(),
-		ErrorCode:    uint32(errorCode),
 	}
 }
