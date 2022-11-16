@@ -19,7 +19,7 @@ import (
 func NewMockHTTPPublicServer(t *testing.T, badSecondRound bool, sch scheme.Scheme) (string, *chain.Info, context.CancelFunc, func(bool)) {
 	t.Helper()
 
-	server := mock.NewMockServer(badSecondRound, sch)
+	server := mock.NewMockServer(t, badSecondRound, sch)
 	client := core.Proxy(server)
 	ctx, cancel := context.WithCancel(context.Background())
 

@@ -30,7 +30,7 @@ func TestGRPCClientTestFunc(t *testing.T) {
 	// start mock drand node
 	sch := scheme.GetSchemeFromEnv()
 
-	grpcLis, svc := mock.NewMockGRPCPublicServer(":0", false, sch)
+	grpcLis, svc := mock.NewMockGRPCPublicServer(t, ":0", false, sch)
 	grpcAddr := grpcLis.Addr()
 	go grpcLis.Start()
 	defer grpcLis.Stop(context.Background())

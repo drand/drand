@@ -23,7 +23,7 @@ func withClient(t *testing.T) (c client.Client, emit func(bool)) {
 	t.Helper()
 	sch := scheme.GetSchemeFromEnv()
 
-	l, s := mock.NewMockGRPCPublicServer(":0", true, sch)
+	l, s := mock.NewMockGRPCPublicServer(t, ":0", true, sch)
 	lAddr := l.Addr()
 	go l.Start()
 
@@ -152,29 +152,22 @@ func TestHTTPWaiting(t *testing.T) {
 	c, push := withClient(t)
 
 	handler, err := New(ctx, "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
 	err = nhttp.IsServerReady(listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
@@ -193,7 +186,7 @@ func TestHTTPWaiting(t *testing.T) {
 		}
 		done <- time.Now()
 	}()
-	time.Sleep(50 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 	select {
 	case <-done:
 		t.Fatal("shouldn't be done.", err)
@@ -204,16 +197,17 @@ func TestHTTPWaiting(t *testing.T) {
 	var after time.Time
 	select {
 	case x := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		after = x
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("should return after a round")
 	}
+
+	t.Logf("comparing values: before: %s after: %s", before, after)
+
 	// mock grpc server spits out new round every second on streaming interface.
 	if after.Sub(before) > time.Second || after.Sub(before) < 10*time.Millisecond {
-		t.Fatalf("unexpected timing to receive response: %s", before)
+		t.Fatalf("unexpected timing to receive response: before: %s after: %s", before, after)
 	}
 }
 
