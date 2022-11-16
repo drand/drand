@@ -431,12 +431,9 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 	//  However, this hides all errors, which in turns means we won't know if we started the beacon
 	//  correctly or not.
 	//  Is there a better way to handle this?
+	go bp.StartBeacon(false)
 
-	//nolint:gocritic // We do want to keep this commented, for now. See the above TODO/question.
-	// go bp.StartBeacon(false)
-	// return finalGroup, nil
-
-	return finalGroup, bp.StartBeacon(false)
+	return finalGroup, nil
 }
 
 func (bp *BeaconProcess) cleanupDKG() {
