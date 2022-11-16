@@ -250,16 +250,11 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 	SELECT
 		round, signature, previous_sig
 	FROM
-		(SELECT
-			round, signature, previous_sig
-		FROM
-			beacon_details
-		WHERE
-			beacon_id = :id
-		ORDER BY
-			round ASC LIMIT 1) AS T
+		beacon_details
 	WHERE
-		round IS NOT NULL`
+		beacon_id = :id
+	ORDER BY
+		round ASC LIMIT 1`
 
 	data := struct {
 		ID int `db:"id"`
@@ -289,17 +284,12 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 	SELECT
 		round, signature, previous_sig
 	FROM
-		(SELECT
-			round, signature, previous_sig
-		FROM
-			beacon_details
-		WHERE
-			beacon_id = :id
-		ORDER BY
-			round ASC OFFSET :offset
-		LIMIT 1) AS T
+		beacon_details
 	WHERE
-		round IS NOT NULL`
+		beacon_id = :id
+	ORDER BY
+		round ASC OFFSET :offset
+	LIMIT 1`
 
 	data := struct {
 		ID     int    `db:"id"`
@@ -327,16 +317,11 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 	SELECT
 		round, signature, previous_sig
 	FROM
-		(SELECT
-			round, signature, previous_sig
-		FROM
-			beacon_details
-		WHERE
-			beacon_id = :id AND
-			round = :round
-		LIMIT 1) AS T
+		beacon_details
 	WHERE
-		round IS NOT NULL`
+		beacon_id = :id AND
+		round = :round
+	LIMIT 1`
 
 	data := struct {
 		ID    int    `db:"id"`
@@ -364,17 +349,12 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 	SELECT
 		round, signature, previous_sig
 	FROM
-		(SELECT
-			round, signature, previous_sig
-		FROM
-			beacon_details
-		WHERE
-			beacon_id = :id
-		ORDER BY
-			round DESC
-		LIMIT 1) AS T
+		beacon_details
 	WHERE
-		round IS NOT NULL`
+		beacon_id = :id
+	ORDER BY
+		round DESC
+	LIMIT 1`
 
 	data := struct {
 		ID int `db:"id"`
