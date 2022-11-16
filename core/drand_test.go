@@ -755,7 +755,7 @@ func TestDrandPublicStream(t *testing.T) {
 		t.Logf("First round rcv %d \n", beacon.GetRound())
 		require.Equal(t, resp.GetRound(), beacon.GetRound())
 
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 		t.Logf("First round NOT rcv. Timeout has passed \n")
 		require.True(t, false, "too late for the first round, it didn't reply in time")
 	}
@@ -915,6 +915,10 @@ func TestDrandFollowChain(t *testing.T) {
 
 		// cancel the operation
 		cancel()
+
+		// (Postgres) Database operations need to have a proper context to work.
+		// We create a new one, since we canceled the previous one.
+		ctx = context.Background()
 
 		// check if the beacon is in the database
 		store, err := newNode.drand.createDBStore()
