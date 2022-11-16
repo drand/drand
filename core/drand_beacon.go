@@ -7,6 +7,7 @@ import (
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"
@@ -21,7 +22,7 @@ import (
 // can start the DKG, read/write shares to files and can initiate/respond to tBLS
 // signature requests.
 type BeaconProcess struct {
-	dkgProcess *DKGProcess
+	dkgProcess *dkg.DKGProcess
 	opts       *Config
 	priv       *key.Pair
 	beaconID   string
@@ -71,7 +72,7 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 	}
 
 	bp := &BeaconProcess{
-		dkgProcess:  &DKGProcess{},
+		dkgProcess:  &dkg.DKGProcess{},
 		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
 		store:       store,
 		log:         log,

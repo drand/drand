@@ -164,10 +164,6 @@ func (s *EmptyServer) Reject(_ context.Context, rejection *drand.RejectProposal)
 	return nil, nil
 }
 
-func (s *EmptyServer) SendError(_ context.Context, error *drand.DKGError) (*drand.GenericResponseMessage, error) {
-	return nil, nil
-}
-
 func (s *EmptyServer) Propose(_ context.Context, proposal *drand.Proposal) (*drand.GenericResponseMessage, error) {
 	return nil, nil
 }

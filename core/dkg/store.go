@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"github.com/drand/drand/log"
@@ -18,8 +18,8 @@ type boltStore struct {
 const BoltFileName = "dkg.db"
 const BoltStoreOpenPerm = 0660
 
-var DKGStateBucket = []byte("dkg")
-var DKGFinishedStateBucket = []byte("dkg_finished")
+var stagedStateBucket = []byte("dkg")
+var finishedStateBucket = []byte("dkg_finished")
 
 func NewDKGStore(baseFolder string, options *bolt.Options) (DKGStore, error) {
 	dbPath := path.Join(baseFolder, BoltFileName)
@@ -29,12 +29,12 @@ func NewDKGStore(baseFolder string, options *bolt.Options) (DKGStore, error) {
 	}
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists(DKGStateBucket)
+		_, err := tx.CreateBucketIfNotExists(stagedStateBucket)
 		if err != nil {
 			return err
 		}
 
-		_, err = tx.CreateBucketIfNotExists(DKGFinishedStateBucket)
+		_, err = tx.CreateBucketIfNotExists(finishedStateBucket)
 		return err
 	})
 
@@ -46,8 +46,8 @@ func NewDKGStore(baseFolder string, options *bolt.Options) (DKGStore, error) {
 	return &store, nil
 }
 
-func (s *boltStore) GetCurrent(beaconID string) (*DKGDetails, error) {
-	dkg, err := s.get(beaconID, DKGStateBucket)
+func (s *boltStore) GetCurrent(beaconID string) (*DKGState, error) {
+	dkg, err := s.get(beaconID, stagedStateBucket)
 
 	if err != nil {
 		return nil, err
@@ -59,12 +59,12 @@ func (s *boltStore) GetCurrent(beaconID string) (*DKGDetails, error) {
 	return dkg, nil
 }
 
-func (s *boltStore) GetFinished(beaconID string) (*DKGDetails, error) {
-	return s.get(beaconID, DKGFinishedStateBucket)
+func (s *boltStore) GetFinished(beaconID string) (*DKGState, error) {
+	return s.get(beaconID, finishedStateBucket)
 }
 
-func (s *boltStore) get(beaconID string, bucketName []byte) (*DKGDetails, error) {
-	var dkg *DKGDetails
+func (s *boltStore) get(beaconID string, bucketName []byte) (*DKGState, error) {
+	var dkg *DKGState
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
@@ -81,27 +81,27 @@ func (s *boltStore) get(beaconID string, bucketName []byte) (*DKGDetails, error)
 	return dkg, err
 }
 
-func (s *boltStore) SaveCurrent(beaconID string, state *DKGDetails) error {
-	return s.save(DKGStateBucket, beaconID, state)
+func (s *boltStore) SaveCurrent(beaconID string, state *DKGState) error {
+	return s.save(stagedStateBucket, beaconID, state)
 }
 
-func (s *boltStore) SaveFinished(beaconID string, state *DKGDetails) error {
-	// we want this to be transactional and should lock out other accesses
+func (s *boltStore) SaveFinished(beaconID string, state *DKGState) error {
+	// we want the two writes to be transactional
 	// so users don't try and e.g. abort mid-completion
 	// it should happen rarely, so we don't care about lock contention
 	s.Lock()
 	defer s.Unlock()
 
 	// we save it to both buckets as it's the most up to date
-	err := s.save(DKGFinishedStateBucket, beaconID, state)
+	err := s.save(finishedStateBucket, beaconID, state)
 	if err != nil {
 		return err
 	}
 
-	return s.save(DKGStateBucket, beaconID, state)
+	return s.save(stagedStateBucket, beaconID, state)
 }
 
-func (s *boltStore) save(bucketName []byte, beaconID string, state *DKGDetails) error {
+func (s *boltStore) save(bucketName []byte, beaconID string, state *DKGState) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket(bucketName)
 

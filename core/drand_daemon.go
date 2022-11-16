@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	dkg2 "github.com/drand/drand/core/dkg"
 	"sync"
 
 	"github.com/drand/drand/chain"
@@ -27,7 +28,7 @@ type DrandDaemon struct {
 	pubGateway  *net.PublicGateway
 	control     net.ControlListener
 
-	dkg *DKGProcess
+	dkg *dkg2.DKGProcess
 
 	handler *dhttp.DrandHandler
 
@@ -131,7 +132,7 @@ func (dd *DrandDaemon) init() error {
 	// set up the gRPC clients
 	p := c.ControlPort()
 
-	dkgStore, err := NewDKGStore(c.configFolder, c.boltOpts)
+	dkgStore, err := dkg2.NewDKGStore(c.configFolder, c.boltOpts)
 	if err != nil {
 		return err
 	}
@@ -144,7 +145,7 @@ func (dd *DrandDaemon) init() error {
 
 		return bp.priv.Public, nil
 	}
-	dd.dkg = NewDKGProcess(&dkgStore, identityForBeacon)
+	dd.dkg = dkg2.NewDKGProcess(&dkgStore, identityForBeacon)
 
 	controlListener, err := net.NewGRPCListener(dd, dd.dkg, p)
 	if err != nil {

@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"github.com/drand/drand/protobuf/drand"
@@ -13,7 +13,7 @@ func TestStoredDKGCanBeRetrieved(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef"), Signature: []byte("cafebabe")}
+	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef")}
 	dkg := NewFullDKGEntry(
 		beaconID,
 		Executing,
@@ -50,7 +50,7 @@ func TestFetchingWrongBeaconIDReturnsFresh(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef"), Signature: []byte("cafebabe")}
+	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef")}
 	dkg := NewFullDKGEntry(
 		beaconID,
 		Executing,
@@ -89,7 +89,7 @@ func TestGetReturnsLatestCompletedIfNoneInProgress(t *testing.T) {
 
 	// create some DKG details
 	beaconID := "myBeaconId"
-	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef"), Signature: []byte("cafebabe")}
+	leader := drand.Participant{Address: "somebody", Tls: true, PubKey: []byte("deadbeef")}
 	dkg := NewFullDKGEntry(
 		beaconID,
 		Complete,

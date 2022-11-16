@@ -1,7 +1,6 @@
-package core
+package dkg
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/drand/drand/protobuf/drand"
@@ -54,7 +53,7 @@ func (s DKGStatus) String() string {
 	}
 }
 
-type DKGDetails struct {
+type DKGState struct {
 	BeaconID  string
 	Epoch     uint32
 	State     DKGStatus
@@ -71,10 +70,10 @@ type DKGDetails struct {
 	FinalGroup []*drand.Participant
 }
 
-// IntoEntry turns a DKGDetails object into the protobuf entry for
+// IntoEntry turns a DKGState object into the protobuf entry for
 // easy marshalling and unmarshalling, and to maintain a
 // consistent wire format
-func (d *DKGDetails) IntoEntry() *drand.DKGEntry {
+func (d *DKGState) IntoEntry() *drand.DKGEntry {
 	if d == nil {
 		return nil
 	}
@@ -93,15 +92,15 @@ func (d *DKGDetails) IntoEntry() *drand.DKGEntry {
 	}
 }
 
-func NewFreshState(beaconID string) *DKGDetails {
-	return &DKGDetails{
+func NewFreshState(beaconID string) *DKGState {
+	return &DKGState{
 		BeaconID: beaconID,
 		State:    Fresh,
 		Timeout:  time.Unix(0, 0).UTC(),
 	}
 }
 
-func (d *DKGDetails) Joined(me *drand.Participant, terms *drand.ProposalTerms) (*DKGDetails, error) {
+func (d *DKGState) Joined(me *drand.Participant, terms *drand.ProposalTerms) (*DKGState, error) {
 	if !isValidStateChange(d.State, Joined) {
 		return nil, InvalidStateChange(d.State, Joined)
 	}
@@ -114,7 +113,7 @@ func (d *DKGDetails) Joined(me *drand.Participant, terms *drand.ProposalTerms) (
 		return nil, SelfMissingFromProposal
 	}
 
-	return &DKGDetails{
+	return &DKGState{
 		BeaconID:  d.BeaconID,
 		Epoch:     terms.Epoch,
 		State:     Joined,
@@ -127,7 +126,7 @@ func (d *DKGDetails) Joined(me *drand.Participant, terms *drand.ProposalTerms) (
 	}, nil
 }
 
-func (d *DKGDetails) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (*DKGDetails, error) {
+func (d *DKGState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) (*DKGState, error) {
 	if !isValidStateChange(d.State, Proposing) {
 		return nil, InvalidStateChange(d.State, Proposing)
 	}
@@ -144,7 +143,7 @@ func (d *DKGDetails) Proposing(me *drand.Participant, terms *drand.ProposalTerms
 		return nil, InvalidEpoch
 	}
 
-	return &DKGDetails{
+	return &DKGState{
 		BeaconID:  d.BeaconID,
 		Epoch:     terms.Epoch,
 		State:     Proposing,
@@ -157,7 +156,7 @@ func (d *DKGDetails) Proposing(me *drand.Participant, terms *drand.ProposalTerms
 	}, nil
 }
 
-func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, terms *drand.ProposalTerms) (*DKGDetails, error) {
+func (d *DKGState) Proposed(sender *drand.Participant, me *drand.Participant, terms *drand.ProposalTerms) (*DKGState, error) {
 	if !isValidStateChange(d.State, Proposed) {
 		return nil, InvalidStateChange(d.State, Proposed)
 	}
@@ -174,7 +173,7 @@ func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, 
 		return nil, SelfMissingFromProposal
 	}
 
-	return &DKGDetails{
+	return &DKGState{
 		BeaconID:  d.BeaconID,
 		Epoch:     terms.Epoch,
 		State:     Proposed,
@@ -187,7 +186,7 @@ func (d *DKGDetails) Proposed(sender *drand.Participant, me *drand.Participant, 
 	}, nil
 }
 
-func (d *DKGDetails) TimedOut() (*DKGDetails, error) {
+func (d *DKGState) TimedOut() (*DKGState, error) {
 	if !isValidStateChange(d.State, TimedOut) {
 		return nil, InvalidStateChange(d.State, TimedOut)
 	}
@@ -197,7 +196,7 @@ func (d *DKGDetails) TimedOut() (*DKGDetails, error) {
 	return d, nil
 }
 
-func (d *DKGDetails) Aborted() (*DKGDetails, error) {
+func (d *DKGState) Aborted() (*DKGState, error) {
 	if !isValidStateChange(d.State, Aborted) {
 		return nil, InvalidStateChange(d.State, Aborted)
 	}
@@ -207,7 +206,7 @@ func (d *DKGDetails) Aborted() (*DKGDetails, error) {
 	return d, nil
 }
 
-func (d *DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) Accepted(me *drand.Participant) (*DKGState, error) {
 	if !isValidStateChange(d.State, Accepted) {
 		return nil, InvalidStateChange(d.State, Accepted)
 	}
@@ -228,7 +227,7 @@ func (d *DKGDetails) Accepted(me *drand.Participant) (*DKGDetails, error) {
 	return d, nil
 }
 
-func (d *DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) Rejected(me *drand.Participant) (*DKGState, error) {
 	if !isValidStateChange(d.State, Rejected) {
 		return nil, InvalidStateChange(d.State, Rejected)
 	}
@@ -249,7 +248,7 @@ func (d *DKGDetails) Rejected(me *drand.Participant) (*DKGDetails, error) {
 	return d, nil
 }
 
-func (d *DKGDetails) Left(me *drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) Left(me *drand.Participant) (*DKGState, error) {
 	if !isValidStateChange(d.State, Left) {
 		return nil, InvalidStateChange(d.State, Left)
 	}
@@ -267,7 +266,7 @@ func (d *DKGDetails) Left(me *drand.Participant) (*DKGDetails, error) {
 	return d, nil
 }
 
-func (d *DKGDetails) Executing(me *drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) Executing(me *drand.Participant) (*DKGState, error) {
 	if !isValidStateChange(d.State, Executing) {
 		return nil, InvalidStateChange(d.State, Executing)
 	}
@@ -285,7 +284,7 @@ func (d *DKGDetails) Executing(me *drand.Participant) (*DKGDetails, error) {
 	return d, nil
 }
 
-func (d *DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) Complete(finalGroup []*drand.Participant) (*DKGState, error) {
 	if !isValidStateChange(d.State, Complete) {
 		return nil, InvalidStateChange(d.State, Complete)
 	}
@@ -300,7 +299,7 @@ func (d *DKGDetails) Complete(finalGroup []*drand.Participant) (*DKGDetails, err
 	return d, nil
 }
 
-func (d *DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGState, error) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange(d.State, Proposing)
 
@@ -324,7 +323,7 @@ func (d *DKGDetails) ReceivedAcceptance(me *drand.Participant, them *drand.Parti
 	return d, nil
 }
 
-func (d *DKGDetails) ReceivedRejection(me *drand.Participant, them *drand.Participant) (*DKGDetails, error) {
+func (d *DKGState) ReceivedRejection(me *drand.Participant, them *drand.Participant) (*DKGState, error) {
 	if d.State != Proposing {
 		return nil, InvalidStateChange(d.State, Proposing)
 	}
@@ -406,12 +405,12 @@ func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	return false
 }
 
-func hasTimedOut(details *DKGDetails) bool {
+func hasTimedOut(details *DKGState) bool {
 	now := time.Now()
 	return details.Timeout.Before(now) || details.Timeout == now
 }
 
-func ValidateProposal(currentState *DKGDetails, terms *drand.ProposalTerms) error {
+func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error {
 	if currentState.BeaconID != terms.BeaconID {
 		return InvalidBeaconID
 	}
@@ -471,7 +470,7 @@ func contains(haystack []*drand.Participant, needle *drand.Participant) bool {
 		return false
 	}
 	for _, v := range haystack {
-		if participantsEqual(v, needle) {
+		if v == needle {
 			return true
 		}
 	}
@@ -501,12 +500,4 @@ func without[T comparable](haystack []T, needle T) []T {
 	ret := make([]T, 0)
 	ret = append(ret, haystack[:indexToRemove]...)
 	return append(ret, haystack[indexToRemove+1:]...)
-}
-
-// participantsEqual performs a deep comparison of two drand.Participant objects
-func participantsEqual(p1 *drand.Participant, p2 *drand.Participant) bool {
-	return p1.Address == p2.Address &&
-		p1.Tls == p2.Tls &&
-		bytes.Compare(p1.PubKey, p2.PubKey) == 0 &&
-		bytes.Compare(p1.Signature, p2.Signature) == 0
 }

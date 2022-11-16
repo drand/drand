@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"context"
@@ -17,16 +17,16 @@ type DKGProcess struct {
 type DKGStore interface {
 	// GetCurrent returns the current DKG information, finished DKG information or fresh DKG information,
 	// depending on the state of the world
-	GetCurrent(beaconID string) (*DKGDetails, error)
+	GetCurrent(beaconID string) (*DKGState, error)
 
 	// GetFinished returns the last completed DKG state (i.e. completed or aborted), or nil if one has not been finished
-	GetFinished(beaconID string) (*DKGDetails, error)
+	GetFinished(beaconID string) (*DKGState, error)
 
 	// SaveCurrent stores a DKG packet for an ongoing DKG
-	SaveCurrent(beaconID string, state *DKGDetails) error
+	SaveCurrent(beaconID string, state *DKGState) error
 
 	// SaveFinished stores a completed, successful DKG and overwrites the current packet
-	SaveFinished(beaconID string, state *DKGDetails) error
+	SaveFinished(beaconID string, state *DKGState) error
 
 	// Close closes and cleans up any database handles
 	Close() error
@@ -49,10 +49,13 @@ func (d *DKGProcess) StartNetwork(_ context.Context, options *drand.FirstProposa
 		return errorResponse(err), err
 	}
 
+	protocolSteps := FirstProposalSteps{
+		me: me,
+	}
 	err = executeProtocolSteps[*drand.FirstProposalOptions, *drand.ProposalTerms, *drand.Proposal](
 		d,
 		options.BeaconID,
-		FirstProposalSteps{me: me},
+		protocolSteps,
 		options,
 	)
 	if err != nil {
@@ -68,10 +71,15 @@ func (d *DKGProcess) StartProposal(_ context.Context, options *drand.ProposalOpt
 	if err != nil {
 		return errorResponse(err), err
 	}
+
+	protocolSteps := ProposalSteps{
+		me:    me,
+		store: d.store,
+	}
 	err = executeProtocolSteps[*drand.ProposalOptions, *drand.ProposalTerms, *drand.Proposal](
 		d,
 		options.BeaconID,
-		ProposalSteps{me: me},
+		protocolSteps,
 		options,
 	)
 	d.log.Debugw("Finished starting the network", "errors?", err.Error())
@@ -123,10 +131,9 @@ func (d *DKGProcess) identityForBeacon(beaconID string) (*drand.Participant, err
 	}
 
 	return &drand.Participant{
-		Address:   identity.Address(),
-		Tls:       identity.TLS,
-		PubKey:    pubKey,
-		Signature: identity.Signature,
+		Address: identity.Address(),
+		Tls:     identity.TLS,
+		PubKey:  pubKey,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"errors"
@@ -169,30 +169,73 @@ func TestDatabaseSaveErrorPropagated(t *testing.T) {
 	require.Equal(t, expectedError, err)
 }
 
+func TestForwardRequestTriggeredForEachRequest(t *testing.T) {
+	// create some dependencies
+	store := new(StoreMock)
+	process := DKGProcess{
+		fetchIdentityForBeacon: noOpFetchIdentity,
+		store:                  store,
+		log:                    log.NewLogger(nil, log.LogDebug),
+	}
+
+	// valid looking DKG transition
+	beaconID := "some-beacon"
+	dkgState := NewFullDKGEntry(beaconID, Executing, nil)
+	mapping := stubMapping{
+		enrichResult: "great",
+		enrichError:  nil,
+		applyResult:  dkgState,
+		applyError:   nil,
+		responses: []*NetworkRequest[string]{
+			{
+				to:      NewParticipant(),
+				payload: "something",
+			},
+			{
+				to:      NewParticipant(),
+				payload: "something-else",
+			},
+		},
+	}
+
+	// mock the request forwarding, so we can know if it was actually called
+	mapping.On("ForwardRequest", mock.Anything, mapping.responses[0]).Return(nil)
+	mapping.On("ForwardRequest", mock.Anything, mapping.responses[1]).Return(nil)
+
+	// mock the database calls
+	store.On("GetCurrent", beaconID).Return(dkgState, nil)
+	store.On("SaveCurrent", beaconID, dkgState).Return(nil)
+
+	// expect the error created above
+	err := executeProtocolSteps[string, string, string](&process, "some-beacon", mapping, "some-input")
+	require.NoError(t, err)
+}
+
 type stubMapping struct {
+	mock.Mock
 	enrichResult  string
 	enrichError   error
-	applyResult   *DKGDetails
+	applyResult   *DKGState
 	applyError    error
 	responses     []*NetworkRequest[string]
 	responseError error
-	forwardError  error
 }
 
 func (s stubMapping) Enrich(_ string) (string, error) {
 	return s.enrichResult, s.enrichError
 }
 
-func (s stubMapping) Apply(_ string, _ *DKGDetails) (*DKGDetails, error) {
+func (s stubMapping) Apply(_ string, _ *DKGState) (*DKGState, error) {
 	return s.applyResult, s.applyError
 }
 
-func (s stubMapping) Requests(_ string, _ *DKGDetails) ([]*NetworkRequest[string], error) {
+func (s stubMapping) Requests(_ string, _ *DKGState) ([]*NetworkRequest[string], error) {
 	return s.responses, s.responseError
 }
 
-func (s stubMapping) ForwardRequest(_ drand.DKGClient, _ *NetworkRequest[string]) error {
-	return s.forwardError
+func (s stubMapping) ForwardRequest(c drand.DKGClient, r *NetworkRequest[string]) error {
+	args := s.MethodCalled("ForwardRequest", c, r)
+	return args.Error(0)
 }
 
 type StoreMock struct {
@@ -201,31 +244,31 @@ type StoreMock struct {
 }
 
 // depending on the state of the world
-func (s StoreMock) GetCurrent(beaconID string) (*DKGDetails, error) {
+func (s StoreMock) GetCurrent(beaconID string) (*DKGState, error) {
 	args := s.MethodCalled("GetCurrent", beaconID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*DKGDetails), args.Error(1)
+	return args.Get(0).(*DKGState), args.Error(1)
 }
 
 // GetFinished returns the last completed DKG state (i.e. completed or aborted), or nil if one has not been finished
-func (s StoreMock) GetFinished(beaconID string) (*DKGDetails, error) {
+func (s StoreMock) GetFinished(beaconID string) (*DKGState, error) {
 	args := s.MethodCalled("GetFinished", beaconID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*DKGDetails), args.Error(1)
+	return args.Get(0).(*DKGState), args.Error(1)
 }
 
 // SaveCurrent stores a DKG packet for an ongoing DKG
-func (s StoreMock) SaveCurrent(beaconID string, state *DKGDetails) error {
+func (s StoreMock) SaveCurrent(beaconID string, state *DKGState) error {
 	args := s.MethodCalled("SaveCurrent", beaconID, state)
 	return args.Error(0)
 }
 
 // SaveFinished stores a completed, successful DKG and overwrites the current packet
-func (s StoreMock) SaveFinished(beaconID string, state *DKGDetails) error {
+func (s StoreMock) SaveFinished(beaconID string, state *DKGState) error {
 	args := s.MethodCalled("SaveFinished", beaconID, state)
 	return args.Error(0)
 }

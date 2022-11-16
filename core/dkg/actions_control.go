@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"context"
@@ -28,11 +28,11 @@ func (p FirstProposalSteps) Enrich(incomingPacket *drand.FirstProposalOptions) (
 	}, nil
 }
 
-func (p FirstProposalSteps) Apply(terms *drand.ProposalTerms, currentState *DKGDetails) (*DKGDetails, error) {
+func (p FirstProposalSteps) Apply(terms *drand.ProposalTerms, currentState *DKGState) (*DKGState, error) {
 	return currentState.Proposing(p.me, terms)
 }
 
-func (p FirstProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGDetails) ([]*NetworkRequest[*drand.Proposal], error) {
+func (p FirstProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGState) ([]*NetworkRequest[*drand.Proposal], error) {
 	proposal := &drand.Proposal{
 		BeaconID:  terms.BeaconID,
 		Leader:    terms.Leader,
@@ -42,7 +42,6 @@ func (p FirstProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGDet
 		Joining:   terms.Joining,
 		Remaining: terms.Remaining,
 		Leaving:   terms.Leaving,
-		Signature: nil,
 	}
 
 	var requests []*NetworkRequest[*drand.Proposal]
@@ -73,14 +72,19 @@ func (p FirstProposalSteps) ForwardRequest(client drand.DKGClient, networkCall *
 }
 
 type ProposalSteps struct {
-	me *drand.Participant
+	me    *drand.Participant
+	store DKGStore
 }
 
 func (p ProposalSteps) Enrich(options *drand.ProposalOptions) (*drand.ProposalTerms, error) {
+	current, err := p.store.GetCurrent(options.BeaconID)
+	if err != nil {
+		return nil, err
+	}
 	return &drand.ProposalTerms{
 		BeaconID:  options.BeaconID,
 		Threshold: options.Threshold,
-		Epoch:     2,
+		Epoch:     current.Epoch + 1,
 		Timeout:   options.Timeout,
 		Leader:    p.me,
 		Joining:   options.Joining,
@@ -89,13 +93,11 @@ func (p ProposalSteps) Enrich(options *drand.ProposalOptions) (*drand.ProposalTe
 	}, nil
 }
 
-func (p ProposalSteps) Apply(terms *drand.ProposalTerms, currentState *DKGDetails) (*DKGDetails, error) {
-	// this should be in enrich, let's move it there later >.>
-	terms.Epoch = currentState.Epoch + 1
+func (p ProposalSteps) Apply(terms *drand.ProposalTerms, currentState *DKGState) (*DKGState, error) {
 	return currentState.Proposing(p.me, terms)
 }
 
-func (p ProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGDetails) ([]*NetworkRequest[*drand.Proposal], error) {
+func (p ProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGState) ([]*NetworkRequest[*drand.Proposal], error) {
 	proposal := &drand.Proposal{
 		BeaconID:  terms.BeaconID,
 		Leader:    terms.Leader,
@@ -105,7 +107,6 @@ func (p ProposalSteps) Requests(terms *drand.ProposalTerms, details *DKGDetails)
 		Joining:   terms.Joining,
 		Remaining: terms.Remaining,
 		Leaving:   terms.Leaving,
-		Signature: nil,
 	}
 
 	var requests []*NetworkRequest[*drand.Proposal]

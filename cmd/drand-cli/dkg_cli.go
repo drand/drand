@@ -3,13 +3,13 @@ package drand
 import (
 	"context"
 	"fmt"
-	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"log"
 	"time"
 )
 
@@ -52,7 +52,7 @@ func makeProposal(c *cli.Context) error {
 
 	var proposalResponse *drand.GenericResponseMessage
 	if isInitialProposal(c) {
-		proposal, err := parseInitialDKGProposal(c)
+		proposal, err := parseInitialProposal(c)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func makeProposal(c *cli.Context) error {
 		}
 
 	} else {
-		proposal, err := parseDKGProposal(c)
+		proposal, err := parseProposal(c)
 		if err != nil {
 			return err
 		}
@@ -78,7 +78,7 @@ func makeProposal(c *cli.Context) error {
 		return fmt.Errorf("error making proposal: %s", proposalResponse.ErrorMessage)
 	}
 
-	fmt.Println("proposal made successfully!")
+	log.Default().Println("proposal made successfully!")
 	return nil
 }
 
@@ -94,7 +94,7 @@ func withDefault(first, second string) string {
 	return first
 }
 
-func parseInitialDKGProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
+func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 	requiredFlags := []*cli.StringFlag{proposalFlag, periodFlag, schemeFlag, catchupPeriodFlag}
 
@@ -108,19 +108,14 @@ func parseInitialDKGProposal(c *cli.Context) (*drand.FirstProposalOptions, error
 		return nil, fmt.Errorf("%s flag is required for initial proposals", thresholdFlag.Name)
 	}
 
-	proposalFile := ProposalFile{}
-	_, err := toml.DecodeFile(c.String(proposalFlag.Name), &proposalFile)
-
+	proposalFile, err := ParseProposalFile(c.String(proposalFlag.Name))
 	if err != nil {
 		return nil, err
 	}
 
-	if len(proposalFile.Leavers()) != 0 || len(proposalFile.Remainers()) != 0 {
-		return nil, fmt.Errorf("your proposal file must not have `Leaving` or `Remaining` for an initial DKG proposal")
-	}
-
-	if len(proposalFile.Joiners()) == 0 {
-		return nil, fmt.Errorf("your proposal file must have `Joining`")
+	err = validateInitialProposal(proposalFile)
+	if err != nil {
+		return nil, err
 	}
 
 	return &drand.FirstProposalOptions{
@@ -132,11 +127,23 @@ func parseInitialDKGProposal(c *cli.Context) (*drand.FirstProposalOptions, error
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
 		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Minute)),
 		GenesisSeed:          []byte(""),
-		Joining:              proposalFile.Joiners(),
+		Joining:              proposalFile.Joining,
 	}, nil
 }
 
-func parseDKGProposal(c *cli.Context) (*drand.ProposalOptions, error) {
+func validateInitialProposal(proposalFile *ProposalFile) error {
+	if len(proposalFile.Leaving) != 0 || len(proposalFile.Remaining) != 0 {
+		return fmt.Errorf("your proposal file must not have `Leaving` or `Remaining` for an initial DKG proposal")
+	}
+
+	if len(proposalFile.Joining) == 0 {
+		return fmt.Errorf("your proposal file must have `Joining`")
+	}
+
+	return nil
+}
+
+func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 	beaconID := withDefault(c.String(beaconIDFlag.Name), common.DefaultBeaconID)
 	bannedFlags := []*cli.StringFlag{periodFlag, schemeFlag}
 	for _, flag := range bannedFlags {
@@ -153,14 +160,12 @@ func parseDKGProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, fmt.Errorf("%s flag is required", thresholdFlag.Name)
 	}
 
-	proposalFile := ProposalFile{}
-	_, err := toml.DecodeFile(c.String(proposalFlag.Name), &proposalFile)
-
+	proposalFile, err := ParseProposalFile(c.String(proposalFlag.Name))
 	if err != nil {
 		return nil, err
 	}
 
-	if len(proposalFile.Remainers()) == 0 {
+	if len(proposalFile.Remaining) == 0 {
 		return nil, fmt.Errorf("you must provider remainers for a proposal")
 	}
 
@@ -169,9 +174,9 @@ func parseDKGProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		Timeout:              timestamppb.New(time.Now().Add(24 * time.Hour)),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
-		Joining:              proposalFile.Joiners(),
-		Leaving:              proposalFile.Leavers(),
-		Remaining:            proposalFile.Remainers(),
+		Joining:              proposalFile.Joining,
+		Leaving:              proposalFile.Leaving,
+		Remaining:            proposalFile.Remaining,
 	}, nil
 }
 

@@ -1,4 +1,4 @@
-package core
+package dkg
 
 import (
 	"context"
@@ -44,10 +44,6 @@ func (d *DKGProcess) Accept(_ context.Context, acceptance *drand.AcceptProposal)
 }
 
 func (d *DKGProcess) Reject(_ context.Context, rejection *drand.RejectProposal) (*drand.GenericResponseMessage, error) {
-	return errResponse(), nil
-}
-
-func (d *DKGProcess) SendError(_ context.Context, error *drand.DKGError) (*drand.GenericResponseMessage, error) {
 	return errResponse(), nil
 }
 
