@@ -33,7 +33,7 @@ func ComputePgDSN(dbEngineType chain.StorageType) func() string {
 		dsn := defaultPgDSN
 		dbName := test.ComputeDBName()
 
-		if dbEngineType != chain.PostgresSQL {
+		if dbEngineType != chain.PostgreSQL {
 			return ""
 		}
 

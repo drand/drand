@@ -45,7 +45,7 @@ func main() {
 		defer func() { fmt.Println("[+] Leaving test - all good") }()
 	}
 
-	if chain.StorageType(*dbEngineType) == chain.PostgresSQL {
+	if chain.StorageType(*dbEngineType) == chain.PostgreSQL {
 		stopContainer := cfg.BootContainer()
 		defer stopContainer()
 	}

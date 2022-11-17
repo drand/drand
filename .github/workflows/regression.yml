@@ -126,7 +126,7 @@ jobs:
 
       # Regression test
       - name: Run regression with PostgresDB backend
-        id: regression-bolt
+        id: regression-postgres
         run: go run ./demo/regression -db=postgres -release ~/go/bin/drand-existing -candidate ~/go/bin/drand-candidate
 
       # Report

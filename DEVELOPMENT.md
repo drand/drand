@@ -36,14 +36,32 @@ You can also run regression testing, see [the section below](#regression-testing
 
 To test changes using Docker Compose, navigate to [Docker Readme](test/docker/README.md) and follow the steps described there.
 
-#### Testing with PostgresSQL as database backend
+#### Testing with PostgreSQL as database backend
 
-Drand supports PostgresSQL as a database backend for storing beacons.
+Drand supports PostgreSQL as a database backend for storing beacons.
 
 To check your code against it, run `make test-unit-postgres`.
 
 You can also run the `make demo-postgres` command to launch the scripted demo using
-PostgresSQL as a backend.
+PostgreSQL as a backend.
+
+If you want to run an isolated version of Postgres, you can use the `docker-compose.yaml` file
+from the root of this repository to do so.
+
+To start the database, use:
+```shell
+docker-compose up -d
+```
+
+To stop the database, use:
+```shell
+docker-compose down
+```
+
+If you wish to remove the database volume too, use this command instead to stop:
+```shell
+docker-compose down --volumes --remove-orphans
+```
 
 ## Regression testing
 
@@ -59,7 +77,7 @@ go build -o drand-candidate
 go run ./demo/regression -release ./drand-existing -candidate ./drand-candidate
 ```
 
-If you want to test your code against the PostgresSQL backend, replace the
+If you want to test your code against the PostgreSQL backend, replace the
 `go run` command above with:
 
 ```shell

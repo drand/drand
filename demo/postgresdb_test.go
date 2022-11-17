@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 }
 
 func withTestDB() chain.StorageType {
-	return chain.PostgresSQL
+	return chain.PostgreSQL
 }
 
 func withPgDSN(t *testing.T) func() string {

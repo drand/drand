@@ -37,7 +37,6 @@ type Config struct {
 	Password     string
 	Host         string
 	Name         string
-	Schema       string
 	MaxIdleConns int
 	MaxOpenConns int
 	DisableTLS   bool
@@ -80,7 +79,9 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-idle, got err: %w", err)
 		}
-		cfg.MaxIdleConns = m
+		if m >= 0 {
+			cfg.MaxIdleConns = m
+		}
 	}
 
 	cfg.MaxOpenConns = 0
@@ -90,11 +91,9 @@ func ConfigFromDSN(dsn string) (Config, error) {
 		if err != nil {
 			return Config{}, fmt.Errorf("expected number for max-open, got err: %w", err)
 		}
-		cfg.MaxOpenConns = o
-	}
-
-	if query.Has("search_path") {
-		cfg.Schema = query.Get("search_path")
+		if o >= 0 {
+			cfg.MaxOpenConns = o
+		}
 	}
 
 	return cfg, nil
@@ -113,9 +112,6 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 	q := make(url.Values)
 	q.Set("sslmode", sslMode)
 	q.Set("timezone", "utc")
-	if cfg.Schema != "" {
-		q.Set("search_path", cfg.Schema)
-	}
 
 	u := url.URL{
 		Scheme:   "postgres",
@@ -139,19 +135,24 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 // returns a non-nil error otherwise.
 func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 	var pingError error
-	for attempts := 1; ; attempts++ {
-		pingError = db.Ping()
-		if pingError == nil {
-			break
-		}
-		time.Sleep(time.Duration(attempts) * 100 * time.Millisecond)
-		if ctx.Err() != nil {
+	var attempts int
+
+	//nolint:gomnd // We want to have a reasonable retry period
+	t := time.NewTicker(100 * time.Millisecond)
+	defer t.Stop()
+
+check:
+	for {
+		select {
+		case <-t.C:
+			attempts++
+			pingError = db.Ping()
+			if pingError == nil {
+				break check
+			}
+		case <-ctx.Done():
 			return ctx.Err()
 		}
-	}
-
-	if ctx.Err() != nil {
-		return ctx.Err()
 	}
 
 	const q = `SELECT true`
@@ -202,7 +203,10 @@ func ExecContext(ctx context.Context, l log.Logger, db sqlx.ExtContext, query st
 // NamedExecContext is a helper function to execute a CUD operation with
 // logging and tracing where field replacement is necessary.
 func NamedExecContext(ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, data any) error {
-	q := queryString(query, data)
+	q, err := queryString(query, data)
+	if err != nil {
+		return err
+	}
 
 	if _, ok := data.(struct{}); ok {
 		//nolint:gomnd // Having to add constants is overkill.
@@ -236,7 +240,10 @@ func QuerySlice[T any](ctx context.Context, l log.Logger, db sqlx.ExtContext, qu
 // NamedQuerySlice is a helper function for executing queries that return a
 // collection of data to be unmarshalled into a slice where field replacement is necessary.
 func NamedQuerySlice[T any](ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, data any, dest *[]T) error {
-	q := queryString(query, data)
+	q, err := queryString(query, data)
+	if err != nil {
+		return err
+	}
 
 	if _, ok := data.(struct{}); ok {
 		//nolint:gomnd // Having to add constants is overkill.
@@ -277,7 +284,10 @@ func QueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, query st
 // NamedQueryStruct is a helper function for executing queries that return a
 // single value to be unmarshalled into a struct type where field replacement is necessary.
 func NamedQueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, query string, data, dest any) error {
-	q := queryString(query, data)
+	q, err := queryString(query, data)
+	if err != nil {
+		return err
+	}
 
 	if _, ok := data.(struct{}); ok {
 		//nolint:gomnd // This doesn't need to be a constant
@@ -308,10 +318,10 @@ func NamedQueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, que
 }
 
 // queryString provides a pretty print version of the query and parameters.
-func queryString(query string, args ...any) string {
+func queryString(query string, args ...any) (string, error) {
 	query, params, err := sqlx.Named(query, args)
 	if err != nil {
-		return err.Error()
+		return "", err
 	}
 
 	for _, param := range params {
@@ -330,5 +340,5 @@ func queryString(query string, args ...any) string {
 	query = strings.ReplaceAll(query, "\t", "")
 	query = strings.ReplaceAll(query, "\n", " ")
 
-	return strings.Trim(query, " ")
+	return strings.Trim(query, " "), nil
 }

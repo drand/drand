@@ -318,7 +318,7 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		fs.CreateSecureFolder(dbPath)
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 
-	case chain.PostgresSQL:
+	case chain.PostgreSQL:
 		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
 
 	default:

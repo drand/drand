@@ -34,7 +34,7 @@ func withTestDB(t *testing.T, dbName string) ConfigOption {
 
 func WithTestDB(t *testing.T, dbName string) []ConfigOption {
 	return []ConfigOption{
-		WithDBStorageEngine(chain.PostgresSQL),
+		WithDBStorageEngine(chain.PostgreSQL),
 		withTestDB(t, dbName),
 	}
 }

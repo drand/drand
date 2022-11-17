@@ -48,8 +48,8 @@ const (
 	// BoltDB uses the BoltDB engine for storing data
 	BoltDB StorageType = "bolt"
 
-	// PostgresSQL uses the PostgreSQL database for storing data
-	PostgresSQL StorageType = "postgres"
+	// PostgreSQL uses the PostgreSQL database for storing data
+	PostgreSQL StorageType = "postgres"
 )
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).

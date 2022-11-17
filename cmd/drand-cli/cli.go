@@ -347,7 +347,7 @@ var storageTypeFlag = &cli.StringFlag{
 
 var pgDSNFlag = &cli.StringFlag{
 	Name:    "pg-dsn",
-	Usage:   "PostgresSQL DSN configuration.",
+	Usage:   "PostgreSQL DSN configuration.",
 	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5",
 	EnvVars: []string{"DRAND_PG_DSN"},
 }
@@ -1046,8 +1046,8 @@ func contextToConfig(c *cli.Context) *core.Config {
 	switch chain.StorageType(c.String(storageTypeFlag.Name)) {
 	case chain.BoltDB:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
-	case chain.PostgresSQL:
-		opts = append(opts, core.WithDBStorageEngine(chain.PostgresSQL))
+	case chain.PostgreSQL:
+		opts = append(opts, core.WithDBStorageEngine(chain.PostgreSQL))
 	default:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
 	}

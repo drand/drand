@@ -52,10 +52,9 @@ func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
 		dkgTimeout:   DefaultDKGTimeout,
-		// certmanager: net.NewCertManager(),
-		controlPort: DefaultControlPort,
-		logger:      log.DefaultLogger(),
-		clock:       clock.NewRealClock(),
+		controlPort:  DefaultControlPort,
+		logger:       log.DefaultLogger(),
+		clock:        clock.NewRealClock(),
 	}
 	for i := range opts {
 		opts[i](d)
@@ -179,7 +178,7 @@ func WithPgDSN(dsn string) ConfigOption {
 	return func(d *Config) {
 		d.pgDSN = dsn
 
-		if d.dbStorageEngine != chain.PostgresSQL {
+		if d.dbStorageEngine != chain.PostgreSQL {
 			// TODO (dlsniper): Would be nice to have a log here. It needs to be injected somehow.
 			return
 		}
@@ -201,7 +200,7 @@ func WithPgDSN(dsn string) ConfigOption {
 	}
 }
 
-// PgDSN returns the PostgresSQL specific DSN configuration.
+// PgDSN returns the PostgreSQL specific DSN configuration.
 func (d *Config) PgDSN() string {
 	return d.pgDSN
 }

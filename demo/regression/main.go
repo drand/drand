@@ -90,7 +90,7 @@ func main() {
 	period := "10s"
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
-	if chain.StorageType(*dbEngineType) == chain.PostgresSQL {
+	if chain.StorageType(*dbEngineType) == chain.PostgreSQL {
 		stopContainer := cfg.BootContainer()
 		defer stopContainer()
 	}
