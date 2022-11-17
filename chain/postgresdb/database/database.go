@@ -135,7 +135,6 @@ func Open(ctx context.Context, cfg Config) (*sqlx.DB, error) {
 // returns a non-nil error otherwise.
 func StatusCheck(ctx context.Context, db *sqlx.DB) error {
 	var pingError error
-	var attempts int
 
 	//nolint:gomnd // We want to have a reasonable retry period
 	t := time.NewTicker(100 * time.Millisecond)
@@ -145,7 +144,6 @@ check:
 	for {
 		select {
 		case <-t.C:
-			attempts++
 			pingError = db.Ping()
 			if pingError == nil {
 				break check
