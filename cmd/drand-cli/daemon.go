@@ -17,8 +17,13 @@ func startCmd(c *cli.Context) error {
 		return fmt.Errorf("can't instantiate drand daemon %w", err)
 	}
 
+	singleBeacon := false
+	if c.IsSet(beaconIDFlag.Name) {
+		singleBeacon = true
+	}
+
 	// Check stores and start BeaconProcess
-	err = drandDaemon.LoadBeaconsFromDisk(c.String(metricsFlag.Name))
+	err = drandDaemon.LoadBeaconsFromDisk(c.String(metricsFlag.Name), singleBeacon, c.String(beaconIDFlag.Name))
 	if err != nil {
 		return fmt.Errorf("couldn't load existing beacons: %w", err)
 	}

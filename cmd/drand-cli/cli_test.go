@@ -483,7 +483,6 @@ func testStartedDrandFunctional(t *testing.T, ctrlPort, rootPath, address string
 	require.Error(t, err)
 }
 
-//nolint:unused // We want to provide convenience functions
 func testPing(t *testing.T, ctrlPort string) {
 	t.Helper()
 
@@ -511,11 +510,25 @@ func testStatus(t *testing.T, ctrlPort, beaconID string) {
 		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
 		err = CLI().Run(status)
 		if err == nil {
-			break
+			return
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
 	require.NoError(t, err)
+}
+
+func testFailStatus(t *testing.T, ctrlPort, beaconID string) {
+	t.Helper()
+
+	var err error
+
+	t.Logf(" + running STATUS command with %s on beacon [%s]", ctrlPort, beaconID)
+	for i := 0; i < 3; i++ {
+		status := []string{"drand", "util", "status", "--control", ctrlPort, "--id", beaconID}
+		err = CLI().Run(status)
+		require.Error(t, err)
+		time.Sleep(500 * time.Millisecond)
+	}
 }
 
 //nolint:unused // We want to provide convenience functions
@@ -698,7 +711,6 @@ func TestDrandListSchemes(t *testing.T) {
 }
 
 func TestDrandReloadBeacon(t *testing.T) {
-	t.Skipf("test fails when error checking commands")
 	sch := scheme.GetSchemeFromEnv()
 	beaconID := test.GetBeaconIDFromEnv()
 
@@ -707,28 +719,29 @@ func TestDrandReloadBeacon(t *testing.T) {
 
 	for i, inst := range instances {
 		if i == 0 {
-			inst.shareLeader(t, n, n, 2, beaconID, sch)
+			inst.shareLeader(t, n, n, 1, beaconID, sch)
 		} else {
 			inst.share(t, instances[0].addr, beaconID)
 		}
-		time.Sleep(500 * time.Millisecond)
 	}
+
+	t.Log("waiting for initial set up to settle on all nodes")
+	time.Sleep(3 * time.Second)
 
 	defer func() {
 		for _, inst := range instances {
-			err := inst.stopAll()
-			require.NoError(t, err)
+			// We want to ignore this error, at least until the stop command won't return an error
+			// when correctly running the stop command.
+			_ = inst.stopAll()
 		}
 	}()
 
-	time.Sleep(1 * time.Second)
+	t.Log("waiting for initial setup to finish")
+	time.Sleep(5 * time.Second)
 
 	// try to reload a beacon which is already loaded
 	err := instances[3].load(beaconID)
 	require.Error(t, err)
-
-	// wait some time to generate some randomness
-	time.Sleep(1 * time.Minute)
 
 	// Stop beacon process... not the entire node
 	err = instances[3].stop(beaconID)
@@ -737,6 +750,9 @@ func TestDrandReloadBeacon(t *testing.T) {
 	// check the node is still alive
 	testPing(t, instances[3].ctrlPort)
 
+	t.Log("waiting for beacons to be generated while a beacon process is stopped on a node")
+	time.Sleep(10 * time.Second)
+
 	// reload a beacon
 	err = instances[3].load(beaconID)
 	require.NoError(t, err)
@@ -744,10 +760,52 @@ func TestDrandReloadBeacon(t *testing.T) {
 	// test beacon process status
 	testStatus(t, instances[3].ctrlPort, beaconID)
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(3 * time.Second)
 
 	// test beacon process status
 	testStatus(t, instances[3].ctrlPort, beaconID)
+}
+
+func TestDrandLoadNotPresentBeacon(t *testing.T) {
+	sch := scheme.GetSchemeFromEnv()
+	beaconID := test.GetBeaconIDFromEnv()
+
+	n := 4
+	instances := launchDrandInstances(t, n)
+
+	for i, inst := range instances {
+		if i == 0 {
+			inst.shareLeader(t, n, n, 1, beaconID, sch)
+		} else {
+			inst.share(t, instances[0].addr, beaconID)
+		}
+	}
+
+	t.Log("waiting for initial set up to settle on all nodes")
+	time.Sleep(3 * time.Second)
+
+	defer func() {
+		for _, inst := range instances {
+			_ = inst.stopAll()
+		}
+	}()
+
+	t.Log("waiting for initial setup to finish")
+	time.Sleep(5 * time.Second)
+
+	// Stop beacon process... not the entire node
+	err := instances[3].stop(beaconID)
+	require.NoError(t, err)
+
+	t.Log("waiting for beacons to be generated while a beacon process is stopped on a node")
+	time.Sleep(10 * time.Second)
+
+	// reload a different beacon
+	err = instances[3].load("not-a-valid-beacon-name-here")
+	require.Error(t, err)
+
+	// test original beacon process status and hope it's still off
+	testFailStatus(t, instances[3].ctrlPort, beaconID)
 }
 
 func TestDrandStatus(t *testing.T) {
@@ -847,13 +905,11 @@ func (d *drandInstance) stopAll() error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort})
 }
 
-//nolint:unused // We want to provide convenience functions
 func (d *drandInstance) stop(beaconID string) error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort, "--id", beaconID})
 }
 
-//nolint:unused // We want to provide convenience functions
-func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, beaconID string, sch scheme.Scheme) {
+func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, periodSeconds int, beaconID string, sch scheme.Scheme) {
 	t.Helper()
 
 	shareArgs := []string{
@@ -862,7 +918,7 @@ func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, 
 		"--leader",
 		"--nodes", strconv.Itoa(nodes),
 		"--threshold", strconv.Itoa(threshold),
-		"--period", fmt.Sprintf("%ds", period),
+		"--period", fmt.Sprintf("%ds", periodSeconds),
 		"--control", d.ctrlPort,
 		"--scheme", sch.ID,
 		"--id", beaconID,
@@ -874,7 +930,6 @@ func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, period int, 
 	}()
 }
 
-//nolint:unused // We want to provide convenience functions
 func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 	t.Helper()
 
@@ -892,7 +947,6 @@ func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 	}()
 }
 
-//nolint:unused // We want to provide convenience functions
 func (d *drandInstance) load(beaconID string) error {
 	reloadArgs := []string{
 		"drand",
