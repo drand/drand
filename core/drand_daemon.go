@@ -248,6 +248,7 @@ func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
 func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string, singleBeacon bool, singleBeaconName string) error {
 	// Are we trying to start the daemon without any beacon running?
 	if singleBeacon && singleBeaconName == "" {
+		dd.log.Warnw("starting daemon with no active beacon")
 		return nil
 	}
 
@@ -259,6 +260,7 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string, singleBeacon bool
 
 	metricsHandlers := make([]metrics.Handler, 0, len(stores))
 
+	startedAtLeastOne := false
 	for beaconID, fs := range stores {
 		if singleBeacon && singleBeaconName != beaconID {
 			continue
@@ -273,6 +275,12 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string, singleBeacon bool
 			bp.log.Infow("", "metrics", "adding handler")
 			metricsHandlers = append(metricsHandlers, bp.MetricsHandlerForPeer)
 		}
+
+		startedAtLeastOne = true
+	}
+
+	if !startedAtLeastOne {
+		dd.log.Warnw("starting daemon with no active beacon")
 	}
 
 	// Start metrics server
