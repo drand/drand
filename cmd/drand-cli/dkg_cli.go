@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/urfave/cli/v2"
@@ -31,6 +32,15 @@ var dkgCommand = &cli.Command{
 				secretFlag,
 			),
 			Action: makeProposal,
+		},
+		{
+			Name: "join",
+			Flags: toArray(
+				beaconIDFlag,
+				controlFlag,
+				secretFlag,
+			),
+			Action: joinNetwork,
 		},
 		{
 			Name: "status",
@@ -180,6 +190,40 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 	}, nil
 }
 
+func joinNetwork(c *cli.Context) error {
+	var beaconID string
+	if c.IsSet(beaconIDFlag.Name) {
+		beaconID = c.String(beaconIDFlag.Name)
+	} else {
+		beaconID = common.DefaultBeaconID
+	}
+
+	var controlPort string
+	if c.IsSet(controlFlag.Name) {
+		controlPort = c.String(controlFlag.Name)
+	} else {
+		controlPort = core.DefaultControlPort
+	}
+
+	client, err := net.NewDKGControlClient(controlPort)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.StartJoin(context.Background(), &drand.JoinOptions{BeaconID: beaconID})
+
+	if err != nil {
+		return err
+	}
+
+	if response.IsError {
+		return fmt.Errorf("error joining network: %s", response.ErrorMessage)
+	}
+
+	log.Default().Println("Joined the DKG successfully!")
+	return nil
+}
+
 func viewStatus(c *cli.Context) error {
 	var beaconID string
 	if c.IsSet(beaconIDFlag.Name) {
@@ -205,9 +249,63 @@ func viewStatus(c *cli.Context) error {
 		return err
 	}
 
-	fmt.Println("CURRENT")
-	fmt.Println(status.Current)
-	fmt.Println("PREVIOUS")
-	fmt.Println(status.Complete)
+	fmt.Println("<<Current>>")
+	printEntry(status.Current)
+	fmt.Println()
+	fmt.Println("<<Last Completed>>")
+	printEntry(status.Complete)
 	return nil
+}
+
+func printEntry(entry *drand.DKGEntry) {
+	if entry == nil {
+		fmt.Println("DKG entry nil")
+		return
+	}
+
+	fmt.Printf("BeaconID:\t\t%s\n", entry.BeaconID)
+	fmt.Printf("State:\t\t%s\n", dkg.DKGStatus(entry.State).String())
+	fmt.Printf("Epoch:\t\t%d\n", entry.Epoch)
+	fmt.Printf("Threshold:\t%d\n", entry.Threshold)
+	fmt.Printf("Timeout:\t%s\n", entry.Timeout.AsTime().String())
+	fmt.Printf("Leader:\t\t%s\n", entry.Leader.Address)
+	fmt.Println("Joining: [")
+	for _, joiner := range entry.Joining {
+		fmt.Printf("\t\t%s\n", joiner.Address)
+	}
+	fmt.Println("]")
+
+	fmt.Println("Leaving: [")
+	for _, leaver := range entry.Leaving {
+		fmt.Printf("\t\t%s\n", leaver.Address)
+	}
+	fmt.Println("]")
+
+	fmt.Println("Remaining: [")
+	for _, remainer := range entry.Remaining {
+		fmt.Printf("\t\t%s\n", remainer.Address)
+	}
+	fmt.Println("]")
+
+	if dkg.DKGStatus(entry.State) == dkg.Proposing {
+		fmt.Println("Accepted: [")
+		for _, acceptor := range entry.Acceptors {
+			fmt.Printf("\t\t%s\n", acceptor.Address)
+		}
+		fmt.Println("]")
+
+		fmt.Println("Rejected: [")
+		for _, rejector := range entry.Rejectors {
+			fmt.Printf("\t\t%s\n", rejector.Address)
+		}
+		fmt.Println("]")
+	}
+
+	if dkg.DKGStatus(entry.State) >= dkg.Executing {
+		fmt.Println("Final group: [")
+		for _, member := range entry.FinalGroup {
+			fmt.Printf("\t\t%s\n", member.Address)
+		}
+		fmt.Println("]")
+	}
 }

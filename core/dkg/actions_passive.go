@@ -32,7 +32,7 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.Proposal) (*dran
 
 	nextDKGState, err := currentDKGState.Proposed(proposal.Leader, me, terms)
 	if err != nil {
-		return errorResponse(err), err
+		return responseOrError(err)
 	}
 
 	err = d.store.SaveCurrent(beaconID, nextDKGState)
@@ -40,7 +40,26 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.Proposal) (*dran
 }
 
 func (d *DKGProcess) Accept(_ context.Context, acceptance *drand.AcceptProposal) (*drand.GenericResponseMessage, error) {
-	return errResponse(), nil
+	beaconID := acceptance.Metadata.BeaconID
+	d.log.Debugw("Processing acceptance", "beaconID", beaconID)
+
+	me, err := d.identityForBeacon(beaconID)
+	if err != nil {
+		return responseOrError(err)
+	}
+
+	current, err := d.store.GetCurrent(acceptance.Metadata.BeaconID)
+	if err != nil {
+		return responseOrError(err)
+	}
+
+	nextState, err := current.ReceivedAcceptance(me, acceptance.Acceptor)
+	if err != nil {
+		return responseOrError(err)
+	}
+	err = d.store.SaveCurrent(beaconID, nextState)
+
+	return responseOrError(err)
 }
 
 func (d *DKGProcess) Reject(_ context.Context, rejection *drand.RejectProposal) (*drand.GenericResponseMessage, error) {

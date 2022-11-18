@@ -24,7 +24,7 @@ type ProtocolSteps[CmdIn any, ProtocolIn any, ProtocolOut any] interface {
 
 	// ForwardRequest takes a DKG client and one of the network responses from Responses and executes the required
 	// protocol networking step for it
-	ForwardRequest(client drand.DKGClient, response *NetworkRequest[ProtocolOut]) error
+	ForwardRequest(client drand.DKGClient, request *NetworkRequest[ProtocolOut]) error
 }
 
 // executeProtocolSteps performs the mapping and state transitions for given DKG packet

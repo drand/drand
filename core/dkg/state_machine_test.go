@@ -481,7 +481,7 @@ func TestAbortCanOnlyBeCalledFromValidState(t *testing.T) {
 	RunStateChangeTest(t, tests)
 }
 
-func TestJoiningADKGFromFresh(t *testing.T) {
+func TestJoiningADKGFromProposal(t *testing.T) {
 	beaconID := "default"
 	me := NewParticipant()
 	leader := drand.Participant{
@@ -489,10 +489,13 @@ func TestJoiningADKGFromFresh(t *testing.T) {
 	}
 	tests := []stateChangeTableTest{
 		{
-			name:          "fresh state can join with a valid proposal",
-			startingState: NewFreshState(beaconID),
+			name: "fresh state can join with a valid proposal",
+			startingState: func() *DKGState {
+				s, _ := NewFreshState(beaconID).Proposed(&leader, me, NewInitialProposal(beaconID, &leader, me))
+				return s
+			}(),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Joined(me, NewInitialProposal(beaconID, &leader, me))
+				return in.Joined(me)
 			},
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, &leader)
@@ -512,13 +515,15 @@ func TestJoiningADKGFromFresh(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name:          "fresh state join fails if self not present in joining",
-			startingState: NewFreshState(beaconID),
-			transitionFn: func(in *DKGState) (*DKGState, error) {
+			name: "fresh state join fails if self not present in joining",
+			startingState: func() *DKGState {
 				someoneWhoIsntMe := drand.Participant{Address: "someone-unrelated.org"}
-				return in.Joined(me, NewInitialProposal(beaconID, &leader, &someoneWhoIsntMe))
+				return NewFullDKGEntry(beaconID, Proposed, NewParticipant(), &someoneWhoIsntMe)
+			}(),
+			transitionFn: func(in *DKGState) (*DKGState, error) {
+				return in.Joined(me)
 			},
-			expectedError: SelfMissingFromProposal,
+			expectedError: CannotJoinIfNotInJoining,
 		},
 	}
 

@@ -144,3 +144,46 @@ func (p ProposalSteps) ForwardRequest(client drand.DKGClient, networkCall *Netwo
 
 	return nil
 }
+
+type AcceptSteps struct {
+	me    *drand.Participant
+	store DKGStore
+}
+
+func (a AcceptSteps) Enrich(acceptance *drand.AcceptOptions) (*drand.AcceptOptions, error) {
+	return acceptance, nil
+}
+
+func (a AcceptSteps) Apply(_ *drand.AcceptOptions, state *DKGState) (*DKGState, error) {
+	return state.Accepted(a.me)
+}
+
+func (a AcceptSteps) Requests(acceptance *drand.AcceptOptions, state *DKGState) ([]*NetworkRequest[*drand.AcceptProposal], error) {
+	fullAcceptance := &drand.AcceptProposal{
+		Acceptor: a.me,
+		Metadata: &drand.DKGMetadata{
+			BeaconID: acceptance.BeaconID,
+			Epoch:    state.Epoch,
+		},
+	}
+	output := []*NetworkRequest[*drand.AcceptProposal]{
+		{
+			to:      state.Leader,
+			payload: fullAcceptance,
+		},
+	}
+	return output, nil
+}
+
+func (a AcceptSteps) ForwardRequest(client drand.DKGClient, networkCall *NetworkRequest[*drand.AcceptProposal]) error {
+	response, err := client.Accept(context.Background(), networkCall.payload)
+	if err != nil {
+		return err
+	}
+
+	if response.IsError {
+		return errors.New(response.ErrorMessage)
+	}
+
+	return nil
+}

@@ -94,6 +94,27 @@ func (d *DKGProcess) StartExecute(_ context.Context, options *drand.ExecutionOpt
 	return nil, errors.New("not implemented")
 }
 
+func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*drand.GenericResponseMessage, error) {
+	beaconID := options.BeaconID
+	me, err := d.identityForBeacon(beaconID)
+	if err != nil {
+		return errorResponse(err), err
+	}
+
+	current, err := d.store.GetCurrent(beaconID)
+	if err != nil {
+		return responseOrError(err)
+	}
+
+	nextState, err := current.Joined(me)
+	if err != nil {
+		return responseOrError(err)
+	}
+
+	err = d.store.SaveCurrent(beaconID, nextState)
+	return responseOrError(err)
+}
+
 func (d *DKGProcess) StartAccept(_ context.Context, options *drand.AcceptOptions) (*drand.GenericResponseMessage, error) {
 	return nil, errors.New("not implemented")
 }
