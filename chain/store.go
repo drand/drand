@@ -51,6 +51,9 @@ const (
 
 	// PostgreSQL uses the PostgreSQL database for storing data
 	PostgreSQL StorageType = "postgres"
+
+	// MemDB uses the in-memory database to store data
+	MemDB StorageType = "memdb"
 )
 
 // Metrics values

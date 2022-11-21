@@ -36,6 +36,15 @@ You can also run regression testing, see [the section below](#regression-testing
 
 To test changes using Docker Compose, navigate to [Docker Readme](test/docker/README.md) and follow the steps described there.
 
+#### Testing with in-memory storage as database backend
+
+Drand supports running with an in-memory storage provider for storing beacons.
+
+To check your code against it, run `make test-unit-memdb`.
+
+You can also run the `make demo-memdb` command to launch the scripted demo using
+in-memory storage as a backend.
+
 #### Testing with PostgreSQL as database backend
 
 Drand supports PostgreSQL as a database backend for storing beacons.

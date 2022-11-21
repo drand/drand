@@ -28,7 +28,7 @@ import (
 
 var build = flag.String("release", "drand", "path to base build")
 var candidate = flag.String("candidate", "drand", "path to candidate build")
-var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
+var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt, postgres, or memdb.")
 
 func testStartup(orch *lib.Orchestrator) (err error) {
 	defer func() {

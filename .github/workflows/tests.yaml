@@ -40,6 +40,7 @@ jobs:
           make drand-relay-s3
 
 
+
   test_chained:
     runs-on: ubuntu-latest
     steps:
@@ -64,6 +65,31 @@ jobs:
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: make test-integration
+
+  test_chained-memdb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.19.2'
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - run: go get -v -t -d ./...
+      - name: Unit tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+        run: make test-unit-memdb
+      - name: Integration tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+        run: make test-integration-postgres
 
   test_chained-postgres:
     runs-on: ubuntu-latest
@@ -116,6 +142,33 @@ jobs:
         env:
           DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
         run: SCHEME_ID=pedersen-bls-unchained make test-integration
+
+  test_unchained-memdb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - uses: actions/setup-go@v2
+        with:
+          go-version: '1.19.2'
+      - uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - run: go get -v -t -d ./...
+      - name: Unit tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+        run: SCHEME_ID=pedersen-bls-unchained make test-unit-memdb
+      - name: Integration tests
+        env:
+          DRAND_TEST_LOGS: "${{ runner.debug == '1' && 'DEBUG' || 'INFO' }}"
+        run: SCHEME_ID=pedersen-bls-unchained make test-integration-postgres
 
   test_unchained-postgres:
     runs-on: ubuntu-latest

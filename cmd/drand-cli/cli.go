@@ -340,7 +340,7 @@ var allBeaconsFlag = &cli.BoolFlag{
 
 var storageTypeFlag = &cli.StringFlag{
 	Name:    "db",
-	Usage:   "Which database engine to use. Supported values: bolt or postgres.",
+	Usage:   "Which database engine to use. Supported values: bolt, postgres, or memdb.",
 	Value:   "bolt",
 	EnvVars: []string{"DRAND_DB"},
 }
@@ -1061,6 +1061,8 @@ func contextToConfig(c *cli.Context) *core.Config {
 			pgdsn := c.String(pgDSNFlag.Name)
 			opts = append(opts, core.WithPgDSN(pgdsn))
 		}
+	case chain.MemDB:
+		opts = append(opts, core.WithDBStorageEngine(chain.MemDB))
 	default:
 		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
 	}

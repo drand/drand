@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/chain/memdb"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
@@ -317,6 +318,9 @@ func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
 		dbPath := bp.opts.DBFolder(beaconName)
 		fs.CreateSecureFolder(dbPath)
 		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+
+	case chain.MemDB:
+		return memdb.NewStore(), nil
 
 	case chain.PostgreSQL:
 		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)

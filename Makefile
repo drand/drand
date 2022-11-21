@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-unit-postgres test-integration test-integration-postgres demo demo-postgres deploy-local linter install build client drand relay-http relay-gossip relay-s3 install_deps_linux install_deps_darwin install_deps_darwin-m
+.PHONY: test test-unit test-unit-memdb test-unit-postgres test-integration test-integration-memdb test-integration-postgres demo demo-memdb demo-postgres deploy-local linter install build client drand relay-http relay-gossip relay-s3 install_deps_linux install_deps_darwin install_deps_darwin-m
 
 VER_PACKAGE=github.com/drand/drand/common
 CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli
@@ -16,11 +16,13 @@ install_lint:
 lint:
 	golangci-lint --version
 	golangci-lint run --timeout 5m
-	golangci-lint run --build-tags integration --timeout 5m
+	golangci-lint run --build-tags memdb --timeout 5m
+	golangci-lint run --build-tags postgres --timeout 5m
 
 lint-todo:
 	golangci-lint run -E stylecheck -E gosec -E goconst -E godox -E gocritic
-	golangci-lint run --build-tags integration -E stylecheck -E gosec -E goconst -E godox -E gocritic
+	golangci-lint run --build-tags memdb -E stylecheck -E gosec -E goconst -E godox -E gocritic
+	golangci-lint run --build-tags postgres -E stylecheck -E gosec -E goconst -E godox -E gocritic
 
 fmt:
 	@echo "Checking (& upgrading) formatting of files. (if this fail, re-run until success)"
@@ -46,27 +48,42 @@ test: test-unit test-integration
 test-unit:
 	go test -failfast -race -short -v ./...
 
+test-unit-memdb:
+	go test -race -tags memdb -short -v ./...
+
 test-unit-postgres:
 	go test -failfast -race -tags postgres -short -v ./...
 
 test-unit-cover:
 	go test -failfast -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
+test-unit-memdb-cover:
+	go test -short -tags memdb -v -coverprofile=coverage-memdb.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+
 test-unit-postgres-cover:
-	go test -failfast -short -tags integration -v -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+	go test -failfast -short -tags postgres -v -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
 	go test -failfast -v ./demo
 	cd demo && go build && ./demo -build -test -debug
 
+test-integration-memdb:
+	go test -v ./demo
+	go test -race -short -tags memdb -v ./...
+	cd demo && go build && ./demo -dbtype=memdb -build -test -debug
+
 test-integration-postgres:
 	go test -failfast -v ./demo
-	go test -failfast -race -short -tags integration -v ./...
+	go test -failfast -race -short -tags postgres -v ./...
 	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
 
 coverage:
 	go get -v -t -d ./...
 	go test -failfast -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+
+coverage-memdb:
+	go get -v -t -d ./...
+	go test -race -v -tags=memdb -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 coverage-postgres:
 	go get -v -t -d ./...
@@ -75,6 +92,9 @@ coverage-postgres:
 demo:
 	cd demo && go build && ./demo -build
 	#cd demo && sudo ./run.sh
+
+demo-memdb:
+	cd demo && go build && ./demo -dbtype=memdb -build
 
 demo-postgres:
 	cd demo && go build && ./demo -dbtype=postgres -build
