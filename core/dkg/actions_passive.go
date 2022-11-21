@@ -71,7 +71,28 @@ func (d *DKGProcess) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.Gen
 }
 
 func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (*drand.GenericResponseMessage, error) {
-	return errResponse(), nil
+	beaconID := kickoff.Metadata.BeaconID
+	d.log.Debugw("Starting DKG execution", "beaconID", beaconID)
+
+	me, err := d.identityForBeacon(beaconID)
+	if err != nil {
+		return responseOrError(err)
+	}
+
+	current, err := d.store.GetCurrent(kickoff.Metadata.BeaconID)
+	if err != nil {
+		return responseOrError(err)
+	}
+
+	nextState, err := current.Executing(me)
+	if err != nil {
+		return responseOrError(err)
+	}
+	err = d.store.SaveCurrent(beaconID, nextState)
+
+	go d.executeAndFinishDKG(beaconID)
+
+	return responseOrError(err)
 }
 
 func errResponse() *drand.GenericResponseMessage {

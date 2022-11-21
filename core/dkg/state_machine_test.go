@@ -1155,6 +1155,22 @@ func TestExecutingDKG(t *testing.T) {
 			},
 			expectedError: CannotExecuteIfNotJoinerOrRemainer,
 		},
+		{
+			name: "executing as a leaver transitions me to Left",
+			startingState: func() *DKGState {
+				state := NewFullDKGEntry(beaconID, Proposed, &leader)
+				state.Leaving = append(state.Leaving, me)
+				return state
+			}(),
+			transitionFn: func(in *DKGState) (*DKGState, error) {
+				return in.Executing(me)
+			},
+			expectedResult: func() *DKGState {
+				state := NewFullDKGEntry(beaconID, Left, &leader)
+				state.Leaving = append(state.Leaving, me)
+				return state
+			}(),
+		},
 	}
 
 	RunStateChangeTest(t, tests)

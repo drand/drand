@@ -43,6 +43,14 @@ var dkgCommand = &cli.Command{
 			Action: joinNetwork,
 		},
 		{
+			Name: "execute",
+			Flags: toArray(
+				beaconIDFlag,
+				controlFlag,
+			),
+			Action: executeDKG,
+		},
+		{
 			Name: "status",
 			Flags: toArray(
 				beaconIDFlag,
@@ -220,7 +228,40 @@ func joinNetwork(c *cli.Context) error {
 		return fmt.Errorf("error joining network: %s", response.ErrorMessage)
 	}
 
-	log.Default().Println("Joined the DKG successfully!")
+	fmt.Println("Joined the DKG successfully!")
+	return nil
+}
+
+func executeDKG(c *cli.Context) error {
+	var beaconID string
+	if c.IsSet(beaconIDFlag.Name) {
+		beaconID = c.String(beaconIDFlag.Name)
+	} else {
+		beaconID = common.DefaultBeaconID
+	}
+
+	var controlPort string
+	if c.IsSet(controlFlag.Name) {
+		controlPort = c.String(controlFlag.Name)
+	} else {
+		controlPort = core.DefaultControlPort
+	}
+
+	client, err := net.NewDKGControlClient(controlPort)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.StartExecute(context.Background(), &drand.ExecutionOptions{BeaconID: beaconID})
+	if err != nil {
+		return err
+	}
+
+	if response.IsError {
+		return fmt.Errorf("error executing DKG: %s", response.ErrorMessage)
+	}
+
+	fmt.Println("DKG execution started successfully!")
 	return nil
 }
 

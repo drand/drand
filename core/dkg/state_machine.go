@@ -316,18 +316,21 @@ func (d *DKGState) Left(me *drand.Participant) (*DKGState, error) {
 }
 
 func (d *DKGState) Executing(me *drand.Participant) (*DKGState, error) {
-	if !isValidStateChange(d.State, Executing) {
-		return nil, InvalidStateChange(d.State, Executing)
-	}
-
 	if hasTimedOut(d) {
 		return nil, TimeoutReached
+	}
+
+	if contains(d.Leaving, me) {
+		return d.Left(me)
+	}
+
+	if !isValidStateChange(d.State, Executing) {
+		return nil, InvalidStateChange(d.State, Executing)
 	}
 
 	if !contains(d.Remaining, me) && !contains(d.Joining, me) {
 		return nil, CannotExecuteIfNotJoinerOrRemainer
 	}
-
 	return &DKGState{
 		BeaconID:   d.BeaconID,
 		Epoch:      d.Epoch,
