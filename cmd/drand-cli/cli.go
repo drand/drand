@@ -360,7 +360,7 @@ var appCommands = []*cli.Command{
 		Flags: toArray(folderFlag, tlsCertFlag, tlsKeyFlag,
 			insecureFlag, controlFlag, privListenFlag, pubListenFlag, metricsFlag,
 			certsDirFlag, pushFlag, verboseFlag, oldGroupFlag,
-			skipValidationFlag, jsonFlag,
+			skipValidationFlag, jsonFlag, beaconIDFlag,
 			storageTypeFlag, pgDSNFlag),
 		Action: func(c *cli.Context) error {
 			banner()
@@ -393,7 +393,7 @@ var appCommands = []*cli.Command{
 	{
 		Name:   "load",
 		Usage:  "Launch a sharing protocol from filesystem",
-		Flags:  toArray(controlFlag, beaconIDFlag),
+		Flags:  toArray(controlFlag, beaconIDFlag, insecureFlag),
 		Action: loadCmd,
 	},
 	{

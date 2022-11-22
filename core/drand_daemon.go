@@ -241,8 +241,17 @@ func (dd *DrandDaemon) RemoveBeaconHandler(beaconID string, bp *BeaconProcess) {
 }
 
 // LoadBeaconsFromDisk checks for existing stores and creates the corresponding BeaconProcess
-// accordingly to each stored BeaconID
-func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
+// accordingly to each stored BeaconID.
+// When singleBeacon is set, and the singleBeaconName matches one of the stored beacons, then
+// only that beacon will be loaded.
+// If the singleBeaconName is an empty string, no beacon will be loaded.
+func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string, singleBeacon bool, singleBeaconName string) error {
+	// Are we trying to start the daemon without any beacon running?
+	if singleBeacon && singleBeaconName == "" {
+		dd.log.Warnw("starting daemon with no active beacon")
+		return nil
+	}
+
 	// Load possible existing stores
 	stores, err := key.NewFileStores(dd.opts.ConfigFolderMB())
 	if err != nil {
@@ -251,7 +260,12 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 
 	metricsHandlers := make([]metrics.Handler, 0, len(stores))
 
+	startedAtLeastOne := false
 	for beaconID, fs := range stores {
+		if singleBeacon && singleBeaconName != beaconID {
+			continue
+		}
+
 		bp, err := dd.LoadBeaconFromStore(beaconID, fs)
 		if err != nil {
 			return err
@@ -261,6 +275,12 @@ func (dd *DrandDaemon) LoadBeaconsFromDisk(metricsFlag string) error {
 			bp.log.Infow("", "metrics", "adding handler")
 			metricsHandlers = append(metricsHandlers, bp.MetricsHandlerForPeer)
 		}
+
+		startedAtLeastOne = true
+	}
+
+	if !startedAtLeastOne {
+		dd.log.Warnw("starting daemon with no active beacon")
 	}
 
 	// Start metrics server
@@ -279,7 +299,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, erro
 func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
-		dd.log.Error("beacon id", beaconID, "can't instantiate randomness beacon. err:", err)
+		dd.log.Errorw("beacon id", beaconID, "can't instantiate randomness beacon. err:", err)
 		return nil, err
 	}
 
