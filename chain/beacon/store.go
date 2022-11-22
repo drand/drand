@@ -114,21 +114,31 @@ func newDiscrepancyStore(s chain.Store, l log.Logger, group *key.Group, cl clock
 }
 
 func (d *discrepancyStore) Put(ctx context.Context, b *chain.Beacon) error {
+	// When computing time_discrepancy, time.Now() should be obtained as close as
+	// possible to receiving the beacon, before any other storage layer interaction.
+	// When moved after store.Put(), the value will include the time it takes
+	// the storage layer to store the value, making it inaccurate.
+	actual := d.clock.Now()
+
 	if err := d.Store.Put(ctx, b); err != nil {
 		return err
 	}
 
-	beaconID := common.GetCanonicalBeaconID(d.group.ID)
+	storageTime := d.clock.Now()
 
-	actual := d.clock.Now().UnixNano()
 	expected := chain.TimeOfRound(d.group.Period, d.group.GenesisTime, b.Round) * 1e9
-	discrepancy := float64(actual-expected) / float64(time.Millisecond)
+	discrepancy := float64(actual.UnixNano()-expected) / float64(time.Millisecond)
 
-	metrics.BeaconDiscrepancyLatency.WithLabelValues(beaconID).Set(float64(actual-expected) / float64(time.Millisecond))
+	beaconID := common.GetCanonicalBeaconID(d.group.ID)
+	metrics.BeaconDiscrepancyLatency.WithLabelValues(beaconID).Set(discrepancy)
 	metrics.LastBeaconRound.WithLabelValues(beaconID).Set(float64(b.GetRound()))
 	metrics.GroupSize.WithLabelValues(beaconID).Set(float64(d.group.Len()))
 	metrics.GroupThreshold.WithLabelValues(beaconID).Set(float64(d.group.Threshold))
-	d.l.Infow("", "NEW_BEACON_STORED", b.String(), "time_discrepancy_ms", discrepancy)
+	d.l.Infow("",
+		"NEW_BEACON_STORED", b.String(),
+		"time_discrepancy_ms", discrepancy,
+		"storage_time_ms", storageTime.Sub(actual).Milliseconds(),
+	)
 	return nil
 }
 
