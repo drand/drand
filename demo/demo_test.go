@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,23 +12,25 @@ import (
 
 func TestLocalOrchestration(t *testing.T) {
 	// Let us have a 3 minutes deadline since the CI is slow
-	timeout := time.After(3 * time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
 
 	testFinished := make(chan struct{})
 
-	go testLocalOrchestration(t, testFinished)
+	go func() {
+		// Signal that we finished the test and we can exit cleanly
+		defer close(testFinished)
+		testLocalOrchestration(t)
+	}()
 
 	select {
 	case <-testFinished:
-	case <-timeout:
+	case <-ctx.Done():
 		t.Fatal("[DEBUG]", "Deadline reached")
 	}
 }
 
-func testLocalOrchestration(t *testing.T, testFinished chan struct{}) {
-	// Signal that we finished the test and the rest can continue
-	defer close(testFinished)
-
+func testLocalOrchestration(t *testing.T) {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
 	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch, beaconID, true)
