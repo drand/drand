@@ -11,6 +11,8 @@ import (
 func TestProposalValidation(t *testing.T) {
 	beaconID := "default"
 	me := NewParticipant()
+	someoneElse := NewParticipant()
+	someoneElse.Address = "someoneelse.com"
 	current := NewFullDKGEntry(beaconID, Complete, me)
 	tests := []struct {
 		name     string
@@ -255,6 +257,18 @@ func TestProposalValidation(t *testing.T) {
 				return invalidEpochProposal
 			}(),
 			expected: InvalidEpoch,
+		},
+		{
+			name:     "leaving out an existing node in a proposal returns an error",
+			state:    NewFullDKGEntry(beaconID, Complete, me, someoneElse),
+			terms:    NewValidProposal(beaconID, me),
+			expected: MissingNodesInProposal,
+		},
+		{
+			name:     "proposing a remainer who doesn't exist in the current epoch returns an error",
+			state:    NewFullDKGEntry(beaconID, Complete, me),
+			terms:    NewValidProposal(beaconID, me, someoneElse),
+			expected: RemainingNodesMustExistInCurrentEpoch,
 		},
 	}
 	for _, test := range tests {

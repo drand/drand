@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/drand/drand/protobuf/drand"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"reflect"
 	"time"
 )
@@ -55,11 +54,15 @@ func (s DKGStatus) String() string {
 }
 
 type DKGState struct {
-	BeaconID  string
-	Epoch     uint32
-	State     DKGStatus
-	Threshold uint32
-	Timeout   time.Time
+	BeaconID      string
+	Epoch         uint32
+	State         DKGStatus
+	Threshold     uint32
+	Timeout       time.Time
+	SchemeID      string
+	CatchupPeriod time.Duration
+	BeaconPeriod  time.Duration
+
 	Leader    *drand.Participant
 	Remaining []*drand.Participant
 	Joining   []*drand.Participant
@@ -69,29 +72,6 @@ type DKGState struct {
 	Rejectors []*drand.Participant
 
 	FinalGroup []*drand.Participant
-}
-
-// IntoEntry turns a DKGState object into the protobuf entry for
-// easy marshalling and unmarshalling, and to maintain a
-// consistent wire format
-func (d *DKGState) IntoEntry() *drand.DKGEntry {
-	if d == nil {
-		return nil
-	}
-	return &drand.DKGEntry{
-		BeaconID:   d.BeaconID,
-		State:      uint32(d.State),
-		Epoch:      d.Epoch,
-		Threshold:  d.Threshold,
-		Timeout:    timestamppb.New(d.Timeout),
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		Acceptors:  d.Acceptors,
-		Rejectors:  d.Rejectors,
-		FinalGroup: d.FinalGroup,
-	}
 }
 
 func NewFreshState(beaconID string) *DKGState {
@@ -146,15 +126,18 @@ func (d *DKGState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) 
 	}
 
 	return &DKGState{
-		BeaconID:  d.BeaconID,
-		Epoch:     terms.Epoch,
-		State:     Proposing,
-		Threshold: terms.Threshold,
-		Timeout:   terms.Timeout.AsTime(),
-		Leader:    terms.Leader,
-		Remaining: terms.Remaining,
-		Joining:   terms.Joining,
-		Leaving:   terms.Leaving,
+		BeaconID:      d.BeaconID,
+		Epoch:         terms.Epoch,
+		State:         Proposing,
+		Threshold:     terms.Threshold,
+		Timeout:       terms.Timeout.AsTime(),
+		SchemeID:      terms.SchemeID,
+		CatchupPeriod: time.Duration(terms.CatchupPeriodSeconds) * time.Second,
+		BeaconPeriod:  time.Duration(terms.BeaconPeriodSeconds) * time.Second,
+		Leader:        terms.Leader,
+		Remaining:     terms.Remaining,
+		Joining:       terms.Joining,
+		Leaving:       terms.Leaving,
 	}, nil
 }
 
@@ -176,15 +159,18 @@ func (d *DKGState) Proposed(sender *drand.Participant, me *drand.Participant, te
 	}
 
 	return &DKGState{
-		BeaconID:  d.BeaconID,
-		Epoch:     terms.Epoch,
-		State:     Proposed,
-		Threshold: terms.Threshold,
-		Timeout:   terms.Timeout.AsTime(),
-		Leader:    terms.Leader,
-		Remaining: terms.Remaining,
-		Joining:   terms.Joining,
-		Leaving:   terms.Leaving,
+		BeaconID:      d.BeaconID,
+		Epoch:         terms.Epoch,
+		State:         Proposed,
+		Threshold:     terms.Threshold,
+		Timeout:       terms.Timeout.AsTime(),
+		SchemeID:      terms.SchemeID,
+		CatchupPeriod: time.Duration(terms.CatchupPeriodSeconds) * time.Second,
+		BeaconPeriod:  time.Duration(terms.BeaconPeriodSeconds) * time.Second,
+		Leader:        terms.Leader,
+		Remaining:     terms.Remaining,
+		Joining:       terms.Joining,
+		Leaving:       terms.Leaving,
 	}, nil
 }
 
@@ -213,16 +199,19 @@ func (d *DKGState) Aborted() (*DKGState, error) {
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Aborted,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Aborted,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -244,16 +233,19 @@ func (d *DKGState) Accepted(me *drand.Participant) (*DKGState, error) {
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Accepted,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Accepted,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -275,16 +267,19 @@ func (d *DKGState) Rejected(me *drand.Participant) (*DKGState, error) {
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Rejected,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Rejected,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -302,16 +297,19 @@ func (d *DKGState) Left(me *drand.Participant) (*DKGState, error) {
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Left,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Left,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -332,18 +330,21 @@ func (d *DKGState) Executing(me *drand.Participant) (*DKGState, error) {
 		return nil, CannotExecuteIfNotJoinerOrRemainer
 	}
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Executing,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		Acceptors:  d.Acceptors,
-		Rejectors:  d.Rejectors,
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Executing,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		Acceptors:     d.Acceptors,
+		Rejectors:     d.Rejectors,
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -357,18 +358,21 @@ func (d *DKGState) Complete(finalGroup []*drand.Participant) (*DKGState, error) 
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Complete,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		Acceptors:  d.Acceptors,
-		Rejectors:  d.Rejectors,
-		FinalGroup: finalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Complete,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		Acceptors:     d.Acceptors,
+		Rejectors:     d.Rejectors,
+		FinalGroup:    finalGroup,
 	}, nil
 }
 
@@ -378,7 +382,7 @@ func (d *DKGState) ReceivedAcceptance(me *drand.Participant, them *drand.Partici
 
 	}
 
-	if d.Leader != me {
+	if !reflect.DeepEqual(d.Leader, me) {
 		return nil, NonLeaderCannotReceiveAcceptance
 	}
 
@@ -391,18 +395,21 @@ func (d *DKGState) ReceivedAcceptance(me *drand.Participant, them *drand.Partici
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Proposing,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		Acceptors:  append(d.Acceptors, them),
-		Rejectors:  without(d.Rejectors, them),
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Proposing,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		Acceptors:     append(d.Acceptors, them),
+		Rejectors:     without(d.Rejectors, them),
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -411,7 +418,7 @@ func (d *DKGState) ReceivedRejection(me *drand.Participant, them *drand.Particip
 		return nil, InvalidStateChange(d.State, Proposing)
 	}
 
-	if d.Leader != me {
+	if !reflect.DeepEqual(d.Leader, me) {
 		return nil, NonLeaderCannotReceiveRejection
 	}
 
@@ -424,18 +431,21 @@ func (d *DKGState) ReceivedRejection(me *drand.Participant, them *drand.Particip
 	}
 
 	return &DKGState{
-		BeaconID:   d.BeaconID,
-		Epoch:      d.Epoch,
-		State:      Proposing,
-		Threshold:  d.Threshold,
-		Timeout:    d.Timeout,
-		Leader:     d.Leader,
-		Remaining:  d.Remaining,
-		Joining:    d.Joining,
-		Leaving:    d.Leaving,
-		Acceptors:  without(d.Acceptors, them),
-		Rejectors:  append(d.Rejectors, them),
-		FinalGroup: d.FinalGroup,
+		BeaconID:      d.BeaconID,
+		Epoch:         d.Epoch,
+		State:         Proposing,
+		Threshold:     d.Threshold,
+		Timeout:       d.Timeout,
+		SchemeID:      d.SchemeID,
+		CatchupPeriod: d.CatchupPeriod,
+		BeaconPeriod:  d.BeaconPeriod,
+		Leader:        d.Leader,
+		Remaining:     d.Remaining,
+		Joining:       d.Joining,
+		Leaving:       d.Leaving,
+		Acceptors:     without(d.Acceptors, them),
+		Rejectors:     append(d.Rejectors, them),
+		FinalGroup:    d.FinalGroup,
 	}, nil
 }
 
@@ -453,6 +463,7 @@ var LeaderNotRemaining = errors.New("you cannot lead a DKG and leave at the same
 var LeaderNotJoining = errors.New("the leader must join in the first epoch")
 var OnlyJoinersAllowedForFirstEpoch = errors.New("participants can only be joiners for the first epoch")
 var NoNodesRemaining = errors.New("cannot propose a network without nodes remaining")
+var MissingNodesInProposal = errors.New("some node(s) in the current epoch are missing from the proposal - they should be remaining or leaving")
 var CannotProposeAsNonLeader = errors.New("cannot make a proposal where you are not the leader")
 var ThresholdHigherThanNodeCount = errors.New("the threshold cannot be higher than the count of remaining + joining nodes")
 var RemainingNodesMustExistInCurrentEpoch = errors.New("remaining nodes contained a not that does not exist in the current epoch - they must be added as joiners")
@@ -468,8 +479,6 @@ var UnknownRejector = errors.New("somebody unknown tried to reject the proposal"
 var DuplicateRejection = errors.New("this participant already rejected the proposal")
 var NonLeaderCannotReceiveAcceptance = errors.New("you received an acceptance but are not the leader of this DKG - cannot do anything")
 var NonLeaderCannotReceiveRejection = errors.New("you received a rejection but are not the leader of this DKG - cannot do anything")
-var InvalidPacket = errors.New("the packet received was invalid (i.e. not well formed)")
-var UnexpectedError = errors.New("there was an unexpected error")
 
 func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	switch current {
@@ -549,9 +558,18 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 	}
 
 	if currentState.State != Fresh {
+		// make sure all proposed `remaining` nodes exist in the current epoch
 		for _, node := range terms.Remaining {
 			if !contains(currentState.FinalGroup, node) {
 				return RemainingNodesMustExistInCurrentEpoch
+			}
+		}
+
+		// make sure all the nodes from the current epoch exist in the proposal
+		shouldBeCurrentParticipants := append(terms.Remaining, terms.Leaving...)
+		for _, node := range currentState.FinalGroup {
+			if !contains(shouldBeCurrentParticipants, node) {
+				return MissingNodesInProposal
 			}
 		}
 	}

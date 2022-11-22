@@ -10,7 +10,6 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"log"
 	"time"
 )
 
@@ -49,6 +48,30 @@ var dkgCommand = &cli.Command{
 				controlFlag,
 			),
 			Action: executeDKG,
+		},
+		{
+			Name: "accept",
+			Flags: toArray(
+				beaconIDFlag,
+				controlFlag,
+			),
+			Action: acceptDKG,
+		},
+		{
+			Name: "reject",
+			Flags: toArray(
+				beaconIDFlag,
+				controlFlag,
+			),
+			Action: rejectDKG,
+		},
+		{
+			Name: "abort",
+			Flags: toArray(
+				beaconIDFlag,
+				controlFlag,
+			),
+			Action: abortDKG,
 		},
 		{
 			Name: "status",
@@ -96,7 +119,7 @@ func makeProposal(c *cli.Context) error {
 		return fmt.Errorf("error making proposal: %s", proposalResponse.ErrorMessage)
 	}
 
-	log.Default().Println("proposal made successfully!")
+	fmt.Println("proposal made successfully!")
 	return nil
 }
 
@@ -262,6 +285,108 @@ func executeDKG(c *cli.Context) error {
 	}
 
 	fmt.Println("DKG execution started successfully!")
+	return nil
+}
+
+func acceptDKG(c *cli.Context) error {
+	var beaconID string
+	if c.IsSet(beaconIDFlag.Name) {
+		beaconID = c.String(beaconIDFlag.Name)
+	} else {
+		beaconID = common.DefaultBeaconID
+	}
+
+	var controlPort string
+	if c.IsSet(controlFlag.Name) {
+		controlPort = c.String(controlFlag.Name)
+	} else {
+		controlPort = core.DefaultControlPort
+	}
+
+	client, err := net.NewDKGControlClient(controlPort)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.StartAccept(context.Background(), &drand.AcceptOptions{BeaconID: beaconID})
+	if err != nil {
+		return err
+	}
+
+	if response.IsError {
+		return fmt.Errorf("error accepting DKG: %s", response.ErrorMessage)
+	}
+
+	fmt.Println("DKG accepted successfully!")
+
+	return nil
+}
+
+func rejectDKG(c *cli.Context) error {
+	var beaconID string
+	if c.IsSet(beaconIDFlag.Name) {
+		beaconID = c.String(beaconIDFlag.Name)
+	} else {
+		beaconID = common.DefaultBeaconID
+	}
+
+	var controlPort string
+	if c.IsSet(controlFlag.Name) {
+		controlPort = c.String(controlFlag.Name)
+	} else {
+		controlPort = core.DefaultControlPort
+	}
+
+	client, err := net.NewDKGControlClient(controlPort)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.StartReject(context.Background(), &drand.RejectOptions{BeaconID: beaconID})
+	if err != nil {
+		return err
+	}
+
+	if response.IsError {
+		return fmt.Errorf("error rejecting DKG: %s", response.ErrorMessage)
+	}
+
+	fmt.Println("DKG rejected successfully!")
+
+	return nil
+}
+
+func abortDKG(c *cli.Context) error {
+	var beaconID string
+	if c.IsSet(beaconIDFlag.Name) {
+		beaconID = c.String(beaconIDFlag.Name)
+	} else {
+		beaconID = common.DefaultBeaconID
+	}
+
+	var controlPort string
+	if c.IsSet(controlFlag.Name) {
+		controlPort = c.String(controlFlag.Name)
+	} else {
+		controlPort = core.DefaultControlPort
+	}
+
+	client, err := net.NewDKGControlClient(controlPort)
+	if err != nil {
+		return err
+	}
+
+	response, err := client.StartAbort(context.Background(), &drand.AbortOptions{BeaconID: beaconID})
+	if err != nil {
+		return err
+	}
+
+	if response.IsError {
+		return fmt.Errorf("error aborting DKG: %s", response.ErrorMessage)
+	}
+
+	fmt.Println("DKG aborted successfully!")
+
 	return nil
 }
 
