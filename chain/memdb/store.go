@@ -13,7 +13,7 @@ import (
 // Store ...
 type Store struct {
 	storeMtx *sync.RWMutex
-	store    []chain.Beacon
+	store    []*chain.Beacon
 	maxSize  int
 }
 
@@ -23,7 +23,7 @@ func NewStore() *Store {
 
 	return &Store{
 		storeMtx: &sync.RWMutex{},
-		store:    []chain.Beacon{},
+		store:    []*chain.Beacon{},
 		maxSize:  maxSize,
 	}
 }
@@ -62,7 +62,7 @@ func (m *Store) Put(_ context.Context, beacon *chain.Beacon) error {
 		return nil
 	}
 
-	m.store = append(m.store, *beacon)
+	m.store = append(m.store, beacon)
 	return nil
 }
 
@@ -75,7 +75,7 @@ func (m *Store) Last(_ context.Context) (*chain.Beacon, error) {
 	}
 
 	result := m.store[len(m.store)-1]
-	return &result, nil
+	return result, nil
 }
 
 func (m *Store) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
@@ -84,7 +84,7 @@ func (m *Store) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
 
 	for _, beacon := range m.store {
 		if beacon.Round == round {
-			return &beacon, nil
+			return beacon, nil
 		}
 
 	}
@@ -145,7 +145,7 @@ func (m *memDBCursor) First(_ context.Context) (*chain.Beacon, error) {
 
 	m.pos = 0
 	result := m.s.store[m.pos]
-	return &result, nil
+	return result, nil
 }
 
 func (m *memDBCursor) Next(_ context.Context) (*chain.Beacon, error) {
@@ -162,7 +162,7 @@ func (m *memDBCursor) Next(_ context.Context) (*chain.Beacon, error) {
 	}
 
 	result := m.s.store[m.pos]
-	return &result, nil
+	return result, nil
 }
 
 func (m *memDBCursor) Seek(_ context.Context, round uint64) (*chain.Beacon, error) {
@@ -175,7 +175,7 @@ func (m *memDBCursor) Seek(_ context.Context, round uint64) (*chain.Beacon, erro
 		}
 
 		m.pos = idx
-		return &beacon, nil
+		return beacon, nil
 	}
 
 	return nil, errors.ErrNoBeaconStored
@@ -191,5 +191,5 @@ func (m *memDBCursor) Last(_ context.Context) (*chain.Beacon, error) {
 
 	m.pos = len(m.s.store) - 1
 	result := m.s.store[m.pos]
-	return &result, nil
+	return result, nil
 }

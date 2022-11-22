@@ -921,7 +921,7 @@ func TestDrandFollowChain(t *testing.T) {
 		ctx = context.Background()
 
 		// check if the beacon is in the database
-		store, err := newNode.drand.createDBStore()
+		store := newNode.drand.dbStore
 		require.NoError(t, err)
 		defer store.Close(ctx)
 
@@ -1004,8 +1004,7 @@ func TestDrandCheckChain(t *testing.T) {
 	dt.StopMockNode(dt.nodes[0].addr, false)
 
 	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
-	store, err := dt.nodes[0].drand.createDBStore()
-	require.NoError(t, err)
+	store := dt.nodes[0].drand.dbStore
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")
 	beac, err := store.Get(ctx, upTo-1)
