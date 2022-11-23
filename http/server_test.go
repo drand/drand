@@ -149,32 +149,26 @@ func validateEndpoint(endpoint string, round float64) error {
 func TestHTTPWaiting(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	c, push := withClient(t)
 
 	handler, err := New(ctx, "", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	handler.RegisterNewBeaconHandler(c, info.HashString())
 
 	listener, err := net.Listen("tcp", ":0")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	server := http.Server{Handler: handler.GetHTTPHandler()}
 	go func() { _ = server.Serve(listener) }()
 	defer func() { _ = server.Shutdown(ctx) }()
 
 	err = nhttp.IsServerReady(listener.Addr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	// The first request will trigger background watch. 1 get (1969)
 	u := fmt.Sprintf("http://%s/%s/public/1", listener.Addr().String(), info.HashString())
@@ -183,30 +177,37 @@ func TestHTTPWaiting(t *testing.T) {
 
 	// 1 watch get will occur (1970 - the bad one)
 	push(false)
+
 	done := make(chan time.Time)
 	before := time.Now()
+
 	go func() {
 		endpoint := listener.Addr().String() + "/" + info.HashString() + "/public/1971"
 		if err = validateEndpoint(endpoint, 1971.0); err != nil {
+			t.Logf("got validation error: %v\n", err)
 			done <- time.Unix(0, 0)
 			return
 		}
 		done <- time.Now()
 	}()
+
 	time.Sleep(50 * time.Millisecond)
+
 	select {
 	case <-done:
-		t.Fatal("shouldn't be done.", err)
+		t.Fatalf("shouldn't be done. err: %v\n", err)
 	default:
 	}
+
+	// Push the correct round
 	push(false)
+
 	time.Sleep(10 * time.Millisecond)
+
 	var after time.Time
 	select {
 	case x := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		after = x
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("should return after a round")
