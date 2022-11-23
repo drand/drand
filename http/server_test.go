@@ -164,7 +164,12 @@ func TestHTTPWaiting(t *testing.T) {
 	require.NoError(t, err)
 
 	server := http.Server{Handler: handler.GetHTTPHandler()}
-	go func() { _ = server.Serve(listener) }()
+	go func() {
+		err := server.Serve(listener)
+		if err != nil {
+			t.Logf("error while server.Server %v\n", err)
+		}
+	}()
 	defer func() { _ = server.Shutdown(ctx) }()
 
 	err = nhttp.IsServerReady(listener.Addr().String())
