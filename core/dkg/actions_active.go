@@ -251,7 +251,7 @@ func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*
 	if err != nil {
 		d.log.Errorw("error joining the DKG", "error", err, "beaconID", beaconID)
 	} else {
-		d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
+		d.log.Infow("DKG joined successfully", "beaconID", beaconID)
 	}
 
 	return responseOrError(err)
@@ -426,7 +426,7 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) {
 		d.log.Errorw("there was an error completing the DKG!")
 		return
 	}
-	d.log.Info("DKG completed successfully!")
+	d.log.Infow("DKG completed successfully!", "beaconID", beaconID)
 }
 
 // responseOrError takes a DKGErrorCode and maps it to an error object if an error

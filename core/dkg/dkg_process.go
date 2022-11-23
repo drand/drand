@@ -7,9 +7,9 @@ import (
 )
 
 type DKGProcess struct {
-	beaconIdentifier BeaconIdentifier
-	network          Network
 	store            DKGStore
+	network          Network
+	beaconIdentifier BeaconIdentifier
 	log              log.Logger
 }
 
@@ -41,11 +41,11 @@ type BeaconIdentifier interface {
 	IdentityFor(beaconID string) (*key.Identity, error)
 }
 
-func NewDKGProcess(store *DKGStore, daemon BeaconIdentifier) *DKGProcess {
+func NewDKGProcess(store *DKGStore, beaconIdentifier BeaconIdentifier) *DKGProcess {
 	return &DKGProcess{
 		store:            *store,
-		log:              log.NewLogger(nil, log.LogDebug),
 		network:          &GrpcNetwork{},
-		beaconIdentifier: daemon,
+		beaconIdentifier: beaconIdentifier,
+		log:              log.NewLogger(nil, log.LogDebug),
 	}
 }

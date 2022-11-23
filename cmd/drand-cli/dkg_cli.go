@@ -119,7 +119,7 @@ func makeProposal(c *cli.Context) error {
 		return fmt.Errorf("error making proposal: %s", proposalResponse.ErrorMessage)
 	}
 
-	fmt.Println("proposal made successfully!")
+	fmt.Println("Proposal made successfully!")
 	return nil
 }
 
@@ -201,7 +201,8 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		return nil, fmt.Errorf("%s flag is required", thresholdFlag.Name)
 	}
 
-	proposalFile, err := ParseProposalFile(c.String(proposalFlag.Name))
+	proposalFilePath := c.String(proposalFlag.Name)
+	proposalFile, err := ParseProposalFile(proposalFilePath)
 	if err != nil {
 		return nil, err
 	}

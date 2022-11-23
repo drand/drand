@@ -19,23 +19,18 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (
 		return responseOrError(err)
 	}
 
-	terms := drand.ProposalTerms{
-		BeaconID:  proposal.BeaconID,
-		Threshold: proposal.Threshold,
-		Epoch:     proposal.Epoch,
-		Timeout:   proposal.Timeout,
-		Leader:    proposal.Leader,
-		Joining:   proposal.Joining,
-		Remaining: proposal.Remaining,
-		Leaving:   proposal.Leaving,
-	}
-
-	nextDKGState, err := currentDKGState.Proposed(proposal.Leader, me, &terms)
+	nextDKGState, err := currentDKGState.Proposed(proposal.Leader, me, proposal)
 	if err != nil {
 		return responseOrError(err)
 	}
 
 	err = d.store.SaveCurrent(beaconID, nextDKGState)
+
+	if err != nil {
+		d.log.Errorw("Error processing DKG proposal", "beaconID", beaconID, "error", err)
+	} else {
+		d.log.Infow("DKG proposal processed successfully", "beaconID", beaconID)
+	}
 	return responseOrError(err)
 }
 
@@ -58,6 +53,12 @@ func (d *DKGProcess) Accept(_ context.Context, acceptance *drand.AcceptProposal)
 		return responseOrError(err)
 	}
 	err = d.store.SaveCurrent(beaconID, nextState)
+
+	if err != nil {
+		d.log.Errorw("Error processing DKG acceptance", "beaconID", beaconID, "error", err)
+	} else {
+		d.log.Infow("DKG acceptance successful", "beaconID", beaconID)
+	}
 
 	return responseOrError(err)
 }
@@ -82,6 +83,13 @@ func (d *DKGProcess) Reject(_ context.Context, rejection *drand.RejectProposal) 
 	}
 
 	err = d.store.SaveCurrent(beaconID, nextState)
+
+	if err != nil {
+		d.log.Errorw("Error processing DKG rejection", "beaconID", beaconID, "error", err)
+	} else {
+		d.log.Infow("DKG rejection successful", "beaconID", beaconID)
+	}
+
 	return responseOrError(err)
 }
 
@@ -100,12 +108,19 @@ func (d *DKGProcess) Abort(_ context.Context, abort *drand.AbortDKG) (*drand.Gen
 	}
 
 	err = d.store.SaveCurrent(beaconID, nextState)
+
+	if err != nil {
+		d.log.Errorw("Error processing DKG abort", "beaconID", beaconID, "error", err)
+	} else {
+		d.log.Infow("DKG aborted successfully", "beaconID", beaconID)
+	}
+
 	return responseOrError(err)
 }
 
 func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (*drand.GenericResponseMessage, error) {
 	beaconID := kickoff.Metadata.BeaconID
-	d.log.Debugw("Starting DKG execution", "beaconID", beaconID)
+	d.log.Infow("Starting DKG execution", "beaconID", beaconID)
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
@@ -122,6 +137,12 @@ func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (
 		return responseOrError(err)
 	}
 	err = d.store.SaveCurrent(beaconID, nextState)
+
+	if err != nil {
+		d.log.Errorw("Error starting execution of DKG", "beaconID", beaconID, "error", err)
+	} else {
+		d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
+	}
 
 	go d.executeAndFinishDKG(beaconID)
 
