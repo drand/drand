@@ -382,7 +382,7 @@ func (d *DKGState) ReceivedAcceptance(me *drand.Participant, them *drand.Partici
 
 	}
 
-	if !reflect.DeepEqual(d.Leader, me) {
+	if !equalParticipant(d.Leader, me) {
 		return nil, NonLeaderCannotReceiveAcceptance
 	}
 
@@ -418,7 +418,7 @@ func (d *DKGState) ReceivedRejection(me *drand.Participant, them *drand.Particip
 		return nil, InvalidStateChange(d.State, Proposing)
 	}
 
-	if !reflect.DeepEqual(d.Leader, me) {
+	if !equalParticipant(d.Leader, me) {
 		return nil, NonLeaderCannotReceiveRejection
 	}
 
@@ -582,21 +582,21 @@ func contains(haystack []*drand.Participant, needle *drand.Participant) bool {
 		return false
 	}
 	for _, v := range haystack {
-		if reflect.DeepEqual(v, needle) {
+		if equalParticipant(v, needle) {
 			return true
 		}
 	}
 	return false
 }
 
-func without[T comparable](haystack []T, needle T) []T {
+func without(haystack []*drand.Participant, needle *drand.Participant) []*drand.Participant {
 	if haystack == nil {
 		return nil
 	}
 
 	indexToRemove := -1
 	for i, v := range haystack {
-		if reflect.DeepEqual(v, needle) {
+		if equalParticipant(v, needle) {
 			indexToRemove = i
 		}
 	}
@@ -609,7 +609,11 @@ func without[T comparable](haystack []T, needle T) []T {
 		return nil
 	}
 
-	ret := make([]T, 0)
+	ret := make([]*drand.Participant, 0)
 	ret = append(ret, haystack[:indexToRemove]...)
 	return append(ret, haystack[indexToRemove+1:]...)
+}
+
+func equalParticipant(p1 *drand.Participant, p2 *drand.Participant) bool {
+	return p1.Tls == p2.Tls && p1.Address == p2.Address && reflect.DeepEqual(p1.PubKey, p2.PubKey)
 }

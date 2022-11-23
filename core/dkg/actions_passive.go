@@ -7,7 +7,7 @@ import (
 
 func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (*drand.GenericResponseMessage, error) {
 	beaconID := proposal.BeaconID
-	d.log.Debugw("Processing DKG proposal", "beaconID", beaconID, "leader", proposal.Leader.Address)
+	d.log.Infow("Processing DKG proposal", "beaconID", beaconID, "leader", proposal.Leader.Address)
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
@@ -19,7 +19,7 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (
 		return responseOrError(err)
 	}
 
-	terms := &drand.ProposalTerms{
+	terms := drand.ProposalTerms{
 		BeaconID:  proposal.BeaconID,
 		Threshold: proposal.Threshold,
 		Epoch:     proposal.Epoch,
@@ -30,7 +30,7 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (
 		Leaving:   proposal.Leaving,
 	}
 
-	nextDKGState, err := currentDKGState.Proposed(proposal.Leader, me, terms)
+	nextDKGState, err := currentDKGState.Proposed(proposal.Leader, me, &terms)
 	if err != nil {
 		return responseOrError(err)
 	}
@@ -41,7 +41,7 @@ func (d *DKGProcess) Propose(_ context.Context, proposal *drand.ProposalTerms) (
 
 func (d *DKGProcess) Accept(_ context.Context, acceptance *drand.AcceptProposal) (*drand.GenericResponseMessage, error) {
 	beaconID := acceptance.Metadata.BeaconID
-	d.log.Debugw("Processing acceptance", "beaconID", beaconID, "acceptor", acceptance.Acceptor.Address)
+	d.log.Infow("Processing acceptance", "beaconID", beaconID, "acceptor", acceptance.Acceptor.Address)
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {

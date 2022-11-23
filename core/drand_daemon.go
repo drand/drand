@@ -137,15 +137,7 @@ func (dd *DrandDaemon) init() error {
 		return err
 	}
 
-	identityForBeacon := func(beaconID string) (*key.Identity, error) {
-		bp, exists := dd.beaconProcesses[beaconID]
-		if !exists {
-			return nil, fmt.Errorf("no beacon found for ID %s", beaconID)
-		}
-
-		return bp.priv.Public, nil
-	}
-	dd.dkg = dkg.NewDKGProcess(&dkgStore, identityForBeacon)
+	dd.dkg = dkg.NewDKGProcess(&dkgStore, dd)
 
 	controlListener, err := net.NewGRPCListener(dd, dd.dkg, p)
 	if err != nil {
