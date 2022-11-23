@@ -721,6 +721,8 @@ func TestDrandReloadBeacon(t *testing.T) {
 	for i, inst := range instances {
 		if i == 0 {
 			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
+			// Wait a bit after launching the leader to launch the other nodes too.
+			time.Sleep(500 * time.Millisecond)
 		} else {
 			go inst.share(t, instances[0].addr, beaconID, done)
 		}
@@ -781,6 +783,8 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	for i, inst := range instances {
 		if i == 0 {
 			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
+			// Wait a bit after launching the leader to launch the other nodes too.
+			time.Sleep(500 * time.Millisecond)
 		} else {
 			go inst.share(t, instances[0].addr, beaconID, done)
 		}
