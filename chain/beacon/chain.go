@@ -38,7 +38,7 @@ type chainStore struct {
 	beaconStoredAgg chan *chain.Beacon
 }
 
-func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoStore, store chain.Store, t *ticker) *chainStore {
+func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoStore, store chain.Store, t *ticker) (*chainStore, error) {
 	// we make sure the chain is increasing monotonically
 	as := newAppendStore(store)
 
@@ -84,9 +84,19 @@ func newChainStore(l log.Logger, cf *Config, cl net.ProtocolClient, c *cryptoSto
 	cbs.AddCallback("chainstore", func(b *chain.Beacon) {
 		cs.beaconStoredAgg <- b
 	})
+
+	lastBeacon, err := cs.Last(context.Background())
+	if err != nil {
+		cs.l.Errorw("", "chain_aggregator", "loading", "last_beacon", err)
+		return nil, err
+	}
+
+	cache := newPartialCache(cs.l)
+
 	// TODO maybe look if it's worth having multiple workers there
-	go cs.runAggregator()
-	return cs
+	go cs.runAggregator(lastBeacon, cache)
+
+	return cs, nil
 }
 
 func (c *chainStore) NewValidPartial(addr string, p *drand.PartialBeaconPacket) {
@@ -109,13 +119,7 @@ var partialCacheStoreLimit = 3
 
 // runAggregator runs a continuous loop that tries to aggregate partial
 // signatures when it can
-func (c *chainStore) runAggregator() {
-	lastBeacon, err := c.Last(context.Background())
-	if err != nil {
-		c.l.Fatalw("", "chain_aggregator", "loading", "last_beacon", err)
-	}
-
-	var cache = newPartialCache(c.l)
+func (c *chainStore) runAggregator(lastBeacon *chain.Beacon, cache *partialCache) {
 	for {
 		select {
 		case <-c.done:
