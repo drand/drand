@@ -15,13 +15,13 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 	// fetch our keypair from the BeaconProcess and remap it into a `Participant`
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	// pull the latest DKG state from the database
 	currentState, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	// remap the CLI payload into one useful for applying to the DKG state
@@ -42,7 +42,7 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 	// apply our enriched DKG payload onto the current DKG state to create a new state
 	nextState, err := currentState.Proposing(me, &terms)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	sendProposalAndStoreNextState := func() error {
@@ -53,8 +53,7 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 			return err
 		}
 
-		err = d.store.SaveCurrent(beaconID, nextState)
-		if err != nil {
+		if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
 			return err
 		}
 
@@ -95,12 +94,12 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	newEpoch := current.Epoch + 1
@@ -120,7 +119,7 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 
 	nextState, err := current.Proposing(me, &terms)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	// sends the proposal to all participants of the DKG and stores the updated state in the DB
@@ -134,10 +133,10 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 			return err
 		}
 
-		err = d.store.SaveCurrent(beaconID, nextState)
-		if err != nil {
+		if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
 			return err
 		}
+
 		d.log.Infow("Finished proposing a new DKG", "beaconID", beaconID)
 		return nil
 	}
@@ -157,37 +156,34 @@ func (d *DKGProcess) StartAbort(context context.Context, options *drand.AbortOpt
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	if equalParticipant(current.Leader, me) {
-		return responseOrError(errors.New("cannot abort the DKG if you aren't the leader"))
+		return nil, errors.New("cannot abort the DKG if you aren't the leader")
 	}
 
 	nextState, err := current.Aborted()
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-	err = d.attemptAbort(context, me, allParticipants, beaconID, nextState.Epoch)
-	if err != nil {
-		return responseOrError(err)
+	if err = d.attemptAbort(context, me, allParticipants, beaconID, nextState.Epoch); err != nil {
+		return nil, err
 	}
 
-	err = d.store.SaveCurrent(beaconID, nextState)
-	if err != nil {
+	if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
 		d.log.Errorw("error aborting the DKG", "error", err, "beaconID", beaconID)
 	} else {
 		d.log.Infow("DKG aborted successfully", "beaconID", beaconID)
 	}
 	return responseOrError(err)
-
 }
 
 func (d *DKGProcess) StartExecute(context context.Context, options *drand.ExecutionOptions) (*drand.GenericResponseMessage, error) {
@@ -196,21 +192,21 @@ func (d *DKGProcess) StartExecute(context context.Context, options *drand.Execut
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	if !equalParticipant(current.Leader, me) {
-		return responseOrError(errors.New("cannot start execution if you aren't the leader"))
+		return nil, errors.New("cannot start execution if you aren't the leader")
 	}
 
 	nextState, err := current.Executing(me)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
@@ -223,13 +219,12 @@ func (d *DKGProcess) StartExecute(context context.Context, options *drand.Execut
 		)
 	})
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
-	err = d.store.SaveCurrent(beaconID, nextState)
-	if err != nil {
+	if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
 		d.log.Errorw("error executing the DKG", "error", err, "beaconID", beaconID)
-		return responseOrError(err)
+		return nil, err
 	}
 
 	d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
@@ -246,21 +241,20 @@ func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	nextState, err := current.Joined(me)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
-	err = d.store.SaveCurrent(beaconID, nextState)
-	if err != nil {
+	if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
 		d.log.Errorw("error joining the DKG", "error", err, "beaconID", beaconID)
 	} else {
 		d.log.Infow("DKG joined successfully", "beaconID", beaconID)
@@ -275,22 +269,22 @@ func (d *DKGProcess) StartAccept(context context.Context, options *drand.AcceptO
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	nextState, err := current.Accepted(me)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	client, err := net.NewDKGClient(nextState.Leader.Address)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	response, err := client.Accept(context, &drand.AcceptProposal{
@@ -301,13 +295,17 @@ func (d *DKGProcess) StartAccept(context context.Context, options *drand.AcceptO
 		},
 	})
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 	if response.IsError {
-		return responseOrError(errors.New(response.ErrorMessage))
+		return nil, errors.New(response.ErrorMessage)
 	}
 
-	err = d.store.SaveCurrent(beaconID, nextState)
+	if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
+		d.log.Errorw("error accepting the DKG", "error", err, "beaconID", beaconID)
+	} else {
+		d.log.Infow("DKG accepted successfully", "beaconID", beaconID)
+	}
 	return responseOrError(err)
 }
 
@@ -317,22 +315,22 @@ func (d *DKGProcess) StartReject(context context.Context, options *drand.RejectO
 
 	me, err := d.identityForBeacon(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	nextState, err := current.Rejected(me)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	client, err := net.NewDKGClient(nextState.Leader.Address)
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 
 	response, err := client.Reject(context, &drand.RejectProposal{
@@ -343,13 +341,17 @@ func (d *DKGProcess) StartReject(context context.Context, options *drand.RejectO
 		},
 	})
 	if err != nil {
-		return responseOrError(err)
+		return nil, err
 	}
 	if response.IsError {
-		return responseOrError(errors.New(response.ErrorMessage))
+		return nil, errors.New(response.ErrorMessage)
 	}
 
-	err = d.store.SaveCurrent(beaconID, nextState)
+	if err = d.store.SaveCurrent(beaconID, nextState); err != nil {
+		d.log.Errorw("error rejecting the DKG", "error", err, "beaconID", beaconID)
+	} else {
+		d.log.Infow("DKG rejected successfully", "beaconID", beaconID)
+	}
 	return responseOrError(err)
 }
 
@@ -358,6 +360,7 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 	if err != nil {
 		return nil, err
 	}
+
 	current, err := d.store.GetCurrent(request.BeaconID)
 	if err != nil {
 		return nil, err
