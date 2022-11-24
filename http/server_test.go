@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -167,7 +168,11 @@ func TestHTTPWaiting(t *testing.T) {
 	go func() {
 		err := server.Serve(listener)
 		if err != nil {
-			t.Logf("error while server.Server %v\n", err)
+			if errors.Is(err, http.ErrServerClosed) {
+				t.Logf("server.Server closed\n")
+			} else {
+				t.Logf("error while server.Server %v\n", err)
+			}
 		}
 	}()
 	defer func() { _ = server.Shutdown(ctx) }()
