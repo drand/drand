@@ -183,6 +183,182 @@ func TestStartNetwork(t *testing.T) {
 	}
 }
 
+func TestStartProposal(t *testing.T) {
+	me := NewParticipant()
+	anotherParticipant := NewParticipant()
+	anotherParticipant.Address = "anotherparticipant.com"
+	beaconID := "someBeaconID"
+	startState := DKGState{
+		BeaconID:      beaconID,
+		Epoch:         1,
+		State:         Complete,
+		Threshold:     1,
+		Timeout:       time.Now(),
+		SchemeID:      "bls-pedersen-chained",
+		CatchupPeriod: 10,
+		BeaconPeriod:  10,
+		Leader:        me,
+		Remaining:     nil,
+		Joining:       []*drand.Participant{me},
+		Leaving:       nil,
+		Acceptors:     []*drand.Participant{me},
+		Rejectors:     nil,
+		FinalGroup:    []*drand.Participant{me},
+	}
+
+	tests := []struct {
+		name                     string
+		proposal                 drand.ProposalOptions
+		prepareMocks             func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error)
+		expectedError            error
+		expectedNetworkCallCount int
+	}{
+		{
+			name: "valid proposal is stored and does not attempt rollback",
+			proposal: drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:            1,
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{anotherParticipant},
+				Remaining:            []*drand.Participant{me},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				allParticipants := append(proposal.Joining, proposal.Remaining...)
+				identityProvider.On("IdentityFor", beaconID).Return(asIdentity(me))
+				store.On("GetCurrent", beaconID).Return(&startState, nil)
+				network.On("Send", me, allParticipants, mock.Anything).Return(nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+			},
+			expectedError:            nil,
+			expectedNetworkCallCount: 1, // no rollback
+		},
+		{
+			name: "error fetching identity is propagated and network is not called",
+			proposal: drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:            1,
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{anotherParticipant},
+				Remaining:            []*drand.Participant{me},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				identityProvider.On("IdentityFor", beaconID).Return(nil, expectedError)
+			},
+			expectedError:            errors.New("some identity error"),
+			expectedNetworkCallCount: 0,
+		},
+		{
+			name: "error fetching the latest DKG state is propagated and network not called",
+			proposal: drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:            1,
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{anotherParticipant},
+				Remaining:            []*drand.Participant{me},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				identityProvider.On("IdentityFor", beaconID).Return(asIdentity(me))
+				store.On("GetCurrent", beaconID).Return(nil, expectedError)
+
+			},
+			expectedError:            errors.New("some database error"),
+			expectedNetworkCallCount: 0,
+		},
+		{
+			name: "invalid proposal propagates error and network not called",
+			proposal: drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:            5, // threshold higher than node count
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{anotherParticipant},
+				Remaining:            []*drand.Participant{me},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				allParticipants := append(proposal.Joining, proposal.Remaining...)
+				identityProvider.On("IdentityFor", beaconID).Return(asIdentity(me))
+				store.On("GetCurrent", beaconID).Return(&startState, nil)
+				network.On("Send", me, allParticipants, mock.Anything).Return(nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(nil)
+			},
+			expectedError:            ThresholdHigherThanNodeCount,
+			expectedNetworkCallCount: 0,
+		},
+		{
+			name: "any network call failure returns an error and attempts an abort",
+			proposal: drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:            1,
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{anotherParticipant},
+				Remaining:            []*drand.Participant{me},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				allParticipants := append(proposal.Joining, proposal.Remaining...)
+				identityProvider.On("IdentityFor", beaconID).Return(asIdentity(me))
+				store.On("GetCurrent", beaconID).Return(&startState, nil)
+				network.On("Send", me, allParticipants, mock.Anything).Return(expectedError)
+			},
+			expectedError:            errors.New("some network error"),
+			expectedNetworkCallCount: 2, // attempts a rollback
+		},
+		{
+			name: "error in saving the state after successful network propagation returns error and attempts rollback",
+			proposal: drand.ProposalOptions{
+				BeaconID:             beaconID,
+				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				Threshold:            1,
+				CatchupPeriodSeconds: 10,
+				Joining:              []*drand.Participant{anotherParticipant},
+				Remaining:            []*drand.Participant{me},
+			},
+			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.ProposalOptions, expectedError error) {
+				allParticipants := append(proposal.Joining, proposal.Remaining...)
+				identityProvider.On("IdentityFor", beaconID).Return(asIdentity(me))
+				store.On("GetCurrent", beaconID).Return(&startState, nil)
+				network.On("Send", me, allParticipants, mock.Anything).Return(nil)
+				store.On("SaveCurrent", beaconID, mock.Anything).Return(expectedError)
+			},
+			expectedError:            errors.New("some database error"),
+			expectedNetworkCallCount: 2, // attempts rollback
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			identityProvider := MockIdentityProvider{}
+			store := MockStore{}
+			network := MockNetwork{}
+			process := DKGProcess{
+				beaconIdentifier: &identityProvider,
+				network:          &network,
+				store:            &store,
+				log:              log.NewLogger(nil, log.LogDebug),
+			}
+
+			test.prepareMocks(&identityProvider, &store, &network, &test.proposal, test.expectedError)
+
+			response, err := process.StartProposal(context.Background(), &test.proposal)
+
+			if test.expectedError == nil {
+				require.NoError(t, err)
+				require.False(t, response.IsError)
+			} else {
+				require.Error(t, err)
+				require.ErrorIs(t, err, test.expectedError)
+				require.True(t, response.IsError)
+				require.Equal(t, test.expectedError.Error(), response.ErrorMessage)
+			}
+
+			// we only expect a single send call, because rollback shouldn't be triggered
+			network.AssertNumberOfCalls(t, "Send", test.expectedNetworkCallCount)
+		})
+	}
+}
+
 type MockIdentityProvider struct {
 	mock.Mock
 }
@@ -249,6 +425,6 @@ func (m *MockStore) SaveFinished(beaconID string, state *DKGState) error {
 }
 
 func (m *MockStore) Close() error {
-	args := m.Called("Close")
+	args := m.Called()
 	return args.Error(0)
 }

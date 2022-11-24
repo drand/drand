@@ -65,11 +65,10 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 	// if there's an error sending to a party or saving the state, attempt a rollback by issuing an abort
 	rollback := func(err error) {
 		d.log.Errorw("there was an error starting the network. Attempting rollback", "beaconID", beaconID, "error", err)
-		d.attemptAbort(context, me, nextState.Joining, beaconID, 1)
+		_ = d.attemptAbort(context, me, nextState.Joining, beaconID, 1)
 	}
 
-	err = rollbackOnError(sendProposalAndStoreNextState, rollback)
-	return responseOrError(err)
+	return responseOrError(rollbackOnError(sendProposalAndStoreNextState, rollback))
 }
 
 func rollbackOnError(fn func() error, attemptRollback func(error)) error {
@@ -81,8 +80,8 @@ func rollbackOnError(fn func() error, attemptRollback func(error)) error {
 	return nil
 }
 
-func (d *DKGProcess) attemptAbort(context context.Context, me *drand.Participant, participants []*drand.Participant, beaconID string, epoch uint32) {
-	_ = d.network.Send(me, participants, func(client drand.DKGClient) (*drand.GenericResponseMessage, error) {
+func (d *DKGProcess) attemptAbort(context context.Context, me *drand.Participant, participants []*drand.Participant, beaconID string, epoch uint32) error {
+	return d.network.Send(me, participants, func(client drand.DKGClient) (*drand.GenericResponseMessage, error) {
 		return client.Abort(context, &drand.AbortDKG{Metadata: &drand.DKGMetadata{
 			BeaconID: beaconID,
 			Epoch:    epoch,
@@ -101,9 +100,10 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		return nil, err
+		return responseOrError(err)
 	}
 
+	newEpoch := current.Epoch + 1
 	terms := drand.ProposalTerms{
 		BeaconID:             beaconID,
 		Threshold:            options.Threshold,
@@ -123,22 +123,32 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 		return responseOrError(err)
 	}
 
+	// sends the proposal to all participants of the DKG and stores the updated state in the DB
 	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-	err = d.network.Send(me, allParticipants, func(client drand.DKGClient) (*drand.GenericResponseMessage, error) {
-		return client.Propose(context, &terms)
-	})
-	if err != nil {
-		return responseOrError(err)
-	}
 
-	err = d.store.SaveCurrent(beaconID, nextState)
-	if err != nil {
-		d.log.Errorw("There was an error proposing a DKG", "err", err, "beaconID", beaconID)
-	} else {
+	sendProposalToAllAndStoreState := func() error {
+		err = d.network.Send(me, allParticipants, func(client drand.DKGClient) (*drand.GenericResponseMessage, error) {
+			return client.Propose(context, &terms)
+		})
+		if err != nil {
+			return err
+		}
+
+		err = d.store.SaveCurrent(beaconID, nextState)
+		if err != nil {
+			return err
+		}
 		d.log.Infow("Finished proposing a new DKG", "beaconID", beaconID)
+		return nil
 	}
 
-	return responseOrError(err)
+	// if there's an error sending to a party or saving the state, attempt a rollback by issuing an abort
+	rollback := func(err error) {
+		d.log.Errorw("There was an error proposing a DKG", "err", err, "beaconID", beaconID)
+		_ = d.attemptAbort(context, me, allParticipants, beaconID, newEpoch)
+	}
+
+	return responseOrError(rollbackOnError(sendProposalToAllAndStoreState, rollback))
 }
 
 func (d *DKGProcess) StartAbort(context context.Context, options *drand.AbortOptions) (*drand.GenericResponseMessage, error) {
@@ -165,10 +175,7 @@ func (d *DKGProcess) StartAbort(context context.Context, options *drand.AbortOpt
 	}
 
 	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-	abort := drand.AbortDKG{Metadata: &drand.DKGMetadata{BeaconID: beaconID, Epoch: nextState.Epoch}}
-	err = d.network.Send(me, allParticipants, func(client drand.DKGClient) (*drand.GenericResponseMessage, error) {
-		return client.Abort(context, &abort)
-	})
+	err = d.attemptAbort(context, me, allParticipants, beaconID, nextState.Epoch)
 	if err != nil {
 		return responseOrError(err)
 	}
@@ -207,9 +214,13 @@ func (d *DKGProcess) StartExecute(context context.Context, options *drand.Execut
 	}
 
 	allParticipants := concat(nextState.Joining, nextState.Remaining, nextState.Leaving)
-	execution := drand.StartExecution{Metadata: &drand.DKGMetadata{BeaconID: beaconID, Epoch: nextState.Epoch}}
 	err = d.network.Send(me, allParticipants, func(client drand.DKGClient) (*drand.GenericResponseMessage, error) {
-		return client.Execute(context, &execution)
+		return client.Execute(context, &drand.StartExecution{
+			Metadata: &drand.DKGMetadata{
+				BeaconID: beaconID,
+				Epoch:    nextState.Epoch,
+			}},
+		)
 	})
 	if err != nil {
 		return responseOrError(err)
@@ -219,11 +230,12 @@ func (d *DKGProcess) StartExecute(context context.Context, options *drand.Execut
 	if err != nil {
 		d.log.Errorw("error executing the DKG", "error", err, "beaconID", beaconID)
 		return responseOrError(err)
-	} else {
-		d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
 	}
 
+	d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
+
 	go d.executeAndFinishDKG(beaconID)
+
 	return responseOrError(err)
 
 }
@@ -281,14 +293,13 @@ func (d *DKGProcess) StartAccept(context context.Context, options *drand.AcceptO
 		return responseOrError(err)
 	}
 
-	acceptance := drand.AcceptProposal{
+	response, err := client.Accept(context, &drand.AcceptProposal{
 		Acceptor: me,
 		Metadata: &drand.DKGMetadata{
 			BeaconID: options.BeaconID,
 			Epoch:    current.Epoch,
 		},
-	}
-	response, err := client.Accept(context, &acceptance)
+	})
 	if err != nil {
 		return responseOrError(err)
 	}
@@ -324,14 +335,13 @@ func (d *DKGProcess) StartReject(context context.Context, options *drand.RejectO
 		return responseOrError(err)
 	}
 
-	rejection := drand.RejectProposal{
+	response, err := client.Reject(context, &drand.RejectProposal{
 		Rejector: me,
 		Metadata: &drand.DKGMetadata{
 			BeaconID: options.BeaconID,
 			Epoch:    current.Epoch,
 		},
-	}
-	response, err := client.Reject(context, &rejection)
+	})
 	if err != nil {
 		return responseOrError(err)
 	}
@@ -418,7 +428,7 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) {
 		return
 	}
 
-	finalGroup := append(current.Remaining, current.Joining...)
+	finalGroup := concat(current.Remaining, current.Joining)
 	finalState, err := current.Complete(finalGroup)
 	err = d.store.SaveFinished(beaconID, finalState)
 
