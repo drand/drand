@@ -52,9 +52,8 @@ test-integration:
 	cd demo && go build && ./demo -build -test -debug
 
 coverage:
-	go install github.com/ory/go-acc@latest
 	go get -v -t -d ./...
-	COVERAGE=true go-acc ./...
+	go test -race -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
 
 demo:
 	cd demo && go build && ./demo -build
