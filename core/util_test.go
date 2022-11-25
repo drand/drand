@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	dkg2 "github.com/drand/drand/core/dkg"
 	gnet "net"
 	"os"
 	"path"
@@ -725,8 +726,8 @@ func (d *DrandTestScenario) RunReshare(t *testing.T, c *reshareConfig) (*key.Gro
 	leaderGroupReadyCh := make(chan *key.Group, 1)
 	// setup the channel where we can see all node-initiated outgoing packets
 	// for the DKG
-	outgoingChan := make(chan packet, 100)
-	incomingChan := make(chan packet, 100)
+	outgoingChan := make(chan dkg2.packet, 100)
+	incomingChan := make(chan dkg2.packet, 100)
 
 	// wait until leader is listening
 	controlClient, err := net.NewControlClient(leader.drand.opts.ControlPort())
@@ -908,16 +909,16 @@ func newNode(now time.Time, certPath string, daemon *DrandDaemon, dr *BeaconProc
 }
 
 type testBroadcast struct {
-	*echoBroadcast
-	outgoing chan packet
-	incoming chan packet
-	hashes   set
+	*dkg2.echoBroadcast
+	outgoing chan dkg2.packet
+	incoming chan dkg2.packet
+	hashes   dkg2.set
 }
 
-func newTestBroadcast(b Broadcast, ingoing, outgoing chan packet) Broadcast {
+func newTestBroadcast(b dkg2.Broadcast, ingoing, outgoing chan dkg2.packet) dkg2.Broadcast {
 	return &testBroadcast{
-		hashes:        new(arraySet),
-		echoBroadcast: b.(*echoBroadcast),
+		hashes:        new(dkg2.arraySet),
+		echoBroadcast: b.(*dkg2.echoBroadcast),
 		outgoing:      outgoing,
 		incoming:      ingoing,
 	}
@@ -945,7 +946,7 @@ func (b *testBroadcast) BroadcastDKG(c context.Context, p *drand.DKGPacket) erro
 	}
 
 	dkgPacket, _ := protoToDKGPacket(p.GetDkg())
-	hash := hash(dkgPacket.Hash())
+	hash := dkg2.hash(dkgPacket.Hash())
 	b.Lock()
 	if !b.hashes.exists(hash) {
 		b.incoming <- dkgPacket

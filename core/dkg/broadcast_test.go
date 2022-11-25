@@ -1,13 +1,14 @@
-package core
+package dkg
 
 import (
 	"context"
+	"fmt"
+	"github.com/drand/drand/core"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
@@ -67,7 +68,7 @@ func TestBroadcast(t *testing.T) {
 	n := 5
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 	//nolint:dogsled
-	_, drands, group, _, _ := BatchNewDrand(t, n, true, sch, beaconID)
+	_, drands, group, _, _ := core.BatchNewDrand(t, n, true, sch, beaconID)
 
 	// channel that will receive all broadcasted packets
 	incPackets := make(chan *packInfo)
@@ -75,13 +76,15 @@ func TestBroadcast(t *testing.T) {
 	broads := make([]*echoBroadcast, 0, n)
 	ids := make([]string, 0, n)
 	for _, d := range drands {
-		id := d.priv.Public.Address()
-		version := common.GetAppVersion()
-		b := newEchoBroadcast(d.log, version, beaconID, d.privGateway.ProtocolClient,
-			id, group.Nodes, func(dkg.Packet) error { return nil })
-
-		broads = append(broads, b)
-		ids = append(ids, id)
+		fmt.Println(d)
+		t.Fatal("blow up")
+		//id := d.priv.Public.Address()
+		//version := common.GetAppVersion()
+		//b, err := NewEchoBroadcast(d.log, version, beaconID, id, group.Nodes, func(dkg.Packet) error { return nil })
+		//require.NoError(t, err)
+		//
+		//broads = append(broads, b)
+		//ids = append(ids, id)
 	}
 
 	dealPacket, hash := sendNewDeal(t, broads[0])
@@ -140,7 +143,7 @@ func TestBroadcast(t *testing.T) {
 
 func sendNewDeal(t *testing.T, b *echoBroadcast) (packet *drand.DKGPacket, hash []byte) {
 	deal := fakeDeal()
-	dealProto, err := dkgPacketToProto(deal)
+	dealProto, err := core.dkgPacketToProto(deal)
 	require.NoError(t, err)
 	packet = &drand.DKGPacket{
 		Dkg: dealProto,

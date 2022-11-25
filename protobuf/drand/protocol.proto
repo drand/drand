@@ -10,7 +10,6 @@ package drand;
 option go_package = "github.com/drand/drand/protobuf/drand";
 /*option go_package = "drand";*/
 
-import "crypto/dkg/dkg.proto";
 import "drand/common.proto";
 import "common/common.proto";
 
@@ -25,8 +24,6 @@ service Protocol {
     // from all received keys and as well other information such as the time of
     // starting the DKG.
     rpc PushDKGInfo(DKGInfoPacket) returns (drand.Empty);
-    // BroadcastPacket is used during DKG phases
-    rpc BroadcastDKG(DKGPacket) returns (drand.Empty);
     // PartialBeacon sends its partial beacon to another node
     rpc PartialBeacon(PartialBeaconPacket) returns (drand.Empty);
     // SyncRequest forces a daemon to sync up its chain with other nodes
@@ -92,14 +89,6 @@ message PartialBeaconPacket {
     bytes partial_sig = 3;
     //
     common.Metadata metadata = 4;
-}
-
-// DKGPacket is the packet that nodes send to others nodes as part of the
-// broadcasting protocol.
-message DKGPacket{
-    dkg.Packet dkg = 1;
-    //
-    common.Metadata metadata = 2;
 }
 
 // SyncRequest is from a node that needs to sync up with the current head of the

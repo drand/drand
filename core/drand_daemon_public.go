@@ -8,12 +8,11 @@ import (
 
 // BroadcastDKG is the public method to call during a DKG protocol.
 func (dd *DrandDaemon) BroadcastDKG(c context.Context, in *drand.DKGPacket) (*drand.Empty, error) {
-	bp, err := dd.getBeaconProcessFromRequest(in.GetMetadata())
+	_, err := dd.dkg.BroadcastDKG(c, in)
 	if err != nil {
 		return nil, err
 	}
-
-	return bp.BroadcastDKG(c, in)
+	return &drand.Empty{}, nil
 }
 
 // PartialBeacon receives a beacon generation request and answers

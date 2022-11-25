@@ -32,8 +32,6 @@ type ProtocolClient interface {
 	// from all received keys and as well other information such as the time of
 	// starting the DKG.
 	PushDKGInfo(ctx context.Context, in *DKGInfoPacket, opts ...grpc.CallOption) (*Empty, error)
-	// BroadcastPacket is used during DKG phases
-	BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error)
 	// PartialBeacon sends its partial beacon to another node
 	PartialBeacon(ctx context.Context, in *PartialBeaconPacket, opts ...grpc.CallOption) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
@@ -71,15 +69,6 @@ func (c *protocolClient) SignalDKGParticipant(ctx context.Context, in *SignalDKG
 func (c *protocolClient) PushDKGInfo(ctx context.Context, in *DKGInfoPacket, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
 	err := c.cc.Invoke(ctx, "/drand.Protocol/PushDKGInfo", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *protocolClient) BroadcastDKG(ctx context.Context, in *DKGPacket, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/drand.Protocol/BroadcastDKG", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +139,6 @@ type ProtocolServer interface {
 	// from all received keys and as well other information such as the time of
 	// starting the DKG.
 	PushDKGInfo(context.Context, *DKGInfoPacket) (*Empty, error)
-	// BroadcastPacket is used during DKG phases
-	BroadcastDKG(context.Context, *DKGPacket) (*Empty, error)
 	// PartialBeacon sends its partial beacon to another node
 	PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error)
 	// SyncRequest forces a daemon to sync up its chain with other nodes
@@ -172,9 +159,6 @@ func (UnimplementedProtocolServer) SignalDKGParticipant(context.Context, *Signal
 }
 func (UnimplementedProtocolServer) PushDKGInfo(context.Context, *DKGInfoPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PushDKGInfo not implemented")
-}
-func (UnimplementedProtocolServer) BroadcastDKG(context.Context, *DKGPacket) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method BroadcastDKG not implemented")
 }
 func (UnimplementedProtocolServer) PartialBeacon(context.Context, *PartialBeaconPacket) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method PartialBeacon not implemented")
@@ -247,24 +231,6 @@ func _Protocol_PushDKGInfo_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ProtocolServer).PushDKGInfo(ctx, req.(*DKGInfoPacket))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Protocol_BroadcastDKG_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DKGPacket)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ProtocolServer).BroadcastDKG(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/drand.Protocol/BroadcastDKG",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ProtocolServer).BroadcastDKG(ctx, req.(*DKGPacket))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -344,10 +310,6 @@ var Protocol_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PushDKGInfo",
 			Handler:    _Protocol_PushDKGInfo_Handler,
-		},
-		{
-			MethodName: "BroadcastDKG",
-			Handler:    _Protocol_BroadcastDKG_Handler,
 		},
 		{
 			MethodName: "PartialBeacon",

@@ -3,6 +3,7 @@ package dkg
 import (
 	"context"
 	"errors"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -229,7 +230,12 @@ func (d *DKGProcess) StartExecute(context context.Context, options *drand.Execut
 
 	d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
 
-	go d.executeAndFinishDKG(beaconID)
+	go func() {
+		err := d.executeAndFinishDKG(beaconID)
+		if err != nil {
+			d.log.Errorw("there was an error during the DKG!", "beaconID", beaconID, "error", err)
+		}
+	}()
 
 	return responseOrError(err)
 
@@ -405,13 +411,17 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 	}, nil
 }
 
-// identityForBeacon grabs the key.Identity from a BeaconProcess and marshals it to a drand.Participant
+// identityForBeacon grabs the key.Pair from a BeaconProcess and marshals it to a drand.Participant
 func (d *DKGProcess) identityForBeacon(beaconID string) (*drand.Participant, error) {
-	identity, err := d.beaconIdentifier.IdentityFor(beaconID)
+	identity, err := d.beaconIdentifier.KeypairFor(beaconID)
 	if err != nil {
 		return nil, err
 	}
 
+	return publicKeyAsParticipant(identity.Public)
+}
+
+func publicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) {
 	pubKey, err := identity.Key.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -424,22 +434,31 @@ func (d *DKGProcess) identityForBeacon(beaconID string) (*drand.Participant, err
 	}, nil
 }
 
-func (d *DKGProcess) executeAndFinishDKG(beaconID string) {
+func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
 	current, err := d.store.GetCurrent(beaconID)
 	if err != nil {
-		d.log.Errorw("there was an error completing the DKG!")
-		return
+		return err
 	}
 
-	finalGroup := concat(current.Remaining, current.Joining)
-	finalState, err := current.Complete(finalGroup)
+	// could be nil
+	lastCompleted, err := d.store.GetFinished(beaconID)
+	if err != nil {
+		return err
+	}
+
+	output, err := d.executeDKG(beaconID, lastCompleted, current)
+	if err != nil {
+		return err
+	}
+
+	finalState, err := current.Complete(output.finalGroup)
 	err = d.store.SaveFinished(beaconID, finalState)
 
 	if err != nil {
-		d.log.Errorw("there was an error completing the DKG!")
-		return
+		return err
 	}
 	d.log.Infow("DKG completed successfully!", "beaconID", beaconID)
+	return nil
 }
 
 // responseOrError takes a DKGErrorCode and maps it to an error object if an error

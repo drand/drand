@@ -174,18 +174,6 @@ func (g *grpcClient) SignalDKGParticipant(ctx context.Context, p Peer, in *drand
 	return err
 }
 
-func (g *grpcClient) BroadcastDKG(ctx context.Context, p Peer, in *drand.DKGPacket, opts ...CallOption) error {
-	c, err := g.conn(p)
-	if err != nil {
-		return err
-	}
-	client := drand.NewProtocolClient(c)
-	ctx, cancel := g.getTimeoutContext(ctx)
-	defer cancel()
-	_, err = client.BroadcastDKG(ctx, in, opts...)
-	return err
-}
-
 func (g *grpcClient) PartialBeacon(ctx context.Context, p Peer, in *drand.PartialBeaconPacket, opts ...CallOption) error {
 	c, err := g.conn(p)
 	if err != nil {

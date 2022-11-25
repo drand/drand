@@ -2,6 +2,7 @@ package dkg
 
 import (
 	"context"
+	"errors"
 	"github.com/drand/drand/protobuf/drand"
 )
 
@@ -144,7 +145,26 @@ func (d *DKGProcess) Execute(_ context.Context, kickoff *drand.StartExecution) (
 		d.log.Infow("DKG execution started successfully", "beaconID", beaconID)
 	}
 
-	go d.executeAndFinishDKG(beaconID)
+	go func() {
+		err := d.executeAndFinishDKG(beaconID)
+		if err != nil {
+			d.log.Errorw("there was an error during the DKG execution!", "beaconID", beaconID, "error", err)
+		}
+	}()
 
 	return responseOrError(err)
+}
+
+func (d *DKGProcess) BroadcastDKG(context context.Context, packet *drand.DKGPacket) (*drand.GenericResponseMessage, error) {
+	beaconID := packet.Dkg.Metadata.BeaconID
+	broadcaster := d.executions[beaconID]
+	if broadcaster == nil {
+		return nil, errors.New("could not broadcast a DKG message - there may not be a DKG in progress and in the execution phase")
+	}
+
+	err := broadcaster.BroadcastDKG(context, packet)
+	if err != nil {
+		return nil, err
+	}
+	return &drand.GenericResponseMessage{IsError: false}, nil
 }

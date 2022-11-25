@@ -11,6 +11,7 @@ type DKGProcess struct {
 	network          Network
 	beaconIdentifier BeaconIdentifier
 	log              log.Logger
+	executions       map[string]*echoBroadcast
 }
 
 type DKGStore interface {
@@ -38,7 +39,7 @@ type Network interface {
 // BeaconIdentifier is necessary because we need to get our identity on a per-beacon basis from the `DrandDaemon`
 // but that would introduce a circular dependency
 type BeaconIdentifier interface {
-	IdentityFor(beaconID string) (*key.Identity, error)
+	KeypairFor(beaconID string) (*key.Pair, error)
 }
 
 func NewDKGProcess(store *DKGStore, beaconIdentifier BeaconIdentifier) *DKGProcess {
@@ -47,5 +48,6 @@ func NewDKGProcess(store *DKGStore, beaconIdentifier BeaconIdentifier) *DKGProce
 		network:          &GrpcNetwork{},
 		beaconIdentifier: beaconIdentifier,
 		log:              log.NewLogger(nil, log.LogDebug),
+		executions:       make(map[string]*echoBroadcast),
 	}
 }

@@ -231,13 +231,13 @@ func (dd *DrandDaemon) ListBeaconIDs(ctx context.Context, in *drand.ListBeaconID
 	return &drand.ListBeaconIDsResponse{Ids: ids, Metadata: metadata}, nil
 }
 
-func (dd *DrandDaemon) IdentityFor(beaconID string) (*key.Identity, error) {
+func (dd *DrandDaemon) KeypairFor(beaconID string) (*key.Pair, error) {
 	bp, exists := dd.beaconProcesses[beaconID]
 	if !exists {
 		return nil, fmt.Errorf("no beacon found for ID %s", beaconID)
 	}
 
-	return bp.priv.Public, nil
+	return bp.priv, nil
 }
 
 // /////////
