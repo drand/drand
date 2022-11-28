@@ -32,6 +32,7 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 	if lastCompleted == nil {
 		return d.executeInitialDKG(beaconID, keypair, me, current)
 	}
+
 	oldNodes, err := TryMapEach[dkg.Node](sortedByPublicKey(lastCompleted.FinalGroup), toNode)
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 		Log:            d.log,
 	}
 
-	return d.createBroadcastAndStartDKG(beaconID, me, current, sortedParticipants, config)
+	return d.startDKGAndBroadcastExecution(beaconID, me, current, sortedParticipants, config)
 }
 
 func (d *DKGProcess) executeInitialDKG(beaconID string, keypair *key.Pair, me *drand.Participant, current *DKGState) (*DKGOutput, error) {
@@ -89,10 +90,10 @@ func (d *DKGProcess) executeInitialDKG(beaconID string, keypair *key.Pair, me *d
 		Log:            d.log,
 	}
 
-	return d.createBroadcastAndStartDKG(beaconID, me, current, sortedParticipants, config)
+	return d.startDKGAndBroadcastExecution(beaconID, me, current, sortedParticipants, config)
 }
 
-func (d *DKGProcess) createBroadcastAndStartDKG(beaconID string, me *drand.Participant, current *DKGState, sortedParticipants []*drand.Participant, config dkg.Config) (*DKGOutput, error) {
+func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Participant, current *DKGState, sortedParticipants []*drand.Participant, config dkg.Config) (*DKGOutput, error) {
 	// create the network over which to send all the DKG packets
 	board, err := NewEchoBroadcast(
 		d.log,
@@ -103,21 +104,24 @@ func (d *DKGProcess) createBroadcastAndStartDKG(beaconID string, me *drand.Parti
 		func(p dkg.Packet) error {
 			return dkg.VerifyPacketSignature(&config, p)
 		})
-
-	// ewwww state
-	d.executions[beaconID] = board
 	if err != nil {
 		return nil, err
 	}
 
+	// we need some state on the DKG process in order to process any incoming gossip messages from the DKG
+	d.executions[beaconID] = board
+	defer func() {
+		delete(d.executions, beaconID)
+	}()
+
 	phaser := dkg.NewTimePhaser(1 * time.Second)
-	// NewProtocol actually _starts_ the protocol on a goroutine also - could this be a source of timing issues?
+	go phaser.Start()
+
+	// NewProtocol actually _starts_ the protocol on a goroutine also
 	protocol, err := dkg.NewProtocol(&config, board, phaser, false)
 	if err != nil {
 		return nil, err
 	}
-
-	go phaser.Start()
 
 	// wait for the protocol to end and figure out who made it into the final group
 	select {
@@ -136,7 +140,7 @@ func (d *DKGProcess) createBroadcastAndStartDKG(beaconID string, me *drand.Parti
 			}
 			return &output, nil
 		}
-	case <-time.After(1 * time.Minute):
+	case <-time.After(d.config.Timeout):
 		{
 			return nil, errors.New("DKG timed out")
 		}

@@ -137,7 +137,10 @@ func (dd *DrandDaemon) init() error {
 		return err
 	}
 
-	dd.dkg = dkg.NewDKGProcess(&dkgStore, dd)
+	dkgConfig := dkg.Config{
+		Timeout: DefaultDKGTimeout,
+	}
+	dd.dkg = dkg.NewDKGProcess(&dkgStore, dd, dkgConfig)
 
 	controlListener, err := net.NewGRPCListener(dd, dd.dkg, p)
 	if err != nil {

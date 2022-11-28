@@ -3,16 +3,15 @@ package dkg
 import (
 	"context"
 	"fmt"
-	"github.com/drand/drand/core"
+	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/test"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/drand/test"
 	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/util/random"
@@ -87,7 +86,7 @@ func TestBroadcast(t *testing.T) {
 		//ids = append(ids, id)
 	}
 
-	dealPacket, hash := sendNewDeal(t, broads[0])
+	dealPacket, hash := sendNewDeal(t, broads[0], beaconID)
 	waitForAll := func(exp int) {
 		received := make(map[string]bool)
 		for i := 0; i < exp; i++ {
@@ -121,7 +120,7 @@ func TestBroadcast(t *testing.T) {
 	// let's make everyone broadcast a different packet
 	hashes := make([][]byte, 0, n-1)
 	for _, b := range broads[1:] {
-		_, hash := sendNewDeal(t, b)
+		_, hash := sendNewDeal(t, b, beaconID)
 		hashes = append(hashes, hash)
 	}
 
@@ -141,9 +140,9 @@ func TestBroadcast(t *testing.T) {
 	require.True(t, len(broads[0].justCh) == 1)
 }
 
-func sendNewDeal(t *testing.T, b *echoBroadcast) (packet *drand.DKGPacket, hash []byte) {
+func sendNewDeal(t *testing.T, b *echoBroadcast, beaconID string) (packet *drand.DKGPacket, hash []byte) {
 	deal := fakeDeal()
-	dealProto, err := core.dkgPacketToProto(deal)
+	dealProto, err := dkgPacketToProto(deal, beaconID)
 	require.NoError(t, err)
 	packet = &drand.DKGPacket{
 		Dkg: dealProto,
