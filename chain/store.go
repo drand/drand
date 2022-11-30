@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"io"
 )
 
@@ -54,13 +55,15 @@ const (
 
 func MetricsStorageType(st StorageType) float64 {
 	// NOTE: Please only append to this list.
-	backends := map[StorageType]float64{
-		BoltDB:     1,
-		PostgreSQL: 2,
+	switch st {
+	case BoltDB:
+		return 1
+	case PostgreSQL:
+		return 2
+	default:
+		err := fmt.Errorf("unknown storage type for metrics reporting %s", st)
+		panic(err)
 	}
-
-	// We want this to panic if the backend is not indexed
-	return backends[st]
 }
 
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
