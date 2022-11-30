@@ -209,7 +209,7 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
 	if err != nil {
 		return err
 	}
-	newShare := (*key.Share)(dkgOutput.New.KeyShare)
+	newShare := dkgOutput.New.KeyShare
 
 	// make the transition
 	bp.group = &newGroup
@@ -296,7 +296,7 @@ func asGroup(details *dkg.DKGState) (key.Group, error) {
 		GenesisTime:    details.GenesisTime.Unix(),
 		GenesisSeed:    details.GenesisSeed,
 		TransitionTime: details.TransitionTime.Unix(),
-		PublicKey:      (*key.Share)(details.KeyShare).Public(),
+		PublicKey:      details.KeyShare.Public(),
 	}, nil
 }
 

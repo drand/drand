@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
 	"github.com/drand/kyber/share/dkg"
@@ -81,7 +82,97 @@ type DKGState struct {
 	Rejectors []*drand.Participant
 
 	FinalGroup []*drand.Participant
-	KeyShare   *dkg.DistKeyShare
+	KeyShare   *key.Share
+}
+
+type DKGStateTOML struct {
+	BeaconID       string
+	Epoch          uint32
+	State          DKGStatus
+	Threshold      uint32
+	Timeout        time.Time
+	SchemeID       string
+	GenesisTime    time.Time
+	GenesisSeed    []byte
+	TransitionTime time.Time
+	CatchupPeriod  time.Duration
+	BeaconPeriod   time.Duration
+
+	Leader    *drand.Participant
+	Remaining []*drand.Participant
+	Joining   []*drand.Participant
+	Leaving   []*drand.Participant
+
+	Acceptors []*drand.Participant
+	Rejectors []*drand.Participant
+
+	FinalGroup []*drand.Participant
+	KeyShare   *key.ShareTOML
+}
+
+func (d *DKGState) TOML() DKGStateTOML {
+	var k *key.ShareTOML
+	if d.KeyShare == nil {
+		k = nil
+	} else {
+		k = d.KeyShare.TOML().(*key.ShareTOML)
+	}
+	return DKGStateTOML{
+		BeaconID:       d.BeaconID,
+		Epoch:          d.Epoch,
+		State:          d.State,
+		Threshold:      d.Threshold,
+		Timeout:        d.Timeout,
+		SchemeID:       d.SchemeID,
+		GenesisTime:    d.GenesisTime,
+		GenesisSeed:    d.GenesisSeed,
+		TransitionTime: d.TransitionTime,
+		CatchupPeriod:  d.CatchupPeriod,
+		BeaconPeriod:   d.BeaconPeriod,
+		Leader:         d.Leader,
+		Remaining:      d.Remaining,
+		Joining:        d.Joining,
+		Leaving:        d.Leaving,
+		Acceptors:      d.Acceptors,
+		Rejectors:      d.Rejectors,
+		FinalGroup:     d.FinalGroup,
+		KeyShare:       k,
+	}
+}
+
+func (d DKGStateTOML) FromTOML() (*DKGState, error) {
+	var share *key.Share
+	if d.KeyShare == nil {
+		share = nil
+	} else {
+		share = &key.Share{}
+		err := share.FromTOML(d.KeyShare)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &DKGState{
+		BeaconID:       d.BeaconID,
+		Epoch:          d.Epoch,
+		State:          d.State,
+		Threshold:      d.Threshold,
+		Timeout:        d.Timeout,
+		SchemeID:       d.SchemeID,
+		GenesisTime:    d.GenesisTime,
+		GenesisSeed:    d.GenesisSeed,
+		TransitionTime: d.TransitionTime,
+		CatchupPeriod:  d.CatchupPeriod,
+		BeaconPeriod:   d.BeaconPeriod,
+		Leader:         d.Leader,
+		Remaining:      d.Remaining,
+		Joining:        d.Joining,
+		Leaving:        d.Leaving,
+		Acceptors:      d.Acceptors,
+		Rejectors:      d.Rejectors,
+		FinalGroup:     d.FinalGroup,
+		KeyShare:       share,
+	}, nil
 }
 
 func NewFreshState(beaconID string) *DKGState {
@@ -303,8 +394,7 @@ func (d *DKGState) Complete(finalGroup []*drand.Participant, share *dkg.DistKeyS
 
 	d.State = Complete
 	d.FinalGroup = finalGroup
-	d.KeyShare = share
-
+	d.KeyShare = (*key.Share)(share)
 	return d, nil
 }
 
@@ -476,14 +566,6 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 		return nil
 	}
 
-	if terms.GenesisTime.AsTime() != currentState.GenesisTime {
-		return GenesisTimeNotEqual
-	}
-
-	if bytes.Equal(terms.GenesisSeed, currentState.GenesisSeed) {
-		return GenesisSeedNotEqual
-	}
-
 	// perhaps this should be stricter?
 	// should there be at least one round? should it be after `time.Now()`?
 	if !currentState.GenesisTime.Before(terms.TransitionTime.AsTime()) {
@@ -503,6 +585,13 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 	}
 
 	if currentState.State != Fresh {
+		if !terms.GenesisTime.AsTime().Equal(currentState.GenesisTime) {
+			return GenesisTimeNotEqual
+		}
+
+		if !bytes.Equal(terms.GenesisSeed, currentState.GenesisSeed) {
+			return GenesisSeedNotEqual
+		}
 		// make sure all proposed `remaining` nodes exist in the current epoch
 		for _, node := range terms.Remaining {
 			if !util.Contains(currentState.FinalGroup, node) {

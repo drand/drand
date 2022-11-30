@@ -349,6 +349,18 @@ func TestProposalValidation(t *testing.T) {
 			}(),
 			expected: GenesisSeedNotEqual,
 		},
+		{
+			name:  "for > epoch 1, if we have a fresh state, genesis seed can be different",
+			state: NewFullDKGEntry(beaconID, Fresh, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.TransitionTime = timestamppb.New(time.Now())
+				p.GenesisSeed = []byte("something-very-unusual")
+				return p
+			}(),
+			expected: nil,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1645,7 +1657,7 @@ func NewFullDKGEntry(beaconID string, status DKGStatus, previousLeader *drand.Pa
 		Rejectors: nil,
 
 		FinalGroup: append([]*drand.Participant{previousLeader}, others...),
-		KeyShare:   &dkg.DistKeyShare{},
+		KeyShare:   &key.Share{},
 	}
 }
 

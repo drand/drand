@@ -236,11 +236,11 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
-	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
-	if tTime != targetTime {
-		h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
-		return
-	}
+	//tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
+	//if tTime != targetTime {
+	//	h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
+	//	return
+	//}
 	h.l.Infow("", "transition", "new_group", "at_round", tRound)
 	// register a callback such that when the round happening just before the
 	// transition is stored, then it switches the current share to the new one

@@ -431,7 +431,7 @@ func printEntry(entry *drand.DKGEntry) {
 		return
 	}
 
-	fmt.Printf("BeaconID:\t\t%s\n", entry.BeaconID)
+	fmt.Printf("BeaconID:\t%s\n", entry.BeaconID)
 	fmt.Printf("State:\t\t%s\n", dkg.DKGStatus(entry.State).String())
 	fmt.Printf("Epoch:\t\t%d\n", entry.Epoch)
 	fmt.Printf("Threshold:\t%d\n", entry.Threshold)

@@ -1,8 +1,9 @@
 package dkg
 
 import (
+	bytes2 "bytes"
+	"github.com/BurntSushi/toml"
 	"github.com/drand/drand/log"
-	json "github.com/nikkolasg/hexjson"
 	"github.com/pkg/errors"
 	bolt "go.etcd.io/bbolt"
 	"path"
@@ -75,7 +76,18 @@ func (s *boltStore) get(beaconID string, bucketName []byte) (*DKGState, error) {
 		if value == nil {
 			return nil
 		}
-		return json.Unmarshal(value, &dkg)
+		t := DKGStateTOML{}
+		_, err := toml.NewDecoder(bytes2.NewReader(value)).Decode(&t)
+		if err != nil {
+			return err
+		}
+
+		d, err := t.FromTOML()
+		if err != nil {
+			return err
+		}
+		dkg = d
+		return nil
 	})
 
 	return dkg, err
@@ -109,11 +121,13 @@ func (s *boltStore) save(bucketName []byte, beaconID string, state *DKGState) er
 			return errors.Errorf("%s bucket was nil - this should never happen", bucketName)
 		}
 
-		bytes, err := json.Marshal(state)
+		var bytes []byte
+		b := bytes2.NewBuffer(bytes)
+		err := toml.NewEncoder(b).Encode(state.TOML())
 		if err != nil {
 			return err
 		}
-		return bucket.Put([]byte(beaconID), bytes)
+		return bucket.Put([]byte(beaconID), b.Bytes())
 	})
 }
 
