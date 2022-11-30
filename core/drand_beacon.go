@@ -20,6 +20,7 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -232,7 +233,7 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) error {
 
 	bp.log.Infow("", "beacon_start", bp.opts.clock.Now(), "catchup", catchup)
 	if catchup {
-		go b.Catchup()
+		b.Catchup()
 	} else if err := b.Start(); err != nil {
 		bp.log.Errorw("", "beacon_start", err)
 		return err
@@ -364,6 +365,13 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 		Clock:  bp.opts.clock,
 	}
 
+	if bp.opts.dbStorageEngine == chain.MemDB {
+		err := bp.storePrevious(store)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	b, err := beacon.NewHandler(bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)
 	if err != nil {
 		return nil, err
@@ -432,6 +440,66 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 	}
 
 	return metadata
+}
+
+func (bp *BeaconProcess) storePrevious(store chain.Store) error {
+	ctx := context.Background()
+
+	verifier := chain.NewVerifier(bp.group.Scheme)
+	// We should still add the previous beacon in the database to allow the daemon to start from a recent beacon.
+	/*if !verifier.IsPrevSigMeaningful() {
+		bp.log.Debugw("beaconProcess", "previous signature is not meaningful", "skipping")
+		return nil
+	}*/
+
+	peers := bp.toPeers(bp.group.Nodes)
+	round, _ := chain.NextRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
+	nRound := round-1
+	found := false
+	previousRound := chain.Beacon{}
+	for _, peer := range peers {
+		r, err := bp.privGateway.PublicRand(ctx, peer, &drand.PublicRandRequest{Round: nRound})
+		if err != nil {
+			bp.log.Errorw("failed to get rand value from peer", "round", nRound, "err", err, "peer", peer.Address())
+			continue
+		}
+
+		found = true
+		previousRound.PreviousSig = r.PreviousSignature
+		previousRound.Round = r.Round
+		previousRound.Signature = r.Signature
+		break
+	}
+
+	if !found {
+		return fmt.Errorf("could not find round n-1(%d) in any peer", nRound)
+	}
+
+	err := verifier.VerifyBeacon(previousRound, bp.group.PublicKey.Key())
+	if err != nil {
+		bp.log.Errorw("failed to verify beacon", "err", err)
+		return err
+	}
+
+	err = store.Put(ctx, &previousRound)
+	if err != nil {
+		bp.log.Errorw("failed to store beacon", "err", err)
+	}
+	return err
+}
+
+func (bp *BeaconProcess) toPeers(nodes []*key.Node) []net.Peer {
+	nodeAddr := bp.priv.Public.Address()
+	var peers []net.Peer
+	for i := 0; i < len(nodes); i++ {
+		if nodes[i].Address() == nodeAddr {
+			// we ignore our own node
+			continue
+		}
+
+		peers = append(peers, nodes[i].Identity)
+	}
+	return peers
 }
 
 // dkgInfo is a simpler wrapper that keeps the relevant config and logic
