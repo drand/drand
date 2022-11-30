@@ -52,6 +52,17 @@ const (
 	PostgreSQL StorageType = "postgres"
 )
 
+func MetricsStorageType(st StorageType) float64 {
+	// NOTE: Please only append to this list.
+	backends := map[StorageType]float64{
+		BoltDB:     1,
+		PostgreSQL: 2,
+	}
+
+	// We want this to panic if the backend is not indexed
+	return backends[st]
+}
+
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
 	var buff bytes.Buffer
