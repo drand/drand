@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/drand/drand/core/dkg"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +20,7 @@ import (
 	proto "github.com/drand/drand/protobuf/drand"
 )
 
-// Config holds the different cryptographc informations necessary to run the
+// Config holds the different cryptographc information necessary to run the
 // randomness beacon.
 type Config struct {
 	// Public key of this node
@@ -49,8 +48,6 @@ type Handler struct {
 	chain    *chainStore
 	ticker   *ticker
 	verifier *chain.Verifier
-
-	completedDKGs chan dkg.DKGOutput
 
 	close   chan bool
 	addr    string

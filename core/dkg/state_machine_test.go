@@ -1294,6 +1294,38 @@ func TestExecutingDKG(t *testing.T) {
 	RunStateChangeTest(t, tests)
 }
 
+func TestEviction(t *testing.T) {
+	beaconID := "default"
+	me := NewParticipant()
+	tests := []stateChangeTableTest{
+		{
+			name:          "can be evicted from an executing DKG (e.g. if evicted)",
+			startingState: NewFullDKGEntry(beaconID, Executing, me),
+			transitionFn: func(in *DKGState) (*DKGState, error) {
+				return in.Evicted()
+			},
+			expectedError: nil,
+		},
+		{
+			name:          "can be evicted from a timed out DKG (in case you missed the eviction)",
+			startingState: NewFullDKGEntry(beaconID, TimedOut, me),
+			transitionFn: func(in *DKGState) (*DKGState, error) {
+				return in.Evicted()
+			},
+			expectedError: nil,
+		},
+		{
+			name:          "cannot be evicted from a DKG before execution",
+			startingState: NewFullDKGEntry(beaconID, Proposed, me),
+			transitionFn: func(in *DKGState) (*DKGState, error) {
+				return in.Evicted()
+			},
+			expectedError: InvalidStateChange(Proposed, Evicted),
+		},
+	}
+	RunStateChangeTest(t, tests)
+}
+
 func TestCompleteDKG(t *testing.T) {
 	beaconID := "default"
 	me := NewParticipant()

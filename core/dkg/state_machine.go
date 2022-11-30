@@ -25,6 +25,7 @@ const (
 	TimedOut
 	Joined
 	Left
+	Evicted
 )
 
 func (s DKGStatus) String() string {
@@ -51,6 +52,8 @@ func (s DKGStatus) String() string {
 		return "Joined"
 	case Left:
 		return "Left"
+	case Evicted:
+		return "Evicted"
 	default:
 		panic("impossible DKG state received")
 	}
@@ -255,6 +258,19 @@ func (d *DKGState) Left(me *drand.Participant) (*DKGState, error) {
 	return d, nil
 }
 
+func (d *DKGState) Evicted() (*DKGState, error) {
+	if !isValidStateChange(d.State, Evicted) {
+		return nil, InvalidStateChange(d.State, Evicted)
+	}
+
+	if hasTimedOut(d) {
+		return nil, TimeoutReached
+	}
+
+	d.State = Evicted
+	return d, nil
+}
+
 func (d *DKGState) Executing(me *drand.Participant) (*DKGState, error) {
 	if hasTimedOut(d) {
 		return nil, TimeoutReached
@@ -384,7 +400,7 @@ func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	case Aborted:
 		return next == Proposing || next == Proposed
 	case TimedOut:
-		return next == Proposing || next == Proposed
+		return next == Proposing || next == Proposed || next == Evicted
 	case Fresh:
 		return next == Proposing || next == Proposed
 	case Joined:
@@ -400,7 +416,9 @@ func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	case Rejected:
 		return next == Aborted || next == TimedOut
 	case Executing:
-		return next == Complete || next == TimedOut
+		return next == Complete || next == TimedOut || next == Evicted
+	case Evicted:
+		return next == Joined
 	}
 	return false
 }

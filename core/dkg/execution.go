@@ -108,7 +108,8 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 		delete(d.executions, beaconID)
 	}()
 
-	phaser := dkg.NewTimePhaser(1 * time.Second)
+	timeBetweenDKGPhases := 1 * time.Second
+	phaser := dkg.NewTimePhaser(timeBetweenDKGPhases)
 	go phaser.Start()
 
 	// NewProtocol actually _starts_ the protocol on a goroutine also

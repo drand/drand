@@ -444,27 +444,43 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
 		return err
 	}
 
-	output, err := d.executeDKG(beaconID, lastCompleted, current)
-	if err != nil {
-		// probably should transition to `Left` here?
-		// should something be emitted on the completedDKGs channel to?
-		return err
+	executeAndStoreDKG := func() error {
+		output, err := d.executeDKG(beaconID, lastCompleted, current)
+		if err != nil {
+			return err
+		}
+
+		finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
+		err = d.store.SaveFinished(beaconID, finalState)
+		if err != nil {
+			return err
+		}
+		d.completedDKGs <- DKGOutput{
+			BeaconID: beaconID,
+			Old:      lastCompleted,
+			New:      *finalState,
+		}
+
+		d.log.Infow("DKG completed successfully!", "beaconID", beaconID)
+		return nil
 	}
 
-	finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
-	err = d.store.SaveFinished(beaconID, finalState)
-	if err != nil {
-		return err
+	leaveNetwork := func(err error) {
+		d.log.Errorw("There was an error during the DKG - we were likely evicted. Will attempt to store failed state", "error", err)
+		// could this also be a timeout? is that semantically the same as eviction after DKG execution was triggered?
+		evictedState, err := current.Evicted()
+		if err != nil {
+			d.log.Errorw("Failed to store failed state", "error", err)
+			return
+		}
+		err = d.store.SaveCurrent(beaconID, evictedState)
+		if err != nil {
+			d.log.Errorw("Failed to store failed state", "error", err)
+			return
+		}
 	}
 
-	d.completedDKGs <- DKGOutput{
-		BeaconID: beaconID,
-		Old:      lastCompleted,
-		New:      *finalState,
-	}
-
-	d.log.Infow("DKG completed successfully!", "beaconID", beaconID)
-	return nil
+	return rollbackOnError(executeAndStoreDKG, leaveNetwork)
 }
 
 // responseOrError takes a DKGErrorCode and maps it to an error object if an error
