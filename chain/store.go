@@ -53,7 +53,7 @@ const (
 	PostgreSQL StorageType = "postgres"
 )
 
-func MetricsStorageType(st StorageType) float64 {
+func MetricsStorageType(st StorageType) int {
 	// NOTE: Please only append to this list.
 	switch st {
 	case BoltDB:
