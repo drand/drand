@@ -445,20 +445,16 @@ func (bp *BeaconProcess) newMetadata() *common.Metadata {
 func (bp *BeaconProcess) storePrevious(store chain.Store) error {
 	ctx := context.Background()
 
-	verifier := chain.NewVerifier(bp.group.Scheme)
-	// We should still add the previous beacon in the database to allow the daemon to start from a recent beacon.
-	/*if !verifier.IsPrevSigMeaningful() {
-		bp.log.Debugw("beaconProcess", "previous signature is not meaningful", "skipping")
-		return nil
-	}*/
-
 	peers := bp.toPeers(bp.group.Nodes)
 	round, _ := chain.NextRound(bp.opts.clock.Now().Unix(), bp.group.Period, bp.group.GenesisTime)
-	nRound := round-1
+	nRound := round - 1
 	found := false
 	previousRound := chain.Beacon{}
 	for _, peer := range peers {
-		r, err := bp.privGateway.PublicRand(ctx, peer, &drand.PublicRandRequest{Round: nRound})
+		r, err := bp.privGateway.PublicRand(ctx, peer, &drand.PublicRandRequest{
+			Round:    nRound,
+			Metadata: bp.newMetadata(),
+		})
 		if err != nil {
 			bp.log.Errorw("failed to get rand value from peer", "round", nRound, "err", err, "peer", peer.Address())
 			continue
@@ -475,6 +471,7 @@ func (bp *BeaconProcess) storePrevious(store chain.Store) error {
 		return fmt.Errorf("could not find round n-1(%d) in any peer", nRound)
 	}
 
+	verifier := chain.NewVerifier(bp.group.Scheme)
 	err := verifier.VerifyBeacon(previousRound, bp.group.PublicKey.Key())
 	if err != nil {
 		bp.log.Errorw("failed to verify beacon", "err", err)
