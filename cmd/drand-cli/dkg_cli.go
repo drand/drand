@@ -166,8 +166,8 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 		PeriodSeconds:        uint32(c.Duration(periodFlag.Name).Seconds()),
 		Scheme:               c.String(schemeFlag.Name),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
-		GenesisTime:          timestamppb.New(time.Now().Add(1 * time.Minute)),
-		GenesisSeed:          []byte(""),
+		GenesisTime:          timestamppb.New(time.Now().Add(10 * time.Second)),
+		GenesisSeed:          []byte("some-seed"),
 		Joining:              proposalFile.Joining,
 	}, nil
 }
@@ -216,6 +216,7 @@ func parseProposal(c *cli.Context) (*drand.ProposalOptions, error) {
 		Timeout:              timestamppb.New(time.Now().Add(24 * time.Hour)),
 		Threshold:            uint32(c.Int(thresholdFlag.Name)),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
+		TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 		Joining:              proposalFile.Joining,
 		Leaving:              proposalFile.Leaving,
 		Remaining:            proposalFile.Remaining,

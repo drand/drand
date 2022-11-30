@@ -3,6 +3,7 @@ package dkg
 import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/share/dkg"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"testing"
@@ -271,6 +272,83 @@ func TestProposalValidation(t *testing.T) {
 			terms:    NewValidProposal(beaconID, me, someoneElse),
 			expected: RemainingNodesMustExistInCurrentEpoch,
 		},
+		{
+			name:  "invalid schemes return an error",
+			state: NewFullDKGEntry(beaconID, Complete, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.SchemeID = "something made up"
+				return p
+			}(),
+			expected: InvalidScheme,
+		},
+		{
+			name:  "trying to change the genesis time after the first epoch returns an error",
+			state: NewFullDKGEntry(beaconID, Complete, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.GenesisTime = timestamppb.New(time.Now())
+				return p
+			}(),
+			expected: InvalidScheme,
+		},
+		{
+			name:  "for epoch 1, transition time not equal to genesis time returns an error",
+			state: NewFreshState(beaconID),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 1
+				p.TransitionTime = timestamppb.New(time.Now())
+				return p
+			}(),
+			expected: TransitionTimeMustBeGenesisTime,
+		},
+		{
+			name:  "for > epoch 1, transition time must not be missing",
+			state: NewFullDKGEntry(beaconID, Complete, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.TransitionTime = nil
+				return p
+			}(),
+			expected: TransitionTimeMissing,
+		},
+		{
+			name:  "for > epoch 1, transition time must not be before the genesis time",
+			state: NewFullDKGEntry(beaconID, Complete, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.TransitionTime = timestamppb.New(time.Unix(0, 0))
+				return p
+			}(),
+			expected: TransitionTimeBeforeGenesis,
+		},
+		{
+			name:  "genesis seed cannot be empty",
+			state: NewFreshState(beaconID),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 1
+				p.GenesisSeed = []byte("")
+				return p
+			}(),
+			expected: GenesisSeedMissing,
+		},
+		{
+			name:  "for > epoch 1, genesis seed must be the same as the previous genesis seed",
+			state: NewFullDKGEntry(beaconID, Complete, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.TransitionTime = timestamppb.New(time.Now())
+				p.GenesisSeed = []byte("something-very-unusual")
+				return p
+			}(),
+			expected: GenesisSeedNotEqual,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -515,16 +593,20 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, &leader)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      1,
-					State:      Joined,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     proposal.Leader,
-					Remaining:  nil,
-					Joining:    []*drand.Participant{&leader, me},
-					Leaving:    nil,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					State:         Joined,
+					Epoch:         1,
+					Leader:        proposal.Leader,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Remaining:     nil,
+					Joining:       []*drand.Participant{&leader, me},
+					Leaving:       nil,
+					FinalGroup:    nil,
+					KeyShare:      nil,
 				}
 			}(),
 			expectedError: nil,
@@ -558,16 +640,19 @@ func TestProposingDKGFromFresh(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      1,
-					State:      Proposing,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     me,
-					Remaining:  nil,
-					Joining:    []*drand.Participant{me},
-					Leaving:    nil,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         1,
+					State:         Proposing,
+					Leader:        me,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Remaining:     nil,
+					Joining:       []*drand.Participant{me},
+					Leaving:       nil,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -633,16 +718,19 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      2,
-					State:      Proposing,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     me,
-					Remaining:  proposal.Remaining,
-					Joining:    nil,
-					Leaving:    nil,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         2,
+					State:         Proposing,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Leader:        me,
+					Remaining:     proposal.Remaining,
+					Joining:       nil,
+					Leaving:       nil,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -659,16 +747,19 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      2,
-					State:      Proposing,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     me,
-					Remaining:  proposal.Remaining,
-					Joining:    nil,
-					Leaving:    nil,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         2,
+					State:         Proposing,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Leader:        me,
+					Remaining:     proposal.Remaining,
+					Joining:       nil,
+					Leaving:       nil,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -685,16 +776,19 @@ func TestProposingDKGFromNonFresh(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      2,
-					State:      Proposing,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     me,
-					Remaining:  proposal.Remaining,
-					Joining:    nil,
-					Leaving:    nil,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         2,
+					State:         Proposing,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Leader:        me,
+					Remaining:     proposal.Remaining,
+					Joining:       nil,
+					Leaving:       nil,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -781,16 +875,19 @@ func TestProposedDKG(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, anotherNode, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      2,
-					State:      Proposed,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     anotherNode,
-					Remaining:  proposal.Remaining,
-					Joining:    proposal.Joining,
-					Leaving:    proposal.Leaving,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         2,
+					State:         Proposed,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Leader:        anotherNode,
+					Remaining:     proposal.Remaining,
+					Joining:       proposal.Joining,
+					Leaving:       proposal.Leaving,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -804,16 +901,19 @@ func TestProposedDKG(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewInitialProposal(beaconID, anotherNode, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      1,
-					State:      Proposed,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     anotherNode,
-					Remaining:  proposal.Remaining,
-					Joining:    proposal.Joining,
-					Leaving:    proposal.Leaving,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         1,
+					State:         Proposed,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Leader:        anotherNode,
+					Remaining:     proposal.Remaining,
+					Joining:       proposal.Joining,
+					Leaving:       proposal.Leaving,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -835,16 +935,19 @@ func TestProposedDKG(t *testing.T) {
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, anotherNode, me)
 				return &DKGState{
-					BeaconID:   beaconID,
-					Epoch:      proposal.Epoch,
-					State:      Proposed,
-					Threshold:  proposal.Threshold,
-					Timeout:    proposal.Timeout.AsTime(),
-					Leader:     anotherNode,
-					Remaining:  proposal.Remaining,
-					Joining:    proposal.Joining,
-					Leaving:    nil,
-					FinalGroup: nil,
+					BeaconID:      beaconID,
+					Epoch:         proposal.Epoch,
+					State:         Proposed,
+					Threshold:     proposal.Threshold,
+					SchemeID:      proposal.SchemeID,
+					CatchupPeriod: time.Duration(proposal.CatchupPeriodSeconds) * time.Second,
+					BeaconPeriod:  time.Duration(proposal.BeaconPeriodSeconds) * time.Second,
+					Timeout:       proposal.Timeout.AsTime(),
+					Leader:        anotherNode,
+					Remaining:     proposal.Remaining,
+					Joining:       proposal.Joining,
+					Leaving:       nil,
+					FinalGroup:    nil,
 				}
 			}(),
 			expectedError: nil,
@@ -1197,17 +1300,17 @@ func TestCompleteDKG(t *testing.T) {
 	leader := drand.Participant{
 		Address: "big leader",
 	}
-
 	finalGroup := []*drand.Participant{
 		me, &leader,
 	}
+	keyShare := dkg.DistKeyShare{}
 
 	tests := []stateChangeTableTest{
 		{
 			name:          "completing a valid executing proposal succeeds",
 			startingState: NewFullDKGEntry(beaconID, Executing, &leader, me),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Complete(finalGroup)
+				return in.Complete(finalGroup, &keyShare)
 			},
 			expectedResult: func() *DKGState {
 				d := NewFullDKGEntry(beaconID, Complete, &leader, me)
@@ -1220,7 +1323,7 @@ func TestCompleteDKG(t *testing.T) {
 			name:          "completing a non-executing proposal returns an error",
 			startingState: NewFullDKGEntry(beaconID, Accepted, &leader, me),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Complete(finalGroup)
+				return in.Complete(finalGroup, &keyShare)
 			},
 			expectedError: InvalidStateChange(Accepted, Complete),
 		},
@@ -1228,7 +1331,7 @@ func TestCompleteDKG(t *testing.T) {
 			name:          "completing a proposal after time out returns an error",
 			startingState: PastTimeout(NewFullDKGEntry(beaconID, Executing, &leader, me)),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Complete(finalGroup)
+				return in.Complete(finalGroup, &keyShare)
 			},
 			expectedError: TimeoutReached,
 		},
@@ -1489,40 +1592,62 @@ func NewParticipant() *drand.Participant {
 
 func NewFullDKGEntry(beaconID string, status DKGStatus, previousLeader *drand.Participant, others ...*drand.Participant) *DKGState {
 	return &DKGState{
-		BeaconID:   beaconID,
-		Epoch:      1,
-		State:      status,
-		Threshold:  1,
-		Timeout:    time.Unix(2549084715, 0), // this will need updated in 2050 :^)
-		Leader:     previousLeader,
-		Remaining:  append([]*drand.Participant{previousLeader}, others...),
-		Joining:    nil,
-		Leaving:    nil,
+		BeaconID:       beaconID,
+		Epoch:          1,
+		State:          status,
+		Threshold:      1,
+		Timeout:        time.Unix(2549084715, 0), // this will need updated in 2050 :^)
+		SchemeID:       "pedersen-bls-chained",
+		GenesisTime:    time.Unix(1669718523, 0),
+		GenesisSeed:    []byte("somegreatseed"),
+		TransitionTime: time.Unix(1669718523, 0),
+		CatchupPeriod:  5 * time.Second,
+		BeaconPeriod:   10 * time.Second,
+
+		Leader:    previousLeader,
+		Remaining: append([]*drand.Participant{previousLeader}, others...),
+		Joining:   nil,
+		Leaving:   nil,
+
+		Acceptors: nil,
+		Rejectors: nil,
+
 		FinalGroup: append([]*drand.Participant{previousLeader}, others...),
-		Acceptors:  nil,
-		Rejectors:  nil,
+		KeyShare:   &dkg.DistKeyShare{},
 	}
 }
 
 func NewInitialProposal(beaconID string, leader *drand.Participant, others ...*drand.Participant) *drand.ProposalTerms {
 	return &drand.ProposalTerms{
-		BeaconID:  beaconID,
-		Threshold: 1,
-		Epoch:     1,
-		Timeout:   timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
-		Leader:    leader,
-		Joining:   append([]*drand.Participant{leader}, others...),
+		BeaconID:             beaconID,
+		Epoch:                1,
+		Leader:               leader,
+		Threshold:            1,
+		Timeout:              timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
+		GenesisTime:          timestamppb.New(time.Unix(1669718523, 0)),
+		GenesisSeed:          []byte("somegreatseed"),
+		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0)),
+		CatchupPeriodSeconds: 5,
+		BeaconPeriodSeconds:  10,
+		SchemeID:             "pedersen-bls-chained",
+		Joining:              append([]*drand.Participant{leader}, others...),
 	}
 }
 
 func NewValidProposal(beaconID string, leader *drand.Participant, others ...*drand.Participant) *drand.ProposalTerms {
 	return &drand.ProposalTerms{
-		BeaconID:  beaconID,
-		Threshold: 1,
-		Epoch:     2,
-		Timeout:   timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
-		Leader:    leader,
-		Remaining: append([]*drand.Participant{leader}, others...),
+		BeaconID:             beaconID,
+		Epoch:                2,
+		Leader:               leader,
+		Threshold:            1,
+		Timeout:              timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
+		GenesisTime:          timestamppb.New(time.Unix(1669718523, 0)),
+		GenesisSeed:          []byte("somegreatseed"),
+		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0)),
+		CatchupPeriodSeconds: 5,
+		BeaconPeriodSeconds:  10,
+		SchemeID:             "pedersen-bls-chained",
+		Remaining:            append([]*drand.Participant{leader}, others...),
 	}
 }
 

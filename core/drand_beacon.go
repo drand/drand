@@ -2,17 +2,22 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	commonutils "github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
 	dlog "github.com/drand/drand/log"
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/util"
 	"strings"
 	"sync"
 )
@@ -33,7 +38,8 @@ type BeaconProcess struct {
 	privGateway *net.PrivateGateway
 	pubGateway  *net.PublicGateway
 
-	beacon *beacon.Handler
+	beacon        *beacon.Handler
+	completedDKGs <-chan dkg.DKGOutput
 
 	// dkg private share. can be nil if dkg not finished yet.
 	share *key.Share
@@ -48,7 +54,7 @@ type BeaconProcess struct {
 	state  sync.Mutex
 	exitCh chan bool
 
-	// that cancel function is set when the drand process is following a chain
+	// that cancel function is set when the drand process is ynollowing a chain
 	// but not participating. Drand calls the cancel func when the node
 	// participates to a resharing.
 	syncerCancel context.CancelFunc
@@ -59,8 +65,16 @@ type BeaconProcess struct {
 	setupCB func(*key.Group)
 }
 
-func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *Config, privGateway *net.PrivateGateway,
-	pubGateway *net.PublicGateway) (*BeaconProcess, error) {
+func NewBeaconProcess(
+	log dlog.Logger,
+	store key.Store,
+	completedDKGs chan dkg.DKGOutput,
+	beaconID string,
+	opts *Config,
+	privGateway *net.PrivateGateway,
+	pubGateway *net.PublicGateway,
+) (*BeaconProcess, error) {
+
 	priv, err := store.LoadKeyPair()
 	if err != nil {
 		return nil, err
@@ -70,15 +84,16 @@ func NewBeaconProcess(log dlog.Logger, store key.Store, beaconID string, opts *C
 	}
 
 	bp := &BeaconProcess{
-		beaconID:    commonutils.GetCanonicalBeaconID(beaconID),
-		store:       store,
-		log:         log,
-		priv:        priv,
-		version:     commonutils.GetAppVersion(),
-		opts:        opts,
-		privGateway: privGateway,
-		pubGateway:  pubGateway,
-		exitCh:      make(chan bool, 1),
+		beaconID:      commonutils.GetCanonicalBeaconID(beaconID),
+		store:         store,
+		log:           log,
+		priv:          priv,
+		version:       commonutils.GetAppVersion(),
+		opts:          opts,
+		privGateway:   privGateway,
+		pubGateway:    pubGateway,
+		completedDKGs: completedDKGs,
+		exitCh:        make(chan bool, 1),
 	}
 	return bp, nil
 }
@@ -142,52 +157,147 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) {
 	} else if err := b.Start(); err != nil {
 		bp.log.Errorw("", "beacon_start", err)
 	}
+
+	go bp.StartListeningForDKGUpdates()
+}
+
+func (bp *BeaconProcess) StartListeningForDKGUpdates() {
+	for {
+		select {
+		case dkgOutput := <-bp.completedDKGs:
+			{
+				if err := bp.transition(dkgOutput); err != nil {
+					bp.log.Errorw("Error in performing DKG key transition", "err", err)
+				}
+			}
+		}
+	}
 }
 
 // transition between an "old" group and a new group. This method is called
-// *after* a resharing dkg has proceed.
-// the new beacon syncs before the new network starts
-// and will start once the new network time kicks in. The old beacon will stop
-// just before the time of the new network.
-// TODO: due to current WaitDKG behavior, the old group is overwritten, so an
-// old node that fails during the time the resharing is done and the new network
-// comes up have to wait for the new network to comes in - that is to be fixed
-func (bp *BeaconProcess) transition(oldGroup *key.Group, oldPresent, newPresent bool) {
-	// the node should stop a bit before the new round to avoid starting it at
-	// the same time as the new node
-	// NOTE: this limits the round time of drand - for now it is not a use
-	// case to go that fast
-
-	timeToStop := bp.group.TransitionTime - 1
-
-	if !newPresent {
-		// an old node is leaving the network
-		if err := bp.beacon.StopAt(timeToStop); err != nil {
-			bp.log.Errorw("", "leaving_group", err)
-		} else {
-			bp.log.Infow("", "leaving_group", "done", "time", bp.opts.clock.Now())
-		}
-		return
+// *after* a DKG has completed.
+func (bp *BeaconProcess) transition(dkgOutput dkg.DKGOutput) error {
+	if dkgOutput.BeaconID != bp.beaconID {
+		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
+		return nil
 	}
 
-	bp.state.Lock()
-	newGroup := bp.group
-	newShare := bp.share
-	bp.state.Unlock()
+	p, err := util.PublicKeyAsParticipant(bp.priv.Public)
+	if err != nil {
+		return err
+	}
 
-	// tell the current beacon to stop just before the new network starts
-	if oldPresent {
-		bp.beacon.TransitionNewGroup(newShare, newGroup)
+	weWereInLastEpoch := dkgOutput.Old != nil && util.Contains(dkgOutput.Old.FinalGroup, p)
+	weAreInNextEpoch := util.Contains(dkgOutput.New.FinalGroup, p)
+
+	if weWereInLastEpoch {
+		if weAreInNextEpoch {
+			return bp.transitionToNext(dkgOutput)
+		}
+		return bp.leaveNetwork()
+	}
+	if weAreInNextEpoch {
+		return bp.joinNetwork(dkgOutput)
+	}
+
+	return errors.New("failed to join the network during the DKG but somehow got to transition")
+
+}
+
+func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
+	newGroup, err := asGroup(&dkgOutput.New)
+	if err != nil {
+		return err
+	}
+	newShare := (*key.Share)(dkgOutput.New.KeyShare)
+
+	// make the transition
+	bp.group = &newGroup
+	bp.share = newShare
+	bp.beacon.TransitionNewGroup(newShare, &newGroup)
+
+	// keep the old beacon running until the `TransitionTime`
+	oldGroup, err := asGroup(dkgOutput.Old)
+	if err != nil {
+		return err
+	}
+	if err := bp.beacon.Transition(&oldGroup); err != nil {
+		bp.log.Errorw("", "sync_before", err)
 	} else {
-		b, err := bp.newBeacon()
-		if err != nil {
-			bp.log.Fatalw("", "transition", "new_node", "err", err)
-		}
-		if err := b.Transition(oldGroup); err != nil {
-			bp.log.Errorw("", "sync_before", err)
-		}
 		bp.log.Infow("", "transition_new", "done")
 	}
+
+	return err
+}
+
+func (bp *BeaconProcess) leaveNetwork() error {
+	timeToStop := bp.group.TransitionTime - 1
+	err := bp.beacon.StopAt(timeToStop)
+	if err != nil {
+		bp.log.Errorw("", "leaving_group", err)
+	} else {
+		bp.log.Infow("", "leaving_group", "done", "time", bp.opts.clock.Now())
+	}
+	return err
+}
+
+func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
+	newGroup, err := asGroup(&dkgOutput.New)
+	if err != nil {
+		return err
+	}
+	newShare := (*key.Share)(dkgOutput.New.KeyShare)
+
+	// create a new beacon handler and assign all the bits to the `BeaconProcess`
+	bp.group = &newGroup
+	bp.share = newShare
+	b, err := bp.newBeacon()
+	if err != nil {
+		bp.log.Fatalw("", "transition", "new_node", "err", err)
+		return err
+	}
+
+	bp.beacon = b
+	bp.beacon.TransitionNewGroup(newShare, &newGroup)
+	syncError := b.Start()
+	if syncError != nil {
+		b.Catchup()
+	}
+
+	return nil
+}
+
+func asGroup(details *dkg.DKGState) (key.Group, error) {
+	scheme, found := scheme.GetSchemeByID(details.SchemeID)
+	if !found {
+		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
+	}
+
+	finalGroupSorted := util.SortedByPublicKey(details.FinalGroup)
+	participantToKeyNode := func(index int, participant *drand.Participant) (*key.Node, error) {
+		r, err := util.ToKeyNode(index, participant)
+		if err != nil {
+			return nil, err
+		}
+		return &r, nil
+	}
+	nodes, err := util.TryMapEach[*key.Node](finalGroupSorted, participantToKeyNode)
+	if err != nil {
+		return key.Group{}, err
+	}
+
+	return key.Group{
+		ID:             details.BeaconID,
+		Threshold:      int(details.Threshold),
+		Period:         details.BeaconPeriod,
+		Scheme:         scheme,
+		CatchupPeriod:  details.CatchupPeriod,
+		Nodes:          nodes,
+		GenesisTime:    details.GenesisTime.Unix(),
+		GenesisSeed:    details.GenesisSeed,
+		TransitionTime: details.TransitionTime.Unix(),
+		PublicKey:      (*key.Share)(details.KeyShare).Public(),
+	}, nil
 }
 
 // Stop simply stops all drand operations.

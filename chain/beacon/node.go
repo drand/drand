@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/drand/drand/core/dkg"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,8 @@ type Handler struct {
 	chain    *chainStore
 	ticker   *ticker
 	verifier *chain.Verifier
+
+	completedDKGs chan dkg.DKGOutput
 
 	close   chan bool
 	addr    string

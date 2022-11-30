@@ -6,6 +6,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/util"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -15,7 +16,7 @@ import (
 
 func TestStartNetwork(t *testing.T) {
 	myKeypair := key.NewKeyPair("somebody.com")
-	me, err := publicKeyAsParticipant(myKeypair.Public)
+	me, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 	anotherParticipant := NewParticipant()
 	anotherParticipant.Address = "anotherparticipant.com"
@@ -35,7 +36,7 @@ func TestStartNetwork(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "bls-pedersen-chained",
+				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				GenesisSeed:          []byte("cafebabe"),
@@ -57,7 +58,7 @@ func TestStartNetwork(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "bls-pedersen-chained",
+				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				GenesisSeed:          []byte("cafebabe"),
@@ -76,7 +77,7 @@ func TestStartNetwork(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "bls-pedersen-chained",
+				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				GenesisSeed:          []byte("cafebabe"),
@@ -96,7 +97,7 @@ func TestStartNetwork(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            5, // the threshold is higher than the node count
 				PeriodSeconds:        10,
-				Scheme:               "bls-pedersen-chained",
+				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				GenesisSeed:          []byte("cafebabe"),
@@ -116,7 +117,7 @@ func TestStartNetwork(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "bls-pedersen-chained",
+				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				GenesisSeed:          []byte("cafebabe"),
@@ -137,7 +138,7 @@ func TestStartNetwork(t *testing.T) {
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
 				Threshold:            1,
 				PeriodSeconds:        10,
-				Scheme:               "bls-pedersen-chained",
+				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
 				GenesisSeed:          []byte("cafebabe"),
@@ -187,7 +188,7 @@ func TestStartNetwork(t *testing.T) {
 
 func TestStartProposal(t *testing.T) {
 	myKeypair := key.NewKeyPair("somebody.com")
-	me, err := publicKeyAsParticipant(myKeypair.Public)
+	me, err := util.PublicKeyAsParticipant(myKeypair.Public)
 	require.NoError(t, err)
 	anotherParticipant := NewParticipant()
 	anotherParticipant.Address = "anotherparticipant.com"
@@ -198,7 +199,7 @@ func TestStartProposal(t *testing.T) {
 		State:         Complete,
 		Threshold:     1,
 		Timeout:       time.Now(),
-		SchemeID:      "bls-pedersen-chained",
+		SchemeID:      "pedersen-bls-chained",
 		CatchupPeriod: 10,
 		BeaconPeriod:  10,
 		Leader:        me,

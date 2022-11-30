@@ -4,6 +4,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/kyber/share/dkg"
 	"time"
 )
 
@@ -14,10 +15,22 @@ type DKGProcess struct {
 	log              log.Logger
 	executions       map[string]*echoBroadcast
 	config           Config
+	completedDKGs    chan<- DKGOutput
 }
 
 type Config struct {
 	Timeout time.Duration
+}
+
+type ExecutionOutput struct {
+	FinalGroup []*drand.Participant
+	KeyShare   *dkg.DistKeyShare
+}
+
+type DKGOutput struct {
+	BeaconID string
+	Old      *DKGState
+	New      DKGState
 }
 
 type DKGStore interface {
@@ -48,7 +61,7 @@ type BeaconIdentifier interface {
 	KeypairFor(beaconID string) (*key.Pair, error)
 }
 
-func NewDKGProcess(store *DKGStore, beaconIdentifier BeaconIdentifier, config Config) *DKGProcess {
+func NewDKGProcess(store *DKGStore, beaconIdentifier BeaconIdentifier, completedDKGs chan<- DKGOutput, config Config) *DKGProcess {
 	return &DKGProcess{
 		store:            *store,
 		network:          &GrpcNetwork{},
@@ -56,5 +69,6 @@ func NewDKGProcess(store *DKGStore, beaconIdentifier BeaconIdentifier, config Co
 		log:              log.NewLogger(nil, log.LogDebug),
 		executions:       make(map[string]*echoBroadcast),
 		config:           config,
+		completedDKGs:    completedDKGs,
 	}
 }

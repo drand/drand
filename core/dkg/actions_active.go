@@ -3,10 +3,11 @@ package dkg
 import (
 	"context"
 	"errors"
-	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
+	"github.com/drand/drand/util"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"time"
 )
 
 func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstProposalOptions) (*drand.GenericResponseMessage, error) {
@@ -25,19 +26,27 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 		return nil, err
 	}
 
+	genesisTime := options.GenesisTime
+	if genesisTime == nil {
+		genesisTime = timestamppb.New(time.Now())
+	}
+
 	// remap the CLI payload into one useful for applying to the DKG state
 	terms := drand.ProposalTerms{
-		BeaconID:             options.BeaconID,
-		Threshold:            options.Threshold,
-		Epoch:                1,
-		Timeout:              options.Timeout,
-		Leader:               me,
-		Joining:              options.Joining,
-		SchemeID:             options.Scheme,
+		BeaconID:    options.BeaconID,
+		Threshold:   options.Threshold,
+		Epoch:       1,
+		Timeout:     options.Timeout,
+		Leader:      me,
+		SchemeID:    options.Scheme,
+		GenesisTime: options.GenesisTime,
+		// for the initial proposal, we want the same transition time as the genesis time
+		// ... or do we? are round 0 and round 1 the same time?
+		TransitionTime:       options.GenesisTime,
+		GenesisSeed:          options.GenesisSeed,
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		BeaconPeriodSeconds:  options.PeriodSeconds,
-		Remaining:            nil,
-		Leaving:              nil,
+		Joining:              options.Joining,
 	}
 
 	// apply our enriched DKG payload onto the current DKG state to create a new state
@@ -111,6 +120,9 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 		SchemeID:             current.SchemeID,
 		BeaconPeriodSeconds:  uint32(current.BeaconPeriod.Seconds()),
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
+		GenesisTime:          timestamppb.New(current.GenesisTime),
+		GenesisSeed:          current.GenesisSeed,
+		TransitionTime:       options.TransitionTime,
 		Timeout:              options.Timeout,
 		Leader:               me,
 		Joining:              options.Joining,
@@ -165,7 +177,7 @@ func (d *DKGProcess) StartAbort(context context.Context, options *drand.AbortOpt
 		return nil, err
 	}
 
-	if equalParticipant(current.Leader, me) {
+	if util.EqualParticipant(current.Leader, me) {
 		return nil, errors.New("cannot abort the DKG if you aren't the leader")
 	}
 
@@ -201,7 +213,7 @@ func (d *DKGProcess) StartExecute(context context.Context, options *drand.Execut
 		return nil, err
 	}
 
-	if !equalParticipant(current.Leader, me) {
+	if !util.EqualParticipant(current.Leader, me) {
 		return nil, errors.New("cannot start execution if you aren't the leader")
 	}
 
@@ -418,20 +430,7 @@ func (d *DKGProcess) identityForBeacon(beaconID string) (*drand.Participant, err
 		return nil, err
 	}
 
-	return publicKeyAsParticipant(identity.Public)
-}
-
-func publicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) {
-	pubKey, err := identity.Key.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	return &drand.Participant{
-		Address: identity.Address(),
-		Tls:     identity.TLS,
-		PubKey:  pubKey,
-	}, nil
+	return util.PublicKeyAsParticipant(identity.Public)
 }
 
 func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
@@ -440,7 +439,6 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
 		return err
 	}
 
-	// could be nil
 	lastCompleted, err := d.store.GetFinished(beaconID)
 	if err != nil {
 		return err
@@ -448,15 +446,23 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
 
 	output, err := d.executeDKG(beaconID, lastCompleted, current)
 	if err != nil {
+		// probably should transition to `Left` here?
+		// should something be emitted on the completedDKGs channel to?
 		return err
 	}
 
-	finalState, err := current.Complete(output.finalGroup)
+	finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
 	err = d.store.SaveFinished(beaconID, finalState)
-
 	if err != nil {
 		return err
 	}
+
+	d.completedDKGs <- DKGOutput{
+		BeaconID: beaconID,
+		Old:      lastCompleted,
+		New:      *finalState,
+	}
+
 	d.log.Infow("DKG completed successfully!", "beaconID", beaconID)
 	return nil
 }

@@ -7,24 +7,18 @@ import (
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber"
+	"github.com/drand/drand/util"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/sign/schnorr"
-	"sort"
 	"time"
 )
 
-type DKGOutput struct {
-	finalGroup []*drand.Participant
-	keyShare   *dkg.DistKeyShare
-}
-
-func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, current *DKGState) (*DKGOutput, error) {
+func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, current *DKGState) (*ExecutionOutput, error) {
 	keypair, err := d.beaconIdentifier.KeypairFor(beaconID)
 	if err != nil {
 		return nil, err
 	}
-	me, err := publicKeyAsParticipant(keypair.Public)
+	me, err := util.PublicKeyAsParticipant(keypair.Public)
 	if err != nil {
 		return nil, err
 	}
@@ -33,13 +27,13 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 		return d.executeInitialDKG(beaconID, keypair, me, current)
 	}
 
-	oldNodes, err := TryMapEach[dkg.Node](sortedByPublicKey(lastCompleted.FinalGroup), toNode)
+	oldNodes, err := util.TryMapEach[dkg.Node](util.SortedByPublicKey(lastCompleted.FinalGroup), util.ToNode)
 	if err != nil {
 		return nil, err
 	}
 
-	sortedParticipants := sortedByPublicKey(append(current.Remaining, current.Joining...))
-	newNodes, err := TryMapEach[dkg.Node](sortedParticipants, toNode)
+	sortedParticipants := util.SortedByPublicKey(append(current.Remaining, current.Joining...))
+	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, util.ToNode)
 	if err != nil {
 		return nil, err
 	}
@@ -65,9 +59,9 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 	return d.startDKGAndBroadcastExecution(beaconID, me, current, sortedParticipants, config)
 }
 
-func (d *DKGProcess) executeInitialDKG(beaconID string, keypair *key.Pair, me *drand.Participant, current *DKGState) (*DKGOutput, error) {
-	sortedParticipants := sortedByPublicKey(append(current.Remaining, current.Joining...))
-	newNodes, err := TryMapEach[dkg.Node](sortedParticipants, toNode)
+func (d *DKGProcess) executeInitialDKG(beaconID string, keypair *key.Pair, me *drand.Participant, current *DKGState) (*ExecutionOutput, error) {
+	sortedParticipants := util.SortedByPublicKey(append(current.Remaining, current.Joining...))
+	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, util.ToNode)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +87,7 @@ func (d *DKGProcess) executeInitialDKG(beaconID string, keypair *key.Pair, me *d
 	return d.startDKGAndBroadcastExecution(beaconID, me, current, sortedParticipants, config)
 }
 
-func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Participant, current *DKGState, sortedParticipants []*drand.Participant, config dkg.Config) (*DKGOutput, error) {
+func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Participant, current *DKGState, sortedParticipants []*drand.Participant, config dkg.Config) (*ExecutionOutput, error) {
 	// create the network over which to send all the DKG packets
 	board, err := NewEchoBroadcast(
 		d.log,
@@ -134,9 +128,10 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 			for i := range result.Result.QUAL {
 				finalGroup = append(finalGroup, sortedParticipants[i])
 			}
-			output := DKGOutput{
-				finalGroup: finalGroup,
-				keyShare:   result.Result.Key,
+
+			output := ExecutionOutput{
+				FinalGroup: finalGroup,
+				KeyShare:   result.Result.Key,
 			}
 			return &output, nil
 		}
@@ -145,46 +140,6 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 			return nil, errors.New("DKG timed out")
 		}
 	}
-}
-
-func sortedByPublicKey(arr []*drand.Participant) []*drand.Participant {
-	out := arr
-	sort.Slice(out, func(i, j int) bool {
-		return string(arr[i].PubKey) < string(arr[j].PubKey)
-	})
-	return out
-}
-
-func toNode(index int, participant *drand.Participant) (dkg.Node, error) {
-	public, err := pkToPoint(participant.PubKey)
-	if err != nil {
-		return dkg.Node{}, err
-	}
-	return dkg.Node{
-		Public: public,
-		Index:  uint32(index),
-	}, nil
-}
-
-func pkToPoint(pk []byte) (kyber.Point, error) {
-	point := key.KeyGroup.Point()
-	if err := point.UnmarshalBinary(pk); err != nil {
-		return nil, err
-	}
-	return point, nil
-}
-
-func TryMapEach[T any](arr []*drand.Participant, fn func(index int, participant *drand.Participant) (T, error)) ([]T, error) {
-	out := make([]T, len(arr))
-	for i, participant := range arr {
-		p := participant
-		result, err := fn(i, p)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = result
-	}
-	return out, nil
 }
 
 func nonceFor(state *DKGState) []byte {

@@ -36,8 +36,9 @@ type DrandDaemon struct {
 	log  log.Logger
 
 	// global state lock
-	state  sync.Mutex
-	exitCh chan bool
+	state         sync.Mutex
+	completedDKGs chan dkg.DKGOutput
+	exitCh        chan bool
 
 	// version indicates the base code variant
 	version common.Version
@@ -54,6 +55,7 @@ func NewDrandDaemon(c *Config) (*DrandDaemon, error) {
 		opts:            c,
 		log:             logger,
 		exitCh:          make(chan bool, 1),
+		completedDKGs:   make(chan dkg.DKGOutput),
 		version:         common.GetAppVersion(),
 		initialStores:   make(map[string]*key.Store),
 		beaconProcesses: make(map[string]*BeaconProcess),
@@ -140,7 +142,7 @@ func (dd *DrandDaemon) init() error {
 	dkgConfig := dkg.Config{
 		Timeout: DefaultDKGTimeout,
 	}
-	dd.dkg = dkg.NewDKGProcess(&dkgStore, dd, dkgConfig)
+	dd.dkg = dkg.NewDKGProcess(&dkgStore, dd, dd.completedDKGs, dkgConfig)
 
 	controlListener, err := net.NewGRPCListener(dd, dd.dkg, p)
 	if err != nil {
@@ -174,7 +176,7 @@ func (dd *DrandDaemon) InstantiateBeaconProcess(beaconID string, store key.Store
 	beaconID = common.GetCanonicalBeaconID(beaconID)
 	// we add the BeaconID to our logger's name. Notice the BeaconID never changes.
 	logger := dd.log.Named(beaconID)
-	bp, err := NewBeaconProcess(logger, store, beaconID, dd.opts, dd.privGateway, dd.pubGateway)
+	bp, err := NewBeaconProcess(logger, store, dd.completedDKGs, beaconID, dd.opts, dd.privGateway, dd.pubGateway)
 	if err != nil {
 		return nil, err
 	}
@@ -301,6 +303,7 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 
 	if freshRun {
 		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
+		go bp.StartListeningForDKGUpdates()
 	} else {
 		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
 
