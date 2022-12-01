@@ -98,24 +98,22 @@ func NewBeaconProcess(
 	return bp, nil
 }
 
+var DKGNotStarted = errors.New("DKG not started")
+
 // Load restores a drand instance that is ready to serve randomness, with a
 // pre-existing distributed share.
 // Returns 'true' if this BeaconProcess is a fresh run, returns 'false' otherwise
-func (bp *BeaconProcess) Load() (bool, error) {
-	if bp.isFreshRun() {
-		return true, nil
-	}
-
+func (bp *BeaconProcess) Load() error {
 	var err error
 	bp.group, err = bp.store.LoadGroup()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	beaconID := bp.getBeaconID()
 	if bp.group == nil {
 		metrics.DKGStateChange(metrics.DKGNotStarted, beaconID, false)
-		return false, nil
+		return DKGNotStarted
 	}
 
 	bp.state.Lock()
@@ -126,12 +124,12 @@ func (bp *BeaconProcess) Load() (bool, error) {
 
 	bp.share, err = bp.store.LoadShare()
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	thisBeacon := bp.group.Find(bp.priv.Public)
 	if thisBeacon == nil {
-		return false, fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
+		return fmt.Errorf("could not restore beacon info for the given identity - this can happen if you updated the group file manually")
 	}
 	bp.index = int(thisBeacon.Index)
 	bp.log = bp.log.Named(fmt.Sprint(bp.index))
@@ -139,7 +137,7 @@ func (bp *BeaconProcess) Load() (bool, error) {
 	bp.log.Debugw("", "serving", bp.priv.Public.Address())
 	metrics.DKGStateChange(metrics.DKGDone, beaconID, false)
 
-	return false, nil
+	return nil
 }
 
 // StartBeacon initializes the beacon if needed and launch a go
@@ -211,9 +209,10 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
 	}
 	newShare := dkgOutput.New.KeyShare
 
-	// make the transition
-	bp.group = &newGroup
-	bp.share = newShare
+	err = bp.storeDKGOutput(&newGroup, newShare)
+	if err != nil {
+		return err
+	}
 	bp.beacon.TransitionNewGroup(newShare, &newGroup)
 
 	// keep the old beacon running until the `TransitionTime`
@@ -230,6 +229,23 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
 	return err
 }
 
+func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) error {
+	bp.group = group
+	bp.share = share
+
+	err := bp.store.SaveGroup(group)
+	if err != nil {
+		return err
+	}
+
+	err = bp.store.SaveShare(share)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (bp *BeaconProcess) leaveNetwork() error {
 	timeToStop := bp.group.TransitionTime - 1
 	err := bp.beacon.StopAt(timeToStop)
@@ -238,6 +254,7 @@ func (bp *BeaconProcess) leaveNetwork() error {
 	} else {
 		bp.log.Infow("", "leaving_group", "done", "time", bp.opts.clock.Now())
 	}
+	err = bp.store.Reset()
 	return err
 }
 
@@ -246,11 +263,13 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 	if err != nil {
 		return err
 	}
-	newShare := (*key.Share)(dkgOutput.New.KeyShare)
+	newShare := dkgOutput.New.KeyShare
 
-	// create a new beacon handler and assign all the bits to the `BeaconProcess`
-	bp.group = &newGroup
-	bp.share = newShare
+	err = bp.storeDKGOutput(&newGroup, newShare)
+	if err != nil {
+		return err
+	}
+
 	b, err := bp.newBeacon()
 	if err != nil {
 		bp.log.Fatalw("", "transition", "new_node", "err", err)
@@ -259,6 +278,7 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 
 	bp.beacon = b
 	bp.beacon.TransitionNewGroup(newShare, &newGroup)
+
 	syncError := b.Start()
 	if syncError != nil {
 		b.Catchup()

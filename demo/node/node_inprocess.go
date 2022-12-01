@@ -125,8 +125,9 @@ func (l *LocalNode) Start(certFolder string) error {
 			return err
 		}
 
-		freshRun, err := bp.Load()
-		if err != nil {
+		err = bp.Load()
+		freshRun := err == core.DKGNotStarted
+		if err != nil && err != core.DKGNotStarted {
 			return err
 		}
 

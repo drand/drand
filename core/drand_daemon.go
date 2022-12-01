@@ -296,9 +296,16 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 		return nil, err
 	}
 
-	freshRun, err := bp.Load()
+	status, err := dd.dkg.DKGStatus(context.Background(), &drand.DKGStatusRequest{BeaconID: beaconID})
 	if err != nil {
 		return nil, err
+	}
+	freshRun := status.Complete == nil
+	if !freshRun {
+		err := bp.Load()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if freshRun {
