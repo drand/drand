@@ -39,7 +39,6 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				GenesisSeed:          []byte("cafebabe"),
 				Joining:              []*drand.Participant{me, anotherParticipant},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
@@ -61,7 +60,6 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				GenesisSeed:          []byte("cafebabe"),
 				Joining:              []*drand.Participant{me, anotherParticipant},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
@@ -80,7 +78,6 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				GenesisSeed:          []byte("cafebabe"),
 				Joining:              []*drand.Participant{me, anotherParticipant},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
@@ -100,7 +97,6 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				GenesisSeed:          []byte("cafebabe"),
 				Joining:              []*drand.Participant{me, anotherParticipant},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
@@ -120,7 +116,6 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				GenesisSeed:          []byte("cafebabe"),
 				Joining:              []*drand.Participant{me, anotherParticipant},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {
@@ -141,7 +136,6 @@ func TestStartNetwork(t *testing.T) {
 				Scheme:               "pedersen-bls-chained",
 				CatchupPeriodSeconds: 10,
 				GenesisTime:          timestamppb.New(time.Now()),
-				GenesisSeed:          []byte("cafebabe"),
 				Joining:              []*drand.Participant{me, anotherParticipant},
 			},
 			prepareMocks: func(identityProvider *MockIdentityProvider, store *MockStore, network *MockNetwork, proposal *drand.FirstProposalOptions, expectedError error) {

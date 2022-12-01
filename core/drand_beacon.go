@@ -203,7 +203,7 @@ func (bp *BeaconProcess) transition(dkgOutput dkg.DKGOutput) error {
 }
 
 func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
-	newGroup, err := asGroup(&dkgOutput.New)
+	newGroup, err := asGroup(bp, &dkgOutput.New)
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
 	bp.beacon.TransitionNewGroup(newShare, &newGroup)
 
 	// keep the old beacon running until the `TransitionTime`
-	oldGroup, err := asGroup(dkgOutput.Old)
+	oldGroup, err := asGroup(bp, dkgOutput.Old)
 	if err != nil {
 		return err
 	}
@@ -232,6 +232,7 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
 func (bp *BeaconProcess) storeDKGOutput(group *key.Group, share *key.Share) error {
 	bp.group = group
 	bp.share = share
+	bp.chainHash = chain.NewChainInfo(bp.group).Hash()
 
 	err := bp.store.SaveGroup(group)
 	if err != nil {
@@ -259,7 +260,7 @@ func (bp *BeaconProcess) leaveNetwork() error {
 }
 
 func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
-	newGroup, err := asGroup(&dkgOutput.New)
+	newGroup, err := asGroup(bp, &dkgOutput.New)
 	if err != nil {
 		return err
 	}
@@ -287,7 +288,7 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 	return nil
 }
 
-func asGroup(details *dkg.DKGState) (key.Group, error) {
+func asGroup(bp *BeaconProcess, details *dkg.DKGState) (key.Group, error) {
 	scheme, found := scheme.GetSchemeByID(details.SchemeID)
 	if !found {
 		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
@@ -306,7 +307,7 @@ func asGroup(details *dkg.DKGState) (key.Group, error) {
 		return key.Group{}, err
 	}
 
-	return key.Group{
+	group := key.Group{
 		ID:             details.BeaconID,
 		Threshold:      int(details.Threshold),
 		Period:         details.BeaconPeriod,
@@ -314,10 +315,19 @@ func asGroup(details *dkg.DKGState) (key.Group, error) {
 		CatchupPeriod:  details.CatchupPeriod,
 		Nodes:          nodes,
 		GenesisTime:    details.GenesisTime.Unix(),
-		GenesisSeed:    details.GenesisSeed,
+		GenesisSeed:    nil,
 		TransitionTime: details.TransitionTime.Unix(),
 		PublicKey:      details.KeyShare.Public(),
-	}, nil
+	}
+
+	// the genesis seed is the hash of the group file, but won't change after the first epoch
+	if bp.group == nil {
+		group.GenesisSeed = group.GetGenesisSeed()
+	} else {
+		group.GenesisSeed = bp.group.GenesisSeed
+	}
+
+	return group, nil
 }
 
 // Stop simply stops all drand operations.

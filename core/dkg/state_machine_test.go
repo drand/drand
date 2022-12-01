@@ -326,41 +326,6 @@ func TestProposalValidation(t *testing.T) {
 			}(),
 			expected: TransitionTimeBeforeGenesis,
 		},
-		{
-			name:  "genesis seed cannot be empty",
-			state: NewFreshState(beaconID),
-			terms: func() *drand.ProposalTerms {
-				p := NewValidProposal(beaconID, me, someoneElse)
-				p.Epoch = 1
-				p.GenesisSeed = []byte("")
-				return p
-			}(),
-			expected: GenesisSeedMissing,
-		},
-		{
-			name:  "for > epoch 1, genesis seed must be the same as the previous genesis seed",
-			state: NewFullDKGEntry(beaconID, Complete, me),
-			terms: func() *drand.ProposalTerms {
-				p := NewValidProposal(beaconID, me, someoneElse)
-				p.Epoch = 2
-				p.TransitionTime = timestamppb.New(time.Now())
-				p.GenesisSeed = []byte("something-very-unusual")
-				return p
-			}(),
-			expected: GenesisSeedNotEqual,
-		},
-		{
-			name:  "for > epoch 1, if we have a fresh state, genesis seed can be different",
-			state: NewFullDKGEntry(beaconID, Fresh, me),
-			terms: func() *drand.ProposalTerms {
-				p := NewValidProposal(beaconID, me, someoneElse)
-				p.Epoch = 2
-				p.TransitionTime = timestamppb.New(time.Now())
-				p.GenesisSeed = []byte("something-very-unusual")
-				return p
-			}(),
-			expected: nil,
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -1643,7 +1608,6 @@ func NewFullDKGEntry(beaconID string, status DKGStatus, previousLeader *drand.Pa
 		Timeout:        time.Unix(2549084715, 0), // this will need updated in 2050 :^)
 		SchemeID:       "pedersen-bls-chained",
 		GenesisTime:    time.Unix(1669718523, 0),
-		GenesisSeed:    []byte("somegreatseed"),
 		TransitionTime: time.Unix(1669718523, 0),
 		CatchupPeriod:  5 * time.Second,
 		BeaconPeriod:   10 * time.Second,
@@ -1669,7 +1633,6 @@ func NewInitialProposal(beaconID string, leader *drand.Participant, others ...*d
 		Threshold:            1,
 		Timeout:              timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
 		GenesisTime:          timestamppb.New(time.Unix(1669718523, 0)),
-		GenesisSeed:          []byte("somegreatseed"),
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0)),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,
@@ -1686,7 +1649,6 @@ func NewValidProposal(beaconID string, leader *drand.Participant, others ...*dra
 		Threshold:            1,
 		Timeout:              timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
 		GenesisTime:          timestamppb.New(time.Unix(1669718523, 0)),
-		GenesisSeed:          []byte("somegreatseed"),
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0)),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,

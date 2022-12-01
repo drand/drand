@@ -43,7 +43,6 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 		// for the initial proposal, we want the same transition time as the genesis time
 		// ... or do we? are round 0 and round 1 the same time?
 		TransitionTime:       options.GenesisTime,
-		GenesisSeed:          options.GenesisSeed,
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		BeaconPeriodSeconds:  options.PeriodSeconds,
 		Joining:              options.Joining,
@@ -121,7 +120,6 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 		BeaconPeriodSeconds:  uint32(current.BeaconPeriod.Seconds()),
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		GenesisTime:          timestamppb.New(current.GenesisTime),
-		GenesisSeed:          current.GenesisSeed,
 		TransitionTime:       options.TransitionTime,
 		Timeout:              options.Timeout,
 		Leader:               me,

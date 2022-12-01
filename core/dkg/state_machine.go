@@ -1,7 +1,6 @@
 package dkg
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"github.com/drand/drand/common/scheme"
@@ -68,7 +67,6 @@ type DKGState struct {
 	Timeout        time.Time
 	SchemeID       string
 	GenesisTime    time.Time
-	GenesisSeed    []byte
 	TransitionTime time.Time
 	CatchupPeriod  time.Duration
 	BeaconPeriod   time.Duration
@@ -93,7 +91,6 @@ type DKGStateTOML struct {
 	Timeout        time.Time
 	SchemeID       string
 	GenesisTime    time.Time
-	GenesisSeed    []byte
 	TransitionTime time.Time
 	CatchupPeriod  time.Duration
 	BeaconPeriod   time.Duration
@@ -125,7 +122,6 @@ func (d *DKGState) TOML() DKGStateTOML {
 		Timeout:        d.Timeout,
 		SchemeID:       d.SchemeID,
 		GenesisTime:    d.GenesisTime,
-		GenesisSeed:    d.GenesisSeed,
 		TransitionTime: d.TransitionTime,
 		CatchupPeriod:  d.CatchupPeriod,
 		BeaconPeriod:   d.BeaconPeriod,
@@ -160,7 +156,6 @@ func (d DKGStateTOML) FromTOML() (*DKGState, error) {
 		Timeout:        d.Timeout,
 		SchemeID:       d.SchemeID,
 		GenesisTime:    d.GenesisTime,
-		GenesisSeed:    d.GenesisSeed,
 		TransitionTime: d.TransitionTime,
 		CatchupPeriod:  d.CatchupPeriod,
 		BeaconPeriod:   d.BeaconPeriod,
@@ -226,7 +221,6 @@ func (d *DKGState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) 
 		SchemeID:       terms.SchemeID,
 		CatchupPeriod:  time.Duration(terms.CatchupPeriodSeconds) * time.Second,
 		BeaconPeriod:   time.Duration(terms.BeaconPeriodSeconds) * time.Second,
-		GenesisSeed:    terms.GenesisSeed,
 		GenesisTime:    terms.GenesisTime.AsTime(),
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
@@ -262,7 +256,6 @@ func (d *DKGState) Proposed(sender *drand.Participant, me *drand.Participant, te
 		SchemeID:       terms.SchemeID,
 		CatchupPeriod:  time.Duration(terms.CatchupPeriodSeconds) * time.Second,
 		BeaconPeriod:   time.Duration(terms.BeaconPeriodSeconds) * time.Second,
-		GenesisSeed:    terms.GenesisSeed,
 		GenesisTime:    terms.GenesisTime.AsTime(),
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
@@ -453,8 +446,6 @@ var TimeoutReached = errors.New("timeout has been reached")
 var InvalidBeaconID = errors.New("BeaconID was invalid")
 var InvalidScheme = errors.New("the scheme proposed does not exist")
 var GenesisTimeNotEqual = errors.New("genesis time cannot be changed after the initial DKG")
-var GenesisSeedMissing = errors.New("you must provide a genesis seed when starting a network")
-var GenesisSeedNotEqual = errors.New("genesis seed cannot be changed after the initial DKG")
 var TransitionTimeMustBeGenesisTime = errors.New("transition time must be the same as the genesis time for the first epoch")
 var TransitionTimeMissing = errors.New("transition time must be provided in a proposal")
 var TransitionTimeBeforeGenesis = errors.New("transition time cannot be before the genesis time")
@@ -544,10 +535,6 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 		return InvalidEpoch
 	}
 
-	if len(terms.GenesisSeed) == 0 {
-		return GenesisSeedMissing
-	}
-
 	if terms.TransitionTime == nil {
 		return TransitionTimeMissing
 	}
@@ -589,9 +576,6 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 			return GenesisTimeNotEqual
 		}
 
-		if !bytes.Equal(terms.GenesisSeed, currentState.GenesisSeed) {
-			return GenesisSeedNotEqual
-		}
 		// make sure all proposed `remaining` nodes exist in the current epoch
 		for _, node := range terms.Remaining {
 			if !util.Contains(currentState.FinalGroup, node) {

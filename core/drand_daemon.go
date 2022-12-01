@@ -292,7 +292,7 @@ func (dd *DrandDaemon) LoadBeaconFromDisk(beaconID string) (*BeaconProcess, erro
 func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*BeaconProcess, error) {
 	bp, err := dd.InstantiateBeaconProcess(beaconID, store)
 	if err != nil {
-		dd.log.Error("beacon id", beaconID, "can't instantiate randomness beacon. err:", err)
+		dd.log.Error("beacon id ", beaconID, " can't instantiate randomness beacon. err:", err)
 		return nil, err
 	}
 
@@ -300,29 +300,27 @@ func (dd *DrandDaemon) LoadBeaconFromStore(beaconID string, store key.Store) (*B
 	if err != nil {
 		return nil, err
 	}
-	freshRun := status.Complete == nil
-	if !freshRun {
-		err := bp.Load()
-		if err != nil {
-			return nil, err
-		}
-	}
 
+	freshRun := status.Complete == nil
 	if freshRun {
 		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will run as fresh install -> expect to run DKG.", beaconID))
 		go bp.StartListeningForDKGUpdates()
-	} else {
-		dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
-
-		// Add beacon handler for http server
-		dd.AddBeaconHandler(beaconID, bp)
-
-		// XXX make it configurable so that new share holder can still start if
-		// nobody started.
-		// drand.StartBeacon(!c.Bool(pushFlag.Name))
-		catchup := true
-		bp.StartBeacon(catchup)
+		return bp, nil
 	}
+
+	if err := bp.Load(); err != nil {
+		return nil, err
+	}
+	dd.log.Infow(fmt.Sprintf("beacon id [%s]: will start running randomness beacon.", beaconID))
+
+	// Add beacon handler for http server
+	dd.AddBeaconHandler(beaconID, bp)
+
+	// XXX make it configurable so that new share holder can still start if
+	// nobody started.
+	// drand.StartBeacon(!c.Bool(pushFlag.Name))
+	catchup := true
+	bp.StartBeacon(catchup)
 
 	return bp, nil
 }

@@ -126,8 +126,9 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 				return nil, result.Error
 			}
 			var finalGroup []*drand.Participant
-			for i := range result.Result.QUAL {
-				finalGroup = append(finalGroup, sortedParticipants[i])
+			// the index in the for loop may _not_ align with the index returned in QUAL!
+			for _, v := range result.Result.QUAL {
+				finalGroup = append(finalGroup, sortedParticipants[v.Index])
 			}
 
 			output := ExecutionOutput{
