@@ -202,7 +202,7 @@ func TestStartProposal(t *testing.T) {
 		Leaving:       nil,
 		Acceptors:     []*drand.Participant{me},
 		Rejectors:     nil,
-		FinalGroup:    []*drand.Participant{me},
+		FinalGroup:    &key.Group{},
 	}
 
 	tests := []struct {
@@ -217,6 +217,7 @@ func TestStartProposal(t *testing.T) {
 			proposal: drand.ProposalOptions{
 				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
 				Joining:              []*drand.Participant{anotherParticipant},
@@ -291,6 +292,7 @@ func TestStartProposal(t *testing.T) {
 			proposal: drand.ProposalOptions{
 				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
 				Joining:              []*drand.Participant{anotherParticipant},
@@ -310,6 +312,7 @@ func TestStartProposal(t *testing.T) {
 			proposal: drand.ProposalOptions{
 				BeaconID:             beaconID,
 				Timeout:              timestamppb.New(time.Now().Add(1 * time.Hour)),
+				TransitionTime:       timestamppb.New(time.Now().Add(10 * time.Second)),
 				Threshold:            1,
 				CatchupPeriodSeconds: 10,
 				Joining:              []*drand.Participant{anotherParticipant},

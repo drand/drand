@@ -414,8 +414,8 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 		}, nil
 	}
 	finishedFinalGroup := make([]string, len(finished.FinalGroup.Nodes))
-	for i, v := range current.FinalGroup.Nodes {
-		finalGroup[i] = v.Addr
+	for i, v := range finished.FinalGroup.Nodes {
+		finishedFinalGroup[i] = v.Addr
 	}
 
 	return &drand.DKGStatusResponse{

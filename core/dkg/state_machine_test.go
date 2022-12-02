@@ -3,7 +3,6 @@ package dkg
 import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/share/dkg"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"testing"
@@ -1345,7 +1344,7 @@ func TestCompleteDKG(t *testing.T) {
 		Address: "big leader",
 	}
 	finalGroup := key.Group{}
-	keyShare := dkg.DistKeyShare{}
+	keyShare := key.Share{}
 
 	tests := []stateChangeTableTest{
 		{

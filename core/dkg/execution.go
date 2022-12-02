@@ -16,6 +16,9 @@ import (
 )
 
 func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, current *DKGState) (*ExecutionOutput, error) {
+	d.Lock()
+	defer d.Unlock()
+
 	keypair, err := d.beaconIdentifier.KeypairFor(beaconID)
 	if err != nil {
 		return nil, err
@@ -30,6 +33,7 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 	}
 
 	sortedParticipants := util.SortedByPublicKey(append(current.Remaining, current.Joining...))
+
 	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, util.ToNode)
 	if err != nil {
 		return nil, err
@@ -41,8 +45,8 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 		Longterm:       keypair.Key,
 		OldNodes:       lastCompleted.FinalGroup.DKGNodes(),
 		NewNodes:       newNodes,
-		PublicCoeffs:   nil,
-		Share:          nil,
+		PublicCoeffs:   lastCompleted.FinalGroup.PublicKey.Coefficients,
+		Share:          (*dkg.DistKeyShare)(lastCompleted.KeyShare),
 		Threshold:      int(current.Threshold),
 		OldThreshold:   int(lastCompleted.Threshold),
 		Reader:         nil,
@@ -101,9 +105,7 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 
 	// we need some state on the DKG process in order to process any incoming gossip messages from the DKG
 	// if other nodes try to send us DKG messages before this is set we're in trouble
-	d.Lock()
 	d.executions[beaconID] = board
-	d.Unlock()
 
 	timeBetweenDKGPhases := 2 * time.Second
 	phaser := dkg.NewTimePhaser(timeBetweenDKGPhases)

@@ -162,7 +162,7 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates() {
 		select {
 		case dkgOutput := <-bp.completedDKGs:
 			{
-				if err := bp.transition(dkgOutput); err != nil {
+				if err := bp.onDKGCompleted(dkgOutput); err != nil {
 					bp.log.Errorw("Error in performing DKG key transition", "err", err)
 				}
 			}
@@ -170,9 +170,9 @@ func (bp *BeaconProcess) StartListeningForDKGUpdates() {
 	}
 }
 
-// transition between an "old" group and a new group. This method is called
+// onDKGCompleted transitions between an "old" group and a new group. This method is called
 // *after* a DKG has completed.
-func (bp *BeaconProcess) transition(dkgOutput dkg.DKGOutput) error {
+func (bp *BeaconProcess) onDKGCompleted(dkgOutput dkg.DKGOutput) error {
 	if dkgOutput.BeaconID != bp.beaconID {
 		bp.log.Infow(fmt.Sprintf("BeaconProcess for beaconID %s ignoring DKG for beaconID %s", bp.beaconID, dkgOutput.BeaconID))
 		return nil
@@ -277,7 +277,6 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 		return err
 	}
 
-	bp.beacon = b
 	bp.beacon.TransitionNewGroup(newShare, newGroup)
 
 	syncError := b.Start()

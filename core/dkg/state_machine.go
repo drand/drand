@@ -560,7 +560,7 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 		return InvalidEpoch
 	}
 
-	if terms.Epoch > currentState.Epoch+1 && (currentState.State != Left && currentState.State != Fresh) {
+	if terms.Epoch > currentState.Epoch+1 && (currentState.State != Left && currentState.State != Fresh && currentState.State != Evicted) {
 		return InvalidEpoch
 	}
 

@@ -236,6 +236,8 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
+
+	// HMM MAYBE THIS NEEDS THOUGHT ABOUT?
 	//tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)
 	//if tTime != targetTime {
 	//	h.l.Fatalw("", "transition_time", "invalid_offset", "expected_time", tTime, "got_time", targetTime)
