@@ -1344,9 +1344,7 @@ func TestCompleteDKG(t *testing.T) {
 	leader := drand.Participant{
 		Address: "big leader",
 	}
-	finalGroup := []*drand.Participant{
-		me, &leader,
-	}
+	finalGroup := key.Group{}
 	keyShare := dkg.DistKeyShare{}
 
 	tests := []stateChangeTableTest{
@@ -1354,11 +1352,11 @@ func TestCompleteDKG(t *testing.T) {
 			name:          "completing a valid executing proposal succeeds",
 			startingState: NewFullDKGEntry(beaconID, Executing, &leader, me),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Complete(finalGroup, &keyShare)
+				return in.Complete(&finalGroup, &keyShare)
 			},
 			expectedResult: func() *DKGState {
 				d := NewFullDKGEntry(beaconID, Complete, &leader, me)
-				d.FinalGroup = finalGroup
+				d.FinalGroup = &finalGroup
 				return d
 			}(),
 			expectedError: nil,
@@ -1367,7 +1365,7 @@ func TestCompleteDKG(t *testing.T) {
 			name:          "completing a non-executing proposal returns an error",
 			startingState: NewFullDKGEntry(beaconID, Accepted, &leader, me),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Complete(finalGroup, &keyShare)
+				return in.Complete(&finalGroup, &keyShare)
 			},
 			expectedError: InvalidStateChange(Accepted, Complete),
 		},
@@ -1375,7 +1373,7 @@ func TestCompleteDKG(t *testing.T) {
 			name:          "completing a proposal after time out returns an error",
 			startingState: PastTimeout(NewFullDKGEntry(beaconID, Executing, &leader, me)),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Complete(finalGroup, &keyShare)
+				return in.Complete(&finalGroup, &keyShare)
 			},
 			expectedError: TimeoutReached,
 		},
@@ -1656,7 +1654,7 @@ func NewFullDKGEntry(beaconID string, status DKGStatus, previousLeader *drand.Pa
 		Acceptors: nil,
 		Rejectors: nil,
 
-		FinalGroup: append([]*drand.Participant{previousLeader}, others...),
+		FinalGroup: &key.Group{},
 		KeyShare:   &key.Share{},
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
-	"github.com/drand/kyber/share/dkg"
 	"sync"
 	"time"
 )
@@ -25,8 +24,8 @@ type Config struct {
 }
 
 type ExecutionOutput struct {
-	FinalGroup []*drand.Participant
-	KeyShare   *dkg.DistKeyShare
+	FinalGroup *key.Group
+	KeyShare   *key.Share
 }
 
 type DKGOutput struct {

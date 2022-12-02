@@ -8,7 +8,6 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
-	"github.com/drand/kyber/share/dkg"
 	"time"
 )
 
@@ -82,7 +81,7 @@ type DKGState struct {
 	Acceptors []*drand.Participant
 	Rejectors []*drand.Participant
 
-	FinalGroup []*drand.Participant
+	FinalGroup *key.Group
 	KeyShare   *key.Share
 }
 
@@ -107,17 +106,20 @@ type DKGStateTOML struct {
 	Acceptors []*drand.Participant
 	Rejectors []*drand.Participant
 
-	FinalGroup []*drand.Participant
+	FinalGroup *key.GroupTOML
 	KeyShare   *key.ShareTOML
 }
 
 func (d *DKGState) TOML() DKGStateTOML {
-	var k *key.ShareTOML
-	if d.KeyShare == nil {
-		k = nil
-	} else {
-		k = d.KeyShare.TOML().(*key.ShareTOML)
+	var finalGroup *key.GroupTOML
+	if d.FinalGroup != nil {
+		finalGroup = d.FinalGroup.TOML().(*key.GroupTOML)
 	}
+	var keyShare *key.ShareTOML
+	if d.KeyShare != nil {
+		keyShare = d.KeyShare.TOML().(*key.ShareTOML)
+	}
+
 	return DKGStateTOML{
 		BeaconID:       d.BeaconID,
 		Epoch:          d.Epoch,
@@ -136,18 +138,25 @@ func (d *DKGState) TOML() DKGStateTOML {
 		Leaving:        d.Leaving,
 		Acceptors:      d.Acceptors,
 		Rejectors:      d.Rejectors,
-		FinalGroup:     d.FinalGroup,
-		KeyShare:       k,
+		FinalGroup:     finalGroup,
+		KeyShare:       keyShare,
 	}
 }
 
 func (d DKGStateTOML) FromTOML() (*DKGState, error) {
 	var share *key.Share
-	if d.KeyShare == nil {
-		share = nil
-	} else {
+	if d.KeyShare != nil {
 		share = &key.Share{}
 		err := share.FromTOML(d.KeyShare)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var finalGroup *key.Group
+	if d.FinalGroup != nil {
+		finalGroup = &key.Group{}
+		err := finalGroup.FromTOML(d.FinalGroup)
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +180,7 @@ func (d DKGStateTOML) FromTOML() (*DKGState, error) {
 		Leaving:        d.Leaving,
 		Acceptors:      d.Acceptors,
 		Rejectors:      d.Rejectors,
-		FinalGroup:     d.FinalGroup,
+		FinalGroup:     finalGroup,
 		KeyShare:       share,
 	}, nil
 }
@@ -384,7 +393,7 @@ func (d *DKGState) Executing(me *drand.Participant) (*DKGState, error) {
 	return d, nil
 }
 
-func (d *DKGState) Complete(finalGroup []*drand.Participant, share *dkg.DistKeyShare) (*DKGState, error) {
+func (d *DKGState) Complete(finalGroup *key.Group, share *key.Share) (*DKGState, error) {
 	if !isValidStateChange(d.State, Complete) {
 		return nil, InvalidStateChange(d.State, Complete)
 	}
@@ -393,57 +402,18 @@ func (d *DKGState) Complete(finalGroup []*drand.Participant, share *dkg.DistKeyS
 		return nil, TimeoutReached
 	}
 
+	if finalGroup == nil {
+		return nil, FinalGroupCannotBeEmpty
+	}
+	if share == nil {
+		return nil, KeyShareCannotBeEmpty
+	}
+
 	d.State = Complete
 	d.FinalGroup = finalGroup
-	d.KeyShare = (*key.Share)(share)
-	g, err := asGroup(d)
-	if err != nil {
-		return nil, err
-	}
-	d.GenesisSeed = g.GenesisSeed
+	d.KeyShare = share
+	d.GenesisSeed = finalGroup.GetGenesisSeed()
 	return d, nil
-}
-
-// asGroup duplicates work done in the BeaconProcess :'(
-// but essentially for the first epoch we don't know the genesis seed until we generate the group file and create a
-// has of it
-func asGroup(details *DKGState) (key.Group, error) {
-	scheme, found := scheme.GetSchemeByID(details.SchemeID)
-	if !found {
-		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
-	}
-
-	finalGroupSorted := util.SortedByPublicKey(details.FinalGroup)
-	participantToKeyNode := func(index int, participant *drand.Participant) (*key.Node, error) {
-		r, err := util.ToKeyNode(index, participant)
-		if err != nil {
-			return nil, err
-		}
-		return &r, nil
-	}
-	nodes, err := util.TryMapEach[*key.Node](finalGroupSorted, participantToKeyNode)
-	if err != nil {
-		return key.Group{}, err
-	}
-
-	group := key.Group{
-		ID:             details.BeaconID,
-		Threshold:      int(details.Threshold),
-		Period:         details.BeaconPeriod,
-		Scheme:         scheme,
-		CatchupPeriod:  details.CatchupPeriod,
-		Nodes:          nodes,
-		GenesisTime:    details.GenesisTime.Unix(),
-		GenesisSeed:    details.GenesisSeed,
-		TransitionTime: details.TransitionTime.Unix(),
-		PublicKey:      details.KeyShare.Public(),
-	}
-
-	if len(group.GenesisSeed) == 0 {
-		group.GenesisSeed = group.Hash()
-	}
-
-	return group, nil
 }
 
 func (d *DKGState) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGState, error) {
@@ -530,6 +500,8 @@ var UnknownRejector = errors.New("somebody unknown tried to reject the proposal"
 var DuplicateRejection = errors.New("this participant already rejected the proposal")
 var NonLeaderCannotReceiveAcceptance = errors.New("you received an acceptance but are not the leader of this DKG - cannot do anything")
 var NonLeaderCannotReceiveRejection = errors.New("you received a rejection but are not the leader of this DKG - cannot do anything")
+var FinalGroupCannotBeEmpty = errors.New("you cannot complete a DKG with a nil final group")
+var KeyShareCannotBeEmpty = errors.New("you cannot complete a DKG with a nil key share")
 
 func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 	switch current {
@@ -563,7 +535,7 @@ func isValidStateChange(current DKGStatus, next DKGStatus) bool {
 
 func hasTimedOut(details *DKGState) bool {
 	now := time.Now()
-	return details.Timeout.Before(now) || details.Timeout == now
+	return details.Timeout.Before(now) || details.Timeout.Equal(now)
 }
 
 func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error {
@@ -638,21 +610,6 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 
 		if !bytes.Equal(terms.GenesisSeed, currentState.GenesisSeed) {
 			return GenesisSeedCannotChange
-		}
-
-		// make sure all proposed `remaining` nodes exist in the current epoch
-		for _, node := range terms.Remaining {
-			if !util.Contains(currentState.FinalGroup, node) {
-				return RemainingNodesMustExistInCurrentEpoch
-			}
-		}
-
-		// make sure all the nodes from the current epoch exist in the proposal
-		shouldBeCurrentParticipants := append(terms.Remaining, terms.Leaving...)
-		for _, node := range currentState.FinalGroup {
-			if !util.Contains(shouldBeCurrentParticipants, node) {
-				return MissingNodesInProposal
-			}
 		}
 	}
 

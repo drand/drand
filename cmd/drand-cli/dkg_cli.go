@@ -480,7 +480,7 @@ func printEntry(entry *drand.DKGEntry) {
 	if dkg.DKGStatus(entry.State) >= dkg.Executing {
 		fmt.Println("Final group: [")
 		for _, member := range entry.FinalGroup {
-			fmt.Printf("\t\t%s\n", member.Address)
+			fmt.Printf("\t\t%s\n", member)
 		}
 		fmt.Println("]")
 	}

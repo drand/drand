@@ -383,6 +383,13 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 	if err != nil {
 		return nil, err
 	}
+	var finalGroup []string
+	if current.FinalGroup != nil {
+		finalGroup := make([]string, len(current.FinalGroup.Nodes))
+		for i, v := range current.FinalGroup.Nodes {
+			finalGroup[i] = v.Addr
+		}
+	}
 	currentEntry := drand.DKGEntry{
 		BeaconID:       current.BeaconID,
 		State:          uint32(current.State),
@@ -398,13 +405,17 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 		Leaving:        current.Leaving,
 		Acceptors:      current.Acceptors,
 		Rejectors:      current.Rejectors,
-		FinalGroup:     current.FinalGroup,
+		FinalGroup:     finalGroup,
 	}
 
 	if finished == nil {
 		return &drand.DKGStatusResponse{
 			Current: &currentEntry,
 		}, nil
+	}
+	finishedFinalGroup := make([]string, len(finished.FinalGroup.Nodes))
+	for i, v := range current.FinalGroup.Nodes {
+		finalGroup[i] = v.Addr
 	}
 
 	return &drand.DKGStatusResponse{
@@ -423,7 +434,7 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 			Leaving:        finished.Leaving,
 			Acceptors:      finished.Acceptors,
 			Rejectors:      finished.Rejectors,
-			FinalGroup:     finished.FinalGroup,
+			FinalGroup:     finishedFinalGroup,
 		},
 		Current: &currentEntry,
 	}, nil
@@ -461,13 +472,6 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
 			return err
 		}
 
-		//// we end up redoing this in the BeaconProcess... maybe there's a better way to pass it around but also persist the state
-		//newGroupFile, err := asGroup(finalState)
-		//if err != nil {
-		//	return err
-		//}
-
-		//finalState.GenesisSeed = newGroupFile.GenesisSeed
 		err = d.store.SaveFinished(beaconID, finalState)
 		if err != nil {
 			return err

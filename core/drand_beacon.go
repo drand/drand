@@ -8,7 +8,6 @@ import (
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
 	commonutils "github.com/drand/drand/common"
-	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core/dkg"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -16,7 +15,6 @@ import (
 	"github.com/drand/drand/metrics"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
 	"strings"
 	"sync"
@@ -185,8 +183,20 @@ func (bp *BeaconProcess) transition(dkgOutput dkg.DKGOutput) error {
 		return err
 	}
 
-	weWereInLastEpoch := dkgOutput.Old != nil && util.Contains(dkgOutput.Old.FinalGroup, p)
-	weAreInNextEpoch := util.Contains(dkgOutput.New.FinalGroup, p)
+	weWereInLastEpoch := false
+	if dkgOutput.Old != nil {
+		for _, v := range dkgOutput.Old.FinalGroup.Nodes {
+			if v.Addr == p.Address {
+				weWereInLastEpoch = true
+			}
+		}
+	}
+	weAreInNextEpoch := false
+	for _, v := range dkgOutput.New.FinalGroup.Nodes {
+		if v.Addr == p.Address {
+			weAreInNextEpoch = true
+		}
+	}
 
 	if weWereInLastEpoch {
 		if weAreInNextEpoch {
@@ -203,24 +213,17 @@ func (bp *BeaconProcess) transition(dkgOutput dkg.DKGOutput) error {
 }
 
 func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
-	newGroup, err := asGroup(&dkgOutput.New)
-	if err != nil {
-		return err
-	}
+	newGroup := dkgOutput.New.FinalGroup
 	newShare := dkgOutput.New.KeyShare
 
-	err = bp.storeDKGOutput(&newGroup, newShare)
+	err := bp.storeDKGOutput(newGroup, newShare)
 	if err != nil {
 		return err
 	}
-	bp.beacon.TransitionNewGroup(newShare, &newGroup)
+	bp.beacon.TransitionNewGroup(newShare, newGroup)
 
 	// keep the old beacon running until the `TransitionTime`
-	oldGroup, err := asGroup(dkgOutput.Old)
-	if err != nil {
-		return err
-	}
-	if err := bp.beacon.Transition(&oldGroup); err != nil {
+	if err := bp.beacon.Transition(dkgOutput.Old.FinalGroup); err != nil {
 		bp.log.Errorw("", "sync_before", err)
 	} else {
 		bp.log.Infow("", "transition_new", "done")
@@ -260,13 +263,10 @@ func (bp *BeaconProcess) leaveNetwork() error {
 }
 
 func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
-	newGroup, err := asGroup(&dkgOutput.New)
-	if err != nil {
-		return err
-	}
+	newGroup := dkgOutput.New.FinalGroup
 	newShare := dkgOutput.New.KeyShare
 
-	err = bp.storeDKGOutput(&newGroup, newShare)
+	err := bp.storeDKGOutput(newGroup, newShare)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 	}
 
 	bp.beacon = b
-	bp.beacon.TransitionNewGroup(newShare, &newGroup)
+	bp.beacon.TransitionNewGroup(newShare, newGroup)
 
 	syncError := b.Start()
 	if syncError != nil {
@@ -286,41 +286,6 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 	}
 
 	return nil
-}
-
-func asGroup(details *dkg.DKGState) (key.Group, error) {
-	scheme, found := scheme.GetSchemeByID(details.SchemeID)
-	if !found {
-		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
-	}
-
-	finalGroupSorted := util.SortedByPublicKey(details.FinalGroup)
-	participantToKeyNode := func(index int, participant *drand.Participant) (*key.Node, error) {
-		r, err := util.ToKeyNode(index, participant)
-		if err != nil {
-			return nil, err
-		}
-		return &r, nil
-	}
-	nodes, err := util.TryMapEach[*key.Node](finalGroupSorted, participantToKeyNode)
-	if err != nil {
-		return key.Group{}, err
-	}
-
-	group := key.Group{
-		ID:             details.BeaconID,
-		Threshold:      int(details.Threshold),
-		Period:         details.BeaconPeriod,
-		Scheme:         scheme,
-		CatchupPeriod:  details.CatchupPeriod,
-		Nodes:          nodes,
-		GenesisTime:    details.GenesisTime.Unix(),
-		GenesisSeed:    details.GenesisSeed,
-		TransitionTime: details.TransitionTime.Unix(),
-		PublicKey:      details.KeyShare.Public(),
-	}
-
-	return group, nil
 }
 
 // Stop simply stops all drand operations.

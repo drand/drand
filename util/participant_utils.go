@@ -47,7 +47,7 @@ func Without(haystack []*drand.Participant, needle *drand.Participant) []*drand.
 }
 
 func EqualParticipant(p1 *drand.Participant, p2 *drand.Participant) bool {
-	return p1.Tls == p2.Tls && p1.Address == p2.Address && reflect.DeepEqual(p1.PubKey, p2.PubKey)
+	return p1.Tls == p2.Tls && p1.Address == p2.Address && reflect.DeepEqual(p1.PubKey, p2.PubKey) && reflect.DeepEqual(p1.Signature, p2.Signature)
 }
 
 func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) {
@@ -57,9 +57,10 @@ func PublicKeyAsParticipant(identity *key.Identity) (*drand.Participant, error) 
 	}
 
 	return &drand.Participant{
-		Address: identity.Address(),
-		Tls:     identity.TLS,
-		PubKey:  pubKey,
+		Address:   identity.Address(),
+		Tls:       identity.TLS,
+		PubKey:    pubKey,
+		Signature: identity.Signature,
 	}, nil
 }
 
@@ -80,13 +81,12 @@ func ToKeyNode(index int, participant *drand.Participant) (key.Node, error) {
 		return key.Node{}, err
 	}
 
-	// THIS NEEDS A REAL SIGNATURE SOMEHOW!
 	return key.Node{
 		Identity: &key.Identity{
 			Key:       public,
 			Addr:      participant.Address,
 			TLS:       participant.Tls,
-			Signature: []byte("deadbeef"),
+			Signature: participant.Signature,
 		},
 		Index: uint32(index),
 	}, nil

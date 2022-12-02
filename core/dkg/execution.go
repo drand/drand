@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/drand/drand/common"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
@@ -27,11 +29,6 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 		return d.executeInitialDKG(beaconID, keypair, me, current)
 	}
 
-	oldNodes, err := util.TryMapEach[dkg.Node](util.SortedByPublicKey(lastCompleted.FinalGroup), util.ToNode)
-	if err != nil {
-		return nil, err
-	}
-
 	sortedParticipants := util.SortedByPublicKey(append(current.Remaining, current.Joining...))
 	newNodes, err := util.TryMapEach[dkg.Node](sortedParticipants, util.ToNode)
 	if err != nil {
@@ -42,7 +39,7 @@ func (d *DKGProcess) executeDKG(beaconID string, lastCompleted *DKGState, curren
 	config := dkg.Config{
 		Suite:          suite,
 		Longterm:       keypair.Key,
-		OldNodes:       oldNodes,
+		OldNodes:       lastCompleted.FinalGroup.DKGNodes(),
 		NewNodes:       newNodes,
 		PublicCoeffs:   nil,
 		Share:          nil,
@@ -125,15 +122,23 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 			if result.Error != nil {
 				return nil, result.Error
 			}
+
+			keyShare := (*key.Share)(result.Result.Key)
+
 			var finalGroup []*drand.Participant
 			// the index in the for loop may _not_ align with the index returned in QUAL!
 			for _, v := range result.Result.QUAL {
 				finalGroup = append(finalGroup, sortedParticipants[v.Index])
 			}
 
+			groupFile, err := asGroup(current, keyShare, finalGroup)
+			if err != nil {
+				return nil, err
+			}
+
 			output := ExecutionOutput{
-				FinalGroup: finalGroup,
-				KeyShare:   result.Result.Key,
+				FinalGroup: &groupFile,
+				KeyShare:   keyShare,
 			}
 			return &output, nil
 		}
@@ -142,6 +147,45 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 			return nil, errors.New("DKG timed out")
 		}
 	}
+}
+
+func asGroup(details *DKGState, keyShare *key.Share, finalParticipants []*drand.Participant) (key.Group, error) {
+	scheme, found := scheme.GetSchemeByID(details.SchemeID)
+	if !found {
+		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
+	}
+
+	finalGroupSorted := util.SortedByPublicKey(finalParticipants)
+	participantToKeyNode := func(index int, participant *drand.Participant) (*key.Node, error) {
+		r, err := util.ToKeyNode(index, participant)
+		if err != nil {
+			return nil, err
+		}
+		return &r, nil
+	}
+	nodes, err := util.TryMapEach[*key.Node](finalGroupSorted, participantToKeyNode)
+	if err != nil {
+		return key.Group{}, err
+	}
+
+	group := key.Group{
+		ID:             details.BeaconID,
+		Threshold:      int(details.Threshold),
+		Period:         details.BeaconPeriod,
+		Scheme:         scheme,
+		CatchupPeriod:  details.CatchupPeriod,
+		GenesisTime:    details.GenesisTime.Unix(),
+		GenesisSeed:    details.GenesisSeed,
+		TransitionTime: details.TransitionTime.Unix(),
+		Nodes:          nodes,
+		PublicKey:      keyShare.Public(),
+	}
+
+	if len(group.GenesisSeed) == 0 {
+		group.GenesisSeed = group.Hash()
+	}
+
+	return group, nil
 }
 
 func nonceFor(state *DKGState) []byte {
