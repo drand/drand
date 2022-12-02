@@ -193,7 +193,7 @@ func NewFreshState(beaconID string) *DKGState {
 	}
 }
 
-func (d *DKGState) Joined(me *drand.Participant) (*DKGState, error) {
+func (d *DKGState) Joined(me *drand.Participant, previousGroup *key.Group) (*DKGState, error) {
 	if !isValidStateChange(d.State, Joined) {
 		return nil, InvalidStateChange(d.State, Joined)
 	}
@@ -202,11 +202,16 @@ func (d *DKGState) Joined(me *drand.Participant) (*DKGState, error) {
 		return nil, TimeoutReached
 	}
 
+	if d.Epoch != 1 && previousGroup == nil {
+		return nil, JoiningAfterFirstEpochNeedsGroupFile
+	}
+
 	if !util.Contains(d.Joining, me) {
 		return nil, CannotJoinIfNotInJoining
 	}
 
 	d.State = Joined
+	d.FinalGroup = previousGroup
 	return d, nil
 }
 
@@ -478,6 +483,7 @@ var TransitionTimeMissing = errors.New("transition time must be provided in a pr
 var TransitionTimeBeforeGenesis = errors.New("transition time cannot be before the genesis time")
 var SelfMissingFromProposal = errors.New("you must include yourself in a proposal")
 var CannotJoinIfNotInJoining = errors.New("you cannot join a proposal in which you are not a joiner")
+var JoiningAfterFirstEpochNeedsGroupFile = errors.New("joining after the first epoch requires a previous group file")
 var InvalidEpoch = errors.New("the epoch provided was invalid")
 var LeaderCantJoinAfterFirstEpoch = errors.New("you cannot lead a DKG and join at the same time (unless it is epoch 1)")
 var LeaderNotRemaining = errors.New("you cannot lead a DKG and leave at the same time")

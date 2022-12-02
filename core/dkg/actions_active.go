@@ -1,8 +1,11 @@
 package dkg
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"github.com/BurntSushi/toml"
+	"github.com/drand/drand/key"
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
@@ -267,7 +270,21 @@ func (d *DKGProcess) StartJoin(_ context.Context, options *drand.JoinOptions) (*
 		return nil, err
 	}
 
-	nextState, err := current.Joined(me)
+	var previousGroupFile *key.Group
+	if len(options.GroupFile) != 0 {
+		t := key.GroupTOML{}
+		_, err = toml.NewDecoder(bytes.NewReader(options.GroupFile)).Decode(&t)
+		if err != nil {
+			return nil, err
+		}
+		previousGroupFile = &key.Group{}
+		err = previousGroupFile.FromTOML(&t)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	nextState, err := current.Joined(me, previousGroupFile)
 	if err != nil {
 		return nil, err
 	}

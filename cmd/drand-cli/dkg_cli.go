@@ -10,6 +10,7 @@ import (
 	"github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/urfave/cli/v2"
+	"github.com/weaveworks/common/fs"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
@@ -39,6 +40,7 @@ var dkgCommand = &cli.Command{
 				beaconIDFlag,
 				controlFlag,
 				secretFlag,
+				groupFlag,
 			),
 			Action: joinNetwork,
 		},
@@ -238,12 +240,24 @@ func joinNetwork(c *cli.Context) error {
 		controlPort = core.DefaultControlPort
 	}
 
+	var groupFile []byte
+	if c.IsSet(groupFlag.Name) {
+		fileContents, err := fs.ReadFile(c.String(groupFlag.Name))
+		if err != nil {
+			return err
+		}
+		groupFile = fileContents
+	}
+
 	client, err := net.NewDKGControlClient(controlPort)
 	if err != nil {
 		return err
 	}
 
-	response, err := client.StartJoin(context.Background(), &drand.JoinOptions{BeaconID: beaconID})
+	response, err := client.StartJoin(context.Background(), &drand.JoinOptions{
+		BeaconID:  beaconID,
+		GroupFile: groupFile,
+	})
 
 	if err != nil {
 		return err

@@ -10,6 +10,7 @@ import (
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/util"
+	"github.com/drand/kyber"
 	"github.com/drand/kyber/share/dkg"
 	"github.com/drand/kyber/sign/schnorr"
 	"time"
@@ -67,16 +68,25 @@ func (d *DKGProcess) executeInitialDKG(beaconID string, keypair *key.Pair, me *d
 		return nil, err
 	}
 
+	var nodes []dkg.Node
+	var publicCoeffs []kyber.Point
+	var oldThreshold = 0
+	if current.FinalGroup != nil {
+		nodes = current.FinalGroup.DKGNodes()
+		publicCoeffs = current.FinalGroup.PublicKey.Coefficients
+		oldThreshold = current.FinalGroup.Threshold
+	}
+
 	suite := key.KeyGroup.(dkg.Suite)
 	config := dkg.Config{
 		Suite:          suite,
 		Longterm:       keypair.Key,
-		OldNodes:       nil,
+		OldNodes:       nodes,
 		NewNodes:       newNodes,
-		PublicCoeffs:   nil,
+		PublicCoeffs:   publicCoeffs,
+		OldThreshold:   oldThreshold,
 		Share:          nil,
 		Threshold:      int(current.Threshold),
-		OldThreshold:   0,
 		Reader:         nil,
 		UserReaderOnly: false,
 		FastSync:       true,

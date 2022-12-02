@@ -599,7 +599,7 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 				return s
 			}(),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Joined(me)
+				return in.Joined(me, nil)
 			},
 			expectedResult: func() *DKGState {
 				proposal := NewValidProposal(beaconID, &leader)
@@ -629,7 +629,7 @@ func TestJoiningADKGFromProposal(t *testing.T) {
 				return NewFullDKGEntry(beaconID, Proposed, NewParticipant(), &someoneWhoIsntMe)
 			}(),
 			transitionFn: func(in *DKGState) (*DKGState, error) {
-				return in.Joined(me)
+				return in.Joined(me, nil)
 			},
 			expectedError: CannotJoinIfNotInJoining,
 		},
