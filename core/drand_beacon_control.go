@@ -80,7 +80,13 @@ func (bp *BeaconProcess) PublicKey(context.Context, *drand.PublicKeyRequest) (*d
 		return nil, err
 	}
 
-	return &drand.PublicKeyResponse{PubKey: protoKey, Metadata: bp.newMetadata()}, nil
+	return &drand.PublicKeyResponse{
+		PubKey:    protoKey,
+		Addr:      keyPair.Public.Addr,
+		Tls:       keyPair.Public.TLS,
+		Signature: keyPair.Public.Signature,
+		Metadata:  bp.newMetadata(),
+	}, nil
 }
 
 // PrivateKey is a functionality of Control Service defined in protobuf/control

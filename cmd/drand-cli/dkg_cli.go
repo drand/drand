@@ -2,6 +2,7 @@ package drand
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/core"
@@ -167,7 +168,6 @@ func parseInitialProposal(c *cli.Context) (*drand.FirstProposalOptions, error) {
 		Scheme:               c.String(schemeFlag.Name),
 		CatchupPeriodSeconds: uint32(c.Duration(catchupPeriodFlag.Name).Seconds()),
 		GenesisTime:          timestamppb.New(time.Now().Add(10 * time.Second)),
-		GenesisSeed:          []byte("some-seed"),
 		Joining:              proposalFile.Joining,
 	}, nil
 }
@@ -431,11 +431,19 @@ func printEntry(entry *drand.DKGEntry) {
 		return
 	}
 
+	if entry.State == uint32(dkg.Fresh) {
+		fmt.Println("DKG not yet started!")
+		return
+	}
+
 	fmt.Printf("BeaconID:\t%s\n", entry.BeaconID)
 	fmt.Printf("State:\t\t%s\n", dkg.DKGStatus(entry.State).String())
 	fmt.Printf("Epoch:\t\t%d\n", entry.Epoch)
 	fmt.Printf("Threshold:\t%d\n", entry.Threshold)
 	fmt.Printf("Timeout:\t%s\n", entry.Timeout.AsTime().String())
+	fmt.Printf("GenesisTime:\t%s\n", entry.GenesisTime.AsTime().String())
+	fmt.Printf("TransitionTime:\t%s\n", entry.TransitionTime.AsTime().String())
+	fmt.Printf("GenesisSeed:\t%s\n", hex.EncodeToString(entry.GenesisSeed))
 	fmt.Printf("Leader:\t\t%s\n", entry.Leader.Address)
 	fmt.Println("Joining: [")
 	for _, joiner := range entry.Joining {

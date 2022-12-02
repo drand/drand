@@ -82,6 +82,7 @@ func TestProposalValidation(t *testing.T) {
 			terms: func() *drand.ProposalTerms {
 				proposal := NewValidProposal(beaconID, me)
 				proposal.Epoch = 1
+				proposal.GenesisSeed = nil
 				proposal.Leaving = []*drand.Participant{
 					{
 						Address: "somebody.com",
@@ -291,14 +292,15 @@ func TestProposalValidation(t *testing.T) {
 				p.GenesisTime = timestamppb.New(time.Now())
 				return p
 			}(),
-			expected: InvalidScheme,
+			expected: GenesisTimeNotEqual,
 		},
 		{
 			name:  "for epoch 1, transition time not equal to genesis time returns an error",
 			state: NewFreshState(beaconID),
 			terms: func() *drand.ProposalTerms {
-				p := NewValidProposal(beaconID, me, someoneElse)
+				p := NewInitialProposal(beaconID, me, someoneElse)
 				p.Epoch = 1
+				p.GenesisSeed = nil
 				p.TransitionTime = timestamppb.New(time.Now())
 				return p
 			}(),
@@ -325,6 +327,39 @@ func TestProposalValidation(t *testing.T) {
 				return p
 			}(),
 			expected: TransitionTimeBeforeGenesis,
+		},
+		{
+			name:  "for the first epoch, genesis seed cannot be provided",
+			state: NewFreshState(beaconID),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 1
+				p.GenesisSeed = []byte("deadbeef")
+				return p
+			}(),
+			expected: NoGenesisSeedForFirstEpoch,
+		},
+		{
+			name:  "for non-fresh after first epoch, genesis seed must not change",
+			state: NewFullDKGEntry(beaconID, Complete, me),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.GenesisSeed = []byte("something-random")
+				return p
+			}(),
+			expected: GenesisSeedCannotChange,
+		},
+		{
+			name:  "for fresh joining after first epoch, genesis seed must be provided but can be anything",
+			state: NewFreshState(beaconID),
+			terms: func() *drand.ProposalTerms {
+				p := NewValidProposal(beaconID, me, someoneElse)
+				p.Epoch = 2
+				p.GenesisSeed = []byte("something-random")
+				return p
+			}(),
+			expected: nil,
 		},
 	}
 	for _, test := range tests {
@@ -1608,6 +1643,7 @@ func NewFullDKGEntry(beaconID string, status DKGStatus, previousLeader *drand.Pa
 		Timeout:        time.Unix(2549084715, 0), // this will need updated in 2050 :^)
 		SchemeID:       "pedersen-bls-chained",
 		GenesisTime:    time.Unix(1669718523, 0),
+		GenesisSeed:    []byte("deadbeef"),
 		TransitionTime: time.Unix(1669718523, 0),
 		CatchupPeriod:  5 * time.Second,
 		BeaconPeriod:   10 * time.Second,
@@ -1649,6 +1685,7 @@ func NewValidProposal(beaconID string, leader *drand.Participant, others ...*dra
 		Threshold:            1,
 		Timeout:              timestamppb.New(time.Unix(2549084715, 0)), // this will need updated in 2050 :^)
 		GenesisTime:          timestamppb.New(time.Unix(1669718523, 0)),
+		GenesisSeed:          []byte("deadbeef"),
 		TransitionTime:       timestamppb.New(time.Unix(1669718523, 0)),
 		CatchupPeriodSeconds: 5,
 		BeaconPeriodSeconds:  10,

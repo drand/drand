@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/drand/drand/common/scheme"
@@ -59,6 +60,7 @@ func (s DKGStatus) String() string {
 	}
 }
 
+// DKGState !!! if you add a field, make sure you add it to DKGStateTOML AND the FromTOML()/TOML() functions too !!!
 type DKGState struct {
 	BeaconID       string
 	Epoch          uint32
@@ -67,6 +69,7 @@ type DKGState struct {
 	Timeout        time.Time
 	SchemeID       string
 	GenesisTime    time.Time
+	GenesisSeed    []byte
 	TransitionTime time.Time
 	CatchupPeriod  time.Duration
 	BeaconPeriod   time.Duration
@@ -91,6 +94,7 @@ type DKGStateTOML struct {
 	Timeout        time.Time
 	SchemeID       string
 	GenesisTime    time.Time
+	GenesisSeed    []byte
 	TransitionTime time.Time
 	CatchupPeriod  time.Duration
 	BeaconPeriod   time.Duration
@@ -122,6 +126,7 @@ func (d *DKGState) TOML() DKGStateTOML {
 		Timeout:        d.Timeout,
 		SchemeID:       d.SchemeID,
 		GenesisTime:    d.GenesisTime,
+		GenesisSeed:    d.GenesisSeed,
 		TransitionTime: d.TransitionTime,
 		CatchupPeriod:  d.CatchupPeriod,
 		BeaconPeriod:   d.BeaconPeriod,
@@ -156,6 +161,7 @@ func (d DKGStateTOML) FromTOML() (*DKGState, error) {
 		Timeout:        d.Timeout,
 		SchemeID:       d.SchemeID,
 		GenesisTime:    d.GenesisTime,
+		GenesisSeed:    d.GenesisSeed,
 		TransitionTime: d.TransitionTime,
 		CatchupPeriod:  d.CatchupPeriod,
 		BeaconPeriod:   d.BeaconPeriod,
@@ -222,6 +228,7 @@ func (d *DKGState) Proposing(me *drand.Participant, terms *drand.ProposalTerms) 
 		CatchupPeriod:  time.Duration(terms.CatchupPeriodSeconds) * time.Second,
 		BeaconPeriod:   time.Duration(terms.BeaconPeriodSeconds) * time.Second,
 		GenesisTime:    terms.GenesisTime.AsTime(),
+		GenesisSeed:    d.GenesisSeed, // does not exist until the first DKG has completed
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
 		Remaining:      terms.Remaining,
@@ -257,6 +264,7 @@ func (d *DKGState) Proposed(sender *drand.Participant, me *drand.Participant, te
 		CatchupPeriod:  time.Duration(terms.CatchupPeriodSeconds) * time.Second,
 		BeaconPeriod:   time.Duration(terms.BeaconPeriodSeconds) * time.Second,
 		GenesisTime:    terms.GenesisTime.AsTime(),
+		GenesisSeed:    terms.GenesisSeed,
 		TransitionTime: terms.TransitionTime.AsTime(),
 		Leader:         terms.Leader,
 		Remaining:      terms.Remaining,
@@ -388,7 +396,54 @@ func (d *DKGState) Complete(finalGroup []*drand.Participant, share *dkg.DistKeyS
 	d.State = Complete
 	d.FinalGroup = finalGroup
 	d.KeyShare = (*key.Share)(share)
+	g, err := asGroup(d)
+	if err != nil {
+		return nil, err
+	}
+	d.GenesisSeed = g.GenesisSeed
 	return d, nil
+}
+
+// asGroup duplicates work done in the BeaconProcess :'(
+// but essentially for the first epoch we don't know the genesis seed until we generate the group file and create a
+// has of it
+func asGroup(details *DKGState) (key.Group, error) {
+	scheme, found := scheme.GetSchemeByID(details.SchemeID)
+	if !found {
+		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
+	}
+
+	finalGroupSorted := util.SortedByPublicKey(details.FinalGroup)
+	participantToKeyNode := func(index int, participant *drand.Participant) (*key.Node, error) {
+		r, err := util.ToKeyNode(index, participant)
+		if err != nil {
+			return nil, err
+		}
+		return &r, nil
+	}
+	nodes, err := util.TryMapEach[*key.Node](finalGroupSorted, participantToKeyNode)
+	if err != nil {
+		return key.Group{}, err
+	}
+
+	group := key.Group{
+		ID:             details.BeaconID,
+		Threshold:      int(details.Threshold),
+		Period:         details.BeaconPeriod,
+		Scheme:         scheme,
+		CatchupPeriod:  details.CatchupPeriod,
+		Nodes:          nodes,
+		GenesisTime:    details.GenesisTime.Unix(),
+		GenesisSeed:    details.GenesisSeed,
+		TransitionTime: details.TransitionTime.Unix(),
+		PublicKey:      details.KeyShare.Public(),
+	}
+
+	if len(group.GenesisSeed) == 0 {
+		group.GenesisSeed = group.Hash()
+	}
+
+	return group, nil
 }
 
 func (d *DKGState) ReceivedAcceptance(me *drand.Participant, them *drand.Participant) (*DKGState, error) {
@@ -446,6 +501,8 @@ var TimeoutReached = errors.New("timeout has been reached")
 var InvalidBeaconID = errors.New("BeaconID was invalid")
 var InvalidScheme = errors.New("the scheme proposed does not exist")
 var GenesisTimeNotEqual = errors.New("genesis time cannot be changed after the initial DKG")
+var NoGenesisSeedForFirstEpoch = errors.New("the genesis seed is created during the first epoch, so you can't provide it in the proposal")
+var GenesisSeedCannotChange = errors.New("genesis seed cannot change after the first epoch")
 var TransitionTimeMustBeGenesisTime = errors.New("transition time must be the same as the genesis time for the first epoch")
 var TransitionTimeMissing = errors.New("transition time must be provided in a proposal")
 var TransitionTimeBeforeGenesis = errors.New("transition time cannot be before the genesis time")
@@ -540,6 +597,9 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 	}
 
 	if terms.Epoch == 1 {
+		if len(terms.GenesisSeed) != 0 {
+			return NoGenesisSeedForFirstEpoch
+		}
 		if terms.Remaining != nil || terms.Leaving != nil {
 			return OnlyJoinersAllowedForFirstEpoch
 		}
@@ -555,7 +615,7 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 
 	// perhaps this should be stricter?
 	// should there be at least one round? should it be after `time.Now()`?
-	if !currentState.GenesisTime.Before(terms.TransitionTime.AsTime()) {
+	if terms.TransitionTime.AsTime().Before(currentState.GenesisTime) {
 		return TransitionTimeBeforeGenesis
 	}
 
@@ -574,6 +634,10 @@ func ValidateProposal(currentState *DKGState, terms *drand.ProposalTerms) error 
 	if currentState.State != Fresh {
 		if !terms.GenesisTime.AsTime().Equal(currentState.GenesisTime) {
 			return GenesisTimeNotEqual
+		}
+
+		if !bytes.Equal(terms.GenesisSeed, currentState.GenesisSeed) {
+			return GenesisSeedCannotChange
 		}
 
 		// make sure all proposed `remaining` nodes exist in the current epoch

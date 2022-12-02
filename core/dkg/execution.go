@@ -103,12 +103,12 @@ func (d *DKGProcess) startDKGAndBroadcastExecution(beaconID string, me *drand.Pa
 	}
 
 	// we need some state on the DKG process in order to process any incoming gossip messages from the DKG
+	// if other nodes try to send us DKG messages before this is set we're in trouble
+	d.Lock()
 	d.executions[beaconID] = board
-	defer func() {
-		delete(d.executions, beaconID)
-	}()
+	d.Unlock()
 
-	timeBetweenDKGPhases := 1 * time.Second
+	timeBetweenDKGPhases := 2 * time.Second
 	phaser := dkg.NewTimePhaser(timeBetweenDKGPhases)
 	go phaser.Start()
 

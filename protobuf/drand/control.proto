@@ -209,8 +209,11 @@ message PublicKeyRequest {
 
 // PublicKeyResponse holds the public key of a drand node
 message PublicKeyResponse {
-    bytes pubKey = 2;
-    common.Metadata metadata = 3;
+    bytes pubKey = 1;
+    string addr = 2;
+    bool tls = 3;
+    bytes signature = 4;
+    common.Metadata metadata = 5;
 }
 
 // PrivateKeyRequest requests the private key of a drand node

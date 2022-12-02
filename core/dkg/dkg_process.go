@@ -5,6 +5,7 @@ import (
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/kyber/share/dkg"
+	"sync"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type DKGProcess struct {
 	executions       map[string]*echoBroadcast
 	config           Config
 	completedDKGs    chan<- DKGOutput
+	sync.Mutex
 }
 
 type Config struct {

@@ -203,7 +203,7 @@ func (bp *BeaconProcess) transition(dkgOutput dkg.DKGOutput) error {
 }
 
 func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
-	newGroup, err := asGroup(bp, &dkgOutput.New)
+	newGroup, err := asGroup(&dkgOutput.New)
 	if err != nil {
 		return err
 	}
@@ -216,7 +216,7 @@ func (bp *BeaconProcess) transitionToNext(dkgOutput dkg.DKGOutput) error {
 	bp.beacon.TransitionNewGroup(newShare, &newGroup)
 
 	// keep the old beacon running until the `TransitionTime`
-	oldGroup, err := asGroup(bp, dkgOutput.Old)
+	oldGroup, err := asGroup(dkgOutput.Old)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func (bp *BeaconProcess) leaveNetwork() error {
 }
 
 func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
-	newGroup, err := asGroup(bp, &dkgOutput.New)
+	newGroup, err := asGroup(&dkgOutput.New)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func (bp *BeaconProcess) joinNetwork(dkgOutput dkg.DKGOutput) error {
 	return nil
 }
 
-func asGroup(bp *BeaconProcess, details *dkg.DKGState) (key.Group, error) {
+func asGroup(details *dkg.DKGState) (key.Group, error) {
 	scheme, found := scheme.GetSchemeByID(details.SchemeID)
 	if !found {
 		return key.Group{}, fmt.Errorf("the schemeID for the given group did not exist, scheme: %s", details.SchemeID)
@@ -315,16 +315,9 @@ func asGroup(bp *BeaconProcess, details *dkg.DKGState) (key.Group, error) {
 		CatchupPeriod:  details.CatchupPeriod,
 		Nodes:          nodes,
 		GenesisTime:    details.GenesisTime.Unix(),
-		GenesisSeed:    nil,
+		GenesisSeed:    details.GenesisSeed,
 		TransitionTime: details.TransitionTime.Unix(),
 		PublicKey:      details.KeyShare.Public(),
-	}
-
-	// the genesis seed is the hash of the group file, but won't change after the first epoch
-	if bp.group == nil {
-		group.GenesisSeed = group.GetGenesisSeed()
-	} else {
-		group.GenesisSeed = bp.group.GenesisSeed
 	}
 
 	return group, nil

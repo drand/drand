@@ -40,6 +40,7 @@ func (d *DKGProcess) StartNetwork(context context.Context, options *drand.FirstP
 		Leader:      me,
 		SchemeID:    options.Scheme,
 		GenesisTime: options.GenesisTime,
+		GenesisSeed: nil, // is created after the DKG, so it cannot exist yet
 		// for the initial proposal, we want the same transition time as the genesis time
 		// ... or do we? are round 0 and round 1 the same time?
 		TransitionTime:       options.GenesisTime,
@@ -120,6 +121,7 @@ func (d *DKGProcess) StartProposal(context context.Context, options *drand.Propo
 		BeaconPeriodSeconds:  uint32(current.BeaconPeriod.Seconds()),
 		CatchupPeriodSeconds: options.CatchupPeriodSeconds,
 		GenesisTime:          timestamppb.New(current.GenesisTime),
+		GenesisSeed:          current.GenesisSeed,
 		TransitionTime:       options.TransitionTime,
 		Timeout:              options.Timeout,
 		Leader:               me,
@@ -382,18 +384,21 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 		return nil, err
 	}
 	currentEntry := drand.DKGEntry{
-		BeaconID:   current.BeaconID,
-		State:      uint32(current.State),
-		Epoch:      current.Epoch,
-		Threshold:  current.Threshold,
-		Timeout:    timestamppb.New(current.Timeout),
-		Leader:     current.Leader,
-		Remaining:  current.Remaining,
-		Joining:    current.Joining,
-		Leaving:    current.Leaving,
-		Acceptors:  current.Acceptors,
-		Rejectors:  current.Rejectors,
-		FinalGroup: current.FinalGroup,
+		BeaconID:       current.BeaconID,
+		State:          uint32(current.State),
+		Epoch:          current.Epoch,
+		Threshold:      current.Threshold,
+		Timeout:        timestamppb.New(current.Timeout),
+		GenesisTime:    timestamppb.New(current.GenesisTime),
+		GenesisSeed:    current.GenesisSeed,
+		TransitionTime: timestamppb.New(current.TransitionTime),
+		Leader:         current.Leader,
+		Remaining:      current.Remaining,
+		Joining:        current.Joining,
+		Leaving:        current.Leaving,
+		Acceptors:      current.Acceptors,
+		Rejectors:      current.Rejectors,
+		FinalGroup:     current.FinalGroup,
 	}
 
 	if finished == nil {
@@ -404,18 +409,21 @@ func (d *DKGProcess) DKGStatus(_ context.Context, request *drand.DKGStatusReques
 
 	return &drand.DKGStatusResponse{
 		Complete: &drand.DKGEntry{
-			BeaconID:   finished.BeaconID,
-			State:      uint32(finished.State),
-			Epoch:      finished.Epoch,
-			Threshold:  finished.Threshold,
-			Timeout:    timestamppb.New(finished.Timeout),
-			Leader:     finished.Leader,
-			Remaining:  finished.Remaining,
-			Joining:    finished.Joining,
-			Leaving:    finished.Leaving,
-			Acceptors:  finished.Acceptors,
-			Rejectors:  finished.Rejectors,
-			FinalGroup: finished.FinalGroup,
+			BeaconID:       finished.BeaconID,
+			State:          uint32(finished.State),
+			Epoch:          finished.Epoch,
+			Threshold:      finished.Threshold,
+			Timeout:        timestamppb.New(finished.Timeout),
+			GenesisTime:    timestamppb.New(finished.GenesisTime),
+			GenesisSeed:    finished.GenesisSeed,
+			TransitionTime: timestamppb.New(finished.TransitionTime),
+			Leader:         finished.Leader,
+			Remaining:      finished.Remaining,
+			Joining:        finished.Joining,
+			Leaving:        finished.Leaving,
+			Acceptors:      finished.Acceptors,
+			Rejectors:      finished.Rejectors,
+			FinalGroup:     finished.FinalGroup,
 		},
 		Current: &currentEntry,
 	}, nil
@@ -449,10 +457,22 @@ func (d *DKGProcess) executeAndFinishDKG(beaconID string) error {
 		}
 
 		finalState, err := current.Complete(output.FinalGroup, output.KeyShare)
+		if err != nil {
+			return err
+		}
+
+		//// we end up redoing this in the BeaconProcess... maybe there's a better way to pass it around but also persist the state
+		//newGroupFile, err := asGroup(finalState)
+		//if err != nil {
+		//	return err
+		//}
+
+		//finalState.GenesisSeed = newGroupFile.GenesisSeed
 		err = d.store.SaveFinished(beaconID, finalState)
 		if err != nil {
 			return err
 		}
+
 		d.completedDKGs <- DKGOutput{
 			BeaconID: beaconID,
 			Old:      lastCompleted,
