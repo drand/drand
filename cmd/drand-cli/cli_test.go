@@ -717,16 +717,22 @@ func TestDrandReloadBeacon(t *testing.T) {
 	n := 4
 	instances := launchDrandInstances(t, n)
 
+	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
-			inst.shareLeader(t, n, n, 1, beaconID, sch)
+			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
+			// Wait a bit after launching the leader to launch the other nodes too.
+			time.Sleep(500 * time.Millisecond)
 		} else {
-			inst.share(t, instances[0].addr, beaconID)
+			go inst.share(t, instances[0].addr, beaconID, done)
 		}
 	}
 
 	t.Log("waiting for initial set up to settle on all nodes")
-	time.Sleep(3 * time.Second)
+	for i := 0; i < n; i++ {
+		err := <-done
+		require.NoError(t, err)
+	}
 
 	defer func() {
 		for _, inst := range instances {
@@ -773,16 +779,22 @@ func TestDrandLoadNotPresentBeacon(t *testing.T) {
 	n := 4
 	instances := launchDrandInstances(t, n)
 
+	done := make(chan error, n)
 	for i, inst := range instances {
 		if i == 0 {
-			inst.shareLeader(t, n, n, 1, beaconID, sch)
+			go inst.shareLeader(t, n, n, 1, beaconID, sch, done)
+			// Wait a bit after launching the leader to launch the other nodes too.
+			time.Sleep(500 * time.Millisecond)
 		} else {
-			inst.share(t, instances[0].addr, beaconID)
+			go inst.share(t, instances[0].addr, beaconID, done)
 		}
 	}
 
 	t.Log("waiting for initial set up to settle on all nodes")
-	time.Sleep(3 * time.Second)
+	for i := 0; i < n; i++ {
+		err := <-done
+		require.NoError(t, err)
+	}
 
 	defer func() {
 		for _, inst := range instances {
@@ -909,7 +921,11 @@ func (d *drandInstance) stop(beaconID string) error {
 	return CLI().Run([]string{"drand", "stop", "--control", d.ctrlPort, "--id", beaconID})
 }
 
-func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, periodSeconds int, beaconID string, sch scheme.Scheme) {
+func (d *drandInstance) shareLeader(t *testing.T,
+	nodes, threshold, periodSeconds int,
+	beaconID string,
+	sch scheme.Scheme,
+	done chan error) {
 	t.Helper()
 
 	shareArgs := []string{
@@ -924,13 +940,10 @@ func (d *drandInstance) shareLeader(t *testing.T, nodes, threshold, periodSecond
 		"--id", beaconID,
 	}
 
-	go func() {
-		err := CLI().Run(shareArgs)
-		require.NoError(t, err)
-	}()
+	done <- CLI().Run(shareArgs)
 }
 
-func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
+func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string, done chan error) {
 	t.Helper()
 
 	shareArgs := []string{
@@ -941,10 +954,7 @@ func (d *drandInstance) share(t *testing.T, leaderURL, beaconID string) {
 		"--id", beaconID,
 	}
 
-	go func() {
-		err := CLI().Run(shareArgs)
-		require.NoError(t, err)
-	}()
+	done <- CLI().Run(shareArgs)
 }
 
 func (d *drandInstance) load(beaconID string) error {
