@@ -826,7 +826,7 @@ func expectChanFail(t *testing.T, errCh chan error) {
 
 // This test makes sure the "FollowChain" grpc method works fine
 //
-//nolint:funlen
+//nolint:funlen // This is a test function
 func TestDrandFollowChain(t *testing.T) {
 	n, p := 4, 1*time.Second
 	beaconID := test.GetBeaconIDFromEnv()
@@ -929,7 +929,7 @@ func TestDrandFollowChain(t *testing.T) {
 		// check if the beacon is in the database
 		store := newNode.drand.dbStore
 		if newNode.drand.opts.dbStorageEngine == chain.BoltDB {
-			store, err = newNode.drand.createDBStore()
+			store, err = newNode.drand.createDBStore(ctx)
 			require.NoError(t, err)
 		}
 		require.NoError(t, err)
@@ -1021,7 +1021,7 @@ func TestDrandCheckChain(t *testing.T) {
 	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
 	store := dt.nodes[0].drand.dbStore
 	if dt.nodes[0].drand.opts.dbStorageEngine == chain.BoltDB {
-		store, err = dt.nodes[0].drand.createDBStore()
+		store, err = dt.nodes[0].drand.createDBStore(ctx)
 		require.NoError(t, err)
 	}
 
@@ -1052,7 +1052,12 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 1)
-	consumeProgress(t, progress, errCh, 1, false)
+
+	// The reason why this is 2 is that one missing beacon from the database and will affect
+	// the next beacon too. The storage layer cannot compose the chain correctly and a
+	// database heal is now required.
+	incorrectBeacons := uint64(2)
+	consumeProgress(t, progress, errCh, incorrectBeacons, false)
 
 	// we wait to make sure everything is done on the sync manager side before testing.
 	time.Sleep(time.Second)
@@ -1066,9 +1071,9 @@ func TestDrandCheckChain(t *testing.T) {
 	require.NoError(t, err)
 	consumeProgress(t, progress, errCh, upTo, true)
 	// check that progress is (0, 1)
-	consumeProgress(t, progress, errCh, 1, false)
+	consumeProgress(t, progress, errCh, incorrectBeacons, false)
 	// goes on with correcting the chain
-	consumeProgress(t, progress, errCh, 1, true)
+	consumeProgress(t, progress, errCh, incorrectBeacons, true)
 	// now the progress chan should be closed
 	_, ok := <-progress
 	require.False(t, ok)

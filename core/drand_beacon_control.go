@@ -1141,7 +1141,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 		return errors.New("invalid beacon id on chain info")
 	}
 
-	store, err := bp.createDBStore()
+	store, err := bp.createDBStore(context.Background())
 	if err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)

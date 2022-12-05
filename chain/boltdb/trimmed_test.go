@@ -9,39 +9,69 @@ import (
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test"
 )
 
-func TestStoreBoltOrder(t *testing.T) {
+func TestTrimmedStoreBoltOrder(t *testing.T) {
 	tmp := t.TempDir()
-	ctx := IsATest(context.Background())
+	ctx := context.Background()
+	sch := scheme.GetSchemeFromEnv()
+	prevMatters := sch.ID == scheme.DefaultSchemeID
+	if prevMatters {
+		// This test stores b2 then b1. However, when the beacon order matters, the correct
+		// and expected order to store beacons in is b1 then b2.
+		// There's a special beacon.appendStore which serves as an interceptor for these kind
+		// of cases and should error when trying to store b1 if b2 was already stored.
+		// In the previous implementation when the previous signature was also stored with the
+		// current round, this wasn't a problem as the beacon could miss the previous round
+		// yet could be fully retrieved.
+		// However, now that we rely on the previous value actually existing in the database,
+		// this test will fail.
+		// TODO (dlsniper): Agree that this test needs to be updated to reflect the new
+		//  implementation of the Store interface.
+		t.Skipf("This test does not make sense from a chained beacon perspective.")
+	}
+	if prevMatters {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 	l := test.Logger(t)
-	store, err := NewBoltStore(ctx, l, tmp, nil)
+	store, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, store.Close(ctx))
 	}()
 
+	b0 := &chain.Beacon{
+		PreviousSig: nil,
+		Round:       0,
+		Signature:   []byte("round 0 signature"),
+	}
 	b1 := &chain.Beacon{
-		PreviousSig: []byte("a magnificent signature"),
-		Round:       145,
-		Signature:   []byte("one signature to"),
+		PreviousSig: b0.Signature,
+		Round:       1,
+		Signature:   []byte("round 1 signature"),
 	}
 
 	b2 := &chain.Beacon{
-		PreviousSig: []byte("is not worth an invalid one"),
-		Round:       146,
-		Signature:   []byte("govern them all"),
+		PreviousSig: b1.Signature,
+		Round:       2,
+		Signature:   []byte("round 2 signature"),
+	}
+
+	if !prevMatters {
+		b1.PreviousSig = nil
+		b2.PreviousSig = nil
 	}
 
 	// we store b2 and check if it is last
 	require.NoError(t, store.Put(ctx, b2))
 	eb2, err := store.Last(ctx)
 	require.NoError(t, err)
-	require.Equal(t, b2, eb2)
+	require.True(t, b2.Equal(eb2))
 	eb2, err = store.Last(ctx)
 	require.NoError(t, err)
-	require.Equal(t, b2, eb2)
+	require.True(t, b2.Equal(eb2))
 
 	// then we store b1
 	require.NoError(t, store.Put(ctx, b1))
@@ -49,50 +79,70 @@ func TestStoreBoltOrder(t *testing.T) {
 	// and request last again
 	eb2, err = store.Last(ctx)
 	require.NoError(t, err)
-	require.Equal(t, b2, eb2)
+	require.True(t, b2.Equal(eb2))
 }
 
-func TestStoreBolt(t *testing.T) {
+//nolint:funlen // This function has the right length
+func TestTrimmedStoreBolt(t *testing.T) {
 	tmp := t.TempDir()
-	ctx := IsATest(context.Background())
+	ctx := context.Background()
+	sch := scheme.GetSchemeFromEnv()
+	prevMatters := sch.ID == scheme.DefaultSchemeID
+	if prevMatters {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 	l := test.Logger(t)
 
+	var sig0 = []byte{0x00, 0x01, 0x02}
 	var sig1 = []byte{0x01, 0x02, 0x03}
 	var sig2 = []byte{0x02, 0x03, 0x04}
 
-	store, err := NewBoltStore(ctx, l, tmp, nil)
+	store, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 
 	sLen, err := store.Len(ctx)
 	require.NoError(t, err)
 	require.Equal(t, 0, sLen)
 
-	b1 := &chain.Beacon{
-		PreviousSig: sig1,
-		Round:       145,
-		Signature:   sig2,
+	b0 := &chain.Beacon{
+		PreviousSig: nil,
+		Round:       0,
+		Signature:   sig0,
 	}
 
-	b2 := &chain.Beacon{
-		PreviousSig: sig2,
-		Round:       146,
+	b1 := &chain.Beacon{
+		PreviousSig: sig0,
+		Round:       1,
 		Signature:   sig1,
 	}
 
-	require.NoError(t, store.Put(ctx, b1))
-	sLen, err = store.Len(ctx)
-	require.NoError(t, err)
-	require.Equal(t, 1, sLen)
+	b2 := &chain.Beacon{
+		PreviousSig: sig1,
+		Round:       2,
+		Signature:   sig2,
+	}
+
+	if !prevMatters {
+		b1.PreviousSig = nil
+		b2.PreviousSig = nil
+	}
+
+	require.NoError(t, store.Put(ctx, b0))
 
 	require.NoError(t, store.Put(ctx, b1))
 	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 1, sLen)
+	require.Equal(t, 2, sLen)
+
+	require.NoError(t, store.Put(ctx, b1))
+	sLen, err = store.Len(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 2, sLen)
 
 	require.NoError(t, store.Put(ctx, b2))
 	sLen, err = store.Len(ctx)
 	require.NoError(t, err)
-	require.Equal(t, 2, sLen)
+	require.Equal(t, 3, sLen)
 
 	received, err := store.Last(ctx)
 	require.NoError(t, err)
@@ -101,7 +151,7 @@ func TestStoreBolt(t *testing.T) {
 	err = store.Close(ctx)
 	require.NoError(t, err)
 
-	store, err = NewBoltStore(ctx, l, tmp, nil)
+	store, err = newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	require.NoError(t, store.Put(ctx, b1))
 
@@ -112,7 +162,7 @@ func TestStoreBolt(t *testing.T) {
 	err = store.Close(ctx)
 	require.NoError(t, err)
 
-	store, err = NewBoltStore(ctx, l, tmp, nil)
+	store, err = newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	err = store.Put(ctx, b1)
 	require.NoError(t, err)
@@ -120,7 +170,7 @@ func TestStoreBolt(t *testing.T) {
 	require.NoError(t, err)
 
 	err = store.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
-		expecteds := []*chain.Beacon{b1, b2}
+		expecteds := []*chain.Beacon{b0, b1, b2}
 		i := 0
 		b, err := c.First(ctx)
 
@@ -154,11 +204,16 @@ func TestStoreBolt(t *testing.T) {
 	require.Equal(t, chainerrors.ErrNoBeaconStored, err)
 }
 
-func TestStore_Cursor(t *testing.T) {
+func TestTrimmedStore_Cursor(t *testing.T) {
 	tmp := t.TempDir()
-	ctx := IsATest(context.Background())
+	ctx := context.Background()
+	sch := scheme.GetSchemeFromEnv()
+	prevMatters := sch.ID == scheme.DefaultSchemeID
+	if prevMatters {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 	l := test.Logger(t)
-	dbStore, err := NewBoltStore(ctx, l, tmp, nil)
+	dbStore, err := newTrimmedStore(ctx, l, tmp, nil)
 	require.NoError(t, err)
 	defer func() {
 		require.NoError(t, dbStore.Close(ctx))
@@ -175,11 +230,17 @@ func TestStore_Cursor(t *testing.T) {
 
 	beacons := make(map[int]*chain.Beacon, len(sigs)-1)
 
-	for i := 1; i < len(sigs); i++ {
+	for i := 0; i < len(sigs); i++ {
+		var prevSig []byte
+		if i > 0 {
+			prevSig = sigs[i-1]
+		}
 		b := &chain.Beacon{
-			PreviousSig: sigs[i-1],
-			Round:       uint64(i),
-			Signature:   sigs[i],
+			Round:     uint64(i),
+			Signature: sigs[i],
+		}
+		if prevMatters {
+			b.PreviousSig = prevSig
 		}
 
 		beacons[i] = b
@@ -188,15 +249,15 @@ func TestStore_Cursor(t *testing.T) {
 	}
 
 	t.Log("generated beacons:")
-	for i, beacon := range beacons {
-		t.Logf("beacons[%d]: %#v\n", i, *beacon)
+	for i := 0; i < len(beacons); i++ {
+		t.Logf("beacons[%d]: %#v\n", i, *beacons[i])
 	}
 
 	err = dbStore.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
 		b, err := c.Last(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, b)
-		require.Equal(t, beacons[len(beacons)], b)
+		require.True(t, beacons[len(beacons)-1].Equal(b))
 
 		for key, orig := range beacons {
 			t.Logf("seeking beacon %d\n", key)
@@ -204,39 +265,18 @@ func TestStore_Cursor(t *testing.T) {
 			b, err := c.Seek(ctx, uint64(key))
 			require.NoError(t, err)
 			require.NotNil(t, b)
-			require.Equal(t, orig, b)
+			require.True(t, orig.Equal(b))
 
 			n, err := c.Next(ctx)
-			if key == len(beacons) {
+			if key == len(beacons)-1 {
 				require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
 			} else {
 				require.NoError(t, err)
-				require.Equal(t, beacons[key+1], n)
+				require.True(t, beacons[key+1].Equal(n))
 			}
 		}
 
 		return nil
 	})
 	require.NoError(t, err)
-}
-
-func TestShouldUseTrimmedBolt(t *testing.T) {
-	tests := map[string]struct {
-		ctx              context.Context
-		sourceBeaconPath string
-		want             bool
-	}{
-		"with context set and new db":   {IsATest(context.Background()), "./testdata/trimmed.db", false},
-		"with context set and old db":   {IsATest(context.Background()), "./testdata/untrimmed.db", false},
-		"with context unset and new db": {context.Background(), "./testdata/trimmed.db", true},
-		"with context unset and old db": {context.Background(), "./testdata/untrimmed.db", false},
-	}
-	for name, tt := range tests {
-		name := name
-		tt := tt
-		t.Run(name, func(t *testing.T) {
-			got := shouldUseTrimmedBolt(tt.ctx, tt.sourceBeaconPath, nil)
-			require.Equal(t, tt.want, got)
-		})
-	}
 }

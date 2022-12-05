@@ -22,3 +22,8 @@ CREATE TABLE beacon_details (
     CONSTRAINT pk_beacon_id_round PRIMARY KEY (beacon_id, round),
     CONSTRAINT fk_beacon_id FOREIGN KEY (beacon_id) REFERENCES beacons(id) ON DELETE CASCADE
 );
+
+-- Version: 1.04
+-- Description: Drop the previous_sig column
+ALTER TABLE beacon_details
+    DROP COLUMN previous_sig;

@@ -9,14 +9,19 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/test"
 )
 
 func TestStoreCallback(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
+	sch := scheme.GetSchemeFromEnv()
+	if sch.ID == scheme.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 	l := test.Logger(t)
-	bbstore, err := boltdb.NewBoltStore(l, dir, nil)
+	bbstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
 	cb := NewCallbackStore(bbstore)
 	id1 := "superid"

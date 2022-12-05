@@ -45,7 +45,7 @@ func StopPGDB(c *Container) {
 // NewUnit creates a test database inside a Docker container. It creates the
 // required table structure but the database is otherwise empty. It returns
 // the database to use as well as a function to call at the end of the test.
-func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, func()) {
+func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB) {
 	t.Helper()
 
 	dbName = strings.ToLower(dbName)
@@ -96,7 +96,7 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 
 	// teardown is the function that should be invoked when the caller is done
 	// with the database.
-	teardown := func() {
+	t.Cleanup(func() {
 		t.Helper()
 		err := db.Close()
 		require.NoError(t, err)
@@ -105,9 +105,9 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB, f
 		fmt.Println("******************** LOGS ********************")
 		fmt.Print(buf.String())
 		fmt.Println("******************** LOGS ********************")
-	}
+	})
 
-	return l, db, teardown
+	return l, db
 }
 
 // ComputeDBName helps generate new, unique database names during the runtime of a test.

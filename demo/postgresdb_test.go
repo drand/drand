@@ -47,6 +47,5 @@ func withPgDSN(t *testing.T) func() string {
 }
 
 func withTestDBUnit(t *testing.T, dbName string) {
-	_, _, cleanup := test.NewUnit(t, c, dbName)
-	t.Cleanup(cleanup)
+	_, _ = test.NewUnit(t, c, dbName)
 }

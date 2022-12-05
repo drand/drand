@@ -949,6 +949,10 @@ func deleteBeaconCmd(c *cli.Context) error {
 	l := log.NewLogger(nil, level)
 
 	ctx := c.Context
+	sch := scheme.GetSchemeFromEnv()
+	if sch.ID == scheme.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 
 	var er error
 	for beaconID, storePath := range stores {
@@ -957,7 +961,7 @@ func deleteBeaconCmd(c *cli.Context) error {
 		}
 		// Using an anonymous function to not leak the defer
 		er = func() error {
-			store, err := boltdb.NewBoltStore(l, path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
+			store, err := boltdb.NewBoltStore(ctx, l, path.Join(storePath, core.DefaultDBFolder), conf.BoltOptions())
 			if err != nil {
 				return fmt.Errorf("beacon id [%s] - invalid bolt store creation: %w", beaconID, err)
 			}

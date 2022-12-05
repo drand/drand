@@ -9,6 +9,7 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/postgresdb/pgdb"
+	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
 )
@@ -29,6 +30,13 @@ func TestMain(m *testing.M) {
 
 func createStore(t *testing.T, l log.Logger, _ *BeaconTest, _ int) (chain.Store, error) {
 	dbName := test.ComputeDBName()
-	_, dbConn, _ := test.NewUnit(t, c, dbName)
-	return pgdb.NewStore(context.Background(), l, dbConn, dbName)
+	_, dbConn := test.NewUnit(t, c, dbName)
+
+	ctx := context.Background()
+	sch := scheme.GetSchemeFromEnv()
+	if sch.ID == scheme.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
+
+	return pgdb.NewStore(ctx, l, dbConn, dbName)
 }

@@ -19,9 +19,12 @@ func TestSchemeStore(t *testing.T) {
 
 	dir := t.TempDir()
 	ctx := context.Background()
+	if sch.Name == crypto.DefaultSchemeID {
+		ctx = chain.SetPreviousRequiredOnContext(ctx)
+	}
 
 	l := test.Logger(t)
-	bstore, err := boltdb.NewBoltStore(l, dir, nil)
+	bstore, err := boltdb.NewBoltStore(ctx, l, dir, nil)
 	require.NoError(t, err)
 
 	genesisBeacon := chain.GenesisBeacon([]byte("genesis_signature"))

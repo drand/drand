@@ -26,8 +26,7 @@ func TestMain(m *testing.M) {
 
 func withTestDB(t *testing.T, dbName string) ConfigOption {
 	return func(cfg *Config) {
-		_, conn, cleanup := test.NewUnit(t, c, dbName)
-		defer t.Cleanup(cleanup)
+		_, conn := test.NewUnit(t, c, dbName)
 		cfg.pgConn = conn
 	}
 }
