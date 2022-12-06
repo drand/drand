@@ -7,7 +7,7 @@
   <a href="https://codecov.io/gh/drand/drand" title="Coverage"><img src="https://codecov.io/gh/drand/drand/branch/master/graph/badge.svg" /></a>
   <a href="https://goreportcard.com/report/github.com/drand/drand" title="Go Report Card"><img src="https://goreportcard.com/badge/github.com/drand/drand" /></a>
   <a href="https://pkg.go.dev/github.com/drand/drand" title="go.dev reference"><img src="https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white" /></a>
-  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/Golang-%3E%3D1.19-orange" /></a>
+  <a href="https://golang.org/" title="golang version"><img src="https://img.shields.io/badge/Golang-%3E%3D1.19-orange.svg" /></a>
 </p>
 
 <p align="center">
