@@ -19,6 +19,6 @@ CREATE TABLE beacon_details (
     signature     BYTEA   NOT NULL,
     previous_sig  BYTEA       NULL,
 
-    PRIMARY KEY (round),
-    FOREIGN KEY (beacon_id) REFERENCES beacons(id) ON DELETE CASCADE
+    CONSTRAINT pk_beacon_id_round PRIMARY KEY (beacon_id, round),
+    CONSTRAINT fk_beacon_id FOREIGN KEY (beacon_id) REFERENCES beacons(id) ON DELETE CASCADE
 );
