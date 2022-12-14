@@ -336,6 +336,7 @@ func queryString(query string, args ...any) (string, error) {
 	}
 
 	query = strings.ReplaceAll(query, "\t", "")
+	query = strings.ReplaceAll(query, "\r", " ")
 	query = strings.ReplaceAll(query, "\n", " ")
 
 	return strings.Trim(query, " "), nil

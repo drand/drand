@@ -28,7 +28,7 @@ func NewStore(ctx context.Context, l log.Logger, db sqlx.ExtContext, beaconName 
 		db:  db,
 	}
 
-	id, err := p.AddBeacon(ctx, beaconName)
+	id, err := p.AddBeaconID(ctx, beaconName)
 	if err != nil {
 		return nil, err
 	}
@@ -43,8 +43,8 @@ func (p *Store) Close(context.Context) error {
 	return nil
 }
 
-// AddBeacon adds the beacon to the database if it does not exist.
-func (p *Store) AddBeacon(ctx context.Context, beaconName string) (int, error) {
+// AddBeaconID adds the beacon to the database if it does not exist.
+func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error) {
 	const create = `
 	INSERT INTO beacons
 		(name)

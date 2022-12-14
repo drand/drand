@@ -87,7 +87,7 @@ func (b *BoltStore) Put(_ context.Context, beacon *chain.Beacon) error {
 		}
 		err = bucket.Put(key, buff)
 		if err != nil {
-			b.log.Debugw("stored beacon", "round", beacon.Round, "err", err)
+			b.log.Debugw("storing beacon", "round", beacon.Round, "err", err)
 		}
 		return err
 	})

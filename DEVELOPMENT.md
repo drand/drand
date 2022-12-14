@@ -45,11 +45,12 @@ To check your code against it, run `make test-unit-postgres`.
 You can also run the `make demo-postgres` command to launch the scripted demo using
 PostgreSQL as a backend.
 
-If you want to run an isolated version of Postgres, you can use the `docker-compose.yaml` file
+If you want to run an isolated version of Postgres, you can use the `test/docker-compose.yaml` file
 from the root of this repository to do so.
 
 To start the database, use:
 ```shell
+cd test/
 docker-compose up -d
 ```
 

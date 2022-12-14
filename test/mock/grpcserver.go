@@ -176,8 +176,6 @@ func testValid(d *Data) {
 	if err := key.Scheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
 		panic("should be invalid signature")
 	}
-	// fmt.Println("valid signature")
-	// VerifyRecovered(public kyber.Point, msg, sig []byte) error
 }
 
 func decodeHex(s string) []byte {
