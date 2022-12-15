@@ -18,8 +18,8 @@ import (
 	"github.com/drand/drand/log"
 )
 
-// StartDB starts a database instance.
-func StartDB() (*Container, error) {
+// StartPGDB starts a database instance.
+func StartPGDB() (*Container, error) {
 	image := "postgres:15.1-alpine3.16"
 	port := "5432"
 	args := []string{"-e", "POSTGRES_PASSWORD=postgres"}
@@ -36,8 +36,8 @@ func StartDB() (*Container, error) {
 	return c, nil
 }
 
-// StopDB stops a running database instance.
-func StopDB(c *Container) {
+// StopPGDB stops a running database instance.
+func StopPGDB(c *Container) {
 	StopContainer(c.ID)
 	fmt.Println("Stopped:", c.ID)
 }

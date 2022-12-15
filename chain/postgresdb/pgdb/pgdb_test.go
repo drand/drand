@@ -20,12 +20,12 @@ var c *test.Container
 
 func TestMain(m *testing.M) {
 	var err error
-	c, err = test.StartDB()
+	c, err = test.StartPGDB()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer test.StopDB(c)
+	defer test.StopPGDB(c)
 
 	m.Run()
 }

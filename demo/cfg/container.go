@@ -17,12 +17,12 @@ var c *test.Container
 
 func BootContainer() func() {
 	var err error
-	c, err = test.StartDB()
+	c, err = test.StartPGDB()
 	if err != nil {
 		panic(err)
 	}
 	return func() {
-		test.StopDB(c)
+		test.StopPGDB(c)
 	}
 }
 
