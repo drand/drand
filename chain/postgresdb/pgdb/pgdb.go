@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
 	"github.com/drand/drand/log"
-
-	"github.com/jmoiron/sqlx"
 )
 
 // Store represents access to the postgres database for beacon management.
@@ -77,9 +77,7 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int64, erro
 	if err != nil {
 		return 0, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return 0, sql.ErrNoRows
@@ -96,12 +94,28 @@ func (p *Store) Len(ctx context.Context) (int, error) {
 	FROM
 		beacon_details
 	WHERE
-		beacon_id = $1`
+		beacon_id = :beacon_id`
+
+	data := struct {
+		BeaconID int64 `db:"beacon_id"`
+	}{
+		BeaconID: p.beaconID,
+	}
 
 	var ret struct {
 		Count int `db:"count"`
 	}
-	err := p.db.GetContext(ctx, &ret, query, p.beaconID)
+	rows, err := p.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return 0, chainerrors.ErrNoBeaconStored
+	}
+
+	err = rows.StructScan(&ret)
 	return ret.Count, err
 }
 
@@ -154,9 +168,7 @@ func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
@@ -194,9 +206,7 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
@@ -277,9 +287,7 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
@@ -322,9 +330,7 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
@@ -362,9 +368,7 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
@@ -402,9 +406,7 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
@@ -447,9 +449,7 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		_ = rows.Close()
-	}()
+	defer rows.Close()
 
 	if !rows.Next() {
 		return chainerrors.ErrNoBeaconStored
