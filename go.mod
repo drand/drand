@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/BurntSushi/toml v1.1.0
 	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
-	github.com/ardanlabs/darwin v1.4.0
+	github.com/ardanlabs/darwin v1.5.0
 	github.com/aws/aws-sdk-go v1.44.114
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
