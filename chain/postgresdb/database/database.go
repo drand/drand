@@ -12,23 +12,9 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/lib/pq" // Calls init function.
+	_ "github.com/lib/pq" // Calls init function.
 
 	"github.com/drand/drand/log"
-)
-
-// lib/pq errorCodeNames
-// https://github.com/lib/pq/blob/master/error.go#L178
-const (
-	uniqueViolation = "23505"
-	undefinedTable  = "42P01"
-)
-
-// Set of error variables for CRUD operations.
-var (
-	ErrDBNotFound        = sql.ErrNoRows
-	ErrDBDuplicatedEntry = errors.New("duplicated entry")
-	ErrUndefinedTable    = errors.New("undefined table")
 )
 
 // Config is the required properties to use the database.
@@ -177,10 +163,6 @@ func WithinTran(l log.Logger, db *sqlx.DB, fn func(*sqlx.Tx) error) error {
 	}()
 
 	if err := fn(tx); err != nil {
-		//nolint:errorlint // Have no clue why this is a problem :(.
-		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == uniqueViolation {
-			return ErrDBDuplicatedEntry
-		}
 		return fmt.Errorf("exec tran: %w", err)
 	}
 
@@ -213,20 +195,8 @@ func NamedExecContext(ctx context.Context, l log.Logger, db sqlx.ExtContext, que
 		l.AddCallerSkip(1).Infow("database.NamedExecContext", "query", q)
 	}
 
-	if _, err := sqlx.NamedExecContext(ctx, db, query, data); err != nil {
-		//nolint:errorlint // Have no clue why this is a problem :(.
-		if pqerr, ok := err.(*pq.Error); ok {
-			switch pqerr.Code {
-			case undefinedTable:
-				return ErrUndefinedTable
-			case uniqueViolation:
-				return ErrDBDuplicatedEntry
-			}
-		}
-		return err
-	}
-
-	return nil
+	_, err = sqlx.NamedExecContext(ctx, db, query, data)
+	return err
 }
 
 // QuerySlice is a helper function for executing queries that return a
@@ -252,10 +222,6 @@ func NamedQuerySlice[T any](ctx context.Context, l log.Logger, db sqlx.ExtContex
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
-		//nolint:errorlint // We want this
-		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == undefinedTable {
-			return ErrUndefinedTable
-		}
 		return err
 	}
 	defer rows.Close()
@@ -296,16 +262,12 @@ func NamedQueryStruct(ctx context.Context, l log.Logger, db sqlx.ExtContext, que
 
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, data)
 	if err != nil {
-		//nolint:errorlint // Have no clue why this is a problem :(.
-		if pqerr, ok := err.(*pq.Error); ok && pqerr.Code == undefinedTable {
-			return ErrUndefinedTable
-		}
 		return err
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return ErrDBNotFound
+		return sql.ErrNoRows
 	}
 
 	if err := rows.StructScan(dest); err != nil {
@@ -341,3 +303,4 @@ func queryString(query string, args ...any) (string, error) {
 
 	return strings.Trim(query, " "), nil
 }
+
