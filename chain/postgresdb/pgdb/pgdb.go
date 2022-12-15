@@ -2,12 +2,12 @@ package pgdb
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 
 	"github.com/drand/drand/chain"
 	chainerrors "github.com/drand/drand/chain/errors"
-	"github.com/drand/drand/chain/postgresdb/database"
 	"github.com/drand/drand/log"
 
 	"github.com/jmoiron/sqlx"
@@ -16,13 +16,13 @@ import (
 // Store represents access to the postgres database for beacon management.
 type Store struct {
 	log      log.Logger
-	db       sqlx.ExtContext
-	beaconID int
+	db       *sqlx.DB
+	beaconID int64
 }
 
 // NewStore returns a new store that provides the CRUD based API needed for
 // supporting drand serialization.
-func NewStore(ctx context.Context, l log.Logger, db sqlx.ExtContext, beaconName string) (*Store, error) {
+func NewStore(ctx context.Context, l log.Logger, db *sqlx.DB, beaconName string) (*Store, error) {
 	p := Store{
 		log: l,
 		db:  db,
@@ -44,7 +44,7 @@ func (p *Store) Close(context.Context) error {
 }
 
 // AddBeaconID adds the beacon to the database if it does not exist.
-func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error) {
+func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int64, error) {
 	const create = `
 	INSERT INTO beacons
 		(name)
@@ -57,7 +57,8 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error)
 	}{
 		Name: beaconName,
 	}
-	if err := database.NamedExecContext(ctx, p.log, p.db, create, data); err != nil {
+
+	if _, err := p.db.NamedExecContext(ctx, create, data); err != nil {
 		return 0, err
 	}
 
@@ -67,16 +68,24 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error)
 	FROM
 		beacons
 	WHERE
-		name = :name`
+		name = :name
+	LIMIT 1`
 
-	var ret struct {
-		ID int `db:"id"`
-	}
-	if err := database.NamedQueryStruct(ctx, p.log, p.db, query, data, &ret); err != nil {
+	var ret int64
+
+	rows, err := p.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	return ret.ID, nil
+	if !rows.Next() {
+		return 0, sql.ErrNoRows
+	}
+	err = rows.Scan(&ret)
+	return ret, err
 }
 
 // Len returns the number of beacons in the configured beacon table.
@@ -87,22 +96,13 @@ func (p *Store) Len(ctx context.Context) (int, error) {
 	FROM
 		beacon_details
 	WHERE
-		beacon_id = :id`
-
-	data := struct {
-		ID int `db:"id"`
-	}{
-		ID: p.beaconID,
-	}
+		beacon_id = $1`
 
 	var ret struct {
 		Count int `db:"count"`
 	}
-	if err := database.NamedQueryStruct(ctx, p.log, p.db, query, data, &ret); err != nil {
-		return 0, err
-	}
-
-	return ret.Count, nil
+	err := p.db.GetContext(ctx, &ret, query, p.beaconID)
+	return ret.Count, err
 }
 
 // Put adds the specified beacon to the database.
@@ -115,7 +115,7 @@ func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
 	ON CONFLICT DO NOTHING`
 
 	data := struct {
-		BeaconID int `db:"beacon_id"`
+		BeaconID int64 `db:"beacon_id"`
 		dbBeacon
 	}{
 		BeaconID: p.beaconID,
@@ -126,11 +126,8 @@ func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
 		},
 	}
 
-	if err := database.NamedExecContext(ctx, p.log, p.db, query, data); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := p.db.NamedExecContext(ctx, query, data)
+	return err
 }
 
 // Last returns the last beacon stored in the configured beacon table.
@@ -147,22 +144,29 @@ func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID int `db:"id"`
+		ID int64 `db:"id"`
 	}{
 		ID: p.beaconID,
 	}
 
-	var dbBeacons []dbBeacon
-	err := database.NamedQuerySlice(ctx, p.log, p.db, query, data, &dbBeacons)
+	var ret dbBeacon
+	rows, err := p.db.NamedQueryContext(ctx, query, data)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	if len(dbBeacons) == 0 {
-		return nil, chainerrors.ErrNoBeaconSaved
+	if !rows.Next() {
+		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	return toChainBeacon(dbBeacons[0]), nil
+	if err := rows.StructScan(&ret); err != nil {
+		return nil, err
+	}
+
+	return toChainBeacon(ret), nil
 }
 
 // Get returns the specified beacon from the configured beacon table.
@@ -178,19 +182,28 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID    int    `db:"id"`
+		ID    int64  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    p.beaconID,
 		Round: round,
 	}
 
-	var dbBeacon dbBeacon
-	if err := database.NamedQueryStruct(ctx, p.log, p.db, query, data, &dbBeacon); err != nil {
+	var ret dbBeacon
+	rows, err := p.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
+	err = rows.StructScan(&ret)
 
-	return toChainBeacon(dbBeacon), nil
+	return toChainBeacon(ret), nil
 }
 
 // Del removes the specified round from the beacon table.
@@ -203,18 +216,15 @@ func (p *Store) Del(ctx context.Context, round uint64) error {
 		round = :round`
 
 	data := struct {
-		ID    int    `db:"id"`
+		ID    int64  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    p.beaconID,
 		Round: round,
 	}
 
-	if err := database.NamedExecContext(ctx, p.log, p.db, query, data); err != nil {
-		return err
-	}
-
-	return nil
+	_, err := p.db.NamedExecContext(ctx, query, data)
+	return err
 }
 
 // Cursor returns a cursor for iterating over the beacon table.
@@ -257,21 +267,29 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 		round ASC LIMIT 1`
 
 	data := struct {
-		ID int `db:"id"`
+		ID int64 `db:"id"`
 	}{
 		ID: c.store.beaconID,
 	}
 
-	var dbBeacons []dbBeacon
-	if err := database.NamedQuerySlice(ctx, c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
+	var ret dbBeacon
+	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	if len(dbBeacons) == 0 {
+	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	return toChainBeacon(dbBeacons[0]), nil
+	if err := rows.StructScan(&ret); err != nil {
+		return nil, err
+	}
+
+	return toChainBeacon(ret), nil
 }
 
 // Next returns the next beacon from the configured beacon table.
@@ -292,23 +310,31 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID     int    `db:"id"`
+		ID     int64  `db:"id"`
 		Offset uint64 `db:"offset"`
 	}{
 		ID:     c.store.beaconID,
 		Offset: c.pos + 1,
 	}
 
-	var dbBeacons []dbBeacon
-	if err := database.NamedQuerySlice(ctx, c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
+	var ret dbBeacon
+	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	if len(dbBeacons) == 0 {
+	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	return toChainBeacon(dbBeacons[0]), nil
+	if err := rows.StructScan(&ret); err != nil {
+		return nil, err
+	}
+
+	return toChainBeacon(ret), nil
 }
 
 // Seek searches the beacon table for the specified round
@@ -324,23 +350,32 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 	LIMIT 1`
 
 	data := struct {
-		ID    int    `db:"id"`
+		ID    int64  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    c.store.beaconID,
 		Round: round,
 	}
 
-	var dbBeacon dbBeacon
-	if err := database.NamedQueryStruct(ctx, c.store.log, c.store.db, query, data, &dbBeacon); err != nil {
+	var ret dbBeacon
+	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
+	err = rows.StructScan(&ret)
 
 	if err := c.seekPosition(ctx, round); err != nil {
 		return nil, err
 	}
 
-	return toChainBeacon(dbBeacon), nil
+	return toChainBeacon(ret), nil
 }
 
 // Last returns the last beacon from the configured beacon table.
@@ -357,25 +392,33 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID int `db:"id"`
+		ID int64 `db:"id"`
 	}{
 		ID: c.store.beaconID,
 	}
 
-	var dbBeacons []dbBeacon
-	if err := database.NamedQuerySlice(ctx, c.store.log, c.store.db, query, data, &dbBeacons); err != nil {
+	var ret dbBeacon
+	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	if len(dbBeacons) == 0 {
+	if !rows.Next() {
 		return nil, chainerrors.ErrNoBeaconStored
 	}
 
-	if err := c.seekPosition(ctx, dbBeacons[0].Round); err != nil {
+	if err := rows.StructScan(&ret); err != nil {
 		return nil, err
 	}
 
-	return toChainBeacon(dbBeacons[0]), nil
+	if err := c.seekPosition(ctx, ret.Round); err != nil {
+		return nil, err
+	}
+
+	return toChainBeacon(ret), nil
 }
 
 // seekPosition updates the cursor position in the database for the next operation to work
@@ -390,7 +433,7 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 		AND round < :round`
 
 	data := struct {
-		ID    int    `db:"id"`
+		ID    int64  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    c.store.beaconID,
@@ -400,11 +443,19 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 	var p struct {
 		Position uint64 `db:"round_offset"`
 	}
-	if err := database.NamedQueryStruct(ctx, c.store.log, c.store.db, query, data, &p); err != nil {
+	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	if !rows.Next() {
+		return chainerrors.ErrNoBeaconStored
+	}
+	err = rows.StructScan(&p)
 
 	c.pos = p.Position
-
-	return nil
+	return err
 }
