@@ -303,4 +303,3 @@ func queryString(query string, args ...any) (string, error) {
 
 	return strings.Trim(query, " "), nil
 }
-
