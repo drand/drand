@@ -60,7 +60,7 @@ test-integration:
 test-integration-postgres:
 	go test -v ./demo
 	go test -race -short -tags integration -v ./...
-	cd demo && go build && ./demo -db=postgres -build -test -debug
+	cd demo && go build && ./demo -dbtype=postgres -build -test -debug
 
 coverage:
 	go get -v -t -d ./...
@@ -71,7 +71,7 @@ demo:
 	#cd demo && sudo ./run.sh
 
 demo-postgres:
-	cd demo && go build && ./demo -db=postgres -build
+	cd demo && go build && ./demo -dbtype=postgres -build
 
 ############################################ Build ############################################
 
