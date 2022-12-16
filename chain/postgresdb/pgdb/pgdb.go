@@ -163,22 +163,7 @@ func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
 		ID: p.beaconID,
 	}
 
-	var ret dbBeacon
-	rows, err := p.db.NamedQueryContext(ctx, query, data)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-
-	if err := rows.StructScan(&ret); err != nil {
-		return nil, err
-	}
-
-	return toChainBeacon(ret), nil
+	return p.getBeacon(ctx, query, data)
 }
 
 // Get returns the specified beacon from the configured beacon table.
@@ -201,19 +186,7 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 		Round: round,
 	}
 
-	var ret dbBeacon
-	rows, err := p.db.NamedQueryContext(ctx, query, data)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-	err = rows.StructScan(&ret)
-
-	return toChainBeacon(ret), nil
+	return p.getBeacon(ctx, query, data)
 }
 
 // Del removes the specified round from the beacon table.
@@ -282,22 +255,7 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	var ret dbBeacon
-	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-
-	if err := rows.StructScan(&ret); err != nil {
-		return nil, err
-	}
-
-	return toChainBeacon(ret), nil
+	return c.store.getBeacon(ctx, query, data)
 }
 
 // Next returns the next beacon from the configured beacon table.
@@ -325,22 +283,7 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 		Offset: c.pos + 1,
 	}
 
-	var ret dbBeacon
-	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-
-	if err := rows.StructScan(&ret); err != nil {
-		return nil, err
-	}
-
-	return toChainBeacon(ret), nil
+	return c.store.getBeacon(ctx, query, data)
 }
 
 // Seek searches the beacon table for the specified round
@@ -363,23 +306,13 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 		Round: round,
 	}
 
-	var ret dbBeacon
-	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	ret, err := c.store.getBeacon(ctx, query, data)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	if !rows.Next() {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-	err = rows.StructScan(&ret)
-
-	if err := c.seekPosition(ctx, round); err != nil {
-		return nil, err
-	}
-
-	return toChainBeacon(ret), nil
+	err = c.seekPosition(ctx, ret.Round)
+	return ret, err
 }
 
 // Last returns the last beacon from the configured beacon table.
@@ -401,26 +334,13 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 		ID: c.store.beaconID,
 	}
 
-	var ret dbBeacon
-	rows, err := c.store.db.NamedQueryContext(ctx, query, data)
+	ret, err := c.store.getBeacon(ctx, query, data)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	if !rows.Next() {
-		return nil, chainerrors.ErrNoBeaconStored
-	}
-
-	if err := rows.StructScan(&ret); err != nil {
-		return nil, err
-	}
-
-	if err := c.seekPosition(ctx, ret.Round); err != nil {
-		return nil, err
-	}
-
-	return toChainBeacon(ret), nil
+	err = c.seekPosition(ctx, ret.Round)
+	return ret, err
 }
 
 // seekPosition updates the cursor position in the database for the next operation to work
@@ -458,4 +378,23 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 
 	c.pos = p.Position
 	return err
+}
+
+func (p *Store) getBeacon(ctx context.Context, query string, data interface{}) (*chain.Beacon, error) {
+	var ret dbBeacon
+	rows, err := p.db.NamedQueryContext(ctx, query, data)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, chainerrors.ErrNoBeaconStored
+	}
+
+	if err := rows.StructScan(&ret); err != nil {
+		return nil, err
+	}
+
+	return toChainBeacon(ret), nil
 }
