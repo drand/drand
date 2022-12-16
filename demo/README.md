@@ -30,7 +30,7 @@ Drand supports PostgreSQL as a database backend for beacons.
 To run with PostgreSQL support, use the following command:
 
 ```shell
-go build && ./demo -build -db=postgres
+go build && ./demo -build -dbtype=postgres
 ```
 
 ## Fetching randomness

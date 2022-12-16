@@ -34,7 +34,7 @@ var testF = flag.Bool("test", false, "Run it as a test that finishes.")
 var tls = flag.Bool("tls", true, "Run the nodes with self signed certs.")
 var noCurl = flag.Bool("nocurl", false, "Skip commands using curl.")
 var debug = flag.Bool("debug", false, "Prints the log when panic occurs.")
-var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
+var dbEngineType = flag.String("dbtype", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
 
 func main() {
 	flag.Parse()
