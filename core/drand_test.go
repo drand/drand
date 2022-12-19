@@ -26,6 +26,7 @@ import (
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	context2 "github.com/drand/drand/test/context"
+	"github.com/drand/drand/test/testlogger"
 	"github.com/drand/kyber/share/dkg"
 )
 
@@ -398,7 +399,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 	root := dt.resharedNodes[0].drand
 	rootID := root.priv.Public
 	cm := root.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(cm)
+	client := net.NewGrpcClientFromCertManagerWithLogger(testlogger.New(t), cm)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	resp, err := client.PublicRand(ctx, rootID, new(drand.PublicRandRequest))
@@ -428,6 +429,7 @@ func TestRunDKGReshareTimeout(t *testing.T) {
 
 // this aborts a DKG and then runs another straight after successfully
 func TestAbortDKGAndStartANewOne(t *testing.T) {
+	l := testlogger.New(t)
 	n := 4
 	expectedBeaconPeriod := 5 * time.Second
 	beaconID := test.GetBeaconIDFromEnv()
@@ -442,7 +444,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 	hooks := lifecycleHooks{
 		postAcceptance: func() {
 			leader := dt.nodes[0]
-			leaderClient, err := net.NewDKGControlClient(leader.drand.opts.controlPort)
+			leaderClient, err := net.NewDKGControlClientWithLogger(l, leader.drand.opts.controlPort)
 			require.NoError(t, err)
 
 			// trigger an abort
@@ -459,7 +461,7 @@ func TestAbortDKGAndStartANewOne(t *testing.T) {
 
 			// ensure that the followers also have the aborted status and haven't updated their epoch
 			follower := dt.nodes[1]
-			followerClient, err := net.NewDKGControlClient(follower.drand.opts.controlPort)
+			followerClient, err := net.NewDKGControlClientWithLogger(l, follower.drand.opts.controlPort)
 			require.NoError(t, err)
 			followerStatus, err := followerClient.DKGStatus(context.Background(), &drand.DKGStatusRequest{
 				BeaconID: beaconID,
@@ -491,9 +493,10 @@ func TestDrandPublicChainInfo(t *testing.T) {
 	group, err := dt.RunDKG()
 	require.NoError(t, err)
 
-	chainInfo := chain.NewChainInfo(group)
+	lg := testlogger.New(t)
+	chainInfo := chain.NewChainInfoWithLogger(lg, group)
 	certManager := dt.nodes[0].drand.opts.certmanager
-	client := NewGrpcClientFromCert(chainInfo.Hash(), certManager)
+	client := NewGrpcClientFromCertWithLogger(lg, chainInfo.Hash(), certManager)
 
 	for i, node := range dt.nodes {
 		d := node.drand
@@ -559,7 +562,7 @@ func TestDrandPublicRand(t *testing.T) {
 	}
 
 	cm := root.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(cm)
+	client := net.NewGrpcClientFromCertManagerWithLogger(testlogger.New(t), cm)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -645,7 +648,7 @@ func TestDrandPublicStream(t *testing.T) {
 	}
 
 	cm := root.drand.opts.certmanager
-	client := net.NewGrpcClientFromCertManager(cm)
+	client := net.NewGrpcClientFromCertManagerWithLogger(testlogger.New(t), cm)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -790,7 +793,7 @@ func TestDrandFollowChain(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.opts.certmanager)
+	client := net.NewGrpcClientFromCertManagerWithLogger(dt.nodes[0].drand.log, dt.nodes[0].drand.opts.certmanager)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -800,11 +803,11 @@ func TestDrandFollowChain(t *testing.T) {
 
 	// TEST setup a new node and fetch history
 	newNode := dt.SetupNewNodes(t, 1)[0]
-	newClient, err := net.NewControlClient(newNode.drand.opts.controlPort)
+	newClient, err := net.NewControlClientWithLogger(newNode.drand.log, newNode.drand.opts.controlPort)
 	require.NoError(t, err)
 
 	addrToFollow := []string{rootID.Address()}
-	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	hash := fmt.Sprintf("%x", chain.NewChainInfoWithLogger(testlogger.New(t), group).Hash())
 	tls := true
 
 	// First try with an invalid hash info
@@ -923,7 +926,7 @@ func TestDrandCheckChain(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	client := net.NewGrpcClientFromCertManager(dt.nodes[0].drand.opts.certmanager)
+	client := net.NewGrpcClientFromCertManagerWithLogger(dt.nodes[0].drand.log, dt.nodes[0].drand.opts.certmanager)
 	ctx, cancel := context.WithCancel(ctx)
 
 	// get last round first
@@ -933,7 +936,7 @@ func TestDrandCheckChain(t *testing.T) {
 
 	t.Log(current)
 
-	ctrlClient, err := net.NewControlClient(dt.nodes[0].drand.opts.controlPort)
+	ctrlClient, err := net.NewControlClientWithLogger(dt.nodes[0].drand.log, dt.nodes[0].drand.opts.controlPort)
 	require.NoError(t, err)
 	tls := true
 
@@ -946,7 +949,7 @@ func TestDrandCheckChain(t *testing.T) {
 	// Next trying with a fully valid chain
 	cancel()
 	ctx, cancel = context.WithCancel(context.Background())
-	hash := fmt.Sprintf("%x", chain.NewChainInfo(group).Hash())
+	hash := fmt.Sprintf("%x", chain.NewChainInfoWithLogger(testlogger.New(t), group).Hash())
 	addrToFollow := []string{rootID.Address()}
 	upTo := uint64(5)
 

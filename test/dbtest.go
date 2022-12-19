@@ -16,6 +16,7 @@ import (
 	"github.com/drand/drand/chain/postgresdb/database"
 	"github.com/drand/drand/chain/postgresdb/schema"
 	"github.com/drand/drand/log"
+	"github.com/drand/drand/test/testlogger"
 )
 
 // StartPGDB starts a database instance.
@@ -92,7 +93,7 @@ func NewUnit(t *testing.T, c *Container, dbName string) (log.Logger, *sqlx.DB) {
 
 	var buf bytes.Buffer
 	writer := bufio.NewWriter(&buf)
-	l := log.NewLogger(zapcore.AddSync(writer), log.LogDebug)
+	l := log.New(zapcore.AddSync(writer), testlogger.Level(t), true)
 
 	// teardown is the function that should be invoked when the caller is done
 	// with the database.

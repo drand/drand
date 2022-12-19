@@ -31,9 +31,9 @@ type Client struct {
 	}
 }
 
-// defaultBufferSize controls how many incoming messages can be in-flight until they start
+// DefaultBufferSize controls how many incoming messages can be in-flight until they start
 // to be dropped by the library
-const defaultBufferSize = 100
+const DefaultBufferSize = 100
 
 // SetLog configures the client log output
 func (c *Client) SetLog(l log.Logger) {
@@ -43,14 +43,15 @@ func (c *Client) SetLog(l log.Logger) {
 // WithPubsub provides an option for integrating pubsub notification
 // into a drand client.
 func WithPubsub(ps *pubsub.PubSub) client.Option {
-	return WithPubsubWithOptions(ps, clock.NewRealClock(), defaultBufferSize)
+	l := log.DefaultLogger()
+	return WithPubsubWithOptions(l, ps, clock.NewRealClock(), DefaultBufferSize)
 }
 
 // WithPubsubWithOptions provides an option for integrating pubsub notification
 // into a drand client.
-func WithPubsubWithOptions(ps *pubsub.PubSub, clk clock.Clock, bufferSize int) client.Option {
+func WithPubsubWithOptions(l log.Logger, ps *pubsub.PubSub, clk clock.Clock, bufferSize int) client.Option {
 	return client.WithWatcher(func(info *chain.Info, cache client.Cache) (client.Watcher, error) {
-		c, err := NewWithPubsubWithOptions(ps, info, cache, clk, bufferSize)
+		c, err := NewWithPubsubWithOptions(l, ps, info, cache, clk, bufferSize)
 		if err != nil {
 			return nil, err
 		}
@@ -59,14 +60,17 @@ func WithPubsubWithOptions(ps *pubsub.PubSub, clk clock.Clock, bufferSize int) c
 }
 
 // NewWithPubsub creates a gossip randomness client.
+//
+// Deprecated: Use NewWithPubsubWithLogger
 func NewWithPubsub(ps *pubsub.PubSub, info *chain.Info, cache client.Cache) (*Client, error) {
-	return NewWithPubsubWithOptions(ps, info, cache, clock.NewRealClock(), defaultBufferSize)
+	l := log.DefaultLogger()
+	return NewWithPubsubWithOptions(l, ps, info, cache, clock.NewRealClock(), DefaultBufferSize)
 }
 
 // NewWithPubsubWithOptions creates a gossip randomness client.
 //
-//nolint:funlen // THis is the correct function length
-func NewWithPubsubWithOptions(ps *pubsub.PubSub, info *chain.Info, cache client.Cache, clk clock.Clock, bufferSize int) (*Client, error) {
+//nolint:funlen,lll // THis is the correct function length
+func NewWithPubsubWithOptions(l log.Logger, ps *pubsub.PubSub, info *chain.Info, cache client.Cache, clk clock.Clock, bufferSize int) (*Client, error) {
 	if info == nil {
 		return nil, fmt.Errorf("no chain supplied for joining")
 	}
@@ -76,7 +80,7 @@ func NewWithPubsubWithOptions(ps *pubsub.PubSub, info *chain.Info, cache client.
 		cancel:     cancel,
 		cache:      cache,
 		bufferSize: bufferSize,
-		log:        log.DefaultLogger(),
+		log:        l,
 	}
 
 	chainHash := hex.EncodeToString(info.Hash())

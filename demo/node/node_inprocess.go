@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/drand/drand/protobuf/common"
-	"github.com/drand/drand/util"
 	"os"
 	"os/exec"
 	"path"
 	"time"
+
+	"github.com/drand/drand/protobuf/common"
+	"github.com/drand/drand/util"
 
 	"github.com/kabukky/httpscerts"
 
@@ -56,6 +57,8 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	_ = os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
 
+	lg := log.New(nil, log.DebugLevel, false)
+
 	// make certificates for the node.
 	err := httpscerts.Generate(
 		path.Join(nbase, fmt.Sprintf("server-%d.crt", i)),
@@ -66,7 +69,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 	}
 
 	controlAddr := test.FreeBind(bindAddr)
-	dkgClient, err := net.NewDKGControlClient(controlAddr)
+	dkgClient, err := net.NewDKGControlClientWithLogger(lg, controlAddr)
 	if err != nil {
 		return nil
 	}
@@ -77,7 +80,7 @@ func NewLocalNode(i int, bindAddr string, cfg cfg.Config) *LocalNode {
 		period:       cfg.Period,
 		tls:          cfg.WithTLS,
 		logPath:      logPath,
-		log:          log.NewLogger(nil, log.LogDebug),
+		log:          lg,
 		pubAddr:      test.FreeBind(bindAddr),
 		privAddr:     test.FreeBind(bindAddr),
 		ctrlAddr:     controlAddr,
@@ -120,7 +123,6 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 	}
 
 	opts := []core.ConfigOption{
-		core.WithLogLevel(log.LogDebug, false),
 		core.WithConfigFolder(l.base),
 		core.WithTrustedCerts(certs...),
 		core.WithPublicListenAddress(l.pubAddr),
@@ -139,7 +141,7 @@ func (l *LocalNode) Start(certFolder string, dbEngineType chain.StorageType, pgD
 		opts = append(opts, core.WithInsecure())
 	}
 
-	conf := core.NewConfig(opts...)
+	conf := core.NewConfigWithLogger(l.log, opts...)
 	ks := key.NewFileStore(conf.ConfigFolderMB(), l.beaconID)
 	err = ks.SaveKeyPair(l.priv)
 	if err != nil {
@@ -218,7 +220,7 @@ func (l *LocalNode) ctrl() *net.ControlClient {
 	if l.ctrlClient != nil {
 		return l.ctrlClient
 	}
-	cl, err := net.NewControlClient(l.ctrlAddr)
+	cl, err := net.NewControlClientWithLogger(l.log, l.ctrlAddr)
 	if err != nil {
 		l.log.Errorw("", "drand", "can't instantiate control client", "err", err)
 		return nil
@@ -327,7 +329,7 @@ func (l *LocalNode) GetBeacon(groupPath string, round uint64) (resp *drand.Publi
 	if l.tls {
 		cert = path.Join(l.base, fmt.Sprintf("server-%d.crt", l.i))
 	}
-	c, _ := grpc.New(l.privAddr, cert, cert == "", []byte(""))
+	c, _ := grpc.NewWithLogger(l.log, l.privAddr, cert, cert == "", []byte(""))
 
 	group := l.GetGroup()
 	if group == nil {

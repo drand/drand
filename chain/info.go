@@ -23,10 +23,19 @@ type Info struct {
 	Scheme      string        `json:"scheme"`
 	GenesisTime int64         `json:"genesis_time"`
 	GenesisSeed []byte        `json:"group_hash"`
+	log         log.Logger
 }
 
-// NewChainInfo makes a chain Info from a group
+// NewChainInfo makes a chain Info from a group.
+//
+// Deprecated: Use NewChainInfoWithLogger
 func NewChainInfo(g *key.Group) *Info {
+	l := log.DefaultLogger()
+	return NewChainInfoWithLogger(l, g)
+}
+
+// NewChainInfoWithLogger makes a chain Info from a group
+func NewChainInfoWithLogger(l log.Logger, g *key.Group) *Info {
 	schemeName := g.Scheme.Name
 	if sch, err := crypto.GetSchemeByIDWithDefault(schemeName); err == nil {
 		// if there is an error we keep the provided name, otherwise we set it
@@ -39,6 +48,7 @@ func NewChainInfo(g *key.Group) *Info {
 		PublicKey:   g.PublicKey.Key(),
 		GenesisTime: g.GenesisTime,
 		GenesisSeed: g.GetGenesisSeed(),
+		log:         l,
 	}
 }
 
@@ -52,7 +62,7 @@ func (c *Info) Hash() []byte {
 
 	buff, err := c.PublicKey.MarshalBinary()
 	if err != nil {
-		log.DefaultLogger().Warnw("", "info", "failed to hash pubkey", "err", err)
+		c.log.Warnw("", "info", "failed to hash pubkey", "err", err)
 	}
 
 	_, _ = h.Write(buff)

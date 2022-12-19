@@ -1,16 +1,9 @@
 package node
 
 import (
-	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/BurntSushi/toml"
-	drandnet "github.com/drand/drand/net"
-	"github.com/drand/drand/util"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -19,16 +12,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/core"
 	"github.com/drand/drand/crypto"
 	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/key"
+	"github.com/drand/drand/log"
+	drandnet "github.com/drand/drand/net"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/util"
 )
 
 var secretDKG = "dkgsecret_____________________32"
@@ -91,7 +90,9 @@ func NewNode(i int, cfg cfg.Config) *NodeProc {
 		pgDSN:        cfg.PgDSN(),
 		memDBSize:    cfg.MemDBSize,
 	}
-	n.setup()
+	lg := log.New(nil, log.DefaultLevel, false).
+		Named(fmt.Sprintf("sub-proc-node-%d", i))
+	n.setup(lg)
 	return n
 }
 
@@ -102,7 +103,8 @@ func (n *NodeProc) UpdateBinary(binary string, isCandidate bool) {
 }
 
 func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, error) {
-	defaultManager := drandnet.NewCertManager()
+	l := log.DefaultLogger()
+	defaultManager := drandnet.NewCertManagerWithLogger(l)
 	if err := defaultManager.Add(certPath); err != nil {
 		return nil, err
 	}
@@ -114,7 +116,7 @@ func selfSignedDkgClient(addr string, certPath string) (drand.DKGControlClient, 
 	return drand.NewDKGControlClient(conn), nil
 }
 
-func (n *NodeProc) setup() {
+func (n *NodeProc) setup(lg log.Logger) {
 	var err error
 	// find a free port
 	freePort := test.FreePort()
@@ -129,7 +131,6 @@ func (n *NodeProc) setup() {
 		n.certPath = path.Join(n.base, fmt.Sprintf("server-%d.crt", n.i))
 		n.keyPath = path.Join(n.base, fmt.Sprintf("server-%d.key", n.i))
 		func() {
-			log.SetOutput(new(bytes.Buffer))
 			// XXX how to get rid of that annoying creating cert..
 			err = httpscerts.Generate(n.certPath, n.keyPath, host)
 			if err != nil {
@@ -138,7 +139,7 @@ func (n *NodeProc) setup() {
 		}()
 	}
 
-	dkgClient, err := drandnet.NewDKGControlClient(ctrlPort)
+	dkgClient, err := drandnet.NewDKGControlClientWithLogger(lg, ctrlPort)
 	if err != nil {
 		panic("could not create DKG client")
 	}
@@ -161,7 +162,7 @@ func (n *NodeProc) setup() {
 	newKey := exec.Command(n.binary, args...)
 	runCommand(newKey)
 
-	config := core.NewConfig(core.WithConfigFolder(n.base))
+	config := core.NewConfigWithLogger(lg, core.WithConfigFolder(n.base))
 	n.store = key.NewFileStore(config.ConfigFolderMB(), n.beaconID)
 
 	// verify it's done

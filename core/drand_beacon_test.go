@@ -10,11 +10,12 @@ import (
 
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/crypto"
-	"github.com/drand/drand/log"
 	"github.com/drand/drand/test"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func TestBeaconProcess_Stop(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -26,12 +27,11 @@ func TestBeaconProcess_Stop(t *testing.T) {
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
 		WithInsecure(),
-		WithLogLevel(log.LogDebug, false),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfig(confOptions...))
+	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()
@@ -55,6 +55,7 @@ func TestBeaconProcess_Stop(t *testing.T) {
 }
 
 func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
+	l := testlogger.New(t)
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
 	privs, _ := test.BatchIdentities(1, sch, t.Name())
@@ -66,12 +67,11 @@ func TestBeaconProcess_Stop_MultiBeaconOneBeaconAlreadyStopped(t *testing.T) {
 		WithPrivateListenAddress("127.0.0.1:0"),
 		WithControlPort(port),
 		WithInsecure(),
-		WithLogLevel(log.LogDebug, false),
 	}
 
 	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 
-	dd, err := NewDrandDaemon(NewConfig(confOptions...))
+	dd, err := NewDrandDaemon(NewConfigWithLogger(l, confOptions...))
 	require.NoError(t, err)
 
 	store := test.NewKeyStore()

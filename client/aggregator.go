@@ -23,7 +23,7 @@ const (
 // is passed, a `watch` will be run on the watch client in the absence of external watchers,
 // which will swap watching over to the main client. If no watch client is set and autowatch is off
 // then a single watch will only run when an external watch is requested.
-func newWatchAggregator(c, wc Client, autoWatch bool, autoWatchRetry time.Duration) *watchAggregator {
+func newWatchAggregator(l log.Logger, c, wc Client, autoWatch bool, autoWatchRetry time.Duration) *watchAggregator {
 	if autoWatchRetry == 0 {
 		autoWatchRetry = defaultAutoWatchRetry
 	}
@@ -32,7 +32,7 @@ func newWatchAggregator(c, wc Client, autoWatch bool, autoWatchRetry time.Durati
 		passiveClient:  wc,
 		autoWatch:      autoWatch,
 		autoWatchRetry: autoWatchRetry,
-		log:            log.DefaultLogger(),
+		log:            l,
 		subscribers:    make([]subscriber, 0),
 	}
 	return aggregator

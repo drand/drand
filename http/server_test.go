@@ -16,20 +16,23 @@ import (
 	"github.com/drand/drand/client/grpc"
 	nhttp "github.com/drand/drand/client/http"
 	"github.com/drand/drand/crypto"
+	"github.com/drand/drand/log"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
 	"github.com/drand/drand/test/mock"
+	"github.com/drand/drand/test/testlogger"
 )
 
 func withClient(t *testing.T, clk clock.Clock) (c client.Client, emit func(bool)) {
 	t.Helper()
 	sch, err := crypto.GetSchemeFromEnv()
 	require.NoError(t, err)
-	l, s := mock.NewMockGRPCPublicServer(t, "127.0.0.1:0", true, sch, clk)
+	lg := testlogger.New(t)
+	l, s := mock.NewMockGRPCPublicServer(t, lg, "127.0.0.1:0", true, sch, clk)
 	lAddr := l.Addr()
 	go l.Start()
 
-	c, err = grpc.New(lAddr, "", true, []byte(""))
+	c, err = grpc.NewWithLogger(lg, lAddr, "", true, []byte(""))
 	require.NoError(t, err)
 
 	return c, s.(mock.MockService).EmitRand
@@ -46,13 +49,15 @@ func getWithCtx(ctx context.Context, url string, t *testing.T) *http.Response {
 
 //nolint:funlen
 func TestHTTPRelay(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	clk := clock.NewFakeClockAt(time.Now())
 	c, _ := withClient(t, clk)
 
-	handler, err := New(ctx, "", test.Logger(t))
+	handler, err := New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,13 +156,15 @@ func validateEndpoint(endpoint string, round float64) error {
 }
 
 func TestHTTPWaiting(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	clk := clock.NewFakeClockAt(time.Now())
 	c, push := withClient(t, clk)
 
-	handler, err := New(ctx, "", test.Logger(t))
+	handler, err := New(ctx, "")
 	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
@@ -223,12 +230,14 @@ func TestHTTPWaiting(t *testing.T) {
 }
 
 func TestHTTPWatchFuture(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	clk := clock.NewFakeClockAt(time.Now())
 	c, _ := withClient(t, clk)
 
-	handler, err := New(ctx, "", test.Logger(t))
+	handler, err := New(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -260,12 +269,14 @@ func TestHTTPWatchFuture(t *testing.T) {
 }
 
 func TestHTTPHealth(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	lg := testlogger.New(t)
+	ctx := log.ToContext(context.Background(), lg)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	clk := clock.NewFakeClockAt(time.Now())
 	c, push := withClient(t, clk)
 
-	handler, err := New(ctx, "", test.Logger(t))
+	handler, err := New(ctx, "")
 	require.NoError(t, err)
 
 	info, err := c.Info(ctx)
