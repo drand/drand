@@ -10,14 +10,15 @@ import (
 	"github.com/drand/drand/chain/errors"
 )
 
-// Store ...
+// Store represents access to the in-memory storage for beacon management.
 type Store struct {
 	storeMtx *sync.RWMutex
 	store    []*chain.Beacon
 	maxSize  int
 }
 
-// NewStore ...
+// NewStore returns a new store that provides the CRUD based API needed for
+// supporting drand serialization.
 func NewStore() *Store {
 	const maxSize = 10
 
@@ -86,7 +87,6 @@ func (m *Store) Get(_ context.Context, round uint64) (*chain.Beacon, error) {
 		if beacon.Round == round {
 			return beacon, nil
 		}
-
 	}
 
 	return nil, errors.ErrNoBeaconStored

@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-unit-memdb test-unit-postgres test-integration test-integration-memdb test-integration-postgres demo demo-memdb demo-postgres deploy-local linter install build client drand relay-http relay-gossip relay-s3 install_deps_linux install_deps_darwin install_deps_darwin-m
+.PHONY: test test-unit test-unit-memdb test-unit-postgres test-unit-cover test-unit-memdb-cover test-unit-postgres-cover test-integration test-integration-memdb test-integration-postgres demo demo-memdb demo-postgres deploy-local linter install build client drand relay-http relay-gossip relay-s3 install_deps_linux install_deps_darwin install_deps_darwin-m
 
 VER_PACKAGE=github.com/drand/drand/common
 CLI_PACKAGE=github.com/drand/drand/cmd/drand-cli

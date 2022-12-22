@@ -40,7 +40,6 @@ jobs:
           make drand-relay-s3
 
 
-
   test_chained:
     runs-on: ubuntu-latest
     steps:
