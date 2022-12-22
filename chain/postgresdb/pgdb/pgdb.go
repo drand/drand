@@ -179,7 +179,7 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID    int  `db:"id"`
+		ID    int    `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    p.beaconID,
@@ -199,7 +199,7 @@ func (p *Store) Del(ctx context.Context, round uint64) error {
 		round = :round`
 
 	data := struct {
-		ID    int  `db:"id"`
+		ID    int    `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    p.beaconID,
@@ -276,7 +276,7 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID     int  `db:"id"`
+		ID     int    `db:"id"`
 		Offset uint64 `db:"offset"`
 	}{
 		ID:     c.store.beaconID,
@@ -299,7 +299,7 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 	LIMIT 1`
 
 	data := struct {
-		ID    int  `db:"id"`
+		ID    int    `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    c.store.beaconID,
@@ -355,7 +355,7 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 		AND round < :round`
 
 	data := struct {
-		ID    int  `db:"id"`
+		ID    int    `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    c.store.beaconID,
