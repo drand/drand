@@ -17,7 +17,7 @@ import (
 type Store struct {
 	log      log.Logger
 	db       *sqlx.DB
-	beaconID int64
+	beaconID int
 }
 
 // NewStore returns a new store that provides the CRUD based API needed for
@@ -44,7 +44,7 @@ func (p *Store) Close(context.Context) error {
 }
 
 // AddBeaconID adds the beacon to the database if it does not exist.
-func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int64, error) {
+func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int, error) {
 	const create = `
 	INSERT INTO beacons
 		(name)
@@ -71,7 +71,7 @@ func (p *Store) AddBeaconID(ctx context.Context, beaconName string) (int64, erro
 		name = :name
 	LIMIT 1`
 
-	var ret int64
+	var ret int
 
 	rows, err := p.db.NamedQueryContext(ctx, query, data)
 	if err != nil {
@@ -97,7 +97,7 @@ func (p *Store) Len(ctx context.Context) (int, error) {
 		beacon_id = :beacon_id`
 
 	data := struct {
-		BeaconID int64 `db:"beacon_id"`
+		BeaconID int `db:"beacon_id"`
 	}{
 		BeaconID: p.beaconID,
 	}
@@ -129,7 +129,7 @@ func (p *Store) Put(ctx context.Context, b *chain.Beacon) error {
 	ON CONFLICT DO NOTHING`
 
 	data := struct {
-		BeaconID int64 `db:"beacon_id"`
+		BeaconID int `db:"beacon_id"`
 		dbBeacon
 	}{
 		BeaconID: p.beaconID,
@@ -158,7 +158,7 @@ func (p *Store) Last(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID int64 `db:"id"`
+		ID int `db:"id"`
 	}{
 		ID: p.beaconID,
 	}
@@ -179,7 +179,7 @@ func (p *Store) Get(ctx context.Context, round uint64) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID    int64  `db:"id"`
+		ID    int  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    p.beaconID,
@@ -199,7 +199,7 @@ func (p *Store) Del(ctx context.Context, round uint64) error {
 		round = :round`
 
 	data := struct {
-		ID    int64  `db:"id"`
+		ID    int  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    p.beaconID,
@@ -250,7 +250,7 @@ func (c *cursor) First(ctx context.Context) (*chain.Beacon, error) {
 		round ASC LIMIT 1`
 
 	data := struct {
-		ID int64 `db:"id"`
+		ID int `db:"id"`
 	}{
 		ID: c.store.beaconID,
 	}
@@ -276,7 +276,7 @@ func (c *cursor) Next(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID     int64  `db:"id"`
+		ID     int  `db:"id"`
 		Offset uint64 `db:"offset"`
 	}{
 		ID:     c.store.beaconID,
@@ -299,7 +299,7 @@ func (c *cursor) Seek(ctx context.Context, round uint64) (*chain.Beacon, error) 
 	LIMIT 1`
 
 	data := struct {
-		ID    int64  `db:"id"`
+		ID    int  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    c.store.beaconID,
@@ -329,7 +329,7 @@ func (c *cursor) Last(ctx context.Context) (*chain.Beacon, error) {
 	LIMIT 1`
 
 	data := struct {
-		ID int64 `db:"id"`
+		ID int `db:"id"`
 	}{
 		ID: c.store.beaconID,
 	}
@@ -355,7 +355,7 @@ func (c *cursor) seekPosition(ctx context.Context, round uint64) error {
 		AND round < :round`
 
 	data := struct {
-		ID    int64  `db:"id"`
+		ID    int  `db:"id"`
 		Round uint64 `db:"round"`
 	}{
 		ID:    c.store.beaconID,
