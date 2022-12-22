@@ -27,6 +27,8 @@ func TestBeaconProcess_Stop(t *testing.T) {
 		WithLogLevel(log.LogDebug, false),
 	}
 
+	confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
+
 	dd, err := NewDrandDaemon(NewConfig(confOptions...))
 	require.NoError(t, err)
 
