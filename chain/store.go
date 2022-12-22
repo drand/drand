@@ -57,11 +57,11 @@ func MetricsStorageType(st StorageType) int {
 	// NOTE: Please only append to this list.
 	switch st {
 	case BoltDB:
-		return 1
+		return 1 // We know this to be Bolt
 	case PostgreSQL:
-		return 2
+		return 2 //nolint:gomnd // We know this to be Postgres
 	default:
-		err := fmt.Errorf("unknown storage type for metrics reporting %s", st)
+		err := fmt.Errorf("unknown storage type %q for metrics reporting", st)
 		panic(err)
 	}
 }
