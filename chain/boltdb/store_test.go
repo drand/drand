@@ -18,6 +18,9 @@ func TestStoreBoltOrder(t *testing.T) {
 	l := test.Logger(t)
 	store, err := NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, store.Close(ctx))
+	}()
 
 	b1 := &chain.Beacon{
 		PreviousSig: []byte("a magnificent signature"),
@@ -106,7 +109,8 @@ func TestStoreBolt(t *testing.T) {
 	bb1, err := store.Get(ctx, b1.Round)
 	require.NoError(t, err)
 	require.Equal(t, b1, bb1)
-	store.Close(ctx)
+	err = store.Close(ctx)
+	require.NoError(t, err)
 
 	store, err = NewBoltStore(l, tmp, nil)
 	require.NoError(t, err)
@@ -148,4 +152,70 @@ func TestStoreBolt(t *testing.T) {
 
 	_, err = store.Get(ctx, 10000)
 	require.Equal(t, chainerrors.ErrNoBeaconStored, err)
+}
+
+func TestStore_Cursor(t *testing.T) {
+	tmp := t.TempDir()
+	ctx := context.Background()
+	l := test.Logger(t)
+	dbStore, err := NewBoltStore(l, tmp, nil)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, dbStore.Close(ctx))
+	}()
+
+	sigs := map[int][]byte{
+		0: {0x01, 0x02, 0x03},
+		1: {0x02, 0x03, 0x04},
+		2: {0x03, 0x04, 0x05},
+		3: {0x04, 0x05, 0x06},
+		4: {0x05, 0x06, 0x07},
+		5: {0x06, 0x07, 0x08},
+	}
+
+	beacons := make(map[int]*chain.Beacon, len(sigs)-1)
+
+	for i := 1; i < len(sigs); i++ {
+		b := &chain.Beacon{
+			PreviousSig: sigs[i-1],
+			Round:       uint64(i),
+			Signature:   sigs[i],
+		}
+
+		beacons[i] = b
+
+		require.NoError(t, dbStore.Put(ctx, b))
+	}
+
+	t.Log("generated beacons:")
+	for i, beacon := range beacons {
+		t.Logf("beacons[%d]: %#v\n", i, *beacon)
+	}
+
+	err = dbStore.Cursor(ctx, func(ctx context.Context, c chain.Cursor) error {
+		b, err := c.Last(ctx)
+		require.NoError(t, err)
+		require.NotNil(t, b)
+		require.Equal(t, beacons[len(beacons)], b)
+
+		for key, orig := range beacons {
+			t.Logf("seeking beacon %d\n", key)
+
+			b, err := c.Seek(ctx, uint64(key))
+			require.NoError(t, err)
+			require.NotNil(t, b)
+			require.Equal(t, orig, b)
+
+			n, err := c.Next(ctx)
+			if key == len(beacons) {
+				require.ErrorIs(t, err, chainerrors.ErrNoBeaconStored)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, beacons[key+1], n)
+			}
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
 }

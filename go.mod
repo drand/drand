@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/BurntSushi/toml v1.1.0
 	github.com/HdrHistogram/hdrhistogram-go v1.1.2 // indirect
+	github.com/ardanlabs/darwin/v2 v2.0.0
 	github.com/aws/aws-sdk-go v1.44.114
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -21,8 +22,10 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ds-badger2 v0.1.3
+	github.com/jmoiron/sqlx v1.3.5
 	github.com/jonboulle/clockwork v0.3.0
 	github.com/kabukky/httpscerts v0.0.0-20150320125433-617593d7dcb3
+	github.com/lib/pq v1.10.7
 	github.com/libp2p/go-libp2p v0.23.2
 	github.com/libp2p/go-libp2p-pubsub v0.8.1
 	github.com/multiformats/go-multiaddr v0.7.0

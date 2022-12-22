@@ -1,14 +1,18 @@
 package core
 
 import (
+	"context"
+	"fmt"
 	"path"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	clock "github.com/jonboulle/clockwork"
 	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 
 	"github.com/drand/drand/chain"
+	"github.com/drand/drand/chain/postgresdb/database"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/log"
@@ -25,11 +29,14 @@ type Config struct {
 	privateListenAddr string
 	publicListenAddr  string
 	controlPort       string
+	dbStorageEngine   chain.StorageType
 	insecure          bool
 	dkgTimeout        time.Duration
 	grpcOpts          []grpc.DialOption
 	callOpts          []grpc.CallOption
 	boltOpts          *bolt.Options
+	pgDSN             string
+	pgConn            *sqlx.DB
 	beaconCbs         []func(*chain.Beacon)
 	dkgCallback       func(*key.Share, *key.Group)
 	certPath          string
@@ -45,10 +52,9 @@ func NewConfig(opts ...ConfigOption) *Config {
 	d := &Config{
 		configFolder: DefaultConfigFolder(),
 		dkgTimeout:   DefaultDKGTimeout,
-		//certmanager: net.NewCertManager(),
-		controlPort: DefaultControlPort,
-		logger:      log.DefaultLogger(),
-		clock:       clock.NewRealClock(),
+		controlPort:  DefaultControlPort,
+		logger:       log.DefaultLogger(),
+		clock:        clock.NewRealClock(),
 	}
 	for i := range opts {
 		opts[i](d)
@@ -157,6 +163,46 @@ func WithBoltOptions(opts *bolt.Options) ConfigOption {
 // BoltOptions returns the options given to the bolt db
 func (d *Config) BoltOptions() *bolt.Options {
 	return d.boltOpts
+}
+
+// WithDBStorageEngine allows setting the specific storage type
+func WithDBStorageEngine(engine chain.StorageType) ConfigOption {
+	return func(d *Config) {
+		d.dbStorageEngine = engine
+	}
+}
+
+// WithPgDSN applies PosgresSQL specific options to the PG store.
+// It will also create a new database connection.
+func WithPgDSN(dsn string) ConfigOption {
+	return func(d *Config) {
+		d.pgDSN = dsn
+
+		if d.dbStorageEngine != chain.PostgreSQL {
+			// TODO (dlsniper): Would be nice to have a log here. It needs to be injected somehow.
+			return
+		}
+
+		pgConf, err := database.ConfigFromDSN(dsn)
+		if err != nil {
+			panic(err)
+		}
+
+		//nolint:gomnd // We want a reasonable timeout to connect to the database. If it's not done in 5 seconds, then there are bigger problems.
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		d.pgConn, err = database.Open(ctx, pgConf)
+		if err != nil {
+			err := fmt.Errorf("error while attempting to connect to the database: dsn: %s %w", dsn, err)
+			panic(err)
+		}
+	}
+}
+
+// PgDSN returns the PostgreSQL specific DSN configuration.
+func (d *Config) PgDSN() string {
+	return d.pgDSN
 }
 
 // WithConfigFolder sets the base configuration folder to the given string.

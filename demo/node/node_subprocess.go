@@ -17,8 +17,10 @@ import (
 	"github.com/kabukky/httpscerts"
 	json "github.com/nikkolasg/hexjson"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/core"
+	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/key"
 	"github.com/drand/drand/protobuf/drand"
 	"github.com/drand/drand/test"
@@ -51,27 +53,32 @@ type NodeProc struct {
 	binary      string
 	scheme      scheme.Scheme
 	beaconID    string
+
+	dbEngineType chain.StorageType
+	pgDSN        string
 }
 
-func NewNode(i int, period string, base string, tls bool, binary string, sch scheme.Scheme, beaconID string, isCandidate bool) Node {
-	nbase := path.Join(base, fmt.Sprintf("node-%d", i))
+func NewNode(i int, cfg cfg.Config) *NodeProc {
+	nbase := path.Join(cfg.BasePath, fmt.Sprintf("node-%d", i))
 	os.MkdirAll(nbase, 0740)
 	logPath := path.Join(nbase, "log")
 	publicPath := path.Join(nbase, "public.toml")
 	groupPath := path.Join(nbase, "group.toml")
 	os.Remove(logPath)
 	n := &NodeProc{
-		tls:         tls,
-		base:        nbase,
-		i:           i,
-		logPath:     logPath,
-		publicPath:  publicPath,
-		groupPath:   groupPath,
-		period:      period,
-		scheme:      sch,
-		binary:      binary,
-		beaconID:    beaconID,
-		isCandidate: isCandidate,
+		tls:          cfg.WithTLS,
+		base:         nbase,
+		i:            i,
+		logPath:      logPath,
+		publicPath:   publicPath,
+		groupPath:    groupPath,
+		period:       cfg.Period,
+		scheme:       cfg.Schema,
+		binary:       cfg.Binary,
+		beaconID:     cfg.BeaconID,
+		isCandidate:  cfg.IsCandidate,
+		dbEngineType: cfg.DBEngineType,
+		pgDSN:        cfg.PgDSN(),
 	}
 	n.setup()
 	return n
@@ -133,13 +140,20 @@ func (n *NodeProc) setup() {
 	checkErr(err)
 }
 
-func (n *NodeProc) Start(certFolder string) error {
+func (n *NodeProc) Start(certFolder string, dbEngineType chain.StorageType, pgDSN func() string) error {
+	if dbEngineType != "" {
+		n.dbEngineType = dbEngineType
+	}
+	if pgDSN != nil {
+		n.pgDSN = pgDSN()
+	}
+
 	// create log file
 	// logFile, err := os.Create(n.logPath)
 	flags := os.O_RDWR | os.O_APPEND | os.O_CREATE
 	logFile, err := os.OpenFile(n.logPath, flags, 0777)
 	checkErr(err)
-	logFile.Write([]byte("\n\nNEW LOG\n\n"))
+	_, _ = logFile.Write([]byte("\n\nNEW LOG\n\n"))
 
 	var args = []string{"start"}
 	args = append(args, pair("--folder", n.base)...)
@@ -155,6 +169,8 @@ func (n *NodeProc) Start(certFolder string) error {
 	} else {
 		args = append(args, "--tls-disable")
 	}
+	args = append(args, pair("--db", string(n.dbEngineType))...)
+	args = append(args, pair("--pg-dsn", n.pgDSN)...)
 	args = append(args, "--verbose")
 
 	fmt.Printf("starting node %s with cmd: %s \n", n.privAddr, args)
@@ -169,9 +185,10 @@ func (n *NodeProc) Start(certFolder string) error {
 	cmd.Stderr = logFile
 
 	go func() {
-		defer logFile.Close()
-		// TODO make the "stop" command returns a graceful error code when
-		// stopped
+		defer func() {
+			_ = logFile.Close()
+		}()
+		// TODO make the "stop" command returns a graceful error code when stopped
 		cmd.Run()
 	}()
 	return nil
@@ -193,14 +210,14 @@ func (n *NodeProc) Index() int {
 	return n.i
 }
 
-func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAddr string, beaconOffset int) *key.Group {
+func (n *NodeProc) RunDKG(nodes, thr int, timeout time.Duration, leader bool, leaderAddr string, beaconOffset int) (*key.Group, error) {
 	args := []string{"share", "--control", n.ctrl}
 	args = append(args, pair("--out", n.groupPath)...)
 	if leader {
 		args = append(args, "--leader")
 		args = append(args, pair("--nodes", strconv.Itoa(nodes))...)
 		args = append(args, pair("--threshold", strconv.Itoa(thr))...)
-		args = append(args, pair("--timeout", timeout)...)
+		args = append(args, pair("--timeout", timeout.String())...)
 		args = append(args, pair("--period", n.period)...)
 		args = append(args, pair("--scheme", n.scheme.ID)...)
 
@@ -219,9 +236,12 @@ func (n *NodeProc) RunDKG(nodes, thr int, timeout string, leader bool, leaderAdd
 	out := runCommand(cmd)
 	fmt.Println(n.priv.Public.Address(), "FINISHED DKG", string(out))
 	group := new(key.Group)
-	checkErr(key.Load(n.groupPath, group))
+	err := key.Load(n.groupPath, group)
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println(n.priv.Public.Address(), "FINISHED LOADING GROUP")
-	return group
+	return group, nil
 }
 
 func (n *NodeProc) GetGroup() *key.Group {
@@ -293,7 +313,11 @@ func (n *NodeProc) ChainInfo(group string) bool {
 func (n *NodeProc) Ping() bool {
 	cmd := exec.Command(n.binary, "util", "ping", "--control", n.ctrl)
 	out, err := cmd.CombinedOutput()
-	fmt.Printf(" -- ping output : %s - err %s\n", out, err)
+	if err != nil {
+		fmt.Printf(" -- ping output : %s - err %s\n", out, err)
+	} else {
+		fmt.Printf(" -- ping output : %s\n", out)
+	}
 	return err == nil
 }
 
@@ -374,11 +398,13 @@ func runCommand(c *exec.Cmd, add ...string) []byte {
 }
 
 func checkErr(err error, out ...string) {
-	if err != nil {
-		if len(out) > 0 {
-			panic(fmt.Errorf("%s: %v", out[0], err))
-		} else {
-			panic(err)
-		}
+	if err == nil {
+		return
 	}
+
+	if len(out) > 0 {
+		panic(fmt.Errorf("%s: %v", out[0], err))
+	}
+
+	panic(err)
 }

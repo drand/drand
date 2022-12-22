@@ -139,7 +139,11 @@ func BatchNewDrand(t *testing.T, n int, insecure bool, sch scheme.Scheme, beacon
 		assert.NoError(t, s.SaveKeyPair(privs[i]))
 
 		// give each one their own private folder
-		confOptions := []ConfigOption{WithConfigFolder(dirs[i])}
+		confOptions := []ConfigOption{
+			WithConfigFolder(dirs[i]),
+		}
+
+		confOptions = append(confOptions, WithTestDB(t, test.ComputeDBName())...)
 		confOptions = append(confOptions, WithPrivateListenAddress(privs[i].Public.Address()))
 		if !insecure {
 			confOptions = append(confOptions,

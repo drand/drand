@@ -23,6 +23,16 @@ go build && ./demo -build
 
 You can stop the demo by CTRL-C whenever you want.
 
+### Running the demo with PostgreSQL
+
+Drand supports PostgreSQL as a database backend for beacons.
+
+To run with PostgreSQL support, use the following command:
+
+```shell
+go build && ./demo -build -dbtype=postgres
+```
+
 ## Fetching randomness
 
 You can fetch randomness by running the command written out by the demo.

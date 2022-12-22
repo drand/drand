@@ -1,4 +1,4 @@
-package main
+package main_test
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
 )
@@ -33,12 +34,25 @@ func TestLocalOrchestration(t *testing.T) {
 func testLocalOrchestration(t *testing.T) {
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
-	o := lib.NewOrchestrator(3, 2, "4s", true, "", false, sch, beaconID, true)
+	c := cfg.Config{
+		N:            3,
+		Thr:          2,
+		Period:       "4s",
+		WithTLS:      true,
+		Binary:       "",
+		WithCurl:     false,
+		Schema:       sch,
+		BeaconID:     beaconID,
+		IsCandidate:  true,
+		DBEngineType: withTestDB(),
+		PgDSN:        withPgDSN(t),
+	}
+	o := lib.NewOrchestrator(c)
 	defer o.Shutdown()
 	t.Log("[DEBUG]", "[+] StartCurrentNodes")
 	o.StartCurrentNodes()
 
-	o.RunDKG("3")
+	o.RunDKG(3 * time.Second)
 	o.WaitGenesis()
 
 	t.Log("[DEBUG]", "[+] WaitPeriod", 1)

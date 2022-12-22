@@ -22,6 +22,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
@@ -52,7 +53,7 @@ const defaultPort = "8080"
 
 func banner() {
 	version := common.GetAppVersion()
-	fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
+	_, _ = fmt.Fprintf(output, "drand %s (date %v, commit %v)\n", version.String(), buildDate, gitCommit)
 }
 
 var folderFlag = &cli.StringFlag{
@@ -339,18 +340,16 @@ var allBeaconsFlag = &cli.BoolFlag{
 
 var storageTypeFlag = &cli.StringFlag{
 	Name:    "db",
-	Usage:   "Which database engine to use. Supported values: bolt",
+	Usage:   "Which database engine to use. Supported values: bolt or postgres.",
 	Value:   "bolt",
 	EnvVars: []string{"DRAND_DB"},
-	Hidden:  true,
 }
 
 var pgDSNFlag = &cli.StringFlag{
 	Name:    "pg-dsn",
-	Usage:   "PostgresSQL DSN configuration.",
-	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5&search_path=drand_schema",
+	Usage:   "PostgreSQL DSN configuration.",
+	Value:   "postgres://drand:drand@localhost:5432/drand?sslmode=disable&timeout=5&connect_timeout=5",
 	EnvVars: []string{"DRAND_PG_DSN"},
-	Hidden:  true,
 }
 
 var appCommands = []*cli.Command{
@@ -1043,6 +1042,21 @@ func contextToConfig(c *cli.Context) *core.Config {
 		}
 		opts = append(opts, core.WithTrustedCerts(paths...))
 	}
+
+	switch chain.StorageType(c.String(storageTypeFlag.Name)) {
+	case chain.BoltDB:
+		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+	case chain.PostgreSQL:
+		opts = append(opts, core.WithDBStorageEngine(chain.PostgreSQL))
+
+		if c.IsSet(pgDSNFlag.Name) {
+			pgdsn := c.String(pgDSNFlag.Name)
+			opts = append(opts, core.WithPgDSN(pgdsn))
+		}
+	default:
+		opts = append(opts, core.WithDBStorageEngine(chain.BoltDB))
+	}
+
 	conf := core.NewConfig(opts...)
 	return conf
 }

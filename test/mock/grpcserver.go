@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
 	"github.com/drand/drand/common/scheme"
@@ -28,6 +29,16 @@ type MockService interface {
 	EmitRand(bool)
 }
 
+type logger interface {
+	Log(args ...any)
+}
+
+type fmtLogger struct{}
+
+func (fmtLogger) Log(params ...any) {
+	fmt.Println(params...)
+}
+
 // Server fake
 type Server struct {
 	addr string
@@ -36,13 +47,19 @@ type Server struct {
 	stream     drand.Public_PublicRandStreamServer
 	streamDone chan error
 	d          *Data
+	t          logger
 	chainInfo  *drand.ChainInfoPacket
 }
 
-func newMockServer(d *Data) *Server {
+func newMockServer(t logger, d *Data) *Server {
+	if t == nil {
+		t = fmtLogger{}
+	}
+
 	return &Server{
 		EmptyServer: new(testnet.EmptyServer),
 		d:           d,
+		t:           t,
 		chainInfo: &drand.ChainInfoPacket{
 			Period:      uint32(d.Period.Seconds()),
 			GenesisTime: d.Genesis,
@@ -102,7 +119,7 @@ func (s *Server) PublicRandStream(req *drand.PublicRandRequest, stream drand.Pub
 func (s *Server) EmitRand(closeStream bool) {
 	s.l.Lock()
 	if s.stream == nil {
-		fmt.Println("MOCK SERVER: stream nil")
+		s.t.Log("MOCK SERVER: stream nil")
 		s.l.Unlock()
 		return
 	}
@@ -112,27 +129,27 @@ func (s *Server) EmitRand(closeStream bool) {
 
 	if closeStream {
 		close(done)
-		fmt.Println("MOCK SERVER: closing stream upon request")
+		s.t.Log("MOCK SERVER: closing stream upon request")
 		return
 	}
 
 	if err := stream.Context().Err(); err != nil {
 		done <- err
-		fmt.Println("MOCK SERVER: context error ", err)
+		s.t.Log("MOCK SERVER: context error ", err)
 		return
 	}
 	resp, err := s.PublicRand(s.stream.Context(), &drand.PublicRandRequest{})
 	if err != nil {
 		done <- err
-		fmt.Println("MOCK SERVER: public rand err:", err)
+		s.t.Log("MOCK SERVER: public rand err:", err)
 		return
 	}
 	if err = stream.Send(resp); err != nil {
 		done <- err
-		fmt.Println("MOCK SERVER: stream send error:", err)
+		s.t.Log("MOCK SERVER: stream send error:", err)
 		return
 	}
-	fmt.Println("MOCK SERVER: emit round done", resp.Round)
+	s.t.Log("MOCK SERVER: emit round done", resp.Round)
 }
 
 func testValid(d *Data) {
@@ -159,8 +176,6 @@ func testValid(d *Data) {
 	if err := key.Scheme.VerifyRecovered(pubPoint, invMsg, sig); err == nil {
 		panic("should be invalid signature")
 	}
-	//fmt.Println("valid signature")
-	//VerifyRecovered(public kyber.Point, msg, sig []byte) error
 }
 
 func decodeHex(s string) []byte {
@@ -259,14 +274,14 @@ func nextMockData(d *Data) *Data {
 }
 
 // NewMockGRPCPublicServer creates a listener that provides valid single-node randomness.
-func NewMockGRPCPublicServer(bind string, badSecondRound bool, sch scheme.Scheme) (net.Listener, net.Service) {
+func NewMockGRPCPublicServer(t *testing.T, bind string, badSecondRound bool, sch scheme.Scheme) (net.Listener, net.Service) {
 	d := generateMockData(sch)
 	testValid(d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
 
-	server := newMockServer(d)
+	server := newMockServer(t, d)
 	listener, err := net.NewGRPCListenerForPrivate(context.Background(), bind, "", "", server, true)
 	if err != nil {
 		panic(err)
@@ -276,14 +291,14 @@ func NewMockGRPCPublicServer(bind string, badSecondRound bool, sch scheme.Scheme
 }
 
 // NewMockServer creates a server interface not bound to a newtork port
-func NewMockServer(badSecondRound bool, sch scheme.Scheme) net.Service {
+func NewMockServer(t *testing.T, badSecondRound bool, sch scheme.Scheme) net.Service {
 	d := generateMockData(sch)
 	testValid(d)
 
 	d.BadSecondRound = badSecondRound
 	d.Scheme = sch
 
-	server := newMockServer(d)
+	server := newMockServer(t, d)
 	return server
 }
 
@@ -303,9 +318,9 @@ func roundToBytes(r int) []byte {
 }
 
 // NewMockBeacon provides a random beacon and the chain it validates against
-func NewMockBeacon(sch scheme.Scheme) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
+func NewMockBeacon(t *testing.T, sch scheme.Scheme) (*drand.ChainInfoPacket, *drand.PublicRandResponse) {
 	d := generateMockData(sch)
-	s := newMockServer(d)
+	s := newMockServer(t, d)
 	c, _ := s.ChainInfo(context.Background(), nil)
 	r, _ := s.PublicRand(context.Background(), &drand.PublicRandRequest{Round: 1})
 

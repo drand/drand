@@ -234,6 +234,9 @@ func (h *Handler) Transition(prevGroup *key.Group) error {
 
 // TransitionNewGroup prepares the node to transition to the new group
 func (h *Handler) TransitionNewGroup(newShare *key.Share, newGroup *key.Group) {
+	if h == nil {
+		return
+	}
 	targetTime := newGroup.TransitionTime
 	tRound := chain.CurrentRound(targetTime, h.conf.Group.Period, h.conf.Group.GenesisTime)
 	tTime := chain.TimeOfRound(h.conf.Group.Period, h.conf.Group.GenesisTime, tRound)

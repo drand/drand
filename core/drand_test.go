@@ -755,7 +755,7 @@ func TestDrandPublicStream(t *testing.T) {
 		t.Logf("First round rcv %d \n", beacon.GetRound())
 		require.Equal(t, resp.GetRound(), beacon.GetRound())
 
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 		t.Logf("First round NOT rcv. Timeout has passed \n")
 		require.True(t, false, "too late for the first round, it didn't reply in time")
 	}
@@ -764,9 +764,10 @@ func TestDrandPublicStream(t *testing.T) {
 	// we expect the next one now
 	initRound := resp.Round + 1
 	maxRound := initRound + uint64(nTry)
-	t.Logf("Streaming for future rounds starting from %d", initRound)
+	t.Logf("Streaming for future rounds starting from %d until round %d", initRound, maxRound)
 
 	for round := initRound; round < maxRound; round++ {
+		t.Logf("advancing clock for round %d\n", round)
 		// move time to next period
 		dt.AdvanceMockClock(t, group.Period)
 
@@ -915,8 +916,12 @@ func TestDrandFollowChain(t *testing.T) {
 		// cancel the operation
 		cancel()
 
+		// (Postgres) Database operations need to have a proper context to work.
+		// We create a new one, since we canceled the previous one.
+		ctx = context.Background()
+
 		// check if the beacon is in the database
-		store, err := newNode.drand.createBoltStore()
+		store, err := newNode.drand.createDBStore()
 		require.NoError(t, err)
 		defer store.Close(ctx)
 
@@ -999,7 +1004,7 @@ func TestDrandCheckChain(t *testing.T) {
 	dt.StopMockNode(dt.nodes[0].addr, false)
 
 	t.Logf(" \t\t --> Done, proceeding to modify store now.\n")
-	store, err := dt.nodes[0].drand.createBoltStore()
+	store, err := dt.nodes[0].drand.createDBStore()
 	require.NoError(t, err)
 
 	t.Logf(" \t\t --> Opened store. Getting 4th beacon\n")

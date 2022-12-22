@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/drand/drand/chain"
-	"github.com/drand/drand/chain/boltdb"
 	"github.com/drand/drand/common"
 	"github.com/drand/drand/common/scheme"
 	"github.com/drand/drand/key"
@@ -193,10 +192,8 @@ func (b *BeaconTest) CreateNode(t *testing.T, i int) {
 	node.shares = keyShare
 
 	l := test.Logger(t)
-	store, err := boltdb.NewBoltStore(l, b.paths[idx], nil)
-	if err != nil {
-		panic(err)
-	}
+	store, err := createStore(t, l, b, idx)
+	require.NoError(t, err)
 	node.clock = clock.NewFakeClockAt(b.time.Now())
 	conf := &Config{
 		Group:  b.group,

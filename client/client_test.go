@@ -188,8 +188,11 @@ func TestClientWithWatcher(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	w := c.Watch(ctx)
+
 	for i := 0; i < len(results); i++ {
-		r := <-c.Watch(ctx)
+		r := <-w
 		compareResults(t, &results[i], r)
 	}
 	require.NoError(t, c.Close())
@@ -364,6 +367,8 @@ func TestClientAutoWatchRetry(t *testing.T) {
 func compareResults(t *testing.T, expected, actual client.Result) {
 	t.Helper()
 
+	require.NotNil(t, expected)
+	require.NotNil(t, actual)
 	require.Equal(t, expected.Round(), actual.Round())
 	require.Equal(t, expected.Randomness(), actual.Randomness())
 }

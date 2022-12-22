@@ -40,6 +40,18 @@ type Cursor interface {
 	Last(context.Context) (*Beacon, error)
 }
 
+// StorageType defines the supported storage engines
+type StorageType string
+
+// Storage engine types
+const (
+	// BoltDB uses the BoltDB engine for storing data
+	BoltDB StorageType = "bolt"
+
+	// PostgreSQL uses the PostgreSQL database for storing data
+	PostgreSQL StorageType = "postgres"
+)
+
 // RoundToBytes serializes a round number to bytes (8 bytes fixed length big-endian).
 func RoundToBytes(r uint64) []byte {
 	var buff bytes.Buffer

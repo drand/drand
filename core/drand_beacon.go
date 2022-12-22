@@ -11,6 +11,7 @@ import (
 	"github.com/drand/drand/chain"
 	"github.com/drand/drand/chain/beacon"
 	"github.com/drand/drand/chain/boltdb"
+	"github.com/drand/drand/chain/postgresdb/pgdb"
 	commonutils "github.com/drand/drand/common"
 	"github.com/drand/drand/fs"
 	"github.com/drand/drand/key"
@@ -220,11 +221,11 @@ func (bp *BeaconProcess) WaitDKG() (*key.Group, error) {
 
 // StartBeacon initializes the beacon if needed and launch a go
 // routine that runs the generation loop.
-func (bp *BeaconProcess) StartBeacon(catchup bool) {
+func (bp *BeaconProcess) StartBeacon(catchup bool) error {
 	b, err := bp.newBeacon()
 	if err != nil {
 		bp.log.Errorw("", "init_beacon", err)
-		return
+		return err
 	}
 
 	bp.log.Infow("", "beacon_start", bp.opts.clock.Now(), "catchup", catchup)
@@ -232,7 +233,10 @@ func (bp *BeaconProcess) StartBeacon(catchup bool) {
 		go b.Catchup()
 	} else if err := b.Start(); err != nil {
 		bp.log.Errorw("", "beacon_start", err)
+		return err
 	}
+
+	return nil
 }
 
 // transition between an "old" group and a new group. This method is called
@@ -305,13 +309,26 @@ func (bp *BeaconProcess) WaitExit() chan bool {
 	return bp.exitCh
 }
 
-func (bp *BeaconProcess) createBoltStore() (*boltdb.BoltStore, error) {
-	dbName := commonutils.GetCanonicalBeaconID(bp.beaconID)
+func (bp *BeaconProcess) createDBStore() (chain.Store, error) {
+	beaconName := commonutils.GetCanonicalBeaconID(bp.beaconID)
 
-	dbPath := bp.opts.DBFolder(dbName)
-	fs.CreateSecureFolder(dbPath)
+	switch bp.opts.dbStorageEngine {
+	case chain.BoltDB:
+		dbPath := bp.opts.DBFolder(beaconName)
+		fs.CreateSecureFolder(dbPath)
+		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
 
-	return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+	case chain.PostgreSQL:
+		return pgdb.NewStore(context.TODO(), bp.log, bp.opts.pgConn, beaconName)
+
+	default:
+		bp.log.Error("unknown database storage engine type", bp.opts.dbStorageEngine)
+
+		dbPath := bp.opts.DBFolder(beaconName)
+		fs.CreateSecureFolder(dbPath)
+
+		return boltdb.NewBoltStore(bp.log, dbPath, bp.opts.boltOpts)
+	}
 }
 
 func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
@@ -324,16 +341,17 @@ func (bp *BeaconProcess) newBeacon() (*beacon.Handler, error) {
 	if node == nil {
 		return nil, fmt.Errorf("public key %s not found in group", pub)
 	}
+
+	store, err := bp.createDBStore()
+	if err != nil {
+		return nil, err
+	}
+
 	conf := &beacon.Config{
 		Public: node,
 		Group:  bp.group,
 		Share:  bp.share,
 		Clock:  bp.opts.clock,
-	}
-
-	store, err := bp.createBoltStore()
-	if err != nil {
-		return nil, err
 	}
 
 	b, err := beacon.NewHandler(bp.privGateway.ProtocolClient, store, conf, bp.log, bp.version)

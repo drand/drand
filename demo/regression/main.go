@@ -7,8 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 	"text/template"
+	"time"
 
+	"github.com/drand/drand/chain"
 	"github.com/drand/drand/common/scheme"
+	"github.com/drand/drand/demo/cfg"
 	"github.com/drand/drand/demo/lib"
 	"github.com/drand/drand/test"
 )
@@ -25,6 +28,7 @@ import (
 
 var build = flag.String("release", "drand", "path to base build")
 var candidate = flag.String("candidate", "drand", "path to candidate build")
+var dbEngineType = flag.String("db", "bolt", "Which database engine to use. Supported values: bolt or postgres.")
 
 func testStartup(orch *lib.Orchestrator) (err error) {
 	defer func() {
@@ -33,7 +37,7 @@ func testStartup(orch *lib.Orchestrator) (err error) {
 		}
 	}()
 	orch.StartCurrentNodes()
-	orch.RunDKG("4s")
+	orch.RunDKG(4 * time.Second)
 	orch.WaitGenesis()
 	orch.WaitPeriod()
 	orch.CheckCurrentBeacon()
@@ -86,7 +90,25 @@ func main() {
 	period := "10s"
 	sch, beaconID := scheme.GetSchemeFromEnv(), test.GetBeaconIDFromEnv()
 
-	orch := lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+	if chain.StorageType(*dbEngineType) == chain.PostgreSQL {
+		stopContainer := cfg.BootContainer()
+		defer stopContainer()
+	}
+
+	c := cfg.Config{
+		N:            n,
+		Thr:          thr,
+		Period:       period,
+		WithTLS:      true,
+		Binary:       *build,
+		WithCurl:     false,
+		Schema:       sch,
+		BeaconID:     beaconID,
+		IsCandidate:  false,
+		DBEngineType: chain.StorageType(*dbEngineType),
+		PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+	}
+	orch := lib.NewOrchestrator(c)
 	orch.UpdateBinary(*candidate, 2, true)
 
 	orch.UpdateGlobalBinary(*candidate, true)
@@ -108,14 +130,27 @@ func main() {
 		// recover with a fully old-node dkg
 		orch.Shutdown()
 
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+		c := cfg.Config{
+			N:            n,
+			Thr:          thr,
+			Period:       period,
+			WithTLS:      true,
+			Binary:       *build,
+			WithCurl:     false,
+			Schema:       sch,
+			BeaconID:     beaconID,
+			IsCandidate:  false,
+			DBEngineType: chain.StorageType(*dbEngineType),
+			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+		}
+		orch = lib.NewOrchestrator(c)
 
 		orch.UpdateGlobalBinary(*candidate, true)
 		orch.SetupNewNodes(1)
 
 		defer orch.Shutdown()
 		orch.StartCurrentNodes()
-		orch.RunDKG("4s")
+		orch.RunDKG(4 * time.Second)
 		orch.WaitGenesis()
 	}
 
@@ -125,14 +160,27 @@ func main() {
 		// recover back to a fully old-node dkg
 		orch.Shutdown()
 
-		orch = lib.NewOrchestrator(n, thr, period, true, *build, false, sch, beaconID, false)
+		c := cfg.Config{
+			N:            n,
+			Thr:          thr,
+			Period:       period,
+			WithTLS:      true,
+			Binary:       *build,
+			WithCurl:     false,
+			Schema:       sch,
+			BeaconID:     beaconID,
+			IsCandidate:  false,
+			DBEngineType: chain.StorageType(*dbEngineType),
+			PgDSN:        cfg.ComputePgDSN(chain.StorageType(*dbEngineType)),
+		}
+		orch = lib.NewOrchestrator(c)
 
 		orch.UpdateGlobalBinary(*candidate, true)
 		orch.SetupNewNodes(1)
 
 		defer orch.Shutdown()
 		orch.StartCurrentNodes()
-		orch.RunDKG("4s")
+		orch.RunDKG(4 * time.Second)
 		orch.WaitGenesis()
 	}
 
@@ -142,10 +190,10 @@ func main() {
 
 	if startupErr != nil || reshareErr != nil || upgradeErr != nil {
 		t := template.Must(template.New("report").Parse(reportTemplate))
-		type Errs struct {
+		type errors struct {
 			Startup, Reshare, Upgrade error
 		}
-		errs := Errs{
+		errs := errors{
 			startupErr, reshareErr, upgradeErr,
 		}
 		f, err := os.OpenFile("report.md", os.O_CREATE|os.O_RDWR, 0777)
@@ -153,8 +201,10 @@ func main() {
 			fmt.Printf("Errors detected. Unable to write report!\n %v\n", errs)
 			os.Exit(2)
 		}
+		defer func() {
+			_ = f.Close()
+		}()
 		t.Execute(f, errs)
-		f.Close()
 		os.Exit(1)
 	}
 	os.Exit(0)

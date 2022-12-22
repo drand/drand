@@ -52,8 +52,7 @@ func (bp *BeaconProcess) InitDKG(c context.Context, in *drand.InitDKGPacket) (*d
 
 	if !isLeader {
 		// different logic for leader than the rest
-		out, err := bp.setupAutomaticDKG(c, in)
-		return out, err
+		return bp.setupAutomaticDKG(c, in)
 	}
 
 	metrics.GroupSize.WithLabelValues(bp.getBeaconID()).Set(float64(in.Info.Nodes))
@@ -428,6 +427,12 @@ func (bp *BeaconProcess) runDKG(leader bool, group *key.Group, timeout uint32, r
 		"starting_beacon_time", finalGroup.GenesisTime, "now", bp.opts.clock.Now().Unix())
 
 	// beacon will start at the genesis time specified
+	// TODO (dlsniper): Old code launched StartBeacon in a goroutine.
+	//  However, this hides all errors, which in turns means we won't know if we started the beacon
+	//  correctly or not.
+	//  Is there a better way to handle this?
+
+	//nolint:errcheck // This should be handled, see the above comment
 	go bp.StartBeacon(false)
 
 	return finalGroup, nil
@@ -1171,7 +1176,7 @@ func (bp *BeaconProcess) StartFollowChain(req *drand.StartSyncRequest, stream dr
 		return errors.New("invalid beacon id on chain info")
 	}
 
-	store, err := bp.createBoltStore()
+	store, err := bp.createDBStore()
 	if err != nil {
 		bp.log.Errorw("", "start_follow_chain", "unable to create store", "err", err)
 		return fmt.Errorf("unable to create store: %w", err)
