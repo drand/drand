@@ -8,7 +8,7 @@ import (
 
 	"github.com/drand/drand/chain/postgresdb/database"
 
-	"github.com/ardanlabs/darwin"
+	"github.com/ardanlabs/darwin/v2"
 	"github.com/jmoiron/sqlx"
 )
 
