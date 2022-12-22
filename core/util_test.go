@@ -252,7 +252,7 @@ func (d *DrandTestScenario) Ids(n int, newGroup bool) []string {
 func (d *DrandTestScenario) waitFor(
 	t *testing.T,
 	client *net.ControlClient,
-	maxRetries int, // nolint
+	maxRetries int, //nolint
 	waitFor func(r *drand.StatusResponse) bool,
 ) bool {
 	retry := 0
