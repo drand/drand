@@ -51,7 +51,9 @@ test-unit-postgres:
 
 test-unit-cover:
 	go test -short -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
-	go test -short -tags integration -v -coverprofile=coverage.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
+
+test-unit-postgres-cover:
+	go test -short -tags integration -v -coverprofile=coverage-postgres.txt -covermode=count -coverpkg=all $(go list ./... | grep -v /demo/)
 
 test-integration:
 	go test -v ./demo
@@ -64,7 +66,11 @@ test-integration-postgres:
 
 coverage:
 	go get -v -t -d ./...
-	go test -race -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+	go test -race -v -covermode=atomic -coverpkg ./... -coverprofile=coverage.txt ./...
+
+coverage-postgres:
+	go get -v -t -d ./...
+	go test -race -v -tags=postgres -covermode=atomic -coverpkg ./... -coverprofile=coverage-postgres.txt ./...
 
 demo:
 	cd demo && go build && ./demo -build
